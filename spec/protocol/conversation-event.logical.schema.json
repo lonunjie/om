@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openmessaging.example/schema/conversation-event-v0.json",
+  "title": "OM ConversationEvent logical draft",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "event_id",
+    "conversation_id",
+    "author_account_id",
+    "author_device_id",
+    "clock",
+    "kind",
+    "kind_version",
+    "body"
+  ],
+  "properties": {
+    "protocol_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "event_id": {
+      "type": "string",
+      "description": "Opaque 128-bit random ID; final encoding TBD"
+    },
+    "conversation_id": {
+      "type": "string"
+    },
+    "author_account_id": {
+      "type": "string"
+    },
+    "author_device_id": {
+      "type": "string"
+    },
+    "clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "physical_ms",
+        "logical",
+        "device_tiebreak"
+      ],
+      "properties": {
+        "physical_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "logical": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "device_tiebreak": {
+          "type": "string"
+        }
+      }
+    },
+    "kind": {
+      "enum": [
+        "message.create",
+        "message.edit",
+        "message.delete",
+        "reaction.set",
+        "receipt.update"
+      ]
+    },
+    "kind_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "required_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "default": []
+    },
+    "body": {
+      "type": "object"
+    },
+    "expiry": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    }
+  }
+}

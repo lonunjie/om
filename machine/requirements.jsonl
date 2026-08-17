@@ -1,0 +1,10 @@
+{"id": "R-001", "priority": "must", "requirement": "Changing relay/storage/directory/alias must not change AccountID."}
+{"id": "R-002", "priority": "must", "requirement": "Recycled phone numbers must never inherit prior cryptographic identity."}
+{"id": "R-003", "priority": "must", "requirement": "Unknown-sender rejection must be enforceable without trusting sender UI."}
+{"id": "R-004", "priority": "must", "requirement": "Third-party clients must interoperate from public specs/test vectors."}
+{"id": "R-005", "priority": "must", "requirement": "PWA protocol implementation must not create browser-only wire assumptions."}
+{"id": "R-006", "priority": "must", "requirement": "Two clients receiving the same authenticated events in different orders converge semantically."}
+{"id": "R-007", "priority": "must", "requirement": "Attachments are encrypted client-side before provider upload."}
+{"id": "R-008", "priority": "must", "requirement": "No silent downgrade when a bridge/transport exposes plaintext outside OM-native E2EE."}
+{"id": "R-009", "priority": "should", "requirement": "Reference stack runs locally with a small number of boring processes/containers."}
+{"id": "R-010", "priority": "should", "requirement": "Normal users never need to understand keys, relays, federation, object stores, or storage topology."}

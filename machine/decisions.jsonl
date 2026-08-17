@@ -1,0 +1,18 @@
+{"id": "D-001", "status": "accepted", "decision": "OM umbrella name remains OpenMessenger / OwnMessenger / OurMessenger (OM)."}
+{"id": "D-002", "status": "accepted", "decision": "No infrastructure provider is part of the protocol; providers are plugins."}
+{"id": "D-003", "status": "accepted", "decision": "Normal identity is passwordless-by-default and device-first."}
+{"id": "D-004", "status": "accepted", "decision": "Phone numbers, usernames, emails and domains are aliases/claims, not root identity."}
+{"id": "D-005", "status": "accepted", "decision": "PersonRecord is local/private human contact state; no global authority merges humans."}
+{"id": "D-006", "status": "accepted", "decision": "Unknown senders use constrained MessageRequests/IntroductionEndpoints."}
+{"id": "D-007", "status": "accepted", "decision": "No global trust score or transitive Web of Trust."}
+{"id": "D-008", "status": "accepted", "decision": "Businesses use OrganizationIdentity + stable ServiceIdentity + scoped bot/human AgentAuthorization."}
+{"id": "D-009", "status": "accepted", "decision": "Private groups use AccountID membership and DeviceIdentity cryptographic membership; design around MLS."}
+{"id": "D-010", "status": "accepted", "decision": "Hot/cold/recovery storage classes are separate and can use different providers."}
+{"id": "D-011", "status": "accepted", "decision": "StoragePool supports provider selection and mirroring; erasure coding deferred."}
+{"id": "D-012", "status": "accepted", "decision": "Official app is a reference client; third-party clients/UIs use public protocol and conformance."}
+{"id": "D-013", "status": "accepted", "decision": "PWA is first execution path; web-first is not web-only."}
+{"id": "D-014", "status": "accepted", "decision": "Canonical conversation semantics use a small immutable event model with materialized views."}
+{"id": "D-015", "status": "accepted", "decision": "Authoritative identity/group control state is separate from chat content events."}
+{"id": "D-016", "status": "accepted", "decision": "Baseline durable events are message.create/edit/delete, reaction.set, receipt.update."}
+{"id": "D-017", "status": "accepted", "decision": "Baseline durable event size ceiling is 64 KiB; media is out-of-band encrypted blob storage."}
+{"id": "D-018", "status": "accepted", "decision": "Use client-generated random EventIDs and Hybrid Logical Clock ordering; no central sequencer."}

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM ProviderCapabilities logical draft",
+  "type": "object",
+  "required": [
+    "provider_id",
+    "capabilities"
+  ],
+  "properties": {
+    "provider_id": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "relay": {
+          "type": "boolean"
+        },
+        "introduction": {
+          "type": "boolean"
+        },
+        "blob_store": {
+          "type": "boolean"
+        },
+        "backup": {
+          "type": "boolean"
+        },
+        "recovery_store": {
+          "type": "boolean"
+        },
+        "group_broadcast": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "limits": {
+      "type": "object"
+    },
+    "metadata_exposure": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

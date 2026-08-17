@@ -1,0 +1,10 @@
+{"id": "Q-001", "gate": "C", "question": "Which reviewed 1:1 secure messaging protocol/library and cipher suites will OM use?"}
+{"id": "Q-002", "gate": "C", "question": "Which MLS implementation/library and KeyPackage policy best fits Rust/WASM/Android/iOS and licensing requirements?"}
+{"id": "Q-003", "gate": "A/C", "question": "Exact recovery cryptographic construction and threshold-guardian design."}
+{"id": "Q-004", "gate": "A", "question": "Which reviewed directory/key transparency mechanism will prevent equivocation?"}
+{"id": "Q-005", "gate": "B", "question": "Finalize deterministic CBOR/CDDL encoding and diagnostic JSON mapping."}
+{"id": "Q-006", "gate": "D", "question": "Exact relay wire protocol, queue capability rotation, acknowledgement and expiry semantics."}
+{"id": "Q-007", "gate": "E", "question": "Account-private multi-device sync and history transfer protocol."}
+{"id": "Q-008", "gate": "F", "question": "Blob locator/manifest format, retention defaults, backup snapshots and restore manifests."}
+{"id": "Q-009", "gate": "G", "question": "Abuse controls that remain privacy-preserving under open relay operation."}
+{"id": "Q-010", "gate": "J", "question": "Capability/extension registry and conformance governance."}
