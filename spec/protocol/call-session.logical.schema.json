@@ -1,0 +1,38 @@
+{
+  "$comment": "Logical schema; signaling is encrypted inside OM control channel.",
+  "CallSession": {
+    "call_session_id": "random opaque identifier",
+    "kind": [
+      "voice",
+      "video",
+      "screen-share",
+      "mixed"
+    ],
+    "participants": "authenticated AccountID/DeviceIdentity references inside E2EE context",
+    "media_e2ee": "SFrame profile",
+    "route_policy": [
+      "automatic",
+      "strict_privacy",
+      "direct_allowed",
+      "relay_required"
+    ],
+    "topology": [
+      "lan_direct",
+      "p2p",
+      "turn",
+      "mesh",
+      "sfu"
+    ],
+    "key_epoch": "monotonic within call/group context"
+  },
+  "EphemeralControlKinds": [
+    "call.offer",
+    "call.answer",
+    "call.reject",
+    "call.end",
+    "call.ice_update",
+    "call.media_update",
+    "call.participant_update",
+    "call.key_epoch"
+  ]
+}

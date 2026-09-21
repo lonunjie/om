@@ -446,3 +446,10 @@ Two independent clients given the same authenticated events/control records in d
 5. capability negotiation;
 6. adapter provenance structure;
 7. materialized-view conformance fixtures.
+
+
+## 2026-09-21 addendum — calls and future carrier adapters
+
+Call negotiation/media state is ephemeral control state and is not added to the baseline durable conversation event vocabulary. A local call-history UI may materialize a separate local record.
+
+SMS/MMS/RCS remain transport provenance/adapters added later; they do not change canonical OM-native event identity or semantics.

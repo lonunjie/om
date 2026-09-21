@@ -1,0 +1,26 @@
+{
+  "$comment": "Logical schema only; canonical wire encoding TBD.",
+  "CryptoProfile": {
+    "profile_id": "opaque versioned identifier",
+    "generation": "monotonic security generation integer",
+    "status": [
+      "experimental",
+      "allowed",
+      "preferred",
+      "deprecated",
+      "forbidden"
+    ],
+    "identity_auth": "named reviewed construction/profile",
+    "async_handshake": "named reviewed construction/profile",
+    "one_to_one_ratchet": "named reviewed construction/profile",
+    "group_suite": "MLS ciphersuite/profile reference",
+    "media_keying": "SFrame keying profile reference",
+    "aead": "profile-defined",
+    "hash_kdf": "profile-defined"
+  },
+  "NegotiationRules": [
+    "select strongest mutually allowed profile according to authenticated policy",
+    "bind selected profile into handshake/transcript",
+    "reject below stored downgrade floor absent explicit authenticated migration rule"
+  ]
+}

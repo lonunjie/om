@@ -280,3 +280,16 @@ A v1 implementation may omit server-computed mutual counts entirely rather than 
 ## Gate-A exit criterion
 
 Independent implementations can create/verify accounts, add/revoke devices, migrate aliases/directories/providers, recognize recycled aliases, validate recovery/continuity, and preserve relationships using only public specifications and test vectors.
+
+
+## 2026-09-21 canonical addendum — algorithm agility and routing privacy
+
+The following supersedes any implication that AccountID is permanently defined by one hash/public-key algorithm:
+
+- AccountID is a stable provider- and algorithm-independent account-lineage identifier.
+- Account/device credentials evolve through authenticated epochs and can migrate to new algorithms/CryptoProfiles.
+- AccountID is never used as a relay queue or media routing address.
+- Accepted relationships use private opaque delivery capabilities.
+- CryptoProfile migration should be invisible to ordinary users and must advance downgrade protections.
+
+See `CRYPTOGRAPHY_AND_AGILITY.md` and `RELAY_AND_DELIVERY_ARCHITECTURE.md`.

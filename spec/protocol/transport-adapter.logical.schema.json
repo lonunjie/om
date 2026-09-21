@@ -1,0 +1,18 @@
+{
+  "$comment": "Logical transport interface; OM-native first, carrier adapters later.",
+  "TransportCapabilities": {
+    "transport_id": "versioned adapter identifier",
+    "e2ee_level": "structured security property",
+    "max_text_size": "integer/unknown",
+    "attachments": "capability descriptor",
+    "edit": "bool/semantics",
+    "delete": "bool/semantics",
+    "reactions": "bool/semantics",
+    "receipts": "bool/semantics",
+    "typing": "bool/semantics",
+    "groups": "capability descriptor",
+    "identity_binding": "description/reference",
+    "metadata_exposure": "declared properties"
+  },
+  "Rule": "Canonical conversation semantics do not depend on provider-specific transport IDs."
+}

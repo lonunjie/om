@@ -16,3 +16,17 @@
 {"id": "D-016", "status": "accepted", "decision": "Baseline durable events are message.create/edit/delete, reaction.set, receipt.update."}
 {"id": "D-017", "status": "accepted", "decision": "Baseline durable event size ceiling is 64 KiB; media is out-of-band encrypted blob storage."}
 {"id": "D-018", "status": "accepted", "decision": "Use client-generated random EventIDs and Hybrid Logical Clock ordering; no central sequencer."}
+{"id": "D-019", "status": "accepted", "decision": "Authority must be scoped, replaceable, and non-composable; OM requires no universal central authority."}
+{"id": "D-020", "status": "accepted", "decision": "AccountID is algorithm-independent and must not be used as a relay/media routing address."}
+{"id": "D-021", "status": "accepted", "decision": "Wire cryptography negotiates approved versioned CryptoProfiles, not arbitrary primitive combinations."}
+{"id": "D-022", "status": "accepted", "decision": "Crypto upgrades are automatic/invisible for ordinary users and advance authenticated downgrade floors."}
+{"id": "D-023", "status": "accepted", "decision": "OM prefers PQ-first/hybrid-secure profiles where mature; draft-dependent suites remain replaceable."}
+{"id": "D-024", "status": "accepted", "decision": "Accepted relationships use private rotatable opaque delivery capabilities; relays need not know stable AccountIDs."}
+{"id": "D-025", "status": "accepted", "decision": "Voice/video media uses route-independent SFrame E2EE; signaling is encrypted OM control traffic."}
+{"id": "D-026", "status": "accepted", "decision": "Call RoutePolicy prefers safe LAN/direct P2P when policy permits, then TURN fallback; SFU is used for scalable groups."}
+{"id": "D-027", "status": "accepted", "decision": "Cloudflare is an optional reference relay/blob/media deployment, never a protocol dependency."}
+{"id": "D-028", "status": "accepted", "decision": "R2 is one possible encrypted BlobStore; delivery queues and archives remain separate storage classes."}
+{"id": "D-029", "status": "accepted", "decision": "SMS/MMS/RCS are deferred from initial implementation but preserved as future TransportAdapters."}
+{"id": "D-030", "status": "accepted", "decision": "Provider routing is budget/quota-aware; a zero-paid-budget policy must be enforceable."}
+{"id": "D-031", "status": "accepted_direction", "decision": "OM is local-first and should support privacy-preserving LAN direct messaging/files/calls where feasible."}
+{"id": "D-032", "status": "accepted", "decision": "Abuse controls use first-contact/recipient/group/provider/reporting boundaries without universal content surveillance or mandatory global trust score."}

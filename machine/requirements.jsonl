@@ -8,3 +8,13 @@
 {"id": "R-008", "priority": "must", "requirement": "No silent downgrade when a bridge/transport exposes plaintext outside OM-native E2EE."}
 {"id": "R-009", "priority": "should", "requirement": "Reference stack runs locally with a small number of boring processes/containers."}
 {"id": "R-010", "priority": "should", "requirement": "Normal users never need to understand keys, relays, federation, object stores, or storage topology."}
+{"id": "R-011", "priority": "must", "requirement": "CryptoProfile migration must normally require no user action and must not change AccountID."}
+{"id": "R-012", "priority": "must", "requirement": "A relay or media provider must not require stable AccountID as a routing identifier."}
+{"id": "R-013", "priority": "must", "requirement": "An active attacker/provider cannot silently negotiate below a previously established security floor."}
+{"id": "R-014", "priority": "must", "requirement": "Changing call path among P2P/TURN/SFU must not change OM-level media confidentiality."}
+{"id": "R-015", "priority": "must", "requirement": "Strict call privacy policy must not expose direct peer IP candidates contrary to policy."}
+{"id": "R-016", "priority": "must", "requirement": "Zero-paid-budget provider policy must prevent avoidable billable usage rather than merely alert after the fact."}
+{"id": "R-017", "priority": "should", "requirement": "Established peers on the same LAN should be able to use direct media and future local messaging/file transfer without cloud media transit."}
+{"id": "R-018", "priority": "must", "requirement": "SMS/MMS/RCS integration must not be required for the first OM-native release or force canonical event redesign."}
+{"id": "R-019", "priority": "must", "requirement": "Report flows disclose only user-selected evidence and cannot require ambient server plaintext access."}
+{"id": "R-020", "priority": "must", "requirement": "Provider failure/migration must preserve identity and canonical conversation meaning."}

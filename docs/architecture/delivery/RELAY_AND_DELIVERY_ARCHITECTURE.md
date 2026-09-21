@@ -1,0 +1,124 @@
+# Relay and Delivery Architecture
+
+## Design target
+
+Reliable asynchronous delivery without turning the relay into an identity provider, conversation owner, or plaintext endpoint.
+
+## AccountID is not a network address
+
+A stable AccountID is valuable for continuity and authorization. It is dangerous as a universal routing handle. Relays therefore route using random opaque capabilities.
+
+After Alice and Bob accept a relationship:
+
+```text
+Alice AccountID <---- private relationship ----> Bob AccountID
+
+Alice -> Bob:
+  random capability q1...
+  one or more receiving relays
+
+Bob -> Alice:
+  unrelated random capability q2...
+  one or more receiving relays
+```
+
+A relay should not require knowledge that q1 belongs to Bob, that q2 belongs to Alice, or that q1/q2 form a pair.
+
+## Capability properties
+
+Delivery capabilities should be:
+
+- high-entropy and unguessable;
+- scoped to a relationship/device/queue purpose;
+- independently rotatable;
+- revocable;
+- optionally short-lived or epoch-derived where practical;
+- unlinkable across providers where possible;
+- distinct from AccountID, username, phone number, device display name, or group ID.
+
+## Queue model
+
+A relay provides approximately:
+
+```text
+create_queue(capability policy) -> opaque queue descriptor
+put(queue_cap, ciphertext envelope)
+fetch/stream(read_cap)
+ack/delete(message token)
+rotate(queue)
+revoke(queue)
+```
+
+Exact wire methods may differ, but semantics are intentionally small.
+
+## Envelope rules
+
+- Relay sees ciphertext plus only metadata necessary to route/expire/rate-limit.
+- Envelope size has a strict bound; large data uses encrypted BlobStore objects.
+- Event identity is not assigned by relay.
+- Relay order is not canonical conversation order.
+- Delivery is idempotent; duplicate envelopes are safe.
+- Acknowledgement/deletion is explicit and retry-safe.
+- Offline retention is bounded.
+
+## Group fanout correlation
+
+When one MLS application ciphertext is delivered to multiple recipient devices/providers, wrap it in a fresh randomized transport envelope per destination. Do not place byte-identical outer ciphertext on multiple relays if avoidable; this reduces trivial cross-relay correlation.
+
+## Multi-relay
+
+A user may publish multiple private receiving capabilities on different providers. Senders can use redundancy according to policy:
+
+- primary + fallback;
+- mirrored delivery for reliability;
+- rotating providers;
+- different providers for different relationships.
+
+Provider diversity should prefer different failure/coercion domains where practical, not merely different hostnames on the same underlying cloud.
+
+## Introduction endpoint
+
+Unknown senders do not receive normal private delivery capabilities. They use a constrained `IntroductionEndpoint` with cheap server-side validation, tight quotas, minimal payload sizes, and no expensive unsolicited features.
+
+Acceptance creates a private `RelationshipBinding` and new delivery capabilities.
+
+## Abuse enforcement
+
+Because modified open-source clients can remove UI rate limits, a relay/recipient boundary enforces:
+
+- capability validity;
+- envelope size;
+- per-capability rates;
+- introduction quotas;
+- storage/expiry limits;
+- optional proof-of-work/token/billing mechanisms if later required;
+- local blocking/denial lists without a mandatory global identity score.
+
+## Cloudflare reference implementation
+
+Workers + SQLite-backed Durable Objects can implement a convenient relay backend:
+
+- Worker/API ingress;
+- Durable Object per queue/shard/recipient-capability strategy;
+- WebSocket hibernation for connected clients;
+- SQLite for bounded offline envelopes;
+- push trigger after durable enqueue where needed.
+
+This is an implementation profile, not protocol truth. A VPS relay, community server, home node, or other serverless platform implements the same relay semantics.
+
+## Operational budget behavior
+
+Provider adapters expose quotas/cost state. Free-tier Durable Object limits fail further operations after limits are exceeded, so an OM reference deployment must track usage and fail over before hard failure. Paid-capable providers may instead bill overages; budget policy must be explicit.
+
+## Required conformance tests
+
+- relay A and relay B interoperate with same client;
+- relationship survives relay migration;
+- queue rotation does not change AccountID/contact;
+- duplicate put/fetch/ack behavior;
+- offline expiration;
+- revoked capability rejection;
+- hostile sender cannot bypass IntroductionEndpoint limits;
+- relay cannot force crypto downgrade;
+- relay loss does not destroy canonical conversation history;
+- randomized wrappers differ for identical inner group ciphertext.

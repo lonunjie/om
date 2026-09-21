@@ -398,3 +398,13 @@ This group is now bridged to Example Network.
 ## Exit criterion
 
 Independent clients can create a group, add/remove accounts and devices, exchange encrypted events while offline/reordered, rotate epochs, revoke compromised devices, move participants across relay providers, and converge on the same human-visible roster/state using public specs and vectors.
+
+
+## 2026-09-21 canonical addendum — PQ agility and media
+
+- MLS remains the selected group architecture.
+- Exact ciphersuite is selected through OM CryptoProfiles; current PQ/hybrid MLS suites are still evolving and must remain replaceable.
+- Do not permanently encode transient Internet-Draft identifiers as irreversible OM semantics.
+- Group profile migration/reinitialization must be authenticated and downgrade-safe.
+- Per-recipient relay delivery should use fresh randomized outer transport wrappers around group application ciphertext to reduce cross-relay correlation.
+- Group voice/video uses SFrame media E2EE with participant/key state authenticated from the OM/MLS group context; an SFU is routing infrastructure, not a plaintext endpoint.

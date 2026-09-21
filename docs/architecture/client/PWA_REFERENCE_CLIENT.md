@@ -244,3 +244,8 @@ A developer should be able to run the reference stack locally with a small numbe
 ## Success criterion
 
 The PWA succeeds when it proves that OM's protocol contracts are coherent and replaceable, not when it has every feature of a mature messenger.
+
+
+## 2026-09-21 scope update
+
+The PWA remains useful as a protocol/conformance reference client, but the first consumer product milestone is OM-native secure messaging rather than proving carrier SMS replacement. Calls may be implemented before SMS/RCS once core messaging/groups/sync are stable.

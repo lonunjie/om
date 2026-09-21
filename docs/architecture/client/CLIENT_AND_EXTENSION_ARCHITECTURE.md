@@ -241,3 +241,10 @@ It does **not** prove:
 ## Architecture rule
 
 > The official OM application is a reference implementation of an open system, not the definition of the system.
+
+
+## 2026-09-21 canonical addendum — invisible complexity and new provider boundaries
+
+Add `MediaProvider`, `RoutePolicy`, and `CryptoProfileRegistry` to the core capability boundaries.
+
+Normal UI must not expose cipher selection, TURN/SFU selection, provider quota arithmetic, or routine crypto migration. Advanced infrastructure controls are optional policy settings. SMS/MMS/RCS remain future TransportAdapters and are not first-release blockers.
