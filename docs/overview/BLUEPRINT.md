@@ -36,9 +36,13 @@ Aliases are signed/verified claims with provenance. No global username registry 
 
 ## 5. Discovery and acceptance
 
-Users can discover each other by QR/invite, directory alias, phone/email claim (optional), domain/service identity, or other future resolver. Discovery does not grant unrestricted write/call access.
+OM uses a **Discovery Fabric**, not a mandatory global registry. A client-side Resolver can consume a directory alias, domain-scoped alias, QR/`om:` invite, contact card, NFC handoff, or privacy-preserving LAN rendezvous. Every mechanism yields a validated `ContactDescriptor`.
 
-Unknown senders use constrained MessageRequests. Accepted peers obtain private relationship capabilities.
+Useful DNS ideas are adopted—delegation, resolver/authority separation, caching with authenticated expiry, multiple endpoints, and local discovery—without requiring a single OM root namespace. Bare usernames are convenience aliases with retained namespace provenance.
+
+Public directory records expose an `IntroductionServiceDescriptor`, not a reusable private mailbox capability. A sender obtains a short-lived/single-use `IntroductionTicket` from the recipient's IntroGate and submits a constrained MessageRequest. Accepted peers then exchange private rotatable relationship capabilities and a private multi-provider `RelaySet`; discovery infrastructure is no longer required for normal conversation.
+
+Invites are revocable independently of accepted relationships. Optional oblivious lookup can split the client IP from the queried alias using independently operated discovery relay/resolver roles.
 
 ## 6. Crypto
 
@@ -75,6 +79,8 @@ Transport/provider identifiers do not define semantic event identity.
 ## 10. Relay
 
 Relays route opaque queue/capability identifiers, never AccountID. Capabilities are random, scoped, rotatable, and revocable. Relays store bounded ciphertext for offline delivery and delete after acknowledged delivery/expiry.
+
+Multiple simultaneous relays are first-class. Accepted relationships exchange a signed/private `RelaySet` whose entries preferably span independent providers/failure domains. Each relay gets a different capability. Normal delivery selects one healthy route, automatic failover uses another, and optional high-reliability delivery may send independently randomized wrappers through two relays and deduplicate by authenticated `EventID`.
 
 Groups fan out fresh randomized transport wrappers to destination capabilities to reduce cross-relay correlation.
 
@@ -139,6 +145,10 @@ archive/backup -> StoragePool
 
 Provider adapters expose quota/cost behavior. “Zero paid budget” is a real routing constraint, not just a notification.
 
+## 18A. Network and censorship resilience
+
+OM aims to have no single censorship switch, not to claim impossible uncensorability. Encrypted OM semantics sit above pluggable network transports and provider sets. Directory, introduction, relay, media, blob and network-transport providers can vary independently. LAN/direct operation, alternate relays/providers, and future proxy/pluggable-transport adapters can preserve reachability in some blocking environments without changing identity or conversation semantics.
+
 ## 19. Governance
 
 Public protocol, conformance tests, test vectors, reproducible/release-transparent builds where practical, independent clients, and replaceable registries reduce the chance that OM's original maintainers become the universal controller.
@@ -148,8 +158,8 @@ Public protocol, conformance tests, test vectors, reproducible/release-transpare
 First useful OM should prove:
 
 - AccountID/device creation/link/revoke;
-- QR/invite discovery and MessageRequests;
-- 1:1 E2EE OM-native delivery through replaceable relays;
+- QR/`om:` invite -> ContactDescriptor -> revocable IntroGate/MessageRequest;
+- 1:1 E2EE OM-native delivery through replaceable multi-relay RelaySets/failover;
 - canonical event convergence;
 - encrypted attachments through replaceable BlobStore;
 - basic multi-device sync;

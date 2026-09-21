@@ -78,3 +78,13 @@ Where possible, recommend diversity across provider/failure domains. For example
 - direct P2P calls when possible.
 
 This is more meaningful than “three relays” that all run in one cloud account.
+
+## Discovery and introduction roles
+
+Cloudflare can also host optional OM discovery/first-contact components—for example a DirectoryProvider endpoint, `/.well-known/om` static/delegation resource, or IntroGate—but none is protocol-mandatory. A user may use a Cloudflare relay while using a different directory and IntroGate, or vice versa.
+
+Public directory records should lead to an IntroductionService, not publish a permanent message mailbox capability. Cloudflare-native DDoS/rate-limit features may protect that service operationally while OM-level IntroductionTickets and capability semantics remain provider-independent.
+
+## Multi-relay deployment
+
+A Cloudflare relay should be treated as one entry in a possible private `RelaySet`. Reliability/privacy-sensitive users or communities should prefer a second relay in an independent failure domain rather than two endpoints that ultimately share the same provider.

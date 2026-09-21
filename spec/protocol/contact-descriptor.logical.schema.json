@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM ContactDescriptor logical schema",
+  "type": "object",
+  "required": [
+    "descriptor_id",
+    "protocol_versions",
+    "introduction_services",
+    "expires_at",
+    "provenance"
+  ],
+  "properties": {
+    "descriptor_id": {
+      "type": "string"
+    },
+    "subject_hint": {
+      "type": "string"
+    },
+    "alias": {
+      "type": "string"
+    },
+    "alias_scope": {
+      "type": "string"
+    },
+    "protocol_versions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "introduction_services": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "minItems": 1
+    },
+    "relay_hints": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "verification_claims": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "crypto_profiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "not_before": {
+      "type": "string"
+    },
+    "expires_at": {
+      "type": "string"
+    },
+    "provenance": {
+      "type": "object"
+    },
+    "authentication": {
+      "type": "object"
+    },
+    "transparency_proof": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

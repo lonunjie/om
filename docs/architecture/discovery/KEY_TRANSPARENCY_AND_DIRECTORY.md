@@ -39,3 +39,7 @@ OM permits multiple directories or direct invites. A user may have multiple alia
 ## Open question
 
 Select a reviewed key-transparency protocol/implementation appropriate to OM AccountState/device updates and privacy constraints. Do not invent a bespoke Merkle-log protocol without expert review.
+
+## Discovery privacy and resolver separation
+
+Directory search and identity transparency are separate functions. A DirectoryProvider may return signed ContactDescriptors while an independent transparency/witness layer detects equivocation. OM SHOULD support an optional OHTTP/ODoH-inspired split lookup mode: a DiscoveryRelay sees the client connection but not the alias query; a DirectoryResolver sees the query but not the client's transport address. This minimizes metadata without making either party an identity root.

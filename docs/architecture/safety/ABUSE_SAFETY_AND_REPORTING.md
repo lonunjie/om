@@ -67,3 +67,9 @@ Any future safety features for minors should avoid universal scanning backdoors.
 - resource exhaustion is bounded before expensive work;
 - provider ban does not mutate AccountID;
 - no global trust score is required for ordinary delivery.
+
+## IntroGate before MessageRequest
+
+The public discovery plane now terminates at an IntroGate. A public handle does not expose a reusable mailbox token. The sender obtains a short-lived/single-use IntroductionTicket and can submit only the bounded MessageRequest allowed by that ticket. This gives providers a cheap point for replay protection, rate limits, per-recipient quotas, adaptive proof-of-work or optional privacy-preserving admission proofs before expensive recipient work.
+
+Famous/public users can tighten policy to referrals/contacts/challenges without changing their AccountID or normal accepted-relationship delivery.

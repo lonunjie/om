@@ -71,3 +71,15 @@ Provider independence improves survivability but does not make any single endpoi
 - storage provider deletes/corrupts blobs;
 - restore from stale backup reintroduces revoked device/profile;
 - official update channel compromised.
+
+## Discovery / invite / censorship threats added 2026-09-21
+
+- **Global-directory coercion/censorship:** mitigated by no mandatory global registry, multiple namespaces/providers, direct invites, cached descriptors and accepted relationships independent of discovery.
+- **Directory equivocation/impersonation:** signed short-lived records plus planned transparency/witness/gossip; discovery remains separate from AccountID authentication.
+- **Lookup surveillance:** optional oblivious relay/resolver separation; do not upload full social graph as default.
+- **Leaked public handle/descriptor:** descriptor is not a reusable private mailbox capability; IntroGate issues constrained tickets.
+- **Leaked QR/link:** independent InviteID/capability is revocable/expiring; accepted relationships use unrelated capabilities.
+- **Introduction spam/DDoS:** ticket expiry/replay defense, quotas, rate limits, optional privacy-preserving admission proof/proof-of-work, provider DDoS controls.
+- **Cross-relay correlation:** separate capability identifiers and independently randomized outer envelopes; multi-relay redundancy used selectively.
+- **LAN tracking:** rotating rendezvous tokens derived from purpose-specific relationship/invite secrets; no stable AccountID/name broadcast.
+- **State/network censorship:** provider and transport diversity, alternate relays, direct/LAN paths and optional pluggable transports reduce choke points; no guarantee against a sufficiently powerful censor/global observer.

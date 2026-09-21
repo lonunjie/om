@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM discovery provider capabilities logical schema",
+  "type": "object",
+  "required": [
+    "provider_id",
+    "roles",
+    "protocol_versions"
+  ],
+  "properties": {
+    "provider_id": {
+      "type": "string"
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "directory",
+          "resolver",
+          "discovery_relay",
+          "intro_gate",
+          "transparency_witness"
+        ]
+      }
+    },
+    "protocol_versions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "supports_oblivious_lookup": {
+      "type": "boolean"
+    },
+    "supports_search": {
+      "type": "boolean"
+    },
+    "supports_publish": {
+      "type": "boolean"
+    },
+    "supports_transparency": {
+      "type": "boolean"
+    },
+    "limits": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

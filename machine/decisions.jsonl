@@ -30,3 +30,12 @@
 {"id": "D-030", "status": "accepted", "decision": "Provider routing is budget/quota-aware; a zero-paid-budget policy must be enforceable."}
 {"id": "D-031", "status": "accepted_direction", "decision": "OM is local-first and should support privacy-preserving LAN direct messaging/files/calls where feasible."}
 {"id": "D-032", "status": "accepted", "decision": "Abuse controls use first-contact/recipient/group/provider/reporting boundaries without universal content surveillance or mandatory global trust score."}
+{"id": "D-033", "status": "accepted", "decision": "OM discovery is a resolver fabric, not a mandatory global registry; every discovery method yields a validated ContactDescriptor."}
+{"id": "D-034", "status": "accepted", "decision": "Bare usernames retain namespace/provider provenance; OM has no protocol-global bare username root or mandatory blockchain ledger."}
+{"id": "D-035", "status": "accepted", "decision": "Public directory records expose IntroductionServiceDescriptor data, not reusable private relationship mailbox capabilities."}
+{"id": "D-036", "status": "accepted", "decision": "QR/link invitations are independently revocable, expiring, scoped capabilities; revocation does not affect accepted relationships."}
+{"id": "D-037", "status": "accepted", "decision": "IntroGate issues short-lived/single-use IntroductionTickets and enforces first-contact abuse/resource policy without ambient conversation plaintext."}
+{"id": "D-038", "status": "accepted_direction", "decision": "Directory lookup should support optional oblivious relay/resolver separation so one party need not learn both requester IP and queried alias."}
+{"id": "D-039", "status": "accepted", "decision": "Multiple simultaneous relays are first-class through a private authenticated RelaySet with distinct capability per relay and automatic failover."}
+{"id": "D-040", "status": "accepted_direction", "decision": "LAN discovery uses rotating rendezvous tokens derived from purpose-specific relationship/invite secrets rather than stable identity broadcast."}
+{"id": "D-041", "status": "accepted_direction", "decision": "OM designs for censorship resilience through provider and transport diversity/pluggable transports but makes no guarantee of uncensorability."}

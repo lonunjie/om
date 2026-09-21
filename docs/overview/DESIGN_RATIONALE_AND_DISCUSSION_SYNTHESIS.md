@@ -217,3 +217,17 @@ Hi 👋
 ```
 
 That difference is intentional. Complexity is justified only when it buys a property users receive automatically.
+
+## Discovery checkpoint rationale — 2026-09-21 10:08 PHT
+
+The discovery discussion began with a practical question: if two users independently run Cloudflare-backed OM infrastructure and one knows the other's username, how does one device find the other without recreating a central controller?
+
+The key realization was that the useful analogy to DNS is architectural rather than literal. DNS demonstrates the value of separating human naming from network location, separating resolvers from authoritative sources, delegating operation, caching bounded-lived answers, advertising multiple endpoints, and supporting local discovery. OM can adopt those properties while avoiding a mandatory single global OM root and improving privacy with cryptographic descriptors and oblivious lookup.
+
+This produced the `ContactDescriptor` abstraction: every discovery mechanism—directory handle, domain alias, QR/link, contact card, NFC, or LAN rendezvous—converges on a validated rendezvous descriptor. The descriptor gets peers to a constrained introduction plane; it is not identity and not the normal mailbox.
+
+A second problem was revocation/spam. A self-contained public QR that permanently grants write access cannot be safely published by a high-profile user. OM therefore separates revocable `Invite` capabilities from public `IntroductionServiceDescriptor` records. Public discovery obtains a short-lived/single-use `IntroductionTicket` from an `IntroGate`, allowing the recipient/provider to rate-limit or challenge abusive traffic without decrypting normal conversations. Accepted peers receive unrelated private relationship delivery capabilities.
+
+A third refinement was redundancy. OM now treats multiple simultaneous relays as a first-class private `RelaySet`, with distinct capability identifiers per relay and automatic failover. This borrows the resilience idea of multiple DNS/service endpoints without exposing a stable mailbox across providers.
+
+Finally, local-network and censorship resilience were pulled into the same architectural family. Existing contacts can derive rotating LAN rendezvous tokens instead of broadcasting stable identity. OM application semantics remain above a pluggable transport layer so future anti-censorship mechanisms can evolve independently. The goal is graceful resilience and removal of single choke points, not a claim that OM can defeat every state-level censor.

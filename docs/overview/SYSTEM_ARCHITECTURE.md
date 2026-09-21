@@ -119,3 +119,25 @@ Long-term target: established peers on the same LAN should be able to message, t
 ## Authority boundary
 
 No provider is allowed to combine roles into protocol-level super-authority. Even if one vendor implements multiple interfaces, identifiers/keys/data exposure remain minimized per interface.
+
+## Discovery/resilience overlay (2026-09-21)
+
+```text
+Human alias / QR / domain / LAN
+            ↓
+        OM Resolver
+            ↓
+     ContactDescriptor
+            ↓
+         IntroGate
+            ↓
+     MessageRequest
+            ↓ accept
+ private relationship state
+            ↓
+         RelaySet
+   ┌────────┼────────┐
+ relay A  relay B  relay C
+```
+
+The resolver, directory, IntroGate and relays are separate replaceable roles. Network transports beneath them are also replaceable. Existing relationships do not require a directory to continue operating.

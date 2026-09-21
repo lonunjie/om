@@ -1,20 +1,29 @@
-# Architecture Decision Records
+# OM Architecture Decision Records
 
-- `ADR-0001-provider-independence.md`
-- `ADR-0002-device-first-identity.md`
-- `ADR-0003-aliases-and-person-records.md`
-- `ADR-0004-message-requests.md`
-- `ADR-0005-storage-pools.md`
-- `ADR-0006-private-groups-mls.md`
-- `ADR-0007-web-first-reference-client.md`
-- `ADR-0008-canonical-events.md`
-- `ADR-0009-scoped-replaceable-authority.md`
-- `ADR-0010-algorithm-independent-accountid.md`
-- `ADR-0011-crypto-profiles-and-invisible-migration.md`
-- `ADR-0012-capability-addressed-relays.md`
-- `ADR-0013-sframe-adaptive-calling.md`
-- `ADR-0014-cloudflare-reference-not-dependency.md`
-- `ADR-0015-defer-sms-rcs.md`
-- `ADR-0016-local-first-lan.md`
-- `ADR-0017-privacy-preserving-abuse-boundary.md`
-- `ADR-0018-budget-aware-provider-routing.md`
+Checkpoint: 2026-09-21 10:08 PHT
+
+- [ADR-0001 — Providers Are Plugins](ADR-0001-provider-independence.md)
+- [ADR-0002 — Passwordless Device-First Identity](ADR-0002-device-first-identity.md)
+- [ADR-0003 — Aliases Are Recyclable; People Are Local Records](ADR-0003-aliases-and-person-records.md)
+- [ADR-0004 — Unknown Senders Use Message Requests](ADR-0004-message-requests.md)
+- [ADR-0005 — Hot/Cold Storage and StoragePool](ADR-0005-storage-pools.md)
+- [ADR-0006 — Private Groups Design Around MLS](ADR-0006-private-groups-mls.md)
+- [ADR-0007 — PWA First, Not Web Only](ADR-0007-web-first-reference-client.md)
+- [ADR-0008 — Small Immutable Canonical Event Model](ADR-0008-canonical-events.md)
+- [ADR-0009 — Scoped, replaceable, non-composable authority](ADR-0009-scoped-replaceable-authority.md)
+- [ADR-0010 — Algorithm-independent AccountID](ADR-0010-algorithm-independent-accountid.md)
+- [ADR-0011 — CryptoProfiles and invisible migration](ADR-0011-crypto-profiles-and-invisible-migration.md)
+- [ADR-0012 — Capability-addressed relays](ADR-0012-capability-addressed-relays.md)
+- [ADR-0013 — SFrame + adaptive LAN/P2P/TURN/SFU calling](ADR-0013-sframe-adaptive-calling.md)
+- [ADR-0014 — Cloudflare as reference provider, not dependency](ADR-0014-cloudflare-reference-not-dependency.md)
+- [ADR-0015 — Defer SMS/MMS/RCS while preserving TransportAdapter](ADR-0015-defer-sms-rcs.md)
+- [ADR-0016 — Local-first and LAN-capable direction](ADR-0016-local-first-lan.md)
+- [ADR-0017 — Privacy-preserving abuse boundary](ADR-0017-privacy-preserving-abuse-boundary.md)
+- [ADR-0018 — Budget-aware provider routing](ADR-0018-budget-aware-provider-routing.md)
+- [ADR-0019 — Discovery Fabric, Not a Mandatory Global Registry](ADR-0019-discovery-fabric-not-global-registry.md)
+- [ADR-0020 — Revocable, Scoped Invitations](ADR-0020-revocable-invites.md)
+- [ADR-0021 — IntroGate and Short-Lived Introduction Tickets](ADR-0021-introgate-tickets-and-abuse.md)
+- [ADR-0022 — Multi-Relay RelaySet](ADR-0022-multi-relay-relayset.md)
+- [ADR-0023 — Privacy-Preserving LAN Rendezvous](ADR-0023-private-lan-rendezvous.md)
+- [ADR-0024 — Pluggable Network and Censorship Resilience](ADR-0024-pluggable-censorship-resilience.md)
+- [ADR-0025 — Optional Oblivious Discovery Privacy](ADR-0025-oblivious-discovery-privacy.md)

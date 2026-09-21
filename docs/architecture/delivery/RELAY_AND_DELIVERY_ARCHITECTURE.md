@@ -122,3 +122,9 @@ Provider adapters expose quotas/cost state. Free-tier Durable Object limits fail
 - relay cannot force crypto downgrade;
 - relay loss does not destroy canonical conversation history;
 - randomized wrappers differ for identical inner group ciphertext.
+
+## Multi-relay RelaySet checkpoint
+
+Accepted relationships MAY maintain multiple simultaneous relays. Each relay gets a distinct opaque capability. A private authenticated `RelaySet` defines priority/expiry/transport hints. Normal sending chooses one healthy relay; failover is automatic. Selected high-reliability messages MAY use independently wrapped redundant delivery and are deduplicated by authenticated EventID.
+
+Providers should be diversified across failure domains where practical. See `MULTI_RELAY_AND_DELIVERY_RESILIENCE.md` and ADR-0022.

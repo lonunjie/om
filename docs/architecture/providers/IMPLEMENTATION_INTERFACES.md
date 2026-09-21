@@ -56,3 +56,35 @@ Must distinguish at least:
 - unknown/unverifiable.
 
 Routing policy must fail safely when cost state is unknown and the operator requires a hard zero-cost guarantee.
+
+## Discovery / introduction / relay interfaces
+
+```text
+Resolver
+  resolve(input, policy) -> ContactDescriptor[]
+  verify(descriptor, policy)
+  refresh(descriptor)
+
+DirectoryProvider
+  resolve(alias)
+  search(query)
+  publish(claim)
+  revoke(claim)
+  transparency_proof(...)
+
+IntroGate
+  issue_ticket(introduction_service, admission_context)
+  submit_request(ticket, sealed_request)
+  revoke_invite(invite_id)
+
+RelaySelector
+  select(relay_set, route_policy)
+  failover(relay_set, failed_entry)
+  redundant_targets(relay_set, reliability_policy)
+
+LanRendezvous
+  advertise(rotating_token)
+  discover(expected_tokens)
+```
+
+The interfaces are logical contracts; transport/serialization details are Gate D work.

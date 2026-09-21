@@ -1,5 +1,19 @@
 # Changelog — 2026-09-21 master snapshot
 
+## 2026-09-21 10:08 PHT — Discovery Fabric / resilience checkpoint
+
+- Replaced the implicit global-looking username model with an explicit Resolver + namespaced DirectoryProvider architecture.
+- Added `ContactDescriptor` as the common output of directory, domain, QR/link, contact-card and LAN discovery.
+- Added optional OHTTP/ODoH-inspired oblivious directory lookup.
+- Added revocable/scoped Invite design and explicit offline-revocation limits.
+- Added public `IntroductionServiceDescriptor`, short-lived `IntroductionTicket`, and IntroGate anti-spam/DDoS boundary.
+- Added first-class multi-relay `RelaySet`, distinct capability per relay, automatic failover and optional redundant delivery.
+- Added privacy-preserving rotating LAN rendezvous and offline-local-mode direction.
+- Added modular censorship/network-resilience architecture with pluggable transports; explicitly no uncensorability guarantee.
+- Added ADR-0019 through ADR-0025 and five new logical protocol schemas.
+- Preserved prior 08:01 PHT checkpoint under `history/20260921-0801/`.
+
+
 This is a design changelog, not a software release changelog.
 
 ## Philosophy and governance

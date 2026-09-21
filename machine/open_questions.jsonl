@@ -11,3 +11,9 @@
 {"id": "Q-011", "gate": "H", "question": "Define privacy-preserving LAN rendezvous without broadcasting stable account/device identifiers."}
 {"id": "Q-012", "gate": "I", "question": "Finalize provider quota/cost/health/failure-domain capability schema and automatic failover policy."}
 {"id": "Q-013", "gate": "K", "question": "Finalize protocol/CryptoProfile registry governance, release transparency and compatibility process."}
+{"id": "Q-014", "gate": "D1", "question": "Finalize ContactDescriptor canonical encoding, signature/provenance rules, cache/expiry behavior and alias-specific identity binding."}
+{"id": "Q-015", "gate": "D1/K", "question": "Finalize default DirectorySet search/disambiguation UX and directory transparency/witness design without a protocol-global root."}
+{"id": "Q-016", "gate": "D2", "question": "Finalize Invite and IntroductionTicket wire formats, immediate revocation lookup, anti-replay storage, and anonymous AdmissionProof options."}
+{"id": "Q-017", "gate": "D3", "question": "Finalize RelaySet update/rotation protocol, health selection, redundant-delivery policy and cross-relay metadata minimization."}
+{"id": "Q-018", "gate": "D4", "question": "Finalize purpose-separated LAN rendezvous secret derivation, epoch length, discovery substrate and offline reconciliation security."}
+{"id": "Q-019", "gate": "I2", "question": "Define stable NetworkTransport contract and threat models for HTTPS/QUIC/proxy/community/pluggable censorship-resilience adapters."}

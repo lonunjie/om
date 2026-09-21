@@ -66,3 +66,7 @@ Architecture change requires:
 ## External facts
 
 Cloud/provider quotas, app-store policies, drafts, APIs, library support, and pricing are volatile. Verify current official sources before implementation or budgeting. Do not encode current free-tier numbers into protocol behavior.
+
+## Discovery/resilience checkpoint
+
+Treat `DISCOVERY_FABRIC.md`, `INVITES_INTROGATE_AND_SPAM.md`, `MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`, `LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md`, and `CENSORSHIP_AND_NETWORK_RESILIENCE.md` as canonical. Do not introduce a protocol-global username root, publish stable relationship mailboxes in directories, reuse a capability across multiple relays, or broadcast stable identity on LAN. New network/circumvention transports must remain below canonical OM semantics.

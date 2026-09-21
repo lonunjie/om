@@ -86,3 +86,11 @@ Finalize:
 - release transparency/reproducibility strategy;
 - governance/change process;
 - compatibility expectations for forks/third-party clients.
+
+## Added checkpoint gates
+
+- **D1 Discovery fabric:** ContactDescriptor encoding, resolver policy, alias provenance, domain delegation, cache/expiry semantics.
+- **D2 IntroGate:** revocable invite lifecycle, ticket format, replay protection, provider-side anti-abuse and public-figure scale testing.
+- **D3 Multi-relay:** RelaySet encoding, capability rotation, independent outer wrapping, failover/redundancy convergence tests.
+- **D4 LAN:** rotating rendezvous derivation and local reconciliation without stable identity broadcast.
+- **I2 Network resilience:** stable NetworkTransport contract and alternate/pluggable transport testing after core relay stability.

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM IntroductionTicket logical schema",
+  "type": "object",
+  "required": [
+    "ticket_id",
+    "service_binding",
+    "expires_at",
+    "max_uses",
+    "payload_limit_bytes",
+    "nonce"
+  ],
+  "properties": {
+    "ticket_id": {
+      "type": "string"
+    },
+    "service_binding": {
+      "type": "string"
+    },
+    "expires_at": {
+      "type": "string"
+    },
+    "max_uses": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "payload_limit_bytes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "allow_attachments": {
+      "type": "boolean"
+    },
+    "allow_calls": {
+      "type": "boolean"
+    },
+    "nonce": {
+      "type": "string"
+    },
+    "admission_proof": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "authentication": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

@@ -18,3 +18,11 @@
 {"id": "R-018", "priority": "must", "requirement": "SMS/MMS/RCS integration must not be required for the first OM-native release or force canonical event redesign."}
 {"id": "R-019", "priority": "must", "requirement": "Report flows disclose only user-selected evidence and cannot require ambient server plaintext access."}
 {"id": "R-020", "priority": "must", "requirement": "Provider failure/migration must preserve identity and canonical conversation meaning."}
+{"id": "R-021", "priority": "must", "requirement": "Discovery provider outage or censorship must not terminate already accepted relationships."}
+{"id": "R-022", "priority": "must", "requirement": "Public discovery records must not expose reusable private relationship delivery capabilities."}
+{"id": "R-023", "priority": "must", "requirement": "A revocable invite can be disabled independently without changing AccountID or existing accepted relationships."}
+{"id": "R-024", "priority": "must", "requirement": "First-contact spam controls are enforceable at IntroGate/relay boundaries without trusting hostile sender clients."}
+{"id": "R-025", "priority": "must", "requirement": "RelaySet entries use distinct opaque capabilities and relay failover does not change canonical EventID or conversation meaning."}
+{"id": "R-026", "priority": "should", "requirement": "Directory lookup can be privacy-split so no single non-colluding provider must learn both client network identity and plaintext alias query."}
+{"id": "R-027", "priority": "must", "requirement": "LAN discovery must not broadcast stable AccountID, username, device name, or other globally linkable OM identifier."}
+{"id": "R-028", "priority": "should", "requirement": "Core OM semantics must remain independent of any particular anti-censorship transport so new transports can be added without identity/history migration."}

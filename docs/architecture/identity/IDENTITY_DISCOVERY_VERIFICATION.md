@@ -437,3 +437,20 @@ Automatic cryptographic key verification can detect inconsistencies in directory
 - Alias/key transparency protocol and witness model.
 - Search-ranking resistance to Sybil/profile-copy attacks.
 - UX distinction between `domain verified`, `real-world identity verified`, and `cryptographic continuity verified`.
+
+## 2026-09-21 discovery checkpoint: Resolver + ContactDescriptor
+
+The earlier alias model is refined into the canonical `DISCOVERY_FABRIC.md` design.
+
+Key changes:
+
+- no protocol-global bare username registry;
+- a local OM Resolver queries replaceable DirectoryProviders/domain discovery/direct invitations;
+- all discovery methods yield a signed/validated `ContactDescriptor`;
+- public descriptors preferably expose alias-specific introduction identity, not stable AccountID;
+- optional OHTTP/ODoH-inspired lookup separates requester network identity from plaintext alias query;
+- public directory entries expose an IntroductionServiceDescriptor, not a reusable mailbox capability;
+- descriptors are authenticated, expiring, cacheable, and may carry transparency proofs;
+- accepted relationships cease depending on directories and exchange private RelaySets/capabilities directly.
+
+See `DISCOVERY_FABRIC.md`, `INVITES_INTROGATE_AND_SPAM.md`, and ADR-0019/0020/0021/0025.

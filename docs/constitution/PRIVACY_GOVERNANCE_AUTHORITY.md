@@ -87,3 +87,9 @@ For every new feature ask:
 > **Where did authority go?**
 
 Then identify what that actor can observe, deny, modify, impersonate, or correlate, and whether changing that actor is survivable.
+
+## Discovery does not recreate the central authority
+
+OM explicitly rejects a mandatory protocol-global username registry. Directories control only their own namespace/search service. A local Resolver can use multiple DirectoryProviders, domain delegation, QR/invite or LAN rendezvous. Once a relationship is accepted, discovery infrastructure is no longer required for ordinary communication.
+
+Optional oblivious lookup further divides metadata authority: a DiscoveryRelay can know the client's network address without knowing the alias query, while the DirectoryResolver can know the alias query without learning the client address. This follows the same scoped/non-composable authority principle used elsewhere in OM.

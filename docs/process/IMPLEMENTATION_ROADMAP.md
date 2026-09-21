@@ -115,3 +115,16 @@ Exit: a community can replace the default infrastructure without forking OM.
 - accessibility;
 - low-end-device/network testing;
 - backup/restore regression tests.
+
+## Discovery/resilience implementation sequence
+
+Before public username search becomes a product dependency, implement in this order:
+
+1. QR/`om:` invite -> ContactDescriptor -> revocable IntroGate flow.
+2. ContactDescriptor validation, expiry, caching and alias provenance.
+3. Private accepted relationship capabilities and multi-relay RelaySet/failover.
+4. Replaceable DirectoryProvider search and domain-scoped `/.well-known/om` delegation.
+5. Directory transparency/equivocation defenses.
+6. Optional oblivious/private lookup path.
+7. Rotating LAN rendezvous and offline-local reconciliation.
+8. Pluggable network transports/censorship-resilience adapters after the core relay protocol is stable.

@@ -68,3 +68,7 @@ Security warnings should be exceptional and actionable. The UI should not create
 - A media provider failure should not change who is in the call.
 - A network-path change should not change whether call content is E2EE.
 - Advanced users may override defaults, but advanced choices may not weaken other users silently.
+
+## Discovery invisibility rule
+
+Resolver namespaces, ContactDescriptor validation, invite revocation epochs, IntroductionTickets, RelaySets, anti-abuse challenges, provider failover and censorship transports are infrastructure details. Ordinary users should normally see only `Search`, `Scan QR`, `Connect`, `Block`, `Report`, and `Revoke link`.

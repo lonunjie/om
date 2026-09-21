@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM Invite logical schema",
+  "type": "object",
+  "required": [
+    "invite_id",
+    "introduction_services",
+    "issued_at",
+    "expires_at",
+    "scopes"
+  ],
+  "properties": {
+    "invite_id": {
+      "type": "string"
+    },
+    "invite_secret": {
+      "type": "string",
+      "description": "Logical field; encoded invite carries high-entropy capability material. Never log plaintext."
+    },
+    "introduction_services": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "minItems": 1
+    },
+    "issued_at": {
+      "type": "string"
+    },
+    "expires_at": {
+      "type": "string"
+    },
+    "max_uses": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "lan_rendezvous": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "authentication": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

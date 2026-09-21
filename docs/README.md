@@ -1,10 +1,10 @@
 # OM — Master Planning & Design Repository
 
-**Snapshot:** 2026-09-21 08:01 PHT (UTC+08:00)  
+**Snapshot:** 2026-09-21 10:08 PHT (UTC+08:00)  
 **Phase:** Architecture consolidation → implementation-ready gates  
 **Working umbrella name:** **OM — OpenMessenger / OwnMessenger / OurMessenger**
 
-This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design review covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed relays, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, LAN/P2P routing, and future SMS/RCS integration.
+This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design reviews covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed/multi-relay delivery, the Discovery Fabric and revocable IntroGate, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, privacy-preserving LAN operation, censorship/network resilience, and future SMS/RCS integration.
 
 The prior snapshot is preserved verbatim under `history/20260818/` for traceability.
 
@@ -76,16 +76,20 @@ And the implementation discipline remains:
 3. `SYSTEM_ARCHITECTURE.md` — complete layer/component map.
 4. `PRODUCT_AND_UX_PRINCIPLES.md` — invisible-complexity product rules.
 5. `PRIVACY_GOVERNANCE_AUTHORITY.md` — how OM avoids recreating a central controller.
-6. `CRYPTOGRAPHY_AND_AGILITY.md` — PQ/hybrid crypto, CryptoProfiles, migration, downgrade prevention.
-7. `RELAY_AND_DELIVERY_ARCHITECTURE.md` — capability-addressed relay model.
-8. `STORAGE_AND_BLOB_ARCHITECTURE.md` — queues, sync, blobs, archive, backup, StoragePool.
-9. `CALLS_AND_REALTIME_MEDIA.md` — signaling, SFrame, WebRTC, LAN/P2P/TURN/SFU, cost/privacy policy.
-10. `TRANSPORT_ADAPTERS_AND_INTEROP.md` — OM-native now; SMS/MMS/RCS/bridges later.
-11. `CLOUDFLARE_REFERENCE_DEPLOYMENT.md` — optional frictionless deployment profile.
-12. `ABUSE_SAFETY_AND_REPORTING.md` — privacy-preserving abuse boundaries.
-13. `IMPLEMENTATION_ROADMAP.md` — implementation order and acceptance gates.
-14. `ARCHITECTURE_PHASE_PLAN.md` — architecture gates and exit criteria.
-15. `AGENTS.md` — rules for coding/research agents.
+6. `DISCOVERY_FABRIC.md` — resolver fabric, namespaced aliases, ContactDescriptor, private lookup.
+7. `INVITES_INTROGATE_AND_SPAM.md` — revocable invites, IntroductionTickets, public-first-contact abuse controls.
+8. `RELAY_AND_DELIVERY_ARCHITECTURE.md` + `MULTI_RELAY_AND_DELIVERY_RESILIENCE.md` — private capabilities, RelaySet, failover/redundancy.
+9. `CRYPTOGRAPHY_AND_AGILITY.md` — PQ/hybrid crypto, CryptoProfiles, migration, downgrade prevention.
+10. `STORAGE_AND_BLOB_ARCHITECTURE.md` — queues, sync, blobs, archive, backup, StoragePool.
+11. `CALLS_AND_REALTIME_MEDIA.md` — signaling, SFrame, WebRTC, LAN/P2P/TURN/SFU, cost/privacy policy.
+12. `LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md` — private local discovery and WAN-independent local operation direction.
+13. `CENSORSHIP_AND_NETWORK_RESILIENCE.md` — no single network choke point, replaceable transports.
+14. `TRANSPORT_ADAPTERS_AND_INTEROP.md` — OM-native now; SMS/MMS/RCS/bridges later.
+15. `CLOUDFLARE_REFERENCE_DEPLOYMENT.md` — optional frictionless deployment profile.
+16. `ABUSE_SAFETY_AND_REPORTING.md` — privacy-preserving abuse boundaries.
+17. `IMPLEMENTATION_ROADMAP.md` — implementation order and acceptance gates.
+18. `ARCHITECTURE_PHASE_PLAN.md` — architecture gates and exit criteria.
+19. `AGENTS.md` — rules for coding/research agents.
 
 Existing detailed documents remain canonical where not superseded: identity, event model, group architecture, client/extension architecture, and PWA reference client.
 
@@ -106,3 +110,18 @@ Future downloadable archives are complete snapshots named:
 `om-master-planning-design-YYYYMMDD-HHMM-PHT.zip`
 
 Do not nest old ZIP archives. Preserve prior source snapshots as ordinary files under `history/` only when useful for traceability.
+
+## 2026-09-21 10:08 discovery/resilience checkpoint
+
+New canonical material:
+
+- `DISCOVERY_FABRIC.md`
+- `INVITES_INTROGATE_AND_SPAM.md`
+- `MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`
+- `LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md`
+- `CENSORSHIP_AND_NETWORK_RESILIENCE.md`
+- `CHECKPOINT_20260921_1008.md`
+- ADR-0019 through ADR-0025
+- ContactDescriptor / Invite / IntroductionTicket / RelaySet / discovery-provider logical schemas
+
+The preceding 2026-09-21 08:01 checkpoint is preserved under `history/20260921-0801/`.

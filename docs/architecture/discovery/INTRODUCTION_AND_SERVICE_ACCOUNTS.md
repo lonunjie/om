@@ -192,3 +192,11 @@ Personal users may authorize assistants, but the same principles apply:
 ## Architectural rule
 
 > Bots operate accounts only through delegated capabilities. They do not become the identity root.
+
+## 2026-09-21 IntroGate refinement
+
+`IntroductionEndpoint` is refined into an `IntroductionService` / `IntroGate` boundary.
+
+Public search records MUST NOT publish a reusable relationship mailbox capability. A sender first obtains a short-lived/single-use `IntroductionTicket` scoped to a small MessageRequest. The IntroGate can enforce replay protection, per-recipient quotas, rate limits and optional privacy-preserving admission proofs before expensive storage/fanout work.
+
+Invites carry separate revocable capabilities. Revoking an invite does not affect accepted relationships. See `INVITES_INTROGATE_AND_SPAM.md`.
