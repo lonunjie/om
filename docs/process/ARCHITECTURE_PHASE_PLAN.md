@@ -94,3 +94,24 @@ Finalize:
 - **D3 Multi-relay:** RelaySet encoding, capability rotation, independent outer wrapping, failover/redundancy convergence tests.
 - **D4 LAN:** rotating rendezvous derivation and local reconciliation without stable identity broadcast.
 - **I2 Network resilience:** stable NetworkTransport contract and alternate/pluggable transport testing after core relay stability.
+
+## New Gate A2 — Account continuity and recovery
+
+Exit criteria:
+
+- authenticated AccountControlState transition specification;
+- no single compromised ordinary controller can fabricate permanent ownership in a healthy multi-controller account;
+- quarantine/revocation/fork tests;
+- recovery-off-default semantics and independent history recovery;
+- stale-backup anti-rollback tests.
+
+## New Gate K2 — Software trust
+
+Exit criteria before public production claims:
+
+- release-root key ceremony/threshold;
+- signed release tags and forge mirrors;
+- pinned build dependencies/actions;
+- build provenance;
+- TUF-style rollback/freeze protections or equivalent;
+- reproducibility target documented/tested for supported platforms where feasible.

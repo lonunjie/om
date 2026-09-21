@@ -42,3 +42,9 @@ Backup restore recreates local state and then performs protocol-supported reconc
 - new-device bootstrap authentication;
 - history bundle chunking/resume;
 - offline revocation propagation constraints.
+
+## Authority convergence
+
+Multi-device chat/history convergence and account-control convergence are distinct protocols. `AccountControlState` is not merged with CRDT/LWW rules. An offline/restored device must reconcile the authenticated control-state chain/head before it can exercise governance authority.
+
+New messaging-device enrollment may be lighter-weight; promotion to control-device status is constitutional.

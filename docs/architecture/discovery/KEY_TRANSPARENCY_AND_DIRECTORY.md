@@ -43,3 +43,9 @@ Select a reviewed key-transparency protocol/implementation appropriate to OM Acc
 ## Discovery privacy and resolver separation
 
 Directory search and identity transparency are separate functions. A DirectoryProvider may return signed ContactDescriptors while an independent transparency/witness layer detects equivocation. OM SHOULD support an optional OHTTP/ODoH-inspired split lookup mode: a DiscoveryRelay sees the client connection but not the alias query; a DirectoryResolver sees the query but not the client's transport address. This minimizes metadata without making either party an identity root.
+
+## AccountControlHead observations
+
+In addition to directory/key transparency, OM can gossip compact `AccountControlHead` observations through established relationships or optional witnesses. This detects stale-but-valid provider views and forks without letting observers author account state. Relationship-scoped identifiers should be preferred when they reduce public correlation.
+
+This direction is consistent with current IETF Key Transparency architecture work, but OM does not freeze a work-in-progress Internet-Draft into the protocol until reviewed/stable.

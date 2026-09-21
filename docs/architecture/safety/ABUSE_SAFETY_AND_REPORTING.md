@@ -73,3 +73,13 @@ Any future safety features for minors should avoid universal scanning backdoors.
 The public discovery plane now terminates at an IntroGate. A public handle does not expose a reusable mailbox token. The sender obtains a short-lived/single-use IntroductionTicket and can submit only the bounded MessageRequest allowed by that ticket. This gives providers a cheap point for replay protection, rate limits, per-recipient quotas, adaptive proof-of-work or optional privacy-preserving admission proofs before expensive recipient work.
 
 Famous/public users can tighten policy to referrals/contacts/challenges without changing their AccountID or normal accepted-relationship delivery.
+
+## Resource admission economics
+
+Per-user infrastructure reduces the blast radius of global relay abuse but creates a direct cost-exhaustion target against each recipient's Worker/relay. The request path therefore rejects cheaply before allocating storage/expensive work:
+
+```text
+parse bounds -> capability/ticket validity -> replay check -> quota -> optional admission proof -> expensive work
+```
+
+Privacy Pass-style unlinkable tokens are a candidate for proving limited entitlement without stable global identity. Provider-local quotas/budgets remain independent of any universal reputation system.

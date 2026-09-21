@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM AccountControlHead logical schema",
+  "type": "object",
+  "required": [
+    "subject",
+    "generation",
+    "state_hash",
+    "signature"
+  ],
+  "properties": {
+    "subject": {
+      "type": "string"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "state_hash": {
+      "type": "string"
+    },
+    "epoch": {
+      "type": [
+        "integer",
+        "string"
+      ]
+    },
+    "signature": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

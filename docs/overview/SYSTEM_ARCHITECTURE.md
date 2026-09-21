@@ -141,3 +141,23 @@ Human alias / QR / domain / LAN
 ```
 
 The resolver, directory, IntroGate and relays are separate replaceable roles. Network transports beneath them are also replaceable. Existing relationships do not require a directory to continue operating.
+
+## Control / policy layers added at 21:32 checkpoint
+
+```text
+                         Human UX
+                            |
+                 Security/Privacy Presets
+                            |
+       +--------------------+--------------------+
+       |                    |                    |
+ RecoveryPolicy       NotificationPolicy     Route/Metadata Policy
+       |                    |                    |
+       +---------- AccountControlState ---------+
+                            |
+                    AccountID / devices
+                            |
+       discovery -> IntroGate -> relationships -> relay/storage/media
+```
+
+The Cloudflare provisioning layer sits outside this graph as one replaceable way to instantiate provider adapters. Software-update trust sits around the client itself and is treated as part of the effective security boundary.

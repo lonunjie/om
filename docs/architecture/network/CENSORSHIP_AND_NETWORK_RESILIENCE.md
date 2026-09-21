@@ -106,3 +106,7 @@ Long-term design should allow:
 - migration away from the original OM organization.
 
 This prevents the software-distribution layer from becoming OM's hidden central authority.
+
+## High-anonymity / nation-state mode remains an adapter
+
+Tor, xx-network-style mix/routing systems, MASQUE/proxy paths, padding/cover traffic, and future pluggable transports may implement a Maximum Privacy or censorship-resilience `NetworkTransport`/`RoutePolicy` later. They are not required for ordinary v1 operation and must not force identity/history migration when added.

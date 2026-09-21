@@ -93,7 +93,7 @@ This reduces operational friction, which is important for OM's mainstream-user g
 
 But if the wire protocol assumes Cloudflare identifiers, storage semantics, or media APIs, OM simply trades one central operator for another. Therefore Cloudflare is a reference provider profile only.
 
-Normal users should not create Cloudflare accounts. Default infrastructure can use Cloudflare invisibly; advanced users/operators may deploy their own.
+For the initial deployment model, ordinary users may own a free Cloudflare account so their infrastructure is individually controlled, but OM must automate provisioning and hide Worker/DO/storage details. Owning the provider account is different from administering it. Cloudflare remains replaceable and outside canonical identity/protocol semantics.
 
 ## 9. Why R2 is storage, not “the OM server”
 
@@ -231,3 +231,17 @@ A second problem was revocation/spam. A self-contained public QR that permanentl
 A third refinement was redundancy. OM now treats multiple simultaneous relays as a first-class private `RelaySet`, with distinct capability identifiers per relay and automatic failover. This borrows the resilience idea of multiple DNS/service endpoints without exposing a stable mailbox across providers.
 
 Finally, local-network and censorship resilience were pulled into the same architectural family. Existing contacts can derive rotating LAN rendezvous tokens instead of broadcasting stable identity. OM application semantics remain above a pluggable transport layer so future anti-censorship mechanisms can evolve independently. The goal is graceful resilience and removal of single choke points, not a claim that OM can defeat every state-level censor.
+
+## Continuity / trust rationale — 2026-09-21 21:32 PHT
+
+The recovery discussion clarified that OM should not impose durability on people who want throwaway identities. Making recovery optional avoids creating a universal provider backdoor. A random offline root and guardian shares are understandable recovery paths; making recovery itself a versioned policy keeps room for future threshold/MPC research.
+
+The revocation discussion exposed a deeper issue: if any ordinary device can permanently revoke all others, compromising one device converts immediately into account ownership. OM therefore separates emergency containment from constitutional authority. Quarantine can stop future secrets; it cannot change its own quorum denominator. Likewise, linking a new device cannot silently create a new controller. This chooses temporary denial-of-service risk over silent permanent takeover.
+
+The initial deployment premise also became clearer: each user owns their Cloudflare account and OM automates it. This changes Cloudflare from "central default infrastructure" into a mass-market self-hosting substrate. `workers.dev` removes the domain-purchase requirement for individuals, while organizations/FQDN owners naturally form the first grouped directories. Research showed that requiring R2 would undermine a truly no-payment onboarding path, so the core was reduced to Worker + SQLite Durable Object and R2 became an optional blob expansion.
+
+Contact sharing becomes the human analogue of authenticated DNS caching: Carol can forward Alice's Alice-signed bounded-lived ContactCapsule to Bob. Carol can say "I know this person" without becoming Alice's certificate authority or creating a global reputation graph.
+
+Software distribution was elevated because endpoint code is the practical master key to an E2EE system. Open source alone does not stop a compromised build pipeline. Trust therefore starts with role-separated update authorization, provenance and reproducible artifacts where platforms allow it, while mirrors ensure no forge owns protocol/source truth.
+
+Finally, the product posture was refined: OM is a general messenger with strong defaults, not a product that forces every user to behave like a dissident or cryptographer. Privacy presets tune operational metadata/convenience; they do not select weaker cryptography. Vendor push remains usable through opaque wakeups. Users who disable it are told the real platform tradeoffs rather than promised impossible background behavior.

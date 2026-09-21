@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM NotificationPolicy logical schema",
+  "type": "object",
+  "required": [
+    "wake_mode",
+    "preview_mode"
+  ],
+  "properties": {
+    "wake_mode": {
+      "enum": [
+        "vendor_push",
+        "alternate_push",
+        "persistent_connection",
+        "poll",
+        "none"
+      ]
+    },
+    "preview_mode": {
+      "enum": [
+        "sender_and_content",
+        "sender_only",
+        "generic",
+        "none"
+      ]
+    },
+    "opaque_wake_handle_rotation": {
+      "type": "string"
+    },
+    "allow_vendor_timing_exposure": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": true
+}

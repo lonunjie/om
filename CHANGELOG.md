@@ -1,5 +1,15 @@
 # Changelog — 2026-09-21 master snapshot
 
+## 2026-09-21 21:32 PHT — continuity / trust / personal-bootstrap checkpoint
+
+- added AccountControlState, two-stage revocation, controller-promotion safeguards and head gossip;
+- made recovery optional/off-by-default and separated identity/history/provider recovery;
+- made user-owned Cloudflare + workers.dev the initial personal bootstrap model;
+- reduced no-payment Cloudflare core to Worker + SQLite DO; R2 optional;
+- added signed ContactCapsule Share Contact flow;
+- added update/supply-chain trust, privacy profiles, notification policy, backup anti-rollback, retention and extensibility design;
+- added ADR-0026..0042, logical schemas, requirements/open questions and current research references.
+
 ## 2026-09-21 10:08 PHT — Discovery Fabric / resilience checkpoint
 
 - Replaced the implicit global-looking username model with an explicit Resolver + namespaced DirectoryProvider architecture.

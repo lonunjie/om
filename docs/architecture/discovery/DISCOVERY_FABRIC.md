@@ -288,3 +288,15 @@ Open invite link → tap Connect
 ```
 
 All resolver/provider/transparency mechanics are automatic unless the user explicitly enters advanced settings.
+
+## 21:32 checkpoint: workers.dev personal publishers and shared contacts
+
+For v1 personal deployments, a user's Cloudflare Worker FQDN (`<worker>.<account-subdomain>.workers.dev`) may act as a `PersonalDiscoveryPublisher`. It serves a signed ContactDescriptor/IntroductionServiceDescriptor and is not a global directory.
+
+Grouped searchable directories begin naturally at organizations/communities that own FQDN namespaces. `alice@example.org` can delegate to any DirectoryProvider without making OM Inc. the root.
+
+### ContactCapsule forwarding
+
+A signed, expiring ContactCapsule is another resolver input. Carol can forward Alice's capsule to Bob; Bob verifies Alice's signature and goes through Alice's IntroGate. Carol may attach a referral attestation, but she does not become an identity authority and does not learn Alice/Bob pairwise delivery capabilities.
+
+Cached/forwarded capsules are authenticated bounded-lived discovery answers, preserving one of DNS's useful caching/delegation properties without copying its root model.

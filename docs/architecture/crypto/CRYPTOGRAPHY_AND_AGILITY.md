@@ -154,3 +154,9 @@ Official client update metadata should eventually support hybrid/classical+PQ ve
 - unsupported/forbidden profile behavior;
 - compromised provider cannot force weaker crypto;
 - implementation/library replacement preserves wire interoperability.
+
+## Recovery crypto is independently agile
+
+Recovery mechanisms use versioned `RecoveryPolicy` methods rather than embedding one mnemonic/guardian algorithm forever. A 256-bit random offline recovery root is the baseline candidate. Shamir mnemonic shares are feasible prior art; future standardized threshold/MPC authorization can replace them without changing AccountID.
+
+NIST's 2026 crypto-agility guidance reinforces the architectural requirement that algorithms be replaceable while operations continue. NIST's 2026 threshold call is a reason to reserve the future threshold interface rather than invent one prematurely.

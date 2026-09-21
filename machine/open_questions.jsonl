@@ -1,6 +1,6 @@
 {"id": "Q-001", "gate": "C", "question": "Select and formally specify OM CryptoProfile v1: identity authentication, asynchronous 1:1 PQ/hybrid handshake, ratchet, AEAD/hash/KDF and library boundaries."}
 {"id": "Q-002", "gate": "C", "question": "Select MLS implementation and stable group ciphersuite/profile policy while the PQ MLS ciphersuite draft continues evolving."}
-{"id": "Q-003", "gate": "A/C", "question": "Finalize recovery cryptographic construction and threshold/guardian policy without provider master decryption keys."}
+{"id": "Q-003", "gate": "A/C", "question": "Finalize v1 RecoveryPolicy encodings and reviewed implementations for OfflineRecoveryRoot and optional N-of-M guardian sharing; reserve but do not require threshold/MPC recovery."}
 {"id": "Q-004", "gate": "A/K", "question": "Select reviewed key-transparency/witness mechanism for AccountState/device update equivocation detection."}
 {"id": "Q-005", "gate": "B", "question": "Finalize canonical event/control encodings and golden vectors."}
 {"id": "Q-006", "gate": "D", "question": "Finalize relay capability lifecycle, wire protocol, acknowledgement, expiry, rotation, multi-relay and randomized outer wrapping."}
@@ -17,3 +17,11 @@
 {"id": "Q-017", "gate": "D3", "question": "Finalize RelaySet update/rotation protocol, health selection, redundant-delivery policy and cross-relay metadata minimization."}
 {"id": "Q-018", "gate": "D4", "question": "Finalize purpose-separated LAN rendezvous secret derivation, epoch length, discovery substrate and offline reconciliation security."}
 {"id": "Q-019", "gate": "I2", "question": "Define stable NetworkTransport contract and threat models for HTTPS/QUIC/proxy/community/pluggable censorship-resilience adapters."}
+{"id": "Q-020", "gate": "A", "question": "Specify AccountControlState transition/auth rules, quarantine challenge/freeze semantics, controller promotion and formal golden vectors."}
+{"id": "Q-021", "gate": "A/K", "question": "Define AccountControlHead relationship-scoped encoding/gossip/witness privacy and fork-resolution procedure."}
+{"id": "Q-022", "gate": "I", "question": "Benchmark safe Worker/SQLite-DO envelope and temporary blob-spool thresholds under Free-plan limits; keep values out of protocol constants."}
+{"id": "Q-023", "gate": "K", "question": "Select concrete TUF/in-toto/SLSA tooling, root-key ceremony and platform-specific reproducible-build targets for first public release."}
+{"id": "Q-024", "gate": "UX", "question": "Finalize Standard/Hardened/Maximum Privacy preset values and migration/Custom behavior without making privacy profiles crypto-strength profiles."}
+{"id": "Q-025", "gate": "UX", "question": "Finalize APNs/FCM/alternate push payload and PushGateway correlation-minimization design per platform."}
+{"id": "Q-026", "gate": "B/F", "question": "Finalize disappearing-message timer semantics, tombstone convergence, attachment-key destruction and backup exclusion rules."}
+{"id": "Q-027", "gate": "K", "question": "Finalize extension ID registry, criticality rules, canonical unknown-field preservation and protocol registry governance."}

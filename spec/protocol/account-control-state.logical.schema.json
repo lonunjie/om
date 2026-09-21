@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM AccountControlState logical schema",
+  "type": "object",
+  "required": [
+    "account_id",
+    "generation",
+    "previous_state_hash",
+    "constitutional_policy",
+    "minimum_crypto_profile",
+    "authorization"
+  ],
+  "properties": {
+    "account_id": {
+      "type": "string"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "previous_state_hash": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "active_control_devices": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "quarantined_control_devices": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "messaging_devices": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "permanently_revoked_devices": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "constitutional_policy": {
+      "type": "object"
+    },
+    "recovery_policy_commitment": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "minimum_crypto_profile": {
+      "type": "string"
+    },
+    "control_key_epochs": {
+      "type": "object"
+    },
+    "authorization": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "minItems": 1
+    }
+  },
+  "additionalProperties": true
+}

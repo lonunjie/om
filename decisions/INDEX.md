@@ -1,6 +1,6 @@
 # OM Architecture Decision Records
 
-Checkpoint: 2026-09-21 10:08 PHT
+Checkpoint: 2026-09-21 21:32 PHT
 
 - [ADR-0001 — Providers Are Plugins](ADR-0001-provider-independence.md)
 - [ADR-0002 — Passwordless Device-First Identity](ADR-0002-device-first-identity.md)
@@ -27,3 +27,20 @@ Checkpoint: 2026-09-21 10:08 PHT
 - [ADR-0023 — Privacy-Preserving LAN Rendezvous](ADR-0023-private-lan-rendezvous.md)
 - [ADR-0024 — Pluggable Network and Censorship Resilience](ADR-0024-pluggable-censorship-resilience.md)
 - [ADR-0025 — Optional Oblivious Discovery Privacy](ADR-0025-oblivious-discovery-privacy.md)
+- [ADR-0026 — Recovery is optional and off by default](ADR-0026-recovery-is-optional-and-off-by-default.md)
+- [ADR-0027 — Separate identity, history, and provider recovery](ADR-0027-separate-identity-history-and-provider-recovery.md)
+- [ADR-0028 — Two-stage device quarantine and permanent revocation](ADR-0028-two-stage-device-quarantine-and-permanent-revocation.md)
+- [ADR-0029 — Control-device promotion is constitutional](ADR-0029-control-device-promotion-is-constitutional.md)
+- [ADR-0030 — AccountControlState and head gossip](ADR-0030-accountcontrolstate-and-head-gossip.md)
+- [ADR-0031 — User-owned infrastructure is the initial deployment premise](ADR-0031-user-owned-infrastructure-is-the-initial-deployment-premise.md)
+- [ADR-0032 — workers.dev is the v1 personal discovery locator](ADR-0032-workers-dev-is-the-v1-personal-discovery-locator.md)
+- [ADR-0033 — Signed ContactCapsules enable Share Contact](ADR-0033-signed-contactcapsules-enable-share-contact.md)
+- [ADR-0034 — Zero-payment Cloudflare core excludes mandatory R2](ADR-0034-zero-payment-cloudflare-core-excludes-mandatory-r2.md)
+- [ADR-0035 — BlobStore expansion and direct file paths](ADR-0035-blobstore-expansion-and-direct-file-paths.md)
+- [ADR-0036 — Software update trust is designed from the first public release](ADR-0036-software-update-trust-is-designed-from-the-first-public-release.md)
+- [ADR-0037 — Privacy profiles never weaken the cryptographic floor](ADR-0037-privacy-profiles-never-weaken-the-cryptographic-floor.md)
+- [ADR-0038 — Push is an opaque optional wakeup](ADR-0038-push-is-an-opaque-optional-wakeup.md)
+- [ADR-0039 — Backups restore history, never authority](ADR-0039-backups-restore-history-never-authority.md)
+- [ADR-0040 — No uploaded address book in v1](ADR-0040-no-uploaded-address-book-in-v1.md)
+- [ADR-0041 — Disappearing content is client lifecycle state](ADR-0041-disappearing-content-is-client-lifecycle-state.md)
+- [ADR-0042 — Explicit critical protocol extensions](ADR-0042-explicit-critical-protocol-extensions.md)

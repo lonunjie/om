@@ -128,3 +128,19 @@ Before public username search becomes a product dependency, implement in this or
 6. Optional oblivious/private lookup path.
 7. Rotating LAN rendezvous and offline-local reconciliation.
 8. Pluggable network transports/censorship-resilience adapters after the core relay protocol is stable.
+
+## 21:32 priority refinements
+
+Before wire-format freeze / public security claims:
+
+1. **AccountControlState prototype first** — transition table, quarantine/revocation/promotion, fork/freshness tests.
+2. **Recovery v1** — default none; offline 256-bit RecoveryRoot; optional guardian sharing after library/design review; history recovery separate.
+3. **Personal Cloudflare bootstrap** — OAuth/PKCE provisioning for Worker + SQLite DO; `workers.dev` publisher; no R2 dependency.
+4. **ContactCapsule/share-contact** — subject-signed forwarding + optional referral context.
+5. **Supply-chain floor** — signed tags, dependency pinning, provenance, TUF-style update roles before first public binary.
+6. **Privacy presets** — Standard/Hardened/Maximum Privacy as policy bundles; same crypto floor.
+7. **Push** — opaque wakeups, local decrypt/render; Android alternate path; honest iOS no-APNs limitation.
+8. **Retention** — disappearing/view-once backup/convergence rules.
+9. **Extensibility** — critical-field semantics, canonical encoding and registries before interoperability freeze.
+
+Endpoint-attestation classes and nation-state anonymity transports remain deliberately later, with interfaces reserved now.

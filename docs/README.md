@@ -1,12 +1,12 @@
 # OM — Master Planning & Design Repository
 
-**Snapshot:** 2026-09-21 10:08 PHT (UTC+08:00)  
+**Snapshot:** 2026-09-21 21:32 PHT (UTC+08:00)  
 **Phase:** Architecture consolidation → implementation-ready gates  
 **Working umbrella name:** **OM — OpenMessenger / OwnMessenger / OurMessenger**
 
 This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design reviews covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed/multi-relay delivery, the Discovery Fabric and revocable IntroGate, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, privacy-preserving LAN operation, censorship/network resilience, and future SMS/RCS integration.
 
-The prior snapshot is preserved verbatim under `history/20260818/` for traceability.
+Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, and `history/20260921-1008/` for traceability.
 
 ## Product thesis
 
@@ -93,6 +93,18 @@ And the implementation discipline remains:
 
 Existing detailed documents remain canonical where not superseded: identity, event model, group architecture, client/extension architecture, and PWA reference client.
 
+## Continuity / trust checkpoint documents
+
+- `ACCOUNT_CONTINUITY_AND_CONTROL.md` — control-state chain, quarantine/revocation, controller promotion and anti-rollback.
+- `RECOVERY_AND_BACKUP_POLICY.md` — no-recovery default, offline root/guardians and history-vs-identity recovery.
+- `PROVISIONING_AND_BOOTSTRAP.md` — user-owned Cloudflare, workers.dev and the minimal zero-payment stack.
+- `CONTACT_SHARING.md` — signed ContactCapsules and referral semantics.
+- `SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md` — update trust, provenance, reproducibility and forge independence.
+- `SECURITY_PRIVACY_PROFILES.md` — Standard/Hardened/Maximum Privacy policy bundles.
+- `NOTIFICATIONS_AND_PUSH.md` — opaque push and platform tradeoffs.
+- `DISAPPEARING_MESSAGES_AND_RETENTION.md` — lifecycle/backup convergence rules.
+- `PROTOCOL_EXTENSIBILITY.md` — critical extensions, negotiation and registries.
+
 ## Structured records
 
 - `decisions/` — Architecture Decision Records.
@@ -125,3 +137,22 @@ New canonical material:
 - ContactDescriptor / Invite / IntroductionTicket / RelaySet / discovery-provider logical schemas
 
 The preceding 2026-09-21 08:01 checkpoint is preserved under `history/20260921-0801/`.
+
+## 2026-09-21 21:32 continuity/trust checkpoint
+
+New canonical material:
+
+- `ACCOUNT_CONTINUITY_AND_CONTROL.md`
+- `RECOVERY_AND_BACKUP_POLICY.md`
+- `PROVISIONING_AND_BOOTSTRAP.md`
+- `CONTACT_SHARING.md`
+- `SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md`
+- `SECURITY_PRIVACY_PROFILES.md`
+- `NOTIFICATIONS_AND_PUSH.md`
+- `DISAPPEARING_MESSAGES_AND_RETENTION.md`
+- `PROTOCOL_EXTENSIBILITY.md`
+- `CHECKPOINT_20260921_2132.md`
+- ADR-0026 through ADR-0042
+- AccountControlState / AccountControlHead / RecoveryPolicy / ContactCapsule / SecurityProfile / NotificationPolicy / ProtocolExtension logical schemas
+
+The preceding 10:08 discovery/resilience checkpoint is preserved under `history/20260921-1008/`.

@@ -11,7 +11,7 @@ Assume a meaningful portion of users do not know what Wi‑Fi, encryption, NAT, 
 - select a cipher or manually approve a crypto migration;
 - understand key rotation, MLS epochs, KEMs, signatures, or ratchets;
 - choose STUN/TURN/SFU;
-- create a Cloudflare/AWS account;
+- manually configure Cloudflare/AWS resources, API tokens, Worker bindings, databases, or storage products;
 - configure R2 buckets, S3 credentials, WebDAV, or relay URLs;
 - understand P2P versus relayed calling;
 - manually rebalance infrastructure quotas;
@@ -72,3 +72,21 @@ Security warnings should be exceptional and actionable. The UI should not create
 ## Discovery invisibility rule
 
 Resolver namespaces, ContactDescriptor validation, invite revocation epochs, IntroductionTickets, RelaySets, anti-abuse challenges, provider failover and censorship transports are infrastructure details. Ordinary users should normally see only `Search`, `Scan QR`, `Connect`, `Block`, `Report`, and `Revoke link`.
+
+## Recovery and protection UX
+
+Recovery is not mandatory. The default is disposable/no recovery. Users who care can opt into an offline recovery code, guardians, spare devices, or future recovery modules.
+
+The product explains consequences, not primitives:
+
+- **No recovery** — lose all devices, lose this identity.
+- **Recovery code** — protect this like your digital life depends on it.
+- **Trusted people/places** — require several shares/approvals.
+
+## Protection presets
+
+Recommended settings are the default; users are not forced through a threat-model wizard. Advanced users can choose Standard, Hardened, Maximum Privacy, or customize component policies. These presets never select weaker E2EE ciphers.
+
+## Cloudflare onboarding exception
+
+The initial deployment premise asks each user to own their personal Cloudflare account, but OM automates resource creation through a consent flow. Owning the account is a user-sovereignty choice; understanding Workers/DO/R2 remains unnecessary.

@@ -33,3 +33,7 @@ Checked 2026-09-21. External standards, drafts, pricing, and provider limits are
 ## Research caution
 
 Do not treat an Internet-Draft as a finalized RFC. Do not copy provider quotas/prices into permanent protocol constants. Document verified versions/dates in implementation ADRs.
+
+## Continuity/trust checkpoint
+
+See `SECURITY_CONTINUITY_REFERENCES_20260921.md` for Cloudflare workers.dev/OAuth/R2/DO verification, NIST crypto-agility/threshold work, Key Transparency, Apple background notification constraints, TUF/SLSA/in-toto/reproducible builds and Privacy Pass.

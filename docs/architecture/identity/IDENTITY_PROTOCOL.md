@@ -293,3 +293,9 @@ The following supersedes any implication that AccountID is permanently defined b
 - CryptoProfile migration should be invisible to ordinary users and must advance downgrade protections.
 
 See `CRYPTOGRAPHY_AND_AGILITY.md` and `RELAY_AND_DELIVERY_ARCHITECTURE.md`.
+
+## Recovery/control boundary
+
+`AccountID` does not imply that every linked device has equal governance authority. Device credentials carry explicit roles/capabilities. Account-control changes are authenticated by `AccountControlState`; recovery is a separate configured policy and is `none` by default.
+
+Discovery/contact sharing may use alias/share-specific introduction identity so the stable AccountID need not be public before acceptance. Stable identity is proven/bound inside the accepted relationship.

@@ -88,3 +88,13 @@ Providers expose operational metadata such as free-tier allowance, hard/soft quo
 - no plaintext reaches BlobStore;
 - backup made under old CryptoProfile restores then migrates safely;
 - zero-budget policy never causes billable provider usage unless explicitly allowed.
+
+## Zero-payment personal bootstrap
+
+The baseline Cloudflare profile no longer requires R2. Worker + SQLite Durable Object can cover relay/control state and a tightly bounded temporary encrypted blob spool. R2/other BlobStore is enabled for larger/offline media or backup.
+
+Online/LAN file transfer should prefer direct encrypted paths where policy permits. Exact spool/blob cutoffs are operational benchmarks.
+
+## Restore invariant
+
+Backups restore history, not authority. Current AccountControlState, revocations, security floors and live provider capabilities must be reconciled before restored material becomes operational.

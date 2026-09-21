@@ -83,3 +83,17 @@ Provider independence improves survivability but does not make any single endpoi
 - **Cross-relay correlation:** separate capability identifiers and independently randomized outer envelopes; multi-relay redundancy used selectively.
 - **LAN tracking:** rotating rendezvous tokens derived from purpose-specific relationship/invite secrets; no stable AccountID/name broadcast.
 - **State/network censorship:** provider and transport diversity, alternate relays, direct/LAN paths and optional pluggable transports reduce choke points; no guarantee against a sufficiently powerful censor/global observer.
+
+## Continuity / supply-chain threats added at 21:32 checkpoint
+
+- **One compromised controller revokes everyone:** quarantine cannot shrink its own constitutional denominator; permanent mass control changes require parent-state quorum/recovery.
+- **Attacker adds devices to manufacture quorum:** messaging-device enrollment is separate from control-device promotion; promotion is constitutional.
+- **Mutual/concurrent revocation:** no LWW; enter control conflict/safety freeze until stronger authorization resolves.
+- **Stale provider/backup state:** AccountControlHead gossip/witness observations detect rollback; restored authority remains quarantined until current state is reconciled.
+- **Recovery provider becomes master key:** recovery is off by default and pluggable; identity and history recovery are separated.
+- **Guardian collusion/loss:** threshold selection is explicit risk; future threshold/MPC methods remain upgradeable.
+- **CI/forge compromise:** signed mirrored release source, role-separated update metadata, provenance and reproducible-build verification where feasible.
+- **Vendor-push metadata:** push sees an opaque device wake/timing event but not normal message plaintext/canonical conversation identity; Maximum Privacy may disable it with availability cost.
+- **Contact-sharing forgery:** subject signs ContactCapsule; introducer referral is optional context, not subject authentication.
+- **Cloudflare bootstrap control:** provisioning OAuth client and workers.dev location are replaceable; neither is AccountID or protocol authority.
+- **Cost exhaustion:** reject before expensive storage/media work and enforce hard local budget policy.

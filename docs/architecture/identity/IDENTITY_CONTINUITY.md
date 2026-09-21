@@ -226,3 +226,11 @@ High-assurance users can expand these notices to inspect fingerprints, signature
 - Alias-claim expiration and re-verification policy for phone-number discovery.
 - How phone-number discovery is made privacy-preserving across provider implementations.
 - How SMS conversations map to a PersonRecord when the same number is later reassigned.
+
+## Account-control continuity refinement — 2026-09-21 21:32
+
+Identity continuity now explicitly separates `AccountControlState` from chat events. Control state is a monotonic authenticated hash chain. Quarantine, permanent revocation, controller promotion, RecoveryPolicy, minimum CryptoProfile and control-key epochs are state transitions under constitutional authorization.
+
+A messaging device is not automatically a control device. Promotion to control status is itself constitutional, preventing one compromised device from adding attacker devices and fabricating a quorum.
+
+Backups restore historical data but never make historical control state authoritative. See `ACCOUNT_CONTINUITY_AND_CONTROL.md` and `RECOVERY_AND_BACKUP_POLICY.md`.

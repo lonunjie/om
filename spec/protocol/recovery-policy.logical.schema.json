@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM RecoveryPolicy logical schema",
+  "type": "object",
+  "required": [
+    "version",
+    "methods",
+    "authorization_rule",
+    "recovers",
+    "policy_commitment"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "methods": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "authorization_rule": {
+      "type": "object"
+    },
+    "recovers": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "identity",
+          "history",
+          "provider_metadata"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "activation_policy": {
+      "type": "object"
+    },
+    "rotation_epoch": {
+      "type": [
+        "integer",
+        "string"
+      ]
+    },
+    "policy_commitment": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

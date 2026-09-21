@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM Security/Privacy profile logical schema",
+  "type": "object",
+  "required": [
+    "profile_id",
+    "crypto_policy",
+    "metadata_policy",
+    "route_policy",
+    "notification_policy",
+    "recovery_policy",
+    "storage_policy"
+  ],
+  "properties": {
+    "profile_id": {
+      "type": "string"
+    },
+    "crypto_policy": {
+      "type": "object"
+    },
+    "metadata_policy": {
+      "type": "object"
+    },
+    "route_policy": {
+      "type": "object"
+    },
+    "notification_policy": {
+      "type": "object"
+    },
+    "recovery_policy": {
+      "type": "object"
+    },
+    "storage_policy": {
+      "type": "object"
+    },
+    "retention_policy": {
+      "type": "object"
+    },
+    "censorship_transport_policy": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

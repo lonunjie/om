@@ -70,3 +70,14 @@ Cloud/provider quotas, app-store policies, drafts, APIs, library support, and pr
 ## Discovery/resilience checkpoint
 
 Treat `DISCOVERY_FABRIC.md`, `INVITES_INTROGATE_AND_SPAM.md`, `MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`, `LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md`, and `CENSORSHIP_AND_NETWORK_RESILIENCE.md` as canonical. Do not introduce a protocol-global username root, publish stable relationship mailboxes in directories, reuse a capability across multiple relays, or broadcast stable identity on LAN. New network/circumvention transports must remain below canonical OM semantics.
+
+## 21:32 checkpoint implementation rules
+
+- Do not implement account authority using chat timestamps, CRDT merge, or last-write-wins.
+- Do not let one existing controller promote arbitrary new control devices without parent-state constitutional authorization.
+- Do not make backup content authoritative for device/recovery/security state.
+- Do not require R2/payment setup for the v1 zero-payment personal Cloudflare bootstrap.
+- Do not upload/hash the OS address book for discovery.
+- Do not place sender/message plaintext in APNs/FCM payloads.
+- Do not interpret Standard/Hardened/Maximum Privacy as weaker/stronger cipher selections.
+- Do not ship a public binary whose trust reduces to one mutable CI workflow/one online update key if the documented trust-root gate is incomplete.

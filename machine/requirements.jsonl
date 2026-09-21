@@ -26,3 +26,20 @@
 {"id": "R-026", "priority": "should", "requirement": "Directory lookup can be privacy-split so no single non-colluding provider must learn both client network identity and plaintext alias query."}
 {"id": "R-027", "priority": "must", "requirement": "LAN discovery must not broadcast stable AccountID, username, device name, or other globally linkable OM identifier."}
 {"id": "R-028", "priority": "should", "requirement": "Core OM semantics must remain independent of any particular anti-censorship transport so new transports can be added without identity/history migration."}
+{"id": "R-029", "priority": "must", "requirement": "Default RecoveryPolicy is none; enabling recovery requires explicit user action and does not become a provider master key."}
+{"id": "R-030", "priority": "must", "requirement": "Identity recovery and history-recovery keys/authority are cryptographically separate."}
+{"id": "R-031", "priority": "must", "requirement": "One compromised ordinary control device cannot permanently revoke the healthy control set or manufacture a new control quorum by adding devices."}
+{"id": "R-032", "priority": "must", "requirement": "Quarantine stops future secret distribution to a suspect device without allowing quarantine itself to reduce the constitutional authorization denominator."}
+{"id": "R-033", "priority": "must", "requirement": "Restored/offline devices verify current AccountControlState freshness before exercising control authority."}
+{"id": "R-034", "priority": "must", "requirement": "Personal v1 onboarding can operate with no purchased domain; a workers.dev FQDN may publish signed discovery data."}
+{"id": "R-035", "priority": "must", "requirement": "Share Contact never transfers private pairwise delivery capabilities; forwarded contact data is subject-signed and bounded by expiry/revocation policy."}
+{"id": "R-036", "priority": "must", "requirement": "The basic personal Cloudflare deployment must not require R2/D1/Pages when Worker + SQLite Durable Object can satisfy the zero-payment core."}
+{"id": "R-037", "priority": "must", "requirement": "Official source/release/update trust must not rely solely on one forge, one online signing key, or one mutable CI job."}
+{"id": "R-038", "priority": "must", "requirement": "Standard/Hardened/Maximum Privacy presets all retain the same minimum approved cryptographic security floor."}
+{"id": "R-039", "priority": "must", "requirement": "Push payloads do not contain normal message plaintext or require the push provider to know canonical conversation identity."}
+{"id": "R-040", "priority": "must", "requirement": "Disabling vendor push communicates platform-specific delivery limitations honestly; iOS silent/background push is not treated as guaranteed."}
+{"id": "R-041", "priority": "must", "requirement": "Backup restore cannot resurrect revoked devices, obsolete recovery policies, obsolete relay capability state, or forbidden CryptoProfiles."}
+{"id": "R-042", "priority": "must", "requirement": "OM v1 does not upload/hash the user's address book by default or as an onboarding requirement."}
+{"id": "R-043", "priority": "should", "requirement": "Local Contacts permission may map/display names entirely on device without transmitting the contact book."}
+{"id": "R-044", "priority": "must", "requirement": "Unknown critical protocol extensions cause the affected operation to fail safely; optional unknown extensions follow explicit ignore/preserve rules."}
+{"id": "R-045", "priority": "should", "requirement": "Nation-state/anonymity transports can be added beneath stable OM semantics without identity/history migration."}

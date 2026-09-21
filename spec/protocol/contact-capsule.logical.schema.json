@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM ContactCapsule logical schema",
+  "type": "object",
+  "required": [
+    "capsule_version",
+    "subject_intro_identity",
+    "contact_descriptor",
+    "expires_at",
+    "signature"
+  ],
+  "properties": {
+    "capsule_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "share_id": {
+      "type": "string"
+    },
+    "share_epoch": {
+      "type": [
+        "integer",
+        "string"
+      ]
+    },
+    "subject_intro_identity": {
+      "type": "string"
+    },
+    "contact_descriptor": {
+      "type": "object"
+    },
+    "expires_at": {
+      "type": "string"
+    },
+    "share_policy_hint": {
+      "type": "object"
+    },
+    "signature": {
+      "type": "object"
+    },
+    "referral_attestation": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

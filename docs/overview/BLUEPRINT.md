@@ -180,3 +180,25 @@ Then harden groups/recovery, then calls, then infrastructure self-service, then 
 - arbitrary executable plugins inside official client;
 - carrier/RCS approval as a prerequisite to launch;
 - custom novel cryptographic primitive design.
+
+## 21:32 checkpoint additions
+
+### Account continuity
+
+OM now has an explicit constitutional control plane. Chat ordering does not decide authority. Emergency quarantine can stop future secrets, but permanent revocation and control-device promotion require stronger authorization under the pre-change state or RecoveryPolicy.
+
+### Recovery spectrum
+
+Recovery is `none` by default. Users who care can opt into a machine-generated offline recovery root, guardians/shares, spare control devices, hardware-backed methods, and later threshold/MPC methods. Identity recovery and history decryption are separate powers.
+
+### User-owned v1 Cloudflare bootstrap
+
+Every early user may own their own Cloudflare account. OM automates Worker + SQLite Durable Object setup through OAuth/PKCE; the Worker FQDN under `workers.dev` is the user's initial personal discovery locator. Organizations/FQDN owners provide the first natural grouped directories. R2 is optional, not baseline.
+
+### Trustworthy software
+
+Open source is paired with secure update/supply-chain foundations from the first public release: signed/mirrored source, role-separated update keys, provenance, dependency pinning and reproducibility where feasible.
+
+### Privacy without niche UX
+
+All profiles retain the strongest approved E2EE. Standard/Hardened/Maximum Privacy only tune metadata exposure, routing, notifications, recovery/storage/retention and future anonymity transports. Push remains instant and privacy-preserving by default through opaque wakeups and local notification rendering.

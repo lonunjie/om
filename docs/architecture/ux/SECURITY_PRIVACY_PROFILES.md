@@ -1,0 +1,101 @@
+# Security and Privacy Profiles
+
+## 1. One cryptographic floor, different operational privacy policies
+
+OM is a messenger for everyone, not a niche "privacy messenger." The product should be easy by default while allowing users with stronger threat models to increase protection.
+
+Profiles MUST NOT mean "weak crypto versus strong crypto." All users get the strongest approved compatible CryptoProfile, authenticated devices, forward secrecy/post-compromise mechanisms, and automatic crypto migration.
+
+Profiles change **metadata, routing, notification, recovery, retention, and provider** policy.
+
+## 2. Policy decomposition
+
+Internally OM uses independent policies rather than one magic `security_level`:
+
+```text
+CryptoPolicy          // always strongest approved compatible profile
+RecoveryPolicy
+MetadataPolicy
+RoutePolicy
+NotificationPolicy
+DeviceControlPolicy
+StoragePolicy
+RetentionPolicy
+CensorshipTransportPolicy
+```
+
+Friendly profiles simply install recommended combinations. If the user changes one component, UI shows **Custom**.
+
+## 3. Recommended presets
+
+### Standard — recommended
+
+Goal: excellent everyday usability with privacy materially stronger than ordinary server-readable messaging.
+
+- strongest approved E2EE/PQ-hybrid profile;
+- opaque/generic vendor push wakeups;
+- local notification rendering after decrypt;
+- basic size bucketing/padding where cheap;
+- accepted-contact P2P/LAN calls allowed;
+- TURN fallback;
+- ordinary directory lookup with optional privacy relay when inexpensive;
+- receipts/presence enabled by normal user choice;
+- automatic relay failover;
+- no recovery unless user explicitly enables it;
+- normal encrypted local storage.
+
+### Hardened
+
+Goal: reduce metadata exposure without making the app frustrating.
+
+- same crypto floor;
+- oblivious/private discovery where available;
+- stronger message size buckets/padding;
+- generic lock-screen notifications by default;
+- reduced/off presence and receipts;
+- prefer relayed calls where peer-IP exposure matters;
+- provider diversity preferred;
+- encrypted backups only when explicitly configured;
+- stricter first-contact policy.
+
+### Maximum Privacy
+
+Goal: users with unusually strong metadata/network threats; accepts cost/latency/battery/usability tradeoffs.
+
+- same crypto floor;
+- no direct peer-IP exposure unless explicitly overridden;
+- multi-hop/anonymity/pluggable transports when available;
+- stronger traffic padding/batching where practical;
+- presence/typing/read receipts off by default;
+- private/direct invitation preferred over searchable directories;
+- vendor push may be disabled, with explicit warning that background delivery can become delayed, especially on iOS;
+- backup normally off/local unless explicitly configured;
+- no recovery unless explicitly configured;
+- aggressive provider diversity.
+
+### Local only (future specialty mode)
+
+Not a joke architecturally: existing/QR-linked peers on a LAN can communicate without WAN where supported. This is an availability/privacy mode, not a universal replacement for Internet messaging.
+
+## 4. UX
+
+First run should default to **Recommended settings**. Do not force every user to understand profiles.
+
+A secondary path may say:
+
+```text
+Protection
+✓ Recommended
+  Hardened
+  Maximum Privacy
+```
+
+Every setting must explain the human effect, for example:
+
+- "Hide your IP address from people you call — calls may use more relay bandwidth."
+- "Do not use Apple/Google push — messages may arrive later while the app is closed."
+- "No account recovery — losing all your devices permanently loses this identity."
+
+## 5. Security monotonicity
+
+Changing a convenience/privacy profile must not silently lower the authenticated cryptographic security floor established with a peer/group. Security-critical downgrades require explicit protocol policy and visible user action where allowed at all.

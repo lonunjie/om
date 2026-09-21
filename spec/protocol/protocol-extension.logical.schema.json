@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM ProtocolExtension logical schema",
+  "type": "object",
+  "required": [
+    "extension_id",
+    "critical",
+    "version",
+    "payload"
+  ],
+  "properties": {
+    "extension_id": {
+      "type": "string"
+    },
+    "critical": {
+      "type": "boolean"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "payload": {}
+  },
+  "additionalProperties": true
+}

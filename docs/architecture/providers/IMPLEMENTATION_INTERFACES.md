@@ -88,3 +88,39 @@ LanRendezvous
 ```
 
 The interfaces are logical contracts; transport/serialization details are Gate D work.
+
+## Additional logical interfaces
+
+```text
+AccountControlStore
+  get_head()
+  fetch_state_chain(from_head)
+  submit_transition(transition, authorization)
+  quarantine(device, evidence/policy)
+  resolve_control_fork(...)
+
+RecoveryMethod
+  describe_capabilities()
+  enroll(policy_context)
+  authorize_recovery(challenge)
+  rotate_or_revoke(...)
+
+ProvisioningProfile
+  authorize_provider_account()
+  plan_resources()
+  apply_plan()
+  self_test()
+  export_migration_state()
+
+PushProvider / PushGateway
+  register_opaque_wake_handle()
+  wake(handle, opaque_hint)
+  revoke_or_rotate(handle)
+
+ContactShare
+  mint_contact_capsule(policy)
+  verify_contact_capsule(capsule)
+  attach_referral(capsule, recipient_context)
+```
+
+Vendor names remain implementations, not interface branches.
