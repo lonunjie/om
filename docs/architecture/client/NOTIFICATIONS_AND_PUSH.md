@@ -73,3 +73,16 @@ Incoming-call UX may require platform-specific push/call mechanisms. The same ru
 ## 8. Failure behavior
 
 Push failure must never lose a message. Opening/resuming OM fetches pending relay envelopes. Push token rotation or provider migration must not change DeviceIdentity or AccountID.
+
+## 2026-09-22 operatorless push refinement
+
+The reference PWA should prefer per-user Web Push ownership:
+
+```text
+sender -> recipient PersonalRelay/Worker -> browser Web Push endpoint -> recipient PWA
+```
+
+The OM Project does not need a universal push gateway.
+
+For future native distributions, APNs/FCM gateways may be operated by that distribution or another configured PushProvider. Their operational/legal boundary belongs to the distribution/provider and never becomes canonical protocol infrastructure.
+

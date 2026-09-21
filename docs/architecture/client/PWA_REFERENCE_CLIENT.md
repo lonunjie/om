@@ -249,3 +249,16 @@ The PWA succeeds when it proves that OM's protocol contracts are coherent and re
 ## 2026-09-21 scope update
 
 The PWA remains useful as a protocol/conformance reference client, but the first consumer product milestone is OM-native secure messaging rather than proving carrier SMS replacement. Calls may be implemented before SMS/RCS once core messaging/groups/sync are stable.
+
+## 2026-09-22 canonical addendum — operatorless first distribution
+
+OM is now explicitly **PWA-first, not PWA-only**.
+
+The reference PWA is the first operatorless distribution because it can be installed from the web, can use standards-based Web Push, and can operate against the user's own relay/discovery deployment without an app-store account or universal OM push service.
+
+Web Push may be sent by the recipient's own Worker/PersonalRelay to the browser push subscription. This preserves opaque-wakeup rules; message plaintext remains locally decrypted/rendered.
+
+The PWA is not expected to permanently replace native capabilities such as PushKit/CallKit-class incoming-call integration, platform hardware-key APIs, Android default-SMS integration, or all background execution semantics.
+
+The project should converge security/state logic into one portable OM Core compiled to WASM for the PWA and native libraries for later shells. Do not independently reinvent cryptographic/control-state behavior in each UI language.
+

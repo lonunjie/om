@@ -248,3 +248,22 @@ It does **not** prove:
 Add `MediaProvider`, `RoutePolicy`, and `CryptoProfileRegistry` to the core capability boundaries.
 
 Normal UI must not expose cipher selection, TURN/SFU selection, provider quota arithmetic, or routine crypto migration. Advanced infrastructure controls are optional policy settings. SMS/MMS/RCS remain future TransportAdapters and are not first-release blockers.
+
+## 2026-09-22 canonical addendum — coherent reference family
+
+The official/reference client family may be socially prominent but never protocol-privileged.
+
+Preferred repository/product family:
+
+```text
+om-core
+om-web
+om-android
+om-ios
+om-desktop (later)
+```
+
+Third-party clients remain first-class interoperability targets. The project should nevertheless maintain a coherent reference family so non-technical users are not forced to choose among incompatible/unvetted forks.
+
+A `ClientDistribution` owns only distribution-local concerns: signing/update channel, store listing, platform push gateway (if any), and distribution-specific report/compliance integrations. None of those may become required by the OM wire protocol.
+

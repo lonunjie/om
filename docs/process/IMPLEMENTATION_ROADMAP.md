@@ -144,3 +144,19 @@ Before wire-format freeze / public security claims:
 9. **Extensibility** — critical-field semantics, canonical encoding and registries before interoperability freeze.
 
 Endpoint-attestation classes and nation-state anonymity transports remain deliberately later, with interfaces reserved now.
+
+## 2026-09-22 roadmap refinement
+
+Add an operatorless client track:
+
+1. define portable OM Core API and canonical test vectors;
+2. ship operatorless PWA against user-owned Worker/DO deployment;
+3. implement per-user Web Push and ordinary daily-driver messaging/calls;
+4. harden reproducible/provenance-aware reference distribution;
+5. build Android native shell over the same core;
+6. build iOS native shell over the same core;
+7. add Android SMS/MMS/RCS adapters only after OM-native behavior is stable;
+8. allow optional convenience/enterprise providers without protocol privilege.
+
+Add Creator-Disappearance Gate to release acceptance.
+

@@ -43,3 +43,12 @@
 {"id": "R-043", "priority": "should", "requirement": "Local Contacts permission may map/display names entirely on device without transmitting the contact book."}
 {"id": "R-044", "priority": "must", "requirement": "Unknown critical protocol extensions cause the affected operation to fail safely; optional unknown extensions follow explicit ignore/preserve rules."}
 {"id": "R-045", "priority": "should", "requirement": "Nation-state/anonymity transports can be added beneath stable OM semantics without identity/history migration."}
+{"id": "R-046", "priority": "must", "requirement": "Established OM relationships must not require any OM-Project-operated runtime service to continue communication."}
+{"id": "R-047", "priority": "must", "requirement": "The reference PWA and future native clients must share protocol/security semantics through common conformance vectors and preferably one portable OM Core."}
+{"id": "R-048", "priority": "must", "requirement": "No client distribution may receive hidden protocol privileges unavailable to conforming third-party distributions."}
+{"id": "R-049", "priority": "must", "requirement": "PWA Web Push must not require a universal OM push gateway; personal/provider-local push senders remain possible."}
+{"id": "R-050", "priority": "must", "requirement": "Provisioning method is replaceable and must not become identity or protocol state."}
+{"id": "R-051", "priority": "must", "requirement": "Core evidence export is explicit and user-selected; normal operation does not centralize plaintext merely to support hypothetical reports."}
+{"id": "R-052", "priority": "must", "requirement": "A managed/convenience provider can be replaced without changing AccountID or canonical conversation meaning."}
+{"id": "R-053", "priority": "must", "requirement": "Loss of the original project website, primary source forge, author, foundation or business must not terminate established independent OM communication."}
+{"id": "R-054", "priority": "should", "requirement": "Reference source/spec/test vectors should be straightforward to mirror and continue under independent distribution keys."}

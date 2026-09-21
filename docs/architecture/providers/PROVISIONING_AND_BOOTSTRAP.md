@@ -106,3 +106,20 @@ Cloudflare-specific identifiers never enter canonical identity/conversation sema
 ## 9. workers.dev automation detail
 
 Cloudflare exposes API operations to create/read the account Workers subdomain and enable a script on `workers.dev`; the account-subdomain creation endpoint accepts `Workers Scripts Write`. Since Cloudflare OAuth scope names correspond to API-token permissions, the provisioning profile can request the relevant narrowly scoped permission and automate this step after user consent. If Cloudflare changes these scopes/API capabilities, provisioning falls back to an explicit user step without changing OM protocol semantics.
+
+## 10. Operatorless provisioning path
+
+Cloudflare's Deploy-to-Cloudflare mechanism can deploy a public Worker application into the user's own Cloudflare account and automatically provision supported resources from the project's configuration. This is now a preferred v1 path because no OM-operated OAuth/control plane is required.
+
+`ProvisioningMethod` is replaceable and may include:
+
+- Deploy-to-Cloudflare/template deployment;
+- manual Wrangler/CLI;
+- Terraform/OpenTofu/IaC;
+- optional Cloudflare OAuth client;
+- future provider-specific installers.
+
+No provisioning method is part of AccountID or messaging semantics.
+
+A project-owned OAuth client is a convenience only, not the bootstrap root.
+

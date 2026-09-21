@@ -65,3 +65,15 @@ OM core does not branch on “Cloudflare.” Provider quotas/pricing are discove
 ## Carrier messaging
 
 SMS/MMS/RCS remain architectural adapters but are removed from first implementation scope. Store/carrier approvals must not block OM-native messaging or calls.
+
+## 2026-09-22 07:34 PHT — Operatorless core / client ecosystem checkpoint
+
+- Made the operatorless nature of OM explicit: no mandatory OM-operated runtime service.
+- Added PWA-first/not-PWA-only client strategy and shared portable OM Core direction.
+- Added operatorless provisioning and Deploy-to-Cloudflare/template path.
+- Added local EvidencePackage export and removed any architectural requirement for a central AbuseDesk.
+- Split protocol/project/deployment/provider/distribution legal/operational roles.
+- Added optional convenience-provider/business model without protocol privilege.
+- Added Creator-Disappearance Gate.
+- Added ADR-0043 through ADR-0050 and three new logical schemas.
+

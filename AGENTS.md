@@ -81,3 +81,14 @@ Treat `DISCOVERY_FABRIC.md`, `INVITES_INTROGATE_AND_SPAM.md`, `MULTI_RELAY_AND_D
 - Do not place sender/message plaintext in APNs/FCM payloads.
 - Do not interpret Standard/Hardened/Maximum Privacy as weaker/stronger cipher selections.
 - Do not ship a public binary whose trust reduces to one mutable CI workflow/one online update key if the documented trust-root gate is incomplete.
+
+## 2026-09-22 operatorless constraints
+
+Agents must preserve these invariants:
+
+- do not add a mandatory OM-operated control plane merely for convenience;
+- do not make a reference client/distribution technically privileged;
+- treat provisioning, push, reporting and managed hosting as replaceable provider/distribution capabilities;
+- preserve Creator-Disappearance Gate;
+- do not infer “no legal obligations” from decentralization; flag jurisdiction-specific operator-role questions instead.
+

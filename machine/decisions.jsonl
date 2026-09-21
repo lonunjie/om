@@ -57,3 +57,11 @@
 {"id": "D-057", "status": "accepted_direction", "decision": "Disappearing-message lifecycle is client-enforced and backup-aware; view-once is never backed up and expired content is never restored."}
 {"id": "D-058", "status": "accepted", "decision": "Protocol extensions have explicit critical/non-critical semantics and authenticated capability negotiation before wire freeze."}
 {"id": "D-059", "status": "accepted_direction", "decision": "Endpoint-assurance classes and nation-state anonymity transports remain pluggable future policy/capability layers rather than v1 blockers."}
+{"id": "D-060", "status": "accepted", "decision": "OM Protocol/Core requires no OM-operated account, relay, directory, push, recovery, or abuse service for established communication."}
+{"id": "D-061", "status": "accepted", "decision": "The first reference client is PWA-first but native Android/iOS shells remain planned; PWA is not a permanent capability ceiling."}
+{"id": "D-062", "status": "accepted_direction", "decision": "Security/state semantics should converge on one portable memory-safe OM Core shared by WASM and native shells."}
+{"id": "D-063", "status": "accepted", "decision": "Provisioning is replaceable; provider-native deploy templates are preferred where they avoid an OM-controlled provisioning service, while OAuth remains optional."}
+{"id": "D-064", "status": "accepted", "decision": "Operatorless-core abuse response is local blocking plus selective EvidencePackage export to a user-chosen recipient; no central OM AbuseDesk is required."}
+{"id": "D-065", "status": "accepted", "decision": "Push/signing/store-policy/reporting infrastructure for a native client is owned by that client distribution, not by the OM protocol."}
+{"id": "D-066", "status": "accepted", "decision": "Future convenience businesses/providers may exist but receive no protocol privilege and must preserve provider migration/identity continuity."}
+{"id": "D-067", "status": "accepted", "decision": "Creator-Disappearance Gate requires established independent users to continue communicating if the original project/author/business disappears."}

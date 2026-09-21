@@ -93,3 +93,14 @@ Then identify what that actor can observe, deny, modify, impersonate, or correla
 OM explicitly rejects a mandatory protocol-global username registry. Directories control only their own namespace/search service. A local Resolver can use multiple DirectoryProviders, domain delegation, QR/invite or LAN rendezvous. Once a relationship is accepted, discovery infrastructure is no longer required for ordinary communication.
 
 Optional oblivious lookup further divides metadata authority: a DiscoveryRelay can know the client's network address without knowing the alias query, while the DirectoryResolver can know the alias query without learning the client address. This follows the same scoped/non-composable authority principle used elsewhere in OM.
+
+## 2026-09-22 governance refinement — no indispensable operator
+
+Add an explicit survivability property:
+
+> **No OM Project/Foundation/company may be indispensable to already-established private communication.**
+
+A future foundation can steward standards and reference code. A future company can sell convenience. Neither may gain mandatory identity, relay, directory, recovery, update-for-the-whole-network, or policy authority.
+
+The reference implementation may be socially privileged; it is never technically privileged.
+

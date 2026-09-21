@@ -1,12 +1,12 @@
 # OM — Master Planning & Design Repository
 
-**Snapshot:** 2026-09-21 21:32 PHT (UTC+08:00)  
+**Snapshot:** 2026-09-22 07:34 PHT (UTC+08:00)  
 **Phase:** Architecture consolidation → implementation-ready gates  
 **Working umbrella name:** **OM — OpenMessenger / OwnMessenger / OurMessenger**
 
 This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design reviews covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed/multi-relay delivery, the Discovery Fabric and revocable IntroGate, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, privacy-preserving LAN operation, censorship/network resilience, and future SMS/RCS integration.
 
-Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, and `history/20260921-1008/` for traceability.
+Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, and `history/20260921-2132/` for traceability.
 
 ## Product thesis
 
@@ -67,7 +67,10 @@ And the implementation discipline remains:
 - SMS/MMS and RCS are future TransportAdapters and do not block the initial OM-native product;
 - local-first and LAN-capable behavior are architectural goals;
 - abuse controls must remain enforceable against hostile modified clients without requiring universal content surveillance;
-- official clients are reference implementations; protocol conformance is public and testable.
+- official/reference clients are interoperable distributions, never protocol authorities; protocol conformance is public and testable.
+- OM is PWA-first, not PWA-only; native shells later reuse the same portable OM Core.
+- no OM-operated relay/directory/push/abuse infrastructure is required for the operatorless core.
+- future convenience businesses/providers may exist, but users can migrate away without replacing AccountID or canonical history.
 
 ## Start here
 
@@ -89,7 +92,11 @@ And the implementation discipline remains:
 16. `ABUSE_SAFETY_AND_REPORTING.md` — privacy-preserving abuse boundaries.
 17. `IMPLEMENTATION_ROADMAP.md` — implementation order and acceptance gates.
 18. `ARCHITECTURE_PHASE_PLAN.md` — architecture gates and exit criteria.
-19. `AGENTS.md` — rules for coding/research agents.
+19. `OPERATORLESS_CORE_AND_ECOSYSTEM.md` — operatorless core, role separation and creator-disappearance gate.
+20. `PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md` — PWA-first/native-later client strategy.
+21. `LEGAL_AND_OPERATIONAL_BOUNDARIES.md` — scoped custody/responsibility and legal-role boundaries.
+22. `EVIDENCE_AND_EXTERNAL_REPORTING.md` — local evidence export and optional distribution-specific reporting.
+23. `AGENTS.md` — rules for coding/research agents.
 
 Existing detailed documents remain canonical where not superseded: identity, event model, group architecture, client/extension architecture, and PWA reference client.
 
@@ -156,3 +163,20 @@ New canonical material:
 - AccountControlState / AccountControlHead / RecoveryPolicy / ContactCapsule / SecurityProfile / NotificationPolicy / ProtocolExtension logical schemas
 
 The preceding 10:08 discovery/resilience checkpoint is preserved under `history/20260921-1008/`.
+
+
+## 2026-09-22 07:34 operatorless/ecosystem checkpoint
+
+New canonical material:
+
+- `OPERATORLESS_CORE_AND_ECOSYSTEM.md`
+- `PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md`
+- `LEGAL_AND_OPERATIONAL_BOUNDARIES.md`
+- `EVIDENCE_AND_EXTERNAL_REPORTING.md`
+- `CHECKPOINT_20260922_0734.md`
+- ADR-0043 through ADR-0050
+- EvidencePackage / ProvisioningMethod / ClientDistribution logical schemas
+
+Major change: OM is now explicitly modeled as an **operatorless protocol/core plus independent deployments and distributions**. The first reference client is PWA-first for independence, but native shells remain planned for stronger platform integration. Optional future businesses may sell convenience but receive no protocol privilege.
+
+The preceding 2026-09-21 21:32 continuity/trust checkpoint is preserved under `history/20260921-2132/`.

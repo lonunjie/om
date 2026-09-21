@@ -25,3 +25,11 @@
 {"id": "Q-025", "gate": "UX", "question": "Finalize APNs/FCM/alternate push payload and PushGateway correlation-minimization design per platform."}
 {"id": "Q-026", "gate": "B/F", "question": "Finalize disappearing-message timer semantics, tombstone convergence, attachment-key destruction and backup exclusion rules."}
 {"id": "Q-027", "gate": "K", "question": "Finalize extension ID registry, criticality rules, canonical unknown-field preservation and protocol registry governance."}
+{"id": "Q-029", "gate": "J", "question": "Finalize portable OM Core language/runtime/FFI/WASM boundary and platform CryptoProvider interface without making private-key bytes universally exportable."}
+{"id": "Q-030", "gate": "J", "question": "Prototype per-user Web Push/VAPID ownership for personal Worker deployments across iOS/iPadOS/Android/desktop browsers."}
+{"id": "Q-031", "gate": "H/J", "question": "Measure PWA incoming-call/background behavior on current iOS/Android and specify the native-shell upgrade path without changing call protocol semantics."}
+{"id": "Q-032", "gate": "G/K", "question": "Specify EvidencePackage authenticity, deniability, selective disclosure and export format; do not overclaim non-repudiation."}
+{"id": "Q-033", "gate": "K", "question": "Define creator-disappearance continuity tests, mirror/bootstrap documentation and fork/release-key transition guidance."}
+{"id": "Q-034", "gate": "Legal", "question": "Before broad Philippine public launch, obtain jurisdiction-specific classification of source/PWA publisher, personal deployment, native app distributor and optional managed provider under RA 11930, RA 10175 and applicable NTC/VAS rules."}
+{"id": "Q-035", "gate": "J/Legal", "question": "For any App Store/Play distribution, define distribution-local reporting/moderation/store-compliance process without adding a universal protocol service."}
+{"id": "Q-036", "gate": "I", "question": "Define standardized migration contract from managed convenience providers to self-owned/provider-alternative relay/storage/media deployments."}

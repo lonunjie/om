@@ -102,3 +102,12 @@ Do not invent emergency bypass keys that silently skip normal authorization.
 ## 8. OM protocol governance independence
 
 A compromised official client must not redefine protocol truth for everyone. Public protocol specs, CryptoProfile registry history, conformance tests, and third-party implementations provide an independent reference.
+
+## 2026-09-22 distribution separation
+
+Update trust belongs to a **client distribution**, not to the OM protocol as a universal authority.
+
+The reference distribution should still use the strongest practical provenance/reproducibility/threshold-update design. However, another compatible distribution may have its own independently auditable signing/update root. Protocol peers authenticate protocol state, not the brand of the software binary.
+
+Creator-disappearance requirement: loss of the reference project's update keys must not make existing independent deployments unable to communicate or prevent a fork from continuing under new distribution keys.
+

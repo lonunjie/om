@@ -83,3 +83,14 @@ parse bounds -> capability/ticket validity -> replay check -> quota -> optional 
 ```
 
 Privacy Pass-style unlinkable tokens are a candidate for proving limited entitlement without stable global identity. Provider-local quotas/budgets remain independent of any universal reputation system.
+
+## 2026-09-22 operatorless reporting refinement
+
+The operatorless core does not require an OM AbuseDesk. The baseline response is:
+
+1. local block / capability revocation;
+2. optional selective `EvidencePackage` export;
+3. user chooses the external recipient (authority, organization, administrator, lawyer, etc.).
+
+A store-distributed client or managed provider may add a `ReportTarget` integration to meet its own obligations. Reports are explicit disclosures and must not require ambient server plaintext access.
+

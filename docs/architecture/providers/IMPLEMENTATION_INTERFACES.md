@@ -124,3 +124,29 @@ ContactShare
 ```
 
 Vendor names remain implementations, not interface branches.
+
+## 2026-09-22 operatorless interfaces
+
+```text
+ProvisioningMethod
+  inspect_requirements()
+  deploy_into_user_account()
+  self_test()
+  export_migration_state()
+
+EvidenceExporter
+  select_items()
+  build_evidence_package()
+  verify_package_locally()
+  hand_off_to_user_chosen_target()
+
+ClientDistribution
+  distribution_id()
+  update_authority()
+  push_provider?()
+  report_targets?()
+  protocol_capabilities()
+```
+
+`ClientDistribution` metadata is not peer trust. A remote peer must never grant protocol privilege merely because the other side claims to use a reference/official build.
+

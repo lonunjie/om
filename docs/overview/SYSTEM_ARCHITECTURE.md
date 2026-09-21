@@ -161,3 +161,18 @@ The resolver, directory, IntroGate and relays are separate replaceable roles. Ne
 ```
 
 The Cloudflare provisioning layer sits outside this graph as one replaceable way to instantiate provider adapters. Software-update trust sits around the client itself and is treated as part of the effective security boundary.
+
+## 2026-09-22 ecosystem layer
+
+Above protocol semantics, distinguish:
+
+```text
+OM Protocol/Core
+    |
+    +-- independent user/organization deployments
+    +-- reference and third-party client distributions
+    +-- optional convenience providers
+```
+
+There is no mandatory centrally operated OM network service. User deployments own their rendezvous/relay state; distributions own only packaging/update/platform integration; providers are replaceable capabilities.
+

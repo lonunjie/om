@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM ClientDistribution (logical, non-normative)",
+  "type": "object",
+  "required": [
+    "distribution_id",
+    "runtime",
+    "update_authority"
+  ],
+  "properties": {
+    "distribution_id": {
+      "type": "string"
+    },
+    "runtime": {
+      "enum": [
+        "pwa",
+        "android",
+        "ios",
+        "desktop",
+        "cli",
+        "other"
+      ]
+    },
+    "update_authority": {
+      "type": "object"
+    },
+    "push_provider": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "report_targets": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "protocol_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "official_protocol_privilege": {
+      "const": false
+    }
+  },
+  "additionalProperties": true
+}

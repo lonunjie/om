@@ -90,3 +90,12 @@ Recommended settings are the default; users are not forced through a threat-mode
 ## Cloudflare onboarding exception
 
 The initial deployment premise asks each user to own their personal Cloudflare account, but OM automates resource creation through a consent flow. Owning the account is a user-sovereignty choice; understanding Workers/DO/R2 remains unnecessary.
+
+## 2026-09-22 operatorless UX principle
+
+The user should experience a normal messenger even when the infrastructure is individually owned.
+
+Self-owned infrastructure must not mean “become a sysadmin.” The reference onboarding may use provider-native deployment templates and automatic health checks, while all infrastructure detail remains hidden unless the user opens Advanced settings.
+
+PWA-first is a distribution choice, not a visible compromise in ordinary messaging UX. Native clients later improve OS integration without changing the user's identity or network.
+

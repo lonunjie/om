@@ -202,3 +202,10 @@ Open source is paired with secure update/supply-chain foundations from the first
 ### Privacy without niche UX
 
 All profiles retain the strongest approved E2EE. Standard/Hardened/Maximum Privacy only tune metadata exposure, routing, notifications, recovery/storage/retention and future anonymity transports. Push remains instant and privacy-preserving by default through opaque wakeups and local notification rendering.
+
+## 2026-09-22 checkpoint — operatorless ecosystem
+
+OM now explicitly targets an operatorless public-good core. The first reference distribution is PWA-first for independence, but the long-term client family shares one portable OM Core across web/native shells. Optional businesses may provide managed convenience without owning identity, protocol or network authority.
+
+The architectural survival test is: **if the original OM author/project/business disappears, do existing independent users continue communicating?** The required answer is yes.
+

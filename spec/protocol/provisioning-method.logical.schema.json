@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM ProvisioningMethod (logical, non-normative)",
+  "type": "object",
+  "required": [
+    "method_id",
+    "kind",
+    "provider",
+    "capabilities"
+  ],
+  "properties": {
+    "method_id": {
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "provider_template",
+        "cli",
+        "iac",
+        "oauth",
+        "manual",
+        "other"
+      ]
+    },
+    "provider": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requires_project_control_plane": {
+      "type": "boolean"
+    },
+    "migration_notes": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,6 +1,6 @@
 # OM Architecture Decision Records
 
-Checkpoint: 2026-09-21 21:32 PHT
+Checkpoint: 2026-09-22 07:34 PHT
 
 - [ADR-0001 — Providers Are Plugins](ADR-0001-provider-independence.md)
 - [ADR-0002 — Passwordless Device-First Identity](ADR-0002-device-first-identity.md)
@@ -44,3 +44,12 @@ Checkpoint: 2026-09-21 21:32 PHT
 - [ADR-0040 — No uploaded address book in v1](ADR-0040-no-uploaded-address-book-in-v1.md)
 - [ADR-0041 — Disappearing content is client lifecycle state](ADR-0041-disappearing-content-is-client-lifecycle-state.md)
 - [ADR-0042 — Explicit critical protocol extensions](ADR-0042-explicit-critical-protocol-extensions.md)
+
+- [ADR-0043 — Operatorless Core; No Mandatory Network Operator](ADR-0043-operatorless-core-no-mandatory-network-operator.md)
+- [ADR-0044 — PWA First, Not PWA Only](ADR-0044-pwa-first-not-pwa-only.md)
+- [ADR-0045 — One Portable OM Core Across Client Shells](ADR-0045-one-portable-om-core.md)
+- [ADR-0046 — Provisioning Is Replaceable and Need Not Use an OM OAuth Service](ADR-0046-operatorless-provisioning-methods.md)
+- [ADR-0047 — Operatorless Core Uses Local Evidence Export](ADR-0047-local-evidence-external-reporting.md)
+- [ADR-0048 — Push and Store Obligations Are Distribution-Local](ADR-0048-distribution-local-push-store-obligations.md)
+- [ADR-0049 — Convenience Providers Are Non-Privileged](ADR-0049-convenience-providers-nonprivileged.md)
+- [ADR-0050 — Creator-Disappearance Gate](ADR-0050-creator-disappearance-gate.md)

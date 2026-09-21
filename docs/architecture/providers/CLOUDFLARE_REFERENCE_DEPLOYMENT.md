@@ -13,7 +13,7 @@ Alice owns CF account -> Alice Worker / SQLite DO
 Bob owns CF account   -> Bob Worker / SQLite DO
 ```
 
-OM can automate provisioning through Cloudflare's public OAuth + Authorization Code/PKCE flow. Users should not paste long-lived API tokens.
+Preferred operatorless provisioning is a provider-native **Deploy to Cloudflare** public template where feasible: Cloudflare deploys the public Worker project into the user's own account and can automatically provision supported bound resources. OAuth + Authorization Code/PKCE remains an optional convenience for richer in-client automation. Users should not paste long-lived API tokens.
 
 ## workers.dev discovery
 
@@ -72,14 +72,18 @@ OM never assumes "free tier" means one universal billing model.
 
 ## Provisioning independence
 
-The official OM Cloudflare OAuth client is replaceable. `ProvisioningProfile` supports:
+No OM-controlled provisioning service is required. `ProvisioningMethod` supports:
 
-- official OAuth client;
-- third-party OM distribution OAuth client;
-- CLI/manual deployment;
+- Deploy-to-Cloudflare/public template deployment;
+- CLI/manual Wrangler deployment;
+- Terraform/OpenTofu/IaC;
+- optional reference-distribution OAuth client;
+- third-party distribution OAuth clients;
 - future provider-native provisioning.
 
-If the official provisioning client is blocked or revoked, existing identities and communication continue.
+Cloudflare's current Deploy-to-Cloudflare flow is tied to public GitHub/GitLab repositories, so it is a convenience path rather than the only bootstrap path. Mirrored/manual/IaC deployment remains documented.
+
+If any reference provisioning client or source forge is blocked/revoked, existing identities and communication continue.
 
 ## Failure independence
 
