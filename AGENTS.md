@@ -2,12 +2,27 @@
 
 OM — an open-source, operatorless end-to-end-encrypted messenger (Open/Own/Our/One/Oh Messenger) by SeedLife. Architecture/design phase; engineering not yet authorized.
 
-<!-- Fill in: what this workspace owns, where it sits relative to other
-     repos, and the working rules that matter here. Keep this the ONE
-     source of truth -- CLAUDE.md and GEMINI.md are pointer stubs only. -->
+This repo lives at `~/dig/lonunjie/om`, nested inside the SeedLife control
+plane (`~/dig/lonunjie`, repo `lonunjie/hq`). Read `../AGENTS.md` first for
+org-wide rules, registry, and memory; this file adds only what is specific
+to OM. Private on GitHub until the architecture freezes.
+
+## Design status (read before doing anything)
+
+**Architecture hardening is in progress. Engineering is NOT authorized.**
+Design-package zips land in `design-drops/` (gitignored). They are working
+snapshots of a design the operator is actively changing — use them to
+understand what OM is, but do not implement from them, scaffold code from
+them, or treat any document in them as settled until the operator
+declares the architecture frozen. Summary of what OM is:
+`../memory/topics/om-design-phase.md`.
+
+When a freeze is declared, commit the frozen package into this repo as
+real files (with `LICENSE.md` and SPDX headers per its licensing policy)
+instead of reading it from a zip.
 
 Template compliance: repo-template-standard.md v1.2.0, generated
-2026-09-23. Check `~/dig/bin/new-agent-repo.d/repo-template-standard.md` for
+2026-09-23. Deviation: memory lives in `../memory/` (see Memory). Check `~/dig/bin/new-agent-repo.d/repo-template-standard.md` for
 the current version and re-review this repo against its changelog when
 they diverge.
 
@@ -25,29 +40,17 @@ they diverge.
   product touching this repo's real/private data go in a local file, never
   a hosted `claude.ai` artifact, gist, or pastebin -- unless explicitly
   asked for a shareable link.
-- **Push/deploy cadence:** <!-- TODO: state explicitly -- auto-push,
-  batched/reviewed push, or manual-only. Don't leave this implicit. -->
+- **Push/deploy cadence: auto-push.** Private repo, no deploy target —
+  push to `origin` after each verified commit.
 - **Secrets:** never commit secrets or credentials. Keep a `.env.example`
   (or equivalent) in git and the real values gitignored.
 
-## Local Memory
+## Memory
 
-**This is the ONE shared memory system for this workspace -- used
-identically by Claude, Codex, and Antigravity/Gemini.** No agent should
-keep its own separate private memory store for OM content instead of
-writing here.
-
-- `memory/MEMORY.md` is the ONLY file to read by default -- a small
-  index, one line per topic, hard-capped ~200 lines. `memory/topics/*.md`
-  holds the actual entries; open a topic file only when the current task
-  touches that subject. Full contract: `memory/README.md`.
-- Use `memory/inbox.jsonl` for durable candidate notes that need later
-  curation.
-- Compaction is a gate, not a suggestion: before adding a new line to
-  `MEMORY.md` at/over ~200 lines, move at least one existing topic to
-  `memory/archive/` first.
-- Do not store raw transcripts, secrets, credentials, tokens, or sensitive
-  personal content in memory.
+OM has no repo-local `memory/` (deliberate deviation from the template).
+The one shared memory store for all lonunjie repos is `../memory/` in the
+control-plane root — read `../memory/MEMORY.md` and write OM facts to
+`../memory/topics/om-*.md`. Never store secrets or raw transcripts.
 
 ## Reports
 

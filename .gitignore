@@ -9,3 +9,8 @@ __pycache__/
 # see xx-network's secrets/ vault pattern (age-encrypted, gitignored).
 secrets/
 .env
+
+# Design-package zips dropped in by the operator while OM is still in its
+# architecture phase. Working snapshots only, NOT frozen or canonical --
+# see AGENTS.md "Design status". Never commit them.
+design-drops/

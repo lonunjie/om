@@ -8,9 +8,8 @@ that drift apart.
 
 Do not add Gemini-specific instructions to this file. Add them to
 `AGENTS.md` — if a rule matters, every agent needs it, not just this one.
-That includes memory: this workspace's `memory/` folder is the one shared
-memory store (see `AGENTS.md`'s "Local Memory" section and
-`memory/README.md`) — do not keep OM context in a Gemini-only
-memory store instead.
+That includes memory: the one shared store is `../memory/` in the
+lonunjie control-plane root (see `AGENTS.md`'s "Memory" section) — do
+not keep OM context in an agent-private memory store instead.
 
 @AGENTS.md

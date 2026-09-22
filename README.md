@@ -1,6 +1,11 @@
 # OM
 
-OM — an open-source, operatorless end-to-end-encrypted messenger (Open/Own/Our/One/Oh Messenger) by SeedLife. Architecture/design phase; engineering not yet authorized.
+OM is SeedLife's open-source, operatorless, end-to-end-encrypted
+messenger — Open-source, Open, Own, Our, One, Oh Messenger.
 
-Start with `AGENTS.md` (the single source of truth for agents and humans
-both), then `memory/MEMORY.md` for the running history.
+**Status:** architecture/design phase. No code yet; engineering has not
+started. Licensing will be layered (MPL-2.0 core, AGPL-3.0-or-later
+network reference services, Apache-2.0 protocol artifacts, CC-BY-SA-4.0
+docs) and lands with the first frozen design.
+
+Agents and contributors: start with `AGENTS.md`.
