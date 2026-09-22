@@ -130,3 +130,6 @@ A server/provider that resolves arbitrary user links is an SSRF-sensitive compon
 
 Link previews are optional enrichment. Failure to preview never changes message authenticity or link destination semantics. Maximum Privacy remains no-auto-preview by default.
 
+## 2026-09-23 LinkPreview security resolution
+
+Any LinkPreviewProvider is a replaceable optional operator and runs behind a strict SSRF/network sandbox: HTTP(S) allowlist, private/loopback/link-local/metadata/reserved blocking, DNS+redirect revalidation, rebinding resistance, no ambient cookies/auth, and strict redirect/time/byte/decompression/image bounds. Maximum Privacy performs no automatic preview fetch.

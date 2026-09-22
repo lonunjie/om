@@ -298,3 +298,7 @@ ClientHost -> DeviceVault -> IdentityProfile(s) -> om-core -> om-ui -> PlatformA
 `IdentityProfile` is a local isolation namespace around a real AccountID. It is not a new network identity type. Core/storage must support several profiles before the account-switching UI ships.
 
 Rich-text rendering is part of shared `om-ui` but consumes only validated RichTextV1 semantic nodes. Arbitrary renderer extensions do not receive DOM/script execution privileges.
+
+## 2026-09-23 OpenMessenger / OneMessenger extension boundary
+
+Independent OM clients require no central approval. Optional capabilities must be attachable without converting the official client into a privileged protocol oracle. The pre-engineering queue now covers bots/LLMs, client plugins, external bridges, content packs and community-specific extensions; all must preserve scoped permission, visible trust boundaries and graceful baseline interoperability when absent.

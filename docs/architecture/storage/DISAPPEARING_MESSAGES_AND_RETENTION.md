@@ -41,3 +41,7 @@ The canonical event log may retain minimal authenticated tombstone/control evide
 ## 6. Attachments
 
 Attachment content keys can be destroyed/forgotten at expiry. BlobStore deletion is best-effort because remote storage may have provider backups, but deleting the client-side decryption key provides the strongest portable guarantee available under the model.
+
+## 2026-09-23 expiry resolution
+
+v1 interoperable disappearing messages use absolute after-send expiry. “After read” remains local-retention behavior until a later explicit extension because making it canonical would require additional receipt/convergence semantics. Expiry destroys local attachment keys/removes locations, leaves anti-resurrection tombstones and excludes ephemeral content from ordinary backup by default.

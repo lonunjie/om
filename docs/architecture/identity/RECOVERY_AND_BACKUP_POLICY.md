@@ -150,3 +150,7 @@ Normal users see goals, not cryptographic terms:
 - **Spare device/security key**
 
 Advanced details remain inspectable.
+
+## 2026-09-23 recovery resolution
+
+Recovery remains off by default. If enabled, the v1 root is random 256-bit OfflineRecoveryRoot material with domain-separated derivation; optional guardians use reviewed Shamir N-of-M sharing bound to the account/recovery generation. Recovery of account authority and recovery of history remain separate. Threshold/MPC signing is reserved rather than required.

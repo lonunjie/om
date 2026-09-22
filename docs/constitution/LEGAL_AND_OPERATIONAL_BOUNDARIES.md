@@ -1,104 +1,118 @@
 # Legal and Operational Boundaries
 
-> Architecture/planning document, not legal advice. Legal classification depends on jurisdiction, facts, distribution method and services actually operated.
+> Architecture/planning document, not legal advice. Legal obligations depend on jurisdiction, facts, distribution method, content surface and the service a particular actor actually operates.
 
-## 1. Purpose
+- **Status:** Canonical jurisdiction-neutral risk-allocation architecture
+- **Checkpoint:** 2026-09-23 05:45 PHT
 
-OM should minimize centralized custody without pretending that decentralization erases law.
+## 1. Objective
 
-The key legal/operational question is always:
+OM should minimize the OM Project's avoidable legal and operational exposure **without pretending that an open license, decentralization or cryptography can erase mandatory law**.
 
-> **What does this particular actor actually operate, control, possess, publish or distribute?**
+The design rule is:
+
+> **Liability and compliance should attach as closely as practical to the actor that actually chooses to operate, publish, host, distribute, transact, or control the relevant service.**
+
+The protocol/source project should not become a universal intermediary merely because it publishes interoperable software.
 
 ## 2. Role matrix
 
-| Actor / component | Typical custody | Role boundary |
+| Actor / component | Typical custody/control | Expected responsibility boundary |
 |---|---|---|
-| Protocol/source project | public source/spec/tests | software/spec publisher/stewardship |
-| Personal user deployment | user's relay/discovery/provider account | user-operated endpoint |
-| Organization directory | alias/index metadata for its namespace | directory operator |
-| Managed relay/storage/media provider | whatever its service handles | service operator |
-| PWA distribution | web client/release/update origin | client distributor |
-| Native store distribution | signed app, update/store/push boundary | app distributor |
-| External evidence recipient | user-selected exported evidence | authority/organization chosen by reporter |
+| OM protocol/source project | public source/specs/tests/releases | software/spec publisher and steward |
+| Individual self-host | their chosen relay/discovery/storage/client deployment | user-operated endpoint under their applicable law |
+| Organization/community | its own membership, namespace, rooms, policies and optional providers | operator/admin for the space it chooses to run |
+| Directory/catalog provider | aliases/index/pack metadata it elects to publish | directory/catalog operator |
+| Managed relay/storage/media provider | service traffic/data within its role | service operator |
+| Bot/LLM/bridge operator | data/context intentionally delivered to that principal | third-party service operator |
+| PWA/native distributor | client build/update/store/push surfaces it controls | software distributor; store obligations if applicable |
+| Marketplace/payment/entitlement provider | catalog, transaction and entitlement state it chooses to operate | commerce/payment operator |
+| External evidence recipient | user-selected exported evidence | recipient/authority chosen by reporter |
 
-No actor should gain unrelated authority merely because it provides one of these functions.
+Providing one role never grants authority over another.
 
-## 3. Abuse reporting in the operatorless core
+## 3. Project-exposure minimization rules
 
-The protocol does not require a central OM AbuseDesk.
+The canonical OM project SHOULD, unless a later ADR establishes a compelling reason otherwise:
 
-Core user actions:
+- operate no mandatory user-account service;
+- custody no mandatory conversation plaintext or decryption key;
+- operate no mandatory relay, blob store, directory, bot cloud, community host or payment processor;
+- avoid a project-global public-content/sticker/bot marketplace when direct or third-party discovery is sufficient;
+- avoid collecting identity/contact/telemetry merely for product analytics;
+- keep diagnostics local/redacted/user-exported by default;
+- publish software/protocol releases separately from optional hosted services;
+- make optional hosted services separately identifiable operators with their own terms/privacy/compliance obligations;
+- design export/migration so users and organizations can leave an operator;
+- avoid marketing claims that promise legal immunity, perfect anonymity or impossibility of lawful process.
 
-```text
-Block locally
-Revoke relationship capability
-Export selected evidence
-Share evidence with a user-chosen authority/organization
-```
+## 4. Open-source license protection
 
-`EvidencePackage` is generated locally from user-selected material and cryptographic context. The OM Project need not receive it.
+OM's standard licenses are deliberately established, widely used licenses with warranty disclaimers and limitations of liability **to the extent applicable law permits**. `LICENSING_AND_CONTRIBUTION_POLICY.md` defines the licensing stack.
 
-A particular app-store distribution or managed/community service may add its own report handling if required by its policies/law. That is distribution/provider-local behavior, not universal protocol semantics.
+The project SHOULD NOT add a custom restrictive EULA merely to shift every conceivable risk to users; that could conflict with open-source goals, create uncertain enforceability and become a capture mechanism. A distributor/provider may adopt role-specific terms for the service it actually operates, subject to its law and the applicable open-source license.
 
-## 4. Philippine legal review remains necessary
+The project provides no default commercial warranty, SLA, indemnity, legal advice, content-rights warranty, payment guarantee or compliance certification unless a separate actor explicitly agrees to one in writing on its own behalf.
 
-Philippine RA 11930 defines participative network platform providers broadly enough to mention instant messaging and imposes duties on internet intermediaries for data in their control/possession and specified child-safety processes.
+## 5. User-generated content and public surfaces
 
-RA 10175 also contains preservation/disclosure duties for qualifying service providers regarding data in their possession/control.
-
-The operatorless design materially narrows centralized possession, but does **not** prove that a developer, app distributor, deployment operator or provider is outside those statutes.
-
-Before broadly promoting a Philippine public release, obtain jurisdiction-specific advice on at least:
-
-- whether publishing the reference PWA/source alone makes the publisher a covered platform/provider;
-- whether a user's personal deployment is treated differently from a managed service;
-- whether a native store distribution changes classification;
-- NTC/VAS treatment of a user-owned OTT messenger/calling implementation;
-- what preservation/reporting obligations attach to each concrete operator role.
-
-## 5. App-store boundary
-
-Current Apple and Google policies impose UGC/reporting/blocking/moderation expectations on qualifying store-distributed apps.
+Private messaging, unlisted groups, public broadcast publication, searchable directories and marketplaces have materially different operational/legal surfaces.
 
 Therefore:
 
-- blocking is a core protocol/client capability;
-- local evidence export is core;
-- a store distributor may need an additional distributor-operated report/review process;
-- the existence of that process must not introduce a universal decryption key or make it a mandatory OM network service.
+- private communication remains the protocol baseline;
+- public discovery is always a distinct optional provider/capability;
+- broadcast/publication can be represented without requiring an OM-operated global feed;
+- content packs can be shared directly or through independent catalogs;
+- a catalog operator decides what it lists and handles obligations created by that choice;
+- OM signatures establish provenance/integrity, not ownership of copyright or project endorsement;
+- the reference client should expose reporting/blocking/export tools without requiring a universal OM moderation desk.
 
-## 6. Public vs private product surfaces
+## 6. App-store distribution
 
-Private finite-recipient messaging should remain architecturally distinct from future public feeds/channels/discovery surfaces.
+An official store distribution may inherit reporting, moderation, commerce, age, privacy or other platform obligations. Those are **distribution-local** responsibilities.
 
-Public broadcast/social functionality creates a substantially different moderation and regulatory surface. If added, treat it as a separate capability/product layer rather than quietly expanding private chat semantics.
+Core protocol/client capabilities should make compliance possible without adding:
 
-## 7. Claims to avoid
+- a universal decryption key;
+- mandatory central content review;
+- a global OM user-account service; or
+- a network service that independent distributions must use.
 
-Do not market OM as:
+## 7. Payments and digital goods
 
-- “untraceable”;
-- “government-proof”;
-- “impossible to subpoena”;
-- “no laws apply”;
-- “perfect anonymity.”
+OM Core does not process payments, custody value, issue a token, perform exchange, or act as merchant-of-record merely because a future extension can represent a paid entitlement.
+
+Any future commerce design must preserve a hard boundary between:
+
+```text
+OM message/content-pack interoperability
+             !=
+payment / marketplace / merchant / settlement operation
+```
+
+Payment, tax, consumer-protection, sanctions, AML/KYC, app-store billing and refund obligations belong to the actor/service that elects to transact, subject to its jurisdiction. A future OM extension may carry an opaque entitlement proof without making the OM Project the seller or payment rail.
+
+## 8. Jurisdiction-neutral release review
+
+No country is a protocol home jurisdiction. Before a project-controlled distribution or hosted service is broadly offered, review the legal obligations of **that concrete role in the jurisdictions where that actor actually operates/offers it**.
+
+The review is role-based, not protocol-global. It does not block people elsewhere from independently implementing or operating the openly licensed protocol.
+
+## 9. Claims to avoid
+
+Do not market OM as “untraceable,” “government-proof,” “impossible to subpoena,” “law-free,” or “perfectly anonymous.”
 
 Preferred description:
 
-> **OM is a general-purpose open messaging protocol and client family with end-to-end encryption and user-controlled, replaceable infrastructure.**
+> **OM is a general-purpose open messaging protocol and client family with end-to-end encryption, interoperable clients, and user-controlled replaceable infrastructure.**
 
-## 8. Design objective
+## 10. Design objective
 
-The objective is not legal evasion. It is architectural honesty:
+The objective is not legal evasion. It is minimizing unnecessary project custody and correctly scoping responsibility:
 
-- don't collect data merely so a central project can possess it;
-- don't centralize operational authority unnecessarily;
-- comply with valid obligations attached to the role actually operated;
-- keep protocol security independent of any one operator's legal jurisdiction.
-## 2026-09-22 licensing / project-custody boundary
-
-Project stewardship, source copyright, protocol implementation rights, trademarks and runtime-provider obligations are separate. `LICENSING_AND_CONTRIBUTION_POLICY.md` defines the open licensing architecture; `PROJECT_STEWARDSHIP_AND_CONTINUITY.md` defines founder-incubation and later custody.
-
-A future trademark may distinguish canonical/official distributions but cannot be required for protocol interoperability. Before broad public contributions, protocol-specific royalty-free patent contribution language and mixed-license packaging receive legal review.
-
+- publish a commons rather than become everyone's operator;
+- collect less, therefore possess less;
+- let optional providers shoulder the obligations of services they voluntarily operate;
+- let users/organizations control the spaces they voluntarily operate;
+- preserve protocol security regardless of any one operator's jurisdiction.

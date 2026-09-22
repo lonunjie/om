@@ -22,7 +22,11 @@ LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 ID_PATTERNS = {
     "machine/decisions.jsonl": re.compile(r"^D-\d{3}$"),
     "machine/requirements.jsonl": re.compile(r"^R-\d{3}$"),
-    "machine/open_questions.jsonl": re.compile(r"^Q-\d{3}$"),
+    "machine/resolved_questions.jsonl": re.compile(r"^Q-\d{3}$"),
+    "machine/architecture_design_queue.jsonl": re.compile(r"^A-\d{3}$"),
+    "machine/architecture_verification_gates.jsonl": re.compile(r"^V-\d{3}$"),
+    "machine/public_release_gates.jsonl": re.compile(r"^PR-\d{3}$"),
+    "machine/deferred_product_questions.jsonl": re.compile(r"^DP-\d{3}$"),
 }
 
 errors: list[str] = []
@@ -131,20 +135,47 @@ def check_registry(contract: dict) -> None:
 def check_machine_records():
     decisions = load_jsonl(ROOT / "machine/decisions.jsonl")
     reqs = load_jsonl(ROOT / "machine/requirements.jsonl")
-    qs = load_jsonl(ROOT / "machine/open_questions.jsonl")
-    for q in qs:
-        if q.get("blocking_class") not in {"architecture_freeze", "production_or_public_release", "deferred_or_bounded"}:
-            fail(f"{q['id']} lacks valid blocking_class")
-        if not q.get("blocking_reason"):
-            fail(f"{q['id']} lacks blocking_reason")
-    return ({d["id"] for d in decisions}, {r["id"] for r in reqs}, {q["id"] for q in qs}, qs)
+    resolved = load_jsonl(ROOT / "machine/resolved_questions.jsonl")
+    design = load_jsonl(ROOT / "machine/architecture_design_queue.jsonl")
+    verify = load_jsonl(ROOT / "machine/architecture_verification_gates.jsonl")
+    release = load_jsonl(ROOT / "machine/public_release_gates.jsonl")
+    deferred = load_jsonl(ROOT / "machine/deferred_product_questions.jsonl")
+
+    if (ROOT / "machine/open_questions.jsonl").exists():
+        fail("generic machine/open_questions.jsonl must not be current after typed-gate migration")
+
+    expected = {f"Q-{i:03d}" for i in list(range(1,28)) + list(range(29,62))}
+    got = {q.get("id") for q in resolved}
+    if got != expected:
+        fail(f"resolved_questions must cover former Q-001..Q-061 (except Q-028); missing={sorted(expected-got)} extra={sorted(got-expected)}")
+    for q in resolved:
+        if q.get("status") != "resolved" or not q.get("resolution"):
+            fail(f"{q.get('id')} lacks resolved status/resolution")
+    for q in design:
+        if q.get("status") not in {"open","resolved","superseded"}:
+            fail(f"{q.get('id')} invalid design-queue status")
+        if not q.get("question"):
+            fail(f"{q.get('id')} lacks design question")
+    for g in verify:
+        if g.get("status") not in {"open","passed","failed","waived_by_adr"}:
+            fail(f"{g.get('id')} invalid verification status")
+    for g in release:
+        if g.get("status") not in {"open","passed","failed","waived_by_adr"}:
+            fail(f"{g.get('id')} invalid release-gate status")
+    return (
+        {d["id"] for d in decisions}, {r["id"] for r in reqs},
+        {q["id"] for q in resolved}, {q["id"] for q in design},
+        {q["id"] for q in verify}, {q["id"] for q in release},
+        {q["id"] for q in deferred}, design, verify
+    )
 
 
-def check_phase(contract: dict, questions: list[dict]) -> None:
+def check_phase(contract: dict, design: list[dict], verify: list[dict]) -> None:
     authorized = contract.get("engineering_authorized")
-    blockers = [q["id"] for q in questions if q.get("blocking_class") == "architecture_freeze"]
-    if authorized and blockers:
-        fail("engineering_authorized=true while architecture_freeze questions remain open")
+    design_blockers = [q["id"] for q in design if q.get("blocks_engineering") and q.get("status") == "open"]
+    verify_blockers = [q["id"] for q in verify if q.get("blocks_engineering") and q.get("status") != "passed"]
+    if authorized and (design_blockers or verify_blockers):
+        fail(f"engineering_authorized=true with blockers design={design_blockers} verification={verify_blockers}")
     if contract.get("phase") == "architecture_hardening_pre_engineering" and authorized is not False:
         fail("pre-engineering phase must have engineering_authorized=false")
     if not authorized:
@@ -201,26 +232,44 @@ def check_adrs(decision_ids: set[str]) -> None:
     # ADR IDs do not have to appear in decisions.jsonl one-for-one; they are separate ledgers.
 
 
-def check_architecture_map(adr_ids: set[str], question_ids: set[str]) -> None:
+def check_architecture_map(resolved_ids: set[str], design_ids: set[str], verify_ids: set[str], release_ids: set[str], deferred_ids: set[str]) -> None:
     amap = load_json(ROOT / "machine/architecture_map.json")
     if not isinstance(amap, dict): return
     known_adrs = {f"ADR-{ADR_RE.match(p.name).group(1)}" for p in (ROOT/"decisions").glob("ADR-*.md") if ADR_RE.match(p.name)}
     for domain, obj in amap.get("domains", {}).items():
         for key in ("docs", "schemas"):
             for path in obj.get(key, []):
-                if not (ROOT/path).exists():
-                    fail(f"architecture_map {domain}.{key} references missing file {path}")
+                if not (ROOT/path).exists(): fail(f"architecture_map {domain}.{key} references missing file {path}")
         for aid in obj.get("adrs", []):
-            if aid not in known_adrs:
-                fail(f"architecture_map {domain} references missing ADR {aid}")
-        for qid in obj.get("questions", []):
-            if qid not in question_ids:
-                fail(f"architecture_map {domain} references missing question {qid}")
+            if aid not in known_adrs: fail(f"architecture_map {domain} references missing ADR {aid}")
+        for qid in obj.get("resolved_questions", []):
+            if qid not in resolved_ids: fail(f"architecture_map {domain} references missing resolved question {qid}")
+        for qid in obj.get("design_queue", []):
+            if qid not in design_ids: fail(f"architecture_map {domain} references missing design item {qid}")
+        for qid in obj.get("verification_gates", []):
+            if qid not in verify_ids: fail(f"architecture_map {domain} references missing verification gate {qid}")
+        for qid in obj.get("release_gates", []):
+            if qid not in release_ids: fail(f"architecture_map {domain} references missing release gate {qid}")
+        for qid in obj.get("deferred_questions", []):
+            if qid not in deferred_ids: fail(f"architecture_map {domain} references missing deferred question {qid}")
+
+
+def check_project_identity_and_legal_boundary() -> None:
+    naming = (ROOT / "NAMING.md").read_text(encoding="utf-8")
+    for phrase in ["Open-source Messenger", "OpenMessenger", "OwnMessenger", "OurMessenger", "OneMessenger", "OhMessenger"]:
+        if phrase not in naming:
+            fail(f"NAMING.md missing canonical OM meaning: {phrase}")
+    # Country-specific research may remain in history only; current canonical architecture must not make one country the protocol home.
+    legal = (ROOT / "LEGAL_AND_OPERATIONAL_BOUNDARIES.md").read_text(encoding="utf-8").lower()
+    if "protocol home jurisdiction" not in legal and "protocol-home" not in legal:
+        fail("legal boundary does not state jurisdiction-neutral protocol position")
+    if "payment processor" not in legal or "merchant-of-record" not in legal:
+        fail("legal boundary does not state core commerce/operator separation")
 
 
 def check_required_files(contract: dict) -> None:
     paths = set(contract.get("constitution_files", [])) | set(contract.get("machine_truth_files", [])) | set(contract.get("required_new_hardening_docs", []))
-    paths |= {"LICENSE.md", "CONTRIBUTING.md", "tools/validate_architecture.py", "tools/build_manifest.py"}
+    paths |= {"LICENSE.md", "CONTRIBUTING.md", "tools/validate_architecture.py", "tools/build_manifest.py", "ARCHITECTURE_RESOLUTIONS_20260923.md", "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md", "NAMING.md", "machine/resolved_questions.jsonl", "machine/architecture_design_queue.jsonl", "machine/architecture_verification_gates.jsonl", "machine/public_release_gates.jsonl", "machine/deferred_product_questions.jsonl"}
     for path in sorted(paths):
         if not (ROOT/path).exists(): fail(f"required architecture file missing: {path}")
     for license_name in ["Apache-2.0.txt", "MPL-2.0.txt", "AGPL-3.0-or-later.txt", "CC-BY-SA-4.0.txt"]:
@@ -288,15 +337,16 @@ def main() -> int:
     if not isinstance(contract, dict):
         print("architecture validation FAILED: repository_contract unreadable", file=sys.stderr); return 1
     check_json_parse()
-    _, _, q_ids, questions = check_machine_records()
+    _, _, resolved_ids, design_ids, verify_ids, release_ids, deferred_ids, design, verify = check_machine_records()
     decision_ids={}
     check_required_files(contract)
     check_registry(contract)
-    check_phase(contract, questions)
+    check_phase(contract, design, verify)
     check_identity(contract)
     check_provider_schema(contract)
     check_adrs(set())
-    check_architecture_map(set(), q_ids)
+    check_architecture_map(resolved_ids, design_ids, verify_ids, release_ids, deferred_ids)
+    check_project_identity_and_legal_boundary()
     check_markdown_links()
     check_manifest(contract)
 
@@ -306,7 +356,7 @@ def main() -> int:
         for e in errors: print(f"ERROR: {e}", file=sys.stderr)
         print(f"architecture validation FAILED: {len(errors)} error(s), {len(warnings)} warning(s)", file=sys.stderr)
         return 1
-    print(f"architecture validation OK: {len(current_files())} current files; {len(questions)} open questions; engineering_authorized={contract.get('engineering_authorized')}")
+    print(f"architecture validation OK: {len(current_files())} current files; design_open={sum(1 for q in design if q.get('status')=='open')}; verification_open={sum(1 for q in verify if q.get('status')!='passed')}; engineering_authorized={contract.get('engineering_authorized')}")
     return 0
 
 if __name__ == "__main__":

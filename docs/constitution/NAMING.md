@@ -1,35 +1,45 @@
-# Naming directions — working shortlist
+# OM — Name, Meanings and Product Promise
 
-These are **concept names only**. They are not trademark, domain, app-store, or package-name cleared.
+- **Status:** Canonical project identity
+- **Checkpoint:** 2026-09-23 05:45 PHT
 
-## What the name should communicate
+OM stays **OM** because the short name intentionally carries several compatible meanings. These meanings are product constraints, not marketing trivia.
 
-- Fast and easy, not “infrastructure software.”
-- Portable/independent: the user can move providers and keep their identity.
-- Robust and connected, without sounding corporate or crypto-heavy.
-- Short enough to work as an app icon/verb.
+## Open-source Messenger
 
-## Shortlist
+OM is a gift to humanity in the tradition of durable open commons such as Git and Linux. The protocol, normative artifacts and reference implementation must remain independently usable, forkable and improvable under the project's open licensing architecture.
 
-### 1. Rivet
-Strong, compact, memorable. Suggests robust components joining into a dependable whole. The downside is that a rivet sounds permanent, while the architecture is intentionally unplug-and-replace.
+## OpenMessenger
 
-### 2. Rove
-Suggests portability and freedom to move—the strongest fit with “take your identity/data elsewhere.” It is consumer-friendly, though the word is used by existing products in other categories, so clearance would matter.
+OM is not a walled garden. Independent clients can implement the public protocol without permission. Interoperation with bots, LLM agents, bridges and other clients is an architectural goal, subject to explicit security boundaries and user consent.
 
-### 3. Patchbay
-The best architecture metaphor: inputs/outputs can be plugged, unplugged, and rerouted. Excellent project/protocol codename; probably a little technical for the mainstream app name.
+## OwnMessenger
 
-### 4. Junction
-Communication routes meet without any one route owning the conversation. Strong routing metaphor, but generic.
+Users should be able to make OM their own: identity, infrastructure, client, themes, expressive media, automations and optional extensions can be replaced or customized without weakening the security floor or requiring a central OM account.
 
-### 5. Ply
-Very short and brandable-sounding; evokes layers/components. More abstract, so the product would have to teach the meaning through brand design.
+## OurMessenger
 
-### 6. Threadway
-Messages are threads; infrastructure provides interchangeable ways/routes. Clear semantic fit, but longer and less minimal.
+OM must work well for people who gather around something together: friends, families, teams, organizations, communities and businesses. Shared spaces may carry their own roles, rules, style, channels/rooms, bots and governance without turning the OM Project into their operator.
 
-## Current recommendation
-Use **Patchbay** as an internal architecture/protocol codename and keep searching for a warmer consumer brand. Of the consumer-style candidates here, **Rove** best expresses portability and freedom to leave; **Rivet** best expresses robustness/modularity.
+## OneMessenger
 
-Before choosing a public name, run trademark, domain, package/app-store, GitHub, and major social-handle clearance in the target launch countries.
+OM should be capable of growing into the messenger a user does not need to replace merely because a different group wants a different feature. Optional features belong behind interoperable extensions/plugins and capability negotiation rather than forcing every installation to carry every feature or every community to depend on one vendor.
+
+“One” is an aspiration toward breadth and interoperability, not a claim that competing messengers must disappear or that OM may centralize control to win adoption.
+
+## OhMessenger
+
+OM should feel approachable, lively and human. The underlying architecture may be sophisticated; ordinary people should experience a familiar, pleasant messenger rather than infrastructure software.
+
+## Interpretation
+
+When a product decision is ambiguous, the six meanings together imply:
+
+1. keep the commons open;
+2. interoperate instead of enclosing;
+3. let users safely customize;
+4. support shared social/organizational spaces;
+5. prefer extensible capability over product fragmentation; and
+6. preserve a simple, delightful default experience.
+
+The public name remains **OM**. Expanded meanings may be explained contextually; no single expansion is required as the permanent consumer-facing subtitle.

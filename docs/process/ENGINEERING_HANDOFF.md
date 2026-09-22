@@ -1,6 +1,6 @@
 # OM Engineering Handoff — INACTIVE UNTIL ARCHITECTURE FREEZE
 
-> **Current checkpoint 2026-09-22 23:02 PHT:** product engineering is not authorized. This document records the intended future handoff only. See `ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`.
+> **Current checkpoint 2026-09-23 05:45 PHT:** product engineering is not authorized. This document records the intended future handoff only. See `ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`.
 
 
 ## 1. Transition of phase
@@ -206,3 +206,7 @@ Telegram-like formatting is a baseline, but OM must use its own safe semantic re
 ## 7. Definition of “secure build”
 
 Do not advertise a prototype as “bulletproof.” A production-security claim requires all MUST items in `PRODUCTION_CRYPTO_INTEGRATION_GATE.md`, formal/control-state gates, fuzzing, supply-chain floor and an independent review.
+
+## Current checkpoint lock — 2026-09-23
+
+This document is retained for the future transition only. Product engineering is **not authorized** in the current checkpoint. The architecture-design queue and blocking architecture-verification gates must clear first; `machine/repository_contract.json` is authoritative.

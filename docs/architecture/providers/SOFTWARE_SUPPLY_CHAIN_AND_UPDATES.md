@@ -122,3 +122,6 @@ Reference PWA therefore also requires minimal self-owned ClientHost, no remote r
 
 Same-origin JavaScript is not treated as an independent verifier after total origin compromise. Recovery to a trusted ClientHost/native endpoint uses authenticated device enrollment/migration.
 
+## 2026-09-23 S0 release-root resolution
+
+The founder may remain the only human steward during S0 while still using a physically separated 2-of-3 offline root-key arrangement under founder custody. This improves key-loss/online-compromise resilience without pretending there are already independent trusted people. Later custodians can take separate shares without changing the protocol trust model.

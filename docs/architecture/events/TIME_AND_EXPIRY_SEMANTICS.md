@@ -1,7 +1,7 @@
 # Time and Expiry Semantics
 
 - **Status:** Canonical cross-protocol rule; per-object constants remain profile/policy work
-- **Checkpoint:** 2026-09-22 23:02 PHT
+- **Checkpoint:** 2026-09-23 05:45 PHT
 
 ## 1. Time is not authority
 
@@ -55,3 +55,7 @@ AccountControlState generations, MLS epochs, ratchet steps, key generations, rev
 ## 6. Freeze requirement
 
 Every canonical protocol object containing time/TTL/expiry fields must map those fields to one of the clock classes in this document before wire freeze.
+
+## 2026-09-23 time resolution
+
+OM distinguishes HLC ordering, monotonic local duration, wall-clock human expiry and provider-retention time. No timestamp authorizes constitutional state. Every canonical time field declares skew/bad-clock/restore behavior before wire freeze.

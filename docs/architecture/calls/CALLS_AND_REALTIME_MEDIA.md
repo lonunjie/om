@@ -149,3 +149,7 @@ Screen share is another SFrame-protected media track/capability. The same partic
 - SFU cannot add itself as participant;
 - provider failure can fall back to alternative route/provider;
 - configured zero-cost policy never spills into billable media usage.
+
+## 2026-09-23 media-key resolution
+
+1:1 call media secrets derive from the existing secure session with CallID/participant-bound exporter labels. Group call keys derive through the MLS exporter bound to CallID and MLS epoch, with directional/per-sender SFrame keys and no counter restart under the same key. Interoperability is verified by `V-007`.

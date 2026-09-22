@@ -26,3 +26,7 @@ JSON remains acceptable for logical schemas, tooling and debug output but is not
 ## Decoder discipline
 
 All input is hostile even if encrypted/signed. Decoder limits and canonicality checks happen before deep allocation or business logic. Golden positive/negative vectors are mandatory before wire freeze.
+
+## 2026-09-23 encoding resolution
+
+Canonical signed/hashed v1 objects use deterministic CBOR under the OM RFC-8949 profile, CDDL/field registries, no floating point in signed structures, exact absent/null rules, non-reused field numbers and exact domain-separation strings. Cross-implementation golden-vector proof is `V-005`.

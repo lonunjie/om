@@ -1,7 +1,7 @@
 # ClientHost Update Lifecycle
 
 - **Status:** Canonical architecture direction; deployment mechanisms remain provider-specific
-- **Checkpoint:** 2026-09-22 23:02 PHT
+- **Checkpoint:** 2026-09-23 05:45 PHT
 
 ## 1. Problem
 
@@ -59,3 +59,7 @@ Before the reference PWA is called sustainably self-hostable, specify and test:
 - broken/compromised-origin migration;
 - credential scoping;
 - offline/long-neglected host upgrade behavior.
+
+## 2026-09-23 updater resolution
+
+Reference deployment prefers an external release/deployment controller that verifies signed/TUF-style metadata before replacing a ClientHost origin. Service-worker verification is defense-in-depth only. Suspected origin compromise is handled as authenticated new-origin/new-device enrollment followed by old-device revocation, not raw browser-state migration.

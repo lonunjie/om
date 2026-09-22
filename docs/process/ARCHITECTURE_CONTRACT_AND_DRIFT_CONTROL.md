@@ -1,76 +1,64 @@
 # Architecture Contract and Drift Control
 
 - **Status:** Canonical architecture-process contract
-- **Checkpoint:** 2026-09-22 23:02 PHT
+- **Checkpoint:** 2026-09-23 05:45 PHT
 - **Phase:** Architecture hardening / pre-engineering
 
 ## 1. Principle
 
-OM's philosophy remains prose because values require human interpretation. The repository's operational architecture contract is machine-readable and validated by code.
+OM's philosophy remains human-readable prose. Operational architecture is mapped into machine-readable records and validated by code.
 
-> **If a security/authority/wire commitment is important enough to rely on, it should be represented in the executable repository contract wherever practical.**
+> **If a security/authority/wire/project-boundary commitment is important enough to rely on, represent it in the executable repository contract wherever practical.**
 
-## 2. Authoritative machine artifacts
+## 2. Typed machine truth
 
-- `machine/repository_contract.json` — phase, canonical file classes, required invariants, schema policy and validation rules;
-- `machine/architecture_map.json` — domain-to-document/schema/decision/requirement/open-question map;
-- `machine/file_registry.json` — every current non-history repository file and its role/license/domain;
-- `machine/stewardship.json` — project maturity/custody roles without pretending unfilled redundancy exists;
-- `machine/decisions.jsonl` — compact accepted/superseded decisions;
+- `machine/decisions.jsonl` — accepted/superseded decisions;
 - `machine/requirements.jsonl` — normative MUST/SHOULD obligations;
-- `machine/open_questions.jsonl` — unresolved gates that prevent freeze where blocking;
-- `MANIFEST.json` — byte/hash inventory of the complete checkpoint.
+- `machine/resolved_questions.jsonl` — dispositions for the former Q-001..Q-061 set;
+- `machine/architecture_design_queue.jsonl` — genuinely undecided protocol/product-architecture questions; open blocking entries prevent engineering;
+- `machine/architecture_verification_gates.jsonl` — architecture is chosen but must be proven before engineering when `blocks_engineering=true`;
+- `machine/public_release_gates.jsonl` — legal/platform/security/release checks that gate only the affected public feature/distribution;
+- `machine/deferred_product_questions.jsonl` — safely bounded UI/implementation measurements;
+- `machine/architecture_map.json` — domains to docs/schemas/ADRs/gates;
+- `machine/file_registry.json` — every current non-history file and its role/license/domain;
+- `machine/stewardship.json` — actual project custody stage;
+- `machine/repository_contract.json` — phase and validator invariants;
+- `MANIFEST.json` — byte/hash inventory.
 
-## 3. Validator
+A generic `open_questions.jsonl` is intentionally no longer current because it mixed fundamentally different work classes.
 
-`tools/validate_architecture.py` MUST fail when detectable drift occurs, including:
+## 3. Engineering lock
 
-- a current file appears without file-registry classification;
-- a registry entry points to a missing file;
-- JSON/JSONL becomes unparsable or record IDs duplicate;
-- an ADR is missing from `decisions/INDEX.md`;
-- a local Markdown link points to a missing current file;
-- more than one current ProviderCapabilities schema is exposed;
-- the canonical identity document reintroduces key-derived AccountID construction;
-- current authority documents use a superseded generic account-authority term where `AccountControlState` is required;
-- the phase changes from pre-engineering without the architecture-freeze decision/contract being updated;
-- mandatory constitutional files disappear;
-- the manifest does not match the checkpoint contents.
+Product engineering is **not authorized**.
 
-## 4. Architecture-before-engineering lock
+Allowed work includes research, specification, formal modeling, architecture-focused feasibility experiments, conformance vectors, threat modeling and repository tooling.
 
-This checkpoint does **not** authorize product engineering.
+Engineering can begin only after a future ADR deliberately authorizes it and:
 
-Allowed work before architecture freeze:
+1. no open `architecture_design_queue` item blocks engineering;
+2. every blocking architecture verification gate is passed;
+3. canonical definitions are internally consistent; and
+4. `python3 tools/validate_architecture.py` passes.
 
-- research;
-- standards/library feasibility spikes that do not establish production architecture by accident;
-- threat modeling;
-- formal/spec modeling used to validate architecture;
-- wire/schema design;
-- conformance-vector design;
-- repository validation/tooling;
-- documentation and ADR refinement.
+Public-release gates need not all block private architecture experiments, but the affected public feature/claim/distribution cannot ship until its gate passes.
 
-Not authorized as the next phase:
+## 4. Drift checks
 
-- building the product vertical slice;
-- committing to a production crypto library because coding has started;
-- hardening provisional wire formats through implementation inertia;
-- treating dev code as architectural evidence unless explicitly run as a feasibility experiment.
+The validator must detect at least:
 
-## 5. Exit condition
+- unregistered current files;
+- malformed/duplicate machine records;
+- unindexed ADRs;
+- broken local links;
+- duplicate current ProviderCapabilities schema;
+- key-derived AccountID or legacy competing AccountState authority;
+- incomplete former-question resolution mapping;
+- premature engineering authorization;
+- disappearance of the six OM meanings;
+- reintroduction of a country as protocol-global legal home;
+- missing required constitutional/machine files;
+- manifest byte/hash drift.
 
-Engineering can begin only when a future checkpoint deliberately changes:
+## 5. Evidence can still change a decision
 
-```text
-phase = architecture_hardening_pre_engineering
-engineering_authorized = false
-```
-
-to an engineering-authorized state after all blocking architecture questions are either:
-
-1. resolved and encoded; or
-2. explicitly classified as non-blocking with a bounded interface that cannot force a later incompatible protocol/security redesign.
-
-That transition requires its own accepted ADR and a clean validator run.
+“Resolved” does not mean dogma. Standards, formal proofs, adversarial review or platform reality may disprove a decision. Reopening it requires an ADR and machine-contract update so the change is explicit and traceable rather than implementation drift.

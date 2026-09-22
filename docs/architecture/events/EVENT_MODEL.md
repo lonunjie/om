@@ -291,7 +291,7 @@ Rules:
 - recipient may re-home the blob into its own StoragePool;
 - attachment metadata that is privacy-sensitive stays inside E2EE content.
 
-Gate F defines exact StoragePool locator formats and retention rules.
+Blob/locator semantics are frozen by the 2026-09-23 storage/repair resolution; operational retention defaults remain policy.
 
 ## Size/resource limits
 
@@ -329,7 +329,7 @@ Namespace recommendation:
 org.example.feature-name
 ```
 
-The exact registry/governance model belongs to Gate J.
+Registry/governance follows the accepted public registry and extension criticality rules.
 
 ## Transport adapters
 

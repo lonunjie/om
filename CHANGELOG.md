@@ -119,3 +119,13 @@ SMS/MMS/RCS remain architectural adapters but are removed from first implementat
 - required light/dark/Auto for all themes and optional distinct profile theme suggestions;
 - added ADR-0059..0068 and new logical schemas;
 - preserved 13:42 checkpoint under `history/20260922-1342/`.
+
+## 2026-09-23 05:45 PHT
+
+- resolved former Q-001..Q-061 architectural choices and replaced generic open-question tracking with typed resolution/design/verification/release/deferred ledgers;
+- removed country-specific canonical legal gating; adopted jurisdiction-neutral role-scoped operational/legal boundaries;
+- strengthened standard-license warranty/liability and downstream-operator separation without field-of-use restrictions;
+- made the six meanings of OM canonical in `NAMING.md` and project philosophy;
+- added pre-engineering architecture queue for expressive media/stickers/GIF-like animation, portable external content packs, creator-commerce boundaries, bots/LLMs, communities/spaces/rooms, broadcast channels, roles/topics/plugins/bridges and first-release messenger baseline;
+- added ADR-0079..0083 and new machine requirements/decisions;
+- preserved the 2026-09-22 23:02 checkpoint under `history/20260922-2302/`.

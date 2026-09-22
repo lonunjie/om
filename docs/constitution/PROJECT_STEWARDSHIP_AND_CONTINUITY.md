@@ -1,7 +1,7 @@
 # OM Project Stewardship and Continuity
 
 - **Status:** Canonical project-governance architecture
-- **Checkpoint:** 2026-09-22 23:02 PHT
+- **Checkpoint:** 2026-09-23 05:45 PHT
 - **Current intended forge home:** `github.com/lonunjie/OM` under the SeedLife/lonunjie organization
 
 ## 1. Stewardship model

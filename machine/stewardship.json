@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-22T23:02:00+08:00",
+  "snapshot": "2026-09-23T05:45:00+08:00",
   "maturity_stage": "S0_founder_incubation",
   "umbrella": "SeedLife / lonunjie",
   "intended_canonical_repository": "https://github.com/lonunjie/OM",
@@ -45,5 +45,7 @@
     "No project role is encoded into AccountID or end-user protocol authority.",
     "Adding/removing project stewards never requires end-user identity migration.",
     "Existing open-source/protocol rights remain usable if canonical stewardship is captured or disappears."
-  ]
+  ],
+  "stage": "S0_founder_incubation",
+  "legal_operational_note": "SeedLife/lonunjie is protocol/source steward only for roles it actually controls; optional downstream providers/users/organizations operate their own roles and obligations."
 }

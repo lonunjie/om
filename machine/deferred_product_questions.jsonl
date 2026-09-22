@@ -1,0 +1,11 @@
+{"id":"DP-001","status":"deferred","source":"Q-022","question":"Reference-provider Worker/SQLite/blob thresholds after measurement; never protocol constants."}
+{"id":"DP-002","status":"deferred","source":"Q-024","question":"Exact Recommended/Hardened/Maximum privacy preset defaults and migration UX."}
+{"id":"DP-003","status":"deferred","source":"Q-029","question":"Exact FFI/binding generator choices inside the frozen Rust/Core boundary."}
+{"id":"DP-004","status":"deferred","source":"Q-037","question":"Shared UI framework selection after benchmark."}
+{"id":"DP-005","status":"deferred","source":"Q-038","question":"How much official native UI must exist beyond shared om-ui after platform-quality prototypes."}
+{"id":"DP-006","status":"deferred","source":"Q-039","question":"Exact adaptive breakpoint/container thresholds."}
+{"id":"DP-007","status":"deferred","source":"Q-040","question":"Exact theme bundle resource/count/decoded-size limits and catalog UX."}
+{"id":"DP-008","status":"deferred","source":"Q-041","question":"Exact font subsets/package sizes and platform fallbacks."}
+{"id":"DP-009","status":"deferred","source":"Q-042","question":"Exact motion/easing/timing/performance tokens."}
+{"id":"DP-010","status":"deferred","source":"Q-047","question":"IndexedDB versus OPFS-backed SQLite crossover after representative history benchmarks."}
+{"id":"DP-011","status":"deferred","source":"Q-048","question":"Curated built-in theme names and visual tokens."}

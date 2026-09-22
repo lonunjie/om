@@ -105,3 +105,6 @@ PWA -> native uses the same device-link protocol. Native client obtains fresh De
 
 ClientHost software update integrity and DeviceVault identity continuity are separate. A compromised origin cannot bootstrap its own trust merely by running an in-origin signature verifier. Recovery may require a clean/new ClientHost or higher-assurance endpoint plus authenticated device enrollment. See `CLIENTHOST_UPDATE_LIFECYCLE.md`.
 
+## 2026-09-23 WebDeviceVault resolution
+
+Production PWA identity storage uses WebAuthn PRF-derived wrapping where supported, otherwise non-extractable WebCrypto root material. A browser that cannot provide either durable cryptographic boundary is not silently treated as equivalent for long-lived production DeviceIdentity. Passwords may augment locking but are not the identity-key storage primitive. Feasibility matrix is `V-006`.

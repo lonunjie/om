@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "MANIFEST.json"
-SNAPSHOT = "2026-09-22T23:02:00+08:00"
+SNAPSHOT = "2026-09-23T05:45:00+08:00"
 EXCLUDES = {"MANIFEST.json"}
 
 

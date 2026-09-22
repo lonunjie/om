@@ -177,7 +177,10 @@ Key engineering updates:
 - ordinary messages do not gain a separate durable AccountID signature merely for evidence export.
 ## 2026-09-22 architecture hardening
 
-CryptoProfile v1 must specify not only primitives/handshake/ratchet but also the public logical shape and lifecycle of asynchronous per-device handshake material. `ASYNC_KEY_MATERIAL.md` is part of Gate C.
+CryptoProfile v1 must specify not only primitives/handshake/ratchet but also the public logical shape and lifecycle of asynchronous per-device handshake material. `ASYNC_KEY_MATERIAL.md` is canonical architecture; runtime implementation proof is tracked separately.
 
 Multi-device session selection is outside the ratchet itself and is defined by `ONE_TO_ONE_SESSION_MANAGEMENT.md`. No production security claim is complete until both layers have conformance vectors and stale/replay/depletion/device-change tests.
 
+## 2026-09-23 OM-Crypto-v1 architecture resolution
+
+Q-001/Q-044 are no longer open design choices. OM-Crypto-v1 targets the published PQXDH + Triple-Ratchet/SPQR-class construction with X25519 + ML-KEM-768 for asynchronous hybrid establishment, classical PQXDH authentication semantics as currently specified, HKDF/SHA-256 family derivation, and misuse-resistant authenticated encryption. Durable constitutional authentication uses versioned dual classical/PQ signatures where the AccountControl/CryptoProfile requires it. The remaining production-library/runtime work is `V-001`, a proof gate—not permission to substitute a different wire protocol during implementation.

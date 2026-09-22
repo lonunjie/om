@@ -123,3 +123,7 @@ Security UI remains exceptional and actionable. Routine E2EE/PQ state is not adv
 Multiple identities are a legitimate product need. OM should eventually let users switch profiles instantly and optionally distinguish them with curated themes. Do not infer or police the user's motive for creating identities; enforce abuse at relationship/IntroGate/provider boundaries rather than through hidden cross-profile fingerprinting.
 
 All themes offer Auto light/dark behavior. The default remains ergonomics/functionality first: immediate clarity, calm hierarchy, fast local response, then aesthetics/personalization.
+
+## 2026-09-23 traction baseline
+
+OM is not successful merely because the protocol is elegant. The first usable product must feel like a current messenger: expected reply/reaction/media/voice/call/group/search/mute/block and expressive-media ergonomics need an explicit baseline before engineering. `A-010` owns that feature matrix. Stickers and GIF-like looping animation are provisionally considered baseline rather than exotic extensions; exact safe formats/manifests remain `A-001/A-002`.

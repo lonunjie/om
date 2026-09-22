@@ -1,6 +1,6 @@
 # OM LAN Rendezvous and Offline Local Mode
 
-- **Status:** Accepted direction; protocol details remain Gate D/H work
+- **Status:** Canonical direction; platform capability verification remains
 - **Checkpoint:** 2026-09-21 10:08 PHT
 
 ## 1. Goal
@@ -77,3 +77,6 @@ The LAN protocol remains client-agnostic, but discovery substrates are capabilit
 
 OM promises interoperable local-mode semantics where a route can be established; it does not promise identical automatic discovery on every platform.
 
+## 2026-09-23 LAN resolution
+
+Relationship-derived, short-lived opaque rendezvous tags replace stable identifier broadcast. Native mDNS/DNS-SD is optional capability; QR/manual/known-endpoint is universal fallback. Browsers/PWAs are never required to expose native-equivalent automatic LAN discovery. LAN continues to carry ordinary OM E2EE ciphertext.

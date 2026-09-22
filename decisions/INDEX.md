@@ -1,6 +1,6 @@
 # OM Architecture Decision Records
 
-Checkpoint: 2026-09-22 23:02 PHT
+Checkpoint: 2026-09-23 05:45 PHT
 
 - [ADR-0001 — Providers Are Plugins](ADR-0001-provider-independence.md)
 - [ADR-0002 — Passwordless Device-First Identity](ADR-0002-device-first-identity.md)
@@ -80,3 +80,8 @@ Checkpoint: 2026-09-22 23:02 PHT
 - [ADR-0076 — All canonical time fields declare clock and authority semantics](ADR-0076-explicit-time-semantics.md)
 - [ADR-0077 — Self-hosted ClientHosts require an explicit update/deployment lifecycle](ADR-0077-clienthost-update-lifecycle.md)
 - [ADR-0078 — Architecture prose is backed by a machine-enforced repository contract](ADR-0078-machine-enforced-architecture-contract.md)
+- [ADR-0079 — Resolve architectural choices and split remaining work into typed gates](ADR-0079-close-architecture-questions-into-typed-gates.md)
+- [ADR-0080 — Legal exposure is jurisdiction-neutral and role-scoped](ADR-0080-jurisdiction-neutral-legal-role-boundaries.md)
+- [ADR-0081 — OM keeps six complementary meanings](ADR-0081-six-meanings-of-om.md)
+- [ADR-0082 — Supporting a capability does not make SeedLife its operator](ADR-0082-capability-does-not-imply-project-operated-service.md)
+- [ADR-0083 — Messenger-baseline and community surfaces must be designed before engineering](ADR-0083-basic-expressive-and-community-surfaces-enter-architecture-queue.md)

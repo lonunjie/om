@@ -1,70 +1,70 @@
-{"id": "D-001", "status": "accepted", "decision": "OM umbrella name remains OpenMessenger / OwnMessenger / OurMessenger (OM)."}
-{"id": "D-002", "status": "accepted", "decision": "No infrastructure provider is part of the protocol; providers are plugins."}
-{"id": "D-003", "status": "accepted", "decision": "Normal identity is passwordless-by-default and device-first."}
-{"id": "D-004", "status": "accepted", "decision": "Phone numbers, usernames, emails and domains are aliases/claims, not root identity."}
-{"id": "D-005", "status": "accepted", "decision": "PersonRecord is local/private human contact state; no global authority merges humans."}
-{"id": "D-006", "status": "accepted", "decision": "Unknown senders use constrained MessageRequests/IntroductionEndpoints."}
-{"id": "D-007", "status": "accepted", "decision": "No global trust score or transitive Web of Trust."}
-{"id": "D-008", "status": "accepted", "decision": "Businesses use OrganizationIdentity + stable ServiceIdentity + scoped bot/human AgentAuthorization."}
-{"id": "D-009", "status": "accepted", "decision": "Private groups use AccountID membership and DeviceIdentity cryptographic membership; design around MLS."}
-{"id": "D-010", "status": "accepted", "decision": "Hot/cold/recovery storage classes are separate and can use different providers."}
-{"id": "D-011", "status": "accepted", "decision": "StoragePool supports provider selection and mirroring; erasure coding deferred."}
-{"id": "D-012", "status": "accepted", "decision": "Official app is a reference client; third-party clients/UIs use public protocol and conformance."}
-{"id": "D-013", "status": "accepted", "decision": "PWA is first execution path; web-first is not web-only."}
-{"id": "D-014", "status": "accepted", "decision": "Canonical conversation semantics use a small immutable event model with materialized views."}
-{"id": "D-015", "status": "accepted", "decision": "Authoritative identity/group control state is separate from chat content events."}
-{"id": "D-016", "status": "accepted", "decision": "Baseline durable events are message.create/edit/delete, reaction.set, receipt.update."}
-{"id": "D-017", "status": "accepted", "decision": "Baseline durable event size ceiling is 64 KiB; media is out-of-band encrypted blob storage."}
-{"id": "D-018", "status": "accepted", "decision": "Use client-generated random EventIDs and Hybrid Logical Clock ordering; no central sequencer."}
-{"id": "D-019", "status": "accepted", "decision": "Authority must be scoped, replaceable, and non-composable; OM requires no universal central authority."}
-{"id": "D-020", "status": "accepted", "decision": "AccountID is algorithm-independent and must not be used as a relay/media routing address."}
-{"id": "D-021", "status": "accepted", "decision": "Wire cryptography negotiates approved versioned CryptoProfiles, not arbitrary primitive combinations."}
-{"id": "D-022", "status": "accepted", "decision": "Crypto upgrades are automatic/invisible for ordinary users and advance authenticated downgrade floors."}
-{"id": "D-023", "status": "accepted", "decision": "OM prefers PQ-first/hybrid-secure profiles where mature; draft-dependent suites remain replaceable."}
-{"id": "D-024", "status": "accepted", "decision": "Accepted relationships use private rotatable opaque delivery capabilities; relays need not know stable AccountIDs."}
-{"id": "D-025", "status": "accepted", "decision": "Voice/video media uses route-independent SFrame E2EE; signaling is encrypted OM control traffic."}
-{"id": "D-026", "status": "accepted", "decision": "Call RoutePolicy prefers safe LAN/direct P2P when policy permits, then TURN fallback; SFU is used for scalable groups."}
-{"id": "D-027", "status": "accepted", "decision": "Cloudflare is an optional reference relay/blob/media deployment, never a protocol dependency."}
-{"id": "D-028", "status": "accepted", "decision": "R2 is one possible encrypted BlobStore; delivery queues and archives remain separate storage classes."}
-{"id": "D-029", "status": "accepted", "decision": "SMS/MMS/RCS are deferred from initial implementation but preserved as future TransportAdapters."}
-{"id": "D-030", "status": "accepted", "decision": "Provider routing is budget/quota-aware; a zero-paid-budget policy must be enforceable."}
-{"id": "D-031", "status": "accepted_direction", "decision": "OM is local-first and should support privacy-preserving LAN direct messaging/files/calls where feasible."}
-{"id": "D-032", "status": "accepted", "decision": "Abuse controls use first-contact/recipient/group/provider/reporting boundaries without universal content surveillance or mandatory global trust score."}
-{"id": "D-033", "status": "accepted", "decision": "OM discovery is a resolver fabric, not a mandatory global registry; every discovery method yields a validated ContactDescriptor."}
-{"id": "D-034", "status": "accepted", "decision": "Bare usernames retain namespace/provider provenance; OM has no protocol-global bare username root or mandatory blockchain ledger."}
-{"id": "D-035", "status": "accepted", "decision": "Public directory records expose IntroductionServiceDescriptor data, not reusable private relationship mailbox capabilities."}
-{"id": "D-036", "status": "accepted", "decision": "QR/link invitations are independently revocable, expiring, scoped capabilities; revocation does not affect accepted relationships."}
-{"id": "D-037", "status": "accepted", "decision": "IntroGate issues short-lived/single-use IntroductionTickets and enforces first-contact abuse/resource policy without ambient conversation plaintext."}
-{"id": "D-038", "status": "accepted_direction", "decision": "Directory lookup should support optional oblivious relay/resolver separation so one party need not learn both requester IP and queried alias."}
-{"id": "D-039", "status": "accepted", "decision": "Multiple simultaneous relays are first-class through a private authenticated RelaySet with distinct capability per relay and automatic failover."}
-{"id": "D-040", "status": "accepted_direction", "decision": "LAN discovery uses rotating rendezvous tokens derived from purpose-specific relationship/invite secrets rather than stable identity broadcast."}
-{"id": "D-041", "status": "accepted_direction", "decision": "OM designs for censorship resilience through provider and transport diversity/pluggable transports but makes no guarantee of uncensorability."}
-{"id": "D-042", "status": "accepted", "decision": "Recovery is optional and off by default; a user may intentionally have an unrecoverable/disposable AccountID."}
-{"id": "D-043", "status": "accepted", "decision": "Identity recovery, history decryption recovery, and provider recovery are separate authorities and key hierarchies."}
-{"id": "D-044", "status": "accepted", "decision": "Account authority uses monotonic authenticated AccountControlState rather than chat-event HLC or last-write-wins."}
-{"id": "D-045", "status": "accepted", "decision": "Device compromise response separates immediate quarantine from permanent revocation; quarantine cannot shrink its own constitutional quorum."}
-{"id": "D-046", "status": "accepted", "decision": "Control-device promotion is a constitutional operation authorized by the pre-change control set or RecoveryPolicy."}
-{"id": "D-047", "status": "accepted_direction", "decision": "AccountControlHead gossip/witness observations detect rollback/forks but cannot author successor control state."}
-{"id": "D-048", "status": "accepted", "decision": "Initial personal deployments are user-owned Cloudflare accounts; the official app may automate provisioning but Cloudflare remains replaceable."}
-{"id": "D-049", "status": "accepted", "decision": "workers.dev FQDNs are valid v1 personal discovery locators/aliases; organizations/FQDN owners are the first natural grouped directories."}
-{"id": "D-050", "status": "accepted", "decision": "Contact sharing uses subject-signed expiring ContactCapsules; introducers may add referral context but are not identity authorities."}
-{"id": "D-051", "status": "accepted", "decision": "Zero-payment reference Cloudflare core is Worker + SQLite Durable Object; R2/D1/Pages are optional capabilities."}
-{"id": "D-052", "status": "accepted", "decision": "Software-update trust starts with signed/mirrored source, TUF-style role separation, provenance, pinning and reproducibility where feasible."}
-{"id": "D-053", "status": "accepted", "decision": "Security/privacy profiles change metadata/convenience policies but never reduce the strongest approved compatible cryptographic floor."}
-{"id": "D-054", "status": "accepted", "decision": "Push providers receive only opaque wake information; local clients fetch/decrypt/render notification content. Vendor push may be disabled with explicit delivery tradeoffs."}
-{"id": "D-055", "status": "accepted", "decision": "Backups can restore history but cannot restore stale account authority; current AccountControlState must be reconciled before full operation."}
-{"id": "D-056", "status": "accepted", "decision": "OM v1 does not upload or hash the user's address book; local Contacts permission is display/convenience only."}
-{"id": "D-057", "status": "accepted_direction", "decision": "Disappearing-message lifecycle is client-enforced and backup-aware; view-once is never backed up and expired content is never restored."}
-{"id": "D-058", "status": "accepted", "decision": "Protocol extensions have explicit critical/non-critical semantics and authenticated capability negotiation before wire freeze."}
-{"id": "D-059", "status": "accepted_direction", "decision": "Endpoint-assurance classes and nation-state anonymity transports remain pluggable future policy/capability layers rather than v1 blockers."}
-{"id": "D-060", "status": "accepted", "decision": "OM Protocol/Core requires no OM-operated account, relay, directory, push, recovery, or abuse service for established communication."}
-{"id": "D-061", "status": "accepted", "decision": "The first reference client is PWA-first but native Android/iOS shells remain planned; PWA is not a permanent capability ceiling."}
-{"id": "D-062", "status": "accepted_direction", "decision": "Security/state semantics should converge on one portable memory-safe OM Core shared by WASM and native shells."}
-{"id": "D-063", "status": "accepted", "decision": "Provisioning is replaceable; provider-native deploy templates are preferred where they avoid an OM-controlled provisioning service, while OAuth remains optional."}
-{"id": "D-064", "status": "accepted", "decision": "Operatorless-core abuse response is local blocking plus selective EvidencePackage export to a user-chosen recipient; no central OM AbuseDesk is required."}
-{"id": "D-065", "status": "accepted", "decision": "Push/signing/store-policy/reporting infrastructure for a native client is owned by that client distribution, not by the OM protocol."}
-{"id": "D-066", "status": "accepted", "decision": "Future convenience businesses/providers may exist but receive no protocol privilege and must preserve provider migration/identity continuity."}
-{"id": "D-067", "status": "accepted", "decision": "Creator-Disappearance Gate requires established independent users to continue communicating if the original project/author/business disappears."}
+{"id":"D-001","status":"superseded","decision":"OM umbrella name remains OpenMessenger / OwnMessenger / OurMessenger (OM).","superseded_by":"D-096"}
+{"id":"D-002","status":"accepted","decision":"No infrastructure provider is part of the protocol; providers are plugins."}
+{"id":"D-003","status":"accepted","decision":"Normal identity is passwordless-by-default and device-first."}
+{"id":"D-004","status":"accepted","decision":"Phone numbers, usernames, emails and domains are aliases/claims, not root identity."}
+{"id":"D-005","status":"accepted","decision":"PersonRecord is local/private human contact state; no global authority merges humans."}
+{"id":"D-006","status":"accepted","decision":"Unknown senders use constrained MessageRequests/IntroductionEndpoints."}
+{"id":"D-007","status":"accepted","decision":"No global trust score or transitive Web of Trust."}
+{"id":"D-008","status":"accepted","decision":"Businesses use OrganizationIdentity + stable ServiceIdentity + scoped bot/human AgentAuthorization."}
+{"id":"D-009","status":"accepted","decision":"Private groups use AccountID membership and DeviceIdentity cryptographic membership; design around MLS."}
+{"id":"D-010","status":"accepted","decision":"Hot/cold/recovery storage classes are separate and can use different providers."}
+{"id":"D-011","status":"accepted","decision":"StoragePool supports provider selection and mirroring; erasure coding deferred."}
+{"id":"D-012","status":"accepted","decision":"Official app is a reference client; third-party clients/UIs use public protocol and conformance."}
+{"id":"D-013","status":"accepted","decision":"PWA is first execution path; web-first is not web-only."}
+{"id":"D-014","status":"accepted","decision":"Canonical conversation semantics use a small immutable event model with materialized views."}
+{"id":"D-015","status":"accepted","decision":"Authoritative identity/group control state is separate from chat content events."}
+{"id":"D-016","status":"accepted","decision":"Baseline durable events are message.create/edit/delete, reaction.set, receipt.update."}
+{"id":"D-017","status":"accepted","decision":"Baseline durable event size ceiling is 64 KiB; media is out-of-band encrypted blob storage."}
+{"id":"D-018","status":"accepted","decision":"Use client-generated random EventIDs and Hybrid Logical Clock ordering; no central sequencer."}
+{"id":"D-019","status":"accepted","decision":"Authority must be scoped, replaceable, and non-composable; OM requires no universal central authority."}
+{"id":"D-020","status":"accepted","decision":"AccountID is algorithm-independent and must not be used as a relay/media routing address."}
+{"id":"D-021","status":"accepted","decision":"Wire cryptography negotiates approved versioned CryptoProfiles, not arbitrary primitive combinations."}
+{"id":"D-022","status":"accepted","decision":"Crypto upgrades are automatic/invisible for ordinary users and advance authenticated downgrade floors."}
+{"id":"D-023","status":"accepted","decision":"OM prefers PQ-first/hybrid-secure profiles where mature; draft-dependent suites remain replaceable."}
+{"id":"D-024","status":"accepted","decision":"Accepted relationships use private rotatable opaque delivery capabilities; relays need not know stable AccountIDs."}
+{"id":"D-025","status":"accepted","decision":"Voice/video media uses route-independent SFrame E2EE; signaling is encrypted OM control traffic."}
+{"id":"D-026","status":"accepted","decision":"Call RoutePolicy prefers safe LAN/direct P2P when policy permits, then TURN fallback; SFU is used for scalable groups."}
+{"id":"D-027","status":"accepted","decision":"Cloudflare is an optional reference relay/blob/media deployment, never a protocol dependency."}
+{"id":"D-028","status":"accepted","decision":"R2 is one possible encrypted BlobStore; delivery queues and archives remain separate storage classes."}
+{"id":"D-029","status":"accepted","decision":"SMS/MMS/RCS are deferred from initial implementation but preserved as future TransportAdapters."}
+{"id":"D-030","status":"accepted","decision":"Provider routing is budget/quota-aware; a zero-paid-budget policy must be enforceable."}
+{"id":"D-031","status":"accepted_direction","decision":"OM is local-first and should support privacy-preserving LAN direct messaging/files/calls where feasible."}
+{"id":"D-032","status":"accepted","decision":"Abuse controls use first-contact/recipient/group/provider/reporting boundaries without universal content surveillance or mandatory global trust score."}
+{"id":"D-033","status":"accepted","decision":"OM discovery is a resolver fabric, not a mandatory global registry; every discovery method yields a validated ContactDescriptor."}
+{"id":"D-034","status":"accepted","decision":"Bare usernames retain namespace/provider provenance; OM has no protocol-global bare username root or mandatory blockchain ledger."}
+{"id":"D-035","status":"accepted","decision":"Public directory records expose IntroductionServiceDescriptor data, not reusable private relationship mailbox capabilities."}
+{"id":"D-036","status":"accepted","decision":"QR/link invitations are independently revocable, expiring, scoped capabilities; revocation does not affect accepted relationships."}
+{"id":"D-037","status":"accepted","decision":"IntroGate issues short-lived/single-use IntroductionTickets and enforces first-contact abuse/resource policy without ambient conversation plaintext."}
+{"id":"D-038","status":"accepted_direction","decision":"Directory lookup should support optional oblivious relay/resolver separation so one party need not learn both requester IP and queried alias."}
+{"id":"D-039","status":"accepted","decision":"Multiple simultaneous relays are first-class through a private authenticated RelaySet with distinct capability per relay and automatic failover."}
+{"id":"D-040","status":"accepted_direction","decision":"LAN discovery uses rotating rendezvous tokens derived from purpose-specific relationship/invite secrets rather than stable identity broadcast."}
+{"id":"D-041","status":"accepted_direction","decision":"OM designs for censorship resilience through provider and transport diversity/pluggable transports but makes no guarantee of uncensorability."}
+{"id":"D-042","status":"accepted","decision":"Recovery is optional and off by default; a user may intentionally have an unrecoverable/disposable AccountID."}
+{"id":"D-043","status":"accepted","decision":"Identity recovery, history decryption recovery, and provider recovery are separate authorities and key hierarchies."}
+{"id":"D-044","status":"accepted","decision":"Account authority uses monotonic authenticated AccountControlState rather than chat-event HLC or last-write-wins."}
+{"id":"D-045","status":"accepted","decision":"Device compromise response separates immediate quarantine from permanent revocation; quarantine cannot shrink its own constitutional quorum."}
+{"id":"D-046","status":"accepted","decision":"Control-device promotion is a constitutional operation authorized by the pre-change control set or RecoveryPolicy."}
+{"id":"D-047","status":"accepted_direction","decision":"AccountControlHead gossip/witness observations detect rollback/forks but cannot author successor control state."}
+{"id":"D-048","status":"accepted","decision":"Initial personal deployments are user-owned Cloudflare accounts; the official app may automate provisioning but Cloudflare remains replaceable."}
+{"id":"D-049","status":"accepted","decision":"workers.dev FQDNs are valid v1 personal discovery locators/aliases; organizations/FQDN owners are the first natural grouped directories."}
+{"id":"D-050","status":"accepted","decision":"Contact sharing uses subject-signed expiring ContactCapsules; introducers may add referral context but are not identity authorities."}
+{"id":"D-051","status":"accepted","decision":"Zero-payment reference Cloudflare core is Worker + SQLite Durable Object; R2/D1/Pages are optional capabilities."}
+{"id":"D-052","status":"accepted","decision":"Software-update trust starts with signed/mirrored source, TUF-style role separation, provenance, pinning and reproducibility where feasible."}
+{"id":"D-053","status":"accepted","decision":"Security/privacy profiles change metadata/convenience policies but never reduce the strongest approved compatible cryptographic floor."}
+{"id":"D-054","status":"accepted","decision":"Push providers receive only opaque wake information; local clients fetch/decrypt/render notification content. Vendor push may be disabled with explicit delivery tradeoffs."}
+{"id":"D-055","status":"accepted","decision":"Backups can restore history but cannot restore stale account authority; current AccountControlState must be reconciled before full operation."}
+{"id":"D-056","status":"accepted","decision":"OM v1 does not upload or hash the user's address book; local Contacts permission is display/convenience only."}
+{"id":"D-057","status":"accepted_direction","decision":"Disappearing-message lifecycle is client-enforced and backup-aware; view-once is never backed up and expired content is never restored."}
+{"id":"D-058","status":"accepted","decision":"Protocol extensions have explicit critical/non-critical semantics and authenticated capability negotiation before wire freeze."}
+{"id":"D-059","status":"accepted_direction","decision":"Endpoint-assurance classes and nation-state anonymity transports remain pluggable future policy/capability layers rather than v1 blockers."}
+{"id":"D-060","status":"accepted","decision":"OM Protocol/Core requires no OM-operated account, relay, directory, push, recovery, or abuse service for established communication."}
+{"id":"D-061","status":"accepted","decision":"The first reference client is PWA-first but native Android/iOS shells remain planned; PWA is not a permanent capability ceiling."}
+{"id":"D-062","status":"accepted_direction","decision":"Security/state semantics should converge on one portable memory-safe OM Core shared by WASM and native shells."}
+{"id":"D-063","status":"accepted","decision":"Provisioning is replaceable; provider-native deploy templates are preferred where they avoid an OM-controlled provisioning service, while OAuth remains optional."}
+{"id":"D-064","status":"accepted","decision":"Operatorless-core abuse response is local blocking plus selective EvidencePackage export to a user-chosen recipient; no central OM AbuseDesk is required."}
+{"id":"D-065","status":"accepted","decision":"Push/signing/store-policy/reporting infrastructure for a native client is owned by that client distribution, not by the OM protocol."}
+{"id":"D-066","status":"accepted","decision":"Future convenience businesses/providers may exist but receive no protocol privilege and must preserve provider migration/identity continuity."}
+{"id":"D-067","status":"accepted","decision":"Creator-Disappearance Gate requires established independent users to continue communicating if the original project/author/business disappears."}
 {"id":"D-068","status":"accepted","decision":"Official reference clients share one om-ui implementation above om-core; platform shells provide OS capabilities/system surfaces rather than independent product semantics."}
 {"id":"D-069","status":"accepted_direction","decision":"Reference layout adapts to actual window size through Compact/Medium/Expanded/Wide modes rather than device-specific application forks."}
 {"id":"D-070","status":"accepted","decision":"OM defines a semantic, interruptible MotionSystem and treats perceived smoothness as input latency, layout stability, local-first rendering and motion together."}
@@ -93,3 +93,13 @@
 {"id":"D-093","status":"accepted","decision":"Every canonical time/TTL field declares a clock class; HLC and wall-clock values never authorize constitutional security state."}
 {"id":"D-094","status":"accepted","decision":"Self-hosted PWA ClientHosts require a release/deployment/update/rollback/compromised-origin migration lifecycle separate from DeviceVault identity continuity."}
 {"id":"D-095","status":"accepted","decision":"The architecture repository is governed by machine-readable phase/file/domain contracts and an executable drift validator; engineering_authorized remains false in this checkpoint."}
+{"id":"D-096","status":"accepted","decision":"OM intentionally carries six canonical meanings: Open-source Messenger, OpenMessenger, OwnMessenger, OurMessenger, OneMessenger and OhMessenger; all six constrain product architecture."}
+{"id":"D-097","status":"accepted","decision":"Former Q-001..Q-061 architectural choices are resolved by ARCHITECTURE_RESOLUTIONS_20260923.md; remaining uncertainty is typed as architecture verification, public-release gates, deferred product measurements, or new architecture-design queue items."}
+{"id":"D-098","status":"accepted","decision":"No country is an OM protocol home jurisdiction; legal/compliance review is role-based and jurisdiction-specific only for the project-controlled distribution/service actually offered."}
+{"id":"D-099","status":"accepted","decision":"OM minimizes project legal exposure through standard open-source warranty/liability terms, minimal centralized custody/operation, and explicit operator boundaries; it does not use field-of-use restrictions or claim legal immunity."}
+{"id":"D-100","status":"accepted","decision":"Capability support does not imply SeedLife operation: OM may interoperate with content packs, bots, communities, broadcasts, catalogs, entitlements and future commerce providers without running those services."}
+{"id":"D-101","status":"accepted","decision":"Expressive media, community/broadcast, bot/LLM and plugin questions are architecture-design work that must be resolved before engineering because they affect event/control/extension surfaces."}
+{"id":"D-102","status":"accepted","decision":"The provisional product baseline includes first-class stickers and GIF-like looping animation, external portable content packs, and familiar messenger ergonomics; exact formats/security manifests remain architecture queue work."}
+{"id":"D-103","status":"accepted","decision":"OM Core does not issue a token, process payments, custody funds or act as merchant-of-record; any future paid-content capability must keep settlement/marketplace operation in an optional external provider/plugin role."}
+{"id":"D-104","status":"accepted","decision":"Independent OM clients are first-class OpenMessenger participants. Bots/LLMs/bridges are explicit principals with scoped access; a bridge or full-room bot that receives plaintext is a visible E2EE trust boundary."}
+{"id":"D-105","status":"accepted","decision":"Communities/spaces, room/channel types and broadcast publication are intended capabilities, but the exact composable control/membership model remains pre-engineering architecture work rather than being forced into the existing private-group model."}

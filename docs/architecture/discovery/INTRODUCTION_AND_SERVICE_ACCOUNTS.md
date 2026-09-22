@@ -200,3 +200,7 @@ Personal users may authorize assistants, but the same principles apply:
 Public search records MUST NOT publish a reusable relationship mailbox capability. A sender first obtains a short-lived/single-use `IntroductionTicket` scoped to a small MessageRequest. The IntroGate can enforce replay protection, per-recipient quotas, rate limits and optional privacy-preserving admission proofs before expensive storage/fanout work.
 
 Invites carry separate revocable capabilities. Revoking an invite does not affect accepted relationships. See `INVITES_INTROGATE_AND_SPAM.md`.
+
+## 2026-09-23 bot/LLM direction
+
+Bots and LLM agents are explicit service principals. Default interaction should be command/scoped-context delivery; a bot admitted as a full room/group member is visibly a plaintext recipient for the data it can decrypt. Local on-device inference and remote-agent disclosure are distinct capabilities and must not be conflated.

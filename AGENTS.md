@@ -148,3 +148,12 @@ Agents must preserve these invariants:
 - PWA LAN discovery/reachability is platform-capability-gated; native mDNS behavior is not promised universally on web.
 - Licensing follows `LICENSING_AND_CONTRIBUTION_POLICY.md`; normal contributions use DCO/inbound-equals-outbound, not broad copyright assignment.
 - Run `python3 tools/validate_architecture.py` before accepting a checkpoint.
+
+## 2026-09-23 architecture-resolution rules
+
+- The former Q-001..Q-061 choices are resolved in `ARCHITECTURE_RESOLUTIONS_20260923.md`; do not reopen them casually because an implementation is easier.
+- Product engineering is still **not authorized**.
+- Before proposing engineering, clear every open blocking item in `machine/architecture_design_queue.jsonl` and pass every blocking gate in `machine/architecture_verification_gates.jsonl`.
+- `machine/public_release_gates.jsonl` applies to the affected public service/distribution/claim; do not silently turn one of those roles into mandatory protocol infrastructure.
+- Preserve all six OM meanings in `NAMING.md` and the rule that capability support does not imply SeedLife operation.
+- Do not introduce OM-operated mandatory payment, marketplace, content catalog, bot cloud, public feed, account service or provider merely to make a feature convenient.

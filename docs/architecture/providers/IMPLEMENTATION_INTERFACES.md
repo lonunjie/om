@@ -87,7 +87,7 @@ LanRendezvous
   discover(expected_tokens)
 ```
 
-The interfaces are logical contracts; transport/serialization details are Gate D work.
+The interfaces are logical contracts; transport/serialization details follow the 2026-09-23 accepted NetworkTransport/canonical-encoding decisions.
 
 ## Additional logical interfaces
 

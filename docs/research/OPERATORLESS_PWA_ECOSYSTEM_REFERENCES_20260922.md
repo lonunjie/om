@@ -16,12 +16,9 @@ These references informed the 07:34 PHT architecture checkpoint. Provider/store/
 
 - The Update Framework security model, including rollback/freeze/compromise resistance: https://theupdateframework.io/docs/security/
 
-## Philippine legal-role questions
+## Jurisdiction-neutral legal-role questions
 
-- RA 11930 — includes participative network platform providers/instant messaging in its definitions and duties for covered intermediaries: https://lawphil.net/statutes/repacts/ra2022/ra_11930_2022.html
-- RA 10175 — service-provider preservation/disclosure provisions for data in possession/control: https://elibrary.judiciary.gov.ph/thebookshelf/showdocs/2/50264
-
-These are reasons to preserve narrow operational roles, not proof that a source-code publisher has no obligations.
+Legal exposure depends on the concrete actor and service role. The current architecture therefore tracks source/spec publisher, self-host, client distributor, directory/provider, public-content operator and managed service separately, with role-specific review before a project-controlled public service/distribution launch.
 
 ## Store distribution
 

@@ -1,57 +1,57 @@
-{"id": "R-001", "priority": "must", "requirement": "Changing relay/storage/directory/alias must not change AccountID."}
-{"id": "R-002", "priority": "must", "requirement": "Recycled phone numbers must never inherit prior cryptographic identity."}
-{"id": "R-003", "priority": "must", "requirement": "Unknown-sender rejection must be enforceable without trusting sender UI."}
-{"id": "R-004", "priority": "must", "requirement": "Third-party clients must interoperate from public specs/test vectors."}
-{"id": "R-005", "priority": "must", "requirement": "PWA protocol implementation must not create browser-only wire assumptions."}
-{"id": "R-006", "priority": "must", "requirement": "Two clients receiving the same authenticated events in different orders converge semantically."}
-{"id": "R-007", "priority": "must", "requirement": "Attachments are encrypted client-side before provider upload."}
-{"id": "R-008", "priority": "must", "requirement": "No silent downgrade when a bridge/transport exposes plaintext outside OM-native E2EE."}
-{"id": "R-009", "priority": "should", "requirement": "Reference stack runs locally with a small number of boring processes/containers."}
-{"id": "R-010", "priority": "should", "requirement": "Normal users never need to understand keys, relays, federation, object stores, or storage topology."}
-{"id": "R-011", "priority": "must", "requirement": "CryptoProfile migration must normally require no user action and must not change AccountID."}
-{"id": "R-012", "priority": "must", "requirement": "A relay or media provider must not require stable AccountID as a routing identifier."}
-{"id": "R-013", "priority": "must", "requirement": "An active attacker/provider cannot silently negotiate below a previously established security floor."}
-{"id": "R-014", "priority": "must", "requirement": "Changing call path among P2P/TURN/SFU must not change OM-level media confidentiality."}
-{"id": "R-015", "priority": "must", "requirement": "Strict call privacy policy must not expose direct peer IP candidates contrary to policy."}
-{"id": "R-016", "priority": "must", "requirement": "Zero-paid-budget provider policy must prevent avoidable billable usage rather than merely alert after the fact."}
-{"id": "R-017", "priority": "should", "requirement": "Established peers on the same LAN should be able to use direct media and future local messaging/file transfer without cloud media transit."}
-{"id": "R-018", "priority": "must", "requirement": "SMS/MMS/RCS integration must not be required for the first OM-native release or force canonical event redesign."}
-{"id": "R-019", "priority": "must", "requirement": "Report flows disclose only user-selected evidence and cannot require ambient server plaintext access."}
-{"id": "R-020", "priority": "must", "requirement": "Provider failure/migration must preserve identity and canonical conversation meaning."}
-{"id": "R-021", "priority": "must", "requirement": "Discovery provider outage or censorship must not terminate already accepted relationships."}
-{"id": "R-022", "priority": "must", "requirement": "Public discovery records must not expose reusable private relationship delivery capabilities."}
-{"id": "R-023", "priority": "must", "requirement": "A revocable invite can be disabled independently without changing AccountID or existing accepted relationships."}
-{"id": "R-024", "priority": "must", "requirement": "First-contact spam controls are enforceable at IntroGate/relay boundaries without trusting hostile sender clients."}
-{"id": "R-025", "priority": "must", "requirement": "RelaySet entries use distinct opaque capabilities and relay failover does not change canonical EventID or conversation meaning."}
-{"id": "R-026", "priority": "should", "requirement": "Directory lookup can be privacy-split so no single non-colluding provider must learn both client network identity and plaintext alias query."}
-{"id": "R-027", "priority": "must", "requirement": "LAN discovery must not broadcast stable AccountID, username, device name, or other globally linkable OM identifier."}
-{"id": "R-028", "priority": "should", "requirement": "Core OM semantics must remain independent of any particular anti-censorship transport so new transports can be added without identity/history migration."}
-{"id": "R-029", "priority": "must", "requirement": "Default RecoveryPolicy is none; enabling recovery requires explicit user action and does not become a provider master key."}
-{"id": "R-030", "priority": "must", "requirement": "Identity recovery and history-recovery keys/authority are cryptographically separate."}
-{"id": "R-031", "priority": "must", "requirement": "One compromised ordinary control device cannot permanently revoke the healthy control set or manufacture a new control quorum by adding devices."}
-{"id": "R-032", "priority": "must", "requirement": "Quarantine stops future secret distribution to a suspect device without allowing quarantine itself to reduce the constitutional authorization denominator."}
-{"id": "R-033", "priority": "must", "requirement": "Restored/offline devices verify current AccountControlState freshness before exercising control authority."}
-{"id": "R-034", "priority": "must", "requirement": "Personal v1 onboarding can operate with no purchased domain; a workers.dev FQDN may publish signed discovery data."}
-{"id": "R-035", "priority": "must", "requirement": "Share Contact never transfers private pairwise delivery capabilities; forwarded contact data is subject-signed and bounded by expiry/revocation policy."}
-{"id": "R-036", "priority": "must", "requirement": "The basic personal Cloudflare deployment must not require R2/D1/Pages when Worker + SQLite Durable Object can satisfy the zero-payment core."}
-{"id": "R-037", "priority": "must", "requirement": "Official source/release/update trust must not rely solely on one forge, one online signing key, or one mutable CI job."}
-{"id": "R-038", "priority": "must", "requirement": "Recommended/Hardened/Maximum Privacy presets all retain the same minimum approved cryptographic security floor."}
-{"id": "R-039", "priority": "must", "requirement": "Push payloads do not contain normal message plaintext or require the push provider to know canonical conversation identity."}
-{"id": "R-040", "priority": "must", "requirement": "Disabling vendor push communicates platform-specific delivery limitations honestly; iOS silent/background push is not treated as guaranteed."}
-{"id": "R-041", "priority": "must", "requirement": "Backup restore cannot resurrect revoked devices, obsolete recovery policies, obsolete relay capability state, or forbidden CryptoProfiles."}
-{"id": "R-042", "priority": "must", "requirement": "OM v1 does not upload/hash the user's address book by default or as an onboarding requirement."}
-{"id": "R-043", "priority": "should", "requirement": "Local Contacts permission may map/display names entirely on device without transmitting the contact book."}
-{"id": "R-044", "priority": "must", "requirement": "Unknown critical protocol extensions cause the affected operation to fail safely; optional unknown extensions follow explicit ignore/preserve rules."}
-{"id": "R-045", "priority": "should", "requirement": "Nation-state/anonymity transports can be added beneath stable OM semantics without identity/history migration."}
-{"id": "R-046", "priority": "must", "requirement": "Established OM relationships must not require any OM-Project-operated runtime service to continue communication."}
-{"id": "R-047", "priority": "must", "requirement": "The reference PWA and future native clients must share protocol/security semantics through common conformance vectors and preferably one portable OM Core."}
-{"id": "R-048", "priority": "must", "requirement": "No client distribution may receive hidden protocol privileges unavailable to conforming third-party distributions."}
-{"id": "R-049", "priority": "must", "requirement": "PWA Web Push must not require a universal OM push gateway; personal/provider-local push senders remain possible."}
-{"id": "R-050", "priority": "must", "requirement": "Provisioning method is replaceable and must not become identity or protocol state."}
-{"id": "R-051", "priority": "must", "requirement": "Core evidence export is explicit and user-selected; normal operation does not centralize plaintext merely to support hypothetical reports."}
-{"id": "R-052", "priority": "must", "requirement": "A managed/convenience provider can be replaced without changing AccountID or canonical conversation meaning."}
-{"id": "R-053", "priority": "must", "requirement": "Loss of the original project website, primary source forge, author, foundation or business must not terminate established independent OM communication."}
-{"id": "R-054", "priority": "should", "requirement": "Reference source/spec/test vectors should be straightforward to mirror and continue under independent distribution keys."}
+{"id":"R-001","priority":"must","requirement":"Changing relay/storage/directory/alias must not change AccountID."}
+{"id":"R-002","priority":"must","requirement":"Recycled phone numbers must never inherit prior cryptographic identity."}
+{"id":"R-003","priority":"must","requirement":"Unknown-sender rejection must be enforceable without trusting sender UI."}
+{"id":"R-004","priority":"must","requirement":"Third-party clients must interoperate from public specs/test vectors."}
+{"id":"R-005","priority":"must","requirement":"PWA protocol implementation must not create browser-only wire assumptions."}
+{"id":"R-006","priority":"must","requirement":"Two clients receiving the same authenticated events in different orders converge semantically."}
+{"id":"R-007","priority":"must","requirement":"Attachments are encrypted client-side before provider upload."}
+{"id":"R-008","priority":"must","requirement":"No silent downgrade when a bridge/transport exposes plaintext outside OM-native E2EE."}
+{"id":"R-009","priority":"should","requirement":"Reference stack runs locally with a small number of boring processes/containers."}
+{"id":"R-010","priority":"should","requirement":"Normal users never need to understand keys, relays, federation, object stores, or storage topology."}
+{"id":"R-011","priority":"must","requirement":"CryptoProfile migration must normally require no user action and must not change AccountID."}
+{"id":"R-012","priority":"must","requirement":"A relay or media provider must not require stable AccountID as a routing identifier."}
+{"id":"R-013","priority":"must","requirement":"An active attacker/provider cannot silently negotiate below a previously established security floor."}
+{"id":"R-014","priority":"must","requirement":"Changing call path among P2P/TURN/SFU must not change OM-level media confidentiality."}
+{"id":"R-015","priority":"must","requirement":"Strict call privacy policy must not expose direct peer IP candidates contrary to policy."}
+{"id":"R-016","priority":"must","requirement":"Zero-paid-budget provider policy must prevent avoidable billable usage rather than merely alert after the fact."}
+{"id":"R-017","priority":"should","requirement":"Established peers on the same LAN should be able to use direct media and future local messaging/file transfer without cloud media transit."}
+{"id":"R-018","priority":"must","requirement":"SMS/MMS/RCS integration must not be required for the first OM-native release or force canonical event redesign."}
+{"id":"R-019","priority":"must","requirement":"Report flows disclose only user-selected evidence and cannot require ambient server plaintext access."}
+{"id":"R-020","priority":"must","requirement":"Provider failure/migration must preserve identity and canonical conversation meaning."}
+{"id":"R-021","priority":"must","requirement":"Discovery provider outage or censorship must not terminate already accepted relationships."}
+{"id":"R-022","priority":"must","requirement":"Public discovery records must not expose reusable private relationship delivery capabilities."}
+{"id":"R-023","priority":"must","requirement":"A revocable invite can be disabled independently without changing AccountID or existing accepted relationships."}
+{"id":"R-024","priority":"must","requirement":"First-contact spam controls are enforceable at IntroGate/relay boundaries without trusting hostile sender clients."}
+{"id":"R-025","priority":"must","requirement":"RelaySet entries use distinct opaque capabilities and relay failover does not change canonical EventID or conversation meaning."}
+{"id":"R-026","priority":"should","requirement":"Directory lookup can be privacy-split so no single non-colluding provider must learn both client network identity and plaintext alias query."}
+{"id":"R-027","priority":"must","requirement":"LAN discovery must not broadcast stable AccountID, username, device name, or other globally linkable OM identifier."}
+{"id":"R-028","priority":"should","requirement":"Core OM semantics must remain independent of any particular anti-censorship transport so new transports can be added without identity/history migration."}
+{"id":"R-029","priority":"must","requirement":"Default RecoveryPolicy is none; enabling recovery requires explicit user action and does not become a provider master key."}
+{"id":"R-030","priority":"must","requirement":"Identity recovery and history-recovery keys/authority are cryptographically separate."}
+{"id":"R-031","priority":"must","requirement":"One compromised ordinary control device cannot permanently revoke the healthy control set or manufacture a new control quorum by adding devices."}
+{"id":"R-032","priority":"must","requirement":"Quarantine stops future secret distribution to a suspect device without allowing quarantine itself to reduce the constitutional authorization denominator."}
+{"id":"R-033","priority":"must","requirement":"Restored/offline devices verify current AccountControlState freshness before exercising control authority."}
+{"id":"R-034","priority":"must","requirement":"Personal v1 onboarding can operate with no purchased domain; a workers.dev FQDN may publish signed discovery data."}
+{"id":"R-035","priority":"must","requirement":"Share Contact never transfers private pairwise delivery capabilities; forwarded contact data is subject-signed and bounded by expiry/revocation policy."}
+{"id":"R-036","priority":"must","requirement":"The basic personal Cloudflare deployment must not require R2/D1/Pages when Worker + SQLite Durable Object can satisfy the zero-payment core."}
+{"id":"R-037","priority":"must","requirement":"Official source/release/update trust must not rely solely on one forge, one online signing key, or one mutable CI job."}
+{"id":"R-038","priority":"must","requirement":"Recommended/Hardened/Maximum Privacy presets all retain the same minimum approved cryptographic security floor."}
+{"id":"R-039","priority":"must","requirement":"Push payloads do not contain normal message plaintext or require the push provider to know canonical conversation identity."}
+{"id":"R-040","priority":"must","requirement":"Disabling vendor push communicates platform-specific delivery limitations honestly; iOS silent/background push is not treated as guaranteed."}
+{"id":"R-041","priority":"must","requirement":"Backup restore cannot resurrect revoked devices, obsolete recovery policies, obsolete relay capability state, or forbidden CryptoProfiles."}
+{"id":"R-042","priority":"must","requirement":"OM v1 does not upload/hash the user's address book by default or as an onboarding requirement."}
+{"id":"R-043","priority":"should","requirement":"Local Contacts permission may map/display names entirely on device without transmitting the contact book."}
+{"id":"R-044","priority":"must","requirement":"Unknown critical protocol extensions cause the affected operation to fail safely; optional unknown extensions follow explicit ignore/preserve rules."}
+{"id":"R-045","priority":"should","requirement":"Nation-state/anonymity transports can be added beneath stable OM semantics without identity/history migration."}
+{"id":"R-046","priority":"must","requirement":"Established OM relationships must not require any OM-Project-operated runtime service to continue communication."}
+{"id":"R-047","priority":"must","requirement":"The reference PWA and future native clients must share protocol/security semantics through common conformance vectors and preferably one portable OM Core."}
+{"id":"R-048","priority":"must","requirement":"No client distribution may receive hidden protocol privileges unavailable to conforming third-party distributions."}
+{"id":"R-049","priority":"must","requirement":"PWA Web Push must not require a universal OM push gateway; personal/provider-local push senders remain possible."}
+{"id":"R-050","priority":"must","requirement":"Provisioning method is replaceable and must not become identity or protocol state."}
+{"id":"R-051","priority":"must","requirement":"Core evidence export is explicit and user-selected; normal operation does not centralize plaintext merely to support hypothetical reports."}
+{"id":"R-052","priority":"must","requirement":"A managed/convenience provider can be replaced without changing AccountID or canonical conversation meaning."}
+{"id":"R-053","priority":"must","requirement":"Loss of the original project website, primary source forge, author, foundation or business must not terminate established independent OM communication."}
+{"id":"R-054","priority":"should","requirement":"Reference source/spec/test vectors should be straightforward to mirror and continue under independent distribution keys."}
 {"id":"R-055","priority":"must","requirement":"Official PWA/iOS/Android/Desktop clients use the same security/product semantics through shared om-core and om-ui rather than independent platform rewrites."}
 {"id":"R-056","priority":"must","requirement":"Theme bundles must be declarative/non-executable and cannot access message/account/provider data or load arbitrary remote tracking resources."}
 {"id":"R-057","priority":"must","requirement":"Themes cannot hide, spoof or semantically alter critical security/control/destructive states or accessibility focus."}
@@ -100,3 +100,14 @@
 {"id":"R-100","priority":"must","requirement":"Only one canonical current ProviderCapabilities logical schema may exist outside history at a checkpoint."}
 {"id":"R-101","priority":"must","requirement":"Canonical AccountID is cryptographically random 256-bit stable data and must not be derived from a device key, cryptographic algorithm, provider or alias."}
 {"id":"R-102","priority":"must","requirement":"AccountControlState is the sole canonical account-authority state object; current normative documents must not define a competing legacy competing authority object."}
+{"id":"R-103","priority":"must","requirement":"Every former Q-001..Q-061 record has an explicit resolution/disposition; no generic open-question ledger may silently mix architectural decisions with proof/release/UX work."}
+{"id":"R-104","priority":"must","requirement":"Engineering authorization remains false while any architecture_design_queue item is open or any blocks_engineering architecture_verification_gate is not passed."}
+{"id":"R-105","priority":"must","requirement":"No current canonical legal architecture may privilege one country as OM protocol jurisdiction; project-controlled services/distributions receive role- and jurisdiction-specific review."}
+{"id":"R-106","priority":"must","requirement":"Standard project licenses/warranty disclaimers remain intact; a downstream provider/distributor that voluntarily offers warranty, support, commerce, moderation or indemnity does so on its own behalf."}
+{"id":"R-107","priority":"must","requirement":"The OM Project must not become a mandatory account, relay, directory, content catalog, bot cloud, marketplace or payment operator solely because the protocol supports those capabilities."}
+{"id":"R-108","priority":"must","requirement":"External content-pack provenance/signatures must not be represented as OM Project copyright ownership verification or endorsement."}
+{"id":"R-109","priority":"must","requirement":"Any future paid-content feature must keep payment/settlement/merchant operation outside OM Core and must not require an OM-issued token or project-operated payment rail."}
+{"id":"R-110","priority":"must","requirement":"Bots/LLMs/bridges that receive plaintext are explicit principals/trust boundaries with scoped authorization and revocation; remote agent context disclosure is never ambient or hidden."}
+{"id":"R-111","priority":"must","requirement":"Public/broadcast discovery, if added, is a distinct optional capability/provider surface and must not make private groups globally discoverable by default."}
+{"id":"R-112","priority":"must","requirement":"The six meanings of OM in NAMING.md are constitutionally mapped into machine decisions and must not be reduced to a single vendor/product interpretation."}
+{"id":"R-113","priority":"should","requirement":"The first usable OM product should provide the ordinary messaging features necessary for traction before prioritizing exotic ecosystem/commerce capabilities."}

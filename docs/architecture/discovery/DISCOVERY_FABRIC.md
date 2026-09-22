@@ -304,3 +304,6 @@ Cached/forwarded capsules are authenticated bounded-lived discovery answers, pre
 
 Finding an AccountID/ContactDescriptor and obtaining current authenticated per-device handshake material are separate operations. A DirectoryProvider may advertise appropriate KeyMaterialProvider endpoints/capabilities, but does not become device authority by doing so.
 
+## 2026-09-23 directory resolution
+
+There is no global OM DirectorySet root. Users/clients choose directories and merge results locally; exact alias matches differ from fuzzy suggestions. Each directory may independently offer transparent append-only publication/witnesses, but that does not become identity authority or a universal OM service.

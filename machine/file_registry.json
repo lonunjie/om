@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-22T23:02:00+08:00",
+  "snapshot": "2026-09-23T05:45:00+08:00",
   "scope": "current_non_history",
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
@@ -40,6 +40,13 @@
     },
     {
       "path": "ARCHITECTURE_PHASE_PLAN.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "ARCHITECTURE_RESOLUTIONS_20260923.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -121,6 +128,13 @@
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
       "authority": "current_checkpoint"
+    },
+    {
+      "path": "CHECKPOINT_20260923_0545.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_index"
     },
     {
       "path": "CLIENTHOST_UPDATE_LIFECYCLE.md",
@@ -387,6 +401,13 @@
       "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "generated_integrity_inventory"
+    },
+    {
+      "path": "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
     },
     {
       "path": "MOTION_AND_PERFORMANCE.md",
@@ -1173,6 +1194,41 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0079-close-architecture-questions-into-typed-gates.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
+      "path": "decisions/ADR-0080-jurisdiction-neutral-legal-role-boundaries.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
+      "path": "decisions/ADR-0081-six-meanings-of-om.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
+      "path": "decisions/ADR-0082-capability-does-not-imply-project-operated-service.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
+      "path": "decisions/ADR-0083-basic-expressive-and-community-surfaces-enter-architecture-queue.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -1250,11 +1306,25 @@
       "authority": "future_gate_non_authorizing"
     },
     {
+      "path": "machine/architecture_design_queue.jsonl",
+      "class": "machine_truth",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "machine_normative"
+    },
+    {
       "path": "machine/architecture_map.json",
       "class": "machine_contract",
       "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "machine_truth"
+    },
+    {
+      "path": "machine/architecture_verification_gates.jsonl",
+      "class": "machine_truth",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "machine_normative"
     },
     {
       "path": "machine/decisions.jsonl",
@@ -1264,6 +1334,13 @@
       "authority": "machine_truth"
     },
     {
+      "path": "machine/deferred_product_questions.jsonl",
+      "class": "machine_truth",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "machine_normative"
+    },
+    {
       "path": "machine/file_registry.json",
       "class": "machine_contract",
       "domain": "architecture_process",
@@ -1271,11 +1348,11 @@
       "authority": "machine_truth"
     },
     {
-      "path": "machine/open_questions.jsonl",
-      "class": "machine_contract",
+      "path": "machine/public_release_gates.jsonl",
+      "class": "machine_truth",
       "domain": "architecture_process",
-      "license": "Apache-2.0",
-      "authority": "machine_truth"
+      "license": "CC-BY-SA-4.0",
+      "authority": "machine_normative"
     },
     {
       "path": "machine/repository_contract.json",
@@ -1290,6 +1367,13 @@
       "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "machine_truth"
+    },
+    {
+      "path": "machine/resolved_questions.jsonl",
+      "class": "machine_truth",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "machine_normative"
     },
     {
       "path": "machine/stewardship.json",
@@ -1528,6 +1612,13 @@
       "domain": "research",
       "license": "CC-BY-SA-4.0",
       "authority": "evidence_non_normative"
+    },
+    {
+      "path": "research/MESSENGER_ECOSYSTEM_PATTERNS_20260923.md",
+      "class": "research",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "research_reference"
     },
     {
       "path": "research/OPERATORLESS_PWA_ECOSYSTEM_REFERENCES_20260922.md",

@@ -1,7 +1,7 @@
 # OM Licensing and Contribution Policy
 
 - **Status:** Canonical licensing architecture; standard license texts are authoritative for their legal terms
-- **Checkpoint:** 2026-09-22 23:02 PHT
+- **Checkpoint:** 2026-09-23 05:45 PHT
 - **Purpose:** Keep OM implementable, forkable and commercially usable without allowing the reference commons to be enclosed
 
 ## 1. Licensing is layered by role
@@ -99,3 +99,13 @@ Before accepting broad external contributions or making definitive project-wide 
 - compatibility between mixed-license components and packaging/distribution targets.
 
 That review may refine legal mechanics but must not silently weaken the anti-capture intent.
+
+## 11. Warranty, liability and operator separation
+
+The selected standard licenses already contain established warranty disclaimers and limitations of liability, subject to mandatory local law. OM keeps those standard texts intact rather than inventing a project-specific restrictive license.
+
+The licensing model does **not** make SeedLife/lonunjie the operator of deployments created by downstream users or businesses. A person or organization that separately offers hosting, support, moderation, a marketplace, payment processing, warranties, SLAs or indemnities does so on its own behalf and is responsible for the obligations it assumes.
+
+OM documentation and reference software provide no default warranty that a particular deployment, use, content item, plugin, bridge, payment service or third-party provider is lawful in every jurisdiction. Operators and users remain responsible for obligations attached to their own activities, while the OM Project remains responsible for obligations attached to the project/distributions/services it actually controls.
+
+This separation must never be implemented by adding a field-of-use restriction or a term that removes the protocol's open-source character.

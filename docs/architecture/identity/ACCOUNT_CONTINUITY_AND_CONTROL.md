@@ -195,3 +195,7 @@ Before production claims, this design requires:
 - enrollment/promotion tests;
 - recovery override tests;
 - independent security review.
+
+## 2026-09-23 AccountControl resolution
+
+Default controller authorization is majority `floor(N/2)+1`. Temporary quarantine cannot shrink that denominator or permanently revoke/promote/change threshold. Competing valid descendants trigger safety freeze rather than timestamp/LWW choice. Relationship-scoped head gossip detects equivocation; fork resolution explicitly acknowledges branches under common-ancestor authority. `V-002` formally validates these invariants.

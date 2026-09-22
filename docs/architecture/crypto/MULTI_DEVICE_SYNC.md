@@ -55,3 +55,6 @@ New messaging-device enrollment may be lighter-weight; promotion to control-devi
 
 Authorization comes from `AccountControlState`, never from a provider's bare device list.
 
+## 2026-09-23 multi-device resolution
+
+New-device bootstrap uses an explicit grant plus same-account authenticated E2EE sync. Immutable conversation events merge by EventID union; constitutional/group authority is never LWW/CRDT merged. One-to-one fanout is governed by the explicit per-device session manager selected in Q-050; verification gate `V-003` covers races/reset/dedupe/persistence.

@@ -6,7 +6,7 @@
 
 ## Decision summary
 
-OM private groups are **provider-independent application groups** secured using the IETF Messaging Layer Security (MLS) architecture, subject to implementation/library review during Gate C.
+OM private groups are **provider-independent application groups** secured using the IETF Messaging Layer Security (MLS) architecture, with implementation/runtime proof tracked separately.
 
 OM will not invent a new group key agreement protocol.
 
@@ -31,7 +31,7 @@ The human group is made of **AccountIDs**. The cryptographic MLS group is made o
 
 ```text
 GroupIdentity
-  group_id        random value; exact encoding TBD
+  group_id        cryptographically random stable group identifier; exact canonical field encoding follows the registry/CBOR profile
   created_at
   initial_policy
 ```
@@ -191,7 +191,7 @@ Reasons:
 - designed for large groups;
 - compatible with an untrusted/replaceable delivery service.
 
-Exact library, cipher suite, KeyPackage policy, and implementation are Gate-C decisions.
+The v1 MLS suite/policy is selected by the 2026-09-23 architecture resolution; library/runtime feasibility remains a verification gate.
 
 OM may still choose a separate reviewed 1:1 protocol; the application event model must not depend on this choice.
 
@@ -414,3 +414,8 @@ Independent clients can create a group, add/remove accounts and devices, exchang
 
 Membership/role-affecting `GroupControlState` changes must be bound to the corresponding MLS Commit/resulting epoch so application membership and cryptographic membership cannot silently diverge. Group architecture remains blocked from wire freeze until that state machine is specified and adversarially tested.
 
+## 2026-09-23 group architecture resolution
+
+Private OM groups use RFC 9420 MLS with the standard X25519/AES-128-GCM/SHA-256/Ed25519 suite as the v1 mandatory interoperable group suite. PQ MLS remains experimental until standardized/mature. Group membership/control changes are serialized by a policy-neutral member `CommitCoordinator` and atomically bound through `GroupControlIntent`/`GroupCommitBinding`; coordinator sequencing does not grant membership/admin authority. Formal validation is tracked by `V-004`.
+
+Large public broadcast/community semantics are no longer silently deferred “later product work”; they are explicitly in the pre-engineering architecture queue `A-005..A-010` so the private-group model is not accidentally overloaded.

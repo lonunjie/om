@@ -104,3 +104,6 @@ Attachment/object identity is separated from provider location. Canonical events
 
 `REACHABILITY_AND_OBJECT_REPAIR.md` defines overlap and late/offline-recipient repair when an old locator disappears before a replacement reaches every authorized device.
 
+## 2026-09-23 blob resolution
+
+BlobID stably identifies the inner encrypted object; provider locators are mutable. E2EE events carry decryption material and an opaque repair capability; authenticated BlobLocationRecord repair permits relocation/mirroring without changing canonical message identity.

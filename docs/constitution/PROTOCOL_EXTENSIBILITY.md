@@ -44,3 +44,7 @@ experimental -> supported -> preferred -> deprecated -> forbidden
 ```
 
 Deprecation can be date/policy/profile driven, but forbidden cryptographic profiles cannot be silently resurrected by old backups or relays.
+
+## 2026-09-23 registry/extension resolution
+
+Canonical IDs are public-registry assigned and never reused; experimental/private extensions use collision-resistant namespaced/UUID IDs without permission. Critical unknown semantics fail safely; noncritical unknown data is ignored semantically and preserved where required. This same capability model will constrain the new bot/content-pack/community/plugin architecture queue.

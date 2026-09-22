@@ -1,7 +1,7 @@
 # Reachability and Object-Location Repair
 
 - **Status:** Canonical resilience architecture direction
-- **Checkpoint:** 2026-09-22 23:02 PHT
+- **Checkpoint:** 2026-09-23 05:45 PHT
 
 ## 1. Why repair is separate from normal routing
 

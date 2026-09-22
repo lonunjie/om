@@ -1,6 +1,6 @@
 # OM Engineering — Start Here
 
-**Checkpoint:** 2026-09-22 23:02 PHT (UTC+08:00)  
+**Checkpoint:** 2026-09-23 05:45 PHT (UTC+08:00)  
 **Phase:** FUTURE HANDOFF — engineering not authorized by this checkpoint
 
 This file is retained so the future transition is explicit, but the current repository is **not yet an engineering handoff**. Architecture hardening remains active. Do not begin the product vertical slice until a later ADR sets `engineering_authorized=true` in `machine/repository_contract.json` and the architecture validator passes.
@@ -87,3 +87,7 @@ When implementation reality contradicts the design:
 ## Completion definition for this handoff
 
 A coding agent can start work without reconstructing decisions from chat. Unresolved choices are explicitly gates, not missing context.
+
+## Current checkpoint lock — 2026-09-23
+
+This document is retained for the future transition only. Product engineering is **not authorized** in the current checkpoint. The architecture-design queue and blocking architecture-verification gates must clear first; `machine/repository_contract.json` is authoritative.

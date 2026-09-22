@@ -135,3 +135,7 @@ After acceptance, peers exchange fresh private relationship capabilities. These 
 - A sender MUST NOT be silently promoted from MessageRequest privileges to normal relationship privileges.
 - An IntroGate MUST NOT require plaintext conversation access after acceptance.
 - Abuse controls MUST be enforceable server-side because hostile clients can remove local limits.
+
+## 2026-09-23 invite resolution
+
+IntroductionTicket/invite capabilities are random, scoped, authenticated, replay-bounded and provider-scoped for single-use consumption by default. Multi-provider invitations carry distinct capabilities. Revocation is distributed to relevant IntroGates; OM does not claim impossible instantaneous revocation at disconnected providers. ZK/Privacy-Pass-style admission remains optional extension work.

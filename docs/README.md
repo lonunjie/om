@@ -1,8 +1,8 @@
 # OM — Master Planning & Design Repository
 
-**Snapshot:** 2026-09-22 23:02 PHT (UTC+08:00)  
+**Snapshot:** 2026-09-23 05:45 PHT (UTC+08:00)  
 **Phase:** Architecture hardening / pre-engineering — engineering is not yet authorized  
-**Working umbrella name:** **OM — OpenMessenger / OwnMessenger / OurMessenger**
+**Project name:** **OM** — see `NAMING.md` for its six canonical meanings
 
 This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design reviews covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed/multi-relay delivery, the Discovery Fabric and revocable IntroGate, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, privacy-preserving LAN operation, censorship/network resilience, and future SMS/RCS integration.
 
@@ -118,7 +118,7 @@ Existing detailed documents remain canonical where not superseded. Machine-reada
 - `protocol/` — logical schemas/interfaces.
 - `machine/decisions.jsonl`
 - `machine/requirements.jsonl`
-- `machine/open_questions.jsonl`
+- `machine/resolved_questions.jsonl + typed gate ledgers`
 - `research/CURRENT_REFERENCES_20260921.md`
 - `research/CURRENT_UI_REFERENCES_20260922.md`
 - `design/` — shared design seeds, component catalog, screen journeys and static shell prototype
@@ -237,3 +237,9 @@ New blocking architecture material includes:
 - machine-enforced repository contract/file registry/architecture map.
 
 No product engineering phase begins from this checkpoint.
+## 2026-09-23 05:45 PHT — architecture-resolution + OM identity checkpoint
+
+The former 60-item open-question ledger has been resolved into accepted decisions and typed proof/release/deferred ledgers. `ARCHITECTURE_RESOLUTIONS_20260923.md` is the human-readable closure record. New product-architecture questions around expressive media, external packs, bots/LLMs, Communities/Spaces/Rooms, broadcasts, permissions/topics/plugins and baseline messenger features are intentionally queued in `machine/architecture_design_queue.jsonl` before engineering.
+
+Country-specific legal gating was removed from canonical architecture. `LEGAL_AND_OPERATIONAL_BOUNDARIES.md` now uses a role-based, jurisdiction-neutral model and keeps project operation/custody deliberately minimal.
+

@@ -1,7 +1,7 @@
 # OM Project Philosophy and Anti-Capture Constitution
 
 - **Status:** Canonical project constitution
-- **Checkpoint:** 2026-09-22 23:02 PHT
+- **Checkpoint:** 2026-09-23 05:45 PHT
 - **Scope:** Protocol, architecture, source, governance, providers, official distributions, future businesses, and project succession
 
 ## 1. Purpose
@@ -135,3 +135,13 @@ When two plausible designs conflict, prefer the one that, while remaining usable
 8. creates fewer irreversible protocol commitments.
 
 This document is the highest-level project intent. It does not override cryptographic evidence, law, or physical impossibility; it tells future maintainers what OM is trying to preserve when tradeoffs arise.
+
+## 8. The six meanings of OM
+
+`NAMING.md` is canonical for the name. OM intentionally means **Open-source Messenger, OpenMessenger, OwnMessenger, OurMessenger, OneMessenger and OhMessenger**. Together these require an open commons, independent implementations and agents, safe customization, strong group/organization capability, extensibility without fragmentation, and an approachable default product.
+
+## 9. Capability support does not imply project operation
+
+OM may define interoperable capabilities for features that SeedLife/lonunjie never operates as services. Supporting a content pack, bot, community, broadcast room, directory, entitlement proof or future commerce extension does not require the OM Project to host a catalog, run the bot, moderate the community, process payment, custody funds, or become the default provider.
+
+Prefer protocol/client capability plus replaceable operator roles over project-operated infrastructure whenever the latter is not required for security or usability.
