@@ -193,3 +193,21 @@ Protocol / canonical semantics
 ```
 
 This layer does not alter the rule that independent/third-party clients can implement OM. It ensures the official/reference family remains one coherent product and that security-sensitive action semantics do not drift across platform-specific UI rewrites.
+
+## Client installation / profile layers — 2026-09-22 14:34
+
+```text
+ClientHost (PWA/native executable/update boundary)
+      ↓
+DeviceVault (device-local secret wrapping)
+      ↓
+IdentityProfile A / B / ...
+      ↓
+AccountID + local state + RecoveryPolicy
+      ↓
+IdentityHome (discovery/IntroGate/relay/blob providers)
+```
+
+These are distinct. One client installation can later host several IdentityProfiles; each profile has independent keys/state/home bindings. PWA ClientHost/origin migration is authenticated device migration, not browser-database copying.
+
+Rich user content also has an explicit trust boundary: E2EE authentication tells OM who delivered bytes, not whether those bytes are safe to parse. RichTextV1 is inert semantic data and attachments remain untrusted until validated/decoded through safe platform paths.

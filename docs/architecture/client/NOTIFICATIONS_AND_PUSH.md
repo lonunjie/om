@@ -86,3 +86,6 @@ The OM Project does not need a universal push gateway.
 
 For future native distributions, APNs/FCM gateways may be operated by that distribution or another configured PushProvider. Their operational/legal boundary belongs to the distribution/provider and never becomes canonical protocol infrastructure.
 
+## Multiple IdentityProfiles
+
+A single client installation may later host several profiles. Push routing uses opaque per-profile/per-device handles that the recipient client maps locally. Push services must not receive a stable cross-profile person identifier. The notification UI may indicate the destination profile only according to that profile's privacy policy.

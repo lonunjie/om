@@ -218,3 +218,7 @@ The default experience is calm, ergonomic, fast and content-first. Telegram-clas
 OwnMessenger personalization is first-class: users can install declarative themes, fonts, wallpapers, sounds and density preferences. Theme content is sandboxed data-only presentation and cannot execute code, fetch arbitrary remote tracking assets, override security semantics or suppress accessibility constraints.
 
 See `UI_UX_SYSTEM.md`, `MOTION_AND_PERFORMANCE.md`, `THEMES_FONTS_AND_PERSONALIZATION.md`, `ACCESSIBILITY_AND_INPUT.md`, and `UI_CORE_PLATFORM_CONTRACT.md`.
+
+## 2026-09-22 engineering transition
+
+The remaining expensive-to-retrofit boundaries are now selected: ClientHost/DeviceVault/Profile isolation, RichTextV1, hostile-content handling, deterministic CBOR, deniability vs durable control signatures, LocalDataClass and formal AccountControlState validation. Engineering begins from `ENGINEER_START_HERE.md`; new architectural changes should be driven by implementation measurements/adversarial findings rather than open-ended redesign.

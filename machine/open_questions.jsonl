@@ -39,3 +39,9 @@
 {"id":"Q-040","gate":"UX/Security","question":"Finalize OM theme bundle resource/type/size limits, signature/catalog UX, token validation constraints and per-chat theme sync policy."}
 {"id":"Q-041","gate":"UX","question":"Finalize default font packaging/licensing and script fallback strategy; Inter Variable is a design direction, not a protocol dependency."}
 {"id":"Q-042","gate":"UX/Performance","question":"Measure motion timing, scroll performance, startup and media rendering on representative low/mid/high-end devices before freezing motion tokens."}
+{"id":"Q-043","gate":"J/Security","question":"Select and benchmark concrete WebDeviceVault wrapping hierarchy across WebAuthn PRF, non-extractable WebCrypto and fallback mechanisms on supported browsers."}
+{"id":"Q-044","gate":"C","question":"Complete dedicated 1:1 production crypto implementation/library evaluation; libsignal is reference-only unless a stable supported integration strategy is accepted."}
+{"id":"Q-045","gate":"B/K","question":"Finalize OM deterministic-CBOR field-number registries/CDDL and exact domain-separation strings before signed/wire freeze."}
+{"id":"Q-046","gate":"Security/UX","question":"Finalize LinkPreviewProvider implementation and privacy-preserving proxy path; Maximum Privacy remains no-auto-preview by default."}
+{"id":"Q-047","gate":"J","question":"Benchmark IndexedDB vs optional SQLite/OPFS storage adapter for large histories without changing backup/wire semantics."}
+{"id":"Q-048","gate":"UX","question":"Choose names/visual tokens for curated built-in themes after usability/accessibility testing; all must have light/dark pairs."}

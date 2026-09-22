@@ -163,3 +163,35 @@ om-ui intent -> om-core typed command -> canonical state transition -> view stat
 `PlatformAdapter` capability families should include secure storage, push/notifications, background execution, share/open-external, files, camera/microphone, local contacts, clipboard, local discovery, system calling, network/window hints, haptics and later external carrier transports.
 
 Product behavior should query capabilities rather than branch broadly on platform names.
+
+## Engineering client/security interfaces — 14:34 checkpoint
+
+```text
+DeviceVault
+  create_profile_vault(profile_id)
+  seal(profile_id, purpose, bytes)
+  open(profile_id, purpose, sealed)
+  rotate_wrapping(profile_id)
+  capabilities()
+
+IdentityProfileStore
+  list_profiles()
+  create_profile()
+  open_profile(profile_id)
+  delete_profile(profile_id)
+
+ClientMigration
+  create_link_offer()
+  authenticate_new_device()
+  transfer_profile_state(policy)
+  finalize_new_device()
+
+LinkPreviewProvider
+  fetch_preview(url, privacy_policy)
+
+DiagnosticsStore
+  record_redacted(event)
+  export_user_reviewed_bundle()
+```
+
+`IdentityProfileStore` is a local application namespace, not a global identity registry. `DeviceVault` never exposes provider-specific key handles as protocol fields.

@@ -1,6 +1,6 @@
 # OM Architecture Decision Records
 
-Checkpoint: 2026-09-22 13:42 PHT
+Checkpoint: 2026-09-22 14:34 PHT
 
 - [ADR-0001 — Providers Are Plugins](ADR-0001-provider-independence.md)
 - [ADR-0002 — Passwordless Device-First Identity](ADR-0002-device-first-identity.md)
@@ -44,7 +44,6 @@ Checkpoint: 2026-09-22 13:42 PHT
 - [ADR-0040 — No uploaded address book in v1](ADR-0040-no-uploaded-address-book-in-v1.md)
 - [ADR-0041 — Disappearing content is client lifecycle state](ADR-0041-disappearing-content-is-client-lifecycle-state.md)
 - [ADR-0042 — Explicit critical protocol extensions](ADR-0042-explicit-critical-protocol-extensions.md)
-
 - [ADR-0043 — Operatorless Core; No Mandatory Network Operator](ADR-0043-operatorless-core-no-mandatory-network-operator.md)
 - [ADR-0044 — PWA First, Not PWA Only](ADR-0044-pwa-first-not-pwa-only.md)
 - [ADR-0045 — One Portable OM Core Across Client Shells](ADR-0045-one-portable-om-core.md)
@@ -61,3 +60,13 @@ Checkpoint: 2026-09-22 13:42 PHT
 - [ADR-0056 — Security UI Semantics Are Theme-Proof](ADR-0056-security-ui-semantics-are-theme-proof.md)
 - [ADR-0057 — Accessibility Is a Shared UI Release Gate](ADR-0057-accessibility-is-a-shared-release-gate.md)
 - [ADR-0058 — Default UI Is Calm, Content-First and Ergonomic](ADR-0058-default-ui-is-calm-content-first.md)
+- [ADR-0059 — ClientHost and DeviceVault are separate security boundaries](ADR-0059-clienthost-and-devicevault-are-separate-security-boundaries.md)
+- [ADR-0060 — IdentityProfile isolation is built in before multi-account UI](ADR-0060-identityprofile-isolation-is-built-in-before-multi-account-ui.md)
+- [ADR-0061 — Rich text is a bounded semantic tree, never executable markup](ADR-0061-rich-text-is-a-bounded-semantic-tree-never-executable-markup.md)
+- [ADR-0062 — Decrypted content remains hostile](ADR-0062-decrypted-content-remains-hostile.md)
+- [ADR-0063 — Durable control signatures do not imply durable message non-repudiation](ADR-0063-durable-control-signatures-do-not-imply-durable-message-non-repudiation.md)
+- [ADR-0064 — Local data has explicit lifecycle classes and diagnostics are local-first](ADR-0064-local-data-has-explicit-lifecycle-classes-and-diagnostics-are-local-first.md)
+- [ADR-0065 — Signed and canonical protocol objects use an OM deterministic-CBOR profile](ADR-0065-signed-and-canonical-protocol-objects-use-an-om-deterministic-cbor-profile.md)
+- [ADR-0066 — AccountControlState formal model is an implementation gate](ADR-0066-accountcontrolstate-formal-model-is-an-implementation-gate.md)
+- [ADR-0067 — Architecture candidate enters engineering with production crypto gated](ADR-0067-architecture-candidate-enters-engineering-with-production-crypto-gated.md)
+- [ADR-0068 — Every theme supports light/dark auto; profile themes are optional identity-local UX](ADR-0068-every-theme-supports-light-dark-auto-profile-themes-are-optional-identity-local-ux.md)

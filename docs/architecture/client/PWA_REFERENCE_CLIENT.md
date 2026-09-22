@@ -277,3 +277,11 @@ Prototype order for the visible client:
 7. declarative theme/font import and preview.
 
 A successful PWA phase therefore validates both protocol behavior and the shared product experience that later native shells will host.
+
+## ClientHost/origin engineering boundary — 2026-09-22
+
+The installed PWA origin is a `ClientHost`, not the user's identity. Browser origin-scoped storage, service worker, Web Push and WebAuthn behavior make this an endpoint trust/continuity boundary.
+
+The reference deployment SHOULD separate the application origin from public discovery/IntroGate/relay endpoints. Changing PWA origin/provider is an authenticated new-device migration with fresh local vault/push state; it is never defined as raw IndexedDB copying.
+
+A malicious origin can eventually deliver malicious executable code. OM mitigates this with user-owned origin, strict CSP/no remote runtime code, verifiable releases and a future native higher-assurance path, but must not claim that PWA cryptography defeats a fully compromised execution origin.

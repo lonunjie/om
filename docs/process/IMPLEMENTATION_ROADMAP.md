@@ -29,7 +29,7 @@ Exit: two independent test implementations can pass core vectors without sharing
 - local encrypted DB;
 - attachments via BlobStore;
 - push wakeups;
-- Android + PWA/reference clients, iOS close behind;
+- operatorless PWA/reference client first; native Android/iOS shells follow over the same Core/UI after the vertical slice;
 - relay/provider migration.
 
 Exit: ordinary users can install and reliably message without infrastructure knowledge.
@@ -176,3 +176,9 @@ Run in parallel with core protocol prototypes once typed view-state/command boun
 10. native shell proof that the same `om-ui` can be hosted without semantic fork.
 
 Before visual polish freezes, usability-test onboarding, message requests, Share Contact, recovery consequences and stolen-device suspension with non-technical users.
+
+## Engineering execution checkpoint — 2026-09-22 14:34
+
+The authoritative execution order is now `ENGINEERING_HANDOFF.md`. Build multi-profile namespacing now but expose multiple-account switching later. RichTextV1, DeviceVault/ClientHost, LocalDataClass, diagnostics redaction and formal AccountControlState are no longer optional design research; they are implementation requirements.
+
+The first product proof uses one visible profile and a dev-only crypto provider where necessary. Production cryptography is integrated only after the explicit crypto gate. This allows UI/state/relay engineering to proceed without pretending an unaudited protocol composition is secure.

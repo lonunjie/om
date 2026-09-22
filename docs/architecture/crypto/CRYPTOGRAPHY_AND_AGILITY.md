@@ -160,3 +160,18 @@ Official client update metadata should eventually support hybrid/classical+PQ ve
 Recovery mechanisms use versioned `RecoveryPolicy` methods rather than embedding one mnemonic/guardian algorithm forever. A 256-bit random offline recovery root is the baseline candidate. Shamir mnemonic shares are feasible prior art; future standardized threshold/MPC authorization can replace them without changing AccountID.
 
 NIST's 2026 crypto-agility guidance reinforces the architectural requirement that algorithms be replaceable while operations continue. NIST's 2026 threshold call is a reason to reserve the future threshold interface rather than invent one prematurely.
+
+## 2026-09-22 engineering re-audit
+
+Production integration is now explicitly gated by `PRODUCTION_CRYPTO_INTEGRATION_GATE.md` and `research/SECURITY_CRYPTO_REAUDIT_20260922.md`.
+
+Key engineering updates:
+
+- check current NIST FIPS 203/204 errata and official vectors before pinning an ML-KEM/ML-DSA implementation;
+- follow NIST SP 800-227 KEM-use guidance;
+- keep HQC reserved for future profile diversity until a stable standard/review exists;
+- treat Signal PQXDH/Triple Ratchet/ML-KEM Braid as reviewed reference designs, not permission to improvise a hybrid construction;
+- do not make `libsignal` private APIs/storage formats OM protocol dependencies because upstream explicitly marks external use unsupported;
+- base MLS can use a reviewed library candidate such as OpenMLS behind OM storage/profile boundaries, while current PQ MLS draft suites remain `experimental`;
+- signed/control/event objects use bounded OM deterministic CBOR rather than JSON canonicalization;
+- ordinary messages do not gain a separate durable AccountID signature merely for evidence export.

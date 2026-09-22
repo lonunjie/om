@@ -158,3 +158,15 @@ web / iOS / Android / desktop shells
 The native clients should therefore add better OS integration without surprising users with a different product. System permission prompts, lock-screen incoming calls, file pickers, share sheets and biometrics remain native; OM-owned screens remain shared.
 
 This reduces semantic drift and makes the PWA a genuine first implementation of the long-term client rather than a disposable prototype.
+
+## PWA-to-native migration
+
+Native installation is a normal new-device link:
+
+- fresh native DeviceIdentity and native DeviceVault;
+- authenticated transfer/rebuild of profile state/history;
+- current AccountControlState/head verification;
+- fresh native push/system-call registrations;
+- optional retirement of the PWA device.
+
+Do not export web-origin private-key/database files as the cross-platform continuity mechanism.

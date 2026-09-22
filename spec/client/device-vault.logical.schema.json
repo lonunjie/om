@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM DeviceVault capability description",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "vault_version",
+    "capabilities"
+  ],
+  "properties": {
+    "vault_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "webauthn_prf",
+          "webcrypto_nonextractable",
+          "passphrase_argon2id",
+          "native_keystore",
+          "hardware_authenticator"
+        ]
+      }
+    },
+    "profile_namespaces": {
+      "type": "boolean",
+      "const": true
+    }
+  }
+}

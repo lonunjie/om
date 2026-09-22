@@ -73,3 +73,13 @@
 {"id":"D-073","status":"accepted","decision":"Security-critical UI semantics, accessible focus and external-link meaning are protected from theme override."}
 {"id":"D-074","status":"accepted","decision":"Accessibility is implemented in shared UI primitives and treated as a release gate; WCAG 2.2 AA is the minimum shared-web baseline."}
 {"id":"D-075","status":"accepted","decision":"Default OM appearance prioritizes ergonomics/functionality, immediate legibility, calm content-first hierarchy and restrained aesthetics; personalization is optional."}
+{"id":"D-076","status":"accepted","decision":"PWA ClientHost/origin and IdentityHome are separate concepts; origin/provider migration uses authenticated new-device transfer and DeviceVault re-wrapping, not raw browser database copying."}
+{"id":"D-077","status":"accepted","decision":"Core/local storage is IdentityProfile-isolated from v1 even though visible multi-account switching ships later; no hidden global identifier links profiles."}
+{"id":"D-078","status":"accepted","decision":"Rich messages use bounded semantic RichTextV1 rather than HTML/CSS/JavaScript or Markdown as authoritative wire content."}
+{"id":"D-079","status":"accepted","decision":"Decrypted files, links, formatted clipboard input and themes remain hostile input and pass bounded validation/sandboxed rendering."}
+{"id":"D-080","status":"accepted","decision":"Ordinary message authenticity remains session/group-protocol based and does not add a durable AccountID signature solely for non-repudiation/evidence."}
+{"id":"D-081","status":"accepted","decision":"Local data receives explicit lifecycle classes and default diagnostics remain local/redacted/user-exported."}
+{"id":"D-082","status":"accepted","decision":"Canonical signed/wire objects use a strict OM deterministic-CBOR profile derived from RFC 8949."}
+{"id":"D-083","status":"accepted","decision":"AccountControlState TLA+ model checking is required before production control-authority implementation is accepted."}
+{"id":"D-084","status":"accepted","decision":"Engineering may use a clearly dev-only CryptoProvider, but production security claims are blocked until the production crypto integration gate passes."}
+{"id":"D-085","status":"accepted","decision":"Every accepted theme has safe light+dark variants and Auto follows system appearance; profile-specific theme suggestions are optional local UX."}

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM local IdentityProfile logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "profile_id",
+    "account_id",
+    "vault_handle",
+    "home_binding"
+  ],
+  "properties": {
+    "profile_id": {
+      "type": "string",
+      "description": "Local opaque profile namespace, never a public global person identifier"
+    },
+    "account_id": {
+      "type": "string"
+    },
+    "vault_handle": {
+      "type": "string"
+    },
+    "home_binding": {
+      "type": "string"
+    },
+    "theme_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "appearance": {
+      "enum": [
+        "auto",
+        "light",
+        "dark"
+      ]
+    },
+    "recovery_policy_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

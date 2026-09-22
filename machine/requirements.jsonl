@@ -61,3 +61,13 @@
 {"id":"R-061","priority":"should","requirement":"Core local state should render before network synchronization so startup, conversation open and ordinary local interactions do not block on provider availability."}
 {"id":"R-062","priority":"must","requirement":"Reduced-motion preference has a functional mapping for every shared motion primitive; motion must not be required to understand state."}
 {"id":"R-063","priority":"must","requirement":"Custom fonts are local/bundled or explicitly permission-selected; themes never silently use third-party font CDNs."}
+{"id":"R-064","priority":"must","requirement":"All local/profile-scoped stores, caches, notifications and keys are explicitly IdentityProfile-namespaced; isolation tests cover cross-profile leakage."}
+{"id":"R-065","priority":"must","requirement":"PWA origin/provider migration uses authenticated device-link/history-transfer semantics and never treats raw IndexedDB copying as identity continuity."}
+{"id":"R-066","priority":"must","requirement":"RichTextV1 and every network/public parser enforce bounded sizes/depth/counts before attacker-controlled allocation/rendering."}
+{"id":"R-067","priority":"must","requirement":"No conversation/theme/import path renders arbitrary sender-provided HTML/CSS/JavaScript/WASM."}
+{"id":"R-068","priority":"must","requirement":"Every previewable attachment remains untrusted after decryption and passes allowlist/type/size/decompression validation before safe decoding."}
+{"id":"R-069","priority":"must","requirement":"Signed/control objects use deterministic canonical bytes with domain separation; non-canonical signed encodings and duplicate-map-key forms are rejected."}
+{"id":"R-070","priority":"must","requirement":"AccountControlState CI includes the formal invariants and regression traces defined in FORMAL_VERIFICATION_AND_FUZZING.md."}
+{"id":"R-071","priority":"must","requirement":"Default diagnostics never persist plaintext, private/recovery keys, capabilities, bearer tokens or full push subscription endpoints."}
+{"id":"R-072","priority":"must","requirement":"Production builds cannot use the dev/test CryptoProvider or experimental profile without an explicit non-production build identity."}
+{"id":"R-073","priority":"must","requirement":"Built-in themes provide both light and dark variants; Auto appearance and accessibility overrides work for every theme."}

@@ -36,7 +36,7 @@ The report design must clearly document what can be proven:
 - what remains forgeable/deniable by design;
 - what local timestamps/metadata are merely reporter assertions.
 
-This remains an open cryptographic design gate.
+Selected direction: ordinary messages remain participant-authenticated/deniable according to the secure session or MLS authentication model and do not receive an additional durable AccountID signature. Durable control/discovery objects remain independently verifiable. EvidencePackage documents exactly which included objects are independently verifiable and which content/timestamps are reporter-held evidence rather than protocol non-repudiation.
 
 ## 4. Store/provider-specific reporting
 

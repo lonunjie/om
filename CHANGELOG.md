@@ -87,3 +87,18 @@ SMS/MMS/RCS remain architectural adapters but are removed from first implementat
 - Added Creator-Disappearance Gate.
 - Added ADR-0043 through ADR-0050 and three new logical schemas.
 
+## 2026-09-22 14:34 PHT — Engineering handoff / final design-gap checkpoint
+
+- moved phase from architecture consolidation to architecture candidate + engineering/adversarial validation;
+- added engineering start/handoff/repository documents;
+- added ClientHost/DeviceVault/PWA migration architecture;
+- added multi-IdentityProfile isolation now, visible multi-account switching later;
+- added semantic RichTextV1 and hostile-content/link-preview safety design;
+- froze durable-control-signature vs message-deniability direction;
+- added LocalDataClass and privacy-safe diagnostics;
+- selected deterministic CBOR direction for canonical signed/wire objects;
+- made AccountControlState TLA+ model a production implementation gate;
+- added production crypto integration gate and current security/crypto re-audit;
+- required light/dark/Auto for all themes and optional distinct profile theme suggestions;
+- added ADR-0059..0068 and new logical schemas;
+- preserved 13:42 checkpoint under `history/20260922-1342/`.

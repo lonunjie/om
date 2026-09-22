@@ -111,3 +111,8 @@ The reference distribution should still use the strongest practical provenance/r
 
 Creator-disappearance requirement: loss of the reference project's update keys must not make existing independent deployments unable to communicate or prevent a fork from continuing under new distribution keys.
 
+## PWA executable-origin limitation
+
+TUF/provenance/reproducible assets improve auditability and update discipline, but a web origin that is fully compromised can serve a malicious bootstrap/service worker. Do not describe application-level signature verification as eliminating this browser execution trust root.
+
+Reference PWA therefore also requires minimal self-owned ClientHost, no remote runtime dependency/CDN, strict CSP, and a documented native higher-assurance option. SLSA 1.2/in-toto provenance should be generated from the start of public builds rather than retrofitted after release.

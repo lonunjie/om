@@ -299,3 +299,7 @@ See `CRYPTOGRAPHY_AND_AGILITY.md` and `RELAY_AND_DELIVERY_ARCHITECTURE.md`.
 `AccountID` does not imply that every linked device has equal governance authority. Device credentials carry explicit roles/capabilities. Account-control changes are authenticated by `AccountControlState`; recovery is a separate configured policy and is `none` by default.
 
 Discovery/contact sharing may use alias/share-specific introduction identity so the stable AccountID need not be public before acceptance. Stable identity is proven/bound inside the accepted relationship.
+
+## Local IdentityProfile is not a protocol identity
+
+`IdentityProfile` is a client-local isolation/container concept for hosting multiple independent AccountIDs in one application. It MUST NOT appear as a global person/device identifier, and Core must not create an automatic public binding among profiles.

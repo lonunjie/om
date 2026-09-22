@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM message.create body logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "attachments"
+  ],
+  "properties": {
+    "content": {
+      "oneOf": [
+        {
+          "$ref": "rich-text.logical.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "reply_to": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "mentions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "expires_after": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    }
+  }
+}

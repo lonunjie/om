@@ -286,3 +286,15 @@ PWA / iOS / Android / Desktop
 `om-ui` owns navigation, screens, components, accessibility and visual behavior. Platform shells provide OS capabilities/system surfaces only. Do not reimplement security-sensitive product flows independently in SwiftUI/Compose/web.
 
 Safe themes are declarative bundles interpreted by `om-ui`; arbitrary in-process UI code plugins remain out of scope. Third-party full clients remain free to implement the public protocol/core contracts independently.
+
+## 2026-09-22 engineering layering refinement
+
+The official client application is now decomposed further:
+
+```text
+ClientHost -> DeviceVault -> IdentityProfile(s) -> om-core -> om-ui -> PlatformAdapter
+```
+
+`IdentityProfile` is a local isolation namespace around a real AccountID. It is not a new network identity type. Core/storage must support several profiles before the account-switching UI ships.
+
+Rich-text rendering is part of shared `om-ui` but consumes only validated RichTextV1 semantic nodes. Arbitrary renderer extensions do not receive DOM/script execution privileges.

@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM RichTextV1 logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "blocks"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "blocks": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    }
+  },
+  "$defs": {
+    "marks": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "bold",
+          "italic",
+          "underline",
+          "strikethrough",
+          "spoiler",
+          "inline_code"
+        ]
+      }
+    },
+    "inline": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "text"
+          ],
+          "properties": {
+            "type": {
+              "const": "text"
+            },
+            "text": {
+              "type": "string"
+            },
+            "marks": {
+              "$ref": "#/$defs/marks"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "url",
+            "label"
+          ],
+          "properties": {
+            "type": {
+              "const": "link"
+            },
+            "url": {
+              "type": "string"
+            },
+            "label": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/inline"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "subject_ref",
+            "label"
+          ],
+          "properties": {
+            "type": {
+              "const": "mention"
+            },
+            "subject_ref": {
+              "type": "string"
+            },
+            "label": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/inline"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "block": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "inlines"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "paragraph",
+                "quote"
+              ]
+            },
+            "inlines": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/inline"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "text"
+          ],
+          "properties": {
+            "type": {
+              "const": "code_block"
+            },
+            "text": {
+              "type": "string"
+            },
+            "language_hint": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 64
+            }
+          }
+        }
+      ]
+    }
+  }
+}

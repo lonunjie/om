@@ -108,3 +108,15 @@ Provider independence improves survivability but does not make any single endpoi
 - **Motion confusion/vestibular harm:** motion is semantic, interruptible and reduced-motion compatible; security meaning never depends on animation.
 - **Platform semantic drift:** security-sensitive actions go through shared `om-ui` typed intents and `om-core`; native shells do not independently implement authorization semantics.
 
+## Engineering-boundary threats added 2026-09-22 14:34
+
+- **PWA ClientHost compromise:** malicious origin can deliver malicious executable code; mitigate by per-user ownership, public/app origin separation, strict CSP/no remote runtime code, verifiable releases and higher-assurance native option. Do not claim impossible origin-compromise resistance.
+- **Cross-profile correlation:** same provider account/subdomain/network/device can correlate identities; Core forbids hidden global person IDs and profile key/capability reuse, while UI documents stronger-isolation options.
+- **Profile data bleed:** every query/cache/push/local store is profile-namespaced; dedicated isolation tests are mandatory.
+- **Hostile decrypted content:** attachment/media/rich-text bytes remain attacker-controlled; bounded parsing, allowlisted previews, sandboxed platform decoders and fuzzing are required.
+- **Link-preview beacon:** direct URL preview can reveal recipient network activity; use policy/provider abstraction and off-by-default behavior in Maximum Privacy.
+- **Identifier spoofing:** apply current Unicode UTS #39 confusable/mixed-script detection at first-contact/discovery surfaces without banning legitimate scripts.
+- **Encoding malleability/parser DoS:** signed/wire objects use strict deterministic CBOR, no duplicate keys/floats/indefinite lengths and bounded depth/size; reject non-canonical signed encodings.
+- **Diagnostic leakage:** default logs remain local/redacted and exclude secrets/capabilities/plaintext/push endpoints.
+- **Dependency/supply-chain compromise:** pin dependencies, generate provenance/SBOM, minimize runtime third-party code and enforce update trust floor.
+- **Authority-state implementation bug:** AccountControlState TLA+ model and model-derived regression scenarios gate production authority code.

@@ -1,12 +1,12 @@
 # OM — Master Planning & Design Repository
 
-**Snapshot:** 2026-09-22 13:42 PHT (UTC+08:00)  
-**Phase:** Architecture consolidation → implementation-ready gates  
+**Snapshot:** 2026-09-22 14:34 PHT (UTC+08:00)  
+**Phase:** Architecture candidate → engineering prototype + adversarial validation  
 **Working umbrella name:** **OM — OpenMessenger / OwnMessenger / OurMessenger**
 
 This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design reviews covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed/multi-relay delivery, the Discovery Fabric and revocable IntroGate, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, privacy-preserving LAN operation, censorship/network resilience, and future SMS/RCS integration.
 
-Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, `history/20260921-2132/`, and `history/20260922-0734/` for traceability.
+Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, `history/20260921-2132/`, `history/20260922-0734/`, and `history/20260922-1342/` for traceability.
 
 ## Product thesis
 
@@ -73,6 +73,8 @@ And the implementation discipline remains:
 - future convenience businesses/providers may exist, but users can migrate away without replacing AccountID or canonical history.
 
 ## Start here
+
+**Engineering agents:** start with `ENGINEER_START_HERE.md`, then `ENGINEERING_HANDOFF.md`.
 
 1. `BLUEPRINT.md` — consolidated product and technical design.
 2. `DESIGN_RATIONALE_AND_DISCUSSION_SYNTHESIS.md` — why the major tradeoffs were chosen.
@@ -206,3 +208,21 @@ New canonical material:
 Major change: the reference product now has one shared `om-ui` for PWA/iOS/Android/Desktop, a semantic MotionSystem, adaptive window layouts, release-gated accessibility and deeply customizable but data-only/sandboxed OwnMessenger themes.
 
 The preceding 2026-09-22 07:34 operatorless/ecosystem checkpoint is preserved under `history/20260922-0734/`.
+
+## 2026-09-22 14:34 PHT — Engineering handoff checkpoint
+
+Architecture is now frozen enough to build and attack. New canonical engineering material includes:
+
+- `ENGINEER_START_HERE.md` and `ENGINEERING_HANDOFF.md`;
+- `ENGINEERING_REPOSITORY_LAYOUT.md`;
+- `PRODUCTION_CRYPTO_INTEGRATION_GATE.md`;
+- `DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md`;
+- `MULTI_IDENTITY_AND_PROFILE_ISOLATION.md`;
+- `RICH_TEXT_AND_CONTENT_SECURITY.md`;
+- `LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md`;
+- `FORMAL_VERIFICATION_AND_FUZZING.md`;
+- `research/SECURITY_CRYPTO_REAUDIT_20260922.md`;
+- RichText/IdentityProfile/DeviceVault logical schemas;
+- ADR-0059 through ADR-0068.
+
+Multiple identities are structurally supported from v1 but the switcher can ship later. Every built-in theme supports light/dark + Auto. Production crypto remains a release gate rather than something coding agents may improvise.

@@ -125,7 +125,7 @@ Keep v1 deliberately small.
 
 ```text
 message.create
-  text?
+  content?: RichTextV1
   attachments[]
   reply_to?
   mentions[]
@@ -134,9 +134,9 @@ message.create
 
 Rules:
 
-- text is Unicode plain text;
-- clients may visually detect links, emoji, markdown-like patterns, etc. without changing wire semantics;
-- v1 does not require arbitrary HTML or rich-text execution;
+- `content` uses bounded semantic `RichTextV1` when present; plain text is represented as a single Paragraph/Text run;
+- HTML/CSS/JavaScript/Markdown are not authoritative wire formats; formatted paste/Markdown-like composition is locally sanitized into RichTextV1;
+- no active rich-text execution or embedded web content is permitted;
 - large binary data is never inlined into the event.
 
 ### `message.edit`
@@ -453,3 +453,7 @@ Two independent clients given the same authenticated events/control records in d
 Call negotiation/media state is ephemeral control state and is not added to the baseline durable conversation event vocabulary. A local call-history UI may materialize a separate local record.
 
 SMS/MMS/RCS remain transport provenance/adapters added later; they do not change canonical OM-native event identity or semantics.
+
+## 2026-09-22 engineering refinement — RichTextV1
+
+`message.edit.replacement` follows the same RichTextV1 semantic model. Protocol encoding uses the OM deterministic-CBOR profile and bounded node/text/url counts. Unknown future rich-text node kinds follow explicit extension criticality; clients must always be able to produce a safe plain-text fallback for supported content.

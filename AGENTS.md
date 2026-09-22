@@ -102,3 +102,18 @@ Agents must preserve these invariants:
 - Themes cannot suppress/spoof critical security UI, focus, accessibility or external-link destination semantics.
 - Accessibility regressions in shared primitives are release-blocking.
 - Default UI prioritizes ergonomics/functionality and low visual noise; advanced capabilities use progressive disclosure.
+
+## Engineering-phase constraints — 2026-09-22 14:34
+
+- Read `ENGINEER_START_HERE.md` before coding.
+- Dev/test crypto MUST be unmistakably non-production and impossible to ship in a production configuration.
+- Production crypto integration is blocked by `PRODUCTION_CRYPTO_INTEGRATION_GATE.md`; never homebrew primitives or an ad-hoc hybrid combiner.
+- Use strict deterministic CBOR for canonical signed/wire objects; never sign JSON serialization.
+- Treat PWA ClientHost/origin as an endpoint trust boundary; provider migration is device linking/transfer, not IndexedDB copying.
+- Namespace local state by IdentityProfile from the first migration/schema even if v1 UI shows one identity.
+- Do not create a hidden device/person identifier linking profiles.
+- Rich messages use RichTextV1 semantic data only; no message/theme HTML/script execution.
+- Decrypted files remain hostile; validate before preview and fuzz parsers.
+- Default diagnostics stay local and redact plaintext, keys, capabilities, auth tokens and push endpoints.
+- AccountControlState implementation does not merge until the formal model/invariants have corresponding CI coverage.
+- Every built-in theme has light+dark variants and Auto mode; theme/profile appearance cannot modify security semantics.

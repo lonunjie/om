@@ -151,3 +151,13 @@ Permitted as presentation-only local state. Do not synchronize a custom theme to
 ## Future theme ecosystem
 
 A future public theme catalog can exist as a replaceable content provider, not a protocol authority. Users can install themes from files/links/repositories without a mandatory OM marketplace.
+
+## 14:34 engineering refinement — Auto appearance and per-profile themes
+
+Every built-in theme MUST ship an authored light and dark semantic palette. The normal appearance choice is **Auto**, following the platform's light/dark preference without changing theme identity.
+
+Custom theme bundles must provide valid light+dark variants, or the importer may derive a candidate counterpart and require validation/preview before activation. Contrast, focus, destructive/security states and high-contrast overrides are validated independently in both modes.
+
+OM should ship several calm, broadly appealing curated themes rather than one default plus novelty skins. When a user later creates another `IdentityProfile`, the UI MAY offer a distinct curated theme as an optional visual cue. Theme choice remains local/profile presentation state and never becomes public identity/discovery metadata.
+
+The future profile switcher must not flash/reload the application: preserve per-profile draft, selected conversation and navigation state and switch presentation/state atomically.

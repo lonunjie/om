@@ -332,3 +332,14 @@ The product should feel continuous rather than page-based.
 - generous hit targets and readable typography;
 - aesthetics support comprehension rather than compete with it.
 
+## Multiple identities (architecture now, UI later)
+
+`om-ui` is profile-aware from its first state model even if v1 exposes one identity. Later switching is intentionally simple: avatar/profile chip -> choose Personal/Work/Temporary/etc. -> immediate switch without logout/reload.
+
+Each profile preserves its own drafts, navigation, notification/privacy settings and optional theme. New profiles may be offered a different curated theme, but the user can inherit the global appearance instead.
+
+All themes support Auto light/dark. Appearance transitions should avoid full-screen flashes and respect reduced-motion.
+
+## Rich-text composer
+
+The composer should make Telegram-class formatting effortless: selection toolbar/context commands and keyboard shortcuts for bold, italic, underline, strikethrough, spoiler, inline code, quote/code block and links. It serializes only `RichTextV1`; pasted HTML/Markdown is input to a sanitizer/converter, never rendered/sent as executable markup.

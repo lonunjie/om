@@ -117,3 +117,9 @@ The UI should feel fluid through immediate local feedback, semantic/interruptibl
 OM/OwnMessenger supports deep user themes and fonts, but themes are untrusted declarative presentation data. They cannot execute code, load arbitrary remote tracking assets, alter cryptographic/provider policy, hide security-critical state, spoof system UI or weaken accessibility overrides.
 
 Security UI remains exceptional and actionable. Routine E2EE/PQ state is not advertised with persistent padlocks or cyber-security decoration.
+
+## OwnMessenger identity personalization
+
+Multiple identities are a legitimate product need. OM should eventually let users switch profiles instantly and optionally distinguish them with curated themes. Do not infer or police the user's motive for creating identities; enforce abuse at relationship/IntroGate/provider boundaries rather than through hidden cross-profile fingerprinting.
+
+All themes offer Auto light/dark behavior. The default remains ergonomics/functionality first: immediate clarity, calm hierarchy, fast local response, then aesthetics/personalization.

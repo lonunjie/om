@@ -115,3 +115,16 @@ Exit criteria before public production claims:
 - build provenance;
 - TUF-style rollback/freeze protections or equivalent;
 - reproducibility target documented/tested for supported platforms where feasible.
+
+## Engineering transition gate — 2026-09-22 14:34
+
+Architecture is now an **architecture candidate** rather than an open-ended design exercise. Before wire/security freeze, engineering must close these final gates through executable evidence:
+
+1. deterministic CBOR + vectors;
+2. AccountControlState TLA+ model/invariants;
+3. DeviceVault/ClientHost/Profile isolation prototype;
+4. hostile-content/rich-text parser fuzzing;
+5. production CryptoProfile integration review;
+6. relay + 1:1 vertical slice.
+
+Visual polish, public channels, SMS/RCS, enterprise policy, anonymity transports and theme marketplace do not block this transition.

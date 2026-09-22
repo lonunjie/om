@@ -4,13 +4,38 @@
   "title": "OM Theme Bundle Logical Schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "theme_id", "name", "version", "tokens", "assets"],
+  "required": [
+    "schema",
+    "theme_id",
+    "name",
+    "version",
+    "assets",
+    "tokens",
+    "palettes"
+  ],
   "properties": {
-    "schema": {"const": "om.theme.v1"},
-    "theme_id": {"type": "string", "minLength": 1, "maxLength": 128},
-    "name": {"type": "string", "minLength": 1, "maxLength": 128},
-    "version": {"type": "string", "minLength": 1, "maxLength": 64},
-    "author": {"type": "string", "maxLength": 256},
+    "schema": {
+      "const": "om.theme.v1"
+    },
+    "theme_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "author": {
+      "type": "string",
+      "maxLength": 256
+    },
     "tokens": {
       "type": "object",
       "description": "Declarative semantic design tokens. Implementations validate values against safe ranges and reserved semantic constraints."
@@ -21,18 +46,58 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "sha256", "kind"],
+        "required": [
+          "path",
+          "sha256",
+          "kind"
+        ],
         "properties": {
-          "path": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"},
-          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-          "kind": {"enum": ["font", "wallpaper", "sound", "icon"]},
-          "media_type": {"type": "string", "maxLength": 128}
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._/-]+$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "kind": {
+            "enum": [
+              "font",
+              "wallpaper",
+              "sound",
+              "icon"
+            ]
+          },
+          "media_type": {
+            "type": "string",
+            "maxLength": 128
+          }
         }
       }
     },
     "signature": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "description": "Optional provenance signature. It does not grant execution/trust privileges."
+    },
+    "palettes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "light",
+        "dark"
+      ],
+      "properties": {
+        "light": {
+          "type": "object"
+        },
+        "dark": {
+          "type": "object"
+        }
+      },
+      "description": "Both modes are mandatory for accepted theme bundles; Auto selects between them."
     }
   }
 }
