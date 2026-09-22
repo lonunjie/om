@@ -5,4 +5,4 @@
 
 ## Decision
 
-Standard/Hardened/Maximum Privacy are policy presets for metadata, routing, notifications, recovery/storage/retention. All retain the strongest approved compatible CryptoProfile and downgrade protections.
+Recommended/Hardened/Maximum Privacy are policy presets for metadata, routing, notifications, recovery/storage/retention. All retain the strongest approved compatible CryptoProfile and downgrade protections.

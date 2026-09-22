@@ -1,3 +1,13 @@
+# 2026-09-22 13:42 PHT — shared UI / OwnMessenger design checkpoint
+
+- Added one shared `om-ui` architecture across PWA/iOS/Android/Desktop official clients.
+- Added adaptive Compact/Medium/Expanded/Wide layout system and Chats/Calls/People IA.
+- Added complete onboarding/discovery/share-contact/message-request/call/security/recovery/device/OM Home UX.
+- Added semantic MotionSystem and perceived-performance targets.
+- Added data-only theme/font architecture with CSP/Trusted Types hardening and theme-proof security semantics.
+- Added shared accessibility/input release gates and PlatformAdapter capability contract.
+- Added ADR-0051 through ADR-0058, design seed artifacts and current UI references.
+
 # Changelog — 2026-09-21 master snapshot
 
 ## 2026-09-21 21:32 PHT — continuity / trust / personal-bootstrap checkpoint

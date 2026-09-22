@@ -262,3 +262,18 @@ The PWA is not expected to permanently replace native capabilities such as PushK
 
 The project should converge security/state logic into one portable OM Core compiled to WASM for the PWA and native libraries for later shells. Do not independently reinvent cryptographic/control-state behavior in each UI language.
 
+## 2026-09-22 shared UI direction
+
+The PWA is the first runtime shell for `om-ui`. Build UI primitives as production-quality shared components rather than web-only prototypes.
+
+Prototype order for the visible client:
+
+1. adaptive AppShell/navigation;
+2. ConversationList + ConversationView + Composer;
+3. People + MessageRequest + Share Contact;
+4. Calls and shared in-call UI;
+5. Settings/OM Home/Protection/Recovery/Devices;
+6. shared design tokens, accessibility primitives and MotionSystem;
+7. declarative theme/font import and preview.
+
+A successful PWA phase therefore validates both protocol behavior and the shared product experience that later native shells will host.

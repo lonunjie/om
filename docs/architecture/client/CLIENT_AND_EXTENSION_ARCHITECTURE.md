@@ -267,3 +267,22 @@ Third-party clients remain first-class interoperability targets. The project sho
 
 A `ClientDistribution` owns only distribution-local concerns: signing/update channel, store listing, platform push gateway (if any), and distribution-specific report/compliance integrations. None of those may become required by the OM wire protocol.
 
+## 2026-09-22 13:42 canonical addendum — one shared OM UI
+
+The coherent reference family now has an explicit shared UI layer:
+
+```text
+OM Protocol
+   ↓
+om-core
+   ↓
+om-ui
+   ↓
+PlatformAdapter
+   ↓
+PWA / iOS / Android / Desktop
+```
+
+`om-ui` owns navigation, screens, components, accessibility and visual behavior. Platform shells provide OS capabilities/system surfaces only. Do not reimplement security-sensitive product flows independently in SwiftUI/Compose/web.
+
+Safe themes are declarative bundles interpreted by `om-ui`; arbitrary in-process UI code plugins remain out of scope. Third-party full clients remain free to implement the public protocol/core contracts independently.

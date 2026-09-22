@@ -176,3 +176,20 @@ OM Protocol/Core
 
 There is no mandatory centrally operated OM network service. User deployments own their rendezvous/relay state; distributions own only packaging/update/platform integration; providers are replaceable capabilities.
 
+## Shared presentation layer — 2026-09-22 13:42
+
+Reference clients now share a first-class presentation layer:
+
+```text
+Protocol / canonical semantics
+          ↓
+        OM Core
+          ↓
+         OM UI
+          ↓
+   PlatformAdapter
+    ↙   ↓   ↓   ↘
+  PWA  iOS Android Desktop
+```
+
+This layer does not alter the rule that independent/third-party clients can implement OM. It ensures the official/reference family remains one coherent product and that security-sensitive action semantics do not drift across platform-specific UI rewrites.

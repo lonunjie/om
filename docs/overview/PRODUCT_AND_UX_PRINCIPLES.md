@@ -85,7 +85,7 @@ The product explains consequences, not primitives:
 
 ## Protection presets
 
-Recommended settings are the default; users are not forced through a threat-model wizard. Advanced users can choose Standard, Hardened, Maximum Privacy, or customize component policies. These presets never select weaker E2EE ciphers.
+Recommended settings are the default; users are not forced through a threat-model wizard. Advanced users can choose Recommended, Hardened, Maximum Privacy, or customize component policies. These presets never select weaker E2EE ciphers.
 
 ## Cloudflare onboarding exception
 
@@ -99,3 +99,21 @@ Self-owned infrastructure must not mean “become a sysadmin.” The reference o
 
 PWA-first is a distribution choice, not a visible compromise in ordinary messaging UX. Native clients later improve OS integration without changing the user's identity or network.
 
+## 2026-09-22 13:42 shared UI/OwnMessenger principles
+
+The reference client family uses one shared `om-ui` above `om-core`. The intended experience is nearly identical across PWA, iOS, Android and desktop; OS-owned system surfaces remain native.
+
+Default design priorities, in order:
+
+1. ergonomics and functionality;
+2. immediate legibility and low interaction cost;
+3. perceived speed and continuity;
+4. accessibility;
+5. calm, durable aesthetics;
+6. personalization.
+
+The UI should feel fluid through immediate local feedback, semantic/interruptible motion, stable layouts and optimistic staging where safe. Movement explains state and spatial continuity; it is never decoration that blocks work.
+
+OM/OwnMessenger supports deep user themes and fonts, but themes are untrusted declarative presentation data. They cannot execute code, load arbitrary remote tracking assets, alter cryptographic/provider policy, hide security-critical state, spoof system UI or weaken accessibility overrides.
+
+Security UI remains exceptional and actionable. Routine E2EE/PQ state is not advertised with persistent padlocks or cyber-security decoration.

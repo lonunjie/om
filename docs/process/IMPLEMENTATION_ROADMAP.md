@@ -138,7 +138,7 @@ Before wire-format freeze / public security claims:
 3. **Personal Cloudflare bootstrap** — OAuth/PKCE provisioning for Worker + SQLite DO; `workers.dev` publisher; no R2 dependency.
 4. **ContactCapsule/share-contact** — subject-signed forwarding + optional referral context.
 5. **Supply-chain floor** — signed tags, dependency pinning, provenance, TUF-style update roles before first public binary.
-6. **Privacy presets** — Standard/Hardened/Maximum Privacy as policy bundles; same crypto floor.
+6. **Privacy presets** — Recommended/Hardened/Maximum Privacy as policy bundles; same crypto floor.
 7. **Push** — opaque wakeups, local decrypt/render; Android alternate path; honest iOS no-APNs limitation.
 8. **Retention** — disappearing/view-once backup/convergence rules.
 9. **Extensibility** — critical-field semantics, canonical encoding and registries before interoperability freeze.
@@ -160,3 +160,19 @@ Add an operatorless client track:
 
 Add Creator-Disappearance Gate to release acceptance.
 
+## Shared UI implementation track — 2026-09-22 13:42
+
+Run in parallel with core protocol prototypes once typed view-state/command boundaries are available:
+
+1. design tokens + accessible primitives;
+2. adaptive AppShell (Compact/Medium/Expanded/Wide);
+3. Chats list/detail and composer with large-history performance harness;
+4. People/discovery/request/contact-sharing flows;
+5. call UI and platform call-system bridge contract;
+6. Settings, Recovery, Devices, Protection and OM Home progressive-disclosure flows;
+7. MotionSystem/performance budgets and low-end-device profiling;
+8. declarative theme/font bundle parser + sandbox validation;
+9. PWA shell integration;
+10. native shell proof that the same `om-ui` can be hosted without semantic fork.
+
+Before visual polish freezes, usability-test onboarding, message requests, Share Contact, recovery consequences and stolen-device suspension with non-technical users.

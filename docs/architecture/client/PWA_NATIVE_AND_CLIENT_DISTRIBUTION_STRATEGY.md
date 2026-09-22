@@ -31,7 +31,7 @@ OM Core (Rust or equivalently portable memory-safe core)
        +-- native -> desktop/CLI
 ```
 
-Platform shells own only platform-specific concerns such as UI, secure key handles, notifications, share sheets, calls, contacts and future SMS/RCS integration.
+The shared `om-ui` owns the visible application experience. Platform shells own only platform-specific capabilities/system surfaces such as secure key handles, notifications, share sheets, system calling, local contacts permission, background execution and future SMS/RCS integration.
 
 ## 3. What the PWA can cover
 
@@ -142,3 +142,19 @@ A particular native distribution may operate or outsource a narrowly scoped APNs
 3. build native shells over the same OM Core;
 4. add Android SMS/MMS/RCS adapters later;
 5. optional providers/businesses compete on convenience without owning the network.
+
+## 10. Shared UI architecture
+
+The PWA is the first shell for the same shared `om-ui`, not a separate web product whose UX will later be rewritten natively.
+
+```text
+om-core
+   ↕ typed state/commands
+om-ui
+   ↕ PlatformAdapter
+web / iOS / Android / desktop shells
+```
+
+The native clients should therefore add better OS integration without surprising users with a different product. System permission prompts, lock-screen incoming calls, file pickers, share sheets and biometrics remain native; OM-owned screens remain shared.
+
+This reduces semantic drift and makes the PWA a genuine first implementation of the long-term client rather than a disposable prototype.

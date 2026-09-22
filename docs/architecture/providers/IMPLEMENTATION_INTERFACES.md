@@ -150,3 +150,16 @@ ClientDistribution
 
 `ClientDistribution` metadata is not peer trust. A remote peer must never grant protocol privilege merely because the other side claims to use a reference/official build.
 
+## Shared UI / PlatformAdapter contract
+
+Add a presentation boundary above Core:
+
+```text
+om-ui intent -> om-core typed command -> canonical state transition -> view state/event -> om-ui render
+```
+
+`om-ui` never manipulates key bytes, relay capabilities, AccountControlState or protocol stores directly.
+
+`PlatformAdapter` capability families should include secure storage, push/notifications, background execution, share/open-external, files, camera/microphone, local contacts, clipboard, local discovery, system calling, network/window hints, haptics and later external carrier transports.
+
+Product behavior should query capabilities rather than branch broadly on platform names.

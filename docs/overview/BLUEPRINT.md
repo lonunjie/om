@@ -201,7 +201,7 @@ Open source is paired with secure update/supply-chain foundations from the first
 
 ### Privacy without niche UX
 
-All profiles retain the strongest approved E2EE. Standard/Hardened/Maximum Privacy only tune metadata exposure, routing, notifications, recovery/storage/retention and future anonymity transports. Push remains instant and privacy-preserving by default through opaque wakeups and local notification rendering.
+All profiles retain the strongest approved E2EE. Recommended/Hardened/Maximum Privacy only tune metadata exposure, routing, notifications, recovery/storage/retention and future anonymity transports. Push remains instant and privacy-preserving by default through opaque wakeups and local notification rendering.
 
 ## 2026-09-22 checkpoint — operatorless ecosystem
 
@@ -209,3 +209,12 @@ OM now explicitly targets an operatorless public-good core. The first reference 
 
 The architectural survival test is: **if the original OM author/project/business disappears, do existing independent users continue communicating?** The required answer is yes.
 
+## Shared UI/UX architecture — 2026-09-22 13:42
+
+OM's reference product is one adaptive UI, not independent platform designs. `om-ui` sits above the portable Core and below thin platform shells. The primary destinations are Chats, Calls and People; Settings is profile-scoped. Layout adapts to actual window size from one pane to list/detail/inspector arrangements.
+
+The default experience is calm, ergonomic, fast and content-first. Telegram-class perceived fluidity is pursued through immediate local response, stable layout, semantic/interruptible motion and local-first rendering rather than ornamental animation.
+
+OwnMessenger personalization is first-class: users can install declarative themes, fonts, wallpapers, sounds and density preferences. Theme content is sandboxed data-only presentation and cannot execute code, fetch arbitrary remote tracking assets, override security semantics or suppress accessibility constraints.
+
+See `UI_UX_SYSTEM.md`, `MOTION_AND_PERFORMANCE.md`, `THEMES_FONTS_AND_PERSONALIZATION.md`, `ACCESSIBILITY_AND_INPUT.md`, and `UI_CORE_PLATFORM_CONTRACT.md`.

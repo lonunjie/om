@@ -28,7 +28,7 @@ Friendly profiles simply install recommended combinations. If the user changes o
 
 ## 3. Recommended presets
 
-### Standard — recommended
+### Recommended
 
 Goal: excellent everyday usability with privacy materially stronger than ordinary server-readable messaging.
 

@@ -1,6 +1,6 @@
 # OM Architecture Decision Records
 
-Checkpoint: 2026-09-22 07:34 PHT
+Checkpoint: 2026-09-22 13:42 PHT
 
 - [ADR-0001 — Providers Are Plugins](ADR-0001-provider-independence.md)
 - [ADR-0002 — Passwordless Device-First Identity](ADR-0002-device-first-identity.md)
@@ -53,3 +53,11 @@ Checkpoint: 2026-09-22 07:34 PHT
 - [ADR-0048 — Push and Store Obligations Are Distribution-Local](ADR-0048-distribution-local-push-store-obligations.md)
 - [ADR-0049 — Convenience Providers Are Non-Privileged](ADR-0049-convenience-providers-nonprivileged.md)
 - [ADR-0050 — Creator-Disappearance Gate](ADR-0050-creator-disappearance-gate.md)
+- [ADR-0051 — One Shared OM UI Across Official Clients](ADR-0051-one-shared-om-ui.md)
+- [ADR-0052 — Adaptive Window Layout, Not Device-Specific Product Forks](ADR-0052-adaptive-window-layout.md)
+- [ADR-0053 — Semantic Motion and Perceived Performance](ADR-0053-semantic-motion-and-perceived-performance.md)
+- [ADR-0054 — User Themes Are Declarative, Sandboxed Data](ADR-0054-declarative-sandboxed-themes.md)
+- [ADR-0055 — PlatformAdapter Exposes Capabilities, Not Product Logic](ADR-0055-platform-adapter-capabilities-not-product-logic.md)
+- [ADR-0056 — Security UI Semantics Are Theme-Proof](ADR-0056-security-ui-semantics-are-theme-proof.md)
+- [ADR-0057 — Accessibility Is a Shared UI Release Gate](ADR-0057-accessibility-is-a-shared-release-gate.md)
+- [ADR-0058 — Default UI Is Calm, Content-First and Ergonomic](ADR-0058-default-ui-is-calm-content-first.md)

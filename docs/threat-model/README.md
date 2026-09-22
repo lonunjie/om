@@ -97,3 +97,14 @@ Provider independence improves survivability but does not make any single endpoi
 - **Contact-sharing forgery:** subject signs ContactCapsule; introducer referral is optional context, not subject authentication.
 - **Cloudflare bootstrap control:** provisioning OAuth client and workers.dev location are replaceable; neither is AccountID or protocol authority.
 - **Cost exhaustion:** reject before expensive storage/media work and enforce hard local budget policy.
+## UI / theme / social-engineering threats added 2026-09-22 13:42
+
+- **Malicious theme code execution:** prohibited structurally; theme bundles are declarative data/assets only and validated before use.
+- **Theme tracking beacon:** remote theme assets are disabled by default; imported bundles are self-contained and must not access account/provider/conversation identifiers.
+- **Security-warning camouflage:** critical semantic states/focus/destructive actions are constrained by OM-owned accessible rendering and cannot be removed/spoofed by themes.
+- **System-dialog phishing:** theme/UI content must not imitate native biometric/permission/password surfaces or create overlay hit targets that obscure canonical actions.
+- **DOM XSS in PWA:** strict CSP, Trusted Types where supported, no `eval`, minimal third-party script and sanitized rich-content rendering are defense-in-depth requirements.
+- **Accessibility-induced security failure:** critical actions remain keyboard/screen-reader operable, non-color-only, readable under text scaling/high contrast and independent of theme quality.
+- **Motion confusion/vestibular harm:** motion is semantic, interruptible and reduced-motion compatible; security meaning never depends on animation.
+- **Platform semantic drift:** security-sensitive actions go through shared `om-ui` typed intents and `om-core`; native shells do not independently implement authorization semantics.
+

@@ -1,12 +1,12 @@
 # OM — Master Planning & Design Repository
 
-**Snapshot:** 2026-09-22 07:34 PHT (UTC+08:00)  
+**Snapshot:** 2026-09-22 13:42 PHT (UTC+08:00)  
 **Phase:** Architecture consolidation → implementation-ready gates  
 **Working umbrella name:** **OM — OpenMessenger / OwnMessenger / OurMessenger**
 
 This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design reviews covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed/multi-relay delivery, the Discovery Fabric and revocable IntroGate, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, privacy-preserving LAN operation, censorship/network resilience, and future SMS/RCS integration.
 
-Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, and `history/20260921-2132/` for traceability.
+Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, `history/20260921-2132/`, and `history/20260922-0734/` for traceability.
 
 ## Product thesis
 
@@ -78,25 +78,30 @@ And the implementation discipline remains:
 2. `DESIGN_RATIONALE_AND_DISCUSSION_SYNTHESIS.md` — why the major tradeoffs were chosen.
 3. `SYSTEM_ARCHITECTURE.md` — complete layer/component map.
 4. `PRODUCT_AND_UX_PRINCIPLES.md` — invisible-complexity product rules.
-5. `PRIVACY_GOVERNANCE_AUTHORITY.md` — how OM avoids recreating a central controller.
-6. `DISCOVERY_FABRIC.md` — resolver fabric, namespaced aliases, ContactDescriptor, private lookup.
-7. `INVITES_INTROGATE_AND_SPAM.md` — revocable invites, IntroductionTickets, public-first-contact abuse controls.
-8. `RELAY_AND_DELIVERY_ARCHITECTURE.md` + `MULTI_RELAY_AND_DELIVERY_RESILIENCE.md` — private capabilities, RelaySet, failover/redundancy.
-9. `CRYPTOGRAPHY_AND_AGILITY.md` — PQ/hybrid crypto, CryptoProfiles, migration, downgrade prevention.
-10. `STORAGE_AND_BLOB_ARCHITECTURE.md` — queues, sync, blobs, archive, backup, StoragePool.
-11. `CALLS_AND_REALTIME_MEDIA.md` — signaling, SFrame, WebRTC, LAN/P2P/TURN/SFU, cost/privacy policy.
-12. `LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md` — private local discovery and WAN-independent local operation direction.
-13. `CENSORSHIP_AND_NETWORK_RESILIENCE.md` — no single network choke point, replaceable transports.
-14. `TRANSPORT_ADAPTERS_AND_INTEROP.md` — OM-native now; SMS/MMS/RCS/bridges later.
-15. `CLOUDFLARE_REFERENCE_DEPLOYMENT.md` — optional frictionless deployment profile.
-16. `ABUSE_SAFETY_AND_REPORTING.md` — privacy-preserving abuse boundaries.
-17. `IMPLEMENTATION_ROADMAP.md` — implementation order and acceptance gates.
-18. `ARCHITECTURE_PHASE_PLAN.md` — architecture gates and exit criteria.
-19. `OPERATORLESS_CORE_AND_ECOSYSTEM.md` — operatorless core, role separation and creator-disappearance gate.
-20. `PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md` — PWA-first/native-later client strategy.
-21. `LEGAL_AND_OPERATIONAL_BOUNDARIES.md` — scoped custody/responsibility and legal-role boundaries.
-22. `EVIDENCE_AND_EXTERNAL_REPORTING.md` — local evidence export and optional distribution-specific reporting.
-23. `AGENTS.md` — rules for coding/research agents.
+5. `UI_UX_SYSTEM.md` — canonical shared cross-platform product/navigation/journey design.
+6. `MOTION_AND_PERFORMANCE.md` — fluidity, motion semantics and performance budgets.
+7. `THEMES_FONTS_AND_PERSONALIZATION.md` — OwnMessenger personalization and theme sandbox.
+8. `ACCESSIBILITY_AND_INPUT.md` — shared accessibility/keyboard/input requirements.
+9. `UI_CORE_PLATFORM_CONTRACT.md` — Core/UI/PlatformAdapter boundary.
+10. `PRIVACY_GOVERNANCE_AUTHORITY.md` — how OM avoids recreating a central controller.
+11. `DISCOVERY_FABRIC.md` — resolver fabric, namespaced aliases, ContactDescriptor, private lookup.
+12. `INVITES_INTROGATE_AND_SPAM.md` — revocable invites, IntroductionTickets, public-first-contact abuse controls.
+13. `RELAY_AND_DELIVERY_ARCHITECTURE.md` + `MULTI_RELAY_AND_DELIVERY_RESILIENCE.md` — private capabilities, RelaySet, failover/redundancy.
+14. `CRYPTOGRAPHY_AND_AGILITY.md` — PQ/hybrid crypto, CryptoProfiles, migration, downgrade prevention.
+15. `STORAGE_AND_BLOB_ARCHITECTURE.md` — queues, sync, blobs, archive, backup, StoragePool.
+16. `CALLS_AND_REALTIME_MEDIA.md` — signaling, SFrame, WebRTC, LAN/P2P/TURN/SFU, cost/privacy policy.
+17. `LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md` — private local discovery and WAN-independent local operation direction.
+18. `CENSORSHIP_AND_NETWORK_RESILIENCE.md` — no single network choke point, replaceable transports.
+19. `TRANSPORT_ADAPTERS_AND_INTEROP.md` — OM-native now; SMS/MMS/RCS/bridges later.
+20. `CLOUDFLARE_REFERENCE_DEPLOYMENT.md` — optional frictionless deployment profile.
+21. `ABUSE_SAFETY_AND_REPORTING.md` — privacy-preserving abuse boundaries.
+22. `IMPLEMENTATION_ROADMAP.md` — implementation order and acceptance gates.
+23. `ARCHITECTURE_PHASE_PLAN.md` — architecture gates and exit criteria.
+24. `OPERATORLESS_CORE_AND_ECOSYSTEM.md` — operatorless core, role separation and creator-disappearance gate.
+25. `PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md` — PWA-first/native-later client strategy.
+26. `LEGAL_AND_OPERATIONAL_BOUNDARIES.md` — scoped custody/responsibility and legal-role boundaries.
+27. `EVIDENCE_AND_EXTERNAL_REPORTING.md` — local evidence export and optional distribution-specific reporting.
+28. `AGENTS.md` — rules for coding/research agents.
 
 Existing detailed documents remain canonical where not superseded: identity, event model, group architecture, client/extension architecture, and PWA reference client.
 
@@ -107,7 +112,7 @@ Existing detailed documents remain canonical where not superseded: identity, eve
 - `PROVISIONING_AND_BOOTSTRAP.md` — user-owned Cloudflare, workers.dev and the minimal zero-payment stack.
 - `CONTACT_SHARING.md` — signed ContactCapsules and referral semantics.
 - `SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md` — update trust, provenance, reproducibility and forge independence.
-- `SECURITY_PRIVACY_PROFILES.md` — Standard/Hardened/Maximum Privacy policy bundles.
+- `SECURITY_PRIVACY_PROFILES.md` — Recommended/Hardened/Maximum Privacy policy bundles.
 - `NOTIFICATIONS_AND_PUSH.md` — opaque push and platform tradeoffs.
 - `DISAPPEARING_MESSAGES_AND_RETENTION.md` — lifecycle/backup convergence rules.
 - `PROTOCOL_EXTENSIBILITY.md` — critical extensions, negotiation and registries.
@@ -120,6 +125,8 @@ Existing detailed documents remain canonical where not superseded: identity, eve
 - `machine/requirements.jsonl`
 - `machine/open_questions.jsonl`
 - `research/CURRENT_REFERENCES_20260921.md`
+- `research/CURRENT_UI_REFERENCES_20260922.md`
+- `design/` — shared design seeds, component catalog, screen journeys and static shell prototype
 - `threat-model/README.md`
 
 ## Snapshot rule
@@ -180,3 +187,22 @@ New canonical material:
 Major change: OM is now explicitly modeled as an **operatorless protocol/core plus independent deployments and distributions**. The first reference client is PWA-first for independence, but native shells remain planned for stronger platform integration. Optional future businesses may sell convenience but receive no protocol privilege.
 
 The preceding 2026-09-21 21:32 continuity/trust checkpoint is preserved under `history/20260921-2132/`.
+
+
+## 2026-09-22 13:42 shared UI/OwnMessenger checkpoint
+
+New canonical material:
+
+- `UI_UX_SYSTEM.md`
+- `MOTION_AND_PERFORMANCE.md`
+- `THEMES_FONTS_AND_PERSONALIZATION.md`
+- `ACCESSIBILITY_AND_INPUT.md`
+- `UI_CORE_PLATFORM_CONTRACT.md`
+- `design/` theme/token artifacts
+- `research/CURRENT_UI_REFERENCES_20260922.md`
+- `CHECKPOINT_20260922_1342.md`
+- ADR-0051 through ADR-0058
+
+Major change: the reference product now has one shared `om-ui` for PWA/iOS/Android/Desktop, a semantic MotionSystem, adaptive window layouts, release-gated accessibility and deeply customizable but data-only/sandboxed OwnMessenger themes.
+
+The preceding 2026-09-22 07:34 operatorless/ecosystem checkpoint is preserved under `history/20260922-0734/`.

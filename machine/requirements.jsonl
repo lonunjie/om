@@ -35,7 +35,7 @@
 {"id": "R-035", "priority": "must", "requirement": "Share Contact never transfers private pairwise delivery capabilities; forwarded contact data is subject-signed and bounded by expiry/revocation policy."}
 {"id": "R-036", "priority": "must", "requirement": "The basic personal Cloudflare deployment must not require R2/D1/Pages when Worker + SQLite Durable Object can satisfy the zero-payment core."}
 {"id": "R-037", "priority": "must", "requirement": "Official source/release/update trust must not rely solely on one forge, one online signing key, or one mutable CI job."}
-{"id": "R-038", "priority": "must", "requirement": "Standard/Hardened/Maximum Privacy presets all retain the same minimum approved cryptographic security floor."}
+{"id": "R-038", "priority": "must", "requirement": "Recommended/Hardened/Maximum Privacy presets all retain the same minimum approved cryptographic security floor."}
 {"id": "R-039", "priority": "must", "requirement": "Push payloads do not contain normal message plaintext or require the push provider to know canonical conversation identity."}
 {"id": "R-040", "priority": "must", "requirement": "Disabling vendor push communicates platform-specific delivery limitations honestly; iOS silent/background push is not treated as guaranteed."}
 {"id": "R-041", "priority": "must", "requirement": "Backup restore cannot resurrect revoked devices, obsolete recovery policies, obsolete relay capability state, or forbidden CryptoProfiles."}
@@ -52,3 +52,12 @@
 {"id": "R-052", "priority": "must", "requirement": "A managed/convenience provider can be replaced without changing AccountID or canonical conversation meaning."}
 {"id": "R-053", "priority": "must", "requirement": "Loss of the original project website, primary source forge, author, foundation or business must not terminate established independent OM communication."}
 {"id": "R-054", "priority": "should", "requirement": "Reference source/spec/test vectors should be straightforward to mirror and continue under independent distribution keys."}
+{"id":"R-055","priority":"must","requirement":"Official PWA/iOS/Android/Desktop clients use the same security/product semantics through shared om-core and om-ui rather than independent platform rewrites."}
+{"id":"R-056","priority":"must","requirement":"Theme bundles must be declarative/non-executable and cannot access message/account/provider data or load arbitrary remote tracking resources."}
+{"id":"R-057","priority":"must","requirement":"Themes cannot hide, spoof or semantically alter critical security/control/destructive states or accessibility focus."}
+{"id":"R-058","priority":"must","requirement":"Shared UI primitives provide complete keyboard operation, screen-reader semantics, visible focus, text reflow, reduced motion and non-color-only state."}
+{"id":"R-059","priority":"should","requirement":"Primary touch controls target at least 44x44 CSS px where practical while retaining compact pointer/keyboard density on desktop."}
+{"id":"R-060","priority":"must","requirement":"UI components dispatch typed Core intents and do not directly modify cryptographic, relay, recovery or AccountControlState data."}
+{"id":"R-061","priority":"should","requirement":"Core local state should render before network synchronization so startup, conversation open and ordinary local interactions do not block on provider availability."}
+{"id":"R-062","priority":"must","requirement":"Reduced-motion preference has a functional mapping for every shared motion primitive; motion must not be required to understand state."}
+{"id":"R-063","priority":"must","requirement":"Custom fonts are local/bundled or explicitly permission-selected; themes never silently use third-party font CDNs."}

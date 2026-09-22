@@ -65,3 +65,11 @@
 {"id": "D-065", "status": "accepted", "decision": "Push/signing/store-policy/reporting infrastructure for a native client is owned by that client distribution, not by the OM protocol."}
 {"id": "D-066", "status": "accepted", "decision": "Future convenience businesses/providers may exist but receive no protocol privilege and must preserve provider migration/identity continuity."}
 {"id": "D-067", "status": "accepted", "decision": "Creator-Disappearance Gate requires established independent users to continue communicating if the original project/author/business disappears."}
+{"id":"D-068","status":"accepted","decision":"Official reference clients share one om-ui implementation above om-core; platform shells provide OS capabilities/system surfaces rather than independent product semantics."}
+{"id":"D-069","status":"accepted_direction","decision":"Reference layout adapts to actual window size through Compact/Medium/Expanded/Wide modes rather than device-specific application forks."}
+{"id":"D-070","status":"accepted","decision":"OM defines a semantic, interruptible MotionSystem and treats perceived smoothness as input latency, layout stability, local-first rendering and motion together."}
+{"id":"D-071","status":"accepted","decision":"OwnMessenger themes are declarative data-only bundles; no theme code execution, arbitrary remote assets, protocol hooks or security-semantic overrides are permitted."}
+{"id":"D-072","status":"accepted","decision":"PlatformAdapter exposes capabilities such as secure storage, push, system calls, files/share, local contacts and background execution without owning protocol/business logic."}
+{"id":"D-073","status":"accepted","decision":"Security-critical UI semantics, accessible focus and external-link meaning are protected from theme override."}
+{"id":"D-074","status":"accepted","decision":"Accessibility is implemented in shared UI primitives and treated as a release gate; WCAG 2.2 AA is the minimum shared-web baseline."}
+{"id":"D-075","status":"accepted","decision":"Default OM appearance prioritizes ergonomics/functionality, immediate legibility, calm content-first hierarchy and restrained aesthetics; personalization is optional."}
