@@ -1,12 +1,12 @@
 # OM — Master Planning & Design Repository
 
-**Snapshot:** 2026-09-22 14:34 PHT (UTC+08:00)  
-**Phase:** Architecture candidate → engineering prototype + adversarial validation  
+**Snapshot:** 2026-09-22 23:02 PHT (UTC+08:00)  
+**Phase:** Architecture hardening / pre-engineering — engineering is not yet authorized  
 **Working umbrella name:** **OM — OpenMessenger / OwnMessenger / OurMessenger**
 
 This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design reviews covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed/multi-relay delivery, the Discovery Fabric and revocable IntroGate, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, privacy-preserving LAN operation, censorship/network resilience, and future SMS/RCS integration.
 
-Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, `history/20260921-2132/`, `history/20260922-0734/`, and `history/20260922-1342/` for traceability.
+Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, `history/20260921-2132/`, `history/20260922-0734/`, `history/20260922-1342/`, and `history/20260922-1434/` for traceability.
 
 ## Product thesis
 
@@ -44,7 +44,7 @@ And the implementation discipline remains:
 
 > **Spend complexity only where it buys interoperability, security, reliability, privacy, or user freedom.**
 
-## What is now conceptually frozen
+## Constitutional and settled directions
 
 - no universal central authority is required for private communication;
 - authority is distributed among protocol rules, users, groups, providers, and governance, each with narrow powers;
@@ -74,38 +74,31 @@ And the implementation discipline remains:
 
 ## Start here
 
-**Engineering agents:** start with `ENGINEER_START_HERE.md`, then `ENGINEERING_HANDOFF.md`.
+**All agents:** start with `PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`, `ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`, and `AGENTS.md`. Product engineering is intentionally blocked in this checkpoint; `ENGINEER_START_HERE.md` is a future handoff document, not authorization to code.
 
-1. `BLUEPRINT.md` — consolidated product and technical design.
-2. `DESIGN_RATIONALE_AND_DISCUSSION_SYNTHESIS.md` — why the major tradeoffs were chosen.
-3. `SYSTEM_ARCHITECTURE.md` — complete layer/component map.
-4. `PRODUCT_AND_UX_PRINCIPLES.md` — invisible-complexity product rules.
-5. `UI_UX_SYSTEM.md` — canonical shared cross-platform product/navigation/journey design.
-6. `MOTION_AND_PERFORMANCE.md` — fluidity, motion semantics and performance budgets.
-7. `THEMES_FONTS_AND_PERSONALIZATION.md` — OwnMessenger personalization and theme sandbox.
-8. `ACCESSIBILITY_AND_INPUT.md` — shared accessibility/keyboard/input requirements.
-9. `UI_CORE_PLATFORM_CONTRACT.md` — Core/UI/PlatformAdapter boundary.
-10. `PRIVACY_GOVERNANCE_AUTHORITY.md` — how OM avoids recreating a central controller.
-11. `DISCOVERY_FABRIC.md` — resolver fabric, namespaced aliases, ContactDescriptor, private lookup.
-12. `INVITES_INTROGATE_AND_SPAM.md` — revocable invites, IntroductionTickets, public-first-contact abuse controls.
-13. `RELAY_AND_DELIVERY_ARCHITECTURE.md` + `MULTI_RELAY_AND_DELIVERY_RESILIENCE.md` — private capabilities, RelaySet, failover/redundancy.
-14. `CRYPTOGRAPHY_AND_AGILITY.md` — PQ/hybrid crypto, CryptoProfiles, migration, downgrade prevention.
-15. `STORAGE_AND_BLOB_ARCHITECTURE.md` — queues, sync, blobs, archive, backup, StoragePool.
-16. `CALLS_AND_REALTIME_MEDIA.md` — signaling, SFrame, WebRTC, LAN/P2P/TURN/SFU, cost/privacy policy.
-17. `LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md` — private local discovery and WAN-independent local operation direction.
-18. `CENSORSHIP_AND_NETWORK_RESILIENCE.md` — no single network choke point, replaceable transports.
-19. `TRANSPORT_ADAPTERS_AND_INTEROP.md` — OM-native now; SMS/MMS/RCS/bridges later.
-20. `CLOUDFLARE_REFERENCE_DEPLOYMENT.md` — optional frictionless deployment profile.
-21. `ABUSE_SAFETY_AND_REPORTING.md` — privacy-preserving abuse boundaries.
-22. `IMPLEMENTATION_ROADMAP.md` — implementation order and acceptance gates.
-23. `ARCHITECTURE_PHASE_PLAN.md` — architecture gates and exit criteria.
-24. `OPERATORLESS_CORE_AND_ECOSYSTEM.md` — operatorless core, role separation and creator-disappearance gate.
-25. `PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md` — PWA-first/native-later client strategy.
-26. `LEGAL_AND_OPERATIONAL_BOUNDARIES.md` — scoped custody/responsibility and legal-role boundaries.
-27. `EVIDENCE_AND_EXTERNAL_REPORTING.md` — local evidence export and optional distribution-specific reporting.
-28. `AGENTS.md` — rules for coding/research agents.
+1. `PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md` — what OM exists to preserve and how capture remains escapable.
+2. `ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md` — machine-enforced architecture process and pre-engineering lock.
+3. `BLUEPRINT.md` — consolidated product and technical design.
+4. `SYSTEM_ARCHITECTURE.md` — complete layer/component map.
+5. `LICENSING_AND_CONTRIBUTION_POLICY.md` — layered open licensing, DCO and protocol patent direction.
+6. `PROJECT_STEWARDSHIP_AND_CONTINUITY.md` — SeedLife/lonunjie stewardship, founder-incubation risk and succession rails.
+7. `ACCOUNT_CONTINUITY_AND_CONTROL.md` + `IDENTITY_PROTOCOL.md` — canonical identity/control authority.
+8. `CRYPTOGRAPHY_AND_AGILITY.md` + `ASYNC_KEY_MATERIAL.md` + `ONE_TO_ONE_SESSION_MANAGEMENT.md` — 1:1 security architecture.
+9. `GROUP_CHAT_ARCHITECTURE.md` + `GROUP_COMMIT_AND_STATE_CONVERGENCE.md` — MLS groups plus application sequencing/binding.
+10. `RELAY_AND_DELIVERY_ARCHITECTURE.md` + `MULTI_RELAY_AND_DELIVERY_RESILIENCE.md` + `REACHABILITY_AND_OBJECT_REPAIR.md` — private delivery and catastrophic repair.
+11. `STORAGE_AND_BLOB_ARCHITECTURE.md` — encrypted storage/backup/location semantics.
+12. `TIME_AND_EXPIRY_SEMANTICS.md` — one cross-protocol clock/expiry model.
+13. `PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md` + `DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md` + `CLIENTHOST_UPDATE_LIFECYCLE.md` — endpoint/origin/deployment boundaries.
+14. `SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md` — release trust and reproducibility.
+15. `DISCOVERY_FABRIC.md`, `INVITES_INTROGATE_AND_SPAM.md`, `CONTACT_SHARING.md` — discovery and first-contact trust.
+16. `CALLS_AND_REALTIME_MEDIA.md` — SFrame/WebRTC media.
+17. `LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md` + `CENSORSHIP_AND_NETWORK_RESILIENCE.md` — local/network resilience.
+18. `RICH_TEXT_AND_CONTENT_SECURITY.md` + `ABUSE_SAFETY_AND_REPORTING.md` — hostile content and safety boundaries.
+19. UI/accessibility/theme documents — product semantics above Core.
+20. `ARCHITECTURE_PHASE_PLAN.md` — blocking gates and architecture-freeze criteria.
+21. `ENGINEER_START_HERE.md` / `ENGINEERING_HANDOFF.md` — retained for the future transition only.
 
-Existing detailed documents remain canonical where not superseded: identity, event model, group architecture, client/extension architecture, and PWA reference client.
+Existing detailed documents remain canonical where not superseded. Machine-readable authority and file classification live under `machine/`; run `python3 tools/validate_architecture.py` before accepting a checkpoint.
 
 ## Continuity / trust checkpoint documents
 
@@ -209,7 +202,7 @@ Major change: the reference product now has one shared `om-ui` for PWA/iOS/Andro
 
 The preceding 2026-09-22 07:34 operatorless/ecosystem checkpoint is preserved under `history/20260922-0734/`.
 
-## 2026-09-22 14:34 PHT — Engineering handoff checkpoint
+## 2026-09-22 14:34 PHT — Historical engineering-handoff checkpoint (superseded)
 
 Architecture is now frozen enough to build and attack. New canonical engineering material includes:
 
@@ -226,3 +219,21 @@ Architecture is now frozen enough to build and attack. New canonical engineering
 - ADR-0059 through ADR-0068.
 
 Multiple identities are structurally supported from v1 but the switcher can ship later. Every built-in theme supports light/dark + Auto. Production crypto remains a release gate rather than something coding agents may improvise.
+
+## 2026-09-22 23:02 architecture-hardening checkpoint
+
+The 14:34 engineering transition is superseded. OM remains in architecture hardening until the architecture-freeze contract deliberately authorizes engineering.
+
+New blocking architecture material includes:
+
+- project philosophy/anti-capture constitution;
+- layered licensing/contribution policy and SeedLife stewardship/succession rails;
+- asynchronous 1:1/MLS key-material publication;
+- one-to-one multi-device session management;
+- MLS Commit ordering and atomic group-policy/MLS binding;
+- catastrophic RelaySet reachability and blob-location repair;
+- unified time/expiry semantics;
+- self-hosted ClientHost update lifecycle;
+- machine-enforced repository contract/file registry/architecture map.
+
+No product engineering phase begins from this checkpoint.

@@ -98,3 +98,9 @@ Online/LAN file transfer should prefer direct encrypted paths where policy permi
 ## Restore invariant
 
 Backups restore history, not authority. Current AccountControlState, revocations, security floors and live provider capabilities must be reconciled before restored material becomes operational.
+## 2026-09-22 hardening — immutable BlobID, mutable location knowledge
+
+Attachment/object identity is separated from provider location. Canonical events refer to stable encrypted-object identity; `BlobLocationRecord` carries authenticated replaceable locators. Provider migration therefore never rewrites canonical message identity.
+
+`REACHABILITY_AND_OBJECT_REPAIR.md` defines overlap and late/offline-recipient repair when an old locator disappears before a replacement reaches every authorized device.
+

@@ -1,5 +1,7 @@
 # OM Engineering Repository Layout
 
+> **FUTURE LAYOUT:** retained as the planned repository structure after architecture freeze; it is not authorization to begin implementation in the 23:02 checkpoint.
+
 ## Goal
 
 One monorepo is recommended initially so protocol, core, UI, reference infrastructure, vectors and formal models change atomically. The protocol remains independently implementable.

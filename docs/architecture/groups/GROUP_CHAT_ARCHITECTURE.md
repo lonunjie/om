@@ -61,7 +61,7 @@ MLS requires applications to authenticate client credentials. OM satisfies that 
 ```text
 MLS client credential
  -> OM DeviceIdentity authorization
- -> AccountState
+ -> AccountControlState
  -> AccountID
 ```
 
@@ -149,7 +149,7 @@ Group policy decides whether any member may invite, only admins may invite, invi
 
 Default low-friction behavior:
 
-- AccountState authorizes the new DeviceIdentity.
+- AccountControlState authorizes the new DeviceIdentity.
 - Existing group membership is at the account level.
 - A group client may commit that device into MLS after validating its authorization.
 - Human admin approval is not required merely because Alice replaced her phone.
@@ -159,7 +159,7 @@ High-assurance groups may set `new_device_policy = admin_approval`.
 ## Device revocation
 
 ```text
-AccountState revokes Alice phone A1
+AccountControlState revokes Alice phone A1
  -> groups learn the revocation
  -> MLS Remove for A1
  -> epoch advances
@@ -408,3 +408,9 @@ Independent clients can create a group, add/remove accounts and devices, exchang
 - Group profile migration/reinitialization must be authenticated and downgrade-safe.
 - Per-recipient relay delivery should use fresh randomized outer transport wrappers around group application ciphertext to reduce cross-relay correlation.
 - Group voice/video uses SFrame media E2EE with participant/key state authenticated from the OM/MLS group context; an SFU is routing infrastructure, not a plaintext endpoint.
+## 2026-09-22 hardening — Commit ordering and state binding
+
+`GROUP_COMMIT_AND_STATE_CONVERGENCE.md` is canonical. MLS alone does not decide which of two valid Commits from the same epoch becomes canonical; OM must select an application-level ordering/conflict profile.
+
+Membership/role-affecting `GroupControlState` changes must be bound to the corresponding MLS Commit/resulting epoch so application membership and cryptographic membership cannot silently diverge. Group architecture remains blocked from wire freeze until that state machine is specified and adversarially tested.
+

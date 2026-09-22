@@ -1,0 +1,12 @@
+{
+  "$comment": "Logical emergency/private-rendezvous recovery descriptor; not normal routing state.",
+  "ReachabilityRecoveryDescriptor": {
+    "subject": "relationship-scoped or otherwise privacy-preserving subject binding",
+    "generation": "authenticated recovery-rendezvous generation",
+    "previous_hash": "optional continuity link",
+    "rendezvous_hints": "bounded independently reachable hints/capabilities",
+    "expires_at": "bounded expiry",
+    "authorization": "account/relationship authorization"
+  },
+  "Rule": "Normal private relay capabilities are not made globally enumerable merely to solve catastrophic route loss."
+}

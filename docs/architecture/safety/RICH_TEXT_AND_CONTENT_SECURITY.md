@@ -124,3 +124,9 @@ A preview fetched through the user's own Worker is not automatically anonymous f
 ## No message compression oracle
 
 Do not compress attacker-controlled and secret plaintext together before encryption merely to save wire bytes. Compression must undergo a dedicated side-channel review.
+## 2026-09-22 hardening — LinkPreviewProvider SSRF boundary
+
+A server/provider that resolves arbitrary user links is an SSRF-sensitive component. Reference implementations MUST reject or safely isolate loopback, link-local, private/internal ranges, cloud metadata endpoints and unsupported schemes; pin/validate resolved destinations; revalidate every redirect; defend against DNS rebinding; and bound redirect count, response bytes, decompression, content types and time.
+
+Link previews are optional enrichment. Failure to preview never changes message authenticity or link destination semantics. Maximum Privacy remains no-auto-preview by default.
+

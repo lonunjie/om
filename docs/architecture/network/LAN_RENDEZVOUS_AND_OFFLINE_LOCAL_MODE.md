@@ -71,3 +71,9 @@ Canonical OM events remain the same. When WAN service returns, normal sync/dedup
 - No silent fallback from encrypted OM semantics to plaintext LAN protocols.
 - Public Wi-Fi adversaries must not learn stable identity from advertisements.
 - Clients must defend against token flooding/spoofing and resource exhaustion.
+## 2026-09-22 hardening — platform capability boundary
+
+The LAN protocol remains client-agnostic, but discovery substrates are capabilities, not universal guarantees. Native clients may use OS mDNS/DNS-SD/local-network APIs where permitted. PWA clients may require explicit local-network permission and may need QR/manual/known-endpoint/WebRTC-style rendezvous when browser APIs do not expose native-equivalent discovery.
+
+OM promises interoperable local-mode semantics where a route can be established; it does not promise identical automatic discovery on every platform.
+

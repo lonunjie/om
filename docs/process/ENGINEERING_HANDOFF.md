@@ -1,10 +1,13 @@
-# OM Engineering Handoff
+# OM Engineering Handoff — INACTIVE UNTIL ARCHITECTURE FREEZE
+
+> **Current checkpoint 2026-09-22 23:02 PHT:** product engineering is not authorized. This document records the intended future handoff only. See `ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`.
+
 
 ## 1. Transition of phase
 
-OM has enough architectural definition to begin engineering. From this checkpoint onward, implementation evidence should drive most new decisions.
+This document describes the planned engineering transition **after** architecture freeze. It is inactive in the 23:02 checkpoint. Architecture/specification evidence drives current work; implementation work is limited to explicitly bounded feasibility experiments used to answer architecture questions.
 
-The objective is not to implement every planned feature. It is to establish a trustworthy executable core and a vertical slice that can be attacked, measured and iterated.
+When a future ADR authorizes engineering, the objective will be to establish a trustworthy executable core and vertical slice without reopening settled principles.
 
 ## 2. Non-negotiable invariants
 

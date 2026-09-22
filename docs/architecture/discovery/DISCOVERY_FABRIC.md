@@ -300,3 +300,7 @@ Grouped searchable directories begin naturally at organizations/communities that
 A signed, expiring ContactCapsule is another resolver input. Carol can forward Alice's capsule to Bob; Bob verifies Alice's signature and goes through Alice's IntroGate. Carol may attach a referral attestation, but she does not become an identity authority and does not learn Alice/Bob pairwise delivery capabilities.
 
 Cached/forwarded capsules are authenticated bounded-lived discovery answers, preserving one of DNS's useful caching/delegation properties without copying its root model.
+## 2026-09-22 discovery/key-material separation
+
+Finding an AccountID/ContactDescriptor and obtaining current authenticated per-device handshake material are separate operations. A DirectoryProvider may advertise appropriate KeyMaterialProvider endpoints/capabilities, but does not become device authority by doing so.
+

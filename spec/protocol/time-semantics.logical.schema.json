@@ -1,0 +1,12 @@
+{
+  "$comment": "Cross-protocol logical classification for fields whose meaning depends on time.",
+  "ClockClass": ["hlc_ordering", "wall_clock_expiry", "monotonic_local_duration", "provider_retention_clock", "cryptographic_state_sequence"],
+  "TimeFieldPolicy": {
+    "object_type": "canonical object/schema",
+    "field": "time/ttl/epoch field name",
+    "clock_class": "one ClockClass",
+    "skew_policy": "required for wall-clock validation",
+    "bad_clock_behavior": "explicit behavior",
+    "authority_effect": "must be none unless separately cryptographically authorized"
+  }
+}

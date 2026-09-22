@@ -1,0 +1,15 @@
+{
+  "$comment": "Logical session-manager state, not a frozen wire encoding.",
+  "OneToOneSessionState": {
+    "local_device_id": "authorized local DeviceIdentity",
+    "remote_account_id": "stable AccountID",
+    "remote_device_id": "authorized remote DeviceIdentity",
+    "crypto_profile": "selected session profile",
+    "remote_control_head": "last authorization/control evidence used for eligibility",
+    "session_generation": "local session lifecycle generation",
+    "ratchet_state_ref": "DeviceVault-protected state reference",
+    "status": ["establishing", "active", "stale", "reset_required", "revoked"],
+    "logical_message_dedup_state": "bounded session-independent message identity tracking"
+  },
+  "Rule": "Provider device lists do not authorize sessions; AccountControlState evidence does."
+}

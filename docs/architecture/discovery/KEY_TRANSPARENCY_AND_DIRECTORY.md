@@ -38,7 +38,7 @@ OM permits multiple directories or direct invites. A user may have multiple alia
 
 ## Open question
 
-Select a reviewed key-transparency protocol/implementation appropriate to OM AccountState/device updates and privacy constraints. Do not invent a bespoke Merkle-log protocol without expert review.
+Select a reviewed key-transparency protocol/implementation appropriate to OM AccountControlState/device updates and privacy constraints. Do not invent a bespoke Merkle-log protocol without expert review.
 
 ## Discovery privacy and resolver separation
 

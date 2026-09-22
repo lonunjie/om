@@ -1,42 +1,53 @@
-# OM Master Planning, Design & Engineering Snapshot
+# OM Master Planning & Design Snapshot
 
-Generated: **2026-09-22 14:34 PHT (UTC+08:00)**
+Generated: **2026-09-22 23:02 PHT (UTC+08:00)**
 
-This snapshot supersedes the 2026-09-22 13:42 PHT UI/UX checkpoint, preserved under `history/20260922-1342/`.
+This snapshot supersedes the 2026-09-22 14:34 PHT engineering-transition checkpoint, preserved under `history/20260922-1434/`.
 
 ## Phase
 
-**Architecture candidate -> engineering prototype + adversarial validation.**
+**Architecture hardening / pre-engineering. Product engineering is not authorized.**
 
-The architecture is sufficiently complete to begin implementation. Production-security claims remain blocked on deterministic wire/profile freeze, AccountControlState formal validation, production crypto integration, fuzzing/conformance, supply-chain gates and independent review.
+The 14:34 decision to begin engineering is intentionally reversed after a deeper cross-boundary feasibility audit found several expensive-to-retrofit protocol/state-machine gaps. No fatal blocker was found; the correct response is to close them before implementation creates inertia.
 
-## Major additions
+## Constitutional direction
 
-- engineering-agent start/handoff/repository instructions;
-- ClientHost + DeviceVault + origin migration model;
-- built-in multi-identity/profile isolation, with UI switcher later;
-- safe semantic RichTextV1;
-- hostile decrypted-content/link-preview security boundary;
-- message-deniability vs durable-control-signature direction;
-- LocalDataClass and local-first diagnostics;
-- deterministic-CBOR direction;
-- formal AccountControlState validation gate;
-- production crypto integration gate and 2026 security/crypto re-audit;
-- theme light/dark/Auto requirements and optional per-profile theme suggestions;
-- ADR-0059 through ADR-0068.
+OM is a gift to humanity: an open, independently implementable secure-messaging protocol whose users are not made dependent on the founder, SeedLife/lonunjie, a company, a cloud, an app store, or an official client. Businesses may participate and compete, but receive no protocol privilege.
 
-## Engineering source of truth
+See `PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`.
 
-Begin with `ENGINEER_START_HERE.md`. `ENGINEERING_HANDOFF.md` defines the execution work packages.
+## Major hardening additions
 
-## Highest-priority engineering gates
+- layered anti-capture licensing: MPL-2.0 core, AGPL-3.0-or-later reference network services, Apache-2.0 normative protocol/conformance artifacts, CC-BY-SA-4.0 documentation;
+- DCO/inbound-equals-outbound contribution model; no ordinary broad copyright-assignment/relicensing CLA;
+- SeedLife/lonunjie initial stewardship with explicit founder-only S0 custody and future succession rails;
+- asynchronous key-material publication as a first-class provider boundary;
+- independent one-to-one multi-device session-management state machine;
+- MLS same-epoch Commit ordering and OM GroupControlState↔MLS transition binding;
+- catastrophic relay reachability repair and immutable BlobID/mutable location repair;
+- unified time/expiry/clock semantics;
+- self-hosted ClientHost update/deployment lifecycle;
+- machine-enforced repository contract, architecture map, file registry and stewardship registry;
+- canonical cleanup: random algorithm-independent AccountID, one AccountControlState term, one current ProviderCapabilities schema.
 
-1. repository/trust-root bootstrap;
-2. deterministic encoding + golden vectors;
-3. AccountControlState TLA+ model;
-4. DeviceVault/Profile isolation;
-5. shared UI shell;
-6. personal Home/discovery vertical slice;
-7. event/rich-text vertical slice with dev-only crypto;
-8. hostile-content/fuzz/local-data lifecycle;
-9. dedicated production CryptoProfile integration/review.
+## Blocking architecture gates before engineering
+
+1. freeze CryptoProfile v1 and its asynchronous key-material semantics;
+2. freeze the one-to-one multi-device session state machine;
+3. select/prove MLS Commit ordering and atomic group-policy binding;
+4. freeze catastrophic reachability/blob-repair semantics;
+5. classify all canonical time/expiry fields and skew behavior;
+6. freeze ClientHost update/recovery architecture;
+7. complete protocol RF-patent contribution language and mixed-license legal review before broad public contributions;
+8. run the repository contract cleanly with no unclassified current files or canonical-definition drift;
+9. close every other question classified as architecture-blocking, or prove its interface is safely bounded.
+
+## Machine truth
+
+Run:
+
+```sh
+python3 tools/validate_architecture.py
+```
+
+A later accepted ADR must explicitly set `engineering_authorized=true` before `ENGINEER_START_HERE.md` becomes active.

@@ -1,6 +1,6 @@
 # OM Architecture Decision Records
 
-Checkpoint: 2026-09-22 14:34 PHT
+Checkpoint: 2026-09-22 23:02 PHT
 
 - [ADR-0001 — Providers Are Plugins](ADR-0001-provider-independence.md)
 - [ADR-0002 — Passwordless Device-First Identity](ADR-0002-device-first-identity.md)
@@ -70,3 +70,13 @@ Checkpoint: 2026-09-22 14:34 PHT
 - [ADR-0066 — AccountControlState formal model is an implementation gate](ADR-0066-accountcontrolstate-formal-model-is-an-implementation-gate.md)
 - [ADR-0067 — Architecture candidate enters engineering with production crypto gated](ADR-0067-architecture-candidate-enters-engineering-with-production-crypto-gated.md)
 - [ADR-0068 — Every theme supports light/dark auto; profile themes are optional identity-local UX](ADR-0068-every-theme-supports-light-dark-auto-profile-themes-are-optional-identity-local-ux.md)
+- [ADR-0069 — Architecture hardening precedes product engineering](ADR-0069-architecture-hardening-before-engineering.md)
+- [ADR-0070 — Use a layered anti-capture licensing and contribution model](ADR-0070-anti-capture-licensing-stack.md)
+- [ADR-0071 — Accept founder-only incubation while preparing succession rails](ADR-0071-founder-incubation-with-succession-rails.md)
+- [ADR-0072 — Asynchronous key material is a first-class replaceable provider capability](ADR-0072-async-key-material-is-first-class.md)
+- [ADR-0073 — One-to-one multi-device session management is a distinct protocol state machine](ADR-0073-one-to-one-session-manager.md)
+- [ADR-0074 — MLS groups require application commit ordering and OM-state binding](ADR-0074-mls-commit-ordering-and-group-binding.md)
+- [ADR-0075 — Separate normal routing from catastrophic reachability and blob-location repair](ADR-0075-reachability-and-blob-repair.md)
+- [ADR-0076 — All canonical time fields declare clock and authority semantics](ADR-0076-explicit-time-semantics.md)
+- [ADR-0077 — Self-hosted ClientHosts require an explicit update/deployment lifecycle](ADR-0077-clienthost-update-lifecycle.md)
+- [ADR-0078 — Architecture prose is backed by a machine-enforced repository contract](ADR-0078-machine-enforced-architecture-contract.md)

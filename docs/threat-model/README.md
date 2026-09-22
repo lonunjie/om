@@ -120,3 +120,17 @@ Provider independence improves survivability but does not make any single endpoi
 - **Diagnostic leakage:** default logs remain local/redacted and exclude secrets/capabilities/plaintext/push endpoints.
 - **Dependency/supply-chain compromise:** pin dependencies, generate provenance/SBOM, minimize runtime third-party code and enforce update trust floor.
 - **Authority-state implementation bug:** AccountControlState TLA+ model and model-derived regression scenarios gate production authority code.
+## 2026-09-22 architecture-hardening threats
+
+- **Key-material split-brain:** the same nominally one-time prekey/MLS KeyPackage is consumed independently through mirrored providers. Default mitigation: disjoint consumable pools per provider/failure domain.
+- **Multi-device session confusion:** stale/provider-invented device records or crossed initiations create encryption to unauthorized/wrong sessions. Authority must trace to AccountControlState; session management is explicit.
+- **MLS same-epoch fork:** two valid Commits race and different members accept different successors. Application-level canonical ordering/conflict handling is required.
+- **Group-policy/MLS divergence:** human role/membership state commits without matching MLS state or vice versa. Bind transitions atomically/cryptographically.
+- **Total known-route loss:** a peer misses RelaySet migration before every known route disappears. Use overlap/recovery rendezvous or explicitly require rediscovery; never leak normal capabilities globally.
+- **Stale blob locator:** late recipient knows BlobID but only dead provider location. Provide authenticated location repair independent from canonical message identity.
+- **Clock manipulation/skew:** TTL/HLC/wall-clock values accidentally become authority or resurrect expired state. Apply explicit clock classes; security sequencing remains cryptographic.
+- **Compromised PWA origin:** malicious same-origin code abuses DeviceVault operations/update checks. Treat origin as executable security boundary; migrate through an independently trusted path.
+- **Link-preview SSRF:** attacker URL reaches internal/private/metadata services or bypasses filters through redirects/rebinding. Enforce destination validation and strict resource bounds.
+- **False failure-domain diversity:** several providers declared “independent” share one account/operator/cloud/control plane. Treat declarations as hints and allow policy to require independently evidenced diversity.
+- **Steward capture:** project/business/forge ownership changes. Irrevocable licenses, public protocol artifacts, mirrors and forkability prevent project governance from becoming protocol authority.
+

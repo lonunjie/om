@@ -1,8 +1,19 @@
-# AGENTS.md — OM implementation/research rules
+# AGENTS.md — OM architecture/research rules (pre-engineering)
 
 ## Mission
 
 Build OM as a fast, simple, reliable secure messenger whose identity and canonical conversations survive provider and cryptographic replacement.
+
+
+## Read before any work
+
+1. `PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md` — constitutional intent.
+2. `ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md` — executable process/phase lock.
+3. `machine/repository_contract.json` — machine authority for checkpoint state.
+
+**Current rule:** product engineering is not authorized. Research, specification, formal modeling and bounded feasibility experiments may be used to harden architecture, but do not begin the product implementation plan or let a prototype silently freeze a wire/security choice.
+
+SeedLife/lonunjie is the initial steward, not protocol authority. Businesses may participate commercially but receive no hidden/mandatory protocol privilege.
 
 ## Absolute rules
 
@@ -33,6 +44,7 @@ At minimum:
 
 - `CryptoProvider` / `CryptoProfileRegistry`
 - `DirectoryProvider`
+- `KeyMaterialProvider`
 - `RelayProvider`
 - `PushProvider`
 - `BlobStore`
@@ -103,7 +115,7 @@ Agents must preserve these invariants:
 - Accessibility regressions in shared primitives are release-blocking.
 - Default UI prioritizes ergonomics/functionality and low visual noise; advanced capabilities use progressive disclosure.
 
-## Engineering-phase constraints — 2026-09-22 14:34
+## Future engineering constraints — retained, currently inactive
 
 - Read `ENGINEER_START_HERE.md` before coding.
 - Dev/test crypto MUST be unmistakably non-production and impossible to ship in a production configuration.
@@ -117,3 +129,22 @@ Agents must preserve these invariants:
 - Default diagnostics stay local and redact plaintext, keys, capabilities, auth tokens and push endpoints.
 - AccountControlState implementation does not merge until the formal model/invariants have corresponding CI coverage.
 - Every built-in theme has light+dark variants and Auto mode; theme/profile appearance cannot modify security semantics.
+
+## 2026-09-22 23:02 architecture-hardening rules
+
+- Canonical AccountID is random 256-bit stable data; never derive it from a device key or algorithm.
+- `AccountControlState` is the canonical account-authority object; do not resurrect a competing generic account-authority state.
+- Treat asynchronous handshake/MLS key publication as a first-class replaceable provider role; do not assume a crypto library/server hides it safely.
+- Do not mirror the same consumable one-time prekey/KeyPackage across independent providers without a reviewed atomic-consumption construction; default to disjoint provider pools.
+- 1:1 multi-device session management is a distinct state machine above the ratchet.
+- MLS does not choose a canonical same-epoch Commit for OM; define and test application ordering.
+- OM group-policy membership/role transitions and MLS epoch transitions must be cryptographically/atomically bound.
+- Relay migration must document the all-known-routes-dead case; do not publish ordinary private relay capabilities globally to paper over it.
+- Blob identity is stable; provider locators are mutable authenticated repair state.
+- Every TTL/time field must declare its clock class and skew/failure semantics. HLC is never constitutional authority.
+- PWA self-hosting requires an update/deployment lifecycle; same-origin JavaScript is not an independent trust root after origin compromise.
+- Link-preview fetchers are SSRF-sensitive infrastructure; private/link-local/metadata destinations, rebinding and redirect-to-private paths must be blocked.
+- Provider `failure_domain` metadata is an operational hint, never cryptographic proof of independence.
+- PWA LAN discovery/reachability is platform-capability-gated; native mDNS behavior is not promised universally on web.
+- Licensing follows `LICENSING_AND_CONTRIBUTION_POLICY.md`; normal contributions use DCO/inbound-equals-outbound, not broad copyright assignment.
+- Run `python3 tools/validate_architecture.py` before accepting a checkpoint.

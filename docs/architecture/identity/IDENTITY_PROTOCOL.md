@@ -30,36 +30,39 @@ Normal users can create an OM identity with only a display name and photo. High-
 
 `AccountID` is a stable, provider-independent identifier for one cryptographic account lineage.
 
-Recommended construction shape:
+Canonical construction:
 
 ```text
-AccountID = HASH(
-  "om-account-v1" ||
-  genesis_device_signing_public_key ||
-  random_nonce
-)
+AccountID = 256 bits of cryptographically secure random data
 ```
 
-Exact hash, encoding, and cryptographic primitives are deferred to the Crypto ADR.
+`AccountID` deliberately contains no public key, algorithm identifier, provider, domain, username, device identifier, or other structure whose replacement would force an identity migration. Encoding/domain rules are frozen separately from cryptographic credential choices.
 
-### AccountState
+### AccountControlState
+
+Account authority is defined by `ACCOUNT_CONTINUITY_AND_CONTROL.md` and the canonical `AccountControlState` object. There is no separate legacy account-authority object.
+
+Conceptually:
 
 ```text
-AccountState
+AccountControlState
   account_id
-  sequence
+  generation
   previous_state_hash
-  authorized_devices[]
-  recovery_policy_ref
-  profile_ref
-  capability_policy
-  created_at
-  signatures[]
+  active_control_devices[]
+  quarantined_control_devices[]
+  messaging_devices[]
+  permanently_revoked_devices[]
+  constitutional_policy
+  recovery_policy_commitment
+  minimum_crypto_profile
+  control_key_epochs
+  authorization_signatures[]
 ```
 
-State transitions are authorized by the prior state.
+State transitions are authorized by the **parent AccountControlState**, never by a larger timestamp/generation alone.
 
-OM SHOULD NOT copy one universal long-lived root private key onto every device merely for convenience. Authority is expressed through the currently authorized device/recovery policy.
+OM SHOULD NOT copy one universal long-lived root private key onto every device merely for convenience. Authority is expressed through currently authorized control credentials and configured recovery policy.
 
 ### DeviceIdentity
 
@@ -218,7 +221,7 @@ High-assurance users may require M-of-N approvals for selected critical transiti
 ```text
 install
  -> generate genesis device keys
- -> create AccountID + AccountState v1
+ -> create random AccountID + AccountControlState v1
  -> create signed DiscoveryCard/ProfileDocument
  -> optional alias
  -> progressively offer recovery
@@ -231,7 +234,7 @@ No password, email, or phone number is required by the OM protocol.
 ```text
 new device request
  -> trusted device/recovery approval
- -> AccountState advances
+ -> AccountControlState advances
  -> account/contact state sync
  -> secure groups enroll the new device according to group policy
 ```
@@ -239,7 +242,7 @@ new device request
 ### Revoke device
 
 ```text
-AccountState revokes device
+AccountControlState revokes device
  -> stop new per-device delivery
  -> remove from secure groups
  -> rotate affected delivery/session state
@@ -271,7 +274,7 @@ A v1 implementation may omit server-computed mutual counts entirely rather than 
 
 1. choose reviewed signature/hash/KEM primitives;
 2. canonical serialization;
-3. exact AccountState authorization/signature rules;
+3. exact AccountControlState authorization/signature rules;
 4. recovery cryptographic construction;
 5. directory transparency mechanism;
 6. privacy-preserving phone/email discovery if shipped;

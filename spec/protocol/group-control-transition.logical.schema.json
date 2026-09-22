@@ -1,0 +1,14 @@
+{
+  "$comment": "Logical binding between OM group policy state and MLS epoch transitions.",
+  "GroupControlTransition": {
+    "group_id": "stable group identifier",
+    "previous_group_state_hash": "canonical OM group-policy state hash",
+    "previous_mls_epoch": "MLS epoch expected by the transition",
+    "operation": "membership/role/policy operation",
+    "authorization": "OM group/account authorization evidence",
+    "mls_commit_hash": "hash/reference of associated MLS Commit",
+    "resulting_mls_epoch": "expected next accepted epoch",
+    "resulting_group_state_hash": "canonical resulting OM group-policy state hash"
+  },
+  "Rule": "Membership-affecting OM state and MLS state may not silently commit independently."
+}

@@ -1,3 +1,20 @@
+# 2026-09-22 23:02 PHT — architecture hardening / anti-capture checkpoint
+
+- superseded the 14:34 engineering transition; returned phase to architecture hardening / pre-engineering;
+- added canonical project philosophy/anti-capture constitution;
+- selected layered licensing/contribution direction: MPL core, AGPL reference network services, Apache normative protocol/conformance artifacts, CC BY-SA documentation, DCO/inbound-equals-outbound and no ordinary broad copyright assignment;
+- defined SeedLife/lonunjie as initial steward, with founder-only S0 custody accepted until trustworthy maintainers emerge and succession rails prepared now;
+- made asynchronous handshake/MLS key-material publication a first-class provider/state-machine boundary;
+- added one-to-one multi-device session management above the cryptographic ratchet;
+- added MLS same-epoch Commit ordering and atomic OM group-policy/MLS binding requirements;
+- added catastrophic RelaySet reachability recovery and stable BlobID/mutable BlobLocationRecord repair;
+- added unified clock/time/expiry semantics;
+- added self-hosted ClientHost update/deployment lifecycle;
+- canonicalized AccountID as random 256-bit stable data, AccountControlState terminology, and one current ProviderCapabilities schema;
+- added machine repository contract, architecture map/file registry/stewardship registry and executable drift validator;
+- added ADR-0069 onward and new requirements/open questions/protocol logical schemas;
+- preserved the complete 14:34 checkpoint under `history/20260922-1434/`.
+
 # 2026-09-22 13:42 PHT — shared UI / OwnMessenger design checkpoint
 
 - Added one shared `om-ui` architecture across PWA/iOS/Android/Desktop official clients.

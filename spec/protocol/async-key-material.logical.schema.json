@@ -1,0 +1,16 @@
+{
+  "$comment": "Logical architecture schema; exact wire fields are CryptoProfile-dependent and not frozen.",
+  "AsyncKeyMaterial": {
+    "subject_device_id": "opaque DeviceIdentity identifier",
+    "account_control_head": "binding/freshness evidence sufficient to validate subject authorization",
+    "crypto_profile": "versioned CryptoProfile identifier",
+    "generation": "monotonic device key-material generation",
+    "signed_prekey_material": "profile-defined authenticated public handshake material",
+    "post_quantum_prekey_material": "profile-defined PQ public handshake material when applicable",
+    "one_time_material": "provider-pool-scoped consumable items when applicable",
+    "fallback_material": "explicitly identified reusable fallback only when permitted by profile",
+    "expiry": "profile/policy-defined wall-clock expiry semantics",
+    "authorization": "DeviceIdentity/account binding"
+  },
+  "ProviderRule": "Consumable one-time material is disjoint across independent provider pools unless the selected reviewed profile proves safe shared-consumption semantics."
+}

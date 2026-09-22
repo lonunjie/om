@@ -208,7 +208,7 @@ Do not duplicate authoritative identity or group policy inside arbitrary chat ev
 
 Examples:
 
-- AccountState;
+- AccountControlState;
 - device authorization/revocation;
 - GroupState;
 - MLS membership epochs;
@@ -413,7 +413,7 @@ Clients may compact:
 
 once equivalent state is safely represented and backup/audit policy allows it.
 
-Do not compact away security-critical control history needed to validate AccountState, GroupState, recovery, or transparency chains.
+Do not compact away security-critical control history needed to validate AccountControlState, GroupState, recovery, or transparency chains.
 
 ## Gate-B adversarial/interop tests
 

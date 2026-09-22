@@ -1,0 +1,71 @@
+{
+  "snapshot": "2026-09-22T23:02:00+08:00",
+  "phase": "architecture_hardening_pre_engineering",
+  "engineering_authorized": false,
+  "engineering_unlock_requires": [
+    "accepted ADR explicitly authorizing engineering",
+    "all open questions with blocking_class=architecture_freeze resolved or reclassified by ADR with bounded-interface rationale",
+    "clean tools/validate_architecture.py run",
+    "one canonical current definition for security/authority/protocol objects"
+  ],
+  "constitution_files": [
+    "PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+    "ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md",
+    "LICENSING_AND_CONTRIBUTION_POLICY.md",
+    "PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+    "AGENTS.md"
+  ],
+  "machine_truth_files": [
+    "machine/repository_contract.json",
+    "machine/architecture_map.json",
+    "machine/file_registry.json",
+    "machine/stewardship.json",
+    "machine/decisions.jsonl",
+    "machine/requirements.jsonl",
+    "machine/open_questions.jsonl",
+    "MANIFEST.json"
+  ],
+  "canonical_identity": {
+    "account_id": "cryptographically random 256-bit stable identifier independent of keys/providers/aliases",
+    "account_authority_object": "AccountControlState",
+    "forbid_key_derived_account_id": true,
+    "forbid_competing_current_accountstate_authority": true
+  },
+  "schema_singletons": {
+    "ProviderCapabilities": "protocol/provider-capabilities.logical.schema.json"
+  },
+  "required_new_hardening_docs": [
+    "ASYNC_KEY_MATERIAL.md",
+    "ONE_TO_ONE_SESSION_MANAGEMENT.md",
+    "GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
+    "REACHABILITY_AND_OBJECT_REPAIR.md",
+    "TIME_AND_EXPIRY_SEMANTICS.md",
+    "CLIENTHOST_UPDATE_LIFECYCLE.md"
+  ],
+  "current_file_registry": "machine/file_registry.json",
+  "architecture_map": "machine/architecture_map.json",
+  "manifest_excludes": [
+    "MANIFEST.json"
+  ],
+  "history_roots": [
+    "history/"
+  ],
+  "license_policy": {
+    "shared_core_future": "MPL-2.0",
+    "reference_network_services_future": "AGPL-3.0-or-later",
+    "normative_protocol_and_conformance": "Apache-2.0",
+    "documentation": "CC-BY-SA-4.0",
+    "contributions": "DCO-1.1 + inbound-equals-outbound; no ordinary broad copyright assignment"
+  },
+  "validation_rules": [
+    "all current non-history files are classified in file_registry",
+    "all JSON/JSONL parses and IDs are unique within each machine record set",
+    "all ADR files are indexed",
+    "local markdown links resolve",
+    "only one current ProviderCapabilities schema exists",
+    "canonical AccountID is not key-derived",
+    "selected current authority docs do not define legacy competing account authority",
+    "engineering remains locked unless this contract and an ADR authorize it",
+    "manifest bytes/hashes match checkpoint contents"
+  ]
+}

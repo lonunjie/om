@@ -1,0 +1,13 @@
+{
+  "$comment": "Logical mutable location record for an immutable encrypted BlobID.",
+  "BlobLocationRecord": {
+    "blob_id": "stable encrypted-object identity/integrity reference",
+    "version": "monotonic/authenticated location-record version",
+    "previous_record_hash": "optional continuity link",
+    "locators": "one or more replaceable encrypted blob provider locations/capabilities",
+    "valid_from": "time semantics per TIME_AND_EXPIRY_SEMANTICS.md",
+    "overlap_until": "optional migration overlap",
+    "authorization": "conversation/account capability appropriate to the object"
+  },
+  "Rule": "Relocating an object does not change BlobID or canonical message identity."
+}

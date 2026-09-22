@@ -1,6 +1,6 @@
 # ADR-0067 — Architecture candidate enters engineering with production crypto gated
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0069
 - **Checkpoint:** 2026-09-22 14:34 PHT
 
 ## Decision

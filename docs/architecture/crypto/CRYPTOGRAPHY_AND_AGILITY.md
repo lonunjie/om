@@ -18,7 +18,7 @@ Recommended logical form:
 ```text
 AccountID = random 256-bit stable identifier
 
-AccountState(epoch N):
+AccountControlState(epoch N):
   AccountID
   CredentialSet
   authorized devices
@@ -175,3 +175,9 @@ Key engineering updates:
 - base MLS can use a reviewed library candidate such as OpenMLS behind OM storage/profile boundaries, while current PQ MLS draft suites remain `experimental`;
 - signed/control/event objects use bounded OM deterministic CBOR rather than JSON canonicalization;
 - ordinary messages do not gain a separate durable AccountID signature merely for evidence export.
+## 2026-09-22 architecture hardening
+
+CryptoProfile v1 must specify not only primitives/handshake/ratchet but also the public logical shape and lifecycle of asynchronous per-device handshake material. `ASYNC_KEY_MATERIAL.md` is part of Gate C.
+
+Multi-device session selection is outside the ratchet itself and is defined by `ONE_TO_ONE_SESSION_MANAGEMENT.md`. No production security claim is complete until both layers have conformance vectors and stale/replay/depletion/device-change tests.
+

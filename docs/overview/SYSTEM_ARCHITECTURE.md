@@ -211,3 +211,30 @@ IdentityHome (discovery/IntroGate/relay/blob providers)
 These are distinct. One client installation can later host several IdentityProfiles; each profile has independent keys/state/home bindings. PWA ClientHost/origin migration is authenticated device migration, not browser-database copying.
 
 Rich user content also has an explicit trust boundary: E2EE authentication tells OM who delivered bytes, not whether those bytes are safe to parse. RichTextV1 is inert semantic data and attachments remain untrusted until validated/decoded through safe platform paths.
+## Architecture hardening overlay — 2026-09-22 23:02
+
+The component map now includes explicit layers that were previously implicit:
+
+```text
+AccountControlState / DeviceIdentity
+        |
+        +--> KeyMaterialProvider --> per-device async handshake material / MLS KeyPackages
+        |
+        +--> OneToOneSessionManager --> device-to-device ratchet/session fanout
+        |
+        +--> GroupCommitOrdering + GroupControlTransition --> MLS epoch convergence
+
+Relationship state
+        +--> RelaySet normal routing
+        +--> ReachabilityRepair (only when known private routes are lost)
+
+Canonical message attachment
+        +--> immutable BlobID
+        +--> authenticated mutable BlobLocationRecord
+
+ClientHost
+        +--> release/update/deployment lifecycle separate from DeviceVault identity
+```
+
+Cross-cutting `TIME_AND_EXPIRY_SEMANTICS.md` classifies all TTL/clock fields. None of these new layers grants infrastructure identity authority.
+

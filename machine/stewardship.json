@@ -1,0 +1,49 @@
+{
+  "snapshot": "2026-09-22T23:02:00+08:00",
+  "maturity_stage": "S0_founder_incubation",
+  "umbrella": "SeedLife / lonunjie",
+  "intended_canonical_repository": "https://github.com/lonunjie/OM",
+  "single_person_custody": {
+    "accepted": true,
+    "reason": "Trustworthy co-stewards are added when they actually exist; the project does not manufacture false redundancy."
+  },
+  "roles": {
+    "founder_steward": {
+      "status": "active",
+      "holders": [
+        "founder-steward"
+      ]
+    },
+    "organization_owners": {
+      "status": "single_holder_incubation",
+      "target_stage_for_multi_person": "S2_public_production"
+    },
+    "om_maintainers": {
+      "status": "unpopulated_ready_role"
+    },
+    "security_response": {
+      "status": "unpopulated_ready_role"
+    },
+    "protocol_editors": {
+      "status": "unpopulated_ready_role"
+    },
+    "release_managers": {
+      "status": "unpopulated_ready_role"
+    },
+    "release_root_custodians": {
+      "status": "preproduction_single_holder_allowed",
+      "target_stage": "multi_party_threshold_by_S2"
+    },
+    "domain_dns_custodians": {
+      "status": "inventory_and_handoff_required_before_S2"
+    },
+    "app_distribution_custodians": {
+      "status": "only_if_official_native_distribution_exists"
+    }
+  },
+  "invariants": [
+    "No project role is encoded into AccountID or end-user protocol authority.",
+    "Adding/removing project stewards never requires end-user identity migration.",
+    "Existing open-source/protocol rights remain usable if canonical stewardship is captured or disappears."
+  ]
+}

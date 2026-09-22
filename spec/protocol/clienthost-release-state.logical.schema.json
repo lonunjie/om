@@ -1,0 +1,14 @@
+{
+  "$comment": "Logical self-hosted ClientHost deployment state; not OM account protocol state.",
+  "ClientHostReleaseState": {
+    "clienthost_id": "deployment-local identifier, never AccountID",
+    "release_version": "verified OM client release identifier",
+    "release_metadata_hash": "signed release metadata reference",
+    "deployment_generation": "host-local deployment generation",
+    "previous_release": "bounded rollback reference",
+    "service_worker_generation": "PWA cache/worker lifecycle state",
+    "minimum_security_version": "distribution-local emergency floor when configured",
+    "health": "local deployment health status"
+  },
+  "Rule": "ClientHost deployment state is replaceable infrastructure state and never identity authority."
+}

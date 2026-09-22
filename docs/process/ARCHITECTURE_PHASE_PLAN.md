@@ -7,7 +7,7 @@ Each gate produces an ADR, threat-model consequences, machine-readable decisions
 Selected direction: algorithm-independent AccountID, independent DeviceIdentity, local PersonRecord, aliases as claims, provider independence.
 
 Remaining:
-- canonical AccountState/credential epoch encoding;
+- canonical AccountControlState/credential epoch encoding;
 - recovery cryptographic construction;
 - credential-transition authorization across algorithm families.
 
@@ -116,15 +116,31 @@ Exit criteria before public production claims:
 - TUF-style rollback/freeze protections or equivalent;
 - reproducibility target documented/tested for supported platforms where feasible.
 
-## Engineering transition gate — 2026-09-22 14:34
+## Architecture-freeze gate — 2026-09-22 23:02
 
-Architecture is now an **architecture candidate** rather than an open-ended design exercise. Before wire/security freeze, engineering must close these final gates through executable evidence:
+The previous 14:34 decision to enter engineering is superseded. The project remains in **architecture hardening / pre-engineering**.
 
-1. deterministic CBOR + vectors;
-2. AccountControlState TLA+ model/invariants;
-3. DeviceVault/ClientHost/Profile isolation prototype;
-4. hostile-content/rich-text parser fuzzing;
-5. production CryptoProfile integration review;
-6. relay + 1:1 vertical slice.
+Before product engineering is authorized, the architecture must close or safely bound every issue capable of forcing a later incompatible security/wire/authority redesign. Blocking additions from the 23:02 audit are:
 
-Visual polish, public channels, SMS/RCS, enterprise policy, anonymity transports and theme marketplace do not block this transition.
+1. asynchronous per-device 1:1/MLS key-material publication, depletion and multi-provider consumption;
+2. explicit multi-device 1:1 session-management state machine;
+3. MLS same-epoch Commit ordering plus atomic OM GroupControlState↔MLS binding;
+4. RelaySet catastrophic-known-route-loss semantics;
+5. stable BlobID plus authenticated mutable BlobLocationRecord repair;
+6. one cross-protocol time/expiry/skew model;
+7. self-hosted ClientHost release/update/rollback/recovery lifecycle;
+8. protocol patent/RF contribution policy and mixed-license packaging review before broad contributions/public release;
+9. machine-enforced repository/architecture map with no unclassified current files.
+
+### Engineering authorization criteria
+
+A later checkpoint may authorize engineering only when:
+
+- every blocking architecture open question is resolved or explicitly proven bounded/non-blocking;
+- normative terminology/schemas expose one canonical current definition;
+- security-critical provider/state-machine interfaces have adversarial failure semantics;
+- external feasibility assumptions have current authoritative evidence;
+- `python3 tools/validate_architecture.py` passes;
+- an accepted ADR explicitly changes `engineering_authorized` to true.
+
+Feasibility prototypes/formal models used only to answer architecture questions are permitted; they must not create accidental production commitments.

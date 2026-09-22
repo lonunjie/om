@@ -1,5 +1,7 @@
 # OM Implementation Roadmap
 
+> **CURRENT STATUS — ROADMAP NOT AUTHORIZED:** This is the intended implementation order after architecture freeze. The 2026-09-22 23:02 checkpoint remains pre-engineering. Architecture work may use bounded feasibility experiments, but must not begin this roadmap as product implementation.
+
 ## Guiding rule
 
 Build the secure OM-native product first. Add integrations only after the abstraction they depend on is proven.

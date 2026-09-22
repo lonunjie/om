@@ -1,9 +1,9 @@
 # OM Engineering — Start Here
 
-**Checkpoint:** 2026-09-22 14:34 PHT (UTC+08:00)  
-**Phase:** Architecture candidate -> engineering prototype + adversarial validation
+**Checkpoint:** 2026-09-22 23:02 PHT (UTC+08:00)  
+**Phase:** FUTURE HANDOFF — engineering not authorized by this checkpoint
 
-This repository is the canonical handoff to an engineering/coding agent. The design phase is intentionally being closed. Do not reopen settled architectural questions merely because a different implementation is easier.
+This file is retained so the future transition is explicit, but the current repository is **not yet an engineering handoff**. Architecture hardening remains active. Do not begin the product vertical slice until a later ADR sets `engineering_authorized=true` in `machine/repository_contract.json` and the architecture validator passes.
 
 ## Mission
 
@@ -59,7 +59,7 @@ Engineering may initially use a clearly named **DEV-ONLY CryptoProvider** to unb
 
 Production cryptography is blocked by `PRODUCTION_CRYPTO_INTEGRATION_GATE.md`.
 
-## First engineering milestone
+## Future first engineering milestone (inactive until authorization)
 
 The first milestone is not “build a beautiful messenger.” It is:
 

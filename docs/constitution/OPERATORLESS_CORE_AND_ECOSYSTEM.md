@@ -145,3 +145,9 @@ The architecture aims for **scoped custody + scoped responsibility**:
 - the protocol project does not obtain operational custody merely because implementations conform to OM.
 
 Exact legal classification is jurisdiction-specific and must not be inferred from architecture alone.
+## 2026-09-22 anti-capture constitution
+
+`PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`, `LICENSING_AND_CONTRIBUTION_POLICY.md`, and `PROJECT_STEWARDSHIP_AND_CONTINUITY.md` are canonical.
+
+SeedLife/lonunjie is the initial project steward, not a protocol service or identity authority. Commercial providers/clients are welcome but receive no hidden compatibility privilege. The legal/technical right to implement and fork published OM versions must survive capture or disappearance of the canonical steward.
+

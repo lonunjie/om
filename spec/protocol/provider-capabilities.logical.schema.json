@@ -1,47 +1,29 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OM ProviderCapabilities logical draft",
-  "type": "object",
-  "required": [
-    "provider_id",
-    "capabilities"
-  ],
-  "properties": {
-    "provider_id": {
-      "type": "string"
-    },
-    "capabilities": {
-      "type": "object",
-      "properties": {
-        "relay": {
-          "type": "boolean"
-        },
-        "introduction": {
-          "type": "boolean"
-        },
-        "blob_store": {
-          "type": "boolean"
-        },
-        "backup": {
-          "type": "boolean"
-        },
-        "recovery_store": {
-          "type": "boolean"
-        },
-        "group_broadcast": {
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": true
-    },
-    "limits": {
-      "type": "object"
-    },
-    "metadata_exposure": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    }
-  }
+  "$comment": "Canonical logical ProviderCapabilities schema for the 2026-09-22 architecture-hardening checkpoint.",
+  "ProviderCapabilities": {
+    "provider_kind": [
+      "directory",
+      "discovery_relay",
+      "intro_gate",
+      "key_material",
+      "transparency_witness",
+      "relay",
+      "push",
+      "blob",
+      "backup",
+      "recovery",
+      "media",
+      "transport",
+      "link_preview"
+    ],
+    "features": "versioned feature identifiers",
+    "health": "abstract availability/latency state",
+    "quota_state": "abstract remaining/limit/reset/hard-vs-billable behavior",
+    "cost_state": "configured/estimated cost and budget compatibility",
+    "failure_domain": "declared operator/cloud/account/region/ASN-like hints used by local policy; never trusted as cryptographic proof of independence",
+    "privacy_properties": "declared metadata/trust characteristics including oblivious lookup support where applicable",
+    "abuse_controls": "declared admission/rate-limit/ticket capabilities where applicable",
+    "security_properties": "declared provider-local security features; not protocol authority"
+  },
+  "Rule": "Protocol core branches on capabilities/policy, not vendor name. Co-hosted provider roles remain logically separable and failure-domain declarations are hints, not trusted security identity."
 }

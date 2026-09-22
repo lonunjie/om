@@ -105,3 +105,9 @@ The user normally sees none of this.
 ## 8. Cloudflare
 
 Cloudflare Workers/Durable Objects can implement one relay. A different provider or self-hosted implementation can implement another. OM wire semantics must remain identical.
+## 2026-09-22 hardening — migration overlap and catastrophic reachability
+
+RelaySet rotation now explicitly distinguishes normal overlap from the case where every route a peer knows disappears before it receives the new set. `REACHABILITY_AND_OBJECT_REPAIR.md` is canonical for this failure.
+
+RelaySet version/continuity/overlap semantics are required. A separately configured authenticated recovery rendezvous may assist catastrophic repair, but OM does not solve the problem by globally publishing normal private delivery capabilities. Without any surviving route or recovery rendezvous, manual rediscovery is an explicit liveness limitation.
+

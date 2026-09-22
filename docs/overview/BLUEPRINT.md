@@ -219,6 +219,12 @@ OwnMessenger personalization is first-class: users can install declarative theme
 
 See `UI_UX_SYSTEM.md`, `MOTION_AND_PERFORMANCE.md`, `THEMES_FONTS_AND_PERSONALIZATION.md`, `ACCESSIBILITY_AND_INPUT.md`, and `UI_CORE_PLATFORM_CONTRACT.md`.
 
-## 2026-09-22 engineering transition
+## 2026-09-22 23:02 architecture hardening
 
-The remaining expensive-to-retrofit boundaries are now selected: ClientHost/DeviceVault/Profile isolation, RichTextV1, hostile-content handling, deterministic CBOR, deniability vs durable control signatures, LocalDataClass and formal AccountControlState validation. Engineering begins from `ENGINEER_START_HERE.md`; new architectural changes should be driven by implementation measurements/adversarial findings rather than open-ended redesign.
+The earlier engineering transition is superseded. OM remains pre-engineering while the remaining expensive-to-retrofit state-machine boundaries are specified.
+
+New first-class architecture components are `ASYNC_KEY_MATERIAL.md`, `ONE_TO_ONE_SESSION_MANAGEMENT.md`, `GROUP_COMMIT_AND_STATE_CONVERGENCE.md`, `REACHABILITY_AND_OBJECT_REPAIR.md`, `TIME_AND_EXPIRY_SEMANTICS.md`, and `CLIENTHOST_UPDATE_LIFECYCLE.md`.
+
+Project-level anti-capture/continuity is defined by `PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`, `LICENSING_AND_CONTRIBUTION_POLICY.md`, and `PROJECT_STEWARDSHIP_AND_CONTINUITY.md`. The canonical project is intended to live under SeedLife/lonunjie while remaining technically and legally forkable if stewardship fails.
+
+Architecture prose is backed by `machine/repository_contract.json`, `machine/architecture_map.json`, `machine/file_registry.json`, and `tools/validate_architecture.py`. Product engineering starts only after a future architecture-freeze ADR deliberately unlocks it.

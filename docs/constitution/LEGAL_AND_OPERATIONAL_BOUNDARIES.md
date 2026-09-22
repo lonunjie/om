@@ -96,3 +96,9 @@ The objective is not legal evasion. It is architectural honesty:
 - don't centralize operational authority unnecessarily;
 - comply with valid obligations attached to the role actually operated;
 - keep protocol security independent of any one operator's legal jurisdiction.
+## 2026-09-22 licensing / project-custody boundary
+
+Project stewardship, source copyright, protocol implementation rights, trademarks and runtime-provider obligations are separate. `LICENSING_AND_CONTRIBUTION_POLICY.md` defines the open licensing architecture; `PROJECT_STEWARDSHIP_AND_CONTINUITY.md` defines founder-incubation and later custody.
+
+A future trademark may distinguish canonical/official distributions but cannot be required for protocol interoperability. Before broad public contributions, protocol-specific royalty-free patent contribution language and mixed-license packaging receive legal review.
+

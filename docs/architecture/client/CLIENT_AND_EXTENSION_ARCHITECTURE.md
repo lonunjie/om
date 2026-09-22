@@ -138,7 +138,7 @@ The browser client must still be treated as a distinct security/runtime environm
 ```text
 Browser install/profile
  -> DeviceIdentity
- -> independently authorized by AccountState
+ -> independently authorized by AccountControlState
  -> independently revocable
 ```
 

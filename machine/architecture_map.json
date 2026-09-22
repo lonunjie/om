@@ -1,0 +1,412 @@
+{
+  "snapshot": "2026-09-22T23:02:00+08:00",
+  "domains": {
+    "constitution_governance": {
+      "docs": [
+        "PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+        "LICENSING_AND_CONTRIBUTION_POLICY.md",
+        "PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+        "OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+        "PRIVACY_GOVERNANCE_AUTHORITY.md",
+        "LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
+        "PROTOCOL_EXTENSIBILITY.md"
+      ],
+      "schemas": [
+        "protocol/client-distribution.logical.schema.json",
+        "protocol/protocol-extension.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0042",
+        "ADR-0043",
+        "ADR-0048",
+        "ADR-0049",
+        "ADR-0050",
+        "ADR-0069",
+        "ADR-0070",
+        "ADR-0071",
+        "ADR-0078"
+      ],
+      "questions": [
+        "Q-013",
+        "Q-023",
+        "Q-027",
+        "Q-033",
+        "Q-034",
+        "Q-035",
+        "Q-057",
+        "Q-058"
+      ]
+    },
+    "identity_control_recovery": {
+      "docs": [
+        "IDENTITY_PROTOCOL.md",
+        "IDENTITY_CONTINUITY.md",
+        "ACCOUNT_CONTINUITY_AND_CONTROL.md",
+        "RECOVERY_AND_BACKUP_POLICY.md",
+        "IDENTITY_DISCOVERY_VERIFICATION.md",
+        "IDENTIFIER_SPOOFING_AND_DISPLAY.md"
+      ],
+      "schemas": [
+        "protocol/account-control-state.logical.schema.json",
+        "protocol/account-control-head.logical.schema.json",
+        "protocol/recovery-policy.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0002",
+        "ADR-0003",
+        "ADR-0010",
+        "ADR-0026",
+        "ADR-0027",
+        "ADR-0028",
+        "ADR-0029",
+        "ADR-0030",
+        "ADR-0066"
+      ],
+      "questions": [
+        "Q-003",
+        "Q-004",
+        "Q-020",
+        "Q-021"
+      ]
+    },
+    "crypto_1to1": {
+      "docs": [
+        "CRYPTOGRAPHY_AND_AGILITY.md",
+        "PRODUCTION_CRYPTO_INTEGRATION_GATE.md",
+        "ASYNC_KEY_MATERIAL.md",
+        "ONE_TO_ONE_SESSION_MANAGEMENT.md",
+        "MULTI_DEVICE_SYNC.md",
+        "CANONICAL_ENCODING.md"
+      ],
+      "schemas": [
+        "protocol/crypto-profile.logical.schema.json",
+        "protocol/async-key-material.logical.schema.json",
+        "protocol/one-to-one-session-state.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0011",
+        "ADR-0063",
+        "ADR-0065",
+        "ADR-0067",
+        "ADR-0072",
+        "ADR-0073"
+      ],
+      "questions": [
+        "Q-001",
+        "Q-005",
+        "Q-007",
+        "Q-044",
+        "Q-045",
+        "Q-049",
+        "Q-050"
+      ]
+    },
+    "groups": {
+      "docs": [
+        "GROUP_CHAT_ARCHITECTURE.md",
+        "GROUP_COMMIT_AND_STATE_CONVERGENCE.md"
+      ],
+      "schemas": [
+        "protocol/group-control-transition.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0006",
+        "ADR-0074"
+      ],
+      "questions": [
+        "Q-002",
+        "Q-051",
+        "Q-052"
+      ]
+    },
+    "discovery_first_contact": {
+      "docs": [
+        "DISCOVERY_FABRIC.md",
+        "INVITES_INTROGATE_AND_SPAM.md",
+        "CONTACT_SHARING.md",
+        "INTRODUCTION_AND_SERVICE_ACCOUNTS.md",
+        "KEY_TRANSPARENCY_AND_DIRECTORY.md"
+      ],
+      "schemas": [
+        "protocol/contact-descriptor.logical.schema.json",
+        "protocol/contact-capsule.logical.schema.json",
+        "protocol/discovery-provider.logical.schema.json",
+        "protocol/invite.logical.schema.json",
+        "protocol/introduction-ticket.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0004",
+        "ADR-0019",
+        "ADR-0020",
+        "ADR-0021",
+        "ADR-0025",
+        "ADR-0033",
+        "ADR-0040"
+      ],
+      "questions": [
+        "Q-014",
+        "Q-015",
+        "Q-016"
+      ]
+    },
+    "relay_reachability": {
+      "docs": [
+        "RELAY_AND_DELIVERY_ARCHITECTURE.md",
+        "MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
+        "REACHABILITY_AND_OBJECT_REPAIR.md"
+      ],
+      "schemas": [
+        "protocol/relay-set.logical.schema.json",
+        "protocol/reachability-recovery.logical.schema.json",
+        "protocol/provider-capabilities.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0012",
+        "ADR-0022",
+        "ADR-0075"
+      ],
+      "questions": [
+        "Q-006",
+        "Q-017",
+        "Q-053",
+        "Q-061"
+      ]
+    },
+    "storage_retention": {
+      "docs": [
+        "STORAGE_AND_BLOB_ARCHITECTURE.md",
+        "DISAPPEARING_MESSAGES_AND_RETENTION.md",
+        "LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md",
+        "REACHABILITY_AND_OBJECT_REPAIR.md"
+      ],
+      "schemas": [
+        "protocol/blob-location-record.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0005",
+        "ADR-0035",
+        "ADR-0041",
+        "ADR-0064",
+        "ADR-0075"
+      ],
+      "questions": [
+        "Q-008",
+        "Q-026",
+        "Q-047",
+        "Q-054"
+      ]
+    },
+    "time_ordering_events": {
+      "docs": [
+        "EVENT_MODEL.md",
+        "TIME_AND_EXPIRY_SEMANTICS.md",
+        "CANONICAL_ENCODING.md"
+      ],
+      "schemas": [
+        "protocol/conversation-event.logical.schema.json",
+        "protocol/message-create.logical.schema.json",
+        "protocol/time-semantics.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0008",
+        "ADR-0065",
+        "ADR-0076"
+      ],
+      "questions": [
+        "Q-005",
+        "Q-026",
+        "Q-045",
+        "Q-055"
+      ]
+    },
+    "calls_media": {
+      "docs": [
+        "CALLS_AND_REALTIME_MEDIA.md"
+      ],
+      "schemas": [
+        "protocol/call-session.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0013"
+      ],
+      "questions": [
+        "Q-010",
+        "Q-031"
+      ]
+    },
+    "network_lan_transport": {
+      "docs": [
+        "LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md",
+        "CENSORSHIP_AND_NETWORK_RESILIENCE.md",
+        "TRANSPORT_ADAPTERS_AND_INTEROP.md"
+      ],
+      "schemas": [
+        "protocol/transport-adapter.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0015",
+        "ADR-0016",
+        "ADR-0023",
+        "ADR-0024"
+      ],
+      "questions": [
+        "Q-011",
+        "Q-018",
+        "Q-019",
+        "Q-060"
+      ]
+    },
+    "client_endpoint_distribution": {
+      "docs": [
+        "PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md",
+        "PWA_REFERENCE_CLIENT.md",
+        "CLIENT_AND_EXTENSION_ARCHITECTURE.md",
+        "DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md",
+        "MULTI_IDENTITY_AND_PROFILE_ISOLATION.md",
+        "CLIENTHOST_UPDATE_LIFECYCLE.md",
+        "NOTIFICATIONS_AND_PUSH.md"
+      ],
+      "schemas": [
+        "protocol/clienthost-release-state.logical.schema.json",
+        "protocol/notification-policy.logical.schema.json",
+        "client/device-vault.logical.schema.json",
+        "client/identity-profile.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0007",
+        "ADR-0038",
+        "ADR-0044",
+        "ADR-0045",
+        "ADR-0059",
+        "ADR-0060",
+        "ADR-0077"
+      ],
+      "questions": [
+        "Q-025",
+        "Q-029",
+        "Q-030",
+        "Q-031",
+        "Q-043",
+        "Q-047",
+        "Q-056"
+      ]
+    },
+    "content_abuse_evidence": {
+      "docs": [
+        "RICH_TEXT_AND_CONTENT_SECURITY.md",
+        "ABUSE_SAFETY_AND_REPORTING.md",
+        "EVIDENCE_AND_EXTERNAL_REPORTING.md"
+      ],
+      "schemas": [
+        "protocol/rich-text.logical.schema.json",
+        "design/rich-text.logical.schema.json",
+        "protocol/evidence-package.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0017",
+        "ADR-0047",
+        "ADR-0061",
+        "ADR-0062",
+        "ADR-0063"
+      ],
+      "questions": [
+        "Q-009",
+        "Q-032",
+        "Q-046",
+        "Q-059"
+      ]
+    },
+    "provider_deployment_supply_chain": {
+      "docs": [
+        "PROVISIONING_AND_BOOTSTRAP.md",
+        "CLOUDFLARE_REFERENCE_DEPLOYMENT.md",
+        "SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
+        "IMPLEMENTATION_INTERFACES.md"
+      ],
+      "schemas": [
+        "protocol/provider-capabilities.logical.schema.json",
+        "protocol/provisioning-method.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0014",
+        "ADR-0018",
+        "ADR-0031",
+        "ADR-0032",
+        "ADR-0034",
+        "ADR-0036",
+        "ADR-0046",
+        "ADR-0049"
+      ],
+      "questions": [
+        "Q-012",
+        "Q-022",
+        "Q-023",
+        "Q-036",
+        "Q-061"
+      ]
+    },
+    "ux_accessibility_personalization": {
+      "docs": [
+        "PRODUCT_AND_UX_PRINCIPLES.md",
+        "UI_UX_SYSTEM.md",
+        "UI_CORE_PLATFORM_CONTRACT.md",
+        "ACCESSIBILITY_AND_INPUT.md",
+        "MOTION_AND_PERFORMANCE.md",
+        "THEMES_FONTS_AND_PERSONALIZATION.md",
+        "SECURITY_PRIVACY_PROFILES.md"
+      ],
+      "schemas": [
+        "protocol/security-profile.logical.schema.json",
+        "design/theme-bundle.logical.schema.json",
+        "design/ui-tokens.example.json"
+      ],
+      "adrs": [
+        "ADR-0037",
+        "ADR-0051",
+        "ADR-0052",
+        "ADR-0053",
+        "ADR-0054",
+        "ADR-0055",
+        "ADR-0056",
+        "ADR-0057",
+        "ADR-0058",
+        "ADR-0068"
+      ],
+      "questions": [
+        "Q-024",
+        "Q-037",
+        "Q-038",
+        "Q-039",
+        "Q-040",
+        "Q-041",
+        "Q-042",
+        "Q-048"
+      ]
+    },
+    "architecture_process": {
+      "docs": [
+        "README.md",
+        "SNAPSHOT.md",
+        "BLUEPRINT.md",
+        "SYSTEM_ARCHITECTURE.md",
+        "DESIGN_RATIONALE_AND_DISCUSSION_SYNTHESIS.md",
+        "LEAN_ARCHITECTURE_RULES.md",
+        "ARCHITECTURE_PHASE_PLAN.md",
+        "ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md",
+        "AGENTS.md",
+        "FORMAL_VERIFICATION_AND_FUZZING.md",
+        "ENGINEER_START_HERE.md",
+        "ENGINEERING_HANDOFF.md",
+        "ENGINEERING_REPOSITORY_LAYOUT.md",
+        "IMPLEMENTATION_ROADMAP.md"
+      ],
+      "schemas": [],
+      "adrs": [
+        "ADR-0066",
+        "ADR-0069",
+        "ADR-0078"
+      ],
+      "questions": []
+    }
+  }
+}
