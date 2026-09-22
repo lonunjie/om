@@ -1,74 +1,77 @@
 # Messenger Baseline and Ecosystem Architecture Queue
 
-- **Status:** Architecture design queue; intentionally unresolved before engineering
-- **Checkpoint:** 2026-09-23 05:45 PHT
+- **Status:** Canonical architecture queue/index; first messenger/community pass partially resolved
+- **Checkpoint:** 2026-09-23 06:15 PHT
 
-OM must be both a rigorous secure protocol and a messenger ordinary people actually want to use. The questions in `machine/architecture_design_queue.jsonl` therefore block the engineering transition until their protocol-impacting boundaries are decided.
+OM must be both a rigorous secure protocol and a messenger ordinary people actually want to use. Architecture-design items remain blocking until their protocol-impacting boundaries are decided; product wishes that do not affect those boundaries should not masquerade as architecture blockers.
 
-## Current provisional direction
+## Resolved in the 06:15 hardening pass
 
-### Stickers and GIF-like animation: yes
+The following queue items now have canonical architecture decisions:
 
-Stickers are now ordinary messenger language, not a niche add-on. OM should support portable external packs, easy install-from-message/share, emoji/keyword association, recents/favorites and static/animated/video artwork. Telegram's strongest lesson is not one codec; it is the **open creator loop**: anyone can create, pack, share and install artwork, with emoji acting as a fast discovery surface.
+| Queue item | Resolution |
+|---|---|
+| A-005 communities | `Space` is an organizational/control container over independent Rooms/Publications; membership does not silently inherit. |
+| A-006 broadcast | Private announcement = permission-restricted MLS Room; public one-to-many = separate signed `Publication`; no new massive-private-broadcast crypto in V1. |
+| A-007 permissions | Capability-scoped authority; roles are bundles; explicit restrictions win; delegation ceilings prevent self-escalation; no required magical owner/Admin bypass. |
+| A-008 topics_threads | Replies + lightweight threads + persistent room-local Topics form a layered model; Topics are not sub-Rooms/MLS groups. |
+| A-010 baseline_product | First-release user expectations and local/network semantic boundaries are frozen in `MESSENGER_BASELINE_V1.md`. |
 
-Generic “GIF” UX should also exist, but OM should model it semantically as looping animation/media so clients can use efficient safe codecs rather than making the legacy GIF codec a protocol requirement. Search is an optional `MediaSearchProvider`, not a mandatory central Giphy/Tenor dependency.
+Canonical detail lives in:
 
-### External packs: yes
+- `MESSENGER_BASELINE_V1.md`
+- `SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md`
+- `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`
+- updated `GROUP_CHAT_ARCHITECTURE.md` and `EVENT_MODEL.md`
 
-A pack should be a signed/integrity-addressed portable manifest plus bounded resources, installable from a direct OM link/QR/file/provider. The OM Project does not need to host a global sticker store. Independent creators, communities and catalogs can host packs.
+## Cross-product synthesis behind the decision
 
-A pack signature proves provenance/integrity, not that SeedLife verified ownership. Manifests should carry optional author/license/attribution/source fields and make copying/forking explicit where permitted.
+The design deliberately takes patterns rather than copying products:
 
-### Paid packs: keep commerce outside Core
+- **Discord:** useful evidence for role/channel granularity and forum organization, but OM avoids an always-privileged creator plus an allow/deny override maze as protocol fundamentals.
+- **Telegram:** useful separation of groups, broadcast channels and 2026 Communities that link distinct groups/channels/bots.
+- **Matrix:** strong precedent for Spaces containing independent Rooms and for membership-conditioned joins; OM does not adopt a mandatory homeserver authority model.
+- **Zulip:** strong precedent for persistent topics plus per-user follow/mute organization in busy conversation.
+- **WhatsApp Communities:** useful simple mental model for umbrella community + announcements.
 
-OM should not issue a token, process payments, custody funds or become merchant-of-record simply to let artists sell artwork. The architecture queue will evaluate a generic optional entitlement proof/provider interface so a creator or marketplace can unlock a pack after an external transaction.
-
-A decentralized payment rail is **not** a baseline messenger feature. Operating one can add payment, fraud, refund, tax, sanctions, app-store and security obligations far beyond messaging, depending on the role and jurisdiction. If users later want a particular payment system, it should arrive through a separately operated plugin/provider with explicit trust and jurisdiction boundaries.
-
-### Bots and LLMs: first-class but explicit
-
-OpenMessenger means independent clients and agents are welcome. LLMs should use the same explicit service-principal model as bots: scoped capabilities, visible installation, minimum context, revocation, and a clear distinction between local/private inference and a remote service receiving plaintext.
-
-### Groups, communities and broadcasts
-
-Do not copy one product wholesale:
-
-- **Discord:** learn from roles, scoped channel permissions, apps/commands and persistent forum channels.
-- **Telegram:** learn from separate broadcast channels vs interactive groups, scalable topics, expressive media, and its 2026 Communities model that links distinct groups/channels/bots without collapsing them into one chat.
-- **Matrix:** learn from Spaces as containers of independent rooms and globally namespaced extensible event concepts, while avoiding a mandatory homeserver in OM.
-- **Zulip:** learn from persistent topic organization and follow/mute semantics for high-volume conversation.
-- **WhatsApp Communities:** learn from a simple umbrella + announcements mental model for non-technical users.
-
-The likely OM shape is a composable hierarchy:
+The resulting OM shape is:
 
 ```text
-Identity / Organization
-        |
-   Space / Community        optional organizational container
-     /     |      \
-  Room   Room    Room        independent conversation/security objects
-   |       |       |
- chat   broadcast  forum/topic-capable
+Space / Community                 organizational/control container
+   |
+   +-- Room (ConversationID)      interactive; private V1 uses MLS
+   +-- Room (ConversationID)      independent membership/security
+   +-- Publication (PublicationID) signed public one-to-many feed
+   +-- nested Space
 ```
 
-But membership inheritance, role scoping, MLS relationships, public publication and topic semantics remain queued because those choices affect the wire/control model.
+## Still blocking before engineering
 
-### Broadcast channels: likely yes, but separate semantics
+The first pass intentionally does **not** pretend it resolved adjacent security surfaces:
 
-A private encrypted group and a public publication feed are not the same trust/legal surface. OM should be able to support one-to-many publication without forcing all users into a social network or requiring SeedLife to operate discovery/moderation. Public discovery and hosting are optional provider roles.
+| Queue item | Remaining architecture question |
+|---|---|
+| A-001 expressive_media | Safe canonical sticker/animation media types, formats/transcoding, custom reactions and offline behavior. |
+| A-002 content_packs | Portable signed/integrity-addressed pack manifests, updates/forks, resource limits, provenance/licensing. |
+| A-003 creator_commerce | Whether to standardize generic entitlement proof semantics while keeping settlement/marketplaces external. |
+| A-004 bots_agents | Typed service principals, installation, commands, selected-context disclosure, local vs remote LLMs, streaming/automation/revocation. |
+| A-009 plugin_ecosystem | Sandboxed client/protocol/provider plugin capabilities, signing, permissions, UI surfaces and anti-fragmentation rules. |
+| A-011 interop_bridges | External-network mapping, loops, edits/deletes/reactions fidelity, explicit plaintext/E2EE-end UI and identity mapping. |
+| A-012 import_export_escape | Portable export/migration/provenance and user escape from clients/providers without SeedLife dependence. |
+| A-013 metadata_threat_model | Dedicated timing/graph/group/link/push/blob/migration metadata analysis and selective-disclosure boundaries. |
+| A-014 decentralized_abuse_moderation | Blocking/reporting/spam/bans/appeals/admin abuse/operator exposure without a universal moderator. |
+| A-015 protocol_longevity | 20-year dependency/crypto/registry/client-dominance/protocol-generation/EEE survival and migration. |
 
-## Why these remain in the architecture queue
+## Guardrail
 
-The above directions are strong, but details can affect:
+Resolved community/baseline architecture may be extended by those remaining items, but they may not reintroduce:
 
-- canonical event types;
-- group/control authority;
-- MLS membership and scaling;
-- bot plaintext access;
-- public-content legal/operator boundaries;
-- extension criticality;
-- pack/parser attack surface;
-- app-store commerce rules;
-- interoperability expectations.
+- a mandatory OM homeserver or global moderator;
+- provider-owned Room identity;
+- silent plaintext readers;
+- hidden transitive authority from Space nesting;
+- a permanent vendor/creator superuser;
+- cross-conversation private tracking identifiers;
+- payment/marketplace operation as a requirement for OM Core.
 
-OM will decide those before product engineering starts rather than retrofit them after the event model hardens.
+Engineering remains unauthorized while the remaining blocking design items and verification gates are open.

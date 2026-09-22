@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-23T05:45:00+08:00",
+  "snapshot": "2026-09-23T06:15:00+08:00",
   "domains": {
     "constitution_governance": {
       "docs": [
@@ -50,6 +50,9 @@
         "PR-003",
         "PR-004",
         "PR-005"
+      ],
+      "design_queue": [
+        "A-015"
       ]
     },
     "identity_control_recovery": {
@@ -119,19 +122,29 @@
     "groups": {
       "docs": [
         "GROUP_CHAT_ARCHITECTURE.md",
-        "GROUP_COMMIT_AND_STATE_CONVERGENCE.md"
+        "GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
+        "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
+        "SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md"
       ],
       "schemas": [
-        "protocol/group-control-transition.logical.schema.json"
+        "protocol/group-control-transition.logical.schema.json",
+        "protocol/capability-grant.logical.schema.json"
       ],
       "adrs": [
         "ADR-0006",
-        "ADR-0074"
+        "ADR-0074",
+        "ADR-0084",
+        "ADR-0085",
+        "ADR-0086"
       ],
       "resolved_questions": [
         "Q-002",
         "Q-051",
         "Q-052"
+      ],
+      "verification_gates": [
+        "V-004",
+        "V-008"
       ]
     },
     "discovery_first_contact": {
@@ -215,23 +228,32 @@
       "docs": [
         "EVENT_MODEL.md",
         "TIME_AND_EXPIRY_SEMANTICS.md",
-        "CANONICAL_ENCODING.md"
+        "CANONICAL_ENCODING.md",
+        "MESSENGER_BASELINE_V1.md",
+        "SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md"
       ],
       "schemas": [
         "protocol/conversation-event.logical.schema.json",
         "protocol/message-create.logical.schema.json",
-        "protocol/time-semantics.logical.schema.json"
+        "protocol/time-semantics.logical.schema.json",
+        "protocol/topic-state.logical.schema.json",
+        "protocol/baseline-conversation-actions.logical.schema.json"
       ],
       "adrs": [
         "ADR-0008",
         "ADR-0065",
-        "ADR-0076"
+        "ADR-0076",
+        "ADR-0087",
+        "ADR-0088"
       ],
       "resolved_questions": [
         "Q-005",
         "Q-026",
         "Q-045",
         "Q-055"
+      ],
+      "verification_gates": [
+        "V-009"
       ]
     },
     "calls_media": {
@@ -329,6 +351,9 @@
         "Q-032",
         "Q-046",
         "Q-059"
+      ],
+      "design_queue": [
+        "A-014"
       ]
     },
     "provider_deployment_supply_chain": {
@@ -463,11 +488,24 @@
     "communities_broadcast_topics": {
       "docs": [
         "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
+        "MESSENGER_BASELINE_V1.md",
+        "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
+        "SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md",
         "GROUP_CHAT_ARCHITECTURE.md"
       ],
-      "schemas": [],
+      "schemas": [
+        "protocol/space-control-state.logical.schema.json",
+        "protocol/capability-grant.logical.schema.json",
+        "protocol/topic-state.logical.schema.json",
+        "protocol/publication-event.logical.schema.json"
+      ],
       "adrs": [
-        "ADR-0083"
+        "ADR-0083",
+        "ADR-0084",
+        "ADR-0085",
+        "ADR-0086",
+        "ADR-0087",
+        "ADR-0088"
       ],
       "design_queue": [
         "A-005",
@@ -476,7 +514,63 @@
         "A-008",
         "A-010"
       ],
-      "deferred_questions": []
+      "deferred_questions": [],
+      "verification_gates": [
+        "V-008"
+      ]
+    },
+    "messenger_baseline": {
+      "docs": [
+        "MESSENGER_BASELINE_V1.md",
+        "EVENT_MODEL.md",
+        "RICH_TEXT_AND_CONTENT_SECURITY.md",
+        "CONTACT_SHARING.md",
+        "CALLS_AND_REALTIME_MEDIA.md",
+        "ABUSE_SAFETY_AND_REPORTING.md"
+      ],
+      "schemas": [
+        "protocol/conversation-event.logical.schema.json",
+        "protocol/message-create.logical.schema.json",
+        "protocol/topic-state.logical.schema.json",
+        "protocol/baseline-conversation-actions.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0088"
+      ],
+      "design_queue": [
+        "A-001",
+        "A-002",
+        "A-010"
+      ],
+      "verification_gates": [
+        "V-009"
+      ]
+    },
+    "metadata_privacy": {
+      "docs": [
+        "PRIVACY_GOVERNANCE_AUTHORITY.md",
+        "MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
+        "NOTIFICATIONS_AND_PUSH.md",
+        "STORAGE_AND_BLOB_ARCHITECTURE.md",
+        "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md"
+      ],
+      "schemas": [],
+      "adrs": [],
+      "design_queue": [
+        "A-013"
+      ]
+    },
+    "import_export_escape": {
+      "docs": [
+        "OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+        "TRANSPORT_ADAPTERS_AND_INTEROP.md",
+        "LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md"
+      ],
+      "schemas": [],
+      "adrs": [],
+      "design_queue": [
+        "A-012"
+      ]
     }
   },
   "gate_ledgers": {

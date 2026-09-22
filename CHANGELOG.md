@@ -129,3 +129,16 @@ SMS/MMS/RCS remain architectural adapters but are removed from first implementat
 - added pre-engineering architecture queue for expressive media/stickers/GIF-like animation, portable external content packs, creator-commerce boundaries, bots/LLMs, communities/spaces/rooms, broadcast channels, roles/topics/plugins/bridges and first-release messenger baseline;
 - added ADR-0079..0083 and new machine requirements/decisions;
 - preserved the 2026-09-22 23:02 checkpoint under `history/20260922-2302/`.
+
+## 2026-09-23 06:15 PHT — Messenger baseline + Spaces/Rooms/Communities hardening
+
+- froze ordinary first-release messenger semantics and separated shared protocol state from local/account-private UX;
+- unified interactive private groups/Rooms on ConversationID;
+- defined Spaces/Communities as independent-object containers with bilateral links and explicit authority-parent delegation;
+- selected capability grants + restrictions + delegation ceilings and no protocol-required magical owner/Admin bypass;
+- selected layered replies/threads/Topics;
+- separated private announcement Rooms from signed public Publications;
+- resolved A-005/A-006/A-007/A-008/A-010 and added V-008 authority-model plus V-009 baseline-event convergence verification;
+- added blocking A-012 import/export escape, A-013 metadata threat model, A-014 decentralized abuse/moderation hardening and A-015 protocol longevity so the broader hardening agenda remains machine-visible;
+- preserved the complete 05:45 current tree under `history/20260923-0545/`;
+- engineering remains unauthorized.

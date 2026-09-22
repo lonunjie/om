@@ -1,0 +1,18 @@
+{
+  "$comment": "Logical scoped capability/role authorization model for Rooms and Spaces.",
+  "CapabilityGrant": {
+    "subject_principal": "typed human/service/bridge principal",
+    "capability_id": "versioned registry capability identifier",
+    "scope_ref": "Room/Space/Topic or other explicitly supported scope",
+    "grantable_scope": "optional delegation ceiling; absent means this grant is not delegable",
+    "authorization_evidence": "control-state evidence authorizing the grant"
+  },
+  "Restriction": {
+    "subject_principal": "typed principal",
+    "restricted_capability_or_class": "specific action or bounded action class",
+    "scope_ref": "scope where the restriction applies",
+    "authorization_evidence": "moderation/control authority",
+    "expiry": "optional expiry with declared time semantics"
+  },
+  "Rule": "Valid grants union first; explicit active restrictions subtract authority. manage_roles alone never permits grants beyond the actor's authenticated grantable ceiling."
+}

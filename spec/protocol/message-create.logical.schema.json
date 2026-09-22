@@ -41,6 +41,20 @@
         "null"
       ],
       "minimum": 0
+    },
+    "thread_root_event_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "EventID in the same ConversationID; no separate membership/security context"
+    },
+    "topic_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Room-local TopicID when the Room/topic mode uses one"
     }
   }
 }

@@ -1,0 +1,24 @@
+{
+  "$comment": "Logical Space/Community control state. A Space organizes independent children; it is not a conversation or MLS roster.",
+  "SpaceControlState": {
+    "space_id": "stable provider-independent SpaceID",
+    "state_version": "monotonic authenticated control-state version",
+    "previous_state_hash": "canonical prior SpaceControlState hash",
+    "profile": "bounded name/avatar/description/style references",
+    "membership": "typed principals and assigned role IDs",
+    "role_definitions": "named bundles of scoped capabilities",
+    "child_links": "Room/Publication/Space affiliations with visibility and bilateral-link evidence",
+    "governance": "principals/threshold/delegation policy authorized to advance Space control state",
+    "authorization_evidence": "signatures/control evidence satisfying current governance"
+  },
+  "Rule": "Space membership/linking does not silently create Room membership, MLS membership or child authority. Official child affiliation is bilateral.",
+  "SpaceControlTransition": {
+    "space_id": "SpaceID",
+    "previous_state_hash": "accepted parent SpaceControlState hash",
+    "operation": "membership/role/link/profile/governance operation",
+    "authorization": "evidence satisfying the previous state governance/policy",
+    "resulting_state_hash": "canonical resulting SpaceControlState hash"
+  },
+  "ControlConflictRule": "Two otherwise valid authority-changing successors of one parent do not resolve by timestamp/provider arrival. Privileged advancement freezes until a resolution referencing competing heads is authorized under the common pre-fork governance.",
+  "PrivacyRule": "Public catalog state may be signed/public. Private membership/role/organization state is E2EE-distributed to authorized recipients; exact selective-disclosure/traffic-analysis resistance is a separate metadata gate."
+}

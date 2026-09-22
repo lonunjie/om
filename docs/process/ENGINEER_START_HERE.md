@@ -1,6 +1,6 @@
 # OM Engineering — Start Here
 
-**Checkpoint:** 2026-09-23 05:45 PHT (UTC+08:00)  
+**Checkpoint:** 2026-09-23 06:15 PHT (UTC+08:00)  
 **Phase:** FUTURE HANDOFF — engineering not authorized by this checkpoint
 
 This file is retained so the future transition is explicit, but the current repository is **not yet an engineering handoff**. Architecture hardening remains active. Do not begin the product vertical slice until a later ADR sets `engineering_authorized=true` in `machine/repository_contract.json` and the architecture validator passes.
@@ -30,9 +30,10 @@ without introducing a mandatory central operator or weakening the documented sec
 7. `DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md`.
 8. `MULTI_IDENTITY_AND_PROFILE_ISOLATION.md`.
 9. `RICH_TEXT_AND_CONTENT_SECURITY.md`.
-10. `LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md`.
-11. `FORMAL_VERIFICATION_AND_FUZZING.md`.
-12. Existing protocol/architecture/UI documents as the relevant work package reaches them.
+10. `MESSENGER_BASELINE_V1.md` + `SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md` + `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`.
+11. `LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md`.
+12. `FORMAL_VERIFICATION_AND_FUZZING.md`.
+13. Existing protocol/architecture/UI documents as the relevant work package reaches them.
 
 ## Engineering defaults
 

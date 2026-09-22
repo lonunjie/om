@@ -1,0 +1,50 @@
+{
+  "$comment": "Logical bodies for standardized V1 shared conversation actions beyond message.create/edit/delete/reaction/receipt.",
+  "PinSet": {
+    "target_event_id": "EventID in same ConversationID",
+    "present": "boolean; latest authorized state for target wins"
+  },
+  "ModerationRedact": {
+    "target_event_id": "EventID in same ConversationID",
+    "reason": "optional bounded reason code/text according to room policy"
+  },
+  "PollCreate": {
+    "identity": "the poll.create ConversationEvent EventID is the poll identifier",
+    "question": "bounded RichTextV1",
+    "options": "bounded ordered list of stable option_id + bounded label",
+    "selection_mode": ["single", "multiple"],
+    "max_selections": "optional positive bound for multiple selection",
+    "results_visibility": ["immediate", "after_vote", "after_close"]
+  },
+  "PollVote": {
+    "target_poll_event_id": "poll.create EventID in same ConversationID",
+    "selected_option_ids": "set/list satisfying the PollCreate selection policy"
+  },
+  "PollClose": {
+    "target_poll_event_id": "poll.create EventID in same ConversationID"
+  },
+  "TopicCreate": {
+    "topic_id": "random stable TopicID local to this ConversationID",
+    "title": "bounded title"
+  },
+  "TopicUpdate": {
+    "topic_id": "existing TopicID",
+    "title": "optional replacement title"
+  },
+  "TopicStatusSet": {
+    "topic_id": "existing TopicID",
+    "status": ["open", "resolved", "archived"]
+  },
+  "MessageTopicSet": {
+    "target_event_id": "message EventID in same ConversationID",
+    "topic_id": "existing TopicID, or null only if room policy permits untopiced placement"
+  },
+  "ConvergenceRules": [
+    "pin.set latest authorized EventClock state per target_event_id wins",
+    "moderation.redact is monotonic suppression unless a future explicit restore capability is standardized",
+    "poll.vote latest authorized EventClock state per actor_account_id + target_poll_event_id wins",
+    "poll.close is monotonic; votes ordered after the accepted close do not alter the closed tally",
+    "topic field/status/message-placement conflicts resolve by authenticated authorization plus EventClock ordering",
+    "wall-clock values never grant authority"
+  ]
+}

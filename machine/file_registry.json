@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-23T05:45:00+08:00",
+  "snapshot": "2026-09-23T06:15:00+08:00",
   "scope": "current_non_history",
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
@@ -127,14 +127,21 @@
       "class": "checkpoint",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
-      "authority": "current_checkpoint"
+      "authority": "historical_checkpoint_record"
     },
     {
       "path": "CHECKPOINT_20260923_0545.md",
       "class": "checkpoint",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
-      "authority": "historical_index"
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "CHECKPOINT_20260923_0615.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "current_checkpoint"
     },
     {
       "path": "CLIENTHOST_UPDATE_LIFECYCLE.md",
@@ -410,6 +417,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "MESSENGER_BASELINE_V1.md",
+      "class": "architecture_doc",
+      "domain": "time_ordering_events",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "MOTION_AND_PERFORMANCE.md",
       "class": "architecture_doc",
       "domain": "ux_accessibility_personalization",
@@ -564,6 +578,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md",
+      "class": "architecture_doc",
+      "domain": "communities_broadcast_topics",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "SECURITY_PRIVACY_PROFILES.md",
       "class": "architecture_doc",
       "domain": "ux_accessibility_personalization",
@@ -581,6 +602,13 @@
       "path": "SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
       "class": "architecture_doc",
       "domain": "provider_deployment_supply_chain",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
+      "class": "architecture_doc",
+      "domain": "communities_broadcast_topics",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
     },
@@ -1229,6 +1257,41 @@
       "authority": "canonical_decision"
     },
     {
+      "path": "decisions/ADR-0084-one-conversation-id-for-interactive-rooms.md",
+      "class": "adr",
+      "domain": "groups",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
+      "path": "decisions/ADR-0085-spaces-link-independent-rooms.md",
+      "class": "adr",
+      "domain": "communities_broadcast_topics",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
+      "path": "decisions/ADR-0086-capability-scoped-authority-without-magical-owner.md",
+      "class": "adr",
+      "domain": "communities_broadcast_topics",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
+      "path": "decisions/ADR-0087-threads-topics-and-publication-are-layered-not-overloaded.md",
+      "class": "adr",
+      "domain": "communities_broadcast_topics",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
+      "path": "decisions/ADR-0088-baseline-messenger-semantics-before-engineering.md",
+      "class": "adr",
+      "domain": "time_ordering_events",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -1404,6 +1467,13 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "protocol/baseline-conversation-actions.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "time_ordering_events",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
       "path": "protocol/blob-location-record.logical.schema.json",
       "class": "protocol_schema",
       "domain": "storage_retention",
@@ -1414,6 +1484,13 @@
       "path": "protocol/call-session.logical.schema.json",
       "class": "protocol_schema",
       "domain": "calls_media",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "protocol/capability-grant.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "communities_broadcast_topics",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
@@ -1537,6 +1614,13 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "protocol/publication-event.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "communities_broadcast_topics",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
       "path": "protocol/reachability-recovery.logical.schema.json",
       "class": "protocol_schema",
       "domain": "relay_reachability",
@@ -1572,7 +1656,21 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "protocol/space-control-state.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "communities_broadcast_topics",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
       "path": "protocol/time-semantics.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "time_ordering_events",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "protocol/topic-state.logical.schema.json",
       "class": "protocol_schema",
       "domain": "time_ordering_events",
       "license": "Apache-2.0",

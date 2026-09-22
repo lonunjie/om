@@ -1,12 +1,12 @@
 # OM — Master Planning & Design Repository
 
-**Snapshot:** 2026-09-23 05:45 PHT (UTC+08:00)  
+**Snapshot:** 2026-09-23 06:15 PHT (UTC+08:00)  
 **Phase:** Architecture hardening / pre-engineering — engineering is not yet authorized  
 **Project name:** **OM** — see `NAMING.md` for its six canonical meanings
 
 This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design reviews covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed/multi-relay delivery, the Discovery Fabric and revocable IntroGate, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, privacy-preserving LAN operation, censorship/network resilience, and future SMS/RCS integration.
 
-Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, `history/20260921-2132/`, `history/20260922-0734/`, `history/20260922-1342/`, and `history/20260922-1434/` for traceability.
+Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, `history/20260921-2132/`, `history/20260922-0734/`, `history/20260922-1342/`, `history/20260922-1434/`, `history/20260922-2302/`, and `history/20260923-0545/` for traceability.
 
 ## Product thesis
 
@@ -84,19 +84,20 @@ And the implementation discipline remains:
 6. `PROJECT_STEWARDSHIP_AND_CONTINUITY.md` — SeedLife/lonunjie stewardship, founder-incubation risk and succession rails.
 7. `ACCOUNT_CONTINUITY_AND_CONTROL.md` + `IDENTITY_PROTOCOL.md` — canonical identity/control authority.
 8. `CRYPTOGRAPHY_AND_AGILITY.md` + `ASYNC_KEY_MATERIAL.md` + `ONE_TO_ONE_SESSION_MANAGEMENT.md` — 1:1 security architecture.
-9. `GROUP_CHAT_ARCHITECTURE.md` + `GROUP_COMMIT_AND_STATE_CONVERGENCE.md` — MLS groups plus application sequencing/binding.
-10. `RELAY_AND_DELIVERY_ARCHITECTURE.md` + `MULTI_RELAY_AND_DELIVERY_RESILIENCE.md` + `REACHABILITY_AND_OBJECT_REPAIR.md` — private delivery and catastrophic repair.
-11. `STORAGE_AND_BLOB_ARCHITECTURE.md` — encrypted storage/backup/location semantics.
-12. `TIME_AND_EXPIRY_SEMANTICS.md` — one cross-protocol clock/expiry model.
-13. `PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md` + `DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md` + `CLIENTHOST_UPDATE_LIFECYCLE.md` — endpoint/origin/deployment boundaries.
-14. `SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md` — release trust and reproducibility.
-15. `DISCOVERY_FABRIC.md`, `INVITES_INTROGATE_AND_SPAM.md`, `CONTACT_SHARING.md` — discovery and first-contact trust.
-16. `CALLS_AND_REALTIME_MEDIA.md` — SFrame/WebRTC media.
-17. `LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md` + `CENSORSHIP_AND_NETWORK_RESILIENCE.md` — local/network resilience.
-18. `RICH_TEXT_AND_CONTENT_SECURITY.md` + `ABUSE_SAFETY_AND_REPORTING.md` — hostile content and safety boundaries.
-19. UI/accessibility/theme documents — product semantics above Core.
-20. `ARCHITECTURE_PHASE_PLAN.md` — blocking gates and architecture-freeze criteria.
-21. `ENGINEER_START_HERE.md` / `ENGINEERING_HANDOFF.md` — retained for the future transition only.
+9. `GROUP_CHAT_ARCHITECTURE.md` + `GROUP_COMMIT_AND_STATE_CONVERGENCE.md` — MLS private Rooms plus application sequencing/binding.
+10. `MESSENGER_BASELINE_V1.md` + `SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md` + `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md` — ordinary messenger completeness, Communities/Spaces, Rooms/Publications, roles, moderation, threads and Topics.
+11. `RELAY_AND_DELIVERY_ARCHITECTURE.md` + `MULTI_RELAY_AND_DELIVERY_RESILIENCE.md` + `REACHABILITY_AND_OBJECT_REPAIR.md` — private delivery and catastrophic repair.
+12. `STORAGE_AND_BLOB_ARCHITECTURE.md` — encrypted storage/backup/location semantics.
+13. `TIME_AND_EXPIRY_SEMANTICS.md` — one cross-protocol clock/expiry model.
+14. `PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md` + `DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md` + `CLIENTHOST_UPDATE_LIFECYCLE.md` — endpoint/origin/deployment boundaries.
+15. `SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md` — release trust and reproducibility.
+16. `DISCOVERY_FABRIC.md`, `INVITES_INTROGATE_AND_SPAM.md`, `CONTACT_SHARING.md` — discovery and first-contact trust.
+17. `CALLS_AND_REALTIME_MEDIA.md` — SFrame/WebRTC media.
+18. `LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md` + `CENSORSHIP_AND_NETWORK_RESILIENCE.md` — local/network resilience.
+19. `RICH_TEXT_AND_CONTENT_SECURITY.md` + `ABUSE_SAFETY_AND_REPORTING.md` — hostile content and safety boundaries.
+20. UI/accessibility/theme documents — product semantics above Core.
+21. `ARCHITECTURE_PHASE_PLAN.md` — blocking gates and architecture-freeze criteria.
+22. `ENGINEER_START_HERE.md` / `ENGINEERING_HANDOFF.md` — retained for the future transition only.
 
 Existing detailed documents remain canonical where not superseded. Machine-readable authority and file classification live under `machine/`; run `python3 tools/validate_architecture.py` before accepting a checkpoint.
 

@@ -34,7 +34,7 @@ It must:
 - resist replay and stale-epoch acceptance;
 - define partition merge behavior.
 
-The exact mechanism remains a blocking question. Candidates may include a group-elected/rotating sequencer with authenticated failover or a deterministic application-level conflict procedure proven to converge. A design is not accepted merely because it is easy to implement.
+The 2026-09-23 architecture resolution selected a **policy-neutral member CommitCoordinator** plus authenticated `GroupControlIntent` / `GroupCommitBinding`. The coordinator serializes same-epoch application/MLS transitions but does not receive constitutional authority merely by coordinating. Replacement/equivocation, crash and partition behavior remain verification gate V-004; the mechanism itself is no longer an open architecture choice.
 
 ## 4. Atomic binding to OM group policy
 
@@ -42,7 +42,7 @@ Membership/role-affecting changes use a logical transition that binds applicatio
 
 ```text
 GroupControlTransition {
-  group_id
+  conversation_id
   previous_group_state_hash
   previous_mls_epoch
   operation
@@ -69,7 +69,7 @@ The transition protocol must specify:
 
 ## 6. New/revoked devices
 
-Human membership remains account-level unless group policy says otherwise, while MLS leaves are device-level. Adding/removing device leaves must validate current AccountControlState evidence and group policy.
+Human membership remains account-level unless Room policy says otherwise, while MLS leaves are device-level. Adding/removing device leaves must validate current AccountControlState evidence and group policy.
 
 A revoked device cannot regain future group secrets merely because an old KeyPackage/commit remains cached.
 

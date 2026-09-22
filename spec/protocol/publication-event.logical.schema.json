@@ -1,0 +1,35 @@
+{
+  "$comment": "Logical signed public Publication model; public feeds are distinct from private OM ConversationEvents.",
+  "PublicationControlState": {
+    "publication_id": "stable provider-independent PublicationID",
+    "state_version": "monotonic authenticated control-state version",
+    "previous_state_hash": "canonical prior PublicationControlState hash",
+    "profile": "name/avatar/description and publication metadata",
+    "publisher_authority": "principals allowed to authorize publication signing keys",
+    "signing_key_state": "current/retired publication signing keys and rotation evidence",
+    "optional_discussion_conversation_id": "independent Room ConversationID or null",
+    "governance": "authority/threshold required to change publication control state"
+  },
+  "PublicationEvent": {
+    "publication_id": "PublicationID",
+    "post_id": "opaque stable post identifier",
+    "clock": "EventClock/display ordering input",
+    "kind": [
+      "post",
+      "edit",
+      "tombstone"
+    ],
+    "body": "bounded public post payload/attachment references",
+    "signing_key_ref": "authorized Publication signing key",
+    "signature": "durable signature over canonical event encoding"
+  },
+  "Rule": "Followers are not canonical Publication members. Mirrors may distribute posts but cannot forge publication authority. Retraction cannot guarantee erasure of already-public copies.",
+  "PublicationControlTransition": {
+    "publication_id": "PublicationID",
+    "previous_state_hash": "accepted parent PublicationControlState hash",
+    "operation": "profile/publisher/signing-key/discussion/governance operation",
+    "authorization": "evidence satisfying previous governance",
+    "resulting_state_hash": "canonical resulting PublicationControlState hash"
+  },
+  "ControlConflictRule": "Authority/signing-key control forks freeze privileged advancement until resolved under common pre-fork governance; no relay/mirror/provider chooses the canonical authority head."
+}

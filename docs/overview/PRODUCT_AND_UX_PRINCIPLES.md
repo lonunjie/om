@@ -126,4 +126,4 @@ All themes offer Auto light/dark behavior. The default remains ergonomics/functi
 
 ## 2026-09-23 traction baseline
 
-OM is not successful merely because the protocol is elegant. The first usable product must feel like a current messenger: expected reply/reaction/media/voice/call/group/search/mute/block and expressive-media ergonomics need an explicit baseline before engineering. `A-010` owns that feature matrix. Stickers and GIF-like looping animation are provisionally considered baseline rather than exotic extensions; exact safe formats/manifests remain `A-001/A-002`.
+OM is not successful merely because the protocol is elegant. The first usable product must feel like a current messenger: expected reply/reaction/media/voice/call/group/search/mute/block and expressive-media ergonomics need an explicit baseline before engineering. That baseline is now frozen in `MESSENGER_BASELINE_V1.md`; `A-010` is resolved. Stickers and GIF-like looping animation remain product-baseline expectations, while exact safe formats/manifests remain `A-001/A-002`.

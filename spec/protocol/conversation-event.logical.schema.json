@@ -61,7 +61,16 @@
         "message.edit",
         "message.delete",
         "reaction.set",
-        "receipt.update"
+        "receipt.update",
+        "pin.set",
+        "moderation.redact",
+        "poll.create",
+        "poll.vote",
+        "poll.close",
+        "topic.create",
+        "topic.update",
+        "topic.status.set",
+        "message.topic.set"
       ]
     },
     "kind_version": {

@@ -1,7 +1,7 @@
 # OM Canonical Event Model — Gate B Selected Direction
 
-- **Status:** Phase 0 selected architecture; wire schema is draft
-- **Timestamp:** 2026-08-18 14:03 PHT
+- **Status:** Canonical pre-engineering architecture; logical schemas remain draft
+- **Timestamp:** 2026-09-23 06:15 PHT
 - **Goal:** A small transport-independent vocabulary that every OM client, UI, bridge, relay integration, and future transport can project into.
 
 ## Decision summary
@@ -15,7 +15,7 @@ The core deliberately separates:
 1. **content events** — durable conversational user actions;
 2. **control state** — identity/group/device authority, owned by the corresponding protocol;
 3. **ephemeral signals** — typing/presence-like hints, never required for correctness;
-4. **local state** — mute, pin, archive, draft, scroll position, local delete, search index;
+4. **local state** — mute, personal bookmark, archive, draft, scroll position, local delete, search index;
 5. **transport provenance** — SMS/RCS/bridge/provider information that does not redefine message semantics.
 
 This avoids one giant event taxonomy.
@@ -128,6 +128,8 @@ message.create
   content?: RichTextV1
   attachments[]
   reply_to?
+  thread_root_event_id?
+  topic_id?
   mentions[]
   expires_after?
 ```
@@ -137,7 +139,9 @@ Rules:
 - `content` uses bounded semantic `RichTextV1` when present; plain text is represented as a single Paragraph/Text run;
 - HTML/CSS/JavaScript/Markdown are not authoritative wire formats; formatted paste/Markdown-like composition is locally sanitized into RichTextV1;
 - no active rich-text execution or embedded web content is permitted;
-- large binary data is never inlined into the event.
+- large binary data is never inlined into the event;
+- `reply_to` and `thread_root_event_id` MUST reference events in the same ConversationID;
+- `topic_id`, when present, is room-local organization rather than a new encryption context.
 
 ### `message.edit`
 
@@ -202,6 +206,57 @@ Group read receipts may be disabled by default to reduce traffic and privacy lea
 
 Relay delivery acknowledgement is not necessarily the same semantic thing as "human read."
 
+### `pin.set`
+
+Shared room pins are durable authorized state:
+
+```text
+pin.set
+  target_event_id
+  present: true | false
+```
+
+A personal bookmark remains local/account-private state.
+
+### `moderation.redact`
+
+```text
+moderation.redact
+  target_event_id
+  reason?
+```
+
+This is an authorized moderator action against another principal's content. It is distinct from `message.delete`, so the protocol never pretends the original author performed a moderator removal. Remote physical erasure is not guaranteed.
+
+### Polls
+
+V1 standardizes convergent poll semantics using:
+
+```text
+poll.create
+poll.vote
+poll.close
+```
+
+The `poll.create` EventID identifies the poll. Latest authorized vote state per `(actor_account_id, target_poll_event_id)` wins; close is monotonic and reorder/duplication convergence is a verification obligation. Baseline polls do not claim cryptographic voter anonymity; see `MESSENGER_BASELINE_V1.md`.
+
+### Topic organization
+
+Persistent room-local topic state uses standardized capability-gated operations:
+
+```text
+topic.create
+topic.update
+topic.status.set
+message.topic.set
+```
+
+Topics organize a Room but do not create another membership/MLS object. Lightweight threads use `thread_root_event_id` and require no separate event kind. See `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`.
+
+### Forwarding is new authorship
+
+A private forward/resend is a new `message.create` authored by the forwarding account. Private source ConversationIDs/EventIDs/AccountIDs are not carried across conversation boundaries by default. Public signed Publication posts may carry public source provenance.
+
 ## Control state is not ordinary chat content
 
 Do not duplicate authoritative identity or group policy inside arbitrary chat events.
@@ -253,16 +308,17 @@ Never make the relay/network store these merely because the UI needs them:
 
 - draft text;
 - mute;
-- pin;
+- personal bookmark / saved-message marker;
 - archive;
 - local labels/folders;
 - scroll position;
 - local delete/hide;
 - search index;
 - theme;
-- UI layout.
+- UI layout;
+- scheduled-send queue before the message is actually sent.
 
-Private multi-device preference sync can be designed later as account-private encrypted sync.
+Shared room pins are **not** in this list; they use `pin.set`. Private multi-device preference sync can be designed later as account-private encrypted sync.
 
 ## Attachments
 

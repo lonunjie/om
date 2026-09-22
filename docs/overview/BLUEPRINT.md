@@ -72,7 +72,7 @@ Baseline durable semantic events stay deliberately small:
 - reaction.set
 - receipt.update
 
-Typing/presence/call negotiation is ephemeral. Local mute/pin/drafts/search remain local/private unless a separate account sync protocol covers them.
+Typing/presence/call negotiation is ephemeral. Local mute/personal bookmarks/drafts/search remain local/private unless a separate account sync protocol covers them. Shared Room pins are explicit authorized protocol state (`pin.set`), not local UX state.
 
 Transport/provider identifiers do not define semantic event identity.
 

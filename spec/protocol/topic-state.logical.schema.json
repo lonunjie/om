@@ -1,0 +1,13 @@
+{
+  "$comment": "Persistent Topic is organization inside one ConversationID, not a sub-Room or cryptographic group.",
+  "TopicState": {
+    "topic_id": "random room-local stable TopicID",
+    "conversation_id": "owning Room ConversationID",
+    "title": "bounded semantic/plain title",
+    "status": ["open", "resolved", "archived"],
+    "created_by": "AccountID/principal reference",
+    "created_clock": "EventClock",
+    "last_update_clock": "EventClock"
+  },
+  "Rule": "Topic operations never change Room membership or MLS context. Cross-Room movement is forwarding/new authorship, not topic reassignment."
+}

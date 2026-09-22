@@ -47,3 +47,13 @@ Research notes supporting `MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md`. These are
 - AGPL-3.0 includes no-warranty/limitation-of-liability provisions and permits a downstream operator to assume additional obligations on its own behalf: https://www.gnu.org/licenses/agpl-3.0.html
 
 The project should use these standard legal mechanisms and role separation rather than inventing a “no business/no liability” pseudo-open license.
+
+## 06:15 architecture-hardening observations
+
+Official/current comparative references sharpened the design:
+
+- Matrix documents that joining a Space does **not** automatically join all contained rooms, and its restricted join rules can use membership in another room as an admission condition. OM adopts the separation of container membership from child membership without adopting homeserver authority: https://www.matrix.org/docs/chat_basics/public-rooms/ and https://spec.matrix.org/latest/client-server-api/
+- Telegram's July 2026 Communities link independent groups, channels and bots, including visible/hidden child chats, supporting OM's decision that a Community is a container rather than one overloaded chat: https://telegram.org/blog/communities-editor-invisible-messages
+- Discord documents role permissions plus server/category/channel overrides. OM takes the useful granularity but deliberately avoids making a multi-layer allow/deny override lattice or creator superuser a protocol necessity: https://support.discord.com/hc/en-us/articles/206029707-Setting-Up-Permissions-FAQ
+- Zulip's topic follow/mute model supports keeping attention/notification state local to the user even when Topic organization is shared: https://zulip.com/help/follow-a-topic and https://zulip.com/help/mute-a-topic
+- Telegram channels demonstrate why public one-to-many publication has different semantics from an interactive group. OM makes that separation stronger by using a signed Publication object rather than overloading private MLS Room semantics: https://core.telegram.org/api/channel

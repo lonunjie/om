@@ -1,7 +1,7 @@
 # OM Private Group Chat Architecture
 
-- **Status:** Phase 0 working architecture; core direction selected
-- **Date:** 2026-08-18
+- **Status:** Canonical pre-engineering architecture; private-room core selected
+- **Date:** 2026-09-23
 - **Scope:** Private groups, membership, devices, cryptography, roles, delivery, history, bots, bridges, and attachments
 
 ## Decision summary
@@ -14,7 +14,7 @@ The human group is made of **AccountIDs**. The cryptographic MLS group is made o
 
 ## Core invariants
 
-1. `GroupID` is random and provider-independent.
+1. `ConversationID` is the single random provider-independent identity of the interactive group/Room.
 2. No relay, directory, storage provider, or OM-operated service owns the group.
 3. Human-visible membership is AccountID-level.
 4. Cryptographic membership is DeviceIdentity-level.
@@ -25,18 +25,18 @@ The human group is made of **AccountIDs**. The cryptographic MLS group is made o
 9. Roles/admin policy are application-layer, not implicit in MLS.
 10. Bots and bridges are explicit principals/trust boundaries.
 11. External bridges never silently inherit the OM-native E2EE security label.
-12. Public channels/feeds are a separate product class and are deferred.
+12. Public signed Publications are a separate object class; private announcement channels are permission-restricted MLS Rooms.
 
-## Group identity
+## Room/group identity
 
 ```text
-GroupIdentity
-  group_id        cryptographically random stable group identifier; exact canonical field encoding follows the registry/CBOR profile
+RoomIdentity
+  conversation_id   cryptographically random stable ConversationID
   created_at
   initial_policy
 ```
 
-The `group_id` is bound into the MLS group context but is not a relay URL, domain, or homeserver room ID.
+The `conversation_id` is bound into the MLS group/control context but is not a relay URL, domain, homeserver room ID or SpaceID. `RoomID` is an architectural/product term for this ConversationID, not a second wire identifier. This unifies the former redundant GroupID/ConversationID pair; see ADR-0084.
 
 ## Human roster vs cryptographic clients
 
@@ -73,7 +73,7 @@ Application state is distinct from raw MLS cryptographic state.
 
 ```text
 GroupState
-  group_id
+  conversation_id
   state_version
   previous_state_hash
   profile
@@ -82,41 +82,30 @@ GroupState
     description
   membership[]
     account_id
-    role
+    role_ids[]
+  role_definitions[]
+  governance
   policy
-    who_can_invite
-    who_can_manage_members
-    who_can_edit_group
-    who_can_post
-    join_approval
+    join_rule
     new_device_policy
     history_policy
-    bot_policy
+    service_policy
+    space_authority_binding?
   mls_epoch_ref
   authorization_evidence
 ```
 
 Membership-changing state is bound atomically to the MLS epoch transition so the human roster and cryptographic roster cannot silently diverge.
 
-## Roles
+## Roles, capabilities and governance
 
-Keep v1 small:
+Roles are application-layer convenience bundles over explicit scoped capabilities. A reference client may offer familiar defaults such as `Admin`, `Moderator` and `Member`, but these labels are not protocol superpowers.
 
-- `admin`
-- `member`
-- `bot` / service principal where applicable
+OM does not require a unique permanent owner or an unrestricted Administrator bypass. A new consumer Room may begin with simple 1-of-1 governance held by its creator; governance can later become multi-party. Delegation ceilings prevent a role manager from minting authority it was never allowed to grant.
 
-Do not require a unique permanent owner. Multiple admins avoid making the creator a permanent single point of failure.
+High-risk changes such as governance replacement, a plaintext bridge/full-room service, or an encryption/security-profile change may require a configured quorum. If governance authority is irrecoverably lost, the Room becomes administratively frozen rather than giving SeedLife/provider support a takeover key.
 
-Default:
-
-- admins manage members, metadata, invite links, and admins;
-- members use normal chat features;
-- bots have explicit service semantics.
-
-High-assurance groups may require multiple admin approvals for selected critical changes.
-
-If the last admin is about to leave, the client warns and asks for another admin. The protocol should not invent a magical global owner.
+See `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md` for the canonical permission and role model.
 
 ## Creating a group
 
@@ -131,7 +120,7 @@ New group
 
 Underneath:
 
-1. generate GroupID;
+1. generate the Room `ConversationID`;
 2. initialize GroupState;
 3. initialize MLS group;
 4. fetch current KeyPackages for selected members' eligible devices;
@@ -223,16 +212,26 @@ Invite links/QR codes are capabilities, not identity.
 
 ```text
 GroupInvite
-  group_id or opaque join reference
+  conversation_id or opaque join reference
   invite capability
   expiry
   max_uses?
   join_policy
 ```
 
-Invites can be rotated/revoked without changing GroupID.
+Invites can be rotated/revoked without changing the Room ConversationID.
 
 A shareable link should support admin approval by default.
+
+## Communities / Spaces
+
+A private group may be linked into one or more Spaces without changing its ConversationID, membership or MLS identity. Space membership does not silently imply Room membership. An optional authority-parent Space can receive explicitly delegated management capabilities, with accepted authority materialized in Room control state.
+
+See `SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md`.
+
+## Private announcements and public feeds
+
+A private announcement channel is this same Room architecture with `room.post` restricted to selected principals. A public one-to-many feed is instead a signed `Publication` object; it is not represented as a giant private group.
 
 ## Delivery
 
@@ -342,7 +341,7 @@ Fork/fragmentation tests are mandatory in Gate C.
 
 Do not encode a small protocol limit.
 
-Reference clients can begin with a conservative product cap while performance is tested. Public channels, feeds, and massive broadcast communities are separate semantics and remain deferred.
+Reference clients can begin with a conservative product cap while performance is tested. Public one-to-many feeds use the separate signed Publication architecture; private announcement channels remain MLS Rooms with restricted posting. V1 deliberately does not claim a separate massive-private-broadcast cryptosystem.
 
 ## Required adversarial scenarios
 
@@ -418,4 +417,4 @@ Membership/role-affecting `GroupControlState` changes must be bound to the corre
 
 Private OM groups use RFC 9420 MLS with the standard X25519/AES-128-GCM/SHA-256/Ed25519 suite as the v1 mandatory interoperable group suite. PQ MLS remains experimental until standardized/mature. Group membership/control changes are serialized by a policy-neutral member `CommitCoordinator` and atomically bound through `GroupControlIntent`/`GroupCommitBinding`; coordinator sequencing does not grant membership/admin authority. Formal validation is tracked by `V-004`.
 
-Large public broadcast/community semantics are no longer silently deferred “later product work”; they are explicitly in the pre-engineering architecture queue `A-005..A-010` so the private-group model is not accidentally overloaded.
+The 2026-09-23 06:15 hardening pass resolves A-005..A-008 and A-010: Spaces link independent Rooms, capability-scoped roles govern authority, Topics stay room-local, private announcements remain MLS Rooms, and public broadcast uses signed Publications. Remaining adjacent bot/plugin/bridge/media design items cannot overload this private-Room model.

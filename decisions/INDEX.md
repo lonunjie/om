@@ -1,6 +1,6 @@
 # OM Architecture Decision Records
 
-Checkpoint: 2026-09-23 05:45 PHT
+Checkpoint: 2026-09-23 06:15 PHT
 
 - [ADR-0001 — Providers Are Plugins](ADR-0001-provider-independence.md)
 - [ADR-0002 — Passwordless Device-First Identity](ADR-0002-device-first-identity.md)
@@ -85,3 +85,8 @@ Checkpoint: 2026-09-23 05:45 PHT
 - [ADR-0081 — OM keeps six complementary meanings](ADR-0081-six-meanings-of-om.md)
 - [ADR-0082 — Supporting a capability does not make SeedLife its operator](ADR-0082-capability-does-not-imply-project-operated-service.md)
 - [ADR-0083 — Messenger-baseline and community surfaces must be designed before engineering](ADR-0083-basic-expressive-and-community-surfaces-enter-architecture-queue.md)
+- [ADR-0084 — ConversationID is the single stable identity of an interactive Room](ADR-0084-one-conversation-id-for-interactive-rooms.md)
+- [ADR-0085 — Spaces organize independent Rooms; membership and security do not silently inherit](ADR-0085-spaces-link-independent-rooms.md)
+- [ADR-0086 — Roles bundle scoped capabilities; no magical owner or unrestricted Administrator is required](ADR-0086-capability-scoped-authority-without-magical-owner.md)
+- [ADR-0087 — Threads, Topics, private announcements and public Publications are layered distinct semantics](ADR-0087-threads-topics-and-publication-are-layered-not-overloaded.md)
+- [ADR-0088 — Ordinary messenger completeness has explicit semantic boundaries before engineering](ADR-0088-baseline-messenger-semantics-before-engineering.md)
