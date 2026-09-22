@@ -1,0 +1,11 @@
+.DS_Store
+.codex
+.codex-last
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# If this workspace ever holds secrets, keep them out of git entirely --
+# see xx-network's secrets/ vault pattern (age-encrypted, gitignored).
+secrets/
+.env
