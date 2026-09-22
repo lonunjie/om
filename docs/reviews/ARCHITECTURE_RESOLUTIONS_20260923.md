@@ -249,3 +249,15 @@ Provider diversity uses evidence dimensions (operator, ASN/network, cloud/vendor
 ## 07:18 PHT — Extension/ecosystem hardening
 
 A-001/A-002/A-003/A-004/A-009 are resolved at architecture-design level. OM now has bounded inert expressive-media profiles; portable data-only content packs with signed update provenance; a generic optional entitlement proof boundary with commerce external; typed ServicePrincipals for bots/agents/LLMs with selected-context default and explicit full-Room plaintext membership; and a capability-sandboxed plugin model built around distinct protocol/data/Wasm/web/service/provider extension classes. `ConversationEvent` authorship is generalized from human AccountID/DeviceIdentity fields to `PrincipalRef + author_endpoint_id`. V-010..V-012 retain implementation/adversarial proof as blocking verification work.
+
+## 07:56 PHT — 0M / permissionless services / interop / portability hardening
+
+OM gains a seventh canonical meaning: **0M**, where zero means no one has total control of OM. This constrains architecture toward replaceable scoped authorities rather than pretending every component must be fully decentralized.
+
+Service identity creation is permissionless: a client can generate ServiceID + initial ServiceControlState + signed ServiceDefinition locally. Hosting, aliases, directories and catalogs remain optional/replacable. OM does not attempt to infer whether content is human- or AI-generated; it distinguishes Account-confirmed authority from autonomous ServicePrincipal authority. Autonomous personal agents use scoped revocable `RepresentationGrant`s rather than becoming Account devices or silently impersonating the represented AccountPrincipal.
+
+A-011 is resolved: external networks use typed BridgePrincipals. Foreign actors/events remain bridge-attested provenance; identity links are evidence only; continuous private-Room export is visible authorized state; OM-native E2EE ends wherever the bridge receives plaintext; capability/fidelity loss and loop/dedup lineage are explicit.
+
+A-012 is resolved: `om-archive-v1` is the public portability model. Archives preserve exact native canonical objects/evidence where available and restore data, not authority. Device/account authority still uses account enrollment/recovery. Foreign messenger exports become non-routable `ImportedHistoryRecord`s and cannot fabricate historical OM authorship.
+
+V-011 is expanded for ServiceGenesis/hosting/representation/Sybil-reachability boundaries. V-013 and V-014 retain bridge and archive/import proof obligations as blocking verification work.

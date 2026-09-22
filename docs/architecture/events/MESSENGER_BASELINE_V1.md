@@ -193,6 +193,7 @@ This document resolves **A-010 baseline_product**. It deliberately leaves exact 
 - A-001/A-002: sticker, animation and portable pack formats/security;
 - A-004: bot/LLM principal invocation and disclosure;
 - A-009: plugin/app sandbox and capability model;
-- A-011: external-network bridge fidelity and trust-state mapping.
+- A-011: external-network bridge fidelity and trust-state mapping — resolved in `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`.
+- A-012: import/export/escape — resolved in `IMPORT_EXPORT_AND_USER_ESCAPE.md`.
 
-Cross-cutting blockers A-012..A-015 must also pressure-test these semantics for export/escape, metadata leakage, decentralized abuse handling and long-term protocol evolution. Those items may extend the product, but they may not weaken the baseline semantic boundaries frozen here.
+Cross-cutting blockers A-013..A-015 must still pressure-test these semantics for metadata leakage, decentralized abuse handling and long-term protocol evolution. Those items may extend the product, but they may not weaken the baseline semantic boundaries frozen here.

@@ -305,4 +305,4 @@ Independent OM clients require no central approval. Optional capabilities must b
 
 The official reference client does **not** load arbitrary in-process extension code. Sandboxed local executable plugins use a versioned OM WebAssembly Component Model/WIT capability world, with no ambient filesystem/network/process/environment/secret-store authority. Plaintext-read permission is distinct from network egress; draft/compose permission is distinct from send; plugins receive no raw account/MLS/recovery keys or authority to hide security UI. Permission expansion on update requires explicit approval.
 
-Third-party full clients remain first-class and need no SeedLife approval. External bridges remain separately open under A-011.
+Third-party full clients remain first-class and need no SeedLife approval. External bridges are separately typed BridgePrincipals under the resolved A-011 trust/provenance model.

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM Portable Archive v1 manifest logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format_version", "archive_id", "export_scope", "blob_inventory", "canonical_object_inventory", "provenance_profiles", "generated_at_hint", "integrity_root"],
+  "properties": {
+    "format_version": {"const": "om-archive-v1"},
+    "archive_id": {"type": "string"},
+    "export_scope": {"type": "object"},
+    "source_account_hint": {"type": ["string", "null"]},
+    "included_conversations": {"type": "array", "items": {"type": "string"}},
+    "included_time_ranges": {"type": "array", "items": {"type": "object"}},
+    "blob_inventory": {"type": "array", "items": {"type": "object"}},
+    "canonical_object_inventory": {"type": "array", "items": {"type": "object"}},
+    "provenance_profiles": {"type": "array", "items": {"type": "string"}},
+    "encryption_profile": {"type": ["object", "null"]},
+    "generated_at_hint": {"type": "integer", "minimum": 0},
+    "exporter_implementation": {"type": ["string", "null"]},
+    "integrity_root": {"type": "string"}
+  }
+}

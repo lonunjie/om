@@ -95,3 +95,7 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0091 — Standardize a generic entitlement boundary; keep commerce external](ADR-0091-generic-entitlement-boundary-commerce-external.md)
 - [ADR-0092 — Bots and agents are typed service principals; selected context is the default](ADR-0092-typed-service-principals-selected-context-default.md)
 - [ADR-0093 — Executable plugins are capability-sandboxed and cannot define hidden canonical semantics](ADR-0093-capability-sandboxed-plugin-extension-classes.md)
+- [ADR-0094 — 0M means zero total control](ADR-0094-zero-total-control-is-a-canonical-om-meaning.md)
+- [ADR-0095 — Service creation is permissionless; agency is authority-based](ADR-0095-service-creation-is-permissionless-and-agency-is-authority-based.md)
+- [ADR-0096 — Bridges preserve foreign provenance and explicitly terminate OM E2EE](ADR-0096-bridges-preserve-foreign-provenance-and-terminate-om-e2ee-explicitly.md)
+- [ADR-0097 — Portable archives restore data, not authority](ADR-0097-portable-archives-restore-data-not-authority.md)

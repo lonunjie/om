@@ -97,8 +97,8 @@ The user sees the stable business/service identity even when the underlying bot/
 ```text
 AgentAuthorization
   service_id
-  agent_key
-  agent_type: bot | human | system
+  agent_principal_ref
+  endpoint_or_delegation_ref
   scopes[]
   issued_at
   expires_at?
@@ -121,7 +121,7 @@ Service bots SHOULD NOT be permitted to initiate arbitrary unsolicited conversat
 
 ## Automation disclosure
 
-Users must be told when they are talking to automation.
+Users must be told when an autonomous ServicePrincipal is acting, but OM does not attempt to infer whether content itself was produced by AI or a human. Authority/disclosure follows the principal that caused the canonical action.
 
 Examples:
 
@@ -139,7 +139,7 @@ Example Bank Support
 Maria joined the conversation
 ```
 
-Do not disguise bots as humans.
+Do not disguise autonomous ServicePrincipal actions as AccountPrincipal authorship. A human-confirmed Account action may remain Account-authored even if drafting tools or an LLM assisted it.
 
 ## E2EE boundary
 
@@ -185,13 +185,14 @@ Personal users may authorize assistants, but the same principles apply:
 - explicit;
 - scoped;
 - revocable;
-- visibly automated;
+- autonomous actions remain visibly ServicePrincipal-authored;
+- optional on-behalf-of behavior uses a `RepresentationGrant`;
 - no root AccountID key sharing;
 - least access needed.
 
 ## Architectural rule
 
-> Bots operate accounts only through delegated capabilities. They do not become the identity root.
+> Services may act for accounts only through delegated capabilities. They do not become the Account identity root, and OM does not require a human-versus-AI classifier.
 
 ## 2026-09-21 IntroGate refinement
 
@@ -212,3 +213,8 @@ Bots and LLM agents are explicit service principals. Default interaction should 
 The canonical `ConversationEvent` envelope therefore carries `author_principal: PrincipalRef` plus an authenticated `author_endpoint_id`. Human-authored events bind the endpoint to `DeviceIdentity -> AccountControlState`; autonomous service-authored events bind it to `ServiceEndpoint -> ServiceControlState`. Neither service endpoints nor their controllers become members of the user's account-device majority.
 
 Default service interaction is selected-context invocation. Continuous scoped subscription and full-Room membership require explicit grants and visible disclosure; a full-Room service is an actual plaintext recipient. Local model execution and network egress are separate capabilities. Detailed rules live in `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`.
+
+
+## 2026-09-23 07:56 creation/delegated-agency refinement
+
+Service identity creation is permissionless and local; no BotFather/global bot issuer exists. Discovery/catalogs/hosting are optional replaceable roles. A personal autonomous agent acting for an AccountPrincipal remains authored by its ServicePrincipal and may attach a scoped `RepresentationGrant`, allowing clear UI such as “Alice · via Assistant” without making the service an Account device. See `SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`.

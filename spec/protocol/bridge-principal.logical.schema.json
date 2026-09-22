@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM BridgePrincipal control logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bridge_id", "state_version", "controllers", "approval_threshold", "endpoint_credentials", "adapter_definitions", "authorization_evidence"],
+  "properties": {
+    "bridge_id": {"type": "string", "description": "Random stable 256-bit BridgeID"},
+    "state_version": {"type": "integer", "minimum": 1},
+    "previous_state_hash": {"type": ["string", "null"]},
+    "controllers": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "approval_threshold": {"type": "integer", "minimum": 1},
+    "endpoint_credentials": {"type": "array", "items": {"type": "object"}},
+    "adapter_definitions": {"type": "array", "items": {"type": "object"}},
+    "authorization_evidence": {"type": "object"}
+  }
+}

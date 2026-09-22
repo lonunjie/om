@@ -1,6 +1,6 @@
 # OM Architecture Hardening Phase Plan
 
-- **Checkpoint:** 2026-09-23 07:18 PHT
+- **Checkpoint:** 2026-09-23 07:56 PHT
 - **State:** pre-engineering; engineering is not authorized
 
 The former Gate A..K questions have concrete decisions in `ARCHITECTURE_RESOLUTIONS_20260923.md`. Work now falls into four ledgers.
@@ -9,7 +9,7 @@ The former Gate A..K questions have concrete decisions in `ARCHITECTURE_RESOLUTI
 
 `machine/architecture_design_queue.jsonl`
 
-The ordinary messenger baseline, initial Spaces/Rooms/Communities model, expressive media/content packs/entitlement boundary, typed service-principal bot/LLM model and capability-sandboxed plugin architecture are now resolved at the design level. Remaining blocking design work is concentrated in external bridges plus import/export/escape; metadata privacy; decentralized abuse/moderation; and the 20-year protocol-longevity/anti-capture pass. Verification remains independently blocking.
+The ordinary messenger baseline, Spaces/Rooms/Communities model, expressive media/content packs/entitlement boundary, typed service-principal bot/LLM model, capability-sandboxed plugin architecture, permissionless service creation/delegated agency, external bridges and import/export/escape are now resolved at the design level. Remaining blocking design work is A-013 metadata privacy, A-014 decentralized abuse/moderation and A-015 the 20-year protocol-longevity/0M anti-capture pass. Verification remains independently blocking.
 
 ## B. Architecture verification gates — selected design must be proven
 

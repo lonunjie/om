@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM RepresentationGrant logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["grant_id", "represented_account_id", "service_id", "scope_refs", "allowed_actions", "issued_by_account_authority", "revocation_state"],
+  "properties": {
+    "grant_id": {"type": "string"},
+    "represented_account_id": {"type": "string"},
+    "service_id": {"type": "string"},
+    "scope_refs": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "allowed_actions": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "optional_constraints": {"type": "object"},
+    "issued_by_account_authority": {"type": "object"},
+    "not_before": {"type": ["integer", "null"], "minimum": 0},
+    "expires_at": {"type": ["integer", "null"], "minimum": 0},
+    "revocation_state": {"enum": ["active", "revoked"]}
+  }
+}

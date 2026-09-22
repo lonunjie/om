@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-23T07:18:00+08:00",
+  "snapshot": "2026-09-23T07:56:00+08:00",
   "domains": {
     "constitution_governance": {
       "docs": [
@@ -12,7 +12,8 @@
         "PROTOCOL_EXTENSIBILITY.md",
         "NAMING.md",
         "ARCHITECTURE_RESOLUTIONS_20260923.md",
-        "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md"
+        "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
+        "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md"
       ],
       "schemas": [
         "protocol/client-distribution.logical.schema.json",
@@ -32,7 +33,8 @@
         "ADR-0080",
         "ADR-0081",
         "ADR-0082",
-        "ADR-0083"
+        "ADR-0083",
+        "ADR-0094"
       ],
       "resolved_questions": [
         "Q-013",
@@ -276,7 +278,8 @@
       "docs": [
         "LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md",
         "CENSORSHIP_AND_NETWORK_RESILIENCE.md",
-        "TRANSPORT_ADAPTERS_AND_INTEROP.md"
+        "TRANSPORT_ADAPTERS_AND_INTEROP.md",
+        "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md"
       ],
       "schemas": [
         "protocol/transport-adapter.logical.schema.json"
@@ -285,7 +288,8 @@
         "ADR-0015",
         "ADR-0016",
         "ADR-0023",
-        "ADR-0024"
+        "ADR-0024",
+        "ADR-0096"
       ],
       "resolved_questions": [
         "Q-011",
@@ -490,20 +494,28 @@
         "EVENT_MODEL.md",
         "PROTOCOL_EXTENSIBILITY.md",
         "CLIENT_AND_EXTENSION_ARCHITECTURE.md",
-        "TRANSPORT_ADAPTERS_AND_INTEROP.md"
+        "TRANSPORT_ADAPTERS_AND_INTEROP.md",
+        "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
+        "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md",
+        "IMPORT_EXPORT_AND_USER_ESCAPE.md"
       ],
       "schemas": [
         "protocol/principal-ref.logical.schema.json",
         "protocol/service-principal.logical.schema.json",
         "protocol/service-installation.logical.schema.json",
         "protocol/plugin-package.logical.schema.json",
-        "protocol/conversation-event.logical.schema.json"
+        "protocol/conversation-event.logical.schema.json",
+        "protocol/representation-grant.logical.schema.json",
+        "protocol/bridge-principal.logical.schema.json",
+        "protocol/foreign-provenance.logical.schema.json"
       ],
       "adrs": [
         "ADR-0082",
         "ADR-0083",
         "ADR-0092",
-        "ADR-0093"
+        "ADR-0093",
+        "ADR-0095",
+        "ADR-0096"
       ],
       "design_queue": [
         "A-004",
@@ -513,7 +525,8 @@
       "deferred_questions": [],
       "verification_gates": [
         "V-010",
-        "V-011"
+        "V-011",
+        "V-013"
       ]
     },
     "communities_broadcast_topics": {
@@ -595,12 +608,22 @@
       "docs": [
         "OPERATORLESS_CORE_AND_ECOSYSTEM.md",
         "TRANSPORT_ADAPTERS_AND_INTEROP.md",
-        "LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md"
+        "LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md",
+        "IMPORT_EXPORT_AND_USER_ESCAPE.md",
+        "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md"
       ],
-      "schemas": [],
-      "adrs": [],
+      "schemas": [
+        "protocol/om-archive-manifest.logical.schema.json",
+        "protocol/imported-history-record.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0097"
+      ],
       "design_queue": [
         "A-012"
+      ],
+      "verification_gates": [
+        "V-014"
       ]
     }
   },

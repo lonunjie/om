@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM ImportedHistoryRecord logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["imported_record_id", "source_network_namespace", "source_export_fingerprint", "display_metadata", "content", "attachments", "provenance_level"],
+  "properties": {
+    "imported_record_id": {"type": "string"},
+    "source_network_namespace": {"type": "string"},
+    "source_export_fingerprint": {"type": "string"},
+    "source_conversation_ref": {"type": ["string", "null"]},
+    "source_event_ref": {"type": ["string", "null"]},
+    "source_actor_ref": {"type": ["string", "null"]},
+    "display_metadata": {"type": "object"},
+    "content": {"type": "object"},
+    "attachments": {"type": "array", "items": {"type": "object"}},
+    "source_time_hint": {"type": ["integer", "null"], "minimum": 0},
+    "provenance_level": {"enum": ["foreign_export_label", "bridge_attested", "cryptographically_linked", "user_annotation"]},
+    "importer_notes": {"type": ["string", "null"]}
+  }
+}

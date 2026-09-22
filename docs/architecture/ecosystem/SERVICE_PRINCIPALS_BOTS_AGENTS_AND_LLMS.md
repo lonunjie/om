@@ -1,14 +1,14 @@
 # OM Service Principals, Bots, Agents and LLMs
 
 - **Status:** Canonical pre-engineering architecture
-- **Checkpoint:** 2026-09-23 07:18 PHT
-- **Scope:** typed non-human principals, service identity/control, installation, commands, selected-context disclosure, local/remote LLMs, tool calls, streaming, automation, bot-to-bot behavior and revocation
+- **Checkpoint:** 2026-09-23 07:56 PHT
+- **Scope:** typed service principals, service identity/control, installation, commands, selected-context disclosure, local/remote LLMs, delegated agency, tool calls, streaming, automation, service-to-service behavior and revocation
 
 ## Decision summary
 
-Bots, agents and LLMs are not fake humans and are not ambient readers.
+OM does not make a brittle human-versus-AI classification. It standardizes typed authority principals with explicit installation/data-access semantics. "bot", "assistant", "agent" and "LLM" are product/presentation categories over the `ServicePrincipal` model; they do not create hidden authority classes and they do not claim how content was cognitively produced.
 
-OM standardizes a typed `ServicePrincipal` with explicit installation/data-access semantics. "bot", "assistant", "agent" and "LLM" are product/presentation categories over that principal model; they do not create hidden authority classes.
+Permissionless service creation, decentralized discovery/hosting, and delegated personal agency are frozen in `SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`.
 
 The normal safe interaction is:
 
@@ -30,7 +30,7 @@ OM authority subjects use typed principal references:
 PrincipalRef
   account(AccountID)
   service(ServiceID)
-  bridge(BridgeID)      # fully hardened by A-011
+  bridge(BridgeID)      # explicit external-network trust/provenance principal
 ```
 
 `ServiceID` is random stable 256-bit provider-independent data. It is not a username, domain, endpoint URL or bot token.
@@ -92,17 +92,19 @@ For an AccountPrincipal, `author_endpoint_id` is its authorized DeviceIdentity.
 
 For a ServicePrincipal, it is an endpoint/agent credential authorized by `ServiceControlState` and any relevant installation grant.
 
-A bridge will use the same typed-author boundary after A-011 settles bridge identity semantics.
+A bridge uses the same typed-author boundary under `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`.
 
-This removes the architectural pressure to make bots masquerade as human accounts.
+This removes the architectural pressure to make autonomous services masquerade as AccountPrincipals.
 
 ## Human assistance versus autonomous service authorship
+
+The protocol classifies **authority**, not intelligence or biology. See `SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md` for the canonical Account-confirmed / autonomous-service / represented-account cases and `RepresentationGrant`.
 
 OM does not attempt to detect whether a human used a spell checker, local LLM, accessibility tool or drafting assistant before pressing Send. A user-confirmed send may remain authored by the AccountPrincipal.
 
 When a service itself is authorized to post autonomously or respond as an installed bot, the event is authored by the `ServicePrincipal` and is visibly labeled as automation/service content.
 
-A client must not silently rewrite autonomous service output as if a human AccountPrincipal authored it.
+A client must not silently rewrite autonomous service output as if the represented/user AccountPrincipal cryptographically authored it.
 
 ## ServiceDefinition / manifest
 
@@ -356,17 +358,19 @@ Revocation stops future authority:
 
 Revocation cannot prove a remote service forgot plaintext it already received. UI and policy must not promise retroactive erasure.
 
-## Discovery and catalogs
+## Creation, discovery and catalogs
 
-Services may be discovered via direct links, QR, organization pages, independent catalogs or Space recommendations.
+Service creation is local and permissionless: generate `ServiceID`, initial independently controlled `ServiceControlState` and a signed definition. No BotFather/global issuer exists.
 
-There is no mandatory OM bot store or SeedLife approval gate. Catalog signatures/reviews are optional attestations, not protocol authority.
+Services may be discovered via direct links, QR, organization pages, domain aliases, independent catalogs, peer sharing or Space recommendations. Hosting is a replaceable endpoint role rather than identity ownership.
+
+There is no mandatory OM bot store or SeedLife approval gate. Catalog signatures/reviews are optional attestations, not protocol authority. Cheap identity creation does not imply unsolicited-delivery authority: reachability/admission remains consent-, Room-, IntroGate-, provider- and policy-scoped.
 
 A conforming third-party client can interact with a service from published interoperable definitions without needing a secret official-client API.
 
 ## Security invariants
 
-1. Non-human actors are typed principals, never disguised human accounts by protocol necessity.
+1. Autonomous/delegated actors are typed principals; OM does not attempt to infer whether content is human- or AI-generated.
 2. Installation scope and data-access scope are separate.
 3. Selected-context invocation is the default remote-agent path.
 4. Space installation never silently grants child-Room plaintext.
@@ -377,3 +381,5 @@ A conforming third-party client can interact with a service from published inter
 9. Revocation stops future authorization but cannot claw back prior plaintext.
 10. Service-control quorum cannot count authority derived from the target service itself; service installation cannot bootstrap its own controller or endpoint escalation.
 11. No OM Project bot cloud/catalog is required for interoperability.
+12. Creating a ServiceID requires no central issuer and grants no ambient reach/read/send authority.
+13. A service acting for a person remains ServicePrincipal-authored with a scoped `RepresentationGrant`; it never becomes an Account device merely by representation.

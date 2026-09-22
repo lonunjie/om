@@ -32,7 +32,7 @@
     },
     "author_endpoint_id": {
       "type": "string",
-      "description": "Authenticated endpoint credential ID under the typed author principal; DeviceIdentity for account authors, service endpoint for service authors"
+      "description": "Authenticated endpoint credential ID under the typed author principal; DeviceIdentity for account authors, service endpoint for service authors, bridge endpoint for bridge authors"
     },
     "clock": {
       "type": "object",
@@ -96,6 +96,28 @@
         "null"
       ],
       "minimum": 0
+    },
+    "representation": {
+      "anyOf": [
+        {
+          "$ref": "representation-grant.logical.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional service-authored on-behalf-of Account representation; does not change canonical author_principal"
+    },
+    "foreign_provenance": {
+      "anyOf": [
+        {
+          "$ref": "foreign-provenance.logical.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Bridge-attested external-network provenance; required by bridge policy for bridged foreign events"
     }
   }
 }

@@ -256,7 +256,7 @@ def check_architecture_map(resolved_ids: set[str], design_ids: set[str], verify_
 
 def check_project_identity_and_legal_boundary() -> None:
     naming = (ROOT / "NAMING.md").read_text(encoding="utf-8")
-    for phrase in ["Open-source Messenger", "OpenMessenger", "OwnMessenger", "OurMessenger", "OneMessenger", "OhMessenger"]:
+    for phrase in ["Open-source Messenger", "OpenMessenger", "OwnMessenger", "OurMessenger", "OneMessenger", "OhMessenger", "0M", "zero total control"]:
         if phrase not in naming:
             fail(f"NAMING.md missing canonical OM meaning: {phrase}")
     # Country-specific research may remain in history only; current canonical architecture must not make one country the protocol home.
@@ -352,8 +352,36 @@ def validate_0718_extension_guardrails() -> None:
             fail(f"07:18 guard: plugin architecture lost required boundary phrase {phrase!r}")
 
 
+
+def validate_0756_zero_control_interop_portability_guardrails() -> None:
+    naming = (ROOT / "NAMING.md").read_text(encoding="utf-8")
+    if "0M" not in naming or "zero total control" not in naming.lower():
+        fail("07:56 guard: NAMING.md must preserve 0M / zero total control")
+
+    service = (ROOT / "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md").read_text(encoding="utf-8")
+    for phrase in ("permissionless", "RepresentationGrant", "no central issuer", "identity is cheap; unsolicited delivery"):
+        if phrase.lower() not in service.lower():
+            fail(f"07:56 guard: service creation architecture lost required phrase {phrase!r}")
+
+    bridge = (ROOT / "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md").read_text(encoding="utf-8")
+    for phrase in ("BridgePrincipal", "ForeignProvenance", "E2EE ends", "InteropTrace"):
+        if phrase.lower() not in bridge.lower():
+            fail(f"07:56 guard: bridge architecture lost required phrase {phrase!r}")
+
+    archive = (ROOT / "IMPORT_EXPORT_AND_USER_ESCAPE.md").read_text(encoding="utf-8")
+    for phrase in ("om-archive-v1", "data and evidence", "ImportedHistoryRecord", "MUST NOT contain raw long-term"):
+        if phrase.lower() not in archive.lower():
+            fail(f"07:56 guard: archive architecture lost required phrase {phrase!r}")
+
+    schema = load_json(ROOT / "protocol/conversation-event.logical.schema.json")
+    if isinstance(schema, dict):
+        props = schema.get("properties", {})
+        if "representation" not in props or "foreign_provenance" not in props:
+            fail("07:56 guard: ConversationEvent must retain representation and foreign_provenance hooks")
+
 def main() -> int:
     validate_0718_extension_guardrails()
+    validate_0756_zero_control_interop_portability_guardrails()
     contract = load_json(ROOT / "machine/repository_contract.json")
     if not isinstance(contract, dict):
         print("architecture validation FAILED: repository_contract unreadable", file=sys.stderr); return 1

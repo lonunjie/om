@@ -1,7 +1,7 @@
 # OM Project Philosophy and Anti-Capture Constitution
 
 - **Status:** Canonical project constitution
-- **Checkpoint:** 2026-09-23 05:45 PHT
+- **Checkpoint:** 2026-09-23 07:56 PHT
 - **Scope:** Protocol, architecture, source, governance, providers, official distributions, future businesses, and project succession
 
 ## 1. Purpose
@@ -72,6 +72,14 @@ Architecture can be revised when standards, formal models, interoperability evid
 
 "It is easier to implement" is not sufficient reason to introduce central authority, hidden privilege, lock-in, or weaker security.
 
+### P-13 — 0M: zero total control
+
+The `O` in OM may also be read as `0`: **0M**. Zero means no one has total control of OM.
+
+This does not require every component to be peer-to-peer or forbid centralized services. It requires that centralized components remain scoped and replaceable, and that no founder, steward, provider, catalog, dominant client, extension, cloud, app store, government or business can become the universal permission boundary for continued OM interoperability.
+
+OM is decentralized primarily in **ultimate authority and survivability**: it is for and by everyone, with local operators retaining local authority but no actor receiving protocol-wide ownership.
+
 ## 3. Anti-capture mechanisms
 
 OM uses multiple independent protections because no single license or governance rule is enough:
@@ -136,9 +144,9 @@ When two plausible designs conflict, prefer the one that, while remaining usable
 
 This document is the highest-level project intent. It does not override cryptographic evidence, law, or physical impossibility; it tells future maintainers what OM is trying to preserve when tradeoffs arise.
 
-## 8. The six meanings of OM
+## 8. The seven meanings of OM
 
-`NAMING.md` is canonical for the name. OM intentionally means **Open-source Messenger, OpenMessenger, OwnMessenger, OurMessenger, OneMessenger and OhMessenger**. Together these require an open commons, independent implementations and agents, safe customization, strong group/organization capability, extensibility without fragmentation, and an approachable default product.
+`NAMING.md` is canonical for the name. OM intentionally means **Open-source Messenger, OpenMessenger, OwnMessenger, OurMessenger, OneMessenger and OhMessenger**, plus the secondary **0M** reading: zero total control. Together these require an open commons, independent implementations and agents, safe customization, strong group/organization capability, extensibility without fragmentation, an approachable default product, and architecture in which no one party becomes an indispensable universal controller.
 
 ## 9. Capability support does not imply project operation
 

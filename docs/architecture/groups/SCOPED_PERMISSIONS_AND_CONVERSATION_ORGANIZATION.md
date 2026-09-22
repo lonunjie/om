@@ -252,4 +252,4 @@ Clients should show an unobtrusive “moved to topic” history where useful. Mo
 
 This document resolves **A-007 permissions** and **A-008 topics_threads**.
 
-Exact bot/agent permissions (A-004), plugin-granted UI/data capabilities (A-009) and bridge fidelity/loops (A-011) remain separate blocking architecture items, but they must use this capability/typed-principal model rather than adding hidden ambient authority.
+Exact bot/agent permissions (A-004), plugin-granted UI/data capabilities (A-009) and bridge fidelity/loops (A-011) are separately resolved and use this capability/typed-principal model rather than adding hidden ambient authority.

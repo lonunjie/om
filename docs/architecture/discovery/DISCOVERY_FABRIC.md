@@ -307,3 +307,11 @@ Finding an AccountID/ContactDescriptor and obtaining current authenticated per-d
 ## 2026-09-23 directory resolution
 
 There is no global OM DirectorySet root. Users/clients choose directories and merge results locally; exact alias matches differ from fuzzy suggestions. Each directory may independently offer transparent append-only publication/witnesses, but that does not become identity authority or a universal OM service.
+
+## 2026-09-23 07:56 service discovery extension
+
+The same resolver principles apply to `ServicePrincipal` discovery without forcing services into human AccountID semantics.
+
+A client may resolve/share a signed service descriptor through direct links/QR, domain-scoped aliases, Space recommendations, organization directories or independent public catalogs. `ServiceID` remains the cryptographic identity; names/listings/hosting endpoints are replaceable claims and rendezvous information.
+
+There is no global OM bot/service directory root. Creating a ServiceID does not require publication in any directory, and delisting cannot revoke an already known ServiceID. See `SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`.

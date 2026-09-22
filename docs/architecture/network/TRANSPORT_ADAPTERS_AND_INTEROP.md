@@ -63,7 +63,11 @@ If an OM-native recipient becomes temporarily unreachable, the app must not sile
 
 ## Bridges
 
-XMPP/Matrix/email/business bridges are explicit cryptographic endpoints/trust boundaries. If a bridge receives plaintext to transform/deliver it, users must be told that the external side is outside OM-native E2EE.
+Canonical external-network bridge semantics are frozen in `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`.
+
+XMPP/Matrix/Telegram/email/SMS/RCS/business/future bridges are typed `BridgePrincipal` trust boundaries. Foreign actors remain bridge-attested provenance rather than synthetic OM AccountIDs. If a bridge receives plaintext to transform/deliver it, users must be told that the external side is outside OM-native E2EE.
+
+Bridge adapters advertise semantic/fidelity capabilities and carry loop/dedup lineage. Unsupported edits/deletes/reactions/topics/polls degrade explicitly rather than silently changing meaning.
 
 ## Roadmap socket
 

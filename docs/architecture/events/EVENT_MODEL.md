@@ -1,7 +1,7 @@
 # OM Canonical Event Model — Gate B Selected Direction
 
 - **Status:** Canonical pre-engineering architecture; logical schemas remain draft
-- **Timestamp:** 2026-09-23 07:18 PHT
+- **Timestamp:** 2026-09-23 07:56 PHT
 - **Goal:** A small transport-independent vocabulary that every OM client, UI, bridge, relay integration, and future transport can project into.
 
 ## Decision summary
@@ -99,12 +99,16 @@ ConversationEvent
   kind_version
   required_capabilities[]
   body
+  representation?             # ServicePrincipal acting under scoped RepresentationGrant
+  foreign_provenance?         # BridgePrincipal foreign-network attribution/fidelity
   expiry?
 ```
 
-For OM-native E2EE, the secure session/MLS layer authenticates the endpoint credential that sent the event and binds it to `author_principal`. For an account author the endpoint is an authorized `DeviceIdentity`; for a service author it is an authorized service endpoint. A bridge author follows the explicit bridge-principal model once A-011 is resolved.
+For OM-native E2EE, the secure session/MLS layer authenticates the endpoint credential that sent the event and binds it to `author_principal`. For an account author the endpoint is an authorized `DeviceIdentity`; for a service author it is an authorized service endpoint; for a bridge author it is an endpoint authorized by `BridgeControlState`.
 
-The envelope therefore does not force non-human automation to masquerade as an AccountID. Human-account endpoint credentials and service endpoint credentials remain different identity classes: a service endpoint is never counted in `AccountControlState` device-majority governance.
+The envelope therefore does not force automation or foreign-network actors to masquerade as an AccountID. OM classifies protocol authority rather than attempting to detect human-vs-AI cognition. Account, service and bridge endpoint credentials remain different authority classes: neither service nor bridge endpoints count in `AccountControlState` device-majority governance.
+
+A ServicePrincipal acting on behalf of an AccountPrincipal may attach a valid `representation` reference, but canonical authorship remains the service. A BridgePrincipal carrying a foreign message attaches `foreign_provenance`; foreign display identity is bridge-attested metadata rather than native Account authorship.
 
 ### No mandatory per-message durable signature
 

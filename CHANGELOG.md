@@ -1,3 +1,14 @@
+## 2026-09-23 07:56 PHT — 0M / permissionless services / bridges / escape hardening
+
+- added **0M** as the seventh canonical OM meaning: zero parties have total control;
+- made ServiceID creation local/permissionless with optional replaceable hosting, discovery and catalogs rather than a BotFather-style root issuer;
+- replaced a human-vs-bot cognitive distinction with authority-based authorship and scoped `RepresentationGrant` for autonomous personal agents;
+- resolved A-011 with typed BridgePrincipal, bridge-attested foreign provenance, explicit E2EE termination, fidelity mapping and loop lineage;
+- resolved A-012 with public `om-archive-v1`, history/authority separation and provenance-safe foreign imports;
+- added V-013/V-014 and expanded V-011;
+- preserved the complete 07:18 tree under `history/20260923-0718/`;
+- engineering remains unauthorized.
+
 ## 2026-09-23 07:18 PHT — Extension ecosystem / bots / expressive-media hardening
 
 - resolved A-001/A-002/A-003/A-004/A-009 at architecture-design level;

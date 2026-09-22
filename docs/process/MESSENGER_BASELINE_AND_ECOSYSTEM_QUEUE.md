@@ -1,7 +1,7 @@
 # Messenger Baseline and Ecosystem Architecture Queue
 
-- **Status:** Canonical architecture queue/index; messenger/community and extension/ecosystem passes resolved at design level
-- **Checkpoint:** 2026-09-23 07:18 PHT
+- **Status:** Canonical architecture queue/index; baseline, communities, extension/services and bridge/escape clusters resolved at design level
+- **Checkpoint:** 2026-09-23 07:56 PHT
 
 OM must be both a rigorous secure protocol and a messenger ordinary people actually want to use. Architecture-design items remain blocking until their protocol-impacting boundaries are decided; verification gates remain separate so a plausible design is never mislabeled proven.
 
@@ -13,47 +13,54 @@ A-005, A-006, A-007, A-008 and A-010 are resolved by `MESSENGER_BASELINE_V1.md`,
 
 ### 07:18 — expressive media + packs + entitlements + services/LLMs + plugins
 
-| Queue item | Resolution |
+A-001, A-002, A-003, A-004 and A-009 are resolved by the expressive-media/content-pack, ServicePrincipal and plugin architecture documents.
+
+### 07:56 — 0M + permissionless services + external bridges + user escape
+
+| Queue / principle | Resolution |
 |---|---|
-| A-001 expressive_media | Baseline expressive payloads are bounded inert WebP assets with semantic sticker/custom-emoji/reaction/loop kinds; conversation rendering is BlobID-based and independent of a pack/catalog. |
-| A-002 content_packs | `ContentPackID` + immutable canonical releases + signed update lineage; manifests are data-only, directly installable/hostable/forkable, with provenance/licensing metadata but no mandatory catalog. |
-| A-003 creator_commerce | OM standardizes only an optional generic entitlement-presentation hook for acquisition/update. Payment, settlement, tax, refunds, pricing and marketplace operation remain external. Entitlements never gate rendering of content already delivered in a conversation. |
-| A-004 bots_agents | Bots/agents/LLMs are typed `ServicePrincipal`s. Selected-context invocation is the default; scoped subscriptions/full-Room membership require explicit grants, and a full-Room service is a visible plaintext recipient. Local inference, network egress and tool authority are distinct. |
-| A-009 plugin_ecosystem | Protocol extensions, inert packs, sandboxed local plugins, isolated web apps, remote services and provider adapters are distinct classes. Local executable plugins use capability-scoped WebAssembly Component Model/WIT; no ambient authority or arbitrary in-process official-client plugins. |
+| 0M / decentralization | `0M` is the seventh canonical meaning: zero parties have total control. Scoped central services may exist, but none may become an indispensable universal OM authority. |
+| service creation / human-AI boundary | ServiceID creation is local and permissionless. Hosting/discovery/catalogs are replaceable. OM classifies authority rather than trying to detect human-vs-AI content; autonomous on-behalf-of agents use scoped `RepresentationGrant`s. |
+| A-011 interop_bridges | External gateways are typed `BridgePrincipal`s. Foreign actors remain bridge-attested provenance; private-Room plaintext export/E2EE termination is visible; semantic loss and loop/dedup lineage are explicit. |
+| A-012 import_export_escape | `om-archive-v1` is a public portability model. Archives restore history/evidence, not authority; exact native objects are preserved where possible and foreign imports remain non-routable provenance-bearing historical records. |
 
 Canonical detail lives in:
 
-- `EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`
+- `SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`
 - `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`
-- `PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md`
-- `PROTOCOL_EXTENSIBILITY.md`
-- updated `EVENT_MODEL.md`, `GROUP_CHAT_ARCHITECTURE.md`, `RICH_TEXT_AND_CONTENT_SECURITY.md` and logical schemas
+- `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`
+- `IMPORT_EXPORT_AND_USER_ESCAPE.md`
+- `TRANSPORT_ADAPTERS_AND_INTEROP.md`
+- updated `EVENT_MODEL.md`, discovery/identity documents and logical schemas.
 
 ## Still blocking before engineering
 
 | Queue item | Remaining architecture question |
 |---|---|
-| A-011 interop_bridges | External-network mapping, loops, edits/deletes/reactions fidelity, explicit plaintext/E2EE-end UI and identity mapping. |
-| A-012 import_export_escape | Portable export/migration/provenance and user escape from clients/providers without SeedLife dependence. |
-| A-013 metadata_threat_model | Dedicated timing/graph/group/link/push/blob/migration metadata analysis and selective-disclosure boundaries. |
-| A-014 decentralized_abuse_moderation | Blocking/reporting/spam/bans/appeals/admin abuse/operator exposure without a universal moderator. |
-| A-015 protocol_longevity | 20-year dependency/crypto/registry/client-dominance/protocol-generation/EEE survival and migration. |
+| A-013 metadata_threat_model | Dedicated timing/graph/group/link/push/blob/service/bridge/import/migration metadata analysis and selective-disclosure boundaries. |
+| A-014 decentralized_abuse_moderation | Blocking/reporting/spam/bans/appeals/admin abuse/operator exposure/service abuse without a universal moderator. |
+| A-015 protocol_longevity | 20-year dependency/crypto/registry/client-dominance/protocol-generation/EEE survival and migration, now explicitly tested against the 0M principle. |
 
 ## Verification is still blocking
 
-The resolved design cluster adds explicit proof obligations for plugin sandbox enforcement, service-principal authorization/disclosure/automation-loop behavior, and malformed expressive-media/pack safety. These are verification gates rather than reasons to keep the architecture questions artificially open.
+The resolved design clusters retain explicit proof obligations. V-011 now includes permissionless ServiceGenesis, host migration and RepresentationGrant impersonation boundaries. V-013 covers bridge provenance/fidelity/loop behavior. V-014 covers cross-implementation archive portability and hostile import safety.
 
 ## Guardrail
 
-Resolved architecture may be extended by the remaining items, but they may not reintroduce:
+Resolved architecture may be extended by A-013..A-015, but those passes may not reintroduce:
 
-- a mandatory OM homeserver, app store, pack catalog, bot store, marketplace or global moderator;
-- provider-owned identity, Room identity, ServiceID, PackID or PluginID;
-- silent plaintext readers or bots disguised as humans;
+- a mandatory OM homeserver, app store, service/bot issuer, bot store, marketplace or global moderator;
+- provider-owned AccountID, Room identity, ServiceID, BridgeID, PackID or PluginID;
+- autonomous service output silently authored as a human AccountPrincipal;
+- AI-detection as an authentication primitive;
+- bridge-created synthetic AccountIDs for foreign people;
+- silent plaintext/E2EE downgrade across bridges;
+- imported foreign history presented as native cryptographically authenticated OM history;
 - hidden transitive authority from Space nesting;
 - a permanent vendor/creator superuser;
 - executable code hidden in media/content packs;
 - payment/marketplace operation as a requirement for OM Core;
-- canonical shared semantics available only through opaque proprietary plugin code.
+- canonical shared semantics available only through opaque proprietary plugin code;
+- any single party acquiring total protocol-wide control contrary to 0M.
 
 Engineering remains unauthorized while blocking design and verification gates are open.

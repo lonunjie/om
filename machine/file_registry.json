@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-23T07:18:00+08:00",
+  "snapshot": "2026-09-23T07:56:00+08:00",
   "scope": "current_non_history",
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
@@ -149,6 +149,13 @@
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
       "authority": "current_checkpoint"
+    },
+    {
+      "path": "CHECKPOINT_20260923_0756.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "checkpoint_summary"
     },
     {
       "path": "CLIENTHOST_UPDATE_LIFECYCLE.md",
@@ -324,6 +331,20 @@
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
+    },
+    {
+      "path": "IMPORT_EXPORT_AND_USER_ESCAPE.md",
+      "class": "architecture",
+      "domain": "import_export_escape",
+      "license": "CC-BY-SA-4.0",
+      "authority": "normative_architecture"
+    },
+    {
+      "path": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md",
+      "class": "architecture",
+      "domain": "bots_agents_interop",
+      "license": "CC-BY-SA-4.0",
+      "authority": "normative_architecture"
     },
     {
       "path": "INTRODUCTION_AND_SERVICE_ACCOUNTS.md",
@@ -611,6 +632,13 @@
       "domain": "ux_accessibility_personalization",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
+    },
+    {
+      "path": "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
+      "class": "architecture",
+      "domain": "bots_agents_interop",
+      "license": "CC-BY-SA-4.0",
+      "authority": "normative_architecture"
     },
     {
       "path": "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md",
@@ -1355,6 +1383,34 @@
       "authority": "canonical_decision"
     },
     {
+      "path": "decisions/ADR-0094-zero-total-control-is-a-canonical-om-meaning.md",
+      "class": "adr",
+      "domain": "constitution_governance",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
+      "path": "decisions/ADR-0095-service-creation-is-permissionless-and-agency-is-authority-based.md",
+      "class": "adr",
+      "domain": "bots_agents_interop",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
+      "path": "decisions/ADR-0096-bridges-preserve-foreign-provenance-and-terminate-om-e2ee-explicitly.md",
+      "class": "adr",
+      "domain": "bots_agents_interop",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
+      "path": "decisions/ADR-0097-portable-archives-restore-data-not-authority.md",
+      "class": "adr",
+      "domain": "import_export_escape",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -1544,6 +1600,13 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "protocol/bridge-principal.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "bots_agents_interop",
+      "license": "Apache-2.0",
+      "authority": "logical_schema"
+    },
+    {
       "path": "protocol/call-session.logical.schema.json",
       "class": "protocol_schema",
       "domain": "calls_media",
@@ -1635,11 +1698,25 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "protocol/foreign-provenance.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "bots_agents_interop",
+      "license": "Apache-2.0",
+      "authority": "logical_schema"
+    },
+    {
       "path": "protocol/group-control-transition.logical.schema.json",
       "class": "protocol_schema",
       "domain": "groups",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
+    },
+    {
+      "path": "protocol/imported-history-record.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "import_export_escape",
+      "license": "Apache-2.0",
+      "authority": "logical_schema"
     },
     {
       "path": "protocol/introduction-ticket.logical.schema.json",
@@ -1668,6 +1745,13 @@
       "domain": "client_endpoint_distribution",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
+    },
+    {
+      "path": "protocol/om-archive-manifest.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "import_export_escape",
+      "license": "Apache-2.0",
+      "authority": "logical_schema"
     },
     {
       "path": "protocol/one-to-one-session-state.logical.schema.json",
@@ -1738,6 +1822,13 @@
       "domain": "relay_reachability",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
+    },
+    {
+      "path": "protocol/representation-grant.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "bots_agents_interop",
+      "license": "Apache-2.0",
+      "authority": "logical_schema"
     },
     {
       "path": "protocol/rich-text.logical.schema.json",
@@ -1825,6 +1916,13 @@
     },
     {
       "path": "research/EXTENSION_ECOSYSTEM_REFERENCES_20260923.md",
+      "class": "research",
+      "domain": "research",
+      "license": "CC-BY-SA-4.0",
+      "authority": "evidence_non_normative"
+    },
+    {
+      "path": "research/INTEROP_BOTS_PORTABILITY_REFERENCES_20260923.md",
       "class": "research",
       "domain": "research",
       "license": "CC-BY-SA-4.0",

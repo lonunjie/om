@@ -291,4 +291,4 @@ The UI should distinguish “publisher retracted this” from “this never exis
 
 This document resolves the architectural core of **A-005 communities** and **A-006 broadcast**. Permission mechanics and topic/thread organization are frozen in `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`.
 
-Bot/LLM installation (A-004), plugins (A-009) and external-network bridges (A-011) remain blocking items and must plug into these explicit principal/authority boundaries rather than bypass them.
+Bot/LLM installation (A-004), plugins (A-009) and external-network bridges (A-011) are now resolved and all plug into these explicit principal/authority boundaries rather than bypassing them.

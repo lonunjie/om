@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM ForeignProvenance logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["foreign_network_namespace", "foreign_conversation_ref", "foreign_event_ref", "bridge_observed_at", "fidelity_flags"],
+  "properties": {
+    "foreign_network_namespace": {"type": "string"},
+    "foreign_conversation_ref": {"type": "string"},
+    "foreign_event_ref": {"type": "string"},
+    "foreign_actor_ref": {"type": ["string", "null"]},
+    "foreign_actor_display_hint": {"type": ["string", "null"]},
+    "observed_source_time": {"type": ["integer", "null"], "minimum": 0},
+    "bridge_observed_at": {"type": "integer", "minimum": 0},
+    "fidelity_flags": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "origin_fingerprint": {"type": ["string", "null"]},
+    "interop_trace": {"type": ["object", "null"]}
+  }
+}

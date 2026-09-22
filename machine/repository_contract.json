@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-23T07:18:00+08:00",
+  "snapshot": "2026-09-23T07:56:00+08:00",
   "phase": "architecture_hardening_pre_engineering",
   "engineering_authorized": false,
   "engineering_unlock_requires": [
@@ -51,7 +51,10 @@
     "TIME_AND_EXPIRY_SEMANTICS.md",
     "MESSENGER_BASELINE_V1.md",
     "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
-    "SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md"
+    "SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md",
+    "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
+    "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md",
+    "IMPORT_EXPORT_AND_USER_ESCAPE.md"
   ],
   "current_file_registry": "machine/file_registry.json",
   "architecture_map": "machine/architecture_map.json",
@@ -79,7 +82,7 @@
     "former Q-001..Q-061 are all represented in resolved_questions and current open_questions.jsonl is absent",
     "engineering remains locked while architecture design queue or blocking verification gates remain",
     "no country-specific protocol-home legal gate exists in current canonical architecture",
-    "OM six meanings remain present in NAMING.md and machine decisions",
+    "OM seven meanings, including 0M/zero total control, remain present in NAMING.md and machine decisions",
     "manifest bytes/hashes match checkpoint contents"
   ],
   "legal_risk_policy": {
