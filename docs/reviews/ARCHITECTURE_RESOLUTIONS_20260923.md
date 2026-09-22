@@ -244,3 +244,8 @@ LocalDiscoveryProvider is capability-gated. Native may use platform discovery; u
 ## Q-061
 
 Provider diversity uses evidence dimensions (operator, ASN/network, cloud/vendor, DNS zone, region/jurisdiction, implementation family) with evidence levels such as self-claimed/observed/third-party-attested. Routing may request diversity across dimensions but never claim mathematically proven corporate independence.
+
+
+## 07:18 PHT — Extension/ecosystem hardening
+
+A-001/A-002/A-003/A-004/A-009 are resolved at architecture-design level. OM now has bounded inert expressive-media profiles; portable data-only content packs with signed update provenance; a generic optional entitlement proof boundary with commerce external; typed ServicePrincipals for bots/agents/LLMs with selected-context default and explicit full-Room plaintext membership; and a capability-sandboxed plugin model built around distinct protocol/data/Wasm/web/service/provider extension classes. `ConversationEvent` authorship is generalized from human AccountID/DeviceIdentity fields to `PrincipalRef + author_endpoint_id`. V-010..V-012 retain implementation/adversarial proof as blocking verification work.

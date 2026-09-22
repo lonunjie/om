@@ -1,3 +1,14 @@
+## 2026-09-23 07:18 PHT — Extension ecosystem / bots / expressive-media hardening
+
+- resolved A-001/A-002/A-003/A-004/A-009 at architecture-design level;
+- froze bounded inert WebP expressive-media profiles and self-contained conversation rendering;
+- added portable immutable ContentPack releases, update lineage, provenance/fork semantics and optional entitlement proofs while keeping commerce external;
+- added typed ServicePrincipal/ServiceID + ServiceInstallation architecture for bots, agents and local/remote LLMs;
+- generalized ConversationEvent authorship to typed PrincipalRef + authenticated endpoint rather than forcing automation into human AccountIDs;
+- froze capability-sandboxed WebAssembly Component Model/WIT local plugins plus isolated web apps and anti-fragmentation rules;
+- added V-010..V-012 so plugin sandboxing, service authority/automation and media/pack parser safety remain verification-blocking;
+- engineering remains unauthorized.
+
 # 2026-09-22 23:02 PHT — architecture hardening / anti-capture checkpoint
 
 - superseded the 14:34 engineering transition; returned phase to architecture hardening / pre-engineering;

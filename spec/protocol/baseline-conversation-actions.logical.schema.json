@@ -42,7 +42,7 @@
   "ConvergenceRules": [
     "pin.set latest authorized EventClock state per target_event_id wins",
     "moderation.redact is monotonic suppression unless a future explicit restore capability is standardized",
-    "poll.vote latest authorized EventClock state per actor_account_id + target_poll_event_id wins",
+    "poll.vote latest authorized EventClock state per actor_principal + target_poll_event_id wins",
     "poll.close is monotonic; votes ordered after the accepted close do not alter the closed tally",
     "topic field/status/message-placement conflicts resolve by authenticated authorization plus EventClock ordering",
     "wall-clock values never grant authority"

@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-23T06:15:00+08:00",
+  "snapshot": "2026-09-23T07:18:00+08:00",
   "scope": "current_non_history",
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
@@ -141,6 +141,13 @@
       "class": "checkpoint",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "CHECKPOINT_20260923_0718.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
       "authority": "current_checkpoint"
     },
     {
@@ -245,6 +252,13 @@
       "path": "EVIDENCE_AND_EXTERNAL_REPORTING.md",
       "class": "architecture_doc",
       "domain": "content_abuse_evidence",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md",
+      "class": "architecture_doc",
+      "domain": "expressive_media_content_packs",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
     },
@@ -480,6 +494,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md",
+      "class": "architecture_doc",
+      "domain": "bots_agents_interop",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "PRIVACY_GOVERNANCE_AUTHORITY.md",
       "class": "architecture_doc",
       "domain": "constitution_governance",
@@ -588,6 +609,13 @@
       "path": "SECURITY_PRIVACY_PROFILES.md",
       "class": "architecture_doc",
       "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md",
+      "class": "architecture_doc",
+      "domain": "bots_agents_interop",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
     },
@@ -1292,6 +1320,41 @@
       "authority": "canonical_decision"
     },
     {
+      "path": "decisions/ADR-0089-bounded-inert-expressive-media.md",
+      "class": "adr",
+      "domain": "expressive_media_content_packs",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
+      "path": "decisions/ADR-0090-portable-inert-content-packs.md",
+      "class": "adr",
+      "domain": "expressive_media_content_packs",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
+      "path": "decisions/ADR-0091-generic-entitlement-boundary-commerce-external.md",
+      "class": "adr",
+      "domain": "expressive_media_content_packs",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
+      "path": "decisions/ADR-0092-typed-service-principals-selected-context-default.md",
+      "class": "adr",
+      "domain": "bots_agents_interop",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
+      "path": "decisions/ADR-0093-capability-sandboxed-plugin-extension-classes.md",
+      "class": "adr",
+      "domain": "bots_agents_interop",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_decision"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -1523,6 +1586,13 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "protocol/content-pack.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "expressive_media_content_packs",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
       "path": "protocol/conversation-event.logical.schema.json",
       "class": "protocol_schema",
       "domain": "time_ordering_events",
@@ -1544,9 +1614,23 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "protocol/entitlement-presentation.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "expressive_media_content_packs",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
       "path": "protocol/evidence-package.logical.schema.json",
       "class": "protocol_schema",
       "domain": "content_abuse_evidence",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "protocol/expressive-asset.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "expressive_media_content_packs",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
@@ -1589,6 +1673,20 @@
       "path": "protocol/one-to-one-session-state.logical.schema.json",
       "class": "protocol_schema",
       "domain": "crypto_1to1",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "protocol/plugin-package.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "bots_agents_interop",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "protocol/principal-ref.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "bots_agents_interop",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
@@ -1656,6 +1754,20 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "protocol/service-installation.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "bots_agents_interop",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "protocol/service-principal.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "bots_agents_interop",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
       "path": "protocol/space-control-state.logical.schema.json",
       "class": "protocol_schema",
       "domain": "communities_broadcast_topics",
@@ -1706,6 +1818,13 @@
     },
     {
       "path": "research/DISCOVERY_RESILIENCE_REFERENCES_20260921.md",
+      "class": "research",
+      "domain": "research",
+      "license": "CC-BY-SA-4.0",
+      "authority": "evidence_non_normative"
+    },
+    {
+      "path": "research/EXTENSION_ECOSYSTEM_REFERENCES_20260923.md",
       "class": "research",
       "domain": "research",
       "license": "CC-BY-SA-4.0",

@@ -1,7 +1,7 @@
 # OM Messenger Baseline V1 — Product Completeness and Semantic Boundaries
 
 - **Status:** Canonical pre-engineering architecture
-- **Checkpoint:** 2026-09-23 06:15 PHT
+- **Checkpoint:** 2026-09-23 07:18 PHT
 - **Scope:** Ordinary messenger completeness, canonical event impact, local-vs-network boundaries, and first-release interoperability expectations
 
 ## Decision summary
@@ -42,8 +42,8 @@ A reference client may implement more than the minimum conformance surface, but 
 | Mute | Local/account-private UX | Notification preference, not room authority. |
 | Archive / folders / labels | Local/account-private UX | Organizational view state only. |
 | Scheduled send | Local/account-private UX | Encrypted local queue until actual send time. If no authorized device is online, nothing is sent. |
-| Stickers | Product-baseline capability | First-class UX is required; exact safe media/pack model remains A-001/A-002. |
-| GIF-like looping animation | Product-baseline capability | Modeled as animation, not as a requirement to use the legacy GIF codec; exact formats remain A-001. |
+| Stickers | Product-baseline capability | First-class UX is required; bounded inert media + portable pack semantics are frozen in `EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`. |
+| GIF-like looping animation | Product-baseline capability | Modeled semantically as looping animation; baseline interoperable expressive payload is bounded animated WebP rather than a requirement to use the legacy GIF codec. |
 | Contact sharing | Core interoperable | Existing signed/expiring `ContactCapsule` model. |
 | Link preview | Standard optional capability | Existing privacy-preserving provider/client boundary; preview failure must not block message delivery. |
 | Block | Core user-safety behavior | Local/account policy with delivery/contact effects defined by the abuse architecture. |
@@ -158,7 +158,7 @@ poll.close
   target_poll_event_id
 ```
 
-Latest authorized vote state per `(actor_account_id, target_poll_event_id)` wins. `poll.close` is monotonic; concurrent/late votes are materialized by the deterministic event-order rule and clients must not use wall-clock timestamps as security authority. A creator or authorized room moderator may close a poll according to room policy.
+Latest authorized vote state per `(actor_principal, target_poll_event_id)` wins. `poll.close` is monotonic; concurrent/late votes are materialized by the deterministic event-order rule and clients must not use wall-clock timestamps as security authority. A creator or authorized room moderator may close a poll according to room policy.
 
 Because ordinary group events are visible to members who can decrypt the room, V1 does **not** label votes “anonymous.” Cryptographic anonymous voting would be a separate protocol with different trust/tally requirements.
 

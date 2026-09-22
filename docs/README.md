@@ -1,6 +1,6 @@
 # OM — Master Planning & Design Repository
 
-**Snapshot:** 2026-09-23 06:15 PHT (UTC+08:00)  
+**Snapshot:** 2026-09-23 07:18 PHT (UTC+08:00)  
 **Phase:** Architecture hardening / pre-engineering — engineering is not yet authorized  
 **Project name:** **OM** — see `NAMING.md` for its six canonical meanings
 
@@ -240,7 +240,7 @@ New blocking architecture material includes:
 No product engineering phase begins from this checkpoint.
 ## 2026-09-23 05:45 PHT — architecture-resolution + OM identity checkpoint
 
-The former 60-item open-question ledger has been resolved into accepted decisions and typed proof/release/deferred ledgers. `ARCHITECTURE_RESOLUTIONS_20260923.md` is the human-readable closure record. New product-architecture questions around expressive media, external packs, bots/LLMs, Communities/Spaces/Rooms, broadcasts, permissions/topics/plugins and baseline messenger features are intentionally queued in `machine/architecture_design_queue.jsonl` before engineering.
+The former 60-item open-question ledger has been resolved into accepted decisions and typed proof/release/deferred ledgers. `ARCHITECTURE_RESOLUTIONS_20260923.md` is the human-readable closure record. The messenger/community and extension/ecosystem architecture clusters are now resolved at design level; remaining blocking design work (external bridges, import/export escape, metadata, decentralized abuse/moderation and longevity) is tracked in `machine/architecture_design_queue.jsonl`, with separate verification gates preventing design confidence from being mistaken for implementation proof.
 
 Country-specific legal gating was removed from canonical architecture. `LEGAL_AND_OPERATIONAL_BOUNDARIES.md` now uses a role-based, jurisdiction-neutral model and keeps project operation/custody deliberately minimal.
 

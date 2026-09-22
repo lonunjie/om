@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM ServicePrincipal control/definition logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["service_id", "state_version", "controllers", "approval_threshold", "endpoint_credentials", "profile"],
+  "properties": {
+    "service_id": {"type": "string", "description": "Random stable 256-bit ServiceID"},
+    "state_version": {"type": "integer", "minimum": 1},
+    "previous_state_hash": {"type": ["string", "null"]},
+    "controllers": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "approval_threshold": {"type": "integer", "minimum": 1},
+    "endpoint_credentials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["endpoint_id", "credential_state"],
+        "properties": {
+          "endpoint_id": {"type": "string"},
+          "credential_state": {"enum": ["active", "quarantined", "revoked"]}
+        }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Display/category metadata; not authorization"
+    },
+    "manifest_release_ref": {"type": ["string", "null"]},
+    "authorization_evidence": {"type": "object"}
+  }
+}

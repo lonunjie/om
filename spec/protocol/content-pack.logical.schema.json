@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM ContentPack release/control logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["pack_id", "release_sequence", "title", "pack_kinds", "items", "provenance"],
+  "properties": {
+    "pack_id": {"type": "string", "description": "Random stable 256-bit logical ContentPackID"},
+    "release_sequence": {"type": "integer", "minimum": 1},
+    "previous_release_id": {"type": ["string", "null"]},
+    "title": {"type": "string", "maxLength": 256},
+    "description": {"type": ["string", "null"], "maxLength": 4096},
+    "pack_kinds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["sticker", "custom_emoji", "reaction", "mixed"]}
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 512,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["item_id", "kind", "asset", "accessibility_label"],
+        "properties": {
+          "item_id": {"type": "string", "maxLength": 128},
+          "kind": {"enum": ["sticker", "custom_emoji", "reaction_asset", "loop_animation"]},
+          "asset": {"$ref": "expressive-asset.logical.schema.json"},
+          "emoji_associations": {"type": "array", "maxItems": 32, "items": {"type": "string", "maxLength": 32}},
+          "keywords": {"type": "array", "maxItems": 32, "items": {"type": "string", "maxLength": 64}},
+          "accessibility_label": {"type": "string", "maxLength": 512}
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Publisher/control signatures and optional identity/domain/source evidence; does not establish copyright ownership or safety"
+    },
+    "licensing": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "description": "Optional SPDX/license URL/text hash assertions"
+    },
+    "forked_from": {"type": ["string", "null"]}
+  }
+}

@@ -1,7 +1,7 @@
 # OM Canonical Event Model — Gate B Selected Direction
 
 - **Status:** Canonical pre-engineering architecture; logical schemas remain draft
-- **Timestamp:** 2026-09-23 06:15 PHT
+- **Timestamp:** 2026-09-23 07:18 PHT
 - **Goal:** A small transport-independent vocabulary that every OM client, UI, bridge, relay integration, and future transport can project into.
 
 ## Decision summary
@@ -69,7 +69,7 @@ Conceptual tuple:
 ```text
 physical_ms
 logical_counter
-device_tiebreak
+endpoint_tiebreak
 ```
 
 Properties:
@@ -92,8 +92,8 @@ ConversationEvent
   protocol_version
   event_id
   conversation_id
-  author_account_id
-  author_device_id
+  author_principal            # typed PrincipalRef: account | service | bridge
+  author_endpoint_id          # authenticated credential endpoint under that principal
   clock
   kind
   kind_version
@@ -102,7 +102,9 @@ ConversationEvent
   expiry?
 ```
 
-For OM-native E2EE, the secure session/MLS layer authenticates which DeviceIdentity sent the event.
+For OM-native E2EE, the secure session/MLS layer authenticates the endpoint credential that sent the event and binds it to `author_principal`. For an account author the endpoint is an authorized `DeviceIdentity`; for a service author it is an authorized service endpoint. A bridge author follows the explicit bridge-principal model once A-011 is resolved.
+
+The envelope therefore does not force non-human automation to masquerade as an AccountID. Human-account endpoint credentials and service endpoint credentials remain different identity classes: a service endpoint is never counted in `AccountControlState` device-majority governance.
 
 ### No mandatory per-message durable signature
 
@@ -151,7 +153,7 @@ message.edit
   replacement
 ```
 
-Only an account authorized to edit the original message may edit it.
+Only the same author principal, or an explicitly authorized moderator where policy permits a distinct moderation action, may alter shared state. Ordinary author edits are bound to the original author principal; moderation remains `moderation.redact` rather than pretending the moderator is the author.
 
 Concurrent edits resolve deterministically using authenticated authorization plus EventClock ordering.
 
@@ -176,17 +178,18 @@ OM must not promise remote physical erasure after a recipient has already decryp
 ```text
 reaction.set
   target_event_id
-  reaction_key
+  reaction_key                 # Unicode token or canonical custom-reaction token
+  reaction_asset?              # ExpressiveAssetRef when custom
   present: true | false
 ```
 
 Reaction state is keyed by:
 
 ```text
-(actor_account_id, target_event_id, reaction_key)
+(actor_principal, target_event_id, reaction_key)
 ```
 
-The latest authorized state wins.
+Unicode reactions remain the zero-dependency baseline. A custom reaction carries an inert `ExpressiveAssetRef` plus fallback semantics from `EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`; the immutable BlobID is the rendering authority, not a live pack/catalog. The latest authorized state wins.
 
 This makes adding/removing a reaction idempotent and multi-device friendly.
 
@@ -238,7 +241,7 @@ poll.vote
 poll.close
 ```
 
-The `poll.create` EventID identifies the poll. Latest authorized vote state per `(actor_account_id, target_poll_event_id)` wins; close is monotonic and reorder/duplication convergence is a verification obligation. Baseline polls do not claim cryptographic voter anonymity; see `MESSENGER_BASELINE_V1.md`.
+The `poll.create` EventID identifies the poll. Latest authorized vote state per `(actor_principal, target_poll_event_id)` wins; close is monotonic and reorder/duplication convergence is a verification obligation. Baseline polls do not claim cryptographic voter anonymity; see `MESSENGER_BASELINE_V1.md`.
 
 ### Topic organization
 

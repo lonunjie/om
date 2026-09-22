@@ -100,6 +100,27 @@
               }
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "asset",
+            "fallback_text"
+          ],
+          "properties": {
+            "type": {
+              "const": "custom_emoji"
+            },
+            "asset": {
+              "$ref": "expressive-asset.logical.schema.json"
+            },
+            "fallback_text": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
         }
       ]
     },

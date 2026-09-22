@@ -184,3 +184,8 @@ Before visual polish freezes, usability-test onboarding, message requests, Share
 The authoritative execution order is now `ENGINEERING_HANDOFF.md`. Build multi-profile namespacing now but expose multiple-account switching later. RichTextV1, DeviceVault/ClientHost, LocalDataClass, diagnostics redaction and formal AccountControlState are no longer optional design research; they are implementation requirements.
 
 The first product proof uses one visible profile and a dev-only crypto provider where necessary. Production cryptography is integrated only after the explicit crypto gate. This allows UI/state/relay engineering to proceed without pretending an unaudited protocol composition is secure.
+
+
+## Pre-engineering extension/ecosystem freeze — 2026-09-23 07:18 PHT
+
+Before any eventual implementation of expressive media, packs, services/LLMs or plugins, engineering must consume `EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`, `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md` and `PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md`. These decisions do not authorize engineering; V-010..V-012 remain explicit feasibility/adversarial gates.

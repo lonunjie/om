@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM ServiceInstallation logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["installation_id", "service_id", "scope_ref", "granted_capabilities", "data_access_mode", "approval_evidence", "revocation_state"],
+  "properties": {
+    "installation_id": {"type": "string"},
+    "service_id": {"type": "string"},
+    "scope_ref": {"type": "object", "description": "personal/account-local, ConversationID, or SpaceID scope"},
+    "granted_capabilities": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "data_access_mode": {"enum": ["selected_context", "local_personal", "scoped_subscription", "full_room_member"]},
+    "interaction_surfaces": {"type": "array", "items": {"type": "string"}},
+    "automation_rules": {"type": "array", "items": {"type": "object"}},
+    "approval_evidence": {"type": "object"},
+    "revocation_state": {"enum": ["active", "revoked"]}
+  }
+}

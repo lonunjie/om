@@ -1,50 +1,28 @@
-# OM Master Planning & Design Snapshot
+# OM Architecture Snapshot
 
-Generated: **2026-09-23 06:15 PHT (UTC+08:00)**
+Generated: **2026-09-23 07:18 PHT (UTC+08:00)**
 
-This snapshot supersedes the 2026-09-23 05:45 PHT architecture-hardening checkpoint, preserved under `history/20260923-0545/`.
+## State
 
-## Phase
+OM remains in **architecture-hardening / pre-engineering**. **Engineering is not authorized.** `engineering_authorized=false`.
 
-**Architecture hardening / pre-engineering. Product engineering is not authorized.**
+The canonical architecture now has two recently completed design clusters:
 
-## Major decisions in this checkpoint
+- 06:15 — messenger baseline + Spaces/Rooms/Communities/permissions/Topics/Publications;
+- 07:18 — expressive media + portable packs + entitlement boundary + typed service principals/bots/LLMs + capability-sandboxed plugins.
 
-- froze the first-release ordinary-messenger semantic baseline in `MESSENGER_BASELINE_V1.md`;
-- unified private group/Room identity on the existing provider-independent `ConversationID`, removing a redundant distinct `GroupID`;
-- defined `Space`/Community as an organizational/control container over independent Rooms/Publications/nested Spaces, with no silent child membership inheritance;
-- required bilateral official child links and explicit Room-localized authority delegation, with at most one authority-parent Space in the baseline;
-- selected capability-scoped roles, explicit restrictions and delegation ceilings instead of numeric role hierarchy/override mazes or a protocol-required god-mode Administrator;
-- kept governance free of a permanent magical owner/vendor takeover path;
-- selected layered reply/thread/Topic organization without making Topics sub-Rooms or MLS groups;
-- defined private announcements as restricted-post MLS Rooms and public broadcast as a separate signed `Publication` object with non-canonical follower lists;
-- corrected checkpoint drift around shared pins and the already-selected `CommitCoordinator`;
-- resolved architecture queue A-005, A-006, A-007, A-008 and A-010; A-001..A-004, A-009 and A-011 remain open, and this pass added A-012..A-015 so import/export escape, metadata privacy, decentralized abuse/moderation and protocol longevity cannot fall out of scope;
-- added V-008 to adversarially/formally validate Space/Room permission delegation and revocation, and V-009 to validate convergence/authorization of the expanded baseline event vocabulary before engineering.
+The 07:18 pass also removes the human-only author assumption from `ConversationEvent`: canonical authorship is now a typed `PrincipalRef` with a separately authenticated endpoint. Account endpoints remain DeviceIdentities; service endpoints remain governed by ServiceControlState and never join AccountControlState majority.
 
-## Current engineering blockers
+## Remaining blocking design queue
 
-Engineering remains locked. The open architecture-design blockers are now:
+- A-011 external interop bridges
+- A-012 import/export and user escape
+- A-013 metadata threat model
+- A-014 decentralized abuse/moderation
+- A-015 20-year protocol longevity / anti-capture
 
-```text
-A-001 expressive media
-A-002 content packs
-A-003 creator commerce / entitlement boundary
-A-004 bots, agents and LLMs
-A-009 plugin ecosystem
-A-011 external-network bridges / interoperability
-A-012 import/export and user escape
-A-013 metadata threat model
-A-014 decentralized abuse/moderation hardening
-A-015 20-year protocol longevity / anti-capture
-```
+Resolved design does not imply verified implementation feasibility. Architecture verification gates remain blocking, including new plugin-sandbox, service-principal/automation and expressive-media/pack parser-safety gates.
 
-The blocking verification gates remain V-001..V-009.
+## Next architecture cluster
 
-Run:
-
-```sh
-python3 tools/validate_architecture.py
-```
-
-A later accepted ADR must explicitly authorize engineering; this checkpoint does not.
+The most coupled next pass is **A-011 + A-012**: external bridging and import/export/escape both cross trust boundaries and require explicit provenance, identity mapping, fidelity-loss and “OM E2EE ends here” semantics. After that, A-013/A-014 should adversarially attack metadata and abuse surfaces before A-015 performs the final 20-year continuity/anti-capture pass.

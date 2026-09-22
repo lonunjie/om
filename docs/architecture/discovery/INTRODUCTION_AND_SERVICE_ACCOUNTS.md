@@ -204,3 +204,11 @@ Invites carry separate revocable capabilities. Revoking an invite does not affec
 ## 2026-09-23 bot/LLM direction
 
 Bots and LLM agents are explicit service principals. Default interaction should be command/scoped-context delivery; a bot admitted as a full room/group member is visibly a plaintext recipient for the data it can decrypt. Local on-device inference and remote-agent disclosure are distinct capabilities and must not be conflated.
+
+## 2026-09-23 07:18 principal-model refinement
+
+`ServiceIdentity` in this document is the **product/business-facing continuity profile**. Its protocol actor is the provider-independent typed `ServicePrincipal` identified by `ServiceID` and governed by `ServiceControlState`. Employee accounts may be delegated agents of that service; autonomous bot/LLM posts are authored by the ServicePrincipal itself, not by a synthetic AccountID.
+
+The canonical `ConversationEvent` envelope therefore carries `author_principal: PrincipalRef` plus an authenticated `author_endpoint_id`. Human-authored events bind the endpoint to `DeviceIdentity -> AccountControlState`; autonomous service-authored events bind it to `ServiceEndpoint -> ServiceControlState`. Neither service endpoints nor their controllers become members of the user's account-device majority.
+
+Default service interaction is selected-context invocation. Continuous scoped subscription and full-Room membership require explicit grants and visible disclosure; a full-Room service is an actual plaintext recipient. Local model execution and network egress are separate capabilities. Detailed rules live in `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`.

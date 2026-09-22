@@ -332,7 +332,28 @@ def check_manifest(contract: dict) -> None:
         if r.get("sha256") != sha256(p): fail(f"MANIFEST sha256 mismatch: {path}")
 
 
+def validate_0718_extension_guardrails() -> None:
+    schema_path = ROOT / "protocol/conversation-event.logical.schema.json"
+    schema = load_json(schema_path)
+    if not isinstance(schema, dict):
+        return
+    props = schema.get("properties", {})
+    required = set(schema.get("required", []))
+    if "author_principal" not in props or "author_principal" not in required:
+        fail("07:18 guard: ConversationEvent must require typed author_principal")
+    if "author_endpoint_id" not in props or "author_endpoint_id" not in required:
+        fail("07:18 guard: ConversationEvent must require author_endpoint_id")
+    if "author_account_id" in props or "author_device_id" in props:
+        fail("07:18 guard: ConversationEvent must not reintroduce human-only author_account_id/author_device_id")
+
+    ptext = (ROOT / "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md").read_text(encoding="utf-8")
+    for phrase in ("no ambient", "Plaintext", "network", "canonical"):
+        if phrase.lower() not in ptext.lower():
+            fail(f"07:18 guard: plugin architecture lost required boundary phrase {phrase!r}")
+
+
 def main() -> int:
+    validate_0718_extension_guardrails()
     contract = load_json(ROOT / "machine/repository_contract.json")
     if not isinstance(contract, dict):
         print("architecture validation FAILED: repository_contract unreadable", file=sys.stderr); return 1

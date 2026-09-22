@@ -8,8 +8,8 @@
     "protocol_version",
     "event_id",
     "conversation_id",
-    "author_account_id",
-    "author_device_id",
+    "author_principal",
+    "author_endpoint_id",
     "clock",
     "kind",
     "kind_version",
@@ -27,11 +27,12 @@
     "conversation_id": {
       "type": "string"
     },
-    "author_account_id": {
-      "type": "string"
+    "author_principal": {
+      "$ref": "principal-ref.logical.schema.json"
     },
-    "author_device_id": {
-      "type": "string"
+    "author_endpoint_id": {
+      "type": "string",
+      "description": "Authenticated endpoint credential ID under the typed author principal; DeviceIdentity for account authors, service endpoint for service authors"
     },
     "clock": {
       "type": "object",
@@ -39,7 +40,7 @@
       "required": [
         "physical_ms",
         "logical",
-        "device_tiebreak"
+        "endpoint_tiebreak"
       ],
       "properties": {
         "physical_ms": {
@@ -50,8 +51,9 @@
           "type": "integer",
           "minimum": 0
         },
-        "device_tiebreak": {
-          "type": "string"
+        "endpoint_tiebreak": {
+          "type": "string",
+          "description": "Stable deterministic tiebreak derived from the authenticated author endpoint, not authorization authority"
         }
       }
     },

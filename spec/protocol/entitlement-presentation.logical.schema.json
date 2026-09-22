@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM optional EntitlementPresentation logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["proof_type", "issuer_ref", "resource_scope", "rights", "audience", "nonce", "proof_bytes"],
+  "properties": {
+    "proof_type": {"type": "string"},
+    "issuer_ref": {"type": "string"},
+    "resource_scope": {"type": "string"},
+    "holder_binding": {"type": ["string", "null"], "description": "Prefer scoped/pseudonymous holder binding rather than AccountID"},
+    "rights": {"type": "array", "uniqueItems": true, "items": {"enum": ["fetch_release", "fetch_updates"]}},
+    "audience": {"type": "string"},
+    "nonce": {"type": "string"},
+    "not_before": {"type": ["integer", "null"], "minimum": 0},
+    "expires_at": {"type": ["integer", "null"], "minimum": 0},
+    "status_ref": {"type": ["string", "null"]},
+    "proof_bytes": {"type": "string", "description": "Opaque logical bytes; canonical binary encoding is registry/profile specific"}
+  }
+}

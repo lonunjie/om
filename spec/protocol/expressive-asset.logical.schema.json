@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM ExpressiveAssetRef logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "blob_id", "media_profile_id", "encoded_size", "width", "height", "alt_text"],
+  "properties": {
+    "kind": {"enum": ["sticker", "custom_emoji", "reaction_asset", "loop_animation"]},
+    "blob_id": {"type": "string"},
+    "media_profile_id": {"type": "string"},
+    "encoded_size": {"type": "integer", "minimum": 1},
+    "width": {"type": "integer", "minimum": 1},
+    "height": {"type": "integer", "minimum": 1},
+    "duration_ms": {"type": ["integer", "null"], "minimum": 0},
+    "alt_text": {"type": "string", "maxLength": 512},
+    "fallback_text": {"type": ["string", "null"], "maxLength": 128},
+    "pack_ref": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pack_id", "release_id", "item_id"],
+          "properties": {
+            "pack_id": {"type": "string"},
+            "release_id": {"type": "string"},
+            "item_id": {"type": "string"}
+          }
+        }
+      ]
+    }
+  }
+}

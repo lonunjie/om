@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-23T06:15:00+08:00",
+  "snapshot": "2026-09-23T07:18:00+08:00",
   "domains": {
     "constitution_governance": {
       "docs": [
@@ -237,7 +237,8 @@
         "protocol/message-create.logical.schema.json",
         "protocol/time-semantics.logical.schema.json",
         "protocol/topic-state.logical.schema.json",
-        "protocol/baseline-conversation-actions.logical.schema.json"
+        "protocol/baseline-conversation-actions.logical.schema.json",
+        "protocol/principal-ref.logical.schema.json"
       ],
       "adrs": [
         "ADR-0008",
@@ -301,7 +302,8 @@
         "DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md",
         "MULTI_IDENTITY_AND_PROFILE_ISOLATION.md",
         "CLIENTHOST_UPDATE_LIFECYCLE.md",
-        "NOTIFICATIONS_AND_PUSH.md"
+        "NOTIFICATIONS_AND_PUSH.md",
+        "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md"
       ],
       "schemas": [
         "protocol/clienthost-release-state.logical.schema.json",
@@ -451,39 +453,68 @@
     "expressive_media_content_packs": {
       "docs": [
         "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
+        "EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md",
         "RICH_TEXT_AND_CONTENT_SECURITY.md",
         "PRODUCT_AND_UX_PRINCIPLES.md"
       ],
-      "schemas": [],
+      "schemas": [
+        "protocol/expressive-asset.logical.schema.json",
+        "protocol/content-pack.logical.schema.json",
+        "protocol/entitlement-presentation.logical.schema.json",
+        "protocol/rich-text.logical.schema.json"
+      ],
       "adrs": [
         "ADR-0082",
-        "ADR-0083"
+        "ADR-0083",
+        "ADR-0089",
+        "ADR-0090",
+        "ADR-0091"
       ],
       "design_queue": [
         "A-001",
         "A-002",
         "A-003"
       ],
-      "deferred_questions": []
+      "deferred_questions": [],
+      "verification_gates": [
+        "V-012"
+      ]
     },
     "bots_agents_interop": {
       "docs": [
         "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
+        "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md",
+        "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md",
         "INTRODUCTION_AND_SERVICE_ACCOUNTS.md",
-        "TRANSPORT_ADAPTERS_AND_INTEROP.md",
-        "CLIENT_AND_EXTENSION_ARCHITECTURE.md"
+        "GROUP_CHAT_ARCHITECTURE.md",
+        "EVENT_MODEL.md",
+        "PROTOCOL_EXTENSIBILITY.md",
+        "CLIENT_AND_EXTENSION_ARCHITECTURE.md",
+        "TRANSPORT_ADAPTERS_AND_INTEROP.md"
       ],
-      "schemas": [],
+      "schemas": [
+        "protocol/principal-ref.logical.schema.json",
+        "protocol/service-principal.logical.schema.json",
+        "protocol/service-installation.logical.schema.json",
+        "protocol/plugin-package.logical.schema.json",
+        "protocol/conversation-event.logical.schema.json"
+      ],
       "adrs": [
         "ADR-0082",
-        "ADR-0083"
+        "ADR-0083",
+        "ADR-0092",
+        "ADR-0093"
       ],
       "design_queue": [
         "A-004",
         "A-009",
         "A-011"
       ],
-      "deferred_questions": []
+      "deferred_questions": [],
+      "verification_gates": [
+        "V-010",
+        "V-011"
+      ]
     },
     "communities_broadcast_topics": {
       "docs": [

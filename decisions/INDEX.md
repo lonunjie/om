@@ -1,6 +1,6 @@
 # OM Architecture Decision Records
 
-Checkpoint: 2026-09-23 06:15 PHT
+Checkpoint: 2026-09-23 07:18 PHT
 
 - [ADR-0001 — Providers Are Plugins](ADR-0001-provider-independence.md)
 - [ADR-0002 — Passwordless Device-First Identity](ADR-0002-device-first-identity.md)
@@ -90,3 +90,8 @@ Checkpoint: 2026-09-23 06:15 PHT
 - [ADR-0086 — Roles bundle scoped capabilities; no magical owner or unrestricted Administrator is required](ADR-0086-capability-scoped-authority-without-magical-owner.md)
 - [ADR-0087 — Threads, Topics, private announcements and public Publications are layered distinct semantics](ADR-0087-threads-topics-and-publication-are-layered-not-overloaded.md)
 - [ADR-0088 — Ordinary messenger completeness has explicit semantic boundaries before engineering](ADR-0088-baseline-messenger-semantics-before-engineering.md)
+- [ADR-0089 — Baseline expressive media is bounded inert media](ADR-0089-bounded-inert-expressive-media.md)
+- [ADR-0090 — Content packs are portable inert releases, not app-store objects](ADR-0090-portable-inert-content-packs.md)
+- [ADR-0091 — Standardize a generic entitlement boundary; keep commerce external](ADR-0091-generic-entitlement-boundary-commerce-external.md)
+- [ADR-0092 — Bots and agents are typed service principals; selected context is the default](ADR-0092-typed-service-principals-selected-context-default.md)
+- [ADR-0093 — Executable plugins are capability-sandboxed and cannot define hidden canonical semantics](ADR-0093-capability-sandboxed-plugin-extension-classes.md)

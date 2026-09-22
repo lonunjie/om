@@ -10,16 +10,16 @@ OM private groups are **provider-independent application groups** secured using 
 
 OM will not invent a new group key agreement protocol.
 
-The human group is made of **AccountIDs**. The cryptographic MLS group is made of **DeviceIdentities**. Users see people; the protocol can revoke individual devices.
+The normal human Room roster is made of **AccountIDs**, while its cryptographic MLS membership is normally their authorized **DeviceIdentities**. Explicit full-room services are a second typed principal class with separately authorized service endpoints. Users see people and clearly labeled services; the protocol can revoke individual human devices or service endpoints without conflating the two identity systems.
 
 ## Core invariants
 
 1. `ConversationID` is the single random provider-independent identity of the interactive group/Room.
 2. No relay, directory, storage provider, or OM-operated service owns the group.
-3. Human-visible membership is AccountID-level.
-4. Cryptographic membership is DeviceIdentity-level.
+3. Human-visible human membership is AccountID-level; non-human members are typed `ServicePrincipal`s rather than fake accounts.
+4. Cryptographic membership is endpoint-level: Account principals contribute authorized DeviceIdentities; full-room ServicePrincipals contribute separately authorized service endpoints.
 5. Removing an account removes all its active device clients from future group epochs.
-6. Removing one compromised device does not remove the human account.
+6. Removing one compromised human device does not remove the human account; removing one service endpoint need not remove the ServicePrincipal unless policy says so.
 7. New members do not automatically obtain pre-join history.
 8. Optional history sharing uses a separately encrypted history transfer, not old group epoch secrets.
 9. Roles/admin policy are application-layer, not implicit in MLS.
@@ -41,18 +41,19 @@ The `conversation_id` is bound into the MLS group/control context but is not a r
 ## Human roster vs cryptographic clients
 
 ```text
-Human roster                Cryptographic roster
+Logical roster              Cryptographic roster
 
-Alice                       Alice / phone
-Bob          ->             Alice / web
-Carol                       Bob / phone
-                            Carol / phone
-                            Carol / tablet
+Alice (Account)             Alice / phone (DeviceIdentity)
+Bob (Account)      ->        Alice / web   (DeviceIdentity)
+Carol (Account)             Bob / phone   (DeviceIdentity)
+WeatherBot (Service)        Carol / phone (DeviceIdentity)
+                            Carol / tablet(DeviceIdentity)
+                            WeatherBot / endpoint-1 (ServiceEndpoint)
 ```
 
-Each MLS client credential binds to an OM DeviceIdentity and therefore to an AccountID.
+Each MLS client credential binds to exactly one typed principal endpoint. For an `AccountPrincipal`, that endpoint is an OM `DeviceIdentity` authorized by `AccountControlState`. For a `ServicePrincipal`, it is a service endpoint authorized by `ServiceControlState`. Service endpoints never enter human account device-majority governance.
 
-Normal UI collapses devices under the person.
+Normal UI collapses human devices under the person and service endpoints under a clearly automated service entry.
 
 ## OM authentication for MLS
 
@@ -60,9 +61,10 @@ MLS requires applications to authenticate client credentials. OM satisfies that 
 
 ```text
 MLS client credential
- -> OM DeviceIdentity authorization
- -> AccountControlState
- -> AccountID
+ -> typed endpoint authorization
+    -> DeviceIdentity -> AccountControlState -> AccountID
+    OR
+    -> ServiceEndpoint -> ServiceControlState -> ServiceID
 ```
 
 Directory providers may distribute KeyPackages, but they are not roots of trust.
@@ -81,7 +83,8 @@ GroupState
     avatar_ref
     description
   membership[]
-    account_id
+    principal_ref              # AccountPrincipal or explicit ServicePrincipal
+    endpoint_policy
     role_ids[]
   role_definitions[]
   governance
@@ -292,15 +295,15 @@ A new device rejoins current group state and obtains history separately. Avoid d
 
 Two modes:
 
-### Command/service bot — preferred default
+### Selected-context service — preferred default
 
-The bot is not automatically an MLS member. The invoking client sends only the command and selected context through a separate encrypted relationship.
+The service is not automatically an MLS member. The invoking client sends only the command and bounded selected context through the explicit `ServiceInstallation` relationship. Installation scope and plaintext/data-access scope are separate.
 
-### Full group-member bot
+### Full Room service member
 
-If a bot becomes an MLS client, users must assume it can access group plaintext available under keys it possesses. A UI-only "mentions only" promise is not a cryptographic boundary once the bot has group decryption state.
+If a `ServicePrincipal` becomes an MLS member, its authorized service endpoints are cryptographic recipients. Users must assume the service can access Room plaintext available under keys it possesses. A UI-only "mentions only" promise is not a cryptographic boundary once an endpoint has Room decryption state.
 
-Full-member bots must be visibly labeled in roster and join/change events.
+Full-member services must be visibly labeled as automated/non-human in roster and join/change events. Removing/revoking them rotates future Room cryptographic state in the same way removal of another recipient does; past plaintext cannot be clawed back. See `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`.
 
 ## Bridges
 
@@ -417,4 +420,4 @@ Membership/role-affecting `GroupControlState` changes must be bound to the corre
 
 Private OM groups use RFC 9420 MLS with the standard X25519/AES-128-GCM/SHA-256/Ed25519 suite as the v1 mandatory interoperable group suite. PQ MLS remains experimental until standardized/mature. Group membership/control changes are serialized by a policy-neutral member `CommitCoordinator` and atomically bound through `GroupControlIntent`/`GroupCommitBinding`; coordinator sequencing does not grant membership/admin authority. Formal validation is tracked by `V-004`.
 
-The 2026-09-23 06:15 hardening pass resolves A-005..A-008 and A-010: Spaces link independent Rooms, capability-scoped roles govern authority, Topics stay room-local, private announcements remain MLS Rooms, and public broadcast uses signed Publications. Remaining adjacent bot/plugin/bridge/media design items cannot overload this private-Room model.
+The 2026-09-23 06:15 hardening pass resolved A-005..A-008 and A-010: Spaces link independent Rooms, capability-scoped roles govern authority, Topics stay room-local, private announcements remain MLS Rooms, and public broadcast uses signed Publications. The 07:18 pass then resolved the adjacent service/plugin/media architecture without overloading this private-Room model: full-room services are typed explicit recipients, while selected-context services remain outside MLS membership. External bridges remain open under A-011.

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM PrincipalRef logical schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "account_id"],
+      "properties": {
+        "type": {"const": "account"},
+        "account_id": {"type": "string"}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "service_id"],
+      "properties": {
+        "type": {"const": "service"},
+        "service_id": {"type": "string"}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "bridge_id"],
+      "properties": {
+        "type": {"const": "bridge"},
+        "bridge_id": {"type": "string"}
+      }
+    }
+  ]
+}

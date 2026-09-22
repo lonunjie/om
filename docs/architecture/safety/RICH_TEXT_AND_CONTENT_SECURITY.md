@@ -133,3 +133,8 @@ Link previews are optional enrichment. Failure to preview never changes message 
 ## 2026-09-23 LinkPreview security resolution
 
 Any LinkPreviewProvider is a replaceable optional operator and runs behind a strict SSRF/network sandbox: HTTP(S) allowlist, private/loopback/link-local/metadata/reserved blocking, DNS+redirect revalidation, rebinding resistance, no ambient cookies/auth, and strict redirect/time/byte/decompression/image bounds. Maximum Privacy performs no automatic preview fetch.
+
+## 2026-09-23 expressive inline refinement
+
+`RichTextV1` may contain a bounded `custom_emoji` inline node that references an inert `ExpressiveAssetRef` plus textual fallback. The node cannot contain a remote image URL, HTML, SVG script, CSS, Lottie/TGS program or arbitrary renderer code. Rendering is therefore subject to the same blob-integrity, decoder-budget, accessibility and reduced-motion rules as other expressive assets.
+
