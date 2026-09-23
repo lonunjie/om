@@ -19,7 +19,7 @@ from urllib.parse import unquote
 ROOT = Path(__file__).resolve().parents[1]
 # Not part of the architecture tree: git history replaces history/, drops are raw inputs,
 # and build/tool caches are local.
-CURRENT_EXCLUDED_PARTS = {"history", "__pycache__", "design-drops", ".git", "node_modules", "target", ".venv", ".pytest_cache", ".hypothesis"}
+CURRENT_EXCLUDED_PARTS = {"history", "__pycache__", "design-drops", ".git", "node_modules", "target", ".venv", ".pytest_cache", ".hypothesis", ".claude"}
 CURRENT_EXCLUDED_FILES = {".DS_Store", "OM_EXPORT.json"}
 ADR_RE = re.compile(r"^ADR-(\d{4})-.*\.md$")
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")

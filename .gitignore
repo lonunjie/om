@@ -18,3 +18,6 @@ secrets/
 # Drop zone for design zips going to / coming from external design agents.
 # The repository is canonical; zips are transport only. See AGENTS.md "Design drops".
 design-drops/
+
+# Local agent tooling (worktrees, settings)
+.claude/
