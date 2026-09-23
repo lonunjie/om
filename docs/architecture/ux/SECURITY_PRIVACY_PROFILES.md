@@ -99,3 +99,18 @@ Every setting must explain the human effect, for example:
 ## 5. Security monotonicity
 
 Changing a convenience/privacy profile must not silently lower the authenticated cryptographic security floor established with a peer/group. Security-critical downgrades require explicit protocol policy and visible user action where allowed at all.
+
+## 2026-09-23 metadata-threat-model resolution
+
+`METADATA_THREAT_MODEL.md` is canonical for A-013.
+
+The profiles above are policy bundles, not privacy badges. In particular:
+
+- all profiles retain the same cryptographic floor;
+- normal private provider routing uses scoped opaque capabilities rather than canonical AccountID/ConversationID;
+- inner session/MLS payloads are protected by independently randomized provider-facing transport envelopes where required to avoid exposing canonical group/session identifiers to relays;
+- Recommended may use cheap size bucketing/padding but does not claim traffic anonymity;
+- Hardened may add private discovery, stronger padding/provider separation and relayed calls;
+- Maximum Privacy may add anonymity/pluggable transports, stronger batching/padding and optional bounded cover traffic with explicit bandwidth/battery cost;
+- opaque push payloads still leak wake timing to the push provider;
+- no preset may claim to defeat a global observer/provider collusion unless a separately reviewed mechanism actually supplies that property.

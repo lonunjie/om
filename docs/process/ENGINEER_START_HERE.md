@@ -1,6 +1,6 @@
 # OM Engineering — Start Here
 
-**Checkpoint:** 2026-09-23 07:56 PHT (UTC+08:00)  
+**Checkpoint:** 2026-09-23 08:21 PHT (UTC+08:00)  
 **Phase:** FUTURE HANDOFF — engineering not authorized by this checkpoint
 
 This file is retained so the future transition is explicit, but the current repository is **not yet an engineering handoff**. Architecture hardening remains active. Do not begin the product vertical slice until a later ADR sets `engineering_authorized=true` in `machine/repository_contract.json` and the architecture validator passes.
@@ -31,9 +31,11 @@ without introducing a mandatory central operator or weakening the documented sec
 8. `MULTI_IDENTITY_AND_PROFILE_ISOLATION.md`.
 9. `RICH_TEXT_AND_CONTENT_SECURITY.md`.
 10. `MESSENGER_BASELINE_V1.md` + `SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md` + `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`.
-11. `LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md`.
-12. `FORMAL_VERIFICATION_AND_FUZZING.md`.
-13. Existing protocol/architecture/UI documents as the relevant work package reaches them.
+11. `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md` + `PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md` + `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`.
+12. `METADATA_THREAT_MODEL.md` + `DECENTRALIZED_ABUSE_MODERATION.md` + `PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md`.
+13. `LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md`.
+14. `FORMAL_VERIFICATION_AND_FUZZING.md`.
+15. Existing protocol/architecture/UI documents as the relevant verification/work package reaches them.
 
 ## Engineering defaults
 
@@ -91,4 +93,4 @@ A coding agent can start work without reconstructing decisions from chat. Unreso
 
 ## Current checkpoint lock — 2026-09-23
 
-This document is retained for the future transition only. Product engineering is **not authorized** in the current checkpoint. The architecture-design queue and blocking architecture-verification gates must clear first; `machine/repository_contract.json` is authoritative.
+This document is retained for the future transition only. Product engineering is **not authorized** in the current checkpoint. The architecture-design queue is resolved, but all blocking architecture-verification gates must pass first; `machine/repository_contract.json` is authoritative.

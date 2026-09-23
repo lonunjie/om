@@ -261,3 +261,21 @@ A-011 is resolved: external networks use typed BridgePrincipals. Foreign actors/
 A-012 is resolved: `om-archive-v1` is the public portability model. Archives preserve exact native canonical objects/evidence where available and restore data, not authority. Device/account authority still uses account enrollment/recovery. Foreign messenger exports become non-routable `ImportedHistoryRecord`s and cannot fabricate historical OM authorship.
 
 V-011 is expanded for ServiceGenesis/hosting/representation/Sybil-reachability boundaries. V-013 and V-014 retain bridge and archive/import proof obligations as blocking verification work.
+
+## 08:21 PHT — A-013 metadata, A-014 decentralized abuse/moderation, A-015 longevity
+
+### A-013 — Metadata threat model — resolved
+
+OM does not equate E2EE with metadata anonymity. Stable canonical IDs remain above provider routing; normal private delivery uses provider-scoped opaque capabilities plus independently randomized encrypted outer envelopes so relays do not need AccountID/ConversationID/inner group identity. Privacy exposure is described per provider/path. Recommended/Hardened/Maximum Privacy can progressively add padding, private discovery, provider separation, relayed calls, batching and anonymity transports while honestly documenting residual timing/size/IP/collusion leakage. V-015 proves traces/claims.
+
+### A-014 — Decentralized abuse/moderation — resolved
+
+Safety authority remains scoped to users, relationships, Rooms, Spaces and providers. Reports are selective EvidencePackages. Optional signed `SafetyAdvisory` sources allow communities/users to share spam/fraud/malware signals, but each subscriber chooses enforcement; no global reputation score, mandatory labeler, master blocklist or SeedLife AbuseDesk exists. Provider denial/delisting cannot rewrite protocol identity. Labeler-scoped pseudonymous subject references reduce cross-feed correlation for non-public principals. V-016 proves authority, Sybil/resource and advisory behavior.
+
+### A-015 — Protocol longevity/0M continuity — resolved
+
+Published protocol generations become independently preservable through mirrorable `Protocol Continuity Bundle`s containing normative schemas/specs, registry/CryptoProfile snapshots, conformance vectors, licenses and integrity/release evidence. Assigned IDs never change meaning. Incompatible future evolution/forks use new lineages/profile IDs; dominant clients/extensions gain no special authority from market share. Crypto/project/provider failures use authenticated migration where continuity is provable and explicit re-verification/successor/fork behavior where it is not. V-017 performs the creator/forge/domain/provider/release-root continuity drill.
+
+### Design milestone
+
+A-001..A-015 are now resolved at the architecture-design level. This is **not architecture verification and not engineering authorization**. V-001..V-017 remain blocking and `engineering_authorized=false` until they pass and a later ADR deliberately unlocks engineering.

@@ -196,4 +196,4 @@ This document resolves **A-010 baseline_product**. It deliberately leaves exact 
 - A-011: external-network bridge fidelity and trust-state mapping — resolved in `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`.
 - A-012: import/export/escape — resolved in `IMPORT_EXPORT_AND_USER_ESCAPE.md`.
 
-Cross-cutting blockers A-013..A-015 must still pressure-test these semantics for metadata leakage, decentralized abuse handling and long-term protocol evolution. Those items may extend the product, but they may not weaken the baseline semantic boundaries frozen here.
+The completed A-013..A-015 passes pressure-tested these semantics for metadata leakage, decentralized abuse handling and long-term protocol evolution. Their resolutions extend the surrounding architecture without weakening the baseline semantic boundaries frozen here.

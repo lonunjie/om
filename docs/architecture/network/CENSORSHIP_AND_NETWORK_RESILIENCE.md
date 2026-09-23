@@ -110,3 +110,7 @@ This prevents the software-distribution layer from becoming OM's hidden central 
 ## High-anonymity / nation-state mode remains an adapter
 
 Tor, xx-network-style mix/routing systems, MASQUE/proxy paths, padding/cover traffic, and future pluggable transports may implement a Maximum Privacy or censorship-resilience `NetworkTransport`/`RoutePolicy` later. They are not required for ordinary v1 operation and must not force identity/history migration when added.
+
+## 2026-09-23 08:21 continuity clarification
+
+The 0M longevity pass strengthens section 9: a published OM protocol generation must be reconstructible from independently mirrored Protocol Continuity Bundles containing its normative semantics/registries/vectors/licenses. Blocking the original project domain/forge therefore harms discovery and updates but does not become a protocol-validity oracle or erase existing user identities.

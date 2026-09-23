@@ -50,3 +50,11 @@ Deprecation can be date/policy/profile driven, but forbidden cryptographic profi
 Canonical IDs are public-registry assigned and never reused; experimental/private extensions use collision-resistant namespaced/UUID IDs without permission. Critical unknown semantics fail safely; noncritical unknown data is ignored semantically and preserved where required.
 
 The 07:18 extension pass adds an anti-fragmentation rule: **shared canonical meaning cannot exist only inside opaque plugin code.** Any extension that changes interoperable conversation/control state must publish its protocol schema, criticality, canonical encoding and capability semantics independently of one executable plugin. A plugin may implement or present such an extension, but absence of that plugin must not make baseline OM undecodable or hand a vendor special protocol rights. Inert content packs are data, remote services are typed principals, and local executable plugins are capability-sandboxed implementation modules; those categories do not substitute for the protocol-extension registry.
+
+## 2026-09-23 08:21 longevity/registry resolution
+
+`PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md` resolves A-015.
+
+Already-assigned registry identifiers are immutable and never reused for incompatible meaning. Published protocol generations/profile bundles snapshot the registry material needed to interpret them so runtime validity never depends on consulting a live OM Project registry server.
+
+If stewardship diverges, successor registries/profiles use an explicit new lineage/identifier namespace. A vendor-private extension may remain private, but market adoption does not grant it canonical status. Graduation into a future baseline requires public independently implementable semantics, canonical encoding/criticality, conformance behavior and acceptable implementation rights.

@@ -379,9 +379,40 @@ def validate_0756_zero_control_interop_portability_guardrails() -> None:
         if "representation" not in props or "foreign_provenance" not in props:
             fail("07:56 guard: ConversationEvent must retain representation and foreign_provenance hooks")
 
+
+
+def validate_0821_metadata_abuse_longevity_guardrails() -> None:
+    metadata = (ROOT / "METADATA_THREAT_MODEL.md").read_text(encoding="utf-8")
+    for phrase in ("surface-specific", "opaque capabilities", "randomized", "global passive observer", "V-015"):
+        if phrase.lower() not in metadata.lower():
+            fail(f"08:21 guard: metadata architecture lost required phrase {phrase!r}")
+
+    abuse = (ROOT / "DECENTRALIZED_ABUSE_MODERATION.md").read_text(encoding="utf-8")
+    for phrase in ("SafetyAdvisory", "no global reputation score", "provider denial", "Sybil", "V-016"):
+        if phrase.lower() not in abuse.lower():
+            fail(f"08:21 guard: abuse architecture lost required phrase {phrase!r}")
+
+    longevity = (ROOT / "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md").read_text(encoding="utf-8")
+    for phrase in ("Protocol Continuity Bundle", "never reused", "dominant client", "0M", "V-017"):
+        if phrase.lower() not in longevity.lower():
+            fail(f"08:21 guard: longevity architecture lost required phrase {phrase!r}")
+
+    design = load_jsonl(ROOT / "machine/architecture_design_queue.jsonl")
+    for qid in ("A-013", "A-014", "A-015"):
+        matches = [q for q in design if q.get("id") == qid]
+        if len(matches) != 1 or matches[0].get("status") != "resolved":
+            fail(f"08:21 guard: {qid} must remain design-resolved in this checkpoint")
+
+    provider = load_json(ROOT / "protocol/provider-capabilities.logical.schema.json")
+    if isinstance(provider, dict):
+        kinds = provider.get("ProviderCapabilities", {}).get("provider_kind", [])
+        if "safety_advisory" not in kinds:
+            fail("08:21 guard: ProviderCapabilities must retain optional safety_advisory role")
+
 def main() -> int:
     validate_0718_extension_guardrails()
     validate_0756_zero_control_interop_portability_guardrails()
+    validate_0821_metadata_abuse_longevity_guardrails()
     contract = load_json(ROOT / "machine/repository_contract.json")
     if not isinstance(contract, dict):
         print("architecture validation FAILED: repository_contract unreadable", file=sys.stderr); return 1

@@ -256,7 +256,7 @@ A bridge must refuse/restrict an event when:
 - the origin fingerprint has already been materialized for the same mapping/direction;
 - policy identifies a reflection path.
 
-The metadata-leak consequences of origin fingerprints and bridge paths remain subject to A-013.
+The metadata-leak consequences of origin fingerprints and bridge paths are governed by `METADATA_THREAT_MODEL.md`; origin fingerprints are mapping/bridge-domain scoped by default.
 
 ## 14. Multi-bridge conflict behavior
 
@@ -321,4 +321,12 @@ V-013 must adversarially exercise:
 - capability mismatch/fidelity signaling;
 - Room removal/key transition;
 - attempts to hide a bridge as an ordinary Account/Service author;
-- metadata leakage from origin fingerprints and bridge traces in coordination with A-013.
+- metadata leakage from origin fingerprints and bridge traces under the scoped rules in `METADATA_THREAT_MODEL.md`.
+
+## 2026-09-23 08:21 metadata refinement
+
+A-013 resolves the open metadata question from section 13.
+
+`InteropTrace.origin_fingerprint` is mapping/bridge-domain scoped by default. Raw foreign event identifiers or one globally stable cross-Room fingerprint must not be exposed when a domain-separated/scoped fingerprint suffices for loop suppression and duplicate detection.
+
+Bridge path/lineage is diagnostic/security metadata and is disclosed only as needed for loop prevention, fidelity and evidence. It does not become ordinary forwarding metadata copied across unrelated Rooms. Strong colluding observers may still correlate bridge traffic by timing/size; OM does not claim otherwise.

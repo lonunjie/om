@@ -1,12 +1,12 @@
 # OM — Master Planning & Design Repository
 
-**Snapshot:** 2026-09-23 07:56 PHT (UTC+08:00)  
+**Snapshot:** 2026-09-23 08:21 PHT (UTC+08:00)  
 **Phase:** Architecture hardening / pre-engineering — engineering is not yet authorized  
 **Project name:** **OM** — see `NAMING.md` for its seven canonical meanings, including **0M: zero total control**
 
-This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design reviews covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed/multi-relay delivery, the Discovery Fabric and revocable IntroGate, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, privacy-preserving LAN operation, censorship/network resilience, and future SMS/RCS integration, baseline/community semantics, permissionless services/LLM agency, explicit external bridges, portable user escape, and the 0M zero-total-control principle.
+This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design reviews covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed/multi-relay delivery, the Discovery Fabric and revocable IntroGate, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, privacy-preserving LAN operation, censorship/network resilience, and future SMS/RCS integration, baseline/community semantics, permissionless services/LLM agency, explicit external bridges, portable user escape, metadata-minimizing routing, decentralized/composable safety controls, protocol longevity, and the 0M zero-total-control principle.
 
-Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, `history/20260921-2132/`, `history/20260922-0734/`, `history/20260922-1342/`, `history/20260922-1434/`, `history/20260922-2302/`, `history/20260923-0545/`, `history/20260923-0615/`, and `history/20260923-0718/` for traceability.
+Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, `history/20260921-2132/`, `history/20260922-0734/`, `history/20260922-1342/`, `history/20260922-1434/`, `history/20260922-2302/`, `history/20260923-0545/`, `history/20260923-0615/`, `history/20260923-0718/`, and `history/20260923-0756/` for traceability.
 
 ## Product thesis
 
@@ -71,6 +71,10 @@ And the implementation discipline remains:
 - OM is PWA-first, not PWA-only; native shells later reuse the same portable OM Core.
 - no OM-operated relay/directory/push/abuse infrastructure is required for the operatorless core.
 - future convenience businesses/providers may exist, but users can migrate away without replacing AccountID or canonical history.
+- metadata privacy is surface-specific; E2EE does not imply hidden timing/IP/size/membership metadata.
+- shared safety advisories are optional signed policy inputs, never universal protocol authority.
+- published protocol generations are independently preservable and interpretable without a live OM Project server.
+- incompatible protocol evolution forks explicitly rather than reusing old identifiers with new meaning.
 
 ## Start here
 
@@ -95,9 +99,12 @@ And the implementation discipline remains:
 17. `CALLS_AND_REALTIME_MEDIA.md` — SFrame/WebRTC media.
 18. `LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md` + `CENSORSHIP_AND_NETWORK_RESILIENCE.md` — local/network resilience.
 19. `RICH_TEXT_AND_CONTENT_SECURITY.md` + `ABUSE_SAFETY_AND_REPORTING.md` — hostile content and safety boundaries.
-20. UI/accessibility/theme documents — product semantics above Core.
-21. `ARCHITECTURE_PHASE_PLAN.md` — blocking gates and architecture-freeze criteria.
-22. `ENGINEER_START_HERE.md` / `ENGINEERING_HANDOFF.md` — retained for the future transition only.
+20. `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md` + `SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md` + `PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md` — permissionless services, delegated agency, and executable-extension boundaries.
+21. `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md` + `IMPORT_EXPORT_AND_USER_ESCAPE.md` — bridge trust boundaries, foreign provenance, and escape/portability.
+22. `METADATA_THREAT_MODEL.md` + `DECENTRALIZED_ABUSE_MODERATION.md` + `PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md` — metadata exposure, scoped safety, and 20-year/0M continuity.
+23. UI/accessibility/theme documents — product semantics above Core.
+24. `ARCHITECTURE_PHASE_PLAN.md` — blocking verification gates and architecture-freeze criteria.
+25. `ENGINEER_START_HERE.md` / `ENGINEERING_HANDOFF.md` — retained for the future transition only.
 
 Existing detailed documents remain canonical where not superseded. Machine-readable authority and file classification live under `machine/`; run `python3 tools/validate_architecture.py` before accepting a checkpoint.
 
@@ -240,7 +247,7 @@ New blocking architecture material includes:
 No product engineering phase begins from this checkpoint.
 ## 2026-09-23 05:45 PHT — architecture-resolution + OM identity checkpoint
 
-The former 60-item open-question ledger has been resolved into accepted decisions and typed proof/release/deferred ledgers. `ARCHITECTURE_RESOLUTIONS_20260923.md` is the human-readable closure record. The messenger/community and extension/ecosystem architecture clusters are now resolved at design level; remaining blocking design work (external bridges, import/export escape, metadata, decentralized abuse/moderation and longevity) is tracked in `machine/architecture_design_queue.jsonl`, with separate verification gates preventing design confidence from being mistaken for implementation proof.
+The former 60-item open-question ledger and architecture queue A-001..A-015 are resolved into accepted decisions plus typed verification/release/deferred ledgers. `ARCHITECTURE_RESOLUTIONS_20260923.md` is the human-readable closure record. **No design blocker remains open**, but V-001..V-017 still prevent design confidence from being mistaken for implementation proof; engineering remains unauthorized.
 
 Country-specific legal gating was removed from canonical architecture. `LEGAL_AND_OPERATIONAL_BOUNDARIES.md` now uses a role-based, jurisdiction-neutral model and keeps project operation/custody deliberately minimal.
 

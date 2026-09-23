@@ -94,3 +94,13 @@ Production CryptoProfile requires:
 - constant-time/side-channel review appropriate to implementation/library.
 
 Do not infer cryptographic correctness from successful happy-path messaging tests.
+
+## 2026-09-23 08:21 new cross-cutting verification gates
+
+The completed design queue adds three blocking proof programs:
+
+- **V-015 metadata exposure/privacy paths:** instrument provider/network traces across relay/group/discovery/IntroGate/push/blob/calls/services/bridges/migration and verify that canonical-ID hiding and UI/provider metadata claims match observed reality;
+- **V-016 decentralized abuse/moderation:** model authorization/revocation/expiry, Space delegation, selective evidence, SafetyAdvisory lifecycle/conflicts/scoped references, provider denial, service/bridge abuse and Sybil/resource behavior;
+- **V-017 protocol longevity/0M:** perform independent continuity-bundle recovery, multi-generation/fork compatibility, crypto-break/release-root/provider disappearance tabletop/technical exercises and dominant-extension capture tests.
+
+These are architecture-verification activities and may use purpose-built model checkers, fuzzers, packet traces, independent decoders and bounded prototypes even though product engineering remains unauthorized.

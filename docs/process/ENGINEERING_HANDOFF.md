@@ -1,11 +1,11 @@
 # OM Engineering Handoff — INACTIVE UNTIL ARCHITECTURE FREEZE
 
-> **Current checkpoint 2026-09-23 07:56 PHT:** product engineering is not authorized. This document records the intended future handoff only. See `ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`.
+> **Current checkpoint 2026-09-23 08:21 PHT:** product engineering is not authorized. This document records the intended future handoff only. See `ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`.
 
 
 ## 1. Transition of phase
 
-This document describes the planned engineering transition **after** architecture freeze. It is inactive in the 23:02 checkpoint. Architecture/specification evidence drives current work; implementation work is limited to explicitly bounded feasibility experiments used to answer architecture questions.
+This document describes the planned engineering transition **after** architecture freeze. It remains inactive. The architecture design queue is resolved, but architecture verification is still incomplete; implementation work is limited to formal models, conformance/fuzz harnesses and explicitly bounded feasibility experiments used to pass verification gates.
 
 When a future ADR authorizes engineering, the objective will be to establish a trustworthy executable core and vertical slice without reopening settled principles.
 
@@ -27,6 +27,9 @@ Engineering MUST preserve:
 - user contact books are not uploaded/hashed for discovery in v1;
 - normal operation does not centralize plaintext merely for hypothetical abuse reporting;
 - Creator-Disappearance Gate remains satisfiable.
+- provider routing does not require stable canonical AccountID/ConversationID and metadata claims remain surface-specific;
+- moderation/safety authority remains scoped; `SafetyAdvisory` subscriptions never become universal protocol truth;
+- published protocol generations remain independently mirrorable/interpretable and incompatible evolution forks explicitly;
 
 ## 3. Engineering work packages
 

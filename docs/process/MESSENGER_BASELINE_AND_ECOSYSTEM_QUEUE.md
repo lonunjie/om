@@ -1,9 +1,9 @@
 # Messenger Baseline and Ecosystem Architecture Queue
 
-- **Status:** Canonical architecture queue/index; baseline, communities, extension/services and bridge/escape clusters resolved at design level
-- **Checkpoint:** 2026-09-23 07:56 PHT
+- **Status:** Canonical architecture queue/index; A-001..A-015 resolved at design level
+- **Checkpoint:** 2026-09-23 08:21 PHT
 
-OM must be both a rigorous secure protocol and a messenger ordinary people actually want to use. Architecture-design items remain blocking until their protocol-impacting boundaries are decided; verification gates remain separate so a plausible design is never mislabeled proven.
+OM must be both a rigorous secure protocol and a messenger ordinary people actually want to use. The architecture-design queue is now closed; verification gates remain separate so a selected design is never mislabeled proven.
 
 ## Resolved architecture clusters
 
@@ -13,43 +13,55 @@ A-005, A-006, A-007, A-008 and A-010 are resolved by `MESSENGER_BASELINE_V1.md`,
 
 ### 07:18 — expressive media + packs + entitlements + services/LLMs + plugins
 
-A-001, A-002, A-003, A-004 and A-009 are resolved by the expressive-media/content-pack, ServicePrincipal and plugin architecture documents.
+A-001, A-002, A-003, A-004 and A-009 are resolved by `EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`, `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md` and `PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md`.
 
 ### 07:56 — 0M + permissionless services + external bridges + user escape
 
-| Queue / principle | Resolution |
-|---|---|
-| 0M / decentralization | `0M` is the seventh canonical meaning: zero parties have total control. Scoped central services may exist, but none may become an indispensable universal OM authority. |
-| service creation / human-AI boundary | ServiceID creation is local and permissionless. Hosting/discovery/catalogs are replaceable. OM classifies authority rather than trying to detect human-vs-AI content; autonomous on-behalf-of agents use scoped `RepresentationGrant`s. |
-| A-011 interop_bridges | External gateways are typed `BridgePrincipal`s. Foreign actors remain bridge-attested provenance; private-Room plaintext export/E2EE termination is visible; semantic loss and loop/dedup lineage are explicit. |
-| A-012 import_export_escape | `om-archive-v1` is a public portability model. Archives restore history/evidence, not authority; exact native objects are preserved where possible and foreign imports remain non-routable provenance-bearing historical records. |
+A-011/A-012 and the 0M/service-creation refinements are resolved by:
 
-Canonical detail lives in:
+- `SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`;
+- `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`;
+- `IMPORT_EXPORT_AND_USER_ESCAPE.md`;
+- `NAMING.md` and `PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`.
 
-- `SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`
-- `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`
-- `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`
-- `IMPORT_EXPORT_AND_USER_ESCAPE.md`
-- `TRANSPORT_ADAPTERS_AND_INTEROP.md`
-- updated `EVENT_MODEL.md`, discovery/identity documents and logical schemas.
+Key decisions: local permissionless ServiceID creation; authority-based rather than human/AI classification; typed BridgePrincipals with explicit foreign provenance/E2EE termination; `om-archive-v1` restoring data/evidence rather than authority; and **0M = zero total control**.
 
-## Still blocking before engineering
+### 08:21 — metadata + decentralized safety + 20-year continuity
 
-| Queue item | Remaining architecture question |
-|---|---|
-| A-013 metadata_threat_model | Dedicated timing/graph/group/link/push/blob/service/bridge/import/migration metadata analysis and selective-disclosure boundaries. |
-| A-014 decentralized_abuse_moderation | Blocking/reporting/spam/bans/appeals/admin abuse/operator exposure/service abuse without a universal moderator. |
-| A-015 protocol_longevity | 20-year dependency/crypto/registry/client-dominance/protocol-generation/EEE survival and migration, now explicitly tested against the 0M principle. |
+A-013, A-014 and A-015 are resolved by:
+
+- `METADATA_THREAT_MODEL.md`;
+- `DECENTRALIZED_ABUSE_MODERATION.md`;
+- `PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md`.
+
+Key decisions:
+
+- metadata privacy is surface-specific; canonical IDs stay above provider routing and E2EE is never a blanket metadata claim;
+- moderation is scoped to the user/Room/Space/provider authority that actually exists;
+- signed `SafetyAdvisory` sources are optional policy inputs, never universal authority;
+- published protocol generations are independently mirrorable/interpretable through Protocol Continuity Bundles;
+- registry meanings never change and incompatible protocol evolution forks explicitly;
+- dominant clients/extensions receive no special protocol rights from market share.
+
+## Architecture design queue
+
+**No open A-series design blocker remains.** The machine ledger is authoritative.
 
 ## Verification is still blocking
 
-The resolved design clusters retain explicit proof obligations. V-011 now includes permissionless ServiceGenesis, host migration and RepresentationGrant impersonation boundaries. V-013 covers bridge provenance/fidelity/loop behavior. V-014 covers cross-implementation archive portability and hostile import safety.
+The selected design now has V-001..V-017 proof obligations. The 08:21 pass adds:
+
+- V-015 metadata exposure/privacy-path model;
+- V-016 decentralized abuse/moderation authority model;
+- V-017 protocol longevity/0M continuity drill.
+
+Product engineering remains unauthorized until all blocking verification gates pass and a later ADR explicitly authorizes engineering.
 
 ## Guardrail
 
-Resolved architecture may be extended by A-013..A-015, but those passes may not reintroduce:
+Verification or new standards evidence may reopen a resolved design through an explicit ADR, but future work may not silently reintroduce:
 
-- a mandatory OM homeserver, app store, service/bot issuer, bot store, marketplace or global moderator;
+- a mandatory OM homeserver, app store, service/bot issuer, bot store, marketplace, global moderator or live registry oracle;
 - provider-owned AccountID, Room identity, ServiceID, BridgeID, PackID or PluginID;
 - autonomous service output silently authored as a human AccountPrincipal;
 - AI-detection as an authentication primitive;
@@ -61,6 +73,7 @@ Resolved architecture may be extended by A-013..A-015, but those passes may not 
 - executable code hidden in media/content packs;
 - payment/marketplace operation as a requirement for OM Core;
 - canonical shared semantics available only through opaque proprietary plugin code;
+- E2EE used as an unsupported claim that all metadata is hidden;
+- a universal reputation score/master blocklist whose decision becomes protocol truth;
+- reuse of an existing registry/profile ID for incompatible future semantics;
 - any single party acquiring total protocol-wide control contrary to 0M.
-
-Engineering remains unauthorized while blocking design and verification gates are open.

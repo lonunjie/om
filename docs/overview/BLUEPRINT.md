@@ -228,3 +228,11 @@ New first-class architecture components are `ASYNC_KEY_MATERIAL.md`, `ONE_TO_ONE
 Project-level anti-capture/continuity is defined by `PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`, `LICENSING_AND_CONTRIBUTION_POLICY.md`, and `PROJECT_STEWARDSHIP_AND_CONTINUITY.md`. The canonical project is intended to live under SeedLife/lonunjie while remaining technically and legally forkable if stewardship fails.
 
 Architecture prose is backed by `machine/repository_contract.json`, `machine/architecture_map.json`, `machine/file_registry.json`, and `tools/validate_architecture.py`. Product engineering starts only after a future architecture-freeze ADR deliberately unlocks it.
+
+
+## 2026-09-23 08:21 PHT — metadata, safety, and 0M longevity hardening
+
+- Metadata protection is role/path-specific rather than a binary promise. Stable canonical identities remain above provider routing; delivery uses scoped opaque capabilities and independently randomized outer envelopes where applicable. See `METADATA_THREAT_MODEL.md`.
+- Abuse and moderation authority remains scoped to users, Rooms/Spaces, providers, catalogs, and voluntarily selected safety advisers. Signed safety advisories are portable advice, never universal protocol authority. See `DECENTRALIZED_ABUSE_MODERATION.md`.
+- Published protocol generations must remain self-contained and mirrorable through Protocol Continuity Bundles. Registry meanings are immutable once assigned, forks/generations are explicit, and no dominant client, host, directory, extension, founder, or steward becomes protocol authority. See `PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md`.
+- These decisions resolve A-013, A-014, and A-015 at the design level. Engineering remains unauthorized until the blocking verification gates pass.

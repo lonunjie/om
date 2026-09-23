@@ -14,15 +14,16 @@
       "recovery",
       "media",
       "transport",
-      "link_preview"
+      "link_preview",
+      "safety_advisory"
     ],
     "features": "versioned feature identifiers",
     "health": "abstract availability/latency state",
     "quota_state": "abstract remaining/limit/reset/hard-vs-billable behavior",
     "cost_state": "configured/estimated cost and budget compatibility",
     "failure_domain": "declared operator/cloud/account/region/ASN-like hints used by local policy; never trusted as cryptographic proof of independence",
-    "privacy_properties": "declared metadata/trust characteristics including oblivious lookup support where applicable",
-    "abuse_controls": "declared admission/rate-limit/ticket capabilities where applicable",
+    "privacy_properties": "declared metadata/trust characteristics, preferably structured as/linked to a MetadataExposureDescriptor; provider assertions are not cryptographic proof",
+    "abuse_controls": "declared admission/rate-limit/ticket and optional safety-advisory/report-target capabilities where applicable; never universal protocol authority",
     "security_properties": "declared provider-local security features; not protocol authority"
   },
   "Rule": "Protocol core branches on capabilities/policy, not vendor name. Co-hosted provider roles remain logically separable and failure-domain declarations are hints, not trusted security identity."

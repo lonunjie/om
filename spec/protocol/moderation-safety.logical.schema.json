@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM ModerationDecision and SafetyAdvisory logical schema",
+  "$defs": {
+    "ModerationDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_id", "scope_ref", "actor_principal", "action", "subject_ref", "authorization_evidence"],
+      "properties": {
+        "decision_id": {"type": "string"},
+        "scope_ref": {"type": "object"},
+        "actor_principal": {"$ref": "principal-ref.logical.schema.json"},
+        "action": {"enum": ["redact", "timeout", "remove", "ban", "admission_deny", "slow_mode", "restore_future_eligibility", "decision_revoke"]},
+        "subject_ref": {"type": "object"},
+        "target_event_id": {"type": ["string", "null"]},
+        "reason_code": {"type": ["string", "null"]},
+        "public_reason_text": {"type": ["string", "null"]},
+        "starts_at": {"type": ["integer", "null"], "minimum": 0},
+        "expires_at": {"type": ["integer", "null"], "minimum": 0},
+        "evidence_commitment": {"type": ["string", "null"]},
+        "appeal_descriptor": {"type": ["object", "null"]},
+        "previous_decision_id": {"type": ["string", "null"]},
+        "authorization_evidence": {"type": "object"}
+      }
+    },
+    "SafetyAdvisory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["advisory_id", "issuer", "subject_ref", "category", "issued_at", "signature"],
+      "properties": {
+        "advisory_id": {"type": "string"},
+        "issuer": {"type": "object"},
+        "subject_ref": {"type": "object"},
+        "category": {"type": "string"},
+        "severity_hint": {"type": ["string", "null"]},
+        "scope_hint": {"type": ["string", "null"]},
+        "issued_at": {"type": "integer", "minimum": 0},
+        "expires_at": {"type": ["integer", "null"], "minimum": 0},
+        "evidence_reference": {"type": ["object", "null"]},
+        "policy_reference": {"type": ["string", "null"]},
+        "supersedes": {"type": ["string", "null"]},
+        "signature": {"type": "object"}
+      }
+    },
+    "ScopedModerationRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scheme", "issuer_scope_id", "digest"],
+      "properties": {
+        "scheme": {"const": "OM-SAFETY-REF-v1"},
+        "issuer_scope_id": {"type": "string"},
+        "digest": {"type": "string"}
+      }
+    }
+  },
+  "oneOf": [
+    {"$ref": "#/$defs/ModerationDecision"},
+    {"$ref": "#/$defs/SafetyAdvisory"},
+    {"$ref": "#/$defs/ScopedModerationRef"}
+  ]
+}

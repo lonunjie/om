@@ -20,5 +20,5 @@
     "resulting_state_hash": "canonical resulting SpaceControlState hash"
   },
   "ControlConflictRule": "Two otherwise valid authority-changing successors of one parent do not resolve by timestamp/provider arrival. Privileged advancement freezes until a resolution referencing competing heads is authorized under the common pre-fork governance.",
-  "PrivacyRule": "Public catalog state may be signed/public. Private membership/role/organization state is E2EE-distributed to authorized recipients; exact selective-disclosure/traffic-analysis resistance is a separate metadata gate."
+  "PrivacyRule": "Public catalog state may be signed/public. Private membership/role/organization state is E2EE-distributed to authorized recipients; exact exposure, selective-disclosure, and traffic-analysis mitigations are governed by METADATA_THREAT_MODEL.md and verification gate V-015."
 }

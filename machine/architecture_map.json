@@ -13,11 +13,13 @@
         "NAMING.md",
         "ARCHITECTURE_RESOLUTIONS_20260923.md",
         "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
-        "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md"
+        "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
+        "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md"
       ],
       "schemas": [
         "protocol/client-distribution.logical.schema.json",
-        "protocol/protocol-extension.logical.schema.json"
+        "protocol/protocol-extension.logical.schema.json",
+        "protocol/protocol-continuity-bundle.logical.schema.json"
       ],
       "adrs": [
         "ADR-0042",
@@ -34,7 +36,8 @@
         "ADR-0081",
         "ADR-0082",
         "ADR-0083",
-        "ADR-0094"
+        "ADR-0094",
+        "ADR-0100"
       ],
       "resolved_questions": [
         "Q-013",
@@ -55,6 +58,9 @@
       ],
       "design_queue": [
         "A-015"
+      ],
+      "verification_gates": [
+        "V-017"
       ]
     },
     "identity_control_recovery": {
@@ -338,19 +344,22 @@
       "docs": [
         "RICH_TEXT_AND_CONTENT_SECURITY.md",
         "ABUSE_SAFETY_AND_REPORTING.md",
-        "EVIDENCE_AND_EXTERNAL_REPORTING.md"
+        "EVIDENCE_AND_EXTERNAL_REPORTING.md",
+        "DECENTRALIZED_ABUSE_MODERATION.md"
       ],
       "schemas": [
         "protocol/rich-text.logical.schema.json",
         "design/rich-text.logical.schema.json",
-        "protocol/evidence-package.logical.schema.json"
+        "protocol/evidence-package.logical.schema.json",
+        "protocol/moderation-safety.logical.schema.json"
       ],
       "adrs": [
         "ADR-0017",
         "ADR-0047",
         "ADR-0061",
         "ADR-0062",
-        "ADR-0063"
+        "ADR-0063",
+        "ADR-0099"
       ],
       "resolved_questions": [
         "Q-009",
@@ -360,6 +369,9 @@
       ],
       "design_queue": [
         "A-014"
+      ],
+      "verification_gates": [
+        "V-016"
       ]
     },
     "provider_deployment_supply_chain": {
@@ -450,7 +462,8 @@
       "adrs": [
         "ADR-0066",
         "ADR-0069",
-        "ADR-0078"
+        "ADR-0078",
+        "ADR-0101"
       ],
       "resolved_questions": []
     },
@@ -596,12 +609,20 @@
         "MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
         "NOTIFICATIONS_AND_PUSH.md",
         "STORAGE_AND_BLOB_ARCHITECTURE.md",
-        "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md"
+        "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
+        "METADATA_THREAT_MODEL.md"
       ],
-      "schemas": [],
-      "adrs": [],
+      "schemas": [
+        "design/metadata-exposure.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0098"
+      ],
       "design_queue": [
         "A-013"
+      ],
+      "verification_gates": [
+        "V-015"
       ]
     },
     "import_export_escape": {
@@ -624,6 +645,35 @@
       ],
       "verification_gates": [
         "V-014"
+      ]
+    },
+    "protocol_longevity_0m": {
+      "docs": [
+        "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+        "PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+        "SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
+        "PROTOCOL_EXTENSIBILITY.md",
+        "CRYPTOGRAPHY_AND_AGILITY.md",
+        "OPERATORLESS_CORE_AND_ECOSYSTEM.md"
+      ],
+      "schemas": [
+        "protocol/protocol-continuity-bundle.logical.schema.json",
+        "protocol/crypto-profile.logical.schema.json",
+        "protocol/protocol-extension.logical.schema.json"
+      ],
+      "adrs": [
+        "ADR-0050",
+        "ADR-0070",
+        "ADR-0071",
+        "ADR-0094",
+        "ADR-0100",
+        "ADR-0101"
+      ],
+      "design_queue": [
+        "A-015"
+      ],
+      "verification_gates": [
+        "V-017"
       ]
     }
   },

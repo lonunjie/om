@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM Protocol Continuity Bundle logical schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bundle_version", "protocol_profile_id", "normative_artifacts", "registry_snapshots", "license_inventory", "integrity_root"],
+  "properties": {
+    "bundle_version": {"type": "string"},
+    "protocol_profile_id": {"type": "string"},
+    "normative_artifacts": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "canonical_encoding_profile": {"type": "string"},
+    "conformance_vectors": {"type": "array", "items": {"type": "object"}},
+    "registry_snapshots": {"type": "array", "items": {"type": "object"}},
+    "crypto_profile_snapshot": {"type": ["object", "null"]},
+    "security_status_at_publication": {"type": ["object", "null"]},
+    "license_inventory": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "reference_source_revision": {"type": ["object", "null"]},
+    "migration_guidance": {"type": ["object", "null"]},
+    "release_authentication": {"type": ["object", "null"]},
+    "integrity_root": {"type": "string"}
+  }
+}

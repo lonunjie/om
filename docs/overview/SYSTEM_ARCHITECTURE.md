@@ -238,3 +238,11 @@ ClientHost
 
 Cross-cutting `TIME_AND_EXPIRY_SEMANTICS.md` classifies all TTL/clock fields. None of these new layers grants infrastructure identity authority.
 
+
+
+## 2026-09-23 08:21 PHT — cross-cutting privacy, safety, and continuity invariants
+
+1. **Metadata:** cryptographic content privacy does not imply metadata privacy. Each path/role must declare its observable metadata and mitigation assumptions; canonical identifiers do not become provider routing identifiers.
+2. **Safety:** blocking, moderation, admission, provider enforcement, catalog policy, and safety advisories are distinct scoped authorities. No global OM reputation score, master ban list, or universal moderation service exists.
+3. **Continuity / 0M:** a released protocol generation must be implementable from mirrored self-contained artifacts without consulting a live project authority. Existing registry identifiers are never reassigned; incompatible evolution is explicit generation/fork lineage.
+4. **Engineering lock:** the architecture design queue is closed, but verification gates V-001 through V-017 still block engineering authorization.

@@ -151,3 +151,12 @@ Exact legal classification is jurisdiction-specific and must not be inferred fro
 
 SeedLife/lonunjie is the initial project steward, not a protocol service or identity authority. Commercial providers/clients are welcome but receive no hidden compatibility privilege. The legal/technical right to implement and fork published OM versions must survive capture or disappearance of the canonical steward.
 
+
+## 10. 2026-09-23 08:21 metadata/safety/longevity refinement
+
+Operatorless does not mean providers learn zero metadata or communities lack moderation. It means no provider/safety/project role becomes universally mandatory.
+
+- metadata exposure is role/path-specific and documented by `METADATA_THREAT_MODEL.md`;
+- optional safety labelers/advisory services are replaceable subscriber-selected policy inputs, never protocol authority;
+- published protocol generations are mirrorable/interpretable without a live SeedLife/OM Project service;
+- a captured/disappeared canonical project can be forked operationally without acquiring or rewriting user identity authority.

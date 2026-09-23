@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM MetadataExposureDescriptor logical design schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["role", "exposures", "source_of_claim"],
+  "properties": {
+    "role": {"type": "string"},
+    "exposures": {
+      "type": "object",
+      "additionalProperties": {"enum": ["always", "sometimes", "no_by_design", "only_if_explicit", "not_applicable", "unknown"]}
+    },
+    "retention_policy_reference": {"type": ["string", "null"]},
+    "non_collusion_assumptions": {"type": "array", "items": {"type": "string"}},
+    "optional_mitigations": {"type": "array", "items": {"type": "string"}},
+    "source_of_claim": {"enum": ["protocol_enforced", "provider_asserted", "mixed"]}
+  }
+}

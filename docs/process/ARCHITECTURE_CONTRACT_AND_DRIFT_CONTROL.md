@@ -1,7 +1,7 @@
 # Architecture Contract and Drift Control
 
 - **Status:** Canonical architecture-process contract
-- **Checkpoint:** 2026-09-23 07:56 PHT
+- **Checkpoint:** 2026-09-23 08:21 PHT
 - **Phase:** Architecture hardening / pre-engineering
 
 ## 1. Principle
@@ -54,7 +54,7 @@ The validator must detect at least:
 - key-derived AccountID or legacy competing AccountState authority;
 - incomplete former-question resolution mapping;
 - premature engineering authorization;
-- disappearance of the six OM meanings;
+- disappearance of the seven OM meanings;
 - reintroduction of a country as protocol-global legal home;
 - missing required constitutional/machine files;
 - manifest byte/hash drift.

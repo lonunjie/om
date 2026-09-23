@@ -94,3 +94,17 @@ The operatorless core does not require an OM AbuseDesk. The baseline response is
 
 A store-distributed client or managed provider may add a `ReportTarget` integration to meet its own obligations. Reports are explicit disclosures and must not require ambient server plaintext access.
 
+
+## 2026-09-23 08:21 decentralized moderation resolution
+
+`DECENTRALIZED_ABUSE_MODERATION.md` is now canonical for A-014.
+
+The earlier principles above remain valid but are sharpened as follows:
+
+- enforcement is scoped to the user/relationship/Room/Space/provider authority that actually holds the capability/custody;
+- optional signed `SafetyAdvisory` sources may share warnings, but subscribers choose enforcement and no advisory becomes protocol truth;
+- non-public subjects should use issuer-scoped pseudonymous moderation references where feasible rather than creating a universal cross-labeler identifier;
+- `ModerationDecision` separates authenticated action/reason/appeal state from private report evidence;
+- provider denial/delisting cannot mutate AccountID/Room/Service/Bridge authority outside provider custody;
+- permissionless identity means OM does not promise impossible permanent human-level blocking across new Sybil identities; it constrains unsolicited reach through IntroGate/admission/rate/resource controls instead;
+- SeedLife/the OM Project remains neither mandatory AbuseDesk nor universal moderator.

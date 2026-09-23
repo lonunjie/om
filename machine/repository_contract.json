@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-23T07:56:00+08:00",
+  "snapshot": "2026-09-23T08:21:00+08:00",
   "phase": "architecture_hardening_pre_engineering",
   "engineering_authorized": false,
   "engineering_unlock_requires": [
@@ -54,7 +54,10 @@
     "SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md",
     "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
     "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md",
-    "IMPORT_EXPORT_AND_USER_ESCAPE.md"
+    "IMPORT_EXPORT_AND_USER_ESCAPE.md",
+    "METADATA_THREAT_MODEL.md",
+    "DECENTRALIZED_ABUSE_MODERATION.md",
+    "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md"
   ],
   "current_file_registry": "machine/file_registry.json",
   "architecture_map": "machine/architecture_map.json",
@@ -83,7 +86,10 @@
     "engineering remains locked while architecture design queue or blocking verification gates remain",
     "no country-specific protocol-home legal gate exists in current canonical architecture",
     "OM seven meanings, including 0M/zero total control, remain present in NAMING.md and machine decisions",
-    "manifest bytes/hashes match checkpoint contents"
+    "manifest bytes/hashes match checkpoint contents",
+    "A-013 metadata privacy preserves provider-routing separation and surface-specific claims",
+    "A-014 moderation keeps shared safety advice separate from scoped enforcement authority",
+    "A-015 continuity preserves immutable registry meanings and mirrorable published generations"
   ],
   "legal_risk_policy": {
     "protocol_home_jurisdiction": "none",

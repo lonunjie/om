@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-23T07:56:00+08:00",
+  "snapshot": "2026-09-23T08:21:00+08:00",
   "scope": "current_non_history",
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
@@ -158,6 +158,13 @@
       "authority": "checkpoint_summary"
     },
     {
+      "path": "CHECKPOINT_20260923_0821.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "checkpoint_summary"
+    },
+    {
       "path": "CLIENTHOST_UPDATE_LIFECYCLE.md",
       "class": "architecture_doc",
       "domain": "client_endpoint_distribution",
@@ -198,6 +205,13 @@
       "domain": "crypto_1to1",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
+    },
+    {
+      "path": "DECENTRALIZED_ABUSE_MODERATION.md",
+      "class": "architecture",
+      "domain": "content_abuse_evidence",
+      "license": "CC-BY-SA-4.0",
+      "authority": "normative_architecture"
     },
     {
       "path": "DESIGN_RATIONALE_AND_DISCUSSION_SYNTHESIS.md",
@@ -459,6 +473,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "METADATA_THREAT_MODEL.md",
+      "class": "architecture",
+      "domain": "metadata_privacy",
+      "license": "CC-BY-SA-4.0",
+      "authority": "normative_architecture"
+    },
+    {
       "path": "MOTION_AND_PERFORMANCE.md",
       "class": "architecture_doc",
       "domain": "ux_accessibility_personalization",
@@ -562,6 +583,13 @@
       "domain": "constitution_governance",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
+    },
+    {
+      "path": "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+      "class": "architecture",
+      "domain": "protocol_longevity_0m",
+      "license": "CC-BY-SA-4.0",
+      "authority": "normative_architecture"
     },
     {
       "path": "PROVISIONING_AND_BOOTSTRAP.md",
@@ -1411,6 +1439,34 @@
       "authority": "accepted_decision"
     },
     {
+      "path": "decisions/ADR-0098-metadata-privacy-is-surface-specific.md",
+      "class": "adr",
+      "domain": "metadata_privacy",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
+      "path": "decisions/ADR-0099-moderation-is-scoped-and-advisories-are-not-authority.md",
+      "class": "adr",
+      "domain": "content_abuse_evidence",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
+      "path": "decisions/ADR-0100-protocol-continuity-bundles-and-explicit-forks.md",
+      "class": "adr",
+      "domain": "protocol_longevity_0m",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
+      "path": "decisions/ADR-0101-design-queue-closed-verification-still-blocks-engineering.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -1437,6 +1493,13 @@
       "domain": "ux_accessibility_personalization",
       "license": "CC-BY-SA-4.0",
       "authority": "design_reference"
+    },
+    {
+      "path": "design/metadata-exposure.logical.schema.json",
+      "class": "design_artifact",
+      "domain": "metadata_privacy",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
     },
     {
       "path": "design/prototype/README.md",
@@ -1740,6 +1803,13 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "protocol/moderation-safety.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "content_abuse_evidence",
+      "license": "Apache-2.0",
+      "authority": "logical_schema"
+    },
+    {
       "path": "protocol/notification-policy.logical.schema.json",
       "class": "protocol_schema",
       "domain": "client_endpoint_distribution",
@@ -1773,6 +1843,13 @@
       "domain": "bots_agents_interop",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
+    },
+    {
+      "path": "protocol/protocol-continuity-bundle.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "protocol_longevity_0m",
+      "license": "Apache-2.0",
+      "authority": "logical_schema"
     },
     {
       "path": "protocol/protocol-extension.logical.schema.json",
@@ -1934,6 +2011,13 @@
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
       "authority": "research_reference"
+    },
+    {
+      "path": "research/METADATA_ABUSE_LONGEVITY_REFERENCES_20260923.md",
+      "class": "research",
+      "domain": "research",
+      "license": "CC-BY-SA-4.0",
+      "authority": "evidence_non_normative"
     },
     {
       "path": "research/OPERATORLESS_PWA_ECOSYSTEM_REFERENCES_20260922.md",

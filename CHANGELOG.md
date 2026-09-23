@@ -164,3 +164,13 @@ SMS/MMS/RCS remain architectural adapters but are removed from first implementat
 - added blocking A-012 import/export escape, A-013 metadata threat model, A-014 decentralized abuse/moderation hardening and A-015 protocol longevity so the broader hardening agenda remains machine-visible;
 - preserved the complete 05:45 current tree under `history/20260923-0545/`;
 - engineering remains unauthorized.
+
+## 2026-09-23 08:21 PHT — metadata / decentralized safety / 0M longevity hardening
+
+- resolved A-013 with a dedicated metadata threat model: canonical IDs remain above provider routing; private delivery uses scoped opaque capabilities/randomized outer envelopes; exposure is declared per role/path; stronger anonymity/padding remains explicit policy;
+- resolved A-014 with layered user/Room/Space/provider enforcement, selective evidence, optional signed SafetyAdvisories, labeler-scoped pseudonymous subject references and no universal moderator/reputation/master blocklist;
+- resolved A-015 with Protocol Continuity Bundles, immutable registry meanings, explicit generation/fork lineage, crypto/project/provider failure migration and dominant-client/extension anti-capture rules;
+- added `METADATA_THREAT_MODEL.md`, `DECENTRALIZED_ABUSE_MODERATION.md`, `PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md` and supporting logical schemas/research references;
+- added ADR-0098..ADR-0101, decisions D-120..D-123, requirements R-146..R-160 and verification gates V-015..V-017;
+- closed the current A-001..A-015 design queue while keeping engineering unauthorized pending all blocking verification gates;
+- preserved the complete 07:56 tree under `history/20260923-0756/`.

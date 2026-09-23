@@ -125,3 +125,9 @@ Same-origin JavaScript is not treated as an independent verifier after total ori
 ## 2026-09-23 S0 release-root resolution
 
 The founder may remain the only human steward during S0 while still using a physically separated 2-of-3 offline root-key arrangement under founder custody. This improves key-loss/online-compromise resilience without pretending there are already independent trusted people. Later custodians can take separate shares without changing the protocol trust model.
+
+## 2026-09-23 08:21 protocol-continuity artifact
+
+Long-term protocol continuity now adds a mirrorable **Protocol Continuity Bundle** for each published generation/profile. The bundle commits to the normative specifications/schemas, canonical encoding rules, conformance vectors, registry/CryptoProfile snapshots, licenses, release authentication/integrity data and migration guidance required to interpret that generation without a live project website or forge.
+
+This does not make one bundle-signing key a protocol-global root. It authenticates a particular published project release/lineage. Independent implementations may preserve/mirror published bundles, and an incompatible successor profile/fork uses a new lineage identifier rather than rewriting the meaning of old bytes.

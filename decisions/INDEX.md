@@ -99,3 +99,7 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0095 — Service creation is permissionless; agency is authority-based](ADR-0095-service-creation-is-permissionless-and-agency-is-authority-based.md)
 - [ADR-0096 — Bridges preserve foreign provenance and explicitly terminate OM E2EE](ADR-0096-bridges-preserve-foreign-provenance-and-terminate-om-e2ee-explicitly.md)
 - [ADR-0097 — Portable archives restore data, not authority](ADR-0097-portable-archives-restore-data-not-authority.md)
+- [ADR-0098 — Metadata privacy is surface-specific, not implied by E2EE](ADR-0098-metadata-privacy-is-surface-specific.md)
+- [ADR-0099 — Moderation is scoped; shared safety advisories are not authority](ADR-0099-moderation-is-scoped-and-advisories-are-not-authority.md)
+- [ADR-0100 — Published protocol generations are independently preservable and incompatible evolution forks explicitly](ADR-0100-protocol-continuity-bundles-and-explicit-forks.md)
+- [ADR-0101 — Current architecture design queue is closed; verification still blocks engineering](ADR-0101-design-queue-closed-verification-still-blocks-engineering.md)
