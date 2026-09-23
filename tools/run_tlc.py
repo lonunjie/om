@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run every TLA+ config listed in verification/tla/models.json with the pinned TLC.
+"""Run every TLA+ config listed in verification/tla/models*.json with the pinned TLC.
 
 Checks each outcome against its expectation, writes verification/results/tlc-latest.json (distinct-state
 counts and depth are deterministic), and turns every expected counterexample into a regression vector in
@@ -72,9 +72,9 @@ def run(entry: dict) -> dict:
 
 
 def main() -> int:
-    manifest = json.loads((TLA / "models.json").read_text())
+    entries = [e for m in sorted(TLA.glob("models*.json")) for e in json.loads(m.read_text())["models"]]
     results = []
-    for e in manifest["models"]:
+    for e in entries:
         r = run(e)
         results.append(r)
         print(f"{'ok ' if r['as_expected'] else 'BAD'} {r['config']:<42} {r['outcome']:<9} {r['violated'] or r['distinct_states']}")
