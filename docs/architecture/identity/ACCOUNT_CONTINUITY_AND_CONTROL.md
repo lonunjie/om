@@ -215,7 +215,7 @@ one lost device used to mean identity loss or a permanent constitutional lockout
 | 2 | off (explicit) | 2 | **1: constitution locked** | 2 devices |
 | any | + guardians M-of-N | adds a method that survives device and custodian loss | — | adds: M guardians colluding + delay without veto |
 
-[`verification/bounded/continuity_assessment.py`](../../../verification/bounded/continuity_assessment.py) reproduces this table. The TLA+ model `AccountControl.tla` checks the activation, veto and one-vote rules.
+[`verification/bounded/continuity_assessment.py`](../../../verification/bounded/continuity_assessment.py) reproduces this table. The TLA+ model [`AccountControl.tla`](../../../verification/tla/AccountControl.tla) checks the activation, veto and one-vote rules.
 
 Core MUST compute a local, non-authoritative **ContinuityAssessment** from the current AccountControlState and RecoveryPolicy:
 
@@ -241,3 +241,14 @@ Rules (R-165, amended by R-183..R-186):
 
 - Account closure, deletion, moved-account pointers and LegacyPolicy are defined in [`ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md`](ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md) (terminal `AccountRetirement` transition; V-002 extended).
 - Every device enrollment is announced on the account's other active devices (R-166, [`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md) §2). A linking ceremony that finalizes without that notice is a failing trace.
+
+## 13. 2026-09-24 invariants found by the V-002 model
+
+The TLC model [`verification/tla/AccountControl.tla`](../../../verification/tla/AccountControl.tla) found two gaps in the prose rules. Both are now normative:
+
+1. **Never leave zero voting controllers.** No transition (revocation, quarantine or recovery) may produce a state in
+   which every remaining controller is quarantined. Otherwise nobody can vote, and a custodian holder wins by waiting
+   out the recovery delay (trace: link h2, quarantine h1, revoke h2).
+2. **Recovery targets stay fresh.** A pending recovery request is bound to its target device key and recovery epoch.
+   Completion is rejected if that device was enrolled or revoked by another transition in the meantime.
+

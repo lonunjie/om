@@ -1,0 +1,133 @@
+{
+  "tool": "tla2tools 1.7.4 (sha1 bee4a54f3ee3d4afc347c3240ec2d9e93b075104)",
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed",
+  "all_as_expected": true,
+  "runs": [
+    {
+      "config": "AccountControl.cfg",
+      "gate": "V-002",
+      "claim": "structural invariants, no silent link, >=1 voting controller, retirement terminal, freeze blocks changes, legacy never adds controllers",
+      "expect": "pass",
+      "outcome": "pass",
+      "violated": null,
+      "distinct_states": 402192,
+      "depth": 22,
+      "as_expected": true
+    },
+    {
+      "config": "AccountControl_live_owner.cfg",
+      "gate": "V-002",
+      "claim": "ADR-0111: a live one-device owner is never taken over by an attacker holding both custodians",
+      "expect": "pass",
+      "outcome": "pass",
+      "violated": null,
+      "distinct_states": 1104,
+      "depth": 10,
+      "as_expected": true
+    },
+    {
+      "config": "AccountControl_live_owner2.cfg",
+      "gate": "V-002",
+      "claim": "ADR-0111: a live two-device owner is never taken over by a custodian holder",
+      "expect": "pass",
+      "outcome": "pass",
+      "violated": null,
+      "distinct_states": 2999,
+      "depth": 10,
+      "as_expected": true
+    },
+    {
+      "config": "AccountControl_one_vote.cfg",
+      "gate": "V-002",
+      "claim": "R-185: custodian is worth exactly one vote",
+      "expect": "pass",
+      "outcome": "pass",
+      "violated": null,
+      "distinct_states": 4909,
+      "depth": 10,
+      "as_expected": true
+    },
+    {
+      "config": "AccountControl_one_vote_nocustody.cfg",
+      "gate": "V-002",
+      "claim": "R-185 baseline: device majority needed without custodian",
+      "expect": "pass",
+      "outcome": "pass",
+      "violated": null,
+      "distinct_states": 552,
+      "depth": 9,
+      "as_expected": true
+    },
+    {
+      "config": "AccountControl_off_no_recovery.cfg",
+      "gate": "V-002",
+      "claim": "recovery off: total device loss is unrecoverable",
+      "expect": "pass",
+      "outcome": "pass",
+      "violated": null,
+      "distinct_states": 135,
+      "depth": 10,
+      "as_expected": true
+    },
+    {
+      "config": "AccountControl_residual.cfg",
+      "gate": "V-002",
+      "claim": "T-041 residual: offline owner loses the race to a custodian holder",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "AttackerNeverOwns",
+      "distinct_states": null,
+      "depth": 10,
+      "as_expected": true,
+      "trace_length": 6
+    },
+    {
+      "config": "AccountControl_trap_recover.cfg",
+      "gate": "V-002",
+      "claim": "golden: owner recovers after losing every device",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "TrapOwnerRecoversAfterTotalLoss",
+      "distinct_states": null,
+      "depth": 10,
+      "as_expected": true,
+      "trace_length": 8
+    },
+    {
+      "config": "AccountControl_trap_two_device.cfg",
+      "gate": "V-002",
+      "claim": "golden: two-device lockout removed",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "TrapTwoDeviceReconstitution",
+      "distinct_states": null,
+      "depth": 4,
+      "as_expected": true,
+      "trace_length": 3
+    },
+    {
+      "config": "AccountControl_trap_legacy.cfg",
+      "gate": "V-002",
+      "claim": "golden: legacy activates only after inactivity",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "TrapLegacyActivates",
+      "distinct_states": null,
+      "depth": 7,
+      "as_expected": true,
+      "trace_length": 3
+    },
+    {
+      "config": "AccountControl_trap_fork.cfg",
+      "gate": "V-002",
+      "claim": "golden: conflicting authorized transitions freeze",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "TrapForkFreezes",
+      "distinct_states": null,
+      "depth": 6,
+      "as_expected": true,
+      "trace_length": 5
+    }
+  ]
+}

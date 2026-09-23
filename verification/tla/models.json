@@ -1,0 +1,16 @@
+{
+  "purpose": "Every TLA+ config and its expected TLC outcome. tools/run_tlc.py fails on any deviation. 'violation' configs are trap/residual checks: their counterexamples are golden vectors or documented residual risks.",
+  "models": [
+    {"module": "AccountControl", "config": "AccountControl.cfg", "expect": "pass", "gate": "V-002", "claim": "structural invariants, no silent link, >=1 voting controller, retirement terminal, freeze blocks changes, legacy never adds controllers"},
+    {"module": "AccountControl", "config": "AccountControl_live_owner.cfg", "expect": "pass", "gate": "V-002", "claim": "ADR-0111: a live one-device owner is never taken over by an attacker holding both custodians"},
+    {"module": "AccountControl", "config": "AccountControl_live_owner2.cfg", "expect": "pass", "gate": "V-002", "claim": "ADR-0111: a live two-device owner is never taken over by a custodian holder"},
+    {"module": "AccountControl", "config": "AccountControl_one_vote.cfg", "expect": "pass", "gate": "V-002", "claim": "R-185: custodian is worth exactly one vote"},
+    {"module": "AccountControl", "config": "AccountControl_one_vote_nocustody.cfg", "expect": "pass", "gate": "V-002", "claim": "R-185 baseline: device majority needed without custodian"},
+    {"module": "AccountControl", "config": "AccountControl_off_no_recovery.cfg", "expect": "pass", "gate": "V-002", "claim": "recovery off: total device loss is unrecoverable"},
+    {"module": "AccountControl", "config": "AccountControl_residual.cfg", "expect": "violation", "invariant": "AttackerNeverOwns", "gate": "V-002", "claim": "T-041 residual: offline owner loses the race to a custodian holder"},
+    {"module": "AccountControl", "config": "AccountControl_trap_recover.cfg", "expect": "violation", "invariant": "TrapOwnerRecoversAfterTotalLoss", "gate": "V-002", "claim": "golden: owner recovers after losing every device"},
+    {"module": "AccountControl", "config": "AccountControl_trap_two_device.cfg", "expect": "violation", "invariant": "TrapTwoDeviceReconstitution", "gate": "V-002", "claim": "golden: two-device lockout removed"},
+    {"module": "AccountControl", "config": "AccountControl_trap_legacy.cfg", "expect": "violation", "invariant": "TrapLegacyActivates", "gate": "V-002", "claim": "golden: legacy activates only after inactivity"},
+    {"module": "AccountControl", "config": "AccountControl_trap_fork.cfg", "expect": "violation", "invariant": "TrapForkFreezes", "gate": "V-002", "claim": "golden: conflicting authorized transitions freeze"}
+  ]
+}

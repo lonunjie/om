@@ -1,6 +1,5 @@
 # OM design repository tasks. `make help` lists them.
 PY ?= python3
-TLA_MODELS := $(wildcard verification/tla/*.tla)
 
 .PHONY: help check verify validate docs docs-check evidence tlc export import reuse
 
@@ -23,8 +22,8 @@ docs-check: ## fail if docs need formatting or a link is broken
 evidence: ## run all executable verification evidence (verification/run_phase1.py)
 	$(PY) verification/run_phase1.py
 
-tlc: ## model-check every TLA+ model with the pinned TLC
-	@for m in $(TLA_MODELS); do echo "== TLC $$m"; tools/tlc.sh $$m || exit 1; done
+tlc: ## model-check every config in verification/tla/models.json with the pinned TLC
+	$(PY) tools/run_tlc.py
 
 export: ## package HEAD as design-drops/om-design-<stamp>-<sha>.zip
 	$(PY) tools/om_drop.py export

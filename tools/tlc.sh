@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Run the pinned TLC model checker (verification/TLAPLUS_TOOL_PIN.md) on one TLA+ model.
-#   tools/tlc.sh verification/tla/AccountControlState.tla [extra TLC args]
+#   tools/tlc.sh verification/tla/AccountControl.tla [extra TLC args]
+#   CFG=verification/tla/AccountControl_live_owner.cfg tools/tlc.sh verification/tla/AccountControl.tla
 # Fetches tla2tools.jar v1.7.4 into $OM_TOOL_CACHE (default ~/.cache/om) and refuses a jar whose
 # SHA-1 differs from the pin. Needs Java 11+ (JAVA or java on PATH or Homebrew openjdk@21).
 set -euo pipefail
@@ -10,7 +11,8 @@ CACHE=${OM_TOOL_CACHE:-$HOME/.cache/om}
 JAR=$CACHE/tla2tools-$PIN_VERSION.jar
 
 model=${1:?usage: tools/tlc.sh path/to/Model.tla [tlc args]}; shift
-cfg=${model%.tla}.cfg
+cfg=${CFG:-${model%.tla}.cfg}
+cfg=$(cd "$(dirname "$cfg")" && pwd)/$(basename "$cfg")
 
 if [[ ! -f $JAR ]]; then
   mkdir -p "$CACHE"
@@ -29,4 +31,4 @@ meta=$(mktemp -d)
 trap 'rm -rf "$meta"' EXIT
 cd "$(dirname "$model")"
 exec "$JAVA" -XX:+UseParallelGC -cp "$JAR" tlc2.TLC -workers auto -deadlock -metadir "$meta" \
-  -config "$(basename "$cfg")" "$(basename "$model")" "$@"
+  -config "$cfg" "$(basename "$model")" "$@"

@@ -75,20 +75,24 @@ Model-check AccountControlState majority authorization, quarantine denominator, 
 - **Scopes blocked:** core_kernel
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_tool, independent_reviewer; pre-release external_review
-- **Evidence:** `verification/tla/AccountControlState.tla`; `verification/tla/AccountControlState.cfg`; `verification/results/authority-bounded-latest.json`; `verification/vectors/account-control-regression-vectors.json`
+- **Evidence:** `verification/bounded/continuity_assessment.py`; `verification/results/authority-bounded-latest.json`; `verification/results/tlc-latest.json`; `verification/tla/AccountControl.tla`; `verification/tla/AccountControlState.cfg`; `verification/tla/AccountControlState.tla`; `verification/tla/models.json`; `verification/vectors/account-control-regression-vectors.json`; `verification/vectors/tla-AccountControl_trap_recover.json`
 
 Pre-engineering criteria:
 
-- [ ] TLC (pinned tool) run of AccountControlState.tla with recorded state counts and no counterexample
-- [ ] model covers recovery, fork/freeze, rollback, AccountRetirement terminality, LegacyPolicy contest/cancel and the device-link notice invariant
-- [ ] regression/golden vectors derived from the model
+- [x] TLC (pinned tool) run of AccountControl.tla (formerly AccountControlState.tla) with recorded state counts and no counterexample
+- [x] model covers recovery, fork/freeze, rollback, AccountRetirement terminality, LegacyPolicy contest/cancel and the device-link notice invariant
+- [x] regression/golden vectors derived from the model
 - [ ] model reviewed by someone other than its author
-- [ ] model covers ADR-0111 default recovery: delayed activation, veto by any live controller, immediate completion only with controller co-sign, RecoveryRoot as exactly one vote, revocation of all earlier controllers on completion
+- [x] model covers ADR-0111 default recovery: delayed activation, veto by any live controller, immediate completion only with controller co-sign, RecoveryRoot as exactly one vote, revocation of all earlier controllers on completion
 
 Pre-release criteria:
 
 - [ ] implementation CI replays every vector (R-070)
 - [ ] independent security review of the AccountControlState implementation
+
+What remains (needs someone other than the author):
+
+- model review by someone other than its author (a human, or a cross-vendor AI reviewer if ADR-0117 is accepted)
 
 ### V-003 — `one_to_one_session_model`
 

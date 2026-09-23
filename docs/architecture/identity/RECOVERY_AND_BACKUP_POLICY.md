@@ -225,6 +225,8 @@ RecoveryCompletion: new device becomes the sole controller, every earlier contro
 - While a request is pending, the recovering device is in a **restricted recovery state**. It can fetch the
   RecoveryRecord and show "Your account will be back in 3 days. We wait so a thief can't take it." It cannot
   send as the identity.
+- A request is bound to its target device key and recovery epoch. Completion is rejected if that device was
+  enrolled or revoked by any other transition while the request was pending (found by the V-002 model).
 - Homes rate-limit RecoveryRequests per account and drop duplicates; repeated vetoed requests trigger custody
   rotation, not an endless veto loop.
 - The delay protects users who **still have a device**. A user who has lost every device and whose custodian is

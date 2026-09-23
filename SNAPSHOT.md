@@ -29,7 +29,7 @@ An independent hardening review ([`HARDENING_REVIEW_20260924.md`](docs/reviews/H
 
 W0 (`core_kernel`, `reference_client_ui`, `provider_reference`) needs these pre-engineering criteria met:
 
-1. V-002: install a JDK + pinned TLC, run [`AccountControlState.tla`](verification/tla/AccountControlState.tla), extend it with retirement/legacy/device-link notice, get an independent review;
+1. V-002: install a JDK + pinned TLC, run [`AccountControl.tla`](verification/tla/AccountControl.tla), extend it with retirement/legacy/device-link notice, get an independent review;
 2. V-005: freeze CDDL/field/domain-separation registries for W0 objects, with two-encoder vectors;
 3. V-001 and V-003: Rust native+wasm state-machine prototype; 1:1 session-manager model/fuzzer;
 4. V-015 and V-016: MetadataExposureDescriptors (including the sponsored mailbox); IntroGate/Sybil resource model;

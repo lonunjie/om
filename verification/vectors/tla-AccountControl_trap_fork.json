@@ -1,0 +1,114 @@
+{
+ "gate": "V-002",
+ "source": "verification/tla/AccountControl_trap_fork.cfg",
+ "kind": "golden",
+ "claim": "golden: conflicting authorized transitions freeze",
+ "violated": "TrapForkFreezes",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "1",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h1\", \"h2\"}",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "0",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 2,
+   "action": "Next",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "1",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h1\"}",
+    "revoked": "{\"h2\"}",
+    "lost": "{}",
+    "gen": "1",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 3,
+   "action": "RotateRecovery",
+   "vars": {
+    "epoch": "1",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h1\"}",
+    "revoked": "{\"h2\"}",
+    "lost": "{}",
+    "gen": "2",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 4,
+   "action": "Compromise",
+   "vars": {
+    "epoch": "1",
+    "quarantined": "{}",
+    "compromised": "{\"h1\"}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h1\"}",
+    "revoked": "{\"h2\"}",
+    "lost": "{}",
+    "gen": "2",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 5,
+   "action": "Fork",
+   "vars": {
+    "epoch": "1",
+    "quarantined": "{}",
+    "compromised": "{\"h1\"}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "TRUE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h1\"}",
+    "revoked": "{\"h2\"}",
+    "lost": "{}",
+    "gen": "2",
+    "retired": "FALSE"
+   }
+  }
+ ]
+}

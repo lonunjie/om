@@ -479,7 +479,8 @@ def validate_0920_verification_evidence_guardrails() -> None:
     if not expected.issubset(got):
         fail(f"09:20 guard: phase1 evidence gate set regressed: missing={sorted(expected-got)}")
     for req in [
-        "verification/tla/AccountControlState.tla",
+        "verification/tla/AccountControl.tla",
+        "verification/tla/models.json",
         "verification/vectors/account-control-regression-vectors.json",
         "verification/FEASIBILITY_RECONNAISSANCE_20260923.md",
         "verification/results/cbor-cross-impl-latest.json",

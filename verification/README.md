@@ -43,7 +43,7 @@ V-001, V-003, V-006, V-007, V-010 and V-012 remain fully open. [`FEASIBILITY_REC
 
 ## Known verification-artifact gaps discovered in this checkpoint
 
-1. **TLC is not present in the current execution environment.** [`AccountControlState.tla`](tla/AccountControlState.tla) is therefore authored but not TLC-executed here. [`TLAPLUS_TOOL_PIN.md`](TLAPLUS_TOOL_PIN.md) records the selected verifier/tool pin for a reproducible later run.
+1. **TLC is not present in the current execution environment.** [`AccountControl.tla`](tla/AccountControl.tla) is therefore authored but not TLC-executed here. [`TLAPLUS_TOOL_PIN.md`](TLAPLUS_TOOL_PIN.md) records the selected verifier/tool pin for a reproducible later run.
 2. **V-005 cannot pass yet** because per-object CDDL/numeric field registries and domain-separation registries for all signed/hashed v1 objects have not yet been frozen. This is a verification deliverable gap, not a reopening of the deterministic-CBOR architecture decision.
 3. Browser/runtime/media/plugin/parser gates require empirical implementation evidence. Standards availability or a plausible design does not satisfy them.
 
