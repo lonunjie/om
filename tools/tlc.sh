@@ -30,5 +30,5 @@ fi
 meta=$(mktemp -d)
 trap 'rm -rf "$meta"' EXIT
 cd "$(dirname "$model")"
-exec "$JAVA" -XX:+UseParallelGC -cp "$JAR" tlc2.TLC -workers auto -deadlock -metadir "$meta" \
+exec "$JAVA" -XX:+UseParallelGC -cp "$JAR" tlc2.TLC -workers "${WORKERS:-auto}" -deadlock -metadir "$meta" \
   -config "$cfg" "$(basename "$model")" "$@"

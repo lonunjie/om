@@ -41,7 +41,8 @@ def parse_trace(out: str) -> list[dict]:
 
 
 def run(entry: dict) -> dict:
-    env = dict(os.environ, CFG=str(TLA / entry["config"]))
+    env = dict(os.environ, CFG=str(TLA / entry["config"]),
+               WORKERS="1" if entry["expect"] == "violation" else "auto")  # 1 worker: deterministic shortest trace
     p = subprocess.run([str(ROOT / "tools/tlc.sh"), str(TLA / f"{entry['module']}.tla")],
                        capture_output=True, text=True, env=env)
     out = p.stdout + p.stderr
@@ -53,7 +54,7 @@ def run(entry: dict) -> dict:
         "outcome": "violation" if viol else ("pass" if "No error has been found" in out else "error"),
         "violated": viol.group(1) if viol and viol.lastindex else None,
         "distinct_states": int(counts[-1].replace(",", "")) if counts and not viol else None,
-        "depth": int(depth.group(1)) if depth else None,
+        "depth": int(depth.group(1)) if depth and not viol else None,
     }
     ok = res["outcome"] == entry["expect"] and (entry["expect"] != "violation" or res["violated"] == entry.get("invariant"))
     res["as_expected"] = ok

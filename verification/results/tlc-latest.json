@@ -77,7 +77,7 @@
       "outcome": "violation",
       "violated": "AttackerNeverOwns",
       "distinct_states": null,
-      "depth": 10,
+      "depth": null,
       "as_expected": true,
       "trace_length": 6
     },
@@ -89,9 +89,9 @@
       "outcome": "violation",
       "violated": "TrapOwnerRecoversAfterTotalLoss",
       "distinct_states": null,
-      "depth": 10,
+      "depth": null,
       "as_expected": true,
-      "trace_length": 8
+      "trace_length": 6
     },
     {
       "config": "AccountControl_trap_two_device.cfg",
@@ -101,9 +101,9 @@
       "outcome": "violation",
       "violated": "TrapTwoDeviceReconstitution",
       "distinct_states": null,
-      "depth": 4,
+      "depth": null,
       "as_expected": true,
-      "trace_length": 3
+      "trace_length": 2
     },
     {
       "config": "AccountControl_trap_legacy.cfg",
@@ -113,7 +113,7 @@
       "outcome": "violation",
       "violated": "TrapLegacyActivates",
       "distinct_states": null,
-      "depth": 7,
+      "depth": null,
       "as_expected": true,
       "trace_length": 3
     },
@@ -125,9 +125,9 @@
       "outcome": "violation",
       "violated": "TrapForkFreezes",
       "distinct_states": null,
-      "depth": 6,
+      "depth": null,
       "as_expected": true,
-      "trace_length": 5
+      "trace_length": 3
     }
   ]
 }

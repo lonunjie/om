@@ -28,7 +28,70 @@
   },
   {
    "step": 2,
-   "action": "RotateRecovery",
+   "action": "RequestRecovery",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> TRUE, party |-> \"owner\", dev |-> \"h2\", methods |-> 1, elapsed |-> 0 ]",
+    "controllers": "{\"h1\"}",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "0",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 3,
+   "action": "Tick",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> TRUE, party |-> \"owner\", dev |-> \"h2\", methods |-> 1, elapsed |-> 1 ]",
+    "controllers": "{\"h1\"}",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "0",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 4,
+   "action": "Tick",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> TRUE, party |-> \"owner\", dev |-> \"h2\", methods |-> 1, elapsed |-> 2 ]",
+    "controllers": "{\"h1\"}",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "0",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 5,
+   "action": "DelayedComplete",
    "vars": {
     "epoch": "1",
     "quarantined": "{}",
@@ -36,127 +99,22 @@
     "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
     "idle": "0",
     "atkMethods": "0",
-    "linkLog": "{}",
+    "linkLog": "{[dev |-> \"h2\", notified |-> {\"h1\"}]}",
     "offline": "{}",
     "frozen": "FALSE",
     "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
-    "controllers": "{\"h1\"}",
-    "revoked": "{}",
+    "controllers": "{\"h2\"}",
+    "revoked": "{\"h1\"}",
     "lost": "{}",
     "gen": "1",
     "retired": "FALSE"
    }
   },
   {
-   "step": 3,
-   "action": "RotateRecovery",
-   "vars": {
-    "epoch": "2",
-    "quarantined": "{}",
-    "compromised": "{}",
-    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
-    "idle": "0",
-    "atkMethods": "0",
-    "linkLog": "{}",
-    "offline": "{}",
-    "frozen": "FALSE",
-    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
-    "controllers": "{\"h1\"}",
-    "revoked": "{}",
-    "lost": "{}",
-    "gen": "2",
-    "retired": "FALSE"
-   }
-  },
-  {
-   "step": 4,
-   "action": "RequestRecovery",
-   "vars": {
-    "epoch": "2",
-    "quarantined": "{}",
-    "compromised": "{}",
-    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
-    "idle": "0",
-    "atkMethods": "0",
-    "linkLog": "{}",
-    "offline": "{}",
-    "frozen": "FALSE",
-    "pending": "[ epoch |-> 2, active |-> TRUE, party |-> \"owner\", dev |-> \"h2\", methods |-> 1, elapsed |-> 0 ]",
-    "controllers": "{\"h1\"}",
-    "revoked": "{}",
-    "lost": "{}",
-    "gen": "2",
-    "retired": "FALSE"
-   }
-  },
-  {
-   "step": 5,
-   "action": "Tick",
-   "vars": {
-    "epoch": "2",
-    "quarantined": "{}",
-    "compromised": "{}",
-    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
-    "idle": "0",
-    "atkMethods": "0",
-    "linkLog": "{}",
-    "offline": "{}",
-    "frozen": "FALSE",
-    "pending": "[ epoch |-> 2, active |-> TRUE, party |-> \"owner\", dev |-> \"h2\", methods |-> 1, elapsed |-> 1 ]",
-    "controllers": "{\"h1\"}",
-    "revoked": "{}",
-    "lost": "{}",
-    "gen": "2",
-    "retired": "FALSE"
-   }
-  },
-  {
    "step": 6,
-   "action": "Tick",
-   "vars": {
-    "epoch": "2",
-    "quarantined": "{}",
-    "compromised": "{}",
-    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
-    "idle": "0",
-    "atkMethods": "0",
-    "linkLog": "{}",
-    "offline": "{}",
-    "frozen": "FALSE",
-    "pending": "[ epoch |-> 2, active |-> TRUE, party |-> \"owner\", dev |-> \"h2\", methods |-> 1, elapsed |-> 2 ]",
-    "controllers": "{\"h1\"}",
-    "revoked": "{}",
-    "lost": "{}",
-    "gen": "2",
-    "retired": "FALSE"
-   }
-  },
-  {
-   "step": 7,
    "action": "Lose",
    "vars": {
-    "epoch": "2",
-    "quarantined": "{}",
-    "compromised": "{}",
-    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
-    "idle": "0",
-    "atkMethods": "0",
-    "linkLog": "{}",
-    "offline": "{}",
-    "frozen": "FALSE",
-    "pending": "[ epoch |-> 2, active |-> TRUE, party |-> \"owner\", dev |-> \"h2\", methods |-> 1, elapsed |-> 2 ]",
-    "controllers": "{\"h1\"}",
-    "revoked": "{}",
-    "lost": "{\"h1\"}",
-    "gen": "2",
-    "retired": "FALSE"
-   }
-  },
-  {
-   "step": 8,
-   "action": "DelayedComplete",
-   "vars": {
-    "epoch": "3",
+    "epoch": "1",
     "quarantined": "{}",
     "compromised": "{}",
     "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
@@ -169,7 +127,7 @@
     "controllers": "{\"h2\"}",
     "revoked": "{\"h1\"}",
     "lost": "{\"h1\"}",
-    "gen": "3",
+    "gen": "1",
     "retired": "FALSE"
    }
   }
