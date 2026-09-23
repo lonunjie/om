@@ -30,7 +30,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from omlib.docs import TEXT_SUFFIXES, rewrite_legacy_tokens  # noqa: E402
-from omlib.layout import REPO_ONLY, is_legacy_managed, is_stripped, map_legacy_path  # noqa: E402
+from omlib.layout import REPO_ONLY, is_legacy_managed, is_stripped, legacy_paths_for, map_legacy_path  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 PHT = timezone(timedelta(hours=8))
@@ -42,6 +42,10 @@ def git(*args: str, cwd: Path = ROOT, check: bool = True, env: dict | None = Non
     if check and r.returncode != 0:
         raise SystemExit(f"git {' '.join(args)} failed:\n{r.stderr.strip()}")
     return r.stdout.strip()
+
+
+def git_ok(*args: str) -> bool:
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True).returncode == 0
 
 
 def sha256_file(p: Path) -> str:
@@ -153,13 +157,13 @@ def resolve_base(a: argparse.Namespace, pkg: Path, layout: str) -> str:
         return git("rev-parse", a.base + "^{commit}")
     if (pkg / "OM_EXPORT.json").exists():
         base = json.loads((pkg / "OM_EXPORT.json").read_text(encoding="utf-8")).get("base_commit", "")
-        if git("cat-file", "-e", f"{base}^{{commit}}", check=False) == "" and base:
+        if base and git_ok("cat-file", "-e", f"{base}^{{commit}}"):
             return base
         raise SystemExit(f"OM_EXPORT.json base_commit {base!r} is not in this repository; pass --base")
     if layout == "legacy" and (pkg / "history").is_dir():
         stamps = sorted(p.name for p in (pkg / "history").iterdir() if re.fullmatch(r"\d{8}(-\d{4})?", p.name))
         for s in reversed(stamps):
-            if git("rev-parse", "-q", "--verify", f"refs/tags/checkpoint/{s}", check=False):
+            if git_ok("rev-parse", "-q", "--verify", f"refs/tags/checkpoint/{s}"):
                 return git("rev-parse", f"checkpoint/{s}^{{commit}}")
     raise SystemExit("cannot determine the drop's base commit; pass --base <commit or checkpoint tag>")
 
@@ -182,7 +186,7 @@ def cmd_import(a: argparse.Namespace) -> int:
         base = resolve_base(a, pkg, layout)
         stamp = a.stamp or stamp_from_contract(pkg) or datetime.now(PHT).strftime("%Y%m%d-%H%M")
         tag = f"checkpoint/{stamp}"
-        if git("rev-parse", "-q", "--verify", f"refs/tags/{tag}", check=False):
+        if git_ok("rev-parse", "-q", "--verify", f"refs/tags/{tag}"):
             raise SystemExit(f"tag {tag} already exists; the drop may already be imported (pass --stamp to override)")
         files = {}
         for p in pkg.rglob("*"):
@@ -231,7 +235,8 @@ def cmd_import(a: argparse.Namespace) -> int:
                         f"drop/{stamp}"], cwd=ROOT, text=True, capture_output=True)
     if r.returncode != 0:
         print(r.stdout + r.stderr, file=sys.stderr)
-        print(f"\nMERGE CONFLICTS. Resolve them, then: git commit && python3 tools/om_drop.py normalize {pre[:10]}",
+        flag = " --legacy" if layout == "legacy" else ""
+        print(f"\nMERGE CONFLICTS. Resolve them, then: git commit && python3 tools/om_drop.py normalize {pre[:10]}{flag}",
               file=sys.stderr)
         return 3
     return normalize(pre, layout)
@@ -246,8 +251,7 @@ def normalize(pre: str, layout: str = "repo") -> int:
     """After a drop merge: rewrite legacy path tokens in changed files, fix links, validate, commit."""
     changed = [f for f in git("diff", "--name-only", pre, "HEAD").splitlines() if (ROOT / f).is_file()]
     if layout == "legacy":
-        legacy = set(json.loads((ROOT / "tools/layout.json").read_text())["root_files"]) | {
-            f for f in git("ls-files").splitlines()}
+        legacy = legacy_paths_for(git("ls-files").splitlines())
         for f in changed:
             p = ROOT / f
             if p.suffix in TEXT_SUFFIXES:

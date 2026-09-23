@@ -36,6 +36,25 @@ def map_legacy_path(p: str) -> str:
     return dest + p if dest.endswith("/") or dest == "" else dest
 
 
+def legacy_paths_for(repo_files: list[str]) -> set[str]:
+    """Inverse mapping: the legacy path each current repository file would have had."""
+    L = layout()
+    inv_dirs = sorted(((new, old) for old, new in L["dir_moves"].items() if old != new), key=lambda x: -len(x[0]))
+    by_new = {map_legacy_path(k): k for k in list(L["root_files"]) + list(L["root_keep"])}
+    out = set(L["root_files"]) | set(L["root_keep"])
+    for f in repo_files:
+        if f in by_new:
+            out.add(by_new[f])
+            continue
+        for new, old in inv_dirs:
+            if f.startswith(new):
+                out.add(old + f[len(new):])
+                break
+        else:
+            out.add(f.rsplit("/", 1)[-1] if f.startswith("docs/checkpoints/CHECKPOINT_") else f)
+    return out
+
+
 def legacy_managed_prefixes() -> set[str]:
     """Repository paths that a legacy drop owns (used to scope deletions)."""
     L = layout()
