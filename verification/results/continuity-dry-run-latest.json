@@ -4,8 +4,8 @@
   "offline_copy_verified": true,
   "artifact_count": 63,
   "protocol_json_parsed": 51,
-  "machine_jsonl_records_parsed": 393,
-  "integrity_root_sha256": "f942e9132180b69110bd7900d7ffb2a4386bc63c959d03f33878c721183876ea",
+  "machine_jsonl_records_parsed": 394,
+  "integrity_root_sha256": "1ff75357885f9db3a978855dc79ff6e9b0de16f904f87512625e9fd2605a2eb8",
   "included": [
     "docs/architecture/crypto/CANONICAL_ENCODING.md",
     "docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md",

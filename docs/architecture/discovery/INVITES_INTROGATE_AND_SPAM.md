@@ -139,3 +139,24 @@ After acceptance, peers exchange fresh private relationship capabilities. These 
 ## 2026-09-23 invite resolution
 
 IntroductionTicket/invite capabilities are random, scoped, authenticated, replay-bounded and provider-scoped for single-use consumption by default. Multi-provider invitations carry distinct capabilities. Revocation is distributed to relevant IntroGates; OM does not claim impossible instantaneous revocation at disconnected providers. ZK/Privacy-Pass-style admission remains optional extension work.
+
+## 11. 2026-09-24 resource model result (V-016)
+
+[`verification/bounded/introgate_sybil_model.py`](../../../verification/bounded/introgate_sybil_model.py) simulates Sybil floods (up to 500 fresh identities per tick from
+1-1000 sources) against the controls in §6:
+
+- The recipient's expensive work stays at or below the per-recipient quota at every attack level. Identity is cheap,
+  but opening a request is not.
+- **Invite-bound tickets keep their reserved capacity**, so people holding a personal invite always get through
+  (100% in every run).
+- **Public, no-invite first contact is best-effort under attack.** It falls to about 1% under a large multi-source
+  flood. PoW helps only while the attacker's compute per tick stays below the recipient quota.
+
+Normative consequences:
+
+1. Every IntroGate reserves capacity for invite-bound and referral tickets that the public queue cannot consume (R-195).
+2. Under pressure, the client tells the recipient "you're receiving a lot of requests from strangers; people you
+   invited can still reach you". It never shows a silent empty inbox.
+3. Onboarding and discovery steer first contact through invites, QR codes and contact sharing. The public handle is
+   a convenience, not a guaranteed channel.
+

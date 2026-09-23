@@ -14,6 +14,7 @@ SCRIPTS = [
     ROOT / "verification/bounded/continuity_assessment.py",
     ROOT / "verification/bounded/home_tiers_model.py",
     ROOT / "verification/bounded/metadata_trace_model.py",
+    ROOT / "verification/bounded/introgate_sybil_model.py",
 ]
 
 

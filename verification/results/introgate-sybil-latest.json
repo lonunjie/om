@@ -1,0 +1,183 @@
+{
+ "model": "introgate_sybil_resource",
+ "gates": [
+  "V-016"
+ ],
+ "runs": 144,
+ "max_expensive_per_tick": 5,
+ "quota": 5,
+ "violations": [],
+ "passed": true,
+ "summary_table": [
+  {
+   "attack_rate": 0,
+   "sources": 1,
+   "pow": false,
+   "public_success": 1.0,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 0,
+   "sources": 1,
+   "pow": true,
+   "public_success": 1.0,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 0,
+   "sources": 20,
+   "pow": false,
+   "public_success": 1.0,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 0,
+   "sources": 20,
+   "pow": true,
+   "public_success": 1.0,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 0,
+   "sources": 1000,
+   "pow": false,
+   "public_success": 1.0,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 0,
+   "sources": 1000,
+   "pow": true,
+   "public_success": 1.0,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 5,
+   "sources": 1,
+   "pow": false,
+   "public_success": 1.0,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 5,
+   "sources": 1,
+   "pow": true,
+   "public_success": 1.0,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 5,
+   "sources": 20,
+   "pow": false,
+   "public_success": 0.931,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 5,
+   "sources": 20,
+   "pow": true,
+   "public_success": 0.931,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 5,
+   "sources": 1000,
+   "pow": false,
+   "public_success": 0.907,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 5,
+   "sources": 1000,
+   "pow": true,
+   "public_success": 0.907,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 50,
+   "sources": 1,
+   "pow": false,
+   "public_success": 1.0,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 50,
+   "sources": 1,
+   "pow": true,
+   "public_success": 1.0,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 50,
+   "sources": 20,
+   "pow": false,
+   "public_success": 0.146,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 50,
+   "sources": 20,
+   "pow": true,
+   "public_success": 0.146,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 50,
+   "sources": 1000,
+   "pow": false,
+   "public_success": 0.122,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 50,
+   "sources": 1000,
+   "pow": true,
+   "public_success": 0.122,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 500,
+   "sources": 1,
+   "pow": false,
+   "public_success": 1.0,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 500,
+   "sources": 1,
+   "pow": true,
+   "public_success": 1.0,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 500,
+   "sources": 20,
+   "pow": false,
+   "public_success": 0.015,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 500,
+   "sources": 20,
+   "pow": true,
+   "public_success": 0.015,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 500,
+   "sources": 1000,
+   "pow": false,
+   "public_success": 0.009,
+   "invite_success": 1.0
+  },
+  {
+   "attack_rate": 500,
+   "sources": 1000,
+   "pow": true,
+   "public_success": 0.009,
+   "invite_success": 1.0
+  }
+ ],
+ "finding": "Expensive work stays bounded by the per-recipient quota at every Sybil count, and invite-bound first contacts keep their reserved capacity. Public (no-invite) first contact is starved by floods from many sources; PoW helps only while the attacker's compute is bounded. Public reachability under attack is therefore best-effort by design, and invites or referrals are the dependable path.",
+ "gate_status_effect": "evidence_only_no_gate_automatically_passed"
+}

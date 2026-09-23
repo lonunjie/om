@@ -55,6 +55,10 @@
     {
       "script": "verification/bounded/metadata_trace_model.py",
       "returncode": 0
+    },
+    {
+      "script": "verification/bounded/introgate_sybil_model.py",
+      "returncode": 0
     }
   ]
 }

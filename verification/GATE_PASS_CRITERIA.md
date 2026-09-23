@@ -334,16 +334,21 @@ Model/property-test block/revocation/Sybil behavior, IntroGate resource abuse, R
 - **Scopes blocked:** core_kernel, communities_publications
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
-- **Evidence:** `verification/results/authority-bounded-latest.json`
+- **Evidence:** `verification/bounded/introgate_sybil_model.py`; `verification/results/authority-bounded-latest.json`; `verification/results/introgate-sybil-latest.json`
 
 Pre-engineering criteria:
 
-- [ ] IntroGate/block/Sybil/resource model for the W0 surfaces
+- [x] IntroGate/block/Sybil/resource model for the W0 surfaces
 - [ ] Room timeout/remove/ban race and evidence model before communities_publications is unlocked
 
 Pre-release criteria:
 
 - [ ] adversarial load and abuse tests against reference providers
+
+What remains (needs someone other than the author):
+
+- Room timeout/remove/ban race and evidence model (needed before communities_publications unlock; in progress)
+- independent review
 
 ### V-017 — `protocol_longevity_and_0m_continuity_drill`
 

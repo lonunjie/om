@@ -2510,6 +2510,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/introgate_sybil_model.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/metadata_trace_model.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -2588,6 +2595,13 @@
     },
     {
       "path": "verification/results/home-tiers-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/introgate-sybil-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
