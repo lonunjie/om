@@ -407,20 +407,25 @@ Prove zero-signup sponsored onboarding, bounded sponsorship, migration between H
 - **Scopes blocked:** provider_reference
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
+- **Evidence:** `docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md`; `docs/process/CONTINUITY_TABLETOP_DRILLS.md`; `verification/bounded/home_tiers_model.py`; `verification/results/home-tiers-latest.json`
 
 Pre-engineering criteria:
 
-- [ ] provider conformance suite specification
-- [ ] bounded model of sponsorship quotas, revocation and no-chain rules
-- [ ] T0->T2/T3 migration model preserving relationships
-- [ ] vendor-wide block tabletop
-- [ ] vendor-block model computes the fraction of relationships with a non-Cloudflare fallback route for realistic invite graphs under Cloudflare-first T1 (drill D5, gap G5)
+- [x] provider conformance suite specification
+- [x] bounded model of sponsorship quotas, revocation and no-chain rules
+- [x] T0->T2/T3 migration model preserving relationships
+- [x] vendor-wide block tabletop
+- [x] vendor-block model computes the fraction of relationships with a non-Cloudflare fallback route for realistic invite graphs under Cloudflare-first T1 (drill D5, gap G5)
 
 Pre-release criteria:
 
 - [ ] second reference Home with no cloud-vendor dependency passes provider conformance
 - [ ] live vendor-wide block drill
 - [ ] zero-billing enforcement tests on the reference cloud tier
+
+What remains (needs someone other than the author):
+
+- review of the conformance suite, models and vendor-block tabletop by someone other than their author (independent_reviewer)
 
 ### V-021 — `endpoint_coercion_and_platform_leakage`
 

@@ -1,0 +1,281 @@
+{
+ "model": "home_tiers_bounded",
+ "gates": [
+  "V-020"
+ ],
+ "sponsorship": {
+  "cases": 262144,
+  "violations": [],
+  "passed": true,
+  "bounds": {
+   "cap": 2,
+   "quota": 2,
+   "sequence_length": 6
+  }
+ },
+ "migration": {
+  "cases": 73728,
+  "lost_relationship_cases": 1596,
+  "violations": [],
+  "passed": true,
+  "claim": "a relationship survives migration iff the contact is multi-homed, or comes online before its first post-forwarding send (queued RouteUpdate or a 'moved' reply teaches the new route); AccountID never changes",
+  "design_consequence": "relationships with contacts offline longer than the forwarding window are lost without re-introduction: keep the 30-day hand-off (R-187) and 'moved' forwarding (PC-E02) long"
+ },
+ "vendor_block": {
+  "graphs": 20,
+  "users_per_graph": 400,
+  "tier_mix": {
+   "cf_t1": 0.55,
+   "t0_sponsored": 0.25,
+   "cf_t2": 0.12,
+   "t3": 0.08
+  },
+  "mean_surviving_fraction_no_fallback": 0.0163,
+  "mean_surviving_fraction_with_fallback": 0.4349,
+  "finding": "Under Cloudflare-first T1 with no second-family fallback, a vendor-wide block cuts most relationships; a host-console fallback on another provider family is required before public-production resilience claims.",
+  "runs": [
+   {
+    "seed": 0,
+    "fallback_policy": false,
+    "relationships": 986,
+    "surviving_fraction": 0.0203
+   },
+   {
+    "seed": 0,
+    "fallback_policy": true,
+    "relationships": 986,
+    "surviving_fraction": 0.4797
+   },
+   {
+    "seed": 1,
+    "fallback_policy": false,
+    "relationships": 970,
+    "surviving_fraction": 0.0186
+   },
+   {
+    "seed": 1,
+    "fallback_policy": true,
+    "relationships": 970,
+    "surviving_fraction": 0.5299
+   },
+   {
+    "seed": 2,
+    "fallback_policy": false,
+    "relationships": 946,
+    "surviving_fraction": 0.0264
+   },
+   {
+    "seed": 2,
+    "fallback_policy": true,
+    "relationships": 946,
+    "surviving_fraction": 0.4302
+   },
+   {
+    "seed": 3,
+    "fallback_policy": false,
+    "relationships": 988,
+    "surviving_fraction": 0.0091
+   },
+   {
+    "seed": 3,
+    "fallback_policy": true,
+    "relationships": 988,
+    "surviving_fraction": 0.4362
+   },
+   {
+    "seed": 4,
+    "fallback_policy": false,
+    "relationships": 979,
+    "surviving_fraction": 0.0276
+   },
+   {
+    "seed": 4,
+    "fallback_policy": true,
+    "relationships": 979,
+    "surviving_fraction": 0.3994
+   },
+   {
+    "seed": 5,
+    "fallback_policy": false,
+    "relationships": 1014,
+    "surviving_fraction": 0.0049
+   },
+   {
+    "seed": 5,
+    "fallback_policy": true,
+    "relationships": 1014,
+    "surviving_fraction": 0.4458
+   },
+   {
+    "seed": 6,
+    "fallback_policy": false,
+    "relationships": 944,
+    "surviving_fraction": 0.0148
+   },
+   {
+    "seed": 6,
+    "fallback_policy": true,
+    "relationships": 944,
+    "surviving_fraction": 0.3792
+   },
+   {
+    "seed": 7,
+    "fallback_policy": false,
+    "relationships": 992,
+    "surviving_fraction": 0.0171
+   },
+   {
+    "seed": 7,
+    "fallback_policy": true,
+    "relationships": 992,
+    "surviving_fraction": 0.4032
+   },
+   {
+    "seed": 8,
+    "fallback_policy": false,
+    "relationships": 1007,
+    "surviving_fraction": 0.0278
+   },
+   {
+    "seed": 8,
+    "fallback_policy": true,
+    "relationships": 1007,
+    "surviving_fraction": 0.428
+   },
+   {
+    "seed": 9,
+    "fallback_policy": false,
+    "relationships": 949,
+    "surviving_fraction": 0.0053
+   },
+   {
+    "seed": 9,
+    "fallback_policy": true,
+    "relationships": 949,
+    "surviving_fraction": 0.4384
+   },
+   {
+    "seed": 10,
+    "fallback_policy": false,
+    "relationships": 1008,
+    "surviving_fraction": 0.0169
+   },
+   {
+    "seed": 10,
+    "fallback_policy": true,
+    "relationships": 1008,
+    "surviving_fraction": 0.4772
+   },
+   {
+    "seed": 11,
+    "fallback_policy": false,
+    "relationships": 986,
+    "surviving_fraction": 0.0142
+   },
+   {
+    "seed": 11,
+    "fallback_policy": true,
+    "relationships": 986,
+    "surviving_fraction": 0.4047
+   },
+   {
+    "seed": 12,
+    "fallback_policy": false,
+    "relationships": 1033,
+    "surviving_fraction": 0.0116
+   },
+   {
+    "seed": 12,
+    "fallback_policy": true,
+    "relationships": 1033,
+    "surviving_fraction": 0.4211
+   },
+   {
+    "seed": 13,
+    "fallback_policy": false,
+    "relationships": 1018,
+    "surviving_fraction": 0.0098
+   },
+   {
+    "seed": 13,
+    "fallback_policy": true,
+    "relationships": 1018,
+    "surviving_fraction": 0.4136
+   },
+   {
+    "seed": 14,
+    "fallback_policy": false,
+    "relationships": 974,
+    "surviving_fraction": 0.0103
+   },
+   {
+    "seed": 14,
+    "fallback_policy": true,
+    "relationships": 974,
+    "surviving_fraction": 0.422
+   },
+   {
+    "seed": 15,
+    "fallback_policy": false,
+    "relationships": 984,
+    "surviving_fraction": 0.0234
+   },
+   {
+    "seed": 15,
+    "fallback_policy": true,
+    "relationships": 984,
+    "surviving_fraction": 0.3994
+   },
+   {
+    "seed": 16,
+    "fallback_policy": false,
+    "relationships": 968,
+    "surviving_fraction": 0.0217
+   },
+   {
+    "seed": 16,
+    "fallback_policy": true,
+    "relationships": 968,
+    "surviving_fraction": 0.4504
+   },
+   {
+    "seed": 17,
+    "fallback_policy": false,
+    "relationships": 977,
+    "surviving_fraction": 0.0205
+   },
+   {
+    "seed": 17,
+    "fallback_policy": true,
+    "relationships": 977,
+    "surviving_fraction": 0.4176
+   },
+   {
+    "seed": 18,
+    "fallback_policy": false,
+    "relationships": 983,
+    "surviving_fraction": 0.0112
+   },
+   {
+    "seed": 18,
+    "fallback_policy": true,
+    "relationships": 983,
+    "surviving_fraction": 0.4802
+   },
+   {
+    "seed": 19,
+    "fallback_policy": false,
+    "relationships": 1041,
+    "surviving_fraction": 0.0154
+   },
+   {
+    "seed": 19,
+    "fallback_policy": true,
+    "relationships": 1041,
+    "surviving_fraction": 0.4419
+   }
+  ]
+ },
+ "passed": true,
+ "gate_status_effect": "evidence_only_no_gate_automatically_passed"
+}

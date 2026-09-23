@@ -12,6 +12,7 @@ SCRIPTS = [
     ROOT / "verification/cbor/run_cross_impl.py",
     ROOT / "verification/bounded/continuity_dry_run.py",
     ROOT / "verification/bounded/continuity_assessment.py",
+    ROOT / "verification/bounded/home_tiers_model.py",
 ]
 
 
@@ -33,15 +34,17 @@ def main() -> int:
         "cbor": json.loads((ROOT/'verification/results/cbor-cross-impl-latest.json').read_text()),
         "continuity": json.loads((ROOT/'verification/results/continuity-dry-run-latest.json').read_text()),
         "assessment": json.loads((ROOT/'verification/results/continuity-assessment-latest.json').read_text()),
+        "home_tiers": json.loads((ROOT/'verification/results/home-tiers-latest.json').read_text()),
     }
     payload={
         "phase1_passed":True,
         "gate_status_effect":"evidence_only_no_gate_automatically_passed",
-        "bounded_cases": evidence['authority']['total_cases'] + evidence['conversation']['cases'] + evidence['wire']['total_cases'] + evidence['assessment']['cases'],
+        "bounded_cases": evidence['authority']['total_cases'] + evidence['conversation']['cases'] + evidence['wire']['total_cases'] + evidence['assessment']['cases'] + evidence['home_tiers']['sponsorship']['cases'] + evidence['home_tiers']['migration']['cases'],
+        "vendor_block_surviving_fraction": {"no_fallback": evidence['home_tiers']['vendor_block']['mean_surviving_fraction_no_fallback'], "with_second_family_fallback": evidence['home_tiers']['vendor_block']['mean_surviving_fraction_with_fallback']},
         "continuity_assessment_cases": evidence['assessment']['cases'],
         "cross_impl_cbor_vectors": evidence['cbor']['vectors_compared'],
         "offline_continuity_artifacts": evidence['continuity']['artifact_count'],
-        "gates_with_new_evidence": ["V-002","V-004","V-005","V-008","V-009","V-011","V-013","V-014","V-015","V-016","V-017"],
+        "gates_with_new_evidence": ["V-002","V-004","V-005","V-008","V-009","V-011","V-013","V-014","V-015","V-016","V-017","V-020"],
         "runs":rows,
     }
     (ROOT/'verification/results/phase1-summary.json').write_text(json.dumps(payload,indent=2)+'\n')

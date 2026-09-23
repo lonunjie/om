@@ -1,7 +1,11 @@
 {
   "phase1_passed": true,
   "gate_status_effect": "evidence_only_no_gate_automatically_passed",
-  "bounded_cases": 10580,
+  "bounded_cases": 346452,
+  "vendor_block_surviving_fraction": {
+    "no_fallback": 0.0163,
+    "with_second_family_fallback": 0.4349
+  },
   "continuity_assessment_cases": 2808,
   "cross_impl_cbor_vectors": 14,
   "offline_continuity_artifacts": 63,
@@ -16,7 +20,8 @@
     "V-014",
     "V-015",
     "V-016",
-    "V-017"
+    "V-017",
+    "V-020"
   ],
   "runs": [
     {
@@ -41,6 +46,10 @@
     },
     {
       "script": "verification/bounded/continuity_assessment.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/home_tiers_model.py",
       "returncode": 0
     }
   ]

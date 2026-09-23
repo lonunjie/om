@@ -1299,6 +1299,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md",
+      "class": "architecture_doc",
+      "domain": "provider_deployment_supply_chain",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "docs/architecture/providers/PROVISIONING_AND_BOOTSTRAP.md",
       "class": "architecture_doc",
       "domain": "provider_deployment_supply_chain",
@@ -2482,6 +2489,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/home_tiers_model.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/wire_boundary_models.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -2546,6 +2560,13 @@
     },
     {
       "path": "verification/results/conversation-convergence-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/home-tiers-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

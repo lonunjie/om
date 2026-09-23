@@ -127,7 +127,13 @@ Monoculture is a **declared 0M risk** (threat T-020). Controls:
 1. **Second reference provider before public production (PR-013, V-020).** At least one reference Home implementation with no cloud-vendor-specific dependency must pass the same provider conformance suite. The recommended target is a single static binary with embedded SQLite, runnable on a VPS, home server or single-board computer, and it doubles as the T1 community-host software.
 2. **Recommended RelaySet diversity.** Recommended profile's active+fallback prefers a fallback on a different provider family when one is known, for example the sponsor's Home or a T1 Home. Hardened already seeks evidenced diversity (Q-012).
 3. **Vendor-wide block drill (V-020 pre-release).** Simulate the reference cloud vendor disabling every OM Home at once. Measure how many relationships retain a route, and prove that users can re-home through surviving routes or re-introduction without AccountID change.
-4. **Distribution defaults.** The reference distribution must not make one vendor the only zero-signup path. T0 sponsorship is vendor-neutral because it lives wherever the sponsor's Home lives.
+4. **Second-family fallback by default (R-194).** The V-020 model ([`verification/bounded/home_tiers_model.py`](../../../verification/bounded/home_tiers_model.py),
+   20 seeded 400-user invite graphs, Cloudflare-first mix) finds that a Cloudflare-wide block leaves **~2%** of
+   relationships reachable when no one has a fallback route. With a fallback on another provider family for the 60%
+   of users who can get one, **~43%** stay reachable. So the T1 host console and the Recommended profile add a
+   second-family fallback route by default wherever one is reachable, such as a T3 community Home or a sponsor on
+   another family. Growing that pool of non-Cloudflare Homes is a launch goal, not an afterthought.
+5. **Distribution defaults.** The reference distribution must not make one vendor the only zero-signup path. T0 sponsorship is vendor-neutral because it lives wherever the sponsor's Home lives.
 
 ## 7. Onboarding UX (replaces `UI_UX_SYSTEM.md` §Onboarding step 3 when an invite is present)
 

@@ -1222,6 +1222,13 @@
       "verified_by": [
         "V-017"
       ]
+    },
+    {
+      "requirement": "R-194",
+      "verified_by": [
+        "V-020",
+        "PR-013"
+      ]
     }
   ]
 }
