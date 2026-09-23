@@ -157,3 +157,14 @@ Agents must preserve these invariants:
 - `machine/public_release_gates.jsonl` applies to the affected public service/distribution/claim; do not silently turn one of those roles into mandatory protocol infrastructure.
 - Preserve all six OM meanings in `NAMING.md` and the rule that capability support does not imply SeedLife operation.
 - Do not introduce OM-operated mandatory payment, marketplace, content catalog, bot cloud, public feed, account service or provider merely to make a feature convenient.
+
+## 2026-09-24 hardening-review rules
+
+- Read `HARDENING_REVIEW_20260924.md` for the findings register (F-01..F-17) and their fixes.
+- Engineering unlock is scope-granular (`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`). Never set a scope `authorized: true` without an ADR naming it and passed or ADR-waived `pre_engineering_status` on every gate listing it. Global `engineering_authorized` stays `false` until then.
+- Never mark a gate `passed` on evidence produced solely by the agent/author who designed the thing under test; follow the gate's `independence` field.
+- Every new requirement needs a `machine/requirement_traceability.json` entry, and every new threat needs a `machine/threat_register.jsonl` entry.
+- Do not claim post-quantum confidentiality for v1 groups or group calls.
+- Do not make any single cloud vendor the only zero-signup onboarding path. T0 sponsorship and T1 hosted Homes are first-class.
+- Device linking must never be silent. Do not design hidden "duress"/deniable profiles without a research ADR.
+- There is no remote kill switch. Security response uses signed SecurityAdvisories and peer-local floors.

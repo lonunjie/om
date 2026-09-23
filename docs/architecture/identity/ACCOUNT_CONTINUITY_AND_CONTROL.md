@@ -199,3 +199,42 @@ Before production claims, this design requires:
 ## 2026-09-23 AccountControl resolution
 
 Default controller authorization is majority `floor(N/2)+1`. Temporary quarantine cannot shrink that denominator or permanently revoke/promote/change threshold. Competing valid descendants trigger safety freeze rather than timestamp/LWW choice. Relationship-scoped head gossip detects equivocation; fork resolution explicitly acknowledges branches under common-ancestor authority. `V-002` formally validates these invariants.
+
+## 11. 2026-09-24 ContinuityAssessment and informed no-recovery (ADR-0106)
+
+The edge cases in §9 are the **common** configurations, not rare ones: most people have one phone, or one phone plus one laptop. With majority authorization and recovery off by default:
+
+| Controllers | RecoveryPolicy | Lost devices before identity loss / constitutional lockout | Compromised devices before takeover |
+|---|---|---|---|
+| 1 | none | **1 → identity lost** | 1 |
+| 2 | none | **1 → constitution locked** (messaging continues, no promotion/revocation finality) | 2 |
+| 3 | none | 2 | 2 |
+| 1–2 | offline recovery kit | recovers unless the kit is also lost | unchanged for devices; the kit is an additional secret |
+| any | guardians M-of-N | recovers while M guardians remain reachable | M guardians colluding (explicit, disclosed) |
+
+`verification/bounded/continuity_assessment.py` reproduces this table.
+
+Core MUST compute a local, non-authoritative **ContinuityAssessment** from the current AccountControlState and RecoveryPolicy:
+
+```text
+ContinuityAssessment {
+  lost_devices_to_identity_loss      // 0 = already unrecoverable
+  lost_devices_to_constitution_lock
+  compromised_devices_to_takeover
+  recovery_configured: none | kit | guardians | kit+guardians
+  acknowledged_by_user_at?           // local only
+}
+```
+
+Rules (R-165):
+
+1. "Recovery off" remains the default (Q-003 unchanged). It becomes **informed-off**: once the first conversation exists, a persistent, non-blocking continuity check appears until the user either configures recovery, links a second controller, or explicitly acknowledges "I accept that losing this phone loses this identity."
+2. The acknowledgement is local UX state, never protocol state, and it is re-requested when the assessment worsens (for example, a controller is suspended).
+3. Any configuration change that would reduce `lost_devices_to_identity_loss` or `lost_devices_to_constitution_lock` to 1 shows the consequence in plain language before it is finalized.
+4. The assessment never grants authority and is never sent to providers.
+5. Recovery-kit wording is human: "Save a recovery key (print it or keep it in your password manager)."
+
+## 12. 2026-09-24 retirement and device-link visibility
+
+- Account closure, deletion, moved-account pointers and LegacyPolicy are defined in `ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md` (terminal `AccountRetirement` transition; V-002 extended).
+- Every device enrollment is announced on the account's other active devices (R-166, `ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md` §2). A linking ceremony that finalizes without that notice is a failing trace.

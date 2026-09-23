@@ -184,3 +184,27 @@ Multi-device session selection is outside the ratchet itself and is defined by `
 ## 2026-09-23 OM-Crypto-v1 architecture resolution
 
 Q-001/Q-044 are no longer open design choices. OM-Crypto-v1 targets the published PQXDH + Triple-Ratchet/SPQR-class construction with X25519 + ML-KEM-768 for asynchronous hybrid establishment, classical PQXDH authentication semantics as currently specified, HKDF/SHA-256 family derivation, and misuse-resistant authenticated encryption. Durable constitutional authentication uses versioned dual classical/PQ signatures where the AccountControl/CryptoProfile requires it. The remaining production-library/runtime work is `V-001`, a proof gate—not permission to substitute a different wire protocol during implementation.
+
+## 2026-09-24 post-quantum status is per conversation type (ADR-0107)
+
+OM-Crypto-v1 provides different confidentiality properties to different conversation types, and OM must say so precisely:
+
+| Conversation type | v1 key establishment | Harvest-now-decrypt-later exposure |
+|---|---|---|
+| 1:1 | PQXDH (X25519 + ML-KEM-768) + Triple Ratchet (SPQR class) | mitigated (hybrid) |
+| Private group / Room (MLS) | RFC 9420 X25519 suite | **not mitigated in v1** (classical) |
+| Calls | derived from the underlying 1:1 session or MLS exporter | inherits the parent type |
+| Durable control signatures | Ed25519 + ML-DSA-65 | n/a (authentication, dual) |
+
+Rules:
+
+1. No UI, profile, marketing or documentation may claim PQ confidentiality for v1 groups or group calls (R-173). Security details may show a per-conversation "Post-quantum protection: on/off" fact derived from the active profile.
+2. The v1 group wire MUST carry an authenticated, downgrade-safe **ReInit/migration** path from the v1 suite to a hybrid-PQ MLS profile. The path preserves `ConversationID`, GroupControlState authority and roster, and it must be exercised against an experimental hybrid suite before group wire freeze (R-174, V-019).
+3. **Adoption triggers** for a hybrid-PQ MLS CryptoProfile. All are required:
+   - an IETF-published (RFC or WG-last-call-stable) ciphersuite/combiner definition with assigned codepoints;
+   - ≥2 independent interoperable implementations passing that suite's vectors;
+   - OM review of bandwidth/commit-size impact on target group sizes and mobile networks;
+   - a reviewed OM CryptoProfile entry (new immutable ID, Q-013).
+   IETF MLS WG drafts for ML-KEM/X-Wing-based suites and an amortized PQ combiner exist, and at least one candidate library exposes experimental hybrid suites. Verify current status before relying on this.
+4. When the triggers are met, the new profile becomes the default for **new** groups, and existing groups migrate automatically through ReInit without user action (R-011). An established group's floor never silently drops back.
+5. Until then, users with HNDL-sensitive content are pointed, in Security details, to 1:1 conversations, which are hybrid-PQ in v1. OM does not build a parallel pairwise-fanout group mode to paper over this.

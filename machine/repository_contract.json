@@ -1,13 +1,15 @@
 {
-  "snapshot": "2026-09-23T09:20:00+08:00",
+  "snapshot": "2026-09-24T02:29:00+08:00",
   "phase": "architecture_hardening_pre_engineering",
   "engineering_authorized": false,
   "engineering_unlock_requires": [
-    "accepted ADR explicitly authorizing engineering",
+    "accepted ADR explicitly authorizing a named engineering scope",
+    "every gate listing that scope in unlock_scopes, and every always_required_pre_engineering_gates entry, has pre_engineering_status passed or waived_by_adr",
     "machine/architecture_design_queue.jsonl has no open blocks_engineering item",
-    "every open blocks_engineering architecture_verification_gate is passed",
+    "scopes named in depends_on are already authorized",
     "clean tools/validate_architecture.py run",
-    "one canonical current definition for security/authority/protocol objects"
+    "one canonical current definition for security/authority/protocol objects",
+    "public releases/claims additionally require overall gate status passed and applicable public_release_gates passed"
   ],
   "constitution_files": [
     "PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
@@ -28,6 +30,8 @@
     "machine/architecture_verification_gates.jsonl",
     "machine/public_release_gates.jsonl",
     "machine/deferred_product_questions.jsonl",
+    "machine/requirement_traceability.json",
+    "machine/threat_register.jsonl",
     "MANIFEST.json"
   ],
   "canonical_identity": {
@@ -60,7 +64,14 @@
     "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
     "verification/README.md",
     "verification/FEASIBILITY_RECONNAISSANCE_20260923.md",
-    "verification/TLAPLUS_TOOL_PIN.md"
+    "verification/TLAPLUS_TOOL_PIN.md",
+    "HARDENING_REVIEW_20260924.md",
+    "RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md",
+    "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
+    "ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md",
+    "VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md",
+    "ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md",
+    "verification/GATE_PASS_CRITERIA.md"
   ],
   "current_file_registry": "machine/file_registry.json",
   "architecture_map": "machine/architecture_map.json",
@@ -93,7 +104,14 @@
     "A-013 metadata privacy preserves provider-routing separation and surface-specific claims",
     "A-014 moderation keeps shared safety advice separate from scoped enforcement authority",
     "A-015 continuity preserves immutable registry meanings and mirrorable published generations",
-    "phase-1 verification evidence is machine-recorded and cannot itself authorize engineering or silently mark gates passed"
+    "phase-1 verification evidence is machine-recorded and cannot itself authorize engineering or silently mark gates passed",
+    "every verification gate declares pre_engineering_criteria, pre_release_criteria, pre_engineering_status, independence and known unlock_scopes",
+    "no engineering scope is authorized while any gate listing it (or any always-required gate) lacks passed/waived pre_engineering_status; global engineering_authorized cannot be true with zero authorized scopes",
+    "a gate cannot have status passed unless pre_engineering_status is passed or waived_by_adr",
+    "every requirement is traced to existing gates/release gates or an allowed obligation kind",
+    "threat register references only existing requirements/gates and names at least one mitigation doc that exists",
+    "later-wave scopes never appear in depends_on of earlier-wave scopes",
+    "no current document claims post-quantum confidentiality for v1 groups"
   ],
   "legal_risk_policy": {
     "protocol_home_jurisdiction": "none",
@@ -101,5 +119,97 @@
     "no_claim_of_legal_immunity": true,
     "core_payment_processor": false,
     "mandatory_project_content_catalog": false
+  },
+  "always_required_pre_engineering_gates": [
+    "V-017"
+  ],
+  "engineering_scopes": {
+    "core_kernel": {
+      "wave": "W0",
+      "authorized": false,
+      "depends_on": [],
+      "description": "canonical encoding, AccountControlState, 1:1 sessions/crypto, async key material, relay delivery, blobs, multi-device sync, IntroGate/block"
+    },
+    "reference_client_ui": {
+      "wave": "W0",
+      "authorized": false,
+      "depends_on": [
+        "core_kernel"
+      ],
+      "description": "om-ui shell, onboarding, DeviceVault, PWA ClientHost"
+    },
+    "provider_reference": {
+      "wave": "W0",
+      "authorized": false,
+      "depends_on": [
+        "core_kernel"
+      ],
+      "description": "reference Home/relay deployments, sponsored starter mailbox, provisioning"
+    },
+    "groups": {
+      "wave": "W1",
+      "authorized": false,
+      "depends_on": [
+        "core_kernel"
+      ],
+      "description": "MLS rooms, GroupControlState, convergence, PQ-group ReInit path"
+    },
+    "portability": {
+      "wave": "W1",
+      "authorized": false,
+      "depends_on": [
+        "core_kernel"
+      ],
+      "description": "om-archive-v1 export/import"
+    },
+    "expressive_media": {
+      "wave": "W1",
+      "authorized": false,
+      "depends_on": [
+        "core_kernel"
+      ],
+      "description": "stickers, animation, content packs"
+    },
+    "calls": {
+      "wave": "W2",
+      "authorized": false,
+      "depends_on": [
+        "core_kernel",
+        "groups"
+      ],
+      "description": "1:1 and group calls, SFrame"
+    },
+    "communities_publications": {
+      "wave": "W3",
+      "authorized": false,
+      "depends_on": [
+        "groups"
+      ],
+      "description": "Spaces, topics, Publications, delegated moderation"
+    },
+    "services_bots": {
+      "wave": "W4",
+      "authorized": false,
+      "depends_on": [
+        "groups"
+      ],
+      "description": "ServicePrincipals, LLM agents"
+    },
+    "plugins": {
+      "wave": "W4",
+      "authorized": false,
+      "depends_on": [
+        "reference_client_ui"
+      ],
+      "description": "Wasm Component-Model plugin host"
+    },
+    "bridges": {
+      "wave": "W4",
+      "authorized": false,
+      "depends_on": [
+        "groups"
+      ],
+      "description": "external-network bridges"
+    }
   }
 }

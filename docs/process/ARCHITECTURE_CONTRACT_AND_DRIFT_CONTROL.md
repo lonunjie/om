@@ -33,6 +33,8 @@ Product engineering is **not authorized**.
 
 Allowed work includes research, specification, formal modeling, architecture-focused feasibility experiments, conformance vectors, threat modeling and repository tooling.
 
+> **2026-09-24:** the rule below is superseded by the scope-granular, two-phase rule in §6 (ADR-0108). As written it was circular, because some gates need real implementations to pass.
+
 Engineering can begin only after a future ADR deliberately authorizes it and:
 
 1. no open `architecture_design_queue` item blocks engineering;
@@ -62,3 +64,17 @@ The validator must detect at least:
 ## 5. Evidence can still change a decision
 
 “Resolved” does not mean dogma. Standards, formal proofs, adversarial review or platform reality may disprove a decision. Reopening it requires an ADR and machine-contract update so the change is explicit and traceable rather than implementation drift.
+
+## 6. 2026-09-24 scoped unlock, two-phase gates and traceability (ADR-0108, ADR-0109)
+
+The single all-gates lock in §3 was circular: several blocking gates need real implementations to pass. From this checkpoint:
+
+- each verification gate carries `pre_engineering_criteria`, `pre_release_criteria`, `pre_engineering_status`, `independence` and `unlock_scopes`;
+- `machine/repository_contract.json` → `engineering_scopes` lists W0..W4 scopes, all `authorized: false`;
+- a scope may be authorized only by an ADR naming it, once every gate listing the scope, and every gate in `always_required_pre_engineering_gates`, has `pre_engineering_status` passed or waived by ADR;
+- a gate's overall `status` becomes `passed` only when both phases pass. Public releases/claims depend on overall status;
+- `machine/requirement_traceability.json` maps every requirement to its proof obligation;
+- `machine/threat_register.jsonl` is the structured threat model;
+- the validator enforces all of the above (`validate_0924_*` guards).
+
+See `RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md` and `verification/GATE_PASS_CRITERIA.md`.

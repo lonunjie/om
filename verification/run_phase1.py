@@ -11,6 +11,7 @@ SCRIPTS = [
     ROOT / "verification/bounded/wire_boundary_models.py",
     ROOT / "verification/cbor/run_cross_impl.py",
     ROOT / "verification/bounded/continuity_dry_run.py",
+    ROOT / "verification/bounded/continuity_assessment.py",
 ]
 
 
@@ -31,11 +32,13 @@ def main() -> int:
         "wire": json.loads((ROOT/'verification/results/wire-boundary-bounded-latest.json').read_text()),
         "cbor": json.loads((ROOT/'verification/results/cbor-cross-impl-latest.json').read_text()),
         "continuity": json.loads((ROOT/'verification/results/continuity-dry-run-latest.json').read_text()),
+        "assessment": json.loads((ROOT/'verification/results/continuity-assessment-latest.json').read_text()),
     }
     payload={
         "phase1_passed":True,
         "gate_status_effect":"evidence_only_no_gate_automatically_passed",
-        "bounded_cases": evidence['authority']['total_cases'] + evidence['conversation']['cases'] + evidence['wire']['total_cases'],
+        "bounded_cases": evidence['authority']['total_cases'] + evidence['conversation']['cases'] + evidence['wire']['total_cases'] + evidence['assessment']['cases'],
+        "continuity_assessment_cases": evidence['assessment']['cases'],
         "cross_impl_cbor_vectors": evidence['cbor']['vectors_compared'],
         "offline_continuity_artifacts": evidence['continuity']['artifact_count'],
         "gates_with_new_evidence": ["V-002","V-004","V-005","V-008","V-009","V-011","V-013","V-014","V-015","V-016","V-017"],

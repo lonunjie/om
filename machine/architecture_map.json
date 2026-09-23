@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-23T09:20:00+08:00",
+  "snapshot": "2026-09-24T02:29:00+08:00",
   "domains": {
     "constitution_governance": {
       "docs": [
@@ -70,12 +70,14 @@
         "ACCOUNT_CONTINUITY_AND_CONTROL.md",
         "RECOVERY_AND_BACKUP_POLICY.md",
         "IDENTITY_DISCOVERY_VERIFICATION.md",
-        "IDENTIFIER_SPOOFING_AND_DISPLAY.md"
+        "IDENTIFIER_SPOOFING_AND_DISPLAY.md",
+        "ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md"
       ],
       "schemas": [
         "protocol/account-control-state.logical.schema.json",
         "protocol/account-control-head.logical.schema.json",
-        "protocol/recovery-policy.logical.schema.json"
+        "protocol/recovery-policy.logical.schema.json",
+        "protocol/account-retirement.logical.schema.json"
       ],
       "adrs": [
         "ADR-0002",
@@ -86,13 +88,22 @@
         "ADR-0028",
         "ADR-0029",
         "ADR-0030",
-        "ADR-0066"
+        "ADR-0066",
+        "ADR-0105",
+        "ADR-0106"
       ],
       "resolved_questions": [
         "Q-003",
         "Q-004",
         "Q-020",
         "Q-021"
+      ],
+      "design_queue": [
+        "A-019",
+        "A-020"
+      ],
+      "verification_gates": [
+        "V-002"
       ]
     },
     "crypto_1to1": {
@@ -115,7 +126,8 @@
         "ADR-0065",
         "ADR-0067",
         "ADR-0072",
-        "ADR-0073"
+        "ADR-0073",
+        "ADR-0107"
       ],
       "resolved_questions": [
         "Q-001",
@@ -143,7 +155,8 @@
         "ADR-0074",
         "ADR-0084",
         "ADR-0085",
-        "ADR-0086"
+        "ADR-0086",
+        "ADR-0107"
       ],
       "resolved_questions": [
         "Q-002",
@@ -152,7 +165,11 @@
       ],
       "verification_gates": [
         "V-004",
-        "V-008"
+        "V-008",
+        "V-019"
+      ],
+      "design_queue": [
+        "A-021"
       ]
     },
     "discovery_first_contact": {
@@ -313,7 +330,8 @@
         "MULTI_IDENTITY_AND_PROFILE_ISOLATION.md",
         "CLIENTHOST_UPDATE_LIFECYCLE.md",
         "NOTIFICATIONS_AND_PUSH.md",
-        "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md"
+        "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md",
+        "ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md"
       ],
       "schemas": [
         "protocol/clienthost-release-state.logical.schema.json",
@@ -328,7 +346,8 @@
         "ADR-0045",
         "ADR-0059",
         "ADR-0060",
-        "ADR-0077"
+        "ADR-0077",
+        "ADR-0103"
       ],
       "resolved_questions": [
         "Q-025",
@@ -338,6 +357,12 @@
         "Q-043",
         "Q-047",
         "Q-056"
+      ],
+      "design_queue": [
+        "A-017"
+      ],
+      "verification_gates": [
+        "V-021"
       ]
     },
     "content_abuse_evidence": {
@@ -372,6 +397,9 @@
       ],
       "verification_gates": [
         "V-016"
+      ],
+      "release_gates": [
+        "PR-014"
       ]
     },
     "provider_deployment_supply_chain": {
@@ -379,11 +407,15 @@
         "PROVISIONING_AND_BOOTSTRAP.md",
         "CLOUDFLARE_REFERENCE_DEPLOYMENT.md",
         "SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
-        "IMPLEMENTATION_INTERFACES.md"
+        "IMPLEMENTATION_INTERFACES.md",
+        "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
+        "VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md"
       ],
       "schemas": [
         "protocol/provider-capabilities.logical.schema.json",
-        "protocol/provisioning-method.logical.schema.json"
+        "protocol/provisioning-method.logical.schema.json",
+        "protocol/sponsored-mailbox-grant.logical.schema.json",
+        "protocol/security-advisory.logical.schema.json"
       ],
       "adrs": [
         "ADR-0014",
@@ -393,7 +425,9 @@
         "ADR-0034",
         "ADR-0036",
         "ADR-0046",
-        "ADR-0049"
+        "ADR-0049",
+        "ADR-0102",
+        "ADR-0104"
       ],
       "resolved_questions": [
         "Q-012",
@@ -401,6 +435,17 @@
         "Q-023",
         "Q-036",
         "Q-061"
+      ],
+      "design_queue": [
+        "A-016",
+        "A-018"
+      ],
+      "verification_gates": [
+        "V-020"
+      ],
+      "release_gates": [
+        "PR-012",
+        "PR-013"
       ]
     },
     "ux_accessibility_personalization": {
@@ -439,6 +484,9 @@
         "Q-041",
         "Q-042",
         "Q-048"
+      ],
+      "verification_gates": [
+        "V-018"
       ]
     },
     "architecture_process": {
@@ -456,16 +504,23 @@
         "ENGINEER_START_HERE.md",
         "ENGINEERING_HANDOFF.md",
         "ENGINEERING_REPOSITORY_LAYOUT.md",
-        "IMPLEMENTATION_ROADMAP.md"
+        "IMPLEMENTATION_ROADMAP.md",
+        "HARDENING_REVIEW_20260924.md",
+        "RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md"
       ],
       "schemas": [],
       "adrs": [
         "ADR-0066",
         "ADR-0069",
         "ADR-0078",
-        "ADR-0101"
+        "ADR-0101",
+        "ADR-0108",
+        "ADR-0109"
       ],
-      "resolved_questions": []
+      "resolved_questions": [],
+      "design_queue": [
+        "A-022"
+      ]
     },
     "expressive_media_content_packs": {
       "docs": [
@@ -681,7 +736,8 @@
         "FORMAL_VERIFICATION_AND_FUZZING.md",
         "verification/README.md",
         "verification/FEASIBILITY_RECONNAISSANCE_20260923.md",
-        "verification/TLAPLUS_TOOL_PIN.md"
+        "verification/TLAPLUS_TOOL_PIN.md",
+        "verification/GATE_PASS_CRITERIA.md"
       ],
       "schemas": [],
       "adrs": [],
@@ -704,7 +760,11 @@
         "V-014",
         "V-015",
         "V-016",
-        "V-017"
+        "V-017",
+        "V-018",
+        "V-019",
+        "V-020",
+        "V-021"
       ],
       "release_gates": [],
       "deferred_questions": []
@@ -715,6 +775,8 @@
     "architecture_verification": "machine/architecture_verification_gates.jsonl",
     "public_release": "machine/public_release_gates.jsonl",
     "deferred_product": "machine/deferred_product_questions.jsonl",
-    "resolved_prior_questions": "machine/resolved_questions.jsonl"
+    "resolved_prior_questions": "machine/resolved_questions.jsonl",
+    "requirement_traceability": "machine/requirement_traceability.json",
+    "threat_register": "machine/threat_register.jsonl"
   }
 }

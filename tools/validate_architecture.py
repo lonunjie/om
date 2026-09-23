@@ -27,6 +27,7 @@ ID_PATTERNS = {
     "machine/architecture_verification_gates.jsonl": re.compile(r"^V-\d{3}$"),
     "machine/public_release_gates.jsonl": re.compile(r"^PR-\d{3}$"),
     "machine/deferred_product_questions.jsonl": re.compile(r"^DP-\d{3}$"),
+    "machine/threat_register.jsonl": re.compile(r"^T-\d{3}$"),
 }
 
 errors: list[str] = []
@@ -174,8 +175,17 @@ def check_phase(contract: dict, design: list[dict], verify: list[dict]) -> None:
     authorized = contract.get("engineering_authorized")
     design_blockers = [q["id"] for q in design if q.get("blocks_engineering") and q.get("status") == "open"]
     verify_blockers = [q["id"] for q in verify if q.get("blocks_engineering") and q.get("status") != "passed"]
-    if authorized and (design_blockers or verify_blockers):
-        fail(f"engineering_authorized=true with blockers design={design_blockers} verification={verify_blockers}")
+    # 2026-09-24 (ADR-0108): unlock is scope-granular; the global flag may only be
+    # true when at least one scope is validly authorized (checked in detail by
+    # validate_0924_scope_and_gate_guardrails).
+    scopes = contract.get("engineering_scopes", {})
+    authorized_scopes = [k for k, v in scopes.items() if v.get("authorized")]
+    if authorized and not authorized_scopes:
+        fail("engineering_authorized=true but no engineering scope is authorized")
+    if authorized and design_blockers:
+        fail(f"engineering_authorized=true with open design blockers {design_blockers}")
+    if not scopes and authorized and verify_blockers:
+        fail(f"engineering_authorized=true with blockers verification={verify_blockers}")
     if contract.get("phase") == "architecture_hardening_pre_engineering" and authorized is not False:
         fail("pre-engineering phase must have engineering_authorized=false")
     if not authorized:
@@ -445,11 +455,146 @@ def validate_0920_verification_evidence_guardrails() -> None:
         fail("09:20 guard: phase1 evidence does not authorize engineering")
 
 
+def validate_0924_scope_and_gate_guardrails() -> None:
+    contract = load_json(ROOT / "machine/repository_contract.json")
+    if not isinstance(contract, dict):
+        return
+    scopes = contract.get("engineering_scopes")
+    if not isinstance(scopes, dict) or not scopes:
+        fail("09:24 guard: repository_contract must define engineering_scopes")
+        return
+    waves = {"W0": 0, "W1": 1, "W2": 2, "W3": 3, "W4": 4}
+    gates = load_jsonl(ROOT / "machine/architecture_verification_gates.jsonl")
+    gate_ids = {g["id"] for g in gates}
+    always = contract.get("always_required_pre_engineering_gates", [])
+    for gid in always:
+        if gid not in gate_ids:
+            fail(f"09:24 guard: always-required gate {gid} does not exist")
+    ok_pre = {"passed", "waived_by_adr"}
+    for g in gates:
+        gid = g.get("id")
+        for field in ("pre_engineering_criteria", "pre_release_criteria", "independence", "unlock_scopes", "pre_engineering_status"):
+            if field not in g:
+                fail(f"09:24 guard: {gid} missing {field}")
+        if g.get("pre_engineering_status") not in {"open", "passed", "failed", "waived_by_adr"}:
+            fail(f"09:24 guard: {gid} invalid pre_engineering_status")
+        if not g.get("pre_engineering_criteria") or not g.get("pre_release_criteria"):
+            fail(f"09:24 guard: {gid} must list criteria for both phases")
+        ind = g.get("independence", {})
+        if not isinstance(ind, dict) or not ind.get("pre_engineering") or not ind.get("pre_release"):
+            fail(f"09:24 guard: {gid} must declare independence for both phases")
+        for s in g.get("unlock_scopes", []):
+            if s not in scopes:
+                fail(f"09:24 guard: {gid} references unknown scope {s}")
+        if g.get("status") == "passed" and g.get("pre_engineering_status") not in ok_pre:
+            fail(f"09:24 guard: {gid} overall passed without passed pre-engineering phase")
+        if g.get("status") == "passed" and not g.get("evidence"):
+            fail(f"09:24 guard: {gid} passed without evidence links")
+    design = load_jsonl(ROOT / "machine/architecture_design_queue.jsonl")
+    open_design = [q["id"] for q in design if q.get("status") == "open" and q.get("blocks_engineering")]
+    for name, sc in scopes.items():
+        for field in ("wave", "authorized", "depends_on"):
+            if field not in sc:
+                fail(f"09:24 guard: scope {name} missing {field}")
+        if sc.get("wave") not in waves:
+            fail(f"09:24 guard: scope {name} has invalid wave")
+            continue
+        for dep in sc.get("depends_on", []):
+            if dep not in scopes:
+                fail(f"09:24 guard: scope {name} depends on unknown scope {dep}")
+            elif waves.get(scopes[dep].get("wave"), 9) > waves[sc["wave"]]:
+                fail(f"09:24 guard: scope {name} depends on later-wave scope {dep}")
+        if sc.get("authorized"):
+            need = [g for g in gates if name in g.get("unlock_scopes", []) or g["id"] in always]
+            bad = [g["id"] for g in need if g.get("pre_engineering_status") not in ok_pre]
+            if bad:
+                fail(f"09:24 guard: scope {name} authorized with unmet pre-engineering gates {bad}")
+            if open_design:
+                fail(f"09:24 guard: scope {name} authorized with open design blockers {open_design}")
+            for dep in sc.get("depends_on", []):
+                if not scopes.get(dep, {}).get("authorized"):
+                    fail(f"09:24 guard: scope {name} authorized before dependency {dep}")
+            if not sc.get("authorizing_adr") or not any((ROOT / "decisions").glob(f"{sc.get('authorizing_adr')}-*.md")):
+                fail(f"09:24 guard: scope {name} authorized without authorizing_adr")
+
+
+def validate_0924_traceability_and_threats() -> None:
+    reqs = {r["id"] for r in load_jsonl(ROOT / "machine/requirements.jsonl")}
+    gates = {g["id"] for g in load_jsonl(ROOT / "machine/architecture_verification_gates.jsonl")}
+    rel = {g["id"] for g in load_jsonl(ROOT / "machine/public_release_gates.jsonl")}
+    tr = load_json(ROOT / "machine/requirement_traceability.json")
+    if not isinstance(tr, dict):
+        fail("09:24 guard: requirement_traceability.json unreadable")
+        return
+    traced = {}
+    for row in tr.get("traces", []):
+        traced[row.get("requirement")] = row.get("verified_by", [])
+    for rid in sorted(reqs - set(traced)):
+        fail(f"09:24 guard: requirement {rid} is not traced")
+    for rid in sorted(set(traced) - reqs):
+        fail(f"09:24 guard: traceability references unknown requirement {rid}")
+    def valid_target(t: str) -> bool:
+        if t in gates or t in rel or t == "validator" or t.startswith("conformance:"):
+            return True
+        if t.startswith("review:"):
+            return (ROOT / t.split(":", 1)[1]).exists()
+        return False
+    for rid, targets in traced.items():
+        if not targets:
+            fail(f"09:24 guard: requirement {rid} has no verification target")
+        for t in targets:
+            if not valid_target(t):
+                fail(f"09:24 guard: requirement {rid} has invalid target {t}")
+    for th in load_jsonl(ROOT / "machine/threat_register.jsonl"):
+        tid = th.get("id")
+        if not th.get("mitigation_docs"):
+            fail(f"09:24 guard: {tid} lacks mitigation docs")
+        for d in th.get("mitigation_docs", []):
+            if not (ROOT / d).exists():
+                fail(f"09:24 guard: {tid} mitigation doc missing: {d}")
+        for r in th.get("requirements", []):
+            if r not in reqs:
+                fail(f"09:24 guard: {tid} references unknown requirement {r}")
+        for g in th.get("gates", []):
+            if g not in gates and g not in rel and g != "validator":
+                fail(f"09:24 guard: {tid} references unknown gate {g}")
+        if not th.get("residual_risk"):
+            fail(f"09:24 guard: {tid} must state residual risk")
+
+
+def validate_0924_hardening_content_guardrails() -> None:
+    checks = {
+        "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md": ("Sponsored starter mailbox", "monoculture", "no tier is privileged", "V-020"),
+        "ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md": ("non-suppressible", "does not promise", "OS/cloud device backup", "V-021"),
+        "VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md": ("never authority", "peer-local", "no remote disable"),
+        "ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md": ("terminal", "LegacyPolicy", "can **never**"),
+        "RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md": ("Circular lock", "pre_engineering_criteria", "unlocks nothing"),
+        "CRYPTOGRAPHY_AND_AGILITY.md": ("not mitigated in v1", "Adoption triggers", "ReInit"),
+        "SECURITY_PRIVACY_PROFILES.md": ("No preset may claim PQ confidentiality for groups",),
+        "ACCOUNT_CONTINUITY_AND_CONTROL.md": ("ContinuityAssessment", "informed-off"),
+    }
+    for name, phrases in checks.items():
+        text = (ROOT / name).read_text(encoding="utf-8").lower()
+        for ph in phrases:
+            if ph.lower() not in text:
+                fail(f"09:24 guard: {name} lost required phrase {ph!r}")
+    overclaim = re.compile(r"\b(v1\s+)?(private\s+)?groups?\s+(are|is)\s+(post-quantum|pq)[- ](secure|protected|hybrid)", re.I)
+    for p in current_files():
+        if p.suffix == ".md" and "research" not in p.parts and overclaim.search(p.read_text(encoding="utf-8")):
+            fail(f"09:24 guard: {rel(p)} appears to claim PQ confidentiality for groups")
+    summary = load_json(ROOT / "verification/results/phase1-summary.json")
+    if isinstance(summary, dict) and int(summary.get("continuity_assessment_cases", 0)) < 1620:
+        fail("09:24 guard: continuity assessment evidence missing or regressed")
+
+
 def main() -> int:
     validate_0718_extension_guardrails()
     validate_0756_zero_control_interop_portability_guardrails()
     validate_0821_metadata_abuse_longevity_guardrails()
     validate_0920_verification_evidence_guardrails()
+    validate_0924_scope_and_gate_guardrails()
+    validate_0924_traceability_and_threats()
+    validate_0924_hardening_content_guardrails()
     contract = load_json(ROOT / "machine/repository_contract.json")
     if not isinstance(contract, dict):
         print("architecture validation FAILED: repository_contract unreadable", file=sys.stderr); return 1
@@ -473,7 +618,8 @@ def main() -> int:
         for e in errors: print(f"ERROR: {e}", file=sys.stderr)
         print(f"architecture validation FAILED: {len(errors)} error(s), {len(warnings)} warning(s)", file=sys.stderr)
         return 1
-    print(f"architecture validation OK: {len(current_files())} current files; design_open={sum(1 for q in design if q.get('status')=='open')}; verification_open={sum(1 for q in verify if q.get('status')!='passed')}; engineering_authorized={contract.get('engineering_authorized')}")
+    scopes = contract.get('engineering_scopes', {})
+    print(f"architecture validation OK: {len(current_files())} current files; design_open={sum(1 for q in design if q.get('status')=='open')}; verification_open={sum(1 for q in verify if q.get('status')!='passed')}; pre_engineering_open={sum(1 for q in verify if q.get('pre_engineering_status') not in ('passed','waived_by_adr'))}; engineering_authorized={contract.get('engineering_authorized')}; scopes_authorized={sum(1 for v in scopes.values() if v.get('authorized'))}/{len(scopes)}")
     return 0
 
 if __name__ == "__main__":

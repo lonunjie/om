@@ -108,3 +108,18 @@ The earlier principles above remain valid but are sharpened as follows:
 - provider denial/delisting cannot mutate AccountID/Room/Service/Bridge authority outside provider custody;
 - permissionless identity means OM does not promise impossible permanent human-level blocking across new Sybil identities; it constrains unsolicited reach through IntroGate/admission/rate/resource controls instead;
 - SeedLife/the OM Project remains neither mandatory AbuseDesk nor universal moderator.
+
+## 2026-09-24 public-surface illegal content (PR-014, R-181)
+
+The "no universal client-side scanning" stance (`DECENTRALIZED_ABUSE_MODERATION.md`) covers **private E2EE conversations**. Reference clients do not scan private plaintext for any authority, and they do not ship hidden hash-matching.
+
+**Public or provider-readable surfaces** are different and must say so explicitly:
+
+- public Publications and their mirrors;
+- directories, Home lists, content-pack and service catalogs;
+- blob hosts serving public (non-E2EE) content;
+- public link-preview/unfurl services.
+
+Each operator of such a surface, including any project-controlled one, is responsible for the content it can read and serve. It must publish a role-scoped illegal-content process (reporting intake, takedown, preservation where legally required, and referral to competent bodies such as child-protection hotlines) appropriate to its jurisdiction. That process is provider-scoped (R-154). It never becomes a protocol-wide authority, and it cannot rewrite AccountIDs, Rooms or history outside that surface. PR-014 blocks any project-controlled public surface until its process exists.
+
+Users always keep the existing tools: block, leave, selective EvidencePackage reports to a chosen ReportTarget, and Room/Space moderation.

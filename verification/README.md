@@ -48,3 +48,9 @@ V-001, V-003, V-006, V-007, V-010 and V-012 remain fully open. `FEASIBILITY_RECO
 3. Browser/runtime/media/plugin/parser gates require empirical implementation evidence. Standards availability or a plausible design does not satisfy them.
 
 Engineering remains unauthorized until every blocking gate is actually passed and a later explicit ADR unlocks engineering.
+
+## 2026-09-24 two-phase gates and independence
+
+Gates now carry `pre_engineering_criteria` and `pre_release_criteria`, an `independence` level per phase, and `unlock_scopes` (ADR-0108/0109). The human-readable view is `GATE_PASS_CRITERIA.md`. Bounded models written by the design's author, including everything in `bounded/`, count as **supporting evidence**. They cannot satisfy a phase alone: each phase needs the independent tool, reviewer, implementation, study or external review it names.
+
+New in this checkpoint: `bounded/continuity_assessment.py` (1,620 cases, supporting V-002/V-018) reproduces the loss/takeover tolerance table in `ACCOUNT_CONTINUITY_AND_CONTROL.md` §11.

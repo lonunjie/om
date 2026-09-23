@@ -421,3 +421,7 @@ Membership/role-affecting `GroupControlState` changes must be bound to the corre
 Private OM groups use RFC 9420 MLS with the standard X25519/AES-128-GCM/SHA-256/Ed25519 suite as the v1 mandatory interoperable group suite. PQ MLS remains experimental until standardized/mature. Group membership/control changes are serialized by a policy-neutral member `CommitCoordinator` and atomically bound through `GroupControlIntent`/`GroupCommitBinding`; coordinator sequencing does not grant membership/admin authority. Formal validation is tracked by `V-004`.
 
 The 2026-09-23 06:15 hardening pass resolved A-005..A-008 and A-010: Spaces link independent Rooms, capability-scoped roles govern authority, Topics stay room-local, private announcements remain MLS Rooms, and public broadcast uses signed Publications. The 07:18 pass then resolved the adjacent service/plugin/media architecture without overloading this private-Room model: full-room services are typed explicit recipients, while selected-context services remain outside MLS membership. External bridges are resolved under A-011 as explicit BridgePrincipal trust boundaries with foreign provenance and visible plaintext-export state.
+
+## 2026-09-24 PQ status of groups (ADR-0107)
+
+v1 groups are classically confidential (RFC 9420 X25519 suite). The group wire must carry a tested ReInit path to a hybrid-PQ MLS profile, and migration happens automatically once the objective adoption triggers in `CRYPTOGRAPHY_AND_AGILITY.md` are met (V-019). No surface may claim PQ confidentiality for v1 groups.

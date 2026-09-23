@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM SponsoredMailboxGrant logical schema",
+  "description": "Bounded, revocable starter mailbox a Home grants to a newly invited account (ADR-0102). Grants mailbox capacity only: no identity, control, discovery or content authority.",
+  "type": "object",
+  "required": [
+    "grant_id",
+    "sponsor_home_ref",
+    "deposit_capability_ref",
+    "drain_capability_ref",
+    "quotas",
+    "expires_at",
+    "may_sponsor_further",
+    "metadata_exposure"
+  ],
+  "properties": {
+    "grant_id": {
+      "type": "string",
+      "description": "Random opaque id; never derived from AccountID."
+    },
+    "sponsor_home_ref": {
+      "type": "string",
+      "description": "Opaque provider locator of the sponsoring Home; not an AccountID."
+    },
+    "deposit_capability_ref": {
+      "type": "string",
+      "description": "Opaque scoped deposit capability handle (normal RelaySet entry)."
+    },
+    "drain_capability_ref": {
+      "type": "string",
+      "description": "Opaque scoped drain capability handle held only by the sponsored account's devices."
+    },
+    "quotas": {
+      "type": "object",
+      "required": [
+        "max_stored_bytes",
+        "max_envelopes_per_hour",
+        "max_envelope_bytes",
+        "max_blob_spool_bytes",
+        "retention_seconds"
+      ],
+      "properties": {
+        "max_stored_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_envelopes_per_hour": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_envelope_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_blob_spool_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retention_seconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "expires_at": {
+      "type": "integer",
+      "description": "Provider wall-clock seconds; clock class provider_wallclock_non_authoritative (TIME_AND_EXPIRY_SEMANTICS.md)."
+    },
+    "renewable": {
+      "type": "boolean"
+    },
+    "may_sponsor_further": {
+      "type": "boolean",
+      "const": false,
+      "description": "Baseline sponsorship cannot be chained; T1 hosted Homes use their own policy instead."
+    },
+    "metadata_exposure": {
+      "type": "string",
+      "enum": [
+        "sponsor_sees_timing_volume_sizes_not_content"
+      ]
+    },
+    "revoked": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false
+}

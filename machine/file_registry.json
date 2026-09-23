@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-23T09:20:00+08:00",
+  "snapshot": "2026-09-24T02:29:00+08:00",
   "scope": "current_non_history",
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
@@ -19,6 +19,13 @@
     },
     {
       "path": "ACCOUNT_CONTINUITY_AND_CONTROL.md",
+      "class": "architecture_doc",
+      "domain": "identity_control_recovery",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md",
       "class": "architecture_doc",
       "domain": "identity_control_recovery",
       "license": "CC-BY-SA-4.0",
@@ -169,6 +176,13 @@
       "class": "checkpoint",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "CHECKPOINT_20260924_0229.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
       "authority": "current_checkpoint"
     },
     {
@@ -249,6 +263,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md",
+      "class": "architecture_doc",
+      "domain": "client_endpoint_distribution",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "ENGINEERING_HANDOFF.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
@@ -308,6 +329,20 @@
       "path": "GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
       "class": "architecture_doc",
       "domain": "groups",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "HARDENING_REVIEW_20260924.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
+      "class": "architecture_doc",
+      "domain": "provider_deployment_supply_chain",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
     },
@@ -648,6 +683,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "RICH_TEXT_AND_CONTENT_SECURITY.md",
       "class": "architecture_doc",
       "domain": "content_abuse_evidence",
@@ -749,6 +791,13 @@
       "path": "UI_UX_SYSTEM.md",
       "class": "architecture_doc",
       "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md",
+      "class": "architecture_doc",
+      "domain": "provider_deployment_supply_chain",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
     },
@@ -1474,6 +1523,62 @@
       "authority": "accepted_decision"
     },
     {
+      "path": "decisions/ADR-0102-home-tiers-sponsored-starter-mailbox-and-provider-diversity.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
+      "path": "decisions/ADR-0103-endpoint-coercion-and-platform-leakage.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
+      "path": "decisions/ADR-0104-decentralized-vulnerability-response-without-kill-switch.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
+      "path": "decisions/ADR-0105-account-retirement-succession-and-legacy-policy.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
+      "path": "decisions/ADR-0106-continuity-assessment-and-informed-no-recovery.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
+      "path": "decisions/ADR-0107-per-conversation-pq-status-and-group-pq-transition.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
+      "path": "decisions/ADR-0108-release-waves-and-scoped-engineering-unlock.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
+      "path": "decisions/ADR-0109-gate-pass-criteria-independence-traceability-and-threat-register.md",
+      "class": "adr",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_decision"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -1614,6 +1719,13 @@
       "authority": "machine_truth"
     },
     {
+      "path": "machine/requirement_traceability.json",
+      "class": "machine_contract",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "machine_truth"
+    },
+    {
       "path": "machine/requirements.jsonl",
       "class": "machine_contract",
       "domain": "architecture_process",
@@ -1635,6 +1747,13 @@
       "authority": "machine_truth"
     },
     {
+      "path": "machine/threat_register.jsonl",
+      "class": "machine_contract",
+      "domain": "security_crosscutting",
+      "license": "Apache-2.0",
+      "authority": "machine_truth"
+    },
+    {
       "path": "protocol/account-control-head.logical.schema.json",
       "class": "protocol_schema",
       "domain": "identity_control_recovery",
@@ -1643,6 +1762,13 @@
     },
     {
       "path": "protocol/account-control-state.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "identity_control_recovery",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "protocol/account-retirement.logical.schema.json",
       "class": "protocol_schema",
       "domain": "identity_control_recovery",
       "license": "Apache-2.0",
@@ -1922,6 +2048,13 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "protocol/security-advisory.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "provider_deployment_supply_chain",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
       "path": "protocol/security-profile.logical.schema.json",
       "class": "protocol_schema",
       "domain": "ux_accessibility_personalization",
@@ -1946,6 +2079,13 @@
       "path": "protocol/space-control-state.logical.schema.json",
       "class": "protocol_schema",
       "domain": "communities_broadcast_topics",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "protocol/sponsored-mailbox-grant.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "provider_deployment_supply_chain",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
@@ -2076,6 +2216,13 @@
       "authority": "verification_evidence_non_normative"
     },
     {
+      "path": "verification/GATE_PASS_CRITERIA.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "verification/README.md",
       "class": "verification_doc",
       "domain": "architecture_verification",
@@ -2091,6 +2238,13 @@
     },
     {
       "path": "verification/bounded/authority_models.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/continuity_assessment.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -2154,6 +2308,13 @@
     },
     {
       "path": "verification/results/cbor-cross-impl-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/continuity-assessment-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

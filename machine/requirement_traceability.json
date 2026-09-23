@@ -1,0 +1,1156 @@
+{
+  "snapshot": "2026-09-24T02:29:00+08:00",
+  "purpose": "Every requirement maps to at least one proof obligation. Target kinds: V-### verification gate, PR-### public release gate, validator (tools/validate_architecture.py), conformance:<suite> (future conformance-suite obligation), review:<doc> (named document review obligation).",
+  "target_kinds": [
+    "V-###",
+    "PR-###",
+    "validator",
+    "conformance:<suite>",
+    "review:<doc>"
+  ],
+  "traces": [
+    {
+      "requirement": "R-001",
+      "verified_by": [
+        "V-017",
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-002",
+      "verified_by": [
+        "review:IDENTITY_CONTINUITY.md",
+        "conformance:identity"
+      ]
+    },
+    {
+      "requirement": "R-003",
+      "verified_by": [
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-004",
+      "verified_by": [
+        "V-005",
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-005",
+      "verified_by": [
+        "V-005",
+        "V-001"
+      ]
+    },
+    {
+      "requirement": "R-006",
+      "verified_by": [
+        "V-009"
+      ]
+    },
+    {
+      "requirement": "R-007",
+      "verified_by": [
+        "conformance:attachments",
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-008",
+      "verified_by": [
+        "V-013"
+      ]
+    },
+    {
+      "requirement": "R-009",
+      "verified_by": [
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-010",
+      "verified_by": [
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-011",
+      "verified_by": [
+        "V-017",
+        "V-019"
+      ]
+    },
+    {
+      "requirement": "R-012",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-013",
+      "verified_by": [
+        "V-001",
+        "V-003"
+      ]
+    },
+    {
+      "requirement": "R-014",
+      "verified_by": [
+        "V-007"
+      ]
+    },
+    {
+      "requirement": "R-015",
+      "verified_by": [
+        "V-007",
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-016",
+      "verified_by": [
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-017",
+      "verified_by": [
+        "PR-008"
+      ]
+    },
+    {
+      "requirement": "R-018",
+      "verified_by": [
+        "review:TRANSPORT_ADAPTERS_AND_INTEROP.md"
+      ]
+    },
+    {
+      "requirement": "R-019",
+      "verified_by": [
+        "V-016",
+        "PR-010"
+      ]
+    },
+    {
+      "requirement": "R-020",
+      "verified_by": [
+        "V-017",
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-021",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-022",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-023",
+      "verified_by": [
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-024",
+      "verified_by": [
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-025",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-026",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-027",
+      "verified_by": [
+        "V-015",
+        "PR-008"
+      ]
+    },
+    {
+      "requirement": "R-028",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-029",
+      "verified_by": [
+        "V-002",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-030",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-031",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-032",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-033",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-034",
+      "verified_by": [
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-035",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-036",
+      "verified_by": [
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-037",
+      "verified_by": [
+        "PR-005",
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-038",
+      "verified_by": [
+        "V-001",
+        "review:SECURITY_PRIVACY_PROFILES.md"
+      ]
+    },
+    {
+      "requirement": "R-039",
+      "verified_by": [
+        "V-015",
+        "PR-006"
+      ]
+    },
+    {
+      "requirement": "R-040",
+      "verified_by": [
+        "PR-006",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-041",
+      "verified_by": [
+        "V-002",
+        "V-014"
+      ]
+    },
+    {
+      "requirement": "R-042",
+      "verified_by": [
+        "V-015",
+        "conformance:discovery"
+      ]
+    },
+    {
+      "requirement": "R-043",
+      "verified_by": [
+        "V-021"
+      ]
+    },
+    {
+      "requirement": "R-044",
+      "verified_by": [
+        "V-005",
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-045",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-046",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-047",
+      "verified_by": [
+        "V-005",
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-048",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-049",
+      "verified_by": [
+        "PR-006",
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-050",
+      "verified_by": [
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-051",
+      "verified_by": [
+        "V-016",
+        "PR-010"
+      ]
+    },
+    {
+      "requirement": "R-052",
+      "verified_by": [
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-053",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-054",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-055",
+      "verified_by": [
+        "review:PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md"
+      ]
+    },
+    {
+      "requirement": "R-056",
+      "verified_by": [
+        "conformance:ui_themes"
+      ]
+    },
+    {
+      "requirement": "R-057",
+      "verified_by": [
+        "conformance:ui_themes"
+      ]
+    },
+    {
+      "requirement": "R-058",
+      "verified_by": [
+        "conformance:accessibility",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-059",
+      "verified_by": [
+        "conformance:accessibility",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-060",
+      "verified_by": [
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-061",
+      "verified_by": [
+        "conformance:performance"
+      ]
+    },
+    {
+      "requirement": "R-062",
+      "verified_by": [
+        "conformance:accessibility",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-063",
+      "verified_by": [
+        "conformance:ui_themes"
+      ]
+    },
+    {
+      "requirement": "R-064",
+      "verified_by": [
+        "V-021"
+      ]
+    },
+    {
+      "requirement": "R-065",
+      "verified_by": [
+        "V-006"
+      ]
+    },
+    {
+      "requirement": "R-066",
+      "verified_by": [
+        "V-012"
+      ]
+    },
+    {
+      "requirement": "R-067",
+      "verified_by": [
+        "V-012"
+      ]
+    },
+    {
+      "requirement": "R-068",
+      "verified_by": [
+        "V-012"
+      ]
+    },
+    {
+      "requirement": "R-069",
+      "verified_by": [
+        "V-005"
+      ]
+    },
+    {
+      "requirement": "R-070",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-071",
+      "verified_by": [
+        "V-021"
+      ]
+    },
+    {
+      "requirement": "R-072",
+      "verified_by": [
+        "V-001",
+        "PR-005"
+      ]
+    },
+    {
+      "requirement": "R-073",
+      "verified_by": [
+        "conformance:ui_themes"
+      ]
+    },
+    {
+      "requirement": "R-074",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-075",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-076",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-077",
+      "verified_by": [
+        "review:LICENSING_AND_CONTRIBUTION_POLICY.md"
+      ]
+    },
+    {
+      "requirement": "R-078",
+      "verified_by": [
+        "review:LICENSING_AND_CONTRIBUTION_POLICY.md"
+      ]
+    },
+    {
+      "requirement": "R-079",
+      "verified_by": [
+        "review:LICENSING_AND_CONTRIBUTION_POLICY.md"
+      ]
+    },
+    {
+      "requirement": "R-080",
+      "verified_by": [
+        "review:LICENSING_AND_CONTRIBUTION_POLICY.md"
+      ]
+    },
+    {
+      "requirement": "R-081",
+      "verified_by": [
+        "review:LICENSING_AND_CONTRIBUTION_POLICY.md"
+      ]
+    },
+    {
+      "requirement": "R-082",
+      "verified_by": [
+        "PR-002"
+      ]
+    },
+    {
+      "requirement": "R-083",
+      "verified_by": [
+        "review:PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-084",
+      "verified_by": [
+        "review:PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-085",
+      "verified_by": [
+        "V-001",
+        "V-003"
+      ]
+    },
+    {
+      "requirement": "R-086",
+      "verified_by": [
+        "V-003"
+      ]
+    },
+    {
+      "requirement": "R-087",
+      "verified_by": [
+        "V-001",
+        "V-003"
+      ]
+    },
+    {
+      "requirement": "R-088",
+      "verified_by": [
+        "V-003"
+      ]
+    },
+    {
+      "requirement": "R-089",
+      "verified_by": [
+        "V-003",
+        "V-009"
+      ]
+    },
+    {
+      "requirement": "R-090",
+      "verified_by": [
+        "V-004"
+      ]
+    },
+    {
+      "requirement": "R-091",
+      "verified_by": [
+        "V-004"
+      ]
+    },
+    {
+      "requirement": "R-092",
+      "verified_by": [
+        "V-017",
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-093",
+      "verified_by": [
+        "V-014",
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-094",
+      "verified_by": [
+        "V-009",
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-095",
+      "verified_by": [
+        "V-006",
+        "PR-005"
+      ]
+    },
+    {
+      "requirement": "R-096",
+      "verified_by": [
+        "PR-007"
+      ]
+    },
+    {
+      "requirement": "R-097",
+      "verified_by": [
+        "PR-009"
+      ]
+    },
+    {
+      "requirement": "R-098",
+      "verified_by": [
+        "PR-008"
+      ]
+    },
+    {
+      "requirement": "R-099",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-100",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-101",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-102",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-103",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-104",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-105",
+      "verified_by": [
+        "PR-001"
+      ]
+    },
+    {
+      "requirement": "R-106",
+      "verified_by": [
+        "PR-001"
+      ]
+    },
+    {
+      "requirement": "R-107",
+      "verified_by": [
+        "PR-001"
+      ]
+    },
+    {
+      "requirement": "R-108",
+      "verified_by": [
+        "V-012"
+      ]
+    },
+    {
+      "requirement": "R-109",
+      "verified_by": [
+        "review:EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md"
+      ]
+    },
+    {
+      "requirement": "R-110",
+      "verified_by": [
+        "V-011"
+      ]
+    },
+    {
+      "requirement": "R-111",
+      "verified_by": [
+        "V-008",
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-112",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-113",
+      "verified_by": [
+        "review:MESSENGER_BASELINE_V1.md",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-114",
+      "verified_by": [
+        "V-004"
+      ]
+    },
+    {
+      "requirement": "R-115",
+      "verified_by": [
+        "V-008"
+      ]
+    },
+    {
+      "requirement": "R-116",
+      "verified_by": [
+        "V-008"
+      ]
+    },
+    {
+      "requirement": "R-117",
+      "verified_by": [
+        "V-008"
+      ]
+    },
+    {
+      "requirement": "R-118",
+      "verified_by": [
+        "V-008"
+      ]
+    },
+    {
+      "requirement": "R-119",
+      "verified_by": [
+        "V-009"
+      ]
+    },
+    {
+      "requirement": "R-120",
+      "verified_by": [
+        "V-009"
+      ]
+    },
+    {
+      "requirement": "R-121",
+      "verified_by": [
+        "V-009",
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-122",
+      "verified_by": [
+        "V-009"
+      ]
+    },
+    {
+      "requirement": "R-123",
+      "verified_by": [
+        "V-015",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-124",
+      "verified_by": [
+        "V-014"
+      ]
+    },
+    {
+      "requirement": "R-125",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-126",
+      "verified_by": [
+        "V-012"
+      ]
+    },
+    {
+      "requirement": "R-127",
+      "verified_by": [
+        "V-012"
+      ]
+    },
+    {
+      "requirement": "R-128",
+      "verified_by": [
+        "V-012"
+      ]
+    },
+    {
+      "requirement": "R-129",
+      "verified_by": [
+        "V-011"
+      ]
+    },
+    {
+      "requirement": "R-130",
+      "verified_by": [
+        "V-011"
+      ]
+    },
+    {
+      "requirement": "R-131",
+      "verified_by": [
+        "V-011"
+      ]
+    },
+    {
+      "requirement": "R-132",
+      "verified_by": [
+        "V-011"
+      ]
+    },
+    {
+      "requirement": "R-133",
+      "verified_by": [
+        "V-010"
+      ]
+    },
+    {
+      "requirement": "R-134",
+      "verified_by": [
+        "V-010"
+      ]
+    },
+    {
+      "requirement": "R-135",
+      "verified_by": [
+        "V-010"
+      ]
+    },
+    {
+      "requirement": "R-136",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-137",
+      "verified_by": [
+        "V-011"
+      ]
+    },
+    {
+      "requirement": "R-138",
+      "verified_by": [
+        "V-011"
+      ]
+    },
+    {
+      "requirement": "R-139",
+      "verified_by": [
+        "V-011"
+      ]
+    },
+    {
+      "requirement": "R-140",
+      "verified_by": [
+        "V-013"
+      ]
+    },
+    {
+      "requirement": "R-141",
+      "verified_by": [
+        "V-013"
+      ]
+    },
+    {
+      "requirement": "R-142",
+      "verified_by": [
+        "V-013"
+      ]
+    },
+    {
+      "requirement": "R-143",
+      "verified_by": [
+        "V-014"
+      ]
+    },
+    {
+      "requirement": "R-144",
+      "verified_by": [
+        "V-014"
+      ]
+    },
+    {
+      "requirement": "R-145",
+      "verified_by": [
+        "V-017",
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-146",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-147",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-148",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-149",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-150",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-151",
+      "verified_by": [
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-152",
+      "verified_by": [
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-153",
+      "verified_by": [
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-154",
+      "verified_by": [
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-155",
+      "verified_by": [
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-156",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-157",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-158",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-159",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-160",
+      "verified_by": [
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-161",
+      "verified_by": [
+        "V-020",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-162",
+      "verified_by": [
+        "V-020",
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-163",
+      "verified_by": [
+        "V-020",
+        "PR-013"
+      ]
+    },
+    {
+      "requirement": "R-164",
+      "verified_by": [
+        "V-021",
+        "PR-005"
+      ]
+    },
+    {
+      "requirement": "R-165",
+      "verified_by": [
+        "V-002",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-166",
+      "verified_by": [
+        "V-002",
+        "V-021"
+      ]
+    },
+    {
+      "requirement": "R-167",
+      "verified_by": [
+        "review:ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-168",
+      "verified_by": [
+        "V-021"
+      ]
+    },
+    {
+      "requirement": "R-169",
+      "verified_by": [
+        "PR-012"
+      ]
+    },
+    {
+      "requirement": "R-170",
+      "verified_by": [
+        "V-017",
+        "conformance:security_floor"
+      ]
+    },
+    {
+      "requirement": "R-171",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-172",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-173",
+      "verified_by": [
+        "review:CRYPTOGRAPHY_AND_AGILITY.md",
+        "V-019"
+      ]
+    },
+    {
+      "requirement": "R-174",
+      "verified_by": [
+        "V-019"
+      ]
+    },
+    {
+      "requirement": "R-175",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-176",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-177",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-178",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-179",
+      "verified_by": [
+        "validator",
+        "review:RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md"
+      ]
+    },
+    {
+      "requirement": "R-180",
+      "verified_by": [
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-181",
+      "verified_by": [
+        "PR-014"
+      ]
+    },
+    {
+      "requirement": "R-182",
+      "verified_by": [
+        "V-018",
+        "conformance:identifier_spoofing"
+      ]
+    }
+  ]
+}

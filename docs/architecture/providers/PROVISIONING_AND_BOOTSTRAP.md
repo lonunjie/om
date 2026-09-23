@@ -2,6 +2,8 @@
 
 ## 1. v1 premise: user-owned Cloudflare deployment
 
+> **2026-09-24 (ADR-0102):** this section now describes the **T2 own-cloud tier** only. New users normally start on a vendor-neutral T0 sponsored starter mailbox or a T1 hosted Home, and a second non-cloud reference provider is required before public production. See `HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`.
+
 The initial OM deployment model intentionally avoids a centrally operated OM relay fleet:
 
 ```text

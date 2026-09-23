@@ -98,3 +98,7 @@ Defer:
 - complex federation state resolution;
 - exotic storage coding before mirroring works;
 - voice/video until messaging is stable.
+
+## 2026-09-24 reconciliation with MESSENGER_BASELINE_V1 (ADR-0108)
+
+The anti-feature list above is now read as **delivery sequencing**, not semantic exclusion. `MESSENGER_BASELINE_V1.md` fixes V1 meanings, and `RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md` sequences delivery: W0 1:1 kernel; W1 groups/media/export; W2 calls; W3 communities/publications; W4 services/plugins/bridges. Payments, ads, marketplaces, stories and exotic storage coding stay outside V1. A later wave may never add wire requirements to an earlier wave beyond frozen extension points.

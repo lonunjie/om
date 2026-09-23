@@ -1,12 +1,12 @@
 # OM — Master Planning & Design Repository
 
-**Snapshot:** 2026-09-23 09:20 PHT (UTC+08:00)  
+**Snapshot:** 2026-09-24 02:29 PHT (UTC+08:00)  
 **Phase:** Architecture verification / pre-engineering — engineering is not yet authorized  
 **Project name:** **OM** — see `NAMING.md` for its seven canonical meanings, including **0M: zero total control**
 
 This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design reviews covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed/multi-relay delivery, the Discovery Fabric and revocable IntroGate, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, privacy-preserving LAN operation, censorship/network resilience, and future SMS/RCS integration, baseline/community semantics, permissionless services/LLM agency, explicit external bridges, portable user escape, metadata-minimizing routing, decentralized/composable safety controls, protocol longevity, and the 0M zero-total-control principle.
 
-Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, `history/20260921-2132/`, `history/20260922-0734/`, `history/20260922-1342/`, `history/20260922-1434/`, `history/20260922-2302/`, `history/20260923-0545/`, `history/20260923-0615/`, `history/20260923-0718/`, `history/20260923-0756/`, and `history/20260923-0821/` for traceability.
+Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, `history/20260921-2132/`, `history/20260922-0734/`, `history/20260922-1342/`, `history/20260922-1434/`, `history/20260922-2302/`, `history/20260923-0545/`, `history/20260923-0615/`, `history/20260923-0718/`, `history/20260923-0756/`, `history/20260923-0821/`, and `history/20260923-0920/` for traceability.
 
 ## Product thesis
 
@@ -105,6 +105,10 @@ And the implementation discipline remains:
 23. UI/accessibility/theme documents — product semantics above Core.
 24. `ARCHITECTURE_PHASE_PLAN.md` + `verification/README.md` — blocking verification gates, current evidence, and the evidence-vs-passage boundary.
 25. `ENGINEER_START_HERE.md` / `ENGINEERING_HANDOFF.md` — retained for the future transition only.
+26. `HARDENING_REVIEW_20260924.md` — independent gap/blind-spot/weak-spot review (F-01..F-17) and where each fix lives.
+27. `RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md` + `verification/GATE_PASS_CRITERIA.md` — delivery waves, scope-granular unlock, and two-phase gate criteria.
+28. `HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md` — zero-signup sponsored onboarding, Home tiers, and anti-monoculture.
+29. `ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md` + `ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md` + `VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md` — endpoint adversaries, account end-of-life, and security response without a kill switch.
 
 Existing detailed documents remain canonical where not superseded. Machine-readable authority and file classification live under `machine/`; run `python3 tools/validate_architecture.py` before accepting a checkpoint.
 
@@ -130,7 +134,8 @@ Existing detailed documents remain canonical where not superseded. Machine-reada
 - `research/CURRENT_REFERENCES_20260921.md`
 - `research/CURRENT_UI_REFERENCES_20260922.md`
 - `design/` — shared design seeds, component catalog, screen journeys and static shell prototype
-- `threat-model/README.md`
+- `threat-model/README.md` + `machine/threat_register.jsonl` — narrative and structured threat model
+- `machine/requirement_traceability.json` — every requirement mapped to its proof obligation
 
 ## Snapshot rule
 

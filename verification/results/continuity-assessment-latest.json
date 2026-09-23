@@ -1,0 +1,80 @@
+{
+  "model": "continuity_assessment_bounded",
+  "rule": "majority floor(N/2)+1; quarantine does not shrink denominator",
+  "cases": 1620,
+  "violations": [],
+  "passed": true,
+  "common_configurations": [
+    {
+      "controllers": 1,
+      "quarantined": 0,
+      "recovery": "none",
+      "threshold": 1,
+      "lost_devices_to_identity_loss": 1,
+      "lost_devices_to_constitution_lock": 1,
+      "compromised_devices_to_takeover": 1,
+      "alternate_takeover_path": null,
+      "needs_acknowledgement": true
+    },
+    {
+      "controllers": 1,
+      "quarantined": 0,
+      "recovery": "kit",
+      "threshold": 1,
+      "lost_devices_to_identity_loss": null,
+      "lost_devices_to_constitution_lock": null,
+      "compromised_devices_to_takeover": 1,
+      "alternate_takeover_path": "possession of the offline recovery kit",
+      "needs_acknowledgement": false
+    },
+    {
+      "controllers": 2,
+      "quarantined": 0,
+      "recovery": "none",
+      "threshold": 2,
+      "lost_devices_to_identity_loss": 2,
+      "lost_devices_to_constitution_lock": 1,
+      "compromised_devices_to_takeover": 2,
+      "alternate_takeover_path": null,
+      "needs_acknowledgement": true
+    },
+    {
+      "controllers": 2,
+      "quarantined": 0,
+      "recovery": "kit",
+      "threshold": 2,
+      "lost_devices_to_identity_loss": null,
+      "lost_devices_to_constitution_lock": null,
+      "compromised_devices_to_takeover": 2,
+      "alternate_takeover_path": "possession of the offline recovery kit",
+      "needs_acknowledgement": false
+    },
+    {
+      "controllers": 3,
+      "quarantined": 0,
+      "recovery": "none",
+      "threshold": 2,
+      "lost_devices_to_identity_loss": 3,
+      "lost_devices_to_constitution_lock": 2,
+      "compromised_devices_to_takeover": 2,
+      "alternate_takeover_path": null,
+      "needs_acknowledgement": false
+    },
+    {
+      "controllers": 3,
+      "quarantined": 0,
+      "recovery": "kit",
+      "threshold": 2,
+      "lost_devices_to_identity_loss": null,
+      "lost_devices_to_constitution_lock": null,
+      "compromised_devices_to_takeover": 2,
+      "alternate_takeover_path": "possession of the offline recovery kit",
+      "needs_acknowledgement": false
+    }
+  ],
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed",
+  "supports_gates": [
+    "V-002",
+    "V-018"
+  ]
+}

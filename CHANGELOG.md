@@ -1,3 +1,16 @@
+## 2026-09-24 02:29 PHT — independent hardening review (gaps, blind spots, weak spots)
+
+- preserved the complete 09:20 current tree under `history/20260923-0920/`;
+- added `HARDENING_REVIEW_20260924.md` with findings F-01..F-17 and their fixes;
+- **fixed a circular engineering lock:** gates are two-phase (pre-engineering / pre-release) with independence levels, and engineering unlock is scope-granular across waves W0..W4 (`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`, ADR-0108/0109). Nothing is authorized;
+- **onboarding and 0M:** Home tiers T0..T4 with a vendor-neutral sponsored starter mailbox as the first-run path from invites; vendor monoculture declared a 0M risk; second non-cloud reference provider required (ADR-0102, V-020, PR-013);
+- **endpoint threats:** coercive/proximate adversaries, non-silent device linking, and a platform leakage matrix covering backups, snapshots, keyboards, spellcheck, extensions and notifications (ADR-0103, V-021);
+- **honesty fixes:** PQ status is per conversation type (v1 groups are classical) with a ReInit path and objective adoption triggers (ADR-0107, V-019); recovery is informed-off with a ContinuityAssessment (ADR-0106) plus 1,620 bounded continuity cases;
+- **lifecycles:** decentralized vulnerability response without a kill switch (ADR-0104, PR-012); account retirement/deletion/legacy (ADR-0105); public-surface illegal-content process (PR-014);
+- added `machine/requirement_traceability.json` (all 182 requirements traced) and `machine/threat_register.jsonl` (T-001..T-040); validator guards enforce gate schema, scopes, traceability, threat references and the no-PQ-group-overclaim rule;
+- added V-018..V-021, PR-012..PR-014, R-161..R-182, D-124..D-131, A-016..A-022 (resolved); R-104 superseded by R-176;
+- `design_open=0`, `verification_open=21`, `engineering_authorized=false`, all scopes unauthorized.
+
 ## 2026-09-23 09:20 PHT — phase-1 architecture verification evidence
 
 - preserved the complete 08:21 current tree under `history/20260923-0821/`;

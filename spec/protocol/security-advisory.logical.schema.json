@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM SecurityAdvisory logical schema",
+  "description": "Signed vulnerability advisory (ADR-0104). An input selected by subscribers; never remote-disable or protocol authority.",
+  "type": "object",
+  "required": [
+    "advisory_id",
+    "issuer_key_ref",
+    "issued_at",
+    "vuln_class",
+    "severity",
+    "affected",
+    "remediation",
+    "signature"
+  ],
+  "properties": {
+    "advisory_id": {
+      "type": "string"
+    },
+    "issuer_key_ref": {
+      "type": "string",
+      "description": "Issuer signing key; issuer is a distribution, steward lineage or researcher, never a protocol authority."
+    },
+    "issued_at": {
+      "type": "integer",
+      "description": "Informational wall clock; not authority."
+    },
+    "supersedes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "vuln_class": {
+      "type": "string",
+      "enum": [
+        "implementation",
+        "profile_or_primitive",
+        "protocol_design"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "exploitation": {
+      "type": "string",
+      "enum": [
+        "none_known",
+        "poc_public",
+        "exploited_in_wild"
+      ]
+    },
+    "affected": {
+      "type": "object",
+      "properties": {
+        "implementations": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "crypto_profile_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "protocol_generation_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "extension_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "remediation": {
+      "type": "object"
+    },
+    "recommended_floor": {
+      "type": "object",
+      "description": "Minimum CryptoProfile/protocol generation/own-distribution version a subscriber MAY adopt as its own peer-local floor (R-170).",
+      "properties": {
+        "min_crypto_profile": {
+          "type": "string"
+        },
+        "min_protocol_generation": {
+          "type": "string"
+        },
+        "min_release": {
+          "type": "string"
+        },
+        "user_override_permitted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "vectors_ref": {
+      "type": "string"
+    },
+    "signature": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

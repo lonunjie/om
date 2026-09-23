@@ -1,41 +1,40 @@
 # OM Architecture Snapshot
 
-Generated: **2026-09-23 09:20 PHT (UTC+08:00)**
+Generated: **2026-09-24 02:29 PHT (UTC+08:00)**
 
 ## State
 
-OM is in **architecture verification / pre-engineering**. **Engineering is not authorized.** `engineering_authorized=false`.
+OM is in **architecture verification / pre-engineering**. **Engineering is not authorized.** `engineering_authorized=false`, and every entry in `engineering_scopes` is `authorized: false`.
 
-The architecture-design queue A-001..A-015 remains fully design-resolved (`design_open=0`). All blocking verification gates V-001..V-017 remain open (`verification_open=17`).
+- design queue A-001..A-022: all design-resolved (`design_open=0`); A-016..A-022 came from the 2026-09-24 hardening review;
+- verification gates V-001..V-021: all open (`verification_open=21`, `pre_engineering_open=21`);
+- public release gates PR-001..PR-014: all open.
 
-## Phase-1 verification evidence added in this checkpoint
+## What changed in this checkpoint
 
-- executable bounded/reference models now cover V-002, V-004, V-008, V-009, V-011, V-013, V-014, V-015, V-016 and part of V-017;
-- independently written Python and Node.js deterministic-CBOR foundation encoders agree on 14 current fixtures for V-005 groundwork;
-- `AccountControlState.tla` + TLC configuration now exist for V-002, but TLC was not available in the current execution environment and was **not** claimed as run;
-- 7,772 bounded/adversarial cases completed without a modeled invariant violation;
-- an offline 60-artifact continuity dry run completed and produced an integrity root, while the full V-017 disaster/fork/rebuild exercise remains open;
-- feasibility reconnaissance narrows experiments for V-001/V-006/V-007/V-010/V-012 without treating standards availability as proof.
+An independent hardening review (`HARDENING_REVIEW_20260924.md`, findings F-01..F-17) found that the protocol core held up, and that the weaknesses sat around it:
 
-## Important gap found rather than hidden
+1. **The engineering lock was circular.** Several gates need real implementations to pass. Gates are now two-phase, with independence rules, and unlock is scope-granular across waves W0..W4 (`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`, `verification/GATE_PASS_CRITERIA.md`).
+2. **Onboarding required a personal Cloudflare account.** New Home tiers give zero-signup sponsored starter mailboxes from invites, hosted and self-hosted Homes, and a required second non-cloud reference provider. Vendor monoculture is a declared 0M risk (`HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`).
+3. **Endpoint adversaries were missing.** Device linking is never silent, lock controls are defined, OM refuses deniability claims, and a platform leakage matrix is required (`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`).
+4. **Two honesty fixes.** v1 groups are classical, not PQ, and there is now an objective migration path. Recovery is informed-off with a ContinuityAssessment.
+5. **Lifecycles.** Vulnerability response without a kill switch; account retirement, deletion and legacy; a public-surface illegal-content process.
+6. **Machine truth.** Every requirement is traced (`machine/requirement_traceability.json`), threats are in a register (`machine/threat_register.jsonl`), and the validator enforces both, along with gate schema, scopes and the no-PQ-group-overclaim rule.
 
-V-005 cannot pass yet: OM has selected deterministic CBOR, but the checkpoint still lacks frozen per-object CDDL/numeric-field/domain-separation registries for **every** signed/hashed v1 object. The two-language CBOR test validates the encoding foundation only. This is now explicitly recorded as a verification deliverable.
+## Evidence
 
-## Gate accounting
+`python3 verification/run_phase1.py`: bounded cases now include 1,620 ContinuityAssessment cases (total recorded in `verification/results/phase1-summary.json`). No gate is promoted; evidence is not passage.
 
-- `design_open=0`
-- `verification_open=17`
-- `engineering_authorized=false`
-- gates with new executable phase-1 evidence: V-002, V-004, V-005, V-008, V-009, V-011, V-013, V-014, V-015, V-016, V-017
-- gates still awaiting their first dedicated executable/runtime harness: V-001, V-003, V-006, V-007, V-010, V-012
+## Next verification work (in unlock order)
 
-## Next verification work
+W0 (`core_kernel`, `reference_client_ui`, `provider_reference`) needs these pre-engineering criteria met:
 
-1. run the pinned TLA+/TLC AccountControlState model and expand it through recovery/fork/rollback cases;
-2. build the dedicated V-003 one-to-one session model/fuzzer;
-3. freeze signed/hashed v1 object wire registries and expand V-005 to object-specific cross-implementation vectors;
-4. prototype V-001/V-006/V-007/V-010 feasibility on the actual intended runtimes;
-5. start parser/resource fuzzing for V-012;
-6. progressively replace bounded abstractions for V-004/V-008/V-009/V-011/V-013..V-017 with independent/runtime/formal evidence required by each ledger gate.
+1. V-002: install a JDK + pinned TLC, run `AccountControlState.tla`, extend it with retirement/legacy/device-link notice, get an independent review;
+2. V-005: freeze CDDL/field/domain-separation registries for W0 objects, with two-encoder vectors;
+3. V-001 and V-003: Rust native+wasm state-machine prototype; 1:1 session-manager model/fuzzer;
+4. V-015 and V-016: MetadataExposureDescriptors (including the sponsored mailbox); IntroGate/Sybil resource model;
+5. V-006, V-018, V-021: browser DeviceVault prototype; comprehension study on `design/prototype`; platform leakage matrix;
+6. V-020: provider conformance spec, sponsorship model, migration model, vendor-block tabletop;
+7. V-017: continuity bundle script and written tabletop drills (always required).
 
 No product engineering begins from this checkpoint.

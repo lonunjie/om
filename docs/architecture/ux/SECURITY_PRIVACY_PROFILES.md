@@ -114,3 +114,9 @@ The profiles above are policy bundles, not privacy badges. In particular:
 - Maximum Privacy may add anonymity/pluggable transports, stronger batching/padding and optional bounded cover traffic with explicit bandwidth/battery cost;
 - opaque push payloads still leak wake timing to the push provider;
 - no preset may claim to defeat a global observer/provider collusion unless a separately reviewed mechanism actually supplies that property.
+
+## 2026-09-24 correction — post-quantum wording (ADR-0107)
+
+"Strongest approved E2EE/PQ-hybrid profile" above means the strongest approved profile **for each conversation type**. In OM-Crypto-v1, 1:1 conversations are hybrid-PQ. Private groups and group calls use the classical RFC 9420 X25519 MLS suite until the ADR-0107 adoption triggers are met. No preset may claim PQ confidentiality for groups. Presets never change this; it is a property of the CryptoProfile, not of privacy policy.
+
+Coercion, device-access and platform-leakage controls (app lock, secure surfaces, keyboard/spellcheck hints, backup exclusion) are defined in `ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md` and are part of the Hardened and Maximum Privacy bundles.

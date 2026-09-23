@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM AccountRetirement logical schema",
+  "description": "Terminal AccountControlState transition (ADR-0105). No valid state descends from a retired state.",
+  "type": "object",
+  "required": [
+    "account_id",
+    "previous_state_hash",
+    "reason_class",
+    "authorization_signatures"
+  ],
+  "properties": {
+    "account_id": {
+      "type": "string"
+    },
+    "previous_state_hash": {
+      "type": "string"
+    },
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "user_closed",
+        "moved",
+        "legacy"
+      ]
+    },
+    "successor_account_id": {
+      "type": "string",
+      "description": "Only with continuity proof or explicit moved statement; for legacy only if pre-designated in LegacyPolicy."
+    },
+    "farewell_note_ref": {
+      "type": "string",
+      "description": "Optional E2EE note delivered through relationship channels."
+    },
+    "effective_at": {
+      "type": "integer",
+      "description": "Informational; clock class non-authoritative."
+    },
+    "authorization_kind": {
+      "type": "string",
+      "enum": [
+        "parent_constitutional_rule",
+        "recovery_policy",
+        "legacy_policy"
+      ]
+    },
+    "contest_window_seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Required >0 for legacy_policy authorization; any live controller signature cancels."
+    },
+    "authorization_signatures": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "minItems": 1
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,9 +1,10 @@
 {
   "phase1_passed": true,
   "gate_status_effect": "evidence_only_no_gate_automatically_passed",
-  "bounded_cases": 7772,
+  "bounded_cases": 9392,
+  "continuity_assessment_cases": 1620,
   "cross_impl_cbor_vectors": 14,
-  "offline_continuity_artifacts": 60,
+  "offline_continuity_artifacts": 63,
   "gates_with_new_evidence": [
     "V-002",
     "V-004",
@@ -36,6 +37,10 @@
     },
     {
       "script": "verification/bounded/continuity_dry_run.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/continuity_assessment.py",
       "returncode": 0
     }
   ]

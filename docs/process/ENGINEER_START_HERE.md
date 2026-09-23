@@ -3,6 +3,8 @@
 **Checkpoint:** 2026-09-23 08:21 PHT (UTC+08:00)  
 **Phase:** FUTURE HANDOFF — engineering not authorized by this checkpoint
 
+> **2026-09-24:** engineering unlock is now scope-granular (`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`). The first vertical slice below corresponds to the W0 scopes `core_kernel`, `reference_client_ui` and `provider_reference`. None is authorized. Also read `HARDENING_REVIEW_20260924.md`, `HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md` (the "personal OM Home" may be a T0 sponsored mailbox or T1 hosted Home, not only an own-cloud deployment), `ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md` and `verification/GATE_PASS_CRITERIA.md`.
+
 This file is retained so the future transition is explicit, but the current repository is **not yet an engineering handoff**. Architecture hardening remains active. Do not begin the product vertical slice until a later ADR sets `engineering_authorized=true` in `machine/repository_contract.json` and the architecture validator passes.
 
 ## Mission

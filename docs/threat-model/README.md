@@ -134,3 +134,18 @@ Provider independence improves survivability but does not make any single endpoi
 - **False failure-domain diversity:** several providers declared “independent” share one account/operator/cloud/control plane. Treat declarations as hints and allow policy to require independently evidenced diversity.
 - **Steward capture:** project/business/forge ownership changes. Irrevocable licenses, public protocol artifacts, mirrors and forkability prevent project governance from becoming protocol authority.
 
+
+## 2026-09-24 structured register and new adversary classes
+
+The narrative above is now backed by a structured register: `../machine/threat_register.jsonl` (T-001..). Each entry names adversary, asset, mitigation documents, requirements and verification/release gates, and the validator checks every reference. Architecture additions must add or update register entries (R-178).
+
+Adversary classes added in this checkpoint:
+
+- **Proximate adversary** (intimate partner, family, employer, anyone with brief device access or passcode knowledge): silent device linking, reading unlocked history. Mitigation: non-suppressible device-link notices, device list, quick lock (`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`).
+- **Coercive adversary** (seizure, compelled unlock, border inspection): mitigation is minimization (app/profile lock, disappearing defaults, travel posture). OM explicitly does not promise hidden-volume deniability.
+- **Platform leakage** (OS/cloud backups, snapshots, keyboards, cloud spellcheck, browser extensions, notification history): per-platform control matrix, V-021.
+- **Hosting-account attacker** (phished cloud credentials for a PWA user's ClientHost): equivalent to endpoint compromise for that user. Mitigation: separate least-privilege deploy credentials, phishing-resistant auth, release-hash observation, native option (R-164).
+- **Vendor-wide provider action** (one cloud vendor blocking all OM Homes): practical monoculture choke point. Mitigation: Home tiers, second reference provider, diversity drill (V-020, PR-013).
+- **Harvest-now-decrypt-later against groups:** v1 MLS groups are classical. Mitigation: honest per-type PQ status, ReInit path, objective adoption triggers (V-019).
+- **Uncoordinated vulnerability disclosure / straggler implementations:** mitigation is signed SecurityAdvisories and peer-local floors, with no kill switch (PR-012).
+- **Self-verifying design author:** evidence produced only by the design's author. Mitigation: gate independence rules (`../verification/GATE_PASS_CRITERIA.md`).

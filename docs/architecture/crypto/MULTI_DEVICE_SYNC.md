@@ -58,3 +58,7 @@ Authorization comes from `AccountControlState`, never from a provider's bare dev
 ## 2026-09-23 multi-device resolution
 
 New-device bootstrap uses an explicit grant plus same-account authenticated E2EE sync. Immutable conversation events merge by EventID union; constitutional/group authority is never LWW/CRDT merged. One-to-one fanout is governed by the explicit per-device session manager selected in Q-050; verification gate `V-003` covers races/reset/dedupe/persistence.
+
+## 2026-09-24 device-link visibility (R-166)
+
+Every new device enrollment produces an authenticated, non-suppressible notice on every other active device of the account, derived from AccountControlState. Settings → Devices lists every device with enrollment time and last-seen class. A conforming client cannot complete a link silently. This is the primary defense against proximate-adversary device linking (`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md` §2).
