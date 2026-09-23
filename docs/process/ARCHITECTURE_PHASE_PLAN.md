@@ -1,6 +1,6 @@
 # OM Architecture Hardening Phase Plan
 
-- **Checkpoint:** 2026-09-23 08:21 PHT
+- **Checkpoint:** 2026-09-23 09:20 PHT
 - **State:** pre-engineering; engineering is not authorized
 
 The former Gate A..K questions and architecture-design queue A-001..A-015 now have concrete design resolutions. Work remains split into typed ledgers.
@@ -59,6 +59,13 @@ A practical order is:
 4. cross-system continuity exercise — V-017 after the artifacts above are concrete enough to test.
 
 Parallel work is fine where independent, but a gate may not be marked passed from prose alone.
+
+
+## Phase-1 verification progress — 09:20 PHT
+
+`verification/run_phase1.py` now supplies executable evidence for V-002, V-004, V-005, V-008, V-009, V-011, V-013, V-014, V-015, V-016 and V-017. The current run completed 7,772 bounded/adversarial cases, 14 cross-implementation deterministic-CBOR foundation vectors and a 60-artifact offline continuity dry run without a modeled invariant violation.
+
+**All 17 blocking verification gates remain open.** Evidence accumulation is not equivalent to gate passage. In particular, TLC execution, frozen per-object wire registries, independent implementations and real browser/runtime/packet/parser experiments remain mandatory where specified.
 
 ## Engineering transition
 

@@ -1,3 +1,15 @@
+## 2026-09-23 09:20 PHT — phase-1 architecture verification evidence
+
+- preserved the complete 08:21 current tree under `history/20260923-0821/`;
+- added a TLA+ `AccountControlState` model/configuration and transition regression vectors without claiming TLC execution;
+- added bounded authority/state/convergence models covering V-002/V-004/V-008/V-009/V-011/V-016;
+- added bounded bridge/archive/metadata models for V-013/V-014/V-015 and an offline continuity dry run for V-017;
+- added two independently written Python/Node.js deterministic-CBOR foundation encoders with 14 agreeing fixtures for V-005 groundwork;
+- executed 7,772 bounded/adversarial cases plus the CBOR and continuity checks with no modeled invariant violation;
+- documented the V-005 gap: per-object CDDL/numeric-field/domain-separation registries still need to be frozen before that gate can pass;
+- added standards/runtime feasibility reconnaissance for V-001/V-006/V-007/V-010/V-012;
+- kept every V-001..V-017 gate open and `engineering_authorized=false`; evidence is not gate passage.
+
 ## 2026-09-23 07:56 PHT — 0M / permissionless services / bridges / escape hardening
 
 - added **0M** as the seventh canonical OM meaning: zero parties have total control;

@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "MANIFEST.json"
-SNAPSHOT = "2026-09-23T08:21:00+08:00"
+SNAPSHOT = json.loads((ROOT / "machine/repository_contract.json").read_text(encoding="utf-8"))["snapshot"]
 EXCLUDES = {"MANIFEST.json"}
 
 

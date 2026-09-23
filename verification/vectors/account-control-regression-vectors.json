@@ -1,0 +1,59 @@
+{
+  "schema": "om-verification/account-control-regression-vectors-v1",
+  "gate": "V-002",
+  "vectors": [
+    {
+      "id": "acs-001-majority-3",
+      "parent_controllers": ["A", "B", "C"],
+      "quarantined": [],
+      "operation": "permanent_revoke:C",
+      "approvals": ["A", "B"],
+      "expected": "authorized"
+    },
+    {
+      "id": "acs-002-minority-3",
+      "parent_controllers": ["A", "B", "C"],
+      "quarantined": [],
+      "operation": "permanent_revoke:C",
+      "approvals": ["A"],
+      "expected": "reject_insufficient_constitutional_authority"
+    },
+    {
+      "id": "acs-003-quarantine-does-not-shrink-denominator",
+      "parent_controllers": ["A", "B", "C"],
+      "quarantined": ["B", "C"],
+      "operation": "promote:X",
+      "approvals": ["A"],
+      "expected": "reject_insufficient_constitutional_authority"
+    },
+    {
+      "id": "acs-004-promotion-uses-parent-set",
+      "parent_controllers": ["A", "B", "C"],
+      "quarantined": [],
+      "operation": "promote:X",
+      "approvals": ["A", "X"],
+      "expected": "reject_candidate_vote_not_parent_authority"
+    },
+    {
+      "id": "acs-005-old-backup-cannot-rollback",
+      "accepted_generation": 7,
+      "candidate_generation": 5,
+      "candidate_parent_hash": "historical-parent",
+      "operation": "accept_control_state",
+      "expected": "reject_rollback_or_wrong_parent"
+    },
+    {
+      "id": "acs-006-same-parent-fork-freezes",
+      "parent_state": "H7",
+      "successors": ["revoke:B", "promote:X"],
+      "expected": "control_conflict_safety_freeze"
+    },
+    {
+      "id": "acs-007-revoked-not-resurrected",
+      "parent_controllers": ["A", "B"],
+      "permanently_revoked": ["C"],
+      "operation": "accept_historical_state_with:C",
+      "expected": "reject_wrong_parent_or_revoked_authority"
+    }
+  ]
+}

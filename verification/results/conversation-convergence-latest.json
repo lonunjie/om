@@ -1,0 +1,99 @@
+{
+  "gate": "V-009",
+  "gate_status_effect": "evidence_only_gate_remains_open",
+  "all_bounded_checks_passed": true,
+  "cases": 864,
+  "properties": [
+    "EventID duplicate delivery is idempotent",
+    "delivery order does not change materialized semantic state",
+    "unauthorized state-changing events do not affect the view",
+    "pin/topic conflicts use authenticated EventClock ordering, not arrival/wall time",
+    "moderation redaction is monotonic",
+    "poll close is monotonic and later-clock votes do not alter the closed tally"
+  ],
+  "fixtures": {
+    "pin": {
+      "pins": [
+        [
+          "m1",
+          false
+        ]
+      ],
+      "redacted": [],
+      "poll_votes": [],
+      "poll_closed": [],
+      "topics": [],
+      "message_topics": []
+    },
+    "redaction": {
+      "pins": [],
+      "redacted": [
+        "m2"
+      ],
+      "poll_votes": [],
+      "poll_closed": [],
+      "topics": [],
+      "message_topics": []
+    },
+    "poll": {
+      "pins": [],
+      "redacted": [],
+      "poll_votes": [
+        [
+          "A",
+          "poll",
+          [
+            "y"
+          ]
+        ],
+        [
+          "B",
+          "poll",
+          [
+            "z"
+          ]
+        ]
+      ],
+      "poll_closed": [
+        "poll"
+      ],
+      "topics": [],
+      "message_topics": []
+    },
+    "topic": {
+      "pins": [],
+      "redacted": [],
+      "poll_votes": [],
+      "poll_closed": [],
+      "topics": [
+        [
+          "t1",
+          "Final",
+          "resolved",
+          [
+            4,
+            "M",
+            "ts"
+          ]
+        ]
+      ],
+      "message_topics": [
+        [
+          "m4",
+          "t1",
+          [
+            5,
+            "M",
+            "mt"
+          ]
+        ]
+      ]
+    }
+  },
+  "remaining": [
+    "cross-implementation materializer fixture",
+    "full EventClock edge cases and malformed event corpus",
+    "authorization-state changes racing with events",
+    "persistent-store rebuild and large randomized/property-test corpus"
+  ]
+}

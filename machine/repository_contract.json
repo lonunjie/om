@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-23T08:21:00+08:00",
+  "snapshot": "2026-09-23T09:20:00+08:00",
   "phase": "architecture_hardening_pre_engineering",
   "engineering_authorized": false,
   "engineering_unlock_requires": [
@@ -57,7 +57,10 @@
     "IMPORT_EXPORT_AND_USER_ESCAPE.md",
     "METADATA_THREAT_MODEL.md",
     "DECENTRALIZED_ABUSE_MODERATION.md",
-    "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md"
+    "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+    "verification/README.md",
+    "verification/FEASIBILITY_RECONNAISSANCE_20260923.md",
+    "verification/TLAPLUS_TOOL_PIN.md"
   ],
   "current_file_registry": "machine/file_registry.json",
   "architecture_map": "machine/architecture_map.json",
@@ -89,7 +92,8 @@
     "manifest bytes/hashes match checkpoint contents",
     "A-013 metadata privacy preserves provider-routing separation and surface-specific claims",
     "A-014 moderation keeps shared safety advice separate from scoped enforcement authority",
-    "A-015 continuity preserves immutable registry meanings and mirrorable published generations"
+    "A-015 continuity preserves immutable registry meanings and mirrorable published generations",
+    "phase-1 verification evidence is machine-recorded and cannot itself authorize engineering or silently mark gates passed"
   ],
   "legal_risk_policy": {
     "protocol_home_jurisdiction": "none",

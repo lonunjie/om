@@ -1,0 +1,32 @@
+{
+  "gate": "V-005",
+  "gate_status_effect": "foundation_evidence_only_gate_remains_open",
+  "independent_encoders": [
+    "Python stdlib implementation",
+    "Node.js stdlib implementation"
+  ],
+  "vectors_compared": 14,
+  "all_vectors_identical": true,
+  "golden_vectors": {
+    "array": "83010203",
+    "bool-null": "83f5f4f6",
+    "bytes": "4401020304",
+    "map-basic": "a2616101616202",
+    "map-key-order": "a401636f6e650a6374656e61620162616102",
+    "neg-1": "20",
+    "neg-100": "3863",
+    "nested": "a301826178020242aabb03a201f502f6",
+    "text-a": "6161",
+    "text-unicode": "6449455446",
+    "uint-0": "00",
+    "uint-1000": "1903e8",
+    "uint-23": "17",
+    "uint-24": "1818"
+  },
+  "remaining": [
+    "freeze CDDL/numeric field registry/domain-separation string for every signed/hashed v1 object",
+    "generate object-specific positive and negative canonicality vectors",
+    "consume those vectors from production-language decoder/encoder paths",
+    "reject non-canonical alternate byte encodings for all signed/hashed object types"
+  ]
+}

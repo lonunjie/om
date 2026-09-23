@@ -1,0 +1,42 @@
+{
+  "phase1_passed": true,
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed",
+  "bounded_cases": 7772,
+  "cross_impl_cbor_vectors": 14,
+  "offline_continuity_artifacts": 60,
+  "gates_with_new_evidence": [
+    "V-002",
+    "V-004",
+    "V-005",
+    "V-008",
+    "V-009",
+    "V-011",
+    "V-013",
+    "V-014",
+    "V-015",
+    "V-016",
+    "V-017"
+  ],
+  "runs": [
+    {
+      "script": "verification/bounded/authority_models.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/conversation_convergence.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/wire_boundary_models.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/cbor/run_cross_impl.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/continuity_dry_run.py",
+      "returncode": 0
+    }
+  ]
+}

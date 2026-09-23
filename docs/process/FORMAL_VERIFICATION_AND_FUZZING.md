@@ -104,3 +104,22 @@ The completed design queue adds three blocking proof programs:
 - **V-017 protocol longevity/0M:** perform independent continuity-bundle recovery, multi-generation/fork compatibility, crypto-break/release-root/provider disappearance tabletop/technical exercises and dominant-extension capture tests.
 
 These are architecture-verification activities and may use purpose-built model checkers, fuzzers, packet traces, independent decoders and bounded prototypes even though product engineering remains unauthorized.
+
+
+## 2026-09-23 09:20 phase-1 verification evidence
+
+The first verification-evidence checkpoint is recorded under `verification/`. It is deliberately **evidence-only**: all V-001..V-017 gates remain open and engineering remains unauthorized.
+
+Executed evidence in this checkpoint:
+
+- **7,772 bounded/adversarial cases** across AccountControlState, CommitCoordinator/group-control, Space/Room authority, baseline event convergence, ServicePrincipal/delegated agency, bridge/archive/metadata boundaries, scoped moderation and continuity invariants;
+- **14 deterministic-CBOR foundation vectors** produced identically by independently written Python and Node.js encoders;
+- **60-artifact offline continuity dry run** covering current protocol JSON plus selected normative/machine continuity material.
+
+Important limits:
+
+- the TLA+ AccountControlState model is authored, but TLC was not available in this execution environment and V-002 therefore remains open;
+- V-005 remains open because every signed/hashed v1 object still needs a frozen CDDL/numeric-field/domain-separation registry and object-specific two-implementation vectors;
+- bounded reference models do not substitute for runtime, browser, cross-implementation, packet-trace, parser-fuzz or independent continuity evidence required by the respective gates.
+
+`verification/results/phase1-summary.json` is the machine-readable summary.

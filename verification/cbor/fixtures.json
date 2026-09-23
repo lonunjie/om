@@ -1,0 +1,16 @@
+[
+  {"id":"uint-0","value":0,"expected":"00"},
+  {"id":"uint-23","value":23,"expected":"17"},
+  {"id":"uint-24","value":24,"expected":"1818"},
+  {"id":"uint-1000","value":1000,"expected":"1903e8"},
+  {"id":"neg-1","value":-1,"expected":"20"},
+  {"id":"neg-100","value":-100,"expected":"3863"},
+  {"id":"text-a","value":"a","expected":"6161"},
+  {"id":"text-unicode","value":"IETF","expected":"6449455446"},
+  {"id":"bytes","value":{"$bytes":"01020304"},"expected":"4401020304"},
+  {"id":"array","value":[1,2,3],"expected":"83010203"},
+  {"id":"bool-null","value":[true,false,null],"expected":"83f5f4f6"},
+  {"id":"map-basic","value":{"$map":[["a",1],["b",2]]},"expected":"a2616101616202"},
+  {"id":"map-key-order","value":{"$map":[["aa",2],["b",1],[10,"ten"],[1,"one"]]}},
+  {"id":"nested","value":{"$map":[[1,["x",2]],[2,{"$bytes":"aabb"}],[3,{"$map":[[1,true],[2,null]]}]]}}
+]

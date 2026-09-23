@@ -1,12 +1,12 @@
 # OM — Master Planning & Design Repository
 
-**Snapshot:** 2026-09-23 08:21 PHT (UTC+08:00)  
-**Phase:** Architecture hardening / pre-engineering — engineering is not yet authorized  
+**Snapshot:** 2026-09-23 09:20 PHT (UTC+08:00)  
+**Phase:** Architecture verification / pre-engineering — engineering is not yet authorized  
 **Project name:** **OM** — see `NAMING.md` for its seven canonical meanings, including **0M: zero total control**
 
 This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design reviews covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed/multi-relay delivery, the Discovery Fabric and revocable IntroGate, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, privacy-preserving LAN operation, censorship/network resilience, and future SMS/RCS integration, baseline/community semantics, permissionless services/LLM agency, explicit external bridges, portable user escape, metadata-minimizing routing, decentralized/composable safety controls, protocol longevity, and the 0M zero-total-control principle.
 
-Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, `history/20260921-2132/`, `history/20260922-0734/`, `history/20260922-1342/`, `history/20260922-1434/`, `history/20260922-2302/`, `history/20260923-0545/`, `history/20260923-0615/`, `history/20260923-0718/`, and `history/20260923-0756/` for traceability.
+Prior snapshots are preserved under `history/20260818/`, `history/20260921-0801/`, `history/20260921-1008/`, `history/20260921-2132/`, `history/20260922-0734/`, `history/20260922-1342/`, `history/20260922-1434/`, `history/20260922-2302/`, `history/20260923-0545/`, `history/20260923-0615/`, `history/20260923-0718/`, `history/20260923-0756/`, and `history/20260923-0821/` for traceability.
 
 ## Product thesis
 
@@ -103,7 +103,7 @@ And the implementation discipline remains:
 21. `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md` + `IMPORT_EXPORT_AND_USER_ESCAPE.md` — bridge trust boundaries, foreign provenance, and escape/portability.
 22. `METADATA_THREAT_MODEL.md` + `DECENTRALIZED_ABUSE_MODERATION.md` + `PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md` — metadata exposure, scoped safety, and 20-year/0M continuity.
 23. UI/accessibility/theme documents — product semantics above Core.
-24. `ARCHITECTURE_PHASE_PLAN.md` — blocking verification gates and architecture-freeze criteria.
+24. `ARCHITECTURE_PHASE_PLAN.md` + `verification/README.md` — blocking verification gates, current evidence, and the evidence-vs-passage boundary.
 25. `ENGINEER_START_HERE.md` / `ENGINEERING_HANDOFF.md` — retained for the future transition only.
 
 Existing detailed documents remain canonical where not superseded. Machine-readable authority and file classification live under `machine/`; run `python3 tools/validate_architecture.py` before accepting a checkpoint.

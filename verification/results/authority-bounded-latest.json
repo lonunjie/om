@@ -1,0 +1,74 @@
+{
+  "artifact": "OM bounded authority verification reference model",
+  "scope": [
+    "V-002",
+    "V-004",
+    "V-008",
+    "V-011",
+    "V-016"
+  ],
+  "gate_status_effect": "evidence_only_gates_remain_open",
+  "all_bounded_checks_passed": true,
+  "total_cases": 6508,
+  "results": [
+    {
+      "gate": "V-002",
+      "name": "AccountControlState bounded invariants",
+      "cases": 123,
+      "passed": true,
+      "notes": [
+        "Exhausted controller-set sizes 1..4 and every quarantine/approval subset.",
+        "Explicitly exercised denominator-shrink attack, rollback rejection, and same-parent fork freeze.",
+        "Does not replace mandatory TLC execution or recovery-policy state-space coverage."
+      ]
+    },
+    {
+      "gate": "V-004",
+      "name": "Group commit/control bounded traces",
+      "cases": 54,
+      "passed": true,
+      "notes": [
+        "Exercised duplicate/reorder/conflict/crash traces for one parent group-state+MLS epoch.",
+        "Conflicting same-parent bindings freeze instead of silently selecting arrival order.",
+        "Coordinator membership alone never authorizes a group-policy transition.",
+        "Still requires a formal TLA+/equivalent crash/partition model and MLS-profile integration evidence."
+      ]
+    },
+    {
+      "gate": "V-008",
+      "name": "Space/Room bounded authority",
+      "cases": 6156,
+      "passed": true,
+      "notes": [
+        "Exhausted grant/ceiling/restriction combinations over representative high-risk capabilities.",
+        "Direct active Room binding is required; nested-Space or affiliation-only paths do not confer authority.",
+        "Bilateral-link invariant is executable here, but full governance/quorum transition model remains pending."
+      ]
+    },
+    {
+      "gate": "V-011",
+      "name": "ServicePrincipal/agency bounded authority",
+      "cases": 123,
+      "passed": true,
+      "notes": [
+        "No-self-bootstrap uses only independent controller approvals; service endpoints never count toward their own escalation.",
+        "Install/data-access modes preserve installation != transcript access and representation != Account authorship.",
+        "Admission/reachability and hop-bound cases exercise cheap-identity/no-unsolicited-reach and loop termination.",
+        "Host migration, revocation races, alias replacement and real tool-capability execution remain for deeper gate evidence."
+      ]
+    },
+    {
+      "gate": "V-016",
+      "name": "Decentralized moderation bounded authority",
+      "cases": 52,
+      "passed": true,
+      "notes": [
+        "SafetyAdvisory validity/subscription is separated from local enforcement policy.",
+        "Provider denial cannot mutate Account/Room/Service protocol authority in the reference model.",
+        "Scoped-reference construction demonstrates issuer separation; exact canonical encoding remains unproved.",
+        "Sybil identity creation is not conflated with permission to reach a recipient.",
+        "Timeout clock/race semantics, evidence disclosure and malicious-governance/fork traces remain deeper work."
+      ]
+    }
+  ]
+}

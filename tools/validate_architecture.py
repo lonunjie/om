@@ -409,10 +409,47 @@ def validate_0821_metadata_abuse_longevity_guardrails() -> None:
         if "safety_advisory" not in kinds:
             fail("08:21 guard: ProviderCapabilities must retain optional safety_advisory role")
 
+
+def validate_0920_verification_evidence_guardrails() -> None:
+    summary = load_json(ROOT / "verification/results/phase1-summary.json")
+    if not isinstance(summary, dict):
+        return
+    if summary.get("phase1_passed") is not True:
+        fail("09:20 guard: phase1 verification runner must remain clean")
+    if summary.get("gate_status_effect") != "evidence_only_no_gate_automatically_passed":
+        fail("09:20 guard: verification evidence must not imply automatic gate passage")
+    if int(summary.get("bounded_cases", 0)) < 7772:
+        fail("09:20 guard: phase1 bounded evidence count regressed below 7772")
+    if int(summary.get("cross_impl_cbor_vectors", 0)) < 14:
+        fail("09:20 guard: deterministic-CBOR cross-implementation vectors regressed below 14")
+    if int(summary.get("offline_continuity_artifacts", 0)) < 60:
+        fail("09:20 guard: continuity dry-run artifact set regressed below 60")
+    expected = {"V-002","V-004","V-005","V-008","V-009","V-011","V-013","V-014","V-015","V-016","V-017"}
+    got = set(summary.get("gates_with_new_evidence", []))
+    if not expected.issubset(got):
+        fail(f"09:20 guard: phase1 evidence gate set regressed: missing={sorted(expected-got)}")
+    for req in [
+        "verification/tla/AccountControlState.tla",
+        "verification/vectors/account-control-regression-vectors.json",
+        "verification/FEASIBILITY_RECONNAISSANCE_20260923.md",
+        "verification/results/cbor-cross-impl-latest.json",
+    ]:
+        if not (ROOT / req).exists():
+            fail(f"09:20 guard: verification artifact missing: {req}")
+    gates = {g.get("id"): g for g in load_jsonl(ROOT / "machine/architecture_verification_gates.jsonl")}
+    for gid in expected:
+        if not gates.get(gid, {}).get("evidence"):
+            fail(f"09:20 guard: {gid} lost its recorded evidence links")
+    contract = load_json(ROOT / "machine/repository_contract.json")
+    if isinstance(contract, dict) and contract.get("engineering_authorized") is not False:
+        fail("09:20 guard: phase1 evidence does not authorize engineering")
+
+
 def main() -> int:
     validate_0718_extension_guardrails()
     validate_0756_zero_control_interop_portability_guardrails()
     validate_0821_metadata_abuse_longevity_guardrails()
+    validate_0920_verification_evidence_guardrails()
     contract = load_json(ROOT / "machine/repository_contract.json")
     if not isinstance(contract, dict):
         print("architecture validation FAILED: repository_contract unreadable", file=sys.stderr); return 1

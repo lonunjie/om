@@ -1,42 +1,41 @@
 # OM Architecture Snapshot
 
-Generated: **2026-09-23 08:21 PHT (UTC+08:00)**
+Generated: **2026-09-23 09:20 PHT (UTC+08:00)**
 
 ## State
 
-OM remains in **architecture-hardening / pre-engineering**. **Engineering is not authorized.** `engineering_authorized=false`.
+OM is in **architecture verification / pre-engineering**. **Engineering is not authorized.** `engineering_authorized=false`.
 
-The current architecture-design queue A-001..A-015 is now **design-resolved**. This does not authorize engineering: blocking verification gates V-001..V-017 remain the next phase.
+The architecture-design queue A-001..A-015 remains fully design-resolved (`design_open=0`). All blocking verification gates V-001..V-017 remain open (`verification_open=17`).
 
-## Completed hardening clusters
+## Phase-1 verification evidence added in this checkpoint
 
-- 06:15 — messenger baseline + Spaces/Rooms/Communities/permissions/Topics/Publications;
-- 07:18 — expressive media + portable packs + entitlement boundary + typed ServicePrincipals/bots/LLMs + capability-sandboxed plugins;
-- 07:56 — 0M/zero-total-control + permissionless service creation/delegated agency + external bridge provenance/E2EE boundaries + portable import/export/escape;
-- 08:21 — metadata threat model + decentralized abuse/moderation + 20-year protocol longevity/0M continuity.
+- executable bounded/reference models now cover V-002, V-004, V-008, V-009, V-011, V-013, V-014, V-015, V-016 and part of V-017;
+- independently written Python and Node.js deterministic-CBOR foundation encoders agree on 14 current fixtures for V-005 groundwork;
+- `AccountControlState.tla` + TLC configuration now exist for V-002, but TLC was not available in the current execution environment and was **not** claimed as run;
+- 7,772 bounded/adversarial cases completed without a modeled invariant violation;
+- an offline 60-artifact continuity dry run completed and produced an integrity root, while the full V-017 disaster/fork/rebuild exercise remains open;
+- feasibility reconnaissance narrows experiments for V-001/V-006/V-007/V-010/V-012 without treating standards availability as proof.
 
-## New 08:21 architecture
+## Important gap found rather than hidden
 
-- Metadata privacy is surface-specific. Stable canonical IDs remain above provider routing; private relay delivery uses provider-scoped opaque capabilities and randomized encrypted outer envelopes. E2EE is never presented as a blanket claim about IP/timing/size/membership/push/access metadata.
-- Recommended/Hardened/Maximum Privacy share the same crypto floor but may progressively add size padding, private discovery, provider separation, relayed calls, batching and anonymity transports. Expensive cover traffic is explicit and bounded.
-- Abuse/moderation is layered and scoped to users, Rooms, Spaces and providers. Optional signed `SafetyAdvisory` sources enable collaborative defense, but subscribers choose enforcement; there is no universal OM moderator, master blocklist or global numeric reputation score.
-- Reports remain selective `EvidencePackage` disclosures. Provider denial/delisting affects only provider custody/reach and cannot rewrite AccountID/Room/Service authority.
-- Protocol longevity is now explicit: released generations have mirrorable self-contained `Protocol Continuity Bundle`s, assigned registry meanings never change, incompatible evolution forks under new lineage/profile IDs, and dominant clients/extensions gain no protocol authority from market share.
-- Catastrophic crypto/project/provider failure never creates a universal OM master key. Use authenticated migration where continuity is provable; otherwise use explicit re-verification/successor/fork semantics.
+V-005 cannot pass yet: OM has selected deterministic CBOR, but the checkpoint still lacks frozen per-object CDDL/numeric-field/domain-separation registries for **every** signed/hashed v1 object. The two-language CBOR test validates the encoding foundation only. This is now explicitly recorded as a verification deliverable.
 
-## Design queue
+## Gate accounting
 
-**No open architecture-design blockers remain.** `design_open=0`.
+- `design_open=0`
+- `verification_open=17`
+- `engineering_authorized=false`
+- gates with new executable phase-1 evidence: V-002, V-004, V-005, V-008, V-009, V-011, V-013, V-014, V-015, V-016, V-017
+- gates still awaiting their first dedicated executable/runtime harness: V-001, V-003, V-006, V-007, V-010, V-012
 
-## Verification is now the blocker
+## Next verification work
 
-The architecture is selected but not yet proven. Blocking gates now include:
+1. run the pinned TLA+/TLC AccountControlState model and expand it through recovery/fork/rollback cases;
+2. build the dedicated V-003 one-to-one session model/fuzzer;
+3. freeze signed/hashed v1 object wire registries and expand V-005 to object-specific cross-implementation vectors;
+4. prototype V-001/V-006/V-007/V-010 feasibility on the actual intended runtimes;
+5. start parser/resource fuzzing for V-012;
+6. progressively replace bounded abstractions for V-004/V-008/V-009/V-011/V-013..V-017 with independent/runtime/formal evidence required by each ledger gate.
 
-- V-001..V-014: crypto, authority state machines, canonical encoding, browser vault, SFrame, Space/Room permissions, event convergence, plugin sandbox, service/agent authority, expressive media parsers, bridges and archives;
-- **V-015:** metadata exposure/privacy-path model;
-- **V-016:** decentralized abuse/moderation authority model;
-- **V-017:** protocol longevity/0M continuity drill.
-
-## Next phase
-
-The next work should be **architecture verification**, not feature engineering. Start with the highest-risk state/authority gates that can invalidate other work: V-002/V-004/V-008/V-011/V-016, while V-001/V-005/V-006 establish the production crypto/encoding/browser feasibility floor. Engineering remains locked until every blocking gate passes and a later explicit ADR authorizes it.
+No product engineering begins from this checkpoint.

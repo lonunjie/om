@@ -1,0 +1,47 @@
+{
+  "artifact": "OM bounded wire/trust-boundary verification reference model",
+  "scope": [
+    "V-013",
+    "V-014",
+    "V-015"
+  ],
+  "gate_status_effect": "evidence_only_gates_remain_open",
+  "all_bounded_checks_passed": true,
+  "total_cases": 400,
+  "results": [
+    {
+      "gate": "V-013",
+      "cases": 377,
+      "passed": true,
+      "notes": [
+        "BridgePrincipal remains the canonical author even when a foreign identity link exists.",
+        "Scoped origin fingerprints differ across mappings and loop/reflection traces suppress repeated mapping+direction origins.",
+        "Non-exact semantic mappings require explicit fidelity flags.",
+        "Plaintext bridge participation requires an explicit OM-E2EE boundary state.",
+        "Concrete adapters, multi-bridge integration and metadata trace behavior remain pending."
+      ]
+    },
+    {
+      "gate": "V-014",
+      "cases": 14,
+      "passed": true,
+      "notes": [
+        "Synthetic archive corpus rejects traversal, absolute paths, symlinks, oversized entries and high decompression ratios.",
+        "Foreign imports remain non-routable ImportedHistoryRecord data without fabricated native signatures.",
+        "Stale archived control state does not grant live send authority in the reference model.",
+        "Two independent archive implementations, encryption corruption/wrong-key behavior, duplicate-path corpus and actual media/SQLite adapters remain pending."
+      ]
+    },
+    {
+      "gate": "V-015",
+      "cases": 9,
+      "passed": true,
+      "notes": [
+        "Abstract relay traces keep canonical AccountID/ConversationID/MLS group IDs out of outer routing fields.",
+        "Provider capabilities and outer-wrap tags differ across provider paths.",
+        "MetadataExposureDescriptor-like claims are rejected when contradicted by observed trace properties.",
+        "This is a logical trace model only; real packet/provider/browser traces and collusion/timing/size measurements remain mandatory."
+      ]
+    }
+  ]
+}
