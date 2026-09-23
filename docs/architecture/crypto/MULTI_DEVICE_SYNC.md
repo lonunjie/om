@@ -38,7 +38,7 @@ Backup restore recreates local state and then performs protocol-supported reconc
 ## Open details
 
 - exact self-sync protocol;
-- exact one-to-one multi-device session-manager state machine (`ONE_TO_ONE_SESSION_MANAGEMENT.md`);
+- exact one-to-one multi-device session-manager state machine ([`ONE_TO_ONE_SESSION_MANAGEMENT.md`](ONE_TO_ONE_SESSION_MANAGEMENT.md));
 - conflict semantics for settings/account-private state;
 - new-device bootstrap authentication;
 - history bundle chunking/resume;
@@ -51,7 +51,7 @@ Multi-device chat/history convergence and account-control convergence are distin
 New messaging-device enrollment may be lighter-weight; promotion to control-device status is constitutional.
 ## 2026-09-22 hardening — session management is separate from self-sync
 
-`ONE_TO_ONE_SESSION_MANAGEMENT.md` is now canonical. Account-private preference/history sync does not solve per-correspondent cryptographic session selection. Every eligible remote DeviceIdentity may require its own active/inactive ratchet/session lifecycle, crossed-initiation handling, stale-device handling and logical-message deduplication.
+[`ONE_TO_ONE_SESSION_MANAGEMENT.md`](ONE_TO_ONE_SESSION_MANAGEMENT.md) is now canonical. Account-private preference/history sync does not solve per-correspondent cryptographic session selection. Every eligible remote DeviceIdentity may require its own active/inactive ratchet/session lifecycle, crossed-initiation handling, stale-device handling and logical-message deduplication.
 
 Authorization comes from `AccountControlState`, never from a provider's bare device list.
 
@@ -61,4 +61,4 @@ New-device bootstrap uses an explicit grant plus same-account authenticated E2EE
 
 ## 2026-09-24 device-link visibility (R-166)
 
-Every new device enrollment produces an authenticated, non-suppressible notice on every other active device of the account, derived from AccountControlState. Settings → Devices lists every device with enrollment time and last-seen class. A conforming client cannot complete a link silently. This is the primary defense against proximate-adversary device linking (`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md` §2).
+Every new device enrollment produces an authenticated, non-suppressible notice on every other active device of the account, derived from AccountControlState. Settings → Devices lists every device with enrollment time and last-seen class. A conforming client cannot complete a link silently. This is the primary defense against proximate-adversary device linking ([`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md) §2).

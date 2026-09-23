@@ -200,7 +200,7 @@ Personal users may authorize assistants, but the same principles apply:
 
 Public search records MUST NOT publish a reusable relationship mailbox capability. A sender first obtains a short-lived/single-use `IntroductionTicket` scoped to a small MessageRequest. The IntroGate can enforce replay protection, per-recipient quotas, rate limits and optional privacy-preserving admission proofs before expensive storage/fanout work.
 
-Invites carry separate revocable capabilities. Revoking an invite does not affect accepted relationships. See `INVITES_INTROGATE_AND_SPAM.md`.
+Invites carry separate revocable capabilities. Revoking an invite does not affect accepted relationships. See [`INVITES_INTROGATE_AND_SPAM.md`](INVITES_INTROGATE_AND_SPAM.md).
 
 ## 2026-09-23 bot/LLM direction
 
@@ -212,9 +212,9 @@ Bots and LLM agents are explicit service principals. Default interaction should 
 
 The canonical `ConversationEvent` envelope therefore carries `author_principal: PrincipalRef` plus an authenticated `author_endpoint_id`. Human-authored events bind the endpoint to `DeviceIdentity -> AccountControlState`; autonomous service-authored events bind it to `ServiceEndpoint -> ServiceControlState`. Neither service endpoints nor their controllers become members of the user's account-device majority.
 
-Default service interaction is selected-context invocation. Continuous scoped subscription and full-Room membership require explicit grants and visible disclosure; a full-Room service is an actual plaintext recipient. Local model execution and network egress are separate capabilities. Detailed rules live in `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`.
+Default service interaction is selected-context invocation. Continuous scoped subscription and full-Room membership require explicit grants and visible disclosure; a full-Room service is an actual plaintext recipient. Local model execution and network egress are separate capabilities. Detailed rules live in [`SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`](../ecosystem/SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md).
 
 
 ## 2026-09-23 07:56 creation/delegated-agency refinement
 
-Service identity creation is permissionless and local; no BotFather/global bot issuer exists. Discovery/catalogs/hosting are optional replaceable roles. A personal autonomous agent acting for an AccountPrincipal remains authored by its ServicePrincipal and may attach a scoped `RepresentationGrant`, allowing clear UI such as “Alice · via Assistant” without making the service an Account device. See `SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`.
+Service identity creation is permissionless and local; no BotFather/global bot issuer exists. Discovery/catalogs/hosting are optional replaceable roles. A personal autonomous agent acting for an AccountPrincipal remains authored by its ServicePrincipal and may attach a scoped `RepresentationGrant`, allowing clear UI such as “Alice · via Assistant” without making the service an Account device. See [`SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`](../ecosystem/SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md).

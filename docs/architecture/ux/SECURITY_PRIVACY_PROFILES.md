@@ -102,7 +102,7 @@ Changing a convenience/privacy profile must not silently lower the authenticated
 
 ## 2026-09-23 metadata-threat-model resolution
 
-`METADATA_THREAT_MODEL.md` is canonical for A-013.
+[`METADATA_THREAT_MODEL.md`](../../threat-model/METADATA_THREAT_MODEL.md) is canonical for A-013.
 
 The profiles above are policy bundles, not privacy badges. In particular:
 
@@ -119,4 +119,4 @@ The profiles above are policy bundles, not privacy badges. In particular:
 
 "Strongest approved E2EE/PQ-hybrid profile" above means the strongest approved profile **for each conversation type**. In OM-Crypto-v1, 1:1 conversations are hybrid-PQ. Private groups and group calls use the classical RFC 9420 X25519 MLS suite until the ADR-0107 adoption triggers are met. No preset may claim PQ confidentiality for groups. Presets never change this; it is a property of the CryptoProfile, not of privacy policy.
 
-Coercion, device-access and platform-leakage controls (app lock, secure surfaces, keyboard/spellcheck hints, backup exclusion) are defined in `ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md` and are part of the Hardened and Maximum Privacy bundles.
+Coercion, device-access and platform-leakage controls (app lock, secure surfaces, keyboard/spellcheck hints, backup exclusion) are defined in [`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md) and are part of the Hardened and Maximum Privacy bundles.

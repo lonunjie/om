@@ -11,7 +11,7 @@ Release trust and deployment are separate problems.
 
 ## 2. Release artifacts
 
-Canonical project releases publish signed update metadata/artifacts through the software-supply-chain model in `SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md` and independent mirrors.
+Canonical project releases publish signed update metadata/artifacts through the software-supply-chain model in [`SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md`](../providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md) and independent mirrors.
 
 A ClientHost deployment mechanism MUST verify the expected release identity before deploying when the hosting platform permits an out-of-band deployment controller.
 

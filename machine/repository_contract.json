@@ -12,10 +12,10 @@
     "public releases/claims additionally require overall gate status passed and applicable public_release_gates passed"
   ],
   "constitution_files": [
-    "PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
-    "ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md",
-    "LICENSING_AND_CONTRIBUTION_POLICY.md",
-    "PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+    "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+    "docs/process/ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md",
+    "docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md",
+    "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
     "AGENTS.md"
   ],
   "machine_truth_files": [
@@ -31,8 +31,7 @@
     "machine/public_release_gates.jsonl",
     "machine/deferred_product_questions.jsonl",
     "machine/requirement_traceability.json",
-    "machine/threat_register.jsonl",
-    "MANIFEST.json"
+    "machine/threat_register.jsonl"
   ],
   "canonical_identity": {
     "account_id": "cryptographically random 256-bit stable identifier independent of keys/providers/aliases",
@@ -41,45 +40,46 @@
     "forbid_competing_current_accountstate_authority": true
   },
   "schema_singletons": {
-    "ProviderCapabilities": "protocol/provider-capabilities.logical.schema.json"
+    "ProviderCapabilities": "spec/protocol/provider-capabilities.logical.schema.json"
   },
   "required_new_hardening_docs": [
-    "ARCHITECTURE_RESOLUTIONS_20260923.md",
-    "ASYNC_KEY_MATERIAL.md",
-    "CLIENTHOST_UPDATE_LIFECYCLE.md",
-    "GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
-    "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
-    "NAMING.md",
-    "ONE_TO_ONE_SESSION_MANAGEMENT.md",
-    "REACHABILITY_AND_OBJECT_REPAIR.md",
-    "TIME_AND_EXPIRY_SEMANTICS.md",
-    "MESSENGER_BASELINE_V1.md",
-    "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
-    "SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md",
-    "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
-    "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md",
-    "IMPORT_EXPORT_AND_USER_ESCAPE.md",
-    "METADATA_THREAT_MODEL.md",
-    "DECENTRALIZED_ABUSE_MODERATION.md",
-    "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+    "docs/reviews/ARCHITECTURE_RESOLUTIONS_20260923.md",
+    "docs/architecture/crypto/ASYNC_KEY_MATERIAL.md",
+    "docs/architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md",
+    "docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
+    "docs/process/MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
+    "docs/constitution/NAMING.md",
+    "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md",
+    "docs/architecture/delivery/REACHABILITY_AND_OBJECT_REPAIR.md",
+    "docs/architecture/events/TIME_AND_EXPIRY_SEMANTICS.md",
+    "docs/architecture/events/MESSENGER_BASELINE_V1.md",
+    "docs/architecture/groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
+    "docs/architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md",
+    "docs/architecture/ecosystem/SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
+    "docs/architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md",
+    "docs/architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md",
+    "docs/threat-model/METADATA_THREAT_MODEL.md",
+    "docs/architecture/safety/DECENTRALIZED_ABUSE_MODERATION.md",
+    "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
     "verification/README.md",
     "verification/FEASIBILITY_RECONNAISSANCE_20260923.md",
     "verification/TLAPLUS_TOOL_PIN.md",
-    "HARDENING_REVIEW_20260924.md",
-    "RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md",
-    "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
-    "ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md",
-    "VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md",
-    "ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md",
+    "docs/reviews/HARDENING_REVIEW_20260924.md",
+    "docs/process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md",
+    "docs/architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
+    "docs/architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md",
+    "docs/architecture/providers/VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md",
+    "docs/architecture/identity/ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md",
     "verification/GATE_PASS_CRITERIA.md"
   ],
   "current_file_registry": "machine/file_registry.json",
   "architecture_map": "machine/architecture_map.json",
   "manifest_excludes": [
-    "MANIFEST.json"
+    "MANIFEST.json",
+    "OM_EXPORT.json"
   ],
   "history_roots": [
-    "history/"
+    "git tags checkpoint/*"
   ],
   "license_policy": {
     "shared_core_future": "MPL-2.0",

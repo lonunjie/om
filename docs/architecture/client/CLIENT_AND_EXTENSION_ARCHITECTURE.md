@@ -301,7 +301,7 @@ Rich-text rendering is part of shared `om-ui` but consumes only validated RichTe
 
 ## 2026-09-23 OpenMessenger / OneMessenger extension boundary
 
-Independent OM clients require no central approval. Optional capabilities must be attachable without converting the official client into a privileged protocol oracle. The 07:18 hardening pass freezes the client-plugin boundary in `PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md`: protocol schemas, inert content bundles, sandboxed local plugins, isolated web/mini-app surfaces, remote services and provider adapters are distinct extension classes.
+Independent OM clients require no central approval. Optional capabilities must be attachable without converting the official client into a privileged protocol oracle. The 07:18 hardening pass freezes the client-plugin boundary in [`PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md`](../ecosystem/PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md): protocol schemas, inert content bundles, sandboxed local plugins, isolated web/mini-app surfaces, remote services and provider adapters are distinct extension classes.
 
 The official reference client does **not** load arbitrary in-process extension code. Sandboxed local executable plugins use a versioned OM WebAssembly Component Model/WIT capability world, with no ambient filesystem/network/process/environment/secret-store authority. Plaintext-read permission is distinct from network egress; draft/compose permission is distinct from send; plugins receive no raw account/MLS/recovery keys or authority to hide security UI. Permission expansion on update requires explicit approval.
 

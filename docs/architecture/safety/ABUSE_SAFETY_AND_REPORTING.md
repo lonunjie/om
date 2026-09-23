@@ -97,7 +97,7 @@ A store-distributed client or managed provider may add a `ReportTarget` integrat
 
 ## 2026-09-23 08:21 decentralized moderation resolution
 
-`DECENTRALIZED_ABUSE_MODERATION.md` is now canonical for A-014.
+[`DECENTRALIZED_ABUSE_MODERATION.md`](DECENTRALIZED_ABUSE_MODERATION.md) is now canonical for A-014.
 
 The earlier principles above remain valid but are sharpened as follows:
 
@@ -111,7 +111,7 @@ The earlier principles above remain valid but are sharpened as follows:
 
 ## 2026-09-24 public-surface illegal content (PR-014, R-181)
 
-The "no universal client-side scanning" stance (`DECENTRALIZED_ABUSE_MODERATION.md`) covers **private E2EE conversations**. Reference clients do not scan private plaintext for any authority, and they do not ship hidden hash-matching.
+The "no universal client-side scanning" stance ([`DECENTRALIZED_ABUSE_MODERATION.md`](DECENTRALIZED_ABUSE_MODERATION.md)) covers **private E2EE conversations**. Reference clients do not scan private plaintext for any authority, and they do not ship hidden hash-matching.
 
 **Public or provider-readable surfaces** are different and must say so explicitly:
 

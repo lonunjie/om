@@ -118,7 +118,7 @@ TUF/provenance/reproducible assets improve auditability and update discipline, b
 Reference PWA therefore also requires minimal self-owned ClientHost, no remote runtime dependency/CDN, strict CSP, and a documented native higher-assurance option. SLSA 1.2/in-toto provenance should be generated from the start of public builds rather than retrofitted after release.
 ## 2026-09-22 hardening — self-owned ClientHost deployment lifecycle
 
-`CLIENTHOST_UPDATE_LIFECYCLE.md` is canonical. Signed release metadata is necessary but not sufficient for a fleet of independently owned PWA origins: OM must also define deployment/staging/service-worker/rollback/emergency-update and compromised-origin migration behavior.
+[`CLIENTHOST_UPDATE_LIFECYCLE.md`](../client/CLIENTHOST_UPDATE_LIFECYCLE.md) is canonical. Signed release metadata is necessary but not sufficient for a fleet of independently owned PWA origins: OM must also define deployment/staging/service-worker/rollback/emergency-update and compromised-origin migration behavior.
 
 Same-origin JavaScript is not treated as an independent verifier after total origin compromise. Recovery to a trusted ClientHost/native endpoint uses authenticated device enrollment/migration.
 

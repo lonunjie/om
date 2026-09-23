@@ -102,7 +102,7 @@ Backups restore history, not authority. Current AccountControlState, revocations
 
 Attachment/object identity is separated from provider location. Canonical events refer to stable encrypted-object identity; `BlobLocationRecord` carries authenticated replaceable locators. Provider migration therefore never rewrites canonical message identity.
 
-`REACHABILITY_AND_OBJECT_REPAIR.md` defines overlap and late/offline-recipient repair when an old locator disappears before a replacement reaches every authorized device.
+[`REACHABILITY_AND_OBJECT_REPAIR.md`](../delivery/REACHABILITY_AND_OBJECT_REPAIR.md) defines overlap and late/offline-recipient repair when an old locator disappears before a replacement reaches every authorized device.
 
 ## 2026-09-23 blob resolution
 

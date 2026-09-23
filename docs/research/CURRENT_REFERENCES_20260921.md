@@ -36,4 +36,4 @@ Do not treat an Internet-Draft as a finalized RFC. Do not copy provider quotas/p
 
 ## Continuity/trust checkpoint
 
-See `SECURITY_CONTINUITY_REFERENCES_20260921.md` for Cloudflare workers.dev/OAuth/R2/DO verification, NIST crypto-agility/threshold work, Key Transparency, Apple background notification constraints, TUF/SLSA/in-toto/reproducible builds and Privacy Pass.
+See [`SECURITY_CONTINUITY_REFERENCES_20260921.md`](SECURITY_CONTINUITY_REFERENCES_20260921.md) for Cloudflare workers.dev/OAuth/R2/DO verification, NIST crypto-agility/threshold work, Key Transparency, Apple background notification constraints, TUF/SLSA/in-toto/reproducible builds and Privacy Pass.

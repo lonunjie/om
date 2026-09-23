@@ -193,7 +193,7 @@ Reaction state is keyed by:
 (actor_principal, target_event_id, reaction_key)
 ```
 
-Unicode reactions remain the zero-dependency baseline. A custom reaction carries an inert `ExpressiveAssetRef` plus fallback semantics from `EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`; the immutable BlobID is the rendering authority, not a live pack/catalog. The latest authorized state wins.
+Unicode reactions remain the zero-dependency baseline. A custom reaction carries an inert `ExpressiveAssetRef` plus fallback semantics from [`EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`](../ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md); the immutable BlobID is the rendering authority, not a live pack/catalog. The latest authorized state wins.
 
 This makes adding/removing a reaction idempotent and multi-device friendly.
 
@@ -245,7 +245,7 @@ poll.vote
 poll.close
 ```
 
-The `poll.create` EventID identifies the poll. Latest authorized vote state per `(actor_principal, target_poll_event_id)` wins; close is monotonic and reorder/duplication convergence is a verification obligation. Baseline polls do not claim cryptographic voter anonymity; see `MESSENGER_BASELINE_V1.md`.
+The `poll.create` EventID identifies the poll. Latest authorized vote state per `(actor_principal, target_poll_event_id)` wins; close is monotonic and reorder/duplication convergence is a verification obligation. Baseline polls do not claim cryptographic voter anonymity; see [`MESSENGER_BASELINE_V1.md`](MESSENGER_BASELINE_V1.md).
 
 ### Topic organization
 
@@ -258,7 +258,7 @@ topic.status.set
 message.topic.set
 ```
 
-Topics organize a Room but do not create another membership/MLS object. Lightweight threads use `thread_root_event_id` and require no separate event kind. See `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`.
+Topics organize a Room but do not create another membership/MLS object. Lightweight threads use `thread_root_event_id` and require no separate event kind. See [`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](../groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md).
 
 ### Forwarding is new authorship
 

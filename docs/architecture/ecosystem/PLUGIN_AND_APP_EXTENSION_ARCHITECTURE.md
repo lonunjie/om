@@ -21,7 +21,7 @@ An item may use more than one class, but crossing a boundary is explicit. A cont
 
 ## Protocol extensions are schemas, not plugins
 
-Protocol extension rules remain those in `PROTOCOL_EXTENSIBILITY.md`:
+Protocol extension rules remain those in [`PROTOCOL_EXTENSIBILITY.md`](../../constitution/PROTOCOL_EXTENSIBILITY.md):
 
 - public/namespaced extension identifier;
 - explicit criticality;
@@ -258,7 +258,7 @@ The exact executable packaging of provider adapters need not be identical to UI 
 
 A bot/LLM/service running elsewhere is a `ServicePrincipal`, not downloaded code.
 
-It receives only the data authorized by `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md` and cannot invoke client-plugin APIs unless the user separately installs a local companion plugin.
+It receives only the data authorized by [`SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`](SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md) and cannot invoke client-plugin APIs unless the user separately installs a local companion plugin.
 
 This split makes remote disclosure visible and prevents "install bot" from becoming "execute vendor code inside your secret-holding client."
 

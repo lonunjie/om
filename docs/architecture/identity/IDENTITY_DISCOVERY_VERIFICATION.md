@@ -440,7 +440,7 @@ Automatic cryptographic key verification can detect inconsistencies in directory
 
 ## 2026-09-21 discovery checkpoint: Resolver + ContactDescriptor
 
-The earlier alias model is refined into the canonical `DISCOVERY_FABRIC.md` design.
+The earlier alias model is refined into the canonical [`DISCOVERY_FABRIC.md`](../discovery/DISCOVERY_FABRIC.md) design.
 
 Key changes:
 
@@ -453,4 +453,4 @@ Key changes:
 - descriptors are authenticated, expiring, cacheable, and may carry transparency proofs;
 - accepted relationships cease depending on directories and exchange private RelaySets/capabilities directly.
 
-See `DISCOVERY_FABRIC.md`, `INVITES_INTROGATE_AND_SPAM.md`, and ADR-0019/0020/0021/0025.
+See [`DISCOVERY_FABRIC.md`](../discovery/DISCOVERY_FABRIC.md), [`INVITES_INTROGATE_AND_SPAM.md`](../discovery/INVITES_INTROGATE_AND_SPAM.md), and ADR-0019/0020/0021/0025.

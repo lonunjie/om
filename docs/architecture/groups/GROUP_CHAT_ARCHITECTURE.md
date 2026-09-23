@@ -108,7 +108,7 @@ OM does not require a unique permanent owner or an unrestricted Administrator by
 
 High-risk changes such as governance replacement, a plaintext bridge/full-room service, or an encryption/security-profile change may require a configured quorum. If governance authority is irrecoverably lost, the Room becomes administratively frozen rather than giving SeedLife/provider support a takeover key.
 
-See `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md` for the canonical permission and role model.
+See [`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md) for the canonical permission and role model.
 
 ## Creating a group
 
@@ -230,7 +230,7 @@ A shareable link should support admin approval by default.
 
 A private group may be linked into one or more Spaces without changing its ConversationID, membership or MLS identity. Space membership does not silently imply Room membership. An optional authority-parent Space can receive explicitly delegated management capabilities, with accepted authority materialized in Room control state.
 
-See `SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md`.
+See [`SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md`](SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md).
 
 ## Private announcements and public feeds
 
@@ -303,7 +303,7 @@ The service is not automatically an MLS member. The invoking client sends only t
 
 If a `ServicePrincipal` becomes an MLS member, its authorized service endpoints are cryptographic recipients. Users must assume the service can access Room plaintext available under keys it possesses. A UI-only "mentions only" promise is not a cryptographic boundary once an endpoint has Room decryption state.
 
-Full-member services must be visibly labeled as automated/non-human in roster and join/change events. Removing/revoking them rotates future Room cryptographic state in the same way removal of another recipient does; past plaintext cannot be clawed back. See `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`.
+Full-member services must be visibly labeled as automated/non-human in roster and join/change events. Removing/revoking them rotates future Room cryptographic state in the same way removal of another recipient does; past plaintext cannot be clawed back. See [`SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`](../ecosystem/SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md).
 
 ## Bridges
 
@@ -412,7 +412,7 @@ Independent clients can create a group, add/remove accounts and devices, exchang
 - Group voice/video uses SFrame media E2EE with participant/key state authenticated from the OM/MLS group context; an SFU is routing infrastructure, not a plaintext endpoint.
 ## 2026-09-22 hardening — Commit ordering and state binding
 
-`GROUP_COMMIT_AND_STATE_CONVERGENCE.md` is canonical. MLS alone does not decide which of two valid Commits from the same epoch becomes canonical; OM must select an application-level ordering/conflict profile.
+[`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](GROUP_COMMIT_AND_STATE_CONVERGENCE.md) is canonical. MLS alone does not decide which of two valid Commits from the same epoch becomes canonical; OM must select an application-level ordering/conflict profile.
 
 Membership/role-affecting `GroupControlState` changes must be bound to the corresponding MLS Commit/resulting epoch so application membership and cryptographic membership cannot silently diverge. Group architecture remains blocked from wire freeze until that state machine is specified and adversarially tested.
 
@@ -424,4 +424,4 @@ The 2026-09-23 06:15 hardening pass resolved A-005..A-008 and A-010: Spaces link
 
 ## 2026-09-24 PQ status of groups (ADR-0107)
 
-v1 groups are classically confidential (RFC 9420 X25519 suite). The group wire must carry a tested ReInit path to a hybrid-PQ MLS profile, and migration happens automatically once the objective adoption triggers in `CRYPTOGRAPHY_AND_AGILITY.md` are met (V-019). No surface may claim PQ confidentiality for v1 groups.
+v1 groups are classically confidential (RFC 9420 X25519 suite). The group wire must carry a tested ReInit path to a hybrid-PQ MLS profile, and migration happens automatically once the objective adoption triggers in [`CRYPTOGRAPHY_AND_AGILITY.md`](../crypto/CRYPTOGRAPHY_AND_AGILITY.md) are met (V-019). No surface may claim PQ confidentiality for v1 groups.

@@ -121,7 +121,7 @@ Friendly name and optional avatar. AccountID and cryptographic material are gene
 
 ### 3. Set up your OM home
 
-> **2026-09-24:** when onboarding starts from an invite that carries sponsorship, this step is replaced by "You're in — using Alice's home for now" (T0). Without an invite, the user chooses a community home, sets up their own, or links an existing one. See `HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md` §7. The continuity check (ADR-0106) appears after the first conversation.
+> **2026-09-24:** when onboarding starts from an invite that carries sponsorship, this step is replaced by "You're in — using Alice's home for now" (T0). Without an invite, the user chooses a community home, sets up their own, or links an existing one. See [`HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`](../providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md) §7. The continuity check (ADR-0106) appears after the first conversation.
 
 Plain-language explanation:
 

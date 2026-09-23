@@ -48,7 +48,7 @@ The canonical OM project SHOULD, unless a later ADR establishes a compelling rea
 
 ## 4. Open-source license protection
 
-OM's standard licenses are deliberately established, widely used licenses with warranty disclaimers and limitations of liability **to the extent applicable law permits**. `LICENSING_AND_CONTRIBUTION_POLICY.md` defines the licensing stack.
+OM's standard licenses are deliberately established, widely used licenses with warranty disclaimers and limitations of liability **to the extent applicable law permits**. [`LICENSING_AND_CONTRIBUTION_POLICY.md`](LICENSING_AND_CONTRIBUTION_POLICY.md) defines the licensing stack.
 
 The project SHOULD NOT add a custom restrictive EULA merely to shift every conceivable risk to users; that could conflict with open-source goals, create uncertain enforceability and become a capture mechanism. A distributor/provider may adopt role-specific terms for the service it actually operates, subject to its law and the applicable open-source license.
 

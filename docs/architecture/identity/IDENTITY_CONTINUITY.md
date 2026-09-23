@@ -233,4 +233,4 @@ Identity continuity now explicitly separates `AccountControlState` from chat eve
 
 A messaging device is not automatically a control device. Promotion to control status is itself constitutional, preventing one compromised device from adding attacker devices and fabricating a quorum.
 
-Backups restore historical data but never make historical control state authoritative. See `ACCOUNT_CONTINUITY_AND_CONTROL.md` and `RECOVERY_AND_BACKUP_POLICY.md`.
+Backups restore historical data but never make historical control state authoritative. See [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](ACCOUNT_CONTINUITY_AND_CONTROL.md) and [`RECOVERY_AND_BACKUP_POLICY.md`](RECOVERY_AND_BACKUP_POLICY.md).

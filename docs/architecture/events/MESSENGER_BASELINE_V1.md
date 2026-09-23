@@ -42,7 +42,7 @@ A reference client may implement more than the minimum conformance surface, but 
 | Mute | Local/account-private UX | Notification preference, not room authority. |
 | Archive / folders / labels | Local/account-private UX | Organizational view state only. |
 | Scheduled send | Local/account-private UX | Encrypted local queue until actual send time. If no authorized device is online, nothing is sent. |
-| Stickers | Product-baseline capability | First-class UX is required; bounded inert media + portable pack semantics are frozen in `EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`. |
+| Stickers | Product-baseline capability | First-class UX is required; bounded inert media + portable pack semantics are frozen in [`EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`](../ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md). |
 | GIF-like looping animation | Product-baseline capability | Modeled semantically as looping animation; baseline interoperable expressive payload is bounded animated WebP rather than a requirement to use the legacy GIF codec. |
 | Contact sharing | Core interoperable | Existing signed/expiring `ContactCapsule` model. |
 | Link preview | Standard optional capability | Existing privacy-preserving provider/client boundary; preview failure must not block message delivery. |
@@ -51,8 +51,8 @@ A reference client may implement more than the minimum conformance surface, but 
 | 1:1 calls | Product baseline; standard optional capability | Existing call/session architecture. Text messaging still works on clients without media capability. |
 | Group calls | Product baseline where platform capability exists | Existing MLS-aware call architecture; no need to make call signaling durable conversation content. |
 | Small/normal private groups | Core product baseline | One `ConversationID`, AccountID human roster, DeviceIdentity MLS roster. |
-| Communities / spaces | Standard V1 capability | Container/control object; independent linked rooms; see `SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md`. |
-| Forum topics / lightweight threads | Standard V1 capability | Layered room-local organization; see `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`. |
+| Communities / spaces | Standard V1 capability | Container/control object; independent linked rooms; see [`SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md`](../groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md). |
+| Forum topics / lightweight threads | Standard V1 capability | Layered room-local organization; see [`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](../groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md). |
 | Private announcement room | Standard V1 capability | Ordinary private MLS room with `room.post` granted only to allowed publishers. |
 | Public broadcast publication | Standard V1 capability | Separate signed `Publication`, not a pretend MLS group. |
 | Static location card | Later standardized capability | No wire shape is frozen in this pass; plain text/map links remain possible. |
@@ -80,7 +80,7 @@ poll.vote
 poll.close
 ```
 
-Threads do not need a new event kind: `message.create.thread_root_event_id` points to the thread root. Topics have separate room-organization state/events described in `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md` because topic lifecycle is not ordinary message content.
+Threads do not need a new event kind: `message.create.thread_root_event_id` points to the thread root. Topics have separate room-organization state/events described in [`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](../groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md) because topic lifecycle is not ordinary message content.
 
 Unknown optional capabilities continue to use the extension criticality rules. A client must not silently reinterpret a poll, topic operation, custom reaction, or other standardized capability as plain text if that would change meaning.
 
@@ -180,7 +180,7 @@ The exact baseline audio codec/container belongs with media capability negotiati
 
 ## Calls remain outside durable chat events
 
-Call invitation/session signaling remains short-lived session state under `CALLS_AND_REALTIME_MEDIA.md`. A timeline may materialize a local “missed call / call ended” notice, but a client does not need a permanent ConversationEvent to make the media security protocol correct.
+Call invitation/session signaling remains short-lived session state under [`CALLS_AND_REALTIME_MEDIA.md`](../calls/CALLS_AND_REALTIME_MEDIA.md). A timeline may materialize a local “missed call / call ended” notice, but a client does not need a permanent ConversationEvent to make the media security protocol correct.
 
 ## Product completeness rule
 
@@ -193,7 +193,7 @@ This document resolves **A-010 baseline_product**. It deliberately leaves exact 
 - A-001/A-002: sticker, animation and portable pack formats/security;
 - A-004: bot/LLM principal invocation and disclosure;
 - A-009: plugin/app sandbox and capability model;
-- A-011: external-network bridge fidelity and trust-state mapping — resolved in `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`.
-- A-012: import/export/escape — resolved in `IMPORT_EXPORT_AND_USER_ESCAPE.md`.
+- A-011: external-network bridge fidelity and trust-state mapping — resolved in [`INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`](../ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md).
+- A-012: import/export/escape — resolved in [`IMPORT_EXPORT_AND_USER_ESCAPE.md`](../ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md).
 
 The completed A-013..A-015 passes pressure-tested these semantics for metadata leakage, decentralized abuse handling and long-term protocol evolution. Their resolutions extend the surrounding architecture without weakening the baseline semantic boundaries frozen here.

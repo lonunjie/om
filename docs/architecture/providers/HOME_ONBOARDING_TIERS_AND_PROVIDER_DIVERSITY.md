@@ -4,7 +4,7 @@
 - **Checkpoint:** 2026-09-24 02:29 PHT
 - **Decision:** ADR-0102
 - **Gates:** V-020 (pre-engineering + pre-release), PR-013
-- **Supersedes in part:** the "v1 premise: user-owned Cloudflare deployment" framing in `PROVISIONING_AND_BOOTSTRAP.md` §1. Cloudflare remains the first reference *own-cloud* tier. It is no longer the only way in.
+- **Supersedes in part:** the "v1 premise: user-owned Cloudflare deployment" framing in [`PROVISIONING_AND_BOOTSTRAP.md`](PROVISIONING_AND_BOOTSTRAP.md) §1. Cloudflare remains the first reference *own-cloud* tier. It is no longer the only way in.
 
 ## 1. Why the old premise fails OM's own tests
 
@@ -26,7 +26,7 @@ A **Home** is the set of provider roles (relay/mailbox, IntroGate, discovery pub
 | **T1 Hosted Home** | A household member, community, organization or commercial/managed provider | the host's own policy | Families, clubs, companies, people who prefer a service |
 | **T2 Own cloud** | The user, in their own cloud account (Cloudflare reference first) | cloud account | Enthusiasts, sovereignty-minded users |
 | **T3 Self-hosted** | The user, on a VPS, home server or single-board computer | none beyond the machine | Technical users, communities running T1 for others |
-| **T4 Local only** | No WAN Home; LAN/QR peers | none | Offline/specialty (existing `LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md`) |
+| **T4 Local only** | No WAN Home; LAN/QR peers | none | Offline/specialty (existing [`LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md`](../network/LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md)) |
 
 A user may hold several tiers at once (active + fallback RelaySet). Moving between tiers is RelaySet migration and never changes AccountID (R-001, R-052).
 
@@ -49,10 +49,10 @@ The ticket is an ordinary IntroGate-style bearer capability. It is scoped to "cr
 
 ### 3.2 Bounds (SponsoredMailboxGrant)
 
-Schema: `protocol/sponsored-mailbox-grant.logical.schema.json`.
+Schema: [`spec/protocol/sponsored-mailbox-grant.logical.schema.json`](../../../spec/protocol/sponsored-mailbox-grant.logical.schema.json).
 
 - hard quotas: stored bytes, envelopes per hour, max envelope size, max blob spool, retention;
-- `expires_at` with renewal by the sponsor (clock class: provider wall-clock, non-authoritative; see `TIME_AND_EXPIRY_SEMANTICS.md`);
+- `expires_at` with renewal by the sponsor (clock class: provider wall-clock, non-authoritative; see [`TIME_AND_EXPIRY_SEMANTICS.md`](../events/TIME_AND_EXPIRY_SEMANTICS.md));
 - `may_sponsor_further = false` by default, so one Home cannot be turned into an unbounded chain;
 - per-sponsor cap on concurrent sponsored mailboxes, enforced at the sponsor's Home;
 - sponsorship consumes the **sponsor's** budget under the sponsor's zero-paid-budget policy (R-016). Exhaustion fails closed at the sponsor's Home; it never bills.
@@ -73,7 +73,7 @@ The MetadataExposureDescriptor for the StarterMailbox role must state this (V-01
 
 ## 4. T1 — Hosted Homes and the Home list
 
-- A Hosted Home grants mailboxes under its own policy, terms and jurisdiction. It is responsible for the service it offers (`OPERATORLESS_CORE_AND_ECOSYSTEM.md`).
+- A Hosted Home grants mailboxes under its own policy, terms and jurisdiction. It is responsible for the service it offers ([`OPERATORLESS_CORE_AND_ECOSYSTEM.md`](../../constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md)).
 - A distribution may ship a **replaceable Home list** (like a directory list). The list must be user-editable. It must not be protocol state, and it must not rank any operator, including SeedLife, as protocol-privileged (R-048, R-107).
 - If SeedLife ever runs a Hosted Home, it is one entry among others, and it must pass the same PR-001 role review as any project-controlled service.
 
@@ -83,7 +83,7 @@ For PWA users, the hosting account that serves the ClientHost origin is part of 
 
 1. Onboarding requires or strongly steers to phishing-resistant auth (passkey/security key) on the hosting account where the provider supports it, and explains why in one sentence.
 2. ClientHost deployment and relay/Home deployment use **separate least-privilege credentials** and, where the provider allows, separate scripts/origins (already required: separate public and app origins).
-3. The client records the release digest it runs and compares it with ≥2 independent release-transparency observations when online. This detects non-targeted substitution; it does not defeat a fully compromised origin (`CLIENTHOST_UPDATE_LIFECYCLE.md` §3).
+3. The client records the release digest it runs and compares it with ≥2 independent release-transparency observations when online. This detects non-targeted substitution; it does not defeat a fully compromised origin ([`CLIENTHOST_UPDATE_LIFECYCLE.md`](../client/CLIENTHOST_UPDATE_LIFECYCLE.md) §3).
 4. Hardened/Maximum profiles recommend a native client or an independently hosted, transparency-monitored ClientHost over a same-account ClientHost.
 
 ## 6. Provider diversity and monoculture

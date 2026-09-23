@@ -7,13 +7,13 @@ The former Gate A..K questions and architecture-design queue A-001..A-015 now ha
 
 ## A. Architecture design queue — currently closed
 
-`machine/architecture_design_queue.jsonl`
+[`machine/architecture_design_queue.jsonl`](../../machine/architecture_design_queue.jsonl)
 
 All current entries A-001..A-015 are resolved at the architecture-design level. A design item may be reopened only by explicit ADR/machine-contract update if verification or external standards evidence disproves a selected design.
 
 ## B. Architecture verification gates — blocks engineering
 
-`machine/architecture_verification_gates.jsonl`
+[`machine/architecture_verification_gates.jsonl`](../../machine/architecture_verification_gates.jsonl)
 
 Selected architecture must now be proven. Current blocking gates are:
 
@@ -39,13 +39,13 @@ Architecture-focused prototypes, formal models, fuzz harnesses, packet/provider 
 
 ## C. Public-release gates
 
-`machine/public_release_gates.jsonl`
+[`machine/public_release_gates.jsonl`](../../machine/public_release_gates.jsonl)
 
 These include role/jurisdiction legal review for project-controlled services/distributions, RF patent text, trademark policy, store compliance, supply-chain ceremony, platform push/LAN matrices, LinkPreview security and provider-diversity evidence.
 
 ## D. Deferred product measurement
 
-`machine/deferred_product_questions.jsonl`
+[`machine/deferred_product_questions.jsonl`](../../machine/deferred_product_questions.jsonl)
 
 Frameworks, exact breakpoints, animation timings, local DB crossover and visual theme naming stay bounded so they cannot accidentally dictate protocol/security architecture.
 
@@ -63,7 +63,7 @@ Parallel work is fine where independent, but a gate may not be marked passed fro
 
 ## Phase-1 verification progress — 09:20 PHT
 
-`verification/run_phase1.py` now supplies executable evidence for V-002, V-004, V-005, V-008, V-009, V-011, V-013, V-014, V-015, V-016 and V-017. The current run completed 7,772 bounded/adversarial cases, 14 cross-implementation deterministic-CBOR foundation vectors and a 60-artifact offline continuity dry run without a modeled invariant violation.
+[`verification/run_phase1.py`](../../verification/run_phase1.py) now supplies executable evidence for V-002, V-004, V-005, V-008, V-009, V-011, V-013, V-014, V-015, V-016 and V-017. The current run completed 7,772 bounded/adversarial cases, 14 cross-implementation deterministic-CBOR foundation vectors and a 60-artifact offline continuity dry run without a modeled invariant violation.
 
 **All 17 blocking verification gates remain open.** Evidence accumulation is not equivalent to gate passage. In particular, TLC execution, frozen per-object wire registries, independent implementations and real browser/runtime/packet/parser experiments remain mandatory where specified.
 

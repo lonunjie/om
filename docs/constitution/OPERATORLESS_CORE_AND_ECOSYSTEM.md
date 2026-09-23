@@ -147,7 +147,7 @@ The architecture aims for **scoped custody + scoped responsibility**:
 Exact legal classification is jurisdiction-specific and must not be inferred from architecture alone.
 ## 2026-09-22 anti-capture constitution
 
-`PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`, `LICENSING_AND_CONTRIBUTION_POLICY.md`, and `PROJECT_STEWARDSHIP_AND_CONTINUITY.md` are canonical.
+[`PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`](PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md), [`LICENSING_AND_CONTRIBUTION_POLICY.md`](LICENSING_AND_CONTRIBUTION_POLICY.md), and [`PROJECT_STEWARDSHIP_AND_CONTINUITY.md`](PROJECT_STEWARDSHIP_AND_CONTINUITY.md) are canonical.
 
 SeedLife/lonunjie is the initial project steward, not a protocol service or identity authority. Commercial providers/clients are welcome but receive no hidden compatibility privilege. The legal/technical right to implement and fork published OM versions must survive capture or disappearance of the canonical steward.
 
@@ -156,7 +156,7 @@ SeedLife/lonunjie is the initial project steward, not a protocol service or iden
 
 Operatorless does not mean providers learn zero metadata or communities lack moderation. It means no provider/safety/project role becomes universally mandatory.
 
-- metadata exposure is role/path-specific and documented by `METADATA_THREAT_MODEL.md`;
+- metadata exposure is role/path-specific and documented by [`METADATA_THREAT_MODEL.md`](../threat-model/METADATA_THREAT_MODEL.md);
 - optional safety labelers/advisory services are replaceable subscriber-selected policy inputs, never protocol authority;
 - published protocol generations are mirrorable/interpretable without a live SeedLife/OM Project service;
 - a captured/disappeared canonical project can be forked operationally without acquiring or rewriting user identity authority.

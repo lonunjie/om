@@ -166,7 +166,7 @@ A Space-wide ban can be used as an admission condition for linked Rooms. A Room 
 
 If governance becomes abusive or irrecoverably frozen, participants can create a successor Room/Space and publish a migration/fork reference. OM does not create a universal project-operated appeal court or hidden vendor override key.
 
-Provider/community operators may enforce their own lawful service rules at their boundaries, consistent with `ABUSE_SAFETY_AND_REPORTING.md`, without changing protocol ownership.
+Provider/community operators may enforce their own lawful service rules at their boundaries, consistent with [`ABUSE_SAFETY_AND_REPORTING.md`](../safety/ABUSE_SAFETY_AND_REPORTING.md), without changing protocol ownership.
 
 ## Reply semantics
 

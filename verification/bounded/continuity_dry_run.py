@@ -14,10 +14,10 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "verification/results/continuity-dry-run-latest.json"
 
 INCLUDE_FILES = [
-    "CANONICAL_ENCODING.md",
-    "CRYPTOGRAPHY_AND_AGILITY.md",
-    "PROTOCOL_EXTENSIBILITY.md",
-    "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+    "docs/architecture/crypto/CANONICAL_ENCODING.md",
+    "docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md",
+    "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+    "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
     "LICENSE.md",
     "machine/decisions.jsonl",
     "machine/requirements.jsonl",
@@ -38,7 +38,7 @@ def integrity_root(rows):
 
 def main():
     paths = [ROOT / p for p in INCLUDE_FILES]
-    paths += sorted((ROOT / "protocol").glob("*.json"))
+    paths += sorted((ROOT / "spec/protocol").glob("*.json"))
     paths += sorted((ROOT / "LICENSES").glob("*.txt"))
     missing = [str(p.relative_to(ROOT)) for p in paths if not p.exists()]
     assert not missing, missing

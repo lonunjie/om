@@ -122,4 +122,4 @@ Important limits:
 - V-005 remains open because every signed/hashed v1 object still needs a frozen CDDL/numeric-field/domain-separation registry and object-specific two-implementation vectors;
 - bounded reference models do not substitute for runtime, browser, cross-implementation, packet-trace, parser-fuzz or independent continuity evidence required by the respective gates.
 
-`verification/results/phase1-summary.json` is the machine-readable summary.
+[`verification/results/phase1-summary.json`](../../verification/results/phase1-summary.json) is the machine-readable summary.

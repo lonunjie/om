@@ -141,7 +141,7 @@ The narrative above is now backed by a structured register: `../machine/threat_r
 
 Adversary classes added in this checkpoint:
 
-- **Proximate adversary** (intimate partner, family, employer, anyone with brief device access or passcode knowledge): silent device linking, reading unlocked history. Mitigation: non-suppressible device-link notices, device list, quick lock (`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`).
+- **Proximate adversary** (intimate partner, family, employer, anyone with brief device access or passcode knowledge): silent device linking, reading unlocked history. Mitigation: non-suppressible device-link notices, device list, quick lock ([`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md)).
 - **Coercive adversary** (seizure, compelled unlock, border inspection): mitigation is minimization (app/profile lock, disappearing defaults, travel posture). OM explicitly does not promise hidden-volume deniability.
 - **Platform leakage** (OS/cloud backups, snapshots, keyboards, cloud spellcheck, browser extensions, notification history): per-platform control matrix, V-021.
 - **Hosting-account attacker** (phished cloud credentials for a PWA user's ClientHost): equivalent to endpoint compromise for that user. Mitigation: separate least-privilege deploy credentials, phishing-resistant auth, release-hash observation, native option (R-164).

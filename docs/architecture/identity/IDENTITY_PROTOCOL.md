@@ -40,7 +40,7 @@ AccountID = 256 bits of cryptographically secure random data
 
 ### AccountControlState
 
-Account authority is defined by `ACCOUNT_CONTINUITY_AND_CONTROL.md` and the canonical `AccountControlState` object. There is no separate legacy account-authority object.
+Account authority is defined by [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](ACCOUNT_CONTINUITY_AND_CONTROL.md) and the canonical `AccountControlState` object. There is no separate legacy account-authority object.
 
 Conceptually:
 
@@ -295,7 +295,7 @@ The following supersedes any implication that AccountID is permanently defined b
 - Accepted relationships use private opaque delivery capabilities.
 - CryptoProfile migration should be invisible to ordinary users and must advance downgrade protections.
 
-See `CRYPTOGRAPHY_AND_AGILITY.md` and `RELAY_AND_DELIVERY_ARCHITECTURE.md`.
+See [`CRYPTOGRAPHY_AND_AGILITY.md`](../crypto/CRYPTOGRAPHY_AND_AGILITY.md) and [`RELAY_AND_DELIVERY_ARCHITECTURE.md`](../delivery/RELAY_AND_DELIVERY_ARCHITECTURE.md).
 
 ## Recovery/control boundary
 

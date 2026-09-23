@@ -1,0 +1,18 @@
+# Machine-readable license map (https://reuse.software/spec-3.3/). Mirrors LICENSE.md;
+# checked by `make reuse` (reuse lint). A file-level SPDX header overrides these defaults.
+version = 1
+SPDX-PackageName = "OM"
+SPDX-PackageSupplier = "SeedLife / lonunjie <hi@lonunjie.org>"
+SPDX-PackageDownloadLocation = "https://github.com/lonunjie/om"
+
+[[annotations]]
+path = ["**/*.md", "docs/**", "decisions/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "OM contributors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+[[annotations]]
+path = ["spec/**", "machine/**", "verification/**", "tools/**", "Makefile", ".github/**", "REUSE.toml", ".gitignore", "docs/ux-design/**/*.json", "docs/ux-design/prototype/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "OM contributors"
+SPDX-License-Identifier = "Apache-2.0"

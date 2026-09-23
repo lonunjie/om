@@ -3,7 +3,7 @@
 - **Input:** `design-drops/om-master-planning-design-20260923-0920-PHT.zip`
 - **Output:** `design-drops/om-master-planning-design-20260924-0229-PHT.zip`
   (SHA-256 `7e2bbd29370a21230108693c04226c6e19fcd107006b7325824a426fb49cd5d6`)
-- **Canonical findings register inside the drop:** `HARDENING_REVIEW_20260924.md`
+- **Canonical findings register inside the drop:** [`HARDENING_REVIEW_20260924.md`](../reviews/HARDENING_REVIEW_20260924.md)
 - **Status:** fixes applied in the drop. Engineering is still not authorized: 0/11 scopes, 21 gates open.
 
 ## Evidence
@@ -50,8 +50,8 @@ These were applied as accepted ADRs because they fit the constitution best. Each
 4. **Recruit at least one co-steward** before the first public release. R-083 already records honestly that S0 custody is founder-only. This is also the practical bus-factor fix.
 5. **Put a JDK and pinned TLC in verification CI** so V-002 can actually run.
 6. **Make performance a gate.** "Fast" is in the mission. Add measurable pre-release SLOs (cold start, send-to-delivered latency, idle battery drain) to the `reference_client_ui` gates.
-7. **Track design checkpoints in git** instead of zips. Commit each unzipped drop to a non-frozen `design/` tree in this private repo, so checkpoints become reviewable diffs across the agents that edit them. This needs an operator decision because `AGENTS.md` currently keeps drops out of git until freeze.
+7. **Track design checkpoints in git** instead of zips. Commit each unzipped drop to a non-frozen `design/` tree in this private repo, so checkpoints become reviewable diffs across the agents that edit them. This needs an operator decision because [`AGENTS.md`](../../AGENTS.md) currently keeps drops out of git until freeze.
 
 ## Applied
 
-- 2026-09-24: all fixes applied in drop `om-master-planning-design-20260924-0229-PHT.zip` (not committed to git per `AGENTS.md` design-drop rule; this report is the git-tracked record).
+- 2026-09-24: all fixes applied in drop `om-master-planning-design-20260924-0229-PHT.zip` (not committed to git per [`AGENTS.md`](../../AGENTS.md) design-drop rule; this report is the git-tracked record).

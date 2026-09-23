@@ -1,6 +1,6 @@
 # Engineering Work Package Checklist
 
-Use `ENGINEERING_HANDOFF.md` for detail.
+Use [`ENGINEERING_HANDOFF.md`](ENGINEERING_HANDOFF.md) for detail.
 
 - [ ] WP-000 repository/toolchain/trust root
 - [ ] WP-001 deterministic encoding/types/vectors

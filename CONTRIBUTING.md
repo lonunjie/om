@@ -4,9 +4,9 @@
 
 Read first:
 
-1. `PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`
-2. `ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`
-3. `AGENTS.md`
+1. [`PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`](docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md)
+2. [`ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`](docs/process/ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md)
+3. [`AGENTS.md`](AGENTS.md)
 4. the relevant canonical architecture documents and machine records
 
 ## Contribution licensing

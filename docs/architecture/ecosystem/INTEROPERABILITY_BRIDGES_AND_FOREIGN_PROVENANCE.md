@@ -256,7 +256,7 @@ A bridge must refuse/restrict an event when:
 - the origin fingerprint has already been materialized for the same mapping/direction;
 - policy identifies a reflection path.
 
-The metadata-leak consequences of origin fingerprints and bridge paths are governed by `METADATA_THREAT_MODEL.md`; origin fingerprints are mapping/bridge-domain scoped by default.
+The metadata-leak consequences of origin fingerprints and bridge paths are governed by [`METADATA_THREAT_MODEL.md`](../../threat-model/METADATA_THREAT_MODEL.md); origin fingerprints are mapping/bridge-domain scoped by default.
 
 ## 14. Multi-bridge conflict behavior
 
@@ -321,7 +321,7 @@ V-013 must adversarially exercise:
 - capability mismatch/fidelity signaling;
 - Room removal/key transition;
 - attempts to hide a bridge as an ordinary Account/Service author;
-- metadata leakage from origin fingerprints and bridge traces under the scoped rules in `METADATA_THREAT_MODEL.md`.
+- metadata leakage from origin fingerprints and bridge traces under the scoped rules in [`METADATA_THREAT_MODEL.md`](../../threat-model/METADATA_THREAT_MODEL.md).
 
 ## 2026-09-23 08:21 metadata refinement
 

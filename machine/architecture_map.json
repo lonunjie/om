@@ -3,23 +3,23 @@
   "domains": {
     "constitution_governance": {
       "docs": [
-        "PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
-        "LICENSING_AND_CONTRIBUTION_POLICY.md",
-        "PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
-        "OPERATORLESS_CORE_AND_ECOSYSTEM.md",
-        "PRIVACY_GOVERNANCE_AUTHORITY.md",
-        "LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
-        "PROTOCOL_EXTENSIBILITY.md",
-        "NAMING.md",
-        "ARCHITECTURE_RESOLUTIONS_20260923.md",
-        "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
-        "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
-        "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md"
+        "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+        "docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md",
+        "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+        "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+        "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+        "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
+        "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+        "docs/constitution/NAMING.md",
+        "docs/reviews/ARCHITECTURE_RESOLUTIONS_20260923.md",
+        "docs/process/MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
+        "docs/architecture/ecosystem/SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
+        "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md"
       ],
       "schemas": [
-        "protocol/client-distribution.logical.schema.json",
-        "protocol/protocol-extension.logical.schema.json",
-        "protocol/protocol-continuity-bundle.logical.schema.json"
+        "spec/protocol/client-distribution.logical.schema.json",
+        "spec/protocol/protocol-extension.logical.schema.json",
+        "spec/protocol/protocol-continuity-bundle.logical.schema.json"
       ],
       "adrs": [
         "ADR-0042",
@@ -65,19 +65,19 @@
     },
     "identity_control_recovery": {
       "docs": [
-        "IDENTITY_PROTOCOL.md",
-        "IDENTITY_CONTINUITY.md",
-        "ACCOUNT_CONTINUITY_AND_CONTROL.md",
-        "RECOVERY_AND_BACKUP_POLICY.md",
-        "IDENTITY_DISCOVERY_VERIFICATION.md",
-        "IDENTIFIER_SPOOFING_AND_DISPLAY.md",
-        "ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md"
+        "docs/architecture/identity/IDENTITY_PROTOCOL.md",
+        "docs/architecture/identity/IDENTITY_CONTINUITY.md",
+        "docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md",
+        "docs/architecture/identity/RECOVERY_AND_BACKUP_POLICY.md",
+        "docs/architecture/identity/IDENTITY_DISCOVERY_VERIFICATION.md",
+        "docs/architecture/identity/IDENTIFIER_SPOOFING_AND_DISPLAY.md",
+        "docs/architecture/identity/ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md"
       ],
       "schemas": [
-        "protocol/account-control-state.logical.schema.json",
-        "protocol/account-control-head.logical.schema.json",
-        "protocol/recovery-policy.logical.schema.json",
-        "protocol/account-retirement.logical.schema.json"
+        "spec/protocol/account-control-state.logical.schema.json",
+        "spec/protocol/account-control-head.logical.schema.json",
+        "spec/protocol/recovery-policy.logical.schema.json",
+        "spec/protocol/account-retirement.logical.schema.json"
       ],
       "adrs": [
         "ADR-0002",
@@ -108,17 +108,17 @@
     },
     "crypto_1to1": {
       "docs": [
-        "CRYPTOGRAPHY_AND_AGILITY.md",
-        "PRODUCTION_CRYPTO_INTEGRATION_GATE.md",
-        "ASYNC_KEY_MATERIAL.md",
-        "ONE_TO_ONE_SESSION_MANAGEMENT.md",
-        "MULTI_DEVICE_SYNC.md",
-        "CANONICAL_ENCODING.md"
+        "docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md",
+        "docs/architecture/crypto/PRODUCTION_CRYPTO_INTEGRATION_GATE.md",
+        "docs/architecture/crypto/ASYNC_KEY_MATERIAL.md",
+        "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md",
+        "docs/architecture/crypto/MULTI_DEVICE_SYNC.md",
+        "docs/architecture/crypto/CANONICAL_ENCODING.md"
       ],
       "schemas": [
-        "protocol/crypto-profile.logical.schema.json",
-        "protocol/async-key-material.logical.schema.json",
-        "protocol/one-to-one-session-state.logical.schema.json"
+        "spec/protocol/crypto-profile.logical.schema.json",
+        "spec/protocol/async-key-material.logical.schema.json",
+        "spec/protocol/one-to-one-session-state.logical.schema.json"
       ],
       "adrs": [
         "ADR-0011",
@@ -141,14 +141,14 @@
     },
     "groups": {
       "docs": [
-        "GROUP_CHAT_ARCHITECTURE.md",
-        "GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
-        "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
-        "SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md"
+        "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md",
+        "docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
+        "docs/architecture/groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
+        "docs/architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md"
       ],
       "schemas": [
-        "protocol/group-control-transition.logical.schema.json",
-        "protocol/capability-grant.logical.schema.json"
+        "spec/protocol/group-control-transition.logical.schema.json",
+        "spec/protocol/capability-grant.logical.schema.json"
       ],
       "adrs": [
         "ADR-0006",
@@ -174,18 +174,18 @@
     },
     "discovery_first_contact": {
       "docs": [
-        "DISCOVERY_FABRIC.md",
-        "INVITES_INTROGATE_AND_SPAM.md",
-        "CONTACT_SHARING.md",
-        "INTRODUCTION_AND_SERVICE_ACCOUNTS.md",
-        "KEY_TRANSPARENCY_AND_DIRECTORY.md"
+        "docs/architecture/discovery/DISCOVERY_FABRIC.md",
+        "docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md",
+        "docs/architecture/discovery/CONTACT_SHARING.md",
+        "docs/architecture/discovery/INTRODUCTION_AND_SERVICE_ACCOUNTS.md",
+        "docs/architecture/discovery/KEY_TRANSPARENCY_AND_DIRECTORY.md"
       ],
       "schemas": [
-        "protocol/contact-descriptor.logical.schema.json",
-        "protocol/contact-capsule.logical.schema.json",
-        "protocol/discovery-provider.logical.schema.json",
-        "protocol/invite.logical.schema.json",
-        "protocol/introduction-ticket.logical.schema.json"
+        "spec/protocol/contact-descriptor.logical.schema.json",
+        "spec/protocol/contact-capsule.logical.schema.json",
+        "spec/protocol/discovery-provider.logical.schema.json",
+        "spec/protocol/invite.logical.schema.json",
+        "spec/protocol/introduction-ticket.logical.schema.json"
       ],
       "adrs": [
         "ADR-0004",
@@ -204,14 +204,14 @@
     },
     "relay_reachability": {
       "docs": [
-        "RELAY_AND_DELIVERY_ARCHITECTURE.md",
-        "MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
-        "REACHABILITY_AND_OBJECT_REPAIR.md"
+        "docs/architecture/delivery/RELAY_AND_DELIVERY_ARCHITECTURE.md",
+        "docs/architecture/delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
+        "docs/architecture/delivery/REACHABILITY_AND_OBJECT_REPAIR.md"
       ],
       "schemas": [
-        "protocol/relay-set.logical.schema.json",
-        "protocol/reachability-recovery.logical.schema.json",
-        "protocol/provider-capabilities.logical.schema.json"
+        "spec/protocol/relay-set.logical.schema.json",
+        "spec/protocol/reachability-recovery.logical.schema.json",
+        "spec/protocol/provider-capabilities.logical.schema.json"
       ],
       "adrs": [
         "ADR-0012",
@@ -227,13 +227,13 @@
     },
     "storage_retention": {
       "docs": [
-        "STORAGE_AND_BLOB_ARCHITECTURE.md",
-        "DISAPPEARING_MESSAGES_AND_RETENTION.md",
-        "LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md",
-        "REACHABILITY_AND_OBJECT_REPAIR.md"
+        "docs/architecture/storage/STORAGE_AND_BLOB_ARCHITECTURE.md",
+        "docs/architecture/storage/DISAPPEARING_MESSAGES_AND_RETENTION.md",
+        "docs/architecture/storage/LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md",
+        "docs/architecture/delivery/REACHABILITY_AND_OBJECT_REPAIR.md"
       ],
       "schemas": [
-        "protocol/blob-location-record.logical.schema.json"
+        "spec/protocol/blob-location-record.logical.schema.json"
       ],
       "adrs": [
         "ADR-0005",
@@ -251,19 +251,19 @@
     },
     "time_ordering_events": {
       "docs": [
-        "EVENT_MODEL.md",
-        "TIME_AND_EXPIRY_SEMANTICS.md",
-        "CANONICAL_ENCODING.md",
-        "MESSENGER_BASELINE_V1.md",
-        "SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md"
+        "docs/architecture/events/EVENT_MODEL.md",
+        "docs/architecture/events/TIME_AND_EXPIRY_SEMANTICS.md",
+        "docs/architecture/crypto/CANONICAL_ENCODING.md",
+        "docs/architecture/events/MESSENGER_BASELINE_V1.md",
+        "docs/architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md"
       ],
       "schemas": [
-        "protocol/conversation-event.logical.schema.json",
-        "protocol/message-create.logical.schema.json",
-        "protocol/time-semantics.logical.schema.json",
-        "protocol/topic-state.logical.schema.json",
-        "protocol/baseline-conversation-actions.logical.schema.json",
-        "protocol/principal-ref.logical.schema.json"
+        "spec/protocol/conversation-event.logical.schema.json",
+        "spec/protocol/message-create.logical.schema.json",
+        "spec/protocol/time-semantics.logical.schema.json",
+        "spec/protocol/topic-state.logical.schema.json",
+        "spec/protocol/baseline-conversation-actions.logical.schema.json",
+        "spec/protocol/principal-ref.logical.schema.json"
       ],
       "adrs": [
         "ADR-0008",
@@ -284,10 +284,10 @@
     },
     "calls_media": {
       "docs": [
-        "CALLS_AND_REALTIME_MEDIA.md"
+        "docs/architecture/calls/CALLS_AND_REALTIME_MEDIA.md"
       ],
       "schemas": [
-        "protocol/call-session.logical.schema.json"
+        "spec/protocol/call-session.logical.schema.json"
       ],
       "adrs": [
         "ADR-0013"
@@ -299,13 +299,13 @@
     },
     "network_lan_transport": {
       "docs": [
-        "LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md",
-        "CENSORSHIP_AND_NETWORK_RESILIENCE.md",
-        "TRANSPORT_ADAPTERS_AND_INTEROP.md",
-        "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md"
+        "docs/architecture/network/LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md",
+        "docs/architecture/network/CENSORSHIP_AND_NETWORK_RESILIENCE.md",
+        "docs/architecture/network/TRANSPORT_ADAPTERS_AND_INTEROP.md",
+        "docs/architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md"
       ],
       "schemas": [
-        "protocol/transport-adapter.logical.schema.json"
+        "spec/protocol/transport-adapter.logical.schema.json"
       ],
       "adrs": [
         "ADR-0015",
@@ -323,21 +323,21 @@
     },
     "client_endpoint_distribution": {
       "docs": [
-        "PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md",
-        "PWA_REFERENCE_CLIENT.md",
-        "CLIENT_AND_EXTENSION_ARCHITECTURE.md",
-        "DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md",
-        "MULTI_IDENTITY_AND_PROFILE_ISOLATION.md",
-        "CLIENTHOST_UPDATE_LIFECYCLE.md",
-        "NOTIFICATIONS_AND_PUSH.md",
-        "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md",
-        "ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md"
+        "docs/architecture/client/PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md",
+        "docs/architecture/client/PWA_REFERENCE_CLIENT.md",
+        "docs/architecture/client/CLIENT_AND_EXTENSION_ARCHITECTURE.md",
+        "docs/architecture/client/DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md",
+        "docs/architecture/client/MULTI_IDENTITY_AND_PROFILE_ISOLATION.md",
+        "docs/architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md",
+        "docs/architecture/client/NOTIFICATIONS_AND_PUSH.md",
+        "docs/architecture/ecosystem/PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md",
+        "docs/architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md"
       ],
       "schemas": [
-        "protocol/clienthost-release-state.logical.schema.json",
-        "protocol/notification-policy.logical.schema.json",
-        "client/device-vault.logical.schema.json",
-        "client/identity-profile.logical.schema.json"
+        "spec/protocol/clienthost-release-state.logical.schema.json",
+        "spec/protocol/notification-policy.logical.schema.json",
+        "spec/client/device-vault.logical.schema.json",
+        "spec/client/identity-profile.logical.schema.json"
       ],
       "adrs": [
         "ADR-0007",
@@ -367,16 +367,16 @@
     },
     "content_abuse_evidence": {
       "docs": [
-        "RICH_TEXT_AND_CONTENT_SECURITY.md",
-        "ABUSE_SAFETY_AND_REPORTING.md",
-        "EVIDENCE_AND_EXTERNAL_REPORTING.md",
-        "DECENTRALIZED_ABUSE_MODERATION.md"
+        "docs/architecture/safety/RICH_TEXT_AND_CONTENT_SECURITY.md",
+        "docs/architecture/safety/ABUSE_SAFETY_AND_REPORTING.md",
+        "docs/architecture/safety/EVIDENCE_AND_EXTERNAL_REPORTING.md",
+        "docs/architecture/safety/DECENTRALIZED_ABUSE_MODERATION.md"
       ],
       "schemas": [
-        "protocol/rich-text.logical.schema.json",
-        "design/rich-text.logical.schema.json",
-        "protocol/evidence-package.logical.schema.json",
-        "protocol/moderation-safety.logical.schema.json"
+        "spec/protocol/rich-text.logical.schema.json",
+        "docs/ux-design/rich-text.logical.schema.json",
+        "spec/protocol/evidence-package.logical.schema.json",
+        "spec/protocol/moderation-safety.logical.schema.json"
       ],
       "adrs": [
         "ADR-0017",
@@ -404,18 +404,18 @@
     },
     "provider_deployment_supply_chain": {
       "docs": [
-        "PROVISIONING_AND_BOOTSTRAP.md",
-        "CLOUDFLARE_REFERENCE_DEPLOYMENT.md",
-        "SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
-        "IMPLEMENTATION_INTERFACES.md",
-        "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
-        "VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md"
+        "docs/architecture/providers/PROVISIONING_AND_BOOTSTRAP.md",
+        "docs/architecture/providers/CLOUDFLARE_REFERENCE_DEPLOYMENT.md",
+        "docs/architecture/providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
+        "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md",
+        "docs/architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
+        "docs/architecture/providers/VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md"
       ],
       "schemas": [
-        "protocol/provider-capabilities.logical.schema.json",
-        "protocol/provisioning-method.logical.schema.json",
-        "protocol/sponsored-mailbox-grant.logical.schema.json",
-        "protocol/security-advisory.logical.schema.json"
+        "spec/protocol/provider-capabilities.logical.schema.json",
+        "spec/protocol/provisioning-method.logical.schema.json",
+        "spec/protocol/sponsored-mailbox-grant.logical.schema.json",
+        "spec/protocol/security-advisory.logical.schema.json"
       ],
       "adrs": [
         "ADR-0014",
@@ -450,18 +450,18 @@
     },
     "ux_accessibility_personalization": {
       "docs": [
-        "PRODUCT_AND_UX_PRINCIPLES.md",
-        "UI_UX_SYSTEM.md",
-        "UI_CORE_PLATFORM_CONTRACT.md",
-        "ACCESSIBILITY_AND_INPUT.md",
-        "MOTION_AND_PERFORMANCE.md",
-        "THEMES_FONTS_AND_PERSONALIZATION.md",
-        "SECURITY_PRIVACY_PROFILES.md"
+        "docs/overview/PRODUCT_AND_UX_PRINCIPLES.md",
+        "docs/architecture/ux/UI_UX_SYSTEM.md",
+        "docs/architecture/ux/UI_CORE_PLATFORM_CONTRACT.md",
+        "docs/architecture/ux/ACCESSIBILITY_AND_INPUT.md",
+        "docs/architecture/ux/MOTION_AND_PERFORMANCE.md",
+        "docs/architecture/ux/THEMES_FONTS_AND_PERSONALIZATION.md",
+        "docs/architecture/ux/SECURITY_PRIVACY_PROFILES.md"
       ],
       "schemas": [
-        "protocol/security-profile.logical.schema.json",
-        "design/theme-bundle.logical.schema.json",
-        "design/ui-tokens.example.json"
+        "spec/protocol/security-profile.logical.schema.json",
+        "docs/ux-design/theme-bundle.logical.schema.json",
+        "docs/ux-design/ui-tokens.example.json"
       ],
       "adrs": [
         "ADR-0037",
@@ -491,22 +491,22 @@
     },
     "architecture_process": {
       "docs": [
-        "README.md",
+        "docs/README.md",
         "SNAPSHOT.md",
-        "BLUEPRINT.md",
-        "SYSTEM_ARCHITECTURE.md",
-        "DESIGN_RATIONALE_AND_DISCUSSION_SYNTHESIS.md",
-        "LEAN_ARCHITECTURE_RULES.md",
-        "ARCHITECTURE_PHASE_PLAN.md",
-        "ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md",
+        "docs/overview/BLUEPRINT.md",
+        "docs/overview/SYSTEM_ARCHITECTURE.md",
+        "docs/overview/DESIGN_RATIONALE_AND_DISCUSSION_SYNTHESIS.md",
+        "docs/overview/LEAN_ARCHITECTURE_RULES.md",
+        "docs/process/ARCHITECTURE_PHASE_PLAN.md",
+        "docs/process/ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md",
         "AGENTS.md",
-        "FORMAL_VERIFICATION_AND_FUZZING.md",
-        "ENGINEER_START_HERE.md",
-        "ENGINEERING_HANDOFF.md",
-        "ENGINEERING_REPOSITORY_LAYOUT.md",
-        "IMPLEMENTATION_ROADMAP.md",
-        "HARDENING_REVIEW_20260924.md",
-        "RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md"
+        "docs/process/FORMAL_VERIFICATION_AND_FUZZING.md",
+        "docs/process/ENGINEER_START_HERE.md",
+        "docs/process/ENGINEERING_HANDOFF.md",
+        "docs/process/ENGINEERING_REPOSITORY_LAYOUT.md",
+        "docs/process/IMPLEMENTATION_ROADMAP.md",
+        "docs/reviews/HARDENING_REVIEW_20260924.md",
+        "docs/process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md"
       ],
       "schemas": [],
       "adrs": [
@@ -524,16 +524,16 @@
     },
     "expressive_media_content_packs": {
       "docs": [
-        "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
-        "EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md",
-        "RICH_TEXT_AND_CONTENT_SECURITY.md",
-        "PRODUCT_AND_UX_PRINCIPLES.md"
+        "docs/process/MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
+        "docs/architecture/ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md",
+        "docs/architecture/safety/RICH_TEXT_AND_CONTENT_SECURITY.md",
+        "docs/overview/PRODUCT_AND_UX_PRINCIPLES.md"
       ],
       "schemas": [
-        "protocol/expressive-asset.logical.schema.json",
-        "protocol/content-pack.logical.schema.json",
-        "protocol/entitlement-presentation.logical.schema.json",
-        "protocol/rich-text.logical.schema.json"
+        "spec/protocol/expressive-asset.logical.schema.json",
+        "spec/protocol/content-pack.logical.schema.json",
+        "spec/protocol/entitlement-presentation.logical.schema.json",
+        "spec/protocol/rich-text.logical.schema.json"
       ],
       "adrs": [
         "ADR-0082",
@@ -554,28 +554,28 @@
     },
     "bots_agents_interop": {
       "docs": [
-        "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
-        "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md",
-        "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md",
-        "INTRODUCTION_AND_SERVICE_ACCOUNTS.md",
-        "GROUP_CHAT_ARCHITECTURE.md",
-        "EVENT_MODEL.md",
-        "PROTOCOL_EXTENSIBILITY.md",
-        "CLIENT_AND_EXTENSION_ARCHITECTURE.md",
-        "TRANSPORT_ADAPTERS_AND_INTEROP.md",
-        "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
-        "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md",
-        "IMPORT_EXPORT_AND_USER_ESCAPE.md"
+        "docs/process/MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
+        "docs/architecture/ecosystem/SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md",
+        "docs/architecture/ecosystem/PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md",
+        "docs/architecture/discovery/INTRODUCTION_AND_SERVICE_ACCOUNTS.md",
+        "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md",
+        "docs/architecture/events/EVENT_MODEL.md",
+        "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+        "docs/architecture/client/CLIENT_AND_EXTENSION_ARCHITECTURE.md",
+        "docs/architecture/network/TRANSPORT_ADAPTERS_AND_INTEROP.md",
+        "docs/architecture/ecosystem/SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
+        "docs/architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md",
+        "docs/architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md"
       ],
       "schemas": [
-        "protocol/principal-ref.logical.schema.json",
-        "protocol/service-principal.logical.schema.json",
-        "protocol/service-installation.logical.schema.json",
-        "protocol/plugin-package.logical.schema.json",
-        "protocol/conversation-event.logical.schema.json",
-        "protocol/representation-grant.logical.schema.json",
-        "protocol/bridge-principal.logical.schema.json",
-        "protocol/foreign-provenance.logical.schema.json"
+        "spec/protocol/principal-ref.logical.schema.json",
+        "spec/protocol/service-principal.logical.schema.json",
+        "spec/protocol/service-installation.logical.schema.json",
+        "spec/protocol/plugin-package.logical.schema.json",
+        "spec/protocol/conversation-event.logical.schema.json",
+        "spec/protocol/representation-grant.logical.schema.json",
+        "spec/protocol/bridge-principal.logical.schema.json",
+        "spec/protocol/foreign-provenance.logical.schema.json"
       ],
       "adrs": [
         "ADR-0082",
@@ -599,17 +599,17 @@
     },
     "communities_broadcast_topics": {
       "docs": [
-        "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
-        "MESSENGER_BASELINE_V1.md",
-        "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
-        "SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md",
-        "GROUP_CHAT_ARCHITECTURE.md"
+        "docs/process/MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
+        "docs/architecture/events/MESSENGER_BASELINE_V1.md",
+        "docs/architecture/groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
+        "docs/architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md",
+        "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md"
       ],
       "schemas": [
-        "protocol/space-control-state.logical.schema.json",
-        "protocol/capability-grant.logical.schema.json",
-        "protocol/topic-state.logical.schema.json",
-        "protocol/publication-event.logical.schema.json"
+        "spec/protocol/space-control-state.logical.schema.json",
+        "spec/protocol/capability-grant.logical.schema.json",
+        "spec/protocol/topic-state.logical.schema.json",
+        "spec/protocol/publication-event.logical.schema.json"
       ],
       "adrs": [
         "ADR-0083",
@@ -633,18 +633,18 @@
     },
     "messenger_baseline": {
       "docs": [
-        "MESSENGER_BASELINE_V1.md",
-        "EVENT_MODEL.md",
-        "RICH_TEXT_AND_CONTENT_SECURITY.md",
-        "CONTACT_SHARING.md",
-        "CALLS_AND_REALTIME_MEDIA.md",
-        "ABUSE_SAFETY_AND_REPORTING.md"
+        "docs/architecture/events/MESSENGER_BASELINE_V1.md",
+        "docs/architecture/events/EVENT_MODEL.md",
+        "docs/architecture/safety/RICH_TEXT_AND_CONTENT_SECURITY.md",
+        "docs/architecture/discovery/CONTACT_SHARING.md",
+        "docs/architecture/calls/CALLS_AND_REALTIME_MEDIA.md",
+        "docs/architecture/safety/ABUSE_SAFETY_AND_REPORTING.md"
       ],
       "schemas": [
-        "protocol/conversation-event.logical.schema.json",
-        "protocol/message-create.logical.schema.json",
-        "protocol/topic-state.logical.schema.json",
-        "protocol/baseline-conversation-actions.logical.schema.json"
+        "spec/protocol/conversation-event.logical.schema.json",
+        "spec/protocol/message-create.logical.schema.json",
+        "spec/protocol/topic-state.logical.schema.json",
+        "spec/protocol/baseline-conversation-actions.logical.schema.json"
       ],
       "adrs": [
         "ADR-0088"
@@ -660,15 +660,15 @@
     },
     "metadata_privacy": {
       "docs": [
-        "PRIVACY_GOVERNANCE_AUTHORITY.md",
-        "MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
-        "NOTIFICATIONS_AND_PUSH.md",
-        "STORAGE_AND_BLOB_ARCHITECTURE.md",
-        "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
-        "METADATA_THREAT_MODEL.md"
+        "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+        "docs/architecture/delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
+        "docs/architecture/client/NOTIFICATIONS_AND_PUSH.md",
+        "docs/architecture/storage/STORAGE_AND_BLOB_ARCHITECTURE.md",
+        "docs/architecture/groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
+        "docs/threat-model/METADATA_THREAT_MODEL.md"
       ],
       "schemas": [
-        "design/metadata-exposure.logical.schema.json"
+        "docs/ux-design/metadata-exposure.logical.schema.json"
       ],
       "adrs": [
         "ADR-0098"
@@ -682,15 +682,15 @@
     },
     "import_export_escape": {
       "docs": [
-        "OPERATORLESS_CORE_AND_ECOSYSTEM.md",
-        "TRANSPORT_ADAPTERS_AND_INTEROP.md",
-        "LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md",
-        "IMPORT_EXPORT_AND_USER_ESCAPE.md",
-        "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md"
+        "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+        "docs/architecture/network/TRANSPORT_ADAPTERS_AND_INTEROP.md",
+        "docs/architecture/storage/LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md",
+        "docs/architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md",
+        "docs/architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md"
       ],
       "schemas": [
-        "protocol/om-archive-manifest.logical.schema.json",
-        "protocol/imported-history-record.logical.schema.json"
+        "spec/protocol/om-archive-manifest.logical.schema.json",
+        "spec/protocol/imported-history-record.logical.schema.json"
       ],
       "adrs": [
         "ADR-0097"
@@ -704,17 +704,17 @@
     },
     "protocol_longevity_0m": {
       "docs": [
-        "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
-        "PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
-        "SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
-        "PROTOCOL_EXTENSIBILITY.md",
-        "CRYPTOGRAPHY_AND_AGILITY.md",
-        "OPERATORLESS_CORE_AND_ECOSYSTEM.md"
+        "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+        "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+        "docs/architecture/providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
+        "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+        "docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md",
+        "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md"
       ],
       "schemas": [
-        "protocol/protocol-continuity-bundle.logical.schema.json",
-        "protocol/crypto-profile.logical.schema.json",
-        "protocol/protocol-extension.logical.schema.json"
+        "spec/protocol/protocol-continuity-bundle.logical.schema.json",
+        "spec/protocol/crypto-profile.logical.schema.json",
+        "spec/protocol/protocol-extension.logical.schema.json"
       ],
       "adrs": [
         "ADR-0050",
@@ -733,7 +733,7 @@
     },
     "architecture_verification": {
       "docs": [
-        "FORMAL_VERIFICATION_AND_FUZZING.md",
+        "docs/process/FORMAL_VERIFICATION_AND_FUZZING.md",
         "verification/README.md",
         "verification/FEASIBILITY_RECONNAISSANCE_20260923.md",
         "verification/TLAPLUS_TOOL_PIN.md",

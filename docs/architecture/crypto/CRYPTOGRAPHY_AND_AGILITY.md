@@ -163,7 +163,7 @@ NIST's 2026 crypto-agility guidance reinforces the architectural requirement tha
 
 ## 2026-09-22 engineering re-audit
 
-Production integration is now explicitly gated by `PRODUCTION_CRYPTO_INTEGRATION_GATE.md` and `research/SECURITY_CRYPTO_REAUDIT_20260922.md`.
+Production integration is now explicitly gated by [`PRODUCTION_CRYPTO_INTEGRATION_GATE.md`](PRODUCTION_CRYPTO_INTEGRATION_GATE.md) and [`docs/research/SECURITY_CRYPTO_REAUDIT_20260922.md`](../../research/SECURITY_CRYPTO_REAUDIT_20260922.md).
 
 Key engineering updates:
 
@@ -177,9 +177,9 @@ Key engineering updates:
 - ordinary messages do not gain a separate durable AccountID signature merely for evidence export.
 ## 2026-09-22 architecture hardening
 
-CryptoProfile v1 must specify not only primitives/handshake/ratchet but also the public logical shape and lifecycle of asynchronous per-device handshake material. `ASYNC_KEY_MATERIAL.md` is canonical architecture; runtime implementation proof is tracked separately.
+CryptoProfile v1 must specify not only primitives/handshake/ratchet but also the public logical shape and lifecycle of asynchronous per-device handshake material. [`ASYNC_KEY_MATERIAL.md`](ASYNC_KEY_MATERIAL.md) is canonical architecture; runtime implementation proof is tracked separately.
 
-Multi-device session selection is outside the ratchet itself and is defined by `ONE_TO_ONE_SESSION_MANAGEMENT.md`. No production security claim is complete until both layers have conformance vectors and stale/replay/depletion/device-change tests.
+Multi-device session selection is outside the ratchet itself and is defined by [`ONE_TO_ONE_SESSION_MANAGEMENT.md`](ONE_TO_ONE_SESSION_MANAGEMENT.md). No production security claim is complete until both layers have conformance vectors and stale/replay/depletion/device-change tests.
 
 ## 2026-09-23 OM-Crypto-v1 architecture resolution
 

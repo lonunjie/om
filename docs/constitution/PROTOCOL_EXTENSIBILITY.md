@@ -53,7 +53,7 @@ The 07:18 extension pass adds an anti-fragmentation rule: **shared canonical mea
 
 ## 2026-09-23 08:21 longevity/registry resolution
 
-`PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md` resolves A-015.
+[`PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md`](PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md) resolves A-015.
 
 Already-assigned registry identifiers are immutable and never reused for incompatible meaning. Published protocol generations/profile bundles snapshot the registry material needed to interpret them so runtime validity never depends on consulting a live OM Project registry server.
 

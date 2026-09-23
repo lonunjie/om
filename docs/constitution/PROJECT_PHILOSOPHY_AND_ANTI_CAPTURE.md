@@ -146,7 +146,7 @@ This document is the highest-level project intent. It does not override cryptogr
 
 ## 8. The seven meanings of OM
 
-`NAMING.md` is canonical for the name. OM intentionally means **Open-source Messenger, OpenMessenger, OwnMessenger, OurMessenger, OneMessenger and OhMessenger**, plus the secondary **0M** reading: zero total control. Together these require an open commons, independent implementations and agents, safe customization, strong group/organization capability, extensibility without fragmentation, an approachable default product, and architecture in which no one party becomes an indispensable universal controller.
+[`NAMING.md`](NAMING.md) is canonical for the name. OM intentionally means **Open-source Messenger, OpenMessenger, OwnMessenger, OurMessenger, OneMessenger and OhMessenger**, plus the secondary **0M** reading: zero total control. Together these require an open commons, independent implementations and agents, safe customization, strong group/organization capability, extensibility without fragmentation, an approachable default product, and architecture in which no one party becomes an indispensable universal controller.
 
 ## 9. Capability support does not imply project operation
 

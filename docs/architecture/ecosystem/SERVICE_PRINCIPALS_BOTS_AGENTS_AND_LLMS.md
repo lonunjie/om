@@ -8,7 +8,7 @@
 
 OM does not make a brittle human-versus-AI classification. It standardizes typed authority principals with explicit installation/data-access semantics. "bot", "assistant", "agent" and "LLM" are product/presentation categories over the `ServicePrincipal` model; they do not create hidden authority classes and they do not claim how content was cognitively produced.
 
-Permissionless service creation, decentralized discovery/hosting, and delegated personal agency are frozen in `SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`.
+Permissionless service creation, decentralized discovery/hosting, and delegated personal agency are frozen in [`SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`](SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md).
 
 The normal safe interaction is:
 
@@ -92,13 +92,13 @@ For an AccountPrincipal, `author_endpoint_id` is its authorized DeviceIdentity.
 
 For a ServicePrincipal, it is an endpoint/agent credential authorized by `ServiceControlState` and any relevant installation grant.
 
-A bridge uses the same typed-author boundary under `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`.
+A bridge uses the same typed-author boundary under [`INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`](INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md).
 
 This removes the architectural pressure to make autonomous services masquerade as AccountPrincipals.
 
 ## Human assistance versus autonomous service authorship
 
-The protocol classifies **authority**, not intelligence or biology. See `SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md` for the canonical Account-confirmed / autonomous-service / represented-account cases and `RepresentationGrant`.
+The protocol classifies **authority**, not intelligence or biology. See [`SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`](SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md) for the canonical Account-confirmed / autonomous-service / represented-account cases and `RepresentationGrant`.
 
 OM does not attempt to detect whether a human used a spell checker, local LLM, accessibility tool or drafting assistant before pressing Send. A user-confirmed send may remain authored by the AccountPrincipal.
 

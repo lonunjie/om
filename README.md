@@ -1,11 +1,55 @@
 # OM
 
-OM is SeedLife's open-source, operatorless, end-to-end-encrypted
-messenger — Open-source, Open, Own, Our, One, Oh Messenger.
+**OM is an open-source, end-to-end-encrypted messenger that no single company, server or project, including its own authors, can control.**
+It is meant to be fast and simple for people who have never configured anything, while keeping identity, conversations
+and security independent of any one provider. The name carries seven meanings (Open-source, Open, Own, Our, One, Oh
+Messenger, and **0M: zero total control**); see [`NAMING.md`](docs/constitution/NAMING.md).
 
-**Status:** architecture/design phase. No code yet; engineering has not
-started. Licensing will be layered (MPL-2.0 core, AGPL-3.0-or-later
-network reference services, Apache-2.0 protocol artifacts, CC-BY-SA-4.0
-docs) and lands with the first frozen design.
+OM is stewarded by SeedLife ("Protect life. Seed it.") under the [lonunjie](https://github.com/lonunjie) organization.
 
-Agents and contributors: start with `AGENTS.md`.
+## Status
+
+**Architecture verification. Product engineering is not yet authorized.** The design is complete across every planned
+delivery wave. It is now being checked by formal models, prototypes and reviews, called verification gates, before any
+product code is written. The current state is always in [`SNAPSHOT.md`](SNAPSHOT.md). The gate list and what each gate
+still needs is in [`verification/GATE_PASS_CRITERIA.md`](verification/GATE_PASS_CRITERIA.md).
+
+## Reading the design
+
+| If you want… | Start with |
+|---|---|
+| why OM exists and what it refuses to become | [`PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`](docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md) |
+| the whole system on one page | [`BLUEPRINT.md`](docs/overview/BLUEPRINT.md), then [`SYSTEM_ARCHITECTURE.md`](docs/overview/SYSTEM_ARCHITECTURE.md) |
+| a guided reading order through every domain | [`docs/README.md`](docs/README.md) |
+| **why** a decision was made | [`decisions/INDEX.md`](decisions/INDEX.md): one ADR per decision, with the alternatives considered |
+| what reviewers found and what changed | [`docs/reviews/`](docs/reviews/) and [`docs/checkpoints/`](docs/checkpoints/README.md) |
+| how threats are handled | [`docs/threat-model/`](docs/threat-model/README.md) and [`machine/threat_register.jsonl`](machine/threat_register.jsonl) |
+| the evidence behind verification claims | [`verification/`](verification/README.md) |
+
+## Repository map
+
+```text
+README.md  SNAPSHOT.md  AGENTS.md  CHANGELOG.md  CONTRIBUTING.md  SECURITY.md  LICENSE.md
+docs/          human-readable design (constitution, overview, architecture/<domain>, process, reviews, ...)
+decisions/     architecture decision records (ADRs), indexed in decisions/INDEX.md
+spec/          normative logical schemas (protocol/, client/) and, as they freeze, CDDL and registries
+machine/       machine-checked project state: decisions, requirements, gates, threats, traceability
+verification/  formal models (TLA+), bounded models, prototypes, test vectors and recorded results
+tools/         validator, docs formatter, design-drop import/export
+LICENSES/      full license texts (see LICENSE.md and REUSE.toml for which applies where)
+```
+
+## Verifying the design locally
+
+```sh
+make verify          # validator + docs link check + phase-1 evidence + TLC model check
+```
+
+`make help` lists every target. The validator enforces the architecture contract. It checks that engineering stays locked
+until the gates allow it, that every file is classified, and that every requirement is traced to a gate.
+
+## Contributing, licensing and security
+
+Contributions use DCO sign-off and inbound-equals-outbound licensing; see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Documentation is CC-BY-SA-4.0, and specifications, schemas and tooling are Apache-2.0 ([`LICENSE.md`](LICENSE.md),
+[`REUSE.toml`](REUSE.toml)). To report a security problem in the design, see [`SECURITY.md`](SECURITY.md).

@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-24
-- **Source:** `HARDENING_REVIEW_20260924.md`
+- **Source:** [`HARDENING_REVIEW_20260924.md`](../docs/reviews/HARDENING_REVIEW_20260924.md)
 
 ## Context
 

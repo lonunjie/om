@@ -15,7 +15,7 @@ One license is not optimal for every OM artifact. The project uses a deliberate 
 | Normative protocol schemas, registries, test vectors, conformance harness interfaces and protocol-reference code intended for universal reuse | **Apache-2.0** | Maximizes independent implementation/reuse while carrying explicit copyright and contributor patent grants. These artifacts must not force adoption of the reference application code. |
 | Architecture, explanatory specifications, governance prose, diagrams and project documentation | **CC-BY-SA-4.0** | Anyone may copy/adapt them, commercially or otherwise, but shared adaptations remain under the same terms and attribution is preserved. Embedded code explicitly marked Apache-2.0/MPL-2.0/AGPL retains its stated software license. |
 
-`LICENSE.md`, SPDX headers, and the machine file registry determine the license class of each canonical file.
+[`LICENSE.md`](../../LICENSE.md), SPDX headers, and the machine file registry determine the license class of each canonical file.
 
 ## 2. Why OM Core uses MPL rather than a permissive-only license
 
@@ -82,7 +82,7 @@ Where a future license change is proposed for new work:
 - it requires a public ADR and compatibility/legal analysis;
 - contributor rights must be respected;
 - existing releases retain their existing licenses;
-- the change must preserve `PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`.
+- the change must preserve [`PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`](PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md).
 
 ## 9. Commercial use
 

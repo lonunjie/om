@@ -12,17 +12,17 @@ OM's philosophy remains human-readable prose. Operational architecture is mapped
 
 ## 2. Typed machine truth
 
-- `machine/decisions.jsonl` — accepted/superseded decisions;
-- `machine/requirements.jsonl` — normative MUST/SHOULD obligations;
-- `machine/resolved_questions.jsonl` — dispositions for the former Q-001..Q-061 set;
-- `machine/architecture_design_queue.jsonl` — genuinely undecided protocol/product-architecture questions; open blocking entries prevent engineering;
-- `machine/architecture_verification_gates.jsonl` — architecture is chosen but must be proven before engineering when `blocks_engineering=true`;
-- `machine/public_release_gates.jsonl` — legal/platform/security/release checks that gate only the affected public feature/distribution;
-- `machine/deferred_product_questions.jsonl` — safely bounded UI/implementation measurements;
-- `machine/architecture_map.json` — domains to docs/schemas/ADRs/gates;
-- `machine/file_registry.json` — every current non-history file and its role/license/domain;
-- `machine/stewardship.json` — actual project custody stage;
-- `machine/repository_contract.json` — phase and validator invariants;
+- [`machine/decisions.jsonl`](../../machine/decisions.jsonl) — accepted/superseded decisions;
+- [`machine/requirements.jsonl`](../../machine/requirements.jsonl) — normative MUST/SHOULD obligations;
+- [`machine/resolved_questions.jsonl`](../../machine/resolved_questions.jsonl) — dispositions for the former Q-001..Q-061 set;
+- [`machine/architecture_design_queue.jsonl`](../../machine/architecture_design_queue.jsonl) — genuinely undecided protocol/product-architecture questions; open blocking entries prevent engineering;
+- [`machine/architecture_verification_gates.jsonl`](../../machine/architecture_verification_gates.jsonl) — architecture is chosen but must be proven before engineering when `blocks_engineering=true`;
+- [`machine/public_release_gates.jsonl`](../../machine/public_release_gates.jsonl) — legal/platform/security/release checks that gate only the affected public feature/distribution;
+- [`machine/deferred_product_questions.jsonl`](../../machine/deferred_product_questions.jsonl) — safely bounded UI/implementation measurements;
+- [`machine/architecture_map.json`](../../machine/architecture_map.json) — domains to docs/schemas/ADRs/gates;
+- [`machine/file_registry.json`](../../machine/file_registry.json) — every current non-history file and its role/license/domain;
+- [`machine/stewardship.json`](../../machine/stewardship.json) — actual project custody stage;
+- [`machine/repository_contract.json`](../../machine/repository_contract.json) — phase and validator invariants;
 - `MANIFEST.json` — byte/hash inventory.
 
 A generic `open_questions.jsonl` is intentionally no longer current because it mixed fundamentally different work classes.
@@ -70,11 +70,11 @@ The validator must detect at least:
 The single all-gates lock in §3 was circular: several blocking gates need real implementations to pass. From this checkpoint:
 
 - each verification gate carries `pre_engineering_criteria`, `pre_release_criteria`, `pre_engineering_status`, `independence` and `unlock_scopes`;
-- `machine/repository_contract.json` → `engineering_scopes` lists W0..W4 scopes, all `authorized: false`;
+- [`machine/repository_contract.json`](../../machine/repository_contract.json) → `engineering_scopes` lists W0..W4 scopes, all `authorized: false`;
 - a scope may be authorized only by an ADR naming it, once every gate listing the scope, and every gate in `always_required_pre_engineering_gates`, has `pre_engineering_status` passed or waived by ADR;
 - a gate's overall `status` becomes `passed` only when both phases pass. Public releases/claims depend on overall status;
-- `machine/requirement_traceability.json` maps every requirement to its proof obligation;
-- `machine/threat_register.jsonl` is the structured threat model;
+- [`machine/requirement_traceability.json`](../../machine/requirement_traceability.json) maps every requirement to its proof obligation;
+- [`machine/threat_register.jsonl`](../../machine/threat_register.jsonl) is the structured threat model;
 - the validator enforces all of the above (`validate_0924_*` guards).
 
-See `RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md` and `verification/GATE_PASS_CRITERIA.md`.
+See [`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`](RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md) and [`verification/GATE_PASS_CRITERIA.md`](../../verification/GATE_PASS_CRITERIA.md).

@@ -127,11 +127,11 @@ Provider adapters expose quotas/cost state. Free-tier Durable Object limits fail
 
 Accepted relationships MAY maintain multiple simultaneous relays. Each relay gets a distinct opaque capability. A private authenticated `RelaySet` defines priority/expiry/transport hints. Normal sending chooses one healthy relay; failover is automatic. Selected high-reliability messages MAY use independently wrapped redundant delivery and are deduplicated by authenticated EventID.
 
-Providers should be diversified across failure domains where practical. See `MULTI_RELAY_AND_DELIVERY_RESILIENCE.md` and ADR-0022.
+Providers should be diversified across failure domains where practical. See [`MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`](MULTI_RELAY_AND_DELIVERY_RESILIENCE.md) and ADR-0022.
 ## 2026-09-22 key-material separation
 
-Relays deliver opaque encrypted envelopes. They are not implicitly responsible for publishing recipient asynchronous handshake material. `KeyMaterialProvider` is a separate logical capability defined by `ASYNC_KEY_MATERIAL.md`, even when one deployment co-hosts the roles.
+Relays deliver opaque encrypted envelopes. They are not implicitly responsible for publishing recipient asynchronous handshake material. `KeyMaterialProvider` is a separate logical capability defined by [`ASYNC_KEY_MATERIAL.md`](../crypto/ASYNC_KEY_MATERIAL.md), even when one deployment co-hosts the roles.
 
 ## 2026-09-23 relay resolution
 
-Deposit and drain capabilities are separate high-entropy scoped bearer capabilities. RelaySet is signed/versioned/hash-chained; migration uses add/overlap/ack/drain/revoke. Total known-route loss may use the optional relationship-secret opaque rendezvous in `REACHABILITY_AND_OBJECT_REPAIR.md`. Failure-domain metadata is evidence-scored rather than treated as provider truth.
+Deposit and drain capabilities are separate high-entropy scoped bearer capabilities. RelaySet is signed/versioned/hash-chained; migration uses add/overlap/ack/drain/revoke. Total known-route loss may use the optional relationship-secret opaque rendezvous in [`REACHABILITY_AND_OBJECT_REPAIR.md`](REACHABILITY_AND_OBJECT_REPAIR.md). Failure-domain metadata is evidence-scored rather than treated as provider truth.

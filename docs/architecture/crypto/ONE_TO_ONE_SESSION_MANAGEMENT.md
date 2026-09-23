@@ -54,7 +54,7 @@ Once the recipient's AccountControlState authorizes the device, senders may esta
 
 ### Quarantine/revocation
 
-A sender that learns a sufficiently authoritative quarantine/revocation stops creating new secrets/envelopes for the affected device according to `ACCOUNT_CONTINUITY_AND_CONTROL.md`.
+A sender that learns a sufficiently authoritative quarantine/revocation stops creating new secrets/envelopes for the affected device according to [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../identity/ACCOUNT_CONTINUITY_AND_CONTROL.md).
 
 Already transmitted ciphertext and plaintext already possessed by the endpoint cannot be revoked retroactively.
 

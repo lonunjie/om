@@ -1,6 +1,6 @@
 # Current Messenger Ecosystem Patterns — 2026-09-23
 
-Research notes supporting `MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md`. These are references, not protocol authority.
+Research notes supporting [`MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md`](../process/MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md). These are references, not protocol authority.
 
 ## Telegram expressive media
 

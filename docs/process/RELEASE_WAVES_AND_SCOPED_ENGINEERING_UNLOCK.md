@@ -22,14 +22,14 @@ Every verification gate now carries:
 | `pre_release_criteria` | Evidence that needs real implementations, traces, independent rebuilds or users. Required before any public release or claim that depends on the gate. |
 | `pre_engineering_status` | `open` / `passed` / `failed` / `waived_by_adr` |
 | `status` | Overall gate status. `passed` only when both phases pass. |
-| `independence` | Minimum independence of evidence (see `verification/GATE_PASS_CRITERIA.md`) |
+| `independence` | Minimum independence of evidence (see [`verification/GATE_PASS_CRITERIA.md`](../../verification/GATE_PASS_CRITERIA.md)) |
 | `unlock_scopes` | Engineering scopes this gate blocks |
 
-`verification/GATE_PASS_CRITERIA.md` is the human-readable view. `machine/architecture_verification_gates.jsonl` is authoritative.
+[`verification/GATE_PASS_CRITERIA.md`](../../verification/GATE_PASS_CRITERIA.md) is the human-readable view. [`machine/architecture_verification_gates.jsonl`](../../machine/architecture_verification_gates.jsonl) is authoritative.
 
 ## 3. Engineering scopes
 
-`machine/repository_contract.json` → `engineering_scopes`. Every scope starts `authorized: false`.
+[`machine/repository_contract.json`](../../machine/repository_contract.json) → `engineering_scopes`. Every scope starts `authorized: false`.
 
 | Scope | Wave | Contents | Gates (pre-engineering criteria must pass) |
 |---|---|---|---|
@@ -61,7 +61,7 @@ The global `engineering_authorized` flag stays `false` until the operator author
 
 ## 5. Waves
 
-V1 remains a **semantic** contract: `MESSENGER_BASELINE_V1.md` fixes meanings, event names and extension points. Delivery is sequenced:
+V1 remains a **semantic** contract: [`MESSENGER_BASELINE_V1.md`](../architecture/events/MESSENGER_BASELINE_V1.md) fixes meanings, event names and extension points. Delivery is sequenced:
 
 | Wave | Delivers | Why this order |
 |---|---|---|
@@ -79,7 +79,7 @@ Rules:
 
 ## 6. Reconciliation with LEAN rules
 
-`LEAN_ARCHITECTURE_RULES.md` "Anti-features for Phase 0/early execution" is now read as **delivery sequencing**, not semantic exclusion:
+[`LEAN_ARCHITECTURE_RULES.md`](../overview/LEAN_ARCHITECTURE_RULES.md) "Anti-features for Phase 0/early execution" is now read as **delivery sequencing**, not semantic exclusion:
 
 - public feeds/giant channels → W3 Publications (no massive private broadcast crypto in V1, unchanged);
 - arbitrary bot platform/executable plugins → W4, behind V-010/V-011;

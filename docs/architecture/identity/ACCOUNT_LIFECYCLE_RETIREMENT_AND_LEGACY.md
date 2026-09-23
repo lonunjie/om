@@ -4,7 +4,7 @@
 - **Checkpoint:** 2026-09-24 02:29 PHT
 - **Decision:** ADR-0105
 - **Gate:** V-002 (extended)
-- **Schema:** `protocol/account-retirement.logical.schema.json`
+- **Schema:** [`spec/protocol/account-retirement.logical.schema.json`](../../../spec/protocol/account-retirement.logical.schema.json)
 
 ## 1. Problem
 
@@ -64,7 +64,7 @@ Abuse guard: a legacy retirement starts a **contest window** that live controlle
 
 ## 5. Moved accounts
 
-When a user creates a new account (for example after identity loss with no recovery), the new account cannot claim the old AccountID. Continuity follows `IDENTITY_CONTINUITY.md`: guardian continuity proof, re-verification or an introduction. If the old account is still controllable, `AccountRetirement(moved, successor)` gives contacts a signed pointer, and they show "Alice moved to a new OM account" (existing UX).
+When a user creates a new account (for example after identity loss with no recovery), the new account cannot claim the old AccountID. Continuity follows [`IDENTITY_CONTINUITY.md`](IDENTITY_CONTINUITY.md): guardian continuity proof, re-verification or an introduction. If the old account is still controllable, `AccountRetirement(moved, successor)` gives contacts a signed pointer, and they show "Alice moved to a new OM account" (existing UX).
 
 ## 6. Verification
 

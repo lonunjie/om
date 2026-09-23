@@ -138,7 +138,7 @@ By S2, the canonical project itself should also be able to continue through the 
 
 ## 9. 2026-09-23 08:21 0M longevity refinement
 
-`PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md` is canonical for the 20-year A-015 pass.
+[`PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md`](PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md) is canonical for the 20-year A-015 pass.
 
 Project succession and protocol succession are deliberately different. A successor steward does **not** inherit user Account/Room/Service authority and does not gain the right to redefine already-published registry IDs. Existing protocol generations remain independently mirrorable/interpretable through Protocol Continuity Bundles.
 

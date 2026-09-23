@@ -172,5 +172,5 @@ Native installation is a normal new-device link:
 Do not export web-origin private-key/database files as the cross-platform continuity mechanism.
 ## 2026-09-22 self-host lifecycle hardening
 
-PWA-first independence includes lifecycle ownership, not only first deployment. `CLIENTHOST_UPDATE_LIFECYCLE.md` specifies the required update/deployment/rollback/compromised-origin migration model. A self-hosted origin that cannot be kept safely updated is not treated as durable independence.
+PWA-first independence includes lifecycle ownership, not only first deployment. [`CLIENTHOST_UPDATE_LIFECYCLE.md`](CLIENTHOST_UPDATE_LIFECYCLE.md) specifies the required update/deployment/rollback/compromised-origin migration model. A self-hosted origin that cannot be kept safely updated is not treated as durable independence.
 

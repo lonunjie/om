@@ -4,7 +4,7 @@
 - **Checkpoint:** 2026-09-24 02:29 PHT
 - **Decision:** ADR-0103
 - **Gate:** V-021
-- **Threats:** T-022..T-028 in `machine/threat_register.jsonl`
+- **Threats:** T-022..T-028 in [`machine/threat_register.jsonl`](../../../machine/threat_register.jsonl)
 
 ## 1. Scope
 
@@ -52,7 +52,7 @@ Session/service lists (ServicePrincipals with full-Room access, bridges) follow 
 
 ## 4. Platform leakage controls (R-168)
 
-Each `LocalDataClass` (`LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md`) maps to platform controls. The platform adapter must expose each control's availability, and V-021 publishes the matrix.
+Each `LocalDataClass` ([`LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md`](../storage/LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md)) maps to platform controls. The platform adapter must expose each control's availability, and V-021 publishes the matrix.
 
 | Channel | Risk | Required behavior |
 |---|---|---|
@@ -76,7 +76,7 @@ Family tablets and shared computers are common. OM assumes one OS user equals on
 
 ## 6. Hosting-account compromise (PWA)
 
-See `HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md` §5 (R-164). For PWA users, the hosting account that deploys the ClientHost is part of the endpoint.
+See [`HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`](../providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md) §5 (R-164). For PWA users, the hosting account that deploys the ClientHost is part of the endpoint.
 
 ## 7. Verification (V-021)
 

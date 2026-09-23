@@ -1,21 +1,91 @@
-# AGENTS.md — OM architecture/research rules (pre-engineering)
+# OM Agent Instructions
 
-## Mission
+OM is SeedLife's open-source, operatorless, end-to-end-encrypted messenger. This repository is the **single source of
+truth** for its design: documents, decisions, machine ledgers, specs and verification evidence. It is private on GitHub
+until the operator makes it public. Write everything as if a stranger will read it, because they will.
+
+**Engineering is NOT authorized.** Research, specification, formal models and bounded feasibility prototypes
+(`verification/`) are allowed. Product code is not. The architecture rules below say exactly what is locked.
+
+## Part 1: Working in this repository
+
+### Where things live
+
+| Path | Purpose |
+|---|---|
+| [`SNAPSHOT.md`](SNAPSHOT.md) | current checkpoint state; update it with every checkpoint |
+| `docs/constitution/`, `docs/overview/`, `docs/architecture/<domain>/`, `docs/process/`, `docs/threat-model/` | canonical design prose; basenames are unique, so refer to a doc as `` `NAME.md` `` and `tools/om_docs.py fmt` turns it into a link |
+| `docs/reviews/`, `docs/checkpoints/`, `docs/research/`, `docs/reports/` | dated records: reviews, checkpoint records, references, working reports |
+| `decisions/` | ADRs; every ADR is listed in [`decisions/INDEX.md`](decisions/INDEX.md) |
+| `spec/` | normative schemas (`spec/protocol/`, `spec/client/`); frozen CDDL/registries go here too |
+| `machine/` | machine truth (contract, file registry, ledgers, traceability, threats) |
+| `verification/` | evidence: `tla/`, `bounded/`, `cbor/`, `prototypes/<gate>/`, `vectors/`, `results/` |
+| `tools/` | [`validate_architecture.py`](tools/validate_architecture.py), [`om_docs.py`](tools/om_docs.py), [`om_drop.py`](tools/om_drop.py), [`build_manifest.py`](tools/build_manifest.py), [`layout.json`](tools/layout.json) |
+| `design-drops/` | **gitignored** drop zone for design zips going out to, or coming in from, other agents |
+
+A new file must be added to [`machine/file_registry.json`](machine/file_registry.json), or the validator fails. New doc folders need a line in the table
+in [`docs/README.md`](docs/README.md).
+
+### Checks (run before every commit)
+
+```sh
+make verify      # validator + docs check + phase-1 evidence + TLC
+make check       # fast subset: validator + docs link check
+```
+
+### Design drops (zip <-> repository)
+
+External design agents (for example the ChatGPT design agent) work on zips; this repository is canonical.
+
+```sh
+python3 tools/om_drop.py export                   # HEAD -> design-drops/om-design-<stamp>-<sha>.zip
+python3 tools/om_drop.py import design-drops/X.zip # merge a returned drop into the current branch
+```
+
+- `export` packages a committed ref (never uncommitted work). It adds `OM_EXPORT.json` (the base commit) and a
+  `MANIFEST.json`, and validates the result before zipping.
+- `import` applies the drop on a branch cut from the drop's base, commits it, tags it `checkpoint/<stamp>`, and
+  **merges** it into the current branch, so concurrent repository work is kept and real conflicts are surfaced. It
+  accepts both this layout and the legacy flat layout (drops up to 2026-09-24 02:29), mapped by [`tools/layout.json`](tools/layout.json).
+  It then runs `om_docs.py fmt` and the validator.
+
+**If you are an agent editing an exported drop:** edit files in place, keeping this layout. Do not create `history/`
+or nest zips; git is the history. Leave `OM_EXPORT.json` unchanged. Record the checkpoint in [`SNAPSHOT.md`](SNAPSHOT.md),
+[`CHANGELOG.md`](CHANGELOG.md) and a new `docs/checkpoints/CHECKPOINT_YYYYMMDD_HHMM.md`. Register new files, run
+`python3 tools/validate_architecture.py` and `python3 tools/om_docs.py check`, then zip the folder as
+`om-design-YYYYMMDD-HHMM-PHT.zip`.
+
+### Workspace rules (lonunjie control plane)
+
+This repository lives at `~/dig/lonunjie/om`, inside the SeedLife control plane (`~/dig/lonunjie`, repo `lonunjie/hq`).
+When working there, read `../AGENTS.md` first for org-wide rules and registry.
+
+- **Push cadence: auto-push.** Push to `origin` after each verified commit. Never force-push without explicit approval.
+- **Memory:** there is no repo-local `memory/`. The shared store is `../memory/`; OM facts go in `../memory/topics/om-*.md`.
+- **Reports:** dated writeups go in `docs/reports/YYYY-MM-DD-<slug>.md`, and move to `docs/reports/completed/` once
+  executed (see [`docs/reports/README.md`](docs/reports/README.md)).
+- **Artifacts stay local:** no hosted artifacts, gists or pastebins unless the operator asks for a shareable link.
+- **Secrets:** never commit secrets or credentials.
+- CLI tools before GUI tools; small single-purpose tools; shared logic in `tools/omlib/`.
+
+## Part 2: Architecture rules (from the design package; edit with care)
+
+### Mission
 
 Build OM as a fast, simple, reliable secure messenger whose identity and canonical conversations survive provider and cryptographic replacement.
 
 
-## Read before any work
+### Read before any work
 
-1. `PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md` — constitutional intent.
-2. `ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md` — executable process/phase lock.
-3. `machine/repository_contract.json` — machine authority for checkpoint state.
+1. [`PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`](docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md) — constitutional intent.
+2. [`ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`](docs/process/ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md) — executable process/phase lock.
+3. [`machine/repository_contract.json`](machine/repository_contract.json) — machine authority for checkpoint state.
 
 **Current rule:** product engineering is not authorized. Research, specification, formal modeling and bounded feasibility experiments may be used to harden architecture, but do not begin the product implementation plan or let a prototype silently freeze a wire/security choice.
 
 SeedLife/lonunjie is the initial steward, not protocol authority. Businesses may participate commercially but receive no hidden/mandatory protocol privilege.
 
-## Absolute rules
+### Absolute rules
 
 1. Provider names never become wire-protocol semantics.
 2. AccountID is never used as a relay/media routing address.
@@ -38,7 +108,7 @@ SeedLife/lonunjie is the initial steward, not protocol authority. Businesses may
 19. Store/carrier approval work must not block OM-native product delivery.
 20. Every architecture addition must answer: **Where did authority go?**
 
-## Core interfaces
+### Core interfaces
 
 At minimum:
 
@@ -56,7 +126,7 @@ At minimum:
 - `TransportAdapter`
 - scoped bot/service capabilities
 
-## User-facing design test
+### User-facing design test
 
 For any implementation proposal ask:
 
@@ -64,7 +134,7 @@ For any implementation proposal ask:
 
 If no, the complexity probably belongs in automatic policy/provider code or advanced settings.
 
-## Change discipline
+### Change discipline
 
 Architecture change requires:
 
@@ -75,15 +145,15 @@ Architecture change requires:
 - negative/conformance tests;
 - migration/backward-compatibility story when wire/storage state changes.
 
-## External facts
+### External facts
 
 Cloud/provider quotas, app-store policies, drafts, APIs, library support, and pricing are volatile. Verify current official sources before implementation or budgeting. Do not encode current free-tier numbers into protocol behavior.
 
-## Discovery/resilience checkpoint
+### Discovery/resilience checkpoint
 
-Treat `DISCOVERY_FABRIC.md`, `INVITES_INTROGATE_AND_SPAM.md`, `MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`, `LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md`, and `CENSORSHIP_AND_NETWORK_RESILIENCE.md` as canonical. Do not introduce a protocol-global username root, publish stable relationship mailboxes in directories, reuse a capability across multiple relays, or broadcast stable identity on LAN. New network/circumvention transports must remain below canonical OM semantics.
+Treat [`DISCOVERY_FABRIC.md`](docs/architecture/discovery/DISCOVERY_FABRIC.md), [`INVITES_INTROGATE_AND_SPAM.md`](docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md), [`MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`](docs/architecture/delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md), [`LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md`](docs/architecture/network/LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md), and [`CENSORSHIP_AND_NETWORK_RESILIENCE.md`](docs/architecture/network/CENSORSHIP_AND_NETWORK_RESILIENCE.md) as canonical. Do not introduce a protocol-global username root, publish stable relationship mailboxes in directories, reuse a capability across multiple relays, or broadcast stable identity on LAN. New network/circumvention transports must remain below canonical OM semantics.
 
-## 21:32 checkpoint implementation rules
+### 21:32 checkpoint implementation rules
 
 - Do not implement account authority using chat timestamps, CRDT merge, or last-write-wins.
 - Do not let one existing controller promote arbitrary new control devices without parent-state constitutional authorization.
@@ -94,7 +164,7 @@ Treat `DISCOVERY_FABRIC.md`, `INVITES_INTROGATE_AND_SPAM.md`, `MULTI_RELAY_AND_D
 - Do not interpret Recommended/Hardened/Maximum Privacy as weaker/stronger cipher selections.
 - Do not ship a public binary whose trust reduces to one mutable CI workflow/one online update key if the documented trust-root gate is incomplete.
 
-## 2026-09-22 operatorless constraints
+### 2026-09-22 operatorless constraints
 
 Agents must preserve these invariants:
 
@@ -104,7 +174,7 @@ Agents must preserve these invariants:
 - preserve Creator-Disappearance Gate;
 - do not infer “no legal obligations” from decentralization; flag jurisdiction-specific operator-role questions instead.
 
-## 2026-09-22 shared UI constraints
+### 2026-09-22 shared UI constraints
 
 - Official PWA/iOS/Android/desktop product screens belong in shared `om-ui`; do not create independent product/security semantics in platform shells.
 - Platform adapters expose capabilities/system surfaces, not messaging/security business logic.
@@ -115,11 +185,11 @@ Agents must preserve these invariants:
 - Accessibility regressions in shared primitives are release-blocking.
 - Default UI prioritizes ergonomics/functionality and low visual noise; advanced capabilities use progressive disclosure.
 
-## Future engineering constraints — retained, currently inactive
+### Future engineering constraints — retained, currently inactive
 
-- Read `ENGINEER_START_HERE.md` before coding.
+- Read [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md) before coding.
 - Dev/test crypto MUST be unmistakably non-production and impossible to ship in a production configuration.
-- Production crypto integration is blocked by `PRODUCTION_CRYPTO_INTEGRATION_GATE.md`; never homebrew primitives or an ad-hoc hybrid combiner.
+- Production crypto integration is blocked by [`PRODUCTION_CRYPTO_INTEGRATION_GATE.md`](docs/architecture/crypto/PRODUCTION_CRYPTO_INTEGRATION_GATE.md); never homebrew primitives or an ad-hoc hybrid combiner.
 - Use strict deterministic CBOR for canonical signed/wire objects; never sign JSON serialization.
 - Treat PWA ClientHost/origin as an endpoint trust boundary; provider migration is device linking/transfer, not IndexedDB copying.
 - Namespace local state by IdentityProfile from the first migration/schema even if v1 UI shows one identity.
@@ -130,7 +200,7 @@ Agents must preserve these invariants:
 - AccountControlState implementation does not merge until the formal model/invariants have corresponding CI coverage.
 - Every built-in theme has light+dark variants and Auto mode; theme/profile appearance cannot modify security semantics.
 
-## 2026-09-22 23:02 architecture-hardening rules
+### 2026-09-22 23:02 architecture-hardening rules
 
 - Canonical AccountID is random 256-bit stable data; never derive it from a device key or algorithm.
 - `AccountControlState` is the canonical account-authority object; do not resurrect a competing generic account-authority state.
@@ -146,24 +216,24 @@ Agents must preserve these invariants:
 - Link-preview fetchers are SSRF-sensitive infrastructure; private/link-local/metadata destinations, rebinding and redirect-to-private paths must be blocked.
 - Provider `failure_domain` metadata is an operational hint, never cryptographic proof of independence.
 - PWA LAN discovery/reachability is platform-capability-gated; native mDNS behavior is not promised universally on web.
-- Licensing follows `LICENSING_AND_CONTRIBUTION_POLICY.md`; normal contributions use DCO/inbound-equals-outbound, not broad copyright assignment.
+- Licensing follows [`LICENSING_AND_CONTRIBUTION_POLICY.md`](docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md); normal contributions use DCO/inbound-equals-outbound, not broad copyright assignment.
 - Run `python3 tools/validate_architecture.py` before accepting a checkpoint.
 
-## 2026-09-23 architecture-resolution rules
+### 2026-09-23 architecture-resolution rules
 
-- The former Q-001..Q-061 choices are resolved in `ARCHITECTURE_RESOLUTIONS_20260923.md`; do not reopen them casually because an implementation is easier.
+- The former Q-001..Q-061 choices are resolved in [`ARCHITECTURE_RESOLUTIONS_20260923.md`](docs/reviews/ARCHITECTURE_RESOLUTIONS_20260923.md); do not reopen them casually because an implementation is easier.
 - Product engineering is still **not authorized**.
-- Before proposing engineering, clear every open blocking item in `machine/architecture_design_queue.jsonl` and pass every blocking gate in `machine/architecture_verification_gates.jsonl`.
-- `machine/public_release_gates.jsonl` applies to the affected public service/distribution/claim; do not silently turn one of those roles into mandatory protocol infrastructure.
-- Preserve all six OM meanings in `NAMING.md` and the rule that capability support does not imply SeedLife operation.
+- Before proposing engineering, clear every open blocking item in [`machine/architecture_design_queue.jsonl`](machine/architecture_design_queue.jsonl) and pass every blocking gate in [`machine/architecture_verification_gates.jsonl`](machine/architecture_verification_gates.jsonl).
+- [`machine/public_release_gates.jsonl`](machine/public_release_gates.jsonl) applies to the affected public service/distribution/claim; do not silently turn one of those roles into mandatory protocol infrastructure.
+- Preserve all six OM meanings in [`NAMING.md`](docs/constitution/NAMING.md) and the rule that capability support does not imply SeedLife operation.
 - Do not introduce OM-operated mandatory payment, marketplace, content catalog, bot cloud, public feed, account service or provider merely to make a feature convenient.
 
-## 2026-09-24 hardening-review rules
+### 2026-09-24 hardening-review rules
 
-- Read `HARDENING_REVIEW_20260924.md` for the findings register (F-01..F-17) and their fixes.
-- Engineering unlock is scope-granular (`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`). Never set a scope `authorized: true` without an ADR naming it and passed or ADR-waived `pre_engineering_status` on every gate listing it. Global `engineering_authorized` stays `false` until then.
+- Read [`HARDENING_REVIEW_20260924.md`](docs/reviews/HARDENING_REVIEW_20260924.md) for the findings register (F-01..F-17) and their fixes.
+- Engineering unlock is scope-granular ([`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`](docs/process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md)). Never set a scope `authorized: true` without an ADR naming it and passed or ADR-waived `pre_engineering_status` on every gate listing it. Global `engineering_authorized` stays `false` until then.
 - Never mark a gate `passed` on evidence produced solely by the agent/author who designed the thing under test; follow the gate's `independence` field.
-- Every new requirement needs a `machine/requirement_traceability.json` entry, and every new threat needs a `machine/threat_register.jsonl` entry.
+- Every new requirement needs a [`machine/requirement_traceability.json`](machine/requirement_traceability.json) entry, and every new threat needs a [`machine/threat_register.jsonl`](machine/threat_register.jsonl) entry.
 - Do not claim post-quantum confidentiality for v1 groups or group calls.
 - Do not make any single cloud vendor the only zero-signup onboarding path. T0 sponsorship and T1 hosted Homes are first-class.
 - Device linking must never be silent. Do not design hidden "duress"/deniable profiles without a research ADR.

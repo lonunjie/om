@@ -11,12 +11,16 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
-CURRENT_EXCLUDED_PARTS = {"history", "__pycache__"}
+# Not part of the architecture tree: git history replaces history/, drops are raw inputs,
+# and build/tool caches are local.
+CURRENT_EXCLUDED_PARTS = {"history", "__pycache__", "design-drops", ".git", "node_modules", "target", ".venv", ".pytest_cache", ".hypothesis"}
+CURRENT_EXCLUDED_FILES = {".DS_Store", "OM_EXPORT.json"}
 ADR_RE = re.compile(r"^ADR-(\d{4})-.*\.md$")
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 ID_PATTERNS = {
@@ -46,16 +50,41 @@ def rel(p: Path) -> str:
     return p.relative_to(ROOT).as_posix()
 
 
+_CURRENT: list[Path] | None = None
+
+
 def current_files() -> list[Path]:
-    out = []
-    for p in ROOT.rglob("*"):
+    """Tracked + untracked-not-ignored files in a git checkout; a filtered walk in an export."""
+    global _CURRENT
+    if _CURRENT is not None:
+        return _CURRENT
+    try:
+        out = subprocess.run(["git", "ls-files", "-co", "--exclude-standard"], cwd=ROOT,
+                             check=True, capture_output=True, text=True).stdout.splitlines()
+        cands = [ROOT / f for f in out]
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        cands = list(ROOT.rglob("*"))
+    res = []
+    for p in cands:
         if not p.is_file():
             continue
         rp = p.relative_to(ROOT)
-        if any(part in CURRENT_EXCLUDED_PARTS for part in rp.parts):
+        if any(part in CURRENT_EXCLUDED_PARTS for part in rp.parts) or rp.name in CURRENT_EXCLUDED_FILES or p.suffix == ".pyc":
             continue
-        out.append(p)
-    return sorted(out)
+        res.append(p)
+    _CURRENT = sorted(res)
+    return _CURRENT
+
+
+def D(name: str) -> Path:
+    """Resolve a document by repo path or by its (unique) basename, independent of folder layout."""
+    if "/" in name or (ROOT / name).is_file():
+        return ROOT / name
+    hits = [p for p in current_files() if p.name == name]
+    if len(hits) != 1:
+        fail(f"document {name!r} must exist exactly once (found {len(hits)})")
+        return ROOT / name
+    return hits[0]
 
 
 def load_json(path: Path):
@@ -117,10 +146,11 @@ def check_registry(contract: dict) -> None:
     paths = [x.get("path") for x in entries if isinstance(x, dict)]
     if len(paths) != len(set(paths)):
         fail("machine/file_registry.json contains duplicate paths")
-    actual = {rel(p) for p in current_files()}
+    skip = set(contract.get("manifest_excludes", []))
+    actual = {rel(p) for p in current_files()} - skip
     declared = set(paths)
     for p in sorted(actual - declared):
-        fail(f"current file is not registered: {p}")
+        fail(f"current file is not registered: {p} (run: python3 tools/om_registry.py sync)")
     for p in sorted(declared - actual):
         fail(f"registered current file does not exist: {p}")
     required_fields = {"path", "class", "domain", "license", "authority"}
@@ -131,6 +161,8 @@ def check_registry(contract: dict) -> None:
         miss = required_fields - set(ent)
         if miss:
             fail(f"file_registry entry {ent.get('path', i)} missing {sorted(miss)}")
+        elif ent.get("domain") == "unassigned":
+            fail(f"file_registry entry {ent['path']} has domain 'unassigned'")
 
 
 def check_machine_records():
@@ -190,13 +222,13 @@ def check_phase(contract: dict, design: list[dict], verify: list[dict]) -> None:
         fail("pre-engineering phase must have engineering_authorized=false")
     if not authorized:
         for name in ["SNAPSHOT.md", "ENGINEER_START_HERE.md"]:
-            text = (ROOT / name).read_text(encoding="utf-8").lower()
+            text = D(name).read_text(encoding="utf-8").lower()
             if "not authorized" not in text and "not yet authorized" not in text:
                 fail(f"{name} does not visibly state that engineering is not authorized")
 
 
 def check_identity(contract: dict) -> None:
-    text = (ROOT / "IDENTITY_PROTOCOL.md").read_text(encoding="utf-8")
+    text = D("IDENTITY_PROTOCOL.md").read_text(encoding="utf-8")
     forbidden = ["genesis_device_signing_public_key", "AccountID = HASH("]
     for token in forbidden:
         if token in text:
@@ -208,16 +240,16 @@ def check_identity(contract: dict) -> None:
         "EVENT_MODEL.md", "GROUP_CHAT_ARCHITECTURE.md", "MULTI_DEVICE_SYNC.md",
     ]
     for name in authority_docs:
-        if re.search(r"\bAccountState\b", (ROOT / name).read_text(encoding="utf-8")):
+        if re.search(r"\bAccountState\b", D(name).read_text(encoding="utf-8")):
             fail(f"{name} contains superseded AccountState authority term")
 
 
 def check_provider_schema(contract: dict) -> None:
-    files = sorted((ROOT / "protocol").glob("provider-capabilities*.json"))
+    files = sorted((ROOT / "spec/protocol").glob("provider-capabilities*.json"))
     wanted = ROOT / contract["schema_singletons"]["ProviderCapabilities"]
     if files != [wanted]:
         fail("ProviderCapabilities must have exactly one current schema: " + ", ".join(rel(p) for p in files))
-    for p in (ROOT / "protocol").glob("*.json"):
+    for p in (ROOT / "spec/protocol").glob("*.json"):
         if re.search(r"-v\d+\.", p.name):
             fail(f"version-suffixed current protocol schema must move to history: {rel(p)}")
 
@@ -265,12 +297,12 @@ def check_architecture_map(resolved_ids: set[str], design_ids: set[str], verify_
 
 
 def check_project_identity_and_legal_boundary() -> None:
-    naming = (ROOT / "NAMING.md").read_text(encoding="utf-8")
+    naming = D("NAMING.md").read_text(encoding="utf-8")
     for phrase in ["Open-source Messenger", "OpenMessenger", "OwnMessenger", "OurMessenger", "OneMessenger", "OhMessenger", "0M", "zero total control"]:
         if phrase not in naming:
             fail(f"NAMING.md missing canonical OM meaning: {phrase}")
     # Country-specific research may remain in history only; current canonical architecture must not make one country the protocol home.
-    legal = (ROOT / "LEGAL_AND_OPERATIONAL_BOUNDARIES.md").read_text(encoding="utf-8").lower()
+    legal = D("LEGAL_AND_OPERATIONAL_BOUNDARIES.md").read_text(encoding="utf-8").lower()
     if "protocol home jurisdiction" not in legal and "protocol-home" not in legal:
         fail("legal boundary does not state jurisdiction-neutral protocol position")
     if "payment processor" not in legal or "merchant-of-record" not in legal:
@@ -281,7 +313,12 @@ def check_required_files(contract: dict) -> None:
     paths = set(contract.get("constitution_files", [])) | set(contract.get("machine_truth_files", [])) | set(contract.get("required_new_hardening_docs", []))
     paths |= {"LICENSE.md", "CONTRIBUTING.md", "tools/validate_architecture.py", "tools/build_manifest.py", "ARCHITECTURE_RESOLUTIONS_20260923.md", "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md", "NAMING.md", "machine/resolved_questions.jsonl", "machine/architecture_design_queue.jsonl", "machine/architecture_verification_gates.jsonl", "machine/public_release_gates.jsonl", "machine/deferred_product_questions.jsonl"}
     for path in sorted(paths):
-        if not (ROOT/path).exists(): fail(f"required architecture file missing: {path}")
+        if path == "MANIFEST.json":
+            continue  # generated only inside exported drops (tools/om_drop.py export)
+        if "/" in path:
+            if not (ROOT/path).exists(): fail(f"required architecture file missing: {path}")
+        elif not any(p.name == path for p in current_files()):
+            fail(f"required architecture file missing: {path}")
     for license_name in ["Apache-2.0.txt", "MPL-2.0.txt", "AGPL-3.0-or-later.txt", "CC-BY-SA-4.0.txt"]:
         if not (ROOT/"LICENSES"/license_name).exists(): fail(f"license text missing: LICENSES/{license_name}")
 
@@ -318,6 +355,8 @@ def sha256(path: Path) -> str:
 
 def check_manifest(contract: dict) -> None:
     mp = ROOT / "MANIFEST.json"
+    if not mp.exists():
+        return  # git checkout: git is the integrity record; exports carry MANIFEST.json
     man = load_json(mp)
     if not isinstance(man, dict): return
     if man.get("snapshot") != contract.get("snapshot"):
@@ -327,10 +366,9 @@ def check_manifest(contract: dict) -> None:
     if excludes != expected_excludes:
         fail(f"MANIFEST excludes {sorted(excludes)} != contract excludes {sorted(expected_excludes)}")
     actual: dict[str, Path] = {}
-    for p in ROOT.rglob("*"):
-        if p.is_file() and "__pycache__" not in p.parts:
-            rp=rel(p)
-            if rp not in excludes: actual[rp]=p
+    for p in current_files():
+        rp=rel(p)
+        if rp not in excludes: actual[rp]=p
     rows=man.get("files", [])
     indexed={r.get("path"):r for r in rows if isinstance(r, dict)}
     if len(indexed) != len(rows): fail("MANIFEST has duplicate or malformed path entries")
@@ -343,7 +381,7 @@ def check_manifest(contract: dict) -> None:
 
 
 def validate_0718_extension_guardrails() -> None:
-    schema_path = ROOT / "protocol/conversation-event.logical.schema.json"
+    schema_path = D("conversation-event.logical.schema.json")
     schema = load_json(schema_path)
     if not isinstance(schema, dict):
         return
@@ -356,7 +394,7 @@ def validate_0718_extension_guardrails() -> None:
     if "author_account_id" in props or "author_device_id" in props:
         fail("07:18 guard: ConversationEvent must not reintroduce human-only author_account_id/author_device_id")
 
-    ptext = (ROOT / "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md").read_text(encoding="utf-8")
+    ptext = D("PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md").read_text(encoding="utf-8")
     for phrase in ("no ambient", "Plaintext", "network", "canonical"):
         if phrase.lower() not in ptext.lower():
             fail(f"07:18 guard: plugin architecture lost required boundary phrase {phrase!r}")
@@ -364,26 +402,26 @@ def validate_0718_extension_guardrails() -> None:
 
 
 def validate_0756_zero_control_interop_portability_guardrails() -> None:
-    naming = (ROOT / "NAMING.md").read_text(encoding="utf-8")
+    naming = D("NAMING.md").read_text(encoding="utf-8")
     if "0M" not in naming or "zero total control" not in naming.lower():
         fail("07:56 guard: NAMING.md must preserve 0M / zero total control")
 
-    service = (ROOT / "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md").read_text(encoding="utf-8")
+    service = D("SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md").read_text(encoding="utf-8")
     for phrase in ("permissionless", "RepresentationGrant", "no central issuer", "identity is cheap; unsolicited delivery"):
         if phrase.lower() not in service.lower():
             fail(f"07:56 guard: service creation architecture lost required phrase {phrase!r}")
 
-    bridge = (ROOT / "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md").read_text(encoding="utf-8")
+    bridge = D("INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md").read_text(encoding="utf-8")
     for phrase in ("BridgePrincipal", "ForeignProvenance", "E2EE ends", "InteropTrace"):
         if phrase.lower() not in bridge.lower():
             fail(f"07:56 guard: bridge architecture lost required phrase {phrase!r}")
 
-    archive = (ROOT / "IMPORT_EXPORT_AND_USER_ESCAPE.md").read_text(encoding="utf-8")
+    archive = D("IMPORT_EXPORT_AND_USER_ESCAPE.md").read_text(encoding="utf-8")
     for phrase in ("om-archive-v1", "data and evidence", "ImportedHistoryRecord", "MUST NOT contain raw long-term"):
         if phrase.lower() not in archive.lower():
             fail(f"07:56 guard: archive architecture lost required phrase {phrase!r}")
 
-    schema = load_json(ROOT / "protocol/conversation-event.logical.schema.json")
+    schema = load_json(D("conversation-event.logical.schema.json"))
     if isinstance(schema, dict):
         props = schema.get("properties", {})
         if "representation" not in props or "foreign_provenance" not in props:
@@ -392,17 +430,17 @@ def validate_0756_zero_control_interop_portability_guardrails() -> None:
 
 
 def validate_0821_metadata_abuse_longevity_guardrails() -> None:
-    metadata = (ROOT / "METADATA_THREAT_MODEL.md").read_text(encoding="utf-8")
+    metadata = D("METADATA_THREAT_MODEL.md").read_text(encoding="utf-8")
     for phrase in ("surface-specific", "opaque capabilities", "randomized", "global passive observer", "V-015"):
         if phrase.lower() not in metadata.lower():
             fail(f"08:21 guard: metadata architecture lost required phrase {phrase!r}")
 
-    abuse = (ROOT / "DECENTRALIZED_ABUSE_MODERATION.md").read_text(encoding="utf-8")
+    abuse = D("DECENTRALIZED_ABUSE_MODERATION.md").read_text(encoding="utf-8")
     for phrase in ("SafetyAdvisory", "no global reputation score", "provider denial", "Sybil", "V-016"):
         if phrase.lower() not in abuse.lower():
             fail(f"08:21 guard: abuse architecture lost required phrase {phrase!r}")
 
-    longevity = (ROOT / "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md").read_text(encoding="utf-8")
+    longevity = D("PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md").read_text(encoding="utf-8")
     for phrase in ("Protocol Continuity Bundle", "never reused", "dominant client", "0M", "V-017"):
         if phrase.lower() not in longevity.lower():
             fail(f"08:21 guard: longevity architecture lost required phrase {phrase!r}")
@@ -413,7 +451,7 @@ def validate_0821_metadata_abuse_longevity_guardrails() -> None:
         if len(matches) != 1 or matches[0].get("status") != "resolved":
             fail(f"08:21 guard: {qid} must remain design-resolved in this checkpoint")
 
-    provider = load_json(ROOT / "protocol/provider-capabilities.logical.schema.json")
+    provider = load_json(D("provider-capabilities.logical.schema.json"))
     if isinstance(provider, dict):
         kinds = provider.get("ProviderCapabilities", {}).get("provider_kind", [])
         if "safety_advisory" not in kinds:
@@ -537,7 +575,8 @@ def validate_0924_traceability_and_threats() -> None:
         if t in gates or t in rel or t == "validator" or t.startswith("conformance:"):
             return True
         if t.startswith("review:"):
-            return (ROOT / t.split(":", 1)[1]).exists()
+            target = t.split(":", 1)[1]
+            return (ROOT / target).exists() or any(p.name == target for p in current_files())
         return False
     for rid, targets in traced.items():
         if not targets:
@@ -574,7 +613,7 @@ def validate_0924_hardening_content_guardrails() -> None:
         "ACCOUNT_CONTINUITY_AND_CONTROL.md": ("ContinuityAssessment", "informed-off"),
     }
     for name, phrases in checks.items():
-        text = (ROOT / name).read_text(encoding="utf-8").lower()
+        text = D(name).read_text(encoding="utf-8").lower()
         for ph in phrases:
             if ph.lower() not in text:
                 fail(f"09:24 guard: {name} lost required phrase {ph!r}")

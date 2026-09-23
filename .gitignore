@@ -4,13 +4,17 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.hypothesis/
+.venv/
+node_modules/
+target/
+*.tlc-meta/
+verification/tla/states/
 
-# If this workspace ever holds secrets, keep them out of git entirely --
-# see xx-network's secrets/ vault pattern (age-encrypted, gitignored).
+# Secrets never live here (see xx-network's age-encrypted secrets/ pattern if ever needed).
 secrets/
 .env
 
-# Design-package zips dropped in by the operator while OM is still in its
-# architecture phase. Working snapshots only, NOT frozen or canonical --
-# see AGENTS.md "Design status". Never commit them.
+# Drop zone for design zips going to / coming from external design agents.
+# The repository is canonical; zips are transport only. See AGENTS.md "Design drops".
 design-drops/

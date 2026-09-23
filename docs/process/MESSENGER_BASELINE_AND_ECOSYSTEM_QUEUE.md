@@ -9,20 +9,20 @@ OM must be both a rigorous secure protocol and a messenger ordinary people actua
 
 ### 06:15 — baseline + Spaces/Rooms/Communities
 
-A-005, A-006, A-007, A-008 and A-010 are resolved by `MESSENGER_BASELINE_V1.md`, `SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md`, `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`, `GROUP_CHAT_ARCHITECTURE.md` and `EVENT_MODEL.md`.
+A-005, A-006, A-007, A-008 and A-010 are resolved by [`MESSENGER_BASELINE_V1.md`](../architecture/events/MESSENGER_BASELINE_V1.md), [`SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md`](../architecture/groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md), [`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](../architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md), [`GROUP_CHAT_ARCHITECTURE.md`](../architecture/groups/GROUP_CHAT_ARCHITECTURE.md) and [`EVENT_MODEL.md`](../architecture/events/EVENT_MODEL.md).
 
 ### 07:18 — expressive media + packs + entitlements + services/LLMs + plugins
 
-A-001, A-002, A-003, A-004 and A-009 are resolved by `EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`, `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md` and `PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md`.
+A-001, A-002, A-003, A-004 and A-009 are resolved by [`EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`](../architecture/ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md), [`SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`](../architecture/ecosystem/SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md) and [`PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md`](../architecture/ecosystem/PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md).
 
 ### 07:56 — 0M + permissionless services + external bridges + user escape
 
 A-011/A-012 and the 0M/service-creation refinements are resolved by:
 
-- `SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`;
-- `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`;
-- `IMPORT_EXPORT_AND_USER_ESCAPE.md`;
-- `NAMING.md` and `PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`.
+- [`SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`](../architecture/ecosystem/SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md);
+- [`INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`](../architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md);
+- [`IMPORT_EXPORT_AND_USER_ESCAPE.md`](../architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md);
+- [`NAMING.md`](../constitution/NAMING.md) and [`PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`](../constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md).
 
 Key decisions: local permissionless ServiceID creation; authority-based rather than human/AI classification; typed BridgePrincipals with explicit foreign provenance/E2EE termination; `om-archive-v1` restoring data/evidence rather than authority; and **0M = zero total control**.
 
@@ -30,9 +30,9 @@ Key decisions: local permissionless ServiceID creation; authority-based rather t
 
 A-013, A-014 and A-015 are resolved by:
 
-- `METADATA_THREAT_MODEL.md`;
-- `DECENTRALIZED_ABUSE_MODERATION.md`;
-- `PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md`.
+- [`METADATA_THREAT_MODEL.md`](../threat-model/METADATA_THREAT_MODEL.md);
+- [`DECENTRALIZED_ABUSE_MODERATION.md`](../architecture/safety/DECENTRALIZED_ABUSE_MODERATION.md);
+- [`PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md`](../constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md).
 
 Key decisions:
 

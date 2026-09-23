@@ -88,8 +88,8 @@ Never describe experimental/draft composition as finalized PQ security.
 
 Production CryptoProfile evaluation now includes two architecture layers that cannot be delegated vaguely to a library:
 
-1. `ASYNC_KEY_MATERIAL.md` — publication/fetch/depletion/rotation and safe multi-provider semantics for prekeys/KeyPackages;
-2. `ONE_TO_ONE_SESSION_MANAGEMENT.md` — multi-device active-session selection, crossed initiation, device changes, backup/rollback and logical-message fanout.
+1. [`ASYNC_KEY_MATERIAL.md`](ASYNC_KEY_MATERIAL.md) — publication/fetch/depletion/rotation and safe multi-provider semantics for prekeys/KeyPackages;
+2. [`ONE_TO_ONE_SESSION_MANAGEMENT.md`](ONE_TO_ONE_SESSION_MANAGEMENT.md) — multi-device active-session selection, crossed initiation, device changes, backup/rollback and logical-message fanout.
 
 A candidate crypto library is insufficient if it cannot expose/support these boundaries across native + WASM targets without relying on an irreplaceable central server model.
 

@@ -11,7 +11,7 @@ The architecture contract remains locked: `engineering_authorized=false`. **Evid
 - `cbor/` — independent deterministic-CBOR foundation encoders/fixtures;
 - `vectors/` — regression/golden transition scenarios derived from architecture invariants;
 - `results/` — machine-readable captured results;
-- `FEASIBILITY_RECONNAISSANCE_20260923.md` — standards/runtime feasibility reconnaissance for gates that require real implementations.
+- [`FEASIBILITY_RECONNAISSANCE_20260923.md`](FEASIBILITY_RECONNAISSANCE_20260923.md) — standards/runtime feasibility reconnaissance for gates that require real implementations.
 
 Run all currently executable phase-1 evidence with:
 
@@ -39,11 +39,11 @@ The current runner completed **7,772 bounded/adversarial cases**, **14 cross-imp
 
 ## Gates not yet exercised by executable phase-1 evidence
 
-V-001, V-003, V-006, V-007, V-010 and V-012 remain fully open. `FEASIBILITY_RECONNAISSANCE_20260923.md` narrows the experiments for V-001/V-006/V-007/V-010/V-012 but is not pass evidence. V-003 still needs its dedicated per-device 1:1 session model/fuzzer.
+V-001, V-003, V-006, V-007, V-010 and V-012 remain fully open. [`FEASIBILITY_RECONNAISSANCE_20260923.md`](FEASIBILITY_RECONNAISSANCE_20260923.md) narrows the experiments for V-001/V-006/V-007/V-010/V-012 but is not pass evidence. V-003 still needs its dedicated per-device 1:1 session model/fuzzer.
 
 ## Known verification-artifact gaps discovered in this checkpoint
 
-1. **TLC is not present in the current execution environment.** `AccountControlState.tla` is therefore authored but not TLC-executed here. `TLAPLUS_TOOL_PIN.md` records the selected verifier/tool pin for a reproducible later run.
+1. **TLC is not present in the current execution environment.** [`AccountControlState.tla`](tla/AccountControlState.tla) is therefore authored but not TLC-executed here. [`TLAPLUS_TOOL_PIN.md`](TLAPLUS_TOOL_PIN.md) records the selected verifier/tool pin for a reproducible later run.
 2. **V-005 cannot pass yet** because per-object CDDL/numeric field registries and domain-separation registries for all signed/hashed v1 objects have not yet been frozen. This is a verification deliverable gap, not a reopening of the deterministic-CBOR architecture decision.
 3. Browser/runtime/media/plugin/parser gates require empirical implementation evidence. Standards availability or a plausible design does not satisfy them.
 
@@ -51,6 +51,6 @@ Engineering remains unauthorized until every blocking gate is actually passed an
 
 ## 2026-09-24 two-phase gates and independence
 
-Gates now carry `pre_engineering_criteria` and `pre_release_criteria`, an `independence` level per phase, and `unlock_scopes` (ADR-0108/0109). The human-readable view is `GATE_PASS_CRITERIA.md`. Bounded models written by the design's author, including everything in `bounded/`, count as **supporting evidence**. They cannot satisfy a phase alone: each phase needs the independent tool, reviewer, implementation, study or external review it names.
+Gates now carry `pre_engineering_criteria` and `pre_release_criteria`, an `independence` level per phase, and `unlock_scopes` (ADR-0108/0109). The human-readable view is [`GATE_PASS_CRITERIA.md`](GATE_PASS_CRITERIA.md). Bounded models written by the design's author, including everything in `bounded/`, count as **supporting evidence**. They cannot satisfy a phase alone: each phase needs the independent tool, reviewer, implementation, study or external review it names.
 
-New in this checkpoint: `bounded/continuity_assessment.py` (1,620 cases, supporting V-002/V-018) reproduces the loss/takeover tolerance table in `ACCOUNT_CONTINUITY_AND_CONTROL.md` §11.
+New in this checkpoint: `bounded/continuity_assessment.py` (1,620 cases, supporting V-002/V-018) reproduces the loss/takeover tolerance table in [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md) §11.

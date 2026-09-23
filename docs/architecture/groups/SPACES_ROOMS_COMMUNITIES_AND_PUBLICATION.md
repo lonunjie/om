@@ -289,13 +289,13 @@ The UI should distinguish “publisher retracted this” from “this never exis
 
 ## Resolution ownership
 
-This document resolves the architectural core of **A-005 communities** and **A-006 broadcast**. Permission mechanics and topic/thread organization are frozen in `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`.
+This document resolves the architectural core of **A-005 communities** and **A-006 broadcast**. Permission mechanics and topic/thread organization are frozen in [`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md).
 
 Bot/LLM installation (A-004), plugins (A-009) and external-network bridges (A-011) are now resolved and all plug into these explicit principal/authority boundaries rather than bypassing them.
 
 ## 2026-09-23 08:21 metadata and moderation refinement
 
-A-013/A-014 are now resolved by `METADATA_THREAT_MODEL.md` and `DECENTRALIZED_ABUSE_MODERATION.md`.
+A-013/A-014 are now resolved by [`METADATA_THREAT_MODEL.md`](../../threat-model/METADATA_THREAT_MODEL.md) and [`DECENTRALIZED_ABUSE_MODERATION.md`](../safety/DECENTRALIZED_ABUSE_MODERATION.md).
 
 For private Spaces/Rooms, content E2EE does not by itself justify a claim that membership, traffic timing or child-link activity is hidden from every provider/participant. Provider-visible canonical Room/Space identifiers are minimized by scoped routing capabilities and encrypted private control distribution; exact exposure is path-specific.
 

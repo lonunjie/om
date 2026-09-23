@@ -4,93 +4,16 @@
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
     {
-      "path": "ABUSE_SAFETY_AND_REPORTING.md",
-      "class": "architecture_doc",
-      "domain": "content_abuse_evidence",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "ACCESSIBILITY_AND_INPUT.md",
-      "class": "architecture_doc",
-      "domain": "ux_accessibility_personalization",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "ACCOUNT_CONTINUITY_AND_CONTROL.md",
-      "class": "architecture_doc",
-      "domain": "identity_control_recovery",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md",
-      "class": "architecture_doc",
-      "domain": "identity_control_recovery",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
+      "path": ".gitignore",
+      "class": "repo_plumbing",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
     },
     {
       "path": "AGENTS.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "ARCHITECTURE_PHASE_PLAN.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "ARCHITECTURE_RESOLUTIONS_20260923.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "ASYNC_KEY_MATERIAL.md",
-      "class": "architecture_doc",
-      "domain": "crypto_1to1",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "BLUEPRINT.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "CALLS_AND_REALTIME_MEDIA.md",
-      "class": "architecture_doc",
-      "domain": "calls_media",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "CANONICAL_ENCODING.md",
-      "class": "architecture_doc",
-      "domain": "crypto_1to1",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "CENSORSHIP_AND_NETWORK_RESILIENCE.md",
-      "class": "architecture_doc",
-      "domain": "network_lan_transport",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
     },
@@ -102,116 +25,11 @@
       "authority": "historical_index"
     },
     {
-      "path": "CHECKPOINT_20260921_2132.md",
-      "class": "checkpoint",
+      "path": "CLAUDE.md",
+      "class": "agent_pointer",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
-      "authority": "historical_checkpoint_record"
-    },
-    {
-      "path": "CHECKPOINT_20260922_0734.md",
-      "class": "checkpoint",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "historical_checkpoint_record"
-    },
-    {
-      "path": "CHECKPOINT_20260922_1342.md",
-      "class": "checkpoint",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "historical_checkpoint_record"
-    },
-    {
-      "path": "CHECKPOINT_20260922_1434.md",
-      "class": "checkpoint",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "historical_checkpoint_record"
-    },
-    {
-      "path": "CHECKPOINT_20260922_2302.md",
-      "class": "checkpoint",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "historical_checkpoint_record"
-    },
-    {
-      "path": "CHECKPOINT_20260923_0545.md",
-      "class": "checkpoint",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "historical_checkpoint_record"
-    },
-    {
-      "path": "CHECKPOINT_20260923_0615.md",
-      "class": "checkpoint",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "historical_checkpoint_record"
-    },
-    {
-      "path": "CHECKPOINT_20260923_0718.md",
-      "class": "checkpoint",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "historical_checkpoint_record"
-    },
-    {
-      "path": "CHECKPOINT_20260923_0756.md",
-      "class": "checkpoint",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "historical_checkpoint_record"
-    },
-    {
-      "path": "CHECKPOINT_20260923_0821.md",
-      "class": "checkpoint",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "historical_checkpoint_record"
-    },
-    {
-      "path": "CHECKPOINT_20260923_0920.md",
-      "class": "checkpoint",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "historical_checkpoint_record"
-    },
-    {
-      "path": "CHECKPOINT_20260924_0229.md",
-      "class": "checkpoint",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "current_checkpoint"
-    },
-    {
-      "path": "CLIENTHOST_UPDATE_LIFECYCLE.md",
-      "class": "architecture_doc",
-      "domain": "client_endpoint_distribution",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "CLIENT_AND_EXTENSION_ARCHITECTURE.md",
-      "class": "architecture_doc",
-      "domain": "client_endpoint_distribution",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "CLOUDFLARE_REFERENCE_DEPLOYMENT.md",
-      "class": "architecture_doc",
-      "domain": "provider_deployment_supply_chain",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "CONTACT_SHARING.md",
-      "class": "architecture_doc",
-      "domain": "discovery_first_contact",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
+      "authority": "pointer_non_normative"
     },
     {
       "path": "CONTRIBUTING.md",
@@ -221,228 +39,11 @@
       "authority": "canonical_normative"
     },
     {
-      "path": "CRYPTOGRAPHY_AND_AGILITY.md",
-      "class": "architecture_doc",
-      "domain": "crypto_1to1",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "DECENTRALIZED_ABUSE_MODERATION.md",
-      "class": "architecture",
-      "domain": "content_abuse_evidence",
-      "license": "CC-BY-SA-4.0",
-      "authority": "normative_architecture"
-    },
-    {
-      "path": "DESIGN_RATIONALE_AND_DISCUSSION_SYNTHESIS.md",
-      "class": "architecture_doc",
+      "path": "GEMINI.md",
+      "class": "agent_pointer",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md",
-      "class": "architecture_doc",
-      "domain": "client_endpoint_distribution",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "DISAPPEARING_MESSAGES_AND_RETENTION.md",
-      "class": "architecture_doc",
-      "domain": "storage_retention",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "DISCOVERY_FABRIC.md",
-      "class": "architecture_doc",
-      "domain": "discovery_first_contact",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md",
-      "class": "architecture_doc",
-      "domain": "client_endpoint_distribution",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "ENGINEERING_HANDOFF.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "ENGINEERING_REPOSITORY_LAYOUT.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "ENGINEER_START_HERE.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "EVENT_MODEL.md",
-      "class": "architecture_doc",
-      "domain": "time_ordering_events",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "EVIDENCE_AND_EXTERNAL_REPORTING.md",
-      "class": "architecture_doc",
-      "domain": "content_abuse_evidence",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md",
-      "class": "architecture_doc",
-      "domain": "expressive_media_content_packs",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "FORMAL_VERIFICATION_AND_FUZZING.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "GROUP_CHAT_ARCHITECTURE.md",
-      "class": "architecture_doc",
-      "domain": "groups",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
-      "class": "architecture_doc",
-      "domain": "groups",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "HARDENING_REVIEW_20260924.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
-      "class": "architecture_doc",
-      "domain": "provider_deployment_supply_chain",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "IDENTIFIER_SPOOFING_AND_DISPLAY.md",
-      "class": "architecture_doc",
-      "domain": "identity_control_recovery",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "IDENTITY_CONTINUITY.md",
-      "class": "architecture_doc",
-      "domain": "identity_control_recovery",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "IDENTITY_DISCOVERY_VERIFICATION.md",
-      "class": "architecture_doc",
-      "domain": "identity_control_recovery",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "IDENTITY_PROTOCOL.md",
-      "class": "architecture_doc",
-      "domain": "identity_control_recovery",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "IMPLEMENTATION_INTERFACES.md",
-      "class": "architecture_doc",
-      "domain": "provider_deployment_supply_chain",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "IMPLEMENTATION_ROADMAP.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "IMPORT_EXPORT_AND_USER_ESCAPE.md",
-      "class": "architecture",
-      "domain": "import_export_escape",
-      "license": "CC-BY-SA-4.0",
-      "authority": "normative_architecture"
-    },
-    {
-      "path": "INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md",
-      "class": "architecture",
-      "domain": "bots_agents_interop",
-      "license": "CC-BY-SA-4.0",
-      "authority": "normative_architecture"
-    },
-    {
-      "path": "INTRODUCTION_AND_SERVICE_ACCOUNTS.md",
-      "class": "architecture_doc",
-      "domain": "discovery_first_contact",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "INVITES_INTROGATE_AND_SPAM.md",
-      "class": "architecture_doc",
-      "domain": "discovery_first_contact",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "KEY_TRANSPARENCY_AND_DIRECTORY.md",
-      "class": "architecture_doc",
-      "domain": "discovery_first_contact",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md",
-      "class": "architecture_doc",
-      "domain": "network_lan_transport",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "LEAN_ARCHITECTURE_RULES.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
-      "class": "architecture_doc",
-      "domain": "constitution_governance",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
+      "authority": "pointer_non_normative"
     },
     {
       "path": "LICENSE.md",
@@ -480,186 +81,11 @@
       "authority": "legal_reference"
     },
     {
-      "path": "LICENSING_AND_CONTRIBUTION_POLICY.md",
-      "class": "architecture_doc",
-      "domain": "constitution_governance",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md",
-      "class": "architecture_doc",
-      "domain": "storage_retention",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "MANIFEST.json",
-      "class": "generated_inventory",
+      "path": "Makefile",
+      "class": "repo_plumbing",
       "domain": "architecture_process",
       "license": "Apache-2.0",
-      "authority": "generated_integrity_inventory"
-    },
-    {
-      "path": "MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "MESSENGER_BASELINE_V1.md",
-      "class": "architecture_doc",
-      "domain": "time_ordering_events",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "METADATA_THREAT_MODEL.md",
-      "class": "architecture",
-      "domain": "metadata_privacy",
-      "license": "CC-BY-SA-4.0",
-      "authority": "normative_architecture"
-    },
-    {
-      "path": "MOTION_AND_PERFORMANCE.md",
-      "class": "architecture_doc",
-      "domain": "ux_accessibility_personalization",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "MULTI_DEVICE_SYNC.md",
-      "class": "architecture_doc",
-      "domain": "crypto_1to1",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "MULTI_IDENTITY_AND_PROFILE_ISOLATION.md",
-      "class": "architecture_doc",
-      "domain": "client_endpoint_distribution",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
-      "class": "architecture_doc",
-      "domain": "relay_reachability",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "NAMING.md",
-      "class": "architecture_doc",
-      "domain": "architecture_crosscutting",
-      "license": "CC-BY-SA-4.0",
-      "authority": "supporting_current"
-    },
-    {
-      "path": "NOTIFICATIONS_AND_PUSH.md",
-      "class": "architecture_doc",
-      "domain": "client_endpoint_distribution",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "ONE_TO_ONE_SESSION_MANAGEMENT.md",
-      "class": "architecture_doc",
-      "domain": "crypto_1to1",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "OPERATORLESS_CORE_AND_ECOSYSTEM.md",
-      "class": "architecture_doc",
-      "domain": "constitution_governance",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md",
-      "class": "architecture_doc",
-      "domain": "bots_agents_interop",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "PRIVACY_GOVERNANCE_AUTHORITY.md",
-      "class": "architecture_doc",
-      "domain": "constitution_governance",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "PRODUCTION_CRYPTO_INTEGRATION_GATE.md",
-      "class": "architecture_doc",
-      "domain": "crypto_1to1",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "PRODUCT_AND_UX_PRINCIPLES.md",
-      "class": "architecture_doc",
-      "domain": "ux_accessibility_personalization",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
-      "class": "architecture_doc",
-      "domain": "constitution_governance",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
-      "class": "architecture_doc",
-      "domain": "constitution_governance",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "PROTOCOL_EXTENSIBILITY.md",
-      "class": "architecture_doc",
-      "domain": "constitution_governance",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
-      "class": "architecture",
-      "domain": "protocol_longevity_0m",
-      "license": "CC-BY-SA-4.0",
-      "authority": "normative_architecture"
-    },
-    {
-      "path": "PROVISIONING_AND_BOOTSTRAP.md",
-      "class": "architecture_doc",
-      "domain": "provider_deployment_supply_chain",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md",
-      "class": "architecture_doc",
-      "domain": "client_endpoint_distribution",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "PWA_REFERENCE_CLIENT.md",
-      "class": "architecture_doc",
-      "domain": "client_endpoint_distribution",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "REACHABILITY_AND_OBJECT_REPAIR.md",
-      "class": "architecture_doc",
-      "domain": "relay_reachability",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
+      "authority": "executable_guardrail"
     },
     {
       "path": "README.md",
@@ -669,58 +95,16 @@
       "authority": "canonical_normative"
     },
     {
-      "path": "RECOVERY_AND_BACKUP_POLICY.md",
-      "class": "architecture_doc",
-      "domain": "identity_control_recovery",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
+      "path": "REUSE.toml",
+      "class": "repo_plumbing",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
     },
     {
-      "path": "RELAY_AND_DELIVERY_ARCHITECTURE.md",
-      "class": "architecture_doc",
-      "domain": "relay_reachability",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md",
+      "path": "SECURITY.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "RICH_TEXT_AND_CONTENT_SECURITY.md",
-      "class": "architecture_doc",
-      "domain": "content_abuse_evidence",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md",
-      "class": "architecture_doc",
-      "domain": "communities_broadcast_topics",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "SECURITY_PRIVACY_PROFILES.md",
-      "class": "architecture_doc",
-      "domain": "ux_accessibility_personalization",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
-      "class": "architecture",
-      "domain": "bots_agents_interop",
-      "license": "CC-BY-SA-4.0",
-      "authority": "normative_architecture"
-    },
-    {
-      "path": "SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md",
-      "class": "architecture_doc",
-      "domain": "bots_agents_interop",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
     },
@@ -730,90 +114,6 @@
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
-    },
-    {
-      "path": "SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
-      "class": "architecture_doc",
-      "domain": "provider_deployment_supply_chain",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
-      "class": "architecture_doc",
-      "domain": "communities_broadcast_topics",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "STORAGE_AND_BLOB_ARCHITECTURE.md",
-      "class": "architecture_doc",
-      "domain": "storage_retention",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "SYSTEM_ARCHITECTURE.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "THEMES_FONTS_AND_PERSONALIZATION.md",
-      "class": "architecture_doc",
-      "domain": "ux_accessibility_personalization",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "TIME_AND_EXPIRY_SEMANTICS.md",
-      "class": "architecture_doc",
-      "domain": "time_ordering_events",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "TRANSPORT_ADAPTERS_AND_INTEROP.md",
-      "class": "architecture_doc",
-      "domain": "network_lan_transport",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "UI_CORE_PLATFORM_CONTRACT.md",
-      "class": "architecture_doc",
-      "domain": "ux_accessibility_personalization",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "UI_UX_SYSTEM.md",
-      "class": "architecture_doc",
-      "domain": "ux_accessibility_personalization",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md",
-      "class": "architecture_doc",
-      "domain": "provider_deployment_supply_chain",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "client/device-vault.logical.schema.json",
-      "class": "client_schema",
-      "domain": "client_endpoint_distribution",
-      "license": "Apache-2.0",
-      "authority": "normative_logical_schema"
-    },
-    {
-      "path": "client/identity-profile.logical.schema.json",
-      "class": "client_schema",
-      "domain": "client_endpoint_distribution",
-      "license": "Apache-2.0",
-      "authority": "normative_logical_schema"
     },
     {
       "path": "decisions/ADR-0001-provider-independence.md",
@@ -1586,87 +886,927 @@
       "authority": "decision_index"
     },
     {
-      "path": "design/COMPONENT_CATALOG.md",
+      "path": "docs/README.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/calls/CALLS_AND_REALTIME_MEDIA.md",
+      "class": "architecture_doc",
+      "domain": "calls_media",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md",
+      "class": "architecture_doc",
+      "domain": "client_endpoint_distribution",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/client/CLIENT_AND_EXTENSION_ARCHITECTURE.md",
+      "class": "architecture_doc",
+      "domain": "client_endpoint_distribution",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/client/DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md",
+      "class": "architecture_doc",
+      "domain": "client_endpoint_distribution",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md",
+      "class": "architecture_doc",
+      "domain": "client_endpoint_distribution",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/client/MULTI_IDENTITY_AND_PROFILE_ISOLATION.md",
+      "class": "architecture_doc",
+      "domain": "client_endpoint_distribution",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/client/NOTIFICATIONS_AND_PUSH.md",
+      "class": "architecture_doc",
+      "domain": "client_endpoint_distribution",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/client/PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md",
+      "class": "architecture_doc",
+      "domain": "client_endpoint_distribution",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/client/PWA_REFERENCE_CLIENT.md",
+      "class": "architecture_doc",
+      "domain": "client_endpoint_distribution",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/crypto/ASYNC_KEY_MATERIAL.md",
+      "class": "architecture_doc",
+      "domain": "crypto_1to1",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/crypto/CANONICAL_ENCODING.md",
+      "class": "architecture_doc",
+      "domain": "crypto_1to1",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md",
+      "class": "architecture_doc",
+      "domain": "crypto_1to1",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/crypto/MULTI_DEVICE_SYNC.md",
+      "class": "architecture_doc",
+      "domain": "crypto_1to1",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md",
+      "class": "architecture_doc",
+      "domain": "crypto_1to1",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/crypto/PRODUCTION_CRYPTO_INTEGRATION_GATE.md",
+      "class": "architecture_doc",
+      "domain": "crypto_1to1",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
+      "class": "architecture_doc",
+      "domain": "relay_reachability",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/delivery/REACHABILITY_AND_OBJECT_REPAIR.md",
+      "class": "architecture_doc",
+      "domain": "relay_reachability",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/delivery/RELAY_AND_DELIVERY_ARCHITECTURE.md",
+      "class": "architecture_doc",
+      "domain": "relay_reachability",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/discovery/CONTACT_SHARING.md",
+      "class": "architecture_doc",
+      "domain": "discovery_first_contact",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/discovery/DISCOVERY_FABRIC.md",
+      "class": "architecture_doc",
+      "domain": "discovery_first_contact",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/discovery/INTRODUCTION_AND_SERVICE_ACCOUNTS.md",
+      "class": "architecture_doc",
+      "domain": "discovery_first_contact",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md",
+      "class": "architecture_doc",
+      "domain": "discovery_first_contact",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/discovery/KEY_TRANSPARENCY_AND_DIRECTORY.md",
+      "class": "architecture_doc",
+      "domain": "discovery_first_contact",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md",
+      "class": "architecture_doc",
+      "domain": "expressive_media_content_packs",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md",
+      "class": "architecture",
+      "domain": "import_export_escape",
+      "license": "CC-BY-SA-4.0",
+      "authority": "normative_architecture"
+    },
+    {
+      "path": "docs/architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md",
+      "class": "architecture",
+      "domain": "bots_agents_interop",
+      "license": "CC-BY-SA-4.0",
+      "authority": "normative_architecture"
+    },
+    {
+      "path": "docs/architecture/ecosystem/PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md",
+      "class": "architecture_doc",
+      "domain": "bots_agents_interop",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/ecosystem/SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
+      "class": "architecture",
+      "domain": "bots_agents_interop",
+      "license": "CC-BY-SA-4.0",
+      "authority": "normative_architecture"
+    },
+    {
+      "path": "docs/architecture/ecosystem/SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md",
+      "class": "architecture_doc",
+      "domain": "bots_agents_interop",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/events/EVENT_MODEL.md",
+      "class": "architecture_doc",
+      "domain": "time_ordering_events",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/events/MESSENGER_BASELINE_V1.md",
+      "class": "architecture_doc",
+      "domain": "time_ordering_events",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/events/TIME_AND_EXPIRY_SEMANTICS.md",
+      "class": "architecture_doc",
+      "domain": "time_ordering_events",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md",
+      "class": "architecture_doc",
+      "domain": "groups",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
+      "class": "architecture_doc",
+      "domain": "groups",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md",
+      "class": "architecture_doc",
+      "domain": "communities_broadcast_topics",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
+      "class": "architecture_doc",
+      "domain": "communities_broadcast_topics",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md",
+      "class": "architecture_doc",
+      "domain": "identity_control_recovery",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/identity/ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md",
+      "class": "architecture_doc",
+      "domain": "identity_control_recovery",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/identity/IDENTIFIER_SPOOFING_AND_DISPLAY.md",
+      "class": "architecture_doc",
+      "domain": "identity_control_recovery",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/identity/IDENTITY_CONTINUITY.md",
+      "class": "architecture_doc",
+      "domain": "identity_control_recovery",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/identity/IDENTITY_DISCOVERY_VERIFICATION.md",
+      "class": "architecture_doc",
+      "domain": "identity_control_recovery",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/identity/IDENTITY_PROTOCOL.md",
+      "class": "architecture_doc",
+      "domain": "identity_control_recovery",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/identity/RECOVERY_AND_BACKUP_POLICY.md",
+      "class": "architecture_doc",
+      "domain": "identity_control_recovery",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/network/CENSORSHIP_AND_NETWORK_RESILIENCE.md",
+      "class": "architecture_doc",
+      "domain": "network_lan_transport",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/network/LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md",
+      "class": "architecture_doc",
+      "domain": "network_lan_transport",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/network/TRANSPORT_ADAPTERS_AND_INTEROP.md",
+      "class": "architecture_doc",
+      "domain": "network_lan_transport",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/providers/CLOUDFLARE_REFERENCE_DEPLOYMENT.md",
+      "class": "architecture_doc",
+      "domain": "provider_deployment_supply_chain",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
+      "class": "architecture_doc",
+      "domain": "provider_deployment_supply_chain",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md",
+      "class": "architecture_doc",
+      "domain": "provider_deployment_supply_chain",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/providers/PROVISIONING_AND_BOOTSTRAP.md",
+      "class": "architecture_doc",
+      "domain": "provider_deployment_supply_chain",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
+      "class": "architecture_doc",
+      "domain": "provider_deployment_supply_chain",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/providers/VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md",
+      "class": "architecture_doc",
+      "domain": "provider_deployment_supply_chain",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/safety/ABUSE_SAFETY_AND_REPORTING.md",
+      "class": "architecture_doc",
+      "domain": "content_abuse_evidence",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/safety/DECENTRALIZED_ABUSE_MODERATION.md",
+      "class": "architecture",
+      "domain": "content_abuse_evidence",
+      "license": "CC-BY-SA-4.0",
+      "authority": "normative_architecture"
+    },
+    {
+      "path": "docs/architecture/safety/EVIDENCE_AND_EXTERNAL_REPORTING.md",
+      "class": "architecture_doc",
+      "domain": "content_abuse_evidence",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/safety/RICH_TEXT_AND_CONTENT_SECURITY.md",
+      "class": "architecture_doc",
+      "domain": "content_abuse_evidence",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/storage/DISAPPEARING_MESSAGES_AND_RETENTION.md",
+      "class": "architecture_doc",
+      "domain": "storage_retention",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/storage/LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md",
+      "class": "architecture_doc",
+      "domain": "storage_retention",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/storage/STORAGE_AND_BLOB_ARCHITECTURE.md",
+      "class": "architecture_doc",
+      "domain": "storage_retention",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/ux/ACCESSIBILITY_AND_INPUT.md",
+      "class": "architecture_doc",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/ux/MOTION_AND_PERFORMANCE.md",
+      "class": "architecture_doc",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/ux/SECURITY_PRIVACY_PROFILES.md",
+      "class": "architecture_doc",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/ux/THEMES_FONTS_AND_PERSONALIZATION.md",
+      "class": "architecture_doc",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/ux/UI_CORE_PLATFORM_CONTRACT.md",
+      "class": "architecture_doc",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/ux/UI_UX_SYSTEM.md",
+      "class": "architecture_doc",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260921_2132.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260922_0734.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260922_1342.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260922_1434.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260922_2302.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260923_0545.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260923_0615.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260923_0718.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260923_0756.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260923_0821.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260923_0920.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260924_0229.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "current_checkpoint"
+    },
+    {
+      "path": "docs/checkpoints/README.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_index"
+    },
+    {
+      "path": "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
+      "class": "architecture_doc",
+      "domain": "constitution_governance",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md",
+      "class": "architecture_doc",
+      "domain": "constitution_governance",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/constitution/NAMING.md",
+      "class": "architecture_doc",
+      "domain": "architecture_crosscutting",
+      "license": "CC-BY-SA-4.0",
+      "authority": "supporting_current"
+    },
+    {
+      "path": "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+      "class": "architecture_doc",
+      "domain": "constitution_governance",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+      "class": "architecture_doc",
+      "domain": "constitution_governance",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+      "class": "architecture_doc",
+      "domain": "constitution_governance",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+      "class": "architecture_doc",
+      "domain": "constitution_governance",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+      "class": "architecture_doc",
+      "domain": "constitution_governance",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+      "class": "architecture",
+      "domain": "protocol_longevity_0m",
+      "license": "CC-BY-SA-4.0",
+      "authority": "normative_architecture"
+    },
+    {
+      "path": "docs/overview/BLUEPRINT.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/overview/DESIGN_RATIONALE_AND_DISCUSSION_SYNTHESIS.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/overview/LEAN_ARCHITECTURE_RULES.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/overview/PRODUCT_AND_UX_PRINCIPLES.md",
+      "class": "architecture_doc",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/overview/SYSTEM_ARCHITECTURE.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/process/ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/process/ARCHITECTURE_PHASE_PLAN.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/process/ENGINEERING_HANDOFF.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/process/ENGINEERING_REPOSITORY_LAYOUT.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/process/ENGINEER_START_HERE.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/process/FORMAL_VERIFICATION_AND_FUZZING.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/process/IMPLEMENTATION_ROADMAP.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/process/MESSENGER_BASELINE_AND_ECOSYSTEM_QUEUE.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/process/SECURITY_RELEASE_GATES.md",
+      "class": "engineering_gate",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "future_gate_non_authorizing"
+    },
+    {
+      "path": "docs/process/WORK_PACKAGE_CHECKLIST.md",
+      "class": "engineering_gate",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "future_gate_non_authorizing"
+    },
+    {
+      "path": "docs/reports/2026-09-24-architecture-hardening-review.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/README.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/completed/.gitkeep",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/research/ARCHITECTURE_HARDENING_REFERENCES_20260922.md",
+      "class": "research",
+      "domain": "research",
+      "license": "CC-BY-SA-4.0",
+      "authority": "evidence_non_normative"
+    },
+    {
+      "path": "docs/research/CURRENT_REFERENCES_20260921.md",
+      "class": "research",
+      "domain": "research",
+      "license": "CC-BY-SA-4.0",
+      "authority": "evidence_non_normative"
+    },
+    {
+      "path": "docs/research/CURRENT_UI_REFERENCES_20260922.md",
+      "class": "research",
+      "domain": "research",
+      "license": "CC-BY-SA-4.0",
+      "authority": "evidence_non_normative"
+    },
+    {
+      "path": "docs/research/DISCOVERY_RESILIENCE_REFERENCES_20260921.md",
+      "class": "research",
+      "domain": "research",
+      "license": "CC-BY-SA-4.0",
+      "authority": "evidence_non_normative"
+    },
+    {
+      "path": "docs/research/EXTENSION_ECOSYSTEM_REFERENCES_20260923.md",
+      "class": "research",
+      "domain": "research",
+      "license": "CC-BY-SA-4.0",
+      "authority": "evidence_non_normative"
+    },
+    {
+      "path": "docs/research/INTEROP_BOTS_PORTABILITY_REFERENCES_20260923.md",
+      "class": "research",
+      "domain": "research",
+      "license": "CC-BY-SA-4.0",
+      "authority": "evidence_non_normative"
+    },
+    {
+      "path": "docs/research/MESSENGER_ECOSYSTEM_PATTERNS_20260923.md",
+      "class": "research",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "research_reference"
+    },
+    {
+      "path": "docs/research/METADATA_ABUSE_LONGEVITY_REFERENCES_20260923.md",
+      "class": "research",
+      "domain": "research",
+      "license": "CC-BY-SA-4.0",
+      "authority": "evidence_non_normative"
+    },
+    {
+      "path": "docs/research/OPERATORLESS_PWA_ECOSYSTEM_REFERENCES_20260922.md",
+      "class": "research",
+      "domain": "research",
+      "license": "CC-BY-SA-4.0",
+      "authority": "evidence_non_normative"
+    },
+    {
+      "path": "docs/research/SECURITY_CONTINUITY_REFERENCES_20260921.md",
+      "class": "research",
+      "domain": "research",
+      "license": "CC-BY-SA-4.0",
+      "authority": "evidence_non_normative"
+    },
+    {
+      "path": "docs/research/SECURITY_CRYPTO_REAUDIT_20260922.md",
+      "class": "research",
+      "domain": "research",
+      "license": "CC-BY-SA-4.0",
+      "authority": "evidence_non_normative"
+    },
+    {
+      "path": "docs/reviews/ARCHITECTURE_RESOLUTIONS_20260923.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/reviews/HARDENING_REVIEW_20260924.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/threat-model/METADATA_THREAT_MODEL.md",
+      "class": "architecture",
+      "domain": "metadata_privacy",
+      "license": "CC-BY-SA-4.0",
+      "authority": "normative_architecture"
+    },
+    {
+      "path": "docs/threat-model/README.md",
+      "class": "threat_model",
+      "domain": "security_crosscutting",
+      "license": "CC-BY-SA-4.0",
+      "authority": "normative_security_analysis"
+    },
+    {
+      "path": "docs/ux-design/COMPONENT_CATALOG.md",
       "class": "design_artifact",
       "domain": "ux_accessibility_personalization",
       "license": "CC-BY-SA-4.0",
       "authority": "design_reference"
     },
     {
-      "path": "design/MOTION_TOKENS.md",
+      "path": "docs/ux-design/MOTION_TOKENS.md",
       "class": "design_artifact",
       "domain": "ux_accessibility_personalization",
       "license": "CC-BY-SA-4.0",
       "authority": "design_reference"
     },
     {
-      "path": "design/SCREEN_MAP_AND_JOURNEYS.md",
+      "path": "docs/ux-design/SCREEN_MAP_AND_JOURNEYS.md",
       "class": "design_artifact",
       "domain": "ux_accessibility_personalization",
       "license": "CC-BY-SA-4.0",
       "authority": "design_reference"
     },
     {
-      "path": "design/metadata-exposure.logical.schema.json",
+      "path": "docs/ux-design/metadata-exposure.logical.schema.json",
       "class": "design_artifact",
       "domain": "metadata_privacy",
       "license": "Apache-2.0",
       "authority": "logical_design_schema"
     },
     {
-      "path": "design/prototype/README.md",
+      "path": "docs/ux-design/prototype/README.md",
       "class": "design_artifact",
       "domain": "ux_accessibility_personalization",
       "license": "CC-BY-SA-4.0",
       "authority": "prototype_non_normative"
     },
     {
-      "path": "design/prototype/index.html",
+      "path": "docs/ux-design/prototype/index.html",
       "class": "design_artifact",
       "domain": "ux_accessibility_personalization",
       "license": "Apache-2.0",
       "authority": "prototype_non_normative"
     },
     {
-      "path": "design/rich-text.logical.schema.json",
+      "path": "docs/ux-design/rich-text.logical.schema.json",
       "class": "design_artifact",
       "domain": "ux_accessibility_personalization",
       "license": "Apache-2.0",
       "authority": "logical_design_schema"
     },
     {
-      "path": "design/theme-bundle.logical.schema.json",
+      "path": "docs/ux-design/theme-bundle.logical.schema.json",
       "class": "design_artifact",
       "domain": "ux_accessibility_personalization",
       "license": "Apache-2.0",
       "authority": "logical_design_schema"
     },
     {
-      "path": "design/ui-tokens.example.json",
+      "path": "docs/ux-design/ui-tokens.example.json",
       "class": "design_artifact",
       "domain": "ux_accessibility_personalization",
       "license": "Apache-2.0",
       "authority": "logical_design_schema"
-    },
-    {
-      "path": "engineering/SECURITY_RELEASE_GATES.md",
-      "class": "engineering_gate",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "future_gate_non_authorizing"
-    },
-    {
-      "path": "engineering/WORK_PACKAGE_CHECKLIST.md",
-      "class": "engineering_gate",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "future_gate_non_authorizing"
     },
     {
       "path": "machine/architecture_design_queue.jsonl",
       "class": "machine_truth",
       "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
+      "license": "Apache-2.0",
       "authority": "machine_normative"
     },
     {
@@ -1680,7 +1820,7 @@
       "path": "machine/architecture_verification_gates.jsonl",
       "class": "machine_truth",
       "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
+      "license": "Apache-2.0",
       "authority": "machine_normative"
     },
     {
@@ -1694,7 +1834,7 @@
       "path": "machine/deferred_product_questions.jsonl",
       "class": "machine_truth",
       "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
+      "license": "Apache-2.0",
       "authority": "machine_normative"
     },
     {
@@ -1708,7 +1848,7 @@
       "path": "machine/public_release_gates.jsonl",
       "class": "machine_truth",
       "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
+      "license": "Apache-2.0",
       "authority": "machine_normative"
     },
     {
@@ -1736,7 +1876,7 @@
       "path": "machine/resolved_questions.jsonl",
       "class": "machine_truth",
       "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
+      "license": "Apache-2.0",
       "authority": "machine_normative"
     },
     {
@@ -1754,448 +1894,434 @@
       "authority": "machine_truth"
     },
     {
-      "path": "protocol/account-control-head.logical.schema.json",
+      "path": "spec/client/device-vault.logical.schema.json",
+      "class": "client_schema",
+      "domain": "client_endpoint_distribution",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/client/identity-profile.logical.schema.json",
+      "class": "client_schema",
+      "domain": "client_endpoint_distribution",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/protocol/account-control-head.logical.schema.json",
       "class": "protocol_schema",
       "domain": "identity_control_recovery",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/account-control-state.logical.schema.json",
+      "path": "spec/protocol/account-control-state.logical.schema.json",
       "class": "protocol_schema",
       "domain": "identity_control_recovery",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/account-retirement.logical.schema.json",
+      "path": "spec/protocol/account-retirement.logical.schema.json",
       "class": "protocol_schema",
       "domain": "identity_control_recovery",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/async-key-material.logical.schema.json",
+      "path": "spec/protocol/async-key-material.logical.schema.json",
       "class": "protocol_schema",
       "domain": "crypto_1to1",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/baseline-conversation-actions.logical.schema.json",
+      "path": "spec/protocol/baseline-conversation-actions.logical.schema.json",
       "class": "protocol_schema",
       "domain": "time_ordering_events",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/blob-location-record.logical.schema.json",
+      "path": "spec/protocol/blob-location-record.logical.schema.json",
       "class": "protocol_schema",
       "domain": "storage_retention",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/bridge-principal.logical.schema.json",
+      "path": "spec/protocol/bridge-principal.logical.schema.json",
       "class": "protocol_schema",
       "domain": "bots_agents_interop",
       "license": "Apache-2.0",
       "authority": "logical_schema"
     },
     {
-      "path": "protocol/call-session.logical.schema.json",
+      "path": "spec/protocol/call-session.logical.schema.json",
       "class": "protocol_schema",
       "domain": "calls_media",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/capability-grant.logical.schema.json",
+      "path": "spec/protocol/capability-grant.logical.schema.json",
       "class": "protocol_schema",
       "domain": "communities_broadcast_topics",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/client-distribution.logical.schema.json",
+      "path": "spec/protocol/client-distribution.logical.schema.json",
       "class": "protocol_schema",
       "domain": "constitution_governance",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/clienthost-release-state.logical.schema.json",
+      "path": "spec/protocol/clienthost-release-state.logical.schema.json",
       "class": "protocol_schema",
       "domain": "client_endpoint_distribution",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/contact-capsule.logical.schema.json",
+      "path": "spec/protocol/contact-capsule.logical.schema.json",
       "class": "protocol_schema",
       "domain": "discovery_first_contact",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/contact-descriptor.logical.schema.json",
+      "path": "spec/protocol/contact-descriptor.logical.schema.json",
       "class": "protocol_schema",
       "domain": "discovery_first_contact",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/content-pack.logical.schema.json",
+      "path": "spec/protocol/content-pack.logical.schema.json",
       "class": "protocol_schema",
       "domain": "expressive_media_content_packs",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/conversation-event.logical.schema.json",
+      "path": "spec/protocol/conversation-event.logical.schema.json",
       "class": "protocol_schema",
       "domain": "time_ordering_events",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/crypto-profile.logical.schema.json",
+      "path": "spec/protocol/crypto-profile.logical.schema.json",
       "class": "protocol_schema",
       "domain": "crypto_1to1",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/discovery-provider.logical.schema.json",
+      "path": "spec/protocol/discovery-provider.logical.schema.json",
       "class": "protocol_schema",
       "domain": "discovery_first_contact",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/entitlement-presentation.logical.schema.json",
+      "path": "spec/protocol/entitlement-presentation.logical.schema.json",
       "class": "protocol_schema",
       "domain": "expressive_media_content_packs",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/evidence-package.logical.schema.json",
+      "path": "spec/protocol/evidence-package.logical.schema.json",
       "class": "protocol_schema",
       "domain": "content_abuse_evidence",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/expressive-asset.logical.schema.json",
+      "path": "spec/protocol/expressive-asset.logical.schema.json",
       "class": "protocol_schema",
       "domain": "expressive_media_content_packs",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/foreign-provenance.logical.schema.json",
+      "path": "spec/protocol/foreign-provenance.logical.schema.json",
       "class": "protocol_schema",
       "domain": "bots_agents_interop",
       "license": "Apache-2.0",
       "authority": "logical_schema"
     },
     {
-      "path": "protocol/group-control-transition.logical.schema.json",
+      "path": "spec/protocol/group-control-transition.logical.schema.json",
       "class": "protocol_schema",
       "domain": "groups",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/imported-history-record.logical.schema.json",
+      "path": "spec/protocol/imported-history-record.logical.schema.json",
       "class": "protocol_schema",
       "domain": "import_export_escape",
       "license": "Apache-2.0",
       "authority": "logical_schema"
     },
     {
-      "path": "protocol/introduction-ticket.logical.schema.json",
+      "path": "spec/protocol/introduction-ticket.logical.schema.json",
       "class": "protocol_schema",
       "domain": "discovery_first_contact",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/invite.logical.schema.json",
+      "path": "spec/protocol/invite.logical.schema.json",
       "class": "protocol_schema",
       "domain": "discovery_first_contact",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/message-create.logical.schema.json",
+      "path": "spec/protocol/message-create.logical.schema.json",
       "class": "protocol_schema",
       "domain": "time_ordering_events",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/moderation-safety.logical.schema.json",
+      "path": "spec/protocol/moderation-safety.logical.schema.json",
       "class": "protocol_schema",
       "domain": "content_abuse_evidence",
       "license": "Apache-2.0",
       "authority": "logical_schema"
     },
     {
-      "path": "protocol/notification-policy.logical.schema.json",
+      "path": "spec/protocol/notification-policy.logical.schema.json",
       "class": "protocol_schema",
       "domain": "client_endpoint_distribution",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/om-archive-manifest.logical.schema.json",
+      "path": "spec/protocol/om-archive-manifest.logical.schema.json",
       "class": "protocol_schema",
       "domain": "import_export_escape",
       "license": "Apache-2.0",
       "authority": "logical_schema"
     },
     {
-      "path": "protocol/one-to-one-session-state.logical.schema.json",
+      "path": "spec/protocol/one-to-one-session-state.logical.schema.json",
       "class": "protocol_schema",
       "domain": "crypto_1to1",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/plugin-package.logical.schema.json",
+      "path": "spec/protocol/plugin-package.logical.schema.json",
       "class": "protocol_schema",
       "domain": "bots_agents_interop",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/principal-ref.logical.schema.json",
+      "path": "spec/protocol/principal-ref.logical.schema.json",
       "class": "protocol_schema",
       "domain": "bots_agents_interop",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/protocol-continuity-bundle.logical.schema.json",
+      "path": "spec/protocol/protocol-continuity-bundle.logical.schema.json",
       "class": "protocol_schema",
       "domain": "protocol_longevity_0m",
       "license": "Apache-2.0",
       "authority": "logical_schema"
     },
     {
-      "path": "protocol/protocol-extension.logical.schema.json",
+      "path": "spec/protocol/protocol-extension.logical.schema.json",
       "class": "protocol_schema",
       "domain": "constitution_governance",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/provider-capabilities.logical.schema.json",
+      "path": "spec/protocol/provider-capabilities.logical.schema.json",
       "class": "protocol_schema",
       "domain": "relay_reachability",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/provisioning-method.logical.schema.json",
+      "path": "spec/protocol/provisioning-method.logical.schema.json",
       "class": "protocol_schema",
       "domain": "provider_deployment_supply_chain",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/publication-event.logical.schema.json",
+      "path": "spec/protocol/publication-event.logical.schema.json",
       "class": "protocol_schema",
       "domain": "communities_broadcast_topics",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/reachability-recovery.logical.schema.json",
+      "path": "spec/protocol/reachability-recovery.logical.schema.json",
       "class": "protocol_schema",
       "domain": "relay_reachability",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/recovery-policy.logical.schema.json",
+      "path": "spec/protocol/recovery-policy.logical.schema.json",
       "class": "protocol_schema",
       "domain": "identity_control_recovery",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/relay-set.logical.schema.json",
+      "path": "spec/protocol/relay-set.logical.schema.json",
       "class": "protocol_schema",
       "domain": "relay_reachability",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/representation-grant.logical.schema.json",
+      "path": "spec/protocol/representation-grant.logical.schema.json",
       "class": "protocol_schema",
       "domain": "bots_agents_interop",
       "license": "Apache-2.0",
       "authority": "logical_schema"
     },
     {
-      "path": "protocol/rich-text.logical.schema.json",
+      "path": "spec/protocol/rich-text.logical.schema.json",
       "class": "protocol_schema",
       "domain": "content_abuse_evidence",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/security-advisory.logical.schema.json",
+      "path": "spec/protocol/security-advisory.logical.schema.json",
       "class": "protocol_schema",
       "domain": "provider_deployment_supply_chain",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/security-profile.logical.schema.json",
+      "path": "spec/protocol/security-profile.logical.schema.json",
       "class": "protocol_schema",
       "domain": "ux_accessibility_personalization",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/service-installation.logical.schema.json",
+      "path": "spec/protocol/service-installation.logical.schema.json",
       "class": "protocol_schema",
       "domain": "bots_agents_interop",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/service-principal.logical.schema.json",
+      "path": "spec/protocol/service-principal.logical.schema.json",
       "class": "protocol_schema",
       "domain": "bots_agents_interop",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/space-control-state.logical.schema.json",
+      "path": "spec/protocol/space-control-state.logical.schema.json",
       "class": "protocol_schema",
       "domain": "communities_broadcast_topics",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/sponsored-mailbox-grant.logical.schema.json",
+      "path": "spec/protocol/sponsored-mailbox-grant.logical.schema.json",
       "class": "protocol_schema",
       "domain": "provider_deployment_supply_chain",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/time-semantics.logical.schema.json",
+      "path": "spec/protocol/time-semantics.logical.schema.json",
       "class": "protocol_schema",
       "domain": "time_ordering_events",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/topic-state.logical.schema.json",
+      "path": "spec/protocol/topic-state.logical.schema.json",
       "class": "protocol_schema",
       "domain": "time_ordering_events",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "protocol/transport-adapter.logical.schema.json",
+      "path": "spec/protocol/transport-adapter.logical.schema.json",
       "class": "protocol_schema",
       "domain": "network_lan_transport",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
     {
-      "path": "research/ARCHITECTURE_HARDENING_REFERENCES_20260922.md",
-      "class": "research",
-      "domain": "research",
-      "license": "CC-BY-SA-4.0",
-      "authority": "evidence_non_normative"
-    },
-    {
-      "path": "research/CURRENT_REFERENCES_20260921.md",
-      "class": "research",
-      "domain": "research",
-      "license": "CC-BY-SA-4.0",
-      "authority": "evidence_non_normative"
-    },
-    {
-      "path": "research/CURRENT_UI_REFERENCES_20260922.md",
-      "class": "research",
-      "domain": "research",
-      "license": "CC-BY-SA-4.0",
-      "authority": "evidence_non_normative"
-    },
-    {
-      "path": "research/DISCOVERY_RESILIENCE_REFERENCES_20260921.md",
-      "class": "research",
-      "domain": "research",
-      "license": "CC-BY-SA-4.0",
-      "authority": "evidence_non_normative"
-    },
-    {
-      "path": "research/EXTENSION_ECOSYSTEM_REFERENCES_20260923.md",
-      "class": "research",
-      "domain": "research",
-      "license": "CC-BY-SA-4.0",
-      "authority": "evidence_non_normative"
-    },
-    {
-      "path": "research/INTEROP_BOTS_PORTABILITY_REFERENCES_20260923.md",
-      "class": "research",
-      "domain": "research",
-      "license": "CC-BY-SA-4.0",
-      "authority": "evidence_non_normative"
-    },
-    {
-      "path": "research/MESSENGER_ECOSYSTEM_PATTERNS_20260923.md",
-      "class": "research",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "research_reference"
-    },
-    {
-      "path": "research/METADATA_ABUSE_LONGEVITY_REFERENCES_20260923.md",
-      "class": "research",
-      "domain": "research",
-      "license": "CC-BY-SA-4.0",
-      "authority": "evidence_non_normative"
-    },
-    {
-      "path": "research/OPERATORLESS_PWA_ECOSYSTEM_REFERENCES_20260922.md",
-      "class": "research",
-      "domain": "research",
-      "license": "CC-BY-SA-4.0",
-      "authority": "evidence_non_normative"
-    },
-    {
-      "path": "research/SECURITY_CONTINUITY_REFERENCES_20260921.md",
-      "class": "research",
-      "domain": "research",
-      "license": "CC-BY-SA-4.0",
-      "authority": "evidence_non_normative"
-    },
-    {
-      "path": "research/SECURITY_CRYPTO_REAUDIT_20260922.md",
-      "class": "research",
-      "domain": "research",
-      "license": "CC-BY-SA-4.0",
-      "authority": "evidence_non_normative"
-    },
-    {
-      "path": "threat-model/README.md",
-      "class": "threat_model",
-      "domain": "security_crosscutting",
-      "license": "CC-BY-SA-4.0",
-      "authority": "normative_security_analysis"
-    },
-    {
       "path": "tools/build_manifest.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/layout.json",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/om_docs.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/om_drop.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/om_registry.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/omlib/__init__.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/omlib/docs.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/omlib/layout.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/tlc.sh",
       "class": "architecture_tool",
       "domain": "architecture_process",
       "license": "Apache-2.0",

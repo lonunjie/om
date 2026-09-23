@@ -314,4 +314,4 @@ The same resolver principles apply to `ServicePrincipal` discovery without forci
 
 A client may resolve/share a signed service descriptor through direct links/QR, domain-scoped aliases, Space recommendations, organization directories or independent public catalogs. `ServiceID` remains the cryptographic identity; names/listings/hosting endpoints are replaceable claims and rendezvous information.
 
-There is no global OM bot/service directory root. Creating a ServiceID does not require publication in any directory, and delisting cannot revoke an already known ServiceID. See `SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`.
+There is no global OM bot/service directory root. Creating a ServiceID does not require publication in any directory, and delisting cannot revoke an already known ServiceID. See [`SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`](../ecosystem/SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md).

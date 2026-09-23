@@ -1,6 +1,6 @@
 # Verification Gate Pass Criteria
 
-- **Status:** Canonical verification-process view, generated from `machine/architecture_verification_gates.jsonl` (the machine ledger is authoritative)
+- **Status:** Canonical verification-process view, generated from [`machine/architecture_verification_gates.jsonl`](../machine/architecture_verification_gates.jsonl) (the machine ledger is authoritative)
 - **Checkpoint:** 2026-09-24 02:29 PHT
 - **Decisions:** ADR-0108, ADR-0109
 

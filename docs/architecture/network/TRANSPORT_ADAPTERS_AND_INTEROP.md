@@ -63,7 +63,7 @@ If an OM-native recipient becomes temporarily unreachable, the app must not sile
 
 ## Bridges
 
-Canonical external-network bridge semantics are frozen in `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`.
+Canonical external-network bridge semantics are frozen in [`INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`](../ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md).
 
 XMPP/Matrix/Telegram/email/SMS/RCS/business/future bridges are typed `BridgePrincipal` trust boundaries. Foreign actors remain bridge-attested provenance rather than synthetic OM AccountIDs. If a bridge receives plaintext to transform/deliver it, users must be told that the external side is outside OM-native E2EE.
 

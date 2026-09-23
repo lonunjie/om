@@ -103,7 +103,7 @@ Never silently infer “cloud backup exists” from an installed PWA.
 PWA -> native uses the same device-link protocol. Native client obtains fresh DeviceIdentity and fresh platform vault keys, then transfers/rebuilds history. It does not inherit web-origin private-key files directly.
 ## 2026-09-22 update-boundary clarification
 
-ClientHost software update integrity and DeviceVault identity continuity are separate. A compromised origin cannot bootstrap its own trust merely by running an in-origin signature verifier. Recovery may require a clean/new ClientHost or higher-assurance endpoint plus authenticated device enrollment. See `CLIENTHOST_UPDATE_LIFECYCLE.md`.
+ClientHost software update integrity and DeviceVault identity continuity are separate. A compromised origin cannot bootstrap its own trust merely by running an in-origin signature verifier. Recovery may require a clean/new ClientHost or higher-assurance endpoint plus authenticated device enrollment. See [`CLIENTHOST_UPDATE_LIFECYCLE.md`](CLIENTHOST_UPDATE_LIFECYCLE.md).
 
 ## 2026-09-23 WebDeviceVault resolution
 

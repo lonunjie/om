@@ -212,7 +212,7 @@ The edge cases in §9 are the **common** configurations, not rare ones: most peo
 | 1–2 | offline recovery kit | recovers unless the kit is also lost | unchanged for devices; the kit is an additional secret |
 | any | guardians M-of-N | recovers while M guardians remain reachable | M guardians colluding (explicit, disclosed) |
 
-`verification/bounded/continuity_assessment.py` reproduces this table.
+[`verification/bounded/continuity_assessment.py`](../../../verification/bounded/continuity_assessment.py) reproduces this table.
 
 Core MUST compute a local, non-authoritative **ContinuityAssessment** from the current AccountControlState and RecoveryPolicy:
 
@@ -236,5 +236,5 @@ Rules (R-165):
 
 ## 12. 2026-09-24 retirement and device-link visibility
 
-- Account closure, deletion, moved-account pointers and LegacyPolicy are defined in `ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md` (terminal `AccountRetirement` transition; V-002 extended).
-- Every device enrollment is announced on the account's other active devices (R-166, `ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md` §2). A linking ceremony that finalizes without that notice is a failing trace.
+- Account closure, deletion, moved-account pointers and LegacyPolicy are defined in [`ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md`](ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md) (terminal `AccountRetirement` transition; V-002 extended).
+- Every device enrollment is announced on the account's other active devices (R-166, [`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md) §2). A linking ceremony that finalizes without that notice is a failing trace.

@@ -236,7 +236,7 @@ ClientHost
         +--> release/update/deployment lifecycle separate from DeviceVault identity
 ```
 
-Cross-cutting `TIME_AND_EXPIRY_SEMANTICS.md` classifies all TTL/clock fields. None of these new layers grants infrastructure identity authority.
+Cross-cutting [`TIME_AND_EXPIRY_SEMANTICS.md`](../architecture/events/TIME_AND_EXPIRY_SEMANTICS.md) classifies all TTL/clock fields. None of these new layers grants infrastructure identity authority.
 
 
 

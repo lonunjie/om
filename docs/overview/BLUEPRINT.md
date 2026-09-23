@@ -217,22 +217,22 @@ The default experience is calm, ergonomic, fast and content-first. Telegram-clas
 
 OwnMessenger personalization is first-class: users can install declarative themes, fonts, wallpapers, sounds and density preferences. Theme content is sandboxed data-only presentation and cannot execute code, fetch arbitrary remote tracking assets, override security semantics or suppress accessibility constraints.
 
-See `UI_UX_SYSTEM.md`, `MOTION_AND_PERFORMANCE.md`, `THEMES_FONTS_AND_PERSONALIZATION.md`, `ACCESSIBILITY_AND_INPUT.md`, and `UI_CORE_PLATFORM_CONTRACT.md`.
+See [`UI_UX_SYSTEM.md`](../architecture/ux/UI_UX_SYSTEM.md), [`MOTION_AND_PERFORMANCE.md`](../architecture/ux/MOTION_AND_PERFORMANCE.md), [`THEMES_FONTS_AND_PERSONALIZATION.md`](../architecture/ux/THEMES_FONTS_AND_PERSONALIZATION.md), [`ACCESSIBILITY_AND_INPUT.md`](../architecture/ux/ACCESSIBILITY_AND_INPUT.md), and [`UI_CORE_PLATFORM_CONTRACT.md`](../architecture/ux/UI_CORE_PLATFORM_CONTRACT.md).
 
 ## 2026-09-22 23:02 architecture hardening
 
 The earlier engineering transition is superseded. OM remains pre-engineering while the remaining expensive-to-retrofit state-machine boundaries are specified.
 
-New first-class architecture components are `ASYNC_KEY_MATERIAL.md`, `ONE_TO_ONE_SESSION_MANAGEMENT.md`, `GROUP_COMMIT_AND_STATE_CONVERGENCE.md`, `REACHABILITY_AND_OBJECT_REPAIR.md`, `TIME_AND_EXPIRY_SEMANTICS.md`, and `CLIENTHOST_UPDATE_LIFECYCLE.md`.
+New first-class architecture components are [`ASYNC_KEY_MATERIAL.md`](../architecture/crypto/ASYNC_KEY_MATERIAL.md), [`ONE_TO_ONE_SESSION_MANAGEMENT.md`](../architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md), [`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](../architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md), [`REACHABILITY_AND_OBJECT_REPAIR.md`](../architecture/delivery/REACHABILITY_AND_OBJECT_REPAIR.md), [`TIME_AND_EXPIRY_SEMANTICS.md`](../architecture/events/TIME_AND_EXPIRY_SEMANTICS.md), and [`CLIENTHOST_UPDATE_LIFECYCLE.md`](../architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md).
 
-Project-level anti-capture/continuity is defined by `PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`, `LICENSING_AND_CONTRIBUTION_POLICY.md`, and `PROJECT_STEWARDSHIP_AND_CONTINUITY.md`. The canonical project is intended to live under SeedLife/lonunjie while remaining technically and legally forkable if stewardship fails.
+Project-level anti-capture/continuity is defined by [`PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`](../constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md), [`LICENSING_AND_CONTRIBUTION_POLICY.md`](../constitution/LICENSING_AND_CONTRIBUTION_POLICY.md), and [`PROJECT_STEWARDSHIP_AND_CONTINUITY.md`](../constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md). The canonical project is intended to live under SeedLife/lonunjie while remaining technically and legally forkable if stewardship fails.
 
-Architecture prose is backed by `machine/repository_contract.json`, `machine/architecture_map.json`, `machine/file_registry.json`, and `tools/validate_architecture.py`. Product engineering starts only after a future architecture-freeze ADR deliberately unlocks it.
+Architecture prose is backed by [`machine/repository_contract.json`](../../machine/repository_contract.json), [`machine/architecture_map.json`](../../machine/architecture_map.json), [`machine/file_registry.json`](../../machine/file_registry.json), and [`tools/validate_architecture.py`](../../tools/validate_architecture.py). Product engineering starts only after a future architecture-freeze ADR deliberately unlocks it.
 
 
 ## 2026-09-23 08:21 PHT — metadata, safety, and 0M longevity hardening
 
-- Metadata protection is role/path-specific rather than a binary promise. Stable canonical identities remain above provider routing; delivery uses scoped opaque capabilities and independently randomized outer envelopes where applicable. See `METADATA_THREAT_MODEL.md`.
-- Abuse and moderation authority remains scoped to users, Rooms/Spaces, providers, catalogs, and voluntarily selected safety advisers. Signed safety advisories are portable advice, never universal protocol authority. See `DECENTRALIZED_ABUSE_MODERATION.md`.
-- Published protocol generations must remain self-contained and mirrorable through Protocol Continuity Bundles. Registry meanings are immutable once assigned, forks/generations are explicit, and no dominant client, host, directory, extension, founder, or steward becomes protocol authority. See `PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md`.
+- Metadata protection is role/path-specific rather than a binary promise. Stable canonical identities remain above provider routing; delivery uses scoped opaque capabilities and independently randomized outer envelopes where applicable. See [`METADATA_THREAT_MODEL.md`](../threat-model/METADATA_THREAT_MODEL.md).
+- Abuse and moderation authority remains scoped to users, Rooms/Spaces, providers, catalogs, and voluntarily selected safety advisers. Signed safety advisories are portable advice, never universal protocol authority. See [`DECENTRALIZED_ABUSE_MODERATION.md`](../architecture/safety/DECENTRALIZED_ABUSE_MODERATION.md).
+- Published protocol generations must remain self-contained and mirrorable through Protocol Continuity Bundles. Registry meanings are immutable once assigned, forks/generations are explicit, and no dominant client, host, directory, extension, founder, or steward becomes protocol authority. See [`PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md`](../constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md).
 - These decisions resolve A-013, A-014, and A-015 at the design level. Engineering remains unauthorized until the blocking verification gates pass.

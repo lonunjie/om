@@ -105,5 +105,5 @@ A future foundation can steward standards and reference code. A future company c
 The reference implementation may be socially privileged; it is never technically privileged.
 ## 2026-09-22 project-level anti-capture authority
 
-Canonical project governance does not become protocol authority. SeedLife may curate a canonical release line, but public protocol rights/conformance artifacts remain independently implementable and forkable. See `PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md` and `PROJECT_STEWARDSHIP_AND_CONTINUITY.md`.
+Canonical project governance does not become protocol authority. SeedLife may curate a canonical release line, but public protocol rights/conformance artifacts remain independently implementable and forkable. See [`PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`](PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md) and [`PROJECT_STEWARDSHIP_AND_CONTINUITY.md`](PROJECT_STEWARDSHIP_AND_CONTINUITY.md).
 

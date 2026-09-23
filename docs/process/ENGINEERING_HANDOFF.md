@@ -1,6 +1,6 @@
 # OM Engineering Handoff — INACTIVE UNTIL ARCHITECTURE FREEZE
 
-> **Current checkpoint 2026-09-23 08:21 PHT:** product engineering is not authorized. This document records the intended future handoff only. See `ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`.
+> **Current checkpoint 2026-09-23 08:21 PHT:** product engineering is not authorized. This document records the intended future handoff only. See [`ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`](ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md).
 
 
 ## 1. Transition of phase
@@ -37,7 +37,7 @@ Engineering MUST preserve:
 
 Deliver:
 
-- monorepo structure from `ENGINEERING_REPOSITORY_LAYOUT.md`;
+- monorepo structure from [`ENGINEERING_REPOSITORY_LAYOUT.md`](ENGINEERING_REPOSITORY_LAYOUT.md);
 - pinned Rust/JS toolchains and lockfiles;
 - formatting/lint/test commands;
 - dependency/license policy;
@@ -67,7 +67,7 @@ Before authoritative control-state code:
 
 - write TLA+ state machine;
 - encode controller promotion, quarantine, permanent revocation, recovery, concurrent transitions, stale/forked state;
-- check invariants in `FORMAL_VERIFICATION_AND_FUZZING.md`;
+- check invariants in [`FORMAL_VERIFICATION_AND_FUZZING.md`](FORMAL_VERIFICATION_AND_FUZZING.md);
 - generate implementation transition-table tests from model scenarios where practical.
 
 Exit: no known model trace lets a compromised constitutional minority manufacture permanent ownership.
@@ -144,7 +144,7 @@ Exit: fuzz corpus covers all public parsers and malicious attachment metadata; v
 
 ### WP-008 — Production crypto integration gate
 
-Do not begin by writing a new secure-messaging protocol from primitives. Perform the dedicated library/protocol review in `PRODUCTION_CRYPTO_INTEGRATION_GATE.md`, then integrate only the approved profile.
+Do not begin by writing a new secure-messaging protocol from primitives. Perform the dedicated library/protocol review in [`PRODUCTION_CRYPTO_INTEGRATION_GATE.md`](../architecture/crypto/PRODUCTION_CRYPTO_INTEGRATION_GATE.md), then integrate only the approved profile.
 
 Exit: independent security review plan, vectors, downgrade tests, compromise/recovery tests and library maintenance strategy exist.
 
@@ -204,12 +204,12 @@ Creating a profile may optionally offer a distinct built-in theme so the user ge
 
 ## 6. Rich text
 
-Telegram-like formatting is a baseline, but OM must use its own safe semantic representation rather than HTML/Markdown-on-the-wire. See `RICH_TEXT_AND_CONTENT_SECURITY.md`.
+Telegram-like formatting is a baseline, but OM must use its own safe semantic representation rather than HTML/Markdown-on-the-wire. See [`RICH_TEXT_AND_CONTENT_SECURITY.md`](../architecture/safety/RICH_TEXT_AND_CONTENT_SECURITY.md).
 
 ## 7. Definition of “secure build”
 
-Do not advertise a prototype as “bulletproof.” A production-security claim requires all MUST items in `PRODUCTION_CRYPTO_INTEGRATION_GATE.md`, formal/control-state gates, fuzzing, supply-chain floor and an independent review.
+Do not advertise a prototype as “bulletproof.” A production-security claim requires all MUST items in [`PRODUCTION_CRYPTO_INTEGRATION_GATE.md`](../architecture/crypto/PRODUCTION_CRYPTO_INTEGRATION_GATE.md), formal/control-state gates, fuzzing, supply-chain floor and an independent review.
 
 ## Current checkpoint lock — 2026-09-23
 
-This document is retained for the future transition only. Product engineering is **not authorized** in the current checkpoint. The architecture-design queue and blocking architecture-verification gates must clear first; `machine/repository_contract.json` is authoritative.
+This document is retained for the future transition only. Product engineering is **not authorized** in the current checkpoint. The architecture-design queue and blocking architecture-verification gates must clear first; [`machine/repository_contract.json`](../../machine/repository_contract.json) is authoritative.

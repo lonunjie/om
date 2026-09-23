@@ -302,7 +302,7 @@ Signatures mean provenance/control continuity, not truthfulness, safety or endor
 
 Permissionless service creation is safe only because creation itself grants no receiver-side privilege.
 
-At installation/invocation, the client shows the actual requested capabilities and data-access mode. The architecture from `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md` remains authoritative:
+At installation/invocation, the client shows the actual requested capabilities and data-access mode. The architecture from [`SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`](SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md) remains authoritative:
 
 - selected-context invocation is default;
 - local plaintext access and network egress are separate;

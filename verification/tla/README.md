@@ -2,7 +2,7 @@
 
 ## AccountControlState
 
-`AccountControlState.tla` is the first normative formal-model artifact for gate V-002. It covers:
+[`AccountControlState.tla`](AccountControlState.tla) is the first normative formal-model artifact for gate V-002. It covers:
 
 - controller-majority authorization from the current/pre-change controller set;
 - quarantine without denominator shrink;
