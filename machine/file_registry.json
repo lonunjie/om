@@ -1684,6 +1684,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "docs/process/PERFORMANCE_MEASUREMENT_PLAN.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "docs/process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
@@ -1696,6 +1703,13 @@
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
       "authority": "future_gate_non_authorizing"
+    },
+    {
+      "path": "docs/process/SECURITY_UX_STUDY_PROTOCOL.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
     },
     {
       "path": "docs/process/WORK_PACKAGE_CHECKLIST.md",

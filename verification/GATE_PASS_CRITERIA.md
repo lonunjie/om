@@ -382,6 +382,7 @@ Demonstrate that non-technical users complete and correctly understand OM's secu
 - **Scopes blocked:** reference_client_ui
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering participant_study, independent_facilitator; pre-release participant_study
+- **Evidence:** `docs/process/SECURITY_UX_STUDY_PROTOCOL.md`
 
 Pre-engineering criteria:
 
@@ -392,6 +393,10 @@ Pre-engineering criteria:
 Pre-release criteria:
 
 - [ ] repeat on the real client, plus assistive-technology users for accessibility
+
+What remains (needs someone other than the author):
+
+- run moderated sessions with >=12 non-technical participants (>=3 aged 60+, >=3 low digital literacy, >=2 languages) with an independent facilitator, using the protocol; this needs people and cannot be done by an agent
 
 ### V-019 — `pq_group_reinit_migration`
 
@@ -466,10 +471,11 @@ Show OM meets the measurable speed, battery, memory and size budgets in MOTION_A
 - **Scopes blocked:** reference_client_ui, provider_reference
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
+- **Evidence:** `docs/architecture/ux/MOTION_AND_PERFORMANCE.md`; `docs/process/PERFORMANCE_MEASUREMENT_PLAN.md`
 
 Pre-engineering criteria:
 
-- [ ] budgets and reference device classes recorded in MOTION_AND_PERFORMANCE.md
+- [x] budgets and reference device classes recorded in MOTION_AND_PERFORMANCE.md
 - [ ] V-001 and V-005 prototypes record crypto and codec costs on native and wasm32 against the budgets; unattainable budgets revised by ADR
 - [ ] measurement harness plan (lab devices + CI emulation) reviewed
 
@@ -477,3 +483,8 @@ Pre-release criteria:
 
 - [ ] every budget measured on real reference devices for the release, results published
 - [ ] CI regression checks on emulated low-end profiles
+
+What remains (needs someone other than the author):
+
+- crypto/codec costs from V-001/V-005 prototypes (in progress)
+- review of the measurement plan by someone other than its author
