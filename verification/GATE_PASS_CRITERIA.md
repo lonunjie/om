@@ -443,16 +443,21 @@ Prove non-silent device linking and per-platform leakage controls for every Loca
 - **Scopes blocked:** reference_client_ui
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release external_review
+- **Evidence:** `docs/architecture/client/PLATFORM_CAPABILITY_MATRIX.md`; `verification/tla/AccountControl.tla`
 
 Pre-engineering criteria:
 
-- [ ] per-platform capability matrix for every control in ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md section 4
-- [ ] device-link notice invariant in the AccountControlState model
-- [ ] deletion-closure checklist including OS notification and snapshot surfaces
+- [x] per-platform capability matrix for every control in ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md section 4
+- [x] device-link notice invariant in the AccountControlState model
+- [x] deletion-closure checklist including OS notification and snapshot surfaces
 
 Pre-release criteria:
 
 - [ ] forensic-style audit on each shipped platform: backup exclusion, snapshot suppression, plaintext residue after quick lock and disappearing expiry
+
+What remains (needs someone other than the author):
+
+- independent review of the matrix (documented from platform docs as of mid-2026, entries marked 'verify' are uncertain) and of the deletion-closure checklist
 
 ### V-022 — `performance_budgets`
 

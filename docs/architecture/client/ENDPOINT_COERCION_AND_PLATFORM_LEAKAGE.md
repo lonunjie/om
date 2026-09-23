@@ -52,7 +52,7 @@ Session/service lists (ServicePrincipals with full-Room access, bridges) follow 
 
 ## 4. Platform leakage controls (R-168)
 
-Each `LocalDataClass` ([`LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md`](../storage/LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md)) maps to platform controls. The platform adapter must expose each control's availability, and V-021 publishes the matrix.
+Each `LocalDataClass` ([`LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md`](../storage/LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md)) maps to platform controls. The platform adapter must expose each control's availability, and V-021 publishes the matrix: [`PLATFORM_CAPABILITY_MATRIX.md`](PLATFORM_CAPABILITY_MATRIX.md) (with the deletion-closure checklist).
 
 | Channel | Risk | Required behavior |
 |---|---|---|

@@ -1005,6 +1005,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "docs/architecture/client/PLATFORM_CAPABILITY_MATRIX.md",
+      "class": "architecture_doc",
+      "domain": "client_endpoint_distribution",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "docs/architecture/client/PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md",
       "class": "architecture_doc",
       "domain": "client_endpoint_distribution",
