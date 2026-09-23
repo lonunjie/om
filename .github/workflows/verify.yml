@@ -12,6 +12,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # checkpoint tags are needed for registry immutability
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -29,6 +31,12 @@ jobs:
           key: tla2tools-1.7.4-bee4a54f
       - name: make verify
         run: make verify
+      - name: Registry immutability (assigned ids never removed or reused)
+        run: python3 tools/continuity_bundle.py check-registries
+      - name: Continuity bundle builds and verifies offline
+        run: |
+          python3 tools/continuity_bundle.py build --out /tmp/bundle
+          python3 tools/continuity_bundle.py verify /tmp/bundle/*.tar.gz
       - name: Prototype checks (each verification/prototypes/*/run.sh)
         run: |
           set -e

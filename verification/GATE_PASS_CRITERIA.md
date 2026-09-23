@@ -348,19 +348,23 @@ Run the 20-year continuity exercise with founder/forge/domain/provider unavailab
 - **Scopes blocked:** none (always required pre-engineering; blocks public production claims)
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation, external_review
-- **Evidence:** `verification/results/continuity-dry-run-latest.json`
+- **Evidence:** `docs/process/CONTINUITY_TABLETOP_DRILLS.md`; `tools/continuity_bundle.py`; `verification/results/continuity-dry-run-latest.json`
 
 Pre-engineering criteria:
 
-- [ ] Protocol Continuity Bundle assembly and verification script
-- [ ] registry-immutability checks
-- [ ] written tabletop drills: founder/forge/domain loss, crypto primitive break, release-root loss, dominant-extension capture, vendor-wide provider block and vulnerability response
+- [x] Protocol Continuity Bundle assembly and verification script
+- [x] registry-immutability checks
+- [x] written tabletop drills: founder/forge/domain loss, crypto primitive break, release-root loss, dominant-extension capture, vendor-wide provider block and vulnerability response
 
 Pre-release criteria:
 
 - [ ] independent rebuild of a compatible implementation from a mirror
 - [ ] two coexisting protocol generations/fork lineages
 - [ ] live disaster drill with no hidden universal choke point
+
+What remains (needs someone other than the author):
+
+- review of the bundle script and the six drills by someone other than their author (independent_reviewer)
 
 ### V-018 — `security_ux_comprehension`
 
@@ -410,6 +414,7 @@ Pre-engineering criteria:
 - [ ] bounded model of sponsorship quotas, revocation and no-chain rules
 - [ ] T0->T2/T3 migration model preserving relationships
 - [ ] vendor-wide block tabletop
+- [ ] vendor-block model computes the fraction of relationships with a non-Cloudflare fallback route for realistic invite graphs under Cloudflare-first T1 (drill D5, gap G5)
 
 Pre-release criteria:
 

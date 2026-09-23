@@ -1614,6 +1614,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "docs/process/CONTINUITY_TABLETOP_DRILLS.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "docs/process/ENGINEERING_HANDOFF.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
@@ -2329,6 +2336,13 @@
     },
     {
       "path": "tools/build_manifest.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/continuity_bundle.py",
       "class": "architecture_tool",
       "domain": "architecture_process",
       "license": "Apache-2.0",

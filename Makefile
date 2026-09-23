@@ -1,14 +1,14 @@
 # OM design repository tasks. `make help` lists them.
 PY ?= python3
 
-.PHONY: help check verify validate docs docs-check evidence tlc export import reuse
+.PHONY: help check verify validate docs docs-check evidence tlc export import reuse registries bundle
 
 help: ## list targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
 
 check: validate docs-check ## fast checks: validator + docs links
 
-verify: evidence tlc check ## everything: evidence runner, TLC on every model, validator, docs
+verify: evidence tlc check registries ## everything: evidence runner, TLC on every model, validator, docs
 
 validate: ## architecture contract validator
 	$(PY) tools/validate_architecture.py
@@ -31,6 +31,12 @@ export: ## package HEAD as design-drops/om-design-<stamp>-<sha>.zip
 import: ## merge a design drop: make import ZIP=design-drops/<file>.zip
 	@test -n "$(ZIP)" || { echo "usage: make import ZIP=design-drops/<file>.zip"; exit 2; }
 	$(PY) tools/om_drop.py import "$(ZIP)"
+
+registries: ## assigned ids/registry values are never removed or reused
+	$(PY) tools/continuity_bundle.py check-registries
+
+bundle: ## build + verify a Protocol Continuity Bundle for HEAD
+	$(PY) tools/continuity_bundle.py build && $(PY) tools/continuity_bundle.py verify $$(ls -t design-drops/om-continuity-bundle-*.tar.gz | head -1)
 
 reuse: ## license compliance (REUSE); needs `uv tool install reuse`
 	reuse lint
