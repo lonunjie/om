@@ -8,6 +8,10 @@ Cloudflare is a reference deployment and bootstrap convenience, not OM's central
 
 ## v1 personal model
 
+> **2026-09-24 (ADR-0112):** the same code base is also the **first T1 hosted-Home reference**, multi-tenant from
+> W0: one Durable Object per hosted mailbox, per-member quotas, a host console, and no ClientHost deployed into the
+> mailbox account. See [`HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`](HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md) §4.1–4.2.
+
 ```text
 Alice owns CF account -> Alice Worker / SQLite DO
 Bob owns CF account   -> Bob Worker / SQLite DO

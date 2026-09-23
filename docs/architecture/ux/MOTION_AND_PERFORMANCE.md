@@ -69,6 +69,40 @@ Controls appear/disappear smoothly but never hide essential state (mute/camera/e
 
 ## Performance budgets
 
+### Measurable budgets (gate V-022, ADR-0115)
+
+"Fast" is part of OM's mission, so speed is a gate, not a hope. These budgets are checked on **reference device
+classes**. **Low-end Android** means a current sub-USD-200 phone with 4 GB RAM and Chrome/WebView. **Mid iOS** means
+the oldest iPhone the release supports. **Desktop** means a 4-core laptop. Unless noted, figures are p75 on low-end
+Android with a warm network. The same numbers apply to the PWA and to native shells.
+
+| Budget | Target |
+|---|---|
+| Cold start to interactive conversation list (cached state, offline OK) | ≤ 2.0 s low-end; ≤ 1.0 s mid iOS/desktop |
+| Warm start / resume to interactive | ≤ 0.5 s |
+| Input to next paint (typing, tap, scroll), web INP | ≤ 100 ms p75, ≤ 200 ms p95 |
+| Scroll smoothness in a 10k-message conversation | ≥ 99% frames on time at 60 Hz |
+| Send to "delivered" tick, both online, same continent, via Homes | p50 ≤ 0.5 s, p95 ≤ 1.5 s |
+| Send to visible on a foregrounded recipient | p50 ≤ 1.0 s |
+| Push wake to notification shown (push available) | ≤ 3 s |
+| 1:1 message encrypt + decrypt (per message, low-end, wasm) | ≤ 5 ms |
+| New 1:1 session (PQXDH-class) establishment compute | ≤ 50 ms |
+| Local search across 100k messages | ≤ 300 ms |
+| Idle battery drain attributable to OM (native, push on, no traffic) | ≤ 2% per 24 h |
+| Steady-state memory, 50 conversations | ≤ 150 MB low-end |
+| PWA shell before first paint / all critical JS+wasm (compressed) | ≤ 200 KB / ≤ 1.2 MB |
+
+Rules:
+
+1. Budgets are pre-release criteria for `reference_client_ui` and `provider_reference`. A release that misses one
+   needs an ADR waiver naming the budget, the measured value and the fix plan.
+2. Pre-engineering, V-001 and V-005 prototypes record crypto and codec costs on native and wasm32. A budget
+   that the prototypes show to be unattainable is revised by ADR *before* W0 unlock, not discovered after launch.
+3. Budgets are measured in CI on emulated low-end profiles for regressions, and on real reference devices
+   before each release.
+
+### General targets
+
 Product targets, not protocol guarantees:
 
 - visible response to direct input within one rendered frame when local;

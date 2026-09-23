@@ -4,9 +4,11 @@
   "type": "object",
   "required": [
     "version",
+    "state",
     "methods",
     "authorization_rule",
     "recovers",
+    "activation_policy",
     "policy_commitment"
   ],
   "properties": {
@@ -17,11 +19,53 @@
     "methods": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "required": [
+          "kind",
+          "commitment"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "synced_passkey_prf",
+              "recovery_key",
+              "guardians_shamir",
+              "spare_controller",
+              "hardware_authenticator",
+              "future_threshold"
+            ]
+          },
+          "commitment": {
+            "type": "string",
+            "description": "public commitment (e.g. recovery public key) for this method and epoch; never the secret"
+          },
+          "guardian_threshold": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "guardian_count": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": true
       }
     },
     "authorization_rule": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "vote_weight": {
+          "const": 1,
+          "description": "a recovery method contributes exactly one vote toward floor(N/2)+1"
+        },
+        "immediate_requires_controller_cosign": {
+          "const": true
+        }
+      },
+      "required": [
+        "vote_weight",
+        "immediate_requires_controller_cosign"
+      ]
     },
     "recovers": {
       "type": "array",
@@ -29,13 +73,34 @@
         "enum": [
           "identity",
           "history",
-          "provider_metadata"
+          "provider_metadata",
+          "relationships"
         ]
       },
       "uniqueItems": true
     },
     "activation_policy": {
-      "type": "object"
+      "type": "object",
+      "required": [
+        "delay_seconds",
+        "veto_by"
+      ],
+      "properties": {
+        "delay_seconds": {
+          "type": "integer",
+          "minimum": 86400,
+          "description": "Recommended 259200 (72 h); Hardened/Maximum 604800 (7 d)"
+        },
+        "veto_by": {
+          "const": "any_live_controller"
+        },
+        "rotate_custody_on_veto": {
+          "const": true
+        },
+        "notify_contacts_on_completion": {
+          "const": true
+        }
+      }
     },
     "rotation_epoch": {
       "type": [
@@ -45,7 +110,16 @@
     },
     "policy_commitment": {
       "type": "string"
+    },
+    "state": {
+      "enum": [
+        "on",
+        "pending",
+        "off_explicit"
+      ],
+      "description": "on = at least one custodian established; pending = created without a custodian (continuity check shown); off_explicit = user explicitly chose a disposable identity"
     }
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "description": "Account recovery policy committed in AccountControlState. Identity recovery is on by default (ADR-0111): the RecoveryRoot counts as one controller vote, votes immediately only with >=1 current controller co-signing, and otherwise completes only after activation.delay_seconds with no veto from a live controller."
 }

@@ -133,7 +133,7 @@ Existing detailed documents remain canonical where not superseded. Machine-reada
 ## Continuity / trust checkpoint documents
 
 - [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md) — control-state chain, quarantine/revocation, controller promotion and anti-rollback.
-- [`RECOVERY_AND_BACKUP_POLICY.md`](architecture/identity/RECOVERY_AND_BACKUP_POLICY.md) — no-recovery default, offline root/guardians and history-vs-identity recovery.
+- [`RECOVERY_AND_BACKUP_POLICY.md`](architecture/identity/RECOVERY_AND_BACKUP_POLICY.md) — recovery on by default (passkey or recovery key custody, delayed and vetoable activation), guardians, and history-vs-identity recovery.
 - [`PROVISIONING_AND_BOOTSTRAP.md`](architecture/providers/PROVISIONING_AND_BOOTSTRAP.md) — user-owned Cloudflare, workers.dev and the minimal zero-payment stack.
 - [`CONTACT_SHARING.md`](architecture/discovery/CONTACT_SHARING.md) — signed ContactCapsules and referral semantics.
 - [`SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md`](architecture/providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md) — update trust, provenance, reproducibility and forge independence.

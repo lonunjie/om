@@ -7,6 +7,7 @@
     "every gate listing that scope in unlock_scopes, and every always_required_pre_engineering_gates entry, has pre_engineering_status passed or waived_by_adr",
     "machine/architecture_design_queue.jsonl has no open blocks_engineering item",
     "scopes named in depends_on are already authorized",
+    "every gate whose interface_impact lists the scope has feasibility_status evidenced (ADR-0113)",
     "clean tools/validate_architecture.py run",
     "one canonical current definition for security/authority/protocol objects",
     "public releases/claims additionally require overall gate status passed and applicable public_release_gates passed"
@@ -111,7 +112,11 @@
     "every requirement is traced to existing gates/release gates or an allowed obligation kind",
     "threat register references only existing requirements/gates and names at least one mitigation doc that exists",
     "later-wave scopes never appear in depends_on of earlier-wave scopes",
-    "no current document claims post-quantum confidentiality for v1 groups"
+    "no current document claims post-quantum confidentiality for v1 groups",
+    "an authorized scope requires feasibility_status evidenced on every gate whose interface_impact lists it (ADR-0113)",
+    "every gate declares interface_impact and feasibility_status",
+    "MANIFEST.json is checked only inside exported drops; git is the repository integrity record (ADR-0110)",
+    "every document basename is unique so docs resolve independent of folder layout"
   ],
   "legal_risk_policy": {
     "protocol_home_jurisdiction": "none",

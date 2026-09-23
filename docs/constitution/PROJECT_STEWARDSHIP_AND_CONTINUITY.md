@@ -143,3 +143,21 @@ By S2, the canonical project itself should also be able to continue through the 
 Project succession and protocol succession are deliberately different. A successor steward does **not** inherit user Account/Room/Service authority and does not gain the right to redefine already-published registry IDs. Existing protocol generations remain independently mirrorable/interpretable through Protocol Continuity Bundles.
 
 Before S2/public-production resilience is claimed, the project must run a creator-disappearance/forge-domain/provider/release-root continuity drill using independent mirrors and demonstrate a credible successor release path without changing end-user AccountIDs merely because project infrastructure vanished.
+
+## 10. 2026-09-24 co-stewards come from the community (ADR-0114)
+
+Co-stewards cannot be recruited before OM has users and contributors: there is no one yet whose judgment has been
+demonstrated in this project. Recruiting a co-steward is therefore **not** a W0 unlock or first-release blocker.
+It is a stewardship milestone with explicit triggers:
+
+1. **Where they come from:** early users, Hosted-Home operators (T1 hosts), independent reviewers of the public
+   design and contributors whose work has been reviewed over time. Public design review and T1 hosting are
+   deliberately the first ways to take part (see [`README.md`](../../README.md)).
+2. **S0 -> S1 trigger:** the first person with sustained, reviewed contributions *and* a track record of good
+   security judgment is offered a scoped role (security contact or reviewer) before any custody role.
+3. **Hard limit:** S2 public-production resilience claims (§4) still require multiple owners and a multi-party
+   release root. Until then, public wording stays honest that custody is founder-only (R-083).
+4. **Compensating controls while S0 lasts:** the Protocol Continuity Bundle, independently rebuildable releases,
+   permissive-enough licenses and the tested creator-disappearance drill (V-017) must let anyone continue OM without
+   the founder. These are pre-engineering and pre-release requirements, not later niceties.
+

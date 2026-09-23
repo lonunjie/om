@@ -879,6 +879,62 @@
       "authority": "accepted_decision"
     },
     {
+      "path": "decisions/ADR-0110-repository-is-canonical-design-drops-are-transport.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0111-identity-recovery-on-by-default.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0112-cloudflare-first-t1-hosted-home-reference.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0113-design-whole-system-first-waves-order-delivery.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0114-co-stewards-come-from-the-community.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0115-performance-budgets-are-a-gate.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0116-verification-ci-and-pinned-tools.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0117-ai-agent-review-and-gate-independence.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -2315,6 +2371,13 @@
     },
     {
       "path": "tools/omlib/layout.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/render_gates.py",
       "class": "architecture_tool",
       "domain": "architecture_process",
       "license": "Apache-2.0",

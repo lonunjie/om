@@ -1,0 +1,14 @@
+# ADR-0116 — Verification runs in CI with pinned tools
+
+- **Status:** Accepted
+- **Date:** 2026-09-24
+- **Decided by:** operator ("put a JDK and pinned TLC in verification CI")
+
+## Decision
+
+`.github/workflows/verify.yml` runs, on every push and pull request, the same checks as `make verify`: the
+architecture validator, the docs link check, all executable evidence ([`verification/run_phase1.py`](../verification/run_phase1.py)) and TLC on every
+TLA+ model. TLC runs through `tools/tlc.sh`, which refuses any `tla2tools.jar` whose SHA-1 differs from the pin in
+[`verification/TLAPLUS_TOOL_PIN.md`](../verification/TLAPLUS_TOOL_PIN.md). Toolchains are pinned where CI installs them (JDK major version, Rust toolchain
+file, Node major version). Evidence that CI regenerates must match the committed results, or CI fails, so recorded
+evidence cannot silently drift from what the tools produce.

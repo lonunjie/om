@@ -1,6 +1,6 @@
 # ADR-0106 — ContinuityAssessment and informed no-recovery
 
-- **Status:** Accepted
+- **Status:** Accepted; default amended by [ADR-0111](ADR-0111-identity-recovery-on-by-default.md) (recovery on by default). The ContinuityAssessment stays; the continuity check now applies to pending or explicitly-off recovery.
 - **Date:** 2026-09-24
 - **Source:** [`HARDENING_REVIEW_20260924.md`](../docs/reviews/HARDENING_REVIEW_20260924.md)
 

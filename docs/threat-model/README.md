@@ -90,7 +90,7 @@ Provider independence improves survivability but does not make any single endpoi
 - **Attacker adds devices to manufacture quorum:** messaging-device enrollment is separate from control-device promotion; promotion is constitutional.
 - **Mutual/concurrent revocation:** no LWW; enter control conflict/safety freeze until stronger authorization resolves.
 - **Stale provider/backup state:** AccountControlHead gossip/witness observations detect rollback; restored authority remains quarantined until current state is reconciled.
-- **Recovery provider becomes master key:** recovery is off by default and pluggable; identity and history recovery are separated.
+- **Recovery provider becomes master key:** there is no recovery provider. Default recovery custody is the user's own synced passkey or recovery key. Identity recovery always waits out a delay that any live device can veto, and it counts as one controller vote. Identity, provider-metadata, relationship and history recovery use separate keys (ADR-0111, T-041).
 - **Guardian collusion/loss:** threshold selection is explicit risk; future threshold/MPC methods remain upgradeable.
 - **CI/forge compromise:** signed mirrored release source, role-separated update metadata, provenance and reproducible-build verification where feasible.
 - **Vendor-push metadata:** push sees an opaque device wake/timing event but not normal message plaintext/canonical conversation identity; Maximum Privacy may disable it with availability cost.

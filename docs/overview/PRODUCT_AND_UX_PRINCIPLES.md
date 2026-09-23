@@ -75,7 +75,7 @@ Resolver namespaces, ContactDescriptor validation, invite revocation epochs, Int
 
 ## Recovery and protection UX
 
-Recovery is not mandatory. The default is disposable/no recovery. Users who care can opt into an offline recovery code, guardians, spare devices, or future recovery modules.
+Recovery is on by default and needs no setup: it is saved with the user's passkeys, or with a recovery key when passkeys are unavailable. Taking over an account through recovery requires waiting out a delay that any of the user's devices can stop (ADR-0111). Users can add guardians or a spare device, or explicitly choose a disposable identity with no recovery.
 
 The product explains consequences, not primitives:
 

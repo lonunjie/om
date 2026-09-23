@@ -168,13 +168,13 @@ Resolution requires a **bridge state** authorized strongly enough under the last
 
 ## 9. Edge cases
 
-### One-device identity, no recovery
+### One-device identity, no recovery (explicit opt-out only since ADR-0111)
 
-If that device is lost: identity is unrecoverable. If it is compromised: the attacker controls the account. This is an explicit consequence of the user's disposable/no-recovery policy; no protocol can infer the original human after all independent evidence is gone.
+Recovery is on by default ([`RECOVERY_AND_BACKUP_POLICY.md`](RECOVERY_AND_BACKUP_POLICY.md) §10), so this case arises only when the user explicitly turned recovery off. If that device is lost: identity is unrecoverable. If it is compromised: the attacker controls the account. This is an explicit consequence of the user's disposable/no-recovery policy; no protocol can infer the original human after all independent evidence is gone.
 
 ### Two controllers, one lost
 
-The survivor can quarantine the lost controller. If the constitutional rule requires two controllers and no RecoveryPolicy exists, the lost controller may remain quarantined indefinitely and constitutional changes may remain unavailable. The product can warn before users choose such a policy.
+With default recovery, the survivor plus the RecoveryRoot form a majority and reconstitute the controller set immediately ([`RECOVERY_AND_BACKUP_POLICY.md`](RECOVERY_AND_BACKUP_POLICY.md) §10.4). Without recovery: the survivor can quarantine the lost controller. If the constitutional rule requires two controllers and no RecoveryPolicy exists, the lost controller may remain quarantined indefinitely and constitutional changes may remain unavailable. The product can warn before users choose such a policy.
 
 ### Offline controller returns after months
 
@@ -200,39 +200,42 @@ Before production claims, this design requires:
 
 Default controller authorization is majority `floor(N/2)+1`. Temporary quarantine cannot shrink that denominator or permanently revoke/promote/change threshold. Competing valid descendants trigger safety freeze rather than timestamp/LWW choice. Relationship-scoped head gossip detects equivocation; fork resolution explicitly acknowledges branches under common-ancestor authority. `V-002` formally validates these invariants.
 
-## 11. 2026-09-24 ContinuityAssessment and informed no-recovery (ADR-0106)
+## 11. ContinuityAssessment (ADR-0106, default changed by ADR-0111)
 
-The edge cases in §9 are the **common** configurations, not rare ones: most people have one phone, or one phone plus one laptop. With majority authorization and recovery off by default:
+Most people have one phone, or one phone plus one laptop. Under the majority rule, those are the configurations where
+one lost device used to mean identity loss or a permanent constitutional lockout. Since ADR-0111, identity recovery is
+**on by default**, and the RecoveryRoot counts as one vote ([`RECOVERY_AND_BACKUP_POLICY.md`](RECOVERY_AND_BACKUP_POLICY.md) §10.4):
 
-| Controllers | RecoveryPolicy | Lost devices before identity loss / constitutional lockout | Compromised devices before takeover |
-|---|---|---|---|
-| 1 | none | **1 → identity lost** | 1 |
-| 2 | none | **1 → constitution locked** (messaging continues, no promotion/revocation finality) | 2 |
-| 3 | none | 2 | 2 |
-| 1–2 | offline recovery kit | recovers unless the kit is also lost | unchanged for devices; the kit is an additional secret |
-| any | guardians M-of-N | recovers while M guardians remain reachable | M guardians colluding (explicit, disclosed) |
+| Controllers | Recovery | Lost devices before identity loss | Lost devices before constitution lock | Takeover requires |
+|---|---|---|---|---|
+| 1 | **default (on)** | never while the custodian survives (72 h delay) | never | 1 device, or custodian + 72 h with no live device vetoing |
+| 2 | **default (on)** | never while the custodian survives | never (survivor + recovery = majority) | 2 devices, or 1 device + custodian, or custodian + delay without veto |
+| 3 | **default (on)** | never while the custodian survives | never | 2 devices, or 1 device + custodian, or custodian + delay without veto |
+| 1 | off (explicit) | **1: identity lost** | 1 | 1 device |
+| 2 | off (explicit) | 2 | **1: constitution locked** | 2 devices |
+| any | + guardians M-of-N | adds a method that survives device and custodian loss | — | adds: M guardians colluding + delay without veto |
 
-[`verification/bounded/continuity_assessment.py`](../../../verification/bounded/continuity_assessment.py) reproduces this table.
+[`verification/bounded/continuity_assessment.py`](../../../verification/bounded/continuity_assessment.py) reproduces this table. The TLA+ model `AccountControl.tla` checks the activation, veto and one-vote rules.
 
 Core MUST compute a local, non-authoritative **ContinuityAssessment** from the current AccountControlState and RecoveryPolicy:
 
 ```text
 ContinuityAssessment {
-  lost_devices_to_identity_loss      // 0 = already unrecoverable
+  lost_devices_to_identity_loss      // null = unbounded while a recovery custodian survives
   lost_devices_to_constitution_lock
-  compromised_devices_to_takeover
-  recovery_configured: none | kit | guardians | kit+guardians
-  acknowledged_by_user_at?           // local only
+  takeover_paths[]                   // e.g. ["2 devices", "1 device + custodian", "custodian + 72h without veto"]
+  recovery: on(custodians[]) | pending | off_explicit
+  acknowledged_by_user_at?           // local only; needed only for off_explicit and single-device custody
 }
 ```
 
-Rules (R-165):
+Rules (R-165, amended by R-183..R-186):
 
-1. "Recovery off" remains the default (Q-003 unchanged). It becomes **informed-off**: once the first conversation exists, a persistent, non-blocking continuity check appears until the user either configures recovery, links a second controller, or explicitly acknowledges "I accept that losing this phone loses this identity."
-2. The acknowledgement is local UX state, never protocol state, and it is re-requested when the assessment worsens (for example, a controller is suspended).
-3. Any configuration change that would reduce `lost_devices_to_identity_loss` or `lost_devices_to_constitution_lock` to 1 shows the consequence in plain language before it is finalized.
+1. Identity recovery is **on** by default (ADR-0111). A default account needs no acknowledgement.
+2. The persistent, non-blocking continuity check appears only when recovery is **pending**, **explicitly off**, or when the only custodian lives on the only controller device.
+3. Turning recovery off shows the consequence in plain language and needs a one-time confirmation. The confirmation is local UX state, never protocol state, and is re-requested when the assessment worsens.
 4. The assessment never grants authority and is never sent to providers.
-5. Recovery-kit wording is human: "Save a recovery key (print it or keep it in your password manager)."
+5. Wording is human: "Recovery is on. It's saved with your passkeys." / "Save a recovery key (print it or keep it in your password manager)."
 
 ## 12. 2026-09-24 retirement and device-link visibility
 

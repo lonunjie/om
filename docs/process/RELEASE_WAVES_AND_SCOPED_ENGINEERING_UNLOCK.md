@@ -55,7 +55,8 @@ A scope may become `authorized: true` only when **all** of these hold:
 2. every gate that lists the scope in `unlock_scopes` has `pre_engineering_status` = `passed` or `waived_by_adr`, and so does every gate in `always_required_pre_engineering_gates`;
 3. no open `architecture_design_queue` item lists the scope;
 4. every scope of an earlier wave that this scope depends on is already authorized (`depends_on`);
-5. `python3 tools/validate_architecture.py` passes.
+5. every gate whose `interface_impact` lists the scope has `feasibility_status` = `evidenced` (ADR-0113, §7);
+6. `python3 tools/validate_architecture.py` passes.
 
 The global `engineering_authorized` flag stays `false` until the operator authorizes at least one scope. After that it records "some engineering authorized"; per-scope flags are the real control. The validator rejects any authorized scope whose gates are unmet.
 
@@ -74,7 +75,7 @@ V1 remains a **semantic** contract: [`MESSENGER_BASELINE_V1.md`](../architecture
 Rules:
 
 - A later-wave feature must not add wire requirements to an earlier wave beyond the reserved extension/criticality points already frozen in V1 semantics.
-- A later-wave gate must never block an earlier-wave scope.
+- A later-wave gate's **pre-release** criteria never block an earlier-wave scope. Its **feasibility evidence** does when that later feature could change an earlier wave's wire formats or authority objects (§7).
 - Reordering waves needs an ADR. Reordering must not remove a gate from a scope.
 
 ## 6. Reconciliation with LEAN rules
@@ -86,3 +87,24 @@ Rules:
 - voice/video until messaging is stable → W2.
 
 Payments, ads, marketplaces, stories and exotic storage coding remain outside V1 entirely.
+
+## 7. Design the whole system first; waves only order delivery (ADR-0113)
+
+Operator direction, 2026-09-24: it is better to design the whole thing now, and research whether each part is
+feasible, than to bolt a layer on later. The design queue already covers W0..W4. This section keeps that promise
+from being undone by the wave split:
+
+1. **Waves order delivery, not design.** Every wave's semantics, wire extension points and authority objects are
+   designed now and stay under the same change discipline (ADR + machine records + validator).
+2. **Cross-wave feasibility before W0 unlock.** A later-wave gate whose outcome could force a change to W0 wire
+   formats, canonical encoding, authority objects or principal types carries `interface_impact: ["core_kernel", ...]`.
+   A W0 scope cannot be authorized until each such gate has `feasibility_status: evidenced`: a bounded model or
+   prototype exists and shows the W0 interfaces can carry the later feature unchanged. Passing that gate is not
+   required.
+3. **What counts as evidenced:** the evidence is recorded in the gate's `evidence` list and stored under
+   `verification/`. A reviewer may challenge it, and the status returns to `open` until it is answered.
+4. Gates with interface impact on W0 as of this checkpoint: V-004 (group commit binding → event model), V-008
+   (permission authority → ConversationEvent authorship and grants), V-009 (materialization → event model), V-011
+   (service principals → principal types), V-013 (bridge provenance → ConversationEvent fields), V-014
+   (archive → canonical encoding and event identity), V-019 (PQ group ReInit → CryptoProfile registry).
+

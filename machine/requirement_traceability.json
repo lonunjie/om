@@ -1151,6 +1151,77 @@
         "V-018",
         "conformance:identifier_spoofing"
       ]
+    },
+    {
+      "requirement": "R-183",
+      "verified_by": [
+        "V-002",
+        "V-006",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-184",
+      "verified_by": [
+        "V-002",
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-185",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-186",
+      "verified_by": [
+        "V-006",
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-187",
+      "verified_by": [
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-188",
+      "verified_by": [
+        "V-020",
+        "V-021"
+      ]
+    },
+    {
+      "requirement": "R-189",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-190",
+      "verified_by": [
+        "V-022"
+      ]
+    },
+    {
+      "requirement": "R-191",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-192",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-193",
+      "verified_by": [
+        "V-017"
+      ]
     }
   ]
 }

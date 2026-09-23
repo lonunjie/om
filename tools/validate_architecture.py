@@ -518,6 +518,13 @@ def validate_0924_scope_and_gate_guardrails() -> None:
                 fail(f"09:24 guard: {gid} missing {field}")
         if g.get("pre_engineering_status") not in {"open", "passed", "failed", "waived_by_adr"}:
             fail(f"09:24 guard: {gid} invalid pre_engineering_status")
+        if not isinstance(g.get("interface_impact"), list) or g.get("feasibility_status") not in {"open", "evidenced"}:
+            fail(f"ADR-0113 guard: {gid} must declare interface_impact (list) and feasibility_status (open|evidenced)")
+        for s_ in g.get("interface_impact", []) or []:
+            if s_ not in scopes:
+                fail(f"ADR-0113 guard: {gid} interface_impact names unknown scope {s_}")
+        if g.get("feasibility_status") == "evidenced" and not g.get("evidence"):
+            fail(f"ADR-0113 guard: {gid} feasibility evidenced without evidence links")
         if not g.get("pre_engineering_criteria") or not g.get("pre_release_criteria"):
             fail(f"09:24 guard: {gid} must list criteria for both phases")
         ind = g.get("independence", {})
@@ -549,6 +556,9 @@ def validate_0924_scope_and_gate_guardrails() -> None:
             bad = [g["id"] for g in need if g.get("pre_engineering_status") not in ok_pre]
             if bad:
                 fail(f"09:24 guard: scope {name} authorized with unmet pre-engineering gates {bad}")
+            unfeasible = [g["id"] for g in gates if name in (g.get("interface_impact") or []) and g.get("feasibility_status") != "evidenced"]
+            if unfeasible:
+                fail(f"ADR-0113 guard: scope {name} authorized before cross-wave feasibility evidence on {unfeasible}")
             if open_design:
                 fail(f"09:24 guard: scope {name} authorized with open design blockers {open_design}")
             for dep in sc.get("depends_on", []):
@@ -612,7 +622,8 @@ def validate_0924_hardening_content_guardrails() -> None:
         "RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md": ("Circular lock", "pre_engineering_criteria", "unlocks nothing"),
         "CRYPTOGRAPHY_AND_AGILITY.md": ("not mitigated in v1", "Adoption triggers", "ReInit"),
         "SECURITY_PRIVACY_PROFILES.md": ("No preset may claim PQ confidentiality for groups",),
-        "ACCOUNT_CONTINUITY_AND_CONTROL.md": ("ContinuityAssessment", "informed-off"),
+        "ACCOUNT_CONTINUITY_AND_CONTROL.md": ("ContinuityAssessment", "on** by default"),
+        "RECOVERY_AND_BACKUP_POLICY.md": ("identity recovery is on by default", "one vote", "veto", "RecoveryHandle"),
     }
     for name, phrases in checks.items():
         text = D(name).read_text(encoding="utf-8").lower()
@@ -652,6 +663,9 @@ def main() -> int:
     check_project_identity_and_legal_boundary()
     check_markdown_links()
     check_manifest(contract)
+    r = subprocess.run([sys.executable, str(ROOT / "tools/render_gates.py"), "--check"], capture_output=True, text=True)
+    if r.returncode != 0:
+        fail(r.stderr.strip() or "GATE_PASS_CRITERIA.md is stale")
 
     if warnings:
         for w in warnings: print(f"WARN: {w}")

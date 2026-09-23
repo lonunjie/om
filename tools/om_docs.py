@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from omlib.docs import fix_links_by_basename, linkify, repo_index  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-NO_LINKIFY = ("docs/checkpoints/", "CHANGELOG.md")
+NO_LINKIFY = ("docs/checkpoints/", "CHANGELOG.md", "verification/GATE_PASS_CRITERIA.md")  # historical or generated
 
 
 def tracked_files() -> list[str]:

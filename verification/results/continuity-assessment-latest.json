@@ -1,74 +1,163 @@
 {
   "model": "continuity_assessment_bounded",
-  "rule": "majority floor(N/2)+1; quarantine does not shrink denominator",
-  "cases": 1620,
+  "rule": "majority floor(N/2)+1; quarantine does not shrink denominator; recovery on by default is one vote, immediate only with a controller co-sign (ADR-0111)",
+  "cases": 2808,
   "violations": [],
   "passed": true,
   "common_configurations": [
     {
       "controllers": 1,
       "quarantined": 0,
-      "recovery": "none",
+      "recovery_state": "off_explicit",
+      "custodians": [],
       "threshold": 1,
       "lost_devices_to_identity_loss": 1,
       "lost_devices_to_constitution_lock": 1,
-      "compromised_devices_to_takeover": 1,
-      "alternate_takeover_path": null,
+      "devices_for_immediate_takeover": 1,
+      "devices_for_immediate_takeover_with_custodian": null,
+      "custodian_alone_immediate": false,
+      "takeover_paths": [
+        "1 device(s)"
+      ],
       "needs_acknowledgement": true
     },
     {
       "controllers": 1,
       "quarantined": 0,
-      "recovery": "kit",
+      "recovery_state": "pending",
+      "custodians": [],
+      "threshold": 1,
+      "lost_devices_to_identity_loss": 1,
+      "lost_devices_to_constitution_lock": 1,
+      "devices_for_immediate_takeover": 1,
+      "devices_for_immediate_takeover_with_custodian": null,
+      "custodian_alone_immediate": false,
+      "takeover_paths": [
+        "1 device(s)"
+      ],
+      "needs_acknowledgement": true
+    },
+    {
+      "controllers": 1,
+      "quarantined": 0,
+      "recovery_state": "on",
+      "custodians": [
+        "synced_passkey"
+      ],
       "threshold": 1,
       "lost_devices_to_identity_loss": null,
       "lost_devices_to_constitution_lock": null,
-      "compromised_devices_to_takeover": 1,
-      "alternate_takeover_path": "possession of the offline recovery kit",
+      "devices_for_immediate_takeover": 1,
+      "devices_for_immediate_takeover_with_custodian": 1,
+      "custodian_alone_immediate": false,
+      "takeover_paths": [
+        "1 device(s)",
+        "custodian + full delay with no live controller vetoing"
+      ],
       "needs_acknowledgement": false
     },
     {
       "controllers": 2,
       "quarantined": 0,
-      "recovery": "none",
+      "recovery_state": "off_explicit",
+      "custodians": [],
       "threshold": 2,
       "lost_devices_to_identity_loss": 2,
       "lost_devices_to_constitution_lock": 1,
-      "compromised_devices_to_takeover": 2,
-      "alternate_takeover_path": null,
+      "devices_for_immediate_takeover": 2,
+      "devices_for_immediate_takeover_with_custodian": null,
+      "custodian_alone_immediate": false,
+      "takeover_paths": [
+        "2 device(s)"
+      ],
       "needs_acknowledgement": true
     },
     {
       "controllers": 2,
       "quarantined": 0,
-      "recovery": "kit",
+      "recovery_state": "pending",
+      "custodians": [],
+      "threshold": 2,
+      "lost_devices_to_identity_loss": 2,
+      "lost_devices_to_constitution_lock": 1,
+      "devices_for_immediate_takeover": 2,
+      "devices_for_immediate_takeover_with_custodian": null,
+      "custodian_alone_immediate": false,
+      "takeover_paths": [
+        "2 device(s)"
+      ],
+      "needs_acknowledgement": true
+    },
+    {
+      "controllers": 2,
+      "quarantined": 0,
+      "recovery_state": "on",
+      "custodians": [
+        "synced_passkey"
+      ],
       "threshold": 2,
       "lost_devices_to_identity_loss": null,
       "lost_devices_to_constitution_lock": null,
-      "compromised_devices_to_takeover": 2,
-      "alternate_takeover_path": "possession of the offline recovery kit",
+      "devices_for_immediate_takeover": 2,
+      "devices_for_immediate_takeover_with_custodian": 1,
+      "custodian_alone_immediate": false,
+      "takeover_paths": [
+        "2 device(s)",
+        "1 device(s) + custodian",
+        "custodian + full delay with no live controller vetoing"
+      ],
       "needs_acknowledgement": false
     },
     {
       "controllers": 3,
       "quarantined": 0,
-      "recovery": "none",
+      "recovery_state": "off_explicit",
+      "custodians": [],
       "threshold": 2,
       "lost_devices_to_identity_loss": 3,
       "lost_devices_to_constitution_lock": 2,
-      "compromised_devices_to_takeover": 2,
-      "alternate_takeover_path": null,
-      "needs_acknowledgement": false
+      "devices_for_immediate_takeover": 2,
+      "devices_for_immediate_takeover_with_custodian": null,
+      "custodian_alone_immediate": false,
+      "takeover_paths": [
+        "2 device(s)"
+      ],
+      "needs_acknowledgement": true
     },
     {
       "controllers": 3,
       "quarantined": 0,
-      "recovery": "kit",
+      "recovery_state": "pending",
+      "custodians": [],
+      "threshold": 2,
+      "lost_devices_to_identity_loss": 3,
+      "lost_devices_to_constitution_lock": 2,
+      "devices_for_immediate_takeover": 2,
+      "devices_for_immediate_takeover_with_custodian": null,
+      "custodian_alone_immediate": false,
+      "takeover_paths": [
+        "2 device(s)"
+      ],
+      "needs_acknowledgement": true
+    },
+    {
+      "controllers": 3,
+      "quarantined": 0,
+      "recovery_state": "on",
+      "custodians": [
+        "synced_passkey"
+      ],
       "threshold": 2,
       "lost_devices_to_identity_loss": null,
       "lost_devices_to_constitution_lock": null,
-      "compromised_devices_to_takeover": 2,
-      "alternate_takeover_path": "possession of the offline recovery kit",
+      "devices_for_immediate_takeover": 2,
+      "devices_for_immediate_takeover_with_custodian": 1,
+      "custodian_alone_immediate": false,
+      "takeover_paths": [
+        "2 device(s)",
+        "1 device(s) + custodian",
+        "custodian + full delay with no live controller vetoing"
+      ],
       "needs_acknowledgement": false
     }
   ],

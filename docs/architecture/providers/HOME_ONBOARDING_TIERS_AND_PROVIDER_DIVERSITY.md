@@ -77,6 +77,40 @@ The MetadataExposureDescriptor for the StarterMailbox role must state this (V-01
 - A distribution may ship a **replaceable Home list** (like a directory list). The list must be user-editable. It must not be protocol state, and it must not rank any operator, including SeedLife, as protocol-privileged (R-048, R-107).
 - If SeedLife ever runs a Hosted Home, it is one entry among others, and it must pass the same PR-001 role review as any project-controlled service.
 
+### 4.1 Cloudflare is the first T1 reference (ADR-0112)
+
+Growth runs through **hosted Homes**, not only personal clouds. One household member, club organizer or small
+organization runs a Home, and everyone they invite gets a mailbox there. This is the adoption pattern that worked
+for independent and federated messengers, and it pairs with T0 sponsorship as the invite loop:
+*Alice runs a Home; Bob joins by invite (T0); Bob's family joins Alice's Home (T1).*
+
+The **first T1 reference implementation runs on Cloudflare**. It is the same Worker and SQLite Durable Object code
+base as the T2 own-cloud reference ([`CLOUDFLARE_REFERENCE_DEPLOYMENT.md`](CLOUDFLARE_REFERENCE_DEPLOYMENT.md)),
+made **multi-tenant from W0**:
+
+- one Durable Object per hosted mailbox. Per-member quotas and the host's zero-paid-budget policy are enforced at the
+  Home, so exhaustion fails closed and never bills (R-016);
+- a host console to invite members, set quotas, suspend or evict, and hand members off when the Home closes, with at
+  least 30 days of overlap routes (R-187);
+- the host's MetadataExposureDescriptor states what a T1 host can observe: member delivery timing, volume and
+  sizes. It cannot observe content or contacts behind opaque capabilities (V-015).
+
+The Cloudflare-first choice is about **delivery order**, not privilege. The second reference Home (single static
+binary + SQLite, V-020/PR-013) is still required before public-production claims, and it is the natural T1 software
+for communities that prefer not to use a cloud vendor.
+
+### 4.2 A T1 host must not serve its members' client code by default (R-188)
+
+A T1 host that also served the PWA ClientHost for its members would turn the host's hosting-account security into
+**every member's endpoint security** (F-07, T-021, T-042). One phished host account could ship malicious JavaScript
+to a whole community. Therefore:
+
+1. Members of a T1 Home use an **independent client distribution** by default: a native app, or a PWA origin
+   that the host does not control and that is monitored by release transparency.
+2. A host may offer a same-origin ClientHost only as an explicit, labeled choice ("Use my community's app
+   server"). The client then treats the host as part of the endpoint trust base and says so.
+3. The reference host console never deploys a ClientHost into the mailbox Home's account.
+
 ## 5. T2 — Own cloud, with account security as endpoint security
 
 For PWA users, the hosting account that serves the ClientHost origin is part of the endpoint trust base (F-07, T-021). Requirements (R-164):
@@ -116,3 +150,4 @@ No vendor names or infrastructure vocabulary appear outside Advanced. The contin
 3. Sponsorship grants mailbox capacity only: no identity, control, discovery or content authority.
 4. Sponsored capacity is bounded, revocable and paid for only by the sponsor's own policy.
 5. A distribution's Home list is user-replaceable data, never protocol truth.
+6. A T1 host serves mail, not its members' client code, unless a member explicitly opts in (R-188).

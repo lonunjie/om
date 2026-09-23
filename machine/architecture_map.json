@@ -37,7 +37,8 @@
         "ADR-0082",
         "ADR-0083",
         "ADR-0094",
-        "ADR-0100"
+        "ADR-0100",
+        "ADR-0114"
       ],
       "resolved_questions": [
         "Q-013",
@@ -90,7 +91,8 @@
         "ADR-0030",
         "ADR-0066",
         "ADR-0105",
-        "ADR-0106"
+        "ADR-0106",
+        "ADR-0111"
       ],
       "resolved_questions": [
         "Q-003",
@@ -427,7 +429,8 @@
         "ADR-0046",
         "ADR-0049",
         "ADR-0102",
-        "ADR-0104"
+        "ADR-0104",
+        "ADR-0112"
       ],
       "resolved_questions": [
         "Q-012",
@@ -473,7 +476,8 @@
         "ADR-0056",
         "ADR-0057",
         "ADR-0058",
-        "ADR-0068"
+        "ADR-0068",
+        "ADR-0115"
       ],
       "resolved_questions": [
         "Q-024",
@@ -486,7 +490,8 @@
         "Q-048"
       ],
       "verification_gates": [
-        "V-018"
+        "V-018",
+        "V-022"
       ]
     },
     "architecture_process": {
@@ -515,7 +520,11 @@
         "ADR-0078",
         "ADR-0101",
         "ADR-0108",
-        "ADR-0109"
+        "ADR-0109",
+        "ADR-0110",
+        "ADR-0113",
+        "ADR-0116",
+        "ADR-0117"
       ],
       "resolved_questions": [],
       "design_queue": [
