@@ -1,0 +1,37 @@
+[package]
+name = "om-v001-proto"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "V-001 feasibility prototype: PQXDH + Triple Ratchet (EC Double Ratchet + Signal SPQR). Not for production."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "v001"
+path = "src/bin/v001.rs"
+required-features = ["insecure-test-rng"]
+
+[features]
+default = []
+# Seeded ChaCha20 RNG for deterministic vectors. NEVER in a production build.
+insecure-test-rng = ["dep:rand_chacha"]
+# Marker a production build would set; combining it with any test provider is a compile error (R-072 sketch).
+production = []
+
+[dependencies]
+# Signal's Sparse Post-Quantum Ratchet (ML-KEM Braid SCKA + SPQR chains). AGPL-3.0-only; not on crates.io.
+spqr = { git = "https://github.com/signalapp/SparsePostQuantumRatchet.git", tag = "v1.6.0" }
+libcrux-ml-kem = { version = "0.0.10", default-features = false, features = ["mlkem768"] }
+x25519-dalek = { version = "3.0.0", default-features = false, features = ["static_secrets", "zeroize", "precomputed-tables"] }
+curve25519-dalek = { version = "5.0.0" }
+hkdf = "0.13"
+hmac = "0.13"
+sha2 = "0.11"
+aes-gcm-siv = { version = "0.12.1", default-features = false, features = ["aes", "alloc"] }
+zeroize = "1.9"
+rand_core = { version = "0.9", features = ["os_rng"] }
+rand_chacha = { version = "0.9", optional = true }
+serde_json = "1"
