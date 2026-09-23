@@ -9,7 +9,7 @@ from pathlib import Path
 TOOLS = Path(__file__).resolve().parents[1]
 LAYOUT_FILE = TOOLS / "layout.json"
 # Paths that never travel inside a design drop (repo plumbing only).
-REPO_ONLY = (".git/", ".github/", ".gitignore", ".gitattributes", "design-drops/")
+REPO_ONLY = (".git/", ".github/", "design-drops/")
 
 
 @lru_cache(maxsize=1)

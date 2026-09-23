@@ -152,6 +152,8 @@ def check_registry(contract: dict) -> None:
     for p in sorted(actual - declared):
         fail(f"current file is not registered: {p} (run: python3 tools/om_registry.py sync)")
     for p in sorted(declared - actual):
+        if p.startswith(".github/") and not (ROOT / ".git").exists():
+            continue  # repo-only CI plumbing is not shipped in exported drops
         fail(f"registered current file does not exist: {p}")
     required_fields = {"path", "class", "domain", "license", "authority"}
     for i, ent in enumerate(entries):
