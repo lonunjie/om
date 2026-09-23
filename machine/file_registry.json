@@ -1670,6 +1670,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "docs/process/METADATA_TRACE_TEST_PLAN.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "docs/process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
@@ -1981,6 +1988,13 @@
       "path": "spec/client/identity-profile.logical.schema.json",
       "class": "client_schema",
       "domain": "client_endpoint_distribution",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/metadata/w0-metadata-exposure-descriptors.json",
+      "class": "spec_artifact",
+      "domain": "metadata_privacy",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
@@ -2496,6 +2510,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/metadata_trace_model.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/wire_boundary_models.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -2567,6 +2588,13 @@
     },
     {
       "path": "verification/results/home-tiers-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/metadata-trace-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

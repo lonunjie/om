@@ -677,7 +677,8 @@
         "docs/threat-model/METADATA_THREAT_MODEL.md"
       ],
       "schemas": [
-        "docs/ux-design/metadata-exposure.logical.schema.json"
+        "docs/ux-design/metadata-exposure.logical.schema.json",
+        "spec/metadata/w0-metadata-exposure-descriptors.json"
       ],
       "adrs": [
         "ADR-0098"

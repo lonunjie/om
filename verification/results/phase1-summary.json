@@ -51,6 +51,10 @@
     {
       "script": "verification/bounded/home_tiers_model.py",
       "returncode": 0
+    },
+    {
+      "script": "verification/bounded/metadata_trace_model.py",
+      "returncode": 0
     }
   ]
 }

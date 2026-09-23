@@ -1,0 +1,23 @@
+{
+ "model": "metadata_trace_w0",
+ "gates": [
+  "V-015"
+ ],
+ "cases": 120,
+ "roles": [
+  "blob_store",
+  "clienthost_origin",
+  "discovery_publisher",
+  "home_relay_mailbox",
+  "introgate",
+  "key_material_provider",
+  "platform_credential_manager",
+  "push_provider",
+  "recovery_record_store",
+  "t0_sponsored_mailbox",
+  "t1_hosted_home"
+ ],
+ "violations": [],
+ "passed": true,
+ "gate_status_effect": "evidence_only_no_gate_automatically_passed"
+}

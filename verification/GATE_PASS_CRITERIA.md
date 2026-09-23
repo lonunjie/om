@@ -312,16 +312,20 @@ Instrument/model normal and privacy-enhanced paths across relay, MLS/group contr
 - **Scopes blocked:** core_kernel, provider_reference
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
-- **Evidence:** `verification/results/wire-boundary-bounded-latest.json`
+- **Evidence:** `docs/process/METADATA_TRACE_TEST_PLAN.md`; `spec/metadata/w0-metadata-exposure-descriptors.json`; `verification/bounded/metadata_trace_model.py`; `verification/results/metadata-trace-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
 
 Pre-engineering criteria:
 
-- [ ] MetadataExposureDescriptor written for every provider role in the scope being unlocked, including the sponsored starter mailbox
-- [ ] trace-model assertions for each descriptor and a packet-capture test plan
+- [x] MetadataExposureDescriptor written for every provider role in the scope being unlocked, including the sponsored starter mailbox
+- [x] trace-model assertions for each descriptor and a packet-capture test plan
 
 Pre-release criteria:
 
 - [ ] real packet/provider/browser traces for normal and privacy-enhanced paths match every descriptor
+
+What remains (needs someone other than the author):
+
+- review of the descriptors, trace model (mutation-tested: 5/5 seeded mis-claims caught) and test plan by someone other than their author
 
 ### V-016 — `decentralized_abuse_moderation_authority_model`
 

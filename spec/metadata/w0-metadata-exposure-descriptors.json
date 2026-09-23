@@ -1,0 +1,314 @@
+{
+ "status": "W0 MetadataExposureDescriptors (V-015). Checked by verification/bounded/metadata_trace_model.py.",
+ "schema": "docs/ux-design/metadata-exposure.logical.schema.json",
+ "fields": [
+  "client_network_address",
+  "stable_account_id",
+  "conversation_id",
+  "contact_graph_edge",
+  "membership_or_roster",
+  "message_timing",
+  "ciphertext_size",
+  "blob_size",
+  "query_plaintext",
+  "push_timing",
+  "sponsor_relationship",
+  "recovery_attempt",
+  "device_count"
+ ],
+ "descriptors": [
+  {
+   "role": "home_relay_mailbox",
+   "exposures": {
+    "client_network_address": "always",
+    "stable_account_id": "no_by_design",
+    "conversation_id": "no_by_design",
+    "contact_graph_edge": "no_by_design",
+    "membership_or_roster": "no_by_design",
+    "message_timing": "always",
+    "ciphertext_size": "always",
+    "blob_size": "no_by_design",
+    "query_plaintext": "no_by_design",
+    "push_timing": "no_by_design",
+    "sponsor_relationship": "no_by_design",
+    "recovery_attempt": "no_by_design",
+    "device_count": "sometimes"
+   },
+   "source_of_claim": "protocol_enforced",
+   "retention_policy_reference": "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md; RELAY_AND_DELIVERY_ARCHITECTURE.md",
+   "non_collusion_assumptions": [
+    "the depositor's own Home and this Home do not share logs"
+   ],
+   "optional_mitigations": [
+    "size padding classes",
+    "batched drain",
+    "privacy-enhanced path (OHTTP/Tor) for deposit"
+   ]
+  },
+  {
+   "role": "t0_sponsored_mailbox",
+   "exposures": {
+    "client_network_address": "always",
+    "stable_account_id": "no_by_design",
+    "conversation_id": "no_by_design",
+    "contact_graph_edge": "no_by_design",
+    "membership_or_roster": "no_by_design",
+    "message_timing": "always",
+    "ciphertext_size": "always",
+    "blob_size": "no_by_design",
+    "query_plaintext": "no_by_design",
+    "push_timing": "no_by_design",
+    "sponsor_relationship": "always",
+    "recovery_attempt": "no_by_design",
+    "device_count": "sometimes"
+   },
+   "source_of_claim": "protocol_enforced",
+   "retention_policy_reference": "HOME_ONBOARDING \u00a73.3 (sponsor sees delivery timing/volume/sizes, not content)",
+   "non_collusion_assumptions": [
+    "sponsor does not collude with the contact's Homes to join capabilities"
+   ],
+   "optional_mitigations": [
+    "move to own Home",
+    "fallback route elsewhere"
+   ]
+  },
+  {
+   "role": "t1_hosted_home",
+   "exposures": {
+    "client_network_address": "always",
+    "stable_account_id": "no_by_design",
+    "conversation_id": "no_by_design",
+    "contact_graph_edge": "no_by_design",
+    "membership_or_roster": "always",
+    "message_timing": "always",
+    "ciphertext_size": "always",
+    "blob_size": "no_by_design",
+    "query_plaintext": "no_by_design",
+    "push_timing": "no_by_design",
+    "sponsor_relationship": "no_by_design",
+    "recovery_attempt": "no_by_design",
+    "device_count": "sometimes"
+   },
+   "source_of_claim": "protocol_enforced",
+   "retention_policy_reference": "HOME_ONBOARDING \u00a74.1 (host sees member delivery timing/volume/sizes)",
+   "non_collusion_assumptions": [
+    "host does not collude with other Homes"
+   ],
+   "optional_mitigations": [
+    "second-family fallback (R-194)",
+    "privacy-enhanced deposit path"
+   ]
+  },
+  {
+   "role": "key_material_provider",
+   "exposures": {
+    "client_network_address": "always",
+    "stable_account_id": "no_by_design",
+    "conversation_id": "no_by_design",
+    "contact_graph_edge": "sometimes",
+    "membership_or_roster": "no_by_design",
+    "message_timing": "sometimes",
+    "ciphertext_size": "no_by_design",
+    "blob_size": "no_by_design",
+    "query_plaintext": "no_by_design",
+    "push_timing": "no_by_design",
+    "sponsor_relationship": "no_by_design",
+    "recovery_attempt": "no_by_design",
+    "device_count": "no_by_design"
+   },
+   "source_of_claim": "protocol_enforced",
+   "retention_policy_reference": "ASYNC_KEY_MATERIAL.md",
+   "non_collusion_assumptions": [
+    "prekey host and relay do not collude"
+   ],
+   "optional_mitigations": [
+    "fetch prekeys over privacy-enhanced path"
+   ]
+  },
+  {
+   "role": "blob_store",
+   "exposures": {
+    "client_network_address": "always",
+    "stable_account_id": "no_by_design",
+    "conversation_id": "no_by_design",
+    "contact_graph_edge": "no_by_design",
+    "membership_or_roster": "no_by_design",
+    "message_timing": "sometimes",
+    "ciphertext_size": "no_by_design",
+    "blob_size": "always",
+    "query_plaintext": "no_by_design",
+    "push_timing": "no_by_design",
+    "sponsor_relationship": "no_by_design",
+    "recovery_attempt": "no_by_design",
+    "device_count": "no_by_design"
+   },
+   "source_of_claim": "protocol_enforced",
+   "retention_policy_reference": "STORAGE_AND_BLOB_ARCHITECTURE.md",
+   "non_collusion_assumptions": [
+    "blob store and relay do not collude"
+   ],
+   "optional_mitigations": [
+    "size classes",
+    "prefetch/decoy downloads"
+   ]
+  },
+  {
+   "role": "push_provider",
+   "exposures": {
+    "client_network_address": "sometimes",
+    "stable_account_id": "no_by_design",
+    "conversation_id": "no_by_design",
+    "contact_graph_edge": "no_by_design",
+    "membership_or_roster": "no_by_design",
+    "message_timing": "no_by_design",
+    "ciphertext_size": "no_by_design",
+    "blob_size": "no_by_design",
+    "query_plaintext": "no_by_design",
+    "push_timing": "always",
+    "sponsor_relationship": "no_by_design",
+    "recovery_attempt": "no_by_design",
+    "device_count": "sometimes"
+   },
+   "source_of_claim": "mixed",
+   "retention_policy_reference": "NOTIFICATIONS_AND_PUSH.md (opaque wake only)",
+   "non_collusion_assumptions": [
+    "platform push service does not collude with the Home"
+   ],
+   "optional_mitigations": [
+    "disable push; poll",
+    "coalesced wakes"
+   ]
+  },
+  {
+   "role": "discovery_publisher",
+   "exposures": {
+    "client_network_address": "always",
+    "stable_account_id": "no_by_design",
+    "conversation_id": "no_by_design",
+    "contact_graph_edge": "no_by_design",
+    "membership_or_roster": "no_by_design",
+    "message_timing": "sometimes",
+    "ciphertext_size": "no_by_design",
+    "blob_size": "no_by_design",
+    "query_plaintext": "always",
+    "push_timing": "no_by_design",
+    "sponsor_relationship": "no_by_design",
+    "recovery_attempt": "no_by_design",
+    "device_count": "no_by_design"
+   },
+   "source_of_claim": "protocol_enforced",
+   "retention_policy_reference": "DISCOVERY_FABRIC.md",
+   "non_collusion_assumptions": [
+    "resolver relay and publisher do not collude"
+   ],
+   "optional_mitigations": [
+    "oblivious resolver relay"
+   ]
+  },
+  {
+   "role": "introgate",
+   "exposures": {
+    "client_network_address": "always",
+    "stable_account_id": "no_by_design",
+    "conversation_id": "no_by_design",
+    "contact_graph_edge": "sometimes",
+    "membership_or_roster": "no_by_design",
+    "message_timing": "sometimes",
+    "ciphertext_size": "no_by_design",
+    "blob_size": "no_by_design",
+    "query_plaintext": "no_by_design",
+    "push_timing": "no_by_design",
+    "sponsor_relationship": "no_by_design",
+    "recovery_attempt": "no_by_design",
+    "device_count": "no_by_design"
+   },
+   "source_of_claim": "protocol_enforced",
+   "retention_policy_reference": "INVITES_INTROGATE_AND_SPAM.md",
+   "non_collusion_assumptions": [
+    "IntroGate and discovery publisher do not collude"
+   ],
+   "optional_mitigations": [
+    "ticket via privacy-enhanced path"
+   ]
+  },
+  {
+   "role": "recovery_record_store",
+   "exposures": {
+    "client_network_address": "always",
+    "stable_account_id": "no_by_design",
+    "conversation_id": "no_by_design",
+    "contact_graph_edge": "no_by_design",
+    "membership_or_roster": "no_by_design",
+    "message_timing": "sometimes",
+    "ciphertext_size": "no_by_design",
+    "blob_size": "no_by_design",
+    "query_plaintext": "no_by_design",
+    "push_timing": "no_by_design",
+    "sponsor_relationship": "no_by_design",
+    "recovery_attempt": "always",
+    "device_count": "no_by_design"
+   },
+   "source_of_claim": "protocol_enforced",
+   "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md \u00a710 (RecoveryRecord under H(RecoveryHandle))",
+   "non_collusion_assumptions": [
+    "recovery store cannot map H(RecoveryHandle) to a mailbox"
+   ],
+   "optional_mitigations": [
+    "request over privacy-enhanced path"
+   ]
+  },
+  {
+   "role": "platform_credential_manager",
+   "exposures": {
+    "client_network_address": "no_by_design",
+    "stable_account_id": "no_by_design",
+    "conversation_id": "no_by_design",
+    "contact_graph_edge": "no_by_design",
+    "membership_or_roster": "no_by_design",
+    "message_timing": "no_by_design",
+    "ciphertext_size": "no_by_design",
+    "blob_size": "no_by_design",
+    "query_plaintext": "no_by_design",
+    "push_timing": "no_by_design",
+    "sponsor_relationship": "no_by_design",
+    "recovery_attempt": "sometimes",
+    "device_count": "no_by_design"
+   },
+   "source_of_claim": "provider_asserted",
+   "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md \u00a710.6-10.7 (rpId + random RecoveryHandle)",
+   "non_collusion_assumptions": [
+    "platform vendor does not correlate rpId use with other telemetry"
+   ],
+   "optional_mitigations": [
+    "Maximum Privacy: recovery key only"
+   ]
+  },
+  {
+   "role": "clienthost_origin",
+   "exposures": {
+    "client_network_address": "always",
+    "stable_account_id": "no_by_design",
+    "conversation_id": "no_by_design",
+    "contact_graph_edge": "no_by_design",
+    "membership_or_roster": "no_by_design",
+    "message_timing": "sometimes",
+    "ciphertext_size": "no_by_design",
+    "blob_size": "no_by_design",
+    "query_plaintext": "no_by_design",
+    "push_timing": "no_by_design",
+    "sponsor_relationship": "no_by_design",
+    "recovery_attempt": "no_by_design",
+    "device_count": "no_by_design"
+   },
+   "source_of_claim": "mixed",
+   "retention_policy_reference": "CLIENTHOST_UPDATE_LIFECYCLE.md; R-188",
+   "non_collusion_assumptions": [
+    "origin host is not the mailbox Home (R-188)"
+   ],
+   "optional_mitigations": [
+    "native client",
+    "transparency-monitored independent origin"
+   ]
+  }
+ ]
+}
