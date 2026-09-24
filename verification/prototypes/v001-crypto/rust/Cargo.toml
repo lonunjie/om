@@ -1,0 +1,15 @@
+# Feasibility prototype for V-001. Not product code. Not for production.
+[workspace]
+resolver = "2"
+members = ["core", "node-wasm"]
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = false
