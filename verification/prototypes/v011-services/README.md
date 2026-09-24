@@ -2,10 +2,10 @@
 
 Feasibility prototype for V-011. Not product code. Not for production.
 
-Written by a Claude agent from `SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md` and
-`SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`. The design package was authored by a ChatGPT design agent and
+Written by a Claude agent from [`SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`](../../../docs/architecture/ecosystem/SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md) and
+[`SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`](../../../docs/architecture/ecosystem/SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md). The design package was authored by a ChatGPT design agent and
 Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The work is in TLA+ and Rust
-and is not derived from `verification/bounded/authority_models.py`.
+and is not derived from [`verification/bounded/authority_models.py`](../../bounded/authority_models.py).
 
 ## (a) Authority model: [`ServiceAuthority.tla`](../../tla/ServiceAuthority.tla)
 
@@ -19,7 +19,7 @@ The model covers:
 - the Room's MLS roster of service endpoints;
 - alias recycling and catalog replacement.
 
-The configs are listed in `verification/tla/models-v011.json` and take about 35 s:
+The configs are listed in [`verification/tla/models-v011.json`](../../tla/models-v011.json) and take about 35 s:
 
 - **3 scenarios pass:** 199,108, 203,008 and 32,700 distinct states. They include two liveness properties. The first
   says a revocation eventually reaches every recipient and the Room roster. The second says a sealed revocation always
@@ -55,7 +55,7 @@ The configs are listed in `verification/tla/models-v011.json` and take about 35 
   disabled.
 
 Run `./run.sh` (about 45 s). It needs Rust 1.98.1 and `serde`, `serde_json` and `base64` from `Cargo.lock`.
-`./run.sh --long` runs a 100,000-invocation sweep. Results go to `verification/results/v011-services-latest.json`.
+`./run.sh --long` runs a 100,000-invocation sweep. Results go to [`verification/results/v011-services-latest.json`](../../results/v011-services-latest.json).
 
 ## Design gaps found (proposed design updates)
 

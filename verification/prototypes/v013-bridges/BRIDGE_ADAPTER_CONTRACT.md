@@ -4,9 +4,9 @@
   reviewed. It needs an independent reviewer and an ADR before it is normative.
 - **Author:** written by a Claude agent. The design package was authored by a ChatGPT design agent and Claude agents;
   ADR-0117 (proposed) decides whether an AI reviewer counts as independent.
-- **Derived from:** `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md` (§§2–19 and the 08:21 refinement),
-  `TRANSPORT_ADAPTERS_AND_INTEROP.md`, `METADATA_THREAT_MODEL.md` (scoped fingerprints),
-  `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md` (`room.add_bridge` is a high-risk capability).
+- **Derived from:** [`INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`](../../../docs/architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md) (§§2–19 and the 08:21 refinement),
+  [`TRANSPORT_ADAPTERS_AND_INTEROP.md`](../../../docs/architecture/network/TRANSPORT_ADAPTERS_AND_INTEROP.md), [`METADATA_THREAT_MODEL.md`](../../../docs/threat-model/METADATA_THREAT_MODEL.md) (scoped fingerprints),
+  [`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](../../../docs/architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md) (`room.add_bridge` is a high-risk capability).
 - **Executable model:** `bridgesim/` in this directory. Each rule ID below is a comment at its enforcement point, and
   each MUST rule marked † has a fault-injection switch that the model shows to be necessary.
 
@@ -35,7 +35,7 @@ An adapter implements:
 - `verify_identity_link(namespace, actor_ref) -> ForeignIdentityLink?`.
 
 Adapters are untrusted parsers of foreign input. They MUST apply the bounded-parsing rules of
-`RICH_TEXT_AND_CONTENT_SECURITY.md` before producing OM content.
+[`RICH_TEXT_AND_CONTENT_SECURITY.md`](../../../docs/architecture/safety/RICH_TEXT_AND_CONTENT_SECURITY.md) before producing OM content.
 
 ## 3. Security-state rules
 
@@ -100,7 +100,7 @@ For each observed foreign event `f`:
   origin_event_ref)`, where `room_scope` is a Room-local secret or identifier known only to Room members and bridges.
   The fingerprint is scoped to the **Room and origin**. It MUST NOT include the BridgeID. *Rationale:* a bridge-scoped
   fingerprint cannot deduplicate one foreign event that arrives through two bridges (`mut_fp_scope_bridge`).
-  Room-level scoping still prevents cross-Room correlation, which is the concern in `METADATA_THREAT_MODEL.md`.
+  Room-level scoping still prevents cross-Room correlation, which is the concern in [`METADATA_THREAT_MODEL.md`](../../../docs/threat-model/METADATA_THREAT_MODEL.md).
 - **BAC-FP-2.** Deduplication across bridges uses only equal fingerprints, never text, display name or timestamp
   similarity (source §14). If two copies cannot be linked by fingerprint, both are shown, and the later copy is
   flagged `origin_unverified`.

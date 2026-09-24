@@ -3,8 +3,8 @@
 Feasibility prototype for V-016 (Room half). Not product code. Not for production.
 
 Written by a Claude agent. The design package was authored by a ChatGPT design agent and Claude agents; ADR-0117
-(proposed) decides whether an AI reviewer counts as independent. The model is written from `DECENTRALIZED_ABUSE_MODERATION.md`
-§§6–11 and §24, `EVIDENCE_AND_EXTERNAL_REPORTING.md` and `GROUP_COMMIT_AND_STATE_CONVERGENCE.md` §4. It is not
+(proposed) decides whether an AI reviewer counts as independent. The model is written from [`DECENTRALIZED_ABUSE_MODERATION.md`](../../../docs/architecture/safety/DECENTRALIZED_ABUSE_MODERATION.md)
+§§6–11 and §24, [`EVIDENCE_AND_EXTERNAL_REPORTING.md`](../../../docs/architecture/safety/EVIDENCE_AND_EXTERNAL_REPORTING.md) and [`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](../../../docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md) §4. It is not
 derived from `verification/bounded/`.
 
 ## Model ([`RoomModeration.tla`](../../tla/RoomModeration.tla))
@@ -26,7 +26,7 @@ derived from `verification/bounded/`.
 
 | Config | Result |
 |---|---|
-| `RoomModeration.cfg`: ban/unban, demotion while acting, admit vs ban | pass, 1,909 states |
+| [`RoomModeration.cfg`](../../tla/RoomModeration.cfg): ban/unban, demotion while acting, admit vs ban | pass, 1,909 states |
 | `_scope`: other room, unbound Space, moderator vs governance, self-lift | pass, 811 states |
 | `_write`: epoch-bound writes, hostile senders, lagging receivers | pass, 1,582,486 states |
 | `_evidence`: evidence ACL across a demotion; retention and appeal | pass, 7,035 states |

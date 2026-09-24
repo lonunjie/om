@@ -2,10 +2,10 @@
 
 Feasibility prototype for V-013. Not product code. Not for production.
 
-Written by a Claude agent from `INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md` and
-`TRANSPORT_ADAPTERS_AND_INTEROP.md`. The design package was authored by a ChatGPT design agent and Claude agents;
+Written by a Claude agent from [`INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`](../../../docs/architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md) and
+[`TRANSPORT_ADAPTERS_AND_INTEROP.md`](../../../docs/architecture/network/TRANSPORT_ADAPTERS_AND_INTEROP.md). The design package was authored by a ChatGPT design agent and Claude agents;
 ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The code is Rust and is not derived from
-`verification/bounded/wire_boundary_models.py`.
+[`verification/bounded/wire_boundary_models.py`](../../bounded/wire_boundary_models.py).
 
 - [`BRIDGE_ADAPTER_CONTRACT.md`](BRIDGE_ADAPTER_CONTRACT.md) is the candidate contract. Rule IDs (BAC-*) match the
   code, and residual risks are in its §10.
@@ -17,7 +17,7 @@ ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The co
 ## Run
 
 `./run.sh` takes about 2 s after the first build. It needs Rust 1.98.1 (`rust-toolchain.toml`) and `sha2`
-(`Cargo.lock`). It writes `verification/results/v013-bridges-latest.json`.
+(`Cargo.lock`). It writes [`verification/results/v013-bridges-latest.json`](../../results/v013-bridges-latest.json).
 
 ## Results
 

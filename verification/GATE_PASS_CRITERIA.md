@@ -208,7 +208,7 @@ Model-check Room/Space capability grants, explicit restrictions, delegation ceil
 - **Scopes blocked:** communities_publications
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_tool, independent_reviewer; pre-release independent_implementation
-- **Evidence:** `verification/results/authority-bounded-latest.json`
+- **Evidence:** `verification/results/authority-bounded-latest.json`; `verification/results/v008-permissions-latest.json`; `verification/tla/ScopedPermissions.tla`; `verification/tla/models-v008-permissions.json`
 
 Pre-engineering criteria:
 
@@ -217,6 +217,11 @@ Pre-engineering criteria:
 Pre-release criteria:
 
 - [ ] implementation replays model-derived vectors
+
+What remains (needs someone other than the author):
+
+- review by a non-author (ADR-0117); small TLC bounds
+- rulings: revoked-grantor cascade, sub-delegated Space authority, Space-side unlink, fork freeze vs revocation
 
 ### V-009 — `baseline_event_materialization_convergence`
 
@@ -264,7 +269,7 @@ Model/property-test permissionless ServiceGenesis, ServicePrincipal endpoint/con
 - **Scopes blocked:** services_bots
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
-- **Evidence:** `verification/results/authority-bounded-latest.json`
+- **Evidence:** `verification/results/authority-bounded-latest.json`; `verification/results/v011-services-latest.json`; `verification/tla/ServiceAuthority.tla`; `verification/tla/models-v011.json`
 
 Pre-engineering criteria:
 
@@ -274,6 +279,11 @@ Pre-engineering criteria:
 Pre-release criteria:
 
 - [ ] implementation tests replay model vectors and injection corpus
+
+What remains (needs someone other than the author):
+
+- review by a non-author (ADR-0117) of both criteria
+- rulings: host migration freezes service, controller self-appointment, service control anti-rollback, trigger plaintext disclosure, egress information-flow rule
 
 ### V-012 — `expressive_media_and_pack_parser_safety`
 
@@ -299,16 +309,21 @@ Adversarially model/test BridgePrincipal control and Room admission/removal, for
 - **Scopes blocked:** bridges
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
-- **Evidence:** `verification/results/wire-boundary-bounded-latest.json`
+- **Evidence:** `verification/prototypes/v013-bridges/BRIDGE_ADAPTER_CONTRACT.md`; `verification/results/v013-bridges-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
 
 Pre-engineering criteria:
 
 - [ ] reviewed bridge adapter contract specification
-- [ ] loop/reflection-suppression model with at least two simulated bridges and fidelity-loss signaling
+- [x] loop/reflection-suppression model with at least two simulated bridges and fidelity-loss signaling
 
 Pre-release criteria:
 
 - [ ] real adapters and multi-bridge traces meet the model
+
+What remains (needs someone other than the author):
+
+- review by a non-author (ADR-0117) of the adapter contract
+- rulings: bridge-scoped fingerprints vs dedupe, metadata-stripping foreign relay, opt-in cross-bridge relay, no pre-admission history export
 
 ### V-014 — `portable_archive_interop_and_import_safety`
 
@@ -317,18 +332,24 @@ Round-trip om-archive-v1 across at least two independent implementations and tes
 - **Scopes blocked:** portability
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
-- **Evidence:** `verification/results/wire-boundary-bounded-latest.json`
+- **Evidence:** `verification/prototypes/v014-archive/OM_ARCHIVE_V1_SPEC.md`; `verification/results/v014-archive-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
 
 Pre-engineering criteria:
 
 - [ ] frozen om-archive-v1 specification and vectors
-- [ ] hostile archive corpus
-- [ ] one reference reader/writer prototype passes the corpus
+- [x] hostile archive corpus
+- [x] one reference reader/writer prototype passes the corpus
 
 Pre-release criteria:
 
 - [ ] two independent implementations round-trip
 - [ ] real foreign importers pass authority/provenance tests
+
+What remains (needs someone other than the author):
+
+- freeze spec: review by a non-author (ADR-0117), ADR, crypto-profile review, V-005/ADR-0119
+- reviewer sign-off on corpus adequacy
+- rulings: JSON manifest hashing, schema fields, provenance evidence, banned secret-key types, archive encryption profile, newer-than-live control state
 
 ### V-015 — `metadata_exposure_and_privacy_path_model`
 
@@ -359,11 +380,11 @@ Model/property-test block/revocation/Sybil behavior, IntroGate resource abuse, R
 - **Scopes blocked:** core_kernel, communities_publications
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
-- **Evidence:** `verification/bounded/introgate_sybil_model.py`; `verification/results/authority-bounded-latest.json`; `verification/results/introgate-sybil-latest.json`
+- **Evidence:** `verification/bounded/introgate_sybil_model.py`; `verification/results/authority-bounded-latest.json`; `verification/results/introgate-sybil-latest.json`; `verification/results/v016-room-moderation-latest.json`; `verification/tla/RoomModeration.tla`; `verification/tla/models-v016-room-moderation.json`
 
 Pre-engineering criteria:
 
-- [x] IntroGate/block/Sybil/resource model for the W0 surfaces
+- [ ] IntroGate/block/Sybil/resource model for the W0 surfaces
 - [ ] Room timeout/remove/ban race and evidence model before communities_publications is unlocked
 
 Pre-release criteria:
@@ -372,8 +393,8 @@ Pre-release criteria:
 
 What remains (needs someone other than the author):
 
-- Room timeout/remove/ban race and evidence model (needed before communities_publications unlock; in progress)
-- independent review
+- review by a non-author (ADR-0117) of the Room model
+- rulings: moderator removing governance principals, MLS past-epoch window, committed timeout expiry, evidence access across demotion, appeal-hold bound
 
 ### V-017 — `protocol_longevity_and_0m_continuity_drill`
 

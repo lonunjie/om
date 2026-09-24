@@ -2,11 +2,11 @@
 
 - **Status:** frozen *candidate* for gate V-014. It is not frozen until reviewed (independent_reviewer) and adopted
   by ADR. The encryption profile `OMA-ENC-1-candidate` additionally needs OM cryptographic profile review
-  (`IMPORT_EXPORT_AND_USER_ESCAPE.md` §8).
+  ([`IMPORT_EXPORT_AND_USER_ESCAPE.md`](../../../docs/architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md) §8).
 - **Author:** written by a Claude agent. The design package was authored by a ChatGPT design agent and Claude agents;
   ADR-0117 (proposed) decides whether an AI reviewer counts as independent.
-- **Normative sources:** `IMPORT_EXPORT_AND_USER_ESCAPE.md` §§4–20, `CANONICAL_ENCODING.md`,
-  `spec/protocol/om-archive-manifest.logical.schema.json`, `spec/protocol/imported-history-record.logical.schema.json`.
+- **Normative sources:** [`IMPORT_EXPORT_AND_USER_ESCAPE.md`](../../../docs/architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md) §§4–20, [`CANONICAL_ENCODING.md`](../../../docs/architecture/crypto/CANONICAL_ENCODING.md),
+  [`spec/protocol/om-archive-manifest.logical.schema.json`](../../../spec/protocol/om-archive-manifest.logical.schema.json), [`spec/protocol/imported-history-record.logical.schema.json`](../../../spec/protocol/imported-history-record.logical.schema.json).
 - **Reference prototype:** `omarchive/` (Rust) in this directory. Vectors: `vectors/om-archive-v1-vectors.json`.
 
 The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119 / RFC 8174.
@@ -25,7 +25,7 @@ bytes with a declared `object_type`, and an importer verifies them with its own 
 - `||` means concatenation. `u64be(x)` is the 8-byte big-endian encoding.
 - `H(x)` is SHA-256. `HKDF(ikm, salt, info)` is HKDF-SHA256 (RFC 5869) with a 32-byte output.
 - **Canonical CBOR** means RFC 8949 §4.2.1 core deterministic encoding, restricted to the OM-CBOR-v1 profile
-  (`CANONICAL_ENCODING.md`). The rules are: definite lengths only, shortest-form integers and lengths, and map keys
+  ([`CANONICAL_ENCODING.md`](../../../docs/architecture/crypto/CANONICAL_ENCODING.md)). The rules are: definite lengths only, shortest-form integers and lengths, and map keys
   sorted bytewise by their encoded form with no duplicates. Only unsigned and negative integers, byte strings, UTF-8
   text strings, arrays, maps, `true`, `false` and `null` are allowed. No floats, no tags, no other simple values. The
   item must be the whole input (no trailing bytes). Nesting depth must be ≤ 16.
@@ -166,7 +166,7 @@ inventory exactly: `MissingEntry` if one is absent, `UnexpectedEntry` if one is 
 ### 5.3 Record files
 
 `record_type = "imported_history"` is a canonical-CBOR array of `ImportedHistoryRecord` maps. The fields follow
-`imported-history-record.logical.schema.json`, plus an optional `link_evidence` (text): the logical path of a
+[`imported-history-record.logical.schema.json`](../../../spec/protocol/imported-history-record.logical.schema.json), plus an optional `link_evidence` (text): the logical path of a
 canonical object that backs a strong `provenance_level`.
 
 ### 5.4 Canonical objects
@@ -177,7 +177,7 @@ byte-identical objects.
 ### 5.5 Blobs
 
 Blobs are stored as decrypted plaintext. They are hostile input for any later decoder, which must validate them
-before preview (`RICH_TEXT_AND_CONTENT_SECURITY.md`).
+before preview ([`RICH_TEXT_AND_CONTENT_SECURITY.md`](../../../docs/architecture/safety/RICH_TEXT_AND_CONTENT_SECURITY.md)).
 
 ### 5.6 Secret material
 

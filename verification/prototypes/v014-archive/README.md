@@ -2,10 +2,10 @@
 
 Feasibility prototype for V-014. Not product code. Not for production.
 
-Written by a Claude agent from `IMPORT_EXPORT_AND_USER_ESCAPE.md` §§4–20, `CANONICAL_ENCODING.md` and the logical
+Written by a Claude agent from [`IMPORT_EXPORT_AND_USER_ESCAPE.md`](../../../docs/architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md) §§4–20, [`CANONICAL_ENCODING.md`](../../../docs/architecture/crypto/CANONICAL_ENCODING.md) and the logical
 schemas `om-archive-manifest` and `imported-history-record`. The design package was authored by a ChatGPT design agent
 and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The code is Rust and
-does not derive from `verification/bounded/wire_boundary_models.py`, which is Python.
+does not derive from [`verification/bounded/wire_boundary_models.py`](../../bounded/wire_boundary_models.py), which is Python.
 
 ## Contents
 
@@ -61,11 +61,11 @@ Regenerate the vectors with `omarchive-corpus --vectors vectors/om-archive-v1-ve
 
 ## Design gaps found (proposed design updates)
 
-1. **The manifest must not be JSON.** `IMPORT_EXPORT_AND_USER_ESCAPE.md` §4 names `archive-manifest.json`, but
-   `integrity_root` is a hash, and `CANONICAL_ENCODING.md` forbids hashing or signing JSON. *Proposal:* the manifest
+1. **The manifest must not be JSON.** [`IMPORT_EXPORT_AND_USER_ESCAPE.md`](../../../docs/architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md) §4 names `archive-manifest.json`, but
+   `integrity_root` is a hash, and [`CANONICAL_ENCODING.md`](../../../docs/architecture/crypto/CANONICAL_ENCODING.md) forbids hashing or signing JSON. *Proposal:* the manifest
    is canonical CBOR (`manifest.cbor`); a JSON rendering is optional and non-normative. The same applies to the
    `portable/*.jsonl` projections: normative records are canonical CBOR.
-2. **The logical schema lacks fields the format needs.** `om-archive-manifest.logical.schema.json` has no
+2. **The logical schema lacks fields the format needs.** [`om-archive-manifest.logical.schema.json`](../../../spec/protocol/om-archive-manifest.logical.schema.json) has no
    `record_inventory`, `critical_extensions` or `extensions`. It also leaves inventory items as untyped objects.
    *Proposal:* adopt the §5 table, including per-item `path`/`size`/`sha256`, `present` for partial exports, and a
    defined integrity-root construction.

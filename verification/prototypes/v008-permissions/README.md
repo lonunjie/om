@@ -4,8 +4,8 @@ Feasibility prototype for V-008. Not product code. Not for production.
 
 Written by a Claude agent. The design package was authored by a ChatGPT design agent and Claude agents; ADR-0117
 (proposed) decides whether an AI reviewer counts as independent. The model is written from the public prose in
-`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md` and `SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md` (sections
-cited in the module header). It is not a translation of `verification/bounded/authority_models.py`: it uses a different
+[`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](../../../docs/architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md) and [`SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md`](../../../docs/architecture/groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md) (sections
+cited in the module header). It is not a translation of [`verification/bounded/authority_models.py`](../../bounded/authority_models.py): it uses a different
 formalism (TLA+ checked by TLC) and a different author.
 
 ## What is modelled
@@ -42,14 +42,14 @@ formalism (TLA+ checked by TLC) and a different author.
 
 | Config | Expect | Result |
 |---|---|---|
-| `ScopedPermissions.cfg` (roles, restrictions, 2-of-2 governance) | pass | 42,788 distinct states |
-| `ScopedPermissions_spaces.cfg` (links, binding, mirror, revocation race, liveness) | pass | 456,291 distinct states |
-| `ScopedPermissions_gov.cfg` (2-of-3 governance, stale approvals, forks) | pass | 11,154 distinct states |
+| [`ScopedPermissions.cfg`](../../tla/ScopedPermissions.cfg) (roles, restrictions, 2-of-2 governance) | pass | 42,788 distinct states |
+| [`ScopedPermissions_spaces.cfg`](../../tla/ScopedPermissions_spaces.cfg) (links, binding, mirror, revocation race, liveness) | pass | 456,291 distinct states |
+| [`ScopedPermissions_gov.cfg`](../../tla/ScopedPermissions_gov.cfg) (2-of-3 governance, stale approvals, forks) | pass | 11,154 distinct states |
 | 6 × `mut_*` (one rule disabled each) | violation | each caught: no_ceiling, self_lift, stale_approvals, accept_subdelegated, no_cascade, unilateral_binding |
 | 5 × `trap_*` (golden witnesses) | violation | fork freeze, high-risk by quorum, Space-delegated moderation, cascade revocation, governance transfer |
 
 Every counterexample and witness trace becomes a regression vector in `verification/vectors/tla-ScopedPermissions_*.json`.
-These are written by `tools/run_tlc.py`. That tool labels any non-`Trap` vector `residual-risk`. For the `mut_*`
+These are written by [`tools/run_tlc.py`](../../../tools/run_tlc.py). That tool labels any non-`Trap` vector `residual-risk`. For the `mut_*`
 configs the label means "fault-injected counterexample: the step a conforming implementation must reject".
 
 Bounds: 3 principals, 2 Spaces, 4 capabilities, 5–6 environment steps and at most 3 grants. Governance execution and
