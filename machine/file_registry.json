@@ -1600,6 +1600,13 @@
       "authority": "current_checkpoint"
     },
     {
+      "path": "docs/checkpoints/CHECKPOINT_20260925_0010.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
       "path": "docs/checkpoints/README.md",
       "class": "checkpoint",
       "domain": "architecture_process",
@@ -3743,6 +3750,13 @@
     },
     {
       "path": "verification/reviews/BRIEF-2026-09-24-codex-v-series.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/reviews/BRIEF-2026-09-25-gpt-sol-architecture.md",
       "class": "verification_doc",
       "domain": "architecture_verification",
       "license": "CC-BY-SA-4.0",

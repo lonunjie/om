@@ -51,7 +51,7 @@ future-dated clock in last-writer-wins registers, and receiver-dependent accepta
 
 8. **Polls and topics.** Vote options are validated: an unknown option, or several options on a single-choice poll,
    is rejected. An empty selection retracts a vote. For duplicate `topic.create` events with one TopicID, the earliest
-   in EventClock order wins. `message.topic.set` with `topic_id: null` clears the placement.
+   in EventClock order wins. `message.topic.set` with `topic_id` absent clears the placement (OM-CBOR never uses `null` as a typed value).
 9. **Size limit.** The 64 KiB limit applies to the canonical encoded event.
 
 ## Consequences
