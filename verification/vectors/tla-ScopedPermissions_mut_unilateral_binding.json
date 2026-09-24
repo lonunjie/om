@@ -1,0 +1,93 @@
+{
+ "gate": "V-008",
+ "source": "verification/tla/ScopedPermissions_mut_unilateral_binding.cfg",
+ "kind": "residual-risk",
+ "claim": "mutation: a Space that only lists the Room (one-sided link) gets authority",
+ "violated": "NoTransitiveAuthority",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "steps": "0",
+    "binding": "[deleg |-> {}, space |-> \"none\"]",
+    "roomSide": "{\"S2\"}",
+    "mirror": "[a |-> {}, b |-> {}, c |-> {}]",
+    "grants": "<<>>",
+    "forkBase": "0",
+    "frozen": "FALSE",
+    "mirrorCeil": "[a |-> {}, b |-> {}, c |-> {}]",
+    "restr": "[a |-> {}, b |-> {}, c |-> {}]",
+    "influence": "{}",
+    "last": "[ kind |-> \"init\", actor |-> \"none\", counted |-> {}, govNow |-> {\"a\"}, thrNow |-> 1, detail |-> \"none\" ]",
+    "version": "0",
+    "govAt": "(0 :> {\"a\"} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})",
+    "gov": "{\"a\"}",
+    "spaceRole": "[S1 |-> [a |-> {}, b |-> {}, c |-> {}], S2 |-> [a |-> {}, b |-> {}, c |-> {}]]",
+    "spaceRoleBy": "[ S1 |-> [a |-> \"S1\", b |-> \"S1\", c |-> \"S1\"], S2 |-> [a |-> \"S2\", b |-> \"S2\", c |-> \"S2\"] ]",
+    "props": "{}",
+    "boundEver": "{}",
+    "thr": "1",
+    "thrAt": "(0 :> 1 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)",
+    "spaceSide": "{\"S2\"}",
+    "execAt": "(0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)"
+   }
+  },
+  {
+   "step": 2,
+   "action": "SpaceSetRole",
+   "vars": {
+    "steps": "1",
+    "binding": "[deleg |-> {}, space |-> \"none\"]",
+    "roomSide": "{\"S2\"}",
+    "mirror": "[a |-> {}, b |-> {}, c |-> {}]",
+    "grants": "<<>>",
+    "forkBase": "0",
+    "frozen": "FALSE",
+    "mirrorCeil": "[a |-> {}, b |-> {}, c |-> {}]",
+    "restr": "[a |-> {}, b |-> {}, c |-> {}]",
+    "influence": "{}",
+    "last": "[ kind |-> \"space_set_role\", actor |-> \"S1\", counted |-> {}, govNow |-> {\"a\"}, thrNow |-> 1, detail |-> \"a\" ]",
+    "version": "0",
+    "govAt": "(0 :> {\"a\"} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})",
+    "gov": "{\"a\"}",
+    "spaceRole": "[ S1 |-> [a |-> {}, b |-> {}, c |-> {}], S2 |-> [a |-> {\"moderate\", \"manage_roles\"}, b |-> {}, c |-> {}] ]",
+    "spaceRoleBy": "[ S1 |-> [a |-> \"S1\", b |-> \"S1\", c |-> \"S1\"], S2 |-> [a |-> \"S1\", b |-> \"S2\", c |-> \"S2\"] ]",
+    "props": "{}",
+    "boundEver": "{}",
+    "thr": "1",
+    "thrAt": "(0 :> 1 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)",
+    "spaceSide": "{\"S2\"}",
+    "execAt": "(0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)"
+   }
+  },
+  {
+   "step": 3,
+   "action": "SyncAll",
+   "vars": {
+    "steps": "1",
+    "binding": "[deleg |-> {}, space |-> \"none\"]",
+    "roomSide": "{\"S2\"}",
+    "mirror": "[a |-> {\"moderate\", \"manage_roles\"}, b |-> {}, c |-> {}]",
+    "grants": "<<>>",
+    "forkBase": "0",
+    "frozen": "FALSE",
+    "mirrorCeil": "[a |-> {\"post\", \"moderate\", \"manage_roles\", \"add_bridge\"}, b |-> {}, c |-> {}]",
+    "restr": "[a |-> {}, b |-> {}, c |-> {}]",
+    "influence": "{\"S1\"}",
+    "last": "[ kind |-> \"sync\", actor |-> \"room\", counted |-> {}, govNow |-> {\"a\"}, thrNow |-> 1, detail |-> \"none\" ]",
+    "version": "0",
+    "govAt": "(0 :> {\"a\"} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})",
+    "gov": "{\"a\"}",
+    "spaceRole": "[ S1 |-> [a |-> {}, b |-> {}, c |-> {}], S2 |-> [a |-> {\"moderate\", \"manage_roles\"}, b |-> {}, c |-> {}] ]",
+    "spaceRoleBy": "[ S1 |-> [a |-> \"S1\", b |-> \"S1\", c |-> \"S1\"], S2 |-> [a |-> \"S1\", b |-> \"S2\", c |-> \"S2\"] ]",
+    "props": "{}",
+    "boundEver": "{}",
+    "thr": "1",
+    "thrAt": "(0 :> 1 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)",
+    "spaceSide": "{\"S2\"}",
+    "execAt": "(0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)"
+   }
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+[package]
+name = "bridgesim"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "Apache-2.0"
+description = "Feasibility prototype for V-013 (bridge loop/reflection/provenance explorer). Not product code."
+
+[dependencies]
+sha2 = "0.10"

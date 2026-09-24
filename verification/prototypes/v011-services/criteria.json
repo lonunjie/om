@@ -1,0 +1,14 @@
+{
+ "gates": ["V-011"],
+ "independence": "TLA+ model and Rust broker written by a Claude agent from SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md and SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md (different formalism/language and author from verification/bounded/authority_models.py); the broker's oracle is a separately written checker over the effect log. The design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The pre-engineering phase requires independent_reviewer sign-off, which does not exist.",
+ "criteria": [
+  {"gate": "V-011", "criterion": "formal/bounded model extended to host migration/revocation and alias replacement", "status": "partial",
+   "evidence": "verification/tla/ServiceAuthority.tla; verification/tla/models-v011.json; verification/vectors/tla-ServiceAuthority_*.json",
+   "note": "TLC: 3 scenarios pass (host migration with lagging recipients and liveness of revocation, self-bootstrap via Room role, control fork vs revocation); 6 mutations caught; 3 golden vectors. Partial: reviewer sign-off missing; model adopts two rules not in the docs (revocations rebase and are never blocked by a fork; service/endpoints/hosts ineligible as controllers)."},
+  {"gate": "V-011", "criterion": "tool-capability prototype shows injected prompts cannot exceed granted capabilities or create unbounded automation loops", "status": "partial",
+   "evidence": "verification/prototypes/v011-services/broker; verification/prototypes/v011-services/injection-corpus.json; verification/results/v011-services-latest.json",
+   "note": "48-case corpus (42 attacks: direct, indirect-via-message, via-document, chained, loops; 6 benign controls) against a maximally gullible stub LLM, plus a 10k-invocation random-model sweep: 0 oracle violations; loops bounded (two-bot mention loop 6 messages vs 400+ without broker limits). Partial only because the phase requires independent_reviewer sign-off; the prototype evidence itself is complete for its scope."},
+  {"gate": "V-011", "criterion": "implementation tests replay model vectors and injection corpus (pre-release)", "status": "unmet",
+   "evidence": "verification/vectors/tla-ServiceAuthority_*.json; verification/prototypes/v011-services/injection-corpus.json", "note": "No implementation exists."}
+ ]
+}

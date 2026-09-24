@@ -1,0 +1,731 @@
+{
+ "gates": [
+  "V-014"
+ ],
+ "criteria": [
+  {
+   "gate": "V-014",
+   "criterion": "frozen om-archive-v1 specification and vectors",
+   "status": "partial",
+   "evidence": "verification/prototypes/v014-archive/OM_ARCHIVE_V1_SPEC.md; verification/prototypes/v014-archive/vectors/om-archive-v1-vectors.json",
+   "note": "Frozen-candidate spec with 5 byte-exact positive vectors, regenerated and checked on every run. Not frozen: needs independent review, an ADR, crypto-profile review of OMA-ENC-1-candidate, and V-005 per-object CDDL for canonical objects."
+  },
+  {
+   "gate": "V-014",
+   "criterion": "hostile archive corpus",
+   "status": "met",
+   "evidence": "verification/prototypes/v014-archive/omarchive/src/bin/omarchive-corpus.rs; verification/results/v014-archive-latest.json",
+   "note": "67 deterministic hostile cases (zip-slip variants, symlink/dir modes, duplicates, deflate bomb, overlapping entries, size/count bombs, trailing/prepended data, non-canonical CBOR, unknown critical, integrity/hash/missing/extra entries, secret key material, wrong key, truncated/corrupted/swapped/replayed ciphertext, KDF downgrade/DoS, header MAC) plus import-level stale authority, forged provenance and fabricated native authorship. Reviewer sign-off on corpus adequacy still needed."
+  },
+  {
+   "gate": "V-014",
+   "criterion": "one reference reader/writer prototype passes the corpus",
+   "status": "met",
+   "evidence": "verification/prototypes/v014-archive/omarchive; verification/results/v014-archive-latest.json",
+   "note": "All 67 hostile + 6 positive cases and 9 import checks as expected; byte-identical round trips; 20,000-mutant sweep with 0 panics and 0 silent corruptions."
+  },
+  {
+   "gate": "V-014",
+   "criterion": "two independent implementations round-trip (pre-release)",
+   "status": "unmet",
+   "evidence": "verification/prototypes/v014-archive/vectors/om-archive-v1-vectors.json",
+   "note": "Only one implementation; the vectors are the interop target for a second."
+  },
+  {
+   "gate": "V-014",
+   "criterion": "real foreign importers pass authority/provenance tests (pre-release)",
+   "status": "unmet",
+   "evidence": "none",
+   "note": "No real foreign-format importer exists."
+  }
+ ],
+ "independence": "Spec and Rust reader/writer written by a Claude agent from IMPORT_EXPORT_AND_USER_ESCAPE.md and the logical schemas, in a different language and by a different author from verification/bounded/wire_boundary_models.py. The design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The pre-engineering phase requires independent_reviewer sign-off, which does not exist.",
+ "tool_versions": {
+  "rustc": "rustc 1.98.1",
+  "crates": "see verification/prototypes/v014-archive/omarchive/Cargo.lock"
+ },
+ "corpus": {
+  "all_ok": true,
+  "mutation_sweep": {
+   "mutants": 20000,
+   "rejected": 19967,
+   "accepted_identical": 33,
+   "silent_corruptions": 0,
+   "panics": 0
+  },
+  "hostile_cases": 67,
+  "positive_cases": 6,
+  "import_checks": 9,
+  "vectors_match": true,
+  "vectors": [
+   {
+    "name": "plain",
+    "sha256": "0d8c571d4ff8832a9d8073e25d525768d073b0a0a1b6e50a2eba9d3e90b10dc0"
+   },
+   {
+    "name": "encrypted-passphrase",
+    "sha256": "d2bb2bff18dfb7cb3e91a4795412fdefbfec08ec979d9e0ab7f44b2ce62b7983"
+   },
+   {
+    "name": "encrypted-raw-key",
+    "sha256": "67950ec1090564370b6b0588c45bf1d7bae786b63ef6a410e5c8cb09bd26cbb9"
+   },
+   {
+    "name": "plain-zip64-records",
+    "sha256": "6152fcaaf38843cea9fde688384a09743cdcb37d818efb174bb7d711dcc8d38c"
+   },
+   {
+    "name": "partial-missing-blob",
+    "sha256": "ab996e98f2dbcca096fad034222551608714c27b76dfeb78723c43d0fadb9a62"
+   }
+  ],
+  "cases": [
+   {
+    "id": "zip_slip_dotdot",
+    "category": "path",
+    "expect": "Zip(BadName)",
+    "actual": "Zip(BadName)",
+    "ok": true,
+    "sha256": "e8f869c5657310da5bb0f335157022110b5f9b30129d962586cae41625a11fa3"
+   },
+   {
+    "id": "zip_slip_absolute",
+    "category": "path",
+    "expect": "Zip(BadName)",
+    "actual": "Zip(BadName)",
+    "ok": true,
+    "sha256": "d1cd8ca6e38b2b6612609726224453bcb01da92c2a7b7b7c700328f9e77009d4"
+   },
+   {
+    "id": "zip_slip_backslash",
+    "category": "path",
+    "expect": "Zip(BadName)",
+    "actual": "Zip(BadName)",
+    "ok": true,
+    "sha256": "a869efbcf6b28402da7a1b28b332da4569edf376897a3ab360dfa1cdf09e7f1e"
+   },
+   {
+    "id": "zip_slip_drive_letter",
+    "category": "path",
+    "expect": "Zip(BadName)",
+    "actual": "Zip(BadName)",
+    "ok": true,
+    "sha256": "4a92956e686eb59189e8bb775fcb4cc64492521e6a86554bfc5b79e3217c50d0"
+   },
+   {
+    "id": "unicode_lookalike_dots",
+    "category": "path",
+    "expect": "Zip(BadName)",
+    "actual": "Zip(BadName)",
+    "ok": true,
+    "sha256": "f19280685c04a8482a5261699e6680ec49924e7e30c462ba2bf8766eca43c66a"
+   },
+   {
+    "id": "fullwidth_solidus",
+    "category": "path",
+    "expect": "Zip(BadName)",
+    "actual": "Zip(BadName)",
+    "ok": true,
+    "sha256": "7a0005f168ecc9fd6307c6e3d8eed16f6c64b908132443aad6e82c3ac3258010"
+   },
+   {
+    "id": "case_variant_name",
+    "category": "path",
+    "expect": "Zip(BadName)",
+    "actual": "Zip(BadName)",
+    "ok": true,
+    "sha256": "d14ce9ba9150644148374953e69ee3f1b9250f7a358242c9eb2938629778dc5e"
+   },
+   {
+    "id": "nul_in_name",
+    "category": "path",
+    "expect": "Zip(BadName)",
+    "actual": "Zip(BadName)",
+    "ok": true,
+    "sha256": "57f2b7f8e036878f06f031df8217ddef8a2b67cd9113201703c584ba4d3a818a"
+   },
+   {
+    "id": "directory_entry",
+    "category": "path",
+    "expect": "Zip(BadName)",
+    "actual": "Zip(BadName)",
+    "ok": true,
+    "sha256": "3611642201f79c826c78e703cc21c00944112b199e5e1d089b894df45edad27a"
+   },
+   {
+    "id": "overlong_name",
+    "category": "path",
+    "expect": "Zip(BadName)",
+    "actual": "Zip(BadName)",
+    "ok": true,
+    "sha256": "9b78ccf2a80ae880b103a8e3a460b505c986dc1206ddbc6ade3e0b3b23ed4427"
+   },
+   {
+    "id": "symlink_entry",
+    "category": "path",
+    "expect": "Zip(NotRegularFile)",
+    "actual": "Zip(NotRegularFile)",
+    "ok": true,
+    "sha256": "a96753c2fbf204ed6b7375ad239244e1f0f20f26708edc261bbb3cbfa08f446e"
+   },
+   {
+    "id": "directory_mode_entry",
+    "category": "path",
+    "expect": "Zip(NotRegularFile)",
+    "actual": "Zip(NotRegularFile)",
+    "ok": true,
+    "sha256": "d69b64c27c85b7e3d76f5dd291e22d572d3d034ca5c27ac677f589a910e9ee85"
+   },
+   {
+    "id": "dos_directory_attribute",
+    "category": "path",
+    "expect": "Zip(NotRegularFile)",
+    "actual": "Zip(NotRegularFile)",
+    "ok": true,
+    "sha256": "900b0f186e44c1d5764f22fb76b28c718cf275da1bb8b0ca23e1400a9eb5d723"
+   },
+   {
+    "id": "duplicate_name",
+    "category": "path",
+    "expect": "Zip(DuplicateName)",
+    "actual": "Zip(DuplicateName)",
+    "ok": true,
+    "sha256": "446f5b3942013676a1a3cd0e040b605b3f5da55b0ce55dff620c2120ef77eb38"
+   },
+   {
+    "id": "deflate_zip_bomb",
+    "category": "resource",
+    "expect": "Zip(UnsupportedMethod)",
+    "actual": "Zip(UnsupportedMethod)",
+    "ok": true,
+    "sha256": "8651ce075d9e4b2b6692e0938902a064a0ab1f433f396e60094d94d7e3a23291"
+   },
+   {
+    "id": "overlapping_entries",
+    "category": "resource",
+    "expect": "Zip(NonContiguous)",
+    "actual": "Zip(NonContiguous)",
+    "ok": true,
+    "sha256": "dc52a40a0b0d83755aed3d662524b590ec7b3aa577802e064f0a6c21aa4e3d51"
+   },
+   {
+    "id": "declared_size_huge",
+    "category": "resource",
+    "expect": "Zip(EntryTooLarge)",
+    "actual": "Zip(EntryTooLarge)",
+    "ok": true,
+    "sha256": "8bfc7a2cc652cdf78272dcdd8b098b120d96c216eff72fa6ff8bdeceb73f19fa"
+   },
+   {
+    "id": "entry_count_bomb",
+    "category": "resource",
+    "expect": "Zip(TooManyEntries)",
+    "actual": "Zip(TooManyEntries)",
+    "ok": true,
+    "sha256": "503380c4891019284a3b27e840931bb7b809c16e0a2d1b98f028f3dbe862e08d"
+   },
+   {
+    "id": "entry_count_exceeds_directory",
+    "category": "resource",
+    "expect": "Zip(Truncated)",
+    "actual": "Zip(Truncated)",
+    "ok": true,
+    "sha256": "09849f6f3ca4ff0dfac6f65ee0918445d8529a0de9acd7700155cf336d4248d4"
+   },
+   {
+    "id": "total_size_limit",
+    "category": "resource",
+    "expect": "Zip(TotalTooLarge)",
+    "actual": "Zip(TotalTooLarge)",
+    "ok": true,
+    "sha256": "e5147bde6a46ed4a5e7f217cfb3cb98473b08bab5fafec9e2eaeaed68260273a"
+   },
+   {
+    "id": "trailing_data",
+    "category": "container",
+    "expect": "Zip(TrailingOrPrependedData)",
+    "actual": "Zip(TrailingOrPrependedData)",
+    "ok": true,
+    "sha256": "e35ab8cdec93263d57165fe4d580dc6b3e4df2ad8a618b31b30e69e128dc30de"
+   },
+   {
+    "id": "prepended_polyglot",
+    "category": "container",
+    "expect": "Zip(any)",
+    "actual": "Zip(NonContiguous)",
+    "ok": true,
+    "sha256": "cd78b174bb1acdc2399c73a2bc4102c425abd67f295b146e828a3a4ed430b268"
+   },
+   {
+    "id": "eocd_comment",
+    "category": "container",
+    "expect": "Zip(TrailingOrPrependedData|CommentPresent)",
+    "actual": "Zip(TrailingOrPrependedData)",
+    "ok": true,
+    "sha256": "3f6ba123d0b256dc3a892f66a03f1f9726dcc3afd41bce796e4fa8146086744b"
+   },
+   {
+    "id": "multi_disk",
+    "category": "container",
+    "expect": "Zip(MultiDisk)",
+    "actual": "Zip(MultiDisk)",
+    "ok": true,
+    "sha256": "accfdb220eb99e5ad247a7397aeb834a0eb351ff8ecfbc21894113674932376f"
+   },
+   {
+    "id": "truncated_half",
+    "category": "container",
+    "expect": "Zip(any)",
+    "actual": "Zip(NotZip)",
+    "ok": true,
+    "sha256": "93b3e0c07d5d0be105930efaaf02ccbdcb12fe90c7ca57ebdbb0648563ba2b6a"
+   },
+   {
+    "id": "empty_file",
+    "category": "container",
+    "expect": "Zip(NotZip)",
+    "actual": "Zip(NotZip)",
+    "ok": true,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   {
+    "id": "data_descriptor_flag",
+    "category": "container",
+    "expect": "Zip(DataDescriptor)",
+    "actual": "Zip(DataDescriptor)",
+    "ok": true,
+    "sha256": "f8c184a8576b4fe38f91e3cf3dea97eb85ddb83f7b5fd4a1a0c1a3b1463f3f3d"
+   },
+   {
+    "id": "pkware_encrypted_flag",
+    "category": "container",
+    "expect": "Zip(Encrypted)",
+    "actual": "Zip(Encrypted)",
+    "ok": true,
+    "sha256": "f96dfadcb3de83b9fd989016f8ccd3500fc75924944651ff451a7111dbc96157"
+   },
+   {
+    "id": "crc_mismatch",
+    "category": "container",
+    "expect": "Zip(Crc)",
+    "actual": "Zip(Crc)",
+    "ok": true,
+    "sha256": "30f869b2e65861004651c2bfcb0e5117313ccbe4405fa22bfa97e0402bdb6d9c"
+   },
+   {
+    "id": "local_central_name_mismatch",
+    "category": "container",
+    "expect": "Zip(HeaderMismatch)",
+    "actual": "Zip(HeaderMismatch)",
+    "ok": true,
+    "sha256": "91d45a85233229615d5ad90516c1ce13792081abf5d4b724cfdff514211f2273"
+   },
+   {
+    "id": "unknown_extra_field",
+    "category": "container",
+    "expect": "Zip(ExtraField)",
+    "actual": "Zip(ExtraField)",
+    "ok": true,
+    "sha256": "84a5693438725ec05dadfdf870ba29c64ff3b7b88f3bac29652d510eeae95df4"
+   },
+   {
+    "id": "missing_format_entry",
+    "category": "format",
+    "expect": "NotOmArchive",
+    "actual": "NotOmArchive",
+    "ok": true,
+    "sha256": "fdb1efa55db5df8f6a2dad026b02c688d2fb6f7c7aef03c526c1d974023c12f1"
+   },
+   {
+    "id": "future_major_format_entry",
+    "category": "version",
+    "expect": "UnsupportedVersion",
+    "actual": "UnsupportedVersion",
+    "ok": true,
+    "sha256": "ff7bcc9c5a7d9cacd9fe39fed154156ab4a735702a45336f19e7ddd70a10b996"
+   },
+   {
+    "id": "manifest_not_second",
+    "category": "format",
+    "expect": "UnexpectedLayout",
+    "actual": "UnexpectedLayout(\"second entry must be manifest.cbor or header.cbor\")",
+    "ok": true,
+    "sha256": "a0b7c566d6574776751de119626bf0b8f061a1a7fcd53f585addd77aac375158"
+   },
+   {
+    "id": "future_major_manifest",
+    "category": "version",
+    "expect": "UnsupportedVersion",
+    "actual": "UnsupportedVersion",
+    "ok": true,
+    "sha256": "0a924d2ca86428acd47a1f5db739e93b9de47e88165ff0b3c70d6f50bb60cd16"
+   },
+   {
+    "id": "manifest_unsorted_keys",
+    "category": "canonical",
+    "expect": "Cbor(UnsortedOrDuplicateKey)",
+    "actual": "Cbor(\"manifest\", UnsortedOrDuplicateKey)",
+    "ok": true,
+    "sha256": "4512a64888703f7ac58741c246391d17f8b9655457d9b612a746f9391f9a3ff1"
+   },
+   {
+    "id": "manifest_duplicate_key",
+    "category": "canonical",
+    "expect": "Cbor(UnsortedOrDuplicateKey)",
+    "actual": "Cbor(\"manifest\", UnsortedOrDuplicateKey)",
+    "ok": true,
+    "sha256": "b49570683e4972cbca0d39f400d862873b3c461be93ac5db5b726944487f9f1e"
+   },
+   {
+    "id": "manifest_float",
+    "category": "canonical",
+    "expect": "Cbor(Float)",
+    "actual": "Cbor(\"manifest\", Float)",
+    "ok": true,
+    "sha256": "6927aee8325183a4ed01d72cc069269088088ad85f5e8a87f1fbe5d4cf0a9947"
+   },
+   {
+    "id": "manifest_indefinite_length",
+    "category": "canonical",
+    "expect": "Cbor(Indefinite)",
+    "actual": "Cbor(\"manifest\", Indefinite)",
+    "ok": true,
+    "sha256": "ab15cfcb2ad797db0bdb2bd5dfb6c3e0b35961ff2ab06b0104d8d54b99f0ef19"
+   },
+   {
+    "id": "manifest_trailing_bytes",
+    "category": "canonical",
+    "expect": "Cbor(TrailingBytes)",
+    "actual": "Cbor(\"manifest\", TrailingBytes)",
+    "ok": true,
+    "sha256": "c44bc21a6d38e19ec557f8ffa7533080d6702363867b0ebaadaf23020c27a72f"
+   },
+   {
+    "id": "manifest_nonminimal_length",
+    "category": "canonical",
+    "expect": "Cbor(NonMinimalLength)",
+    "actual": "Cbor(\"manifest\", NonMinimalLength)",
+    "ok": true,
+    "sha256": "91d2b5cba00dff74557b16cbbf66f880745eade9df10931178a05a2c1e788618"
+   },
+   {
+    "id": "manifest_deep_nesting",
+    "category": "resource",
+    "expect": "Cbor(TooDeep)",
+    "actual": "Cbor(\"manifest\", TooDeep)",
+    "ok": true,
+    "sha256": "d1331531aca3a5404b7a8821dc75d2fe346c45111c3e331349f2045fa6c48eef"
+   },
+   {
+    "id": "unknown_critical_extension",
+    "category": "version",
+    "expect": "UnknownCritical",
+    "actual": "UnknownCritical(\"om.x-future-authority\")",
+    "ok": true,
+    "sha256": "461b84bf6d99a3d1853a99ac23fd10af66a530c8d62ee4f6522b2d939b1edd9a"
+   },
+   {
+    "id": "unknown_manifest_field",
+    "category": "schema",
+    "expect": "Schema",
+    "actual": "Schema(\"manifest: unknown field grants_admin\")",
+    "ok": true,
+    "sha256": "aaa1a76adf270439bac673b489e1c0c05842d92f4ce6d892ebf8b9612b280121"
+   },
+   {
+    "id": "integrity_root_mismatch",
+    "category": "integrity",
+    "expect": "IntegrityRoot",
+    "actual": "IntegrityRoot",
+    "ok": true,
+    "sha256": "4737e611c144a5c35d51e2a6fc8afd8622e3e1657aa479c7095f42ed3ec81a25"
+   },
+   {
+    "id": "entry_hash_mismatch",
+    "category": "integrity",
+    "expect": "EntryHash",
+    "actual": "EntryHash(\"canonical/objects/675d6c80230dd4be57c9ed615d602067b41e9d17f88f0c26109b6bbd917eb9e5\")",
+    "ok": true,
+    "sha256": "4e2f8113d04c6ac4cb1b14713fe499dc38c3024d6cc90e28b4c8b1cf8e20cccb"
+   },
+   {
+    "id": "blob_entry_removed",
+    "category": "partial",
+    "expect": "MissingEntry",
+    "actual": "MissingEntry",
+    "ok": true,
+    "sha256": "f13ed93c0448ba8fb7a8435914a37f5905b7748115b866540fdee5e42b3d23ef"
+   },
+   {
+    "id": "unlisted_extra_entry",
+    "category": "integrity",
+    "expect": "UnexpectedEntry",
+    "actual": "UnexpectedEntry(\"om-archive-v1/extra/payload\")",
+    "ok": true,
+    "sha256": "cae4fd0a4ea6bbd98e279a78cd79732461c375bac7060135d7f022958939de72"
+   },
+   {
+    "id": "secret_key_material",
+    "category": "authority",
+    "expect": "SecretMaterial",
+    "actual": "SecretMaterial(\"om.device_identity.private\")",
+    "ok": true,
+    "sha256": "03462bd474590e3c7b8f78dc0748d2c69c90aedc0dee8652022de7b2fa960b19"
+   },
+   {
+    "id": "secret_key_material_encrypted",
+    "category": "authority",
+    "expect": "SecretMaterial",
+    "actual": "SecretMaterial(\"om.account_root.private\")",
+    "ok": true,
+    "sha256": "b399bce904556a296ea67a7529b4dedd9a379d9372e58c9ba0b1d0b4b855513c"
+   },
+   {
+    "id": "manifest_too_large",
+    "category": "resource",
+    "expect": "ManifestTooLarge",
+    "actual": "ManifestTooLarge",
+    "ok": true,
+    "sha256": "0d8c571d4ff8832a9d8073e25d525768d073b0a0a1b6e50a2eba9d3e90b10dc0"
+   },
+   {
+    "id": "inventory_path_traversal",
+    "category": "path",
+    "expect": "Schema",
+    "actual": "Schema(\"bad logical path records/../../../../tmp/evil\")",
+    "ok": true,
+    "sha256": "0ec2cd1a1fcd002c2e7f73a15b33cf08d34e069f15bd0ab90c779529006506d0"
+   },
+   {
+    "id": "wrong_passphrase",
+    "category": "encryption",
+    "expect": "NoMatchingKey",
+    "actual": "NoMatchingKey",
+    "ok": true,
+    "sha256": "d2bb2bff18dfb7cb3e91a4795412fdefbfec08ec979d9e0ab7f44b2ce62b7983"
+   },
+   {
+    "id": "wrong_raw_key",
+    "category": "encryption",
+    "expect": "NoMatchingKey",
+    "actual": "NoMatchingKey",
+    "ok": true,
+    "sha256": "67950ec1090564370b6b0588c45bf1d7bae786b63ef6a410e5c8cb09bd26cbb9"
+   },
+   {
+    "id": "no_key_supplied",
+    "category": "encryption",
+    "expect": "NoMatchingKey",
+    "actual": "NoMatchingKey",
+    "ok": true,
+    "sha256": "d2bb2bff18dfb7cb3e91a4795412fdefbfec08ec979d9e0ab7f44b2ce62b7983"
+   },
+   {
+    "id": "kdf_below_floor",
+    "category": "encryption",
+    "expect": "KdfParams",
+    "actual": "KdfParams",
+    "ok": true,
+    "sha256": "d2bb2bff18dfb7cb3e91a4795412fdefbfec08ec979d9e0ab7f44b2ce62b7983"
+   },
+   {
+    "id": "kdf_param_dos",
+    "category": "encryption",
+    "expect": "KdfParams",
+    "actual": "KdfParams",
+    "ok": true,
+    "sha256": "d8487dd185b5079359b6e2d88cf4f456e61e65f997a305d6e87bc23037182784"
+   },
+   {
+    "id": "kdf_param_tamper",
+    "category": "encryption",
+    "expect": "NoMatchingKey",
+    "actual": "NoMatchingKey",
+    "ok": true,
+    "sha256": "5512666aa6a7407566d235ffc7cd51a70740e18a9cee13bdecbf477687e2f060"
+   },
+   {
+    "id": "chunk_size_tamper",
+    "category": "encryption",
+    "expect": "Schema",
+    "actual": "Schema(\"chunk_size must be 65536\")",
+    "ok": true,
+    "sha256": "5c234b5e7ad24b9fe0836744c1c208ac839a72bccc0795495ade52649877676b"
+   },
+   {
+    "id": "header_mac_tamper",
+    "category": "encryption",
+    "expect": "HeaderMac",
+    "actual": "HeaderMac",
+    "ok": true,
+    "sha256": "9cac8ea3a0f75d20fa5a9cb60b1af79d2a8add35e279821dcb75b219ff0553a1"
+   },
+   {
+    "id": "unknown_recipient_type",
+    "category": "version",
+    "expect": "UnknownCritical",
+    "actual": "UnknownCritical(\"recipient type pq-kem-future\")",
+    "ok": true,
+    "sha256": "310c3d5c156bfc14342a4c82f2083f2f727d090190d6d4deb2b343dc5dac57ba"
+   },
+   {
+    "id": "truncated_ciphertext_chunk_boundary",
+    "category": "encryption",
+    "expect": "Decrypt",
+    "actual": "Decrypt(\"blobs/8bfab16126ee38b84917b229f7ac67be2aed3b43de40bbc17b6e6131388a3571: authentication failed\")",
+    "ok": true,
+    "sha256": "f7e2b14f12ab5d236ccada033c5a4056a7803d6ef9a25078030a37b7641d2ee4"
+   },
+   {
+    "id": "truncated_ciphertext_mid_chunk",
+    "category": "encryption",
+    "expect": "Decrypt",
+    "actual": "Decrypt(\"blobs/8bfab16126ee38b84917b229f7ac67be2aed3b43de40bbc17b6e6131388a3571: authentication failed\")",
+    "ok": true,
+    "sha256": "e44ae604509aa9e5641e008ccacf2e0ef9b73d8d4c3d4360e3de2ffc3af96551"
+   },
+   {
+    "id": "corrupted_ciphertext_byte",
+    "category": "encryption",
+    "expect": "Decrypt",
+    "actual": "Decrypt(\"blobs/8bfab16126ee38b84917b229f7ac67be2aed3b43de40bbc17b6e6131388a3571: authentication failed\")",
+    "ok": true,
+    "sha256": "6c3d9846df81bf62a84aeb53b9cf57597ad615eae9aa8fcdcb5ba77022096c26"
+   },
+   {
+    "id": "swapped_encrypted_entries",
+    "category": "encryption",
+    "expect": "Decrypt",
+    "actual": "Decrypt(\"canonical/objects/675d6c80230dd4be57c9ed615d602067b41e9d17f88f0c26109b6bbd917eb9e5: authentication failed\")",
+    "ok": true,
+    "sha256": "ffe63e93aef42ae0fc84270592a8e8a974cdf97041950eb247bd5321cf78bdc9"
+   },
+   {
+    "id": "reordered_or_replayed_chunk",
+    "category": "encryption",
+    "expect": "Decrypt",
+    "actual": "Decrypt(\"blobs/8bfab16126ee38b84917b229f7ac67be2aed3b43de40bbc17b6e6131388a3571: authentication failed\")",
+    "ok": true,
+    "sha256": "6c2322629af4509d88af693ce3470d87121682c4eaebfbe73eba63d69e2ee890"
+   },
+   {
+    "id": "foreign_manifest_splice",
+    "category": "encryption",
+    "expect": "Decrypt",
+    "actual": "Decrypt(\"manifest: Auth\")",
+    "ok": true,
+    "sha256": "417597739300237ab3f07060e3b6abbc601ea503f883e20b714d89693e7d0f48"
+   },
+   {
+    "id": "positive_plain",
+    "category": "positive",
+    "expect": "accept",
+    "actual": "accepted (missing_blobs=0)",
+    "ok": true,
+    "sha256": "0d8c571d4ff8832a9d8073e25d525768d073b0a0a1b6e50a2eba9d3e90b10dc0"
+   },
+   {
+    "id": "positive_encrypted_passphrase",
+    "category": "positive",
+    "expect": "accept",
+    "actual": "accepted (missing_blobs=0)",
+    "ok": true,
+    "sha256": "d2bb2bff18dfb7cb3e91a4795412fdefbfec08ec979d9e0ab7f44b2ce62b7983"
+   },
+   {
+    "id": "positive_encrypted_raw_key",
+    "category": "positive",
+    "expect": "accept",
+    "actual": "accepted (missing_blobs=0)",
+    "ok": true,
+    "sha256": "67950ec1090564370b6b0588c45bf1d7bae786b63ef6a410e5c8cb09bd26cbb9"
+   },
+   {
+    "id": "positive_encrypted_multi_chunk",
+    "category": "positive",
+    "expect": "accept",
+    "actual": "accepted (missing_blobs=0)",
+    "ok": true,
+    "sha256": "7fbf0dac1cef57472952adc537a9e2626c29c45617773df65b42a061da034c4a"
+   },
+   {
+    "id": "positive_zip64_records",
+    "category": "positive",
+    "expect": "accept (ZIP64 records)",
+    "actual": "accepted (missing_blobs=0)",
+    "ok": true,
+    "sha256": "6152fcaaf38843cea9fde688384a09743cdcb37d818efb174bb7d711dcc8d38c"
+   },
+   {
+    "id": "partial_archive_declared_missing_blob",
+    "category": "partial",
+    "expect": "accept, missing_blobs reported",
+    "actual": "accepted (missing_blobs=1)",
+    "ok": true,
+    "sha256": "ab996e98f2dbcca096fad034222551608714c27b76dfeb78723c43d0fadb9a62"
+   }
+  ],
+  "checks": [
+   {
+    "id": "stale_control_state_not_authority",
+    "ok": true,
+    "note": "archived Room control v3 (alice admin) vs live v5: classified StaleControl, never applied"
+   },
+   {
+    "id": "native_object_verified_exactly",
+    "ok": true,
+    "note": "exact canonical bytes verify after round trip"
+   },
+   {
+    "id": "linked_provenance_with_evidence_kept",
+    "ok": true,
+    "note": "cryptographically_linked backed by a verifying link object"
+   },
+   {
+    "id": "readonly_import_newer_control_not_applied",
+    "ok": true,
+    "note": "a newer archived control state is flagged for live validation; live state is untouched (import takes &LiveState)"
+   },
+   {
+    "id": "forged_or_type_confused_objects_unverified",
+    "ok": true,
+    "note": "unknown signer and declared-type mismatch are kept as opaque Unverified bytes, never native"
+   },
+   {
+    "id": "forged_provenance_downgraded",
+    "ok": true,
+    "note": "linked/bridge-attested claims without matching verifiable evidence are downgraded to foreign_export_label"
+   },
+   {
+    "id": "fabricated_native_authorship_quarantined",
+    "ok": true,
+    "note": "author_principal / signature fields, unknown provenance level and unknown fields are quarantined"
+   },
+   {
+    "id": "roundtrip_plain_byte_identical",
+    "ok": true,
+    "note": "4887 bytes; canonical objects preserved exactly"
+   },
+   {
+    "id": "roundtrip_encrypted_byte_identical",
+    "ok": true,
+    "note": "4814 bytes; canonical objects preserved exactly"
+   }
+  ]
+ },
+ "summary": {
+  "all_ok": true,
+  "hostile_cases": 67,
+  "positive_cases": 6,
+  "import_checks": 9,
+  "vectors_match": true,
+  "mutation_sweep": {
+   "mutants": 20000,
+   "rejected": 19967,
+   "accepted_identical": 33,
+   "silent_corruptions": 0,
+   "panics": 0
+  },
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed"
+ }
+}

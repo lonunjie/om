@@ -1,0 +1,15 @@
+{
+ "gates": ["V-016"],
+ "independence": "Model written by a Claude agent from the public design prose (TLA+, different formalism and author from verification/bounded/authority_models.py); checked by TLC 1.7.4. The design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The pre-engineering phase requires independent_reviewer sign-off, which does not exist.",
+ "criteria": [
+  {"gate": "V-016", "criterion": "Room timeout/remove/ban race and evidence model before communities_publications is unlocked",
+   "status": "partial",
+   "evidence": "verification/tla/RoomModeration.tla; verification/tla/models-v016-room-moderation.json; verification/results/v016-room-moderation-latest.json; verification/vectors/tla-RoomModeration_*.json",
+   "note": "Model exists and TLC finds no counterexample for races, scope, epoch-bound write access and evidence ACL/retention within the bounds; 7 mutations caught; 5 golden and 1 residual-risk vector. Partial: independent_reviewer sign-off missing, small bounds, and two rules adopted by the model are not in the docs (governance protection, past-epoch window) - see README."},
+  {"gate": "V-016", "criterion": "IntroGate/block/Sybil/resource model for the W0 surfaces",
+   "status": "unmet", "evidence": "verification/bounded/introgate_sybil_model.py (another agent)",
+   "note": "Out of this prototype's scope (Room half only)."},
+  {"gate": "V-016", "criterion": "adversarial load and abuse tests against reference providers (pre-release)",
+   "status": "unmet", "evidence": "none", "note": "No reference providers exist."}
+ ]
+}

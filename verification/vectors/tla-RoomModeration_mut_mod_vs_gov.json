@@ -1,0 +1,93 @@
+{
+ "gate": "V-016",
+ "source": "verification/tla/RoomModeration_mut_mod_vs_gov.cfg",
+ "kind": "residual-risk",
+ "claim": "mutation: an ordinary moderator removes a governance principal",
+ "violated": "GovernanceProtected",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "epoch": "0",
+    "steps": "0",
+    "membersAt": "(0 :> {\"g\", \"m\", \"n\", \"u\"} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {} @@ 4 :> {})",
+    "timedOut": "[R1 |-> {}, R2 |-> {}]",
+    "recvEpoch": "<< >>",
+    "mods": "[R1 |-> {\"m\", \"n\"}, R2 |-> {\"n\"}]",
+    "writersAt": "(0 :> {\"g\", \"m\", \"n\", \"u\"} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {} @@ 4 :> {})",
+    "keys": "[g |-> {0}, m |-> {0}, n |-> {0}, u |-> {0}, s |-> {}]",
+    "demoted": "{}",
+    "applied": "{}",
+    "pending": "{}",
+    "msgs": "{}",
+    "last": "[ actor |-> \"none\", room |-> \"none\", kind |-> \"init\", intent |-> 0, authorized |-> TRUE ]",
+    "acc": "<< >>",
+    "banned": "[R1 |-> {}, R2 |-> {}]",
+    "gov": "[R1 |-> {\"g\"}, R2 |-> {\"g\"}]",
+    "okAtCreation": "<<FALSE, FALSE, FALSE, FALSE, FALSE>>",
+    "created": "{}",
+    "evidence": "{}",
+    "accAt": "<< >>",
+    "members": "[R1 |-> {\"g\", \"m\", \"n\", \"u\"}, R2 |-> {\"g\", \"n\", \"u\"}]",
+    "seen": "<< >>"
+   }
+  },
+  {
+   "step": 2,
+   "action": "Create",
+   "vars": {
+    "epoch": "0",
+    "steps": "1",
+    "membersAt": "(0 :> {\"g\", \"m\", \"n\", \"u\"} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {} @@ 4 :> {})",
+    "timedOut": "[R1 |-> {}, R2 |-> {}]",
+    "recvEpoch": "<< >>",
+    "mods": "[R1 |-> {\"m\", \"n\"}, R2 |-> {\"n\"}]",
+    "writersAt": "(0 :> {\"g\", \"m\", \"n\", \"u\"} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {} @@ 4 :> {})",
+    "keys": "[g |-> {0}, m |-> {0}, n |-> {0}, u |-> {0}, s |-> {}]",
+    "demoted": "{}",
+    "applied": "{}",
+    "pending": "{4}",
+    "msgs": "{}",
+    "last": "[ actor |-> \"m\", room |-> \"R1\", kind |-> \"create\", intent |-> 4, authorized |-> TRUE ]",
+    "acc": "<< >>",
+    "banned": "[R1 |-> {}, R2 |-> {}]",
+    "gov": "[R1 |-> {\"g\"}, R2 |-> {\"g\"}]",
+    "okAtCreation": "<<FALSE, FALSE, FALSE, TRUE, FALSE>>",
+    "created": "{4}",
+    "evidence": "{}",
+    "accAt": "<< >>",
+    "members": "[R1 |-> {\"g\", \"m\", \"n\", \"u\"}, R2 |-> {\"g\", \"n\", \"u\"}]",
+    "seen": "<< >>"
+   }
+  },
+  {
+   "step": 3,
+   "action": "Apply",
+   "vars": {
+    "epoch": "1",
+    "steps": "1",
+    "membersAt": "( 0 :> {\"g\", \"m\", \"n\", \"u\"} @@ 1 :> {\"m\", \"n\", \"u\"} @@ 2 :> {} @@ 3 :> {} @@ 4 :> {} )",
+    "timedOut": "[R1 |-> {}, R2 |-> {}]",
+    "recvEpoch": "<< >>",
+    "mods": "[R1 |-> {\"m\", \"n\"}, R2 |-> {\"n\"}]",
+    "writersAt": "( 0 :> {\"g\", \"m\", \"n\", \"u\"} @@ 1 :> {\"m\", \"n\", \"u\"} @@ 2 :> {} @@ 3 :> {} @@ 4 :> {} )",
+    "keys": "[g |-> {0}, m |-> {0, 1}, n |-> {0, 1}, u |-> {0, 1}, s |-> {}]",
+    "demoted": "{}",
+    "applied": "{<<4, TRUE>>}",
+    "pending": "{}",
+    "msgs": "{}",
+    "last": "[ actor |-> \"m\", room |-> \"R1\", kind |-> \"apply\", intent |-> 4, authorized |-> TRUE ]",
+    "acc": "<< >>",
+    "banned": "[R1 |-> {}, R2 |-> {}]",
+    "gov": "[R1 |-> {\"g\"}, R2 |-> {\"g\"}]",
+    "okAtCreation": "<<FALSE, FALSE, FALSE, TRUE, FALSE>>",
+    "created": "{4}",
+    "evidence": "{}",
+    "accAt": "<< >>",
+    "members": "[R1 |-> {\"m\", \"n\", \"u\"}, R2 |-> {\"g\", \"n\", \"u\"}]",
+    "seen": "<< >>"
+   }
+  }
+ ]
+}

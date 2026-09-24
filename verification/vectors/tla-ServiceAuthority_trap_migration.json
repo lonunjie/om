@@ -1,0 +1,185 @@
+{
+ "gate": "V-011",
+ "source": "verification/tla/ServiceAuthority_trap_migration.cfg",
+ "kind": "golden",
+ "claim": "golden: host migration completes (e1 revoked, e2 active, roster = {e2})",
+ "violated": "TrapHostMigration",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "0",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"none\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "0",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{}",
+    "thr": "2"
+   }
+  },
+  {
+   "step": 2,
+   "action": "Approve",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "1",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"none\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "0",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{[t |-> 1, base |-> 0, appr |-> {\"a\"}]}",
+    "thr": "2"
+   }
+  },
+  {
+   "step": 3,
+   "action": "Approve",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "2",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"none\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "0",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{[t |-> 1, base |-> 0, appr |-> {\"a\", \"b\"}]}",
+    "thr": "2"
+   }
+  },
+  {
+   "step": 4,
+   "action": "Approve",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "3",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"none\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "0",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{ [t |-> 1, base |-> 0, appr |-> {\"a\", \"b\"}], [t |-> 2, base |-> 0, appr |-> {\"a\"}] }",
+    "thr": "2"
+   }
+  },
+  {
+   "step": 5,
+   "action": "Approve",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "4",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"none\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "0",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{ [t |-> 1, base |-> 0, appr |-> {\"a\", \"b\"}], [t |-> 2, base |-> 0, appr |-> {\"a\", \"b\"}] }",
+    "thr": "2"
+   }
+  },
+  {
+   "step": 6,
+   "action": "Next",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "4",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{\"a\", \"b\"}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"active\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "1",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"active\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{[t |-> 2, base |-> 0, appr |-> {\"a\", \"b\"}]}",
+    "thr": "2"
+   }
+  },
+  {
+   "step": 7,
+   "action": "Next",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "4",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{\"a\", \"b\"}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"revoked\", e2 |-> \"active\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "2",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"active\"] @@ 2 :> [e1 |-> \"revoked\", e2 |-> \"active\"] )",
+    "props": "{}",
+    "thr": "2"
+   }
+  },
+  {
+   "step": 8,
+   "action": "RoomSync",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "4",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{\"a\", \"b\"}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"revoked\", e2 |-> \"active\"]",
+    "visibleAdds": "{\"e1\", \"e2\"}",
+    "roster": "{\"e2\"}",
+    "alias": "\"S\"",
+    "version": "2",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"active\"] @@ 2 :> [e1 |-> \"revoked\", e2 |-> \"active\"] )",
+    "props": "{}",
+    "thr": "2"
+   }
+  }
+ ]
+}

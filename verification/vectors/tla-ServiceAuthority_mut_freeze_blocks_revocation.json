@@ -1,0 +1,97 @@
+{
+ "gate": "V-011",
+ "source": "verification/tla/ServiceAuthority_mut_freeze_blocks_revocation.cfg",
+ "kind": "residual-risk",
+ "claim": "design gap: if a fork freezes revocation, a compromised controller keeps a revoked endpoint alive",
+ "violated": "RevocationNeverStranded",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "0",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"none\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "0",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{}",
+    "thr": "1"
+   }
+  },
+  {
+   "step": 2,
+   "action": "Approve",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "1",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"none\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "0",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{[t |-> 1, base |-> 0, appr |-> {\"a\"}]}",
+    "thr": "1"
+   }
+  },
+  {
+   "step": 3,
+   "action": "Approve",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "2",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"none\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "0",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{[t |-> 1, base |-> 0, appr |-> {\"a\"}], [t |-> 2, base |-> 0, appr |-> {\"a\"}]}",
+    "thr": "1"
+   }
+  },
+  {
+   "step": 4,
+   "action": "Next",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "2",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{\"a\"}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"active\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "1",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"active\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{[t |-> 1, base |-> 0, appr |-> {\"a\"}]}",
+    "thr": "1"
+   }
+  }
+ ]
+}

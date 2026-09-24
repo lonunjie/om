@@ -1,0 +1,212 @@
+{
+ "gates": [
+  "V-008"
+ ],
+ "criteria": [
+  {
+   "gate": "V-008",
+   "criterion": "formal model of Room/Space grants, restrictions, ceilings, governance quorum, bilateral links and revocation races with no self-escalation or transitive-authority counterexample",
+   "status": "partial",
+   "evidence": "verification/tla/ScopedPermissions.tla; verification/tla/models-v008-permissions.json; verification/results/v008-permissions-latest.json; verification/vectors/tla-ScopedPermissions_*.json",
+   "note": "TLC finds no counterexample in the three bounded scenarios (independent_tool met for this bound); six fault-injected mutations are each caught. Partial because (1) the gate also requires independent_reviewer sign-off, (2) bounds are small (3 principals, 2 Spaces, 5-6 environment steps), and (3) the model adopts two semantics the docs leave open (cascade revocation, sub-delegated Space authority rejected) - see README 'Design gaps'."
+  },
+  {
+   "gate": "V-008",
+   "criterion": "implementation replays model-derived vectors (pre-release)",
+   "status": "unmet",
+   "evidence": "verification/vectors/tla-ScopedPermissions_*.json",
+   "note": "Vectors exist; no implementation exists (engineering not authorized)."
+  }
+ ],
+ "independence": "Model written by a Claude agent from the public design prose (TLA+, a different formalism and author from verification/bounded/authority_models.py); checked by TLC 1.7.4 (independent_tool). The design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. No independent_reviewer sign-off exists.",
+ "tool_versions": {
+  "tlc": "tla2tools 1.7.4 (sha1 bee4a54f3ee3d4afc347c3240ec2d9e93b075104)",
+  "java": "OpenJDK 21"
+ },
+ "tlc_runs": [
+  {
+   "config": "ScopedPermissions.cfg",
+   "gate": "V-008",
+   "claim": "no self-escalation, no capability created outside a governance root, high-risk caps only via quorum, cascade revocation",
+   "expect": "pass",
+   "outcome": "pass",
+   "violated": null,
+   "distinct_states": 42788,
+   "depth": 10,
+   "as_expected": true
+  },
+  {
+   "config": "ScopedPermissions_spaces.cfg",
+   "gate": "V-008",
+   "claim": "no transitive/unilateral Space authority; mirror within binding ceiling; Space revocation eventually dominates (liveness)",
+   "expect": "pass",
+   "outcome": "pass",
+   "violated": null,
+   "distinct_states": 456291,
+   "depth": 13,
+   "as_expected": true
+  },
+  {
+   "config": "ScopedPermissions_gov.cfg",
+   "gate": "V-008",
+   "claim": "quorum counted only from governance in force; concurrent sealed successors freeze",
+   "expect": "pass",
+   "outcome": "pass",
+   "violated": null,
+   "distinct_states": 11154,
+   "depth": 8,
+   "as_expected": true
+  },
+  {
+   "config": "ScopedPermissions_mut_no_ceiling.cfg",
+   "gate": "V-008",
+   "claim": "mutation: role manager grants outside its delegation ceiling",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "CoalitionClosed",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 2
+  },
+  {
+   "config": "ScopedPermissions_mut_self_lift.cfg",
+   "gate": "V-008",
+   "claim": "mutation: a restricted moderator lifts its own restriction",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "NoSelfEscalation",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 3
+  },
+  {
+   "config": "ScopedPermissions_mut_stale_approvals.cfg",
+   "gate": "V-008",
+   "claim": "mutation: an approval from a since-removed governor still counts",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "QuorumBoundToState",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 7
+  },
+  {
+   "config": "ScopedPermissions_mut_accept_subdelegated.cfg",
+   "gate": "V-008",
+   "claim": "mutation: Room accepts a Space role authored by that Space's own parent (S1->S2->Room)",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "NoTransitiveAuthority",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 5
+  },
+  {
+   "config": "ScopedPermissions_mut_no_cascade.cfg",
+   "gate": "V-008",
+   "claim": "design gap: without cascade, grants issued from revoked Space authority outlive the revocation",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "NoLaunderedAuthority",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 8
+  },
+  {
+   "config": "ScopedPermissions_mut_unilateral_binding.cfg",
+   "gate": "V-008",
+   "claim": "mutation: a Space that only lists the Room (one-sided link) gets authority",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "NoTransitiveAuthority",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 3
+  },
+  {
+   "config": "ScopedPermissions_trap_fork.cfg",
+   "gate": "V-008",
+   "claim": "golden: two concurrently sealed successors of one head freeze privileged transitions",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "TrapForkFreezes",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 5
+  },
+  {
+   "config": "ScopedPermissions_trap_highrisk.cfg",
+   "gate": "V-008",
+   "claim": "golden: add_bridge reaches a principal only after 2-of-2 approval",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "TrapHighRiskByQuorum",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 4
+  },
+  {
+   "config": "ScopedPermissions_trap_space_mod.cfg",
+   "gate": "V-008",
+   "claim": "golden: Space-delegated moderation materialises through the Room's own binding",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "TrapSpaceDelegatedModeration",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 5
+  },
+  {
+   "config": "ScopedPermissions_trap_cascade.cfg",
+   "gate": "V-008",
+   "claim": "golden: revoking a Space role invalidates grants issued from it",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "TrapCascadeRevocation",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 8
+  },
+  {
+   "config": "ScopedPermissions_trap_transfer.cfg",
+   "gate": "V-008",
+   "claim": "golden: ownership transfer is add-successor then remove-predecessor under quorum",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "TrapGovernanceTransfer",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 5
+  }
+ ],
+ "summary": {
+  "all_tlc_outcomes_as_expected": true,
+  "configs": 14,
+  "pass_configs_distinct_states": 510233,
+  "vectors_written": [
+   "verification/vectors/tla-ScopedPermissions_mut_accept_subdelegated.json",
+   "verification/vectors/tla-ScopedPermissions_mut_no_cascade.json",
+   "verification/vectors/tla-ScopedPermissions_mut_no_ceiling.json",
+   "verification/vectors/tla-ScopedPermissions_mut_self_lift.json",
+   "verification/vectors/tla-ScopedPermissions_mut_stale_approvals.json",
+   "verification/vectors/tla-ScopedPermissions_mut_unilateral_binding.json",
+   "verification/vectors/tla-ScopedPermissions_trap_cascade.json",
+   "verification/vectors/tla-ScopedPermissions_trap_fork.json",
+   "verification/vectors/tla-ScopedPermissions_trap_highrisk.json",
+   "verification/vectors/tla-ScopedPermissions_trap_space_mod.json",
+   "verification/vectors/tla-ScopedPermissions_trap_transfer.json"
+  ],
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed"
+ }
+}

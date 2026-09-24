@@ -1,0 +1,212 @@
+{
+ "gates": [
+  "V-013"
+ ],
+ "criteria": [
+  {
+   "gate": "V-013",
+   "criterion": "reviewed bridge adapter contract specification",
+   "status": "partial",
+   "evidence": "verification/prototypes/v013-bridges/BRIDGE_ADAPTER_CONTRACT.md",
+   "note": "Precise, testable candidate contract with rule IDs enforced and fault-injected in the model; not reviewed (independent_reviewer + ADR needed)."
+  },
+  {
+   "gate": "V-013",
+   "criterion": "loop/reflection-suppression model with at least two simulated bridges and fidelity-loss signaling",
+   "status": "met",
+   "evidence": "verification/prototypes/v013-bridges/bridgesim/src/main.rs; verification/results/v013-bridges-latest.json",
+   "note": "Exhaustive interleaving exploration of B1 (Matrix-like) + B2 (XMPP-like) + optional OM-unaware foreign relay (absent/preserving/stripping): termination, typed authorship, ForeignProvenance, identity links, E2EE-boundary disclosure, fidelity flags against an oracle, target mapping and reflection suppression hold; 8 fault injections each caught. Residual: a metadata-stripping foreign relay yields bounded, flagged reflections. Reviewer sign-off on the model is still required by the phase's independence rule."
+  },
+  {
+   "gate": "V-013",
+   "criterion": "real adapters and multi-bridge traces meet the model (pre-release)",
+   "status": "unmet",
+   "evidence": "none",
+   "note": "No real adapters exist."
+  }
+ ],
+ "independence": "Contract and Rust explorer written by a Claude agent from INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md and TRANSPORT_ADAPTERS_AND_INTEROP.md (different language and author from verification/bounded/wire_boundary_models.py). The design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The pre-engineering phase requires independent_reviewer sign-off, which does not exist.",
+ "tool_versions": {
+  "rustc": "rustc 1.98.1",
+  "crates": "see verification/prototypes/v013-bridges/bridgesim/Cargo.lock"
+ },
+ "model": {
+  "all_ok": true,
+  "bridges": [
+   "B1: OM<->M (Matrix-like: rich, edits, reactions, metadata)",
+   "B2: OM<->X (XMPP-like: plain text, no edits, no reactions, metadata extension)",
+   "F: OM-unaware M<->X bridge (absent | preserve | strip metadata)"
+  ],
+  "hop_limit": 3,
+  "event_bound": 24,
+  "scenarios": [
+   {
+    "id": "two_bridges_om_origin",
+    "description": "OM rich message + edit + reaction through B1 (Matrix-like) and B2 (XMPP-like)",
+    "expect": null,
+    "violation": null,
+    "ok": true,
+    "states": 22585,
+    "quiescent_states": 305,
+    "max_events": 8
+   },
+   {
+    "id": "foreign_origin_both_networks",
+    "description": "foreign messages from M and X, one impersonating 'Alice', one with a verified identity link",
+    "expect": null,
+    "violation": null,
+    "ok": true,
+    "states": 1292,
+    "quiescent_states": 15,
+    "max_events": 6
+   },
+   {
+    "id": "foreign_side_bridge_preserves_trace",
+    "description": "OM message loops OM->M->F->X->OM and OM->X->F->M->OM; F keeps interop metadata",
+    "expect": null,
+    "violation": null,
+    "ok": true,
+    "states": 510,
+    "quiescent_states": 6,
+    "max_events": 5
+   },
+   {
+    "id": "duplicate_import_two_bridges",
+    "description": "one foreign event reaches the Room via B1 directly and via F+B2",
+    "expect": null,
+    "violation": null,
+    "ok": true,
+    "states": 56,
+    "quiescent_states": 3,
+    "max_events": 3
+   },
+   {
+    "id": "foreign_side_bridge_strips_trace",
+    "description": "RESIDUAL: F strips metadata; reflections are bounded and flagged origin_unverified, not suppressed",
+    "expect": null,
+    "violation": null,
+    "ok": true,
+    "states": 6854,
+    "quiescent_states": 20,
+    "max_events": 7
+   },
+   {
+    "id": "foreign_origin_strip",
+    "description": "RESIDUAL: a foreign event relayed by a metadata-stripping F reaches the Room twice, both flagged origin_unverified",
+    "expect": null,
+    "violation": null,
+    "ok": true,
+    "states": 128,
+    "quiescent_states": 3,
+    "max_events": 4
+   },
+   {
+    "id": "revocation_race",
+    "description": "B2 removed while an OM message and a foreign reply are in flight; B2 re-admitted later",
+    "expect": null,
+    "violation": null,
+    "ok": true,
+    "states": 11473,
+    "quiescent_states": 130,
+    "max_events": 7
+   },
+   {
+    "id": "unmapped_targets",
+    "description": "reaction/edit to a message that was never exported (sent before B2 admission) and foreign reply to an unknown target",
+    "expect": null,
+    "violation": null,
+    "ok": true,
+    "states": 1038,
+    "quiescent_states": 12,
+    "max_events": 6
+   },
+   {
+    "id": "mut_relay_bridged_strip",
+    "description": "BAC-OUT-3 disabled + trace-stripping F: infinite echo",
+    "expect": "Bounded",
+    "violation": "Bounded: unbounded echo (event bound exceeded)",
+    "ok": true,
+    "states": "n/a (stopped at first violation)",
+    "quiescent_states": null,
+    "max_events": 25
+   },
+   {
+    "id": "mut_fp_scope_bridge",
+    "description": "BAC-FP-1 violated (bridge-scoped fingerprint): duplicate import via two bridges",
+    "expect": "NoReflection",
+    "violation": "NoReflection: origin (M, 1) materialised 2 times",
+    "ok": true,
+    "states": "n/a (stopped at first violation)",
+    "quiescent_states": null,
+    "max_events": 4
+   },
+   {
+    "id": "mut_ignore_trace",
+    "description": "BAC-IN-1/3 disabled: reflections of OM-origin messages",
+    "expect": "NoReflection",
+    "violation": "NoReflection: origin (Om, 1) materialised 3 times",
+    "ok": true,
+    "states": "n/a (stopped at first violation)",
+    "quiescent_states": null,
+    "max_events": 7
+   },
+   {
+    "id": "mut_no_echo_table",
+    "description": "BAC-IN-2 disabled on a network that drops metadata on echo",
+    "expect": "NoReflection",
+    "violation": "NoReflection: origin (Om, 1) materialised 3 times",
+    "ok": true,
+    "states": "n/a (stopped at first violation)",
+    "quiescent_states": null,
+    "max_events": 5
+   },
+   {
+    "id": "mut_export_any_epoch",
+    "description": "BAC-OUT-1 disabled: retroactive export of pre-admission history",
+    "expect": "E2EEBoundaryDisclosed",
+    "violation": "E2EEBoundaryDisclosed: event 1 exported by bridge 2 outside its disclosed membership",
+    "ok": true,
+    "states": "n/a (stopped at first violation)",
+    "quiescent_states": null,
+    "max_events": 2
+   },
+   {
+    "id": "mut_no_disclosure",
+    "description": "BAC-SEC-1 disabled: bridge admitted without E2EE-boundary disclosure",
+    "expect": "E2EEBoundaryDisclosed",
+    "violation": "E2EEBoundaryDisclosed: event 1 exported by bridge 2 outside its disclosed membership",
+    "ok": true,
+    "states": "n/a (stopped at first violation)",
+    "quiescent_states": null,
+    "max_events": 2
+   },
+   {
+    "id": "mut_trust_display",
+    "description": "BAC-ID-1 disabled: foreign display name 'Alice' becomes AccountPrincipal alice",
+    "expect": "TypedAuthor",
+    "violation": "TypedAuthor: imported event 2 authored as Account('alice')",
+    "ok": true,
+    "states": "n/a (stopped at first violation)",
+    "quiescent_states": null,
+    "max_events": 2
+   },
+   {
+    "id": "mut_attach_unmapped",
+    "description": "BAC-MAP-2 disabled: an unmapped reaction attaches to an unrelated message",
+    "expect": "TargetMapping",
+    "violation": "TargetMapping: export of 6 attached to the wrong foreign target",
+    "ok": true,
+    "states": "n/a (stopped at first violation)",
+    "quiescent_states": null,
+    "max_events": 8
+   }
+  ]
+ },
+ "summary": {
+  "all_ok": true,
+  "scenarios": 16,
+  "fault_injections_caught": 8,
+  "states_explored_correct_contract": 43936,
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed"
+ }
+}

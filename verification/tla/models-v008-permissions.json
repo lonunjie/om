@@ -1,0 +1,114 @@
+{
+ "purpose": "V-008 ScopedPermissions configs (prototype verification/prototypes/v008-permissions). mut_* configs disable one rule and must violate; trap_* are golden witnesses.",
+ "models": [
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions.cfg",
+   "expect": "pass",
+   "gate": "V-008",
+   "claim": "no self-escalation, no capability created outside a governance root, high-risk caps only via quorum, cascade revocation"
+  },
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions_spaces.cfg",
+   "expect": "pass",
+   "gate": "V-008",
+   "claim": "no transitive/unilateral Space authority; mirror within binding ceiling; Space revocation eventually dominates (liveness)"
+  },
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions_gov.cfg",
+   "expect": "pass",
+   "gate": "V-008",
+   "claim": "quorum counted only from governance in force; concurrent sealed successors freeze"
+  },
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions_mut_no_ceiling.cfg",
+   "expect": "violation",
+   "gate": "V-008",
+   "claim": "mutation: role manager grants outside its delegation ceiling",
+   "invariant": "CoalitionClosed"
+  },
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions_mut_self_lift.cfg",
+   "expect": "violation",
+   "gate": "V-008",
+   "claim": "mutation: a restricted moderator lifts its own restriction",
+   "invariant": "NoSelfEscalation"
+  },
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions_mut_stale_approvals.cfg",
+   "expect": "violation",
+   "gate": "V-008",
+   "claim": "mutation: an approval from a since-removed governor still counts",
+   "invariant": "QuorumBoundToState"
+  },
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions_mut_accept_subdelegated.cfg",
+   "expect": "violation",
+   "gate": "V-008",
+   "claim": "mutation: Room accepts a Space role authored by that Space's own parent (S1->S2->Room)",
+   "invariant": "NoTransitiveAuthority"
+  },
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions_mut_no_cascade.cfg",
+   "expect": "violation",
+   "gate": "V-008",
+   "claim": "design gap: without cascade, grants issued from revoked Space authority outlive the revocation",
+   "invariant": "NoLaunderedAuthority"
+  },
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions_mut_unilateral_binding.cfg",
+   "expect": "violation",
+   "gate": "V-008",
+   "claim": "mutation: a Space that only lists the Room (one-sided link) gets authority",
+   "invariant": "NoTransitiveAuthority"
+  },
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions_trap_fork.cfg",
+   "expect": "violation",
+   "gate": "V-008",
+   "claim": "golden: two concurrently sealed successors of one head freeze privileged transitions",
+   "invariant": "TrapForkFreezes"
+  },
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions_trap_highrisk.cfg",
+   "expect": "violation",
+   "gate": "V-008",
+   "claim": "golden: add_bridge reaches a principal only after 2-of-2 approval",
+   "invariant": "TrapHighRiskByQuorum"
+  },
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions_trap_space_mod.cfg",
+   "expect": "violation",
+   "gate": "V-008",
+   "claim": "golden: Space-delegated moderation materialises through the Room's own binding",
+   "invariant": "TrapSpaceDelegatedModeration"
+  },
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions_trap_cascade.cfg",
+   "expect": "violation",
+   "gate": "V-008",
+   "claim": "golden: revoking a Space role invalidates grants issued from it",
+   "invariant": "TrapCascadeRevocation"
+  },
+  {
+   "module": "ScopedPermissions",
+   "config": "ScopedPermissions_trap_transfer.cfg",
+   "expect": "violation",
+   "gate": "V-008",
+   "claim": "golden: ownership transfer is add-successor then remove-predecessor under quorum",
+   "invariant": "TrapGovernanceTransfer"
+  }
+ ]
+}

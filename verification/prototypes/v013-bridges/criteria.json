@@ -1,0 +1,14 @@
+{
+ "gates": ["V-013"],
+ "independence": "Contract and Rust explorer written by a Claude agent from INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md and TRANSPORT_ADAPTERS_AND_INTEROP.md (different language and author from verification/bounded/wire_boundary_models.py). The design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The pre-engineering phase requires independent_reviewer sign-off, which does not exist.",
+ "criteria": [
+  {"gate": "V-013", "criterion": "reviewed bridge adapter contract specification", "status": "partial",
+   "evidence": "verification/prototypes/v013-bridges/BRIDGE_ADAPTER_CONTRACT.md",
+   "note": "Precise, testable candidate contract with rule IDs enforced and fault-injected in the model; not reviewed (independent_reviewer + ADR needed)."},
+  {"gate": "V-013", "criterion": "loop/reflection-suppression model with at least two simulated bridges and fidelity-loss signaling", "status": "met",
+   "evidence": "verification/prototypes/v013-bridges/bridgesim/src/main.rs; verification/results/v013-bridges-latest.json",
+   "note": "Exhaustive interleaving exploration of B1 (Matrix-like) + B2 (XMPP-like) + optional OM-unaware foreign relay (absent/preserving/stripping): termination, typed authorship, ForeignProvenance, identity links, E2EE-boundary disclosure, fidelity flags against an oracle, target mapping and reflection suppression hold; 8 fault injections each caught. Residual: a metadata-stripping foreign relay yields bounded, flagged reflections. Reviewer sign-off on the model is still required by the phase's independence rule."},
+  {"gate": "V-013", "criterion": "real adapters and multi-bridge traces meet the model (pre-release)", "status": "unmet",
+   "evidence": "none", "note": "No real adapters exist."}
+ ]
+}

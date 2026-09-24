@@ -1,0 +1,53 @@
+{
+ "gate": "V-011",
+ "source": "verification/tla/ServiceAuthority_mut_host_adds_endpoint.cfg",
+ "kind": "residual-risk",
+ "claim": "mutation: a host adds an endpoint to the Room roster without a visible Room transition",
+ "violated": "NoHiddenRecipient",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "0",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"none\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "0",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{}",
+    "thr": "2"
+   }
+  },
+  {
+   "step": 2,
+   "action": "HostAddsEndpoint",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "1",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"none\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\", \"e2\"}",
+    "alias": "\"S\"",
+    "version": "0",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{}",
+    "thr": "2"
+   }
+  }
+ ]
+}
