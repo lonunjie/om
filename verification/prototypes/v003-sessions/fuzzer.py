@@ -104,11 +104,11 @@ def replay(actions, topo, bounds, rules):
             else:
                 raise Infeasible(f"unknown label {lab}")
         except Infeasible as ex:
-            return i, w.log, w.check(), f"step {i} infeasible: {ex}"
+            return i, w.log, w.check() + w.probes(), f"step {i} infeasible: {ex}"
         w.log.append(got)
         if got != step:
-            return i, w.log, w.check(), f"step {i}: TLC {step} vs Python {got}"
-    return len(actions), w.log, w.check(), None
+            return i, w.log, w.check() + w.probes(), f"step {i}: TLC {step} vs Python {got}"
+    return len(actions), w.log, w.check() + w.probes(), None
 
 
 def find_key(step):
@@ -140,6 +140,10 @@ def run_replays():
             continue
         n, labels, viol, mm = replay(v["actions"], topo, b, rules)
         reproduced = mm is None and v["violates"] in viol
+        if "constants" in v and v["rule_disabled"] is None:  # design-gap probe: violates with every rule on
+            out.append({"id": v["id"], "kind": "probe", "ok": reproduced, "steps_matched": n,
+                        "steps": len(v["actions"]), "python_violations": viol, "mismatch": mm})
+            continue
         rules_on = {k: True for k in KNOBS}
         n2, _, viol2, mm2 = replay(v["actions"], topo, b, rules_on)
         fixed = mm2 is not None or v["violates"] not in viol2

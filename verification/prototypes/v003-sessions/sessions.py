@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 
 KNOBS = ["PersistBeforeSend", "DedupeDurable", "FloorFromACS", "RetryOnReset", "RecheckOnEncrypt",
          "ValidateAgainstACS", "ReconcileControlHead", "RestoreDropsSessions", "RejectFromRevoked",
-         "PrekeyUntilConfirmed"]
+         "PrekeyUntilConfirmed", "RestoreRotatesPrekeys"]
 ACS_MIN_PROFILE = 2
 
 
@@ -90,6 +90,7 @@ class World:
         self.net: set[tuple] = set()
         self.next_sid, self.msg_count = 1, 0
         self.crashes = self.restores = self.dups = 0
+        self.epoch = {d: 0 for d in topo.devices}   # next_sid at d's last restore (K11)
         self.weak: set[str] = set()
         self.injected = False
         # ghosts
@@ -144,6 +145,16 @@ class World:
 
     def quiescent(self):
         return not self.net and all(not v.fan for v in self.dev.values())
+
+    def probes(self) -> list[str]:
+        """Design-gap probes (not safety/convergence invariants; see TLA+ NoBlackHoleAtQuiescence)."""
+        if self.quiescent():
+            for d in self.dev:
+                for p in self.dev:
+                    if d != p and self.live(d, p) and \
+                            self.pref(d, p) not in {x["sid"] for x in self.dev[p].sess if x["peer"] == d}:
+                        return ["NoBlackHoleAtQuiescence"]
+        return []
 
     # ------------------------------------------------------------------ actions
     def control_step(self, a):
@@ -273,7 +284,7 @@ class World:
         if self.self_revoked(r) or (self.k["RejectFromRevoked"] and sender_revoked):
             return ["RecvRejectedRevoked", r, f, m]
         have = [x for x in D.sess if x["sid"] == sid and x["peer"] == f]
-        if not have and not pk:
+        if not have and (not pk or (self.k["RestoreRotatesPrekeys"] and sid < self.epoch[r])):
             self.net.add(("reset", r, f, sid, m))
             return ["RecvUndecryptable", r, f, sid, m]
         if not have and prof < self.eff_floor(r, f):
@@ -352,6 +363,7 @@ class World:
         self.P[d] = D.snap()
         self.acc[d] = {m: 1 for m in b["seen"]}
         self.restores += 1
+        self.epoch[d] = self.next_sid
         self.disturbed.add(d)
         self.exempt |= self.intended
         return ["Restore", d]
