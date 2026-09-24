@@ -1,0 +1,19 @@
+{
+ "gates": ["V-014"],
+ "independence": "Spec and Rust reader/writer written by a Claude agent from IMPORT_EXPORT_AND_USER_ESCAPE.md and the logical schemas, in a different language and by a different author from verification/bounded/wire_boundary_models.py. The design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The pre-engineering phase requires independent_reviewer sign-off, which does not exist.",
+ "criteria": [
+  {"gate": "V-014", "criterion": "frozen om-archive-v1 specification and vectors", "status": "partial",
+   "evidence": "verification/prototypes/v014-archive/OM_ARCHIVE_V1_SPEC.md; verification/prototypes/v014-archive/vectors/om-archive-v1-vectors.json",
+   "note": "Frozen-candidate spec with 5 byte-exact positive vectors, regenerated and checked on every run. Not frozen: needs independent review, an ADR, crypto-profile review of OMA-ENC-1-candidate, and V-005 per-object CDDL for canonical objects."},
+  {"gate": "V-014", "criterion": "hostile archive corpus", "status": "met",
+   "evidence": "verification/prototypes/v014-archive/omarchive/src/bin/omarchive-corpus.rs; verification/results/v014-archive-latest.json",
+   "note": "67 deterministic hostile cases (zip-slip variants, symlink/dir modes, duplicates, deflate bomb, overlapping entries, size/count bombs, trailing/prepended data, non-canonical CBOR, unknown critical, integrity/hash/missing/extra entries, secret key material, wrong key, truncated/corrupted/swapped/replayed ciphertext, KDF downgrade/DoS, header MAC) plus import-level stale authority, forged provenance and fabricated native authorship. Reviewer sign-off on corpus adequacy still needed."},
+  {"gate": "V-014", "criterion": "one reference reader/writer prototype passes the corpus", "status": "met",
+   "evidence": "verification/prototypes/v014-archive/omarchive; verification/results/v014-archive-latest.json",
+   "note": "All 67 hostile + 6 positive cases and 9 import checks as expected; byte-identical round trips; 20,000-mutant sweep with 0 panics and 0 silent corruptions."},
+  {"gate": "V-014", "criterion": "two independent implementations round-trip (pre-release)", "status": "unmet",
+   "evidence": "verification/prototypes/v014-archive/vectors/om-archive-v1-vectors.json", "note": "Only one implementation; the vectors are the interop target for a second."},
+  {"gate": "V-014", "criterion": "real foreign importers pass authority/provenance tests (pre-release)", "status": "unmet",
+   "evidence": "none", "note": "No real foreign-format importer exists."}
+ ]
+}
