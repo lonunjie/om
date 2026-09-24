@@ -2580,6 +2580,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/README.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
       "path": "verification/results/authority-bounded-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
