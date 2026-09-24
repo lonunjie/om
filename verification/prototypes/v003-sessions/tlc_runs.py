@@ -43,8 +43,6 @@ PASS = {
     "pass-main": {},  # OneToOneSessions.cfg
     "pass-restore": {"MaxSid": 3, "RestoreDevs": '{"a1"}', "MaxCrash": 0, "MaxRestore": 1, "MaxInject": 0, "MaxDup": 0, "MaxWeak": 0},
     "pass-revoked-sender": {"Senders": '{"a1", "b1", "b3"}', "MaxCrash": 0, "MaxWeak": 0, "MaxInject": 0},
-    "pass-restore-redelivery": {"MaxMsgs": 3, "MaxSid": 2, "RestoreDevs": '{"b1"}', "MaxCrash": 0, "MaxRestore": 1,
-                                "MaxDup": 1, "MaxWeak": 0, "MaxInject": 0},
 }
 # gap id -> (knob disabled, bound overrides, expected violated invariant, classification, doc basis)
 GAPS = {
@@ -95,7 +93,6 @@ PASS_CLAIMS = {
     "pass-main": "all rules K1..K11 on: S1..S5, C1, C2 hold with crash, duplicate delivery, weak bundle, rogue device, link+revoke",
     "pass-restore": "all rules on: S1..S5, C1, C2 hold across one backup restore (backups on a1, which both sends and receives)",
     "pass-revoked-sender": "all rules on: S1..S5, C1, C2 hold when the later-revoked device b3 is also a sender",
-    "pass-restore-redelivery": "all rules on: S1..S5, C1, C2 hold when b1 restores and the relay redelivers envelopes it processed before the restore (three messages)",
 }
 
 

@@ -1,0 +1,436 @@
+{
+ "criteria": [
+  {
+   "criterion": "executable model/fuzzer of the per-device 1:1 session manager covering crossed initiation, add/revoke races, stale/reset sessions, dedupe and persistence",
+   "evidence": [
+    "verification/tla/OneToOneSessions.tla",
+    "verification/tla/models-v003.json",
+    "verification/prototypes/v003-sessions/sessions.py",
+    "verification/prototypes/v003-sessions/fuzzer.py"
+   ],
+   "gate": "V-003",
+   "note": "TLA+ model (TLC, bounded: 3 real devices, 2-3 messages, <=4 sessions) plus an independently written Python reference machine driven by hypothesis on a larger topology (5 devices, 5 messages). Rules K1..K11 all on: every pass config exhausts its state space and the all-rules fuzz finds nothing.",
+   "status": "met"
+  },
+  {
+   "criterion": "every discovered failing trace captured as a vector",
+   "evidence": [
+    "verification/vectors/one-to-one-session-regression-vectors.json",
+    "verification/prototypes/v003-sessions/fuzzer_vectors.json",
+    "verification/prototypes/v003-sessions/found_traces.json"
+   ],
+   "gate": "V-003",
+   "note": "3 traces found against earlier model versions, 11 TLC gap/probe counterexamples (one per disabled rule + black-hole probe), fuzzer-shrunk traces per disabled rule; TLC traces replay step-for-step on the Python machine.",
+   "status": "met"
+  },
+  {
+   "criterion": "model reviewed by someone other than its author",
+   "evidence": [],
+   "gate": "V-003",
+   "note": "Needs an independent reviewer (ADR-0117 decides whether an AI reviewer counts).",
+   "status": "unmet"
+  }
+ ],
+ "fuzz": {
+  "fuzz": {
+   "DedupeDurable": {
+    "schedules": 547,
+    "violation": [
+     "NoDoubleAccept"
+    ]
+   },
+   "FloorFromACS": {
+    "schedules": 109,
+    "violation": [
+     "DeliveredAtQuiescence"
+    ]
+   },
+   "PersistBeforeSend": {
+    "schedules": 148,
+    "violation": [
+     "DeliveredAtQuiescence"
+    ]
+   },
+   "PrekeyUntilConfirmed": {
+    "schedules": 685,
+    "violation": [
+     "SamePreferredAtQuiescence"
+    ]
+   },
+   "RecheckOnEncrypt": {
+    "schedules": 202,
+    "violation": [
+     "NoSendToIneligible"
+    ]
+   },
+   "ReconcileControlHead": {
+    "schedules": 1274,
+    "violation": [
+     "NoSendToIneligible"
+    ]
+   },
+   "RejectFromRevoked": {
+    "schedules": 225,
+    "violation": [
+     "NoAcceptFromKnownRevoked"
+    ]
+   },
+   "RestoreDropsSessions": {
+    "schedules": 400,
+    "violation": null
+   },
+   "RestoreRotatesPrekeys": {
+    "schedules": 400,
+    "violation": null
+   },
+   "RetryOnReset": {
+    "schedules": 441,
+    "violation": [
+     "DeliveredAtQuiescence"
+    ]
+   },
+   "ValidateAgainstACS": {
+    "schedules": 107,
+    "violation": [
+     "NoSendToIneligible"
+    ]
+   },
+   "all_rules": {
+    "schedules": 1500,
+    "violation": null
+   }
+  },
+  "long": false,
+  "ok": true,
+  "replays": [
+   {
+    "id": "V003-FOUND-01-key-reuse-direction",
+    "kind": "model_bug_fixed",
+    "note": null,
+    "ok": true,
+    "python_violations": [],
+    "steps": 6,
+    "steps_matched": 6
+   },
+   {
+    "id": "V003-FOUND-02-linked-device-without-state",
+    "kind": "model_bug_fixed",
+    "note": "step 7: TLC ['RecvRejectedRevoked', 'b3', 'a1', 1] vs Python ['Recv', 'b3', 'a1', 1, 1, 'created']",
+    "ok": true,
+    "python_violations": [],
+    "steps": 8,
+    "steps_matched": 7
+   },
+   {
+    "id": "V003-FOUND-03-prekey-overtaken",
+    "kind": "reproduce",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "SamePreferredAtQuiescence"
+    ],
+    "steps": 11,
+    "steps_matched": 11,
+    "with_all_rules": "infeasible at step 6"
+   },
+   {
+    "id": "V003-TLC-K1",
+    "kind": "reproduce",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "NoKeyReuse"
+    ],
+    "steps": 9,
+    "steps_matched": 9,
+    "with_all_rules": "infeasible at step 5"
+   },
+   {
+    "id": "V003-TLC-K2",
+    "kind": "reproduce",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "NoDoubleAccept"
+    ],
+    "steps": 6,
+    "steps_matched": 6,
+    "with_all_rules": "infeasible at step 4"
+   },
+   {
+    "id": "V003-TLC-K3",
+    "kind": "reproduce",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "NoSilentDowngrade"
+    ],
+    "steps": 8,
+    "steps_matched": 8,
+    "with_all_rules": "infeasible at step 7"
+   },
+   {
+    "id": "V003-TLC-K4",
+    "kind": "reproduce",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "DeliveredAtQuiescence"
+    ],
+    "steps": 10,
+    "steps_matched": 10,
+    "with_all_rules": "no violation"
+   },
+   {
+    "id": "V003-TLC-K5",
+    "kind": "reproduce",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "NoSendToIneligible"
+    ],
+    "steps": 5,
+    "steps_matched": 5,
+    "with_all_rules": "infeasible at step 4"
+   },
+   {
+    "id": "V003-TLC-K6",
+    "kind": "reproduce",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "NoSendToIneligible"
+    ],
+    "steps": 4,
+    "steps_matched": 4,
+    "with_all_rules": "infeasible at step 3"
+   },
+   {
+    "id": "V003-TLC-K7",
+    "kind": "reproduce",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "NoSendToIneligible"
+    ],
+    "steps": 7,
+    "steps_matched": 7,
+    "with_all_rules": "infeasible at step 3"
+   },
+   {
+    "id": "V003-TLC-K8",
+    "kind": "reproduce",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "NoKeyReuse"
+    ],
+    "steps": 9,
+    "steps_matched": 9,
+    "with_all_rules": "infeasible at step 8"
+   },
+   {
+    "id": "V003-TLC-K9",
+    "kind": "reproduce",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "NoAcceptFromKnownRevoked"
+    ],
+    "steps": 6,
+    "steps_matched": 6,
+    "with_all_rules": "infeasible at step 5"
+   },
+   {
+    "id": "V003-TLC-K10",
+    "kind": "reproduce",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "SamePreferredAtQuiescence"
+    ],
+    "steps": 10,
+    "steps_matched": 10,
+    "with_all_rules": "infeasible at step 5"
+   },
+   {
+    "id": "V003-TLC-K11",
+    "kind": "reproduce",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "NoKeyReuse"
+    ],
+    "steps": 11,
+    "steps_matched": 11,
+    "with_all_rules": "infeasible at step 9"
+   },
+   {
+    "id": "V003-TLC-P1-black-hole",
+    "kind": "probe",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "NoBlackHoleAtQuiescence"
+    ],
+    "steps": 9,
+    "steps_matched": 9
+   }
+  ]
+ },
+ "gates": [
+  "V-003"
+ ],
+ "independence": "Model, reference machine and fuzzer written by a Claude agent; the design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The Python machine was written from the docs, not translated from the TLA+ model; step-label agreement on every TLC trace is cross-implementation evidence only.",
+ "summary": {
+  "design_gaps": [
+   "K1",
+   "K10",
+   "K11",
+   "K2",
+   "K3",
+   "K4",
+   "K5",
+   "K6",
+   "K7",
+   "K8",
+   "K9",
+   "P1-black-hole"
+  ],
+  "gap_configs": 11,
+  "ok": true,
+  "pass_configs": 3,
+  "probe_configs": 1,
+  "replays": 15
+ },
+ "tlc": {
+  "gaps": {
+   "K1": {
+    "config": "OneToOneSessions_K1.cfg",
+    "expected": "NoKeyReuse",
+    "knob_disabled": "PersistBeforeSend",
+    "reproduced": true,
+    "trace_length": 9,
+    "violated": "NoKeyReuse"
+   },
+   "K10": {
+    "config": "OneToOneSessions_K10.cfg",
+    "expected": "SamePreferredAtQuiescence",
+    "knob_disabled": "PrekeyUntilConfirmed",
+    "reproduced": true,
+    "trace_length": 10,
+    "violated": "SamePreferredAtQuiescence"
+   },
+   "K11": {
+    "config": "OneToOneSessions_K11.cfg",
+    "expected": "NoKeyReuse",
+    "knob_disabled": "RestoreRotatesPrekeys",
+    "reproduced": true,
+    "trace_length": 11,
+    "violated": "NoKeyReuse"
+   },
+   "K2": {
+    "config": "OneToOneSessions_K2.cfg",
+    "expected": "NoDoubleAccept",
+    "knob_disabled": "DedupeDurable",
+    "reproduced": true,
+    "trace_length": 6,
+    "violated": "NoDoubleAccept"
+   },
+   "K3": {
+    "config": "OneToOneSessions_K3.cfg",
+    "expected": "NoSilentDowngrade",
+    "knob_disabled": "FloorFromACS",
+    "reproduced": true,
+    "trace_length": 8,
+    "violated": "NoSilentDowngrade"
+   },
+   "K4": {
+    "config": "OneToOneSessions_K4.cfg",
+    "expected": "DeliveredAtQuiescence",
+    "knob_disabled": "RetryOnReset",
+    "reproduced": true,
+    "trace_length": 10,
+    "violated": "DeliveredAtQuiescence"
+   },
+   "K5": {
+    "config": "OneToOneSessions_K5.cfg",
+    "expected": "NoSendToIneligible",
+    "knob_disabled": "RecheckOnEncrypt",
+    "reproduced": true,
+    "trace_length": 5,
+    "violated": "NoSendToIneligible"
+   },
+   "K6": {
+    "config": "OneToOneSessions_K6.cfg",
+    "expected": "NoSendToIneligible",
+    "knob_disabled": "ValidateAgainstACS",
+    "reproduced": true,
+    "trace_length": 4,
+    "violated": "NoSendToIneligible"
+   },
+   "K7": {
+    "config": "OneToOneSessions_K7.cfg",
+    "expected": "NoSendToIneligible",
+    "knob_disabled": "ReconcileControlHead",
+    "reproduced": true,
+    "trace_length": 7,
+    "violated": "NoSendToIneligible"
+   },
+   "K8": {
+    "config": "OneToOneSessions_K8.cfg",
+    "expected": "NoKeyReuse",
+    "knob_disabled": "RestoreDropsSessions",
+    "reproduced": true,
+    "trace_length": 9,
+    "violated": "NoKeyReuse"
+   },
+   "K9": {
+    "config": "OneToOneSessions_K9.cfg",
+    "expected": "NoAcceptFromKnownRevoked",
+    "knob_disabled": "RejectFromRevoked",
+    "reproduced": true,
+    "trace_length": 6,
+    "violated": "NoAcceptFromKnownRevoked"
+   }
+  },
+  "pass": {
+   "pass-main": {
+    "complete": true,
+    "config": "OneToOneSessions.cfg",
+    "depth": 19,
+    "distinct_states": 3559803,
+    "violated": null
+   },
+   "pass-restore": {
+    "complete": true,
+    "config": "OneToOneSessions_pass_restore.cfg",
+    "depth": 24,
+    "distinct_states": 3524822,
+    "violated": null
+   },
+   "pass-revoked-sender": {
+    "complete": true,
+    "config": "OneToOneSessions_pass_revoked_sender.cfg",
+    "depth": 17,
+    "distinct_states": 850798,
+    "violated": null
+   }
+  },
+  "probes": {
+   "P1-black-hole": {
+    "config": "OneToOneSessions_P1_black_hole.cfg",
+    "expected": "NoBlackHoleAtQuiescence",
+    "knob_disabled": null,
+    "reproduced": true,
+    "trace_length": 9,
+    "violated": "NoBlackHoleAtQuiescence"
+   }
+  }
+ },
+ "tool_versions": [
+  "hypothesis=6.140.2",
+  "python=3.14.6",
+  "tla2tools=1.7.4"
+ ]
+}

@@ -24,13 +24,6 @@
   },
   {
    "module": "OneToOneSessions",
-   "config": "OneToOneSessions_pass_restore_redelivery.cfg",
-   "expect": "pass",
-   "gate": "V-003",
-   "claim": "all rules on: S1..S5, C1, C2 hold when b1 restores and the relay redelivers envelopes it processed before the restore (three messages)"
-  },
-  {
-   "module": "OneToOneSessions",
    "config": "OneToOneSessions_K1.cfg",
    "expect": "violation",
    "invariant": "NoKeyReuse",

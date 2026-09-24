@@ -206,7 +206,8 @@
     "ReconcileControlHead": "TRUE",
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
-    "PrekeyUntilConfirmed": "TRUE"
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
    },
    "actions": [
     [
@@ -285,7 +286,8 @@
     "ReconcileControlHead": "TRUE",
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
-    "PrekeyUntilConfirmed": "TRUE"
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
    },
    "actions": [
     [
@@ -352,7 +354,8 @@
     "ReconcileControlHead": "TRUE",
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
-    "PrekeyUntilConfirmed": "TRUE"
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
    },
    "actions": [
     [
@@ -427,7 +430,8 @@
     "ReconcileControlHead": "TRUE",
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
-    "PrekeyUntilConfirmed": "TRUE"
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
    },
    "actions": [
     [
@@ -516,7 +520,8 @@
     "ReconcileControlHead": "TRUE",
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
-    "PrekeyUntilConfirmed": "TRUE"
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
    },
    "actions": [
     [
@@ -571,7 +576,8 @@
     "ReconcileControlHead": "TRUE",
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
-    "PrekeyUntilConfirmed": "TRUE"
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
    },
    "actions": [
     [
@@ -621,7 +627,8 @@
     "ReconcileControlHead": "FALSE",
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
-    "PrekeyUntilConfirmed": "TRUE"
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
    },
    "actions": [
     [
@@ -684,7 +691,8 @@
     "ReconcileControlHead": "TRUE",
     "RestoreDropsSessions": "FALSE",
     "RejectFromRevoked": "TRUE",
-    "PrekeyUntilConfirmed": "TRUE"
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
    },
    "actions": [
     [
@@ -763,7 +771,8 @@
     "ReconcileControlHead": "TRUE",
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "FALSE",
-    "PrekeyUntilConfirmed": "TRUE"
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
    },
    "actions": [
     [
@@ -826,7 +835,8 @@
     "ReconcileControlHead": "TRUE",
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
-    "PrekeyUntilConfirmed": "FALSE"
+    "PrekeyUntilConfirmed": "FALSE",
+    "RestoreRotatesPrekeys": "TRUE"
    },
    "actions": [
     [
@@ -898,6 +908,102 @@
    ]
   },
   {
+   "id": "V003-TLC-K11",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_K11.cfg)",
+   "rule_disabled": "RestoreRotatesPrekeys",
+   "violates": "NoKeyReuse",
+   "classification": "design_gap",
+   "doc_basis": "Found by the V-003 fuzzer with K1..K11 on. ONE_TO_ONE_SESSION_MANAGEMENT.md \u00a77 forbids key reuse after restore and K8 drops ratchet state, but no doc says handshake prekey secrets are excluded from backups (or rotated on restore). A prekey message the device processed before the restore is redelivered by the relay; the restored device re-derives the same session and its sending chain restarts at counter 1",
+   "constants": {
+    "Senders": "{\"a1\", \"b1\"}",
+    "MaxMsgs": "3",
+    "MaxSid": "1",
+    "MaxCrash": "0",
+    "MaxRestore": "1",
+    "MaxDup": "1",
+    "MaxWeak": "0",
+    "MaxInject": "0",
+    "RestoreDevs": "{\"b1\"}",
+    "PersistBeforeSend": "TRUE",
+    "DedupeDurable": "TRUE",
+    "FloorFromACS": "TRUE",
+    "RetryOnReset": "TRUE",
+    "RecheckOnEncrypt": "TRUE",
+    "ValidateAgainstACS": "TRUE",
+    "ReconcileControlHead": "TRUE",
+    "RestoreDropsSessions": "TRUE",
+    "RejectFromRevoked": "TRUE",
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "FALSE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "NewMessage",
+     "b1",
+     2
+    ],
+    [
+     "NewMessage",
+     "b1",
+     3
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b1",
+     1,
+     2
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     1,
+     1,
+     "created"
+    ],
+    [
+     "Encrypt",
+     "b1",
+     2,
+     "a1",
+     1
+    ],
+    [
+     "TakeBackup",
+     "b1"
+    ],
+    [
+     "Restore",
+     "b1"
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     1,
+     1,
+     "created"
+    ],
+    [
+     "Encrypt",
+     "b1",
+     3,
+     "a1",
+     1
+    ]
+   ]
+  },
+  {
    "id": "V003-TLC-P1-black-hole",
    "source": "TLC counterexample (verification/tla/OneToOneSessions_P1_black_hole.cfg)",
    "rule_disabled": null,
@@ -923,7 +1029,8 @@
     "ReconcileControlHead": "TRUE",
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
-    "PrekeyUntilConfirmed": "TRUE"
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
    },
    "actions": [
     [
