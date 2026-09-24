@@ -21,7 +21,7 @@ does not derive from `verification/bounded/wire_boundary_models.py`, which is Py
 
 `./run.sh` takes about 6 s after the first build (the first build compiles the crates in about 30 s). It needs Rust
 1.98.1, pinned in `rust-toolchain.toml`, and the crates pinned in `Cargo.lock`: `chacha20poly1305`, `hkdf`, `hmac`,
-`sha2`, `argon2`, `ed25519-dalek`, `crc32fast` and `getrandom`. `./run.sh --long` runs a 200,000-mutant sweep.
+`sha2`, `argon2`, `ed25519-dalek` and `crc32fast`. `./run.sh --long` runs a 200,000-mutant sweep.
 Regenerate the vectors with `omarchive-corpus --vectors vectors/om-archive-v1-vectors.json --write-vectors`.
 
 ## Results (`verification/results/v014-archive-latest.json`)
