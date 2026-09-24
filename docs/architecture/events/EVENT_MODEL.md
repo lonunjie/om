@@ -81,7 +81,7 @@ Properties:
 
 The entire native event is E2EE, so the relay need not observe this value.
 
-A misleading client clock can make its own messages appear oddly positioned but does not grant identity or authorization.
+A misleading client clock can make its own messages appear oddly positioned but does not grant identity or authorization. It can, however, win last-writer-wins registers (edits, pins, topics, reactions, votes) **within one epoch**: a future-dated write dominates until an authorized member advances the epoch. That is a documented residual risk, bounded as ADR-0121 rule 3 describes.
 
 ## Native event envelope
 
@@ -97,12 +97,16 @@ ConversationEvent
   clock
   kind
   kind_version
-  required_capabilities[]
+  required_capabilities[]     # "required features": feature support, not authority grants
   body
   representation?             # ServicePrincipal acting under scoped RepresentationGrant
   foreign_provenance?         # BridgePrincipal foreign-network attribution/fidelity
-  expiry?
+  expiry?                     # absolute wall-clock disappearing time (see "Expiry")
 ```
+
+`required_capabilities` (key 10) names **features** a receiver must support to render the event correctly. It is
+unrelated to authority capabilities such as `room.post` ([`om-room-capabilities.json`](../../../spec/registries/om-room-capabilities.json)); prose calls it "required
+features" to keep the two apart.
 
 For OM-native E2EE, the secure session/MLS layer authenticates the endpoint credential that sent the event and binds it to `author_principal`. For an account author the endpoint is an authorized `DeviceIdentity`; for a service author it is an authorized service endpoint; for a bridge author it is an endpoint authorized by `BridgeControlState`.
 
@@ -118,8 +122,18 @@ Reasons:
 
 - less overhead;
 - simpler key handling;
-- avoids accidentally creating stronger durable non-repudiation than intended;
+- adds no durable non-repudiation beyond what the session or group protocol already creates;
 - mirrors the security boundary of modern secure messaging protocols.
+
+What the underlying protocol already creates differs by conversation type (ADR-0128 rule 3):
+
+- **1:1 sessions** give participant-deniable authentication: the recipient is convinced, but cannot prove authorship
+  to a third party.
+- **MLS groups** give **transferable** sender authentication. RFC 9420 signs every application message with the
+  sender leaf's signature key, and the leaf credential chains through DeviceIdentity and AccountControlState to the
+  AccountID. Anyone holding a decrypted group message and its framing can show a third party a verifiable signature,
+  so a seized device yields provable transcripts of other members' group messages (threat T-060). OM does not claim
+  deniability for groups; deniable groups would need a research ADR (absolute rule 3).
 
 Control documents that require durable signatures use their own signed formats.
 
@@ -137,7 +151,7 @@ message.create
   thread_root_event_id?
   topic_id?
   mentions[]
-  expires_after?
+  expires_after?              # optional local bound from receipt (see "Expiry")
 ```
 
 Rules:
@@ -157,9 +171,9 @@ message.edit
   replacement
 ```
 
-Only the same author principal, or an explicitly authorized moderator where policy permits a distinct moderation action, may alter shared state. Ordinary author edits are bound to the original author principal; moderation remains `moderation.redact` rather than pretending the moderator is the author.
+Only the same author principal may edit, and only while it still holds the capability the original post needed, at the edit's sending epoch (ADR-0121 rule 7). Moderation remains `moderation.redact` rather than pretending the moderator is the author.
 
-Concurrent edits resolve deterministically using authenticated authorization plus EventClock ordering.
+Concurrent edits resolve as an epoch-major last-writer-wins register ordered by `(sending epoch, EventClock)` (ADR-0121 rule 3).
 
 Clients may preserve edit history locally.
 
@@ -193,7 +207,7 @@ Reaction state is keyed by:
 (actor_principal, target_event_id, reaction_key)
 ```
 
-Unicode reactions remain the zero-dependency baseline. A custom reaction carries an inert `ExpressiveAssetRef` plus fallback semantics from [`EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`](../ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md); the immutable BlobID is the rendering authority, not a live pack/catalog. The latest authorized state wins.
+Unicode reactions remain the zero-dependency baseline. A custom reaction carries an inert `ExpressiveAssetRef` plus fallback semantics from [`EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`](../ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md); the immutable BlobID is the rendering authority, not a live pack/catalog. The latest authorized state wins, where "latest" is `(sending epoch, EventClock)` order: reaction state is an epoch-major last-writer-wins register, like pins and edits (ADR-0121 rule 3, ADR-0128 rule 17).
 
 This makes adding/removing a reaction idempotent and multi-device friendly.
 
@@ -245,7 +259,7 @@ poll.vote
 poll.close
 ```
 
-The `poll.create` EventID identifies the poll. Latest authorized vote state per `(actor_principal, target_poll_event_id)` wins; close is monotonic and reorder/duplication convergence is a verification obligation. Baseline polls do not claim cryptographic voter anonymity; see [`MESSENGER_BASELINE_V1.md`](MESSENGER_BASELINE_V1.md).
+The `poll.create` EventID identifies the poll. Vote state per `(actor_principal, target_poll_event_id)` is an epoch-major last-writer-wins register ordered by `(sending epoch, EventClock)`. Close is monotonic: a vote ordered after the poll's `poll.close` in that order is ignored, whatever its arrival time. A voter controls its own HLC, so it can backdate a vote past the close within one epoch; that is a documented residual risk (ADR-0128 rule 17). Reorder/duplication convergence is a verification obligation (V-009). Baseline polls do not claim cryptographic voter anonymity; see [`MESSENGER_BASELINE_V1.md`](MESSENGER_BASELINE_V1.md).
 
 ### Topic organization
 
@@ -262,7 +276,7 @@ Topics organize a Room but do not create another membership/MLS object. Lightwei
 
 ### Forwarding is new authorship
 
-A private forward/resend is a new `message.create` authored by the forwarding account. Private source ConversationIDs/EventIDs/AccountIDs are not carried across conversation boundaries by default. Public signed Publication posts may carry public source provenance.
+A private forward/resend is a new `message.create` authored by the forwarding account. Private source ConversationIDs/EventIDs/AccountIDs are not carried across conversation boundaries by default: forwarding converts Mention nodes to plain Text with their display label and drops the `mentions` set (ADR-0128 rule 20). Public signed Publication posts may carry public source provenance.
 
 ## Control state is not ordinary chat content
 
@@ -272,7 +286,7 @@ Examples:
 
 - AccountControlState;
 - device authorization/revocation;
-- GroupState;
+- GroupControlState;
 - MLS membership epochs;
 - recovery-policy transitions.
 
@@ -356,6 +370,24 @@ Rules:
 
 Blob/locator semantics are frozen by the 2026-09-23 storage/repair resolution; operational retention defaults remain policy.
 
+## Expiry
+
+Disappearing content has one canonical rule (ADR-0126 rule 9, ADR-0128 rule 16, [`DISAPPEARING_MESSAGES_AND_RETENTION.md`](../storage/DISAPPEARING_MESSAGES_AND_RETENTION.md)):
+
+- **`expiry`** (envelope key 12) is the canonical v1 timer: an absolute after-send time, wall-clock class
+  ([`om-time-fields.json`](../../../spec/registries/om-time-fields.json)). The sender sets it.
+- **`expires_after`** (MessageCreate key 4) is an optional additional local bound, running from local receipt or
+  first display (monotonic local duration).
+- A receiver deletes the content at whichever comes first. It never keeps content past `expiry`, and nothing extends
+  `expiry`.
+- **1:1 (W0):** the per-message `expiry` is the only carrier. There is no shared 1:1 timer state; each sender's
+  client sets `expiry` on its own messages from its local setting, and a client may show the peer's current timer as
+  inferred from the events it receives.
+- **Groups:** `GroupControlState.policy.disappearing_timer` is the shared setting, changed under
+  `room.set_disappearing_timer`. Senders set `expiry` from the timer in force at the sending epoch. A receiver may
+  additionally bound an event it receives to local receipt time plus that timer; it never extends an event's
+  `expiry`.
+
 ## Size/resource limits
 
 Lean default:
@@ -381,7 +413,7 @@ extensions{}
 Rules:
 
 1. Unknown optional extensions are ignored/preserved only when safe.
-2. If a required capability is unknown, show an unsupported-content placeholder rather than misinterpreting it.
+2. If a required feature (`required_capabilities`) or a critical extension is unknown, show an unsupported-content placeholder rather than misinterpreting it.
 3. Extensions cannot silently gain identity, crypto, storage, or device-authority privileges.
 4. Extension data counts against normal resource limits.
 5. A widely adopted extension may later become a standardized OM capability without changing old events.
@@ -476,7 +508,7 @@ Clients may compact:
 
 once equivalent state is safely represented and backup/audit policy allows it.
 
-Do not compact away security-critical control history needed to validate AccountControlState, GroupState, recovery, or transparency chains.
+Do not compact away security-critical control history needed to validate AccountControlState, GroupControlState, recovery, or transparency chains.
 
 ## Gate-B adversarial/interop tests
 
@@ -519,7 +551,20 @@ SMS/MMS/RCS remain transport provenance/adapters added later; they do not change
 
 ## 2026-09-22 engineering refinement — RichTextV1
 
-`message.edit.replacement` follows the same RichTextV1 semantic model. Protocol encoding uses the OM deterministic-CBOR profile and bounded node/text/url counts. Unknown future rich-text node kinds follow explicit extension criticality; clients must always be able to produce a safe plain-text fallback for supported content.
+`message.edit.replacement` follows the same RichTextV1 semantic model. Protocol encoding uses the OM deterministic-CBOR profile and bounded node/text/url counts.
+
+~~Unknown future rich-text node kinds follow explicit extension criticality.~~ The frozen W0 grammar
+([`events.cddl`](../../../spec/cddl/events.cddl)) rejects the whole event when its body holds a node kind or attachment field it does not know, so
+extension criticality cannot rescue an unknown node placed in the body. Therefore (ADR-0128 rule 18):
+
+- new rich-text node kinds and attachment fields travel only in a named event extension (key 23) beside a W0-valid
+  body, or under a new event kind; a critical extension or a `required_capabilities` entry makes a W0 receiver show
+  the unsupported-content placeholder;
+- a sender emits a reserved later-wave encoding in the body (for example inline type 4, `custom_emoji`, reserved for
+  W1) only when every recipient device advertises support for it, and otherwise sends a W0-valid fallback event;
+- List blocks and voice-note presentation (`presentation_role`, waveform) are later-wave and are carried this way.
+
+Clients must always be able to produce a safe plain-text fallback for supported content.
 
 ## 2026-09-24 verification rulings
 

@@ -36,9 +36,35 @@ It must:
 
 The 2026-09-23 architecture resolution selected a **policy-neutral member CommitCoordinator** plus authenticated `GroupControlIntent` / `GroupCommitBinding`. The coordinator serializes same-epoch application/MLS transitions but does not receive constitutional authority merely by coordinating. Replacement/equivocation, crash and partition behavior remain verification gate V-004; the mechanism itself is no longer an open architecture choice.
 
+### 3.1 Coordinator liveness and reductions (ADR-0128 rule 1)
+
+The coordinator is operational, never authority. A coordinator that is offline, lost or malicious must not be able to
+delay a security reduction indefinitely, so the following rules are normative:
+
+1. `GroupControlState` records a coordinator **succession order** (a list of member devices), changed only under
+   `room.manage_governance`.
+2. `sequencing_timeout` is a GroupProfile parameter: a monotonic local duration, default 5 minutes, maximum 1 hour
+   (calibrated by V-004). A member starts it when it publishes or first observes a pending intent.
+3. **Reducing intents** are: removing a revoked or quarantined device (§6.1), removing a member, a self-leave,
+   removing a service or bridge endpoint, and a Space-side reduction carried by a `SpaceDelegatedIntent`
+   ([`SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md`](SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md)). If the coordinator has not sequenced a pending reducing intent
+   within `sequencing_timeout`, any member holding the capability that authorizes it may commit it directly. Removing
+   a revoked or quarantined device needs no capability: any member may commit it.
+4. The same member may commit the coordinator's replacement. The replacement is always the next device in the
+   succession order that is still a member, so the choice is deterministic and nobody picks a coordinator.
+5. The coordinator never sequences its own removal or its own replacement.
+6. Reductions are monotone (ADR-0122 rule 1): a directly committed reduction that loses a same-epoch race to another
+   Commit is rebased onto the winner and stays applicable while control is frozen.
+7. A rebased **non-reducing** intent is re-validated against its new parent state and dropped if it fails there. A
+   demoted admin's pending operation therefore cannot land after the demotion.
+
+If every member able to authorize a reduction is gone, a self-leave and the removal of revoked or quarantined devices
+still proceed, because they need no capability beyond membership.
+
 ## 4. Atomic binding to OM group policy
 
-Membership/role-affecting changes use a logical transition that binds application state to the resulting MLS state:
+Membership/role-affecting changes use a `GroupControlIntent` (what is requested, and its authorization) and a
+`GroupCommitBinding` (the MLS Commit that carries it). `GroupControlTransition` is the logical union of the pair:
 
 ```text
 GroupControlTransition {
@@ -73,6 +99,18 @@ Human membership remains account-level unless Room policy says otherwise, while 
 
 A revoked device cannot regain future group secrets merely because an old KeyPackage/commit remains cached.
 
+### 6.1 Account-control events (ADR-0128 rule 2)
+
+1. When a member learns, at a validated AccountControlState head, that a device is revoked or quarantined, it MUST
+   NOT send further application messages into the Room until a Commit removing that leaf is accepted. It proposes the
+   Remove itself; §3.1 makes the Remove live.
+2. Quarantine removes the leaf (this is what [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../identity/ACCOUNT_CONTINUITY_AND_CONTROL.md) §4 Stage A relies on). Lifting the
+   quarantine re-adds the device only through a fresh add backed by a later authorized head.
+3. While an account is in CONTROL_CONFLICT or SAFETY_FREEZE, none of its devices is added to any group. Removals
+   still proceed.
+4. Automatic new-device adds are GroupControlIntents deduplicated by `(AccountID, device_id, ACS generation)`, so
+   several members racing to add the same device produce one add.
+
 ## 7. Freeze gate
 
 Private-group architecture is not frozen until:
@@ -82,7 +120,8 @@ Private-group architecture is not frozen until:
 - conflict/rebase tests exist;
 - crash/partial-publication behavior is specified;
 - AccountControlState-device changes are integrated;
-- the selected MLS library is proven to support the required external ordering/profile behavior on all target runtimes.
+- the selected MLS library is proven to support the required external ordering/profile behavior on all target runtimes;
+- reductions are shown to stay live under coordinator failure or censorship (§3.1).
 
 ## 2026-09-24 verification rulings
 

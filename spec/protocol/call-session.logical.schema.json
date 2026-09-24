@@ -8,7 +8,7 @@
       "screen-share",
       "mixed"
     ],
-    "participants": "authenticated AccountID/DeviceIdentity references inside E2EE context",
+    "participants": "authenticated, sorted set of joined DeviceIdentity endpoints inside the E2EE context; bound into the group-call key exporter context and changed (with rekey) on every join or leave (ADR-0128 rule 14)",
     "media_e2ee": "SFrame profile",
     "route_policy": [
       "automatic",
@@ -23,7 +23,9 @@
       "mesh",
       "sfu"
     ],
-    "key_epoch": "monotonic within call/group context"
+    "key_epoch": "monotonic within call/group context",
+    "key_derivation": "1:1: session exporter bound to CallID and participants. Group: MLS exporter over (CallID, epoch, sorted participant set); any Room endpoint holding the epoch can compute it, so key isolation from non-joined members is open (A-035).",
+    "key_capable_non_participants": "full-room ServicePrincipals and BridgePrincipals that could derive call keys; the call UI shows them"
   },
   "EphemeralControlKinds": [
     "call.offer",
@@ -34,5 +36,6 @@
     "call.media_update",
     "call.participant_update",
     "call.key_epoch"
-  ]
+  ],
+  "AdmissionRule": "A call.offer from a principal without an accepted relationship is dropped (at most a MessageRequest-class missed-call notice: no ringing, ICE or TURN). Starting a group call that rings the Room needs room.start_call. Toward any peer that is not an accepted contact, Room co-members included, only relay candidates are used."
 }

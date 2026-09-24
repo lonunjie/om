@@ -1012,6 +1012,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0128-group-reduction-liveness-membership-consent-and-room-capabilities.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -2520,6 +2527,13 @@
       "path": "spec/registries/om-object-types.json",
       "class": "spec_artifact",
       "domain": "crypto_1to1",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/registries/om-room-capabilities.json",
+      "class": "spec_artifact",
+      "domain": "unassigned",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },

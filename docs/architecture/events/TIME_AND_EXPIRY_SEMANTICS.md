@@ -46,6 +46,14 @@ OM SHOULD avoid making ordinary established messaging fail solely because a cons
 
 Disappearing-message policy is authenticated conversation/application state; local deletion execution may use monotonic elapsed time where appropriate.
 
+The carriers are fixed (ADR-0126 rule 9, ADR-0128 rule 16; details in [`EVENT_MODEL.md`](EVENT_MODEL.md) "Expiry"):
+
+- per event, `ConversationEvent.expiry` (wall clock, absolute) is the canonical timer, and `MessageCreate.expires_after`
+  (monotonic local duration from receipt) is only an additional local bound: delete at whichever comes first, never
+  after `expiry`;
+- in W0 1:1 conversations the per-message `expiry` is the only carrier; there is no shared 1:1 timer state;
+- in groups, `GroupControlState.policy.disappearing_timer` is the shared setting.
+
 Backup/restore must not intentionally resurrect content already known to have expired. A restored device reconciles authoritative lifecycle/tombstone state rather than trusting an old backup's wall clock.
 
 ## 5. Security state
@@ -55,6 +63,10 @@ AccountControlState generations, MLS epochs, ratchet steps, key generations, rev
 ## 6. Freeze requirement
 
 Every canonical protocol object containing time/TTL/expiry fields must map those fields to one of the clock classes in this document before wire freeze.
+
+Moderation and safety objects follow the same rule. `ModerationDecision.starts_at`/`expires_at` and
+`SafetyAdvisory.issued_at`/`expires_at` are display or wall-clock-advisory time with no authority effect: a Room ban,
+timeout or restriction ends only through a committed lift transition (ADR-0122 rule 10, ADR-0128 rule 12).
 
 ## 2026-09-23 time resolution
 

@@ -3,6 +3,7 @@
   "title": "OM ModerationDecision and SafetyAdvisory logical schema",
   "$defs": {
     "ModerationDecision": {
+      "$comment": "A record, export and appeal object; it never changes Room state by itself. In-Room effect comes only from a GroupControlTransition (remove, ban, restriction) or a moderation.redact event (ADR-0128 rule 12). starts_at/expires_at are display/wall-clock-advisory time with authority_effect none: a ban or restriction ends only through a committed lift transition.",
       "type": "object",
       "additionalProperties": false,
       "required": ["decision_id", "scope_ref", "actor_principal", "action", "subject_ref", "authorization_evidence"],
@@ -24,6 +25,7 @@
       }
     },
     "SafetyAdvisory": {
+      "$comment": "issued_at/expires_at are wall-clock-advisory time with authority_effect none; a subscriber may stop applying an expired advisory, but an advisory never has protocol authority (ADR-0128 rule 12).",
       "type": "object",
       "additionalProperties": false,
       "required": ["advisory_id", "issuer", "subject_ref", "category", "issued_at", "signature"],

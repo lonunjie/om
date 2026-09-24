@@ -15,147 +15,147 @@ Severity: blocker (for the `groups` scope)
 Where: GROUP_COMMIT_AND_STATE_CONVERGENCE.md §3 (l.37); GROUP_CHAT_ARCHITECTURE.md l.330-341, l.421; SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md l.207-209; resolution Q-051 (ARCHITECTURE_RESOLUTIONS_20260923.md l.206)
 Problem: Every MLS Commit is serialized by one CommitCoordinator DeviceIdentity, and only "admin policy authorizes coordinator replacement" (Q-051). The docs never say what happens when that coordinator is offline, lost or malicious. Removing a compromised device, removing a member, and processing a self-leave all need a Commit. A coordinator can therefore delay them indefinitely, for example to block its own removal or a friend's. If the admins are also gone (the "administratively frozen" orphan case), no Commit can ever be made. That contradicts SPACES l.209, "Already-authorized ordinary actions may continue", and the monotone-reduction principle. §3 lists "timeout/failover behavior" as a required property but never specifies it. Separately, l.338 says conflicting updates are "rebased deterministically" without saying that a rebased, non-reducing operation must be re-authorized against its new parent. Without that, a demoted admin's pending operation can land after the demotion.
 Proposed fix: Add a "Coordinator liveness and reductions" section to GROUP_COMMIT_AND_STATE_CONVERGENCE.md with these rules. (a) The coordinator succession order is part of GroupControlState. (b) If the coordinator has not sequenced a pending authority-reducing intent within a GroupProfile parameter `sequencing_timeout`, any member holding the capability that authorizes that intent may commit it directly, and may also commit the coordinator's replacement. Reducing intents are: removing a revoked or quarantined device, removing a member, a self-leave, and removing a service or bridge. For revoked devices, any member may commit. (c) The coordinator never sequences its own removal or replacement. (d) A rebased non-reducing intent is re-validated at the new parent and dropped if it fails there. Add a requirement to [`machine/requirement_traceability.json`](../../machine/requirement_traceability.json) and extend V-004's pre_engineering_criteria with "reductions are live under coordinator failure or censorship".
-Resolution:
+Resolution: accepted — ADR-0128 rule 1; GROUP_COMMIT_AND_STATE_CONVERGENCE §3.1 (succession order, `sequencing_timeout`, direct commit of reducing intents, deterministic replacement, re-validation of rebased intents), GROUP_CHAT concurrency, SPACES orphaned governance; R-220, T-061; V-004 criterion added.
 
 ### F-R2-2 — Device revocation, quarantine and account control conflict are not specified for groups
 Severity: blocker (for the `groups` scope)
 Where: GROUP_CHAT_ARCHITECTURE.md l.140-161; GROUP_COMMIT_AND_STATE_CONVERGENCE.md §6 (l.70-74)
 Problem: The only statement about propagation is "groups learn the revocation" (l.155). The docs never say who must commit the MLS Remove, by when, or whether members keep sending application messages into an epoch that still contains the revoked leaf. Until someone commits, the compromised device keeps receiving group secrets. ACCOUNT_CONTINUITY_AND_CONTROL.md §4 Stage A promises that an emergency quarantine stops "new MLS group key material after removal/rekey", but the group docs never mention quarantine. They also don't cover re-adding a device when a quarantine is lifted, a CONTROL_CONFLICT or SAFETY_FREEZE (which branch's devices are valid for group adds?), or several members racing to commit the same automatic new-device add (l.146).
 Proposed fix: Add a "Account-control events" subsection to GROUP_COMMIT §6 with four rules. (1) On learning a revocation or quarantine at a validated AccountControlState head, a member MUST NOT send further application messages until a Commit removing that leaf is accepted. It proposes the Remove itself, which feeds into F-R2-1's liveness rule. (2) Quarantine removes the leaf. Lifting it re-adds the device only through a fresh add backed by a later authorized head. (3) While an account is in CONTROL_CONFLICT or SAFETY_FREEZE, none of its devices is added. Removals still proceed. (4) Automatic device adds are GroupControlIntents deduplicated by (AccountID, device_id, ACS generation).
-Resolution:
+Resolution: accepted — ADR-0128 rule 2; GROUP_COMMIT_AND_STATE_CONVERGENCE §6.1 (stop sending, quarantine removes the leaf, no adds under CONTROL_CONFLICT/SAFETY_FREEZE, add dedup), GROUP_CHAT device revocation; R-221; V-004 criterion added.
 
 ### F-R2-3 — MLS group messages are transferable proofs of authorship, but the docs promise deniability
 Severity: major
 Where: EVIDENCE_AND_EXTERNAL_REPORTING.md §3 (l.28-39); EVENT_MODEL.md l.113-122; DECENTRALIZED_ABUSE_MODERATION.md §11 (l.240); ABUSE_SAFETY_AND_REPORTING.md l.43
 Problem: RFC 9420 signs every application message with the sender leaf's signature key. GROUP_CHAT l.62-68 binds that credential to a DeviceIdentity, then AccountControlState, then AccountID, all of which are durable and signed. Anyone holding a decrypted group message can therefore show a third party a signature that verifiably chains to the sender's AccountID. Neither "participant-authenticated/deniable according to the ... MLS authentication model" (EVIDENCE l.39) nor "avoids accidentally creating stronger durable non-repudiation than intended" (EVENT_MODEL l.121) holds for groups. This also matters to the coercion threat model: a seized device yields provable transcripts of other members' messages. ABUSE l.43 asks for fabrication resistance "while also preserving deniability", but groups already give the first and not the second.
 Proposed fix: Rewrite EVIDENCE §3 to split the claim by conversation type. 1:1 sessions give participant-deniable authentication. MLS groups give transferable sender authentication through the leaf signature and credential chain. EvidencePackage may include MLS FramedContent and signatures as independently verifiable. Make the same correction in EVENT_MODEL l.113-122 and DECENTRALIZED §11. Add a threat_register entry ("group transcript non-repudiation under device seizure"). If deniable groups become a goal, that needs a research ADR (rule 3), for example on credentials that do not chain durably to AccountID.
-Resolution:
+Resolution: accepted — ADR-0128 rule 3; split claim by conversation type in EVIDENCE_AND_EXTERNAL_REPORTING §3, EVENT_MODEL (no per-message signature), DECENTRALIZED §11, ABUSE_SAFETY reporting; R-222, T-060; deniable groups deferred to research item A-036.
 
 ### F-R2-4 — Group HistoryBundles let one member forge other members' past messages
 Severity: major
 Where: GROUP_CHAT_ARCHITECTURE.md §Group history (l.190-210), invariant 8 (l.24)
 Problem: Pre-join history reaches a newcomer through an "independently encrypted HistoryBundle" that one existing member creates. The newcomer cannot verify the authorship of events inside it. Their original MLS authentication was bound to epochs the newcomer never held, and the bundle's author could invent them. The docs don't define how shared history is authenticated or displayed. They also don't say whether bundles must exclude expired disappearing content and redacted or deleted events, or that `history_policy` cannot bind a member who already holds plaintext.
 Proposed fix: Add to GROUP_CHAT §Group history a requirement that events in a HistoryBundle are displayed as "shared by <bundle author>", never as authenticated authorship. The alternative is to carry the original MLS FramedContent and signatures (see F-R2-3), which must be declared as a deliberate non-repudiation choice. Also state that bundles exclude expired, deleted and redacted content, and that `history_policy` is a cooperative policy, not a cryptographic control against members.
-Resolution:
+Resolution: accepted — ADR-0128 rule 4; GROUP_CHAT §Group history: "shared by <bundle author>", exclusions, `history_policy` is cooperative; R-223, T-065.
 
 ### F-R2-5 — Nothing requires the invitee's consent before being added to a group
 Severity: major
 Where: GROUP_CHAT_ARCHITECTURE.md §Creating a group (l.113-132), §Adding a person (l.134-138); contradicts ABUSE_SAFETY_AND_REPORTING.md l.14 ("no unsolicited group addition")
 Problem: The create and add flows fetch the target's KeyPackages and commit them directly. No invitee consent step exists, and the docs don't say who may fetch a person's MLS KeyPackages. An MLS add immediately reveals the invitee's credential, and so their AccountID and device set, to every current member, including strangers. That is both a spam vector and a metadata leak, and it contradicts the safety doc.
 Proposed fix: Specify a two-step flow in GROUP_CHAT. The adder sends a room invitation over its existing 1:1 relationship. The invitee accepts and then publishes or releases KeyPackages for that Room, or requests the add. Only after acceptance does the MLS Add happen. KeyPackages are fetchable only through relationship-scoped capabilities, never by arbitrary principals. Add a requirement and a V-016 case covering an unsolicited add attempt.
-Resolution:
+Resolution: accepted — ADR-0128 rule 5; GROUP_CHAT §Creating a group and §Adding a person (invite over 1:1, accept, then Add; relationship-scoped KeyPackages), ABUSE_SAFETY first-contact list; R-224, T-062; V-016 remaining item.
 
 ### F-R2-6 — The GroupInvite exposes ConversationID and its authority outlives its issuer
 Severity: major
 Where: GROUP_CHAT_ARCHITECTURE.md §Invites (l.212-227)
 Problem: (a) `conversation_id or opaque join reference` allows a leaked, shareable link to carry the permanent Room identity. METADATA_THREAT_MODEL.md l.102 and l.350 say ConversationID is never a default network handle. (b) The docs don't say what happens to an invite when its issuer loses `room.invite` or is removed. As written, a bearer link keeps admitting people after the issuer is demoted. (c) `max_uses` cannot be enforced without a defined redeemer: which member validates and commits a link join, and how concurrent redemptions are counted. (d) "should support admin approval by default" is not normative.
 Proposed fix: Replace the GroupInvite sketch with the following. Only an opaque, rotatable `join_ref` is allowed, and the ConversationID is never included. The invite records its authorization basis and is valid only while the issuer holds `room.invite` at the redeeming commit's epoch (the ADR-0122 cascade applied to invites). Redemption is a GroupControlIntent sequenced like any other, so `max_uses` is counted in GroupControlState. Admin approval is the default join policy for link invites (MUST).
-Resolution:
+Resolution: accepted — ADR-0128 rule 6; GROUP_CHAT §Invites (opaque `join_ref`, issuer cascade, redemption as a GroupControlIntent, admin approval MUST by default, open links explicit); R-225.
 
 ### F-R2-7 — Group fan-out can expose MLS group_id and epoch to relays
 Severity: major
 Where: GROUP_CHAT_ARCHITECTURE.md l.39, l.243-252, l.411; contradicts the A-013 resolution (ARCHITECTURE_RESOLUTIONS_20260923.md l.269) and METADATA_THREAT_MODEL.md l.123-129
 Problem: The reference path "produces one MLS application ciphertext and fans it out to each target device's opaque delivery capability". Randomized outer wrappers are only a "should" (l.411). An RFC 9420 PrivateMessage carries `group_id` and `epoch` in the clear, and l.39 binds ConversationID into the MLS context without saying whether `group_id` equals it. Unwrapped fan-out lets relays link ciphertexts across recipients and providers, and may show them the canonical Room ID. The accepted resolution requires encrypted outer envelopes.
 Proposed fix: Change GROUP_CHAT l.245 and l.411 to "MUST wrap each recipient copy in an independently encrypted per-recipient envelope. Relays never receive raw MLS messages." State that the MLS `group_id` is a random value unrelated to ConversationID, which is carried only inside the encrypted GroupContext extension. State that a `group_broadcast` provider profile must declare in its MetadataExposureDescriptor that it sees recipient-set linkage.
-Resolution:
+Resolution: accepted — ADR-0128 rule 7; GROUP_CHAT (MUST per-recipient wrapping, random `group_id`, `group_broadcast` descriptor); R-226, T-066; descriptor entry left to integrator notes.
 
 ### F-R2-8 — Treating an "encryption/security profile change" as a governance action contradicts ADR-0107 and rules 5 and 6
 Severity: major
 Where: GROUP_CHAT_ARCHITECTURE.md l.108; SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md l.133; SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md l.150
 Problem: All three list "changing the encryption/security profile" as a Room governance power, subject to quorum. ADR-0107 makes group CryptoProfile migration automatic on objective triggers. AGENTS rule 5 forbids user-facing cipher selection, and rule 6 forbids downgrades. As written, a governor could veto or delay PQ migration, or push a Room back to an older profile. The phrase also blurs CryptoProfile with the privacy SecurityProfile (Recommended/Hardened/Maximum), which AGENTS says must not be read as cipher strength.
 Proposed fix: Remove CryptoProfile changes from the governance lists. Add: "CryptoProfile transitions are automatic, monotone and not governable. Governance may change only non-cryptographic Room security policy (for example the privacy SecurityProfile, `new_device_policy`, or `history_policy`), and it can never lower an established floor." Rename the SPACES binding exclusion to `change_room_security_policy`.
-Resolution:
+Resolution: accepted — ADR-0128 rule 8; CryptoProfile removed from governance lists in GROUP_CHAT, SCOPED §High-risk, SPACES binding exclusions (now `room.manage_security_policy`); R-227.
 
 ### F-R2-9 — The docs use three incompatible capability vocabularies
 Severity: major
 Where: SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md l.38-71; DECENTRALIZED_ABUSE_MODERATION.md §6 (l.120-132); SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md l.137-154; GROUP_CHAT_ARCHITECTURE.md l.138
 Problem: SCOPED defines `room.*` ids. DECENTRALIZED uses `moderate_content`, `set_slow_mode`, `ban_member`, `manage_admission`, `manage_topic` and `manage_pins`. SPACES uses `manage_room_profile`, `manage_members`, `manage_role_bindings` and `change_room_governance`. Ban, slow mode, admission and call start have no `room.*` id at all, although `membership.ban` exists as an action (SCOPED l.157). SCOPED l.73 says an unknown critical capability "cannot be silently approximated", so implementations that pick different names will reject each other's grants. The kind-to-capability mapping is also missing for `pin.set`, `moderation.redact`, `reaction.set`, `topic.create` and `message.topic.set`.
-Proposed fix: Create one W1 capability registry (for example `spec/registries/om-room-capabilities.json`, with an ADR). List every Room and Space capability id, including `room.ban_member`, `room.set_slow_mode`, `room.manage_admission` and `room.start_call`, and map every event kind and control action to its capability. Replace the ad-hoc names in DECENTRALIZED §6, SPACES §Space-managed rooms and GROUP_CHAT l.138 with registry ids.
-Resolution:
+Proposed fix: Create one W1 capability registry (for example [`spec/registries/om-room-capabilities.json`](../../spec/registries/om-room-capabilities.json), with an ADR). List every Room and Space capability id, including `room.ban_member`, `room.set_slow_mode`, `room.manage_admission` and `room.start_call`, and map every event kind and control action to its capability. Replace the ad-hoc names in DECENTRALIZED §6, SPACES §Space-managed rooms and GROUP_CHAT l.138 with registry ids.
+Resolution: accepted — ADR-0128 rule 9; new [`om-room-capabilities.json`](../../spec/registries/om-room-capabilities.json) with every id and the kind/action map; SCOPED, DECENTRALIZED §6, SPACES and GROUP_CHAT use its ids; R-228.
 
 ### F-R2-10 — Editing a role definition bypasses the delegation ceiling
 Severity: major
 Where: SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md §Roles (l.75-96), §Delegation ceiling (l.118-126); spec/protocol/capability-grant.logical.schema.json
 Problem: The ceiling is checked when "the grant being created" exceeds it. The docs never cover editing a RoleDefinition's `grants[]`. An actor with `room.manage_roles` who adds a capability to an existing role raises the authority of every holder of that role, possibly beyond the actor's own ceiling. Two other checks are also unstated: whether a created grant's own `grantable_scope` must be a subset of the grantor's, and whether assigning a role is checked against the whole role's content.
 Proposed fix: Add three rules to SCOPED §Delegation ceiling. (1) Creating or editing a RoleDefinition is itself a grant. Every capability and every `grantable_scope` in the resulting role must lie within the actor's ceiling. (2) Assigning a role requires the entire role to lie within the assigner's ceiling. (3) A created grant's `grantable_scope` must be a subset of the grantor's `grantable_scope`. Add these as V-008 negative cases.
-Resolution:
+Resolution: accepted — ADR-0128 rule 10; three rules in SCOPED §Delegation ceiling; R-229; V-008 remaining item.
 
 ### F-R2-11 — There is no execution path for Space-delegated authority inside a Room
 Severity: major
 Where: SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md l.118-129, l.131-166; DECENTRALIZED_ABUSE_MODERATION.md §7 (l.150-160); SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md l.163
 Problem: A Space moderator acting under a `SpaceAuthorityBinding` is often not a Room member, so it cannot produce an MLS Commit. The docs never say which Room member executes a Space ModerationDecision, a Space-role mirror update, or a Space-membership admission. They don't say how Room members obtain and validate the Space's governance head, which they may not otherwise receive, or what happens if no capable member executes. The result is a delegated authority whose effect depends on Room members choosing to comply. Space-side revocations (reductions) then stay stale in the Room indefinitely, beyond the bounded staleness that ADR-0122 rule 8 accepts.
 Proposed fix: Define a `SpaceDelegatedIntent` in SPACES: a GroupControlIntent that carries the Space's signed evidence plus the Space head it was validated against. Any Room member may commit it, and it goes through F-R2-1's reduction liveness rule. The binding obliges the Space to deliver its governance head to Room members. Admission checks use the freshest head held, and fail closed if it is older than the binding's freshness bound.
-Resolution:
+Resolution: accepted — ADR-0128 rule 11; SPACES §SpaceDelegatedIntent, DECENTRALIZED §7, SCOPED moderation; R-230; V-008 remaining item.
 
 ### F-R2-12 — Moderation has three overlapping representations, with wall-clock expiry
 Severity: major
 Where: DECENTRALIZED_ABUSE_MODERATION.md §6 (l.145), §8 (l.162-186), §13 (l.266-279); SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md l.152-163; EVENT_MODEL.md `moderation.redact` (l.228-236)
 Problem: A redaction, timeout or ban can be expressed as a ConversationEvent (`moderation.redact`), as a control transition (`restriction.set` / `membership.ban`), or as a signed `ModerationDecision` whose `action` includes `redact`, `timeout` and `ban`. The docs never say which of these changes Room state, or what happens when they disagree. In addition, a ban lasts "until revoked/expired" and ModerationDecision carries `starts_at`/`expires_at`, so wall-clock time ends a ban or restriction. That contradicts TIME_AND_EXPIRY_SEMANTICS.md §1 and the committed-lift pattern that ADR-0122 rule 10 adopted for timeouts. Clients with different clocks would disagree about admission. SafetyAdvisory `issued_at`/`expires_at` also have no declared clock class (TIME §6).
 Proposed fix: State in DECENTRALIZED §8 that a ModerationDecision is a record, export and appeal object and never changes Room state by itself. In-Room effect comes only from a GroupControlTransition (remove, ban, restriction) or a `moderation.redact` event. Apply the committed-lift rule to bans and restrictions, not only timeouts. Classify ModerationDecision and SafetyAdvisory time fields in the time-fields registry (display or wall-clock advisory, `authority_effect: none`).
-Resolution:
+Resolution: accepted — ADR-0128 rule 12; DECENTRALIZED §6/§8/§13, SCOPED moderation, TIME §6, moderation-safety logical schema comments; R-231; time-fields registry rows left to integrator notes.
 
 ### F-R2-13 — A compromised Publication signing key can backdate posts past its revocation
 Severity: major
 Where: SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md §Publication (l.225-256); spec/protocol/publication-event.logical.schema.json
 Problem: A PublicationEvent carries a signer-chosen `clock`. After the key is revoked, an attacker holding it can sign new posts with an earlier clock that reference the old control state, and they verify as pre-revocation posts forever. Untrusted mirrors can also withhold tombstones and revocation transitions. The doc says each event "identifies ... the applicable publication control state" (l.252), but the logical schema has no such field.
 Proposed fix: Give each signing key a monotonic `seq` and a `prev_post_hash` chain in PublicationEvent, and add `control_state_hash`. A revocation transition records the last valid `(key, seq)`. Posts beyond that sequence are invalid regardless of clock. Subscribers keep the highest validated control head and reject rollback, as in ADR-0122 rule 6. Update the logical schema to match.
-Resolution:
+Resolution: accepted — ADR-0128 rule 13; SPACES §Publication (`seq`, `prev_post_hash`, `control_state_hash`, last valid `(key, seq)`, anti-rollback) and publication-event logical schema; R-232, T-064.
 
 ### F-R2-14 — Group call keys cover the whole Room, which allows silent listeners
 Severity: major
 Where: CALLS_AND_REALTIME_MEDIA.md §Group (l.60-62), l.155; spec/protocol/call-session.logical.schema.json
 Problem: Group call media keys come from the Room's MLS exporter, bound to CallID and epoch. Every Room endpoint can derive them, including members who never joined, full-room ServicePrincipals and plaintext bridges. The SFU is untrusted, so it can forward streams to any colluding Room member, who is not shown in the participant list. The test "SFU cannot add itself" is met, but "no hidden participant" is not. The docs also define no capability for starting a call that rings the whole Room, which is an abuse vector in large or announcement Rooms.
 Proposed fix: Bind the exporter context to the authenticated, sorted participant set, rekeying on every participant change. Alternatively, send per-sender SFrame keys only to joined participants in MLS-encrypted `call.key_epoch` messages. Require the call UI to show any full-room service or bridge that can derive call keys. Add `room.start_call` to the capability registry (F-R2-9) and a V-007 test for "a non-joined member cannot decrypt".
-Resolution:
+Resolution: accepted — ADR-0128 rule 14; CALLS §Group and §Who may ring (participant-set-bound exporter, rekey per join/leave, key-capable services shown, `room.start_call`), call-session schema; R-233, T-063; isolation from non-joined members deferred to A-035 (blocks `calls`); V-007 remaining items.
 
 ### F-R2-15 — "Unknown caller" semantics contradict IntroGate and rule 10
 Severity: major
 Where: CALLS_AND_REALTIME_MEDIA.md l.77-79, l.83, l.146; contradicts INVITES_INTROGATE_AND_SPAM.md §5 ("no unsolicited call permission"), ABUSE_SAFETY_AND_REPORTING.md l.15, AGENTS rule 10
 Problem: The calls doc assumes an unknown caller can ring you, over TURN only. The introduction layer grants a non-accepted sender no call permission. Ringing also costs the recipient TURN allocation, which is "expensive work". Separately, mesh group calls (l.83) expose IP addresses to Room co-members who are not contacts, and the doc applies strict privacy only to "unknown callers".
 Proposed fix: State in CALLS that a `call.offer` from a principal without an accepted relationship is dropped. At most it is surfaced as a MessageRequest-class "missed call" notice, with no ringing, no ICE and no TURN allocation. Define "unknown caller" for RoutePolicy as any peer that is not an accepted contact, including Room co-members, and require relay-only candidates toward such peers in mesh topologies.
-Resolution:
+Resolution: accepted — ADR-0128 rule 15; CALLS §Who may ring, §Strict privacy / unknown peer, mesh relay-only; ABUSE_SAFETY first-contact list; R-234.
 
 ### F-R2-16 — The disappearing-message fields are undefined and conflict with the frozen time registry
 Severity: major
 Where: EVENT_MODEL.md l.104 (`expiry?`), l.140 (`expires_after?`); MESSENGER_BASELINE_V1.md l.39; TIME_AND_EXPIRY_SEMANTICS.md §4 (l.45-49)
 Problem: The frozen W0 wire has two expiry fields: envelope `12: posix-seconds` and MessageCreate `4: expires_after`. EVENT_MODEL defines neither. The frozen [`spec/registries/om-time-fields.json`](../../spec/registries/om-time-fields.json) classifies `expires_after` as a monotonic duration "from local first display/receipt". The resolution (ARCHITECTURE_RESOLUTIONS_20260923.md l.110) instead says "absolute after-send expiry" is the canonical v1 timer. TIME §4 says disappearing policy is "authenticated conversation/application state", but nothing carries it: GroupState `policy` (GROUP_CHAT l.91-96) has no timer field, and 1:1 conversations have no control state. Implementations will disagree on when content disappears and on which field wins.
 Proposed fix: Add an "Expiry" subsection to EVENT_MODEL. The envelope `expiry` is the canonical absolute after-send expiry (wall-clock class, per the resolution). `expires_after` is an optional additional local bound running from receipt. Deletion happens at whichever comes first. Add a disappearing-timer field to GroupState policy, and define the 1:1 carrier: either a W0 control event or a documented statement that the per-message `expiry` is the only carrier in W0.
-Resolution:
+Resolution: accepted — merged with F-R1-12 (ADR-0126 rule 9, ADR-0128 rule 16); EVENT_MODEL §Expiry, TIME §4, BASELINE table, GROUP_CHAT `policy.disappearing_timer`; R-235.
 
 ### F-R2-17 — Merge order for reactions and poll votes, and the poll-close cutoff, are unspecified
 Severity: major
 Where: EVENT_MODEL.md l.196, l.248, l.84; MESSENGER_BASELINE_V1.md l.161
 Problem: "The latest authorized state wins" for reactions and votes names no order. ADR-0121 rule 3 makes pins, topics and edits epoch-major but does not list reactions or votes, so one implementation may use EventClock and another `(epoch, EventClock)`. "Close is monotonic" does not say whether a vote ordered after `poll.close` counts. A voter controls its own HLC, so without an order-based cutoff it can backdate a vote past the close. EVENT_MODEL l.84 ("a misleading client clock ... does not grant ... authorization") understates this: a future-dated write dominates within an epoch.
 Proposed fix: State in EVENT_MODEL that reaction and vote state are epoch-major LWW registers keyed as documented. A vote ordered after the close in `(sending epoch, EventClock)` is ignored. Backdating within one epoch is a documented residual risk. Qualify l.84 to match.
-Resolution:
+Resolution: accepted — ADR-0128 rule 17; EVENT_MODEL reactions, polls and l.84 qualification; BASELINE poll semantics; R-236; V-009 remaining item.
 
 ### F-R2-18 — Docs describe wire content that the frozen W0 CDDL rejects
 Severity: major
 Where: MESSENGER_BASELINE_V1.md l.31, l.177 (`presentation_role = voice_note`, waveform); RICH_TEXT_AND_CONTENT_SECURITY.md l.21 (List block), l.139 (`custom_emoji`); EVENT_MODEL.md l.522
 Problem: The frozen `attachment-ref` in spec/cddl/events.cddl has no `presentation_role` or waveform field, and unknown keys are rejected (`om-numeric-fields` rules). RichText allows only block types 1-3 and inline types 1-3. EVENT_MODEL l.522 promises that unknown rich-text node kinds degrade through extension criticality to a plain-text fallback. Under the frozen grammar, a W0 receiver instead rejects the whole event when a later-wave sender uses `custom_emoji` or List. Senders in mixed-version conversations would have their messages silently dropped.
 Proposed fix: Correct EVENT_MODEL l.522 to say that new node kinds or attachment fields arrive only under a new `kind_version`, or with a `required_capabilities` entry that makes W0 show the unsupported-content placeholder. Senders must emit a W0-valid fallback event when a recipient lacks the capability. Mark voice-note `presentation_role` and List as later-wave, and name how each will be carried.
-Resolution:
+Resolution: accepted — ADR-0128 rule 18; EVENT_MODEL RichTextV1 section corrected, BASELINE voice notes, RICH_TEXT List/custom_emoji marked later-wave; R-237; V-005 remaining item.
 
 ### F-R2-19 — The labeler-scoped safety reference is weaker than claimed and not injective
 Severity: major
 Where: DECENTRALIZED_ABUSE_MODERATION.md §14 (l.294-310), §13 (l.289); spec/registries/om-domain-separation.json (`OM-SAFETY-REF-v1`)
 Problem: (a) The claim that the hash avoids "one cross-labeler universal handle" does not hold for anyone who knows the AccountID. That includes every contact, every Room co-member, and anyone who reads a directory ContactDescriptor, which carries the AccountID (resolution Q-014). Those parties can compute the reference for every labeler and link feeds. (b) The construction `label || issuer_scope_id || principal_id` is a raw concatenation, which is ambiguous when `issuer_scope_id` has variable length. It also breaks the registry's own rule that hash inputs use length-prefixed DS-HASH. (c) The advisory response "provider review" for AccountID-keyed subjects invites relays to map AccountIDs to capabilities, against absolute rule 2.
 Proposed fix: Restate §14's guarantee as "prevents enumeration by parties who do not already know the principal; does not prevent linkage by parties who do". Before W3, register a DS-HASH construction over the CBOR array `[issuer_scope_id, principal_ref]` under a new label and leave v1 unused. Add to §13: "Relays and mailbox providers act only on subjects they can already see (capabilities, blob hashes, public ServiceIDs). They never resolve AccountID-keyed advisories to delivery capabilities."
-Resolution:
+Resolution: accepted — ADR-0128 rule 19; DECENTRALIZED §13 (provider custody rule) and §14 (restated guarantee, v1 unused); R-238; new DS-HASH label left to integrator notes (registry owner).
 
 ### F-R2-20 — Mentions carry AccountIDs across forwards and to non-members
 Severity: minor
 Where: RICH_TEXT_AND_CONTENT_SECURITY.md l.26, l.85; MESSENGER_BASELINE_V1.md l.107
 Problem: A Mention node carries a `principal-ref`, which is the AccountID. Forwarding copies the RichText, so mentioned AccountIDs cross conversation boundaries, although BASELINE l.107 says AccountIDs "are not carried". Nothing stops a sender from mentioning a non-member, which discloses that person's AccountID to the Room.
 Proposed fix: Add to BASELINE §Forwarding: "forwarding converts Mention nodes to plain Text with their display label". Add to RICH_TEXT §Mentions: "a mention's subject must be a current member of the conversation; otherwise the receiver renders it as text".
-Resolution:
+Resolution: accepted — ADR-0128 rule 20; BASELINE §Forwarding, EVENT_MODEL forwarding, RICH_TEXT §Mentions; R-239.
 
 ### F-R2-21 — Stale and inconsistent naming
 Severity: minor
 Where: GROUP_CHAT_ARCHITECTURE.md l.76 (`GroupState`), l.138; GROUP_COMMIT_AND_STATE_CONVERGENCE.md l.10, l.44 (`GroupControlState`, `GroupControlTransition`), l.37 (`GroupControlIntent`/`GroupCommitBinding`); EVENT_MODEL.md l.100 and l.383-384, l.160-162; MESSENGER_BASELINE_V1.md l.26
 Problem: One object has three names (GroupState / GroupControlState), and the transition has two models (GroupControlTransition vs Intent+Binding). GROUP_CHAT l.138 describes invite rights as policy modes rather than `room.invite`. EVENT_MODEL's `required_capabilities` (feature support) shares the word "capability" with authority grants. EVENT_MODEL l.160-162 predates ADR-0121 rules 3 and 7 for edits. BASELINE l.26 still says custom reactions "depend on A-001/A-002", which are resolved.
 Proposed fix: Standardize on `GroupControlState` and the Intent/Binding pair, with GroupControlTransition as its logical union. Rename the envelope field in prose to "required features". Point l.160-162 to ADR-0121 and remove the stale dependency note.
-Resolution:
+Resolution: accepted — ADR-0128 rule 21; `GroupControlState` in GROUP_CHAT and EVENT_MODEL, Intent/Binding in GROUP_COMMIT §4 and the group-control-transition schema, "required features" in EVENT_MODEL, edits point to ADR-0121, stale A-001/A-002 note removed.
 
 ## Checked and sound
 

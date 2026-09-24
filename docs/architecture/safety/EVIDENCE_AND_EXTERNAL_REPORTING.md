@@ -36,7 +36,18 @@ The report design must clearly document what can be proven:
 - what remains forgeable/deniable by design;
 - what local timestamps/metadata are merely reporter assertions.
 
-Selected direction: ordinary messages remain participant-authenticated/deniable according to the secure session or MLS authentication model and do not receive an additional durable AccountID signature. Durable control/discovery objects remain independently verifiable. EvidencePackage documents exactly which included objects are independently verifiable and which content/timestamps are reporter-held evidence rather than protocol non-repudiation.
+Selected direction: ordinary messages do not receive an additional durable AccountID signature. What the underlying protocol already proves differs by conversation type (ADR-0128 rule 3):
+
+- **1:1 sessions** give participant-deniable authentication. 1:1 content in an EvidencePackage is reporter-held
+  evidence, not protocol non-repudiation.
+- **MLS groups** give **transferable sender authentication**. RFC 9420 signs every application message with the
+  sender leaf's signature key, and the leaf credential chains through DeviceIdentity and AccountControlState to the
+  AccountID. An EvidencePackage may include MLS FramedContent and signatures, which a third party can verify
+  independently. The same property means a seized device yields provable transcripts of other members' group
+  messages (threat T-060). Deniable groups are not a v1 property; they would need a research ADR.
+- **HistoryBundle** content proves only that the bundle author shared it ([`GROUP_CHAT_ARCHITECTURE.md`](../groups/GROUP_CHAT_ARCHITECTURE.md)).
+
+Durable control/discovery objects remain independently verifiable. EvidencePackage documents exactly which included objects are independently verifiable and which content/timestamps are reporter-held evidence rather than protocol non-repudiation.
 
 ## 4. Store/provider-specific reporting
 

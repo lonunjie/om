@@ -1,5 +1,5 @@
 {
-  "$comment": "Logical binding between OM group policy state and MLS epoch transitions.",
+  "$comment": "Logical binding between OM group policy state (GroupControlState) and MLS epoch transitions. GroupControlTransition is the logical union of GroupControlIntent and GroupCommitBinding (ADR-0128 rule 21).",
   "GroupControlTransition": {
     "previous_group_state_hash": "canonical OM group-policy state hash",
     "previous_mls_epoch": "MLS epoch expected by the transition",
@@ -10,5 +10,22 @@
     "resulting_group_state_hash": "canonical resulting OM group-policy state hash",
     "conversation_id": "stable Room ConversationID; the same provider-independent ID used by ConversationEvent"
   },
-  "Rule": "Membership-affecting OM state and MLS state may not silently commit independently."
+  "Rule": "Membership-affecting OM state and MLS state may not silently commit independently.",
+  "GroupControlIntent": {
+    "conversation_id": "Room ConversationID",
+    "previous_group_state_hash": "GroupControlState hash the intent was authorized against",
+    "operation": "membership/role/policy operation; key from om-room-capabilities.json operations",
+    "reducing": "true for reductions (ADR-0122 rule 1, ADR-0128 rule 1)",
+    "authorization": "capability grant evidence at the parent state, or SpaceDelegatedIntent evidence (Space signed evidence + Space head)",
+    "dedup_key": "for automatic device adds: (AccountID, device_id, ACS generation)"
+  },
+  "GroupCommitBinding": {
+    "intent_hash": "hash of the GroupControlIntent it carries",
+    "previous_mls_epoch": "MLS epoch expected",
+    "mls_commit_hash": "hash of the MLS Commit",
+    "resulting_mls_epoch": "next accepted epoch",
+    "resulting_group_state_hash": "resulting GroupControlState hash",
+    "committer": "coordinator, or a direct committer after sequencing_timeout for a reducing intent"
+  },
+  "LivenessRule": "GroupControlState records coordinator_succession[]. After the GroupProfile sequencing_timeout, any member holding the authorizing capability may commit a pending reducing intent (removing a revoked or quarantined device needs none) and the coordinator's replacement, which is the next live device in the succession order. The coordinator never sequences its own removal or replacement. A rebased non-reducing intent is re-validated at its new parent and dropped if it fails (ADR-0128 rule 1)."
 }

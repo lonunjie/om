@@ -13,7 +13,7 @@
   "PublicationEvent": {
     "publication_id": "PublicationID",
     "post_id": "opaque stable post identifier",
-    "clock": "EventClock/display ordering input",
+    "clock": "EventClock; display ordering only, never validity (ADR-0128 rule 13)",
     "kind": [
       "post",
       "edit",
@@ -21,15 +21,19 @@
     ],
     "body": "bounded public post payload/attachment references",
     "signing_key_ref": "authorized Publication signing key",
+    "seq": "per-signing-key monotonic counter; a post beyond the revoked key's last valid (key, seq) is invalid regardless of clock",
+    "prev_post_hash": "hash of the previous event signed by the same key (per-key chain); absent only for seq 0",
+    "control_state_hash": "hash of the PublicationControlState the signer acted under",
     "signature": "durable signature over canonical event encoding"
   },
   "Rule": "Followers are not canonical Publication members. Mirrors may distribute posts but cannot forge publication authority. Retraction cannot guarantee erasure of already-public copies.",
   "PublicationControlTransition": {
     "publication_id": "PublicationID",
     "previous_state_hash": "accepted parent PublicationControlState hash",
-    "operation": "profile/publisher/signing-key/discussion/governance operation",
+    "operation": "profile/publisher/signing-key/discussion/governance operation; a signing-key revocation records last_valid: (signing_key_ref, seq)",
     "authorization": "evidence satisfying previous governance",
     "resulting_state_hash": "canonical resulting PublicationControlState hash"
   },
-  "ControlConflictRule": "Authority/signing-key control forks freeze privileged advancement until resolved under common pre-fork governance; no relay/mirror/provider chooses the canonical authority head."
+  "ControlConflictRule": "Authority/signing-key control forks freeze privileged advancement until resolved under common pre-fork governance; no relay/mirror/provider chooses the canonical authority head.",
+  "AntiRollbackRule": "Subscribers keep the highest validated PublicationControlState head and reject older heads (ADR-0122 rule 6, ADR-0128 rule 13)."
 }

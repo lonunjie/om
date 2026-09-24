@@ -35,7 +35,11 @@ CapabilityGrant
   authorization_evidence
 ```
 
-Example Room capabilities:
+The one vocabulary is the capability registry [`om-room-capabilities.json`](../../../spec/registries/om-room-capabilities.json) (ADR-0128 rule 9). It lists every Room
+and Space capability id and maps every event kind and control action to its capability; docs, grants, roles and
+SpaceAuthorityBindings use only its ids. The lists below are a summary of it.
+
+Room capabilities:
 
 ```text
 room.post
@@ -47,17 +51,26 @@ room.create_thread
 room.create_topic
 room.manage_topics
 room.invite
+room.manage_admission
 room.remove_member
-room.manage_profile
-room.manage_roles
-room.redact_others
+room.ban_member
 room.timeout_member
+room.restrict_member
+room.set_slow_mode
+room.redact_others
+room.manage_profile
+room.set_disappearing_timer
+room.manage_roles
+room.start_call
 room.install_service
 room.add_bridge
+room.manage_security_policy
 room.manage_governance
 ```
 
-Example Space capabilities:
+(`room.create_thread` is reserved: W1 thread replies need only `room.reply`, ADR-0121 rule 7.)
+
+Space capabilities:
 
 ```text
 space.view
@@ -70,7 +83,7 @@ space.moderate
 space.manage_governance
 ```
 
-Capability registries are versioned/extensible under the normal public registry rules. An unknown critical authority capability cannot be silently approximated.
+The registry is versioned and extensible under the normal public registry rules: ids are permanent once assigned and new ids may be added. An unknown critical authority capability cannot be silently approximated.
 
 ## Roles are convenience bundles
 
@@ -121,7 +134,17 @@ Possessing `room.manage_roles` is not equivalent to possessing every capability.
 
 A principal may grant only capabilities inside its authenticated **grantable scope/ceiling**. For example, a moderator allowed to assign ordinary Member/Helper roles cannot manufacture `room.manage_governance` or `room.add_bridge` for itself or another account.
 
-A role-management action is rejected if the grant being created exceeds the actor's delegation ceiling.
+A role-management action is rejected if the grant being created exceeds the actor's delegation ceiling. Precisely
+(ADR-0128 rule 10):
+
+1. **Creating or editing a RoleDefinition is itself a grant.** Every capability and every `grantable_scope` in the
+   resulting role must lie within the actor's ceiling. Otherwise, adding a capability to an existing role would raise
+   the authority of every holder of that role beyond what the editor may grant.
+2. **Assigning a role** requires the entire role to lie within the assigner's ceiling, not only the capabilities the
+   assigner looked at.
+3. **A created grant's `grantable_scope`** must be a subset of the grantor's own `grantable_scope`.
+
+V-008 carries a negative case for each rule.
 
 `room.manage_governance` / `space.manage_governance` are protected governance-root capabilities, not something an ordinary role manager can mint merely by holding `manage_roles`. The governance state itself defines who may alter that root and what threshold is required.
 
@@ -130,7 +153,7 @@ A role-management action is rejected if the grant being created exceeds the acto
 Each Room/Space governance policy can declare approval thresholds for selected high-risk transitions. Candidate high-risk actions include:
 
 - changing governance principals/thresholds;
-- changing the encryption/security profile;
+- changing non-cryptographic Room security policy (`room.manage_security_policy`: the privacy SecurityProfile, `new_device_policy`, `history_policy`), never below an established floor. CryptoProfile transitions are automatic, monotone and not governable (ADR-0107, ADR-0128 rule 8);
 - adding a bridge that receives plaintext;
 - adding a full-room service/bot that receives plaintext;
 - delegating authority to a parent Space;
@@ -160,7 +183,12 @@ moderation.redact     suppresses another principal's message in shared state
 
 Where a private MLS Room removes a member, cryptographic removal follows the existing group-control/MLS transition rules.
 
-A Space-wide ban can be used as an admission condition for linked Rooms. A Room may also opt into parent-Space ban propagation, but actual Room membership/MLS removal remains an explicit Room control transition; a Space does not magically rewrite child cryptographic rosters.
+Room state changes only through these control transitions and `moderation.redact`. A signed `ModerationDecision`
+records a decision for export and appeal but never changes Room state by itself ([`DECENTRALIZED_ABUSE_MODERATION.md`](../safety/DECENTRALIZED_ABUSE_MODERATION.md)
+§8). A ban or restriction ends only through a committed lift transition (unban, lift, untimeout), never by a clock
+passing (ADR-0122 rule 10, extended by ADR-0128 rule 12).
+
+A Space-wide ban can be used as an admission condition for linked Rooms. A Room may also opt into parent-Space ban propagation, but actual Room membership/MLS removal remains an explicit Room control transition; a Space does not magically rewrite child cryptographic rosters. The Space's decision reaches the Room as a `SpaceDelegatedIntent` that any Room member may commit ([`SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md`](SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md)).
 
 ## Constitutional fork behavior
 
@@ -244,7 +272,7 @@ This lets busy forum-style Rooms remain usable without leaking a member's attent
 
 ## Moving messages between topics
 
-`message.topic.set` changes organizational placement, not authorship/content. It is authorized under Room policy and preserves the original EventID and security context.
+`message.topic.set` changes organizational placement, not authorship/content. It is authorized for the message's author (still holding `room.post`) or a holder of `room.manage_topics` ([`om-room-capabilities.json`](../../../spec/registries/om-room-capabilities.json)), and preserves the original EventID and security context.
 
 Clients should show an unobtrusive “moved to topic” history where useful. Moving a message to another **Room** is not the same operation; cross-Room transfer is a new message/forward because the security and membership context changes.
 

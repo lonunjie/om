@@ -23,12 +23,12 @@ A reference client may implement more than the minimum conformance surface, but 
 |---|---|---|
 | Text and bounded rich text | Core interoperable | `message.create` + `RichTextV1`; executable markup is never authoritative. |
 | Reply / quote | Core interoperable | `reply_to` references an event in the **same ConversationID**. Cross-conversation pointers are not replies. |
-| Unicode/basic reactions | Core interoperable | `reaction.set` is idempotent actor/target/reaction state. Custom-pack reactions depend on A-001/A-002. |
+| Unicode/basic reactions | Core interoperable | `reaction.set` is idempotent actor/target/reaction state, an epoch-major register. Custom-pack reactions use `reaction_asset` (reserved for W1) under [`EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`](../ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md). |
 | Edit own message | Core interoperable | `message.edit` replaces editable presentation fields; replacing binary payloads means send a new message. |
 | Delete own message | Core interoperable | `message.delete` creates a shared tombstone; physical erasure after delivery is never promised. |
 | Moderator removal/redaction | Core interoperable for moderated rooms | Distinct `moderation.redact`; moderation authority is not impersonated as the author's delete. |
 | Files / photos / video / audio | Core interoperable | Encrypted `AttachmentRef`; camera/gallery/file-picker are local acquisition UX. |
-| Voice notes | Core interoperable presentation | Audio attachment with `presentation_role = voice_note`; not a new transport or cryptographic class. |
+| Voice notes | Core interoperable presentation | Audio attachment (`AttachmentRef` with an audio media type and `duration_ms`); not a new transport or cryptographic class. The explicit `presentation_role = voice_note` marker and waveform are later-wave and travel as an event extension, since the frozen W0 `attachment-ref` has no such field (ADR-0128 rule 18). |
 | Mentions | Core interoperable | Semantic RichText mention nodes; notification indexes may be denormalized but must agree with content. |
 | Forward / resend | Core interoperable | A forward is a **new** `message.create` by the forwarding account. Private source identity/event IDs are not leaked across conversations by default. |
 | Shared room pins | Core interoperable for groups/rooms | `pin.set` is shared authorized state; a personal bookmark remains local-only. |
@@ -36,7 +36,7 @@ A reference client may implement more than the minimum conformance surface, but 
 | Typing | Standard optional ephemeral capability | Best-effort short-TTL signal; never durable correctness state. |
 | Presence / last-seen | Standard optional ephemeral capability | Privacy-policy controlled and not required for messaging correctness. |
 | Delivery/read receipts | Standard optional capability | `receipt.update`; privacy policy may disable or reduce granularity. |
-| Disappearing messages | Core interoperable when used | Existing expiry semantics; expiry is deletion/retention policy, not proof that a recipient forgot plaintext. |
+| Disappearing messages | Core interoperable when used | Envelope `expiry` is the canonical timer; `expires_after` is only a local bound; group timer in GroupControlState ([`EVENT_MODEL.md`](EVENT_MODEL.md) "Expiry"). Expiry is deletion/retention policy, not proof that a recipient forgot plaintext. |
 | Search | Local/account-private UX | Local index over data the client can lawfully decrypt; no mandatory global search service. |
 | Drafts | Local/account-private UX | Local by default; future account-private encrypted sync may synchronize them. |
 | Mute | Local/account-private UX | Notification preference, not room authority. |
@@ -104,7 +104,7 @@ Baseline behavior:
 
 1. the forwarding account creates a new event;
 2. copied media is re-encrypted for the destination context and SHOULD receive a fresh BlobID/location record where practical;
-3. private source `ConversationID`, `EventID`, AccountID, relay/provider metadata and cryptographic transcript are **not** carried by default;
+3. private source `ConversationID`, `EventID`, AccountID, relay/provider metadata and cryptographic transcript are **not** carried by default; forwarding converts Mention nodes to plain Text with their display label and drops the `mentions` set, because a mention carries the mentioned principal's AccountID (ADR-0128 rule 20);
 4. a client may visually say “forwarded” as local/user-authored metadata without claiming authenticated original provenance;
 5. public signed Publication posts may carry a public source reference because their source is intentionally public and verifiable.
 
@@ -158,7 +158,7 @@ poll.close
   target_poll_event_id
 ```
 
-Latest authorized vote state per `(actor_principal, target_poll_event_id)` wins. `poll.close` is monotonic; concurrent/late votes are materialized by the deterministic event-order rule and clients must not use wall-clock timestamps as security authority. A creator or authorized room moderator may close a poll according to room policy.
+Vote state per `(actor_principal, target_poll_event_id)` is an epoch-major last-writer-wins register ordered by `(sending epoch, EventClock)`. `poll.close` is monotonic: a vote ordered after the close in that order is ignored, whatever its arrival time, and clients must not use wall-clock timestamps as security authority. Backdating a vote within one epoch is a documented residual risk ([`EVENT_MODEL.md`](EVENT_MODEL.md), ADR-0128 rule 17). A creator or authorized room moderator may close a poll according to room policy.
 
 Because ordinary group events are visible to members who can decrypt the room, V1 does **not** label votes “anonymous.” Cryptographic anonymous voting would be a separate protocol with different trust/tally requirements.
 
@@ -174,7 +174,7 @@ No relay/provider gets a special “send this plaintext later” privilege. If u
 
 ## Voice-note semantics
 
-Voice notes are ordinary encrypted attachments plus presentation metadata such as duration/waveform hints where safe. Clients can offer hold-to-record, playback speed and waveform UI without inventing a separate message security model.
+Voice notes are ordinary encrypted attachments plus presentation metadata such as duration/waveform hints where safe. In W0 the only carrier is the attachment's media type and `duration_ms`; a voice-note marker and waveform arrive later as an event extension beside a W0-valid body. Clients can offer hold-to-record, playback speed and waveform UI without inventing a separate message security model.
 
 The exact baseline audio codec/container belongs with media capability negotiation rather than the conversation event taxonomy.
 

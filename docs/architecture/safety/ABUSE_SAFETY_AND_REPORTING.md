@@ -11,8 +11,8 @@ Unknown senders use constrained IntroductionEndpoints / MessageRequests:
 - tiny bounded payloads;
 - strict sender/capability rate limits;
 - no unsolicited large attachments;
-- no unsolicited group addition;
-- no direct calls by default;
+- no unsolicited group addition (invite, accept, then Add: [`GROUP_CHAT_ARCHITECTURE.md`](../groups/GROUP_CHAT_ARCHITECTURE.md));
+- no calls: a `call.offer` from a principal without an accepted relationship is dropped, at most leaving a missed-call notice ([`CALLS_AND_REALTIME_MEDIA.md`](../calls/CALLS_AND_REALTIME_MEDIA.md));
 - cheap validation before expensive storage/fanout/crypto work;
 - optional escalating proof/resource requirements if attacks demand it.
 
@@ -40,7 +40,7 @@ report category and local annotations
 optional media objects explicitly selected by reporter
 ```
 
-The exact cryptographic evidence mechanism requires careful design so a malicious reporter cannot trivially fabricate another user's authorship while also preserving deniability properties where expected.
+The exact cryptographic evidence mechanism requires careful design so a malicious reporter cannot trivially fabricate another user's authorship. The two goals split by conversation type: MLS group messages already give fabrication resistance through transferable sender signatures and are therefore not deniable, while 1:1 sessions keep deniability, so 1:1 content is reporter-held evidence ([`EVIDENCE_AND_EXTERNAL_REPORTING.md`](EVIDENCE_AND_EXTERNAL_REPORTING.md) §3, ADR-0128 rule 3).
 
 ## No mandatory global reputation score
 

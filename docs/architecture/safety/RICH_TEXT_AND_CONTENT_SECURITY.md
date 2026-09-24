@@ -18,7 +18,7 @@ Block
   Paragraph(inlines[])
   Quote(inlines[])
   CodeBlock(text, language_hint?)
-  List(ordered, items[])       # optional in v1 if implementation is ready
+  List(ordered, items[])       # later-wave: not in the frozen W0 grammar (see below)
 
 Inline
   Text(text, marks[])
@@ -35,6 +35,12 @@ Mark
 ```
 
 Plain messages are one Paragraph containing one Text run.
+
+The frozen W0 grammar ([`events.cddl`](../../../spec/cddl/events.cddl)) accepts block types 1-3 (Paragraph, Quote, CodeBlock) and inline types 1-3
+(Text, Link, Mention); inline type 4 is reserved for `custom_emoji` (W1). A W0 receiver rejects an event whose body
+holds anything else, so List blocks and later node kinds travel only as described in [`EVENT_MODEL.md`](../events/EVENT_MODEL.md) (RichTextV1
+section): in an event extension beside a W0-valid body, or in the body only when every recipient device advertises
+support, with a W0-valid fallback otherwise (ADR-0128 rule 18).
 
 ## Why a semantic tree
 
@@ -83,6 +89,13 @@ Spoiler is a visual disclosure affordance, not encryption/access control. Screen
 ## Mentions
 
 Mentions refer to an identity/member reference valid within the encrypted conversation/group state. Do not turn a mention into a public lookup request while rendering.
+
+A mention carries the subject's `principal-ref`, which for a person is the AccountID. Therefore (ADR-0128 rule 20):
+
+- a mention's subject must be a current member of the conversation; a sender never mentions a non-member, since that
+  would disclose the non-member's AccountID to the Room;
+- a receiver renders a mention whose subject is not a current member as plain text;
+- forwarding converts Mention nodes to plain Text with their display label ([`MESSENGER_BASELINE_V1.md`](../events/MESSENGER_BASELINE_V1.md) §Forwarding).
 
 ## Hostile content boundary
 
@@ -136,5 +149,5 @@ Any LinkPreviewProvider is a replaceable optional operator and runs behind a str
 
 ## 2026-09-23 expressive inline refinement
 
-`RichTextV1` may contain a bounded `custom_emoji` inline node that references an inert `ExpressiveAssetRef` plus textual fallback. The node cannot contain a remote image URL, HTML, SVG script, CSS, Lottie/TGS program or arbitrary renderer code. Rendering is therefore subject to the same blob-integrity, decoder-budget, accessibility and reduced-motion rules as other expressive assets.
+`RichTextV1` may contain, from W1 (inline type 4, reserved in W0), a bounded `custom_emoji` inline node that references an inert `ExpressiveAssetRef` plus textual fallback. The node cannot contain a remote image URL, HTML, SVG script, CSS, Lottie/TGS program or arbitrary renderer code. Rendering is therefore subject to the same blob-integrity, decoder-budget, accessibility and reduced-motion rules as other expressive assets.
 

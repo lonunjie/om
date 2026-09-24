@@ -117,18 +117,19 @@ Creating a new AccountID/ServiceID remains cheap. **Unsolicited reach is the sca
 
 ## 6. Room moderation semantics
 
-Room policy may grant separate capabilities such as:
+Room policy may grant separate capabilities, by their ids in [`om-room-capabilities.json`](../../../spec/registries/om-room-capabilities.json) (ADR-0128 rule 9), such as:
 
 ```text
-moderate_content
-set_slow_mode
-timeout_member
-remove_member
-ban_member
-manage_admission
-manage_topic
-manage_pins
-manage_service_installation
+room.redact_others
+room.set_slow_mode
+room.timeout_member
+room.restrict_member
+room.remove_member
+room.ban_member
+room.manage_admission
+room.manage_topics
+room.pin
+room.install_service
 ```
 
 These are not collapsed into one magical Administrator bit.
@@ -142,7 +143,7 @@ A timeout is a bounded authorization restriction with explicit start/expiry cloc
 ### Remove vs ban
 
 - **remove/kick** ends current Room membership but does not create a durable re-admission prohibition unless policy says so;
-- **ban** creates Room-scoped admission-deny state against the identified principal until revoked/expired;
+- **ban** creates Room-scoped admission-deny state against the identified principal until a committed unban transition lifts it. A ban may carry an intended end time, but, as for timeouts, the ban ends only when a moderator's client commits the lift after that time (ADR-0122 rule 10, extended to bans and every restriction by ADR-0128 rule 12); clients with different clocks therefore never disagree about admission;
 - neither action mutates AccountID globally.
 
 A new Sybil identity is a new subject and may require separate admission defense.
@@ -153,7 +154,7 @@ A Space may coordinate policy across child Rooms only through explicit authority
 
 There is no invisible global cascade.
 
-A Space-wide moderation action can be represented as a signed `ModerationDecision` from Space governance. A child Room enforces it only if its `SpaceAuthorityBinding` delegates the relevant capability.
+A Space-wide moderation action can be represented as a signed `ModerationDecision` from Space governance. A child Room enforces it only if its `SpaceAuthorityBinding` delegates the relevant capability, and it takes effect in the Room only when a Room member commits the corresponding `SpaceDelegatedIntent` ([`SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md`](../groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md)). Any Room member may commit it, and Space-side reductions are live under the coordinator liveness rule ([`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](../groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md) §3.1).
 
 This means a community can offer “ban from all our Rooms” UX without turning the Space into a hidden provider superuser.
 
@@ -180,6 +181,12 @@ ModerationDecision
   previous_decision_id?
   authorization_evidence
 ```
+
+A `ModerationDecision` is a **record, export and appeal object**. It never changes Room state by itself (ADR-0128
+rule 12). In-Room effect comes only from a GroupControlTransition (remove, ban, restriction, and their committed lifts)
+or a `moderation.redact` event. When a decision and the Room's control state disagree, the control state is the
+truth. `starts_at`/`expires_at` are display/wall-clock-advisory time with no authority effect
+([`TIME_AND_EXPIRY_SEMANTICS.md`](../events/TIME_AND_EXPIRY_SEMANTICS.md) §6).
 
 Private report details/reporter identity are **not** automatically embedded in the public/shared decision.
 
@@ -237,7 +244,7 @@ reporter statement
 
 A report does not silently upload the entire Room, contact graph, recovery state or unrelated history.
 
-Message protocols may provide participant authentication/deniability rather than permanent public non-repudiation. `EvidencePackage` states what is independently verifiable and what is reporter-held evidence.
+What a report can prove depends on the conversation type (ADR-0128 rule 3). 1:1 sessions give participant-deniable authentication, so 1:1 content is reporter-held evidence. MLS group messages carry transferable sender authentication (the leaf signature chains to the sender's AccountID), so an EvidencePackage may include group FramedContent and signatures as independently verifiable. `EvidencePackage` states what is independently verifiable and what is reporter-held evidence.
 
 ## 12. Report targets
 
@@ -270,8 +277,8 @@ SafetyAdvisory
   category
   severity_hint?
   scope_hint?               # spam, malware, public-content, service, etc.
-  issued_at
-  expires_at?
+  issued_at                 # wall-clock advisory, no authority effect
+  expires_at?               # wall-clock advisory, no authority effect
   evidence_reference?
   policy_reference?
   supersedes?
@@ -291,6 +298,10 @@ provider review
 
 The issuer cannot force the subscriber's response.
 
+"Provider review" is bounded by custody (absolute rule 2): relays and mailbox providers act only on subjects they can
+already see, such as their own capabilities, blob hashes and public ServiceIDs. They never resolve AccountID-keyed
+advisories to delivery capabilities.
+
 ## 14. Labeler-scoped subject references
 
 Publishing raw stable AccountIDs in every shared moderation feed can create a correlation database.
@@ -303,11 +314,11 @@ ScopedModerationRef = H(
 )
 ```
 
-Because OM principal IDs are high-entropy, subscribers that already know a candidate principal can compute/match the reference, while the feed does not itself reveal the raw principal identifier or create one cross-labeler universal handle.
+Because OM principal IDs are high-entropy, subscribers that already know a candidate principal can compute/match the reference, while the feed does not itself reveal the raw principal identifier. The guarantee is exactly this: the reference **prevents enumeration by parties who do not already know the principal; it does not prevent linkage by parties who do**. Every contact, every Room co-member and anyone who reads a ContactDescriptor knows the AccountID, and can compute the reference for every labeler and link their feeds (ADR-0128 rule 19).
 
 For already-public entities such as a public ServiceID/PublicationID, direct subject references may be appropriate.
 
-The exact hash/domain/canonical encoding is subject to V-016/conformance review; implementations must not invent incompatible ad-hoc encodings.
+The v1 construction above is a raw concatenation, which is ambiguous when `issuer_scope_id` has variable length and breaks the registry's rule that hash inputs use length-prefixed DS-HASH. `OM-SAFETY-REF-v1` therefore stays unused. Before W3, a DS-HASH construction over the canonical CBOR array `[issuer_scope_id, principal_ref]` is registered under a new label in [`om-domain-separation.json`](../../../spec/registries/om-domain-separation.json); implementations must not invent incompatible ad-hoc encodings.
 
 ## 15. No global reputation score
 

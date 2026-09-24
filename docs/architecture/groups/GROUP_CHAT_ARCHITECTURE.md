@@ -36,7 +36,7 @@ RoomIdentity
   initial_policy
 ```
 
-The `conversation_id` is bound into the MLS group/control context but is not a relay URL, domain, homeserver room ID or SpaceID. `RoomID` is an architectural/product term for this ConversationID, not a second wire identifier. This unifies the former redundant GroupID/ConversationID pair; see ADR-0084.
+The `conversation_id` is bound into the MLS group/control context but is not a relay URL, domain, homeserver room ID or SpaceID. The MLS `group_id` is a separate random value, unrelated to the ConversationID; the ConversationID travels only inside an encrypted GroupContext extension, so an MLS message never shows it (ADR-0128 rule 7). `RoomID` is an architectural/product term for this ConversationID, not a second wire identifier. This unifies the former redundant GroupID/ConversationID pair; see ADR-0084.
 
 ## Human roster vs cryptographic clients
 
@@ -67,14 +67,15 @@ MLS client credential
     -> ServiceEndpoint -> ServiceControlState -> ServiceID
 ```
 
-Directory providers may distribute KeyPackages, but they are not roots of trust.
+Directory providers may distribute KeyPackages, but they are not roots of trust. KeyPackages are fetchable only through relationship-scoped capabilities, never by arbitrary principals (see "Adding a person").
 
-## GroupState
+## GroupControlState
 
-Application state is distinct from raw MLS cryptographic state.
+Application state is distinct from raw MLS cryptographic state. (Older text calls this object `GroupState`; the one
+name is `GroupControlState`.)
 
 ```text
-GroupState
+GroupControlState
   conversation_id
   state_version
   previous_state_hash
@@ -93,7 +94,10 @@ GroupState
     new_device_policy
     history_policy
     service_policy
+    disappearing_timer?        # seconds; sets ConversationEvent.expiry on new sends (ADR-0128 rule 16)
     space_authority_binding?
+  coordinator_succession[]     # ordered member devices (GROUP_COMMIT_AND_STATE_CONVERGENCE.md §3.1)
+  invites[]                    # join_ref, authorization basis, max_uses, uses (see "Invites")
   mls_epoch_ref
   authorization_evidence
 ```
@@ -106,7 +110,7 @@ Roles are application-layer convenience bundles over explicit scoped capabilitie
 
 OM does not require a unique permanent owner or an unrestricted Administrator bypass. A new consumer Room may begin with simple 1-of-1 governance held by its creator; governance can later become multi-party. Delegation ceilings prevent a role manager from minting authority it was never allowed to grant.
 
-High-risk changes such as governance replacement, a plaintext bridge/full-room service, or an encryption/security-profile change may require a configured quorum. If governance authority is irrecoverably lost, the Room becomes administratively frozen rather than giving SeedLife/provider support a takeover key.
+High-risk changes such as governance replacement, a plaintext bridge/full-room service, or a change of non-cryptographic Room security policy (`room.manage_security_policy`) may require a configured quorum. CryptoProfile transitions are automatic, monotone and not governable (ADR-0107, ADR-0128 rule 8): no governor can veto, delay or reverse them, and governance can never lower an established floor. If governance authority is irrecoverably lost, the Room becomes administratively frozen rather than giving SeedLife/provider support a takeover key.
 
 See [`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md) for the canonical permission and role model.
 
@@ -123,19 +127,32 @@ New group
 
 Underneath:
 
-1. generate the Room `ConversationID`;
-2. initialize GroupState;
-3. initialize MLS group;
-4. fetch current KeyPackages for selected members' eligible devices;
-5. add device clients;
+1. generate the Room `ConversationID` and a random, unrelated MLS `group_id`;
+2. initialize GroupControlState;
+3. initialize the MLS group with the creator's own devices;
+4. send each selected person a Room invitation over the existing 1:1 relationship;
+5. as each invitee accepts, obtain its KeyPackages for this Room and add its eligible devices (next section);
 6. distribute Welcome messages;
 7. send encrypted group state/events through normal OM delivery.
 
+The UI can still read "New group -> select people -> Create"; people who have not accepted yet show as invited.
+
 ## Adding a person
 
-Adding an AccountID adds its eligible authorized devices.
+Nobody is added to a group without consenting (ADR-0128 rule 5; [`ABUSE_SAFETY_AND_REPORTING.md`](../safety/ABUSE_SAFETY_AND_REPORTING.md): "no unsolicited
+group addition"). An MLS Add reveals the invitee's credential, and so its AccountID and device set, to every current
+member, so consent comes first:
 
-Group policy decides whether any member may invite, only admins may invite, invite links are allowed, or admin approval is required.
+1. **Invite.** A member holding `room.invite` sends a Room invitation over its existing 1:1 relationship with the
+   invitee. The invitation names the Room and the inviter; it does not yet reveal the invitee to the Room.
+2. **Accept.** The invitee accepts, and releases KeyPackages for that Room (or requests the add) through a
+   relationship-scoped capability. Declining or ignoring changes nothing in the Room.
+3. **Add.** Only after acceptance is the MLS Add committed. Adding an AccountID adds its eligible authorized devices.
+
+KeyPackages are fetchable only through relationship-scoped capabilities, never by arbitrary principals. A client
+drops an MLS Welcome that no accepted invitation of its own precedes. Invite links (below) are the other path; there,
+redeeming the link is the consent. Who may invite is the `room.invite` capability
+([`om-room-capabilities.json`](../../../spec/registries/om-room-capabilities.json)); whether joins need approval is the Room's join policy under `room.manage_admission`.
 
 ## New device for an existing group member
 
@@ -151,12 +168,16 @@ High-assurance groups may set `new_device_policy = admin_approval`.
 ## Device revocation
 
 ```text
-AccountControlState revokes Alice phone A1
- -> groups learn the revocation
- -> MLS Remove for A1
+AccountControlState revokes (or quarantines) Alice phone A1
+ -> each member learns it at a validated ACS head
+ -> members stop sending application messages and propose an MLS Remove for A1
+ -> the coordinator sequences it, or after sequencing_timeout any member commits it
  -> epoch advances
  -> A1 cannot decrypt future group traffic
 ```
+
+The normative rules, including quarantine, CONTROL_CONFLICT and SAFETY_FREEZE, are in
+[`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](GROUP_COMMIT_AND_STATE_CONVERGENCE.md) §3.1 and §6.1.
 
 The revoked device may retain plaintext it legitimately received before removal.
 
@@ -209,22 +230,39 @@ OM does not grant history by exporting old MLS epoch secrets.
 
 This keeps live group cryptography separate from archive/history sharing.
 
+Rules (ADR-0128 rule 4):
+
+- The newcomer cannot verify the original authorship of events in a bundle: their MLS authentication was bound to
+  epochs the newcomer never held, and the bundle's author could invent them. Bundle events therefore render as
+  **"shared by <bundle author>"**, never as authenticated authorship by their claimed senders.
+- A bundle excludes expired disappearing content, deleted events and redacted events.
+- `history_policy` is cooperative policy, not a cryptographic control: it cannot stop a member who already holds
+  plaintext from sharing it.
+
 ## Invites
 
-Invite links/QR codes are capabilities, not identity.
+Invite links/QR codes are capabilities, not identity (ADR-0128 rule 6).
 
 ```text
 GroupInvite
-  conversation_id or opaque join reference
-  invite capability
-  expiry
+  join_ref                  opaque, rotatable; never the ConversationID
+  join_request_capability   where a redeemer sends its join request
+  issuer + authorization_basis
+  expiry                    wall clock (TIME_AND_EXPIRY_SEMANTICS.md)
   max_uses?
-  join_policy
+  join_policy               admin_approval (default) | open
 ```
 
-Invites can be rotated/revoked without changing the Room ConversationID.
-
-A shareable link should support admin approval by default.
+- A link never carries the ConversationID: a leaked link must not expose the permanent Room identity
+  ([`METADATA_THREAT_MODEL.md`](../../threat-model/METADATA_THREAT_MODEL.md)).
+- A link records its authorization basis and is valid only while its issuer holds `room.invite` at the epoch of the
+  commit that redeems it. Demoting or removing the issuer ends its links (the ADR-0122 grant cascade applied to
+  invites).
+- Redemption is a GroupControlIntent sequenced like any other, so `max_uses` is counted in GroupControlState and
+  concurrent redemptions cannot exceed it.
+- Admin approval is the default join policy for link invites (MUST). A Room may choose open links explicitly, through
+  a policy change under `room.manage_admission`.
+- Invites can be rotated/revoked without changing the Room ConversationID.
 
 ## Communities / Spaces
 
@@ -242,7 +280,7 @@ OM does not require a group homeserver.
 
 ### Reference privacy-first path
 
-A sender produces one MLS application ciphertext and fans it out to each target device's opaque delivery capability, potentially across different relay providers.
+A sender produces one MLS application ciphertext and MUST wrap each recipient copy in an independently encrypted per-recipient envelope before sending it to that device's opaque delivery capability, potentially across different relay providers. Relays never receive raw MLS messages, whose `group_id` and `epoch` are in the clear (ADR-0128 rule 7).
 
 Benefits:
 
@@ -257,7 +295,7 @@ Tradeoff: operation count grows with destination devices.
 
 A provider may advertise `group_broadcast`, accepting one ciphertext and distributing it to opaque registered recipients.
 
-This is only an optimization. Provider capability metadata must disclose the additional metadata the provider can observe.
+This is only an optimization. Provider capability metadata must disclose the additional metadata the provider can observe: its MetadataExposureDescriptor declares that it sees recipient-set linkage. It still receives an outer-encrypted payload, never a raw MLS message.
 
 The group protocol must work without it.
 
@@ -321,7 +359,7 @@ OM should:
 
 - encrypt control/handshake messages where feasible;
 - avoid publishing human-readable rosters to relays;
-- keep GroupState encrypted to the group;
+- keep GroupControlState encrypted to the group;
 - avoid a public global group directory in v1;
 - treat relay metadata exposure as a provider capability/property.
 
@@ -334,8 +372,8 @@ Avoid Matrix-scale state-resolution complexity in v1.
 Reference direction:
 
 - membership transitions bind to MLS epoch commits;
-- admin mutations reference prior GroupState hash/version;
-- conflicting offline updates are rejected/rebased deterministically rather than merged through a large distributed DAG;
+- admin mutations reference prior GroupControlState hash/version;
+- conflicting offline updates are rejected/rebased deterministically rather than merged through a large distributed DAG; a rebased non-reducing operation is re-authorized against its new parent and dropped if it fails there, and reductions stay live when the coordinator is not ([`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](GROUP_COMMIT_AND_STATE_CONVERGENCE.md) §3.1);
 - clients repair from the accepted state chain.
 
 Fork/fragmentation tests are mandatory in Gate C.
@@ -361,7 +399,10 @@ Reference clients can begin with a conservative product cap while performance is
 11. all admins disappear;
 12. directory lies about a KeyPackage;
 13. recovered account rejoins groups;
-14. malicious member attempts state fragmentation.
+14. malicious member attempts state fragmentation;
+15. the CommitCoordinator is offline or refuses to sequence its own removal;
+16. a member attempts to add a person who has not accepted an invitation;
+17. a newcomer receives a HistoryBundle containing forged events.
 
 ## UX
 
@@ -408,7 +449,7 @@ Independent clients can create a group, add/remove accounts and devices, exchang
 - Exact ciphersuite is selected through OM CryptoProfiles; current PQ/hybrid MLS suites are still evolving and must remain replaceable.
 - Do not permanently encode transient Internet-Draft identifiers as irreversible OM semantics.
 - Group profile migration/reinitialization must be authenticated and downgrade-safe.
-- Per-recipient relay delivery should use fresh randomized outer transport wrappers around group application ciphertext to reduce cross-relay correlation.
+- Per-recipient relay delivery MUST use fresh randomized outer transport wrappers around group application ciphertext to reduce cross-relay correlation (ADR-0128 rule 7).
 - Group voice/video uses SFrame media E2EE with participant/key state authenticated from the OM/MLS group context; an SFU is routing infrastructure, not a plaintext endpoint.
 ## 2026-09-22 hardening — Commit ordering and state binding
 

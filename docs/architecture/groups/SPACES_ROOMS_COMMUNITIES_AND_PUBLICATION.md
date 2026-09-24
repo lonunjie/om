@@ -134,26 +134,30 @@ A Room may opt into selected Space-managed capabilities using a `SpaceAuthorityB
 
 Baseline constraint: a Room has at most **one authority-parent Space** for delegated management. It may be affiliated/listed in many other Spaces, but those links have no authority.
 
-The binding declares exactly which Room capabilities the parent may manage, for example:
+The binding declares exactly which Room capabilities the parent may manage, by their ids in
+[`om-room-capabilities.json`](../../../spec/registries/om-room-capabilities.json), for example:
 
 ```text
-manage_room_profile
-manage_members
-manage_role_bindings
-moderate_content
-manage_topics
+room.manage_profile
+room.manage_admission
+room.remove_member
+room.ban_member
+room.manage_roles        # Space-role mirror updates
+room.redact_others
+room.manage_topics
 ```
 
-It does **not** automatically include:
+It does **not** automatically include the protected capabilities:
 
 ```text
-change_encryption_or_security_profile
-add_plaintext_bridge
-add_full_plaintext_service_member
-change_room_governance
+room.manage_security_policy
+room.add_bridge
+room.install_service
+room.manage_governance
 ```
 
-unless the Room explicitly grants those high-risk powers under its own governance policy.
+unless the Room explicitly grants those high-risk powers under its own governance policy. No binding can include a
+CryptoProfile change: CryptoProfile transitions are automatic and not governable (ADR-0128 rule 8).
 
 ### No live transitive permission magic
 
@@ -162,6 +166,24 @@ Space role changes do not become invisible dynamic authorization checks inside e
 Where a Space role is mapped into Room authority, the Room maintains an authenticated room-local binding/mirror through its normal control-transition process. Until the Room accepts that transition, its prior room-local authorization state remains the cryptographic truth.
 
 The UI may show “community role update propagating” rather than pretending distributed revocation is instantaneous.
+
+### SpaceDelegatedIntent: how Space authority executes in a Room (ADR-0128 rule 11)
+
+A Space moderator is often not a Room member and cannot produce an MLS Commit. Space authority therefore reaches a
+Room as a **`SpaceDelegatedIntent`**: a GroupControlIntent that carries the Space's signed evidence (a Space
+ModerationDecision, a Space-role mirror update or a Space-membership admission) plus the Space control head it was
+validated against.
+
+- **Any Room member may commit it.** Room members validate it against the binding and the carried Space head; the
+  Room's own authorization state is the check, not the committer's roles.
+- A Space-side **reduction** (a revoked Space role, a ban, a dropped binding) is a reducing intent and uses the
+  liveness rule of [`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](GROUP_COMMIT_AND_STATE_CONVERGENCE.md) §3.1: if the coordinator does not sequence it within
+  `sequencing_timeout`, any member commits it. Space revocations therefore cannot stay stale in the Room merely
+  because nobody chose to act.
+- The binding obliges the Space to deliver its governance head to the Room's members, who may not otherwise receive
+  it. The binding records a `freshness_bound`.
+- Admission checks that depend on Space membership or roles use the freshest Space head the member holds, and fail
+  closed when it is older than `freshness_bound`.
 
 This avoids a Room's correctness depending on a mandatory always-online Space server and prevents ambiguous multi-parent permission diamonds.
 
@@ -206,7 +228,7 @@ This supports ordinary single-admin UX, organizations with multiple stewards and
 
 If all principals able to change governance disappear and no pre-authorized succession/recovery path exists, the object becomes **administratively frozen** for actions requiring that authority.
 
-The protocol does not ask SeedLife, a relay, a directory or a dominant client vendor to invent a new owner. Already-authorized ordinary actions may continue. Participants can create/fork a successor Room/Space and publish migration guidance.
+The protocol does not ask SeedLife, a relay, a directory or a dominant client vendor to invent a new owner. Already-authorized ordinary actions may continue. Reductions also continue: self-leave and the removal of revoked or quarantined devices need only membership, and the CommitCoordinator's liveness rule ([`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](GROUP_COMMIT_AND_STATE_CONVERGENCE.md) §3.1) means a frozen or absent governance never blocks them. Participants can create/fork a successor Room/Space and publish migration guidance.
 
 This is a deliberate anti-capture property.
 
@@ -236,10 +258,13 @@ PublicationControlState
 PublicationEvent
   publication_id
   post_id
-  clock
+  clock                      # display ordering only, never validity
   kind: post | edit | tombstone
   body
   signing_key_ref
+  seq                        # per-signing-key monotonic counter
+  prev_post_hash             # hash of this key's previous event (chain)
+  control_state_hash         # PublicationControlState the signer acted under
   signature
 ```
 
@@ -251,7 +276,18 @@ This is intentionally different from the native private-message rule that avoids
 
 `PublicationControlState` is likewise hash-chained and governed. Publication signing keys are subordinate operational keys authorized by that control state; they are not the permanent identity of the Publication. Rotation/revocation does not change PublicationID.
 
-Each signed public event identifies the signing-key reference and the applicable publication control state. A compromised/retired signing key cannot authorize future posts after an accepted revocation transition. Competing authority-changing publication control heads freeze privileged advancement under the same pre-fork-governance rule used by Spaces.
+Each signed public event identifies the signing-key reference and the applicable publication control state. A compromised/retired signing key cannot authorize future posts after an accepted revocation transition.
+
+A signer-chosen `clock` cannot decide that, because an attacker holding a revoked key could sign new posts with an
+earlier clock. Validity is sequence-based instead (ADR-0128 rule 13):
+
+- each signing key signs a monotonic `seq` and a `prev_post_hash` chain, and every event names its
+  `control_state_hash`;
+- a revocation transition records the key's last valid `(key, seq)`; any event from that key beyond that sequence is
+  invalid regardless of its clock or the control state it names;
+- subscribers keep the highest validated PublicationControlState head and reject rollback (ADR-0122 rule 6), so an
+  untrusted mirror that withholds a revocation or a tombstone can delay them but cannot make an older head win once a
+  subscriber has seen a newer one. Competing authority-changing publication control heads freeze privileged advancement under the same pre-fork-governance rule used by Spaces.
 
 A post may be signed as the Publication identity without exposing a governor's personal AccountID in every public message.
 
