@@ -108,16 +108,23 @@ Model/fuzz the per-device 1:1 session manager across crossed initiation, add/rev
 - **Scopes blocked:** core_kernel
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
+- **Evidence:** `verification/tla/OneToOneSessions.tla`; `verification/tla/models-v003.json`; `verification/prototypes/v003-sessions/README.md`; `verification/results/v003-sessions-latest.json`; `verification/vectors/one-to-one-session-regression-vectors.json`
 
 Pre-engineering criteria:
 
 - [ ] executable model/fuzzer of the per-device 1:1 session manager covering crossed initiation, add/revoke races, stale/reset sessions, dedupe and persistence
-- [ ] every discovered failing trace captured as a vector
+- [x] every discovered failing trace captured as a vector
 - [ ] model reviewed by someone other than its author
 
 Pre-release criteria:
 
 - [ ] implementation fuzzing for an agreed CPU-hour budget with no unresolved crash or invariant violation
+
+What remains (needs someone other than the author):
+
+- non-author review of the model
+- design rulings for gaps K1-K5, K7, K9-K11, P1 (see README)
+- restore+redelivery config (MaxSid 2) did not finish in 3 min; unchecked
 
 ### V-004 — `group_commit_control_model`
 
@@ -218,7 +225,7 @@ Property-test/model the expanded baseline ConversationEvent materialization unde
 - **Scopes blocked:** groups
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_implementation; pre-release independent_implementation
-- **Evidence:** `verification/results/conversation-convergence-latest.json`
+- **Evidence:** `verification/prototypes/v009-materializer/README.md`; `verification/results/conversation-convergence-latest.json`; `verification/results/v009-materializer-latest.json`
 
 Pre-engineering criteria:
 
@@ -227,6 +234,12 @@ Pre-engineering criteria:
 Pre-release criteria:
 
 - [ ] every conforming implementation passes the corpus
+
+What remains (needs someone other than the author):
+
+- resolve doc ambiguities DA-1..DA-3 and fix reference bugs REF-1, REF-3, then re-diff
+- second implementation covers pins/redaction/polls/topics only; edits/deletes/reactions/receipts/replies lack a second implementation
+- authorization semantics shared via compare.py adapter, not independent
 
 ### V-010 — `plugin_sandbox_capability_model`
 

@@ -7,17 +7,17 @@ Written by a Claude agent; the design package was authored by a ChatGPT design a
 
 ## What it is
 
-The per-device 1:1 session manager is the state machine that sits above the ratchet (`ONE_TO_ONE_SESSION_MANAGEMENT.md`,
-Q-050 in `ARCHITECTURE_RESOLUTIONS_20260923.md`). It is modelled twice, independently, from the docs
-(`ONE_TO_ONE_SESSION_MANAGEMENT.md`, `MULTI_DEVICE_SYNC.md`, `ASYNC_KEY_MATERIAL.md`, `ACCOUNT_CONTINUITY_AND_CONTROL.md`,
-`CRYPTOGRAPHY_AND_AGILITY.md` "Downgrade floor"):
+The per-device 1:1 session manager is the state machine that sits above the ratchet ([`ONE_TO_ONE_SESSION_MANAGEMENT.md`](../../../docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md),
+Q-050 in [`ARCHITECTURE_RESOLUTIONS_20260923.md`](../../../docs/reviews/ARCHITECTURE_RESOLUTIONS_20260923.md)). It is modelled twice, independently, from the docs
+([`ONE_TO_ONE_SESSION_MANAGEMENT.md`](../../../docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md), [`MULTI_DEVICE_SYNC.md`](../../../docs/architecture/crypto/MULTI_DEVICE_SYNC.md), [`ASYNC_KEY_MATERIAL.md`](../../../docs/architecture/crypto/ASYNC_KEY_MATERIAL.md), [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../../../docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md),
+[`CRYPTOGRAPHY_AND_AGILITY.md`](../../../docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md) "Downgrade floor"):
 
 | Artifact | Role |
 |---|---|
 | [`verification/tla/OneToOneSessions.tla`](../../tla/OneToOneSessions.tla) | TLA+ model, checked by the pinned TLC 1.7.4 |
 | [`verification/tla/models-v003.json`](../../tla/models-v003.json) | every config and its expected outcome (`make tlc` checks them) |
 | [`sessions.py`](sessions.py) | Python reference machine, written from the docs, not from the TLA+ |
-| [`fuzzer.py`](fuzzer.py) | replays every vector on `sessions.py` step by step; hypothesis fuzzing on a larger topology |
+| [`fuzzer.py`](fuzzer.py) | replays every vector on [`sessions.py`](sessions.py) step by step; hypothesis fuzzing on a larger topology |
 | [`tlc_runs.py`](tlc_runs.py) | generates the `OneToOneSessions*.cfg` configs (`tlc_runs.py gen`), runs them, writes vectors |
 | [`results.py`](results.py) | writes [`verification/results/v003-sessions-latest.json`](../../results/v003-sessions-latest.json) |
 
@@ -64,7 +64,7 @@ off any one rule gives a TLC counterexample, which becomes a regression vector.
   later message, which led to K10).
 - **K11, found by hypothesis with K1..K10 on:** b2 restores (its ratchet state is dropped, per K8). The relay then
   re-delivers b1's original prekey message. b2 re-derives the same session from its pre-restore prekey secrets and
-  sends at counter 1 again, so a key is reused. TLC confirms it (`OneToOneSessions_K11.cfg`, 11 steps).
+  sends at counter 1 again, so a key is reused. TLC confirms it ([`OneToOneSessions_K11.cfg`](../../tla/OneToOneSessions_K11.cfg), 11 steps).
 - **Below-floor rejection is silent** (fuzzer, K3 off): a2 initiates a weak session before learning the pair's
   floor, and a1 rejects it with no signal to the sender, so the message is lost. K3 hides this only because the ACS
   minimum equals the strongest modelled profile. If a pair has established a profile above the ACS minimum, the
@@ -73,14 +73,14 @@ off any one rule gives a TLC counterexample, which becomes a regression vector.
   outbox is rejected by K9 by design.
 
 Vectors: [`verification/vectors/one-to-one-session-regression-vectors.json`](../../vectors/one-to-one-session-regression-vectors.json)
-(found + TLC traces, each replayed step for step on `sessions.py`) and [`fuzzer_vectors.json`](fuzzer_vectors.json)
+(found + TLC traces, each replayed step for step on [`sessions.py`](sessions.py)) and [`fuzzer_vectors.json`](fuzzer_vectors.json)
 (hypothesis-shrunk traces per disabled rule).
 
 ## Criteria
 
 | Criterion | Status | Evidence |
 |---|---|---|
-| executable model/fuzzer covering crossed initiation, add/revoke races, stale/reset, dedupe, persistence | met (bounded) | TLA+ + `sessions.py` + `fuzzer.py`; results JSON |
+| executable model/fuzzer covering crossed initiation, add/revoke races, stale/reset, dedupe, persistence | met (bounded) | TLA+ + [`sessions.py`](sessions.py) + [`fuzzer.py`](fuzzer.py); results JSON |
 | every discovered failing trace captured as a vector | met | vectors files above |
 | model reviewed by someone other than its author | unmet | needs an independent reviewer |
 
@@ -102,13 +102,13 @@ TLC pass run.
 
 ## Proposed design updates
 
-1. `ONE_TO_ONE_SESSION_MANAGEMENT.md`: make K1, K2, K4, K5, K7, K9, K10 and K11 normative rules (they are currently
+1. [`ONE_TO_ONE_SESSION_MANAGEMENT.md`](../../../docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md): make K1, K2, K4, K5, K7, K9, K10 and K11 normative rules (they are currently
    outcomes or unstated), each with its vector as the conformance test.
-2. Backup/restore (`ONE_TO_ONE_SESSION_MANAGEMENT.md` §7, `ACCOUNT_CONTINUITY_AND_CONTROL.md`): backups must not
+2. Backup/restore ([`ONE_TO_ONE_SESSION_MANAGEMENT.md`](../../../docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md) §7, [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../../../docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md)): backups must not
    contain handshake prekey secrets, and a restored device must publish fresh prekeys and answer prekey messages for
    old prekeys with an authenticated reset (K11).
-3. `CRYPTOGRAPHY_AND_AGILITY.md` "Downgrade floor": say where the floor survives restore (K3). A receiver that rejects
+3. [`CRYPTOGRAPHY_AND_AGILITY.md`](../../../docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md) "Downgrade floor": say where the floor survives restore (K3). A receiver that rejects
    a session below the floor must send an authenticated reject/reset naming the message so the sender can retry.
 4. Decide whether lazy repair of a lost session (P1) is acceptable, or whether a restored/crashed device must
    proactively announce lost sessions.
-5. Register the new files in `machine/file_registry.json` (not done here: this prototype does not edit `machine/`).
+5. Register the new files in [`machine/file_registry.json`](../../../machine/file_registry.json) (not done here: this prototype does not edit `machine/`).

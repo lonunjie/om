@@ -9,9 +9,9 @@ This is **evidence, not gate passage**. The criterion status is `partial`, with 
 | File | Role |
 |---|---|
 | `materializer/` | Independent **Rust** ConversationEvent materializer (`src/materialize.rs`), written from the public docs. It is incremental: events apply in arrival order, and events whose target has not arrived are buffered. |
-| `gen_corpus.py` | Deterministic corpus generator (stdlib only): 55 hand-written cases plus 60 seeded random cases. Output goes to `work/corpus.json` (gitignored and regenerated on every run). |
-| `compare.py` | Imports the reference `verification/bounded/conversation_convergence.py` **unmodified**, adapts the corpus to it, checks that the reference converges across delivery orders, diffs it against the Rust views, and attributes every disagreement. |
-| `run.sh` | Builds and runs everything, then writes `verification/results/v009-materializer-latest.json`. It exits non-zero on any non-convergence or unattributed disagreement. |
+| [`gen_corpus.py`](gen_corpus.py) | Deterministic corpus generator (stdlib only): 55 hand-written cases plus 60 seeded random cases. Output goes to `work/corpus.json` (gitignored and regenerated on every run). |
+| `compare.py` | Imports the reference [`verification/bounded/conversation_convergence.py`](../../bounded/conversation_convergence.py) **unmodified**, adapts the corpus to it, checks that the reference converges across delivery orders, diffs it against the Rust views, and attributes every disagreement. |
+| `run.sh` | Builds and runs everything, then writes [`verification/results/v009-materializer-latest.json`](../../results/v009-materializer-latest.json). It exits non-zero on any non-convergence or unattributed disagreement. |
 
 ```sh
 verification/prototypes/v009-materializer/run.sh     # ~10 s warm, ~30 s cold build
@@ -23,7 +23,7 @@ Dependencies: Rust 1.98.1 (pinned in `materializer/rust-toolchain.toml`), `serde
 
 `eventclock` (physical/counter/endpoint tiebreak, identical HLC tuple, backward clock, future-dated pin and close), `edits`, `deletes`, `reactions`, `receipts`, `replies`/threads, `pins`, `redaction`, `polls` (single/multiple, two closes, unauthorized close, retraction), `topics` (lifecycle, duplicate create, unauthorized update, create-time placement, move/clear), `malformed` (bad refs, wrong target kinds, wrong JSON types, wrong clock arity, clock-endpoint mismatch, unknown epoch, wrong conversation, >64 KiB, missing EventID, equivocating EventID), `extensions` (unknown critical capability on content, on a state operation, on an unknown kind, and unknown optional kind), `authorization_race` (pin vs. revocation, redaction vs. demotion, grant vs. action, vote vs. restriction, topic management vs. demotion, close vs. demotion), `duplication`, and 60 `random` cases.
 
-Authority is modeled as an externally ordered chain of control epochs (grants and restrictions per principal). Each event names the epoch it was sent under. This follows `GROUP_COMMIT_AND_STATE_CONVERGENCE.md` §1/§4 and `TIME_AND_EXPIRY_SEMANTICS.md` §1: authority never comes from the HLC.
+Authority is modeled as an externally ordered chain of control epochs (grants and restrictions per principal). Each event names the epoch it was sent under. This follows [`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](../../../docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md) §1/§4 and [`TIME_AND_EXPIRY_SEMANTICS.md`](../../../docs/architecture/events/TIME_AND_EXPIRY_SEMANTICS.md) §1: authority never comes from the HLC.
 
 ## Results (run 2026-09-24)
 
@@ -45,7 +45,7 @@ Authority is modeled as an externally ordered chain of control epochs (grants an
 
 | Gate | Criterion | Status | Evidence | Reason |
 |---|---|---|---|---|
-| V-009 | second independently written materializer agrees with the reference on the full corpus incl. malformed and authorization-race cases | **partial** | this directory; `verification/results/v009-materializer-latest.json` | Different language, and written before the reference logic was read (commit `4fdfda2` precedes the adapter). It converges everywhere, and every disagreement is attributed. It is not "agrees": 2 reference bugs and 3 ambiguities need fixes or rulings. The reference covers 4 of the 10+ baseline features, and authorization is adapter-supplied. |
+| V-009 | second independently written materializer agrees with the reference on the full corpus incl. malformed and authorization-race cases | **partial** | this directory; [`verification/results/v009-materializer-latest.json`](../../results/v009-materializer-latest.json) | Different language, and written before the reference logic was read (commit `4fdfda2` precedes the adapter). It converges everywhere, and every disagreement is attributed. It is not "agrees": 2 reference bugs and 3 ambiguities need fixes or rulings. The reference covers 4 of the 10+ baseline features, and authorization is adapter-supplied. |
 
 **Independence (honest statement):** written by a Claude agent; the design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The Rust materializer was written from the docs only. Before its commit, the only part of the reference viewed was the `E` record's field list (lines 1–21). The corpus generator and adapter were written by the same agent as the materializer.
 
@@ -75,17 +75,17 @@ Authority is modeled as an externally ordered chain of control epochs (grants an
 
 ## Design gaps found
 
-1. **G-V9-1 — HLC last-writer-wins lets a skewed or hostile clock dominate shared state** (`clock-future-dated-pin`). An authorized pinner who stamps `physical_ms` in 2090 wins every later honest unpin until 2090. `EVENT_MODEL.md` says a misleading clock "does not grant identity or authorization", but in LWW registers it grants precedence. The same applies to topic title/status, `message.topic.set` and edits. *Proposed:* order shared-state LWW by `(sending control epoch, HLC)`, so a later epoch always supersedes, and/or clamp a received HLC to at most the receiver's local time plus a declared skew. The clamp must not use arrival time as a tiebreak.
+1. **G-V9-1 — HLC last-writer-wins lets a skewed or hostile clock dominate shared state** (`clock-future-dated-pin`). An authorized pinner who stamps `physical_ms` in 2090 wins every later honest unpin until 2090. [`EVENT_MODEL.md`](../../../docs/architecture/events/EVENT_MODEL.md) says a misleading clock "does not grant identity or authorization", but in LWW registers it grants precedence. The same applies to topic title/status, `message.topic.set` and edits. *Proposed:* order shared-state LWW by `(sending control epoch, HLC)`, so a later epoch always supersedes, and/or clamp a received HLC to at most the receiver's local time plus a declared skew. The clamp must not use arrival time as a tiebreak.
 2. **G-V9-2 — The stale-epoch acceptance window is local policy, so views can diverge.** Under D-02, a demoted moderator's redaction sent under the old epoch is valid (`race-redact-vs-demotion`). Whether a receiver can still decrypt an old-epoch event depends on its local MLS past-epoch secret retention. Two receivers with different retention materialize different views. *Proposed:* make past-epoch retention a normative GroupProfile parameter. Views are then required to converge only over events every member can decrypt, and undecryptable events render as an explicit gap.
 3. **G-V9-3 — EventID equivocation is unspecified** (REF-1). *Proposed:* adopt D-03 normatively, and add an equivocation vector to the conformance corpus.
-4. **G-V9-4 — Several capability bindings are not stated:** poll vote, poll close, topic update/status, edit after demotion, and author delete (D-08..D-12, D-16). *Proposed:* add a kind→capability table to `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`.
+4. **G-V9-4 — Several capability bindings are not stated:** poll vote, poll close, topic update/status, edit after demotion, and author delete (D-08..D-12, D-16). *Proposed:* add a kind→capability table to [`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](../../../docs/architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md).
 5. **G-V9-5 — The reference model's authorization input is an oracle.** The existing 864-case result therefore cannot show authorization-race behavior. The reference should consume the control-epoch chain itself.
 
 ## Proposed design updates
 
-- `EVENT_MODEL.md` "EventClock": add the D-01 total-order key and the G-V9-1 epoch-major LWW or clamp rule.
-- `EVENT_MODEL.md` "Materialized views": add rules for dangling and wrong-kind targets (DA-1) and for equivocation (D-03).
-- `MESSENGER_BASELINE_V1.md` polls: validate options (REF-3), close authority (D-12), empty-vote retraction (D-17).
-- `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`: kind→capability table (G-V9-4) and the duplicate-topic rule (D-15).
-- `verification/bounded/conversation_convergence.py`: fix REF-1 and REF-3, and derive `authorized` from a control chain (G-V9-5). Not edited here, per the task rules.
-- `machine/file_registry.json`: register this directory's files and `verification/results/v009-materializer-latest.json` (not edited here).
+- [`EVENT_MODEL.md`](../../../docs/architecture/events/EVENT_MODEL.md) "EventClock": add the D-01 total-order key and the G-V9-1 epoch-major LWW or clamp rule.
+- [`EVENT_MODEL.md`](../../../docs/architecture/events/EVENT_MODEL.md) "Materialized views": add rules for dangling and wrong-kind targets (DA-1) and for equivocation (D-03).
+- [`MESSENGER_BASELINE_V1.md`](../../../docs/architecture/events/MESSENGER_BASELINE_V1.md) polls: validate options (REF-3), close authority (D-12), empty-vote retraction (D-17).
+- [`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](../../../docs/architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md): kind→capability table (G-V9-4) and the duplicate-topic rule (D-15).
+- [`verification/bounded/conversation_convergence.py`](../../bounded/conversation_convergence.py): fix REF-1 and REF-3, and derive `authorized` from a control chain (G-V9-5). Not edited here, per the task rules.
+- [`machine/file_registry.json`](../../../machine/file_registry.json): register this directory's files and [`verification/results/v009-materializer-latest.json`](../../results/v009-materializer-latest.json) (not edited here).
