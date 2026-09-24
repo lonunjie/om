@@ -28,6 +28,14 @@
     "profile_namespaces": {
       "type": "boolean",
       "const": true
+    },
+    "wrapping_credential_class": {
+      "enum": [
+        "device_bound",
+        "synced_separate",
+        "synced_shared_salt_only"
+      ],
+      "description": "which credential wraps the vault relative to the RecoveryRoot; synced_shared_salt_only is the reduced at-rest case that must be stated to the user (ADR-0129 rule 15)"
     }
   }
 }

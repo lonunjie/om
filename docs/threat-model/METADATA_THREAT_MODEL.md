@@ -126,7 +126,7 @@ The private-delivery profile therefore uses an independently randomized encrypte
 
 Consequences:
 
-- the relay routes by opaque capability, not `ConversationID` or MLS group ID;
+- the relay routes by opaque capability, not `ConversationID` or MLS group ID; every group copy is wrapped per recipient, relays never receive raw MLS messages, and the MLS `group_id` is random and unrelated to the `ConversationID` (ADR-0128 rule 7);
 - two relays do not receive byte-identical outer ciphertext for the same logical event where avoidable;
 - provider-visible retry/delivery metadata remains provider-local rather than becoming canonical event state;
 - inner MLS metadata remains visible to legitimate Room recipients after decryption and remains subject to the underlying MLS protocol's own leakage properties.
@@ -200,7 +200,8 @@ Push rules remain:
 - use opaque per-profile/per-device wake handles;
 - minimize durable linkage between relay queue identity and platform token;
 - local client renders notification content after fetching/decrypting;
-- Maximum Privacy may disable vendor push with an explicit background-delivery tradeoff.
+- Maximum Privacy may disable vendor push with an explicit background-delivery tradeoff;
+- one platform push token or Web Push subscription must not be shared across IdentityProfiles toward different parties; a native per-app token is a declared linkage point (ADR-0129, [`NOTIFICATIONS_AND_PUSH.md`](../architecture/client/NOTIFICATIONS_AND_PUSH.md)).
 
 The UI must not say “Apple/Google learns nothing” merely because the payload is opaque.
 
@@ -220,6 +221,8 @@ When independent/non-colluding:
 - the resolver can see the alias query but not the original client network address.
 
 The client must understand that collusion, unique request content/configuration, timing or a global observer may still correlate the request.
+
+Directory records carry no `AccountID` and no account state hash; key transparency logs alias -> intro identity public key (R-208, ADR-0126).
 
 IntroGate abuse controls use provider/surface-scoped signals, short-lived tickets and optional privacy-preserving admission proofs. They must not require turning `AccountID` into a global rate-limit cookie.
 
@@ -260,7 +263,7 @@ A remote LLM service may learn network and invocation timing in addition to sele
 
 Bridge interoperability needs stable-enough lineage to suppress loops but must not create a universal cross-network tracking tag.
 
-`InteropTrace.origin_fingerprint` is therefore **mapping/bridge-domain scoped** by default. Implementations must not expose a raw foreign event ID or one globally stable hash when a scoped keyed/domain-separated fingerprint can do the job.
+`InteropTrace.origin_fingerprint` is therefore keyed with a Room-scoped secret over (origin network, foreign origin id) (ADR-0124); dedup is per Room across bridges. Implementations must not expose a raw foreign event ID or one globally stable hash when a scoped keyed/domain-separated fingerprint can do the job.
 
 Bridge path metadata is disclosed only to the extent required for loop prevention and diagnostics. It must not be copied into ordinary user-visible forwarding metadata across unrelated Rooms.
 
@@ -356,6 +359,7 @@ V1 does not claim to defeat:
 8. Expensive padding/cover traffic is policy-selectable and bounded, not silently mandatory.
 9. Provider metadata claims are distinguishable from protocol-enforced properties.
 10. Metadata privacy failures cannot silently downgrade message cryptographic authentication/E2EE.
+11. AsyncKeyBundle `acs_generation`/`acs_state_hash` are a stable per-account correlator visible to KeyMaterialProviders and fetchers (not the AccountID); this is disclosed in the W0 descriptor and tracked as A-031.
 
 ## 21. Verification obligation
 

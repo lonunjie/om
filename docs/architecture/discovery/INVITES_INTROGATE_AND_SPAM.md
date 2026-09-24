@@ -91,6 +91,9 @@ anti-replay nonce
 optional anonymous anti-abuse entitlement
 ```
 
+"No unsolicited call permission" is defined in [`CALLS_AND_REALTIME_MEDIA.md`](../calls/CALLS_AND_REALTIME_MEDIA.md) "Who may ring": a caller without an
+accepted relationship causes no ringing, ICE or TURN allocation (ADR-0128 rules 14-15).
+
 The ticket issuer may be the recipient's chosen IntroGate or a delegated anti-abuse service.
 
 ### 5.1 MessageRequest cryptography (ADR-0126)

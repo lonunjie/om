@@ -2,7 +2,8 @@
  "status": "W0 MetadataExposureDescriptors (V-015). Checked by verification/bounded/metadata_trace_model.py.",
  "schema": "docs/ux-design/metadata-exposure.logical.schema.json",
  "notes": [
-  "key_material_provider (ADR-0126, F-R1-9): stable_account_id and device_count are 'sometimes'. Every AsyncKeyBundle carries acs_generation and acs_state_hash in the clear; they are identical for all of an account's devices and across providers, so a provider or a fetcher can group devices per account and follow the account across providers. That is a stable per-account correlator, not the AccountID itself. An unlinkable binding is design-queue item A-031."
+  "key_material_provider (ADR-0126, F-R1-9): stable_account_id and device_count are 'sometimes'. Every AsyncKeyBundle carries acs_generation and acs_state_hash in the clear; they are identical for all of an account's devices and across providers, so a provider or a fetcher can group devices per account and follow the account across providers. That is a stable per-account correlator, not the AccountID itself. An unlinkable binding is design-queue item A-031.",
+  "cross_profile_linkage (ADR-0129 rule 14): a native per-app push token presented for two IdentityProfiles links them at the push provider unless vendor push is disabled for a Keep-separate profile or one declared gateway is used; on web each profile has its own Web Push subscription."
  ],
  "fields": [
   "client_network_address",
@@ -17,7 +18,8 @@
   "push_timing",
   "sponsor_relationship",
   "recovery_attempt",
-  "device_count"
+  "device_count",
+  "cross_profile_linkage"
  ],
  "descriptors": [
   {
@@ -35,7 +37,8 @@
     "push_timing": "no_by_design",
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
-    "device_count": "sometimes"
+    "device_count": "sometimes",
+    "cross_profile_linkage": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md; RELAY_AND_DELIVERY_ARCHITECTURE.md",
@@ -63,7 +66,8 @@
     "push_timing": "no_by_design",
     "sponsor_relationship": "always",
     "recovery_attempt": "no_by_design",
-    "device_count": "sometimes"
+    "device_count": "sometimes",
+    "cross_profile_linkage": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "HOME_ONBOARDING \u00a73.3 (sponsor sees delivery timing/volume/sizes, not content)",
@@ -90,7 +94,8 @@
     "push_timing": "no_by_design",
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
-    "device_count": "sometimes"
+    "device_count": "sometimes",
+    "cross_profile_linkage": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "HOME_ONBOARDING \u00a74.1 (host sees member delivery timing/volume/sizes)",
@@ -117,7 +122,8 @@
     "push_timing": "no_by_design",
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
-    "device_count": "sometimes"
+    "device_count": "sometimes",
+    "cross_profile_linkage": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "ASYNC_KEY_MATERIAL.md",
@@ -144,7 +150,8 @@
     "push_timing": "no_by_design",
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
-    "device_count": "no_by_design"
+    "device_count": "no_by_design",
+    "cross_profile_linkage": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "STORAGE_AND_BLOB_ARCHITECTURE.md",
@@ -153,7 +160,8 @@
    ],
    "optional_mitigations": [
     "size classes",
-    "prefetch/decoy downloads"
+    "prefetch/decoy downloads",
+    "shared-blob expressive mode links conversations when enabled (ADR-0129 rule 10); off by default"
    ]
   },
   {
@@ -171,7 +179,8 @@
     "push_timing": "always",
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
-    "device_count": "sometimes"
+    "device_count": "sometimes",
+    "cross_profile_linkage": "sometimes"
    },
    "source_of_claim": "mixed",
    "retention_policy_reference": "NOTIFICATIONS_AND_PUSH.md (opaque wake only)",
@@ -180,7 +189,10 @@
    ],
    "optional_mitigations": [
     "disable push; poll",
-    "coalesced wakes"
+    "coalesced wakes",
+    "per-profile Web Push registration (web)",
+    "disable vendor push per Keep-separate profile",
+    "single declared gateway"
    ]
   },
   {
@@ -198,7 +210,8 @@
     "push_timing": "no_by_design",
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
-    "device_count": "no_by_design"
+    "device_count": "no_by_design",
+    "cross_profile_linkage": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "DISCOVERY_FABRIC.md",
@@ -224,7 +237,8 @@
     "push_timing": "no_by_design",
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
-    "device_count": "no_by_design"
+    "device_count": "no_by_design",
+    "cross_profile_linkage": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "INVITES_INTROGATE_AND_SPAM.md",
@@ -250,7 +264,8 @@
     "push_timing": "no_by_design",
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "always",
-    "device_count": "no_by_design"
+    "device_count": "no_by_design",
+    "cross_profile_linkage": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md \u00a710 (RecoveryRecord under H(RecoveryHandle))",
@@ -276,7 +291,8 @@
     "push_timing": "no_by_design",
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "sometimes",
-    "device_count": "no_by_design"
+    "device_count": "no_by_design",
+    "cross_profile_linkage": "no_by_design"
    },
    "source_of_claim": "provider_asserted",
    "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md \u00a710.6-10.7 (rpId + random RecoveryHandle)",
@@ -302,7 +318,8 @@
     "push_timing": "no_by_design",
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
-    "device_count": "no_by_design"
+    "device_count": "no_by_design",
+    "cross_profile_linkage": "no_by_design"
    },
    "source_of_claim": "mixed",
    "retention_policy_reference": "CLIENTHOST_UPDATE_LIFECYCLE.md; R-188",

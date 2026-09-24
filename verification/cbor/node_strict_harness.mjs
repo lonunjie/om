@@ -22,7 +22,12 @@ const FIELDS = readJson(path.join(REG, 'om-numeric-fields.json'));
 const TYPES = Object.fromEntries(readJson(path.join(REG, 'om-object-types.json')).types.map((t) => [t.name, t]));
 const PROFILE = readJson(path.join(REG, 'om-cbor-profile.json'));
 const LIM = PROFILE.limits;
-const KNOWN_EXT = new Set(PROFILE.extensions.known_extensions);
+// known extensions: the CBOR profile list plus registered key-23 extensions in om-numeric-fields (ADR-0126)
+const KNOWN_EXT = new Set([...PROFILE.extensions.known_extensions, ...(FIELDS.extensions || []).map((e) => e.name)]);
+// CryptoProfile id -> AsyncKeyBundle field keys that profile requires (om-crypto-profiles required_bundle_fields)
+const CRYPTO = readJson(path.join(REG, 'om-crypto-profiles.json'));
+const BUNDLE_REQUIRED = new Map(CRYPTO.profiles.filter((p) => p.required_bundle_fields).map((p) => [BigInt(p.id),
+  p.required_bundle_fields.map((n) => FIELDS.structs.AsyncKeyBundle.fields.find((f) => f.name === n).key)]));
 
 class Reject extends Error { constructor(c) { super(c); this.cls = c; } }
 const fail = (c) => { throw new Reject(c); };
@@ -228,6 +233,10 @@ function checkStruct(x, name, topId) {
     } else checkType(val, f.type, x, s.fields);
   }
   for (const f of s.fields) if (f.req && !has(x, f.key)) fail('missing_field');
+  if (name === 'AsyncKeyBundle') {
+    const prof = get(x, 5);
+    for (const k of BUNDLE_REQUIRED.get(prof.v) || []) if (!has(x, k)) fail('missing_field');
+  }
 }
 
 function checkEnvelope(v, t) {

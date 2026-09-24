@@ -4,10 +4,14 @@
     "clienthost_id": "deployment-local identifier, never AccountID",
     "release_version": "verified OM client release identifier",
     "release_metadata_hash": "signed release metadata reference",
+    "release_root": "owner-pinned release root id; changeable only by the owner, never by release metadata (ADR-0129 rule 12)",
+    "update_mode": "automatic | approval_required",
+    "deploy_delay_s": "owner-configurable delay before automatic deploy (default 86400; a SecurityAdvisory from the pinned root may shorten it to no less than 3600)",
+    "transparency_observations": "release-transparency observations of the release digest (at least two independent monitors before automatic deploy)",
     "deployment_generation": "host-local deployment generation",
     "previous_release": "bounded rollback reference",
     "service_worker_generation": "PWA cache/worker lifecycle state",
-    "minimum_security_version": "distribution-local emergency floor when configured",
+    "minimum_security_version": "owner-local floor set by the ClientHost owner, informed by SecurityAdvisories (ADR-0104); never remotely set",
     "health": "local deployment health status"
   },
   "Rule": "ClientHost deployment state is replaceable infrastructure state and never identity authority."

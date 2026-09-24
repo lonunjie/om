@@ -42,7 +42,8 @@
     {"id": "space.manage_links", "scope": "space", "wave": "W3", "protected": false, "description": "propose and revoke child links"},
     {"id": "space.manage_roles", "scope": "space", "wave": "W3", "protected": false, "description": "create, edit and assign Space roles within the ceiling"},
     {"id": "space.moderate", "scope": "space", "wave": "W3", "protected": false, "description": "issue Space ModerationDecisions; effect in a Room only via a SpaceDelegatedIntent the Room's binding accepts"},
-    {"id": "space.manage_governance", "scope": "space", "wave": "W3", "protected": true, "description": "change Space governance principals and thresholds"}
+    {"id": "space.manage_governance", "scope": "space", "wave": "W3", "protected": true, "description": "change Space governance principals and thresholds"},
+    {"id": "room.set_plaintext_egress", "scope": "room", "wave": "W4", "protected": true, "description": "grant or withdraw the Room policy plaintext_egress that lets tainted service/plugin invocations egress (ADR-0124 rule 2, ADR-0129 rule 2)"}
   ],
   "operations": [
     {"key": "message.create", "requires": ["room.post"], "note": "room.reply instead when reply_to or thread_root_event_id is set; plus room.upload when attachments are present"},
@@ -85,6 +86,8 @@
     {"key": "control.security_policy.set", "requires": ["room.manage_security_policy"]},
     {"key": "control.governance.set", "requires": ["room.manage_governance"]},
     {"key": "control.coordinator.replace", "requires": ["basis: membership"], "note": "only to the next live device in the recorded succession order, after sequencing_timeout (ADR-0128 rule 1)"},
-    {"key": "call.start", "requires": ["room.start_call"]}
+    {"key": "call.start", "requires": ["room.start_call"]},
+    {"key": "control.service.remove_revoked_endpoint", "requires": ["basis: membership"], "note": "any member, for a service endpoint revoked at a validated ServiceControlState head (ADR-0129 rule 6, ADR-0128 rule 1)"},
+    {"key": "control.policy.set_plaintext_egress", "requires": ["room.set_plaintext_egress"]}
   ]
 }

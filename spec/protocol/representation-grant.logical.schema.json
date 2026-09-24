@@ -3,7 +3,7 @@
   "title": "OM RepresentationGrant logical schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["grant_id", "represented_account_id", "service_id", "scope_refs", "allowed_actions", "issued_by_account_authority", "revocation_state"],
+  "required": ["grant_id", "represented_account_id", "service_id", "scope_refs", "allowed_actions", "issued_by_account_authority", "basis", "revocation_state"],
   "properties": {
     "grant_id": {"type": "string"},
     "represented_account_id": {"type": "string"},
@@ -11,7 +11,9 @@
     "scope_refs": {"type": "array", "minItems": 1, "items": {"type": "object"}},
     "allowed_actions": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
     "optional_constraints": {"type": "object"},
-    "issued_by_account_authority": {"type": "object"},
+    "counterparty_recipient": {"type": "boolean", "default": false, "description": "true when the grant makes the service a recipient of counterparties' messages; requires the counterparty notice (ADR-0129 rule 5)"},
+    "issued_by_account_authority": {"type": "object", "additionalProperties": false, "required": ["signer_device_id", "acs_head_version", "acs_head_hash", "signature"], "description": "signature by an active, non-quarantined control device over the grant and the AccountControlState head it was validated against (ADR-0129 rule 4)", "properties": {"signer_device_id": {"type": "string"}, "acs_head_version": {"type": "integer", "minimum": 0}, "acs_head_hash": {"type": "string"}, "signature": {"type": "string"}}},
+    "basis": {"type": "object", "required": ["control_device_id", "acs_head"], "description": "the issuing control device and ACS head; the grant stops validating when that device is quarantined or revoked unless re-issued (ADR-0122 rule 2, ADR-0129 rule 4)", "properties": {"control_device_id": {"type": "string"}, "acs_head": {"type": "object"}}},
     "not_before": {"type": ["integer", "null"], "minimum": 0},
     "expires_at": {"type": ["integer", "null"], "minimum": 0},
     "revocation_state": {"enum": ["active", "revoked"]}

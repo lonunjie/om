@@ -13,6 +13,7 @@ use std::collections::HashMap;
 pub const FIELDS_JSON: &str = include_str!("../../../../../spec/registries/om-numeric-fields.json");
 pub const TYPES_JSON: &str = include_str!("../../../../../spec/registries/om-object-types.json");
 pub const PROFILE_JSON: &str = include_str!("../../../../../spec/registries/om-cbor-profile.json");
+pub const CRYPTO_JSON: &str = include_str!("../../../../../spec/registries/om-crypto-profiles.json");
 
 #[derive(Debug, Clone)]
 pub enum Ty {
@@ -57,6 +58,8 @@ pub struct Registry {
     pub enums: HashMap<String, Vec<u64>>,
     pub types: HashMap<String, ObjType>,
     pub known_ext: Vec<String>,
+    /// CryptoProfile id -> AsyncKeyBundle field keys that profile requires (required_bundle_fields)
+    pub bundle_required: HashMap<u64, Vec<u64>>,
     pub lim: Limits,
 }
 
@@ -164,8 +167,24 @@ impl Registry {
             max_string: l["max_string_bytes"].as_u64().unwrap(),
             lenient: false,
         };
-        let known_ext = p["extensions"]["known_extensions"].as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect();
-        Registry { structs, enums, types, known_ext, lim }
+        let mut known_ext: Vec<String> = p["extensions"]["known_extensions"].as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect();
+        // registered key-23 extensions (om-numeric-fields "extensions", ADR-0126)
+        if let Some(ex) = f.get("extensions").and_then(|x| x.as_array()) {
+            known_ext.extend(ex.iter().map(|e| e["name"].as_str().unwrap().to_string()));
+        }
+        let c: J = serde_json::from_str(CRYPTO_JSON).unwrap();
+        let akb = f["structs"]["AsyncKeyBundle"]["fields"].as_array().unwrap();
+        let mut bundle_required = HashMap::new();
+        for prof in c["profiles"].as_array().unwrap() {
+            if let Some(req) = prof.get("required_bundle_fields").and_then(|x| x.as_array()) {
+                let keys = req
+                    .iter()
+                    .map(|n| akb.iter().find(|f| f["name"] == *n).unwrap()["key"].as_u64().unwrap())
+                    .collect();
+                bundle_required.insert(prof["id"].as_u64().unwrap(), keys);
+            }
+        }
+        Registry { structs, enums, types, known_ext, bundle_required, lim }
     }
 
     /// Decode + validate a top-level object of the declared type (SignedEnvelope for signed types).
@@ -230,7 +249,18 @@ impl<'a> Cx<'a> {
     }
 
     fn body(&self, v: &Value, t: &ObjType) -> Result<(), Class> {
-        self.strukt(v, &t.name, Some(t.id))
+        self.strukt(v, &t.name, Some(t.id))?;
+        if t.name == "AsyncKeyBundle" {
+            if let Value::Map(m) = v {
+                let prof = m.iter().find(|(k, _)| *k == Value::Uint(5)).and_then(|(_, x)| if let Value::Uint(p) = x { Some(*p) } else { None });
+                for k in prof.and_then(|p| self.r.bundle_required.get(&p)).into_iter().flatten() {
+                    if !m.iter().any(|(kk, _)| *kk == Value::Uint(*k)) {
+                        return Err("missing_field");
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     fn strukt(&self, v: &Value, name: &str, top_id: Option<u64>) -> Result<(), Class> {

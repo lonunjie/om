@@ -37,6 +37,8 @@
     {"object": "BlobLocationRecord", "field": "version", "clock_class": "cryptographic_state_sequence", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
     {"object": "BlobLocationRecord", "field": "valid_from / overlap_until", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "keep trying every known locator", "authority_effect": "none"},
     {"object": "RequestKey", "field": "expires_at", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "sender fetches a fresh ContactDescriptor; the recipient keeps decrypting with the old key for the skew window", "authority_effect": "none"},
-    {"object": "IntroIdentityBinding", "field": "issued_at", "clock_class": "wall_clock_expiry", "skew_policy": "informational", "bad_clock_behavior": "ignored; freshness comes from acs_generation/acs_state_hash", "authority_effect": "none"}
+    {"object": "IntroIdentityBinding", "field": "issued_at", "clock_class": "wall_clock_expiry", "skew_policy": "informational", "bad_clock_behavior": "ignored; freshness comes from acs_generation/acs_state_hash", "authority_effect": "none"},
+    {"object": "ModerationDecision", "field": "starts_at / expires_at", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "display only; bans and restrictions end only by a committed lift (ADR-0128 rule 12)", "authority_effect": "none"},
+    {"object": "SafetyAdvisory", "field": "issued_at / expires_at", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "a subscriber may stop applying an expired advisory (ADR-0128 rule 12)", "authority_effect": "none"}
   ]
 }

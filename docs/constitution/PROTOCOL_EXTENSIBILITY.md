@@ -31,6 +31,9 @@ Maintain versioned public registries for:
 
 Reserve experimental/private ranges. Registry governance must be public and cannot make one implementation mandatory.
 
+Registered key-23 extension ids (critical and non-critical object extensions) live in the `extensions` list of
+[`spec/registries/om-numeric-fields.json`](../../spec/registries/om-numeric-fields.json); the first entry is `om.acs.fork_ack` (ADR-0126).
+
 ## 5. Canonical encoding
 
 Before wire freeze, define deterministic/canonical serialization rules for every signed/hashed object and publish golden vectors. Unknown-field preservation behavior must itself be testable.

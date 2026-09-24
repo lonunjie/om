@@ -223,7 +223,8 @@ AKB = top("AsyncKeyBundle", [2, B(D1)], [3, 1], [4, ACS1_HASH], [5, 1], [6, 4],
           [11, prekey(30, 5, 1184, True)],
           [12, B(det("provider-pool-A", 16))], [13, T0 + 30 * 86400])
 AKB_MIN = top("AsyncKeyBundle", [2, B(D1)], [3, 1], [4, ACS1_HASH], [5, 1], [6, 1],
-              [7, prekey(1, 1, 32, True)], [12, B(det("provider-pool-B", 16))], [13, T0 + 86400])
+              [7, prekey(1, 1, 32, True)], [8, prekey(2, 2, 1184, True)],  # key 8 mandatory (ADR-0126)
+              [12, B(det("provider-pool-B", 16))], [13, T0 + 86400])
 
 ALICE = M([0, 1], [1, B(ACC)])
 BOB = M([0, 1], [1, B(det("account-bob", 32))])
@@ -292,6 +293,28 @@ RELAYSET = top("RelaySet", [2, 3], [3, fake_digest("relayset-v2")], [4, [
 BLR = top("BlobLocationRecord", [2, B(det("blob-1", 32))], [3, 2], [4, fake_digest("blr-v1")],
           [5, ["https://blobs.example.net/o/abc", "https://mirror.example.org/o/abc"]], [6, T0], [7, T0 + 7 * 86400])
 
+# ADR-0126 first-contact objects (types 19-21), RequestKey, fork bridge
+REQKEY = M([0, 1], [1, B(det("request-key-pub", 1216))], [2, T0 + 30 * 86400])
+REQKEY_MIN = M([0, 1], [1, B(det("request-key-pub-min", 32))])
+REQKEY_DIGEST = digest_of("OM-REQUEST-KEY-HASH-v1", py_enc(REQKEY))
+SENDER_INTRO = det("bob-intro-identity-key", 32)
+REPLY_ROUTE = M([0, "https://relay.bob-home.example"], [1, B(det("reply-cap", 32))], [2, 0], [4, T0 + 7 * 86400])
+REF_ENV, _ = envelope("ReferralAttestation", REFERRAL, ["device"])
+MREQ = top("MessageRequest", [2, B(det("ticket-1", 16))], [3, REQKEY_DIGEST], [4, 1],
+           [5, B(det("hpke-enc", 1120))], [6, B(det("mreq-ciphertext", 512))], [7, B(det("admission-proof", 64))])
+MREQ_MIN = top("MessageRequest", [2, B(det("ticket-2", 16))], [3, REQKEY_DIGEST], [4, 1],
+               [5, B(det("hpke-enc-min", 32))], [6, B(det("mreq-ct-min", 17))])
+MRP = top("MessageRequestPayload", [2, B(det("ticket-1", 16))], [3, REQKEY_DIGEST], [4, B(SENDER_INTRO)],
+          [5, B(py_enc(DESC_ENV))], [6, RICH], [7, [B(py_enc(REF_ENV))]], [8, REPLY_ROUTE])
+MRP_MIN = top("MessageRequestPayload", [2, B(det("ticket-2", 16))], [3, REQKEY_DIGEST], [4, B(SENDER_INTRO)],
+              [5, B(py_enc(DESC_ENV))], [8, REPLY_ROUTE])
+IIB = top("IntroIdentityBinding", [2, B(ACC)], [3, B(INTRO)], [4, REQKEY_DIGEST], [5, 1], [6, ACS1_HASH], [7, T0])
+IIB_MIN = top("IntroIdentityBinding", [2, B(ACC)], [3, B(INTRO)], [4, REQKEY_DIGEST], [5, 0], [6, ACS0_HASH])
+DESC_RK = mset(DESC, 15, REQKEY)
+TICKET_RK = mset(TICKET, 11, REQKEY_MIN)
+ACS_FORK = mset(mset(ACS1, 3, 2), 23, M(["om.acs.fork_ack", M([0, True], [1, M([0, setof([
+    fake_digest("branch-head-a"), fake_digest("branch-head-b")])])])]))
+
 # (object name, id suffix, body value, signer roles or None, bench?)
 POSITIVES = [
     ("AccountControlState", "genesis", ACS0, ["controller"], False),
@@ -325,6 +348,15 @@ POSITIVES = [
     ("SponsoredMailboxGrant", "typical", GRANT, None, False),
     ("RelaySet", "typical", RELAYSET, None, True),
     ("BlobLocationRecord", "typical", BLR, None, False),
+    ("MessageRequest", "typical", MREQ, None, True),
+    ("MessageRequest", "minimal", MREQ_MIN, None, False),
+    ("MessageRequestPayload", "typical", MRP, None, True),
+    ("MessageRequestPayload", "minimal", MRP_MIN, None, False),
+    ("IntroIdentityBinding", "typical", IIB, None, True),
+    ("IntroIdentityBinding", "minimal", IIB_MIN, None, False),
+    ("ContactDescriptor", "with-request-key", DESC_RK, None, False),
+    ("IntroductionTicket", "with-request-key", TICKET_RK, None, False),
+    ("AccountControlState", "fork-bridge", ACS_FORK, ["controller"], False),
 ]
 
 MINIMALS = {n: v for n, s, v, r, b in POSITIVES if s in ("minimal", "genesis", "create-minimal")}
@@ -458,6 +490,10 @@ def gen():
         base = MINIMALS[name]
         ext = mset(base, 23, M(["org.example.nice-to-have", M([0, False], [1, M(["hint", "x"])])]))
         emit_positive(name, "noncritical-extension-preserved", ext, None, False)
+    # R-237 (ADR-0128 rule 18): later-wave content (a W1 custom-emoji node) travels in a named non-critical
+    # extension beside a W0-valid body; the same node inside the W0 body is the richtext-custom-emoji-w1 negative
+    later = mset(EV_CREATE_MIN, 23, M(["om.richtext.w1-nodes", M([0, False], [1, [M([0, 4], [6, B(b"a")])]])]))
+    emit_positive("ConversationEvent", "later-wave-content-in-extension", later, None, False)
 
     # generic mutations on every W0 type (minimal instance)
     for name in TYPES:
@@ -511,6 +547,7 @@ def gen():
     neg("SponsoredMailboxGrant", "quota-field-missing", "missing_field", mset(GRANT, 6, M([0, 1], [1, 1], [2, 1], [3, 1])))
     neg("DeviceCredential", "device-class-3", "value_range", mset(DC1, 7, 3))
     neg("DeviceCredential", "capability-set-unsorted", "set_order", mset(DC1, 8, ["om.control", "om.msg"]), "valid")
+    neg("AsyncKeyBundle", "missing-pq-signed-prekey", "missing_field", mdel(AKB_MIN, 8))
     neg("AsyncKeyBundle", "prekey-kind-6", "value_range", mset(AKB_MIN, 7, M([0, 1], [1, 6], [2, B(det("pk", 32))])))
     neg("AsyncKeyBundle", "prekey-31-bytes", "value_range", mset(AKB_MIN, 7, M([0, 1], [1, 1], [2, B(det("pk", 31))])))
     neg("AsyncKeyBundle", "too-many-pq-one-time", "value_range",

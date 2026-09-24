@@ -99,6 +99,9 @@ Pre-release criteria:
 What remains (needs someone other than the author):
 
 - model review by someone other than its author (a human, or a cross-vendor AI reviewer if ADR-0117 is accepted)
+- mirror the ACCOUNT_CONTINUITY_AND_CONTROL §4.1 authorization table (ADR-0127) in the model and vectors
+- a successor pointer without constitutional authority is rejected (R-201)
+- recovery-vote retirement and revocation with delay and veto; fork bridge with om.acs.fork_ack and device-only majority (R-200, R-205)
 
 ### V-003 — `one_to_one_session_model`
 
@@ -123,6 +126,7 @@ What remains (needs someone other than the author):
 
 - non-author review: a non-Anthropic agent or a human (ADR-0117)
 - restore+redelivery TLC config unchecked (K11 covered by gap config + fuzzer)
+- negative vector: a peer proposes a profile with lower security_generation, or a floor move to a lower generation after a SecurityAdvisory, and is rejected (R-206)
 
 ### V-004 — `group_commit_control_model`
 
@@ -137,6 +141,8 @@ Pre-engineering criteria:
 
 - [ ] formal model of CommitCoordinator replacement/equivocation and GroupControlIntent<->GroupCommitBinding under crash/partition with no silent authority fork
 - [ ] candidate MLS library demonstrated to support the required external commit ordering on target runtimes
+- [ ] reductions (revoked/quarantined device removal, member removal, self-leave, service/bridge removal, Space-delegated reductions) are live under coordinator failure or censorship; succession replacement is deterministic; a rebased non-reducing intent is re-validated at its new parent (R-220)
+- [ ] account-control events: no sending after a learned revocation until the Remove is accepted, no adds under CONTROL_CONFLICT/SAFETY_FREEZE, device-add deduplication (R-221)
 
 Pre-release criteria:
 
@@ -163,6 +169,8 @@ Pre-release criteria:
 What remains (needs someone other than the author):
 
 - independence of the two codecs: a non-Anthropic agent review (ADR-0117) or a codec by a second author
+- vectors and both codecs for the ADR-0126 additions (MessageRequest, MessageRequestPayload, IntroIdentityBinding, RequestKey, ForkAck/om.acs.fork_ack, ContactDescriptor key 15, IntroductionTicket key 11); AsyncKeyBundle without key 8 becomes a negative vector
+- negative vector: a later-wave rich-text node or attachment field in a W0 body is rejected; positive vector: the same content in a named extension beside a W0-valid body is accepted (R-237)
 
 ### V-006 — `web_device_vault_feasibility`
 
@@ -177,6 +185,7 @@ Pre-engineering criteria:
 - [ ] browser-matrix prototype of the WebDeviceVault wrapping hierarchy (WebAuthn PRF, non-extractable WebCrypto, passphrase fallback) with new-origin enrollment migration
 - [ ] documented behavior for every unsupported/failed capability on the intended first-release browser matrix
 - [ ] PRF on synced (platform/password-manager) passkeys and signalCurrentUserDetails support recorded per browser/platform for the ADR-0111 recovery custodian, with the recovery-key fallback exercised where unsupported
+- [ ] per browser/platform: availability of a device-bound (non-synced) WebAuthn credential for vault wrapping, and the separate-credential/separate-PRF-salt path from the RecoveryRoot exercised; reduced at-rest property shown where only a synced passkey exists (ADR-0129 rule 15)
 
 Pre-release criteria:
 
@@ -198,6 +207,12 @@ Pre-release criteria:
 
 - [ ] full claimed matrix including simulcast/SVC where claimed
 
+What remains (needs someone other than the author):
+
+- group call key binds the sorted joined-participant set and rekeys on every join/leave (R-233)
+- a non-joined Room member cannot decrypt the call (needs A-035)
+- call.offer without an accepted relationship causes no ringing, ICE or TURN; mesh uses relay-only candidates toward non-contacts (R-234)
+
 ### V-008 — `space_room_permission_authority_model`
 
 Model-check Room/Space capability grants, explicit restrictions, delegation ceilings, governance quorum, bilateral links and authority-parent propagation/revocation so no role/Space transition can silently self-escalate, create transitive authority, or bypass Room-local security state.
@@ -218,6 +233,9 @@ Pre-release criteria:
 What remains (needs someone other than the author):
 
 - non-author review: a non-Anthropic agent or a human (ADR-0117)
+- role-edit ceiling negative cases: editing a role beyond the ceiling, assigning a role partly beyond it, a grant whose grantable_scope exceeds the grantor's (R-229)
+- SpaceDelegatedIntent: committed by a non-privileged member, stale Space head fails closed, Space reduction live (R-230)
+- invite links lapse when the issuer loses room.invite (R-225); no CryptoProfile change in any governance or binding path (R-227)
 
 ### V-009 — `baseline_event_materialization_convergence`
 
@@ -241,6 +259,9 @@ What remains (needs someone other than the author):
 - non-author review: a non-Anthropic agent or a human (ADR-0117)
 - reference derives authorization from the control chain (G-V9-5) instead of the shared adapter
 - second implementation of edits/deletes/reactions/receipts/replies
+- reaction and vote registers are epoch-major; a vote ordered after poll.close is ignored (R-236)
+- expiry: delete at min(expiry, receipt + expires_after), never after expiry (R-235)
+- forward strips mentions; a mention of a non-member renders as text (R-239)
 
 ### V-010 — `plugin_sandbox_capability_model`
 
@@ -253,6 +274,9 @@ Prototype and adversarially test the OM WebAssembly Component Model/WIT plugin h
 Pre-engineering criteria:
 
 - [ ] prototype host on a native Wasm runtime and the PWA runtime; adversarial plugins demonstrate no ambient authority, enforced budgets, permission-upgrade prompts and plaintext-read vs egress separation
+- [ ] adversarial plugin with content.read_current_conversation and net.fetch_origin_scoped in a conversation without plaintext_egress is blocked from egress, including via plugin private storage (ADR-0129 rule 2)
+- [ ] plugin cannot emit an Account-authored event without per-send user confirmation; autonomous sending only as a local_component ServicePrincipal (ADR-0129 rule 1)
+- [ ] PWA: plugins and mini-apps run on a separate registrable domain with cross-origin isolation and exact-origin message binding; content.* plugins disabled without site isolation; mini-app cannot occlude host chrome or render OM-like security prompts (ADR-0129 rule 8)
 
 Pre-release criteria:
 
@@ -271,6 +295,9 @@ Pre-engineering criteria:
 
 - [ ] formal/bounded model extended to host migration/revocation and alias replacement
 - [ ] tool-capability prototype shows injected prompts cannot exceed granted capabilities or create unbounded automation loops
+- [ ] model covers the two service positions (invocation-only, full member) and shows a trigger filter never narrows what a full member can read (ADR-0129 rule 3)
+- [ ] RepresentationGrant issued by a messaging-only device is rejected; grant whose issuing control device is quarantined stops validating; counterparty-recipient grant without counterparty notice fails (ADR-0129 rules 4-5)
+- [ ] revoked service endpoint is removed from every Room by any member after sequencing_timeout when the coordinator does not; removal rebases over forks (ADR-0129 rule 6)
 
 Pre-release criteria:
 
@@ -310,6 +337,7 @@ Pre-engineering criteria:
 
 - [ ] reviewed bridge adapter contract specification
 - [x] loop/reflection-suppression model with at least two simulated bridges and fidelity-loss signaling
+- [ ] bridge adapter contract states bridges are always full Room members and that allowed_event_classes limits export, not reading (ADR-0129 rule 3)
 
 Pre-release criteria:
 
@@ -357,6 +385,8 @@ Pre-engineering criteria:
 
 - [x] MetadataExposureDescriptor written for every provider role in the scope being unlocked, including the sponsored starter mailbox
 - [x] trace-model assertions for each descriptor and a packet-capture test plan
+- [ ] two IdentityProfiles on one install never present the same push subscription or token to two parties unless the push provider's descriptor declares the linkage (ADR-0129 rule 14)
+- [ ] shared-blob mode for expressive assets has a BlobStore descriptor line; default per-send encryption yields no shared BlobID across conversations (ADR-0129 rule 10)
 
 Pre-release criteria:
 
@@ -365,6 +395,9 @@ Pre-release criteria:
 What remains (needs someone other than the author):
 
 - review of the descriptors, trace model (mutation-tested: 5/5 seeded mis-claims caught) and test plan by someone other than their author
+- MessageRequest/IntroIdentityBinding vectors and a trace assertion that the IntroGate sees no sender AccountID, device id or intro key (R-202, R-203)
+- key_material_provider trace: per-relationship fetch capability and the disclosed acs_state_hash linkage; record the A-031 choice (R-209)
+- group fan-out: every recipient copy is outer-encrypted, relays never see raw MLS group_id/epoch, group_id unrelated to ConversationID (R-226)
 
 ### V-016 — `decentralized_abuse_moderation_authority_model`
 
@@ -387,6 +420,11 @@ Pre-release criteria:
 What remains (needs someone other than the author):
 
 - non-author review: a non-Anthropic agent or a human (ADR-0117)
+- IntroGate model: referral-token admission into reserved capacity and per-IntroGate max_uses (R-210, R-214); MessageRequest size bound checked before other work
+- an unsolicited group add attempt (no accepted invitation) is rejected (R-224)
+- bans and restrictions end only through committed lifts; a ModerationDecision alone changes no Room state (R-231)
+- call.offer from a principal without an accepted relationship is dropped (R-234)
+- providers never resolve AccountID-keyed advisories to delivery capabilities; safety-reference v2 encoding is injective (R-238)
 
 ### V-017 — `protocol_longevity_and_0m_continuity_drill`
 
@@ -427,6 +465,8 @@ Pre-engineering criteria:
 - [ ] moderated sessions with at least 12 non-technical participants (including at least 3 aged 60+ and 3 with low digital literacy, in at least 2 languages) on non-production prototypes
 - [ ] flows: onboarding tier (T0/T1), recovery on (where it lives) and turning recovery off, recovery veto notice, continuity check, device-link notice, suspend device, contact continuity change, bridge E2EE boundary, full-Room service disclosure
 - [ ] per flow at least 80% task success and correct answer to the flow's security-comprehension question; failures redesigned and retested
+- [ ] flows add: counterparty notice for a representing service, Connected services review and revoke, and 'this service can read all Room content' for a full-member service with a trigger filter (ADR-0129)
+- [ ] theme-compiler test: a glyph-remapping theme font does not change any reserved surface (ADR-0129 rule 17)
 
 Pre-release criteria:
 
@@ -493,6 +533,9 @@ Pre-engineering criteria:
 - [x] per-platform capability matrix for every control in ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md section 4
 - [x] device-link notice invariant in the AccountControlState model
 - [x] deletion-closure checklist including OS notification and snapshot surfaces
+- [ ] failing trace: a personal egress, representation or automation grant created on one device with no notice on the account's other devices is rejected (ADR-0129 rule 7)
+- [ ] PlatformAdapter SecureSurface, BackupExclusion, InputPrivacy, NotificationRemoval and sensitive Clipboard availability recorded per platform in PLATFORM_CAPABILITY_MATRIX.md (ADR-0129 rule 18)
+- [ ] ClientHost controller: owner-pinned root cannot be changed by release metadata; deploy refused without two transparency observations (ADR-0129 rule 12)
 
 Pre-release criteria:
 

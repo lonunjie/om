@@ -608,7 +608,7 @@ def validate_0924_traceability_and_threats() -> None:
             if r not in reqs:
                 fail(f"09:24 guard: {tid} references unknown requirement {r}")
         for g in th.get("gates", []):
-            if g not in gates and g not in rel and g != "validator":
+            if g not in gates and g not in rel and g != "validator" and not g.startswith("conformance:"):
                 fail(f"09:24 guard: {tid} references unknown gate {g}")
         if not th.get("residual_risk"):
             fail(f"09:24 guard: {tid} must state residual risk")

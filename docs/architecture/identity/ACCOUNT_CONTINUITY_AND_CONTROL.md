@@ -92,6 +92,8 @@ A valid emergency quarantine can cause compliant peers/providers to stop giving 
 
 A quarantined device also can no longer **issue** anything peers act on: peers reject RelaySets, BlobLocationRecords
 and IntroIdentityBindings signed by a device that the current state lists as quarantined ([`MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`](../delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md) §2.1).
+How a quarantine or revocation reaches groups (members stop sending until the Remove commits) is in
+[`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](../groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md) §6.1 (ADR-0128 rule 2).
 
 A quarantine **does not erase** data the target already learned.
 

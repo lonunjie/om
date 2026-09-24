@@ -1235,6 +1235,363 @@
       "verified_by": [
         "V-016"
       ]
+    },
+    {
+      "requirement": "R-200",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-201",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-202",
+      "verified_by": [
+        "V-015",
+        "V-016",
+        "V-005"
+      ]
+    },
+    {
+      "requirement": "R-203",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-204",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-205",
+      "verified_by": [
+        "V-002",
+        "V-005"
+      ]
+    },
+    {
+      "requirement": "R-206",
+      "verified_by": [
+        "V-003"
+      ]
+    },
+    {
+      "requirement": "R-207",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-208",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-209",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-210",
+      "verified_by": [
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-211",
+      "verified_by": [
+        "V-015",
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-212",
+      "verified_by": [
+        "V-009"
+      ]
+    },
+    {
+      "requirement": "R-213",
+      "verified_by": [
+        "review:STORAGE_AND_BLOB_ARCHITECTURE.md"
+      ]
+    },
+    {
+      "requirement": "R-214",
+      "verified_by": [
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-215",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-216",
+      "verified_by": [
+        "V-005",
+        "V-001"
+      ]
+    },
+    {
+      "requirement": "R-220",
+      "verified_by": [
+        "V-004"
+      ]
+    },
+    {
+      "requirement": "R-221",
+      "verified_by": [
+        "V-004"
+      ]
+    },
+    {
+      "requirement": "R-222",
+      "verified_by": [
+        "V-016",
+        "review:docs/architecture/safety/EVIDENCE_AND_EXTERNAL_REPORTING.md"
+      ]
+    },
+    {
+      "requirement": "R-223",
+      "verified_by": [
+        "conformance:group_history"
+      ]
+    },
+    {
+      "requirement": "R-224",
+      "verified_by": [
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-225",
+      "verified_by": [
+        "V-008",
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-226",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-227",
+      "verified_by": [
+        "V-008",
+        "V-019"
+      ]
+    },
+    {
+      "requirement": "R-228",
+      "verified_by": [
+        "V-008"
+      ]
+    },
+    {
+      "requirement": "R-229",
+      "verified_by": [
+        "V-008"
+      ]
+    },
+    {
+      "requirement": "R-230",
+      "verified_by": [
+        "V-008",
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-231",
+      "verified_by": [
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-232",
+      "verified_by": [
+        "V-008",
+        "conformance:publication"
+      ]
+    },
+    {
+      "requirement": "R-233",
+      "verified_by": [
+        "V-007"
+      ]
+    },
+    {
+      "requirement": "R-234",
+      "verified_by": [
+        "V-016",
+        "V-007"
+      ]
+    },
+    {
+      "requirement": "R-235",
+      "verified_by": [
+        "V-009"
+      ]
+    },
+    {
+      "requirement": "R-236",
+      "verified_by": [
+        "V-009"
+      ]
+    },
+    {
+      "requirement": "R-237",
+      "verified_by": [
+        "V-005"
+      ]
+    },
+    {
+      "requirement": "R-238",
+      "verified_by": [
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-239",
+      "verified_by": [
+        "V-009"
+      ]
+    },
+    {
+      "requirement": "R-240",
+      "verified_by": [
+        "V-010",
+        "V-011"
+      ]
+    },
+    {
+      "requirement": "R-241",
+      "verified_by": [
+        "V-010",
+        "V-011"
+      ]
+    },
+    {
+      "requirement": "R-242",
+      "verified_by": [
+        "V-011",
+        "V-013",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-243",
+      "verified_by": [
+        "V-011"
+      ]
+    },
+    {
+      "requirement": "R-244",
+      "verified_by": [
+        "V-011",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-245",
+      "verified_by": [
+        "V-011"
+      ]
+    },
+    {
+      "requirement": "R-246",
+      "verified_by": [
+        "V-021",
+        "PR-005",
+        "review:CLIENTHOST_UPDATE_LIFECYCLE.md"
+      ]
+    },
+    {
+      "requirement": "R-247",
+      "verified_by": [
+        "V-020",
+        "V-021",
+        "review:CLIENTHOST_UPDATE_LIFECYCLE.md"
+      ]
+    },
+    {
+      "requirement": "R-248",
+      "verified_by": [
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-249",
+      "verified_by": [
+        "V-006"
+      ]
+    },
+    {
+      "requirement": "R-250",
+      "verified_by": [
+        "V-018",
+        "conformance:ui_themes"
+      ]
+    },
+    {
+      "requirement": "R-251",
+      "verified_by": [
+        "V-018",
+        "conformance:ui_themes"
+      ]
+    },
+    {
+      "requirement": "R-252",
+      "verified_by": [
+        "V-010"
+      ]
+    },
+    {
+      "requirement": "R-253",
+      "verified_by": [
+        "V-021",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-254",
+      "verified_by": [
+        "V-012",
+        "V-015",
+        "conformance:attachments"
+      ]
+    },
+    {
+      "requirement": "R-255",
+      "verified_by": [
+        "V-014"
+      ]
+    },
+    {
+      "requirement": "R-256",
+      "verified_by": [
+        "V-021",
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-257",
+      "verified_by": [
+        "V-018",
+        "review:ACCESSIBILITY_AND_INPUT.md"
+      ]
     }
   ]
 }

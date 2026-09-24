@@ -53,10 +53,11 @@
     {"label": "OM-1TO1-EVENT-AEAD-AD-v1", "use": "aead_ad", "construction": "reserved: associated data binding session, sender/recipient device and envelope id to the ConversationEvent ciphertext (V-001)", "object": "ConversationEvent in a 1:1 session", "wave": "W0", "status": "reserved"},
     {"label": "OM-BLOB-CONTENT-AEAD-AD-v1", "use": "aead_ad", "construction": "reserved: attachment content encryption AD (V-001)", "object": "encrypted blob", "wave": "W0", "status": "reserved"},
     {"label": "OM-DEVICE-LINK-CEREMONY-MAC-v1", "use": "mac", "construction": "reserved: short-lived linking-ceremony transcript MAC (V-001/V-021)", "object": "device link ceremony", "wave": "W0", "status": "reserved"},
-    {"label": "OM-SAFETY-REF-v1", "use": "hash", "construction": "documented: 'OM-SAFETY-REF-v1' || issuer_scope_id || canonical_principal_id (DECENTRALIZED_ABUSE_MODERATION.md §14)", "object": "labeler-scoped subject reference", "wave": "W3", "status": "documented"},
+    {"label": "OM-SAFETY-REF-v1", "use": "hash", "construction": "documented: 'OM-SAFETY-REF-v1' || issuer_scope_id || canonical_principal_id (DECENTRALIZED_ABUSE_MODERATION.md §14)", "object": "labeler-scoped subject reference", "wave": "W3", "status": "superseded: unused; raw concatenation is ambiguous (ADR-0128 rule 19)"},
     {"label": "OM-REQUEST-KEY-HASH-v1", "use": "hash", "construction": "DS-HASH", "object": "RequestKey (MessageRequest/MessageRequestPayload/IntroIdentityBinding.request_key_digest)", "wave": "W0", "status": "proposed"},
     {"label": "OM-MESSAGE-REQUEST-PAYLOAD-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "MessageRequestPayload", "wave": "W0", "status": "proposed"},
     {"label": "OM-INTRO-IDENTITY-BINDING-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "IntroIdentityBinding", "wave": "W0", "status": "proposed"},
-    {"label": "OM-MESSAGE-REQUEST-HPKE-INFO-v1", "use": "kdf", "construction": "reserved: HPKE (RFC 9180) base-mode info input for MessageRequest sealing; suite ids fixed with V-001", "object": "MessageRequest", "wave": "W0", "status": "reserved"}
+    {"label": "OM-MESSAGE-REQUEST-HPKE-INFO-v1", "use": "kdf", "construction": "reserved: HPKE (RFC 9180) base-mode info input for MessageRequest sealing; suite ids fixed with V-001", "object": "MessageRequest", "wave": "W0", "status": "reserved"},
+    {"label": "OM-SAFETY-REF-v2", "use": "hash", "construction": "DS-HASH over the canonical CBOR array [issuer_scope_id, principal_ref]", "object": "labeler-scoped subject reference", "wave": "W3", "status": "proposed"}
   ]
 }

@@ -10,9 +10,9 @@ freezes them.
 
 | Input | Location |
 |---|---|
-| CDDL for the 18 W0 signed/hashed objects | `spec/cddl/*.cddl` |
+| CDDL for the 21 W0 objects (18 signed/hashed, plus the ADR-0126 first-contact objects) | `spec/cddl/*.cddl` |
 | Registries (numeric fields, object types, domain separation, crypto profiles, time fields, CBOR profile) | `spec/registries/*.json` |
-| 540 object vectors (36 positive, 504 negative) | `verification/vectors/v005-w0-object-vectors.json.gz` |
+| 619 object vectors (46 positive, 573 negative) | `verification/vectors/v005-w0-object-vectors.json.gz` |
 
 1. **Two codecs agree.** The Rust strict codec (`rust/`) and the Node strict
    harness ([`verification/cbor/node_strict_harness.mjs`](../../cbor/node_strict_harness.mjs)) decode, validate and
@@ -45,6 +45,7 @@ Install the two CDDL tools into the git-ignored `.tools/` directory:
 
 ```sh
 cargo install cddl --version 0.10.7 --locked --root .tools
+GEM_HOME=.tools/gems gem install json_pure -v 2.6.3   # only on Ruby < 2.7 (macOS system ruby)
 GEM_HOME=.tools/gems gem install cddl -v 0.12.14
 ```
 

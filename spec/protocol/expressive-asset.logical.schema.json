@@ -3,31 +3,25 @@
   "title": "OM ExpressiveAssetRef logical schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["kind", "blob_id", "media_profile_id", "encoded_size", "width", "height", "alt_text"],
+  "required": ["kind", "blob_id", "media_type", "plaintext_size", "ciphertext_digest", "encryption", "media_profile_id", "width", "height", "alt_text"],
   "properties": {
     "kind": {"enum": ["sticker", "custom_emoji", "reaction_asset", "loop_animation"]},
-    "blob_id": {"type": "string"},
-    "media_profile_id": {"type": "string"},
-    "encoded_size": {"type": "integer", "minimum": 1},
+    "blob_id": {"type": "string", "description": "random BlobID (R-213)"},
+    "media_type": {"type": "string"},
+    "plaintext_size": {"type": "integer", "minimum": 1},
+    "ciphertext_digest": {"type": "string"},
+    "encryption": {"type": "object", "additionalProperties": false, "required": ["profile_id", "key"], "properties": {"profile_id": {"type": "string"}, "key": {"type": "string"}}},
+    "locations": {"type": "array", "items": {"type": "object"}},
+    "filename": {"type": ["string", "null"]},
     "width": {"type": "integer", "minimum": 1},
     "height": {"type": "integer", "minimum": 1},
     "duration_ms": {"type": ["integer", "null"], "minimum": 0},
+    "repair_capability": {"type": ["object", "null"]},
+    "media_profile_id": {"type": "string"},
     "alt_text": {"type": "string", "maxLength": 512},
     "fallback_text": {"type": ["string", "null"], "maxLength": 128},
-    "pack_ref": {
-      "oneOf": [
-        {"type": "null"},
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["pack_id", "release_id", "item_id"],
-          "properties": {
-            "pack_id": {"type": "string"},
-            "release_id": {"type": "string"},
-            "item_id": {"type": "string"}
-          }
-        }
-      ]
-    }
-  }
+    "pack_ref": {"oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["pack_id", "release_id", "item_id"], "properties": {"pack_id": {"type": "string"}, "release_id": {"type": "string"}, "item_id": {"type": "string"}}}]},
+    "shared_blob": {"type": "boolean", "default": false, "description": "explicit declared policy reusing one blob across sends; links conversations and needs a BlobStore MetadataExposureDescriptor line (ADR-0129 rule 10)"}
+  },
+  "description": "ExpressiveAssetRef is the W0 attachment-ref plus kind, media_profile_id, alt_text, fallback_text? and pack_ref?; the digest-bound blob is the rendering authority; each send is freshly encrypted unless shared_blob is set by an explicit declared policy (ADR-0129 rule 10)."
 }

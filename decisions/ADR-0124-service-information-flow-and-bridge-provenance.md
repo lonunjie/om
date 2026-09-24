@@ -6,7 +6,7 @@
 - **Source:** V-011 gaps 5–6 ([`v011-services`](../verification/prototypes/v011-services/README.md)) and V-013
   ([`v013-bridges`](../verification/prototypes/v013-bridges/README.md), contract §10). **Amends:**
   [`SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`](../docs/architecture/ecosystem/SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md), [`INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`](../docs/architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md)
-  (supersedes the bridge-scoped part of the 2026-09-23 metadata refinement).
+  (supersedes the bridge-scoped part of the 2026-09-23 metadata refinement). **Amended by:** ADR-0129 (rule 2 scope).
 
 ## Decision
 
