@@ -1,0 +1,141 @@
+{
+ "gate": "V-011",
+ "source": "verification/tla/ServiceAuthority_mut_accept_rollback.cfg",
+ "kind": "residual-risk",
+ "claim": "mutation: a recipient accepts a replayed older control state from a former host",
+ "violated": "NoRollback",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "0",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"none\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "0",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{}",
+    "thr": "2"
+   }
+  },
+  {
+   "step": 2,
+   "action": "Approve",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "1",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"none\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "0",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{[t |-> 1, base |-> 0, appr |-> {\"a\"}]}",
+    "thr": "2"
+   }
+  },
+  {
+   "step": 3,
+   "action": "Approve",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "2",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"none\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "0",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{[t |-> 1, base |-> 0, appr |-> {\"a\", \"b\"}]}",
+    "thr": "2"
+   }
+  },
+  {
+   "step": 4,
+   "action": "Next",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "2",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{\"a\", \"b\"}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"active\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "1",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"active\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{}",
+    "thr": "2"
+   }
+  },
+  {
+   "step": 5,
+   "action": "RecvSync",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "2",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{\"a\", \"b\"}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 1, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"active\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "1",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"active\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{}",
+    "thr": "2"
+   }
+  },
+  {
+   "step": 6,
+   "action": "Rollback",
+   "vars": {
+    "installs": "{[sid |-> \"S\", via |-> \"alias\"]}",
+    "steps": "3",
+    "ctrl": "{\"a\", \"b\"}",
+    "accepted": "{}",
+    "counted": "{\"a\", \"b\"}",
+    "svcHasRoomRole": "FALSE",
+    "view": "[r1 |-> 0, r2 |-> 0]",
+    "frozen": "FALSE",
+    "ep": "[e1 |-> \"active\", e2 |-> \"active\"]",
+    "visibleAdds": "{\"e1\"}",
+    "roster": "{\"e1\"}",
+    "alias": "\"S\"",
+    "version": "1",
+    "epAt": "( 0 :> [e1 |-> \"active\", e2 |-> \"none\"] @@ 1 :> [e1 |-> \"active\", e2 |-> \"active\"] @@ 2 :> [e1 |-> \"active\", e2 |-> \"none\"] )",
+    "props": "{}",
+    "thr": "2"
+   }
+  }
+ ]
+}

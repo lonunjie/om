@@ -20,7 +20,8 @@ import run_tlc  # noqa: E402  (repository TLC runner: pinned jar, trace parsing,
 
 def main() -> int:
     slug, crit_path = sys.argv[1], Path(sys.argv[2])
-    manifest = json.loads((ROOT / f"verification/tla/models-{slug}.json").read_text())
+    manifest = sys.argv[3] if len(sys.argv) > 3 else f"models-{slug}.json"
+    manifest = json.loads((ROOT / "verification/tla" / manifest).read_text())
     runs = []
     for e in manifest["models"]:
         r = run_tlc.run(e)

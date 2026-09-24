@@ -1,0 +1,98 @@
+{
+ "purpose": "V-011 ServiceAuthority configs (prototype verification/prototypes/v011-services).",
+ "models": [
+  {
+   "module": "ServiceAuthority",
+   "config": "ServiceAuthority.cfg",
+   "expect": "pass",
+   "gate": "V-011",
+   "claim": "no self-bootstrap, hosts never controllers, no rollback, no hidden Room recipient, alias recycling moves no trust, revocation reaches recipients and roster"
+  },
+  {
+   "module": "ServiceAuthority",
+   "config": "ServiceAuthority_bootstrap.cfg",
+   "expect": "pass",
+   "gate": "V-011",
+   "claim": "no-self-bootstrap holds when the service holds a Room role"
+  },
+  {
+   "module": "ServiceAuthority",
+   "config": "ServiceAuthority_fork.cfg",
+   "expect": "pass",
+   "gate": "V-011",
+   "claim": "a fork cannot block endpoint revocation (proposed rule)"
+  },
+  {
+   "module": "ServiceAuthority",
+   "config": "ServiceAuthority_mut_self_bootstrap.cfg",
+   "expect": "violation",
+   "gate": "V-011",
+   "claim": "mutation: the service's Room role / endpoints count toward its own controller quorum",
+   "invariant": "NoSelfBootstrap"
+  },
+  {
+   "module": "ServiceAuthority",
+   "config": "ServiceAuthority_mut_host_counts.cfg",
+   "expect": "violation",
+   "gate": "V-011",
+   "claim": "mutation: a hosting provider's approval counts",
+   "invariant": "NoSelfBootstrap"
+  },
+  {
+   "module": "ServiceAuthority",
+   "config": "ServiceAuthority_mut_accept_rollback.cfg",
+   "expect": "violation",
+   "gate": "V-011",
+   "claim": "mutation: a recipient accepts a replayed older control state from a former host",
+   "invariant": "NoRollback"
+  },
+  {
+   "module": "ServiceAuthority",
+   "config": "ServiceAuthority_mut_alias_binds_trust.cfg",
+   "expect": "violation",
+   "gate": "V-011",
+   "claim": "mutation: installations follow a recycled alias",
+   "invariant": "AliasNoTrustTransfer"
+  },
+  {
+   "module": "ServiceAuthority",
+   "config": "ServiceAuthority_mut_host_adds_endpoint.cfg",
+   "expect": "violation",
+   "gate": "V-011",
+   "claim": "mutation: a host adds an endpoint to the Room roster without a visible Room transition",
+   "invariant": "NoHiddenRecipient"
+  },
+  {
+   "module": "ServiceAuthority",
+   "config": "ServiceAuthority_mut_freeze_blocks_revocation.cfg",
+   "expect": "violation",
+   "gate": "V-011",
+   "claim": "design gap: if a fork freezes revocation, a compromised controller keeps a revoked endpoint alive",
+   "invariant": "RevocationNeverStranded"
+  },
+  {
+   "module": "ServiceAuthority",
+   "config": "ServiceAuthority_trap_migration.cfg",
+   "expect": "violation",
+   "gate": "V-011",
+   "claim": "golden: host migration completes (e1 revoked, e2 active, roster = {e2})",
+   "invariant": "TrapHostMigration"
+  },
+  {
+   "module": "ServiceAuthority",
+   "config": "ServiceAuthority_trap_stale_window.cfg",
+   "expect": "violation",
+   "gate": "V-011",
+   "claim": "golden: a lagging recipient accepts the revoked endpoint until it syncs (bounded staleness)",
+   "invariant": "TrapStaleAcceptWindow"
+  },
+  {
+   "module": "ServiceAuthority",
+   "config": "ServiceAuthority_trap_alias.cfg",
+   "expect": "violation",
+   "gate": "V-011",
+   "claim": "golden: a new install through a recycled alias binds the new ServiceID, old install unchanged",
+   "invariant": "TrapAliasRecycledNewInstallIsImpostor"
+  }
+ ]
+}
