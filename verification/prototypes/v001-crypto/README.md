@@ -5,7 +5,7 @@ Feasibility prototype for V-001 (`production_crypto_path`) and the V-001 half of
 - **Authorship:** written by a Claude agent; the design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent.
 - **Gate effect:** evidence only. No gate is passed by this directory. Per-criterion status is in
   [`verification/results/v001-crypto-latest.json`](../../results/v001-crypto-latest.json) and summarised under [Results](#results).
-- **Date/base:** 2026-09-24, cut from `da36f3a`.
+- **Date/base:** 2026-09-24, cut from `eace9e6`.
 
 ## What it is
 
