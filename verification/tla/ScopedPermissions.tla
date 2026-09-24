@@ -31,6 +31,7 @@ CONSTANTS
   GovMenu,        \* governance proposal templates (records, see Apply)
   RoleMenu,       \* ordinary role grants a role manager may attempt
   SpaceRoleMenu,  \* Space role assignments a Space may make
+  RestrictMenu,   \* capabilities a moderator may restrict / unrestrict
   InitGov, InitThr, InitOfficial, InitBinding, InitSpaceParent, InitGrants,
   MaxSteps, MaxVersion, MaxGrants,
   Mutation        \* "none" | "no_ceiling" | "self_lift" | "stale_approvals"
@@ -293,12 +294,17 @@ SpaceSetRole(s, author, p, r) ==
                  binding, boundEver, mirror, mirrorCeil, influence, frozen, forkBase>>
 
 \* ---- Room-local materialisation (SR "No live transitive permission magic")
-Sync(p) ==
-  /\ mirror[p] # Target(p) \/ (Target(p) # {} /\ mirrorCeil[p] # TargetCeil)
-  /\ mirror' = [mirror EXCEPT ![p] = Target(p)]
-  /\ mirrorCeil' = [mirrorCeil EXCEPT ![p] = IF Target(p) = {} THEN {} ELSE TargetCeil]
-  /\ influence' = IF Target(p) = {} THEN influence ELSE influence \cup {TargetAuthor(p)}
-  /\ Rec("sync", "room", p)
+NeedsSync(p) == mirror[p] # Target(p) \/ (Target(p) # {} /\ mirrorCeil[p] # TargetCeil)
+
+\* The Room applies all pending Space-role materialisations in one accepted
+\* control transition (state-space reduction: per-principal interleavings of
+\* the same transition add no new authority behaviour).
+SyncAll ==
+  /\ \E p \in P : NeedsSync(p)
+  /\ mirror' = [p \in P |-> Target(p)]
+  /\ mirrorCeil' = [p \in P |-> IF Target(p) = {} THEN {} ELSE TargetCeil]
+  /\ influence' = influence \cup {TargetAuthor(p) : p \in {q \in P : Target(q) # {}}}
+  /\ Rec("sync", "room", "none")
   /\ UNCHANGED <<gov, thr, version, govAt, thrAt, execAt, props, grants, restr, spaceSide, roomSide,
                  binding, boundEver, spaceRole, spaceRoleBy, frozen, forkBase, steps>>
 
@@ -317,13 +323,13 @@ Next ==
   \/ \E A \in SUBSET P : Resolve(A)
   \/ \E a, t \in P, r \in RoleMenu : Grant(a, t, r)
   \/ \E a \in P, i \in Idx : RevokeOwnGrant(a, i)
-  \/ \E a, t \in P, c \in Caps : Restrict(a, t, c) \/ Unrestrict(a, t, c)
+  \/ \E a, t \in P, c \in RestrictMenu : Restrict(a, t, c) \/ Unrestrict(a, t, c)
   \/ \E s \in Spaces : SpaceLink(s) \/ SpaceUnlink(s)
   \/ \E s \in Spaces, au \in Spaces, p \in P, r \in SpaceRoleMenu : SpaceSetRole(s, au, p, r)
-  \/ \E p \in P : Sync(p)
+  \/ SyncAll
   \/ DropBinding
 
-Spec == Init /\ [][Next]_vars /\ \A p \in P : WF_vars(Sync(p)) /\ WF_vars(DropBinding)
+Spec == Init /\ [][Next]_vars /\ WF_vars(SyncAll) /\ WF_vars(DropBinding)
 
 
 -----------------------------------------------------------------------------
@@ -352,6 +358,10 @@ MenuGov == << T("gov_remove", "a", {}, {}, NoSpace),
               T("gov_add", "c", {}, {}, NoSpace) >>
 MenuTransfer == << T("gov_add", "b", {}, {}, NoSpace), T("gov_remove", "a", {}, {}, NoSpace) >>
 NoGrants == << >>
+MenuRooms == << T("grant", "b", {"add_bridge"}, {}, NoSpace), T("gov_remove", "a", {}, {}, NoSpace) >>
+MenuSpaces == << T("bind", "none", {}, {"post", "moderate", "manage_roles"}, "S2"), T("link_revoke", "none", {}, {}, "S2") >>
+RolesSpaces == { [caps |-> {"post"}, deleg |-> {}] }
+ParentNone == [s \in {"S1", "S2"} |-> NoSpace]
 NoRoles == { }
 
 -----------------------------------------------------------------------------

@@ -1,0 +1,65 @@
+{
+ "gate": "V-008",
+ "source": "verification/tla/ScopedPermissions_mut_no_ceiling.cfg",
+ "kind": "residual-risk",
+ "claim": "mutation: role manager grants outside its delegation ceiling",
+ "violated": "CoalitionClosed",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "steps": "0",
+    "binding": "[deleg |-> {}, space |-> \"none\"]",
+    "roomSide": "{}",
+    "mirror": "[a |-> {}, b |-> {}, c |-> {}]",
+    "grants": "<< [ live |-> TRUE, parent |-> 0, caps |-> {\"moderate\", \"manage_roles\"}, by |-> \"GOV\", to |-> \"c\", deleg |-> {\"post\", \"moderate\"} ] >>",
+    "forkBase": "0",
+    "frozen": "FALSE",
+    "mirrorCeil": "[a |-> {}, b |-> {}, c |-> {}]",
+    "restr": "[a |-> {}, b |-> {}, c |-> {}]",
+    "influence": "{}",
+    "last": "[ kind |-> \"init\", actor |-> \"none\", counted |-> {}, govNow |-> {\"a\", \"b\"}, thrNow |-> 2, detail |-> \"none\" ]",
+    "version": "0",
+    "govAt": "(0 :> {\"a\", \"b\"} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})",
+    "gov": "{\"a\", \"b\"}",
+    "spaceRole": "[S1 |-> [a |-> {}, b |-> {}, c |-> {}], S2 |-> [a |-> {}, b |-> {}, c |-> {}]]",
+    "spaceRoleBy": "[ S1 |-> [a |-> \"S1\", b |-> \"S1\", c |-> \"S1\"], S2 |-> [a |-> \"S2\", b |-> \"S2\", c |-> \"S2\"] ]",
+    "props": "{}",
+    "boundEver": "{}",
+    "thr": "2",
+    "thrAt": "(0 :> 2 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)",
+    "spaceSide": "{}",
+    "execAt": "(0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)"
+   }
+  },
+  {
+   "step": 2,
+   "action": "Grant",
+   "vars": {
+    "steps": "1",
+    "binding": "[deleg |-> {}, space |-> \"none\"]",
+    "roomSide": "{}",
+    "mirror": "[a |-> {}, b |-> {}, c |-> {}]",
+    "grants": "<< [ live |-> TRUE, parent |-> 0, caps |-> {\"moderate\", \"manage_roles\"}, by |-> \"GOV\", to |-> \"c\", deleg |-> {\"post\", \"moderate\"} ], [ live |-> TRUE, parent |-> 1, caps |-> {\"add_bridge\"}, by |-> \"c\", to |-> \"a\", deleg |-> {} ] >>",
+    "forkBase": "0",
+    "frozen": "FALSE",
+    "mirrorCeil": "[a |-> {}, b |-> {}, c |-> {}]",
+    "restr": "[a |-> {}, b |-> {}, c |-> {}]",
+    "influence": "{}",
+    "last": "[ kind |-> \"grant\", actor |-> \"c\", counted |-> {}, govNow |-> {\"a\", \"b\"}, thrNow |-> 2, detail |-> \"a\" ]",
+    "version": "0",
+    "govAt": "(0 :> {\"a\", \"b\"} @@ 1 :> {} @@ 2 :> {} @@ 3 :> {})",
+    "gov": "{\"a\", \"b\"}",
+    "spaceRole": "[S1 |-> [a |-> {}, b |-> {}, c |-> {}], S2 |-> [a |-> {}, b |-> {}, c |-> {}]]",
+    "spaceRoleBy": "[ S1 |-> [a |-> \"S1\", b |-> \"S1\", c |-> \"S1\"], S2 |-> [a |-> \"S2\", b |-> \"S2\", c |-> \"S2\"] ]",
+    "props": "{}",
+    "boundEver": "{}",
+    "thr": "2",
+    "thrAt": "(0 :> 2 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)",
+    "spaceSide": "{}",
+    "execAt": "(0 :> 0 @@ 1 :> 0 @@ 2 :> 0 @@ 3 :> 0)"
+   }
+  }
+ ]
+}
