@@ -100,6 +100,7 @@ class World:
         self.gfloor: dict[frozenset, int] = {}
         self.intended: set[tuple] = set()
         self.refused: set[tuple] = set()
+        self.author: dict[int, str] = {}
         self.disturbed: set[str] = set()
         self.exempt: set[tuple] = set()
         self.log: list[list] = []
@@ -181,6 +182,7 @@ class World:
         el = self.eligible(s)
         self.dev[s].fan |= {(m, r) for r in el}
         self.intended |= {(m, r) for r in el if r in self.dev}
+        self.author[m] = s
         if self.k["PersistBeforeSend"]:
             self.persist_fields(s, fan=self.dev[s].fan)
         return ["NewMessage", s, m]
@@ -361,13 +363,16 @@ class World:
             bad.append("NoDoubleAccept")
         if self.quiescent():
             for m, r in self.intended:
-                a = self.acct(r)
+                a, s = self.acct(r), self.author[m]
+                sa = self.acct(s)
                 if not ((m, r) in self.exempt or r not in self.t.members(a, self.gen[a])
+                        or s not in self.t.members(sa, self.gen[sa])
                         or (m, r) in self.refused or m in self.dev[r].seen):
                     bad.append("DeliveredAtQuiescence")
                     break
-            for d in self.dev:
-                for p in self.dev:
+            auth = {d for d in self.dev if d in self.t.members(self.acct(d), self.gen[self.acct(d)])}
+            for d in auth:
+                for p in auth:
                     if d != p and d not in self.disturbed and p not in self.disturbed and self.live(d, p) and self.live(p, d):
                         if self.pref(d, p) != self.pref(p, d):
                             bad.append("SamePreferredAtQuiescence")

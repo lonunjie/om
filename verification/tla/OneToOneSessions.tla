@@ -27,6 +27,7 @@ EXTENDS Naturals, FiniteSets
 CONSTANTS
   Senders,                \* devices that originate logical messages (subset of {"a1","b1","b3"})
   MaxMsgs, MaxSid, MaxCrash, MaxRestore, MaxDup, MaxWeak, MaxInject,
+  RestoreDevs,            \* devices that may take a backup and restore it (a state-space bound)
   PersistBeforeSend,      \* K1 write-ahead: ratchet/outbox state durable before an envelope leaves
   DedupeDurable,          \* K2 receive is transactional: dedupe set + session state durable before ack
   FloorFromACS,           \* K3 downgrade floor also derives from AccountControlState minimum profile
@@ -68,10 +69,10 @@ VARIABLES
   badAccept,  \* acceptances from a sender the receiver had known to be revoked
   downgrade,  \* sessions created below the established floor
   gfloor,     \* gfloor[{d,p}]: strongest profile ever established on the pair
-  intended,   \* <<m, r>> the sender meant to deliver
+  intended,   \* <<m, r, s>>: sender s meant to deliver m to r
   refused,    \* <<m, r>> the sender deliberately gave up on (ineligible / below floor)
   disturbed,  \* devices that crashed or restored
-  restored,   \* <<m, r>> intended before some restore: history lost by design, exempt from C1
+  restored,   \* <<m, r, s>> intended before some restore: history lost by design, exempt from C1
   lastAct
 
 vars == <<gen, known, sess, floor, seen, fan, P, Bk, net, nextSid, msgCount, crashes, restores,
@@ -169,7 +170,7 @@ NewMessage(s) ==
          f2 == fan[s] \cup {<<m, r>> : r \in Eligible(s)}
      IN /\ msgCount' = m
         /\ fan' = [fan EXCEPT ![s] = f2]
-        /\ intended' = intended \cup {<<m, r>> : r \in Eligible(s) \cap Real}
+        /\ intended' = intended \cup {<<m, r, s>> : r \in Eligible(s) \cap Real}
         /\ P' = IF PersistBeforeSend THEN [P EXCEPT ![s].fan = f2] ELSE P
         /\ lastAct' = <<"NewMessage", s, m>>
   /\ UNCHANGED <<gen, known, sess, floor, seen, Bk, net, nextSid, crashes, restores, dups, weak,
@@ -336,7 +337,7 @@ Crash(d) ==
                  keyLog, sendLog, badAccept, downgrade, gfloor, intended, refused, restored>>
 
 TakeBackup(d) ==
-  /\ ~Bk[d].has /\ MaxRestore > 0
+  /\ ~Bk[d].has /\ MaxRestore > 0 /\ d \in RestoreDevs
   /\ Bk' = [Bk EXCEPT ![d] = [has |-> TRUE, snap |-> Snap(d)]]
   /\ lastAct' = <<"TakeBackup", d>>
   /\ UNCHANGED <<gen, known, sess, floor, seen, fan, P, net, nextSid, msgCount, crashes, restores, dups,
@@ -399,17 +400,21 @@ NoSilentDowngrade == downgrade = {}
 Quiescent == net = {} /\ \A d \in Real : fan[d] = {}
 
 \* C1 at quiescence every intended delivery reached its device, unless the sender deliberately
-\*    refused it (ineligible/below floor) or the recipient is no longer an authorized device
+\*    refused it (ineligible/below floor), or the recipient or the sender is no longer an authorized
+\*    device (a revoked device's unsent outbox is rejected by K9, by design)
+Authorized(d) == d \in Members(Acct(d), gen[Acct(d)])
 DeliveredAtQuiescence ==
   Quiescent =>
-    \A pr \in intended :
-      pr \in restored \/ pr[2] \notin Members(Acct(pr[2]), gen[Acct(pr[2])]) \/ pr \in refused \/ pr[1] \in seen[pr[2]]
+    \A t \in intended :
+      t \in restored \/ ~Authorized(t[2]) \/ ~Authorized(t[3]) \/ <<t[1], t[2]>> \in refused
+        \/ t[1] \in seen[t[2]]
 
-\* C2 at quiescence, undisturbed device pairs that both hold live sessions prefer the same one
+\* C2 at quiescence, undisturbed authorized device pairs that both hold live sessions prefer the same one
 SamePreferredAtQuiescence ==
   Quiescent =>
     \A d, p \in Real :
-      (d # p /\ d \notin disturbed /\ p \notin disturbed /\ Live(d, p) # {} /\ Live(p, d) # {})
+      (d # p /\ Authorized(d) /\ Authorized(p) /\ d \notin disturbed /\ p \notin disturbed
+         /\ Live(d, p) # {} /\ Live(p, d) # {})
         => Pref(d, p) = Pref(p, d)
 
 \* C3 (disturbed pairs) no black hole: a preferred session the peer cannot decrypt at quiescence

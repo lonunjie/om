@@ -15,6 +15,7 @@ Usage: fuzzer.py <results.json> [--long]
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -125,8 +126,8 @@ def run_replays():
     for v in data["vectors"]:
         if "constants" in v:
             c = v["constants"]
-            topo = TLC_TOPOLOGY if c["Senders"] == '{"a1", "b1"}' else \
-                type(TLC_TOPOLOGY)(TLC_TOPOLOGY.accounts, frozenset({"a1", "b1", "b3"}))
+            senders = frozenset(re.findall(r'"(\w+)"', c["Senders"]))
+            topo = type(TLC_TOPOLOGY)(TLC_TOPOLOGY.accounts, senders)
             b, rules = bounds_from(c), rules_from(c)
         else:  # hand-recorded found traces: default bounds, rule under test disabled if named
             topo, b = TLC_TOPOLOGY, Bounds(max_restore=0)
