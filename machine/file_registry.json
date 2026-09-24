@@ -2533,7 +2533,7 @@
     {
       "path": "spec/registries/om-room-capabilities.json",
       "class": "spec_artifact",
-      "domain": "unassigned",
+      "domain": "groups",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
