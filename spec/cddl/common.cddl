@@ -1,0 +1,33 @@
+; Status: proposed for freeze (V-005). An operator ADR freezes it.
+; OM-CBOR-v1 common definitions for W0 canonical objects (RFC 8610 CDDL).
+; Field numbers: spec/registries/om-numeric-fields.json. Labels: spec/registries/om-domain-separation.json.
+; CDDL cannot express two OM-CBOR rules: 'set' arrays are sorted/unique by encoded bytes, and
+; encodings are deterministic (RFC 8949 §4.2.1 + om-cbor-profile.json). Validators enforce both.
+
+account-id = bstr .size 32
+device-id = bstr .size 16
+event-id = bstr .size 16
+conversation-id = bstr .size 32
+blob-id = bstr .size 32
+opaque-id16 = bstr .size 16
+posix-seconds = uint
+profile-id = 1..65535
+
+; key 23 on every top-level object; never empty when present
+extensions = { 1* ext-id => ext-entry }
+ext-id = tstr .size (1..128)
+ext-entry = { 0: bool, 1: any }
+
+digest = { 0: hash-alg, 1: bstr .size 32 }
+hash-alg = 1                      ; sha-256
+
+sig-role = 1..6                   ; controller, recovery, device, intro_identity, provider, legacy
+signature = {
+  0: bstr .size (16..32),         ; signer key/device id
+  1: profile-id,                  ; crypto_profile
+  2: sig-role,                    ; role
+  3: bstr .size (1..8192),        ; signature over DS-SIG(label, profile, role, signer, body)
+}
+
+principal-kind = 1..3             ; account, service, bridge
+principal-ref = { 0: principal-kind, 1: bstr .size (16..32) }

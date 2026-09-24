@@ -1,0 +1,105 @@
+; Status: proposed for freeze (V-005). An operator ADR freezes it.
+; W0 account-authority objects: AccountControlState, AccountControlHead, RecoveryPolicy,
+; RecoveryRequest, RecoveryVeto, AccountRetirement, DeviceCredential, DeviceEnrollmentNotice.
+
+signed-AccountControlState = { 1: bstr .cbor AccountControlState, 2: [1*16 signature] }
+AccountControlState = {
+  0: 1, 1: 1,
+  2: account-id,
+  3: uint,                                  ; generation
+  ? 4: digest,                              ; previous_state_hash (OM-ACS-HASH-v1)
+  5: [1*64 device-id],                      ; active_control_devices (set)
+  ? 6: [1*64 device-id],                    ; quarantined_control_devices (set)
+  ? 7: [1*256 device-id],                   ; messaging_devices (set)
+  ? 8: [1*1024 device-id],                  ; permanently_revoked_devices (set)
+  9: constitutional-policy,
+  ? 10: digest,                             ; recovery_policy_commitment (OM-RECOVERY-POLICY-HASH-v1)
+  11: profile-id,                           ; minimum_crypto_profile
+  ? 12: [1*64 control-key-epoch],           ; control_key_epochs (set)
+  ? 13: [1*320 device-credential-ref],      ; device_credentials (set; proposed addition)
+  ? 14: digest,                             ; transparency_commitment
+  ? 23: extensions,
+}
+constitutional-policy = { 0: 1..2, ? 1: 1..64 }
+control-key-epoch = { 0: device-id, 1: uint }
+device-credential-ref = { 0: device-id, 1: digest }
+
+signed-AccountControlHead = { 1: bstr .cbor AccountControlHead, 2: [1*16 signature] }
+AccountControlHead = {
+  0: 2, 1: 1,
+  2: bstr .size (16..32),                   ; subject: account id or relationship-scoped subject
+  3: uint,                                  ; generation
+  4: digest,                                ; state_hash
+  ? 5: uint,                                ; epoch
+  ? 23: extensions,
+}
+
+RecoveryPolicy = {
+  0: 3, 1: 1,
+  2: 1..3,                                  ; state: on, pending, off_explicit
+  3: [0*8 recovery-method],                 ; methods
+  4: { 0: 1, 1: true },                     ; authorization_rule: vote_weight=1, immediate_requires_controller_cosign
+  5: [1*4 (1..4)],                          ; recovers (set): identity, history, provider_metadata, relationships
+  6: recovery-activation,
+  ? 7: uint,                                ; rotation_epoch
+  ? 23: extensions,
+}
+recovery-method = { 0: 1..6, 1: bstr .size (32..2592), ? 2: 1..255, ? 3: 1..255 }
+recovery-activation = { 0: 86400..31536000, 1: 1, ? 2: true, ? 3: true }
+
+signed-RecoveryRequest = { 1: bstr .cbor RecoveryRequest, 2: [1*16 signature] }
+RecoveryRequest = {
+  0: 4, 1: 1,
+  2: account-id, 3: uint, 4: device-id,
+  5: digest,                                ; new_device_credential (OM-DEVICE-CREDENTIAL-HASH-v1)
+  6: digest,                                ; parent_state_hash
+  7: opaque-id16,                           ; request_nonce
+  ? 23: extensions,
+}
+
+signed-RecoveryVeto = { 1: bstr .cbor RecoveryVeto, 2: [1*16 signature] }
+RecoveryVeto = {
+  0: 5, 1: 1,
+  2: account-id, 3: uint,
+  4: digest,                                ; request_digest (OM-RECOVERY-REQUEST-HASH-v1)
+  ? 23: extensions,
+}
+
+signed-AccountRetirement = { 1: bstr .cbor AccountRetirement, 2: [1*16 signature] }
+AccountRetirement = {
+  0: 6, 1: 1,
+  2: account-id,
+  3: digest,                                ; previous_state_hash
+  4: 1..3,                                  ; reason_class: user_closed, moved, legacy
+  ? 5: account-id,                          ; successor_account_id
+  ? 6: bstr .size (16..64),                 ; farewell_note_ref
+  ? 7: posix-seconds,                       ; effective_at (informational)
+  8: 1..3,                                  ; authorization_kind
+  ? 9: 0..31536000,                         ; contest_window_seconds
+  ? 23: extensions,
+}
+
+signed-DeviceCredential = { 1: bstr .cbor DeviceCredential, 2: [1*16 signature] }
+DeviceCredential = {
+  0: 7, 1: 1,
+  2: device-id, 3: account-id, 4: profile-id,
+  5: bstr .size (32..4096),                 ; signing_public_key
+  6: bstr .size (32..4096),                 ; key_agreement_public_key
+  7: 1..2,                                  ; device_class: messaging, control
+  ? 8: [1*32 tstr .size (1..64)],           ; capabilities (set)
+  ? 9: posix-seconds,                       ; created_at
+  ? 23: extensions,
+}
+
+signed-DeviceEnrollmentNotice = { 1: bstr .cbor DeviceEnrollmentNotice, 2: [1*16 signature] }
+DeviceEnrollmentNotice = {
+  0: 8, 1: 1,
+  2: account-id, 3: device-id,
+  4: 1..2,                                  ; device_class
+  5: uint,                                  ; acs_generation
+  6: digest,                                ; acs_state_hash
+  7: device-id,                             ; enrolled_by_device_id
+  8: 1..3,                                  ; ceremony
+  ? 9: posix-seconds,                       ; enrolled_at
+  ? 23: extensions,
+}

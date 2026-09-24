@@ -1,0 +1,40 @@
+{
+  "status": "Status: proposed for freeze (V-005). An operator ADR freezes it.",
+  "registry": "om-time-fields",
+  "registry_version": 1,
+  "rules": [
+    "Maps every W0 time/TTL/epoch field to one ClockClass from TIME_AND_EXPIRY_SEMANTICS.md §2 (spec/protocol/time-semantics.logical.schema.json). No field listed here has authority_effect other than 'none'.",
+    "Encoding: wall-clock instants are uint seconds since 1970-01-01T00:00:00Z (POSIX, leap seconds ignored), never CBOR tag 0/1 and never text. HLC physical time is uint milliseconds. Durations are uint seconds unless the field name ends in _ms.",
+    "Default wall-clock skew tolerance for expiry checks: 300 s past expires_at and 300 s before not_before, unless the field row says otherwise. Proposed; per-object constants remain policy work."
+  ],
+  "fields": [
+    {"object": "AccountControlState", "field": "generation", "clock_class": "cryptographic_state_sequence", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none by itself; authority comes from the parent-state chain"},
+    {"object": "AccountControlHead", "field": "generation / epoch", "clock_class": "cryptographic_state_sequence", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
+    {"object": "ControlKeyEpoch", "field": "epoch", "clock_class": "cryptographic_state_sequence", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
+    {"object": "RecoveryPolicy", "field": "activation_policy.delay_seconds", "clock_class": "monotonic_local_duration", "skew_policy": "measured by live controllers from first observation of the RecoveryRequest; wall clock only as a lower bound", "bad_clock_behavior": "a device whose clock jumps forward must not treat the delay as elapsed; Homes also time-stamp receipt", "authority_effect": "none; completion is authorized by the RecoveryRequest signature plus absence of a valid RecoveryVeto"},
+    {"object": "RecoveryPolicy", "field": "rotation_epoch", "clock_class": "cryptographic_state_sequence", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
+    {"object": "RecoveryRequest / RecoveryVeto", "field": "recovery_epoch", "clock_class": "cryptographic_state_sequence", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
+    {"object": "AccountRetirement", "field": "effective_at", "clock_class": "wall_clock_expiry", "skew_policy": "informational", "bad_clock_behavior": "ignored", "authority_effect": "none (logical schema: 'informational; non-authoritative')"},
+    {"object": "AccountRetirement", "field": "contest_window_seconds", "clock_class": "monotonic_local_duration", "skew_policy": "as RecoveryPolicy.delay_seconds", "bad_clock_behavior": "as RecoveryPolicy.delay_seconds", "authority_effect": "none"},
+    {"object": "DeviceCredential", "field": "created_at", "clock_class": "wall_clock_expiry", "skew_policy": "informational (display only)", "bad_clock_behavior": "display 'unknown'", "authority_effect": "none"},
+    {"object": "DeviceEnrollmentNotice", "field": "enrolled_at", "clock_class": "wall_clock_expiry", "skew_policy": "informational (display only)", "bad_clock_behavior": "display receipt time instead", "authority_effect": "none"},
+    {"object": "AsyncKeyBundle", "field": "generation", "clock_class": "cryptographic_state_sequence", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
+    {"object": "AsyncKeyBundle", "field": "expires_at", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "fetcher with an obviously invalid clock uses the bundle but prefers a newer generation; never downgrades profile", "authority_effect": "none"},
+    {"object": "ConversationEvent", "field": "clock.physical_ms / clock.logical", "clock_class": "hlc_ordering", "skew_policy": "HLC rules (EVENT_MODEL.md EventClock)", "bad_clock_behavior": "misplaced display order only", "authority_effect": "none"},
+    {"object": "ConversationEvent", "field": "expiry", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "local deletion uses monotonic time from receipt (TIME_AND_EXPIRY_SEMANTICS.md §4)", "authority_effect": "none"},
+    {"object": "MessageCreate", "field": "expires_after", "clock_class": "monotonic_local_duration", "skew_policy": "n/a", "bad_clock_behavior": "timer runs on monotonic time from local first display/receipt", "authority_effect": "none"},
+    {"object": "AttachmentRef", "field": "duration_ms", "clock_class": "n/a (media metadata)", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
+    {"object": "ContactDescriptor", "field": "not_before / expires_at", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "treat as expired and ask the sender for a fresh capsule", "authority_effect": "none"},
+    {"object": "ContactCapsule", "field": "expires_at / share_epoch", "clock_class": "wall_clock_expiry / cryptographic_state_sequence", "skew_policy": "default", "bad_clock_behavior": "IntroGate re-checks share_epoch online", "authority_effect": "none"},
+    {"object": "ReferralAttestation", "field": "issued_at", "clock_class": "wall_clock_expiry", "skew_policy": "informational", "bad_clock_behavior": "ignored", "authority_effect": "none"},
+    {"object": "Invite", "field": "issued_at / expires_at", "clock_class": "wall_clock_expiry", "skew_policy": "default; IntroGate clock is authoritative for acceptance at that IntroGate", "bad_clock_behavior": "client shows 'may have expired'; IntroGate decides", "authority_effect": "none"},
+    {"object": "Invite", "field": "revocation_epoch", "clock_class": "cryptographic_state_sequence", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
+    {"object": "IntroductionTicket", "field": "expires_at", "clock_class": "provider_retention_clock", "skew_policy": "issuer's clock", "bad_clock_behavior": "issuer rejects; fail closed", "authority_effect": "none"},
+    {"object": "SponsoredMailboxGrant", "field": "expires_at", "clock_class": "provider_retention_clock", "skew_policy": "sponsor Home's clock", "bad_clock_behavior": "client warns early; Home decides", "authority_effect": "none"},
+    {"object": "MailboxQuotas", "field": "retention_seconds", "clock_class": "provider_retention_clock", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
+    {"object": "RelayEntry", "field": "expires_at", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "keep using until a newer RelaySet version arrives or delivery fails", "authority_effect": "none"},
+    {"object": "RelaySet", "field": "version", "clock_class": "cryptographic_state_sequence", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
+    {"object": "BlobLocationRecord", "field": "version", "clock_class": "cryptographic_state_sequence", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
+    {"object": "BlobLocationRecord", "field": "valid_from / overlap_until", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "keep trying every known locator", "authority_effect": "none"}
+  ]
+}

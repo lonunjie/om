@@ -1,0 +1,77 @@
+; Status: proposed for freeze (V-005). An operator ADR freezes it.
+; W0 discovery/introduction objects: ContactDescriptor, ContactCapsule, ReferralAttestation,
+; Invite, IntroductionTicket.
+
+intro-service-ref = { 0: tstr .size (1..2048), ? 1: bstr .size (32..2592) }
+
+signed-ContactDescriptor = { 1: bstr .cbor ContactDescriptor, 2: [1*16 signature] }
+ContactDescriptor = {
+  0: 11, 1: 1,
+  2: opaque-id16,                           ; descriptor_id
+  ? 3: tstr .size (1..64),                  ; subject_hint
+  ? 4: tstr .size (1..256),                 ; alias
+  ? 5: tstr .size (1..256),                 ; alias_scope
+  6: [1*8 (1..65535)],                      ; protocol_versions (set)
+  7: [1*8 intro-service-ref],               ; introduction_services
+  ? 8: [1*8 tstr .size (1..2048)],          ; relay_hints
+  ? 9: [1*8 bstr .size (1..4096)],          ; verification_claims (opaque typed evidence)
+  ? 10: [1*8 profile-id],                   ; crypto_profiles (set)
+  ? 11: posix-seconds,                      ; not_before
+  12: posix-seconds,                        ; expires_at
+  13: { 0: 1..3, ? 1: bstr .size (16..64) },; provenance
+  ? 14: bstr .size (1..8192),               ; transparency_proof
+  ? 23: extensions,
+}
+
+signed-ContactCapsule = { 1: bstr .cbor ContactCapsule, 2: [1*16 signature] }
+ContactCapsule = {
+  0: 12, 1: 1,
+  2: 1..65535,                              ; capsule_version
+  ? 3: opaque-id16,                         ; share_id
+  ? 4: uint,                                ; share_epoch
+  5: bstr .size (32..2592),                 ; subject_intro_identity (public key)
+  6: bstr .cbor signed-ContactDescriptor,   ; contact_descriptor (signed, nested)
+  7: posix-seconds,                         ; expires_at
+  ? 8: 1..5,                                ; share_policy_hint
+  ? 23: extensions,
+  ; 9 referral_attestation reserved: carried as a separate ReferralAttestation
+}
+
+signed-ReferralAttestation = { 1: bstr .cbor ReferralAttestation, 2: [1*16 signature] }
+ReferralAttestation = {
+  0: 13, 1: 1,
+  2: digest,                                ; capsule_digest (OM-CONTACT-CAPSULE-HASH-v1)
+  3: bstr .size (16..32),                   ; relationship_context
+  ? 4: posix-seconds,                       ; issued_at
+  ? 23: extensions,
+}
+
+signed-Invite = { 1: bstr .cbor Invite, 2: [1*16 signature] }
+Invite = {
+  0: 14, 1: 1,
+  2: opaque-id16,                           ; invite_id
+  3: bstr .size (16..32),                   ; invite_secret (never logged)
+  4: [1*8 intro-service-ref],               ; introduction_services
+  5: posix-seconds,                         ; issued_at
+  6: posix-seconds,                         ; expires_at
+  ? 7: 1..1000000,                          ; max_uses
+  8: [1*3 (1..3)],                          ; scopes (set): request_only, lan_rendezvous, sponsorship
+  ? 9: bstr .size (1..1024),                ; lan_rendezvous (opaque)
+  ? 10: uint,                               ; revocation_epoch
+  ? 11: bstr .size (16..32),                ; sponsorship_ticket (T0)
+  ? 23: extensions,
+}
+
+signed-IntroductionTicket = { 1: bstr .cbor IntroductionTicket, 2: [1*16 signature] }
+IntroductionTicket = {
+  0: 15, 1: 1,
+  2: opaque-id16,                           ; ticket_id
+  3: bstr .size (16..32),                   ; service_binding
+  4: posix-seconds,                         ; expires_at
+  5: 1..16,                                 ; max_uses
+  6: 1..65536,                              ; payload_limit_bytes
+  ? 7: bool, ? 8: bool,                     ; allow_attachments, allow_calls
+  9: opaque-id16,                           ; nonce
+  ? 10: bstr .size (1..4096),               ; admission_proof (opaque AdmissionProof)
+  ? 23: extensions,
+}
