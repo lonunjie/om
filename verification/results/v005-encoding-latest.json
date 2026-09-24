@@ -1,0 +1,407 @@
+{
+ "gate": "V-005",
+ "related_gates": [
+  "V-022"
+ ],
+ "gate_status_effect": "evidence_only_gate_remains_open",
+ "prototype": "verification/prototypes/v005-encoding (feasibility prototype, not product code)",
+ "reproduce": "verification/prototypes/v005-encoding/run.sh",
+ "registries": "spec/registries/*.json (status: proposed_for_freeze; freeze requires an operator ADR)",
+ "cddl": "spec/cddl/*.cddl",
+ "vectors": {
+  "file": "verification/vectors/v005-w0-object-vectors.json.gz",
+  "total": 540,
+  "positive": 36,
+  "negative": 504,
+  "object_types": 18
+ },
+ "toolchain": {
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "node": "v24.14.0",
+  "ruby": "ruby 2.6.10p210 (2022-04-12 revision 67958) [universal.arm64e-darwin25]",
+  "python": "3.14.7"
+ },
+ "existing_fixtures_rust": {
+  "fixtures": 14,
+  "mismatches": []
+ },
+ "codec_agreement": {
+  "rust": {
+   "vectors": 540,
+   "mismatches": 0,
+   "first_mismatches": []
+  },
+  "node": {
+   "vectors": 540,
+   "mismatches": 0,
+   "first_mismatches": []
+  }
+ },
+ "cddl_check": {
+  "disagreements": [],
+  "generated_examples": {
+   "ConversationEvent": {
+    "accepted": 6,
+    "generated": 12,
+    "rejected_classes": [
+     "size_limit",
+     "unknown_critical_extension"
+    ]
+   },
+   "RecoveryPolicy": {
+    "accepted": 8,
+    "generated": 12,
+    "rejected_classes": [
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-AccountControlHead": {
+    "accepted": 8,
+    "generated": 12,
+    "rejected_classes": [
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-AccountControlState": {
+    "accepted": 7,
+    "generated": 12,
+    "rejected_classes": [
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-AccountRetirement": {
+    "accepted": 9,
+    "generated": 12,
+    "rejected_classes": [
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-AsyncKeyBundle": {
+    "accepted": 5,
+    "generated": 12,
+    "rejected_classes": [
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-BlobLocationRecord": {
+    "accepted": 10,
+    "generated": 12,
+    "rejected_classes": [
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-ContactCapsule": {
+    "accepted": 5,
+    "generated": 12,
+    "rejected_classes": [
+     "size_limit",
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-ContactDescriptor": {
+    "accepted": 6,
+    "generated": 12,
+    "rejected_classes": [
+     "size_limit",
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-DeviceCredential": {
+    "accepted": 10,
+    "generated": 12,
+    "rejected_classes": [
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-DeviceEnrollmentNotice": {
+    "accepted": 4,
+    "generated": 12,
+    "rejected_classes": [
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-IntroductionTicket": {
+    "accepted": 5,
+    "generated": 12,
+    "rejected_classes": [
+     "size_limit",
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-Invite": {
+    "accepted": 3,
+    "generated": 12,
+    "rejected_classes": [
+     "size_limit",
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-RecoveryRequest": {
+    "accepted": 7,
+    "generated": 12,
+    "rejected_classes": [
+     "size_limit",
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-RecoveryVeto": {
+    "accepted": 7,
+    "generated": 12,
+    "rejected_classes": [
+     "size_limit",
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-ReferralAttestation": {
+    "accepted": 8,
+    "generated": 12,
+    "rejected_classes": [
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-RelaySet": {
+    "accepted": 7,
+    "generated": 12,
+    "rejected_classes": [
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-SponsoredMailboxGrant": {
+    "accepted": 5,
+    "generated": 12,
+    "rejected_classes": [
+     "size_limit",
+     "unknown_critical_extension"
+    ]
+   }
+  },
+  "generated_unexpected_rejection_count": 0,
+  "generated_unexpected_rejections": [],
+  "rust_tool_spec_workarounds": [
+   {
+    "from": "{ 1* ext-id => ext-entry }",
+    "reason": "cddl 0.10.7 only matches bare inline key types in KEY => VALUE members",
+    "to": "{ 1* tstr => ext-entry }"
+   }
+  ],
+  "tools": [
+   "cddl (Rust crate) 0.10.7",
+   "cddl (Ruby gem) 0.12.14"
+  ],
+  "vector_checks": 246
+ },
+ "codec_cost_v022": {
+  "status": "measured",
+  "method": "median of 7 calibrated batches (>=15 ms each) per object; one representative positive vector per W0 object type (bench=true); single thread",
+  "host": {
+   "cpu": "Apple M3",
+   "os": "Darwin 25.6.0"
+  },
+  "native_target": "aarch64-apple-darwin",
+  "wasm_runtime": "wasmtime 49.0.0 (17830bd3c 2026-09-21)",
+  "summary_native": {
+   "decode_ns": {
+    "median": 319.0,
+    "max": 2207.0
+   },
+   "decode_validate_ns": {
+    "median": 1291.5,
+    "max": 4125.0
+   },
+   "encode_ns": {
+    "median": 465.5,
+    "max": 2772.0
+   },
+   "sig_hash_inputs_ns": {
+    "median": 1538.0,
+    "max": 10711.0
+   }
+  },
+  "summary_wasm32_wasip1": {
+   "decode_ns": {
+    "median": 282.0,
+    "max": 2093.0
+   },
+   "decode_validate_ns": {
+    "median": 1490.0,
+    "max": 5039.0
+   },
+   "encode_ns": {
+    "median": 342.5,
+    "max": 2495.0
+   },
+   "sig_hash_inputs_ns": {
+    "median": 1419.5,
+    "max": 12832.0
+   }
+  },
+  "wasm32_over_native_decode_validate": {
+   "median": 1.21,
+   "max": 1.4
+  },
+  "per_object": [
+   {
+    "id": "AccountControlState/typical",
+    "bytes": 486,
+    "native": {
+     "decode_ns": 382.0,
+     "decode_validate_ns": 3692.0,
+     "encode_ns": 512.0,
+     "sig_hash_inputs_ns": 3211.0
+    },
+    "wasm32_wasip1": {
+     "decode_ns": 329.0,
+     "decode_validate_ns": 3778.0,
+     "encode_ns": 404.0,
+     "sig_hash_inputs_ns": 3273.0
+    }
+   },
+   {
+    "id": "AccountControlHead/typical",
+    "bytes": 139,
+    "native": {
+     "decode_ns": 234.0,
+     "decode_validate_ns": 681.0,
+     "encode_ns": 325.0,
+     "sig_hash_inputs_ns": 560.0
+    },
+    "wasm32_wasip1": {
+     "decode_ns": 197.0,
+     "decode_validate_ns": 838.0,
+     "encode_ns": 252.0,
+     "sig_hash_inputs_ns": 492.0
+    }
+   },
+   {
+    "id": "RecoveryPolicy/typical",
+    "bytes": 112,
+    "native": {
+     "decode_ns": 489.0,
+     "decode_validate_ns": 942.0,
+     "encode_ns": 811.0,
+     "sig_hash_inputs_ns": 998.0
+    },
+    "wasm32_wasip1": {
+     "decode_ns": 476.0,
+     "decode_validate_ns": 1287.0,
+     "encode_ns": 718.0,
+     "sig_hash_inputs_ns": 923.0
+    }
+   },
+   {
+    "id": "DeviceCredential/typical",
+    "bytes": 264,
+    "native": {
+     "decode_ns": 359.0,
+     "decode_validate_ns": 1203.0,
+     "encode_ns": 495.0,
+     "sig_hash_inputs_ns": 2339.0
+    },
+    "wasm32_wasip1": {
+     "decode_ns": 318.0,
+     "decode_validate_ns": 1427.0,
+     "encode_ns": 396.0,
+     "sig_hash_inputs_ns": 2274.0
+    }
+   },
+   {
+    "id": "AsyncKeyBundle/typical",
+    "bytes": 3956,
+    "native": {
+     "decode_ns": 279.0,
+     "decode_validate_ns": 2295.0,
+     "encode_ns": 436.0,
+     "sig_hash_inputs_ns": 10711.0
+    },
+    "wasm32_wasip1": {
+     "decode_ns": 246.0,
+     "decode_validate_ns": 2841.0,
+     "encode_ns": 289.0,
+     "sig_hash_inputs_ns": 12832.0
+    }
+   },
+   {
+    "id": "ConversationEvent/create-typical",
+    "bytes": 602,
+    "native": {
+     "decode_ns": 2207.0,
+     "decode_validate_ns": 4125.0,
+     "encode_ns": 2772.0,
+     "sig_hash_inputs_ns": 36.0
+    },
+    "wasm32_wasip1": {
+     "decode_ns": 2093.0,
+     "decode_validate_ns": 5039.0,
+     "encode_ns": 2495.0,
+     "sig_hash_inputs_ns": 47.0
+    }
+   },
+   {
+    "id": "ConversationEvent/create-minimal",
+    "bytes": 149,
+    "native": {
+     "decode_ns": 451.0,
+     "decode_validate_ns": 856.0,
+     "encode_ns": 789.0,
+     "sig_hash_inputs_ns": 29.0
+    },
+    "wasm32_wasip1": {
+     "decode_ns": 461.0,
+     "decode_validate_ns": 1202.0,
+     "encode_ns": 646.0,
+     "sig_hash_inputs_ns": 34.0
+    }
+   },
+   {
+    "id": "ContactCapsule/typical",
+    "bytes": 383,
+    "native": {
+     "decode_ns": 240.0,
+     "decode_validate_ns": 2044.0,
+     "encode_ns": 339.0,
+     "sig_hash_inputs_ns": 2302.0
+    },
+    "wasm32_wasip1": {
+     "decode_ns": 206.0,
+     "decode_validate_ns": 2342.0,
+     "encode_ns": 255.0,
+     "sig_hash_inputs_ns": 2319.0
+    }
+   },
+   {
+    "id": "Invite/typical",
+    "bytes": 190,
+    "native": {
+     "decode_ns": 230.0,
+     "decode_validate_ns": 1028.0,
+     "encode_ns": 332.0,
+     "sig_hash_inputs_ns": 612.0
+    },
+    "wasm32_wasip1": {
+     "decode_ns": 195.0,
+     "decode_validate_ns": 1231.0,
+     "encode_ns": 251.0,
+     "sig_hash_inputs_ns": 547.0
+    }
+   },
+   {
+    "id": "RelaySet/typical",
+    "bytes": 283,
+    "native": {
+     "decode_ns": 229.0,
+     "decode_validate_ns": 1380.0,
+     "encode_ns": 338.0,
+     "sig_hash_inputs_ns": 2078.0
+    },
+    "wasm32_wasip1": {
+     "decode_ns": 196.0,
+     "decode_validate_ns": 1553.0,
+     "encode_ns": 245.0,
+     "sig_hash_inputs_ns": 1916.0
+    }
+   }
+  ]
+ },
+ "all_checks_pass": true,
+ "independence_caveat": "Rust and Node codecs, the registries and the vector generator were written by the same agent in one session; agreement shows internal consistency, not independent review (ADR-0117 still proposed)."
+}
