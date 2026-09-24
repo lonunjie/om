@@ -956,6 +956,48 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0120-one-to-one-session-manager-rules.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0123-moderation-evidence-access-and-appeal-hold.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0124-service-information-flow-and-bridge-provenance.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0125-portable-archive-format-rulings.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -2464,6 +2506,13 @@
       "path": "spec/registries/om-object-types.json",
       "class": "spec_artifact",
       "domain": "crypto_1to1",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/registries/om-secret-object-types.json",
+      "class": "spec_artifact",
+      "domain": "import_export_escape",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },

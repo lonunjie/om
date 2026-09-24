@@ -520,3 +520,11 @@ SMS/MMS/RCS remain transport provenance/adapters added later; they do not change
 ## 2026-09-22 engineering refinement — RichTextV1
 
 `message.edit.replacement` follows the same RichTextV1 semantic model. Protocol encoding uses the OM deterministic-CBOR profile and bounded node/text/url counts. Unknown future rich-text node kinds follow explicit extension criticality; clients must always be able to produce a safe plain-text fallback for supported content.
+
+## 2026-09-24 verification rulings
+
+Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
+
+- [ADR-0121](../../../decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md): events are authorized at their **sending epoch**. EventClock total order is `(physical_ms, counter, endpoint, EventID)`, and `endpoint_tiebreak` must equal the authenticated endpoint.
+- Last-writer-wins registers order by `(sending epoch, EventClock)`. Receivers never clamp by their own clock. A write more than 10 minutes in the future shows as a clock anomaly, and an update commit ends its dominance.
+- Equivocation (one EventID, two payloads) rejects every version. A state operation on a wrong-kind target is rejected; one on a missing target is held as `dangling` and never displayed. The 64 KiB limit applies to the canonical encoding.

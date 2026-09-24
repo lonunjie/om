@@ -383,3 +383,10 @@ A conforming third-party client can interact with a service from published inter
 11. No OM Project bot cloud/catalog is required for interoperability.
 12. Creating a ServiceID requires no central issuer and grants no ambient reach/read/send authority.
 13. A service acting for a person remains ServicePrincipal-authored with a scoped `RepresentationGrant`; it never becomes an Account device merely by representation.
+
+## 2026-09-24 verification rulings
+
+Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
+
+- [ADR-0122](../../../decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md): the service, its endpoints and its hosts are ineligible controllers (no self-appointment). Recipients enforce anti-rollback on ServiceControlState. `migrate_endpoint` is one atomic transition, and endpoint revocations are monotone reductions.
+- [ADR-0124](../../../decisions/ADR-0124-service-information-flow-and-bridge-provenance.md): the triggering message is a plaintext disclosure. An invocation that has read Room plaintext is tainted, and a tainted invocation gets no network egress without an explicit `plaintext_egress` grant. Content filtering is not a control.

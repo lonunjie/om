@@ -22,8 +22,14 @@ class E:
 def materialize(delivery):
     # EventID de-duplication, then deterministic EventClock order. Authorization
     # is authenticated input to materialization and wall time is irrelevant.
-    by_id = {e.eid: e for e in delivery}
-    events = sorted(by_id.values(), key=lambda e: e.clock)
+    # One EventID with two different payloads is equivocation: every version is
+    # rejected, independent of arrival order (ADR-0121 rule 5).
+    by_id, equivocal = {}, set()
+    for e in delivery:
+        if e.eid in by_id and by_id[e.eid] != e:
+            equivocal.add(e.eid)
+        by_id.setdefault(e.eid, e)
+    events = sorted((e for i, e in by_id.items() if i not in equivocal), key=lambda e: e.clock)
     pins = {}
     redacted = set()
     poll_create = {}
@@ -31,9 +37,18 @@ def materialize(delivery):
     poll_closed_at = {}
     topics = {}
     message_topics = {}
+    # ADR-0121 rule 6: a state operation needs a target of the right kind. A missing
+    # target is held (never applied) until it arrives, so the result is order-independent.
+    content = {e.eid: e.kind for e in events if e.authorized and e.kind in ("message.create", "poll.create")}
+    created_topics = {e.target for e in events if e.authorized and e.kind == "topic.create"}
 
     for e in events:
         if not e.authorized:
+            continue
+        if e.kind in ("pin.set", "moderation.redact") and e.target not in content:
+            continue
+        if e.kind == "message.topic.set" and (content.get(e.target) != "message.create"
+                                              or (e.value is not None and e.value not in created_topics)):
             continue
         if e.kind == "pin.set":
             pins[e.target] = bool(e.value)
@@ -50,8 +65,18 @@ def materialize(delivery):
             close_clock = poll_closed_at.get(e.target)
             if close_clock is not None and e.clock > close_clock:
                 continue
-            poll_votes[(e.actor, e.target)] = e.value
+            # ADR-0121 rule 8: options are validated; an empty selection retracts.
+            spec = poll_create[e.target] or {}
+            opts = spec.get("opts") or ()
+            if any(o not in opts for o in e.value) or (spec.get("mode") == "single" and len(e.value) > 1):
+                continue
+            if e.value:
+                poll_votes[(e.actor, e.target)] = e.value
+            else:
+                poll_votes.pop((e.actor, e.target), None)
         elif e.kind == "topic.create":
+            if e.target in topics:  # earliest create wins (ADR-0121 rule 8)
+                continue
             topics[e.target] = {"title": e.value, "status": "open", "clock": e.clock}
         elif e.kind == "topic.update":
             if e.target in topics and e.clock >= topics[e.target]["clock"]:
@@ -93,7 +118,9 @@ def main():
     cases = 0
     fixtures = {}
 
+    # Targets exist as content: state operations on missing targets are held (ADR-0121 rule 6).
     pin = [
+        E("m1", "message.create", (0,"A","m1"), "A"),
         E("p1", "pin.set", (1,"A","p1"), "A", "m1", True),
         E("p2", "pin.set", (3,"B","p2"), "B", "m1", False),
         E("p3", "pin.set", (2,"X","p3"), "X", "m1", False, False), # unauthorized ignored
@@ -101,6 +128,8 @@ def main():
     c, out = exhaustive_permutations(pin); cases += c; fixtures["pin"] = out
 
     redact = [
+        E("m2", "message.create", (0,"A","m2"), "A"),
+        E("m3", "message.create", (0,"B","m3"), "B"),
         E("r1", "moderation.redact", (2,"M","r1"), "M", "m2"),
         E("r2", "moderation.redact", (4,"X","r2"), "X", "m3", authorized=False),
         E("r3", "moderation.redact", (3,"N","r3"), "N", "m2"),
@@ -118,6 +147,7 @@ def main():
     c, out = exhaustive_permutations(poll, with_duplicate=False); cases += c; fixtures["poll"] = out
 
     topic = [
+        E("m4", "message.create", (0,"A","m4"), "A"),
         E("tc", "topic.create", (1,"A","tc"), "A", "t1", "First"),
         E("tu1", "topic.update", (2,"A","tu1"), "A", "t1", "Second"),
         E("tu2", "topic.update", (3,"B","tu2"), "B", "t1", "Final"),

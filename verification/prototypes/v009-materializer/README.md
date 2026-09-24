@@ -27,6 +27,14 @@ Authority is modeled as an externally ordered chain of control epochs (grants an
 
 ## Results (run 2026-09-24)
 
+**Update after ADR-0121 (same day).** The reference was corrected for REF-1 and REF-3, and it now implements the
+accepted rulings DA-1..DA-3. Re-run: **115 of 115 cases agree, 0 disagreements**, and the reference converges on every
+case. The criterion stays `partial` for the other reasons below: the shared authorization adapter (G-V9-5), the
+reference covering only part of the kinds, and the missing non-author review.
+
+The original run, before the fixes:
+
+
 - **Rust materializer:** 115 cases and 64,280 delivery orders. The orders are every permutation for n≤6, otherwise 600 seeded permutations, plus two duplication variants for every third order. **All converge**.
 - **Python reference on the extended corpus:** 41,113 orders. It is **non-convergent on 1 case** (`equivocation-duplicate-eventid`; see REF-1).
 - **Diff:** 90 cases agree. The other 25 disagree, and **every one is attributed**: 0 materializer bugs, 2 reference bugs, 3 doc ambiguities.

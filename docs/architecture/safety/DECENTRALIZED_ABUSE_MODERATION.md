@@ -137,7 +137,7 @@ Moderation actions are authenticated as the moderator/governance principal that 
 
 ### Timeout
 
-A timeout is a bounded authorization restriction with explicit start/expiry clock semantics. Expiry is convenience/policy time, not constitutional authority; clients/Room control define deterministic behavior when clocks disagree.
+A timeout is a bounded authorization restriction with explicit start/expiry clock semantics. ~~Expiry is convenience/policy time, not constitutional authority; clients/Room control define deterministic behavior when clocks disagree.~~ A timeout ends only through a committed `untimeout` transition (ADR-0122).
 
 ### Remove vs ban
 
@@ -479,3 +479,10 @@ V-016 must adversarially/model test:
 - fork/escape behavior under captured Room/Space governance.
 
 A passing V-016 is required before engineering authorization because moderation and anti-spam controls touch authority, privacy and resource-exhaustion boundaries.
+
+## 2026-09-24 verification rulings
+
+Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
+
+- [ADR-0122](../../../decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md): removing, banning, timing out or restricting a governance principal is a constitutional transition that needs governance authority or quorum. A timeout ends only through a committed, epoch-bound `untimeout` transition (auto-committed by moderators' clients after expiry). The subject cannot lift its own timeout.
+- [ADR-0123](../../../decisions/ADR-0123-moderation-evidence-access-and-appeal-hold.md): evidence is encrypted to the moderator set at the report's epoch, without clawback after a demotion. Appeal holds are capped at `hold_max`, at most 180 days after the original retention expiry.

@@ -208,3 +208,9 @@ Rules:
    IETF MLS WG drafts for ML-KEM/X-Wing-based suites and an amortized PQ combiner exist, and at least one candidate library exposes experimental hybrid suites. Verify current status before relying on this.
 4. When the triggers are met, the new profile becomes the default for **new** groups, and existing groups migrate automatically through ReInit without user action (R-011). An established group's floor never silently drops back.
 5. Until then, users with HNDL-sensitive content are pointed, in Security details, to 1:1 conversations, which are hybrid-PQ in v1. OM does not build a parallel pairwise-fanout group mode to paper over this.
+
+## 2026-09-24 verification rulings
+
+Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
+
+- [ADR-0120](../../../decisions/ADR-0120-one-to-one-session-manager-rules.md) (downgrade floor): per-peer floor records are included in backups. After a restore the floor is the maximum of the restored record and the AccountControlState minimum profile. A receiver that rejects a session below the floor sends an authenticated reject naming the message, and the sender retries at the floor.

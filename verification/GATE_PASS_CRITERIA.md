@@ -108,7 +108,7 @@ Model/fuzz the per-device 1:1 session manager across crossed initiation, add/rev
 - **Scopes blocked:** core_kernel
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
-- **Evidence:** `verification/tla/OneToOneSessions.tla`; `verification/tla/models-v003.json`; `verification/prototypes/v003-sessions/README.md`; `verification/results/v003-sessions-latest.json`; `verification/vectors/one-to-one-session-regression-vectors.json`
+- **Evidence:** `verification/tla/OneToOneSessions.tla`; `verification/tla/models-v003.json`; `verification/prototypes/v003-sessions/README.md`; `verification/results/v003-sessions-latest.json`; `verification/vectors/one-to-one-session-regression-vectors.json`; `decisions/ADR-0120-one-to-one-session-manager-rules.md`
 
 Pre-engineering criteria:
 
@@ -122,9 +122,8 @@ Pre-release criteria:
 
 What remains (needs someone other than the author):
 
-- non-author review of the model
-- design rulings for gaps K1-K5, K7, K9-K11, P1 (see README)
-- restore+redelivery config (MaxSid 2) did not finish in 3 min; unchecked
+- non-author review: a non-Anthropic agent or a human (ADR-0117)
+- restore+redelivery TLC config unchecked (K11 covered by gap config + fuzzer)
 
 ### V-004 — `group_commit_control_model`
 
@@ -207,7 +206,7 @@ Model-check Room/Space capability grants, explicit restrictions, delegation ceil
 - **Scopes blocked:** communities_publications
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_tool, independent_reviewer; pre-release independent_implementation
-- **Evidence:** `verification/results/authority-bounded-latest.json`; `verification/results/v008-permissions-latest.json`; `verification/tla/ScopedPermissions.tla`; `verification/tla/models-v008-permissions.json`
+- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/results/authority-bounded-latest.json`; `verification/results/v008-permissions-latest.json`; `verification/tla/ScopedPermissions.tla`; `verification/tla/models-v008-permissions.json`
 
 Pre-engineering criteria:
 
@@ -219,8 +218,7 @@ Pre-release criteria:
 
 What remains (needs someone other than the author):
 
-- review by a non-author (ADR-0117); small TLC bounds
-- rulings: revoked-grantor cascade, sub-delegated Space authority, Space-side unlink, fork freeze vs revocation
+- non-author review: a non-Anthropic agent or a human (ADR-0117)
 
 ### V-009 — `baseline_event_materialization_convergence`
 
@@ -229,7 +227,7 @@ Property-test/model the expanded baseline ConversationEvent materialization unde
 - **Scopes blocked:** groups
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_implementation; pre-release independent_implementation
-- **Evidence:** `verification/prototypes/v009-materializer/README.md`; `verification/results/conversation-convergence-latest.json`; `verification/results/v009-materializer-latest.json`
+- **Evidence:** `decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md`; `verification/prototypes/v009-materializer/README.md`; `verification/results/conversation-convergence-latest.json`; `verification/results/v009-materializer-latest.json`
 
 Pre-engineering criteria:
 
@@ -241,9 +239,9 @@ Pre-release criteria:
 
 What remains (needs someone other than the author):
 
-- resolve doc ambiguities DA-1..DA-3 and fix reference bugs REF-1, REF-3, then re-diff
-- second implementation covers pins/redaction/polls/topics only; edits/deletes/reactions/receipts/replies lack a second implementation
-- authorization semantics shared via compare.py adapter, not independent
+- non-author review: a non-Anthropic agent or a human (ADR-0117)
+- reference derives authorization from the control chain (G-V9-5) instead of the shared adapter
+- second implementation of edits/deletes/reactions/receipts/replies
 
 ### V-010 — `plugin_sandbox_capability_model`
 
@@ -268,7 +266,7 @@ Model/property-test permissionless ServiceGenesis, ServicePrincipal endpoint/con
 - **Scopes blocked:** services_bots
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
-- **Evidence:** `verification/results/authority-bounded-latest.json`; `verification/results/v011-services-latest.json`; `verification/tla/ServiceAuthority.tla`; `verification/tla/models-v011.json`
+- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/results/authority-bounded-latest.json`; `verification/results/v011-services-latest.json`; `verification/tla/ServiceAuthority.tla`; `verification/tla/models-v011.json`
 
 Pre-engineering criteria:
 
@@ -281,8 +279,7 @@ Pre-release criteria:
 
 What remains (needs someone other than the author):
 
-- review by a non-author (ADR-0117) of both criteria
-- rulings: host migration freezes service, controller self-appointment, service control anti-rollback, trigger plaintext disclosure, egress information-flow rule
+- non-author review: a non-Anthropic agent or a human (ADR-0117)
 
 ### V-012 — `expressive_media_and_pack_parser_safety`
 
@@ -308,7 +305,7 @@ Adversarially model/test BridgePrincipal control and Room admission/removal, for
 - **Scopes blocked:** bridges
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
-- **Evidence:** `verification/prototypes/v013-bridges/BRIDGE_ADAPTER_CONTRACT.md`; `verification/results/v013-bridges-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
+- **Evidence:** `decisions/ADR-0124-service-information-flow-and-bridge-provenance.md`; `verification/prototypes/v013-bridges/BRIDGE_ADAPTER_CONTRACT.md`; `verification/results/v013-bridges-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
 
 Pre-engineering criteria:
 
@@ -321,8 +318,7 @@ Pre-release criteria:
 
 What remains (needs someone other than the author):
 
-- review by a non-author (ADR-0117) of the adapter contract
-- rulings: bridge-scoped fingerprints vs dedupe, metadata-stripping foreign relay, opt-in cross-bridge relay, no pre-admission history export
+- non-author review: a non-Anthropic agent or a human (ADR-0117)
 
 ### V-014 — `portable_archive_interop_and_import_safety`
 
@@ -331,7 +327,7 @@ Round-trip om-archive-v1 across at least two independent implementations and tes
 - **Scopes blocked:** portability
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
-- **Evidence:** `verification/prototypes/v014-archive/OM_ARCHIVE_V1_SPEC.md`; `verification/results/v014-archive-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
+- **Evidence:** `decisions/ADR-0125-portable-archive-format-rulings.md`; `verification/prototypes/v014-archive/OM_ARCHIVE_V1_SPEC.md`; `verification/results/v014-archive-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
 
 Pre-engineering criteria:
 
@@ -348,7 +344,6 @@ What remains (needs someone other than the author):
 
 - freeze spec: review by a non-author (ADR-0117), ADR, crypto-profile review, V-005/ADR-0119
 - reviewer sign-off on corpus adequacy
-- rulings: JSON manifest hashing, schema fields, provenance evidence, banned secret-key types, archive encryption profile, newer-than-live control state
 
 ### V-015 — `metadata_exposure_and_privacy_path_model`
 
@@ -379,7 +374,7 @@ Model/property-test block/revocation/Sybil behavior, IntroGate resource abuse, R
 - **Scopes blocked:** core_kernel, communities_publications
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
-- **Evidence:** `verification/bounded/introgate_sybil_model.py`; `verification/results/authority-bounded-latest.json`; `verification/results/introgate-sybil-latest.json`; `verification/results/v016-room-moderation-latest.json`; `verification/tla/RoomModeration.tla`; `verification/tla/models-v016-room-moderation.json`
+- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/bounded/introgate_sybil_model.py`; `verification/results/authority-bounded-latest.json`; `verification/results/introgate-sybil-latest.json`; `verification/results/v016-room-moderation-latest.json`; `verification/tla/RoomModeration.tla`; `verification/tla/models-v016-room-moderation.json`
 
 Pre-engineering criteria:
 
@@ -392,8 +387,7 @@ Pre-release criteria:
 
 What remains (needs someone other than the author):
 
-- review by a non-author (ADR-0117) of the Room model
-- rulings: moderator removing governance principals, MLS past-epoch window, committed timeout expiry, evidence access across demotion, appeal-hold bound
+- non-author review: a non-Anthropic agent or a human (ADR-0117)
 
 ### V-017 — `protocol_longevity_and_0m_continuity_drill`
 

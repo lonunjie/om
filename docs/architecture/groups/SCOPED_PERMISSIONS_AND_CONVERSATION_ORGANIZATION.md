@@ -253,3 +253,10 @@ Clients should show an unobtrusive “moved to topic” history where useful. Mo
 This document resolves **A-007 permissions** and **A-008 topics_threads**.
 
 Exact bot/agent permissions (A-004), plugin-granted UI/data capabilities (A-009) and bridge fidelity/loops (A-011) are separately resolved and use this capability/typed-principal model rather than adding hidden ambient authority.
+
+## 2026-09-24 verification rulings
+
+Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
+
+- [ADR-0121](../../../decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md) rule 7 is the kind-to-capability table (reply, edit, delete, vote, close, topic management).
+- [ADR-0122](../../../decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md): every grant records its authorization basis and lapses when that basis is revoked (cascade). Re-rooting a grant needs a governance transition.

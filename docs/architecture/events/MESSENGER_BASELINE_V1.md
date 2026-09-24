@@ -197,3 +197,9 @@ This document resolves **A-010 baseline_product**. It deliberately leaves exact 
 - A-012: import/export/escape — resolved in [`IMPORT_EXPORT_AND_USER_ESCAPE.md`](../ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md).
 
 The completed A-013..A-015 passes pressure-tested these semantics for metadata leakage, decentralized abuse handling and long-term protocol evolution. Their resolutions extend the surrounding architecture without weakening the baseline semantic boundaries frozen here.
+
+## 2026-09-24 verification rulings
+
+Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
+
+- [ADR-0121](../../../decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md) (polls and topics): vote options are validated, and single-choice polls take one option. An empty selection retracts. The poll author or a holder of `room.redact_others` may close a poll. The earliest `topic.create` for a TopicID wins. `message.topic.set` with `topic_id: null` clears the placement. An author may always delete their own content, but may edit only while holding post rights.

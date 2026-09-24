@@ -76,7 +76,7 @@ Space control state is authenticated by its governance authority. Storage, direc
 
 Space authority/security state is a canonical hash-chained control state, not last-writer-wins UI data. Every accepted transition references the prior accepted state hash and satisfies that prior state's governance policy.
 
-If two otherwise valid authority-changing successors of the same head appear, clients do **not** choose a winner by timestamp, relay arrival order or provider preference. The Space enters a control-conflict/frozen state for privileged transitions until a conflict-resolution transition references the competing heads and is authorized under the **common pre-fork governance**. If that quorum can never be recovered, participants can fork/migrate to a successor Space.
+If two otherwise valid authority-changing successors of the same head appear, clients do **not** choose a winner by timestamp, relay arrival order or provider preference. The Space enters a control-conflict/frozen state for privileged transitions (authority-reducing transitions stay applicable, ADR-0122) until a conflict-resolution transition references the competing heads and is authorized under the **common pre-fork governance**. If that quorum can never be recovered, participants can fork/migrate to a successor Space.
 
 A policy-neutral coordinator may reduce routine conflicts but is never a root of authority. This mirrors OM's broader rule that availability machinery cannot become constitutional power.
 
@@ -300,3 +300,10 @@ A-013/A-014 are now resolved by [`METADATA_THREAT_MODEL.md`](../../threat-model/
 For private Spaces/Rooms, content E2EE does not by itself justify a claim that membership, traffic timing or child-link activity is hidden from every provider/participant. Provider-visible canonical Room/Space identifiers are minimized by scoped routing capabilities and encrypted private control distribution; exact exposure is path-specific.
 
 Space-wide moderation is authoritative in a child Room only when that Room's explicit `SpaceAuthorityBinding` delegates the relevant capability. Shared third-party `SafetyAdvisory` data can influence admission/moderation policy but never bypasses Room/Space authorization or becomes a universal ban.
+
+## 2026-09-24 verification rulings
+
+Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
+
+- [ADR-0122](../../../decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md): authority-**reducing** transitions (revocation, binding drop, unlink, mirror sync removing roles) are never forks. They rebase onto any head and stay applicable while control is frozen, so the fork freeze applies only to transitions that add or change authority.
+- A Space-side unlink ends the authority binding; re-linking needs a new binding approved by the Room's quorum. A `SpaceAuthorityBinding` names the governance whose authorship it accepts, and sub-delegated Space authority is rejected unless the binding opts in.

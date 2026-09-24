@@ -83,3 +83,9 @@ Private-group architecture is not frozen until:
 - crash/partial-publication behavior is specified;
 - AccountControlState-device changes are integrated;
 - the selected MLS library is proven to support the required external ordering/profile behavior on all target runtimes.
+
+## 2026-09-24 verification rulings
+
+Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
+
+- [ADR-0121](../../../decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md) rule 4: `past_epoch_window` is a GroupProfile parameter (a count of epochs, default 2, maximum 8). Epoch secrets are deleted when the window moves. An undecryptable late event renders as an explicit gap. Divergence bounded by the window is a documented residual risk.

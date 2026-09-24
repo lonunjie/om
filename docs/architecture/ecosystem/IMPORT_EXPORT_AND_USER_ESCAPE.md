@@ -48,7 +48,7 @@ Conceptual structure:
 
 ```text
 om-archive-v1/
-  archive-manifest.json
+  manifest.cbor            (normative, ADR-0125; archive-manifest.json is an optional rendering)
   canonical/
     events/...
     control-state/...
@@ -300,3 +300,9 @@ V-014 must include:
 - read-only import attempting to send or acquire Room rights;
 - encrypted archive wrong-key/corruption handling;
 - proof that ordinary archive import cannot clone a DeviceIdentity/account authority.
+
+## 2026-09-24 verification rulings
+
+Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
+
+- [ADR-0125](../../../decisions/ADR-0125-portable-archive-format-rulings.md): the normative manifest is canonical CBOR `manifest.cbor`, and the JSON and `portable/*.jsonl` renderings are non-normative. Strong provenance levels need `link_evidence`, or they are downgraded. [`om-secret-object-types.json`](../../../spec/registries/om-secret-object-types.json) lists the forbidden secret types. `OMA-ENC-1-candidate` is the provisional encryption profile, pending crypto review. Newer archived control state is never applied; it is re-validated live.

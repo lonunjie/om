@@ -47,3 +47,9 @@ This remains outside canonical message delivery. A report is an explicit user di
 ## 5. Privacy invariant
 
 > **Normal operation gives no central project ambient conversation plaintext merely to enable possible future reporting.**
+
+## 2026-09-24 verification rulings
+
+Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
+
+- [ADR-0123](../../../decisions/ADR-0123-moderation-evidence-access-and-appeal-hold.md): an EvidencePackage is encrypted to the moderator set in force at the report's sending epoch. A demotion removes access only to later evidence. Appeal retention is capped at `hold_max`, at most 180 days after the original retention expiry.

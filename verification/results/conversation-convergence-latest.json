@@ -2,7 +2,7 @@
   "gate": "V-009",
   "gate_status_effect": "evidence_only_gate_remains_open",
   "all_bounded_checks_passed": true,
-  "cases": 864,
+  "cases": 1728,
   "properties": [
     "EventID duplicate delivery is idempotent",
     "delivery order does not change materialized semantic state",

@@ -327,6 +327,12 @@ V-013 must adversarially exercise:
 
 A-013 resolves the open metadata question from section 13.
 
-`InteropTrace.origin_fingerprint` is mapping/bridge-domain scoped by default. Raw foreign event identifiers or one globally stable cross-Room fingerprint must not be exposed when a domain-separated/scoped fingerprint suffices for loop suppression and duplicate detection.
+~~`InteropTrace.origin_fingerprint` is mapping/bridge-domain scoped by default.~~ It is Room-scoped, not bridge-scoped (ADR-0124). Raw foreign event identifiers or one globally stable cross-Room fingerprint must not be exposed when a domain-separated/scoped fingerprint suffices for loop suppression and duplicate detection.
 
 Bridge path/lineage is diagnostic/security metadata and is disclosed only as needed for loop prevention, fidelity and evidence. It does not become ordinary forwarding metadata copied across unrelated Rooms. Strong colluding observers may still correlate bridge traffic by timing/size; OM does not claim otherwise.
+
+## 2026-09-24 verification rulings
+
+Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
+
+- [ADR-0124](../../../decisions/ADR-0124-service-information-flow-and-bridge-provenance.md): `origin_fingerprint` is keyed with a Room-scoped secret over (origin network, foreign origin id), not per bridge, so independent bridges deduplicate within a Room and no fingerprint is stable across Rooms. Metadata-stripping paths yield `origin_unverified`, and adapters declare `carries_interop_metadata`. Bridge-to-bridge relay through OM is off unless the Room opts in. A bridge exports only epochs within its own membership intervals.

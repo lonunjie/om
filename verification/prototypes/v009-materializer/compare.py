@@ -109,7 +109,7 @@ def to_ref(case, e, events):
     elif k == "moderation.redact":
         target = b.get("target_event_id")
     elif k == "poll.create":
-        value = {"opts": b.get("options")}
+        value = {"opts": b.get("options"), "mode": b.get("selection_mode")}
     elif k in ("poll.vote", "poll.close"):
         target, value = b.get("target_poll_event_id"), tuple(b.get("selected_option_ids") or ())
     elif k in ("topic.create", "topic.update"):

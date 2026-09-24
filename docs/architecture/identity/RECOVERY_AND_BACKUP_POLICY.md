@@ -275,3 +275,8 @@ Profiles change **custody and delay**, never cryptographic floors (ADR-0037).
   RecoveryRoot, not the Home. Relationships then have to be rebuilt through contacts' continuity notices and
   re-introduction.
 
+## 2026-09-24 verification rulings
+
+Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
+
+- [ADR-0120](../../../decisions/ADR-0120-one-to-one-session-manager-rules.md): backups never contain handshake prekey secrets (signed, one-time or last-resort) or ratchet state. They do contain per-peer downgrade-floor records and peers' validated control heads, which are not secret. A restored device publishes fresh prekeys.
