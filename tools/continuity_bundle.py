@@ -209,7 +209,8 @@ def cmd_check_registries(a) -> int:
         for k, v in old.items():
             if k not in new:
                 errors.append(f"{f}: assigned entry {k} removed")
-            elif new[k] != v:
+            elif new[k] != v and not (isinstance(v, str) and v.startswith("reserved")):
+                # a 'reserved...' placeholder (ADR-0119) may be filled once; anything else is immutable
                 errors.append(f"{f}: assigned entry {k} changed {v!r} -> {new[k]!r}")
         # an assigned value must not be reused for a different name
         rev = {}

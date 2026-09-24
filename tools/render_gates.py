@@ -27,7 +27,7 @@ HEADER = """# Verification Gate Pass Criteria
 1. **Evidence is not passage.** A gate phase passes only when every listed criterion is met and recorded with evidence links.
 2. **Independence.** Evidence produced solely by the author/agent who designed the thing under test cannot pass a phase. Each phase names the minimum independence:
    - `independent_tool`: a checker not written by the design author (TLC, fuzzers, sanitizers);
-   - `independent_reviewer`: a named reviewer other than the author signs off in an ADR or review record (whether a different-vendor AI agent may count is ADR-0117, proposed);
+   - `independent_reviewer`: a named reviewer other than the author signs off in an ADR or review record (for pre-engineering phases a different-vendor AI agent counts, with a record in `verification/reviews/`: ADR-0117);
    - `independent_implementation`: a second implementation/model written by a different author or in a different language agrees;
    - `upstream_kat`: official known-answer tests from the standard's publisher;
    - `external_review`: an external security/crypto review organization or qualified outside reviewer;

@@ -1,4 +1,4 @@
-; Status: proposed for freeze (V-005). An operator ADR freezes it.
+; Status: frozen (ADR-0119, 2026-09-24).
 ; W0 delivery/storage objects: SponsoredMailboxGrant, RelaySet, BlobLocationRecord.
 
 signed-SponsoredMailboxGrant = { 1: bstr .cbor SponsoredMailboxGrant, 2: [1*16 signature] }

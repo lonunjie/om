@@ -1,17 +1,18 @@
 # ADR-0119 — Freeze the W0 CDDL and registries (V-005)
 
-- **Status:** Proposed. **Awaiting operator decision to freeze.** Until then, `spec/cddl/` and `spec/registries/` are
-  "proposed for freeze" and may change without a registry-immutability violation.
+- **Status:** Accepted. `spec/cddl/` and `spec/registries/` are frozen.
+- **Decided by:** operator, 2026-09-24 ("i lean to agree ... check it and accept it if good")
 - **Date:** 2026-09-24
 - **Source:** V-005 prototype ([`verification/prototypes/v005-encoding/`](../verification/prototypes/v005-encoding/README.md))
 
-## Decision (proposed)
+## Decision
 
 Freeze the CDDL for the 18 W0 signed or hashed objects (`spec/cddl/*.cddl`), and the six registries (numeric fields,
 object types, domain separation, crypto profiles, time fields, CBOR profile). After the freeze, assigned values are
 immutable and never reused (`tools/continuity_bundle.py check-registries`, in CI). Entries that depend on open crypto
 items A-023..A-028 (KDF/AEAD/MAC labels, per-prekey signatures, DeviceCredential key fields) stay **provisional**
-inside the frozen registries until those items resolve.
+inside the frozen registries until those items resolve. Mechanically, such an entry's value starts with `reserved`.
+`check-registries` lets a `reserved…` value be filled in **once**; every other assigned value is immutable.
 
 ## Evidence
 

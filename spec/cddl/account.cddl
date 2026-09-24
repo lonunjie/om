@@ -1,4 +1,4 @@
-; Status: proposed for freeze (V-005). An operator ADR freezes it.
+; Status: frozen (ADR-0119, 2026-09-24).
 ; W0 account-authority objects: AccountControlState, AccountControlHead, RecoveryPolicy,
 ; RecoveryRequest, RecoveryVeto, AccountRetirement, DeviceCredential, DeviceEnrollmentNotice.
 

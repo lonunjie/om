@@ -1,7 +1,7 @@
 # ADR-0117 — Can a different AI agent count as an independent reviewer?
 
-- **Status:** Proposed. **Awaiting operator decision.** Until accepted, agent reviews are recorded as
-  `agent_review` evidence and do not satisfy `independent_reviewer`.
+- **Status:** Accepted (Option 2)
+- **Decided by:** operator, 2026-09-24 ("i lean to agree ... check it and accept it if good")
 - **Date:** 2026-09-24
 
 ## Context
@@ -24,3 +24,17 @@ ask for "reviewed by someone other than its author". No human reviewer is availa
 
 Option 2. It keeps pre-engineering moving while a human review community forms. It is honest because the review
 record names the model, and it never lets an AI review substitute for pre-release or external review.
+
+## Decision
+
+Option 2 is accepted. A review by an AI agent from a **different vendor or model family** than the artifact's author
+satisfies `independent_reviewer` for **pre-engineering** phases only. It is recorded in `verification/reviews/` with the
+model id, the prompt, the findings and how each finding was resolved. Pre-release phases and `external_review` always
+need humans.
+
+Consequences for current evidence:
+
+- The design documents were written by a ChatGPT agent. A Claude or Gemini agent may review them.
+- The V-001..V-016 prototypes and models were written by Claude agents. They need a non-Anthropic reviewer, such as an
+  OpenAI Codex or Google Gemini agent. A different Claude session does not count (Option 3 stays rejected).
+- A reviewer may not have authored any part of the artifact it reviews, including its vectors.

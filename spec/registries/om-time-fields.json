@@ -1,5 +1,5 @@
 {
-  "status": "Status: proposed for freeze (V-005). An operator ADR freezes it.",
+  "status": "Status: frozen (ADR-0119). Assigned values are immutable; a 'reserved...' construction may be filled once.",
   "registry": "om-time-fields",
   "registry_version": 1,
   "rules": [

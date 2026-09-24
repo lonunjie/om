@@ -1,7 +1,7 @@
 # Continuity Tabletop Drills (V-017)
 
 - **Status:** Written drills, pre-engineering (V-017 criterion 3). Live drills are pre-release criteria.
-- **Author:** Claude agent, 2026-09-24. Independent review is still required (ADR-0109; ADR-0117 is proposed).
+- **Author:** Claude agent, 2026-09-24. Independent review is still required (ADR-0109; under ADR-0117 a non-Anthropic agent or a human).
 - **Tools:** [`tools/continuity_bundle.py`](../../tools/continuity_bundle.py) (build/verify bundles, registry immutability), [`tools/om_drop.py`](../../tools/om_drop.py) export.
 
 Each drill asks four questions. What breaks? Who can act, with which mechanism? What must already exist *today* for

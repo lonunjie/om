@@ -1,4 +1,4 @@
-; Status: proposed for freeze (V-005). An operator ADR freezes it.
+; Status: frozen (ADR-0119, 2026-09-24).
 ; W0 asynchronous key material (ASYNC_KEY_MATERIAL.md). Key sizes admit X25519 (32) .. ML-KEM-1024 (1568).
 
 signed-AsyncKeyBundle = { 1: bstr .cbor AsyncKeyBundle, 2: [1*16 signature] }

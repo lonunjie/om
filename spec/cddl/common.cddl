@@ -1,4 +1,4 @@
-; Status: proposed for freeze (V-005). An operator ADR freezes it.
+; Status: frozen (ADR-0119, 2026-09-24).
 ; OM-CBOR-v1 common definitions for W0 canonical objects (RFC 8610 CDDL).
 ; Field numbers: spec/registries/om-numeric-fields.json. Labels: spec/registries/om-domain-separation.json.
 ; CDDL cannot express two OM-CBOR rules: 'set' arrays are sorted/unique by encoded bytes, and
