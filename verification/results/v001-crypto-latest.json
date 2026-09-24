@@ -1,0 +1,223 @@
+{
+  "criteria": [
+    {
+      "criterion": "Rust feasibility prototype of the PQXDH + Triple Ratchet/SPQR-class state machine runs on native and wasm32 with state persistence/reload",
+      "evidence": [
+        "verification/prototypes/v001-crypto/rust/core/src/pqxdh.rs",
+        "verification/prototypes/v001-crypto/rust/core/src/triple.rs",
+        "verification/prototypes/v001-crypto/rust/core/src/persist.rs",
+        "verification/prototypes/v001-crypto/README.md#results"
+      ],
+      "gate": "V-001",
+      "note": "PQXDH rev3 + Triple Ratchet (EC DR + Signal spqr SCKA). 249 steps, each in a fresh process/instance, 367 messages incl. out-of-order and skipped keys carried across reloads, SPQR epoch 5; native, wasm32-wasip1 (wasmtime), alternating native/wasip1 and wasm32-unknown-unknown (Node/V8) produce byte-identical state at every step.",
+      "status": "met"
+    },
+    {
+      "criterion": "deterministic vectors produced by the prototype are consumed by a second independent implementation or checked against upstream KATs",
+      "evidence": [
+        "verification/prototypes/v001-crypto/vectors/om-v001-proto-vectors.json",
+        "verification/prototypes/v001-crypto/python/check_vectors.py",
+        "verification/prototypes/v001-crypto/rust/core/src/acvp.rs"
+      ],
+      "gate": "V-001",
+      "note": "Python (cryptography + kyber-py) reproduces 180/180 values over 16 messages (PQXDH, XEdDSA verify, ML-KEM, DR keys, KDF_HYBRID, headers, bit-exact AES-GCM-SIV ciphertexts) and rejects a mutated vector. NIST ACVP ML-KEM-768: 80/80 on libcrux (native+wasi), 80/80 on kyber-py. Scope limit: SPQR message keys are inputs (Signal's spqr is the only implementation). Same agent wrote both implementations (different language/libraries); see independence.",
+      "status": "met"
+    },
+    {
+      "criterion": "one-time key material handling and depletion behavior demonstrated without downgrade",
+      "evidence": [
+        "verification/prototypes/v001-crypto/rust/core/src/otk.rs",
+        "verification/prototypes/v001-crypto/rust/core/src/store.rs"
+      ],
+      "gate": "V-001",
+      "note": "20 checks pass on native, wasip1 and Node: depletion to signed last-resort ML-KEM key, single-use deletion, replay rejection (one-time and last-resort), tampered handshake does not consume keys, PQ-less bundle / forged prekey / CT-less message / SPQR V0 all refused. Single provider pool only; multi-provider disjoint pools and multi-device (V-003) not exercised.",
+      "status": "met"
+    },
+    {
+      "criterion": "dependency, licensing and update strategy recorded in an ADR",
+      "evidence": [
+        "verification/prototypes/v001-crypto/README.md#draft-adr-dependency-licensing-and-update-strategy-for-the-production-crypto-path"
+      ],
+      "gate": "V-001",
+      "note": "Draft ADR written; needs an integrator to file it under decisions/ and an operator/legal decision on the AGPL-3.0-only spqr dependency vs the MPL-2.0 core policy.",
+      "status": "partial"
+    },
+    {
+      "criterion": "no reliance on an unsupported external library API contract",
+      "evidence": [
+        "verification/prototypes/v001-crypto/README.md#upstream-library-investigation",
+        "verification/prototypes/v001-crypto/rust/core/src/triple.rs"
+      ],
+      "gate": "V-001",
+      "note": "libsignal (explicitly unsupported outside Signal) is not used. spqr is used only via its 3-function public API with OM-owned state/wire framing, but it has no crates.io release, no written external support statement and is AGPL-3.0-only; its wire message and state encodings are spqr-defined.",
+      "status": "partial"
+    },
+    {
+      "criterion": "[pre-release] independent cryptographic review of the integrated production path",
+      "evidence": [],
+      "gate": "V-001",
+      "note": "Needs an external reviewer; out of scope for an agent prototype.",
+      "status": "unmet"
+    },
+    {
+      "criterion": "[pre-release] production build provably excludes dev/test CryptoProvider (R-072)",
+      "evidence": [
+        "verification/prototypes/v001-crypto/rust/core/src/rng.rs",
+        "verification/prototypes/v001-crypto/run.sh"
+      ],
+      "gate": "V-001",
+      "note": "Sketch only: `production` + `insecure-test-rng` is a compile_error!, the production build succeeds, and its compiled rlib contains no InsecureTestRng (the test build's does, as a control). A release-pipeline proof is still needed.",
+      "status": "partial"
+    },
+    {
+      "criterion": "V-001 and V-005 prototypes record crypto and codec costs on native and wasm32 against the budgets; unattainable budgets revised by ADR",
+      "evidence": [
+        "verification/prototypes/v001-crypto/README.md#performance-v-022",
+        "verification/prototypes/v001-crypto/rust/core/src/bench.rs"
+      ],
+      "gate": "V-022",
+      "note": "V-001 crypto costs recorded on native, wasm32-wasip1 (wasmtime) and wasm32-unknown-unknown (Node/V8); medians are far inside both budgets even with a 10x low-end factor. Measured on an Apple M3, not a reference low-end device; V-005 codec costs not covered here.",
+      "status": "partial"
+    }
+  ],
+  "gate_status_effect": "evidence_only_no_gate_passed",
+  "gates": [
+    "V-001",
+    "V-022"
+  ],
+  "independence": {
+    "authorship": "written by a Claude agent; the design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent",
+    "limitations": [
+      "both implementations written by the same AI agent in one session",
+      "no independent reimplementation of SPQR/ML-KEM Braid",
+      "no human cryptographic review"
+    ],
+    "second_implementation": "Python 3 (cryptography, kyber-py) written from the public specs; different language and different primitive libraries than the Rust side (dalek, libcrux, RustCrypto)",
+    "upstream_code": "SPQR is Signal's own implementation (spqr v1.6.0), not OM-authored",
+    "upstream_kat": "NIST ACVP-Server ML-KEM-768 internalProjection.json (keyGen, encapsulation, decapsulation, key checks) at a pinned commit with SHA-256"
+  },
+  "slug": "v001-crypto",
+  "summary": {
+    "acvp_mlkem768": {
+      "kyber_py": "80/80",
+      "libcrux_native": "80/80",
+      "libcrux_wasi": "80/80"
+    },
+    "all_executable_checks_passed": true,
+    "copyleft_dependencies": {
+      "AGPL-3.0-only": [
+        "spqr 1.6.0"
+      ]
+    },
+    "dependency_license_counts": {
+      "(MIT OR Apache-2.0) AND Unicode-3.0": 1,
+      "AGPL-3.0-only": 1,
+      "Apache-2.0": 17,
+      "Apache-2.0 OR MIT": 8,
+      "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT": 1,
+      "BSD-2-Clause OR Apache-2.0 OR MIT": 1,
+      "BSD-3-Clause": 3,
+      "BSD-3-Clause OR MIT OR Apache-2.0": 2,
+      "MIT": 3,
+      "MIT OR Apache-2.0": 62,
+      "Unlicense OR MIT": 2,
+      "Zlib": 1
+    },
+    "failed_checks": [],
+    "node_host_rng_reaches_rust": true,
+    "performance_budget_verdicts": {
+      "native": {
+        "message_median_within_budget": true,
+        "message_median_within_budget_after_10x_low_end_factor": true,
+        "session_setup_median_within_budget": true,
+        "session_setup_median_within_budget_after_10x_low_end_factor": true,
+        "spqr_epochs_advanced_during_benchmark": true
+      },
+      "node": {
+        "message_median_within_budget": true,
+        "message_median_within_budget_after_10x_low_end_factor": true,
+        "session_setup_median_within_budget": true,
+        "session_setup_median_within_budget_after_10x_low_end_factor": true,
+        "spqr_epochs_advanced_during_benchmark": true
+      },
+      "wasi": {
+        "message_median_within_budget": true,
+        "message_median_within_budget_after_10x_low_end_factor": true,
+        "session_setup_median_within_budget": true,
+        "session_setup_median_within_budget_after_10x_low_end_factor": true,
+        "spqr_epochs_advanced_during_benchmark": true
+      }
+    },
+    "persistence": {
+      "byte_identical_at_every_step": true,
+      "final_world_sha256": "721a523a184aac7d58ecda2dcb00dae34836b62a2d2fb0f8b215f4293ad19c19",
+      "max_skipped_keys_persisted": 1,
+      "messages_delivered": 367,
+      "schedules": [
+        "mixed",
+        "native",
+        "node",
+        "wasi"
+      ],
+      "spqr_max_epoch": 5,
+      "steps_each_in_fresh_process": 249
+    },
+    "python_vector_checks": "180/180",
+    "r072_sketch": {
+      "production_alone_builds": true,
+      "production_plus_test_rng_rejected": true,
+      "production_rlib_lacks_InsecureTestRng": true,
+      "test_rlib_contains_InsecureTestRng_control": true
+    },
+    "selftest_all_ok_per_runtime": {
+      "native": true,
+      "node": true,
+      "wasi": true
+    },
+    "selftest_checks": [
+      "depletion_falls_back_to_signed_last_resort_pq_prekey",
+      "every_handshake_includes_mlkem_and_spqr_no_classical_only",
+      "one_time_private_keys_deleted_after_use",
+      "replay_to_existing_session_rejected_state_unchanged",
+      "replay_of_consumed_one_time_pq_prekey_rejected",
+      "replay_of_one_time_pq_without_ec_opk_rejected",
+      "replay_of_last_resort_handshake_rejected_by_replay_cache",
+      "replenished_pool_serves_one_time_again",
+      "tampered_initial_message_rejected_without_consuming_keys",
+      "genuine_initial_message_consumes_exactly_once",
+      "bundle_without_pq_prekey_refused_no_classical_fallback",
+      "substituted_unsigned_pq_prekey_refused",
+      "substituted_signed_prekey_refused",
+      "initial_message_without_mlkem_ciphertext_rejected",
+      "spqr_v0_downgrade_message_rejected_min_version_v1",
+      "session_continues_after_rejected_downgrade",
+      "previous_last_resort_accepted_during_grace",
+      "expired_last_resort_rejected",
+      "provider_serves_rotated_last_resort",
+      "device_state_deterministic_cbor_roundtrip"
+    ],
+    "upstream_probes": "not run (use run.sh --long); last recorded results are in README.md",
+    "vectors_identical_native_wasi_node_committed": true,
+    "vectors_sha256": "e5a6ec0e2d9f6e9b5c99dbed4785daf1d2b6be2acfaad2176b12a22ce3beb191"
+  },
+  "tool_versions": {
+    "acvp_server_commit": "975de31eb83d87039ec88934fdc47d8c312b892d",
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+    "crate:aes-gcm-siv": "0.12.1",
+    "crate:curve25519-dalek": "5.0.0",
+    "crate:hkdf": "0.13.0",
+    "crate:hmac": "0.13.0",
+    "crate:libcrux-ml-kem": "0.0.10",
+    "crate:rand_chacha": "0.9.0",
+    "crate:sha2": "0.11.0",
+    "crate:spqr": "1.6.0 06959b4708f9",
+    "crate:x25519-dalek": "3.0.0",
+    "node": "v24.14.0",
+    "pypi:cryptography": "50.0.1",
+    "pypi:kyber-py": "1.2.0",
+    "python": "Python 3.14.6",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "uv": "uv 0.12.18 (Homebrew 2026-09-22 aarch64-apple-darwin)",
+    "wasmtime": "wasmtime 49.0.0 (17830bd3c 2026-09-21)"
+  }
+}

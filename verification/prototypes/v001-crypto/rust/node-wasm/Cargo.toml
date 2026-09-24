@@ -15,3 +15,4 @@ om-v001-proto = { path = "../core", features = ["insecure-test-rng"] }
 # spqr pulls rand 0.9 -> getrandom 0.3; on wasm32-unknown-unknown we supply the host's
 # crypto.getRandomValues through getrandom's documented "custom" backend.
 getrandom = "0.3"
+serde_json = "1"
