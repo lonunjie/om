@@ -74,7 +74,7 @@ And the implementation discipline remains:
 - crypto upgrades are invisible to ordinary users;
 - wire crypto uses reviewed, versioned **CryptoProfiles**, not arbitrary algorithm mix-and-match;
 - OM is PQ-first and hybrid-secure by default where mature components exist;
-- 1:1 secure messaging should track reviewed PQXDH/Triple-Ratchet-class designs without hard-coding one library as the protocol;
+- 1:1 secure messaging is PQXDH + Double Ratchet in v1 (ADR-0118) and tracks reviewed Triple-Ratchet-class designs for v2, without hard-coding one library as the protocol;
 - private groups use MLS; PQ/hybrid MLS suites are profile-pluggable while standardization continues;
 - SFrame is the preferred route-independent media E2EE layer for voice/video;
 - call routing is adaptive: LAN/direct P2P first when policy permits, TURN when required, SFU for scalable groups;

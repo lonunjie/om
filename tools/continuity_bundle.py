@@ -179,6 +179,43 @@ def flatten(obj, prefix="") -> dict:
     return out
 
 
+# Fields that name a record (numeric keys, type ids, labels, names). Only these must be unique among sibling
+# records; bounds, sizes, versions and references (for example two fields both bounded to 16 bytes, or a
+# profile's hash_alg equal to its own id) legitimately repeat values.
+IDENTIFIER_FIELDS = ("id", "key", "type_id", "label", "object_type", "name")
+# sibling record lists that share one identifier namespace: a struct's reserved keys may not be reused by its fields
+SHARED_NAMESPACES = (("fields", "reserved"),)
+
+
+def identifier_reuse(obj, path="") -> list[str]:
+    """Duplicate identifier values among sibling records in one list (or in lists sharing a namespace)."""
+    out = []
+    if isinstance(obj, dict):
+        groups = [[k] for k, v in obj.items() if isinstance(v, list)]
+        for shared in SHARED_NAMESPACES:
+            members = [k for k in shared if isinstance(obj.get(k), list)]
+            if len(members) > 1:
+                groups = [g for g in groups if g[0] not in members] + [members]
+        for g in groups:
+            recs = [(k, r) for k in g for r in obj[k] if isinstance(r, dict)]
+            for fld in IDENTIFIER_FIELDS:
+                seen = {}
+                for k, r in recs:
+                    v = r.get(fld)
+                    if v is None or isinstance(v, (dict, list, bool)):
+                        continue
+                    if v in seen:
+                        out.append(f"identifier {fld}={v!r} reused in {path}/{k} (also in {path}/{seen[v]})")
+                    else:
+                        seen[v] = k
+        for k, v in obj.items():
+            out += identifier_reuse(v, f"{path}/{k}")
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            out += identifier_reuse(v, f"{path}[{i}]")
+    return out
+
+
 def cmd_check_registries(a) -> int:
     base = a.base or (git("tag", "-l", "checkpoint/*", "--sort=-creatordate").split() or ["HEAD~1"])[0]
     errors = []
@@ -212,14 +249,8 @@ def cmd_check_registries(a) -> int:
             elif new[k] != v and not (isinstance(v, str) and v.startswith("reserved")):
                 # a 'reserved...' placeholder (ADR-0119) may be filled once; anything else is immutable
                 errors.append(f"{f}: assigned entry {k} changed {v!r} -> {new[k]!r}")
-        # an assigned value must not be reused for a different name
-        rev = {}
-        for k, v in new.items():
-            if isinstance(v, int) and not isinstance(v, bool):
-                scope = k.rsplit("/", 1)[0]
-                if (scope, v) in rev and rev[(scope, v)] != k:
-                    errors.append(f"{f}: value {v} reused by {k} and {rev[(scope, v)]}")
-                rev[(scope, v)] = k
+        # an assigned identifier must not be reused for a different record
+        errors += [f"{f}: {e}" for e in identifier_reuse(json.loads((ROOT / f).read_text()))]
     for e in errors:
         print(f"ERROR: {e}", file=sys.stderr)
     print(f"registry immutability vs {base}: {'FAILED' if errors else 'OK'} ({len(errors)} problem(s))")

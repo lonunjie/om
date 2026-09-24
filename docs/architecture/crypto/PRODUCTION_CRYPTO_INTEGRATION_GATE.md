@@ -10,7 +10,7 @@
 - ML-DSA is standardized in FIPS 204; SLH-DSA is standardized in FIPS 205.
 - NIST has selected HQC as an additional KEM for future standardization, but it is not an OM production primitive until a stable standard/profile review exists.
 - Signal's PQXDH remains a valuable asynchronous PQ reference but its published revision still relies on classical discrete-log assumptions for mutual authentication.
-- Signal's current Double Ratchet specification describes hybrid Triple Ratchet and recommends ML-KEM Braid as the SCKA; ML-KEM Braid has formal analysis and is a major reference for ongoing PQ forward secrecy/post-compromise recovery.
+- Signal's current Double Ratchet specification describes hybrid Triple Ratchet and recommends ML-KEM Braid as the SCKA; ML-KEM Braid has formal analysis and is a major reference for ongoing PQ forward secrecy/post-compromise recovery (the OM-Crypto-v2 target; v1 is PQXDH + Double Ratchet, ADR-0118).
 - Signal's `libsignal` repository explicitly states use outside Signal is unsupported, so OM must not treat its private API/serialization as a stable protocol dependency.
 - MLS base protocol/architecture are RFC 9420/RFC 9750. PQ/hybrid MLS ciphersuites are still an active IETF Internet-Draft as of July 2026.
 - OpenMLS 0.9.x is a strong Rust candidate and has undergone an external security audit, but library review/pinning and PQ feature maturity remain required.
@@ -51,7 +51,7 @@ record of what was weighed.
 
 ### A. Reviewed reusable secure-messaging implementation
 
-If a stable supported library emerges for PQXDH/Triple-Ratchet-class messaging, prefer wrapping it behind OM's session interface.
+If a stable supported library emerges for PQXDH/Triple-Ratchet-class messaging (the OM-Crypto-v2 target, ADR-0118), prefer wrapping it behind OM's session interface.
 
 ### B. OM-maintained implementation of public reviewed specs
 

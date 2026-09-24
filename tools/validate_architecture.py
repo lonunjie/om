@@ -712,6 +712,58 @@ def validate_0924_hardening_content_guardrails() -> None:
     for p in current_files():
         if p.suffix == ".md" and "research" not in p.parts and overclaim.search(p.read_text(encoding="utf-8")):
             fail(f"09:24 guard: {rel(p)} appears to claim PQ confidentiality for groups")
+    validate_pq_claims()
+
+
+# Dated records may quote superseded claims: decision history, research, review/report/checkpoint records,
+# prototype evidence and the changelog (ADR-0130 rule 12, F-R3-7, F-R4-11).
+PQ_CLAIM_EXEMPT = ("decisions/", "docs/research/", "docs/reviews/", "docs/reports/", "docs/checkpoints/",
+                   "verification/reviews/", "verification/prototypes/", "verification/FEASIBILITY_RECONNAISSANCE_",
+                   "CHANGELOG.md", "machine/decisions.jsonl", "machine/resolved_questions.jsonl")
+PQ_CLAIM_SCANNED_MACHINE = ("machine/requirements.jsonl", "machine/architecture_verification_gates.jsonl",
+                            "machine/public_release_gates.jsonl", "machine/threat_register.jsonl",
+                            "machine/architecture_design_queue.jsonl")
+_TRIPLE = re.compile(r"triple[- ]ratchet|\bSPQR\b", re.I)
+# a Triple Ratchet/SPQR mention is fine when the line places it in v2, ADR-0118, the deferral, a reference design,
+# a struck-through old text, or a negation
+_TRIPLE_OK = re.compile(r"v2|ADR-0118|deferred|reference design|~~|\bno\b|\bnot\b|without (the )?spqr", re.I)
+_PQ = re.compile(r"\bPQC?\b|post-quantum|quantum-(safe|secure|proof|resistant)", re.I)
+_GROUP = re.compile(r"\bgroups?\b|group calls?", re.I)
+_PQ_GROUP_OK = re.compile(r"classical|ADR-0107|\bno\b|\bnot\b|never|cannot|n't|experimental|until|\bwhen\b|refuse|"
+                          r"ReInit|migrat|pluggable|evolving|draft|R-173|V-019|standardi", re.I)
+
+
+def validate_pq_claims() -> None:
+    """No Triple Ratchet/SPQR or PQ post-compromise claim for OM-Crypto-v1, no PQ claim for v1 groups (R-276)."""
+    for p in current_files():
+        rp = rel(p)
+        if rp.startswith(PQ_CLAIM_EXEMPT):
+            continue
+        if not (p.suffix == ".md" or rp in PQ_CLAIM_SCANNED_MACHINE):
+            continue
+        text = p.read_text(encoding="utf-8")
+        if p.suffix == ".jsonl":
+            # one record per line: check each string value on its own, so a marker in another field does not excuse it
+            units = []
+            for n, raw in enumerate(text.splitlines(), 1):
+                rec = json.loads(raw) if raw.strip() else None
+                # resolved/superseded records are decision history
+                stack = [rec] if isinstance(rec, dict) and rec.get("status") not in ("resolved", "superseded") else []
+                while stack:
+                    x = stack.pop()
+                    if isinstance(x, dict):
+                        stack.extend(x.values())
+                    elif isinstance(x, list):
+                        stack.extend(x)
+                    elif isinstance(x, str):
+                        units.append((n, x))
+        else:
+            units = list(enumerate(text.splitlines(), 1))
+        for n, line in units:
+            if _TRIPLE.search(line) and not _TRIPLE_OK.search(line):
+                fail(f"ADR-0130 guard: {rp}:{n} presents Triple Ratchet/SPQR as an OM-Crypto-v1 property (v1 is PQXDH + Double Ratchet, ADR-0118)")
+            if _PQ.search(line) and _GROUP.search(line) and not _PQ_GROUP_OK.search(line):
+                fail(f"ADR-0130 guard: {rp}:{n} pairs a post-quantum claim with groups without saying v1 groups are classical (ADR-0107)")
     summary = load_json(ROOT / "verification/results/phase1-summary.json")
     if isinstance(summary, dict) and int(summary.get("continuity_assessment_cases", 0)) < 1620:
         fail("09:24 guard: continuity assessment evidence missing or regressed")
