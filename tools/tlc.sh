@@ -27,8 +27,10 @@ if [[ -z $JAVA ]]; then
   if [[ -x /opt/homebrew/opt/openjdk@21/bin/java ]]; then JAVA=/opt/homebrew/opt/openjdk@21/bin/java
   else JAVA=java; fi
 fi
-meta=$(mktemp -d)
-trap 'rm -rf "$meta"' EXIT
+# TLC's state queue can reach many GB: keep it in a per-run dir that is always removed
+# (no `exec` below, so the EXIT/INT/TERM trap runs even if TLC is interrupted).
+meta=$(mktemp -d "${TMPDIR:-/tmp}/om-tlc.XXXXXX")
+trap 'rm -rf "$meta"' EXIT INT TERM
 cd "$(dirname "$model")"
-exec "$JAVA" -XX:+UseParallelGC -cp "$JAR" tlc2.TLC -workers "${WORKERS:-auto}" -deadlock -metadir "$meta" \
+"$JAVA" -XX:+UseParallelGC -cp "$JAR" tlc2.TLC -workers "${WORKERS:-auto}" -deadlock -metadir "$meta" \
   -config "$cfg" "$(basename "$model")" "$@"
