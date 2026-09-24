@@ -224,7 +224,7 @@ install
  -> create random AccountID + AccountControlState v1
  -> create signed DiscoveryCard/ProfileDocument
  -> optional alias
- -> progressively offer recovery
+ -> establish default recovery custodian (ADR-0111; synced passkey, else recovery key)
 ```
 
 No password, email, or phone number is required by the OM protocol.
@@ -299,7 +299,7 @@ See [`CRYPTOGRAPHY_AND_AGILITY.md`](../crypto/CRYPTOGRAPHY_AND_AGILITY.md) and [
 
 ## Recovery/control boundary
 
-`AccountID` does not imply that every linked device has equal governance authority. Device credentials carry explicit roles/capabilities. Account-control changes are authenticated by `AccountControlState`; recovery is a separate configured policy and is `none` by default.
+`AccountID` does not imply that every linked device has equal governance authority. Device credentials carry explicit roles/capabilities. Account-control changes are authenticated by `AccountControlState`; recovery is a separate policy that is **on by default** (ADR-0111): an automatically chosen custodian, a delayed and vetoable activation, and one vote. `none` is an explicit user choice.
 
 Discovery/contact sharing may use alias/share-specific introduction identity so the stable AccountID need not be public before acceptance. Stable identity is proven/bound inside the accepted relationship.
 
