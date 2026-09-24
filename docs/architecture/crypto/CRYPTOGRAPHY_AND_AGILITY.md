@@ -73,7 +73,7 @@ Conceptual profile:
 OM-PQHYBRID-1
   account/device authentication: classical + PQ-capable authenticated credential transition
   async 1:1 key establishment: PQXDH-class or equivalent hybrid-reviewed design
-  ongoing 1:1: Triple-Ratchet-class hybrid continuous key evolution
+  ongoing 1:1: Double Ratchet in v1; Triple-Ratchet-class hybrid continuous key evolution in v2 (ADR-0118)
   groups: MLS with approved hybrid/PQ ciphersuite when standard/implementation maturity is sufficient
   content: strong symmetric AEAD
   attachments/backups: random 256-bit content keys + strong AEAD
@@ -183,7 +183,7 @@ Multi-device session selection is outside the ratchet itself and is defined by [
 
 ## 2026-09-23 OM-Crypto-v1 architecture resolution
 
-Q-001/Q-044 are no longer open design choices. OM-Crypto-v1 targets the published PQXDH + Triple-Ratchet/SPQR-class construction with X25519 + ML-KEM-768 for asynchronous hybrid establishment, classical PQXDH authentication semantics as currently specified, HKDF/SHA-256 family derivation, and misuse-resistant authenticated encryption. Durable constitutional authentication uses versioned dual classical/PQ signatures where the AccountControl/CryptoProfile requires it. The remaining production-library/runtime work is `V-001`, a proof gate—not permission to substitute a different wire protocol during implementation.
+Q-001/Q-044 are no longer open design choices. OM-Crypto-v1 targets the published PQXDH + ~~Triple-Ratchet/SPQR-class~~ Double Ratchet construction (ADR-0118; SPQR is the v2 path) with X25519 + ML-KEM-768 for asynchronous hybrid establishment, classical PQXDH authentication semantics as currently specified, HKDF/SHA-256 family derivation, and misuse-resistant authenticated encryption. Durable constitutional authentication uses versioned dual classical/PQ signatures where the AccountControl/CryptoProfile requires it. The remaining production-library/runtime work is `V-001`, a proof gate—not permission to substitute a different wire protocol during implementation.
 
 ## 2026-09-24 post-quantum status is per conversation type (ADR-0107)
 
@@ -191,7 +191,7 @@ OM-Crypto-v1 provides different confidentiality properties to different conversa
 
 | Conversation type | v1 key establishment | Harvest-now-decrypt-later exposure |
 |---|---|---|
-| 1:1 | PQXDH (X25519 + ML-KEM-768) + Triple Ratchet (SPQR class) | mitigated (hybrid) |
+| 1:1 | PQXDH (X25519 + ML-KEM-768) + Double Ratchet (ADR-0118; SPQR in v2) | mitigated (hybrid handshake); no PQ post-compromise healing until v2 |
 | Private group / Room (MLS) | RFC 9420 X25519 suite | **not mitigated in v1** (classical) |
 | Calls | derived from the underlying 1:1 session or MLS exporter | inherits the parent type |
 | Durable control signatures | Ed25519 + ML-DSA-65 | n/a (authentication, dual) |
@@ -214,3 +214,4 @@ Rules:
 Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
 
 - [ADR-0120](../../../decisions/ADR-0120-one-to-one-session-manager-rules.md) (downgrade floor): per-peer floor records are included in backups. After a restore the floor is the maximum of the restored record and the AccountControlState minimum profile. A receiver that rejects a session below the floor sends an authenticated reject naming the message, and the sender retries at the floor.
+- [ADR-0118](../../../decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md): OM-Crypto-v1 is PQXDH + Double Ratchet, because the only SPQR implementation is AGPL. v1 is hybrid-PQ against harvest-now-decrypt-later but has no PQ post-compromise healing. `OM-Crypto-v2` adds a clean-room SPQR/ML-KEM Braid implementation.

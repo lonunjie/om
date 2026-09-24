@@ -119,7 +119,7 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0115 — Performance budgets are a verification gate (V-022)](ADR-0115-performance-budgets-are-a-gate.md)
 - [ADR-0116 — Verification runs in CI with pinned tools](ADR-0116-verification-ci-and-pinned-tools.md)
 - [ADR-0117 — Can a different AI agent count as an independent reviewer?](ADR-0117-ai-agent-review-and-gate-independence.md)
-- [ADR-0118 — Dependency, licensing and update strategy for the production crypto path (Proposed: SPQR licence decision needed)](ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md)
+- [ADR-0118 — Dependency, licensing and update strategy for the production crypto path](ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md)
 - [ADR-0119 — Freeze the W0 CDDL and registries](ADR-0119-freeze-w0-cddl-and-registries.md)
 - [ADR-0120 — One-to-one session manager rules](ADR-0120-one-to-one-session-manager-rules.md)
 - [ADR-0121 — Event ordering, authorization epoch and materialization](ADR-0121-event-ordering-authorization-epoch-and-materialization.md)

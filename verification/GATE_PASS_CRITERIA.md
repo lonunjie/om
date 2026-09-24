@@ -54,14 +54,14 @@ Demonstrate the selected PQXDH + Triple Ratchet / SPQR-class OM-Crypto-v1 state-
 - **Scopes blocked:** core_kernel
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_implementation_or_upstream_kat; pre-release external_review
-- **Evidence:** `verification/prototypes/v001-crypto/README.md`; `verification/results/v001-crypto-latest.json`; `decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md`
+- **Evidence:** `decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md`; `verification/prototypes/v001-crypto/README.md`; `verification/results/v001-crypto-latest.json`
 
 Pre-engineering criteria:
 
-- [x] Rust feasibility prototype of the PQXDH + Triple Ratchet/SPQR-class state machine runs on native and wasm32 with state persistence/reload
+- [x] Rust feasibility prototype of the OM-Crypto-v1 PQXDH + Double Ratchet state machine (ADR-0118; SPQR is v2) runs on native and wasm32 with state persistence/reload
 - [x] deterministic vectors produced by the prototype are consumed by a second independent implementation or checked against upstream KATs
 - [x] one-time key material handling and depletion behavior demonstrated without downgrade
-- [ ] dependency, licensing and update strategy recorded in an ADR
+- [x] dependency, licensing and update strategy recorded in an ADR
 - [ ] no reliance on an unsupported external library API contract
 
 Pre-release criteria:
@@ -71,9 +71,8 @@ Pre-release criteria:
 
 What remains (needs someone other than the author):
 
-- ADR-0118 accepted (needs the operator's SPQR licence decision, A-023)
-- no unsupported external API contract: resolved only by A-023 (clean-room or supported relicensed spqr)
-- criterion 2 independence: both implementations came from one agent (NIST ACVP KATs are upstream); ADR-0117 or a second author
+- no unsupported external API contract: re-run the prototype's v1 path without the spqr crate (PQXDH + Double Ratchet only)
+- criterion 2 independence: both implementations came from one agent (NIST ACVP KATs are upstream); needs a non-Anthropic review (ADR-0117)
 
 ### V-002 — `account_control_formal_model`
 

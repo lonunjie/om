@@ -1,8 +1,9 @@
 # ADR-0118 — Dependency, licensing and update strategy for the production crypto path
 
-- **Status:** Proposed. §1 and §3–§6 are the recommended strategy. **§2 (the SPQR licence conflict) needs an operator
-  decision.** Recommendation: pursue (a) and (b) in parallel. Ask Signal for a relicence or linking exception, and
-  specify OM's SCKA wire format now, so that a clean-room implementation is possible if (a) fails.
+- **Status:** Accepted. §2 resolved as option (d): OM-Crypto-v1 ships without SPQR; a clean-room SPQR (b) is the planned
+  v2 path.
+- **Decided by:** operator, 2026-09-24 ("go with v1 without SPQR ... (d) for OM-Crypto-v1, with (b) explicitly planned
+  as the v2 path"). Option (a), asking Signal to relicense, was ruled out as not realistic.
 - **Date:** 2026-09-24
 - **Source:** V-001 feasibility prototype ([`verification/prototypes/v001-crypto/`](../verification/prototypes/v001-crypto/README.md)),
   drafted by a Claude agent and filed by the integrator.
@@ -22,8 +23,19 @@
    - (a) Ask Signal for an MPL/Apache relicence or a linking exception for `spqr`.
    - (b) Write an OM-maintained **clean-room** implementation of ML-KEM Braid + SPQR from Signal's published specifications. Implementers must not read the `spqr` source. `spqr` then serves only as an interoperability **test oracle** in a separate, non-distributed AGPL test harness. This needs its own independent review (a new high-risk component).
    - (c) Change om-core's licence (constitutional change; not recommended).
+   - (d) Ship OM-Crypto-v1 without SPQR, as PQXDH (X25519 + ML-KEM-768) + the classic Double Ratchet. Signal shipped this
+     construction from 2023 to 2025.
 
-   Until one of these is decided, OM-Crypto-v1 stays `experimental`.
+   **Decision: (d) for v1, with (b) as the planned v2 path.**
+   - v1 keeps post-quantum protection against harvest-now-decrypt-later for the whole session, because every ratchet
+     key descends from the hybrid PQXDH secret. v1 does **not** give post-quantum post-compromise healing: after a
+     device's state is stolen, the classical DH ratchet heals against classical attackers only. A new session
+     (a fresh PQXDH) restores post-quantum secrecy.
+   - v2 (`OM-Crypto-v2`) adds SPQR/ML-KEM Braid as an OM-maintained clean-room implementation from Signal's published
+     specifications. The implementers never read the `spqr` source, and `spqr` is used only as a test oracle in a
+     separate, non-distributed AGPL harness. The v2 work item includes specifying OM's SCKA wire format, an independent
+     crypto review, and the v1→v2 upgrade through the downgrade-floor and profile-migration rules.
+   - Option (a) is ruled out. Option (c) is rejected.
 3. **Stable contract is OM's, not a library's.**
    - Library types never cross the `CryptoProvider`/`Ratchet` interface.
    - Persisted state is OM CBOR. Library state is embedded only as a versioned opaque field with a migration story.
@@ -38,6 +50,6 @@
    - Deterministic and test RNGs and providers live only behind an `insecure-*` cargo feature.
    - Enabling that feature together with `production` is a compile error.
    - Release CI builds with `--locked`, checks that no test-provider symbol is present in release artifacts, and publishes reproducible build hashes.
-6. **Downgrade invariants in the profile:** a PQ prekey is mandatory in every bundle; the ML-KEM ciphertext is mandatory in every initial message; SPQR `min_version = V1`; one-time keys are consumed only after the initial AEAD authenticates.
+6. **Downgrade invariants in the profile:** a PQ prekey is mandatory in every bundle; the ML-KEM ciphertext is mandatory in every initial message; one-time keys are consumed only after the initial AEAD authenticates.
 
-**Consequences.** V-001 criteria 4 and 5 can close once options 2(a) or 2(b) are chosen and this ADR is accepted. Choosing 2(b) adds an implementation-and-review work item and makes the SCKA wire format an OM spec deliverable.
+**Consequences.** V-001 criteria 4 and 5 are no longer blocked by licensing: the v1 path uses only permissive crates plus OM-maintained code. The clean-room SPQR and its SCKA wire format are a v2 work item, not a v1 gate. ADR-0107 stays true (1:1 is hybrid-PQ against harvest-now-decrypt-later); only the construction name changes.
