@@ -1,0 +1,256 @@
+{
+ "gates": [
+  "V-016"
+ ],
+ "criteria": [
+  {
+   "gate": "V-016",
+   "criterion": "Room timeout/remove/ban race and evidence model before communities_publications is unlocked",
+   "status": "partial",
+   "evidence": "verification/tla/RoomModeration.tla; verification/tla/models-v016-room-moderation.json; verification/results/v016-room-moderation-latest.json; verification/vectors/tla-RoomModeration_*.json",
+   "note": "Model exists and TLC finds no counterexample for races, scope, epoch-bound write access and evidence ACL/retention within the bounds; 7 mutations caught; 5 golden and 1 residual-risk vector. Partial: independent_reviewer sign-off missing, small bounds, and two rules adopted by the model are not in the docs (governance protection, past-epoch window) - see README."
+  },
+  {
+   "gate": "V-016",
+   "criterion": "IntroGate/block/Sybil/resource model for the W0 surfaces",
+   "status": "unmet",
+   "evidence": "verification/bounded/introgate_sybil_model.py (another agent)",
+   "note": "Out of this prototype's scope (Room half only)."
+  },
+  {
+   "gate": "V-016",
+   "criterion": "adversarial load and abuse tests against reference providers (pre-release)",
+   "status": "unmet",
+   "evidence": "none",
+   "note": "No reference providers exist."
+  }
+ ],
+ "independence": "Model written by a Claude agent from the public design prose (TLA+, different formalism and author from verification/bounded/authority_models.py); checked by TLC 1.7.4. The design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The pre-engineering phase requires independent_reviewer sign-off, which does not exist.",
+ "tool_versions": {
+  "tlc": "tla2tools 1.7.4 (sha1 bee4a54f3ee3d4afc347c3240ec2d9e93b075104)",
+  "java": "OpenJDK 21"
+ },
+ "tlc_runs": [
+  {
+   "config": "RoomModeration.cfg",
+   "gate": "V-016",
+   "claim": "every applied action authorised against the state it is ordered after; bans exclude; governance protected",
+   "expect": "pass",
+   "outcome": "pass",
+   "violated": null,
+   "distinct_states": 1909,
+   "depth": 11,
+   "as_expected": true
+  },
+  {
+   "config": "RoomModeration_scope.cfg",
+   "gate": "V-016",
+   "claim": "moderation authority is always room-scoped; Space moderation only through the Room's binding",
+   "expect": "pass",
+   "outcome": "pass",
+   "violated": null,
+   "distinct_states": 811,
+   "depth": 11,
+   "as_expected": true
+  },
+  {
+   "config": "RoomModeration_write.cfg",
+   "gate": "V-016",
+   "claim": "no message from an excluded member is accepted at or after the excluding epoch; removal is a rekey; old-epoch acceptance bounded by the window",
+   "expect": "pass",
+   "outcome": "pass",
+   "violated": null,
+   "distinct_states": 1582486,
+   "depth": 19,
+   "as_expected": true
+  },
+  {
+   "config": "RoomModeration_evidence.cfg",
+   "gate": "V-016",
+   "claim": "evidence readable only by moderators in force at report time; never marked verifiable; retention bounded",
+   "expect": "pass",
+   "outcome": "pass",
+   "violated": null,
+   "distinct_states": 7035,
+   "depth": 11,
+   "as_expected": true
+  },
+  {
+   "config": "RoomModeration_mut_auth_at_creation.cfg",
+   "gate": "V-016",
+   "claim": "mutation: authorise at signing time, so a demoted moderator's in-flight ban still applies",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "ScopedAuthority",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 5
+  },
+  {
+   "config": "RoomModeration_mut_admit_at_creation.cfg",
+   "gate": "V-016",
+   "claim": "mutation: an admission signed before a ban readmits the banned principal",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "BanExcludes",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 5
+  },
+  {
+   "config": "RoomModeration_mut_global_mod.cfg",
+   "gate": "V-016",
+   "claim": "mutation: moderators of any room / unbound Space act everywhere",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "ScopedAuthority",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 3
+  },
+  {
+   "config": "RoomModeration_mut_mod_vs_gov.cfg",
+   "gate": "V-016",
+   "claim": "mutation: an ordinary moderator removes a governance principal",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "GovernanceProtected",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 3
+  },
+  {
+   "config": "RoomModeration_mut_no_rekey.cfg",
+   "gate": "V-016",
+   "claim": "mutation: removal without an epoch advance leaves the removed member holding the live key",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "NoKeyAfterRemoval",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 3
+  },
+  {
+   "config": "RoomModeration_mut_stale_evidence_acl.cfg",
+   "gate": "V-016",
+   "claim": "mutation: evidence encrypted to a stale moderator list reaches a demoted moderator",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "EvidenceScoped",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 5
+  },
+  {
+   "config": "RoomModeration_mut_no_expiry.cfg",
+   "gate": "V-016",
+   "claim": "mutation: evidence retained without bound",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "RetentionBound",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 6
+  },
+  {
+   "config": "RoomModeration_residual_divergence.cfg",
+   "gate": "V-016",
+   "claim": "residual: past-epoch window makes acceptance of late messages receiver-dependent",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "ReceiversAgree",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 10
+  },
+  {
+   "config": "RoomModeration_trap_demoted.cfg",
+   "gate": "V-016",
+   "claim": "golden: a demoted moderator's in-flight ban is rejected",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "TrapDemotedModeratorRejected",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 5
+  },
+  {
+   "config": "RoomModeration_trap_unban.cfg",
+   "gate": "V-016",
+   "claim": "golden: ban then unban both apply in commit order",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "TrapUnbanAfterBan",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 5
+  },
+  {
+   "config": "RoomModeration_trap_admit.cfg",
+   "gate": "V-016",
+   "claim": "golden: admission racing a ban is rejected",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "TrapBannedAdmitRejected",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 5
+  },
+  {
+   "config": "RoomModeration_trap_late_write.cfg",
+   "gate": "V-016",
+   "claim": "golden: a removed member's old-epoch message is still accepted inside the window",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "TrapLateOldEpochWrite",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 6
+  },
+  {
+   "config": "RoomModeration_trap_appeal.cfg",
+   "gate": "V-016",
+   "claim": "golden: appeal extends evidence retention to RetainMax+HoldMax",
+   "expect": "violation",
+   "outcome": "violation",
+   "violated": "TrapEvidenceHeldOnAppeal",
+   "distinct_states": null,
+   "depth": null,
+   "as_expected": true,
+   "trace_length": 7
+  }
+ ],
+ "summary": {
+  "all_tlc_outcomes_as_expected": true,
+  "configs": 17,
+  "pass_configs_distinct_states": 1592241,
+  "vectors_written": [
+   "verification/vectors/tla-RoomModeration_mut_admit_at_creation.json",
+   "verification/vectors/tla-RoomModeration_mut_auth_at_creation.json",
+   "verification/vectors/tla-RoomModeration_mut_global_mod.json",
+   "verification/vectors/tla-RoomModeration_mut_mod_vs_gov.json",
+   "verification/vectors/tla-RoomModeration_mut_no_expiry.json",
+   "verification/vectors/tla-RoomModeration_mut_no_rekey.json",
+   "verification/vectors/tla-RoomModeration_mut_stale_evidence_acl.json",
+   "verification/vectors/tla-RoomModeration_residual_divergence.json",
+   "verification/vectors/tla-RoomModeration_trap_admit.json",
+   "verification/vectors/tla-RoomModeration_trap_appeal.json",
+   "verification/vectors/tla-RoomModeration_trap_demoted.json",
+   "verification/vectors/tla-RoomModeration_trap_late_write.json",
+   "verification/vectors/tla-RoomModeration_trap_unban.json"
+  ],
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed"
+ }
+}

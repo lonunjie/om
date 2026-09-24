@@ -1,0 +1,137 @@
+{
+ "purpose": "V-016 Room-moderation configs (prototype verification/prototypes/v016-room-moderation). mut_* disable one rule; residual_* document an accepted risk; trap_* are golden witnesses.",
+ "models": [
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration.cfg",
+   "expect": "pass",
+   "gate": "V-016",
+   "claim": "every applied action authorised against the state it is ordered after; bans exclude; governance protected"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_scope.cfg",
+   "expect": "pass",
+   "gate": "V-016",
+   "claim": "moderation authority is always room-scoped; Space moderation only through the Room's binding"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_write.cfg",
+   "expect": "pass",
+   "gate": "V-016",
+   "claim": "no message from an excluded member is accepted at or after the excluding epoch; removal is a rekey; old-epoch acceptance bounded by the window"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_evidence.cfg",
+   "expect": "pass",
+   "gate": "V-016",
+   "claim": "evidence readable only by moderators in force at report time; never marked verifiable; retention bounded"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_mut_auth_at_creation.cfg",
+   "expect": "violation",
+   "gate": "V-016",
+   "claim": "mutation: authorise at signing time, so a demoted moderator's in-flight ban still applies",
+   "invariant": "ScopedAuthority"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_mut_admit_at_creation.cfg",
+   "expect": "violation",
+   "gate": "V-016",
+   "claim": "mutation: an admission signed before a ban readmits the banned principal",
+   "invariant": "BanExcludes"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_mut_global_mod.cfg",
+   "expect": "violation",
+   "gate": "V-016",
+   "claim": "mutation: moderators of any room / unbound Space act everywhere",
+   "invariant": "ScopedAuthority"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_mut_mod_vs_gov.cfg",
+   "expect": "violation",
+   "gate": "V-016",
+   "claim": "mutation: an ordinary moderator removes a governance principal",
+   "invariant": "GovernanceProtected"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_mut_no_rekey.cfg",
+   "expect": "violation",
+   "gate": "V-016",
+   "claim": "mutation: removal without an epoch advance leaves the removed member holding the live key",
+   "invariant": "NoKeyAfterRemoval"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_mut_stale_evidence_acl.cfg",
+   "expect": "violation",
+   "gate": "V-016",
+   "claim": "mutation: evidence encrypted to a stale moderator list reaches a demoted moderator",
+   "invariant": "EvidenceScoped"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_mut_no_expiry.cfg",
+   "expect": "violation",
+   "gate": "V-016",
+   "claim": "mutation: evidence retained without bound",
+   "invariant": "RetentionBound"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_residual_divergence.cfg",
+   "expect": "violation",
+   "gate": "V-016",
+   "claim": "residual: past-epoch window makes acceptance of late messages receiver-dependent",
+   "invariant": "ReceiversAgree"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_trap_demoted.cfg",
+   "expect": "violation",
+   "gate": "V-016",
+   "claim": "golden: a demoted moderator's in-flight ban is rejected",
+   "invariant": "TrapDemotedModeratorRejected"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_trap_unban.cfg",
+   "expect": "violation",
+   "gate": "V-016",
+   "claim": "golden: ban then unban both apply in commit order",
+   "invariant": "TrapUnbanAfterBan"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_trap_admit.cfg",
+   "expect": "violation",
+   "gate": "V-016",
+   "claim": "golden: admission racing a ban is rejected",
+   "invariant": "TrapBannedAdmitRejected"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_trap_late_write.cfg",
+   "expect": "violation",
+   "gate": "V-016",
+   "claim": "golden: a removed member's old-epoch message is still accepted inside the window",
+   "invariant": "TrapLateOldEpochWrite"
+  },
+  {
+   "module": "RoomModeration",
+   "config": "RoomModeration_trap_appeal.cfg",
+   "expect": "violation",
+   "gate": "V-016",
+   "claim": "golden: appeal extends evidence retention to RetainMax+HoldMax",
+   "invariant": "TrapEvidenceHeldOnAppeal"
+  }
+ ]
+}
