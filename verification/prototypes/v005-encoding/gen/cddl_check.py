@@ -52,12 +52,28 @@ def bundle(root, path):
     subprocess.run([str(PROTO / "tools/cddl_bundle.sh"), root, str(path)], check=True)
 
 
+# Known defect in the Rust `cddl` crate 0.10.7: in a `1* KEY => VALUE` map member, KEY only matches
+# when it is a bare inline type; a named rule (`ext-id`) or a control operator (`tstr .size (1..128)`)
+# never matches ("unexpected key"). The Rust tool therefore validates against a copy where that one
+# key is inlined as bare `tstr`; the 1..128 bound is still checked by the Ruby tool and by both
+# strict codecs. Recorded in the summary.
+RUST_SPEC_WORKAROUNDS = [("{ 1* ext-id => ext-entry }", "{ 1* tstr => ext-entry }")]
+
+
 def rust_validate(spec, files):
+    text = spec.read_text()
+    for old, new in RUST_SPEC_WORKAROUNDS:
+        assert text.count(old) == 1, f"workaround target not found: {old}"
+        text = text.replace(old, new)
+    spec = spec.with_name("spec.rust.cddl")
+    spec.write_text(text)
     out = {}
     for f in files:
         r = subprocess.run([str(TOOLS / "bin/cddl"), "validate", "--cddl", str(spec), "--cbor", str(f)],
                            capture_output=True, text=True)
-        out[f.name] = r.returncode == 0
+        # cddl 0.10.7 CLI exits 0 even when validation fails; the verdict is in the log line
+        log = r.stdout + r.stderr
+        out[f.name] = "[ERROR]" not in log and "is successful" in log
     return out
 
 
@@ -117,6 +133,8 @@ def main(vec_path, build, v005):
     summary = {
         "vector_checks": n_checked,
         "tools": ["cddl (Rust crate) 0.10.7", "cddl (Ruby gem) 0.12.14"],
+        "rust_tool_spec_workarounds": [{"from": a, "to": b, "reason": "cddl 0.10.7 only matches bare inline key types in KEY => VALUE members"}
+                                       for a, b in RUST_SPEC_WORKAROUNDS],
         "disagreements": disagreements,
         "generated_examples": gen_summary,
         "generated_unexpected_rejections": gen_bad[:20],
