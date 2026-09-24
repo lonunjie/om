@@ -39,7 +39,8 @@
         "ADR-0094",
         "ADR-0100",
         "ADR-0114",
-        "ADR-0122"
+        "ADR-0122",
+        "ADR-0130"
       ],
       "resolved_questions": [
         "Q-013",
@@ -347,13 +348,22 @@
         "ADR-0016",
         "ADR-0023",
         "ADR-0024",
-        "ADR-0096"
+        "ADR-0096",
+        "ADR-0130"
       ],
       "resolved_questions": [
         "Q-011",
         "Q-018",
         "Q-019",
         "Q-060"
+      ],
+      "verification_gates": [
+        "V-015",
+        "V-020"
+      ],
+      "release_gates": [
+        "PR-008",
+        "PR-013"
       ]
     },
     "client_endpoint_distribution": {
@@ -383,7 +393,8 @@
         "ADR-0060",
         "ADR-0077",
         "ADR-0103",
-        "ADR-0129"
+        "ADR-0129",
+        "ADR-0130"
       ],
       "resolved_questions": [
         "Q-025",
@@ -395,10 +406,12 @@
         "Q-056"
       ],
       "design_queue": [
-        "A-017"
+        "A-017",
+        "A-046"
       ],
       "verification_gates": [
-        "V-021"
+        "V-021",
+        "V-023"
       ]
     },
     "content_abuse_evidence": {
@@ -466,7 +479,8 @@
         "ADR-0049",
         "ADR-0102",
         "ADR-0104",
-        "ADR-0112"
+        "ADR-0112",
+        "ADR-0130"
       ],
       "resolved_questions": [
         "Q-012",
@@ -477,14 +491,16 @@
       ],
       "design_queue": [
         "A-016",
-        "A-018"
+        "A-018",
+        "A-045"
       ],
       "verification_gates": [
         "V-020"
       ],
       "release_gates": [
         "PR-012",
-        "PR-013"
+        "PR-013",
+        "PR-005"
       ]
     },
     "ux_accessibility_personalization": {
@@ -561,7 +577,8 @@
         "ADR-0110",
         "ADR-0113",
         "ADR-0116",
-        "ADR-0117"
+        "ADR-0117",
+        "ADR-0130"
       ],
       "resolved_questions": [],
       "design_queue": [
@@ -730,7 +747,8 @@
         "ADR-0124",
         "ADR-0126",
         "ADR-0128",
-        "ADR-0129"
+        "ADR-0129",
+        "ADR-0130"
       ],
       "design_queue": [
         "A-013",
@@ -805,7 +823,9 @@
       "schemas": [],
       "adrs": [],
       "resolved_questions": [],
-      "design_queue": [],
+      "design_queue": [
+        "A-047"
+      ],
       "verification_gates": [
         "V-001",
         "V-002",
@@ -840,6 +860,7 @@
     "deferred_product": "machine/deferred_product_questions.jsonl",
     "resolved_prior_questions": "machine/resolved_questions.jsonl",
     "requirement_traceability": "machine/requirement_traceability.json",
-    "threat_register": "machine/threat_register.jsonl"
+    "threat_register": "machine/threat_register.jsonl",
+    "conformance_suites": "machine/conformance_suites.json"
   }
 }

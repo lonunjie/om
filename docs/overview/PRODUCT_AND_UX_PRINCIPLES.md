@@ -87,9 +87,12 @@ The product explains consequences, not primitives:
 
 Recommended settings are the default; users are not forced through a threat-model wizard. Advanced users can choose Recommended, Hardened, Maximum Privacy, or customize component policies. These presets never select weaker E2EE ciphers.
 
-## Cloudflare onboarding exception
+## ~~Cloudflare onboarding exception~~ Onboarding without an infrastructure account
 
-The initial deployment premise asks each user to own their personal Cloudflare account, but OM automates resource creation through a consent flow. Owning the account is a user-sovereignty choice; understanding Workers/DO/R2 remains unnecessary.
+> **2026-09-24 (ADR-0102, ADR-0130):** there is no Cloudflare onboarding exception any more. A new user joins through
+> an invite on a T0 sponsored starter mailbox or picks a T1 hosted Home, and needs no account anywhere. Owning a
+> cloud account (T2) is an optional sovereignty choice with automated, verified-release provisioning; understanding
+> Workers/DO/R2 remains unnecessary. See [`HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`](../architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md).
 
 ## 2026-09-22 operatorless UX principle
 

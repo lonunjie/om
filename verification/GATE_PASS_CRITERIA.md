@@ -44,12 +44,13 @@
 | V-020 | `home_onboarding_and_provider_portability` | provider_reference | open | open | open | — |
 | V-021 | `endpoint_coercion_and_platform_leakage` | reference_client_ui | open | open | open | — |
 | V-022 | `performance_budgets` | reference_client_ui, provider_reference | open | open | open | — |
+| V-023 | `clienthost_update_lifecycle` | reference_client_ui | open | open | open | — |
 
 ## Gates
 
 ### V-001 — `production_crypto_path`
 
-Demonstrate the selected PQXDH + Triple Ratchet / SPQR-class OM-Crypto-v1 state-machine path in Rust on native and wasm32, including state persistence/reload, deterministic vectors, one-time key material and dependency/licensing/update strategy, without relying on an unsupported external API contract.
+Demonstrate the selected OM-Crypto-v1 state-machine path, PQXDH + Double Ratchet (ADR-0118; no PQ post-compromise healing in v1, SPQR is OM-Crypto-v2), in Rust on native and wasm32, including state persistence/reload, deterministic vectors, one-time key material and dependency/licensing/update strategy, without relying on an unsupported external API contract.
 
 - **Scopes blocked:** core_kernel
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
@@ -387,6 +388,8 @@ Pre-engineering criteria:
 - [x] trace-model assertions for each descriptor and a packet-capture test plan
 - [ ] two IdentityProfiles on one install never present the same push subscription or token to two parties unless the push provider's descriptor declares the linkage (ADR-0129 rule 14)
 - [ ] shared-blob mode for expressive assets has a BlobStore descriptor line; default per-send encryption yields no shared BlobID across conversations (ADR-0129 rule 10)
+- [ ] LAN trace: rendezvous only for marked contacts, tags retired on block/relationship end, fixed-cardinality advertisement, epoch rotation with link-layer address where available; the model shows advertisement size and cross-epoch sets reveal neither contact count nor linkage (R-270, R-271)
+- [ ] descriptors declare roles co-located on one operator's Home as one observer (descriptor_mailbox_linkage, contact_graph_edge) and state no non-collusion between them (R-265)
 
 Pre-release criteria:
 
@@ -467,6 +470,8 @@ Pre-engineering criteria:
 - [ ] per flow at least 80% task success and correct answer to the flow's security-comprehension question; failures redesigned and retested
 - [ ] flows add: counterparty notice for a representing service, Connected services review and revoke, and 'this service can read all Room content' for a full-member service with a trigger filter (ADR-0129)
 - [ ] theme-compiler test: a glyph-remapping theme font does not change any reserved surface (ADR-0129 rule 17)
+- [ ] onboarding from a sponsored invite: the user chooses native or one of several independent app origins and can say who serves their app (R-260)
+- [ ] comprehension: 'your inviter can see when you get messages and who else on their home you talk to, and can close this mailbox after 30 days' notice' is understood; the co-located-home disclosure is understood (R-265, R-267)
 
 Pre-release criteria:
 
@@ -508,6 +513,10 @@ Pre-engineering criteria:
 - [x] T0->T2/T3 migration model preserving relationships
 - [x] vendor-wide block tabletop
 - [x] vendor-block model computes the fraction of relationships with a non-Cloudflare fallback route for realistic invite graphs under Cloudflare-first T1 (drill D5, gap G5)
+- [ ] Home API frozen: operations, request authentication, CDDL bodies, typed error registry and versioning, with the conformance runner targeting it (A-045, R-275)
+- [ ] blocked-vendor and blocked-suffix simulation (for example all workers.dev locators and one vendor's IP ranges blocked): fraction of established relationships and of first contacts that still succeed, and which fallbacks carried them (R-021, R-028, R-045)
+- [ ] no provisioning path activates code that is not a verified release: template verifier-first flow and update controller modeled, conformance PC-I01..PC-I03 specified (R-261)
+- [ ] sponsor revocation overlap and non-sponsor second route in the sponsorship model; PC-D06/PC-D07 specified (R-266, R-267, R-260)
 
 Pre-release criteria:
 
@@ -568,3 +577,25 @@ Pre-release criteria:
 What remains (needs someone other than the author):
 
 - review of the measurement plan by someone other than its author
+
+### V-023 — `clienthost_update_lifecycle`
+
+Specify and test the ClientHost update lifecycle that is the W0 PWA endpoint trust root: release discovery and mirrors, signed-metadata verification, the verifier-first provider-template update flow, service-worker lifecycle, rollback/freeze protection, the owner-local minimum-version floor, broken/compromised-origin migration, credential scoping, long-neglected host upgrade, and the release-transparency log/monitor roles.
+
+- **Scopes blocked:** reference_client_ui
+- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Independence:** pre-engineering independent_reviewer; pre-release independent_tool, external_review
+
+Pre-engineering criteria:
+
+- [ ] release discovery/mirror rules and the signed-metadata verification path outside the downloaded bundle, for an owner-pinned root (CLIENTHOST §4 rule 1)
+- [ ] verifier-first provider-template deployment and update flow: staged immutable build, atomic switch, bounded rollback, fail closed on invalid signatures or rollback (R-261)
+- [ ] service-worker lifecycle: cache versioning, old-client compatibility window, staged activation, recovery from a broken worker
+- [ ] rollback/freeze protection and the owner-local minimum-version floor (no remote floor)
+- [ ] broken/compromised-origin migration as new-device enrollment, and credential scoping for deploy credentials
+- [ ] offline/long-neglected host upgrade behavior
+- [ ] release-transparency log and monitor roles, two-observation rule and failure behavior specified, with the log protocol chosen (A-046, R-274)
+
+Pre-release criteria:
+
+- [ ] live update and rollback drill on the reference PWA across the supported browser matrix, including a withheld-transparency case and a compromised-origin migration

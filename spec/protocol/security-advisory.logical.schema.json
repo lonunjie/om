@@ -1,12 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "OM SecurityAdvisory logical schema",
-  "description": "Signed vulnerability advisory (ADR-0104). An input selected by subscribers; never remote-disable or protocol authority.",
+  "description": "Signed vulnerability advisory (ADR-0104). An input selected by subscribers; never remote-disable or protocol authority. Floors are split into own_release_floor (own clients) and peer_floor (peer-affecting, root-threshold governed) by ADR-0130; the former recommended_floor object is replaced.",
   "type": "object",
   "required": [
     "advisory_id",
     "issuer_key_ref",
     "issued_at",
+    "expires_at",
     "vuln_class",
     "severity",
     "affected",
@@ -19,11 +20,15 @@
     },
     "issuer_key_ref": {
       "type": "string",
-      "description": "Issuer signing key; issuer is a distribution, steward lineage or researcher, never a protocol authority."
+      "description": "Issuer signing key: for a distribution, the advisory role delegated from its TUF root (ADR-0130 rule 3); issuer is a distribution, steward lineage or researcher, never a protocol authority."
     },
     "issued_at": {
       "type": "integer",
       "description": "Informational wall clock; not authority."
+    },
+    "expires_at": {
+      "type": "integer",
+      "description": "Wall-clock expiry (seconds). After it, the advisory's floors are no longer newly applied. Mandatory (ADR-0130 rule 3)."
     },
     "supersedes": {
       "type": "array",
@@ -88,9 +93,19 @@
     "remediation": {
       "type": "object"
     },
-    "recommended_floor": {
+    "own_release_floor": {
       "type": "object",
-      "description": "Minimum CryptoProfile/protocol generation/own-distribution version a subscriber MAY adopt as its own peer-local floor (R-170).",
+      "description": "Minimum release version for the issuing distribution's own clients only; signed by the delegated advisory key (ADR-0130 rule 3).",
+      "properties": {
+        "min_release": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "peer_floor": {
+      "type": "object",
+      "description": "Minimum CryptoProfile/protocol generation a subscriber MAY adopt as its own peer-local floor (R-170). Applied automatically only with root-threshold signatures; may name only a registry-preferred profile/generation with at least two independent implementations; user override permitted unless threshold-signed (ADR-0130 rule 3).",
       "properties": {
         "min_crypto_profile": {
           "type": "string"
@@ -98,13 +113,19 @@
         "min_protocol_generation": {
           "type": "string"
         },
-        "min_release": {
-          "type": "string"
-        },
         "user_override_permitted": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": true
+        },
+        "root_threshold_signatures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "signatures by the issuing distribution's root keys meeting its root threshold"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "vectors_ref": {
       "type": "string"

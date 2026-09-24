@@ -2,7 +2,7 @@
 
 - **Status:** Canonical architecture
 - **Checkpoint:** 2026-09-24 02:29 PHT
-- **Decision:** ADR-0102
+- **Decision:** ADR-0102; amended by ADR-0130 (§2 same-operator roles, §3.3–3.5 T0 exposure, revocation overlap and client origin)
 - **Gates:** V-020 (pre-engineering + pre-release), PR-013
 - **Supersedes in part:** the "v1 premise: user-owned Cloudflare deployment" framing in [`PROVISIONING_AND_BOOTSTRAP.md`](PROVISIONING_AND_BOOTSTRAP.md) §1. Cloudflare remains the first reference *own-cloud* tier. It is no longer the only way in.
 
@@ -19,6 +19,15 @@ The protocol already supports every provider shape needed. What was missing was 
 ## 2. Home tiers
 
 A **Home** is the set of provider roles (relay/mailbox, IntroGate, discovery publisher, optional blob/push) serving one IdentityProfile. All tiers use the same public provider contracts. No tier is privileged in protocol.
+
+**Roles run by one operator collude by construction (ADR-0130 rule 4).** In the reference Home one deployment serves
+the signed ContactDescriptor, runs the IntroGate and holds the mailbox. Whoever operates that deployment (the user's
+cloud vendor, the T1 host or the T0 sponsor) can link the published contact identity (alias, intro identity) to
+every deposit into and drain from that mailbox. OM does not claim otherwise. The MetadataExposureDescriptors, the
+privacy UI and this document treat co-located roles as one observer, and every non-collusion assumption names roles
+run by **different** operators. The reference Home still gives each role its own credentials, storage namespace and
+request logs as defense in depth, so a leak of one role's logs or keys is not a leak of all three; that is hygiene,
+not a privacy claim.
 
 | Tier | Who runs it | Signup needed | Typical user |
 |---|---|---|---|
@@ -53,23 +62,71 @@ Schema: [`spec/protocol/sponsored-mailbox-grant.logical.schema.json`](../../../s
 
 - hard quotas: stored bytes, envelopes per hour, max envelope size, max blob spool, retention;
 - `expires_at` with renewal by the sponsor (clock class: provider wall-clock, non-authoritative; see [`TIME_AND_EXPIRY_SEMANTICS.md`](../events/TIME_AND_EXPIRY_SEMANTICS.md));
-- `may_sponsor_further = false` by default, so one Home cannot be turned into an unbounded chain;
+- `may_sponsor_further` is always `false` in the baseline (the frozen CDDL and schema make it a constant), so one Home cannot be turned into an unbounded chain. T1 Homes grant mailboxes under their own policy, not by chained sponsorship;
 - per-sponsor cap on concurrent sponsored mailboxes, enforced at the sponsor's Home;
 - sponsorship consumes the **sponsor's** budget under the sponsor's zero-paid-budget policy (R-016). Exhaustion fails closed at the sponsor's Home; it never bills.
 
 ### 3.3 Honest metadata exposure
 
-The sponsor knows whom it invited. Its Home can observe the StarterMailbox's delivery timing, volume and sizes, but not content and not the identities behind other contacts' opaque deposit capabilities. The client shows this once, in plain language:
+The sponsor knows whom it invited. Its Home can observe the StarterMailbox's delivery timing, volume and sizes, but
+not content. It can also see **contact edges among its co-resident users**: when a contact of the invitee also has a
+mailbox on the same Home, the same client address or session that drains one mailbox deposits into the other, so the
+edge is observable even though each deposit capability is opaque. Opaque capabilities hide the identities behind
+deposits only from contacts whose mailboxes live elsewhere. The sponsor is also often exactly the proximate adversary
+of the threat model (partner, parent, employer; T-084): it sees when messages arrive and it can close the mailbox,
+bounded by §3.4.
 
-> You're using **Alice's OM home** for now. Alice can't read your messages, but her home can see when you get them. You can move to your own home anytime.
+The client shows this once, in plain language, and the wording depends on where the app itself came from (§3.5):
 
-The MetadataExposureDescriptor for the StarterMailbox role must state this (V-015 trace).
+> You're using **Alice's OM home** for now. Her home can see when you get messages and who else on it you talk to,
+> and Alice can close it after a 30-day notice. It can't read your messages. We'll add a second home for you so
+> you're not relying on hers.
+
+"Alice can't read your messages" is true only when the app is **not** served by Alice's Home or hosting account.
+If the invitee explicitly chose Alice's app server (§3.5), the disclosure says instead that Alice's server supplies
+the app and is trusted like the device itself.
+
+The MetadataExposureDescriptor for the StarterMailbox role must state this (V-015 trace), including
+`contact_graph_edge: sometimes` for co-resident contacts.
 
 ### 3.4 Graduation and expiry
 
 - **Move to my own home** is always one tap away. It runs normal RelaySet migration with overlap.
 - Expiry warnings start well before `expires_at`. Expiry closes the mailbox, never the identity. Contacts retain other routes where the user added them.
-- If the sponsor revokes the mailbox, the client guides the user to another tier. Relationships survive through overlap routes or re-introduction; there is no global fallback capability (R-092).
+- **Sponsor revocation has an overlap window (R-266).** A sponsor's revocation stops new ticket issuance at once, but
+  the Home keeps accepting deposits into the StarterMailbox and serving drains for **at least 30 days** (the same floor
+  as T1 eviction, R-187), announces the closure through the mailbox and answers deposits with a typed "moved" response
+  once the user has published a new route. The Home enforces this; conformance case PC-D06 tests it. During the
+  window the sponsor may lower quotas to the grant's minimums but may not close the mailbox. Abuse by the invitee is
+  bounded by those quotas, not by instant closure.
+- **A second route that is not the sponsor's (R-267).** Soon after first run (by default within the first week, as
+  soon as one is reachable) the client adds a fallback route on a Home the sponsor does not operate: a T1 Home from
+  the distribution's Home list, a sponsorship offered by another contact, or the user's own Home. Contacts learn both
+  routes through the normal RelaySet. The §3.3 disclosure says this will happen.
+- When the overlap window ends, the client has already moved the user to another tier. Relationships survive through
+  overlap routes or re-introduction; there is no global fallback capability (R-092).
+
+### 3.5 Where a T0 user's client comes from (ADR-0130 rule 1)
+
+A T0 user has no hosting account, so the client code they run must come from somewhere else, and that choice decides
+who is part of their endpoint trust base (F-07). The rules:
+
+1. **Never the sponsor by default.** A sponsor's Home, and any origin served from the sponsor's hosting account, never
+   serves the invitee's ClientHost unless the invitee explicitly opts in ("Use Alice's app server"). If they opt in,
+   the client treats the sponsor as part of the endpoint trust base and the §3.3 disclosure says so. This extends
+   R-188 from T1 to T0.
+2. **Always a choice with a native path.** An invite that carries a SponsorshipTicket offers, on the same landing
+   page: a native app (store or direct download, where the platform allows) **and** at least two PWA origins that are
+   shared ClientHosts ([`CLIENTHOST_UPDATE_LIFECYCLE.md`](../client/CLIENTHOST_UPDATE_LIFECYCLE.md) §9) run by independent operators. No single origin is
+   the only way in, so no single hosting account is a network-wide endpoint compromise.
+3. **A project-controlled origin is a declared service.** If the project or the reference distribution runs a PWA
+   origin, it is a project-controlled service under PR-001, PR-005 and PR-012, serves only transparency-logged
+   releases, is monitored by independent release-transparency monitors, and is offered next to the independent
+   origins and the native option, never alone. It gains no protocol privilege (R-046, ADR-0043).
+4. **The origin is named.** Onboarding names the origin that serves the app, and Settings → About shows it (CLIENTHOST
+   §9 rule 4). Moving to another origin or a native client is new-device enrollment.
+
+The comprehension study (V-018) tests this choice and the §3.3 disclosure.
 
 ## 4. T1 — Hosted Homes and the Home list
 
@@ -117,7 +174,7 @@ For PWA users, the hosting account that serves the ClientHost origin is part of 
 
 1. Onboarding requires or strongly steers to phishing-resistant auth (passkey/security key) on the hosting account where the provider supports it, and explains why in one sentence.
 2. ClientHost deployment and relay/Home deployment use **separate least-privilege credentials** and, where the provider allows, separate scripts/origins (already required: separate public and app origins).
-3. The client records the release digest it runs and compares it with ≥2 independent release-transparency observations when online. This detects non-targeted substitution; it does not defeat a fully compromised origin ([`CLIENTHOST_UPDATE_LIFECYCLE.md`](../client/CLIENTHOST_UPDATE_LIFECYCLE.md) §3).
+3. The client records the release digest it runs and compares it with ≥2 independent release-transparency observations when online (log and monitor roles and failure behavior: SOFTWARE_SUPPLY_CHAIN §6; gate V-023). This detects non-targeted substitution; it does not defeat a fully compromised origin ([`CLIENTHOST_UPDATE_LIFECYCLE.md`](../client/CLIENTHOST_UPDATE_LIFECYCLE.md) §3).
 4. Hardened/Maximum profiles recommend a native client or an independently hosted, transparency-monitored ClientHost over a same-account ClientHost.
 
 ## 6. Provider diversity and monoculture
@@ -139,6 +196,7 @@ Monoculture is a **declared 0M risk** (threat T-020). Controls:
 
 ```text
 Opened from an invite with sponsorship:
+  Invite page: Get the app (native) | Open in browser (choice of independent origins, §3.5)
   Welcome -> Profile -> "You're in. Using Alice's home for now." -> Chat with Alice
 Opened without an invite:
   Welcome -> Profile -> Where should your messages live?
@@ -156,4 +214,7 @@ No vendor names or infrastructure vocabulary appear outside Advanced. The contin
 3. Sponsorship grants mailbox capacity only: no identity, control, discovery or content authority.
 4. Sponsored capacity is bounded, revocable and paid for only by the sponsor's own policy.
 5. A distribution's Home list is user-replaceable data, never protocol truth.
-6. A T1 host serves mail, not its members' client code, unless a member explicitly opts in (R-188).
+6. A T1 host serves mail, not its members' client code, unless a member explicitly opts in (R-188). The same holds
+   for a T0 sponsor (R-260).
+7. Roles run by one operator are one observer; descriptors and UI never claim non-collusion between them (R-265).
+8. A sponsor cannot cut an invitee off instantly: revocation keeps a 30-day overlap window (R-266).

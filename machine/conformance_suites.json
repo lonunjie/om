@@ -1,0 +1,127 @@
+{
+  "snapshot": "2026-09-24T23:30:00+08:00",
+  "purpose": "Registry of conformance suites that traceability and threat entries may name as conformance:<name> (ADR-0130 rule 10). 'specified' = the spec document holds a pass/fail case list; 'planned' = the spec document states the rules a future case list must test. A scope listed here cannot be authorized while the suite is still planned; the validator enforces both.",
+  "statuses": [
+    "specified",
+    "planned"
+  ],
+  "suites": [
+    {
+      "name": "provider",
+      "spec_doc": "docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md",
+      "status": "specified",
+      "scopes": [
+        "provider_reference"
+      ],
+      "description": "Home provider cases PC-A..PC-I (capabilities, multi-tenancy, quotas, sponsorship, migration, recovery, discovery, failure, release integrity)."
+    },
+    {
+      "name": "network_transport",
+      "spec_doc": "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md",
+      "status": "specified",
+      "scopes": [
+        "core_kernel"
+      ],
+      "description": "NetworkTransport cases NT-01..NT-05: untrusted byte carrier, failover without semantic change."
+    },
+    {
+      "name": "identity",
+      "spec_doc": "docs/architecture/identity/IDENTITY_CONTINUITY.md",
+      "status": "planned",
+      "scopes": [
+        "core_kernel"
+      ],
+      "description": "AccountID stability and continuity behavior across provider changes."
+    },
+    {
+      "name": "discovery",
+      "spec_doc": "docs/architecture/discovery/DISCOVERY_FABRIC.md",
+      "status": "planned",
+      "scopes": [
+        "core_kernel"
+      ],
+      "description": "Descriptor resolution, caching and discovery fallbacks."
+    },
+    {
+      "name": "attachments",
+      "spec_doc": "docs/architecture/storage/STORAGE_AND_BLOB_ARCHITECTURE.md",
+      "status": "planned",
+      "scopes": [
+        "core_kernel"
+      ],
+      "description": "Attachment references, blob integrity and expressive-asset refs."
+    },
+    {
+      "name": "security_floor",
+      "spec_doc": "docs/architecture/providers/VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md",
+      "status": "planned",
+      "scopes": [
+        "core_kernel"
+      ],
+      "description": "Peer-local floors, advisory validation, expiry and override rules."
+    },
+    {
+      "name": "accessibility",
+      "spec_doc": "docs/architecture/ux/ACCESSIBILITY_AND_INPUT.md",
+      "status": "planned",
+      "scopes": [
+        "reference_client_ui"
+      ],
+      "description": "Shared om-ui accessibility primitives."
+    },
+    {
+      "name": "identifier_spoofing",
+      "spec_doc": "docs/architecture/identity/IDENTIFIER_SPOOFING_AND_DISPLAY.md",
+      "status": "planned",
+      "scopes": [
+        "reference_client_ui"
+      ],
+      "description": "Confusable identifiers and reserved display surfaces."
+    },
+    {
+      "name": "performance",
+      "spec_doc": "docs/architecture/ux/MOTION_AND_PERFORMANCE.md",
+      "status": "planned",
+      "scopes": [
+        "reference_client_ui"
+      ],
+      "description": "Performance budgets exercised as conformance checks (V-022 measures them)."
+    },
+    {
+      "name": "ui_intents",
+      "spec_doc": "docs/architecture/ux/UI_CORE_PLATFORM_CONTRACT.md",
+      "status": "planned",
+      "scopes": [
+        "reference_client_ui"
+      ],
+      "description": "Typed UI intents and PlatformAdapter capability families."
+    },
+    {
+      "name": "ui_themes",
+      "spec_doc": "docs/architecture/ux/THEMES_FONTS_AND_PERSONALIZATION.md",
+      "status": "planned",
+      "scopes": [
+        "reference_client_ui"
+      ],
+      "description": "Theme compiler, reserved surfaces and font sanitization."
+    },
+    {
+      "name": "group_history",
+      "spec_doc": "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md",
+      "status": "planned",
+      "scopes": [
+        "groups"
+      ],
+      "description": "HistoryBundle attribution and exclusion rules."
+    },
+    {
+      "name": "publication",
+      "spec_doc": "docs/architecture/groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
+      "status": "planned",
+      "scopes": [
+        "communities_publications"
+      ],
+      "description": "Publication seq chain, revocation and rollback rejection."
+    }
+  ]
+}

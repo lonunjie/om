@@ -17,7 +17,13 @@ Alice owns CF account -> Alice Worker / SQLite DO
 Bob owns CF account   -> Bob Worker / SQLite DO
 ```
 
-Preferred operatorless provisioning is a provider-native **Deploy to Cloudflare** public template where feasible: Cloudflare deploys the public Worker project into the user's own account and can automatically provision supported bound resources. OAuth + Authorization Code/PKCE remains an optional convenience for richer in-client automation. Users should not paste long-lived API tokens.
+Preferred operatorless provisioning is a provider-native **Deploy to Cloudflare** public template where feasible: Cloudflare deploys the template into the user's own account and can automatically provision supported bound resources. The template's first step is a verifier that deploys only a signed, digest-pinned release checked against the distribution's TUF metadata, never a branch head, and it stays behind as the update controller ([`PROVISIONING_AND_BOOTSTRAP.md`](PROVISIONING_AND_BOOTSTRAP.md) §10, ADR-0130). OAuth + Authorization Code/PKCE remains an optional convenience for richer in-client automation; its scopes are account-wide, so tokens are short-lived and not retained (§4 there). Users should not paste long-lived API tokens.
+
+**Roles in one deployment are one observer (ADR-0130 rule 4).** The reference Home serves the ContactDescriptor, the
+IntroGate and the mailbox from one account, so that account's operator can link them. As defense in depth the
+reference still separates them: distinct Workers/Durable Object namespaces and hostnames per role, per-role
+credentials, and no shared request logs. This limits what one leaked credential or log exposes; it is not a
+non-collusion claim.
 
 ## workers.dev discovery
 
@@ -85,7 +91,7 @@ No OM-controlled provisioning service is required. `ProvisioningMethod` supports
 - third-party distribution OAuth clients;
 - future provider-native provisioning.
 
-Cloudflare's current Deploy-to-Cloudflare flow is tied to public GitHub/GitLab repositories, so it is a convenience path rather than the only bootstrap path. Mirrored/manual/IaC deployment remains documented.
+Cloudflare's current Deploy-to-Cloudflare flow is tied to public GitHub/GitLab repositories, so it is a convenience path rather than the only bootstrap path. Mirrored/manual/IaC deployment remains documented. Every path deploys the same verified release artifact; none builds from a mutable branch (R-261).
 
 If any reference provisioning client or source forge is blocked/revoked, existing identities and communication continue.
 

@@ -31,6 +31,28 @@ Properties:
 - a passive observer sees changing random-looking values;
 - replay across epochs is rejected.
 
+### 2.1 Contacts can be trackers (ADR-0130 rule 8)
+
+"Only known contacts can match" is also the risk: any contact, including an estranged partner or a former employer
+who is still a contact, can passively detect the user's physical presence on a shared LAN (T-087). And a device that
+advertises one tag per contact leaks its contact count, while a tag set that rotates together from one MAC/IP address
+is linkable across epochs by a passive Wi-Fi observer (T-088). Rules (R-270, R-271):
+
+1. **Off by default, per contact.** LAN rendezvous runs only for contacts the user marks ("Find each other on the
+   same Wi-Fi"). It is off for everyone under Hardened and Maximum Privacy. A QR/invite LAN secret (§3) covers only
+   that one pairing.
+2. **Retired on block or relationship end.** Blocking or removing a contact, or ending the relationship, immediately
+   stops advertising and answering that contact's tags on every device of the account.
+3. **Fixed cardinality.** A device advertises exactly K tags per epoch regardless of how many contacts are enabled
+   (real tags plus random decoys), so advertisement size carries no information; if more than K contacts are
+   enabled, tags rotate through the slots across epochs. A querier-initiated design (the device only answers
+   queries) is an acceptable alternative for platforms where it fits. K is a policy constant fixed with V-015, not a
+   wire constant.
+4. **Rotate with the link layer.** Where the platform exposes it, tag epochs change together with MAC address
+   randomization, and a device never answers old-epoch tags from a new address.
+
+V-015 includes a LAN trace criterion for these rules.
+
 ## 3. New-contact LAN rendezvous
 
 A QR/invite may carry a temporary LAN rendezvous secret/capability. This lets two nearby devices find each other without Internet service.

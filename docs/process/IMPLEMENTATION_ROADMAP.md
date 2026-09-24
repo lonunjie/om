@@ -136,8 +136,8 @@ Before public username search becomes a product dependency, implement in this or
 Before wire-format freeze / public security claims:
 
 1. **AccountControlState prototype first** — transition table, quarantine/revocation/promotion, fork/freshness tests.
-2. **Recovery v1** — default none; offline 256-bit RecoveryRoot; optional guardian sharing after library/design review; history recovery separate.
-3. **Personal Cloudflare bootstrap** — OAuth/PKCE provisioning for Worker + SQLite DO; `workers.dev` publisher; no R2 dependency.
+2. **Recovery v1** — ~~default none~~ on by default as one vote with delay and veto (ADR-0111), explicit opt-out; offline 256-bit RecoveryRoot; optional guardian sharing after library/design review; history recovery separate.
+3. **Home bootstrap** — ~~Personal Cloudflare bootstrap via OAuth/PKCE~~ T0 sponsored mailbox and T1 hosted Home first (ADR-0102/0112); T2 own-cloud deploys a signed, digest-pinned release through a verifier-first template or an optional OAuth/PKCE installer (ADR-0130); Worker + SQLite DO; `workers.dev` publisher; no R2 dependency.
 4. **ContactCapsule/share-contact** — subject-signed forwarding + optional referral context.
 5. **Supply-chain floor** — signed tags, dependency pinning, provenance, TUF-style update roles before first public binary.
 6. **Privacy presets** — Recommended/Hardened/Maximum Privacy as policy bundles; same crypto floor.

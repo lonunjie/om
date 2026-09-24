@@ -2,6 +2,13 @@
 
 These are conceptual interfaces, not frozen language APIs.
 
+> **2026-09-24 (ADR-0130):** conceptual sketches are not enough for two independent Homes to interoperate. The
+> normative **Home API** (operations, request authentication, CDDL request/response bodies, a typed error registry
+> with at least `quota`, `moved` and `retryable`, and versioning) covering relay, IntroGate, descriptor publishing,
+> sponsorship, recovery records and blob spool, a real ProviderCapabilities JSON Schema with `durability_class`, and
+> the interfaces listed under "Missing contracts" below are design item **A-045**. It blocks `provider_reference`,
+> and "Home API frozen" is a V-020 pre-engineering criterion. The provider conformance runner targets that API.
+
 ```rust
 trait CryptoProfileRegistry {
     fn allowed_profiles(&self) -> Vec<ProfileId>;
@@ -88,6 +95,41 @@ LanRendezvous
 ```
 
 The interfaces are logical contracts; transport/serialization details follow the 2026-09-23 accepted NetworkTransport/canonical-encoding decisions.
+
+## NetworkTransport (Q-019, ADR-0130 rule 6)
+
+```text
+NetworkTransport
+  capabilities() -> TransportCaps            // stream | datagram, max_payload, latency class, privacy class
+  open(endpoint, policy) -> Channel          // endpoint is an opaque locator from a RelaySet/descriptor
+  send(channel, bytes) / recv(channel) -> bytes
+  close(channel)
+  health() -> Reachable | Blocked | Degraded | Unknown
+```
+
+A transport is an **untrusted byte carrier** (R-268). It carries already-encrypted OM envelopes and never sees
+plaintext, keys, AccountID or ConversationID. Canonical semantics are identical over every transport: failover from
+HTTPS to QUIC, a proxy, a community bridge, a Tor-style adapter or LAN changes the path, never the meaning, the
+authentication or the security level of what is carried. Transports are selected by RoutePolicy, which may escalate
+along CENSORSHIP_AND_NETWORK_RESILIENCE §5 but never downgrades security to regain reachability.
+
+Conformance cases (`conformance:network_transport`, registered in [`machine/conformance_suites.json`](../../../machine/conformance_suites.json)):
+
+| ID | Case | Pass condition |
+|---|---|---|
+| NT-01 | same envelope over two transports | recipient materializes byte-identical canonical events |
+| NT-02 | transport tampers, truncates, replays or reorders bytes | every fault is detected above the transport; no state change, no plaintext exposure |
+| NT-03 | failover mid-conversation (endpoint blocked) | delivery continues on the next transport or route with no identity, key or history migration |
+| NT-04 | transport sees only ciphertext and opaque locators | trace tap finds no AccountID, ConversationID, key or plaintext |
+| NT-05 | all transports blocked | the client reports "can't reach" and queues; it never falls back to a weaker security level |
+
+## Missing contracts (A-045)
+
+AGENTS.md lists these as core interfaces; each needs a sketch here and, where a Home implements it, an operation in
+the Home API: `KeyMaterialProvider` (bundle publish/fetch with per-relationship fetch capabilities, R-209),
+`BackupStore`, `RecoveryStore` (RecoveryRecord store and RecoveryRequest fan-out, ADR-0111), `StoragePool`,
+`CryptoProvider`, per-contact deposit-capability mint/revoke (block), sponsorship redemption (ADR-0102),
+BlobLocationRecord repair (ADR-0075) and the forwarding "moved" state.
 
 ## Additional logical interfaces
 

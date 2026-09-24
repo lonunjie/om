@@ -6,7 +6,9 @@
 - **Rule:** a case either passes or fails. There is no vendor-specific branch, and no case may name a vendor.
 
 The runner drives a Home only through its public provider contracts ([`IMPLEMENTATION_INTERFACES.md`](IMPLEMENTATION_INTERFACES.md): RelayProvider,
-BlobStore, IntroGate, discovery publishing, sponsorship). It uses a black-box client and, for metadata cases, a trace
+BlobStore, IntroGate, discovery publishing, sponsorship). Those contracts become the normative Home API (design item
+A-045, ADR-0130); until it is frozen the cases below are specified but the runner cannot be written. Registered as
+`conformance:provider` in [`machine/conformance_suites.json`](../../../machine/conformance_suites.json). It uses a black-box client and, for metadata cases, a trace
 tap on the Home's own logs and network egress. Each case lists the requirements it proves.
 
 ## PC-A Capability semantics (R-052, R-092)
@@ -29,6 +31,7 @@ tap on the Home's own logs and network egress. Each case lists the requirements 
 | PC-B03 | host eviction | evicted member gets ≥30 days of overlap routes and a hand-off notice; deposits still accepted during overlap |
 | PC-B04 | Home closure | same as B03 for all members; closure is announced through every member mailbox |
 | PC-B05 | no ClientHost in the mailbox deployment | the reference host console deploys no client code; a member-facing ClientHost exists only with explicit opt-in (R-188) |
+| PC-B06 | per-role separation (hygiene, ADR-0130 rule 4) | publisher, IntroGate and mailbox use distinct credentials, storage namespaces and request logs; one role's credential cannot read another role's logs. This is defense in depth, not a non-collusion claim |
 
 ## PC-C Quotas and zero billing (R-016)
 
@@ -47,6 +50,8 @@ tap on the Home's own logs and network egress. Each case lists the requirements 
 | PC-D03 | no chaining | a sponsored mailbox with `may_sponsor_further=false` cannot issue tickets |
 | PC-D04 | revocation and expiry | deposits rejected after revoke/expiry; the owner's identity and other routes are unaffected |
 | PC-D05 | metadata disclosure | the grant carries a MetadataExposureDescriptor matching the V-015 trace model |
+| PC-D06 | sponsor revocation overlap (R-266) | after revoke, deposits and drains keep working for ≥30 days, the closure is announced through the mailbox, quotas cannot drop below the grant minimums, and deposits get a typed "moved" once a new route exists |
+| PC-D07 | no sponsor-served client (R-260) | a sponsor's Home deploys and serves no ClientHost for its invitees unless an invitee opted in |
 
 ## PC-E Migration and overlap (R-001, R-052)
 
@@ -77,6 +82,14 @@ tap on the Home's own logs and network egress. Each case lists the requirements 
 |---|---|---|
 | PC-H01 | storage outage | writes fail with a typed retryable error; nothing is silently accepted and then lost |
 | PC-H02 | restart | queued envelopes survive a restart (durability class stated in capabilities) |
+
+## PC-I Release integrity (R-261)
+
+| ID | Case | Pass condition |
+|---|---|---|
+| PC-I01 | activated code is a verified release | the running Home's artifact digest appears in the distribution's TUF targets metadata under a valid root chain |
+| PC-I02 | template path | a fresh template deployment runs the verifier first and activates the pinned release; pointing the template at a branch head, an unsigned artifact or a digest not in targets fails closed |
+| PC-I03 | update | the controller left by the template stages and activates a newer signed release, and refuses a rollback |
 
 ## Running it (future)
 

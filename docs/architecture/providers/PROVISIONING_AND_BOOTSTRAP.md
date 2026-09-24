@@ -45,7 +45,17 @@ The first grouped directories should therefore naturally be companies/communitie
 
 ## 4. OAuth provisioning
 
-Cloudflare supports public third-party OAuth clients and Authorization Code + PKCE for browser/mobile/desktop/CLI public clients. OM can request narrowly scoped permission to create/update only needed resources without asking users to paste long-lived API tokens.
+Cloudflare supports public third-party OAuth clients and Authorization Code + PKCE for browser/mobile/desktop/CLI public clients. That avoids asking users to paste long-lived API tokens. It does **not** give resource-level least privilege: provider OAuth scopes follow API-token permission groups, and the ones provisioning needs (for example `Workers Scripts Write`, §9) are account-wide. A token that can deploy the OM Worker can replace every Worker in that account. OM docs and UI must not describe the grant as limited to OM's resources (ADR-0130 rule 2).
+
+Token custody (R-262):
+
+- the installer uses the access token only during the provisioning session and does not persist it in the PWA's
+  origin storage, the ClientHost or any Home role;
+- refresh tokens are not requested or kept by default. An optional in-client automation that keeps one stores it
+  DeviceVault-sealed, lists it under Settings → Connected services with one-tap revoke, and asks for re-consent after
+  the provider's shortest supported lifetime;
+- the provider-side grant is revoked (or the user is told how to revoke it) when setup finishes;
+- a project-owned OAuth client registration is a custodied asset (PROJECT_STEWARDSHIP §5), not a bootstrap root.
 
 Provisioning flow:
 
@@ -107,11 +117,29 @@ Cloudflare-specific identifiers never enter canonical identity/conversation sema
 
 ## 9. workers.dev automation detail
 
-Cloudflare exposes API operations to create/read the account Workers subdomain and enable a script on `workers.dev`; the account-subdomain creation endpoint accepts `Workers Scripts Write`. Since Cloudflare OAuth scope names correspond to API-token permissions, the provisioning profile can request the relevant narrowly scoped permission and automate this step after user consent. If Cloudflare changes these scopes/API capabilities, provisioning falls back to an explicit user step without changing OM protocol semantics.
+Cloudflare exposes API operations to create/read the account Workers subdomain and enable a script on `workers.dev`; the account-subdomain creation endpoint accepts `Workers Scripts Write`. Since Cloudflare OAuth scope names correspond to API-token permissions, the provisioning profile requests that permission and automates this step after user consent. The permission is account-wide (§4), which is why the token is short-lived and not retained. If Cloudflare changes these scopes/API capabilities, provisioning falls back to an explicit user step without changing OM protocol semantics.
 
 ## 10. Operatorless provisioning path
 
 Cloudflare's Deploy-to-Cloudflare mechanism can deploy a public Worker application into the user's own Cloudflare account and automatically provision supported resources from the project's configuration. This is now a preferred v1 path because no OM-operated OAuth/control plane is required.
+
+**Every provisioning method deploys a verified release (ADR-0130 rule 2, R-261).** A template click clones a public
+repository and builds it in the user's account, which would bind the deployed Home (and, for T2 PWA users, the
+ClientHost) to a mutable forge branch plus build-time dependency resolution, outside the distribution's release trust
+root. Therefore:
+
+1. whatever the method (template, CLI, IaC, OAuth installer), what gets activated is a **signed release artifact
+   pinned by digest** and verified against the distribution's TUF targets metadata (SOFTWARE_SUPPLY_CHAIN §4) before
+   activation. No method activates code that is not a verified release;
+2. a template repository contains a small **verifier/deployment controller** as its first step, not the application
+   source build. It fetches the pinned release, checks the TUF metadata chain and the digest, and only then deploys
+   the artifact. It never auto-deploys a branch head;
+3. template deployments receive security fixes through the same staged, owner-pinned update flow as a ClientHost
+   ([`CLIENTHOST_UPDATE_LIFECYCLE.md`](../client/CLIENTHOST_UPDATE_LIFECYCLE.md) §4): the controller left in the user's account discovers, verifies and
+   stages new releases, so thousands of template deployments are not frozen at their first commit;
+4. the deployment template repository is a custodied asset (PROJECT_STEWARDSHIP §5). Its compromise can change the
+   verifier, so it is protected like release automation, mirrored, and its verifier is itself a signed, pinned
+   release.
 
 `ProvisioningMethod` is replaceable and may include:
 

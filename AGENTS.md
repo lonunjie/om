@@ -225,7 +225,7 @@ Agents must preserve these invariants:
 - Product engineering is still **not authorized**.
 - Before proposing engineering, clear every open blocking item in [`machine/architecture_design_queue.jsonl`](machine/architecture_design_queue.jsonl) and pass every blocking gate in [`machine/architecture_verification_gates.jsonl`](machine/architecture_verification_gates.jsonl).
 - [`machine/public_release_gates.jsonl`](machine/public_release_gates.jsonl) applies to the affected public service/distribution/claim; do not silently turn one of those roles into mandatory protocol infrastructure.
-- Preserve all six OM meanings in [`NAMING.md`](docs/constitution/NAMING.md) and the rule that capability support does not imply SeedLife operation.
+- Preserve all six OM meanings plus 0M in [`NAMING.md`](docs/constitution/NAMING.md) and the rule that capability support does not imply SeedLife operation.
 - Do not introduce OM-operated mandatory payment, marketplace, content catalog, bot cloud, public feed, account service or provider merely to make a feature convenient.
 
 ### 2026-09-24 hardening-review rules

@@ -57,6 +57,13 @@ snapshot/timestamp roles
 
 Trust expires and is compartmentalized. Compromising one online release secret must not permanently grant root authority.
 
+**The SecurityAdvisory key is a delegated role (ADR-0130 rule 3).** A distribution's advisory signing key is a TUF
+role delegated from the same root, with its own expiry, rotation and revocation, and it is listed in the custody map
+(PROJECT_STEWARDSHIP §5). It can sign advisories and a `min_release` floor for the distribution's own clients. It
+cannot on its own sign a **peer-affecting** floor (a minimum CryptoProfile or protocol generation that would put
+relationships with other distributions' users into "Needs update"): that needs the root threshold
+([`VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md`](VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md) §6).
+
 ## 5. Provenance and reproducibility
 
 Produce provenance that binds an artifact digest to:
@@ -83,6 +90,24 @@ High-assurance users may prefer independently verifiable installed clients.
 ## 6. Release transparency
 
 Publish append-only release metadata/artifact hashes and permit independent monitors. A transparency service detects equivocation; it must not itself gain release-signing authority.
+
+Roles (ADR-0130 rule 5, R-274; the concrete log protocol is design item A-046):
+
+- **Release-transparency log.** Each distribution appends every release's metadata digest and artifact digests to at
+  least one public append-only log with signed checkpoints. Anyone may run a log; a distribution may use several. A
+  log is a witness to what was published, never a signer of releases.
+- **Monitor.** Any independent party may run one. A monitor follows one or more logs, checks checkpoint consistency
+  (append-only, no split view), and publishes signed observations `(release digest, log id, index, checkpoint)`.
+  Monitors are **optional and non-authoritative**: a monitor can report "seen" or "inconsistent"; it can never
+  approve, block or sign a release. Distributions list known monitors as replaceable data, never as protocol state.
+- **Consumers.** A ClientHost deployment controller requires observations from at least two independent monitors
+  before automatic deploy (CLIENTHOST §4 rule 2). A running client compares its release digest with at least two
+  observations when online (R-164).
+- **Failure behavior.** Fewer than two observations: the controller does not auto-deploy and waits or falls back to
+  approval-required mode; the client shows a non-blocking "couldn't check this app version yet" state, not an alarm.
+  Conflicting observations or a digest no monitor has seen: a security event ("The app you are running does not
+  match any published release") with a path to move to another origin or a native client. A monitor outage never
+  stops messaging.
 
 Clients should remember a minimum observed release/update metadata version to prevent rollback where platform constraints permit.
 
@@ -115,7 +140,7 @@ Creator-disappearance requirement: loss of the reference project's update keys m
 
 TUF/provenance/reproducible assets improve auditability and update discipline, but a web origin that is fully compromised can serve a malicious bootstrap/service worker. Do not describe application-level signature verification as eliminating this browser execution trust root.
 
-Reference PWA therefore also requires minimal self-owned ClientHost, no remote runtime dependency/CDN, strict CSP, and a documented native higher-assurance option. SLSA 1.2/in-toto provenance should be generated from the start of public builds rather than retrofitted after release.
+Reference PWA therefore also requires a ClientHost the user can trust (their own origin for T2/T3, a shared ClientHost under [`CLIENTHOST_UPDATE_LIFECYCLE.md`](../client/CLIENTHOST_UPDATE_LIFECYCLE.md) §9, and for T0/T1 users never the sponsor's or host's origin by default: [`HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`](HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md) §3.5, §4.2), no remote runtime dependency/CDN, strict CSP, and a documented native higher-assurance option. SLSA 1.2/in-toto provenance should be generated from the start of public builds rather than retrofitted after release.
 ## 2026-09-22 hardening — self-owned ClientHost deployment lifecycle
 
 [`CLIENTHOST_UPDATE_LIFECYCLE.md`](../client/CLIENTHOST_UPDATE_LIFECYCLE.md) is canonical. Signed release metadata is necessary but not sufficient for a fleet of independently owned PWA origins: OM must also define deployment/staging/service-worker/rollback/emergency-update and compromised-origin migration behavior.
@@ -125,6 +150,10 @@ Same-origin JavaScript is not treated as an independent verifier after total ori
 ## 2026-09-23 S0 release-root resolution
 
 The founder may remain the only human steward during S0 while still using a physically separated 2-of-3 offline root-key arrangement under founder custody. This improves key-loss/online-compromise resilience without pretending there are already independent trusted people. Later custodians can take separate shares without changing the protocol trust model.
+
+**One statement of S0 custody (ADR-0130 rule 7):** 2-of-3 root shares, one human custodian. Against key loss and
+online compromise that is a threshold; against coercion of that one person it is equivalent to 1-of-1. Public wording
+says exactly this and never calls S0 custody multi-party.
 
 ## 2026-09-23 08:21 protocol-continuity artifact
 

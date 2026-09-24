@@ -93,7 +93,7 @@ This reduces operational friction, which is important for OM's mainstream-user g
 
 But if the wire protocol assumes Cloudflare identifiers, storage semantics, or media APIs, OM simply trades one central operator for another. Therefore Cloudflare is a reference provider profile only.
 
-For the initial deployment model, ordinary users may own a free Cloudflare account so their infrastructure is individually controlled, but OM must automate provisioning and hide Worker/DO/storage details. Owning the provider account is different from administering it. Cloudflare remains replaceable and outside canonical identity/protocol semantics.
+For the initial deployment model, ordinary users may own a free Cloudflare account so their infrastructure is individually controlled, but OM must automate provisioning and hide Worker/DO/storage details. Owning the provider account is different from administering it. Cloudflare remains replaceable and outside canonical identity/protocol semantics. *(2026-09-24: superseded as the default path by Home tiers, ADR-0102/0112: most users start on a sponsored or hosted Home with no account; own-cloud is optional and deploys only verified releases, ADR-0130.)*
 
 ## 9. Why R2 is storage, not “the OM server”
 
@@ -234,11 +234,11 @@ Finally, local-network and censorship resilience were pulled into the same archi
 
 ## Continuity / trust rationale — 2026-09-21 21:32 PHT
 
-The recovery discussion clarified that OM should not impose durability on people who want throwaway identities. Making recovery optional avoids creating a universal provider backdoor. A random offline root and guardian shares are understandable recovery paths; making recovery itself a versioned policy keeps room for future threshold/MPC research.
+The recovery discussion clarified that OM should not impose durability on people who want throwaway identities. Making recovery optional avoids creating a universal provider backdoor. *(2026-09-24: ADR-0111 later made identity recovery on by default, as one vote with delay and veto, with an explicit opt-out; it is still never a provider master key.)* A random offline root and guardian shares are understandable recovery paths; making recovery itself a versioned policy keeps room for future threshold/MPC research.
 
 The revocation discussion exposed a deeper issue: if any ordinary device can permanently revoke all others, compromising one device converts immediately into account ownership. OM therefore separates emergency containment from constitutional authority. Quarantine can stop future secrets; it cannot change its own quorum denominator. Likewise, linking a new device cannot silently create a new controller. This chooses temporary denial-of-service risk over silent permanent takeover.
 
-The initial deployment premise also became clearer: each user owns their Cloudflare account and OM automates it. This changes Cloudflare from "central default infrastructure" into a mass-market self-hosting substrate. `workers.dev` removes the domain-purchase requirement for individuals, while organizations/FQDN owners naturally form the first grouped directories. Research showed that requiring R2 would undermine a truly no-payment onboarding path, so the core was reduced to Worker + SQLite Durable Object and R2 became an optional blob expansion.
+The initial deployment premise also became clearer *(and was later replaced by Home tiers, ADR-0102)*: each user owns their Cloudflare account and OM automates it. This changes Cloudflare from "central default infrastructure" into a mass-market self-hosting substrate. `workers.dev` removes the domain-purchase requirement for individuals, while organizations/FQDN owners naturally form the first grouped directories. Research showed that requiring R2 would undermine a truly no-payment onboarding path, so the core was reduced to Worker + SQLite Durable Object and R2 became an optional blob expansion.
 
 Contact sharing becomes the human analogue of authenticated DNS caching: Carol can forward Alice's Alice-signed bounded-lived ContactCapsule to Bob. Carol can say "I know this person" without becoming Alice's certificate authority or creating a global reputation graph.
 

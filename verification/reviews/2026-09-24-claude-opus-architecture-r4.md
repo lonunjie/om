@@ -47,7 +47,7 @@ declare it a project-controlled service under PR-001/PR-005/PR-012, with release
 at least one independently operated mirror origin and a native option in the same invite, so the project origin is
 never the only path. Add a threat entry (T0 client-origin compromise), make §3.3's wording conditional on the chosen
 origin, and add the origin choice to V-018's onboarding flow.
-Resolution:
+Resolution: accepted — HOME §3.5 (never the sponsor's origin by default; native + ≥2 independent origins; a project origin is a declared PR-001/005/012 service, never alone), §3.3 wording conditional on origin; R-260, T-080, V-018 criterion; ADR-0130 rule 1.
 
 ### F-R4-2 — The preferred provisioning path bypasses the release trust root, and OAuth scoping is overstated
 
@@ -70,7 +70,7 @@ and it never auto-deploys a mutable branch. Define the update channel for templa
 §4 staged flow. Correct the §4 scope claim, specify where OAuth tokens live and how long they last, and add "deployment
 template repository" and "OAuth client registration" to the §5 custody map. Add a threat entry and a V-020 or PR-005
 criterion ("no deployment path activates code that is not a verified release").
-Resolution:
+Resolution: accepted — PROVISIONING §4/§10 and CLOUDFLARE: verified, digest-pinned releases only, verifier-first template that stays as update controller, account-wide OAuth scopes stated, token custody; custody map (STEWARDSHIP §5); R-261, R-262, T-081, PR-005 criterion, V-020 criterion, PC-I01..03; ADR-0130 rule 2.
 
 ### F-R4-3 — The SecurityAdvisory signing key can partition the network and is not a managed trust root
 
@@ -93,7 +93,7 @@ public registry and has at least two independent implementations. Separate `min_
 peer-affecting floors in the schema. Add `expires_at`. Make "user override permitted" the default unless the advisory
 carries threshold signatures. Add the key to the custody map and add a threat entry "malicious or compromised
 floor-raising advisory".
-Resolution:
+Resolution: accepted — advisory key is a TUF role delegated from the root (SUPPLY_CHAIN §4); VULNERABILITY §6.1 peer floors need the root threshold, preferred profile with ≥2 implementations, own_release_floor split, expires_at, override by default; schema updated; custody map; R-263, R-264, T-082; ADR-0130 rule 3.
 
 ### F-R4-4 — Co-locating the discovery publisher with the relay breaks non-composability, and T0 §3.3 overclaims
 
@@ -115,7 +115,7 @@ credentials for publisher, IntroGate and mailbox, with no shared request logs) a
 declare "same-operator roles are colluding by construction" in HOME §2, the MetadataExposureDescriptors and the UI
 copy, and remove the METADATA §18 example claim for co-located Homes. Rewrite §3.3 to say the sponsor can see
 contact edges among co-resident users.
-Resolution:
+Resolution: accepted (option b) — same-operator roles declared one observer in HOME §2, METADATA §18/§20, SYSTEM_ARCHITECTURE, PRIVACY_GOVERNANCE and the W0 descriptors (descriptor_mailbox_linkage, contact_graph_edge); §3.3 names co-resident edges; per-role separation kept as hygiene (PC-B06); R-265, T-083; ADR-0130 rule 4.
 
 ### F-R4-5 — The T0 sponsor holds an unmodeled proximate-adversary position
 
@@ -131,7 +131,7 @@ Proposed fix: Add a threat entry (sponsor as proximate adversary). Give sponsor 
 window, as for T1 eviction (enforced by the Home and tested by conformance). Have the client add a second route that is
 not the sponsor's soon after first run, and say so in the §3.3 disclosure. Add a V-018 comprehension item for "your
 inviter can see when you get messages and can close this mailbox".
-Resolution:
+Resolution: accepted — HOME §3.4: 30-day sponsor revocation overlap enforced by the Home (PC-D06), early non-sponsor second route, §3.3 disclosure; threat-model README; R-266, R-267, T-084, V-018 comprehension item; ADR-0130 rule 9.
 
 ### F-R4-6 — Provider contracts are too thin for two independent Homes to interoperate
 
@@ -152,7 +152,7 @@ registry, versioning) covering relay, IntroGate, descriptor publishing, sponsors
 Turn ProviderCapabilities into a real schema with `durability_class`. Add the missing interfaces and NetworkTransport
 to IMPLEMENTATION_INTERFACES. Make the conformance runner target that API. Put the Home API freeze under V-005/V-020
 pre-engineering criteria for `provider_reference`.
-Resolution:
+Resolution: deferred — A-045 (Home API, ProviderCapabilities schema with durability_class, missing interfaces) blocks provider_reference; "Home API frozen" added to V-020; IMPLEMENTATION_INTERFACES lists the missing contracts; R-275.
 
 ### F-R4-7 — The ClientHost update lifecycle, the W0 endpoint trust root, has no gate that tests it
 
@@ -170,7 +170,7 @@ Proposed fix: Add a verification gate (or extend V-006) with the §8 list as `pr
 `reference_client_ui`, and a pre-release criterion for a live update/rollback drill. Specify the release-transparency
 log and monitor roles, including that a monitor is optional and non-authoritative. Re-trace R-095, R-164 and T-019 to
 it.
-Resolution:
+Resolution: accepted — new gate V-023 clienthost_update_lifecycle (CLIENTHOST §8 list; live update/rollback drill pre-release) for reference_client_ui; transparency log/monitor roles in SUPPLY_CHAIN §6 (protocol choice A-046); R-095, R-164, T-019 re-traced; R-274; ADR-0130 rule 5.
 
 ### F-R4-8 — Censorship-resilience claims are not backed by an interface, a threat entry or a gate
 
@@ -191,7 +191,7 @@ byte carrier; failover without semantic change). Add threat entries for network-
 blocking. Trace R-021/R-028/R-045 to a gate whose criteria include a blocked-vendor/blocked-suffix simulation. Either
 make PR-013 apply to any public production release of the reference distribution, or add a claim-discipline rule
 that forbids the §1 and §18A wording until PR-013 passes.
-Resolution:
+Resolution: accepted — NetworkTransport contract with NT-01..05 (IMPLEMENTATION_INTERFACES); CENSORSHIP §1 claim discipline and §1.1 blocking threats; T-085, T-086; V-020 blocked-vendor/suffix simulation; R-021/028/045 re-traced; PR-013 and BLUEPRINT §18A wording; R-268, R-269; ADR-0130 rule 6.
 
 ### F-R4-9 — LAN rendezvous ignores contacts as trackers and advertisement-set fingerprinting
 
@@ -209,7 +209,7 @@ Proposed fix: Define the default (for example on only for contacts the user mark
 tag retirement on block or relationship end, and choose a querier-initiated or fixed-cardinality design so
 advertisement size carries no information. Add threat entries (contact-as-tracker, tag-set linkability) and a
 LAN trace criterion in V-015.
-Resolution:
+Resolution: accepted — LAN §2.1: opt-in per contact, off under Hardened/Maximum, retired on block, fixed-cardinality tags, rotation with MAC; T-087, T-088, V-015 LAN trace criterion; R-270, R-271; ADR-0130 rule 8.
 
 ### F-R4-10 — The traceability ledger accepts phantom conformance suites and overloads V-017
 
@@ -225,11 +225,11 @@ it. The other `conformance:*` targets name suites that do not exist, but the val
 ledger therefore reports full traceability while a large part of the constitution has no proof obligation. That is the
 drift P-11 and ADR-0109 exist to prevent. Rule 14 (provider migration and restore require conformance tests) is not
 traced to the suite that implements it.
-Proposed fix: Add a `machine/conformance_suites.json` registry. The validator rejects a `conformance:<name>` target
+Proposed fix: Add a [`machine/conformance_suites.json`](../../machine/conformance_suites.json) registry. The validator rejects a `conformance:<name>` target
 unless the suite is registered with a spec document. Trace R-001/R-052/R-187/R-162 to `conformance:provider`. Split
 V-017's catch-all requirements into criteria V-017 actually has, or move them to review targets with named
 independent reviewers.
-Resolution:
+Resolution: accepted — machine/conformance_suites.json (specified/planned, spec doc, scopes); validator rejects unregistered suites and scope authorization over planned ones; R-001/052/162/187 → conformance:provider; V-017 catch-alls split; W0 case lists deferred to A-047; R-272; ADR-0130 rule 10.
 
 ### F-R4-11 — Overview, roadmap and ledger text contradict accepted ADR-0118, ADR-0111 and ADR-0102
 
@@ -249,7 +249,7 @@ Proposed fix: Add dated reconciliation notes (or edits) to BLUEPRINT §7, §21:3
 onboarding exception", IMPLEMENTATION_ROADMAP 21:32 and OPERATORLESS §3. Rewrite the V-001 `requirement` to match
 ADR-0118. Mark D-128's "off by default" clause superseded. Add a validator guard that rejects "Triple Ratchet"/SPQR as
 a v1 claim outside decision history.
-Resolution:
+Resolution: accepted — BLUEPRINT §7 and 21:32, PRODUCT_AND_UX, DESIGN_RATIONALE, IMPLEMENTATION_ROADMAP, OPERATORLESS §3 corrected; V-001 requirement rewritten; D-128 superseded_in_part; validator Triple Ratchet/SPQR/PQ-group guard (tools commit); R-276; ADR-0130 rule 12.
 
 ### F-R4-12 — Public release gates are not machine-applicable, so the AGENTS trust-root rule cannot be enforced
 
@@ -266,7 +266,7 @@ A 2-of-3 threshold held by one person is still 1-of-1 against coercion, and publ
 Proposed fix: Give PR gates `applies_to` (scopes, distribution kinds, claim ids), `criteria` and `independence`
 fields like V-gates. Add a validator rule that a release manifest for a scope requires its PR gates. Reconcile S0
 custody to one statement ("2-of-3 shares, one human custodian; equivalent to 1-of-1 against coercion").
-Resolution:
+Resolution: accepted — every PR gate has applies_to/criteria/independence from a contract vocabulary; public_releases in repository_contract; validator refuses an authorized release with an applicable open gate (SECURITY_RELEASE_GATES, CONTRACT §3); one S0 custody statement in STEWARDSHIP, PHILOSOPHY, SUPPLY_CHAIN, PR-005, stewardship.json; R-273, R-277, T-089; ADR-0130 rule 7.
 
 ### F-R4-13 — Engineering-unlock rules and the wave table contradict the ledger
 
@@ -279,7 +279,7 @@ Problem: These describe the superseded global all-gates lock or stale gate sets,
 per-scope flags the real control. An engineer reading the phase plan gets the wrong unlock rule.
 Proposed fix: Add a superseded note pointing to RELEASE_WAVES §4 and regenerate the §3 table from the ledger, as
 [`tools/render_gates.py`](../../tools/render_gates.py) already does for the gate list.
-Resolution:
+Resolution: accepted — PHASE_PLAN and SYSTEM_ARCHITECTURE superseded notes, ENGINEER_START_HERE per-scope rule; RELEASE_WAVES §3 table now generated by tools/render_gates.py (checked by the validator).
 
 ### F-R4-14 — SponsoredMailboxGrant chaining is "false by default" in prose but a constant in the schema and CDDL
 
@@ -290,7 +290,7 @@ Problem: The prose implies a sponsor may enable chaining. The frozen CDDL makes 
 disagree on whether a `true` grant is invalid or merely non-default.
 Proposed fix: Change the prose to "always false in baseline; T1 Homes grant mailboxes under their own policy, not by
 chained sponsorship".
-Resolution:
+Resolution: accepted — HOME §3.2: may_sponsor_further always false in baseline; T1 Homes grant under their own policy.
 
 ### F-R4-15 — Stale references
 
@@ -303,7 +303,7 @@ Where and fix:
 - [`PROJECT_STEWARDSHIP_AND_CONTINUITY.md`](../../docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md) line 5 and [`machine/stewardship.json`](../../machine/stewardship.json) `lonunjie/OM` vs the actual `lonunjie/om`.
 - [`BLUEPRINT.md`](../../docs/overview/BLUEPRINT.md) line 118 "Default OM service can hide all of this" implies an operated OM service; reword to
   "the default client".
-Resolution:
+Resolution: accepted — SNAPSHOT regenerated; "six meanings plus 0M" in AGENTS, NAMING, PHILOSOPHY §8, CONTRACT, READMEs, contract rule; om.org → neutral placeholder (LONGEVITY); lonunjie/om in STEWARDSHIP and stewardship.json; BLUEPRINT "the default client".
 
 ## Checked and sound
 

@@ -55,7 +55,11 @@ Cloud/provider deployment credentials stay outside OM protocol state and should 
 
 ## 8. Freeze gate
 
-Before the reference PWA is called sustainably self-hostable, specify and test:
+Before the reference PWA is called sustainably self-hostable, specify and test the list below. Since ADR-0130 these
+items are the pre-engineering criteria of gate **V-023** (`clienthost_update_lifecycle`), which blocks
+`reference_client_ui`; a live update and rollback drill on the reference PWA is its pre-release criterion. The
+release-transparency log and monitor roles the controller and client rely on are specified in
+[`SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md`](../providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md) §6.
 
 - release discovery/mirror rules;
 - signed metadata verification path;

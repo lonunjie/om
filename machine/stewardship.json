@@ -2,7 +2,7 @@
   "snapshot": "2026-09-23T08:21:00+08:00",
   "maturity_stage": "S0_founder_incubation",
   "umbrella": "SeedLife / lonunjie",
-  "intended_canonical_repository": "https://github.com/lonunjie/OM",
+  "intended_canonical_repository": "https://github.com/lonunjie/om",
   "single_person_custody": {
     "accepted": true,
     "reason": "Trustworthy co-stewards are added when they actually exist; the project does not manufacture false redundancy."
@@ -32,7 +32,8 @@
     },
     "release_root_custodians": {
       "status": "preproduction_single_holder_allowed",
-      "target_stage": "multi_party_threshold_by_S2"
+      "target_stage": "multi_party_threshold_by_S2",
+      "s0_statement": "2-of-3 root shares, one human custodian; against key loss and online compromise that is a threshold, against coercion of that one person it is equivalent to 1-of-1 (ADR-0130 rule 7)"
     },
     "domain_dns_custodians": {
       "status": "inventory_and_handoff_required_before_S2"

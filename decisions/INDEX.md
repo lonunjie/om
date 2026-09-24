@@ -131,3 +131,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0127 — Account authority transition rules](ADR-0127-account-authority-transition-rules.md)
 - [ADR-0128 — Group reduction liveness, membership consent and room capabilities](ADR-0128-group-reduction-liveness-membership-consent-and-room-capabilities.md)
 - [ADR-0129 — Extension, service and client trust boundaries](ADR-0129-extension-service-and-client-trust-boundaries.md)
+- [ADR-0130 — Distribution, provisioning and provider trust roots](ADR-0130-distribution-provisioning-and-provider-trust-roots.md)

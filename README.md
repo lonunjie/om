@@ -2,8 +2,8 @@
 
 **OM is an open-source, end-to-end-encrypted messenger that no single company, server or project, including its own authors, can control.**
 It is meant to be fast and simple for people who have never configured anything, while keeping identity, conversations
-and security independent of any one provider. The name carries seven meanings (Open-source, Open, Own, Our, One, Oh
-Messenger, and **0M: zero total control**); see [`NAMING.md`](docs/constitution/NAMING.md).
+and security independent of any one provider. The name carries six meanings (Open-source, Open, Own, Our, One, Oh
+Messenger) plus **0M: zero total control**; see [`NAMING.md`](docs/constitution/NAMING.md).
 
 OM is stewarded by SeedLife ("Protect life. Seed it.") under the [lonunjie](https://github.com/lonunjie) organization.
 

@@ -1,3 +1,12 @@
+## 2026-09-24 23:30 PHT — architecture review R1–R4 applied
+
+- four independent architecture reviews (ADR-0117 records in `verification/reviews/`) applied as ADR-0126..ADR-0130;
+- ledgers: R-200..R-277, T-050..T-089, A-030..A-036 and A-045..A-047, D-148..D-152; new gate V-023 (ClientHost update lifecycle);
+- `machine/conformance_suites.json` registers every `conformance:<suite>` target; public release gates gain `applies_to`, `criteria` and `independence`, and planned releases are declared in the contract; the validator enforces both;
+- V-005: 619 W0 vectors (ADR-0126 objects included) agree across the Rust and Node codecs and both CDDL tools;
+- the RELEASE_WAVES §3 scope table is generated from the ledger; stale text on crypto (PQXDH + Double Ratchet), recovery default and onboarding corrected;
+- `engineering_authorized=false`, all scopes unauthorized.
+
 ## 2026-09-24 02:29 PHT — independent hardening review (gaps, blind spots, weak spots)
 
 - preserved the complete 09:20 current tree under `history/20260923-0920/`;

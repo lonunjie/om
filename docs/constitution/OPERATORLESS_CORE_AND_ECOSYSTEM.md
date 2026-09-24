@@ -64,6 +64,11 @@ It does **not** need to possess:
 
 ## 3. User deployments
 
+> **2026-09-24 (ADR-0102, ADR-0130):** most users do not deploy anything: they start on a T0 sponsored starter
+> mailbox or a T1 hosted Home run by someone else. A user who does own a provider account (T2/T3) deploys only a
+> verified release. In every tier, whoever operates the Home's roles is one observer for them, and a sponsor or host
+> never serves the user's client code by default.
+
 A personal user may own a Cloudflare account or another provider account and deploy:
 
 ```text

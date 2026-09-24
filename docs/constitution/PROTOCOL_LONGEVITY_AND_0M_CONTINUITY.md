@@ -34,7 +34,7 @@ Loss of any one of these must not inherently destroy `AccountID`, `ConversationI
 
 - SeedLife/lonunjie/founder;
 - GitHub or the canonical forge;
-- om.org/project website or a DNS domain;
+- the project website or any DNS domain (for example a placeholder `project.example`; the steward's real domain is `lonunjie.org`);
 - Cloudflare/AWS/one hosting provider;
 - one directory/catalog;
 - one app store;
@@ -108,7 +108,7 @@ Old history remains readable/exportable where its cryptography is still processa
 
 ## 6. No permanent “latest version” authority in the wire protocol
 
-The network does not ask `om.org/latest` whether a protocol object is valid.
+The network does not ask `project.example/latest` (or any project domain) whether a protocol object is valid.
 
 Validity is determined from:
 

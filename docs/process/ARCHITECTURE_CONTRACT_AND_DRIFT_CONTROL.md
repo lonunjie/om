@@ -42,7 +42,7 @@ Engineering can begin only after a future ADR deliberately authorizes it and:
 3. canonical definitions are internally consistent; and
 4. `python3 tools/validate_architecture.py` passes.
 
-Public-release gates need not all block private architecture experiments, but the affected public feature/claim/distribution cannot ship until its gate passes.
+Public-release gates need not all block private architecture experiments, but the affected public feature/claim/distribution cannot ship until its gate passes. Which feature, claim or distribution a gate affects is machine data (`applies_to` on each PR gate), and planned releases are declared in [`repository_contract.json`](../../machine/repository_contract.json) → `public_releases`, so the validator can refuse a release with an applicable open gate ([`SECURITY_RELEASE_GATES.md`](SECURITY_RELEASE_GATES.md), ADR-0130).
 
 ## 4. Drift checks
 
@@ -56,7 +56,7 @@ The validator must detect at least:
 - key-derived AccountID or legacy competing AccountState authority;
 - incomplete former-question resolution mapping;
 - premature engineering authorization;
-- disappearance of the seven OM meanings;
+- disappearance of the six OM meanings or 0M;
 - reintroduction of a country as protocol-global legal home;
 - missing required constitutional/machine files;
 - manifest byte/hash drift.

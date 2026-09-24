@@ -328,7 +328,10 @@ The product should explain **effects**, not protocol jargon.
 
 Examples:
 
-- “This relay can see when this device connects, but not your OM account ID or message contents.”
+- “This relay can see when this device connects, but not your message contents.” (A relay run by someone else than
+  your publisher. When your Home runs your contact page, intro service and mailbox together, which is the reference
+  setup, say instead: “Your home runs your contact page and your mailbox, so it can connect them. It can't read your
+  messages.” ADR-0130 rule 4.)
 - “Apple/Google can see notification wake timing; message content is fetched and decrypted by OM.”
 - “This Room uses a bridge. The bridge can read exported messages and sees the connected external room.”
 - “Direct calls may reveal your IP address to the other participant.”
@@ -353,7 +356,7 @@ V1 does not claim to defeat:
 2. Private relay delivery does not require provider-readable `ConversationID`/MLS group identity.
 3. Per-provider capabilities and outer ciphertext are not intentionally reused as cross-provider correlators.
 4. Content E2EE is never presented as proof that timing, size, IP, membership or push metadata is hidden.
-5. Privacy-strengthening paths state their non-collusion/anonymity assumptions.
+5. Privacy-strengthening paths state their non-collusion/anonymity assumptions. Roles run by one operator are one observer; no descriptor or UI text assumes non-collusion between them (ADR-0130 rule 4).
 6. Anti-abuse may use scoped linkability but does not create mandatory universal person tracking.
 7. Service/bridge disclosure scope is explicit and minimized.
 8. Expensive padding/cover traffic is policy-selectable and bounded, not silently mandatory.

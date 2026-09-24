@@ -1,6 +1,6 @@
 {
   "snapshot": "2026-09-24T02:29:00+08:00",
-  "purpose": "Every requirement maps to at least one proof obligation. Target kinds: V-### verification gate, PR-### public release gate, validator (tools/validate_architecture.py), conformance:<suite> (future conformance-suite obligation), review:<doc> (named document review obligation).",
+  "purpose": "Every requirement maps to at least one proof obligation. Target kinds: V-### verification gate, PR-### public release gate, validator (tools/validate_architecture.py), conformance:<suite> (a suite registered in machine/conformance_suites.json with its spec document; ADR-0130), review:<doc> (named document review obligation, discharged by a reviewer other than the document's author with a record in verification/reviews/, ADR-0117).",
   "target_kinds": [
     "V-###",
     "PR-###",
@@ -13,7 +13,8 @@
       "requirement": "R-001",
       "verified_by": [
         "V-017",
-        "V-020"
+        "V-020",
+        "conformance:provider"
       ]
     },
     {
@@ -142,7 +143,8 @@
     {
       "requirement": "R-021",
       "verified_by": [
-        "V-017"
+        "V-017",
+        "V-020"
       ]
     },
     {
@@ -185,7 +187,8 @@
     {
       "requirement": "R-028",
       "verified_by": [
-        "V-017"
+        "V-020",
+        "conformance:network_transport"
       ]
     },
     {
@@ -295,7 +298,8 @@
     {
       "requirement": "R-045",
       "verified_by": [
-        "V-017"
+        "V-020",
+        "conformance:network_transport"
       ]
     },
     {
@@ -314,7 +318,8 @@
     {
       "requirement": "R-048",
       "verified_by": [
-        "V-017"
+        "review:OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+        "conformance:provider"
       ]
     },
     {
@@ -340,7 +345,8 @@
     {
       "requirement": "R-052",
       "verified_by": [
-        "V-020"
+        "V-020",
+        "conformance:provider"
       ]
     },
     {
@@ -482,13 +488,15 @@
     {
       "requirement": "R-075",
       "verified_by": [
-        "V-017"
+        "V-017",
+        "review:PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md"
       ]
     },
     {
       "requirement": "R-076",
       "verified_by": [
-        "V-017"
+        "V-017",
+        "review:PROTOCOL_EXTENSIBILITY.md"
       ]
     },
     {
@@ -611,7 +619,8 @@
       "requirement": "R-095",
       "verified_by": [
         "V-006",
-        "PR-005"
+        "PR-005",
+        "V-023"
       ]
     },
     {
@@ -994,7 +1003,8 @@
     {
       "requirement": "R-158",
       "verified_by": [
-        "V-017"
+        "V-017",
+        "review:PROTOCOL_EXTENSIBILITY.md"
       ]
     },
     {
@@ -1020,7 +1030,8 @@
       "requirement": "R-162",
       "verified_by": [
         "V-020",
-        "V-015"
+        "V-015",
+        "conformance:provider"
       ]
     },
     {
@@ -1034,7 +1045,8 @@
       "requirement": "R-164",
       "verified_by": [
         "V-021",
-        "PR-005"
+        "PR-005",
+        "V-023"
       ]
     },
     {
@@ -1183,7 +1195,8 @@
     {
       "requirement": "R-187",
       "verified_by": [
-        "V-020"
+        "V-020",
+        "conformance:provider"
       ]
     },
     {
@@ -1591,6 +1604,132 @@
       "verified_by": [
         "V-018",
         "review:ACCESSIBILITY_AND_INPUT.md"
+      ]
+    },
+    {
+      "requirement": "R-260",
+      "verified_by": [
+        "V-018",
+        "V-023",
+        "PR-005",
+        "conformance:provider"
+      ]
+    },
+    {
+      "requirement": "R-261",
+      "verified_by": [
+        "V-020",
+        "PR-005",
+        "conformance:provider"
+      ]
+    },
+    {
+      "requirement": "R-262",
+      "verified_by": [
+        "PR-005",
+        "review:PROVISIONING_AND_BOOTSTRAP.md"
+      ]
+    },
+    {
+      "requirement": "R-263",
+      "verified_by": [
+        "PR-012",
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-264",
+      "verified_by": [
+        "PR-012",
+        "conformance:security_floor"
+      ]
+    },
+    {
+      "requirement": "R-265",
+      "verified_by": [
+        "V-015",
+        "conformance:provider"
+      ]
+    },
+    {
+      "requirement": "R-266",
+      "verified_by": [
+        "V-020",
+        "conformance:provider"
+      ]
+    },
+    {
+      "requirement": "R-267",
+      "verified_by": [
+        "V-018",
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-268",
+      "verified_by": [
+        "conformance:network_transport",
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-269",
+      "verified_by": [
+        "PR-013",
+        "review:SECURITY_RELEASE_GATES.md"
+      ]
+    },
+    {
+      "requirement": "R-270",
+      "verified_by": [
+        "V-015",
+        "PR-008"
+      ]
+    },
+    {
+      "requirement": "R-271",
+      "verified_by": [
+        "V-015",
+        "PR-008"
+      ]
+    },
+    {
+      "requirement": "R-272",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-273",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-274",
+      "verified_by": [
+        "V-023",
+        "PR-005"
+      ]
+    },
+    {
+      "requirement": "R-275",
+      "verified_by": [
+        "V-020",
+        "conformance:provider"
+      ]
+    },
+    {
+      "requirement": "R-276",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-277",
+      "verified_by": [
+        "review:PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+        "PR-005"
       ]
     }
   ]

@@ -569,8 +569,16 @@ def validate_0924_scope_and_gate_guardrails() -> None:
                 fail(f"09:24 guard: scope {name} authorized without authorizing_adr")
 
 
+def registered_suites() -> dict:
+    reg = load_json(ROOT / "machine/conformance_suites.json")
+    if not isinstance(reg, dict):
+        return {}
+    return {s.get("name"): s for s in reg.get("suites", []) if isinstance(s, dict)}
+
+
 def validate_0924_traceability_and_threats() -> None:
     reqs = {r["id"] for r in load_jsonl(ROOT / "machine/requirements.jsonl")}
+    suites = registered_suites()
     gates = {g["id"] for g in load_jsonl(ROOT / "machine/architecture_verification_gates.jsonl")}
     rel = {g["id"] for g in load_jsonl(ROOT / "machine/public_release_gates.jsonl")}
     tr = load_json(ROOT / "machine/requirement_traceability.json")
@@ -585,8 +593,11 @@ def validate_0924_traceability_and_threats() -> None:
     for rid in sorted(set(traced) - reqs):
         fail(f"09:24 guard: traceability references unknown requirement {rid}")
     def valid_target(t: str) -> bool:
-        if t in gates or t in rel or t == "validator" or t.startswith("conformance:"):
+        if t in gates or t in rel or t == "validator":
             return True
+        if t.startswith("conformance:"):
+            # ADR-0130 rule 10: only registered suites with a spec document count as proof obligations
+            return t.split(":", 1)[1] in suites
         if t.startswith("review:"):
             target = t.split(":", 1)[1]
             return (ROOT / target).exists() or any(p.name == target for p in current_files())
@@ -608,10 +619,76 @@ def validate_0924_traceability_and_threats() -> None:
             if r not in reqs:
                 fail(f"09:24 guard: {tid} references unknown requirement {r}")
         for g in th.get("gates", []):
-            if g not in gates and g not in rel and g != "validator" and not g.startswith("conformance:"):
+            if g.startswith("conformance:"):
+                if g.split(":", 1)[1] not in suites:
+                    fail(f"ADR-0130 guard: {tid} names unregistered conformance suite {g}")
+            elif g not in gates and g not in rel and g != "validator":
                 fail(f"09:24 guard: {tid} references unknown gate {g}")
         if not th.get("residual_risk"):
             fail(f"09:24 guard: {tid} must state residual risk")
+
+
+def validate_0130_conformance_and_release_gates() -> None:
+    """ADR-0130 rules 7 and 10: registered conformance suites; machine-applicable public release gates."""
+    contract = load_json(ROOT / "machine/repository_contract.json")
+    if not isinstance(contract, dict):
+        return
+    scopes = contract.get("engineering_scopes", {})
+    reg = load_json(ROOT / "machine/conformance_suites.json")
+    if not isinstance(reg, dict):
+        fail("ADR-0130 guard: machine/conformance_suites.json missing or unreadable")
+        return
+    statuses = set(reg.get("statuses", []))
+    names = set()
+    for s in reg.get("suites", []):
+        n = s.get("name")
+        if not n or n in names:
+            fail(f"ADR-0130 guard: conformance suite name missing or duplicated: {n!r}")
+        names.add(n)
+        if s.get("status") not in statuses:
+            fail(f"ADR-0130 guard: conformance suite {n} has invalid status {s.get('status')!r}")
+        doc = s.get("spec_doc")
+        if not doc or not (ROOT / doc).is_file():
+            fail(f"ADR-0130 guard: conformance suite {n} spec document missing: {doc}")
+        for sc in s.get("scopes", []):
+            if sc not in scopes:
+                fail(f"ADR-0130 guard: conformance suite {n} names unknown scope {sc}")
+            elif scopes[sc].get("authorized") and s.get("status") != "specified":
+                fail(f"ADR-0130 guard: scope {sc} authorized while conformance suite {n} is only {s.get('status')}")
+    vocab = contract.get("public_release_vocabulary", {})
+    kinds, claims = set(vocab.get("distribution_kinds", [])), set(vocab.get("claims", []))
+    prg = load_jsonl(ROOT / "machine/public_release_gates.jsonl")
+    for g in prg:
+        gid = g.get("id")
+        ap = g.get("applies_to")
+        if not isinstance(ap, dict) or not (ap.get("scopes") or ap.get("distribution_kinds") or ap.get("claims")):
+            fail(f"ADR-0130 guard: {gid} must declare a non-empty applies_to (scopes, distribution_kinds, claims)")
+            continue
+        for sc in ap.get("scopes", []):
+            if sc not in scopes:
+                fail(f"ADR-0130 guard: {gid} applies_to unknown scope {sc}")
+        for k in ap.get("distribution_kinds", []):
+            if k not in kinds:
+                fail(f"ADR-0130 guard: {gid} applies_to unknown distribution kind {k}")
+        for c in ap.get("claims", []):
+            if c not in claims:
+                fail(f"ADR-0130 guard: {gid} applies_to unknown claim {c}")
+        if not g.get("criteria") or not g.get("independence"):
+            fail(f"ADR-0130 guard: {gid} must list criteria and independence")
+    ok = {"passed", "waived_by_adr"}
+    for r in contract.get("public_releases", []):
+        rid = r.get("id")
+        if r.get("status") not in set(vocab.get("release_statuses", [])):
+            fail(f"ADR-0130 guard: public release {rid} has invalid status {r.get('status')!r}")
+            continue
+        if r.get("status") == "planned":
+            continue
+        rs, rk, rc = set(r.get("scopes", [])), r.get("distribution_kind"), set(r.get("claims", []))
+        for g in prg:
+            ap = g.get("applies_to") or {}
+            hit = rs & set(ap.get("scopes", [])) or rk in ap.get("distribution_kinds", []) or rc & set(ap.get("claims", []))
+            if hit and g.get("status") not in ok:
+                fail(f"ADR-0130 guard: public release {rid} is {r.get('status')} while applicable {g.get('id')} is {g.get('status')}")
 
 
 def validate_0924_hardening_content_guardrails() -> None:
@@ -648,6 +725,7 @@ def main() -> int:
     validate_0924_scope_and_gate_guardrails()
     validate_0924_traceability_and_threats()
     validate_0924_hardening_content_guardrails()
+    validate_0130_conformance_and_release_gates()
     contract = load_json(ROOT / "machine/repository_contract.json")
     if not isinstance(contract, dict):
         print("architecture validation FAILED: repository_contract unreadable", file=sys.stderr); return 1

@@ -13,6 +13,26 @@ The realistic goal is:
 
 Censorship resilience is treated as a portability and transport-diversity property, not as a claim of guaranteed anonymity or reachability.
 
+**Claim discipline (ADR-0130 rule 6, R-269).** The goal above is an architecture target, not a property of W0. Until
+PR-013 passes (a second reference Home with no cloud-vendor dependency passes provider conformance, and onboarding
+offers a vendor-neutral zero-signup path), no public text, store listing or UI may use this section's or BLUEPRINT
+§18A's resilience wording as a claim about a release. The V-020 vendor-block model shows why: with Cloudflare-first
+hosting and no fallbacks, a Cloudflare-wide block leaves about 2% of relationships reachable.
+
+### 1.1 Blocking threats (T-085, T-086)
+
+- **Network-level blocking** by a state or network operator: vendor IP ranges, SNI or ECH-less hostname filtering,
+  protocol fingerprinting, or blocking `*.workers.dev`. This differs from T-020 (a vendor's own action): the vendor
+  keeps serving, the user's network cannot reach it.
+- **Discovery-suffix blocking:** for T2 users, locators and invite landing pages under one suffix (for example
+  `workers.dev`) are a single choke point for first contact, even when established relationships have other routes.
+- **Distribution removal:** forge takedown or app-store removal of the reference client (§9).
+
+Mitigations are the Home tiers and second-family fallbacks (R-194), descriptors that list locators on more than one
+suffix or family where the user has them, invites that carry more than one locator, the NetworkTransport ladder (§5),
+and mirrored releases. The V-020 pre-engineering criteria include a blocked-vendor and blocked-suffix simulation
+that measures how many established relationships and first contacts survive.
+
 ## 2. Separate OM semantics from transport
 
 OM messages, identity, crypto, events, and accepted relationships sit above a pluggable `NetworkTransport` / `TransportProvider` layer.
@@ -56,7 +76,7 @@ Clients may use several providers concurrently.
 
 Borrow the architectural lesson from Tor's pluggable transports: circumvention mechanisms evolve independently from the protected application protocol.
 
-OM core should expose a stable byte-stream/datagram transport contract so new circumvention mechanisms can be added without changing AccountID, contact relationships, history, or event encodings.
+OM core should expose a stable byte-stream/datagram transport contract so new circumvention mechanisms can be added without changing AccountID, contact relationships, history, or event encodings. That contract is `NetworkTransport` in [`IMPLEMENTATION_INTERFACES.md`](../providers/IMPLEMENTATION_INTERFACES.md): a transport is an untrusted byte carrier, and failover never changes semantics (R-268, conformance cases NT-01..NT-05).
 
 ## 5. Ordinary-first behavior
 

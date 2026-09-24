@@ -52,7 +52,7 @@ Preferred posture is PQ-first/hybrid-secure while keeping standards-draft pieces
 
 ## 7. 1:1 messaging
 
-Use an asynchronous reviewed handshake and continuously evolving ratchet with PQ/hybrid properties comparable to current PQXDH + Triple Ratchet class designs. Exact library/primitives are selected by profile ADR and interoperability tests.
+Use an asynchronous reviewed handshake and a continuously evolving ratchet. **OM-Crypto-v1 is PQXDH + Double Ratchet (ADR-0118):** the handshake is hybrid post-quantum, so recorded first messages resist harvest-now-decrypt-later, but there is no post-quantum post-compromise healing in v1. A clean-room SPQR-style PQ ratchet is planned as OM-Crypto-v2 and is not a v1 property. Exact library/primitives are selected by profile ADR and interoperability tests.
 
 Per-device sessions deliver canonical authenticated OM events.
 
@@ -115,7 +115,7 @@ Cloudflare is an excellent reference deployment target but never part of the pro
 - R2: possible encrypted BlobStore;
 - Realtime STUN/TURN/SFU: possible MediaProvider.
 
-Default OM service can hide all of this from end users. Advanced users/operators may bring their own provider.
+The default client can hide all of this from end users. Advanced users/operators may bring their own provider.
 
 ## 15. SMS/MMS/RCS
 
@@ -147,7 +147,7 @@ Provider adapters expose quota/cost behavior. “Zero paid budget” is a real r
 
 ## 18A. Network and censorship resilience
 
-OM aims to have no single censorship switch, not to claim impossible uncensorability. Encrypted OM semantics sit above pluggable network transports and provider sets. Directory, introduction, relay, media, blob and network-transport providers can vary independently. LAN/direct operation, alternate relays/providers, and future proxy/pluggable-transport adapters can preserve reachability in some blocking environments without changing identity or conversation semantics.
+OM aims to have no single censorship switch, not to claim impossible uncensorability. This is a design target; no public claim of it is made for a release until PR-013 passes (R-269, ADR-0130). Encrypted OM semantics sit above pluggable network transports and provider sets. Directory, introduction, relay, media, blob and network-transport providers can vary independently. LAN/direct operation, alternate relays/providers, and future proxy/pluggable-transport adapters can preserve reachability in some blocking environments without changing identity or conversation semantics.
 
 ## 19. Governance
 
@@ -189,11 +189,11 @@ OM now has an explicit constitutional control plane. Chat ordering does not deci
 
 ### Recovery spectrum
 
-Recovery is `none` by default. Users who care can opt into a machine-generated offline recovery root, guardians/shares, spare control devices, hardware-backed methods, and later threshold/MPC methods. Identity recovery and history decryption are separate powers.
+~~Recovery is `none` by default.~~ **2026-09-24 (ADR-0111):** identity recovery is **on by default** (a synced passkey or recovery key as one vote with delay and veto) and can be turned off by an explicit, confirmed action. Users can add a machine-generated offline recovery root, guardians/shares, spare control devices, hardware-backed methods, and later threshold/MPC methods. Identity recovery and history decryption are separate powers.
 
 ### User-owned v1 Cloudflare bootstrap
 
-Every early user may own their own Cloudflare account. OM automates Worker + SQLite Durable Object setup through OAuth/PKCE; the Worker FQDN under `workers.dev` is the user's initial personal discovery locator. Organizations/FQDN owners provide the first natural grouped directories. R2 is optional, not baseline.
+~~Every early user may own their own Cloudflare account.~~ **2026-09-24 (ADR-0102, ADR-0112, ADR-0130):** most users start on a T0 sponsored starter mailbox or a T1 hosted Home and need no cloud account. Own-cloud (T2) users deploy a verified release through a template (preferred) or an optional OAuth/PKCE installer whose scopes are account-wide; the Worker FQDN under `workers.dev` is their initial personal discovery locator. Organizations/FQDN owners provide the first natural grouped directories. R2 is optional, not baseline.
 
 ### Trustworthy software
 

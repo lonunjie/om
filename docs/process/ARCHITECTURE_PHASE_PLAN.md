@@ -65,8 +65,8 @@ Parallel work is fine where independent, but a gate may not be marked passed fro
 
 [`verification/run_phase1.py`](../../verification/run_phase1.py) now supplies executable evidence for V-002, V-004, V-005, V-008, V-009, V-011, V-013, V-014, V-015, V-016 and V-017. The current run completed 7,772 bounded/adversarial cases, 14 cross-implementation deterministic-CBOR foundation vectors and a 60-artifact offline continuity dry run without a modeled invariant violation.
 
-**All 17 blocking verification gates remain open.** Evidence accumulation is not equivalent to gate passage. In particular, TLC execution, frozen per-object wire registries, independent implementations and real browser/runtime/packet/parser experiments remain mandatory where specified.
+**All 17 blocking verification gates remain open** *(09:20 count; the current gate set and statuses are in [`verification/GATE_PASS_CRITERIA.md`](../../verification/GATE_PASS_CRITERIA.md))*. Evidence accumulation is not equivalent to gate passage. In particular, TLC execution, frozen per-object wire registries, independent implementations and real browser/runtime/packet/parser experiments remain mandatory where specified.
 
 ## Engineering transition
 
-A future ADR may set `engineering_authorized=true` only when the design queue has no open blocking item and every `blocks_engineering` verification gate is `passed`. The validator enforces this.
+~~A future ADR may set `engineering_authorized=true` only when the design queue has no open blocking item and every `blocks_engineering` verification gate is `passed`.~~ **Superseded (ADR-0108, ADR-0130):** unlock is per scope. A scope may be authorized by an ADR naming it once every gate listing it (plus the always-required gates) has `pre_engineering_status` passed or waived, no blocking design item is open and its dependencies are authorized; see [`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`](RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md) §4. The validator enforces this.

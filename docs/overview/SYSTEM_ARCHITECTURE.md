@@ -118,7 +118,7 @@ Long-term target: established peers on the same LAN should be able to message, t
 
 ## Authority boundary
 
-No provider is allowed to combine roles into protocol-level super-authority. Even if one vendor implements multiple interfaces, identifiers/keys/data exposure remain minimized per interface.
+No provider is allowed to combine roles into protocol-level super-authority. Even if one vendor implements multiple interfaces, identifiers/keys/data exposure remain minimized per interface. Minimization per interface is not non-collusion: roles run by one operator are **one observer by construction** (the reference Home serves the contact descriptor, IntroGate and mailbox together), and descriptors and UI say so (ADR-0130 rule 4).
 
 ## Discovery/resilience overlay (2026-09-21)
 
@@ -245,4 +245,4 @@ Cross-cutting [`TIME_AND_EXPIRY_SEMANTICS.md`](../architecture/events/TIME_AND_E
 1. **Metadata:** cryptographic content privacy does not imply metadata privacy. Each path/role must declare its observable metadata and mitigation assumptions; canonical identifiers do not become provider routing identifiers.
 2. **Safety:** blocking, moderation, admission, provider enforcement, catalog policy, and safety advisories are distinct scoped authorities. No global OM reputation score, master ban list, or universal moderation service exists.
 3. **Continuity / 0M:** a released protocol generation must be implementable from mirrored self-contained artifacts without consulting a live project authority. Existing registry identifiers are never reassigned; incompatible evolution is explicit generation/fork lineage.
-4. **Engineering lock:** the architecture design queue is closed, but verification gates V-001 through V-017 still block engineering authorization.
+4. **Engineering lock:** ~~the architecture design queue is closed, but verification gates V-001 through V-017 still block engineering authorization.~~ Engineering unlock is per scope (ADR-0108); the open design items and the gates blocking each scope are generated from the ledger in [`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`](../process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md) §3 and [`verification/GATE_PASS_CRITERIA.md`](../../verification/GATE_PASS_CRITERIA.md).

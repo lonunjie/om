@@ -60,7 +60,7 @@ The target is not theatrical decentralization or a mandatory blockchain. It is p
 
 ## Interpretation
 
-When a product decision is ambiguous, the seven meanings together imply:
+When a product decision is ambiguous, the six meanings plus 0M together imply:
 
 1. keep the commons open;
 2. interoperate instead of enclosing;

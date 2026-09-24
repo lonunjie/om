@@ -1026,6 +1026,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0130-distribution-provisioning-and-provider-trust-roots.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -2011,6 +2018,13 @@
       "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "machine_normative"
+    },
+    {
+      "path": "machine/conformance_suites.json",
+      "class": "machine_contract",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_truth"
     },
     {
       "path": "machine/decisions.jsonl",

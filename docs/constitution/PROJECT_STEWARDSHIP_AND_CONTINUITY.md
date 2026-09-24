@@ -2,7 +2,7 @@
 
 - **Status:** Canonical project-governance architecture
 - **Checkpoint:** 2026-09-23 08:21 PHT
-- **Current intended forge home:** `github.com/lonunjie/OM` under the SeedLife/lonunjie organization
+- **Current intended forge home:** `github.com/lonunjie/om` under the SeedLife/lonunjie organization
 
 ## 1. Stewardship model
 
@@ -14,7 +14,7 @@ The GitHub organization technically owns repositories hosted under its namespace
 
 At this checkpoint the project accepts a single founder steward for repository and release/governance decisions.
 
-This is an explicit temporary operational risk, not a claim of distributed governance.
+This is an explicit temporary operational risk, not a claim of distributed governance. The release root is held as 2-of-3 shares by that one custodian (§4 S0): a threshold against loss and online compromise, 1-of-1 against coercion.
 
 OM will not grant sensitive authority to people merely to satisfy a numeric redundancy target. Trustworthy co-stewards are added when real people with demonstrated judgment and commitment emerge.
 
@@ -43,8 +43,8 @@ The machine governance contract records which roles are currently active and the
 ### S0 — Founder incubation (current)
 
 - one trusted founder steward is acceptable;
-- repository may live under `lonunjie/OM`;
-- release-root custody may be 1-of-1 if releases are experimental/pre-production;
+- repository may live under `lonunjie/om`;
+- release-root custody is stated one way everywhere (ADR-0130 rule 7): **2-of-3 root shares, one human custodian; against key loss and online compromise that is a threshold, against coercion of that one person it is equivalent to 1-of-1**. Public wording never calls it multi-party;
 - no false claim of organizational redundancy;
 - all critical assets and handoff procedures are inventoried;
 - protocol/source licenses already permit independent continuation.
@@ -92,6 +92,10 @@ Continuity planning MUST cover at least:
 - canonical website/documentation domain;
 - registrar and DNS;
 - TUF/update/release-root keys;
+- the SecurityAdvisory signing role delegated from the release root (ADR-0130 rule 3);
+- deployment template repositories and their verifier releases (ADR-0130 rule 2);
+- OAuth client registrations used by project provisioning installers (ADR-0130 rule 2);
+- any project-controlled PWA origin (shared ClientHost) and its hosting account (ADR-0130 rule 1);
 - artifact/package/container registries;
 - code-signing/notarization identities;
 - Apple/Google distribution accounts where used;

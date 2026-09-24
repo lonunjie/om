@@ -3,7 +3,8 @@
  "schema": "docs/ux-design/metadata-exposure.logical.schema.json",
  "notes": [
   "key_material_provider (ADR-0126, F-R1-9): stable_account_id and device_count are 'sometimes'. Every AsyncKeyBundle carries acs_generation and acs_state_hash in the clear; they are identical for all of an account's devices and across providers, so a provider or a fetcher can group devices per account and follow the account across providers. That is a stable per-account correlator, not the AccountID itself. An unlinkable binding is design-queue item A-031.",
-  "cross_profile_linkage (ADR-0129 rule 14): a native per-app push token presented for two IdentityProfiles links them at the push provider unless vendor push is disabled for a Keep-separate profile or one declared gateway is used; on web each profile has its own Web Push subscription."
+  "cross_profile_linkage (ADR-0129 rule 14): a native per-app push token presented for two IdentityProfiles links them at the push provider unless vendor push is disabled for a Keep-separate profile or one declared gateway is used; on web each profile has its own Web Push subscription.",
+  "descriptor_mailbox_linkage and contact_graph_edge on Home roles (ADR-0130 rule 4, F-R4-4): one operator running the discovery publisher, IntroGate and mailbox can link the published contact identity (alias, intro identity) to every deposit and drain, and sees contact edges among its co-resident users (the same client address or session drains one mailbox and deposits into another). 'sometimes' means: whenever those roles or those contacts share one operator."
  ],
  "fields": [
   "client_network_address",
@@ -19,7 +20,8 @@
   "sponsor_relationship",
   "recovery_attempt",
   "device_count",
-  "cross_profile_linkage"
+  "cross_profile_linkage",
+  "descriptor_mailbox_linkage"
  ],
  "descriptors": [
   {
@@ -28,7 +30,7 @@
     "client_network_address": "always",
     "stable_account_id": "no_by_design",
     "conversation_id": "no_by_design",
-    "contact_graph_edge": "no_by_design",
+    "contact_graph_edge": "sometimes",
     "membership_or_roster": "no_by_design",
     "message_timing": "always",
     "ciphertext_size": "always",
@@ -38,12 +40,14 @@
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
     "device_count": "sometimes",
-    "cross_profile_linkage": "no_by_design"
+    "cross_profile_linkage": "no_by_design",
+    "descriptor_mailbox_linkage": "sometimes"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md; RELAY_AND_DELIVERY_ARCHITECTURE.md",
    "non_collusion_assumptions": [
-    "the depositor's own Home and this Home do not share logs"
+    "the depositor's own Home and this Home do not share logs",
+    "roles co-located on one operator's Home (discovery publisher, IntroGate, mailbox) are one observer and collude by construction (ADR-0130 rule 4); the assumptions listed here concern roles run by different operators"
    ],
    "optional_mitigations": [
     "size padding classes",
@@ -57,7 +61,7 @@
     "client_network_address": "always",
     "stable_account_id": "no_by_design",
     "conversation_id": "no_by_design",
-    "contact_graph_edge": "no_by_design",
+    "contact_graph_edge": "sometimes",
     "membership_or_roster": "no_by_design",
     "message_timing": "always",
     "ciphertext_size": "always",
@@ -67,12 +71,14 @@
     "sponsor_relationship": "always",
     "recovery_attempt": "no_by_design",
     "device_count": "sometimes",
-    "cross_profile_linkage": "no_by_design"
+    "cross_profile_linkage": "no_by_design",
+    "descriptor_mailbox_linkage": "sometimes"
    },
    "source_of_claim": "protocol_enforced",
-   "retention_policy_reference": "HOME_ONBOARDING \u00a73.3 (sponsor sees delivery timing/volume/sizes, not content)",
+   "retention_policy_reference": "HOME_ONBOARDING \u00a73.3-3.5 (sponsor sees delivery timing/volume/sizes and contact edges among co-resident users, not content; 30-day revocation overlap)",
    "non_collusion_assumptions": [
-    "sponsor does not collude with the contact's Homes to join capabilities"
+    "sponsor does not collude with the contact's Homes to join capabilities",
+    "roles co-located on one operator's Home (discovery publisher, IntroGate, mailbox) are one observer and collude by construction (ADR-0130 rule 4); the assumptions listed here concern roles run by different operators"
    ],
    "optional_mitigations": [
     "move to own Home",
@@ -85,7 +91,7 @@
     "client_network_address": "always",
     "stable_account_id": "no_by_design",
     "conversation_id": "no_by_design",
-    "contact_graph_edge": "no_by_design",
+    "contact_graph_edge": "sometimes",
     "membership_or_roster": "always",
     "message_timing": "always",
     "ciphertext_size": "always",
@@ -95,12 +101,14 @@
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
     "device_count": "sometimes",
-    "cross_profile_linkage": "no_by_design"
+    "cross_profile_linkage": "no_by_design",
+    "descriptor_mailbox_linkage": "sometimes"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "HOME_ONBOARDING \u00a74.1 (host sees member delivery timing/volume/sizes)",
    "non_collusion_assumptions": [
-    "host does not collude with other Homes"
+    "host does not collude with other Homes",
+    "roles co-located on one operator's Home (discovery publisher, IntroGate, mailbox) are one observer and collude by construction (ADR-0130 rule 4); the assumptions listed here concern roles run by different operators"
    ],
    "optional_mitigations": [
     "second-family fallback (R-194)",
@@ -123,7 +131,8 @@
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
     "device_count": "sometimes",
-    "cross_profile_linkage": "no_by_design"
+    "cross_profile_linkage": "no_by_design",
+    "descriptor_mailbox_linkage": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "ASYNC_KEY_MATERIAL.md",
@@ -151,7 +160,8 @@
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
     "device_count": "no_by_design",
-    "cross_profile_linkage": "no_by_design"
+    "cross_profile_linkage": "no_by_design",
+    "descriptor_mailbox_linkage": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "STORAGE_AND_BLOB_ARCHITECTURE.md",
@@ -180,7 +190,8 @@
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
     "device_count": "sometimes",
-    "cross_profile_linkage": "sometimes"
+    "cross_profile_linkage": "sometimes",
+    "descriptor_mailbox_linkage": "no_by_design"
    },
    "source_of_claim": "mixed",
    "retention_policy_reference": "NOTIFICATIONS_AND_PUSH.md (opaque wake only)",
@@ -211,12 +222,14 @@
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
     "device_count": "no_by_design",
-    "cross_profile_linkage": "no_by_design"
+    "cross_profile_linkage": "no_by_design",
+    "descriptor_mailbox_linkage": "sometimes"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "DISCOVERY_FABRIC.md",
    "non_collusion_assumptions": [
-    "resolver relay and publisher do not collude"
+    "resolver relay and publisher do not collude",
+    "when the publisher is co-located with the user's mailbox Home they are one observer (ADR-0130 rule 4)"
    ],
    "optional_mitigations": [
     "oblivious resolver relay"
@@ -238,12 +251,13 @@
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
     "device_count": "no_by_design",
-    "cross_profile_linkage": "no_by_design"
+    "cross_profile_linkage": "no_by_design",
+    "descriptor_mailbox_linkage": "sometimes"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "INVITES_INTROGATE_AND_SPAM.md",
    "non_collusion_assumptions": [
-    "IntroGate and discovery publisher do not collude"
+    "IntroGate and discovery publisher are run by different operators; when they are co-located on one Home this assumption does not hold (ADR-0130 rule 4)"
    ],
    "optional_mitigations": [
     "ticket via privacy-enhanced path"
@@ -265,7 +279,8 @@
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "always",
     "device_count": "no_by_design",
-    "cross_profile_linkage": "no_by_design"
+    "cross_profile_linkage": "no_by_design",
+    "descriptor_mailbox_linkage": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md \u00a710 (RecoveryRecord under H(RecoveryHandle))",
@@ -292,7 +307,8 @@
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "sometimes",
     "device_count": "no_by_design",
-    "cross_profile_linkage": "no_by_design"
+    "cross_profile_linkage": "no_by_design",
+    "descriptor_mailbox_linkage": "no_by_design"
    },
    "source_of_claim": "provider_asserted",
    "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md \u00a710.6-10.7 (rpId + random RecoveryHandle)",
@@ -319,7 +335,8 @@
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
     "device_count": "no_by_design",
-    "cross_profile_linkage": "no_by_design"
+    "cross_profile_linkage": "no_by_design",
+    "descriptor_mailbox_linkage": "no_by_design"
    },
    "source_of_claim": "mixed",
    "retention_policy_reference": "CLIENTHOST_UPDATE_LIFECYCLE.md; R-188",

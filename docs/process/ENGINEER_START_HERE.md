@@ -5,7 +5,7 @@
 
 > **2026-09-24:** engineering unlock is now scope-granular ([`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`](RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md)). The first vertical slice below corresponds to the W0 scopes `core_kernel`, `reference_client_ui` and `provider_reference`. None is authorized. Also read [`HARDENING_REVIEW_20260924.md`](../reviews/HARDENING_REVIEW_20260924.md), [`HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`](../architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md) (the "personal OM Home" may be a T0 sponsored mailbox or T1 hosted Home, not only an own-cloud deployment), [`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md) and [`verification/GATE_PASS_CRITERIA.md`](../../verification/GATE_PASS_CRITERIA.md).
 
-This file is retained so the future transition is explicit, but the current repository is **not yet an engineering handoff**. Architecture hardening remains active. Do not begin the product vertical slice until a later ADR sets `engineering_authorized=true` in [`machine/repository_contract.json`](../../machine/repository_contract.json) and the architecture validator passes.
+This file is retained so the future transition is explicit, but the current repository is **not yet an engineering handoff**. Architecture hardening remains active. Do not begin the product vertical slice until a later ADR authorizes the relevant W0 scopes in `engineering_scopes` of [`machine/repository_contract.json`](../../machine/repository_contract.json) under the per-scope rule in [`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`](RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md) §4, and the architecture validator passes.
 
 ## Mission
 

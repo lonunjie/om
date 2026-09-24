@@ -2,7 +2,7 @@
 
 **Snapshot:** 2026-09-24 02:29 PHT (UTC+08:00)  
 **Phase:** Architecture verification / pre-engineering — engineering is not yet authorized  
-**Project name:** **OM** — see [`NAMING.md`](constitution/NAMING.md) for its seven canonical meanings, including **0M: zero total control**
+**Project name:** **OM** — see [`NAMING.md`](constitution/NAMING.md) for its six canonical meanings plus **0M: zero total control**
 
 This is the current canonical planning and architecture source of truth for OM. It incorporates the complete 2026-08-18 master snapshot plus the September 2026 design reviews covering decentralized authority, post-quantum cryptography, crypto agility, capability-routed/multi-relay delivery, the Discovery Fabric and revocable IntroGate, Cloudflare as an optional provider, invisible infrastructure UX, voice/video calling, privacy-preserving LAN operation, censorship/network resilience, and future SMS/RCS integration, baseline/community semantics, permissionless services/LLM agency, explicit external bridges, portable user escape, metadata-minimizing routing, decentralized/composable safety controls, protocol longevity, and the 0M zero-total-control principle.
 

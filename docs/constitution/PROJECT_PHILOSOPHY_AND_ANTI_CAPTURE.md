@@ -123,7 +123,7 @@ The architecture therefore requires **succession rails, not pretend succession**
 - roles and key ceremonies are documented before they are populated;
 - authority can later become multi-person without protocol migration;
 - repository teams and scoped roles are designed in advance;
-- release-root thresholds can move from 1-of-1 incubation custody to multi-party custody;
+- release-root thresholds can move from incubation custody (2-of-3 shares held by one custodian, equivalent to 1-of-1 against coercion; ADR-0130) to multi-party custody;
 - domain, forge, registry, store, and security-contact custody have explicit migration procedures;
 - no protocol object is bound to the founder's personal account.
 
@@ -144,7 +144,7 @@ When two plausible designs conflict, prefer the one that, while remaining usable
 
 This document is the highest-level project intent. It does not override cryptographic evidence, law, or physical impossibility; it tells future maintainers what OM is trying to preserve when tradeoffs arise.
 
-## 8. The seven meanings of OM
+## 8. The six meanings of OM, plus 0M
 
 [`NAMING.md`](NAMING.md) is canonical for the name. OM intentionally means **Open-source Messenger, OpenMessenger, OwnMessenger, OurMessenger, OneMessenger and OhMessenger**, plus the secondary **0M** reading: zero total control. Together these require an open commons, independent implementations and agents, safe customization, strong group/organization capability, extensibility without fragmentation, an approachable default product, and architecture in which no one party becomes an indispensable universal controller.
 

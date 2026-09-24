@@ -42,6 +42,10 @@ A user can switch relay, blob store, directory, media provider, or push strategy
 
 Using a vendor for relay + blob storage + TURN must not accidentally give that vendor enough durable identifiers or keys to reconstruct the full social graph/content. Components use distinct identifiers and minimum metadata.
 
+Non-composability limits what a combined operator learns from **protocol identifiers and keys**. It does not make
+co-located roles independent observers: one operator running several roles for the same user can correlate them by
+timing and network address, and OM declares that rather than assuming non-collusion (ADR-0130 rule 4).
+
 ## Authority map
 
 | Actor | May control | Must not control |

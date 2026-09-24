@@ -81,8 +81,8 @@ Provider independence improves survivability but does not make any single endpoi
 - **Leaked QR/link:** independent InviteID/capability is revocable/expiring; accepted relationships use unrelated capabilities.
 - **Introduction spam/DDoS:** ticket expiry/replay defense, quotas, rate limits, optional privacy-preserving admission proof/proof-of-work, provider DDoS controls.
 - **Cross-relay correlation:** separate capability identifiers and independently randomized outer envelopes; multi-relay redundancy used selectively.
-- **LAN tracking:** rotating rendezvous tokens derived from purpose-specific relationship/invite secrets; no stable AccountID/name broadcast.
-- **State/network censorship:** provider and transport diversity, alternate relays, direct/LAN paths and optional pluggable transports reduce choke points; no guarantee against a sufficiently powerful censor/global observer.
+- **LAN tracking:** rotating rendezvous tokens derived from purpose-specific relationship/invite secrets; no stable AccountID/name broadcast. Contacts themselves can track presence and tag sets can leak contact count, so LAN rendezvous is off by default and per contact, retired on block, and fixed-cardinality (T-087, T-088, ADR-0130).
+- **State/network censorship:** provider and transport diversity, alternate relays, direct/LAN paths and optional pluggable transports reduce choke points; no guarantee against a sufficiently powerful censor/global observer. Network-level vendor blocking and discovery-suffix blocking are T-085 and T-086; no resilience claim is made before PR-013 passes (R-269).
 
 ## Continuity / supply-chain threats added at 21:32 checkpoint
 
@@ -141,10 +141,10 @@ The narrative above is now backed by a structured register: `../machine/threat_r
 
 Adversary classes added in this checkpoint:
 
-- **Proximate adversary** (intimate partner, family, employer, anyone with brief device access or passcode knowledge): silent device linking, reading unlocked history. Mitigation: non-suppressible device-link notices, device list, quick lock ([`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md)).
+- **Proximate adversary** (intimate partner, family, employer, anyone with brief device access or passcode knowledge): silent device linking, reading unlocked history. A T0 sponsor is often exactly this person and sees inbound timing and can close the mailbox; mitigations are the 30-day revocation overlap, an early non-sponsor route and the disclosure (T-084, R-266, R-267). Mitigation: non-suppressible device-link notices, device list, quick lock ([`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md)).
 - **Coercive adversary** (seizure, compelled unlock, border inspection): mitigation is minimization (app/profile lock, disappearing defaults, travel posture). OM explicitly does not promise hidden-volume deniability.
 - **Platform leakage** (OS/cloud backups, snapshots, keyboards, cloud spellcheck, browser extensions, notification history): per-platform control matrix, V-021.
-- **Hosting-account attacker** (phished cloud credentials for a PWA user's ClientHost): equivalent to endpoint compromise for that user. Mitigation: separate least-privilege deploy credentials, phishing-resistant auth, release-hash observation, native option (R-164).
+- **Hosting-account attacker** (phished cloud credentials for a PWA user's ClientHost): equivalent to endpoint compromise for that user. Mitigation: separate least-privilege deploy credentials, phishing-resistant auth, release-hash observation, native option (R-164). The same holds for whoever serves a T0 user's client (T-080: never the sponsor by default, a choice of independent origins plus native) and for the provisioning path (T-081: only verified releases are ever activated).
 - **Vendor-wide provider action** (one cloud vendor blocking all OM Homes): practical monoculture choke point. Mitigation: Home tiers, second reference provider, diversity drill (V-020, PR-013).
 - **Harvest-now-decrypt-later against groups:** v1 MLS groups are classical. Mitigation: honest per-type PQ status, ReInit path, objective adoption triggers (V-019).
 - **Uncoordinated vulnerability disclosure / straggler implementations:** mitigation is signed SecurityAdvisories and peer-local floors, with no kill switch (PR-012).
