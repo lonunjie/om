@@ -1,0 +1,1090 @@
+{
+ "gate": "V-003",
+ "description": "Regression vectors for the per-device 1:1 session manager. Each is an action trace; fuzzer.py replays them against the Python reference machine (sessions.py).",
+ "vectors": [
+  {
+   "id": "V003-FOUND-01-key-reuse-direction",
+   "source": "TLC counterexample, model v1 (trace reconstructed by hand from the TLC state dump)",
+   "classification": "model_bug",
+   "violates": "NoKeyReuse",
+   "note": "keyLog was keyed by (sid, ctr) only; a ratchet session has one sending chain per direction, so a1->b1 ctr 1 and b1->a1 ctr 1 on sid 1 are different keys. Fixed by keying on (sid, sender, ctr).",
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "NewMessage",
+     "b1",
+     2
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b1",
+     1,
+     2
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     1,
+     1,
+     "created"
+    ],
+    [
+     "Encrypt",
+     "b1",
+     2,
+     "a1",
+     1
+    ]
+   ],
+   "expect_with_fixed_model": "no violation"
+  },
+  {
+   "id": "V003-FOUND-02-linked-device-without-state",
+   "source": "TLC counterexample, model v2 (trace from TLC output)",
+   "classification": "model_bug_with_doc_note",
+   "violates": "DeliveredAtQuiescence",
+   "note": "The newly linked device b3 did not hold the AccountControlState that linked it, so it believed itself revoked and dropped a1's message. Fixed: the linking ceremony hands the new device the authorizing state. MULTI_DEVICE_SYNC.md 'new-device bootstrap uses an explicit grant' implies this but does not say the grant must carry the control-state head.",
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "ServeWeakBundle",
+     "b1"
+    ],
+    [
+     "ControlStep",
+     1
+    ],
+    [
+     "Learn",
+     "a1",
+     "B"
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "EncryptRefusedFloor",
+     "a1",
+     1,
+     "b1"
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b3",
+     1,
+     2
+    ],
+    [
+     "RecvRejectedRevoked",
+     "b3",
+     "a1",
+     1
+    ]
+   ],
+   "expect_with_fixed_model": "no violation"
+  },
+  {
+   "id": "V003-FOUND-03-prekey-overtaken",
+   "source": "TLC counterexample, model v3 with all rules K1..K9 enabled",
+   "classification": "design_gap",
+   "violates": "SamePreferredAtQuiescence",
+   "note": "a1 initiates sid 1 (prekey message m2) then sends m1 on sid 1 without the prekey header; m1 overtakes the prekey message, b1 cannot decrypt, requests a reset, a1 marks sid 1 stale and retries on sid 2, then the delayed prekey creates sid 1 at b1: b1 prefers 1, a1 prefers 2. Led to rule K10 PrekeyUntilConfirmed (Signal's PreKeySignalMessage behaviour). Q-050 does not state it.",
+   "rule_disabled": "PrekeyUntilConfirmed",
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "ControlStep",
+     1
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "NewMessage",
+     "a1",
+     2
+    ],
+    [
+     "Initiate",
+     "a1",
+     2,
+     "b1",
+     1,
+     2
+    ],
+    [
+     "Encrypt",
+     "a1",
+     1,
+     "b1",
+     1
+    ],
+    [
+     "RecvUndecryptable",
+     "b1",
+     "a1",
+     1,
+     1
+    ],
+    [
+     "RecvReset",
+     "a1",
+     "b1",
+     1,
+     1
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b1",
+     2,
+     2
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     2,
+     1,
+     "created"
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     1,
+     2,
+     "created"
+    ]
+   ],
+   "expect_with_fixed_model": "trace infeasible after step 5 (m1 carries the prekey header and creates the session)"
+  },
+  {
+   "id": "V003-TLC-K1",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_K1.cfg)",
+   "rule_disabled": "PersistBeforeSend",
+   "violates": "NoKeyReuse",
+   "classification": "design_gap_mechanism_unstated",
+   "doc_basis": "ONE_TO_ONE_SESSION_MANAGEMENT.md \u00a77 requires no nonce/key reuse after restore but no doc states write-ahead ordering for ratchet state after a crash",
+   "constants": {
+    "Senders": "{\"a1\"}",
+    "MaxMsgs": "3",
+    "MaxSid": "2",
+    "MaxCrash": "1",
+    "MaxRestore": "0",
+    "MaxDup": "0",
+    "MaxWeak": "0",
+    "MaxInject": "0",
+    "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
+    "PersistBeforeSend": "FALSE",
+    "DedupeDurable": "TRUE",
+    "FloorFromACS": "TRUE",
+    "RetryOnReset": "TRUE",
+    "RecheckOnEncrypt": "TRUE",
+    "ValidateAgainstACS": "TRUE",
+    "ReconcileControlHead": "TRUE",
+    "RestoreDropsSessions": "TRUE",
+    "RejectFromRevoked": "TRUE",
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "NewMessage",
+     "a1",
+     2
+    ],
+    [
+     "NewMessage",
+     "a1",
+     3
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b1",
+     1,
+     2
+    ],
+    [
+     "Persist",
+     "a1"
+    ],
+    [
+     "Encrypt",
+     "a1",
+     2,
+     "b1",
+     1
+    ],
+    [
+     "Crash",
+     "a1"
+    ],
+    [
+     "Encrypt",
+     "a1",
+     3,
+     "b1",
+     1
+    ]
+   ]
+  },
+  {
+   "id": "V003-TLC-K2",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_K2.cfg)",
+   "rule_disabled": "DedupeDurable",
+   "violates": "NoDoubleAccept",
+   "classification": "design_gap_mechanism_unstated",
+   "doc_basis": "R-089 requires one conversation event per logical message; durability of the EventID dedupe record relative to the relay ack is unspecified",
+   "constants": {
+    "Senders": "{\"a1\", \"b1\"}",
+    "MaxMsgs": "2",
+    "MaxSid": "4",
+    "MaxCrash": "1",
+    "MaxRestore": "0",
+    "MaxDup": "1",
+    "MaxWeak": "0",
+    "MaxInject": "0",
+    "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
+    "PersistBeforeSend": "TRUE",
+    "DedupeDurable": "FALSE",
+    "FloorFromACS": "TRUE",
+    "RetryOnReset": "TRUE",
+    "RecheckOnEncrypt": "TRUE",
+    "ValidateAgainstACS": "TRUE",
+    "ReconcileControlHead": "TRUE",
+    "RestoreDropsSessions": "TRUE",
+    "RejectFromRevoked": "TRUE",
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b1",
+     1,
+     2
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     1,
+     1,
+     "created"
+    ],
+    [
+     "Crash",
+     "b1"
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     1,
+     1,
+     "created"
+    ]
+   ]
+  },
+  {
+   "id": "V003-TLC-K3",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_K3.cfg)",
+   "rule_disabled": "FloorFromACS",
+   "violates": "NoSilentDowngrade",
+   "classification": "design_gap",
+   "doc_basis": "CRYPTOGRAPHY_AND_AGILITY.md 'Downgrade floor' keeps the floor as local relationship state; a backup restore rolls it back and a weak bundle is then accepted silently. No doc says where the floor survives restore",
+   "constants": {
+    "Senders": "{\"a1\", \"b1\"}",
+    "MaxMsgs": "2",
+    "MaxSid": "4",
+    "MaxCrash": "0",
+    "MaxRestore": "1",
+    "MaxDup": "1",
+    "MaxWeak": "1",
+    "MaxInject": "0",
+    "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
+    "PersistBeforeSend": "TRUE",
+    "DedupeDurable": "TRUE",
+    "FloorFromACS": "FALSE",
+    "RetryOnReset": "TRUE",
+    "RecheckOnEncrypt": "TRUE",
+    "ValidateAgainstACS": "TRUE",
+    "ReconcileControlHead": "TRUE",
+    "RestoreDropsSessions": "TRUE",
+    "RejectFromRevoked": "TRUE",
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "TakeBackup",
+     "a1"
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b1",
+     1,
+     2
+    ],
+    [
+     "ServeWeakBundle",
+     "b1"
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     1,
+     1,
+     "created"
+    ],
+    [
+     "Restore",
+     "a1"
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b1",
+     2,
+     1
+    ]
+   ]
+  },
+  {
+   "id": "V003-TLC-K4",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_K4.cfg)",
+   "rule_disabled": "RetryOnReset",
+   "violates": "DeliveredAtQuiescence",
+   "classification": "design_gap",
+   "doc_basis": "ONE_TO_ONE_SESSION_MANAGEMENT.md \u00a72 lists 'session reset/recovery' but no doc requires re-encrypting messages the peer could not decrypt; they are silently lost",
+   "constants": {
+    "Senders": "{\"a1\", \"b1\"}",
+    "MaxMsgs": "2",
+    "MaxSid": "4",
+    "MaxCrash": "0",
+    "MaxRestore": "1",
+    "MaxDup": "1",
+    "MaxWeak": "0",
+    "MaxInject": "0",
+    "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
+    "PersistBeforeSend": "TRUE",
+    "DedupeDurable": "TRUE",
+    "FloorFromACS": "TRUE",
+    "RetryOnReset": "FALSE",
+    "RecheckOnEncrypt": "TRUE",
+    "ValidateAgainstACS": "TRUE",
+    "ReconcileControlHead": "TRUE",
+    "RestoreDropsSessions": "TRUE",
+    "RejectFromRevoked": "TRUE",
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b1",
+     1,
+     2
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     1,
+     1,
+     "created"
+    ],
+    [
+     "TakeBackup",
+     "a1"
+    ],
+    [
+     "Restore",
+     "a1"
+    ],
+    [
+     "NewMessage",
+     "b1",
+     2
+    ],
+    [
+     "Encrypt",
+     "b1",
+     2,
+     "a1",
+     1
+    ],
+    [
+     "RecvUndecryptable",
+     "a1",
+     "b1",
+     1,
+     2
+    ],
+    [
+     "RecvReset",
+     "b1",
+     "a1",
+     1,
+     2
+    ]
+   ]
+  },
+  {
+   "id": "V003-TLC-K5",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_K5.cfg)",
+   "rule_disabled": "RecheckOnEncrypt",
+   "violates": "NoSendToIneligible",
+   "classification": "design_gap_partially_stated",
+   "doc_basis": "ONE_TO_ONE_SESSION_MANAGEMENT.md \u00a75 'Stale sender view ... must be defined'; a fanout/retry queued before the sender learned a revocation still encrypts to the revoked device",
+   "constants": {
+    "Senders": "{\"a1\", \"b1\"}",
+    "MaxMsgs": "2",
+    "MaxSid": "4",
+    "MaxCrash": "0",
+    "MaxRestore": "0",
+    "MaxDup": "1",
+    "MaxWeak": "0",
+    "MaxInject": "0",
+    "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
+    "PersistBeforeSend": "TRUE",
+    "DedupeDurable": "TRUE",
+    "FloorFromACS": "TRUE",
+    "RetryOnReset": "TRUE",
+    "RecheckOnEncrypt": "FALSE",
+    "ValidateAgainstACS": "TRUE",
+    "ReconcileControlHead": "TRUE",
+    "RestoreDropsSessions": "TRUE",
+    "RejectFromRevoked": "TRUE",
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "ControlStep",
+     1
+    ],
+    [
+     "NewMessage",
+     "b1",
+     1
+    ],
+    [
+     "ControlStep",
+     2
+    ],
+    [
+     "Initiate",
+     "b1",
+     1,
+     "b3",
+     1,
+     2
+    ]
+   ]
+  },
+  {
+   "id": "V003-TLC-K6",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_K6.cfg)",
+   "rule_disabled": "ValidateAgainstACS",
+   "violates": "NoSendToIneligible",
+   "classification": "negative_control_doc_explicit",
+   "doc_basis": "ONE_TO_ONE_SESSION_MANAGEMENT.md \u00a73: provider device lists are not authority (stated; this vector guards it)",
+   "constants": {
+    "Senders": "{\"a1\", \"b1\"}",
+    "MaxMsgs": "2",
+    "MaxSid": "4",
+    "MaxCrash": "0",
+    "MaxRestore": "0",
+    "MaxDup": "1",
+    "MaxWeak": "0",
+    "MaxInject": "1",
+    "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
+    "PersistBeforeSend": "TRUE",
+    "DedupeDurable": "TRUE",
+    "FloorFromACS": "TRUE",
+    "RetryOnReset": "TRUE",
+    "RecheckOnEncrypt": "TRUE",
+    "ValidateAgainstACS": "FALSE",
+    "ReconcileControlHead": "TRUE",
+    "RestoreDropsSessions": "TRUE",
+    "RejectFromRevoked": "TRUE",
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "InjectRogueDevice"
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "bx",
+     1,
+     2
+    ]
+   ]
+  },
+  {
+   "id": "V003-TLC-K7",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_K7.cfg)",
+   "rule_disabled": "ReconcileControlHead",
+   "violates": "NoSendToIneligible",
+   "classification": "design_gap_partially_stated",
+   "doc_basis": "ACCOUNT_CONTINUITY_AND_CONTROL.md \u00a77/\u00a79 cover the own account's head after restore; nothing requires a device's validated view of a PEER's AccountControlState head to be durable, so a crash re-authorizes a revoked peer device",
+   "constants": {
+    "Senders": "{\"a1\", \"b1\"}",
+    "MaxMsgs": "2",
+    "MaxSid": "4",
+    "MaxCrash": "1",
+    "MaxRestore": "0",
+    "MaxDup": "1",
+    "MaxWeak": "0",
+    "MaxInject": "0",
+    "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
+    "PersistBeforeSend": "TRUE",
+    "DedupeDurable": "TRUE",
+    "FloorFromACS": "TRUE",
+    "RetryOnReset": "TRUE",
+    "RecheckOnEncrypt": "TRUE",
+    "ValidateAgainstACS": "TRUE",
+    "ReconcileControlHead": "FALSE",
+    "RestoreDropsSessions": "TRUE",
+    "RejectFromRevoked": "TRUE",
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "ControlStep",
+     1
+    ],
+    [
+     "NewMessage",
+     "b1",
+     1
+    ],
+    [
+     "Persist",
+     "b1"
+    ],
+    [
+     "ControlStep",
+     2
+    ],
+    [
+     "Crash",
+     "b1"
+    ],
+    [
+     "Initiate",
+     "b1",
+     1,
+     "b3",
+     1,
+     2
+    ]
+   ]
+  },
+  {
+   "id": "V003-TLC-K8",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_K8.cfg)",
+   "rule_disabled": "RestoreDropsSessions",
+   "violates": "NoKeyReuse",
+   "classification": "negative_control_doc_explicit",
+   "doc_basis": "ONE_TO_ONE_SESSION_MANAGEMENT.md \u00a77 forbids rollback that causes key reuse (stated; this vector guards it)",
+   "constants": {
+    "Senders": "{\"a1\"}",
+    "MaxMsgs": "3",
+    "MaxSid": "2",
+    "MaxCrash": "0",
+    "MaxRestore": "1",
+    "MaxDup": "0",
+    "MaxWeak": "0",
+    "MaxInject": "0",
+    "RestoreDevs": "{\"a1\"}",
+    "PersistBeforeSend": "TRUE",
+    "DedupeDurable": "TRUE",
+    "FloorFromACS": "TRUE",
+    "RetryOnReset": "TRUE",
+    "RecheckOnEncrypt": "TRUE",
+    "ValidateAgainstACS": "TRUE",
+    "ReconcileControlHead": "TRUE",
+    "RestoreDropsSessions": "FALSE",
+    "RejectFromRevoked": "TRUE",
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "NewMessage",
+     "a1",
+     2
+    ],
+    [
+     "NewMessage",
+     "a1",
+     3
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b1",
+     1,
+     2
+    ],
+    [
+     "TakeBackup",
+     "a1"
+    ],
+    [
+     "Encrypt",
+     "a1",
+     2,
+     "b1",
+     1
+    ],
+    [
+     "Restore",
+     "a1"
+    ],
+    [
+     "Encrypt",
+     "a1",
+     3,
+     "b1",
+     1
+    ]
+   ]
+  },
+  {
+   "id": "V003-TLC-K9",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_K9.cfg)",
+   "rule_disabled": "RejectFromRevoked",
+   "violates": "NoAcceptFromKnownRevoked",
+   "classification": "design_gap_partially_stated",
+   "doc_basis": "MULTI_DEVICE_SYNC.md 'Revocation' covers what a revoked device stops receiving; no doc says receivers must reject traffic FROM a device they know is revoked (a compromised revoked device can keep injecting messages)",
+   "constants": {
+    "Senders": "{\"a1\", \"b1\", \"b3\"}",
+    "MaxMsgs": "2",
+    "MaxSid": "4",
+    "MaxCrash": "0",
+    "MaxRestore": "0",
+    "MaxDup": "1",
+    "MaxWeak": "0",
+    "MaxInject": "0",
+    "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
+    "PersistBeforeSend": "TRUE",
+    "DedupeDurable": "TRUE",
+    "FloorFromACS": "TRUE",
+    "RetryOnReset": "TRUE",
+    "RecheckOnEncrypt": "TRUE",
+    "ValidateAgainstACS": "TRUE",
+    "ReconcileControlHead": "TRUE",
+    "RestoreDropsSessions": "TRUE",
+    "RejectFromRevoked": "FALSE",
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "ControlStep",
+     1
+    ],
+    [
+     "ControlStep",
+     2
+    ],
+    [
+     "NewMessage",
+     "b3",
+     1
+    ],
+    [
+     "Initiate",
+     "b3",
+     1,
+     "b1",
+     1,
+     2
+    ],
+    [
+     "Recv",
+     "b1",
+     "b3",
+     1,
+     1,
+     "created"
+    ]
+   ]
+  },
+  {
+   "id": "V003-TLC-K10",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_K10.cfg)",
+   "rule_disabled": "PrekeyUntilConfirmed",
+   "violates": "SamePreferredAtQuiescence",
+   "classification": "design_gap",
+   "doc_basis": "Q-050 names an Initiating state but no doc says messages on an unconfirmed session must carry the handshake header; when a later message overtakes the first one, the receiver resets a healthy session and the pair ends preferring different sessions",
+   "constants": {
+    "Senders": "{\"a1\", \"b1\"}",
+    "MaxMsgs": "2",
+    "MaxSid": "4",
+    "MaxCrash": "0",
+    "MaxRestore": "0",
+    "MaxDup": "1",
+    "MaxWeak": "0",
+    "MaxInject": "0",
+    "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
+    "PersistBeforeSend": "TRUE",
+    "DedupeDurable": "TRUE",
+    "FloorFromACS": "TRUE",
+    "RetryOnReset": "TRUE",
+    "RecheckOnEncrypt": "TRUE",
+    "ValidateAgainstACS": "TRUE",
+    "ReconcileControlHead": "TRUE",
+    "RestoreDropsSessions": "TRUE",
+    "RejectFromRevoked": "TRUE",
+    "PrekeyUntilConfirmed": "FALSE",
+    "RestoreRotatesPrekeys": "TRUE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "NewMessage",
+     "a1",
+     2
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b1",
+     1,
+     2
+    ],
+    [
+     "Encrypt",
+     "a1",
+     2,
+     "b1",
+     1
+    ],
+    [
+     "RecvUndecryptable",
+     "b1",
+     "a1",
+     1,
+     2
+    ],
+    [
+     "RecvReset",
+     "a1",
+     "b1",
+     1,
+     2
+    ],
+    [
+     "Initiate",
+     "a1",
+     2,
+     "b1",
+     2,
+     2
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     1,
+     1,
+     "created"
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     2,
+     2,
+     "created"
+    ]
+   ]
+  },
+  {
+   "id": "V003-TLC-K11",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_K11.cfg)",
+   "rule_disabled": "RestoreRotatesPrekeys",
+   "violates": "NoKeyReuse",
+   "classification": "design_gap",
+   "doc_basis": "Found by the V-003 fuzzer with K1..K11 on. ONE_TO_ONE_SESSION_MANAGEMENT.md \u00a77 forbids key reuse after restore and K8 drops ratchet state, but no doc says handshake prekey secrets are excluded from backups (or rotated on restore). A prekey message the device processed before the restore is redelivered by the relay; the restored device re-derives the same session and its sending chain restarts at counter 1",
+   "constants": {
+    "Senders": "{\"a1\", \"b1\"}",
+    "MaxMsgs": "3",
+    "MaxSid": "1",
+    "MaxCrash": "0",
+    "MaxRestore": "1",
+    "MaxDup": "1",
+    "MaxWeak": "0",
+    "MaxInject": "0",
+    "RestoreDevs": "{\"b1\"}",
+    "PersistBeforeSend": "TRUE",
+    "DedupeDurable": "TRUE",
+    "FloorFromACS": "TRUE",
+    "RetryOnReset": "TRUE",
+    "RecheckOnEncrypt": "TRUE",
+    "ValidateAgainstACS": "TRUE",
+    "ReconcileControlHead": "TRUE",
+    "RestoreDropsSessions": "TRUE",
+    "RejectFromRevoked": "TRUE",
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "FALSE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "NewMessage",
+     "b1",
+     2
+    ],
+    [
+     "NewMessage",
+     "b1",
+     3
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b1",
+     1,
+     2
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     1,
+     1,
+     "created"
+    ],
+    [
+     "Encrypt",
+     "b1",
+     2,
+     "a1",
+     1
+    ],
+    [
+     "TakeBackup",
+     "b1"
+    ],
+    [
+     "Restore",
+     "b1"
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     1,
+     1,
+     "created"
+    ],
+    [
+     "Encrypt",
+     "b1",
+     3,
+     "a1",
+     1
+    ]
+   ]
+  },
+  {
+   "id": "V003-TLC-P1-black-hole",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_P1_black_hole.cfg)",
+   "rule_disabled": null,
+   "violates": "NoBlackHoleAtQuiescence",
+   "classification": "design_gap",
+   "doc_basis": "After a peer loses a session (crash/restore) the other side keeps preferring it until its next send triggers reset+retry: preference is lazily repaired. Acceptable only if reset+retry (K4) is normative",
+   "constants": {
+    "Senders": "{\"a1\", \"b1\"}",
+    "MaxMsgs": "2",
+    "MaxSid": "4",
+    "MaxCrash": "1",
+    "MaxRestore": "0",
+    "MaxDup": "1",
+    "MaxWeak": "0",
+    "MaxInject": "0",
+    "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
+    "PersistBeforeSend": "TRUE",
+    "DedupeDurable": "TRUE",
+    "FloorFromACS": "TRUE",
+    "RetryOnReset": "TRUE",
+    "RecheckOnEncrypt": "TRUE",
+    "ValidateAgainstACS": "TRUE",
+    "ReconcileControlHead": "TRUE",
+    "RestoreDropsSessions": "TRUE",
+    "RejectFromRevoked": "TRUE",
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "ControlStep",
+     1
+    ],
+    [
+     "NewMessage",
+     "b1",
+     1
+    ],
+    [
+     "Initiate",
+     "b1",
+     1,
+     "a1",
+     1,
+     2
+    ],
+    [
+     "Initiate",
+     "b1",
+     1,
+     "b3",
+     2,
+     2
+    ],
+    [
+     "ControlStep",
+     2
+    ],
+    [
+     "Learn",
+     "b3",
+     "B"
+    ],
+    [
+     "Recv",
+     "a1",
+     "b1",
+     1,
+     1,
+     "created"
+    ],
+    [
+     "RecvRejectedRevoked",
+     "b3",
+     "b1",
+     1
+    ]
+   ]
+  }
+ ]
+}

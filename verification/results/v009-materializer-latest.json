@@ -1,0 +1,114 @@
+{
+  "criteria": [
+    {
+      "criterion": "a second, independently written materializer (different author or language) agrees with the reference model on the full convergence corpus including malformed and authorization-race cases",
+      "evidence": [
+        "verification/prototypes/v009-materializer/README.md",
+        "verification/prototypes/v009-materializer/materializer/src/materialize.rs",
+        "verification/prototypes/v009-materializer/gen_corpus.py",
+        "verification/prototypes/v009-materializer/compare.py"
+      ],
+      "gate": "V-009",
+      "note": "Rust materializer (different language; written from docs before the reference logic was read) converges on every delivery order and agrees with the reference on 90/115 cases; all 25 disagreeing cases are attributed (reference bugs REF-1/REF-3, doc ambiguities DA-1..DA-3). Partial because the reference covers only pins/redaction/polls/topics and needs an adapter-supplied authorization oracle, the doc ambiguities need rulings, and author independence is AI-to-AI (ADR-0117 proposed).",
+      "status": "partial"
+    }
+  ],
+  "gates": [
+    "V-009"
+  ],
+  "independence": "Materializer written by a Claude agent in Rust from the public docs; its commit precedes reading the Python reference's logic. The design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer/implementer counts as independent.",
+  "prototype": "verification/prototypes/v009-materializer",
+  "summary": {
+    "all_checks_passed": true,
+    "cases_agree": 90,
+    "cases_disagree_attributed": 25,
+    "corpus_cases": 115,
+    "corpus_categories": {
+      "authorization": 1,
+      "authorization_race": 6,
+      "deletes": 2,
+      "duplication": 1,
+      "edits": 4,
+      "eventclock": 7,
+      "extensions": 4,
+      "malformed": 13,
+      "pins": 2,
+      "polls": 5,
+      "random": 60,
+      "reactions": 2,
+      "receipts": 1,
+      "redaction": 1,
+      "replies": 1,
+      "topics": 5
+    },
+    "disagreement_causes": {
+      "DA-1": {
+        "cases": [
+          "malformed-oversize",
+          "pin-dangling-target",
+          "random-006",
+          "random-008",
+          "random-016",
+          "random-017",
+          "random-022",
+          "random-029",
+          "random-030",
+          "random-043",
+          "random-046",
+          "random-047",
+          "random-050",
+          "random-053",
+          "topic-move-poll",
+          "topic-move-to-missing-topic"
+        ],
+        "class": "doc_ambiguity",
+        "description": "state operation whose target is missing or of the wrong kind (pin/redact/vote/close/topic-move on a non-message, a never-arriving event, or a topic that never exists)"
+      },
+      "DA-2": {
+        "cases": [
+          "random-015",
+          "topic-duplicate-create"
+        ],
+        "class": "doc_ambiguity",
+        "description": "duplicate topic.create for one TopicID: reference = latest create resets the topic; materializer = earliest create wins"
+      },
+      "DA-3": {
+        "cases": [
+          "poll-vote-retract",
+          "random-023"
+        ],
+        "class": "doc_ambiguity",
+        "description": "empty poll.vote selection: reference keeps an empty vote; materializer treats it as retraction"
+      },
+      "REF-1": {
+        "cases": [
+          "equivocation-duplicate-eventid"
+        ],
+        "class": "reference_bug",
+        "description": "equivocating duplicate EventID: reference keeps the last-arrived payload (order-dependent)"
+      },
+      "REF-3": {
+        "cases": [
+          "poll-invalid-option",
+          "poll-single-multi",
+          "random-003",
+          "random-041"
+        ],
+        "class": "reference_bug",
+        "description": "poll.vote options are not validated against the poll (unknown option / multi-select on single-choice poll counted)"
+      }
+    },
+    "materializer_all_converged": true,
+    "materializer_delivery_orders": 64280,
+    "reference_delivery_orders": 41113,
+    "reference_nonconvergent_cases": [
+      "equivocation-duplicate-eventid"
+    ],
+    "unresolved_disagreements": 0
+  },
+  "tool_versions": {
+    "python": "3.14.7",
+    "rustc": "1.98.1",
+    "serde_json": "1.0.145"
+  }
+}
