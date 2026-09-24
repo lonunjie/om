@@ -9,7 +9,7 @@ Feasibility prototype for V-001 (`production_crypto_path`) and the V-001 half of
 
 ## What it is
 
-A Rust implementation of the 1:1 path that OM-Crypto-v1 selects in `CRYPTOGRAPHY_AND_AGILITY.md` (2026-09-23 resolution), written from the public specifications:
+A Rust implementation of the 1:1 path that OM-Crypto-v1 selects in [`CRYPTOGRAPHY_AND_AGILITY.md`](../../../docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md) (2026-09-23 resolution), written from the public specifications:
 
 | Layer | Specification followed | Where |
 |---|---|---|
@@ -20,8 +20,8 @@ A Rust implementation of the 1:1 path that OM-Crypto-v1 selects in `CRYPTOGRAPHY
 | PQ ratchet (SCKA) | **Signal's own `spqr` v1.6.0** (ML-KEM Braid + SPQR chains), used through its public `initial_state`/`send`/`recv` API. Not reimplemented. | dependency |
 | Composition | Double Ratchet rev 4 §6 **Triple Ratchet** (`KDF_HYBRID(ec_mk, pq_mk)`), §7.1 PQXDH integration (SK split into SKec/SKscka, SPK_B as Bob's first ratchet key, PQXDH prefix repeated until the first reply) | `rust/core/src/triple.rs`, `store.rs` |
 | AEAD | RFC 8452 **AES-256-GCM-SIV** (DR §7.2 recommends SIV or CBC+HMAC; OM asks for misuse resistance). Key and nonce both come from `KDF_HYBRID` (DR §3.1 allows a derived nonce) | `triple.rs` |
-| State and wire encoding | Strict deterministic CBOR (RFC 8949 §4.2.1 subset; the decoder enforces `CANONICAL_ENCODING.md` rules) | `rust/core/src/cbor.rs` |
-| Prekey publication | Toy `KeyMaterialProvider` with one disjoint pool per device (`ASYNC_KEY_MATERIAL.md` §2/§4/§6) | `rust/core/src/store.rs` |
+| State and wire encoding | Strict deterministic CBOR (RFC 8949 §4.2.1 subset; the decoder enforces [`CANONICAL_ENCODING.md`](../../../docs/architecture/crypto/CANONICAL_ENCODING.md) rules) | `rust/core/src/cbor.rs` |
+| Prekey publication | Toy `KeyMaterialProvider` with one disjoint pool per device ([`ASYNC_KEY_MATERIAL.md`](../../../docs/architecture/crypto/ASYNC_KEY_MATERIAL.md) §2/§4/§6) | `rust/core/src/store.rs` |
 
 The domain-separation strings (`OM-Crypto-v1-proto …`), the `EncodeKEM` type byte `0x21` and the header/envelope layouts are **prototype values** and not registry entries. They are listed in `rust/core/src/kdf.rs` and in the vector file's `constants`.
 
@@ -46,7 +46,7 @@ cd verification/prototypes/v001-crypto && ./run.sh --long   # + upstream spqr/li
 
 - Needs rustup (toolchain pinned to 1.98.1 in `rust/rust-toolchain.toml`, installed automatically along with the wasm targets), wasmtime, Node ≥ 22, uv, python3, git, curl and network access on the first run (crates, PyPI, ACVP files).
 - Runtime on an Apple M3 (8 cores, 8 GB): about 1 minute after the first build. The first build adds about 1–2 minutes. `--long` adds about 5 minutes (libsignal build).
-- Output: `verification/results/v001-crypto-latest.json` is deterministic (no timestamps, paths or timings). Raw timings go to `rust/target/v001-perf.json`, which is not committed. The script exits non-zero if any executable check fails.
+- Output: [`verification/results/v001-crypto-latest.json`](../../results/v001-crypto-latest.json) is deterministic (no timestamps, paths or timings). Raw timings go to `rust/target/v001-perf.json`, which is not committed. The script exits non-zero if any executable check fails.
 - Installed for this work: Rust toolchain 1.98.1 (+ wasm32-wasip1 and wasm32-unknown-unknown targets), crates from crates.io, spqr from github.com/signalapp (tag v1.6.0, commit `06959b47`), and PyPI `cryptography` and `kyber-py` (pinned in `python/uv.lock`).
 
 ## Results
@@ -131,7 +131,7 @@ Checked 2026-09-24 by manual builds outside this tree; the table records those r
 Findings:
 
 1. spqr's public API maps one-to-one onto DR rev 4 §6 (`SCKARatchetSendKey`/`ReceiveKey` returning message keys). OM can keep all framing, AD, AEAD, persistence and one-time-key logic in OM code, and it did so here.
-2. spqr's **state** (protobuf) and **wire message** (`version ‖ varint epoch ‖ varint index ‖ payload` with erasure-coded chunks) are defined by the library, not by a published wire spec. `CRYPTOGRAPHY_AND_AGILITY.md` forbids letting a library serialization become the only canonical wire/storage format without an ADR.
+2. spqr's **state** (protobuf) and **wire message** (`version ‖ varint epoch ‖ varint index ‖ payload` with erasure-coded chunks) are defined by the library, not by a published wire spec. [`CRYPTOGRAPHY_AND_AGILITY.md`](../../../docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md) forbids letting a library serialization become the only canonical wire/storage format without an ADR.
 3. `min_version` must be V1. With V0 the library negotiates the PQ ratchet away, which OM rule 6 forbids. The prototype pins V1 and tests that a V0 message is rejected.
 4. libsignal wraps the same spqr crate. Using libsignal would add the "unsupported outside Signal" contract without solving the licence.
 
@@ -139,7 +139,7 @@ Findings:
 
 *Status: proposed draft for the integrator to file under `decisions/`. Written by a Claude agent.*
 
-**Context.** V-001 needs the OM-Crypto-v1 1:1 path (PQXDH + Triple Ratchet/SPQR) to rest on maintained libraries whose licences fit the policy in `LICENSING_AND_CONTRIBUTION_POLICY.md` (om-core MPL-2.0). It must also not rely on an unsupported external API contract. This prototype shows the path works on native and wasm32 using the libraries below.
+**Context.** V-001 needs the OM-Crypto-v1 1:1 path (PQXDH + Triple Ratchet/SPQR) to rest on maintained libraries whose licences fit the policy in [`LICENSING_AND_CONTRIBUTION_POLICY.md`](../../../docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md) (om-core MPL-2.0). It must also not rely on an unsupported external API contract. This prototype shows the path works on native and wasm32 using the libraries below.
 
 **Decision (proposed).**
 
@@ -148,7 +148,7 @@ Findings:
    - ML-KEM-768: `libcrux-ml-kem` (Apache-2.0, formally verified with hax/F*). RustCrypto `ml-kem` (Apache-2.0 OR MIT) is the named fallback and cross-check.
    - HKDF, HMAC, SHA-2 and AES-256-GCM-SIV: RustCrypto (MIT OR Apache-2.0).
    - Deterministic CBOR: OM's own strict codec (V-005).
-   - Protocol composition (PQXDH, EC Double Ratchet, Triple Ratchet framing, prekey store): OM-maintained code implementing Signal's public-domain specifications (both PQXDH and the Double Ratchet document place themselves in the public domain). This is strategy B of `PRODUCTION_CRYPTO_INTEGRATION_GATE.md` §4, because no supported library exists (see strategy A below).
+   - Protocol composition (PQXDH, EC Double Ratchet, Triple Ratchet framing, prekey store): OM-maintained code implementing Signal's public-domain specifications (both PQXDH and the Double Ratchet document place themselves in the public domain). This is strategy B of [`PRODUCTION_CRYPTO_INTEGRATION_GATE.md`](../../../docs/architecture/crypto/PRODUCTION_CRYPTO_INTEGRATION_GATE.md) §4, because no supported library exists (see strategy A below).
 2. **SCKA / SPQR licence conflict: must be resolved before engineering.** The only SPQR implementation is Signal's `spqr`, which is AGPL-3.0-only. Linking it into om-core would make every distributed client binary an AGPL work, which contradicts the MPL-2.0 core policy (and has app-store distribution implications). Options, in order of preference:
    - (a) Ask Signal for an MPL/Apache relicence or a linking exception for `spqr`.
    - (b) Write an OM-maintained **clean-room** implementation of ML-KEM Braid + SPQR from Signal's published specifications. Implementers must not read the `spqr` source. `spqr` then serves only as an interoperability **test oracle** in a separate, non-distributed AGPL test harness. This needs its own independent review (a new high-risk component).
@@ -161,7 +161,7 @@ Findings:
    - Every wire byte (including the SCKA message) must be specified in an OM spec document with vectors, so a replacement implementation can be verified against it.
    - libsignal is not a dependency; its README declares external use unsupported. It may be a behavioural reference.
 4. **Update and CVE process.**
-   - Pin exact versions (`Cargo.lock`, `rust-toolchain.toml`, `--locked`), and review every bump.
+   - Pin exact versions (`Cargo.lock`, [`rust-toolchain.toml`](rust/rust-toolchain.toml), `--locked`), and review every bump.
    - Watch RustSec/GitHub advisories and the upstream security contacts (Signal, Cryspen/libcrux, RustCrypto, dalek), with `cargo-audit` and `cargo-deny` in CI. `cargo-deny` gets a licence allow-list that rejects GPL/AGPL in core crates, plus bans on duplicate crypto implementations.
    - Every update must pass: the NIST ACVP KATs, OM's own vectors, the cross-implementation (second-language) vectors, and the downgrade/one-time-key negative tests.
    - A critical advisory is answered with a patched release and, where needed, a signed SecurityAdvisory that raises peer-local floors. There is no remote kill switch.
@@ -175,10 +175,10 @@ Findings:
 
 ## Design bugs, contradictions and gaps found
 
-1. **Licence contradiction (blocking).** The architecture selects "Triple-Ratchet/SPQR-class" for OM-Crypto-v1, but the only implementation is AGPL-3.0-only, while om-core is MPL-2.0 by policy. Neither `PRODUCTION_CRYPTO_INTEGRATION_GATE.md` nor the licensing policy addresses this.
-2. **Library-defined wire format.** Adopting SPQR today makes spqr's own message/state encoding the de facto canonical format, which `CRYPTOGRAPHY_AND_AGILITY.md` ("Provider independence") forbids without an ADR.
-3. **Identity key binding is unspecified.** PQXDH needs one X25519 identity key used for both DH and XEdDSA signing. OM's durable credentials are Ed25519 + ML-DSA-65 (ADR-0107). `ASYNC_KEY_MATERIAL.md` §3 says bundles bind "to the authorized DeviceIdentity" but not how. Proposal: the DeviceIdentity's dual signature certifies the PQXDH IK in AccountControlState-authorised material. Whether ML-DSA should also sign PQ prekeys (PQXDH §4.8's quantum-server substitution) is a research question. It would be a protocol change, so it needs a research ADR (AGENTS.md rule 3).
-4. **Last-resort replay window.** PQXDH §4.2 accepts replays of handshakes that used no one-time key. The prototype adds a bounded, device-local replay cache keyed by `SHA-256(tag ‖ EK_A ‖ CT)`. Its size, eviction and persistence need specifying, including its loss on backup restore (`ONE_TO_ONE_SESSION_MANAGEMENT.md` §7).
+1. **Licence contradiction (blocking).** The architecture selects "Triple-Ratchet/SPQR-class" for OM-Crypto-v1, but the only implementation is AGPL-3.0-only, while om-core is MPL-2.0 by policy. Neither [`PRODUCTION_CRYPTO_INTEGRATION_GATE.md`](../../../docs/architecture/crypto/PRODUCTION_CRYPTO_INTEGRATION_GATE.md) nor the licensing policy addresses this.
+2. **Library-defined wire format.** Adopting SPQR today makes spqr's own message/state encoding the de facto canonical format, which [`CRYPTOGRAPHY_AND_AGILITY.md`](../../../docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md) ("Provider independence") forbids without an ADR.
+3. **Identity key binding is unspecified.** PQXDH needs one X25519 identity key used for both DH and XEdDSA signing. OM's durable credentials are Ed25519 + ML-DSA-65 (ADR-0107). [`ASYNC_KEY_MATERIAL.md`](../../../docs/architecture/crypto/ASYNC_KEY_MATERIAL.md) §3 says bundles bind "to the authorized DeviceIdentity" but not how. Proposal: the DeviceIdentity's dual signature certifies the PQXDH IK in AccountControlState-authorised material. Whether ML-DSA should also sign PQ prekeys (PQXDH §4.8's quantum-server substitution) is a research question. It would be a protocol change, so it needs a research ADR (AGENTS.md rule 3).
+4. **Last-resort replay window.** PQXDH §4.2 accepts replays of handshakes that used no one-time key. The prototype adds a bounded, device-local replay cache keyed by `SHA-256(tag ‖ EK_A ‖ CT)`. Its size, eviction and persistence need specifying, including its loss on backup restore ([`ONE_TO_ONE_SESSION_MANAGEMENT.md`](../../../docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md) §7).
 5. **The AEAD is not pinned.** The 2026-09-23 resolution says "misuse-resistant authenticated encryption" but names no primitive. The prototype uses AES-256-GCM-SIV. The profile ADR must pin it, together with the nonce-derivation rule.
 6. **PQ healing is traffic-dependent.** In these runs an SPQR epoch took roughly 80 messages. PQ post-compromise recovery is slow for quiet chats (DR §8.9). The ADR-0107 "Post-quantum protection: on" wording should mean handshake/HNDL protection plus eventual PQ ratchet healing, not per-message PQ healing.
 7. **Metadata.** The ratchet header (DH public key, counters, SCKA chunk) is plaintext. DR §4 header encryption is not used, and spqr has no header-encryption mode. V-015 should decide whether relays may see it.
@@ -186,12 +186,12 @@ Findings:
 ## Proposed design updates
 
 - File the draft ADR above, and add an OM-Crypto-v1 profile ADR that pins: the AEAD (AES-256-GCM-SIV), the KDF info strings, the EncodeEC/EncodeKEM type bytes, the SK split, the header/envelope CDDL, SPQR `min_version = V1`, and the downgrade invariants listed in the draft ADR, item 6.
-- `ASYNC_KEY_MATERIAL.md` §6: specify "consume one-time keys only after the initial AEAD authenticates" (PQXDH §3.4) and the last-resort replay-cache semantics.
-- `CRYPTOGRAPHY_AND_AGILITY.md` / ADR-0107 table: record the SPQR licence blocker and traffic-dependent PQ healing.
-- `verification/FEASIBILITY_RECONNAISSANCE_20260923.md` V-001: add the spqr findings (licence, no crates.io, builds on wasm32, V0 downgrade risk).
-- `machine/architecture_verification_gates.jsonl` V-001: add evidence paths (`verification/prototypes/v001-crypto/`, `verification/results/v001-crypto-latest.json`). V-022: note that the V-001 crypto costs are recorded.
-- `machine/file_registry.json`: register this directory's files (run `python3 tools/om_registry.py sync`). The validator fails until then. This prototype did not touch `machine/`.
-- `verification/README.md`: V-001 now has executable evidence.
+- [`ASYNC_KEY_MATERIAL.md`](../../../docs/architecture/crypto/ASYNC_KEY_MATERIAL.md) §6: specify "consume one-time keys only after the initial AEAD authenticates" (PQXDH §3.4) and the last-resort replay-cache semantics.
+- [`CRYPTOGRAPHY_AND_AGILITY.md`](../../../docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md) / ADR-0107 table: record the SPQR licence blocker and traffic-dependent PQ healing.
+- [`verification/FEASIBILITY_RECONNAISSANCE_20260923.md`](../../FEASIBILITY_RECONNAISSANCE_20260923.md) V-001: add the spqr findings (licence, no crates.io, builds on wasm32, V0 downgrade risk).
+- [`machine/architecture_verification_gates.jsonl`](../../../machine/architecture_verification_gates.jsonl) V-001: add evidence paths (`verification/prototypes/v001-crypto/`, [`verification/results/v001-crypto-latest.json`](../../results/v001-crypto-latest.json)). V-022: note that the V-001 crypto costs are recorded.
+- [`machine/file_registry.json`](../../../machine/file_registry.json): register this directory's files (run `python3 tools/om_registry.py sync`). The validator fails until then. This prototype did not touch `machine/`.
+- [`verification/README.md`](../../README.md): V-001 now has executable evidence.
 
 ## Not covered
 

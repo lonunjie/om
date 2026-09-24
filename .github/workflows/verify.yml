@@ -4,6 +4,12 @@ name: verify
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      prototypes:
+        description: also build and run every verification/prototypes/*/run.sh (slow)
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -37,13 +43,13 @@ jobs:
         run: |
           python3 tools/continuity_bundle.py build --out /tmp/bundle
           python3 tools/continuity_bundle.py verify /tmp/bundle/*.tar.gz
-      - name: Prototype checks (each verification/prototypes/*/run.sh)
+      - name: Prototype checks (manual only; each verification/prototypes/*/run.sh)
+        if: ${{ inputs.prototypes }}
         run: |
           set -e
           for r in verification/prototypes/*/run.sh; do
             [ -e "$r" ] || continue
             echo "::group::$r"; bash "$r"; echo "::endgroup::"
           done
-        continue-on-error: true   # prototypes need heavier toolchains; tracked separately until pinned in CI
       - name: Evidence must match the commit
         run: git diff --exit-code -- verification/results verification/vectors verification/GATE_PASS_CRITERIA.md

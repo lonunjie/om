@@ -54,12 +54,13 @@ Demonstrate the selected PQXDH + Triple Ratchet / SPQR-class OM-Crypto-v1 state-
 - **Scopes blocked:** core_kernel
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_implementation_or_upstream_kat; pre-release external_review
+- **Evidence:** `verification/prototypes/v001-crypto/README.md`; `verification/results/v001-crypto-latest.json`; `decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md`
 
 Pre-engineering criteria:
 
-- [ ] Rust feasibility prototype of the PQXDH + Triple Ratchet/SPQR-class state machine runs on native and wasm32 with state persistence/reload
-- [ ] deterministic vectors produced by the prototype are consumed by a second independent implementation or checked against upstream KATs
-- [ ] one-time key material handling and depletion behavior demonstrated without downgrade
+- [x] Rust feasibility prototype of the PQXDH + Triple Ratchet/SPQR-class state machine runs on native and wasm32 with state persistence/reload
+- [x] deterministic vectors produced by the prototype are consumed by a second independent implementation or checked against upstream KATs
+- [x] one-time key material handling and depletion behavior demonstrated without downgrade
 - [ ] dependency, licensing and update strategy recorded in an ADR
 - [ ] no reliance on an unsupported external library API contract
 
@@ -67,6 +68,12 @@ Pre-release criteria:
 
 - [ ] independent cryptographic review of the integrated production path
 - [ ] production build provably excludes dev/test CryptoProvider (R-072)
+
+What remains (needs someone other than the author):
+
+- ADR-0118 accepted (needs the operator's SPQR licence decision, A-023)
+- no unsupported external API contract: resolved only by A-023 (clean-room or supported relicensed spqr)
+- criterion 2 independence: both implementations came from one agent (NIST ACVP KATs are upstream); ADR-0117 or a second author
 
 ### V-002 — `account_control_formal_model`
 
@@ -471,7 +478,7 @@ Show OM meets the measurable speed, battery, memory and size budgets in MOTION_A
 - **Scopes blocked:** reference_client_ui, provider_reference
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
-- **Evidence:** `docs/architecture/ux/MOTION_AND_PERFORMANCE.md`; `docs/process/PERFORMANCE_MEASUREMENT_PLAN.md`
+- **Evidence:** `docs/architecture/ux/MOTION_AND_PERFORMANCE.md`; `docs/process/PERFORMANCE_MEASUREMENT_PLAN.md`; `verification/results/v001-crypto-latest.json`
 
 Pre-engineering criteria:
 
@@ -486,5 +493,5 @@ Pre-release criteria:
 
 What remains (needs someone other than the author):
 
-- crypto/codec costs from V-001/V-005 prototypes (in progress)
+- codec costs from V-005 (in progress)
 - review of the measurement plan by someone other than its author
