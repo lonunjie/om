@@ -15,11 +15,11 @@ freezes them.
 | 540 object vectors (36 positive, 504 negative) | `verification/vectors/v005-w0-object-vectors.json.gz` |
 
 1. **Two codecs agree.** The Rust strict codec (`rust/`) and the Node strict
-   harness (`verification/cbor/node_strict_harness.mjs`) decode, validate and
+   harness ([`verification/cbor/node_strict_harness.mjs`](../../cbor/node_strict_harness.mjs)) decode, validate and
    re-encode every vector. For each one, `gen/compare.py` checks the verdict,
    the exact error class, byte-identical re-encoding and the derived
    signature/hash inputs. Rust also re-encodes the 14 existing
-   `verification/cbor/fixtures.json` fixtures.
+   [`verification/cbor/fixtures.json`](../../cbor/fixtures.json) fixtures.
 2. **Two CDDL tools agree.** `gen/cddl_check.py` validates each vector with
    the Rust `cddl` crate 0.10.7 and the Ruby `cddl` gem 0.12.14. It also feeds
    the Ruby tool's generated examples to the Rust codec in lenient mode.
@@ -28,7 +28,7 @@ freezes them.
    type, natively and as wasm32-wasip1 under wasmtime.
 
 Positive vector bytes come from the existing, unmodified
-`verification/cbor/python_canonical.py` encoder. The generator only
+[`verification/cbor/python_canonical.py`](../../cbor/python_canonical.py) encoder. The generator only
 hand-emits bytes for deliberately non-canonical negatives.
 
 ## Run

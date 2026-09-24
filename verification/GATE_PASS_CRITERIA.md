@@ -144,7 +144,7 @@ Publish deterministic-CBOR/CDDL golden vectors produced and consumed correctly b
 - **Scopes blocked:** core_kernel
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_implementation; pre-release independent_implementation
-- **Evidence:** `verification/results/cbor-cross-impl-latest.json`; `verification/cbor/fixtures.json`; `verification/cbor/python_canonical.py`; `verification/cbor/node_canonical.mjs`
+- **Evidence:** `spec/cddl/`; `spec/registries/`; `verification/prototypes/v005-encoding/README.md`; `verification/results/v005-encoding-latest.json`; `decisions/ADR-0119-freeze-w0-cddl-and-registries.md`
 
 Pre-engineering criteria:
 
@@ -154,6 +154,11 @@ Pre-engineering criteria:
 Pre-release criteria:
 
 - [ ] every conforming implementation in the release passes the complete vector suite
+
+What remains (needs someone other than the author):
+
+- operator accepts ADR-0119 (freeze)
+- independence: both codecs by one agent — ADR-0117 or a second author
 
 ### V-006 — `web_device_vault_feasibility`
 
@@ -478,12 +483,12 @@ Show OM meets the measurable speed, battery, memory and size budgets in MOTION_A
 - **Scopes blocked:** reference_client_ui, provider_reference
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
-- **Evidence:** `docs/architecture/ux/MOTION_AND_PERFORMANCE.md`; `docs/process/PERFORMANCE_MEASUREMENT_PLAN.md`; `verification/results/v001-crypto-latest.json`
+- **Evidence:** `docs/architecture/ux/MOTION_AND_PERFORMANCE.md`; `docs/process/PERFORMANCE_MEASUREMENT_PLAN.md`; `verification/results/v001-crypto-latest.json`; `verification/results/v005-encoding-latest.json`
 
 Pre-engineering criteria:
 
 - [x] budgets and reference device classes recorded in MOTION_AND_PERFORMANCE.md
-- [ ] V-001 and V-005 prototypes record crypto and codec costs on native and wasm32 against the budgets; unattainable budgets revised by ADR
+- [x] V-001 and V-005 prototypes record crypto and codec costs on native and wasm32 against the budgets; unattainable budgets revised by ADR
 - [ ] measurement harness plan (lab devices + CI emulation) reviewed
 
 Pre-release criteria:
@@ -493,5 +498,4 @@ Pre-release criteria:
 
 What remains (needs someone other than the author):
 
-- codec costs from V-005 (in progress)
 - review of the measurement plan by someone other than its author

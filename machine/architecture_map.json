@@ -130,7 +130,8 @@
         "ADR-0072",
         "ADR-0073",
         "ADR-0107",
-        "ADR-0118"
+        "ADR-0118",
+        "ADR-0119"
       ],
       "resolved_questions": [
         "Q-001",
