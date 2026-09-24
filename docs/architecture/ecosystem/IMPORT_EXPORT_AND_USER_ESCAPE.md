@@ -151,6 +151,13 @@ Local drafts, notification tokens, provider secrets, caches, push subscriptions,
 
 Disappearing/expired content that has already been cryptographically/lifecycle-erased cannot be resurrected merely because an archive format exists.
 
+### Disappearing and ViewOnce content (ADR-0129)
+
+1. **ViewOnce is never exported**, in any profile. The archive records at most a placeholder that a ViewOnce item existed.
+2. **Disappearing items that have not yet expired** are exported only in portable secure export, and each carries its canonical expiry: the envelope `expiry` (absolute wall clock, ADR-0128 rule 16). The `portable/` projection carries the same value as an `expiry` field on each such record.
+3. **Importers enforce expiry.** On import (rehydrate or read-only) a client drops every item whose expiry has passed and schedules deletion of the rest at their original expiry. An importer that cannot enforce expiry does not import disappearing items.
+4. **Human-readable export excludes disappearing items by default.** Including them is an explicit per-export choice with a warning that the files will not disappear.
+
 ## 10. Importing an OM archive
 
 Import has two distinct modes:

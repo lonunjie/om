@@ -130,3 +130,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0126 — W0 spec addendum from the architecture review](ADR-0126-w0-spec-addendum-from-the-architecture-review.md)
 - [ADR-0127 — Account authority transition rules](ADR-0127-account-authority-transition-rules.md)
 - [ADR-0128 — Group reduction liveness, membership consent and room capabilities](ADR-0128-group-reduction-liveness-membership-consent-and-room-capabilities.md)
+- [ADR-0129 — Extension, service and client trust boundaries](ADR-0129-extension-service-and-client-trust-boundaries.md)

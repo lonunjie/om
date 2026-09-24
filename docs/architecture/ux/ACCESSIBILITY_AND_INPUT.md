@@ -72,7 +72,7 @@ Always provide non-audio communication of:
 - dominant/speaking participant where useful;
 - captions/transcription availability and state.
 
-Future caption/transcription implementations should prefer local/on-device processing where feasible and make any remote processing explicit.
+Future caption/transcription implementations should prefer local/on-device processing where feasible. Remote captioning or transcription sends other participants' speech to a third party, so it is a ServicePrincipal invocation under [`SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`](../ecosystem/SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md): because it receives audio continuously it joins the call as a visible service participant, shown to **all** call participants in the call roster as able to hear the call, and is never enabled silently by one participant (ADR-0129).
 
 ## Themes/accessibility
 

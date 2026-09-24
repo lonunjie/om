@@ -89,3 +89,10 @@ For future native distributions, APNs/FCM gateways may be operated by that distr
 ## Multiple IdentityProfiles
 
 A single client installation may later host several profiles. Push routing uses opaque per-profile/per-device handles that the recipient client maps locally. Push services must not receive a stable cross-profile person identifier. The notification UI may indicate the destination profile only according to that profile's privacy policy.
+
+**The platform push token is itself a linkage point (ADR-0129).** An APNs/FCM token is per app install, and a Web Push subscription is per service-worker registration. If profiles A and B hand the same token or endpoint to different Homes or PushGateways, those parties, and the platform push service that sees two senders targeting one endpoint, can link the profiles. Opaque wake handles above the token do not prevent this. Therefore:
+
+1. **Web:** each IdentityProfile registers its own service worker with a distinct scope and obtains its own Web Push subscription (distinct endpoint and keys). No subscription is shared between profiles.
+2. **Native (one token per app):** the token is a **declared linkage point**. The push provider's MetadataExposureDescriptor states that one token is shared by every profile on the install that uses vendor push, so any party receiving it for two profiles can link them.
+3. **"Keep separate" profiles** ([`MULTI_IDENTITY_AND_PROFILE_ISOLATION.md`](MULTI_IDENTITY_AND_PROFILE_ISOLATION.md)) must not silently share the token. They offer, per profile: disable vendor push for this profile (it then wakes on app open or background fetch, with the §6 delay warning), or route every profile's wakes through one user-chosen gateway that is declared as the linkage point and fans out through unlinkable per-profile handles. The UI states the tradeoff in one sentence.
+4. V-015 tests that two profiles on one install never present the same subscription or token to two different parties unless the descriptor declares it.

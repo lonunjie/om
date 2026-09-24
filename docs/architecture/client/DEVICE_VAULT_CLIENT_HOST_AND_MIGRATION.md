@@ -25,7 +25,7 @@ PWA has an unavoidable endpoint limitation: a malicious origin can eventually de
 
 Mitigations:
 
-- user owns the origin/account rather than one universal OM origin;
+- where the user owns the origin/account, no universal OM origin can ship code to them (most T0/T1 users do not own one and use a shared ClientHost; its controls are in [`CLIENTHOST_UPDATE_LIFECYCLE.md`](CLIENTHOST_UPDATE_LIFECYCLE.md) §9);
 - separate public service origin from app origin;
 - strong provider account security/2FA;
 - minimal origin contents and strict CSP;
@@ -49,7 +49,7 @@ DeviceVault
   capabilities()
 ```
 
-Each profile gets an independent random `ProfileVaultKey` (PVK). Derive independent subkeys with a domain-separated KDF, e.g.:
+Each profile gets an independent random `ProfileVaultKey` (PVK). Derive independent subkeys with a domain-separated KDF, e.g. (the labels below are **implementation-private local labels: not registered, not interoperable**; they never appear on the wire or in archives, are not part of [`om-domain-separation.json`](../../../spec/registries/om-domain-separation.json), and an implementation may use different ones, ADR-0129):
 
 ```text
 PVK
@@ -68,10 +68,18 @@ Long-lived protocol private keys are stored/sealed behind the vault and are not 
 
 1. WebAuthn PRF-derived wrapping secret when supported and explicitly enrolled;
 2. persisted non-extractable WebCrypto wrapping key where support/behavior passes platform tests;
-3. passphrase-derived KEK only when the user explicitly selects a passphrase unlock/recovery mode; use a reviewed memory-hard KDF such as Argon2id with versioned calibrated parameters;
+3. passphrase-derived KEK only as an **additional** wrapping factor that the user explicitly selects, layered over method 1, 2 or 4; use a reviewed memory-hard KDF such as Argon2id with versioned calibrated parameters. A passphrase is never the sole wrapper of a production DeviceIdentity (matching the 2026-09-23 resolution below);
 4. platform/native keystore when hosted in a native shell.
 
 WebAuthn PRF/WebCrypto are vault wrappers, not OM identity roots.
+
+**Vault wrapping is separate from the recovery custodian (ADR-0129).** ADR-0111 makes a synced passkey's PRF the default RecoveryRoot custodian. The vault must not rest on the same secret:
+
+1. Where the platform offers a device-bound (non-synced) credential (a platform authenticator marked device-bound, a security key, or the native keystore), the vault is wrapped with it.
+2. In every case the vault uses a WebAuthn credential or PRF salt and label distinct from the RecoveryRoot's, so one PRF output never serves both.
+3. Where the only available credential is a synced passkey, the client uses a separate synced credential or at least a separate salt, and states the reduced property: someone who controls the passkey provider account and obtains a copy of the browser profile can open local state. The recovery delay protects account authority, not local plaintext.
+
+V-006 records, per browser/platform, whether a device-bound credential is available and exercises the separate-salt path.
 
 ## 6. Migration between PWA origins/providers
 
@@ -90,7 +98,7 @@ old client
 
 Never define “copy browser database files to the new origin” as the identity migration protocol.
 
-If the old device/origin is gone, use RecoveryPolicy. If RecoveryPolicy is none, identity loss is an intentional possible outcome.
+If the old device/origin is gone, use RecoveryPolicy, which is on by default (ADR-0111). If recovery was explicitly turned off, identity loss is a possible outcome.
 
 ## 7. Browser eviction
 

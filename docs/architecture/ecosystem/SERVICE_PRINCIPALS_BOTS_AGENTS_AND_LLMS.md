@@ -20,7 +20,7 @@ user explicitly invokes service
  -> host/user decides what becomes canonical chat state
 ```
 
-A service that needs continuous/full Room plaintext must instead become an explicit Room service member/subscriber under Room policy. That is a visible trust-boundary change and, for a private Room, is cryptographically represented rather than hidden inside the client.
+A service that needs continuous Room plaintext must instead become an explicit full Room member under Room policy. That is a visible trust-boundary change and, for a private Room, is cryptographically represented (it holds the Room's MLS keys) rather than hidden inside the client. There is no cryptographic mode between the two (ADR-0129).
 
 ## Principal types
 
@@ -126,6 +126,8 @@ ServiceDefinition
 
 This is declaration/provenance, not permission. Actual authority comes from installation grants and Room/Space/account policy.
 
+`local_component` means the service runs on the user's own device as a sandboxed plugin ([`PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md`](PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md)). Its service endpoint credential is sealed in that device's DeviceVault, is never readable by the component's code, and is used only by the host to sign the component's ServicePrincipal-authored events. A local plugin that acts without per-action confirmation must run in this mode (ADR-0129).
+
 ## Installation scope and interaction scope are separate
 
 A service may be installed at:
@@ -155,13 +157,15 @@ revocation_state
 
 Space installation alone never grants child-Room plaintext. A child Room must explicitly bind/install the service or accept delegated installation authority under the existing SpaceAuthorityBinding rules.
 
-## Four data-access modes
+## Data-access modes
+
+There are exactly two cryptographic positions a remote service or bridge can hold toward a conversation: **not a member** (invocation-only) or **full member**. Local processing (mode 2) is a third, device-local case. The former "scoped event subscription" is not a cryptographic mode; it is a trigger filter on full membership (ADR-0129).
 
 ### 1. Explicit selected-context invocation — default
 
 The service is **not** a Room member and receives no ambient transcript.
 
-The user invokes a command/action and the client creates a bounded disclosure bundle containing only selected data, for example:
+The user invokes a command/action and the invoking member's client creates a bounded disclosure bundle containing only selected data, and sends it to the service over a 1:1 OM session with a service endpoint authorized by the current ServiceControlState. Each invocation is a one-shot, user-initiated disclosure (ADR-0124 rule 1) and appears in disclosure receipts. No other member's device forwards anything, and no member device is ever a standing forwarder for a service. Selected data may be, for example:
 
 - the selected message;
 - selected attachments;
@@ -176,19 +180,24 @@ The UI can summarize what will leave the local trust boundary before a remote ca
 
 A local service/plugin may process plaintext on the user's device under local capability grants.
 
-Local execution is not automatically a disclosure to Room peers because every client can already process plaintext it legitimately receives. However, local services receive **no network capability by default**. If a local service can send data to the network, the host treats that as a separate disclosure capability and warns/grants accordingly.
+Local execution is not automatically a disclosure to Room peers because every client can already process plaintext it legitimately receives. However, local services receive **no network capability by default**.
 
-### 3. Scoped event subscription
+~~If a local service can send data to the network, the host treats that as a separate disclosure capability and warns/grants accordingly.~~ The local user's grant is not enough for plaintext to leave. ADR-0124's taint rule applies to local services, personal-scope installations and personal `AutomationRule`s exactly as to Room-installed services (ADR-0129):
 
-A Room may authorize a service to receive selected event classes or selected Topic/context scope without making it a full semantic human member.
+- an invocation that has read conversation plaintext is tainted;
+- a tainted invocation gets no network egress unless the conversation's policy grants `plaintext_egress` (Room policy in a Room; the policy of both participants in a 1:1);
+- a one-shot, user-initiated, per-action selected-context disclosure is the only exception, and it is handled like mode 1;
+- continuous or automated egress of conversation plaintext is export under [`INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`](INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md) §7 and needs that authorization.
 
-The subscription is explicit shared Room control state, visible to members, and limited by capabilities. The service gets only the event classes/scope declared by that installation.
+### 3. ~~Scoped event subscription~~ Trigger filter on a full member
 
-For private encrypted Rooms, the implementation must still define how those selected plaintext events are encrypted/delivered to the service endpoint; the service is an intended recipient for those disclosed events.
+~~A Room may authorize a service to receive selected event classes or selected Topic/context scope without making it a full semantic human member.~~
+
+A private Room cannot deliver a subset of its events to a non-member without either giving it the Room's keys or making some member device a disclosure agent. OM does neither for services (ADR-0129). A Room that wants a service to react only to selected event classes or a Topic installs it as a **full member** (mode 4) and records a **trigger filter** in the installation: which event classes or scopes wake the service and which it may act on. The filter limits automation, not reading. The roster and installation UI must say that the service **can read all Room content**, whatever its filter.
 
 ### 4. Full Room service member
 
-A service is admitted as a typed member/recipient and receives the Room plaintext its membership permits.
+A service is admitted as a typed member/recipient and receives all Room plaintext from the epochs of its membership. This is the only way a service or bridge gets continuous access.
 
 For private Rooms:
 
@@ -198,7 +207,7 @@ For private Rooms:
 - removal performs the normal Room control + MLS removal transition;
 - prior plaintext legitimately received cannot be clawed back.
 
-The roster/UI must clearly communicate that automation/service infrastructure can read the Room.
+The roster/UI must clearly communicate that automation/service infrastructure can read the Room. Bridges are always full members ([`INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`](INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md) §6).
 
 ## ContextDisclosureBundle
 
@@ -352,11 +361,23 @@ Default automation rules ignore service-originated events unless explicitly conf
 Revocation stops future authority:
 
 - personal selected-context service: delete/revoke installation and credentials;
-- Room subscription: remove subscription grant;
+- ~~Room subscription: remove subscription grant;~~ trigger filter change: an ordinary installation update (it never changed what the service could read);
 - full private-Room service: revoke installation + remove service endpoints through Room control/MLS;
-- endpoint compromise: rotate/revoke endpoint in ServiceControlState.
+- endpoint compromise: rotate/revoke endpoint in ServiceControlState, then remove it from every Room (below).
 
 Revocation cannot prove a remote service forgot plaintext it already received. UI and policy must not promise retroactive erasure.
+
+### Endpoint revocation reaches every Room (ADR-0129)
+
+A revoked service endpoint that stays in a Room's MLS tree keeps receiving plaintext. Revocation therefore has a defined path into Rooms, the service counterpart of AccountControlHead gossip and ADR-0128 rule 2:
+
+1. **Head carriage.** A full-member service's installation in GroupControlState records the ServiceControlState head (version and hash) it was admitted under. The service's controllers must deliver every new head to each Room where it is installed, as the revoking transition's own delivery step. Members also gossip `ServiceControlHead` observations inside the Room, as for AccountControlHead. Recipients keep the highest validated head and reject rollback (ADR-0122 rule 6).
+2. **Stop and remove.** A member that validates a head in which an endpoint is revoked (or replaced by `migrate_endpoint`) sends no further application messages until a Commit removing that endpoint's leaf is accepted, and proposes the Remove itself.
+3. **Who commits, and by when.** Removing a revoked service endpoint needs no capability (basis: membership), like removing a revoked device. The coordinator sequences it; if it is not committed within the Room's `sequencing_timeout` (ADR-0128 rule 1: default 5 minutes, maximum 1 hour), any member may commit it directly. Competing identical removals are ordered by ADR-0121 and deduplicated by `(ServiceID, endpoint_id, ServiceControlState version)`.
+4. **Monotone.** The removal is an authority reduction (ADR-0122 rule 1): it rebases onto any later head and is never frozen by a fork.
+5. **Bound.** Exposure after revocation is bounded by the time for the first member to receive the head plus `sequencing_timeout`. A Room in which no member receives the head keeps delivering to the endpoint; that is the documented bounded staleness of ADR-0122 rule 8, and the service's controllers close it by delivering the head.
+
+V-011 models this case and the threat register records it (T-073).
 
 ## Creation, discovery and catalogs
 
@@ -374,7 +395,7 @@ A conforming third-party client can interact with a service from published inter
 2. Installation scope and data-access scope are separate.
 3. Selected-context invocation is the default remote-agent path.
 4. Space installation never silently grants child-Room plaintext.
-5. Full Room service access is visible shared trust-boundary state.
+5. Full Room service access is visible shared trust-boundary state, and it is the only form of continuous access; the roster says the service can read all Room content.
 6. Local LLM does not imply network disclosure; network is a separate capability.
 7. LLM output/tool requests are untrusted and capability-mediated.
 8. Autonomous service posts are authored by the ServicePrincipal.
@@ -383,6 +404,8 @@ A conforming third-party client can interact with a service from published inter
 11. No OM Project bot cloud/catalog is required for interoperability.
 12. Creating a ServiceID requires no central issuer and grants no ambient reach/read/send authority.
 13. A service acting for a person remains ServicePrincipal-authored with a scoped `RepresentationGrant`; it never becomes an Account device merely by representation.
+14. Every executable extension that reads conversation plaintext is subject to taint; a local user's grant alone never permits plaintext egress (ADR-0129).
+15. A revoked service endpoint is removed from every Room within the bound above, by any member if the coordinator does not (ADR-0129).
 
 ## 2026-09-24 verification rulings
 
@@ -390,3 +413,4 @@ Normative, from the V-series models. The ADR is authoritative where this summary
 
 - [ADR-0122](../../../decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md): the service, its endpoints and its hosts are ineligible controllers (no self-appointment). Recipients enforce anti-rollback on ServiceControlState. `migrate_endpoint` is one atomic transition, and endpoint revocations are monotone reductions.
 - [ADR-0124](../../../decisions/ADR-0124-service-information-flow-and-bridge-provenance.md): the triggering message is a plaintext disclosure. An invocation that has read Room plaintext is tainted, and a tainted invocation gets no network egress without an explicit `plaintext_egress` grant. Content filtering is not a control.
+- ADR-0129: ADR-0124's taint rule covers local plugins, personal installations and personal automations; in a 1:1 `plaintext_egress` needs both participants' policy. A service or bridge is either invocation-only (selected context over a 1:1 session) or a full member; "scoped subscription" is a trigger filter on full membership. Revoked service endpoints are removed from every Room with ADR-0128 rule 1 liveness. Autonomous local plugins are `local_component` ServicePrincipals.

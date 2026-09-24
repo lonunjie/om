@@ -219,6 +219,21 @@ or another clear equivalent.
 
 The service does **not** become an Account device and cannot vote in `AccountControlState` merely because it represents Alice in a Room.
 
+#### Who may issue a RepresentationGrant (ADR-0129)
+
+1. `issued_by_account_authority` is a signature by an **active, non-quarantined control device** of the represented account, over the grant and the AccountControlState head it was validated against. That is the same level as linking a messaging device (ADR-0127 rule 2). A messaging-only device cannot issue, expand or re-scope a grant; it can only revoke one.
+2. The grant records that device and head as its **basis** (ADR-0122 rule 2). The grant is valid only while its basis is: if the issuing device is quarantined or revoked, the grant stops being valid at the first epoch after the recipient validates that head, and it must be re-issued by another control device to survive. A grant is never valid against an AccountControlState older than the one it names (ADR-0122 rule 6).
+3. Issuing or expanding a grant produces the non-suppressible notice on the account's other devices and appears under **Connected services** ([`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md) §2).
+
+#### Counterparties must be told when a service reads their messages (ADR-0129)
+
+A grant that makes a service a recipient of other people's messages (for example "answer direct messages from an allowlist") sends those people's plaintext to a third party. That happens only visibly:
+
+1. The service's endpoint is added to the conversation as a recipient in conversation state, never reached by Alice's device silently forwarding. (Forwarding would be continuous egress, which the taint rule in [`SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`](SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md) mode 2 already forbids without both participants' `plaintext_egress` policy.)
+2. Before the counterparty's client encrypts anything to the service endpoint, it shows a conversation-state notice on the Bridge §8 pattern: **"Alice's messages here are handled by Assistant. Assistant can read what you send."**
+3. The counterparty may decline. Representation is then unavailable in that conversation and Alice's client says so; nothing is forwarded.
+4. The notice is reserved security UI ([`THEMES_FONTS_AND_PERSONALIZATION.md`](../ux/THEMES_FONTS_AND_PERSONALIZATION.md)) and stays visible while the grant is active.
+
 ## 10. Representation is scoped, not impersonation
 
 A representation grant may allow, for example:
@@ -306,7 +321,7 @@ At installation/invocation, the client shows the actual requested capabilities a
 
 - selected-context invocation is default;
 - local plaintext access and network egress are separate;
-- scoped subscription is explicit;
+- ~~scoped subscription is explicit;~~ a service is either invocation-only or a full member; a trigger filter never narrows what a full member can read (ADR-0129);
 - full Room membership is a visible plaintext-recipient change;
 - draft and send are distinct capabilities;
 - tool calls are host-mediated;
@@ -327,7 +342,7 @@ Automation lineage/hop/rate controls remain mandatory. A service cannot make ano
 5. OM never promises to detect AI-generated content.
 6. User-confirmed Account actions may remain Account-authored regardless of drafting assistance.
 7. Autonomous delegated actions remain ServicePrincipal-authored.
-8. Representation grants are visible, scoped, revocable and cannot bootstrap Account control.
+8. Representation grants are visible, scoped, revocable and cannot bootstrap Account control. They are issued by a control device, die with their basis, and are shown to every counterparty whose messages the service receives (ADR-0129).
 9. Human-readable aliases are replaceable claims, not service identity.
 10. No OM Project bot store/cloud/registry is required for protocol correctness.
 
@@ -338,7 +353,7 @@ V-011 must now include:
 - permissionless ServiceGenesis verification;
 - controller/no-self-bootstrap transitions;
 - endpoint-host migration/revocation;
-- representation grants and attempted impersonation;
+- representation grants and attempted impersonation, including a grant issued by a messaging-only device (must be rejected), a grant whose issuing controller is later quarantined (must stop validating) and a counterparty-recipient grant without the counterparty notice (must fail);
 - distinction between Account-confirmed and autonomous service actions;
 - installation/data-access boundaries;
 - catalog/alias replacement without identity replacement;

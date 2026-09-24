@@ -101,29 +101,29 @@ The UI honors reduced-motion/autoplay preferences. Reduced-motion mode may show 
 
 ## ExpressiveAssetRef
 
-Conversation and rich-text references use an immutable asset reference, conceptually:
+Conversation and rich-text references use an immutable asset reference. It is the frozen W0 `attachment-ref` ([`spec/cddl/events.cddl`](../../../spec/cddl/events.cddl)) plus expressive fields, so a recipient has everything it needs to fetch, verify and decrypt the asset (ADR-0129):
 
 ```text
-ExpressiveAssetRef
+ExpressiveAssetRef = attachment-ref + {
   kind                       # sticker | custom_emoji | reaction_asset | loop_animation
-  blob_id                    # stable integrity-bound OM BlobID
   media_profile_id           # e.g. om.expressive.webp-v1
-  encoded_size
-  width
-  height
-  duration_ms?
   alt_text                   # bounded accessible fallback
   fallback_text?             # e.g. Unicode emoji/shortcode
   pack_ref?                  # ContentPackID + release/item metadata
+}
 ```
 
-The `blob_id` is the rendering authority. `pack_ref` never changes the bytes of an already-sent event.
+From `attachment-ref` it carries `blob_id`, `media_type`, `plaintext_size`, `ciphertext_digest`, the encryption descriptor (profile and key), optional locations, width, height and `duration_ms`. It is the payload of the W1 reserved slots: `ReactionSet` key 3 (`reaction_asset`) and inline type 4 (`custom_emoji`), sent only under ADR-0128 rule 18 (every recipient device advertises the encoding, otherwise the W0 fallback text is sent).
+
+~~The `blob_id` is the rendering authority.~~ The attachment-ref's digest-bound blob is the rendering authority: a client renders only bytes whose ciphertext matches `ciphertext_digest` and that decrypt under the descriptor. `pack_ref` never changes the bytes of an already-sent event.
+
+**Fresh encryption per send by default.** Each send encrypts the asset under a fresh key and uploads it as a new blob, so one BlobID never links senders or conversations at a BlobStore (the same reason cross-profile content dedup is forbidden in [`MULTI_IDENTITY_AND_PROFILE_ISOLATION.md`](../client/MULTI_IDENTITY_AND_PROFILE_ISOLATION.md)). A client may offer a declared **shared-blob mode** that reuses a pack's already-encrypted blob to save upload. That mode is a named policy choice, off by default, and its linkage (one BlobID and key seen across conversations by the BlobStore and by every recipient) is a line in the BlobStore's MetadataExposureDescriptor that V-015 checks.
 
 If the expressive asset is unavailable, unsupported or motion-disabled, clients render the bounded `alt_text`/`fallback_text` rather than a broken active embed.
 
 ## Stickers and animations in messages
 
-A sticker/animation is sent using normal `message.create` plus an expressive attachment/reference. It does **not** need a special transport or separate encryption model.
+A sticker/animation is sent using normal `message.create` plus an expressive attachment/reference. It does **not** need a special transport or separate encryption model: it is an attachment-ref, encrypted per send like any other attachment.
 
 Sending performs the same client-side encryption, blob integrity verification, repair/mirroring and retention behavior as other attachments.
 

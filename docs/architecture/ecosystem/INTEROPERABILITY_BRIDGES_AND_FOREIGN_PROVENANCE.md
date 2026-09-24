@@ -108,7 +108,7 @@ Native Account authorship still requires an authorized OM endpoint signature.
 
 Continuous two-way bridging of a private OM Room is a high-risk plaintext disclosure.
 
-The bridge must be explicitly admitted/bound under Room policy as a visible plaintext recipient/export boundary. Depending on implementation it may be a full MLS member or another cryptographically explicit authorized disclosure recipient defined by the bridge protocol, but it cannot be hidden inside a server-side integration.
+The bridge must be explicitly admitted/bound under Room policy as a visible plaintext recipient/export boundary. **A bridge is always a full MLS member** of a private Room it bridges (ADR-0129): its authorized endpoints hold the Room's epoch keys and can read all Room content from the epochs of its membership, and the roster says so. There is no narrower cryptographic bridge mode and no member device acts as a forwarder for it. `allowed_event_classes` below limits what the bridge exports, not what it can read. It cannot be hidden inside a server-side integration.
 
 Room state identifies:
 
@@ -253,10 +253,10 @@ A bridge must refuse/restrict an event when:
 
 - its BridgeID already appears in the traversed path;
 - hop limit is exhausted;
-- the origin fingerprint has already been materialized for the same mapping/direction;
+- the origin fingerprint has already been materialized in this Room, through any bridge (dedup is per Room across bridges, ADR-0124 rule 3);
 - policy identifies a reflection path.
 
-The metadata-leak consequences of origin fingerprints and bridge paths are governed by [`METADATA_THREAT_MODEL.md`](../../threat-model/METADATA_THREAT_MODEL.md); origin fingerprints are mapping/bridge-domain scoped by default.
+The metadata-leak consequences of origin fingerprints and bridge paths are governed by [`METADATA_THREAT_MODEL.md`](../../threat-model/METADATA_THREAT_MODEL.md); origin fingerprints are keyed with a Room-scoped secret over (origin network, foreign origin id) (ADR-0124); dedup is per Room across bridges.
 
 ## 14. Multi-bridge conflict behavior
 
@@ -336,3 +336,4 @@ Bridge path/lineage is diagnostic/security metadata and is disclosed only as nee
 Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
 
 - [ADR-0124](../../../decisions/ADR-0124-service-information-flow-and-bridge-provenance.md): `origin_fingerprint` is keyed with a Room-scoped secret over (origin network, foreign origin id), not per bridge, so independent bridges deduplicate within a Room and no fingerprint is stable across Rooms. Metadata-stripping paths yield `origin_unverified`, and adapters declare `carries_interop_metadata`. Bridge-to-bridge relay through OM is off unless the Room opts in. A bridge exports only epochs within its own membership intervals.
+- ADR-0129: a bridge is always a full Room member; "another cryptographically explicit authorized disclosure recipient defined by the bridge protocol" is removed. Export limits (`allowed_event_classes`) do not limit what the bridge can read.

@@ -37,8 +37,7 @@ The shared `om-ui` owns the visible application experience. Platform shells own 
 
 The PWA is expected to support:
 
-- OM-native 1:1 and group messaging;
-- PQ/hybrid E2EE through OM Core;
+- OM-native 1:1 (hybrid-PQ) and group (classical MLS until the ADR-0107 triggers are met) messaging through OM Core;
 - media/file transfer and encrypted storage;
 - local encrypted state and offline UI;
 - QR / `om:` invitations and ContactCapsule sharing;

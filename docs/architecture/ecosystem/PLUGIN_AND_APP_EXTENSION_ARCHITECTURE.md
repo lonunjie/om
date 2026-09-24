@@ -68,6 +68,17 @@ WASI is not inherited wholesale. A plugin starts with no ambient filesystem, net
 
 This choice is architectural, while PWA/native runtime feasibility/parity remains a blocking proof gate (`V-010`). A failure of one particular runtime library may cause an implementation/runtime revision without permitting an arbitrary unsandboxed in-process plugin model.
 
+### PWA: plugins run on a separate site (ADR-0129)
+
+In a browser, a Wasm component instantiated in the ClientHost origin, or in a same-origin worker, shares a renderer process with OM Core's wasm linear memory, which holds ratchet and MLS secrets. Import restriction does not stop Spectre-class reads. "No shared OM process memory" therefore holds in the PWA only when:
+
+1. plugins execute in a sandboxed frame or worker served from a **different registrable domain** (a different site, not only a different origin) than the ClientHost;
+2. the ClientHost is cross-origin isolated (COOP `same-origin`, COEP) so the browser can place the plugin site in its own process where the platform supports site isolation;
+3. every host-to-plugin message travels over a `MessageChannel` whose endpoint is bound at creation to the exact plugin origin, and the host drops any message whose origin or channel does not match;
+4. where the browser cannot give process isolation (for example a platform without site isolation), the host disables plugins that hold any `content.*` capability and says so; it never falls back to same-origin execution.
+
+Native hosts run plugins in a separate process or an equivalent memory-isolated runtime.
+
 ## Why not arbitrary JavaScript/Swift/Kotlin/Rust in-process plugins
 
 The official client handles:
@@ -102,7 +113,7 @@ content.read_attachment_selected
 
 compose.insert
 compose.create_draft
-conversation.send_message
+conversation.send_message     # confirmed send only; see below
 conversation.set_reaction
 conversation.open
 
@@ -114,7 +125,23 @@ service.invoke
 
 Security-sensitive capabilities such as `conversation.send_message`, broad plaintext history read and network egress require prominent install/runtime disclosure.
 
+**`conversation.send_message` is send-with-confirmation (ADR-0129).** The host shows the exact outgoing content and destination, and the user confirms each send. Only a send confirmed that way is authored by the AccountPrincipal (the Account-confirmed case in [`SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`](SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md) §9.1). Extension code never emits Account-authored events on its own.
+
+A plugin that must act without per-action confirmation (auto-reply, scheduled posts, a local LLM agent) runs as a **`local_component` ServicePrincipal**: it has its own ServiceID and ServiceControlState, its service endpoint credential is sealed in the device's DeviceVault under the plugin's own purpose label and is never readable by plugin code, and its events are authored by the ServicePrincipal (labelled as automation) or carry a `RepresentationGrant` ("Alice · via X"). Installing such a plugin is a personal service installation, so the notice rule in [`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md) §2 applies.
+
 A permission to read plaintext does not imply permission to transmit it. Network egress is separate.
+
+### Plaintext taint applies to plugins (ADR-0129, extending ADR-0124 rule 2)
+
+ADR-0124's taint rule covers every executable extension that reads conversation plaintext: local plugins, personal-scope service installations, personal `AutomationRule`s and Room-installed services alike.
+
+1. A plugin invocation that has read conversation plaintext through any `content.*` capability (or received it as a trigger) is **tainted** for that conversation.
+2. A tainted invocation gets **no network egress** (`net.fetch_origin_scoped`, `service.invoke` or any other outbound channel) unless the conversation's policy grants `plaintext_egress`. In a Room that is the Room policy. In a 1:1 it needs the policy of **both** participants.
+3. The one exception is a one-shot, user-initiated, per-action selected-context disclosure: the user picks the content, sees the destination, and confirms. That is treated like manual sharing ([`INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md`](INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md) §7).
+4. Continuous or automated egress of conversation plaintext is **export** under Bridge §7. It needs the explicit bridge/export authorization there, never only the installing user's local grant.
+5. Taint lasts for the plugin's invocation and anything it writes to `storage.plugin_private` from it; a plugin cannot launder tainted data through its private storage into a later untainted invocation.
+
+V-010 tests this: a plugin with `content.read_current_conversation` and `net.fetch_origin_scoped` in a conversation without `plaintext_egress` must be blocked from egress.
 
 A permission to draft does not imply permission to send. Sending is separate.
 
@@ -156,9 +183,15 @@ Security-critical chrome remains host-owned. A plugin cannot draw over/hide:
 
 - identity verification warnings;
 - bridge/plaintext-recipient indicators;
+- service/automation authorship labels ("Assistant", "Alice · via Assistant");
+- foreign-provenance and `foreign_actor_unverified` labels;
+- full-Room service and plaintext-recipient roster entries;
+- device-link and connected-service notices;
 - permission prompts;
 - destructive confirmations;
 - account recovery/device security state.
+
+This is the same list as the reserved semantic UI in [`THEMES_FONTS_AND_PERSONALIZATION.md`](../ux/THEMES_FONTS_AND_PERSONALIZATION.md).
 
 The baseline plugin UI contract is a declarative host-rendered component/event tree or other equally isolated cross-platform contract, not arbitrary HTML injected into OM's DOM.
 
@@ -181,6 +214,14 @@ isolated origin/webview/iframe
 A web app may request typed bridge operations. The host applies the same permission model as local plugins and may require user action/confirmation.
 
 Because remote-origin code can change without a local package update, its origin/service identity and granted permissions must remain visible. A remote web app is never trusted merely because a previous version was reviewed.
+
+Isolation rules (ADR-0129):
+
+1. A mini-app is served from a **different site** than the ClientHost and runs in a sandboxed frame or webview with cross-origin isolation, for the same Spectre reason as plugins.
+2. It is framed in host-owned chrome that always shows its origin and service identity. The frame cannot cover, resize over or occlude that chrome or any reserved security surface.
+3. Every bridge message is bound to the exact origin the host launched; the host drops messages from any other origin or channel.
+4. A mini-app may not draw content that imitates OM security prompts (recovery key entry, passkey or biometric dialogs, device-link or permission prompts). Host prompts for a mini-app's requests render outside the frame, in host chrome, never inside it.
+5. The taint rule above applies: a mini-app that received conversation plaintext through the bridge is tainted.
 
 ## Plugin package and publisher continuity
 
@@ -296,6 +337,9 @@ The OM Project may operate a recommended catalog for its own distribution in the
 - no ambient authority;
 - no arbitrary in-process official-client plugin model;
 - plaintext read and network egress are separate grants;
+- tainted invocations get no egress without conversation-level `plaintext_egress`; continuous egress is export (ADR-0129);
+- no autonomous Account-authored events from extension code; autonomy means a `local_component` ServicePrincipal (ADR-0129);
+- in the PWA, plugins and mini-apps run on a separate site with cross-origin isolation (ADR-0129);
 - security UI cannot be overridden;
 - new permissions require new consent;
 - package signatures mean provenance/update continuity, not trust;

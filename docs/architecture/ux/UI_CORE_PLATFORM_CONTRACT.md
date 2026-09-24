@@ -85,7 +85,11 @@ Files
 Camera
 Microphone
 ContactsLocal
-Clipboard
+Clipboard            # write(text, sensitive: bool): sensitive marks the item for exclusion from clipboard history/sync and early expiry where supported
+SecureSurface        # screenshot/recording blocking and app-switcher snapshot suppression
+BackupExclusion      # exclude a storage path from OS/cloud device backup; file-protection class
+InputPrivacy         # disable IME learning, personalized keyboard, spellcheck and autofill on a field
+NotificationRemoval  # remove delivered OS notifications (on read, delete, disappearing expiry, quick lock)
 LocalDiscovery
 CallSystemIntegration
 NetworkHints
@@ -93,6 +97,8 @@ WindowSystem
 Haptics
 ExternalTransport     # SMS/RCS later
 ```
+
+The four leakage families and the sensitive clipboard flag are the controls [`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md) §4 requires the adapter to expose. Each reports `available | partial | unavailable`, as [`PLATFORM_CAPABILITY_MATRIX.md`](../client/PLATFORM_CAPABILITY_MATRIX.md) does, so Core decides policy and the UI states limits instead of each shell adding them ad hoc (ADR-0129).
 
 ### Capability discovery
 

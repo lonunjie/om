@@ -27,8 +27,16 @@ Rules:
 3. Linking requires an unlock of the enrolling device's DeviceVault and a short-lived ceremony (already required). Hardened adds a second confirmation on another existing device when one exists.
 4. The client periodically reminds the user of long-idle linked devices ("You have a device linked 3 months ago that hasn't been used"). This follows NotificationPolicy and never blocks messaging.
 5. Themes, plugins, bots and bridges cannot hide or restyle these notices (existing R-057).
+6. **Personal grants are as loud as device links (ADR-0129).** A personal grant that gives persistent reading does the same job as a silent link, and each can be set up in seconds on an unlocked phone. Creating or expanding any of these produces the same authenticated, non-suppressible notice on every other active device of the account:
+   - a personal service installation or plugin that holds plaintext read together with any egress (including a `plaintext_egress` policy change);
+   - a `RepresentationGrant`;
+   - a personal `AutomationRule` that reads or forwards messages;
+   - a `local_component` ServicePrincipal.
 
-Session/service lists (ServicePrincipals with full-Room access, bridges) follow the same visibility rule.
+   These grants are account state: they sync to the account's other devices, never live only on the device that created them.
+7. **Connected services** (Settings, next to Devices) lists every such grant, plus full-Room services and bridges in the user's Rooms, with who created it, when, from which device, and what it can read and send. Revoke is one tap from any device.
+
+V-021 includes a failing trace for this rule: an egress grant created on one device with no notice on the others must be rejected by the model.
 
 ## 3. Coercive adversary
 

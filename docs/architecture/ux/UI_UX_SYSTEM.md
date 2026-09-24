@@ -152,7 +152,7 @@ The New Chat surface accepts multiple discovery forms without requiring the user
 
 - scan QR;
 - tap/paste `om:` invitation;
-- paste a personal `workers.dev` contact address/link;
+- paste an OM contact address/link;
 - enter an organization/FQDN identity;
 - use a shared ContactCapsule.
 
@@ -195,6 +195,8 @@ Use familiar messaging patterns:
 
 Do not show routine padlock/encryption badges. Strong encryption is the baseline.
 
+Exceptions: labels that say **who else can read or author** are not routine badges and are always shown (ADR-0129). They are reserved security UI ([`THEMES_FONTS_AND_PERSONALIZATION.md`](THEMES_FONTS_AND_PERSONALIZATION.md)): service/automation authorship ("Assistant", "Alice · via Assistant"), "Bridge active" and "OM encryption ends at Bridge X", foreign-provenance and `foreign_actor_unverified` labels, and the roster entry of any full-Room service or other plaintext recipient.
+
 ## Security events
 
 Security attention is rare, calm and actionable.
@@ -204,6 +206,9 @@ Examples:
 - **Alice's identity changed** — explain possible recovery/device replacement and offer Review.
 - **One of your devices has been suspended** — explain consequence and open Devices.
 - **Account changes are temporarily frozen** — explain contested control state and resolution path.
+- **A new device was linked to your account** — the non-suppressible device-link notice; offer Suspend and open Devices.
+- **A service or bridge can now read this conversation** — shown to every member when a full-Room service or bridge is added, or when a counterparty's messages start going to a representing service; name it and offer Review.
+- **A connected service was added to your account** — a personal grant with plaintext read plus egress, representation or automation ([`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md) §2); offer Revoke and open Connected services.
 
 Never use alarmist language for routine background rotations/upgrades.
 
@@ -247,11 +252,13 @@ Vendor push sees only opaque wakeup information. Message text/sender previews ar
 
 Settings → Identity → Recovery.
 
-Default is **Not configured** with a plain statement: losing all authorized devices loses this identity.
+Default is **On** (ADR-0111). The screen names the custodian in plain words: "Your passkey can restore this identity" (a synced passkey), or "Your recovery key can restore this identity" when no passkey is available and always under Maximum Privacy. It also states the protection: a restore waits (Recommended 72 hours; Hardened and Maximum 7 days) and any of your devices can stop it.
 
-Available methods may include:
+**Turn off recovery** is an explicit, confirmed flow with the ADR-0111 warning: "If you turn recovery off and lose all your devices, this identity is gone for good. Nobody, including OM, can restore it." Turning it back on is one step.
 
-- recovery key;
+Additional methods may include:
+
+- recovery key (added alongside a passkey, or instead of it);
 - trusted people/guardians;
 - spare control-capable device;
 - future reviewed methods.

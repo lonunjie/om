@@ -103,14 +103,12 @@ Two different extension categories:
 
 Official client may support:
 
-- themes;
-- skins;
-- layout preferences;
-- icon packs;
-- accessibility presets;
-- renderer extensions for known safe content types.
+- declarative themes (ADR-0054), which never access messages;
+- layout and density preferences;
+- icon packs as inert theme data;
+- accessibility presets.
 
-These should not receive plaintext from unrelated conversations unless required.
+None of these receives plaintext. Rendering of new content types goes through protocol extensions plus host components, or through sandboxed plugins ([`PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md`](../ecosystem/PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md)); no renderer extension gets DOM or script access (ADR-0061).
 
 ### Independent/full clients
 

@@ -20,7 +20,7 @@ Each profile has independent:
 - notification/privacy policy;
 - ProfileVaultKey and derived local keys.
 
-No public stable `ClientInstallationID` may link profiles.
+No public stable `ClientInstallationID` may link profiles. A platform push token is such an identifier: see [`NOTIFICATIONS_AND_PUSH.md`](NOTIFICATIONS_AND_PUSH.md) §Multiple IdentityProfiles (per-profile Web Push registrations; a native token is a declared linkage point, ADR-0129).
 
 ## Shared resources allowed
 

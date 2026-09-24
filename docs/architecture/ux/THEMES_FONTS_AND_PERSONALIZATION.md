@@ -40,7 +40,7 @@ my-theme.omtheme/
   integrity.json
 ```
 
-Theme import validates schema, resource hashes, MIME/type expectations, decompression limits, dimensions and total size before activation.
+Theme import validates schema, resource hashes, MIME/type expectations, decompression limits, dimensions and total size before activation. Font files in a theme are hostile content and also pass the font sanitizer (§Fonts).
 
 ## Hard security boundaries
 
@@ -71,8 +71,17 @@ The following remain under OM semantic control:
 - unsafe/unsupported transport warnings;
 - verified/changed identity state;
 - external-link destination presentation;
+- safety numbers, verification codes and QR verification text;
+- permission, recovery and passkey prompts;
+- service/automation authorship labels ("Assistant", "Alice · via Assistant");
+- bridge-active and "OM encryption ends at Bridge X" indicators;
+- foreign-provenance and `foreign_actor_unverified` labels;
+- full-Room service and other plaintext-recipient roster entries, and counterparty notices for representing services;
+- device-link and connected-service notices;
 - focus indicator;
 - accessibility/high-contrast override.
+
+The plugin host's chrome list in [`PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md`](../ecosystem/PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md) is the same list (ADR-0129).
 
 A theme may supply stylistic variants only inside enforced semantic and contrast constraints.
 
@@ -106,8 +115,11 @@ Font engine constraints:
 - fallback chains for missing scripts/glyphs;
 - locale/script coverage warnings;
 - bounded weight/stretch settings;
-- user accessibility text-size override wins over theme preference;
-- security dialogs can fall back to known-good fonts if a theme font compromises legibility.
+- user accessibility text-size override wins over theme preference.
+
+**Security-reserved surfaces always use built-in fonts (ADR-0129).** A font can remap glyphs through `cmap` or GSUB so the rendered text differs from the string underneath, and it stays perfectly legible while doing so. Every reserved surface in §Reserved semantic UI (including safety numbers, codes, URLs and link destinations, principal and bridge labels, identity names inside warnings, and permission and recovery prompts) therefore renders with the client's built-in fonts, whatever the theme says. ~~Security dialogs can fall back to known-good fonts if a theme font compromises legibility.~~
+
+**Imported fonts are hostile content** (ADR-0062). Every font from a theme or an import passes an OTS-class font sanitizer (table whitelist, bounds checks, no hinting bytecode or other executable tables the renderer does not need) before first use, and is rejected if it fails. A theme-compiler test uses a glyph-remapping font and checks that no reserved surface changes.
 
 ## Theme identity and sharing
 

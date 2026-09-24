@@ -41,7 +41,7 @@ Goal: excellent everyday usability with privacy materially stronger than ordinar
 - ordinary directory lookup with optional privacy relay when inexpensive;
 - receipts/presence enabled by normal user choice;
 - automatic relay failover;
-- no recovery unless user explicitly enables it;
+- recovery on, with a synced passkey as custodian (recovery key when no passkey is available) (ADR-0111);
 - normal encrypted local storage.
 
 ### Hardened
@@ -56,6 +56,7 @@ Goal: reduce metadata exposure without making the app frustrating.
 - prefer relayed calls where peer-IP exposure matters;
 - provider diversity preferred;
 - encrypted backups only when explicitly configured;
+- recovery on, with a synced passkey as custodian (recovery key when no passkey is available), 7-day restore delay (ADR-0111);
 - stricter first-contact policy.
 
 ### Maximum Privacy
@@ -70,7 +71,7 @@ Goal: users with unusually strong metadata/network threats; accepts cost/latency
 - private/direct invitation preferred over searchable directories;
 - vendor push may be disabled, with explicit warning that background delivery can become delayed, especially on iOS;
 - backup normally off/local unless explicitly configured;
-- no recovery unless explicitly configured;
+- recovery on, with a recovery key only (no platform credential manager custody) and a 7-day restore delay (ADR-0111);
 - aggressive provider diversity.
 
 ### Local only (future specialty mode)
@@ -94,7 +95,7 @@ Every setting must explain the human effect, for example:
 
 - "Hide your IP address from people you call — calls may use more relay bandwidth."
 - "Do not use Apple/Google push — messages may arrive later while the app is closed."
-- "No account recovery — losing all your devices permanently loses this identity."
+- "Turn off recovery — if you lose all your devices, this identity is gone for good."
 
 ## 5. Security monotonicity
 

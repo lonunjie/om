@@ -284,4 +284,4 @@ The installed PWA origin is a `ClientHost`, not the user's identity. Browser ori
 
 The reference deployment SHOULD separate the application origin from public discovery/IntroGate/relay endpoints. Changing PWA origin/provider is an authenticated new-device migration with fresh local vault/push state; it is never defined as raw IndexedDB copying.
 
-A malicious origin can eventually deliver malicious executable code. OM mitigates this with user-owned origin, strict CSP/no remote runtime code, verifiable releases and a future native higher-assurance path, but must not claim that PWA cryptography defeats a fully compromised execution origin.
+A malicious origin can eventually deliver malicious executable code. OM mitigates this with a user-owned origin where the user owns one (most T0/T1 users instead use a shared ClientHost, [`CLIENTHOST_UPDATE_LIFECYCLE.md`](CLIENTHOST_UPDATE_LIFECYCLE.md) §9), strict CSP/no remote runtime code, verifiable releases and a future native higher-assurance path, but must not claim that PWA cryptography defeats a fully compromised execution origin.
