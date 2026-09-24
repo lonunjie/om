@@ -1,0 +1,182 @@
+{
+ "vectors": [
+  {
+   "id": "V003-FOUND-01-key-reuse-direction",
+   "source": "TLC counterexample, model v1 (trace reconstructed by hand from the TLC state dump)",
+   "classification": "model_bug",
+   "violates": "NoKeyReuse",
+   "note": "keyLog was keyed by (sid, ctr) only; a ratchet session has one sending chain per direction, so a1->b1 ctr 1 and b1->a1 ctr 1 on sid 1 are different keys. Fixed by keying on (sid, sender, ctr).",
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "NewMessage",
+     "b1",
+     2
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b1",
+     1,
+     2
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     1,
+     1,
+     "created"
+    ],
+    [
+     "Encrypt",
+     "b1",
+     2,
+     "a1",
+     1
+    ]
+   ],
+   "expect_with_fixed_model": "no violation"
+  },
+  {
+   "id": "V003-FOUND-02-linked-device-without-state",
+   "source": "TLC counterexample, model v2 (trace from TLC output)",
+   "classification": "model_bug_with_doc_note",
+   "violates": "DeliveredAtQuiescence",
+   "note": "The newly linked device b3 did not hold the AccountControlState that linked it, so it believed itself revoked and dropped a1's message. Fixed: the linking ceremony hands the new device the authorizing state. MULTI_DEVICE_SYNC.md 'new-device bootstrap uses an explicit grant' implies this but does not say the grant must carry the control-state head.",
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "ServeWeakBundle",
+     "b1"
+    ],
+    [
+     "ControlStep",
+     1
+    ],
+    [
+     "Learn",
+     "a1",
+     "B"
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "EncryptRefusedFloor",
+     "a1",
+     1,
+     "b1"
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b3",
+     1,
+     2
+    ],
+    [
+     "RecvRejectedRevoked",
+     "b3",
+     "a1",
+     1
+    ]
+   ],
+   "expect_with_fixed_model": "no violation"
+  },
+  {
+   "id": "V003-FOUND-03-prekey-overtaken",
+   "source": "TLC counterexample, model v3 with all rules K1..K9 enabled",
+   "classification": "design_gap",
+   "violates": "SamePreferredAtQuiescence",
+   "note": "a1 initiates sid 1 (prekey message m2) then sends m1 on sid 1 without the prekey header; m1 overtakes the prekey message, b1 cannot decrypt, requests a reset, a1 marks sid 1 stale and retries on sid 2, then the delayed prekey creates sid 1 at b1: b1 prefers 1, a1 prefers 2. Led to rule K10 PrekeyUntilConfirmed (Signal's PreKeySignalMessage behaviour). Q-050 does not state it.",
+   "rule_disabled": "PrekeyUntilConfirmed",
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "ControlStep",
+     1
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "NewMessage",
+     "a1",
+     2
+    ],
+    [
+     "Initiate",
+     "a1",
+     2,
+     "b1",
+     1,
+     2
+    ],
+    [
+     "Encrypt",
+     "a1",
+     1,
+     "b1",
+     1
+    ],
+    [
+     "RecvUndecryptable",
+     "b1",
+     "a1",
+     1,
+     1
+    ],
+    [
+     "RecvReset",
+     "a1",
+     "b1",
+     1,
+     1
+    ],
+    [
+     "Initiate",
+     "a1",
+     1,
+     "b1",
+     2,
+     2
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     2,
+     1,
+     "created"
+    ],
+    [
+     "Recv",
+     "b1",
+     "a1",
+     1,
+     2,
+     "created"
+    ]
+   ],
+   "expect_with_fixed_model": "trace infeasible after step 5 (m1 carries the prekey header and creates the session)"
+  }
+ ]
+}
