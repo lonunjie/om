@@ -1,0 +1,22 @@
+{
+  "status": "Status: proposed for freeze (V-005). An operator ADR freezes it.",
+  "registry": "om-crypto-profiles",
+  "registry_version": 1,
+  "rules": [
+    "CryptoProfile ids are uint 1..65535 and never reused. 0 is reserved (never valid). 1..32767 public; 32768..65279 reserved; 65280..65535 experimental/test (never accepted by a production build).",
+    "A profile id names a reviewed bundle of constructions (CRYPTOGRAPHY_AND_AGILITY.md); it never names an individual primitive. Status lifecycle: experimental -> allowed -> preferred -> deprecated -> forbidden (PROTOCOL_EXTENSIBILITY.md §6).",
+    "hash_alg ids are used by the Digest struct and are bound to profiles; 1 = SHA-256 for OM-Crypto-v1."
+  ],
+  "profiles": [
+    {"id": 0, "name": null, "status": "reserved"},
+    {"id": 1, "name": "OM-Crypto-v1", "status": "experimental", "note": "PQXDH (X25519 + ML-KEM-768) + Triple Ratchet/SPQR-class, HKDF/SHA-256 (CRYPTOGRAPHY_AND_AGILITY.md 2026-09-23). Stays experimental until V-001 closes and a profile ADR fixes the signature scheme(s).", "hash_alg": 1},
+    {"id": 65535, "name": "insecure-test-profile", "status": "test_only", "note": "Used only by V-005 vectors: signature bytes are fixed placeholders (insecure_test_signature). Must be rejected by any production build.", "hash_alg": 1}
+  ],
+  "hash_algs": [
+    {"id": 1, "name": "sha-256", "digest_bytes": 32}
+  ],
+  "signature_roles": [
+    {"id": 1, "name": "controller"}, {"id": 2, "name": "recovery"}, {"id": 3, "name": "device"},
+    {"id": 4, "name": "intro_identity"}, {"id": 5, "name": "provider"}, {"id": 6, "name": "legacy"}
+  ]
+}

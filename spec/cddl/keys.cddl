@@ -1,0 +1,26 @@
+; Status: proposed for freeze (V-005). An operator ADR freezes it.
+; W0 asynchronous key material (ASYNC_KEY_MATERIAL.md). Key sizes admit X25519 (32) .. ML-KEM-1024 (1568).
+
+signed-AsyncKeyBundle = { 1: bstr .cbor AsyncKeyBundle, 2: [1*16 signature] }
+AsyncKeyBundle = {
+  0: 9, 1: 1,
+  2: device-id,                             ; subject_device_id
+  3: uint,                                  ; acs_generation
+  4: digest,                                ; acs_state_hash
+  5: profile-id,                            ; crypto_profile
+  6: uint,                                  ; generation
+  7: prekey-item,                           ; signed_prekey
+  ? 8: prekey-item,                         ; pq_signed_prekey
+  ? 9: [1*100 prekey-item],                 ; one_time_prekeys
+  ? 10: [1*32 prekey-item],                 ; pq_one_time_prekeys
+  ? 11: prekey-item,                        ; pq_last_resort_prekey
+  12: opaque-id16,                          ; provider_pool_id (disjoint pools per provider)
+  13: posix-seconds,                        ; expires_at
+  ? 23: extensions,
+}
+prekey-item = {
+  0: uint .le 4294967295,                   ; key_id
+  1: 1..5,                                  ; kind
+  2: bstr .size (32..1568),                 ; public_key
+  ? 3: bstr .size (1..8192),                ; signature over DS-SIG(OM-PREKEY-SIG-v1, ..., item without key 3)
+}

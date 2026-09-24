@@ -1,0 +1,65 @@
+; Status: proposed for freeze (V-005). An operator ADR freezes it.
+; W0 1:1 ConversationEvent (EVENT_MODEL.md). Not separately signed: the 1:1 session AEAD
+; authenticates it. Canonical bytes still matter for multi-device sync, dedup and archive (V-014).
+
+ConversationEvent = event-create / event-edit / event-delete / event-reaction / event-receipt / event-other
+event-common = (
+  0: 10, 1: 1,
+  2: 1..65535,                              ; protocol_version
+  3: event-id,
+  4: conversation-id,
+  5: principal-ref,                         ; author_principal
+  6: bstr .size (16..32),                   ; author_endpoint_id
+  7: hlc,                                   ; clock
+  9: 1..65535,                              ; kind_version
+  ? 10: [1*16 tstr .size (1..128)],         ; required_capabilities (set)
+  ? 12: posix-seconds,                      ; expiry
+  ? 23: extensions,
+  ; 13 representation (W4) and 14 foreign_provenance (W4) are reserved; W0 rejects them.
+)
+event-create = { event-common, 8: 1, 11: MessageCreate }
+event-edit = { event-common, 8: 2, 11: MessageEdit }
+event-delete = { event-common, 8: 3, 11: MessageDelete }
+event-reaction = { event-common, 8: 4, 11: ReactionSet }
+event-receipt = { event-common, 8: 5, 11: ReceiptUpdate }
+; later-wave kinds: body opaque to W0 (unsupported-content placeholder)
+event-other = { event-common, 8: 6..14, 11: opaque-body }
+opaque-body = { * uint => any } / { * tstr => any }   ; one key type per map (OM-CBOR-v1)
+
+hlc = { 0: uint, 1: uint .le 4294967295, 2: bstr .size (1..32) }
+
+MessageCreate = {
+  ? 0: RichText,                            ; content
+  1: [0*32 attachment-ref],                 ; attachments
+  ? 2: event-id,                            ; reply_to
+  ? 3: [1*64 principal-ref],                ; mentions (set)
+  ? 4: 1..18446744073709551615,             ; expires_after (seconds)
+  ? 5: event-id,                            ; thread_root_event_id
+  ? 6: opaque-id16,                         ; topic_id
+}
+MessageEdit = { 0: event-id, 1: RichText }
+MessageDelete = { 0: event-id, ? 1: tstr .size (1..256) }
+ReactionSet = { 0: event-id, 1: tstr .size (1..64), 2: bool }   ; 3 reaction_asset reserved (W1)
+ReceiptUpdate = { 0: 1..2, 1: [1*256 event-id] }
+
+RichText = { 0: 1, 1: [0*4096 block] }
+block = block-inlines / block-code
+block-inlines = { 0: 1..2, 1: [0*4096 inline] }
+block-code = { 0: 3, 2: tstr .size (0..65536), ? 3: tstr .size (1..64) }
+inline = inline-text / inline-link / inline-mention      ; 4 custom_emoji reserved (W1)
+inline-text = { 0: 1, 1: tstr .size (0..65536), ? 2: [1*6 (1..6)] }
+inline-link = { 0: 2, 3: tstr .size (1..2048), 4: [0*256 inline] }
+inline-mention = { 0: 3, 4: [0*256 inline], 5: principal-ref }
+
+attachment-ref = {
+  0: blob-id,
+  1: tstr .size (1..127),                   ; media_type
+  2: uint,                                  ; plaintext_size
+  3: digest,                                ; ciphertext_digest (OM-BLOB-CIPHERTEXT-HASH-v1)
+  4: { 0: profile-id, 1: bstr .size 32 },   ; encryption descriptor
+  ? 5: [1*8 tstr .size (1..2048)],          ; locations
+  ? 6: tstr .size (1..255),                 ; filename
+  ? 7: 1..65535, ? 8: 1..65535,             ; width, height
+  ? 9: uint,                                ; duration_ms
+  ? 10: bstr .size (16..64),                ; repair_capability
+}

@@ -1,0 +1,48 @@
+; Status: proposed for freeze (V-005). An operator ADR freezes it.
+; W0 delivery/storage objects: SponsoredMailboxGrant, RelaySet, BlobLocationRecord.
+
+signed-SponsoredMailboxGrant = { 1: bstr .cbor SponsoredMailboxGrant, 2: [1*16 signature] }
+SponsoredMailboxGrant = {
+  0: 16, 1: 1,
+  2: opaque-id16,                           ; grant_id (never derived from AccountID)
+  3: tstr .size (1..2048),                  ; sponsor_home_ref
+  4: bstr .size (16..64),                   ; deposit_capability_ref
+  5: bstr .size (16..64),                   ; drain_capability_ref
+  6: { 0: uint, 1: uint, 2: uint, 3: uint, 4: uint },   ; quotas
+  7: posix-seconds,                         ; expires_at (provider clock)
+  ? 8: bool,                                ; renewable
+  9: false,                                 ; may_sponsor_further
+  10: 1,                                    ; metadata_exposure
+  ? 11: bool,                               ; revoked
+  ? 23: extensions,
+}
+
+signed-RelaySet = { 1: bstr .cbor RelaySet, 2: [1*16 signature] }
+RelaySet = {
+  0: 17, 1: 1,
+  2: 1..18446744073709551615,               ; version
+  ? 3: digest,                              ; previous_set_hash (OM-RELAYSET-HASH-v1)
+  4: [1*16 relay-entry],
+  ? 23: extensions,
+}
+relay-entry = {
+  0: tstr .size (1..2048),                  ; relay_uri
+  1: bstr .size (16..64),                   ; capability (deposit)
+  2: 0..255,                                ; priority
+  ? 3: 0..65535,                            ; weight
+  4: posix-seconds,                         ; expires_at
+  ? 5: [1*8 tstr .size (1..64)],            ; transports (set)
+  ? 6: tstr .size (1..128),                 ; failure_domain (hint only)
+}
+
+signed-BlobLocationRecord = { 1: bstr .cbor BlobLocationRecord, 2: [1*16 signature] }
+BlobLocationRecord = {
+  0: 18, 1: 1,
+  2: blob-id,
+  3: 1..18446744073709551615,               ; version
+  ? 4: digest,                              ; previous_record_hash (OM-BLOB-LOCATION-HASH-v1)
+  5: [1*8 tstr .size (1..2048)],            ; locators
+  6: posix-seconds,                         ; valid_from
+  ? 7: posix-seconds,                       ; overlap_until
+  ? 23: extensions,
+}
