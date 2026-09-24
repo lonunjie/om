@@ -45,7 +45,9 @@ A profile cannot move from `experimental` to `allowed/preferred` until:
 
 ## 4. Candidate 1:1 evaluation, not a frozen cipher list
 
-Evaluate two implementation strategies:
+**Resolved by ADR-0118: strategy B**, an OM-maintained implementation of the public PQXDH and Double Ratchet
+specifications for v1 (SPQR/Triple Ratchet deferred to OM-Crypto-v2). The two strategies below are kept as the
+record of what was weighed.
 
 ### A. Reviewed reusable secure-messaging implementation
 

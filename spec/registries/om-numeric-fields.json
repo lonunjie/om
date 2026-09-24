@@ -156,7 +156,7 @@
       {"key": 5, "name": "crypto_profile", "type": {"uint": [1, 65535]}, "req": true},
       {"key": 6, "name": "generation", "type": {"uint": [0, null]}, "req": true},
       {"key": 7, "name": "signed_prekey", "type": {"ref": "PrekeyItem"}, "req": true},
-      {"key": 8, "name": "pq_signed_prekey", "type": {"ref": "PrekeyItem"}, "req": false},
+      {"key": 8, "name": "pq_signed_prekey", "type": {"ref": "PrekeyItem"}, "req": false, "note": "mandatory since ADR-0126 (ADR-0118 §6): validators reject a bundle without it. 'req' keeps its assigned value because assigned values are immutable; the rule is carried by keys.cddl and by om-crypto-profiles required_bundle_fields."},
       {"key": 9, "name": "one_time_prekeys", "type": {"array": {"ref": "PrekeyItem"}, "n": [1, 100]}, "req": false},
       {"key": 10, "name": "pq_one_time_prekeys", "type": {"array": {"ref": "PrekeyItem"}, "n": [1, 32]}, "req": false},
       {"key": 11, "name": "pq_last_resort_prekey", "type": {"ref": "PrekeyItem"}, "req": false},
@@ -262,7 +262,8 @@
       {"key": 11, "name": "not_before", "type": {"uint": [0, null]}, "req": false},
       {"key": 12, "name": "expires_at", "type": {"uint": [0, null]}, "req": true},
       {"key": 13, "name": "provenance", "type": {"ref": "Provenance"}, "req": true},
-      {"key": 14, "name": "transparency_proof", "type": {"bstr": [1, 8192]}, "req": false}]},
+      {"key": 14, "name": "transparency_proof", "type": {"bstr": [1, 8192]}, "req": false},
+      {"key": 15, "name": "request_key", "type": {"ref": "RequestKey"}, "req": false, "note": "ADR-0126"}]},
     "ContactCapsule": {"top_level": true, "fields": [
       {"key": 2, "name": "capsule_version", "type": {"uint": [1, 65535]}, "req": true},
       {"key": 3, "name": "share_id", "type": {"bstr": [16, 16]}, "req": false},
@@ -296,7 +297,8 @@
       {"key": 7, "name": "allow_attachments", "type": {"bool": null}, "req": false},
       {"key": 8, "name": "allow_calls", "type": {"bool": null}, "req": false},
       {"key": 9, "name": "nonce", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 10, "name": "admission_proof", "type": {"bstr": [1, 4096]}, "req": false}]},
+      {"key": 10, "name": "admission_proof", "type": {"bstr": [1, 4096]}, "req": false},
+      {"key": 11, "name": "request_key", "type": {"ref": "RequestKey"}, "req": false, "note": "ADR-0126; trusted only when the ticket carries an intro_identity signature"}]},
     "MailboxQuotas": {"fields": [
       {"key": 0, "name": "max_stored_bytes", "type": {"uint": [0, null]}, "req": true},
       {"key": 1, "name": "max_envelopes_per_hour", "type": {"uint": [0, null]}, "req": true},
@@ -332,6 +334,37 @@
       {"key": 4, "name": "previous_record_hash", "type": {"ref": "Digest"}, "req": false},
       {"key": 5, "name": "locators", "type": {"array": {"tstr": [1, 2048]}, "n": [1, 8]}, "req": true},
       {"key": 6, "name": "valid_from", "type": {"uint": [0, null]}, "req": true},
-      {"key": 7, "name": "overlap_until", "type": {"uint": [0, null]}, "req": false}]}
-  }
+      {"key": 7, "name": "overlap_until", "type": {"uint": [0, null]}, "req": false}]},
+    "RequestKey": {"fields": [
+      {"key": 0, "name": "crypto_profile", "type": {"uint": [1, 65535]}, "req": true},
+      {"key": 1, "name": "public_key", "type": {"bstr": [32, 2592]}, "req": true},
+      {"key": 2, "name": "expires_at", "type": {"uint": [0, null]}, "req": false}]},
+    "MessageRequest": {"top_level": true, "fields": [
+      {"key": 2, "name": "ticket_id", "type": {"bstr": [16, 16]}, "req": true},
+      {"key": 3, "name": "request_key_digest", "type": {"ref": "Digest"}, "req": true},
+      {"key": 4, "name": "crypto_profile", "type": {"uint": [1, 65535]}, "req": true},
+      {"key": 5, "name": "hpke_enc", "type": {"bstr": [32, 2048]}, "req": true},
+      {"key": 6, "name": "ciphertext", "type": {"bstr": [17, 65552]}, "req": true, "note": "HPKE base-mode ciphertext of a signed MessageRequestPayload; length <= ticket payload_limit_bytes + AEAD tag"},
+      {"key": 7, "name": "admission_proof", "type": {"bstr": [1, 4096]}, "req": false}]},
+    "MessageRequestPayload": {"top_level": true, "fields": [
+      {"key": 2, "name": "ticket_id", "type": {"bstr": [16, 16]}, "req": true},
+      {"key": 3, "name": "request_key_digest", "type": {"ref": "Digest"}, "req": true},
+      {"key": 4, "name": "sender_intro_identity", "type": {"bstr": [32, 2592]}, "req": true},
+      {"key": 5, "name": "sender_descriptor", "type": {"signed": "ContactDescriptor"}, "req": true},
+      {"key": 6, "name": "greeting", "type": {"ref": "RichText"}, "req": false},
+      {"key": 7, "name": "referrals", "type": {"array": {"signed": "ReferralAttestation"}, "n": [1, 4]}, "req": false},
+      {"key": 8, "name": "reply_route", "type": {"ref": "RelayEntry"}, "req": true}]},
+    "IntroIdentityBinding": {"top_level": true, "fields": [
+      {"key": 2, "name": "account_id", "type": {"bstr": [32, 32]}, "req": true},
+      {"key": 3, "name": "intro_identity", "type": {"bstr": [32, 2592]}, "req": true},
+      {"key": 4, "name": "request_key_digest", "type": {"ref": "Digest"}, "req": true},
+      {"key": 5, "name": "acs_generation", "type": {"uint": [0, null]}, "req": true},
+      {"key": 6, "name": "acs_state_hash", "type": {"ref": "Digest"}, "req": true},
+      {"key": 7, "name": "issued_at", "type": {"uint": [0, null]}, "req": false}]},
+    "ForkAck": {"fields": [
+      {"key": 0, "name": "observed_branch_heads", "type": {"set": {"ref": "Digest"}, "n": [2, 16]}, "req": true}]}
+  },
+  "extensions": [
+    {"name": "om.acs.fork_ack", "object": "AccountControlState", "critical": true, "value": {"ref": "ForkAck"}, "wave": "W0", "adr": "ADR-0126", "note": "only on a fork bridge state, whose previous_state_hash is the common ancestor; authorization per ADR-0127"}
+  ]
 }

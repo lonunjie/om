@@ -34,7 +34,7 @@ ContactCapsule {
 
 The capsule contains **introduction/rendezvous information only**. It MUST NOT contain Alice's private pairwise delivery capabilities used by accepted contacts.
 
-Where privacy policy wants AccountID hidden before acceptance, the capsule uses Alice's alias/share-specific introduction identity; Alice binds/proves stable AccountID inside the accepted E2EE relationship.
+Where privacy policy wants AccountID hidden before acceptance, the capsule uses Alice's alias/share-specific introduction identity; Alice binds/proves stable AccountID inside the accepted E2EE relationship with an `IntroIdentityBinding` ([`INVITES_INTROGATE_AND_SPAM.md`](INVITES_INTROGATE_AND_SPAM.md) §5.1).
 
 ## 3. Why Bob trusts Alice, not Carol
 
@@ -42,13 +42,22 @@ Bob verifies Alice's signature on the capsule. Carol merely transports it.
 
 Carol cannot alter Alice's endpoint/key/profile claims without invalidating the capsule.
 
-Carol may optionally attach a `ReferralAttestation` signed inside Carol/Bob's or Carol/Alice's established relationship context:
+A referral has two separate parts (ADR-0126):
 
-```text
-"I, Carol, intentionally introduced Bob to this Alice capsule."
-```
+1. **Admission.** Alice's client pre-issues **referral tokens** to her own contacts (Privacy Pass-style, bound to her
+   IntroGate). Carol hands one to Bob with the capsule, and Bob's request presents it as its `admission_proof`. The
+   IntroGate verifies only the token, never who Carol is, and admits the request into the reserved referral capacity
+   (R-195). Alice never uploads her contacts to the IntroGate. Without a valid token, the request uses the public queue.
+2. **Label.** Carol may also give Bob a `ReferralAttestation` signed with her device key in the Carol/Alice
+   relationship context:
 
-Alice can display **Introduced by Carol** and optionally give referred requests more generous anti-spam treatment.
+   ```text
+   "I, Carol, intentionally introduced Bob to this Alice capsule."
+   ```
+
+   Bob puts it inside the sealed MessageRequest payload. Alice's client verifies it and shows **Introduced by Carol**
+   only when Carol is Alice's contact and the signature checks against Carol's current devices. The IntroGate never
+   sees it.
 
 A referral is local context, not a global Web-of-Trust score and not transitive reputation.
 

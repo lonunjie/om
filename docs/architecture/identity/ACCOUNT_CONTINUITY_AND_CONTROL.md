@@ -48,9 +48,12 @@ AccountControlState {
 
 A client MUST NOT accept a state that:
 
-- does not descend from the latest trusted head it knows;
-- violates the authorization rule of the **parent** state;
-- lowers an authenticated crypto/security floor without an explicitly permitted emergency migration procedure;
+- neither descends from the latest trusted head it knows nor is a valid fork bridge state whose `om.acs.fork_ack`
+  covers that head (§8);
+- violates the authorization rule of the **parent** state (§4.1);
+- lowers the crypto/security floor. The floor compares the `security_generation` of CryptoProfiles, not profile ids.
+  The only non-increase is a SecurityAdvisory marking a profile `forbidden`, after which the floor moves to a
+  non-forbidden profile of equal or higher generation, never lower ([`CRYPTOGRAPHY_AND_AGILITY.md`](../crypto/CRYPTOGRAPHY_AND_AGILITY.md), ADR-0126);
 - silently removes enough controllers to make a previously unauthorized coalition authoritative.
 
 ## 3. Device classes
@@ -65,7 +68,11 @@ Holds a control credential and may participate in quarantine/revocation/account-
 
 ### Recovery authority
 
-Exists only when the user configured a `RecoveryPolicy`. It is logically above ordinary control-device disputes but does not automatically decrypt history.
+Exists when a `RecoveryPolicy` is on, which is the default (ADR-0111). It counts as **one vote** toward the parent
+state's majority ([`RECOVERY_AND_BACKUP_POLICY.md`](RECOVERY_AND_BACKUP_POLICY.md) §10.4). It counts immediately only with at least one current,
+non-quarantined controller co-signing. Alone, it acts only after the activation delay with no RecoveryVeto (§10.3).
+It never resolves a freeze or fork, and it does not decrypt history. This "recovery vote" rule (ADR-0127) applies
+wherever this document mentions a RecoveryPolicy.
 
 A product may make the user's first device both a messaging and control device for usability. Additional devices can initially be messaging-capable and optionally be promoted to controller status under constitutional rules.
 
@@ -83,6 +90,9 @@ A valid emergency quarantine can cause compliant peers/providers to stop giving 
 - new backup/recovery material;
 - new account-control secrets.
 
+A quarantined device also can no longer **issue** anything peers act on: peers reject RelaySets, BlobLocationRecords
+and IntroIdentityBindings signed by a device that the current state lists as quarantined ([`MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`](../delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md) §2.1).
+
 A quarantine **does not erase** data the target already learned.
 
 ### Stage B — permanent revocation
@@ -90,7 +100,8 @@ A quarantine **does not erase** data the target already learned.
 Permanent revocation requires stronger authority:
 
 - the constitutional threshold defined by the **pre-change** AccountControlState; or
-- a valid configured RecoveryPolicy authorization.
+- that threshold reached with a recovery vote (§3): immediately only with at least one current, non-quarantined
+  controller co-signing, otherwise only after the activation delay with no RecoveryVeto.
 
 Permanent revocation can finalize key rotations, device removal, future membership, and control-set changes.
 
@@ -103,11 +114,39 @@ OM therefore uses these rules:
 1. quarantine does **not** remove the target from the constitutional denominator;
 2. one controller cannot use quarantines it initiated to satisfy a quorum;
 3. promotion of a new control device uses the parent state's controller set/recovery authority;
-4. multiple unilateral quarantines that would disable a configured safety threshold trigger a **safety freeze** and require stronger authorization;
+4. a quarantine that would leave fewer non-quarantined controllers than the parent state's majority (that is, one
+   that "disables the safety threshold") triggers a **safety freeze**, which only a device-only majority resolves (§5);
 5. contested quarantine cannot be resolved by last-write-wins.
 
 Implementations may choose a bounded challenge window for UX, but an uncontested quarantine without quorum may remain quarantined indefinitely rather than becoming permanent solely because time passed.
 
+### 4.1 Authorization table (normative, ADR-0127)
+
+The AccountControlState body does not record a transition type, so a verifier derives each **delta** by diffing the
+child against its parent. Signers are counted against the **parent** state. "Majority" is `floor(N/2)+1` of the
+parent's `active_control_devices`, with quarantined controllers still in N (§4 rule 1). "Recovery vote" follows §3.
+A child that combines several deltas needs the strongest row among them. A delta not listed here is rejected.
+
+| Delta (child vs parent) | Required signers (role `controller` unless noted) | Single signer allowed? |
+|---|---|---|
+| link a messaging device (add to `messaging_devices`, add its credential) | 1 active, non-quarantined controller, after the linking ceremony and enrollment notice (§12) | yes |
+| promote to control device (add to `active_control_devices`) | majority, or majority reached with a recovery vote | only when N = 1 |
+| quarantine a control device (add to `quarantined_control_devices`) | 1 active, non-quarantined controller other than the target; never the last voting controller (§13) | yes |
+| lift a quarantine (remove from `quarantined_control_devices`) | majority, not counting quarantines the signer initiated (§4 rule 2) | only when N = 1 |
+| remove a messaging device (drop from `messaging_devices`, add to `permanently_revoked_devices`) | 1 active, non-quarantined controller | yes |
+| permanently revoke a control device | majority, or majority reached with a recovery vote | only when N = 1 |
+| change the recovery policy (`recovery_policy_commitment`) | majority, or majority reached with a recovery vote | only when N = 1 |
+| change `constitutional_policy` | majority | only when N = 1 |
+| raise `minimum_crypto_profile` (higher `security_generation`) | 1 active, non-quarantined controller | yes |
+| lower `minimum_crypto_profile` | forbidden (the SecurityAdvisory case in §2 moves to an equal or higher generation) | — |
+| rotate the signer's own `control_key_epochs` / `device_credentials` entry (same device id) | that device, not quarantined, signing with its current key | yes |
+| change `transparency_commitment` | 1 active, non-quarantined controller | yes |
+| fork bridge (§8) | device-only majority of the common ancestor's controllers; no recovery vote | only when N = 1 |
+| `AccountRetirement` | majority, or majority reached with a recovery vote (delay and veto apply when recovery acts alone) | only when N = 1 |
+
+Messaging devices are removed, never quarantined; the ACS has no field for it. Removal is reversible only by linking
+the device again. A device's revocation is recorded only in the ACS (`permanently_revoked_devices`), never as a
+timestamp on the device record. V-002 mirrors this table.
 ## 5. Contest and safety freeze
 
 A quarantined control device retains a narrow, control-only **challenge capability** for the dispute window/state. It does not continue receiving ordinary conversation secrets.
@@ -124,7 +163,8 @@ While frozen:
 - no contested controller promotion/removal becomes final;
 - no recovery-policy replacement becomes final;
 - no security floor is lowered;
-- resolution requires a valid constitutional quorum or RecoveryPolicy.
+- resolution requires a **device-only** majority of the parent state's controllers (the TLA `ResolveFreeze`); a
+  recovery vote never resolves a freeze.
 
 There is no last-write-wins authority rule.
 
@@ -132,11 +172,11 @@ There is no last-write-wins authority rule.
 
 ### Link messaging device
 
-A currently authorized control device may authorize a new messaging device using an authenticated, short-lived linking ceremony. Product policy may require a second confirmation for sensitive accounts.
+A currently authorized, non-quarantined control device may authorize a new messaging device using an authenticated, short-lived linking ceremony (§4.1). A messaging device cannot link another device. Product policy may require a second confirmation for sensitive accounts.
 
 ### Promote to control device
 
-Promotion changes the future takeover threshold and is therefore constitutional. It MUST be authorized under the current parent state's constitutional policy or RecoveryPolicy.
+Promotion changes the future takeover threshold and is therefore constitutional. It MUST be authorized under the current parent state's constitutional policy, where a RecoveryPolicy counts only as one recovery vote (§3, §4.1).
 
 A newly linked device cannot immediately vote itself or attacker-linked devices into control.
 
@@ -164,7 +204,16 @@ This is detection, not external authority: witnesses cannot create a valid succe
 
 Concurrent constitutional changes can produce two valid descendants of one state. OM treats this as a security fork, not a mergeable chat conflict.
 
-Resolution requires a **bridge state** authorized strongly enough under the last common trusted state or a valid RecoveryPolicy. Clients preserve evidence of both branches for diagnosis/audit and refuse to silently choose the numerically larger generation.
+Resolution requires a **bridge state** (ADR-0127):
+
+- its `previous_state_hash` is the last common ancestor of the branches;
+- it carries the critical key-23 extension `om.acs.fork_ack`, listing the digest of every observed branch head
+  ([`account.cddl`](../../../spec/cddl/account.cddl) `fork-ack`, ADR-0126);
+- it is authorized by a **device-only** majority of the common ancestor's controllers. A recovery vote does not count.
+
+A client that trusted a branch head accepts the bridge only if `fork_ack` covers that head (§2). A later branch head
+that the bridge does not cover is a new fork. Clients preserve evidence of both branches for diagnosis/audit and refuse
+to silently choose the numerically larger generation.
 
 ## 9. Edge cases
 
@@ -188,7 +237,7 @@ Those keys are treated as historical material until the current AccountControlHe
 
 Before production claims, this design requires:
 
-- formal authorization-state transition table;
+- formal authorization-state transition table (§4.1);
 - golden vectors for valid/invalid state transitions;
 - fork and rollback tests;
 - compromised-controller simulations;
@@ -198,7 +247,7 @@ Before production claims, this design requires:
 
 ## 2026-09-23 AccountControl resolution
 
-Default controller authorization is majority `floor(N/2)+1`. Temporary quarantine cannot shrink that denominator or permanently revoke/promote/change threshold. Competing valid descendants trigger safety freeze rather than timestamp/LWW choice. Relationship-scoped head gossip detects equivocation; fork resolution explicitly acknowledges branches under common-ancestor authority. `V-002` formally validates these invariants.
+Default controller authorization is majority `floor(N/2)+1`. Temporary quarantine cannot shrink that denominator or permanently revoke/promote/change threshold. Competing valid descendants trigger safety freeze rather than timestamp/LWW choice. Relationship-scoped head gossip detects equivocation; fork resolution explicitly acknowledges branches under common-ancestor authority (bridge state with `om.acs.fork_ack`, §8). `V-002` formally validates these invariants.
 
 ## 11. ContinuityAssessment (ADR-0106, default changed by ADR-0111)
 

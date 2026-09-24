@@ -87,17 +87,21 @@ OM distinguishes **cryptographic continuity** from **human belief**.
 
 ### Level 1 — Direct continuity proof (strongest normal path)
 
-The old account signs the new account:
+The old account retires itself and names the new account:
 
 ```text
-Account A --signed continuity--> Account B
+Account A --AccountRetirement(reason_class = moved, successor_account_id = B)--> Account B
 ```
 
 Existing contacts can automatically carry the PersonRecord forward and show a simple message such as "Alice moved to a new OM account."
 
-This proof may be produced by an existing trusted device, recovery authority, or another mechanism already authorized by Account A.
+This is the **only** cryptographic continuity proof that clients render as "moved" (ADR-0127). It must be authorized
+under Account A's parent state like any retirement ([`ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md`](ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md) §2 rule 1): a majority
+of A's controllers, where a RecoveryPolicy is one vote that alone acts only after the delay with no veto. A single
+device, even a trusted one, cannot produce it, and A stops existing as it does, so A and B never coexist. Clients
+reject any other successor pointer.
 
-### Level 2 — Pre-authorized social recovery (strong)
+### Level 2 — Pre-authorized social recovery (strong, same account)
 
 Alice may optionally designate recovery guardians and a threshold while Account A is healthy.
 
@@ -108,9 +112,12 @@ Guardians: Bob, Carol, Diego, Eva, Fran
 Threshold: 3 of 5
 ```
 
-The old account commits to the guardian set and threshold. If Alice loses all devices, any 3 authorized guardians can co-sign a recovery/continuity statement binding Account B as the successor.
-
-Because the guardian policy was authorized by Account A in advance, this can be treated as a cryptographic recovery authority rather than an ad-hoc popularity vote.
+Guardians hold Shamir shares of a second RecoveryRoot ([`RECOVERY_AND_BACKUP_POLICY.md`](RECOVERY_AND_BACKUP_POLICY.md) §10.2). If Alice loses all devices, any 3
+guardians can help her start a RecoveryRequest for **Account A itself** on a new device. It goes through the normal
+activation rules (§10.3: delay, veto by any live controller), and Account A keeps its AccountID. Guardians never bind
+a new Account B as a successor; ~~any 3 authorized guardians can co-sign a recovery/continuity statement binding
+Account B as the successor~~ was removed by ADR-0127, because colluding guardians could otherwise redirect every
+relationship while the owner still held working devices.
 
 Guardians should not need access to Alice's message plaintext or master secrets.
 
@@ -131,7 +138,7 @@ New account for Alice
 Confirmed by 3 people you already know
 ```
 
-This is evidence, not equivalent to an Account-A continuity signature unless Alice had explicitly pre-authorized those contacts as recovery guardians.
+This is evidence, never equivalent to an Account-A continuity proof, even when the attesters are Alice's recovery guardians.
 
 ### Level 4 — Manual local merge
 
@@ -154,8 +161,8 @@ Problems include:
 
 OM should instead use **bounded, direct, purpose-specific trust**:
 
-- direct continuity signatures;
-- pre-authorized threshold recovery guardians;
+- constitutionally authorized moved-account retirements;
+- pre-authorized threshold recovery guardians (same AccountID);
 - direct attestations from contacts;
 - manual local confirmation.
 
@@ -209,8 +216,8 @@ High-assurance users can expand these notices to inspect fingerprints, signature
 2. Phone numbers are recyclable discovery aliases, never root identity.
 3. Reassignment of an alias cannot transfer cryptographic trust.
 4. Account replacement can preserve human continuity without pretending a lost key still exists.
-5. Direct cryptographic continuity is preferred over social confirmation.
-6. Social recovery is strongest when the guardian set was pre-authorized by the old identity.
+5. Direct cryptographic continuity (a constitutionally authorized `AccountRetirement(moved)`) is preferred over social confirmation.
+6. Social recovery recovers the same AccountID through the pre-authorized guardian set; it never names a successor.
 7. Ad-hoc friend attestations are evidence, not automatic authority.
 8. No global social trust score is required.
 9. Historical aliases are retained as provenance but hidden from mainstream UI by default.
@@ -218,7 +225,7 @@ High-assurance users can expand these notices to inspect fingerprints, signature
 
 ## Open questions
 
-- Exact schema and signature format for `ContinuityProof`.
+- ~~Exact schema and signature format for `ContinuityProof`.~~ Resolved by ADR-0127: the proof is `AccountRetirement(moved)` ([`account.cddl`](../../../spec/cddl/account.cddl)).
 - Whether recovery guardian identities are accounts, devices, hardware keys, or a mix.
 - Guardian replacement/rotation semantics.
 - How to prevent stale guardian policies from causing recovery lockout.

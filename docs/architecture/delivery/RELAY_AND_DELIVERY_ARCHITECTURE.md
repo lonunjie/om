@@ -125,7 +125,7 @@ Provider adapters expose quotas/cost state. Free-tier Durable Object limits fail
 
 ## Multi-relay RelaySet checkpoint
 
-Accepted relationships MAY maintain multiple simultaneous relays. Each relay gets a distinct opaque capability. A private authenticated `RelaySet` defines priority/expiry/transport hints. Normal sending chooses one healthy relay; failover is automatic. Selected high-reliability messages MAY use independently wrapped redundant delivery and are deduplicated by authenticated EventID.
+Accepted relationships MAY maintain multiple simultaneous relays. Each relay gets a distinct opaque capability. A private authenticated `RelaySet`, one per relationship and signed by a device active and not quarantined in the recipient's current AccountControlState ([`MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`](MULTI_RELAY_AND_DELIVERY_RESILIENCE.md) §2.1), defines priority/expiry/transport hints. Normal sending chooses one healthy relay; failover is automatic. Selected high-reliability messages MAY use independently wrapped redundant delivery and are deduplicated by authenticated EventID.
 
 Providers should be diversified across failure domains where practical. See [`MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`](MULTI_RELAY_AND_DELIVERY_RESILIENCE.md) and ADR-0022.
 ## 2026-09-22 key-material separation

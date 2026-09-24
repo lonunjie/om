@@ -5,12 +5,15 @@
   "rules": [
     "CryptoProfile ids are uint 1..65535 and never reused. 0 is reserved (never valid). 1..32767 public; 32768..65279 reserved; 65280..65535 experimental/test (never accepted by a production build).",
     "A profile id names a reviewed bundle of constructions (CRYPTOGRAPHY_AND_AGILITY.md); it never names an individual primitive. Status lifecycle: experimental -> allowed -> preferred -> deprecated -> forbidden (PROTOCOL_EXTENSIBILITY.md §6).",
-    "hash_alg ids are used by the Digest struct and are bound to profiles; 1 = SHA-256 for OM-Crypto-v1."
+    "hash_alg ids are used by the Digest struct and are bound to profiles; 1 = SHA-256 for OM-Crypto-v1.",
+    "security_generation (ADR-0126) maps a conversation type (one_to_one, group) to an unsigned integer. The downgrade floor compares this value for the conversation type in question, never profile ids. A profile without an entry for a type cannot be used for that type. A generation is assigned once and never changed.",
+    "The only floor movement that is not an increase: a SecurityAdvisory marks a profile 'forbidden'; the floor then moves to a non-forbidden profile of equal or higher security_generation, never lower. There is no other exception.",
+    "required_bundle_fields (ADR-0126) lists AsyncKeyBundle fields that must be present for bundles of that profile."
   ],
   "profiles": [
     {"id": 0, "name": null, "status": "reserved"},
-    {"id": 1, "name": "OM-Crypto-v1", "status": "experimental", "note": "PQXDH (X25519 + ML-KEM-768) + Double Ratchet, HKDF/SHA-256 (ADR-0118). SPQR/ML-KEM Braid is deferred to OM-Crypto-v2 (clean-room).", "hash_alg": 1},
-    {"id": 65535, "name": "insecure-test-profile", "status": "test_only", "note": "Used only by V-005 vectors: signature bytes are fixed placeholders (insecure_test_signature). Must be rejected by any production build.", "hash_alg": 1}
+    {"id": 1, "name": "OM-Crypto-v1", "status": "experimental", "note": "PQXDH (X25519 + ML-KEM-768) + Double Ratchet, HKDF/SHA-256 (ADR-0118). SPQR/ML-KEM Braid is deferred to OM-Crypto-v2 (clean-room).", "hash_alg": 1, "security_generation": {"one_to_one": 1}, "required_bundle_fields": ["pq_signed_prekey"]},
+    {"id": 65535, "name": "insecure-test-profile", "status": "test_only", "note": "Used only by V-005 vectors: signature bytes are fixed placeholders (insecure_test_signature). Must be rejected by any production build.", "hash_alg": 1, "security_generation": {"one_to_one": 0}}
   ],
   "hash_algs": [
     {"id": 1, "name": "sha-256", "digest_bytes": 32}

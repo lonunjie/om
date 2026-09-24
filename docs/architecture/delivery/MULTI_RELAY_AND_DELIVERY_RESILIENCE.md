@@ -6,6 +6,7 @@
 ## 1. Multiple relays are first-class
 
 An OM account/device may use several relays simultaneously. This is not merely a manual disaster-recovery setting.
+Each accepted relationship gets its own RelaySet (§2), so a leaked capability exposes one relationship only.
 
 ```text
 recipient
@@ -40,6 +41,21 @@ RelaySet
 ```
 
 A public discovery descriptor may contain only safe introduction relay hints. Accepted relationships exchange the actual private `RelaySet` over E2EE.
+
+### 2.1 Scope and signer (normative, R-211)
+
+- **Per relationship.** A RelaySet is the receiving side's set for **one** accepted relationship. It is sent only
+  inside that relationship's E2EE session, and its capabilities are never reused in another relationship's set.
+- **Signer.** It is signed (role `device`) by a device that the recipient's **current** AccountControlState lists as
+  active and not quarantined (control or messaging). Peers MUST validate the signer against the newest ACS they hold
+  and reject any other signer: quarantined, removed, revoked or unknown devices cannot publish a RelaySet.
+- **Version conflicts.** When two RelaySets claim the same or competing versions, peers prefer the one whose signer is
+  still valid in the current ACS. When a signer is later quarantined or revoked, peers stop accepting new RelaySets
+  from it and keep the last set signed by a still-valid device.
+- **Semantics on the frozen fields** (ADR-0126): a set is valid from the moment a peer accepts its higher `version`;
+  an old entry's overlap ends at its own `expires_at`; emergency revocation is a new version without the entry plus
+  revoking its drain capability at the relay; the catastrophic-loss rendezvous is the separate
+  ReachabilityRecoveryDescriptor ([`REACHABILITY_AND_OBJECT_REPAIR.md`](REACHABILITY_AND_OBJECT_REPAIR.md)).
 
 ## 3. Different capability per relay
 

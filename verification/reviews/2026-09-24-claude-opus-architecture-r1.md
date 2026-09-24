@@ -46,7 +46,7 @@ otherwise only after the activation delay with no RecoveryVeto". State explicitl
 `authorization_kind = recovery_policy` is subject to the same delay and veto. State that freeze and fork resolution
 need a device-only majority, matching the TLA `ResolveFreeze`. Rewrite §3 line 68 as "counts as one vote". Rewrite
 Recovery §7 so that delay (≥24 h) and live-controller veto are mandatory whenever recovery is on. Amend R-171 to match.
-Resolution:
+Resolution: accepted — ADR-0127 rule 1; recovery is one vote with delay and veto in ACCOUNT_CONTINUITY_AND_CONTROL §3/§4/§5/§8, ACCOUNT_LIFECYCLE §2 rule 1, RECOVERY_AND_BACKUP_POLICY §7 (delay and veto mandatory); R-171 amended, R-200.
 
 ### F-R1-2 — ContinuityProof has no authorization rule, and guardian or single-device continuity bypasses constitutional control
 
@@ -70,7 +70,7 @@ the only cryptographic continuity proof that clients render as "moved". Delete t
 "guardians co-sign a successor" paths from Level 1 and Level 2, or require them to produce that same retirement
 object. Guardian recovery keeps the same AccountID and goes through §10.3. Mark anything else as Level 3 (human
 evidence). Add a requirement and a V-002 case for "successor pointer without constitutional authority is rejected".
-Resolution:
+Resolution: accepted — ADR-0127 rule 3; only AccountRetirement(moved) renders as moved: IDENTITY_CONTINUITY Levels 1-2, IDENTITY_PROTOCOL ContinuityProof, ACCOUNT_LIFECYCLE §5; R-201; V-002 remaining item added.
 
 ### F-R1-3 — First-contact (MessageRequest) cryptography is unspecified inside W0
 
@@ -98,7 +98,7 @@ Proposed fix: Add a design-queue item and an ADR that define:
 - the transition from an accepted request to PQXDH session establishment.
 
 Add both objects to the W0 CDDL through an ADR-0119 addendum, and add V-015/V-016 vectors.
-Resolution:
+Resolution: accepted — ADR-0126: RequestKey, MessageRequest (HPKE base mode), MessageRequestPayload, IntroIdentityBinding in discovery.cddl and registries; INVITES_INTROGATE_AND_SPAM §5.1, DISCOVERY_FABRIC §7; R-202, R-203; V-015/V-016 remaining items.
 
 ### F-R1-4 — There is no per-transition authorization table, and IDENTITY_PROTOCOL's default authority policy contradicts the control plane
 
@@ -131,7 +131,7 @@ the required signer roles and count, measured against the parent state, and whet
 
 Replace IDENTITY_PROTOCOL lines 204-215 with a pointer to that table. Drop `revoked_at` from DeviceIdentity. Mirror
 the table in V-002.
-Resolution:
+Resolution: accepted — ADR-0127 rule 2; normative table ACCOUNT_CONTINUITY_AND_CONTROL §4.1; IDENTITY_PROTOCOL points to it and drops `revoked_at`; R-204; V-002 remaining item.
 
 ### F-R1-5 — Fork resolution contradicts the "descend from the latest trusted head" rule and cannot be encoded
 
@@ -147,7 +147,7 @@ Proposed fix: Define the bridge state explicitly: its parent is the common ances
 e.g. `om.acs.fork_ack`) carries the digests of every observed branch head. Authorization is a device-only majority
 of the common ancestor's controllers (per the TLA model). Amend §2 to read "descends from the latest trusted head, or
 is a valid bridge state covering that head". Register the extension through an ADR-0119 addendum.
-Resolution:
+Resolution: accepted — ADR-0126 `om.acs.fork_ack` (account.cddl, numeric-fields `extensions`), ADR-0127 rule 4; ACCOUNT_CONTINUITY §2 and §8 rewritten; R-205.
 
 ### F-R1-6 — The downgrade floor has no defined order and has an undefined exception path
 
@@ -167,7 +167,7 @@ profile a `security_generation` per conversation type, and define "floor" as a c
 delete the exception clauses or define the single allowed case: a SecurityAdvisory marks a profile `forbidden`, and
 the floor moves to a non-forbidden profile of equal or higher generation, never lower. Record this in ADR-0104's
 vocabulary and add a negative vector.
-Resolution:
+Resolution: accepted — ADR-0126 `security_generation` in om-crypto-profiles; exception clauses deleted in CRYPTOGRAPHY_AND_AGILITY and ACCOUNT_CONTINUITY §2; only the advisory-forbidden case remains; R-206; negative vector as V-003 remaining item.
 
 ### F-R1-7 — LegacyPolicy is not committed anywhere verifiable, and its contest window is unbounded below
 
@@ -190,7 +190,7 @@ Proposed fix:
   becomes terminal only at window end.
 
 Otherwise, defer legacy authorization out of W0 by ADR.
-Resolution:
+Resolution: deferred — A-030: legacy activation is outside the W0 scope list, so ADR-0127 rule 5 defers LegacyPolicy authorization to W1 (W0 rejects legacy_policy); inactivity precondition and non-terminal LegacyRetirementPending added to ACCOUNT_LIFECYCLE §4 now; R-207.
 
 ### F-R1-8 — DirectoryEntry publishes AccountID and state hash, contradicting AccountID-hiding discovery, and key transparency has no defined subject
 
@@ -208,7 +208,7 @@ Proposed fix: Replace DirectoryEntry with a pointer to the signed ContactDescrip
 hash. State in KEY_TRANSPARENCY that the logged binding is `alias -> intro identity public key (+ descriptor
 digest)`. State that relationship-time protection comes from IntroIdentityBinding (F-R1-3) plus ACS head gossip, and
 that first contact without key transparency is trust-on-first-use until safety-number verification.
-Resolution:
+Resolution: accepted — IDENTITY_PROTOCOL DirectoryEntry has no AccountID/state hash; KEY_TRANSPARENCY logs alias -> intro key (+ descriptor digest), three protection layers and TOFU stated; R-208.
 
 ### F-R1-9 — KeyMaterialProvider fetch is unauthorized and links an account's devices
 
@@ -230,7 +230,7 @@ Proposed fix: Specify fetch authorization: a per-relationship or per-ticket fetc
 allowed only for the pre-acceptance request key (F-R1-3). Add per-capability drain rate limits, and make last-resort
 use visible to the owner. Either move the ACS binding inside a value the fetcher verifies but the provider cannot
 correlate, or correct the descriptor to `device_count: sometimes`. Record the choice in V-015.
-Resolution:
+Resolution: accepted — ASYNC_KEY_MATERIAL §2.1 (per-relationship/per-ticket fetch capability, anonymous request-key only, drain limits, visible last resort); W0 descriptor corrected to `sometimes` (ADR-0126); unlinkable binding deferred to A-031; R-209.
 
 ### F-R1-10 — ReferralAttestation cannot be verified by the parties that must act on it
 
@@ -246,7 +246,7 @@ Proposed fix: Define referral admission as capacity Alice issues: Alice pre-issu
 (for example blinded or Privacy Pass-style tokens bound to the IntroGate). Carol attaches one; the IntroGate verifies
 only the token, never Carol's identity. The "Introduced by Carol" label is verified client-side by Alice only when
 Carol is her contact. Update CONTACT_SHARING §3 and the V-016 model.
-Resolution:
+Resolution: accepted — referral admission is Alice-issued Privacy Pass-style tokens; INVITES_INTROGATE_AND_SPAM §6, CONTACT_SHARING §3; label verified client-side; token profile is A-032; R-210.
 
 ### F-R1-11 — RelaySet authority, signer and scope are undefined, so a quarantined device can redirect or blackhole delivery
 
@@ -269,7 +269,7 @@ as active and not quarantined. Peers reject other signers, and on a version conf
 signer is still valid. Map REACHABILITY §2's semantics onto the frozen fields (per-entry `expires_at` as overlap,
 recovery rendezvous in ReachabilityRecoveryDescriptor), or register extensions. Give BlobLocationRecord the same
 signer rule: a device of the original sender's account or of a conversation member.
-Resolution:
+Resolution: accepted — MULTI_RELAY_AND_DELIVERY_RESILIENCE §2.1 (per relationship, active non-quarantined signer, conflict rule), REACHABILITY §2 mapping onto frozen fields (ADR-0126, no extension needed), BlobLocationRecord signer rule; R-211.
 
 ### F-R1-12 — Disappearing-message semantics contradict the frozen time registry
 
@@ -284,7 +284,7 @@ at different times.
 Proposed fix: State in the doc that `ConversationEvent.expiry` (absolute, wall clock) is the v1 interoperable timer,
 and that `expires_after` is an optional local hint which receivers MUST NOT use to extend retention beyond `expiry`.
 Or, if the registry is right, amend the doc and the 2026-09-23 resolution through an ADR.
-Resolution:
+Resolution: accepted — option 1: DISAPPEARING_MESSAGES_AND_RETENTION names `ConversationEvent.expiry` as the v1 timer; `expires_after` is a local hint (time registry note, ADR-0126); R-212.
 
 ### F-R1-13 — RecoveryPolicy shape and R-029 are stale against ADR-0111 and the frozen CDDL
 
@@ -297,7 +297,7 @@ contradicting ADR-0111 and R-183, and T-012 still maps to it.
 Proposed fix: Align §3 with [`account.cddl`](../../spec/cddl/account.cddl) RecoveryPolicy (state, methods, the four `recovers` values, no
 self-commitment). Rewrite R-029 as "recovery never becomes a provider master key; turning it off requires explicit
 user action", or retire it in favour of R-183/R-186.
-Resolution:
+Resolution: accepted — RECOVERY_AND_BACKUP_POLICY §3 aligned with account.cddl; recovery-policy logical schema drops `policy_commitment`; R-029 rewritten and T-012 remapped in the ledger patch.
 
 ### F-R1-14 — Blob migration by re-encryption contradicts the stable BlobID and ciphertext digest
 
@@ -310,7 +310,7 @@ events. The "stable integrity/content identity" wording also conflicts with ADR-
 integrity comes from the digest).
 Proposed fix: Delete "or re-encrypted ciphertext". Re-keying is a new blob referenced by a new event. Reword the
 BlobID lines to "random identifier; integrity from `ciphertext_digest`".
-Resolution:
+Resolution: accepted — STORAGE_AND_BLOB_ARCHITECTURE migration moves the same ciphertext only; BlobID wording is random identifier plus `ciphertext_digest` there and in REACHABILITY §3; R-213.
 
 ### F-R1-15 — Remaining references to an OM-operated default directory and verifier
 
@@ -322,7 +322,7 @@ operation) and the "no global DirectorySet root" resolution make these stale, an
 project-run namespace (constitution P-04).
 Proposed fix: Replace these with "a directory the client is configured with (any provider)". Drop the `.om` suffix
 example and "OM Inc.", and list "OM-operated verification" only as "a verifier the user or distribution chooses".
-Resolution:
+Resolution: accepted — directory/verifier references in IDENTITY_DISCOVERY_VERIFICATION and DISCOVERY_FABRIC now say any configured provider; `.om` example, "OM Inc." and OM-operated verification removed.
 
 ### F-R1-16 — Stale crypto text: pre-ADR-0118 strategy and a superseded AccountControlState shape
 
@@ -335,7 +335,7 @@ but ADR-0118 chose B with Double Ratchet for v1. CRYPTOGRAPHY lines 18-29 show a
 account-authority object"). `OM-PQHYBRID-1` does not match the registry name `OM-Crypto-v1`.
 Proposed fix: Mark §4 as "resolved by ADR-0118 (strategy B)". Replace lines 18-29 with a pointer to [`account.cddl`](../../spec/cddl/account.cddl),
 and rename the example profile.
-Resolution:
+Resolution: accepted — PRODUCTION_CRYPTO_INTEGRATION_GATE §4 marked resolved by ADR-0118 (strategy B); CRYPTOGRAPHY_AND_AGILITY competing ACS shape replaced by a pointer; example renamed OM-Crypto-v1.
 
 ### F-R1-17 — "Expire after one use" is not single-use across multiple IntroGates
 
@@ -347,7 +347,7 @@ ASYNC_KEY_MATERIAL §4 solves for prekeys.
 Proposed fix: State that `max_uses` is per IntroGate. Either split the budget across gates (disjoint), or have the
 recipient's client revoke the siblings on the first acceptance. Show the UX as "one use per server" when more than
 one gate is listed.
-Resolution:
+Resolution: accepted — INVITES_INTROGATE_AND_SPAM §3: `max_uses` is per IntroGate; disjoint budget split or sibling revocation on first acceptance; "one use per server" UX; R-214.
 
 ### F-R1-18 — Retirement "through head gossip" is not possible with the head object
 
@@ -358,7 +358,7 @@ subject, generation, state hash and epoch. It cannot show that a retirement occu
 party should not make a contact stop sending.
 Proposed fix: Require the signed AccountRetirement object itself. A head that points at an unknown newer state only
 triggers a fetch.
-Resolution:
+Resolution: accepted — ACCOUNT_LIFECYCLE §2 rule 3: only the signed AccountRetirement object renders Closed; a head only triggers a fetch; R-215.
 
 ## Checked and sound
 
@@ -375,3 +375,4 @@ Resolution:
 
 Noted outside this review's scope, for the other reviewer: ADR-0118 §6 makes a PQ prekey mandatory in every bundle,
 but [`keys.cddl`](../../spec/cddl/keys.cddl) AsyncKeyBundle key 8 (`pq_signed_prekey`) is optional.
+Resolution: accepted — key 8 made mandatory in keys.cddl and via OM-Crypto-v1 `required_bundle_fields` (ADR-0126; the registry `req` value is immutable); R-216.

@@ -1,6 +1,9 @@
 {
  "status": "W0 MetadataExposureDescriptors (V-015). Checked by verification/bounded/metadata_trace_model.py.",
  "schema": "docs/ux-design/metadata-exposure.logical.schema.json",
+ "notes": [
+  "key_material_provider (ADR-0126, F-R1-9): stable_account_id and device_count are 'sometimes'. Every AsyncKeyBundle carries acs_generation and acs_state_hash in the clear; they are identical for all of an account's devices and across providers, so a provider or a fetcher can group devices per account and follow the account across providers. That is a stable per-account correlator, not the AccountID itself. An unlinkable binding is design-queue item A-031."
+ ],
  "fields": [
   "client_network_address",
   "stable_account_id",
@@ -103,7 +106,7 @@
    "role": "key_material_provider",
    "exposures": {
     "client_network_address": "always",
-    "stable_account_id": "no_by_design",
+    "stable_account_id": "sometimes",
     "conversation_id": "no_by_design",
     "contact_graph_edge": "sometimes",
     "membership_or_roster": "no_by_design",
@@ -114,7 +117,7 @@
     "push_timing": "no_by_design",
     "sponsor_relationship": "no_by_design",
     "recovery_attempt": "no_by_design",
-    "device_count": "no_by_design"
+    "device_count": "sometimes"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "ASYNC_KEY_MATERIAL.md",
@@ -122,7 +125,8 @@
     "prekey host and relay do not collude"
    ],
    "optional_mitigations": [
-    "fetch prekeys over privacy-enhanced path"
+    "fetch prekeys over privacy-enhanced path",
+    "per-relationship or per-ticket fetch capability with drain rate limits (R-209)"
    ]
   },
   {

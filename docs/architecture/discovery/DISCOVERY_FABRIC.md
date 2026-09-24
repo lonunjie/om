@@ -163,6 +163,18 @@ E2EE AccountID proof / binding
 
 This reduces passive correlation between multiple aliases belonging to one person.
 
+The objects are fixed by ADR-0126 ([`INVITES_INTROGATE_AND_SPAM.md`](INVITES_INTROGATE_AND_SPAM.md) §5.1):
+
+- the descriptor carries a `request_key` signed by the alias-specific intro identity;
+- the **message request** is a `MessageRequest`, HPKE-sealed to that key, which hides the sender's AccountID and
+  device from the IntroGate;
+- the **E2EE AccountID proof / binding** is an `IntroIdentityBinding`: a signature by a device active in the
+  recipient's AccountControlState over the intro public key and request key, sent only inside the accepted
+  relationship. The sender verifies it against the recipient's ACS before trusting the relationship, which detects a
+  directory or IntroGate that substituted the intro identity.
+
+A directory record never carries the AccountID or an account state hash.
+
 ## 8. Caching and expiry
 
 Descriptors are cacheable only until their authenticated expiry/TTL.
@@ -182,13 +194,13 @@ A client may configure:
 
 ```text
 DirectorySet
-  default OM directory
+  directory the client is configured with (any provider)
   community directory
   enterprise directory
   user-selected directory
 ```
 
-Search can query more than one provider. Results must preserve namespace/provenance. The protocol must not require the official OM directory.
+Search can query more than one provider. Results must preserve namespace/provenance. The protocol must not require any particular directory; there is no official OM directory (ADR-0043, ADR-0082).
 
 A directory has narrow authority:
 
@@ -230,7 +242,7 @@ This is not anonymity against a colluding relay+resolver or a global passive adv
 
 ## 11. Transparency and equivocation resistance
 
-Directory records should be signed and short-lived. For high-assurance directories, OM should additionally support key-transparency-style append-only commitments, independent witnesses, and/or client gossip.
+Directory records should be signed and short-lived. For high-assurance directories, OM should additionally support key-transparency-style append-only commitments, independent witnesses, and/or client gossip. The logged subject is `alias -> intro identity public key (+ descriptor digest)` ([`KEY_TRANSPARENCY_AND_DIRECTORY.md`](KEY_TRANSPARENCY_AND_DIRECTORY.md)).
 
 The goal is to detect a directory that tells:
 
@@ -293,7 +305,7 @@ All resolver/provider/transparency mechanics are automatic unless the user expli
 
 For v1 personal deployments, a user's Cloudflare Worker FQDN (`<worker>.<account-subdomain>.workers.dev`) may act as a `PersonalDiscoveryPublisher`. It serves a signed ContactDescriptor/IntroductionServiceDescriptor and is not a global directory.
 
-Grouped searchable directories begin naturally at organizations/communities that own FQDN namespaces. `alice@example.org` can delegate to any DirectoryProvider without making OM Inc. the root.
+Grouped searchable directories begin naturally at organizations/communities that own FQDN namespaces. `alice@example.org` can delegate to any DirectoryProvider without making any project or company the root.
 
 ### ContactCapsule forwarding
 

@@ -9,10 +9,36 @@ Human-friendly discovery must not let a directory silently equivocate about a us
 A directory answers queries such as:
 
 ```text
-alias -> signed Account/Discovery record
+alias -> signed ContactDescriptor (alias-specific intro identity + request key)
 ```
 
-It can control whether an alias exists in that directory, but it cannot redefine AccountID continuity.
+It can control whether an alias exists in that directory, but it cannot redefine AccountID continuity. A directory
+record carries no AccountID and no account state hash.
+
+## What is logged
+
+The transparency subject is the binding
+
+```text
+alias -> intro identity public key (+ ContactDescriptor digest)
+```
+
+not the AccountID or the AccountControlState head, which stay private until a relationship is accepted. Split-view
+detection therefore compares intro keys for an alias.
+
+Protection has three layers:
+
+1. **Key transparency**, where the directory offers it, detects a directory that shows different intro keys to
+   different people.
+2. **IntroIdentityBinding** (ADR-0126): inside the accepted relationship, a device active in the recipient's
+   AccountControlState signs the intro key. A substituted intro key fails this check for a sender who knows or later
+   learns the recipient's account.
+3. **AccountControlHead gossip** (below) then detects stale or forked account state.
+
+**Trust on first use.** First contact through a directory without key transparency, including a workers.dev personal
+publisher ([`DISCOVERY_FABRIC.md`](DISCOVERY_FABRIC.md)), is trust-on-first-use: a publisher that substitutes the intro identity for a sender
+who has never met the recipient is not detected until the two compare safety numbers or meet through another path.
+Clients say so in the verification UI.
 
 ## Equivocation threat
 

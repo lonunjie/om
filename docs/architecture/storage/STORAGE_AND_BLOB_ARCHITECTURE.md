@@ -63,7 +63,7 @@ Blob locators are replaceable. Migration can:
 
 1. fetch ciphertext from old provider;
 2. verify authenticated digest/length;
-3. upload same ciphertext or re-encrypted ciphertext according to policy;
+3. upload the same ciphertext. Events carry a fixed `ciphertext_digest` and content key, so re-encrypted ciphertext would fail verification; re-keying means a new blob referenced by a new event;
 4. update encrypted/private manifests;
 5. retain multiple locators during transition;
 6. delete old copy after verification and retention window.
@@ -100,10 +100,10 @@ Online/LAN file transfer should prefer direct encrypted paths where policy permi
 Backups restore history, not authority. Current AccountControlState, revocations, security floors and live provider capabilities must be reconciled before restored material becomes operational.
 ## 2026-09-22 hardening — immutable BlobID, mutable location knowledge
 
-Attachment/object identity is separated from provider location. Canonical events refer to stable encrypted-object identity; `BlobLocationRecord` carries authenticated replaceable locators. Provider migration therefore never rewrites canonical message identity.
+Attachment/object identity is separated from provider location. Canonical events refer to a random, stable BlobID, and integrity comes from the event's `ciphertext_digest` (ADR-0119 ruling 6); `BlobLocationRecord` carries authenticated replaceable locators. Provider migration therefore never rewrites canonical message identity.
 
 [`REACHABILITY_AND_OBJECT_REPAIR.md`](../delivery/REACHABILITY_AND_OBJECT_REPAIR.md) defines overlap and late/offline-recipient repair when an old locator disappears before a replacement reaches every authorized device.
 
 ## 2026-09-23 blob resolution
 
-BlobID stably identifies the inner encrypted object; provider locators are mutable. E2EE events carry decryption material and an opaque repair capability; authenticated BlobLocationRecord repair permits relocation/mirroring without changing canonical message identity.
+BlobID is a random identifier that stably names the inner encrypted object; integrity comes from `ciphertext_digest`; provider locators are mutable. E2EE events carry decryption material and an opaque repair capability; authenticated BlobLocationRecord repair permits relocation/mirroring without changing canonical message identity.

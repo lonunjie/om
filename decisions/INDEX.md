@@ -127,3 +127,5 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0123 — Moderation evidence access and appeal hold](ADR-0123-moderation-evidence-access-and-appeal-hold.md)
 - [ADR-0124 — Service information flow and bridge provenance](ADR-0124-service-information-flow-and-bridge-provenance.md)
 - [ADR-0125 — Portable archive format rulings](ADR-0125-portable-archive-format-rulings.md)
+- [ADR-0126 — W0 spec addendum from the architecture review](ADR-0126-w0-spec-addendum-from-the-architecture-review.md)
+- [ADR-0127 — Account authority transition rules](ADR-0127-account-authority-transition-rules.md)

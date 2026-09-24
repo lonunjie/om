@@ -22,7 +22,7 @@
     {"object": "AsyncKeyBundle", "field": "expires_at", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "fetcher with an obviously invalid clock uses the bundle but prefers a newer generation; never downgrades profile", "authority_effect": "none"},
     {"object": "ConversationEvent", "field": "clock.physical_ms / clock.logical", "clock_class": "hlc_ordering", "skew_policy": "HLC rules (EVENT_MODEL.md EventClock)", "bad_clock_behavior": "misplaced display order only", "authority_effect": "none"},
     {"object": "ConversationEvent", "field": "expiry", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "local deletion uses monotonic time from receipt (TIME_AND_EXPIRY_SEMANTICS.md §4)", "authority_effect": "none"},
-    {"object": "MessageCreate", "field": "expires_after", "clock_class": "monotonic_local_duration", "skew_policy": "n/a", "bad_clock_behavior": "timer runs on monotonic time from local first display/receipt", "authority_effect": "none"},
+    {"object": "MessageCreate", "field": "expires_after", "clock_class": "monotonic_local_duration", "skew_policy": "n/a", "bad_clock_behavior": "timer runs on monotonic time from local first display/receipt", "authority_effect": "none", "note": "ADR-0126: a local hint only. ConversationEvent.expiry is the v1 interoperable timer; a receiver MUST NOT use expires_after to keep content past expiry."},
     {"object": "AttachmentRef", "field": "duration_ms", "clock_class": "n/a (media metadata)", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
     {"object": "ContactDescriptor", "field": "not_before / expires_at", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "treat as expired and ask the sender for a fresh capsule", "authority_effect": "none"},
     {"object": "ContactCapsule", "field": "expires_at / share_epoch", "clock_class": "wall_clock_expiry / cryptographic_state_sequence", "skew_policy": "default", "bad_clock_behavior": "IntroGate re-checks share_epoch online", "authority_effect": "none"},
@@ -35,6 +35,8 @@
     {"object": "RelayEntry", "field": "expires_at", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "keep using until a newer RelaySet version arrives or delivery fails", "authority_effect": "none"},
     {"object": "RelaySet", "field": "version", "clock_class": "cryptographic_state_sequence", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
     {"object": "BlobLocationRecord", "field": "version", "clock_class": "cryptographic_state_sequence", "skew_policy": "n/a", "bad_clock_behavior": "n/a", "authority_effect": "none"},
-    {"object": "BlobLocationRecord", "field": "valid_from / overlap_until", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "keep trying every known locator", "authority_effect": "none"}
+    {"object": "BlobLocationRecord", "field": "valid_from / overlap_until", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "keep trying every known locator", "authority_effect": "none"},
+    {"object": "RequestKey", "field": "expires_at", "clock_class": "wall_clock_expiry", "skew_policy": "default", "bad_clock_behavior": "sender fetches a fresh ContactDescriptor; the recipient keeps decrypting with the old key for the skew window", "authority_effect": "none"},
+    {"object": "IntroIdentityBinding", "field": "issued_at", "clock_class": "wall_clock_expiry", "skew_policy": "informational", "bad_clock_behavior": "ignored; freshness comes from acs_generation/acs_state_hash", "authority_effect": "none"}
   ]
 }

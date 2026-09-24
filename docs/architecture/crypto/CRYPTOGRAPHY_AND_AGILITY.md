@@ -13,22 +13,10 @@
 
 `AccountID` represents an account lineage, not a specific Ed25519/X25519/ML-DSA/ML-KEM key.
 
-Recommended logical form:
-
-```text
-AccountID = random 256-bit stable identifier
-
-AccountControlState(epoch N):
-  AccountID
-  CredentialSet
-  authorized devices
-  recovery policy commitment
-  supported CryptoProfiles
-  previous-state commitment / continuity proof
-  authenticated transition
-```
-
-The exact canonical encoding/transition signature construction remains a Gate-C/A detail, but the invariant is fixed: replacing cryptography does not replace AccountID.
+`AccountID` is a random 256-bit stable identifier. Account authority is the single `AccountControlState` object
+([`account.cddl`](../../../spec/cddl/account.cddl), [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../identity/ACCOUNT_CONTINUITY_AND_CONTROL.md)); per-device keys live in `DeviceCredential` objects bound by
+the ACS `device_credentials` digests, and the ACS carries a `minimum_crypto_profile` floor. There is no separate
+credential-set or account-authority object. The invariant is fixed: replacing cryptography does not replace AccountID.
 
 ## CryptoProfiles, not arbitrary primitive negotiation
 
@@ -57,9 +45,14 @@ CryptoProfile {
   media_keying
   aead
   hash_kdf
+  security_generation: { one_to_one?, group? }   // ADR-0126; the floor compares this
   minimum_client_generation?
 }
 ```
+
+The registry form is [`om-crypto-profiles.json`](../../../spec/registries/om-crypto-profiles.json). A profile id is an allocation number, not a strength; profiles are
+ordered only by `security_generation`, separately per conversation type (ADR-0107: a 1:1 hybrid profile and a
+classical MLS profile are not comparable).
 
 Peers MUST NOT assemble arbitrary combinations in production.
 
@@ -70,7 +63,7 @@ Where mature and interoperable, OM should combine a classical and post-quantum a
 Conceptual profile:
 
 ```text
-OM-PQHYBRID-1
+OM-Crypto-v1 (registry id 1)
   account/device authentication: classical + PQ-capable authenticated credential transition
   async 1:1 key establishment: PQXDH-class or equivalent hybrid-reviewed design
   ongoing 1:1: Double Ratchet in v1; Triple-Ratchet-class hybrid continuous key evolution in v2 (ADR-0118)
@@ -102,16 +95,21 @@ OpenMLS is a leading Rust implementation candidate, not a protocol dependency.
 
 ## Downgrade floor
 
-Each relationship/device/group records the strongest accepted security generation/profile family according to policy.
-
-Conceptually:
+Each relationship/device/group records the highest `security_generation` it has accepted for its conversation type
+(ADR-0126). Restored records and the ACS `minimum_crypto_profile` combine by taking the maximum (ADR-0120).
 
 ```text
-security_floor(peer) = generation G
+security_floor(conversation) = G   // security_generation[conversation_type] of the strongest accepted profile
 
-if proposed_generation < G and no explicit authenticated migration exception:
+if generation_of(proposed_profile, conversation_type) < G:
     reject
 ```
+
+There is exactly one case where the floor moves without increasing: a signed SecurityAdvisory (ADR-0104) marks a
+profile `forbidden`. The floor then moves to a non-forbidden profile of **equal or higher** generation; if none exists,
+the conversation stops sending and says so until one does. The floor never moves lower. ~~"no explicit authenticated
+migration exception"~~ and any "emergency migration procedure" are deleted: there is no other exception. V-003 carries
+the negative vector.
 
 A server or active network attacker cannot make two upgraded peers silently fall back to an old profile.
 

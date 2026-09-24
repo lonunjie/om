@@ -17,7 +17,8 @@ Possible timers:
 - after first view/read where the protocol can define this consistently;
 - explicit absolute expiry.
 
-The exact v1 set should remain small and testable.
+The exact v1 set should remain small and testable. For v1 the only interoperable timer is absolute after-send
+expiry, carried in `ConversationEvent.expiry` (key 12, wall clock; see below).
 
 ## 3. Relay behavior
 
@@ -44,4 +45,4 @@ Attachment content keys can be destroyed/forgotten at expiry. BlobStore deletion
 
 ## 2026-09-23 expiry resolution
 
-v1 interoperable disappearing messages use absolute after-send expiry. “After read” remains local-retention behavior until a later explicit extension because making it canonical would require additional receipt/convergence semantics. Expiry destroys local attachment keys/removes locations, leaves anti-resurrection tombstones and excludes ephemeral content from ordinary backup by default.
+v1 interoperable disappearing messages use absolute after-send expiry, carried in **`ConversationEvent.expiry`** (absolute wall-clock seconds, [`events.cddl`](../../../spec/cddl/events.cddl) key 12). `MessageCreate.expires_after` is only an optional local hint for a receipt/read-based timer: a receiver MAY delete earlier because of it, but MUST NOT use it to keep content past `expiry` (ADR-0126; [`om-time-fields.json`](../../../spec/registries/om-time-fields.json)). “After read” remains local-retention behavior until a later explicit extension because making it canonical would require additional receipt/convergence semantics. Expiry destroys local attachment keys/removes locations, leaves anti-resurrection tombstones and excludes ephemeral content from ordinary backup by default.

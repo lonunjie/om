@@ -41,29 +41,32 @@ No single recovery secret should automatically do all three.
 
 ## 3. RecoveryPolicy as a plug-in interface
 
-Conceptual policy:
+The wire shape is frozen in [`account.cddl`](../../../spec/cddl/account.cddl) `RecoveryPolicy` (ADR-0119):
 
 ```text
 RecoveryPolicy {
-  version
-  methods[]
-  authorization_rule
-  recovers: [identity | history | provider-metadata]
-  activation_delay_or_challenge_policy
-  rotation_epoch
-  policy_commitment
+  state: on | pending | off_explicit          // "no recovery" is state = off_explicit, not a method
+  methods[]                                   // kind + public commitment for this epoch
+  authorization_rule: vote_weight = 1, immediate_requires_controller_cosign = true
+  recovers: [identity | history | provider_metadata | relationships]
+  activation: delay_seconds (>= 86400), veto_by = any_live_controller
+  rotation_epoch?
 }
 ```
 
-Supported/future methods can coexist:
+The policy carries no commitment to itself. Its commitment is `Hash(OM-RECOVERY-POLICY-HASH-v1, body)`, stored in
+AccountControlState `recovery_policy_commitment` (ADR-0119 ruling 4).
 
-- `None`
-- `OfflineRecoveryRoot`
-- `ShamirGuardianShares`
-- `SpareControlDevice`
-- `HardwareAuthenticator`
-- `FutureThresholdAuthorization`
-- enterprise/recovery-provider adapters that meet OM trust boundaries.
+Method kinds (`recovery_method_kind`) can coexist:
+
+- `synced_passkey_prf` (the default custodian, §10.2)
+- `recovery_key` (the OfflineRecoveryRoot, §4)
+- `guardians_shamir`
+- `spare_controller`
+- `hardware_authenticator`
+- `future_threshold`
+
+Enterprise or recovery-provider adapters must map onto one of these kinds and meet OM trust boundaries.
 
 The protocol must not assume one vendor or one cryptographic construction forever.
 
@@ -115,16 +118,19 @@ Migration from Shamir-style recovery to a standardized threshold scheme should b
 
 ## 7. Recovery activation defenses
 
-Depending on the user's profile, identity recovery may include:
+Whenever recovery is on, every identity recovery **must** include (ADR-0111, ADR-0127):
 
-- configurable time delay;
-- notification to surviving control devices;
-- challenge/abort window;
-- guardian quorum;
-- recovery-code proof;
-- optional out-of-band confirmation.
+- an activation delay of at least 24 h (profile defaults in §10.6);
+- notification to every live control device, with a **veto** that any live controller can issue during the delay;
+- immediate completion only when at least one current, non-quarantined controller co-signs (§10.3-10.4).
 
-Maximum-privacy/disposable identities may intentionally choose none of these because they have no recovery at all.
+No profile can turn these off. The same rules apply to every other transition a RecoveryPolicy takes part in
+(permanent revocation, retirement, promotion, recovery-policy change): there it is one vote, and alone it acts only
+after the delay with no veto ([`ACCOUNT_CONTINUITY_AND_CONTROL.md`](ACCOUNT_CONTINUITY_AND_CONTROL.md) §3, §4.1). It never resolves a freeze or fork.
+
+Methods may add defenses on top: a guardian quorum, recovery-code proof, or optional out-of-band confirmation.
+
+Disposable identities have none of this only because they have no recovery at all (`state = off_explicit`).
 
 ## 8. History backup
 

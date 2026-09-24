@@ -75,10 +75,11 @@ DeviceIdentity
   capabilities
   created_at
   authorization
-  revoked_at?
 ```
 
-Each device has independent cryptographic material and can be revoked independently.
+Each device has independent cryptographic material and can be revoked independently. Revocation is recorded only in
+AccountControlState (`permanently_revoked_devices`), never as a timestamp on the device record. The wire object is
+`DeviceCredential` in [`account.cddl`](../../../spec/cddl/account.cddl).
 
 ### ProfileDocument
 
@@ -104,12 +105,14 @@ Phone-number claims are time-bounded/re-verifiable claims because numbers are re
 
 ### DirectoryEntry
 
+A directory maps an alias to the recipient's signed `ContactDescriptor` ([`discovery.cddl`](../../../spec/cddl/discovery.cddl)), which names an
+alias-specific intro identity and a request key. A directory record carries **no AccountID and no account state
+hash**: both would make a public, enumerable alias-to-account map (see §"Recovery/control boundary" below).
+
 ```text
 DirectoryEntry
   alias
-  account_id
-  account_state_hash
-  introduction_endpoint
+  signed ContactDescriptor (or its digest + locator)
   claim_epoch
   expiry
   directory_signature
@@ -117,7 +120,10 @@ DirectoryEntry
 
 The directory is not the account authority.
 
-Directory mappings require append-only transparency or an equivalent reviewed anti-equivocation mechanism.
+Directory mappings require append-only transparency or an equivalent reviewed anti-equivocation mechanism. The logged
+binding is `alias -> intro identity public key (+ descriptor digest)` ([`KEY_TRANSPARENCY_AND_DIRECTORY.md`](../discovery/KEY_TRANSPARENCY_AND_DIRECTORY.md)). The
+AccountID is bound to the intro identity only inside the accepted relationship, by an `IntroIdentityBinding`
+(ADR-0126).
 
 ### IntroductionCapability
 
@@ -130,7 +136,10 @@ Public discovery exposes only a constrained first-contact capability:
 - rotatable/revocable;
 - abuse policy may evolve independently.
 
-After acceptance, contacts establish private relationship delivery capabilities.
+The first-contact message is a `MessageRequest` sealed to the recipient's request key; the IntroGate never learns the
+sender's AccountID or device ([`INVITES_INTROGATE_AND_SPAM.md`](../discovery/INVITES_INTROGATE_AND_SPAM.md) §5.1). After acceptance, contacts verify the
+`IntroIdentityBinding`, establish PQXDH sessions to each other's devices and exchange private relationship delivery
+capabilities.
 
 ### RelationshipBinding
 
@@ -153,10 +162,10 @@ OM never requires a provider-held plaintext master decryption key.
 
 A continuity proof links an old AccountID to a successor AccountID only when a truly new account must be created.
 
-Strong proof comes from:
-
-1. old account authorization;
-2. pre-authorized recovery authority.
+The only cryptographic continuity proof is `AccountRetirement(reason_class = moved, successor_account_id)`,
+authorized under the old account's parent state (majority, with a RecoveryPolicy counting as one vote under the delay
+and veto rules; ADR-0127). Guardian or recovery-root recovery keeps the **same** AccountID and needs no continuity
+proof.
 
 Friend attestations and manual merges are human evidence, not equivalent cryptographic continuity.
 
@@ -203,16 +212,18 @@ A PersonRecord is how the user remembers a human. It is not a global claim that 
 
 ## Default authority policy
 
-Normal mode favors low friction:
+Every AccountControlState change follows the normative authorization table in
+[`ACCOUNT_CONTINUITY_AND_CONTROL.md`](ACCOUNT_CONTINUITY_AND_CONTROL.md) §4.1 (ADR-0127). In short: one control device links a messaging device;
+promotion, permanent revocation of a control device, recovery-policy change and retirement are constitutional
+(majority of the parent state's controllers, with recovery as one vote); quarantine is one controller and
+reversible. Changes outside AccountControlState:
 
 - create account: local genesis device;
-- add device: one trusted authorized device or valid recovery flow;
-- revoke device: authorized device, propagated quickly;
-- update profile: authorized device;
-- add/remove alias: authorized device plus alias-provider proof;
-- recovery-policy replacement: explicit confirmation under current account authority.
+- update profile: any active device;
+- add/remove alias: an active device plus the alias provider's proof.
 
-High-assurance users may require M-of-N approvals for selected critical transitions.
+High-assurance users may raise the constitutional threshold (`constitutional_policy`), never lower it below the
+majority default without a majority.
 
 ## Lifecycle
 
@@ -233,8 +244,8 @@ No password, email, or phone number is required by the OM protocol.
 
 ```text
 new device request
- -> trusted device/recovery approval
- -> AccountControlState advances
+ -> linking ceremony with an active control device (or a completed recovery, §10.3)
+ -> AccountControlState advances (authorization per ACCOUNT_CONTINUITY §4.1)
  -> account/contact state sync
  -> secure groups enroll the new device according to group policy
 ```
@@ -256,7 +267,7 @@ A different cryptographic account appearing at a recycled phone number is a new 
 
 ### Total loss with valid recovery
 
-The committed RecoveryPolicy can preserve the AccountID lineage and authorize new devices.
+The committed RecoveryPolicy can preserve the AccountID lineage and authorize new devices, through a RecoveryRequest that completes only after the activation delay with no veto, or immediately with a controller co-sign ([`RECOVERY_AND_BACKUP_POLICY.md`](RECOVERY_AND_BACKUP_POLICY.md) §10.3).
 
 ### Total loss without valid recovery
 

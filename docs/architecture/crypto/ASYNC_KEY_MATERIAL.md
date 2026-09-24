@@ -23,13 +23,33 @@ KeyMaterialProvider
 
 Providers return provider-signed/transport-authenticated receipts where useful, but recipient authenticity is proven by OM account/device authorization and cryptographic signatures/bindings, not provider identity.
 
+### 2.1 Fetch authorization (ADR-0126, R-209)
+
+`fetchHandshakeMaterial` and `inventory` are not open to anyone who knows a device id:
+
+- **Relationship fetch.** Fetching a device's bundle, and consuming one-time prekeys, needs a fetch capability the
+  device owner issued: per relationship (exchanged inside the accepted relationship) or per IntroductionTicket
+  (after acceptance of a MessageRequest). Capabilities are distinct per provider, like relay capabilities.
+- **Anonymous fetch** returns only request-key material ([`INVITES_INTROGATE_AND_SPAM.md`](../discovery/INVITES_INTROGATE_AND_SPAM.md) §5.1), never one-time
+  prekeys or a device list.
+- **Drain limits.** Providers rate-limit one-time consumption per capability and per device, so one capability cannot
+  exhaust a pool; a rate-limited fetch gets only the signed EC and PQ prekeys (PQXDH without a one-time key), never a weaker handshake.
+- **Visible last resort.** When a session is established with the last-resort key because one-time keys ran out, the
+  owner's devices see it (as inventory state and in diagnostics), so a drain attack is noticed.
+- `inventory(device)` is callable only by the owner's devices.
+
+**Residual linkage.** Every bundle carries `acs_generation` and `acs_state_hash` in the clear (frozen W0 fields).
+They are identical for all of an account's devices and across providers, so a provider or fetcher can group devices
+per account and follow an account across providers. The W0 metadata descriptor says so (`device_count: sometimes`,
+`stable_account_id: sometimes`). An unlinkable binding is design-queue item A-031, recorded under V-015.
+
 ## 3. 1:1 handshake material
 
 The exact fields are selected by CryptoProfile. A PQXDH-class profile is expected to need conceptually:
 
 - device identity/authentication key material;
 - signed/pre-authorized medium-term prekey material;
-- post-quantum prekey material;
+- post-quantum signed prekey material, **mandatory** in every bundle (ADR-0118 §6; `pq_signed_prekey`, key 8, ADR-0126);
 - one-time prekeys where the selected construction uses them;
 - last-resort/fallback material where explicitly specified;
 - key IDs/generation/profile/expiry;
@@ -70,7 +90,7 @@ Policy must define:
 - stale generation rejection;
 - replay/duplicate fetch handling;
 - provider loss/migration;
-- privacy leakage from inventory queries.
+- privacy leakage from inventory queries (§2.1: owner-only).
 
 Running out of strong asynchronous material may reduce availability; it MUST NOT silently downgrade to an unauthenticated/weaker handshake outside the allowed CryptoProfile.
 

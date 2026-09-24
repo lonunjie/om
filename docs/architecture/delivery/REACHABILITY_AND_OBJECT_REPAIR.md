@@ -34,7 +34,17 @@ RelaySet {
 }
 ```
 
-Exact schema may differ, but continuity/version/overlap semantics are mandatory.
+Exact schema may differ, but continuity/version/overlap semantics are mandatory. The frozen W0 RelaySet
+([`delivery.cddl`](../../../spec/cddl/delivery.cddl)) carries them without new fields (ADR-0126):
+
+| Semantic | Frozen W0 encoding |
+|---|---|
+| `version`, `previous_set_hash` | RelaySet keys 2 and 3 |
+| `valid_from` | the moment a peer accepts the higher `version` |
+| `overlap_until` | each old entry's own `expires_at` (entry key 4) |
+| `emergency_revocation` | a new version that omits the entry, plus revoking its drain capability at the relay |
+| `optional_recovery_rendezvous` | the separate ReachabilityRecoveryDescriptor ([`reachability-recovery.logical.schema.json`](../../../spec/protocol/reachability-recovery.logical.schema.json)) |
+| `authorization` | a signature by a device active and not quarantined in the recipient's current AccountControlState ([`MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`](MULTI_RELAY_AND_DELIVERY_RESILIENCE.md) §2.1) |
 
 ### Normal migration
 
@@ -57,7 +67,7 @@ OM will not solve this by publishing ordinary private relay capabilities globall
 Messages refer to immutable encrypted-object identity independently from provider location:
 
 ```text
-BlobID = stable integrity/content identity for encrypted object
+BlobID = random stable identifier for the encrypted object (integrity comes from ciphertext_digest, ADR-0119 ruling 6)
 BlobLocationRecord = authenticated mutable knowledge of where that BlobID can currently be fetched
 ```
 
@@ -67,8 +77,10 @@ A location change MUST NOT change the canonical message/event identity.
 
 Normal relocation:
 
-1. copy verified ciphertext to new BlobStore(s);
-2. publish/authenticate a newer BlobLocationRecord;
+1. copy the same verified ciphertext (never re-encrypted) to new BlobStore(s);
+2. publish/authenticate a newer BlobLocationRecord, signed (role `device`) by a device that is active and not
+   quarantined in the current AccountControlState of the original sender or of a current conversation member.
+   Peers reject any other signer;
 3. keep old/new locations concurrently for policy-defined overlap where feasible;
 4. verify recipient/self-device repair propagation;
 5. retire old location.

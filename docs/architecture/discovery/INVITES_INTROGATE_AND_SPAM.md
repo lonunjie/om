@@ -50,6 +50,12 @@ The client should make revocation a normal UX operation:
 - `Create new link`
 - optionally `Expire after one use`
 
+**`max_uses` is per IntroGate.** An invite that lists several IntroGates carries a distinct capability for each, and
+no two independent gates share an atomic counter (the same problem as one-time prekeys, [`ASYNC_KEY_MATERIAL.md`](../crypto/ASYNC_KEY_MATERIAL.md) §4).
+So when an invite lists more than one gate, the recipient's client either splits the use budget disjointly across the
+gates, or, on the first accepted request, revokes the invite's capabilities at every sibling gate. The UI then shows
+"one use per server" rather than promising a single global use.
+
 A revocable invite requires a revocation point such as an IntroGate/IntroductionService. A completely self-contained offline invite cannot know that it was revoked while disconnected, so offline invites should use short expiry and explicit semantics.
 
 ## 4. Public directory entries do not publish reusable invite secrets
@@ -87,6 +93,33 @@ optional anonymous anti-abuse entitlement
 
 The ticket issuer may be the recipient's chosen IntroGate or a delegated anti-abuse service.
 
+### 5.1 MessageRequest cryptography (ADR-0126)
+
+W0 first contact uses three objects ([`discovery.cddl`](../../../spec/cddl/discovery.cddl)):
+
+1. **Request key.** The recipient publishes a `request_key` (a public key of the hybrid KEM of the active
+   CryptoProfile) in its ContactDescriptor, signed by the alias-specific intro identity, and may repeat it in an
+   IntroductionTicket that the intro identity also signs. A sender uses a request key only from such a signed object.
+2. **`MessageRequest`.** The sender seals a signed `MessageRequestPayload` with HPKE (RFC 9180, base mode) to the
+   request key. No new primitive is involved; the HPKE suite is that CryptoProfile's hybrid KEM with its KDF and AEAD.
+   The payload is signed by the **sender's** intro identity and carries the sender's signed ContactDescriptor, an
+   optional greeting, optional referral attestations and a one-use reply route. It repeats the ticket id and
+   request-key digest, so it cannot be replayed into another request.
+   - **Sender hiding.** The outer object carries only the ticket id, request-key digest, profile, HPKE encapsulation,
+     ciphertext and an optional admission proof. The IntroGate sees the ticket and admission token, the size, the
+     timing and the network address; never the sender's AccountID, device id or intro key. It MUST NOT require any.
+   - **Size.** The IntroGate rejects a ciphertext longer than the ticket's `payload_limit_bytes` plus the AEAD tag,
+     before any other work.
+3. **`IntroIdentityBinding`.** After the recipient accepts, one of its devices that the recipient's
+   AccountControlState lists as active and not quarantined signs the recipient's AccountID, the intro public key, the
+   request-key digest and the ACS generation and hash. It is sent only inside the accepted relationship. The sender
+   verifies it against the recipient's ACS (device active, credential matching ACS `device_credentials`, intro key
+   and request key matching what it used) before treating the relationship as bound to that AccountID.
+
+Then both sides establish PQXDH sessions to each other's device bundles (ADR-0118, ADR-0120), fetched with the
+per-relationship capability of [`ASYNC_KEY_MATERIAL.md`](../crypto/ASYNC_KEY_MATERIAL.md) §2.1, and exchange private relationship capabilities (§9).
+V-015 and V-016 carry the vectors.
+
 ## 6. Adaptive abuse controls
 
 The IntroGate can progressively increase admission cost under attack without weakening E2EE:
@@ -99,6 +132,14 @@ The IntroGate can progressively increase admission cost under attack without wea
 6. lightweight proof-of-work under automated attack;
 7. CAPTCHA/device attestation only as a last-resort policy option;
 8. contacts/referral-only policy for high-risk recipients.
+
+**Referral capacity is issued by the recipient (R-195, ADR-0126).** R-195's reserved queue admits two kinds of
+tickets: invite-bound tickets and **referral tokens**. Alice's client pre-issues referral tokens to her own contacts
+(Privacy Pass-style, RFC 9576-9578, bound to her IntroGate). Carol attaches one to Bob's request as the
+`admission_proof`. The IntroGate verifies only the token, never Carol's identity, so it learns nothing about Alice's
+contacts. "Introduced by Carol" is a separate label that Alice's client verifies from the ReferralAttestation inside
+the sealed payload, and shows only when Carol is Alice's contact. A request without a valid token uses the public
+queue. The token profile is design-queue item A-032.
 
 Normal users should never see these mechanisms during ordinary traffic.
 

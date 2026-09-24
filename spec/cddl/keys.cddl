@@ -1,4 +1,4 @@
-; Status: frozen (ADR-0119, 2026-09-24).
+; Status: frozen (ADR-0119, 2026-09-24); key 8 made mandatory by ADR-0126 (ADR-0118 §6).
 ; W0 asynchronous key material (ASYNC_KEY_MATERIAL.md). Key sizes admit X25519 (32) .. ML-KEM-1024 (1568).
 
 signed-AsyncKeyBundle = { 1: bstr .cbor AsyncKeyBundle, 2: [1*16 signature] }
@@ -10,7 +10,7 @@ AsyncKeyBundle = {
   5: profile-id,                            ; crypto_profile
   6: uint,                                  ; generation
   7: prekey-item,                           ; signed_prekey
-  ? 8: prekey-item,                         ; pq_signed_prekey
+  8: prekey-item,                           ; pq_signed_prekey (mandatory, ADR-0126)
   ? 9: [1*100 prekey-item],                 ; one_time_prekeys
   ? 10: [1*32 prekey-item],                 ; pq_one_time_prekeys
   ? 11: prekey-item,                        ; pq_last_resort_prekey

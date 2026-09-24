@@ -110,11 +110,11 @@ Conceptually:
 
 ```text
 User sees:        @alice
-Canonical alias:  alice@directory.om
+Canonical alias:  alice@directory.example
 Resolves to:      AccountIdentity X
 ```
 
-The default OM client may hide the default directory suffix for convenience. A third-party directory can expose another namespace without changing the account identity.
+A client may hide the suffix of the directory it is configured with (any provider; ADR-0043, ADR-0082: OM runs no directory). Another directory can expose another namespace without changing the account identity.
 
 Properties:
 
@@ -143,7 +143,7 @@ A domain claim can be proven through a reviewed mechanism such as DNS and/or HTT
 
 ### Why this matters
 
-A business should not have to ask OM Incorporated to permanently own its identity.
+A business should not have to ask any directory operator, including the project steward, to permanently own its identity.
 
 ```text
 example.com
@@ -190,9 +190,9 @@ For high-impersonation targets, clients should rank stronger evidence prominentl
 5. optional `VerifierAttestation` from a trusted verification provider;
 6. direct manual verification.
 
-The default OM directory MAY reserve or adjudicate high-risk handles inside its own namespace, but that is a convenience/service policy and MUST NOT become protocol-level ownership of a person's name.
+A directory the client is configured with (any provider) MAY reserve or adjudicate high-risk handles inside its own namespace, but that is a convenience/service policy and MUST NOT become protocol-level ownership of a person's name.
 
-A person or business should be able to leave the default directory and retain stronger domain/cryptographic identity evidence.
+A person or business should be able to leave any directory and retain stronger domain/cryptographic identity evidence.
 
 ## Verification should state WHAT was verified
 
@@ -242,7 +242,7 @@ VerificationProvider
 
 Potential providers can include:
 
-- OM-operated verification;
+- a verifier the user or client distribution chooses;
 - government/business registry integrations where lawful and appropriate;
 - professional associations;
 - enterprise directories;
@@ -427,8 +427,8 @@ Automatic cryptographic key verification can detect inconsistencies in directory
 ## Open questions
 
 - Exact canonical syntax for namespaced aliases: `alice@example.com`, `@alice@example.com`, or URI form underneath a simpler presentation.
-- Whether the OM default directory offers bare `@alice` and how its hidden canonical namespace is represented.
-- Reserved-name and dispute policy for the default OM directory.
+- Whether a configured directory offers bare `@alice` and how its hidden canonical namespace is represented.
+- Reserved-name and dispute policy guidance for directory providers (each provider sets its own).
 - Exact DNS/HTTPS proof format for DomainClaim.
 - Whether DNSSEC is required, preferred, or optional when HTTPS proof also exists.
 - Organization root-key recovery and rotation.
