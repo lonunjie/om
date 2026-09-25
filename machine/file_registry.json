@@ -4,6 +4,13 @@
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
     {
+      "path": ".github/workflows/verify.yml",
+      "class": "repo_plumbing",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
       "path": ".gitignore",
       "class": "repo_plumbing",
       "domain": "architecture_process",
@@ -1041,6 +1048,13 @@
     },
     {
       "path": "decisions/ADR-0133-provider-release-and-conformance-closure.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0134-verification-execution-lifecycle-and-no-bounce-handoff.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",
@@ -2704,6 +2718,13 @@
       "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "executable_guardrail"
+    },
+    {
+      "path": "verification/CLAUDE_OPUS_5_5_HANDOFF.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_execution_handoff"
     },
     {
       "path": "verification/FEASIBILITY_RECONNAISSANCE_20260923.md",
@@ -4741,20 +4762,6 @@
       "domain": "architecture_verification",
       "license": "Apache-2.0",
       "authority": "machine_verification_evidence"
-    },
-    {
-      "path": "decisions/ADR-0134-verification-execution-lifecycle-and-no-bounce-handoff.md",
-      "class": "adr",
-      "domain": "architecture_decisions",
-      "license": "CC-BY-SA-4.0",
-      "authority": "decision_record"
-    },
-    {
-      "path": "verification/CLAUDE_OPUS_5_5_HANDOFF.md",
-      "class": "verification_doc",
-      "domain": "architecture_verification",
-      "license": "CC-BY-SA-4.0",
-      "authority": "verification_execution_handoff"
     }
   ]
 }

@@ -44,15 +44,15 @@ python3 tools/om_drop.py export                   # HEAD -> design-drops/om-desi
 python3 tools/om_drop.py import design-drops/X.zip # merge a returned drop into the current branch
 ```
 
-- `export` packages a committed ref (never uncommitted work). It adds [`OM_EXPORT.json`](OM_EXPORT.json) (the base commit) and a
-  [`MANIFEST.json`](MANIFEST.json), and validates the result before zipping.
+- `export` packages a committed ref (never uncommitted work). It adds `OM_EXPORT.json` (the base commit) and a
+  `MANIFEST.json`, and validates the result before zipping.
 - `import` applies the drop on a branch cut from the drop's base, commits it, tags it `checkpoint/<stamp>`, and
   **merges** it into the current branch, so concurrent repository work is kept and real conflicts are surfaced. It
   accepts both this layout and the legacy flat layout (drops up to 2026-09-24 02:29), mapped by [`tools/layout.json`](tools/layout.json).
   It then runs `om_docs.py fmt` and the validator.
 
 **If you are an agent editing an exported drop:** edit files in place, keeping this layout. Do not create `history/`
-or nest zips; git is the history. Leave [`OM_EXPORT.json`](OM_EXPORT.json) unchanged. Record the checkpoint in [`SNAPSHOT.md`](SNAPSHOT.md),
+or nest zips; git is the history. Leave `OM_EXPORT.json` unchanged. Record the checkpoint in [`SNAPSHOT.md`](SNAPSHOT.md),
 [`CHANGELOG.md`](CHANGELOG.md) and a new `docs/checkpoints/CHECKPOINT_YYYYMMDD_HHMM.md`. Register new files, run
 `python3 tools/validate_architecture.py` and `python3 tools/om_docs.py check`, then zip the folder as
 `om-design-YYYYMMDD-HHMM-PHT.zip`.

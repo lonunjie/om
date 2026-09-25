@@ -18,6 +18,7 @@ from omlib.docs import fix_links_by_basename, linkify, repo_index  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 NO_LINKIFY = ("docs/checkpoints/", "CHANGELOG.md", "verification/GATE_PASS_CRITERIA.md")  # historical or generated
+EXPORT_ONLY = {"MANIFEST.json", "OM_EXPORT.json"}  # exist only inside a drop zip; never link to them
 
 
 def tracked_files() -> list[str]:
@@ -27,7 +28,8 @@ def tracked_files() -> list[str]:
         files = [f for f in out.splitlines() if (ROOT / f).is_file()]
     except (subprocess.CalledProcessError, FileNotFoundError):  # exported drop without .git
         files = [p.relative_to(ROOT).as_posix() for p in ROOT.rglob("*") if p.is_file() and ".git" not in p.parts]
-    return sorted(f for f in files if not f.startswith(("design-drops/", "history/")) and "__pycache__" not in f)
+    return sorted(f for f in files if not f.startswith(("design-drops/", "history/")) and "__pycache__" not in f
+                  and f not in EXPORT_ONLY)
 
 
 def run(write: bool) -> int:

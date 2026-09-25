@@ -202,6 +202,9 @@ def cmd_import(a: argparse.Namespace) -> int:
         wt = tmp / "wt"
         git("worktree", "add", "--detach", str(wt), base)
         try:
+            # Zips made by other tools often drop the executable bit: keep the base's bit, or the zip's if set.
+            base_exec = {ln.split("\t", 1)[1] for ln in git("ls-files", "-s", cwd=wt).splitlines()
+                         if ln.startswith("100755")}
             for f in git("ls-files", cwd=wt).splitlines():
                 if is_repo_only(f) or f in {"CLAUDE.md", "GEMINI.md"}:
                     continue
@@ -211,6 +214,8 @@ def cmd_import(a: argparse.Namespace) -> int:
                 dst = wt / rp
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, dst)
+                if rp in base_exec or src.stat().st_mode & 0o111:
+                    dst.chmod(0o755)
             git("add", "-A", cwd=wt)
             if not git("status", "--porcelain", cwd=wt):
                 print("drop is identical to its base; nothing to import")

@@ -19,9 +19,9 @@ edit the design, and without diffs their edits could not be reviewed or merged.
 3. Zips remain the transport to and from external design agents, through a gitignored `design-drops/` zone.
    `tools/om_drop.py export` packages a committed ref with its base commit. `import` commits a returned drop on a
    branch from that base and **merges** it, so concurrent work is kept and conflicts are explicit.
-4. [`MANIFEST.json`](../MANIFEST.json) is generated only inside exports. In the repository, git is the integrity record.
+4. `MANIFEST.json` is generated only inside exports. In the repository, git is the integrity record.
 
 ## Consequences
 
-Checkpoints become reviewable diffs. External agents must keep [`OM_EXPORT.json`](../OM_EXPORT.json) and the layout (AGENTS.md
+Checkpoints become reviewable diffs. External agents must keep `OM_EXPORT.json` and the layout (AGENTS.md
 "Design drops"). Legacy drops still import through the layout map.
