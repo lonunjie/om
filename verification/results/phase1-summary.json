@@ -71,6 +71,10 @@
     {
       "script": "verification/bounded/abuse_w0_rules.py",
       "returncode": 0
+    },
+    {
+      "script": "verification/bounded/cross_wave_feasibility.py",
+      "returncode": 0
     }
   ]
 }

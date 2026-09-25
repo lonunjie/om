@@ -16,7 +16,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REG = path.join(HERE, '..', '..', 'spec', 'registries');
+const REG = process.env.OM_REG || path.join(HERE, '..', '..', 'spec', 'registries');  // OM_REG: additive later-wave overlay (feasibility checks)
 const readJson = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
 const FIELDS = readJson(path.join(REG, 'om-numeric-fields.json'));
 const TYPES = Object.fromEntries(readJson(path.join(REG, 'om-object-types.json')).types.map((t) => [t.name, t]));

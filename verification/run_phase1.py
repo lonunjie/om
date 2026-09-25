@@ -18,6 +18,7 @@ SCRIPTS = [
     ROOT / "verification/bounded/acs_authorization_table.py",
     ROOT / "verification/bounded/metadata_w0_rules.py",
     ROOT / "verification/bounded/abuse_w0_rules.py",
+    ROOT / "verification/bounded/cross_wave_feasibility.py",
 ]
 
 

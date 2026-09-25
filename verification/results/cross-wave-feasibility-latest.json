@@ -1,0 +1,103 @@
+{
+ "model": "cross_wave_feasibility",
+ "gates": [
+  "V-004",
+  "V-008",
+  "V-009",
+  "V-011",
+  "V-013",
+  "V-014",
+  "V-019"
+ ],
+ "w0_carriage": {
+  "V-009/pin.set": {
+   "node": "accept",
+   "rust": "accept"
+  },
+  "V-009/poll.create": {
+   "node": "accept",
+   "rust": "accept"
+  },
+  "V-009/poll.vote": {
+   "node": "accept",
+   "rust": "accept"
+  },
+  "V-009/poll.close": {
+   "node": "accept",
+   "rust": "accept"
+  },
+  "V-009/topic.create": {
+   "node": "accept",
+   "rust": "accept"
+  },
+  "V-009/topic.update": {
+   "node": "accept",
+   "rust": "accept"
+  },
+  "V-009/topic.status.set": {
+   "node": "accept",
+   "rust": "accept"
+  },
+  "V-009/message.topic.set (move)": {
+   "node": "accept",
+   "rust": "accept"
+  },
+  "V-009/materialization hint in extension": {
+   "node": "accept",
+   "rust": "accept"
+  },
+  "V-013/bridged message with provenance + loop suppression": {
+   "node": "accept",
+   "rust": "accept"
+  },
+  "V-011/service-authored event with installation instance": {
+   "node": "accept",
+   "rust": "accept"
+  },
+  "V-008/authority parent: grant instance + ceiling": {
+   "node": "accept",
+   "rust": "accept"
+  },
+  "V-004/reduction naming an immutable incarnation": {
+   "node": "accept",
+   "rust": "accept"
+  }
+ },
+ "w1_overlay": {
+  "V-004/GroupControlIntent": {
+   "node_with_w1_overlay": "accept",
+   "node_w0": "reject",
+   "rust_w0": "reject"
+  },
+  "V-004/GroupCommitBinding": {
+   "node_with_w1_overlay": "accept",
+   "node_w0": "reject",
+   "rust_w0": "reject"
+  },
+  "V-004/coordinator replacement": {
+   "node_with_w1_overlay": "accept",
+   "node_w0": "reject",
+   "rust_w0": "reject"
+  },
+  "V-019/ReInit to a future hybrid-PQ MLS profile": {
+   "node_with_w1_overlay": "accept",
+   "node_w0": "reject",
+   "rust_w0": "reject"
+  }
+ },
+ "problems": [],
+ "overlay_additive_problems": [],
+ "v004_partition_sketch": {
+  "cases": 32,
+  "problems": []
+ },
+ "v014_archive_evidence": {
+  "all_ok": true,
+  "vectors_match": true,
+  "positive_cases": 6,
+  "hostile_cases": 67
+ },
+ "finding_1to1_new_kinds": "W0 validators close event kinds at 1..14 (events.cddl 8: 6..14), so a later 1:1 kind is rejected, not shown as the unsupported-content placeholder; EVENT_MODEL.md's 'or under a new event kind' route therefore needs recipient capability gating, like reserved body encodings. Not needed by any gate here.",
+ "passed": true,
+ "gate_status_effect": "feasibility_evidence_only"
+}

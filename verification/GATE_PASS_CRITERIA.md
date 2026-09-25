@@ -26,22 +26,22 @@
 | V-001 | `production_crypto_path` | core_kernel | passed | open | open | — |
 | V-002 | `account_control_formal_model` | core_kernel | open | open | open | — |
 | V-003 | `one_to_one_session_model` | core_kernel | open | open | open | — |
-| V-004 | `group_commit_control_model` | groups | open | open | open | core_kernel |
+| V-004 | `group_commit_control_model` | groups | open | open | evidenced | core_kernel |
 | V-005 | `canonical_encoding_vectors` | core_kernel | passed | open | open | — |
 | V-006 | `web_device_vault_feasibility` | reference_client_ui | open | open | open | — |
 | V-007 | `sframe_interop` | calls | open | open | open | — |
-| V-008 | `space_room_permission_authority_model` | communities_publications | open | open | open | core_kernel |
-| V-009 | `baseline_event_materialization_convergence` | groups | open | open | open | core_kernel |
+| V-008 | `space_room_permission_authority_model` | communities_publications | open | open | evidenced | core_kernel |
+| V-009 | `baseline_event_materialization_convergence` | groups | open | open | evidenced | core_kernel |
 | V-010 | `plugin_sandbox_capability_model` | plugins | open | open | open | — |
-| V-011 | `service_principal_authority_and_automation_model` | services_bots | open | open | open | core_kernel |
+| V-011 | `service_principal_authority_and_automation_model` | services_bots | open | open | evidenced | core_kernel |
 | V-012 | `expressive_media_and_pack_parser_safety` | expressive_media | open | open | open | — |
-| V-013 | `bridge_provenance_fidelity_and_loop_model` | bridges | open | open | open | core_kernel |
-| V-014 | `portable_archive_interop_and_import_safety` | portability | open | open | open | core_kernel |
+| V-013 | `bridge_provenance_fidelity_and_loop_model` | bridges | open | open | evidenced | core_kernel |
+| V-014 | `portable_archive_interop_and_import_safety` | portability | open | open | evidenced | core_kernel |
 | V-015 | `metadata_exposure_and_privacy_path_model` | core_kernel, provider_reference | open | open | open | — |
 | V-016 | `decentralized_abuse_moderation_authority_model` | core_kernel, communities_publications | open | open | open | — |
 | V-017 | `protocol_longevity_and_0m_continuity_drill` | none | open | open | open | — |
 | V-018 | `security_ux_comprehension` | reference_client_ui | open | open | open | — |
-| V-019 | `pq_group_reinit_migration` | groups | open | open | open | core_kernel |
+| V-019 | `pq_group_reinit_migration` | groups | open | open | evidenced | core_kernel |
 | V-020 | `home_onboarding_and_provider_portability` | provider_reference | open | open | open | — |
 | V-021 | `endpoint_coercion_and_platform_leakage` | reference_client_ui | open | open | open | — |
 | V-022 | `performance_budgets` | reference_client_ui, provider_reference | open | open | open | — |
@@ -143,11 +143,11 @@ Mechanically unfinished pre-engineering work:
 Formally exercise CommitCoordinator replacement/equivocation and GroupControlIntent <-> GroupCommitBinding crash/partition semantics so same-epoch races cannot silently fork authority.
 
 - **Scopes blocked:** groups
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_tool, independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_formal_and_runtime_feasibility`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `verification/results/authority-bounded-latest.json`
+- **Evidence:** `verification/bounded/cross_wave_feasibility.py`; `verification/results/authority-bounded-latest.json`; `verification/results/cross-wave-feasibility-latest.json`
 
 Pre-engineering criteria:
 
@@ -160,8 +160,8 @@ Pre-engineering criteria:
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
-- [ ] existing W0 principal/event/control envelopes can represent GroupControlIntent, GroupCommitBinding, coordinator replacement and immutable-incarnation reductions without adding a new W0 signed-object primitive
-- [ ] a bounded crash/partition sketch demonstrates that same-epoch competing group commits can be detected and resolved without changing ConversationID or AccountControlState semantics
+- [x] existing W0 principal/event/control envelopes can represent GroupControlIntent, GroupCommitBinding, coordinator replacement and immutable-incarnation reductions without adding a new W0 signed-object primitive
+- [x] a bounded crash/partition sketch demonstrates that same-epoch competing group commits can be detected and resolved without changing ConversationID or AccountControlState semantics
 
 Pre-release criteria:
 
@@ -264,11 +264,11 @@ Mechanically unfinished pre-engineering work:
 Model-check Room/Space capability grants, explicit restrictions, delegation ceilings, governance quorum, bilateral links and authority-parent propagation/revocation so no role/Space transition can silently self-escalate, create transitive authority, or bypass Room-local security state.
 
 - **Scopes blocked:** communities_publications
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_tool, independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/results/authority-bounded-latest.json`; `verification/results/v008-permissions-latest.json`; `verification/tla/ScopedPermissions.tla`; `verification/tla/models-v008-permissions.json`
+- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/bounded/cross_wave_feasibility.py`; `verification/results/authority-bounded-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v008-permissions-latest.json`; `verification/tla/ScopedPermissions.tla`; `verification/tla/models-v008-permissions.json`
 
 Pre-engineering criteria:
 
@@ -280,7 +280,7 @@ Pre-engineering criteria:
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
-- [ ] existing Principal, CapabilityGrant/Restriction and ConversationEvent authority-parent extension points can encode Room/Space roles, delegated intent and grant ceilings without changing W0 object identity or signature domains
+- [x] existing Principal, CapabilityGrant/Restriction and ConversationEvent authority-parent extension points can encode Room/Space roles, delegated intent and grant ceilings without changing W0 object identity or signature domains
 
 Pre-release criteria:
 
@@ -300,11 +300,11 @@ Mechanically unfinished pre-engineering work:
 Property-test/model the expanded baseline ConversationEvent materialization under duplicate, delayed, reordered and concurrent delivery for shared pins, moderator redaction, polls, threads/topics and message-topic moves, proving deterministic views and authorization handling without treating wall-clock time as security authority.
 
 - **Scopes blocked:** groups
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_implementation; pre-release independent_implementation
 - **Execution class:** `repo_local_interop`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md`; `verification/prototypes/v009-materializer/README.md`; `verification/results/conversation-convergence-latest.json`; `verification/results/v009-materializer-latest.json`
+- **Evidence:** `decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md`; `verification/bounded/cross_wave_feasibility.py`; `verification/prototypes/v009-materializer/README.md`; `verification/results/conversation-convergence-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v009-materializer-latest.json`
 
 Pre-engineering criteria:
 
@@ -316,7 +316,7 @@ Pre-engineering criteria:
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
-- [ ] the W0 ConversationEvent envelope, event identity, authorization-parent reference and extension mechanism can carry later pins/polls/topics/moves/materialization semantics without changing W0 canonical object layout
+- [x] the W0 ConversationEvent envelope, event identity, authorization-parent reference and extension mechanism can carry later pins/polls/topics/moves/materialization semantics without changing W0 canonical object layout
 
 Pre-release criteria:
 
@@ -369,11 +369,11 @@ Mechanically unfinished pre-engineering work:
 Model/property-test permissionless ServiceGenesis, ServicePrincipal endpoint/control authorization (including no-self-bootstrap), host migration/revocation, alias/catalog replacement, RepresentationGrant impersonation boundaries, Account-confirmed vs autonomous authorship, installation/data-access modes, full-Room admission/revocation, local/remote LLM tool capabilities, cheap-identity/no-unsolicited-reach behavior, and automation lineage/hop/rate rules so no service can self-escalate, become a hidden plaintext recipient, impersonate an Account, or create unbounded bot-to-bot loops.
 
 - **Scopes blocked:** services_bots
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/results/authority-bounded-latest.json`; `verification/results/v011-services-latest.json`; `verification/tla/ServiceAuthority.tla`; `verification/tla/models-v011.json`
+- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/bounded/cross_wave_feasibility.py`; `verification/results/authority-bounded-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v011-services-latest.json`; `verification/tla/ServiceAuthority.tla`; `verification/tla/models-v011.json`
 
 Pre-engineering criteria:
 
@@ -386,7 +386,7 @@ Pre-engineering criteria:
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
-- [ ] ServicePrincipal and service-installation/endpoint incarnations fit the frozen Principal/capability/event model without adding a privileged authority class or changing W0 signatures
+- [x] ServicePrincipal and service-installation/endpoint incarnations fit the frozen Principal/capability/event model without adding a privileged authority class or changing W0 signatures
 
 Pre-release criteria:
 
@@ -432,11 +432,11 @@ Mechanically unfinished pre-engineering work:
 Adversarially model/test BridgePrincipal control and Room admission/removal, foreign provenance/identity-link spoofing, cross-network loop/reflection and duplicate suppression across multiple bridges, edit/delete/reaction/topic/poll target mapping, capability/fidelity-loss signaling, E2EE-boundary state and origin-fingerprint metadata exposure.
 
 - **Scopes blocked:** bridges
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_model`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0124-service-information-flow-and-bridge-provenance.md`; `verification/prototypes/v013-bridges/BRIDGE_ADAPTER_CONTRACT.md`; `verification/results/v013-bridges-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
+- **Evidence:** `decisions/ADR-0124-service-information-flow-and-bridge-provenance.md`; `verification/bounded/cross_wave_feasibility.py`; `verification/prototypes/v013-bridges/BRIDGE_ADAPTER_CONTRACT.md`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v013-bridges-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
 
 Pre-engineering criteria:
 
@@ -446,7 +446,7 @@ Pre-engineering criteria:
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
-- [ ] bridge provenance, scoped origin fingerprints and loop-suppression metadata fit the frozen ConversationEvent extension/provenance model without changing AccountID, ConversationID or W0 event identity
+- [x] bridge provenance, scoped origin fingerprints and loop-suppression metadata fit the frozen ConversationEvent extension/provenance model without changing AccountID, ConversationID or W0 event identity
 
 Pre-release criteria:
 
@@ -463,11 +463,11 @@ Mechanically unfinished pre-engineering work:
 Round-trip om-archive-v1 across at least two independent implementations and test exact canonical-object preservation, stale control-state non-authority, missing/partial blobs, encrypted-archive corruption/wrong-key behavior, hostile archive paths/decompression/media/foreign formats, fabricated foreign authorship, read-only import attempting live authority, and inability to clone DeviceIdentity/account authority from ordinary history archives.
 
 - **Scopes blocked:** portability
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_interop`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0125-portable-archive-format-rulings.md`; `verification/prototypes/v014-archive/OM_ARCHIVE_V1_SPEC.md`; `verification/results/v014-archive-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
+- **Evidence:** `decisions/ADR-0125-portable-archive-format-rulings.md`; `verification/bounded/cross_wave_feasibility.py`; `verification/prototypes/v014-archive/OM_ARCHIVE_V1_SPEC.md`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v014-archive-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
 
 Pre-engineering criteria:
 
@@ -477,7 +477,7 @@ Pre-engineering criteria:
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
-- [ ] om-archive-v1 can preserve canonical W0 objects, unknown named extensions and stable event/object identities without introducing a second authority representation or altering W0 encodings
+- [x] om-archive-v1 can preserve canonical W0 objects, unknown named extensions and stable event/object identities without introducing a second authority representation or altering W0 encodings
 
 Pre-release criteria:
 
@@ -621,10 +621,11 @@ Mechanically unfinished pre-engineering work:
 Prove the v1 group wire can migrate by authenticated ReInit to a hybrid-PQ MLS profile without changing ConversationID or group authority and without downgrade.
 
 - **Scopes blocked:** groups
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_feasibility`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
+- **Evidence:** `verification/bounded/cross_wave_feasibility.py`; `verification/results/cross-wave-feasibility-latest.json`
 
 Pre-engineering criteria:
 
@@ -632,7 +633,7 @@ Pre-engineering criteria:
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
-- [ ] CryptoProfile/critical-extension and group ReInit extension points can name a future hybrid-PQ MLS profile while preserving ConversationID and GroupControlState identity; no W0 wire field needs reinterpretation
+- [x] CryptoProfile/critical-extension and group ReInit extension points can name a future hybrid-PQ MLS profile while preserving ConversationID and GroupControlState identity; no W0 wire field needs reinterpretation
 
 Pre-release criteria:
 

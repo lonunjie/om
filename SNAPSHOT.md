@@ -2,6 +2,16 @@
 
 Generated: **2026-09-25 11:54 PHT (UTC+08:00)**, after design-side verification-lifecycle hardening (ADR-0134)
 
+## 2026-09-26 verification executor pass (ADR-0134)
+
+Every repo-local `core_kernel` criterion now has passing evidence. V-001 and V-005 are `passed`. V-002, V-003,
+V-015, V-016 and V-017 are open **only** for independent review. V-004, V-008, V-009, V-011, V-013, V-014 and V-019
+have `feasibility_status=evidenced`. ADR-0135 pins the OM-Crypto-v1 bytes. Report:
+[`2026-09-26-verification-executor-report.md`](docs/reports/2026-09-26-verification-executor-report.md). The single
+remaining step before a `core_kernel` unlock ADR is
+[`BRIEF-2026-09-26-core-kernel-independent-review.md`](verification/reviews/BRIEF-2026-09-26-core-kernel-independent-review.md).
+Engineering is still not authorized.
+
 ## State
 
 OM remains in **architecture verification / pre-engineering**. **Engineering is not authorized.** The blocking architecture-design queue is closed; remaining blockers are objective V-* evidence/review obligations.
