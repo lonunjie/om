@@ -2846,6 +2846,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/cbor/node_intro_binding.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/cbor/node_strict_harness.mjs",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -3246,6 +3253,13 @@
     },
     {
       "path": "verification/prototypes/v005-encoding/gen/gen_vectors.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v005-encoding/gen/intro_binding.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

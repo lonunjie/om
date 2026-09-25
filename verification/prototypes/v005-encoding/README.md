@@ -61,6 +61,18 @@ GEM_HOME=.tools/gems gem install cddl -v 0.12.14
 - On macOS, rustup's `rust-lld` for 1.98.1 cannot find `libLLVM.dylib`.
   `run.sh` sets `DYLD_FALLBACK_LIBRARY_PATH` for the wasm link.
 
+## 2026-09-25 additions (ADR-0131/0135)
+
+- 677 vectors. New families: the MessageRequest actually sealed with the pinned draft-ietf-hpke-pq-05 suite (taken
+  from the V-001 vectors); profile-pinned size negatives (the enc and public-key lengths come from
+  [`om-crypto-profiles.json`](../../../spec/registries/om-crypto-profiles.json) `message_request_hpke`, enforced by both codecs; CDDL cannot express them); RequestKey
+  negatives inside ContactDescriptor key 15 and IntroductionTicket key 11; `om.acs.fork_ack` negatives; and R-237
+  attachment pairs (a W1 field inside the body is rejected, the same field in a non-critical extension is accepted).
+- Both codecs now validate a **registered** extension's value against its registered struct and criticality. Before
+  this, a malformed `om.acs.fork_ack` was accepted by both.
+- R-280: 16 reciprocal IntroIdentityBinding sequences (`intro_binding_sequences`) are checked by
+  `gen/intro_binding.py` and the independently written [`node_intro_binding.mjs`](../../cbor/node_intro_binding.mjs).
+
 ## Limits of this evidence
 
 - One agent wrote both codecs, the registries and the generator in a single

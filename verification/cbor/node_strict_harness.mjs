@@ -23,11 +23,17 @@ const TYPES = Object.fromEntries(readJson(path.join(REG, 'om-object-types.json')
 const PROFILE = readJson(path.join(REG, 'om-cbor-profile.json'));
 const LIM = PROFILE.limits;
 // known extensions: the CBOR profile list plus registered key-23 extensions in om-numeric-fields (ADR-0126)
+// registered key-23 extension -> {critical, value struct}
+const EXT_SCHEMA = new Map((FIELDS.extensions || []).filter((e) => e.value && e.value.ref).map((e) => [e.name, { critical: e.critical === true, ref: e.value.ref }]));
 const KNOWN_EXT = new Set([...PROFILE.extensions.known_extensions, ...(FIELDS.extensions || []).map((e) => e.name)]);
 // CryptoProfile id -> AsyncKeyBundle field keys that profile requires (om-crypto-profiles required_bundle_fields)
 const CRYPTO = readJson(path.join(REG, 'om-crypto-profiles.json'));
 const BUNDLE_REQUIRED = new Map(CRYPTO.profiles.filter((p) => p.required_bundle_fields).map((p) => [BigInt(p.id),
   p.required_bundle_fields.map((n) => FIELDS.structs.AsyncKeyBundle.fields.find((f) => f.name === n).key)]));
+
+// CryptoProfile id -> exact MessageRequest HPKE enc / RequestKey public-key lengths (ADR-0135 §5)
+const HPKE_SIZES = new Map(CRYPTO.profiles.filter((p) => p.message_request_hpke && p.message_request_hpke.enc_bytes)
+  .map((p) => [BigInt(p.id), { enc: p.message_request_hpke.enc_bytes, pk: p.message_request_hpke.public_key_bytes }]));
 
 class Reject extends Error { constructor(c) { super(c); this.cls = c; } }
 const fail = (c) => { throw new Reject(c); };
@@ -199,6 +205,13 @@ function checkType(x, ty, parent, pfields) {
       checkStruct(e, 'ExtEntry', null);
       const crit = get(e, 0);
       if (crit.v === true && !KNOWN_EXT.has(k.v)) fail('unknown_critical_extension');
+      const reg = EXT_SCHEMA.get(k.v);
+      if (reg) {
+        if (crit.v !== reg.critical) fail('value_range');
+        const val = get(e, 1);
+        if (val === undefined) fail('missing_field');
+        checkStruct(val, reg.ref, null);
+      }
     }
     return;
   }
@@ -237,6 +250,12 @@ function checkStruct(x, name, topId) {
     const prof = get(x, 5);
     for (const k of BUNDLE_REQUIRED.get(prof.v) || []) if (!has(x, k)) fail('missing_field');
   }
+  const pin = (pk, bk, which) => {
+    const s = has(x, pk) && has(x, bk) ? HPKE_SIZES.get(get(x, pk).v) : undefined;
+    if (s && get(x, bk).v.length !== s[which]) fail('value_range');
+  };
+  if (name === 'MessageRequest') pin(4, 5, 'enc');
+  if (name === 'RequestKey') pin(0, 1, 'pk');
 }
 
 function checkEnvelope(v, t) {

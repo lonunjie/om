@@ -8,7 +8,8 @@
     "hash_alg ids are used by the Digest struct and are bound to profiles; 1 = SHA-256 for OM-Crypto-v1.",
     "security_generation (ADR-0126) maps a conversation type (one_to_one, group) to an unsigned integer. The downgrade floor compares this value for the conversation type in question, never profile ids. A profile without an entry for a type cannot be used for that type. A generation is assigned once and never changed.",
     "The only floor movement that is not an increase: a SecurityAdvisory marks a profile 'forbidden'; the floor then moves to a non-forbidden profile of equal or higher security_generation, never lower. There is no other exception.",
-    "required_bundle_fields (ADR-0126) lists AsyncKeyBundle fields that must be present for bundles of that profile."
+    "required_bundle_fields (ADR-0126) lists AsyncKeyBundle fields that must be present for bundles of that profile.",
+    "message_request_hpke.enc_bytes / public_key_bytes (ADR-0135 §5; draft-ietf-hpke-pq-05 Nenc/Npk of the pinned KEM) are exact lengths: a MessageRequest.hpke_enc or RequestKey.public_key of that profile with any other length is rejected by the codec, so a different HPKE suite cannot be carried under the profile id."
   ],
   "profiles": [
     {
@@ -35,7 +36,9 @@
         "kem": "MLKEM768-X25519",
         "kem_id": 25722,
         "kdf": "HKDF-SHA256",
-        "aead": "ChaCha20Poly1305"
+        "aead": "ChaCha20Poly1305",
+        "enc_bytes": 1120,
+        "public_key_bytes": 1216
       },
       "device_binding_signatures": [
         "Ed25519",

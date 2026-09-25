@@ -73,8 +73,21 @@ def main(build, out):
     fx_bad = [f["id"] for f in fixtures if rust_fx.get(f["id"]) != f.get("expected", golden[f["id"]])]
     cmp = load(b / "compare.json") or {}
     cddl = load(b / "cddl.json") or {}
+    doc = json.loads((b / "w0-object-vectors.json").read_text())
+    intro = {"python": load(b / "intro-python.json"), "node": load(b / "intro-node.json")}
+    intro_ok = all(r and not r["mismatches"] for r in intro.values())
+    ids = {v["id"] for v in vec}
+    coverage = {  # V-005 criteria that name specific objects / behaviours (ADR-0131, ADR-0126, R-237/280/281)
+        "objects": sorted({v["object"] for v in vec if v["object"] in ("MessageRequest", "MessageRequestPayload", "IntroIdentityBinding")}),
+        "request_key_key15_neg": sorted(i for i in ids if i.startswith("ContactDescriptor/neg/key15-")),
+        "request_key_key11_neg": sorted(i for i in ids if i.startswith("IntroductionTicket/neg/key11-")),
+        "fork_ack": sorted(i for i in ids if "fork" in i),
+        "asynckeybundle_missing_key8": "AsyncKeyBundle/neg/missing-pq-signed-prekey" in ids,
+        "hpke_pq_05_pin": sorted(i for i in ids if i.startswith("MessageRequest/") and ("hpke" in i or "profile-1" in i)),
+        "r237": sorted(i for i in ids if "later-wave" in i or "w1" in i),
+    }
     ok = (not fx_bad and cmp and all(v["mismatches"] == 0 for v in cmp.values())
-          and cddl and not cddl["disagreements"] and cddl["generated_unexpected_rejection_count"] == 0)
+          and cddl and not cddl["disagreements"] and cddl["generated_unexpected_rejection_count"] == 0 and intro_ok)
     res = {
         "gate": "V-005",
         "related_gates": ["V-022"],
@@ -94,12 +107,14 @@ def main(build, out):
                       "python": platform.python_version()},
         "existing_fixtures_rust": {"fixtures": len(fixtures), "mismatches": fx_bad},
         "codec_agreement": cmp,
+        "intro_binding_sequences_r280": {"sequences": len(doc.get("intro_binding_sequences", [])), "checkers": intro},
+        "criteria_coverage": coverage,
         "cddl_check": cddl,
         "codec_cost_v022": bench_summary(load(b / "bench-native.json"), load(b / "bench-wasm32.json")),
         "all_checks_pass": bool(ok),
-        "independence_caveat": "Rust and Node codecs, the registries and the vector generator were written by the same "
-                               "agent in one session; agreement shows internal consistency, not independent review "
-                               "(ADR-0117 still proposed).",
+        "independence_caveat": "Rust and Node codecs (and the Python/Node R-280 checkers) are separately written, different-"
+                               "language implementations with no shared codec code, which ADR-0134 §5 accepts as "
+                               "pre-engineering independent_implementation; the same agent family wrote them.",
     }
     Path(out).write_text(json.dumps(res, indent=1) + "\n")
     print(f"wrote {out}: all_checks_pass={res['all_checks_pass']}", file=sys.stderr)

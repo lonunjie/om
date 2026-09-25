@@ -295,7 +295,7 @@ BLR = top("BlobLocationRecord", [2, B(det("blob-1", 32))], [3, 2], [4, fake_dige
 
 # ADR-0126 first-contact objects (types 19-21), RequestKey, fork bridge
 REQKEY = M([0, 1], [1, B(det("request-key-pub", 1216))], [2, T0 + 30 * 86400])
-REQKEY_MIN = M([0, 1], [1, B(det("request-key-pub-min", 32))])
+REQKEY_MIN = M([0, TEST_PROFILE], [1, B(det("request-key-pub-min", 32))])  # test profile: no pinned HPKE sizes
 REQKEY_DIGEST = digest_of("OM-REQUEST-KEY-HASH-v1", py_enc(REQKEY))
 SENDER_INTRO = det("bob-intro-identity-key", 32)
 REPLY_ROUTE = M([0, "https://relay.bob-home.example"], [1, B(det("reply-cap", 32))], [2, 0], [4, T0 + 7 * 86400])
@@ -303,7 +303,7 @@ REF_ENV, _ = envelope("ReferralAttestation", REFERRAL, ["device"])
 MREQ = top("MessageRequest", [2, B(det("ticket-1", 16))], [3, REQKEY_DIGEST], [4, 1],
            [5, B(det("hpke-enc", 1120))], [6, B(det("mreq-ciphertext", 512))], [7, B(det("admission-proof", 64))])
 MREQ_MIN = top("MessageRequest", [2, B(det("ticket-2", 16))], [3, REQKEY_DIGEST], [4, 1],
-               [5, B(det("hpke-enc-min", 32))], [6, B(det("mreq-ct-min", 17))])
+               [5, B(det("hpke-enc-min", 1120))], [6, B(det("mreq-ct-min", 17))])  # profile 1: enc is exactly Nenc = 1120
 MRP = top("MessageRequestPayload", [2, B(det("ticket-1", 16))], [3, REQKEY_DIGEST], [4, B(SENDER_INTRO)],
           [5, B(py_enc(DESC_ENV))], [6, RICH], [7, [B(py_enc(REF_ENV))]], [8, REPLY_ROUTE])
 MRP_MIN = top("MessageRequestPayload", [2, B(det("ticket-2", 16))], [3, REQKEY_DIGEST], [4, B(SENDER_INTRO)],
@@ -314,6 +314,26 @@ DESC_RK = mset(DESC, 15, REQKEY)
 TICKET_RK = mset(TICKET, 11, REQKEY_MIN)
 ACS_FORK = mset(mset(ACS1, 3, 2), 23, M(["om.acs.fork_ack", M([0, True], [1, M([0, setof([
     fake_digest("branch-head-a"), fake_digest("branch-head-b")])])])]))
+
+# ADR-0131 rule 9 / ADR-0135 §5 (R-281): a MessageRequest actually sealed with the pinned draft-ietf-hpke-pq-05 suite,
+# taken from the V-001 prototype's vector file (Rust HPKE, reproduced by the independent Python HPKE there).
+V001 = json.loads((REPO / "verification/prototypes/v001-crypto/vectors/om-v001-proto-vectors.json").read_text())["hpke_message_request"]
+HPKE_RK_BYTES = bytes.fromhex(V001["request_key"])
+HPKE_RK = M([0, 1], [1, B(bytes.fromhex(V001["pk"]))])
+assert py_enc(HPKE_RK) == HPKE_RK_BYTES, "V-001 request_key is not the canonical RequestKey"
+HPKE_RK_DIGEST = digest_of("OM-REQUEST-KEY-HASH-v1", HPKE_RK_BYTES)
+assert mget(HPKE_RK_DIGEST, 1)["$bytes"] == V001["request_key_digest"], "request_key_digest differs from V-001"
+MREQ_HPKE = top("MessageRequest", [2, B(bytes.fromhex(V001["ticket_id"]))], [3, HPKE_RK_DIGEST], [4, 1],
+                [5, B(bytes.fromhex(V001["enc"]))], [6, B(bytes.fromhex(V001["ciphertext"]))])
+DESC_HPKE_RK = mset(DESC, 15, HPKE_RK)
+
+# ADR-0131 rule 8 / R-280: reciprocal IntroIdentityBinding. Bob (the requester) has his own account and ACS.
+ACC_BOB = det("account-bob", 32)
+E1, E2 = det("bob-device-1", 16), det("bob-device-2", 16)
+ACSB = top("AccountControlState", [2, B(ACC_BOB)], [3, 4], [5, setof([B(E1), B(E2)])], [6, [B(E2)]], [9, M([0, 1])], [11, 1])
+ACSB_HASH = digest_of("OM-ACS-HASH-v1", py_enc(ACSB))
+IIB_A = top("IntroIdentityBinding", [2, B(ACC)], [3, B(INTRO)], [4, REQKEY_DIGEST], [5, 1], [6, ACS1_HASH])
+IIB_B = top("IntroIdentityBinding", [2, B(ACC_BOB)], [3, B(SENDER_INTRO)], [4, REQKEY_DIGEST], [5, 4], [6, ACSB_HASH])
 
 # (object name, id suffix, body value, signer roles or None, bench?)
 POSITIVES = [
@@ -357,6 +377,11 @@ POSITIVES = [
     ("ContactDescriptor", "with-request-key", DESC_RK, None, False),
     ("IntroductionTicket", "with-request-key", TICKET_RK, None, False),
     ("AccountControlState", "fork-bridge", ACS_FORK, ["controller"], False),
+    ("MessageRequest", "hpke-pq-05-sealed", MREQ_HPKE, None, False),
+    ("ContactDescriptor", "with-hpke-pq-05-request-key", DESC_HPKE_RK, None, False),
+    ("AccountControlState", "requester-bob", ACSB, ["controller"], False),
+    ("IntroIdentityBinding", "recipient-alice", IIB_A, None, False),
+    ("IntroIdentityBinding", "requester-bob", IIB_B, None, False),
 ]
 
 MINIMALS = {n: v for n, s, v, r, b in POSITIVES if s in ("minimal", "genesis", "create-minimal")}
@@ -494,6 +519,9 @@ def gen():
     # extension beside a W0-valid body; the same node inside the W0 body is the richtext-custom-emoji-w1 negative
     later = mset(EV_CREATE_MIN, 23, M(["om.richtext.w1-nodes", M([0, False], [1, [M([0, 4], [6, B(b"a")])]])]))
     emit_positive("ConversationEvent", "later-wave-content-in-extension", later, None, False)
+    later_att = mset(mset(EV_CREATE_MIN, 11, M([1, [ATT]])), 23,
+                     M(["om.attachment.w1-fields", M([0, False], [1, [M([0, 0], [1, B(det("w1-thumbnail", 64))])]])]))
+    emit_positive("ConversationEvent", "later-wave-attachment-field-in-extension", later_att, None, False)
 
     # generic mutations on every W0 type (minimal instance)
     for name in TYPES:
@@ -580,6 +608,48 @@ def gen():
         mset(CAPSULE, 6, {"$wrap": envelope("ContactDescriptor", mset(DESC, 22, 0))[0]}))
     neg("ContactCapsule", "referral-inside-capsule", "unknown_field", mset(CAPSULE, 9, B(b"referral")))
 
+    # R-281: the profile-1 HPKE suite fixes exact lengths (om-crypto-profiles message_request_hpke)
+    neg("MessageRequest", "profile-1-classical-x25519-enc-32", "value_range", mset(MREQ_HPKE, 5, B(det("x25519-enc", 32))), "valid")
+    neg("MessageRequest", "profile-1-enc-1121", "value_range", mset(MREQ_HPKE, 5, B(det("enc", 1121))), "valid")
+    neg("MessageRequest", "profile-1-pq-only-enc-1088", "value_range", mset(MREQ_HPKE, 5, B(det("enc", 1088))), "valid")
+    neg("MessageRequest", "ciphertext-16-bytes", "value_range", mset(MREQ_HPKE, 6, B(det("ct", 16))))
+    neg("MessageRequest", "ticket-id-15-bytes", "value_range", mset(MREQ_HPKE, 2, B(det("t", 15))))
+    neg("MessageRequest", "request-key-digest-alg-2", "value_range", mset(MREQ_HPKE, 3, M([0, 2], [1, B(det("d", 32))])))
+    neg("MessageRequest", "admission-proof-empty", "value_range", mset(MREQ_HPKE, 7, B(b"")))
+    neg("MessageRequest", "sender-account-field", "unknown_field", mset(MREQ_HPKE, 8, B(ACC_BOB)))
+    neg("MessageRequestPayload", "sender-descriptor-unsigned", "unknown_field", mset(MRP, 5, B(py_enc(DESC))))
+    neg("MessageRequestPayload", "referrals-5", "value_range", mset(MRP, 7, [B(py_enc(REF_ENV))] * 5))
+    neg("MessageRequestPayload", "sender-intro-identity-31-bytes", "value_range", mset(MRP, 4, B(det("i", 31))))
+    neg("MessageRequestPayload", "reply-route-missing", "missing_field", mdel(MRP, 8))
+    neg("IntroIdentityBinding", "intro-identity-31-bytes", "value_range", mset(IIB, 3, B(det("i", 31))))
+    neg("IntroIdentityBinding", "acs-hash-alg-2", "value_range", mset(IIB, 6, M([0, 2], [1, B(det("h", 32))])))
+    neg("IntroIdentityBinding", "account-id-31-bytes", "value_range", mset(IIB, 2, B(ACC[:31])))
+    neg("IntroIdentityBinding", "request-key-digest-missing", "missing_field", mdel(IIB, 4))
+    # RequestKey inside ContactDescriptor key 15 and IntroductionTicket key 11
+    for host, base, k in (("ContactDescriptor", DESC_HPKE_RK, 15), ("IntroductionTicket", mset(TICKET, 11, HPKE_RK), 11)):
+        rk = mget(base, k)
+        neg(host, f"key{k}-profile-1-public-key-32", "value_range", mset(base, k, mset(rk, 1, B(det("pk", 32)))), "valid")
+        neg(host, f"key{k}-profile-1-public-key-1217", "value_range", mset(base, k, mset(rk, 1, B(det("pk", 1217)))), "valid")
+        neg(host, f"key{k}-profile-zero", "value_range", mset(base, k, mset(rk, 0, 0)))
+        neg(host, f"key{k}-unknown-field", "unknown_field", mset(base, k, mset(rk, 3, 1)))
+        neg(host, f"key{k}-public-key-missing", "missing_field", mset(base, k, mdel(rk, 1)))
+        neg(host, f"key{k}-not-a-map", "wrong_type", mset(base, k, B(det("rk", 32))))
+    # om.acs.fork_ack (ForkAck, ADR-0126/0127)
+    def fork(heads, critical=True):
+        return mset(ACS_FORK, 23, M(["om.acs.fork_ack", M([0, critical], [1, M([0, heads])])]))
+    ha, hb = fake_digest("branch-head-a"), fake_digest("branch-head-b")
+    neg("AccountControlState", "fork-ack-single-head", "value_range", cddl="valid", mutated=fork([ha]))
+    neg("AccountControlState", "fork-ack-heads-unsorted", "set_order", fork(list(reversed(setof([ha, hb])))), "valid")
+    neg("AccountControlState", "fork-ack-heads-duplicate", "set_order", fork([ha, ha]), "valid")
+    neg("AccountControlState", "fork-ack-marked-noncritical", "value_range", fork(setof([ha, hb]), critical=False), "valid")
+    neg("AccountControlState", "fork-ack-17-heads", "value_range", cddl="valid", mutated=fork(setof([fake_digest(f"h{i}") for i in range(17)])))
+    neg("AccountControlState", "fork-ack-head-alg-2", "value_range", cddl="valid", mutated=fork(setof([M([0, 2], [1, B(det("a", 32))]), hb])))
+    neg("AccountControlState", "fork-ack-value-not-a-map", "wrong_type", cddl="valid", mutated=
+        mset(ACS_FORK, 23, M(["om.acs.fork_ack", M([0, True], [1, [ha, hb]])])))
+    # R-237: later-wave attachment field inside a W0 body is rejected ...
+    att_w1 = mset(ATT, 11, B(det("w1-thumbnail", 64)))
+    neg("ConversationEvent", "attachment-later-wave-field-11", "unknown_field", mset(EV_CREATE_MIN, 11, M([1, [att_w1]])))
+
     # decoder-level faults carried in a bare object's extension value (RecoveryPolicy is unsigned)
     def ext_value(v):
         return mset(RP_MIN, 23, M(["org.example.x", M([0, False], [1, v])]))
@@ -620,6 +690,77 @@ def gen():
     emit_negative("RecoveryPolicy", "decoder/two-top-level-items", "trailing_bytes", py_enc(RP_MIN) + py_enc(RP_MIN))
 
 
+# ---------------------------------------------------------------- R-280 reciprocal IntroIdentityBinding sequences
+# ADR-0131 rule 8: recipient sends its binding, the requester verifies it and only then sends its own; each side is
+# ACTIVE only after it verified the peer's binding AND sent its own. Verification (both checkers implement it from the
+# ADR, independently): exactly one signature, role device, valid signature (placeholder: bytes == insecure_test_signature),
+# signer active and not quarantined/revoked in the peer's trusted ACS; body account = ACS account, intro identity = the
+# one used in first contact, request_key_digest = the request's, acs_generation / acs_state_hash = the trusted head.
+SEQUENCES: list[dict] = []
+BAD_SIG = b"bad_signature_placeholder"
+
+
+def sig_env(body_value, signer, role=3, sig=TEST_SIG, copies=1):
+    s = M([0, B(signer)], [1, TEST_PROFILE], [2, role], [3, B(sig)])
+    return ("env", M([1, B(py_enc(body_value))], [2, [s] * copies]), body_value)
+
+
+def seq(sid, perspective, peer_intro, peer_acs, steps, expect):
+    ctx = {"peer_intro_expected": peer_intro.hex(), "request_key_digest": mget(REQKEY_DIGEST, 1)["$bytes"],
+           "peer_acs_body": py_enc(peer_acs).hex(),
+           "trusted_peer_acs_hash": mget(digest_of("OM-ACS-HASH-v1", py_enc(peer_acs)), 1)["$bytes"]}
+    out = []
+    for s in steps:
+        if isinstance(s, tuple):
+            _, env_v, body_v = s
+            env = py_enc(env_v)
+            out.append({"op": "receive_peer_binding", "binding": env.hex()})
+            VECTORS.append({"id": f"IntroIdentityBinding/seq/{sid}/{len(out)}", "object": "IntroIdentityBinding", "form": "signed",
+                            "expect": "accept", "error": None, "cddl": "valid", "bench": False, "hex": env.hex(),
+                            "value": env_v, "body_value": body_v,
+                            "derived": derived_for("IntroIdentityBinding", py_enc(body_v), env_v),
+                            "note": "codec-valid; the sequence decides semantic acceptance"})
+        else:
+            out.append({"op": s})
+    assert len(expect) == len(out)
+    SEQUENCES.append({"id": sid, "perspective": perspective, "context": ctx, "steps": out,
+                      "expect": [{"result": r, "state": st} for r, st in expect]})
+
+
+def gen_sequences():
+    U, A = "ACCEPTED_UNBOUND", "ACTIVE"
+    good_b = sig_env(IIB_B, E1)
+    # recipient (Alice) view: peer is Bob
+    R = lambda sid, steps, exp: seq(sid, "recipient", SENDER_INTRO, ACSB, steps, exp)
+    R("recipient-happy", ["accept_request", "send_own_binding", good_b], [("ok", U), ("ok", U), ("ok", A)])
+    R("recipient-only-own-binding-stays-unbound", ["accept_request", "send_own_binding"], [("ok", U), ("ok", U)])
+    R("recipient-peer-wrong-intro-identity", ["accept_request", "send_own_binding", sig_env(mset(IIB_B, 3, B(det("other-intro", 32))), E1)],
+      [("ok", U), ("ok", U), ("rejected", U)])
+    R("recipient-peer-request-key-digest-mismatch", ["accept_request", "send_own_binding", sig_env(mset(IIB_B, 4, fake_digest("other-rk")), E1)],
+      [("ok", U), ("ok", U), ("rejected", U)])
+    R("recipient-peer-signed-by-quarantined-device", ["accept_request", "send_own_binding", sig_env(IIB_B, E2)],
+      [("ok", U), ("ok", U), ("rejected", U)])
+    R("recipient-peer-signed-by-unknown-device", ["accept_request", "send_own_binding", sig_env(IIB_B, det("stranger", 16))],
+      [("ok", U), ("ok", U), ("rejected", U)])
+    R("recipient-peer-stale-acs-head", ["accept_request", "send_own_binding", sig_env(mset(mset(IIB_B, 5, 3), 6, fake_digest("old-acs-b")), E1)],
+      [("ok", U), ("ok", U), ("rejected", U)])
+    R("recipient-peer-bad-signature", ["accept_request", "send_own_binding", sig_env(IIB_B, E1, sig=BAD_SIG)],
+      [("ok", U), ("ok", U), ("rejected", U)])
+    R("recipient-peer-signed-with-intro-identity-role", ["accept_request", "send_own_binding", sig_env(IIB_B, E1, role=4)],
+      [("ok", U), ("ok", U), ("rejected", U)])
+    R("recipient-peer-binding-before-own-then-happy", ["accept_request", good_b, "send_own_binding", good_b],
+      [("ok", U), ("rejected", U), ("ok", U), ("ok", A)])
+    # requester (Bob) view: peer is Alice; Bob must not send before verifying Alice's binding
+    Q = lambda sid, steps, exp: seq(sid, "requester", INTRO, ACS1, steps, exp)
+    good_a = sig_env(IIB_A, D1)
+    Q("requester-happy", [good_a, "send_own_binding"], [("ok", U), ("ok", A)])
+    Q("requester-send-before-verify-refused", ["send_own_binding", good_a, "send_own_binding"], [("refused", U), ("ok", U), ("ok", A)])
+    Q("requester-peer-account-mismatch", [sig_env(mset(IIB_A, 2, B(ACC2)), D1), "send_own_binding"], [("rejected", U), ("refused", U)])
+    Q("requester-peer-signed-by-revoked-device", [sig_env(IIB_A, D4), "send_own_binding"], [("rejected", U), ("refused", U)])
+    Q("requester-peer-signed-by-messaging-device", [sig_env(IIB_A, D3), "send_own_binding"], [("ok", U), ("ok", A)])
+    Q("requester-peer-two-signatures", [sig_env(IIB_A, D1, copies=2), "send_own_binding"], [("rejected", U), ("refused", U)])
+
+
 def compress_hex(h: str):
     """Represent runs of >=256 identical bytes as {"fill": "xx", "len": n} to keep the file small."""
     b = bytes.fromhex(h); out = []; i = 0; start = 0
@@ -636,6 +777,7 @@ def compress_hex(h: str):
 
 def main(out_path):
     gen()
+    gen_sequences()
     ids = [v["id"] for v in VECTORS]
     assert len(ids) == len(set(ids)), "duplicate vector ids"
     for v in VECTORS:
@@ -649,6 +791,7 @@ def main(out_path):
                                   "note": "insecure_test_signature: vectors fix signature *inputs*, not signatures"},
         "count": len(VECTORS),
         "vectors": VECTORS,
+        "intro_binding_sequences": SEQUENCES,
     }
     text = json.dumps(doc, separators=(",", ":"), sort_keys=True) + "\n"
     Path(out_path).write_text(text)

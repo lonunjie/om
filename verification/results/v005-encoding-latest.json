@@ -10,9 +10,9 @@
  "cddl": "spec/cddl/*.cddl",
  "vectors": {
   "file": "verification/vectors/v005-w0-object-vectors.json.gz",
-  "total": 619,
-  "positive": 46,
-  "negative": 573,
+  "total": 677,
+  "positive": 68,
+  "negative": 609,
   "object_types": 21
  },
  "toolchain": {
@@ -27,15 +27,79 @@
  },
  "codec_agreement": {
   "rust": {
-   "vectors": 619,
+   "vectors": 677,
    "mismatches": 0,
    "first_mismatches": []
   },
   "node": {
-   "vectors": 619,
+   "vectors": 677,
    "mismatches": 0,
    "first_mismatches": []
   }
+ },
+ "intro_binding_sequences_r280": {
+  "sequences": 16,
+  "checkers": {
+   "python": {
+    "implementation": "python",
+    "sequences": 16,
+    "reach_active": 5,
+    "mismatches": []
+   },
+   "node": {
+    "implementation": "node",
+    "sequences": 16,
+    "reach_active": 5,
+    "mismatches": []
+   }
+  }
+ },
+ "criteria_coverage": {
+  "objects": [
+   "IntroIdentityBinding",
+   "MessageRequest",
+   "MessageRequestPayload"
+  ],
+  "request_key_key15_neg": [
+   "ContactDescriptor/neg/key15-not-a-map",
+   "ContactDescriptor/neg/key15-profile-1-public-key-1217",
+   "ContactDescriptor/neg/key15-profile-1-public-key-32",
+   "ContactDescriptor/neg/key15-profile-zero",
+   "ContactDescriptor/neg/key15-public-key-missing",
+   "ContactDescriptor/neg/key15-unknown-field"
+  ],
+  "request_key_key11_neg": [
+   "IntroductionTicket/neg/key11-not-a-map",
+   "IntroductionTicket/neg/key11-profile-1-public-key-1217",
+   "IntroductionTicket/neg/key11-profile-1-public-key-32",
+   "IntroductionTicket/neg/key11-profile-zero",
+   "IntroductionTicket/neg/key11-public-key-missing",
+   "IntroductionTicket/neg/key11-unknown-field"
+  ],
+  "fork_ack": [
+   "AccountControlState/fork-bridge",
+   "AccountControlState/neg/fork-ack-17-heads",
+   "AccountControlState/neg/fork-ack-head-alg-2",
+   "AccountControlState/neg/fork-ack-heads-duplicate",
+   "AccountControlState/neg/fork-ack-heads-unsorted",
+   "AccountControlState/neg/fork-ack-marked-noncritical",
+   "AccountControlState/neg/fork-ack-single-head",
+   "AccountControlState/neg/fork-ack-value-not-a-map"
+  ],
+  "asynckeybundle_missing_key8": true,
+  "hpke_pq_05_pin": [
+   "MessageRequest/hpke-pq-05-sealed",
+   "MessageRequest/neg/profile-1-classical-x25519-enc-32",
+   "MessageRequest/neg/profile-1-enc-1121",
+   "MessageRequest/neg/profile-1-pq-only-enc-1088"
+  ],
+  "r237": [
+   "ConversationEvent/later-wave-attachment-field-in-extension",
+   "ConversationEvent/later-wave-content-in-extension",
+   "ConversationEvent/neg/attachment-later-wave-field-11",
+   "ConversationEvent/neg/richtext-custom-emoji-w1",
+   "ConversationEvent/w1-kind-opaque-body"
+  ]
  },
  "cddl_check": {
   "disagreements": [],
@@ -210,7 +274,7 @@
    "cddl (Rust crate) 0.10.7",
    "cddl (Ruby gem) 0.12.14"
   ],
-  "vector_checks": 288
+  "vector_checks": 366
  },
  "codec_cost_v022": {
   "status": "measured",
@@ -220,258 +284,258 @@
    "os": "Darwin 25.6.0"
   },
   "native_target": "aarch64-apple-darwin",
-  "wasm_runtime": "wasmtime 49.0.0 (17830bd3c 2026-09-21)",
+  "wasm_runtime": "wasmtime 49.0.1 (46c23a87d 2026-09-24)",
   "summary_native": {
    "decode_ns": {
-    "median": 289.0,
-    "max": 2190.0
+    "median": 416.0,
+    "max": 3038.0
    },
    "decode_validate_ns": {
-    "median": 1238.0,
-    "max": 5062.0
+    "median": 1686.0,
+    "max": 8000.0
    },
    "encode_ns": {
-    "median": 415.0,
-    "max": 2711.0
+    "median": 590.0,
+    "max": 5137.0
    },
    "sig_hash_inputs_ns": {
-    "median": 1006.0,
-    "max": 10585.0
+    "median": 1102.0,
+    "max": 17428.0
    }
   },
   "summary_wasm32_wasip1": {
    "decode_ns": {
-    "median": 259.0,
-    "max": 2078.0
+    "median": 349.0,
+    "max": 4302.0
    },
    "decode_validate_ns": {
-    "median": 1449.0,
-    "max": 6005.0
+    "median": 1543.0,
+    "max": 7445.0
    },
    "encode_ns": {
-    "median": 283.0,
-    "max": 2464.0
+    "median": 488.0,
+    "max": 4326.0
    },
    "sig_hash_inputs_ns": {
-    "median": 903.0,
-    "max": 11721.0
+    "median": 968.0,
+    "max": 12747.0
    }
   },
   "wasm32_over_native_decode_validate": {
    "median": 1.21,
-   "max": 1.41
+   "max": 1.81
   },
   "per_object": [
    {
     "id": "AccountControlState/typical",
     "bytes": 486,
     "native": {
-     "decode_ns": 400.0,
-     "decode_validate_ns": 3650.0,
-     "encode_ns": 509.0,
-     "sig_hash_inputs_ns": 3210.0
+     "decode_ns": 469.0,
+     "decode_validate_ns": 5481.0,
+     "encode_ns": 564.0,
+     "sig_hash_inputs_ns": 3880.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 330.0,
-     "decode_validate_ns": 3689.0,
-     "encode_ns": 399.0,
-     "sig_hash_inputs_ns": 3076.0
+     "decode_ns": 362.0,
+     "decode_validate_ns": 4403.0,
+     "encode_ns": 443.0,
+     "sig_hash_inputs_ns": 3506.0
     }
    },
    {
     "id": "AccountControlHead/typical",
     "bytes": 139,
     "native": {
-     "decode_ns": 241.0,
-     "decode_validate_ns": 685.0,
-     "encode_ns": 318.0,
-     "sig_hash_inputs_ns": 550.0
+     "decode_ns": 318.0,
+     "decode_validate_ns": 734.0,
+     "encode_ns": 331.0,
+     "sig_hash_inputs_ns": 570.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 196.0,
-     "decode_validate_ns": 838.0,
-     "encode_ns": 251.0,
-     "sig_hash_inputs_ns": 475.0
+     "decode_ns": 225.0,
+     "decode_validate_ns": 1308.0,
+     "encode_ns": 380.0,
+     "sig_hash_inputs_ns": 719.0
     }
    },
    {
     "id": "RecoveryPolicy/typical",
     "bytes": 112,
     "native": {
-     "decode_ns": 480.0,
-     "decode_validate_ns": 945.0,
-     "encode_ns": 821.0,
-     "sig_hash_inputs_ns": 1006.0
+     "decode_ns": 474.0,
+     "decode_validate_ns": 1156.0,
+     "encode_ns": 998.0,
+     "sig_hash_inputs_ns": 1102.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 483.0,
-     "decode_validate_ns": 1331.0,
-     "encode_ns": 711.0,
-     "sig_hash_inputs_ns": 903.0
+     "decode_ns": 845.0,
+     "decode_validate_ns": 1543.0,
+     "encode_ns": 809.0,
+     "sig_hash_inputs_ns": 968.0
     }
    },
    {
     "id": "DeviceCredential/typical",
     "bytes": 264,
     "native": {
-     "decode_ns": 378.0,
-     "decode_validate_ns": 1238.0,
-     "encode_ns": 483.0,
-     "sig_hash_inputs_ns": 2319.0
+     "decode_ns": 414.0,
+     "decode_validate_ns": 1475.0,
+     "encode_ns": 590.0,
+     "sig_hash_inputs_ns": 2931.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 333.0,
-     "decode_validate_ns": 1449.0,
-     "encode_ns": 386.0,
-     "sig_hash_inputs_ns": 2098.0
+     "decode_ns": 349.0,
+     "decode_validate_ns": 1495.0,
+     "encode_ns": 547.0,
+     "sig_hash_inputs_ns": 2821.0
     }
    },
    {
     "id": "AsyncKeyBundle/typical",
     "bytes": 3956,
     "native": {
-     "decode_ns": 289.0,
-     "decode_validate_ns": 2350.0,
-     "encode_ns": 415.0,
-     "sig_hash_inputs_ns": 10585.0
+     "decode_ns": 292.0,
+     "decode_validate_ns": 3207.0,
+     "encode_ns": 1137.0,
+     "sig_hash_inputs_ns": 17428.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 259.0,
-     "decode_validate_ns": 2886.0,
-     "encode_ns": 283.0,
-     "sig_hash_inputs_ns": 11721.0
+     "decode_ns": 329.0,
+     "decode_validate_ns": 3870.0,
+     "encode_ns": 559.0,
+     "sig_hash_inputs_ns": 12747.0
     }
    },
    {
     "id": "ConversationEvent/create-typical",
     "bytes": 602,
     "native": {
-     "decode_ns": 2190.0,
-     "decode_validate_ns": 4154.0,
-     "encode_ns": 2711.0,
-     "sig_hash_inputs_ns": 38.0
+     "decode_ns": 3038.0,
+     "decode_validate_ns": 7874.0,
+     "encode_ns": 5137.0,
+     "sig_hash_inputs_ns": 121.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 2078.0,
-     "decode_validate_ns": 5011.0,
-     "encode_ns": 2464.0,
-     "sig_hash_inputs_ns": 47.0
+     "decode_ns": 4302.0,
+     "decode_validate_ns": 7168.0,
+     "encode_ns": 4326.0,
+     "sig_hash_inputs_ns": 60.0
     }
    },
    {
     "id": "ConversationEvent/create-minimal",
     "bytes": 149,
     "native": {
-     "decode_ns": 459.0,
-     "decode_validate_ns": 864.0,
-     "encode_ns": 767.0,
-     "sig_hash_inputs_ns": 30.0
+     "decode_ns": 1013.0,
+     "decode_validate_ns": 1076.0,
+     "encode_ns": 904.0,
+     "sig_hash_inputs_ns": 38.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 456.0,
-     "decode_validate_ns": 1201.0,
-     "encode_ns": 639.0,
-     "sig_hash_inputs_ns": 33.0
+     "decode_ns": 508.0,
+     "decode_validate_ns": 1350.0,
+     "encode_ns": 887.0,
+     "sig_hash_inputs_ns": 50.0
     }
    },
    {
     "id": "ContactCapsule/typical",
     "bytes": 383,
     "native": {
-     "decode_ns": 248.0,
-     "decode_validate_ns": 2019.0,
-     "encode_ns": 331.0,
-     "sig_hash_inputs_ns": 2290.0
+     "decode_ns": 273.0,
+     "decode_validate_ns": 2574.0,
+     "encode_ns": 372.0,
+     "sig_hash_inputs_ns": 2549.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 210.0,
-     "decode_validate_ns": 2344.0,
-     "encode_ns": 253.0,
-     "sig_hash_inputs_ns": 2186.0
+     "decode_ns": 411.0,
+     "decode_validate_ns": 4207.0,
+     "encode_ns": 369.0,
+     "sig_hash_inputs_ns": 2731.0
     }
    },
    {
     "id": "Invite/typical",
     "bytes": 190,
     "native": {
-     "decode_ns": 238.0,
-     "decode_validate_ns": 1026.0,
-     "encode_ns": 323.0,
-     "sig_hash_inputs_ns": 615.0
+     "decode_ns": 269.0,
+     "decode_validate_ns": 1686.0,
+     "encode_ns": 595.0,
+     "sig_hash_inputs_ns": 1045.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 200.0,
-     "decode_validate_ns": 1234.0,
-     "encode_ns": 248.0,
-     "sig_hash_inputs_ns": 518.0
+     "decode_ns": 316.0,
+     "decode_validate_ns": 1306.0,
+     "encode_ns": 284.0,
+     "sig_hash_inputs_ns": 670.0
     }
    },
    {
     "id": "RelaySet/typical",
     "bytes": 283,
     "native": {
-     "decode_ns": 240.0,
-     "decode_validate_ns": 1385.0,
-     "encode_ns": 322.0,
-     "sig_hash_inputs_ns": 1995.0
+     "decode_ns": 1270.0,
+     "decode_validate_ns": 2480.0,
+     "encode_ns": 451.0,
+     "sig_hash_inputs_ns": 2705.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 199.0,
-     "decode_validate_ns": 1551.0,
-     "encode_ns": 245.0,
-     "sig_hash_inputs_ns": 1838.0
+     "decode_ns": 320.0,
+     "decode_validate_ns": 2032.0,
+     "encode_ns": 305.0,
+     "sig_hash_inputs_ns": 1985.0
     }
    },
    {
     "id": "MessageRequest/typical",
     "bytes": 1771,
     "native": {
-     "decode_ns": 330.0,
-     "decode_validate_ns": 502.0,
-     "encode_ns": 574.0,
-     "sig_hash_inputs_ns": 46.0
+     "decode_ns": 416.0,
+     "decode_validate_ns": 573.0,
+     "encode_ns": 665.0,
+     "sig_hash_inputs_ns": 116.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 324.0,
-     "decode_validate_ns": 640.0,
-     "encode_ns": 432.0,
-     "sig_hash_inputs_ns": 53.0
+     "decode_ns": 403.0,
+     "decode_validate_ns": 1035.0,
+     "encode_ns": 560.0,
+     "sig_hash_inputs_ns": 57.0
     }
    },
    {
     "id": "MessageRequestPayload/typical",
     "bytes": 767,
     "native": {
-     "decode_ns": 258.0,
-     "decode_validate_ns": 5062.0,
-     "encode_ns": 331.0,
-     "sig_hash_inputs_ns": 1079.0
+     "decode_ns": 288.0,
+     "decode_validate_ns": 8000.0,
+     "encode_ns": 392.0,
+     "sig_hash_inputs_ns": 1292.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 216.0,
-     "decode_validate_ns": 6005.0,
-     "encode_ns": 258.0,
-     "sig_hash_inputs_ns": 1115.0
+     "decode_ns": 229.0,
+     "decode_validate_ns": 7445.0,
+     "encode_ns": 309.0,
+     "sig_hash_inputs_ns": 1566.0
     }
    },
    {
     "id": "IntroIdentityBinding/typical",
     "bytes": 217,
     "native": {
-     "decode_ns": 239.0,
-     "decode_validate_ns": 921.0,
-     "encode_ns": 322.0,
-     "sig_hash_inputs_ns": 617.0
+     "decode_ns": 565.0,
+     "decode_validate_ns": 1027.0,
+     "encode_ns": 371.0,
+     "sig_hash_inputs_ns": 704.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 199.0,
-     "decode_validate_ns": 1148.0,
-     "encode_ns": 248.0,
-     "sig_hash_inputs_ns": 557.0
+     "decode_ns": 264.0,
+     "decode_validate_ns": 1331.0,
+     "encode_ns": 488.0,
+     "sig_hash_inputs_ns": 864.0
     }
    }
   ]
  },
  "all_checks_pass": true,
- "independence_caveat": "Rust and Node codecs, the registries and the vector generator were written by the same agent in one session; agreement shows internal consistency, not independent review (ADR-0117 still proposed)."
+ "independence_caveat": "Rust and Node codecs (and the Python/Node R-280 checkers) are separately written, different-language implementations with no shared codec code, which ADR-0134 \u00a75 accepts as pre-engineering independent_implementation; the same agent family wrote them."
 }

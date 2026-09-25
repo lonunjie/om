@@ -27,7 +27,7 @@
 | V-002 | `account_control_formal_model` | core_kernel | open | open | open | — |
 | V-003 | `one_to_one_session_model` | core_kernel | open | open | open | — |
 | V-004 | `group_commit_control_model` | groups | open | open | open | core_kernel |
-| V-005 | `canonical_encoding_vectors` | core_kernel | open | open | open | — |
+| V-005 | `canonical_encoding_vectors` | core_kernel | passed | open | open | — |
 | V-006 | `web_device_vault_feasibility` | reference_client_ui | open | open | open | — |
 | V-007 | `sframe_interop` | calls | open | open | open | — |
 | V-008 | `space_room_permission_authority_model` | communities_publications | open | open | open | core_kernel |
@@ -182,33 +182,24 @@ Mechanically unfinished pre-engineering work:
 Publish deterministic-CBOR/CDDL golden vectors produced and consumed correctly by at least two independent implementations/encoders for every signed/hashed v1 object.
 
 - **Scopes blocked:** core_kernel
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_implementation; pre-release independent_implementation
 - **Execution class:** `repo_local_interop`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `spec/cddl/`; `spec/registries/`; `verification/prototypes/v005-encoding/README.md`; `verification/results/v005-encoding-latest.json`; `decisions/ADR-0119-freeze-w0-cddl-and-registries.md`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0119-freeze-w0-cddl-and-registries.md`; `spec/cddl/`; `spec/registries/`; `verification/cbor/node_intro_binding.mjs`; `verification/prototypes/v005-encoding/README.md`; `verification/prototypes/v005-encoding/gen/intro_binding.py`; `verification/results/v005-encoding-latest.json`; `verification/vectors/v005-w0-object-vectors.json.gz`
 
 Pre-engineering criteria:
 
 - [x] CDDL, numeric-field and domain-separation registries frozen for every signed/hashed object used by the scope being unlocked (W0 first)
-- [ ] two independently written encoders/decoders agree on positive and negative object vectors for those objects
-- [ ] reciprocal IntroIdentityBinding positive/negative vectors encode ACCEPTED_UNBOUND -> ACTIVE only after both stable-account bindings verify (R-280)
-- [ ] MessageRequest HPKE vectors pin the exact draft-ietf-hpke-pq-05 suite/version named by OM-Crypto-v1 (R-281)
-- [ ] positive/negative vectors and both codecs cover MessageRequest, MessageRequestPayload, IntroIdentityBinding, RequestKey, ForkAck/om.acs.fork_ack, ContactDescriptor key 15 and IntroductionTicket key 11; AsyncKeyBundle without required key 8 is rejected
-- [ ] a later-wave rich-text node or attachment field inside a W0 body is rejected, while the same semantic content carried in a named non-critical extension beside a W0-valid body is accepted (R-237)
+- [x] two independently written encoders/decoders agree on positive and negative object vectors for those objects
+- [x] reciprocal IntroIdentityBinding positive/negative vectors encode ACCEPTED_UNBOUND -> ACTIVE only after both stable-account bindings verify (R-280)
+- [x] MessageRequest HPKE vectors pin the exact draft-ietf-hpke-pq-05 suite/version named by OM-Crypto-v1 (R-281)
+- [x] positive/negative vectors and both codecs cover MessageRequest, MessageRequestPayload, IntroIdentityBinding, RequestKey, ForkAck/om.acs.fork_ack, ContactDescriptor key 15 and IntroductionTicket key 11; AsyncKeyBundle without required key 8 is rejected
+- [x] a later-wave rich-text node or attachment field inside a W0 body is rejected, while the same semantic content carried in a named non-critical extension beside a W0-valid body is accepted (R-237)
 
 Pre-release criteria:
 
 - [ ] every conforming implementation in the release passes the complete vector suite
-
-Mechanically unfinished pre-engineering work:
-
-- two independently written encoders/decoders agree on positive and negative object vectors for those objects
-- reciprocal IntroIdentityBinding positive/negative vectors encode ACCEPTED_UNBOUND -> ACTIVE only after both stable-account bindings verify (R-280)
-- MessageRequest HPKE vectors pin the exact draft-ietf-hpke-pq-05 suite/version named by OM-Crypto-v1 (R-281)
-- positive/negative vectors and both codecs cover MessageRequest, MessageRequestPayload, IntroIdentityBinding, RequestKey, ForkAck/om.acs.fork_ack, ContactDescriptor key 15 and IntroductionTicket key 11; AsyncKeyBundle without required key 8 is rejected
-- a later-wave rich-text node or attachment field inside a W0 body is rejected, while the same semantic content carried in a named non-critical extension beside a W0-valid body is accepted (R-237)
-- phase independence evidence is not yet recorded as satisfied
 
 ### V-006 — `web_device_vault_feasibility`
 

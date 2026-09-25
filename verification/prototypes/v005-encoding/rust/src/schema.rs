@@ -58,8 +58,12 @@ pub struct Registry {
     pub enums: HashMap<String, Vec<u64>>,
     pub types: HashMap<String, ObjType>,
     pub known_ext: Vec<String>,
+    /// registered key-23 extension -> (critical flag, value struct) (om-numeric-fields "extensions")
+    pub ext_schema: HashMap<String, (bool, String)>,
     /// CryptoProfile id -> AsyncKeyBundle field keys that profile requires (required_bundle_fields)
     pub bundle_required: HashMap<u64, Vec<u64>>,
+    /// CryptoProfile id -> exact (hpke_enc, request-key public_key) lengths of its pinned MessageRequest HPKE suite
+    pub hpke_sizes: HashMap<u64, (usize, usize)>,
     pub lim: Limits,
 }
 
@@ -184,7 +188,20 @@ impl Registry {
                 bundle_required.insert(prof["id"].as_u64().unwrap(), keys);
             }
         }
-        Registry { structs, enums, types, known_ext, bundle_required, lim }
+        let mut hpke_sizes = HashMap::new();
+        for prof in c["profiles"].as_array().unwrap() {
+            let h = &prof["message_request_hpke"];
+            if let (Some(e), Some(k)) = (h["enc_bytes"].as_u64(), h["public_key_bytes"].as_u64()) {
+                hpke_sizes.insert(prof["id"].as_u64().unwrap(), (e as usize, k as usize));
+            }
+        }
+        let mut ext_schema = HashMap::new();
+        for e in f.get("extensions").and_then(|x| x.as_array()).into_iter().flatten() {
+            if let Some(r) = e["value"]["ref"].as_str() {
+                ext_schema.insert(e["name"].as_str().unwrap().to_string(), (e["critical"].as_bool().unwrap_or(false), r.to_string()));
+            }
+        }
+        Registry { structs, enums, types, known_ext, ext_schema, bundle_required, hpke_sizes, lim }
     }
 
     /// Decode + validate a top-level object of the declared type (SignedEnvelope for signed types).
@@ -315,6 +332,23 @@ impl<'a> Cx<'a> {
                         return Err("missing_field");
                     }
                 }
+                // ADR-0135 §5: a profile's pinned HPKE suite fixes the exact enc / public-key lengths
+                let field = |k: u64| m.iter().find(|(kk, _)| *kk == Value::Uint(k)).map(|(_, x)| x);
+                let pinned = |pk: u64, bk: u64, pick: fn((usize, usize)) -> usize| -> Result<(), Class> {
+                    if let (Some(Value::Uint(p)), Some(Value::Bytes(b))) = (field(pk), field(bk)) {
+                        if let Some(s) = self.r.hpke_sizes.get(p) {
+                            if b.len() != pick(*s) {
+                                return Err("value_range");
+                            }
+                        }
+                    }
+                    Ok(())
+                };
+                match name {
+                    "MessageRequest" => pinned(4, 5, |s| s.0)?,
+                    "RequestKey" => pinned(0, 1, |s| s.1)?,
+                    _ => {}
+                }
                 Ok(())
             }
         }
@@ -420,6 +454,13 @@ impl<'a> Cx<'a> {
                     self.strukt(e, "ExtEntry", None)?;
                     if e.get(0) == Some(&Value::Bool(true)) && !self.r.known_ext.iter().any(|x| x == id) {
                         return Err("unknown_critical_extension");
+                    }
+                    // a registered extension carries its registered criticality and a value of its registered struct
+                    if let Some((crit, s)) = self.r.ext_schema.get(id.as_str()) {
+                        if e.get(0) != Some(&Value::Bool(*crit)) {
+                            return Err("value_range");
+                        }
+                        self.strukt(e.get(1).ok_or("missing_field")?, s, None)?;
                     }
                 }
                 Ok(())

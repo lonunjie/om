@@ -54,6 +54,10 @@ echo "== codecs" >&2
 node ../../cbor/node_strict_harness.mjs "$B/w0-object-vectors.json" > "$B/node.json"
 python3 gen/compare.py "$B/w0-object-vectors.json" rust "$B/rust.json" node "$B/node.json" > "$B/compare.json" || true
 
+echo "== R-280 reciprocal IntroIdentityBinding sequences (python + node)" >&2
+python3 gen/intro_binding.py "$B/w0-object-vectors.json" > "$B/intro-python.json" || true
+node ../../cbor/node_intro_binding.mjs "$B/w0-object-vectors.json" > "$B/intro-node.json" || true
+
 echo "== cddl" >&2
 python3 gen/cddl_check.py "$B/w0-object-vectors.json" "$B" "$v005" > "$B/cddl.json" || true
 
