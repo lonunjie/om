@@ -1,0 +1,160 @@
+{
+  "all_ok": true,
+  "exhaustive": {
+    "counts": {
+      "accept": 1012,
+      "cases": 16200,
+      "pending": 55,
+      "reject": 15133
+    },
+    "per_class": {
+      "constitutional_policy": {
+        "accept": 27,
+        "pending": 0,
+        "reject": 813
+      },
+      "fork_bridge": {
+        "accept": 18,
+        "pending": 0,
+        "reject": 822
+      },
+      "lift_quarantine": {
+        "accept": 9,
+        "pending": 0,
+        "reject": 951
+      },
+      "link_messaging": {
+        "accept": 75,
+        "pending": 0,
+        "reject": 765
+      },
+      "lower_min_profile": {
+        "accept": 0,
+        "pending": 0,
+        "reject": 840
+      },
+      "promote": {
+        "accept": 88,
+        "pending": 11,
+        "reject": 741
+      },
+      "quarantine": {
+        "accept": 51,
+        "pending": 0,
+        "reject": 1317
+      },
+      "raise_min_profile": {
+        "accept": 75,
+        "pending": 0,
+        "reject": 765
+      },
+      "recovery_policy": {
+        "accept": 88,
+        "pending": 11,
+        "reject": 741
+      },
+      "remove_messaging": {
+        "accept": 75,
+        "pending": 0,
+        "reject": 765
+      },
+      "retirement": {
+        "accept": 165,
+        "pending": 11,
+        "reject": 1504
+      },
+      "revoke_control": {
+        "accept": 215,
+        "pending": 22,
+        "reject": 2067
+      },
+      "rotate_own_key": {
+        "accept": 51,
+        "pending": 0,
+        "reject": 2277
+      },
+      "transparency": {
+        "accept": 75,
+        "pending": 0,
+        "reject": 765
+      }
+    },
+    "violation_count": 0,
+    "violations": []
+  },
+  "gate": "V-002",
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed",
+  "table_mirror": {
+    "classes": [
+      "constitutional_policy",
+      "fork_bridge",
+      "lift_quarantine",
+      "link_messaging",
+      "lower_min_profile",
+      "promote",
+      "quarantine",
+      "raise_min_profile",
+      "recovery_policy",
+      "remove_messaging",
+      "retirement",
+      "revoke_control",
+      "rotate_own_key",
+      "transparency"
+    ],
+    "problems": [],
+    "rows": 14
+  },
+  "vectors": {
+    "classes_covered": [
+      "constitutional_policy",
+      "fork_bridge",
+      "lift_quarantine",
+      "link_messaging",
+      "lower_min_profile",
+      "promote",
+      "quarantine",
+      "raise_min_profile",
+      "recovery_policy",
+      "remove_messaging",
+      "retirement",
+      "revoke_control",
+      "rotate_own_key",
+      "transparency"
+    ],
+    "classes_lacking_pos_or_neg": [],
+    "missing_classes": [],
+    "negative_per_class": {
+      "constitutional_policy": 1,
+      "fork_bridge": 4,
+      "lift_quarantine": 2,
+      "link_messaging": 1,
+      "lower_min_profile": 1,
+      "promote": 3,
+      "quarantine": 3,
+      "raise_min_profile": 1,
+      "recovery_policy": 1,
+      "remove_messaging": 1,
+      "retirement": 4,
+      "revoke_control": 3,
+      "rotate_own_key": 1,
+      "transparency": 1
+    },
+    "positive_per_class": {
+      "constitutional_policy": 1,
+      "fork_bridge": 1,
+      "lift_quarantine": 1,
+      "link_messaging": 1,
+      "lower_min_profile": 0,
+      "promote": 3,
+      "quarantine": 1,
+      "raise_min_profile": 1,
+      "recovery_policy": 1,
+      "remove_messaging": 1,
+      "retirement": 4,
+      "revoke_control": 3,
+      "rotate_own_key": 1,
+      "transparency": 1
+    },
+    "total": 48
+  }
+}

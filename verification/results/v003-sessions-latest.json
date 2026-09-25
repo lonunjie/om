@@ -27,10 +27,43 @@
    "criterion": "model reviewed by someone other than its author",
    "evidence": [],
    "gate": "V-003",
-   "note": "Needs an independent reviewer (ADR-0117 decides whether an AI reviewer counts).",
+   "note": "Needs an independent (non-Anthropic) reviewer under ADR-0117; batched in the final review queue.",
    "status": "unmet"
+  },
+  {
+   "criterion": "restore+redelivery is covered by a dedicated executable scenario or an explicitly equivalent bounded trace, not only an informal argument",
+   "evidence": [
+    "verification/prototypes/v003-sessions/restore_redelivery.py",
+    "verification/prototypes/v003-sessions/sessions.py"
+   ],
+   "gate": "V-003",
+   "note": "ADR-0131 restore (fresh DeviceID via the control chain, no delivery exemption) explored exhaustively: 13378 states, 5138 old-queue redeliveries, 1540 duplicate deliveries after restore, no invariant violated; a scripted golden trace delivers the post-restore message exactly once. Finding: the backup import must MERGE with a live installation (the overwrite mutation loses an accepted message). Residual: messages sent only to the lost device between its backup and the sender learning the restore are not re-encrypted (max gap 3).",
+   "status": "met"
+  },
+  {
+   "criterion": "negative vector rejects a peer profile below the current security_generation and rejects a floor move to a lower generation after a SecurityAdvisory (R-206)",
+   "evidence": [
+    "verification/prototypes/v003-sessions/floor.py",
+    "verification/vectors/one-to-one-floor-vectors.json"
+   ],
+   "gate": "V-003",
+   "note": "14 vectors driven by spec/registries/om-crypto-profiles.json (+ vector-only experimental profiles); negatives: reject_test_profile_generation_0_below_floor_1, reject_profile_below_floor_after_upgrade, reject_group_only_profile_for_1to1, reject_unknown_profile, reject_forbidden_profile, advisory_move_to_lower_generation_rejected.",
+   "status": "met"
   }
  ],
+ "floor": {
+  "failed": [],
+  "negative": [
+   "reject_test_profile_generation_0_below_floor_1",
+   "reject_profile_below_floor_after_upgrade",
+   "reject_group_only_profile_for_1to1",
+   "reject_unknown_profile",
+   "reject_forbidden_profile",
+   "advisory_move_to_lower_generation_rejected"
+  ],
+  "ok": true,
+  "vectors": 14
+ },
  "fuzz": {
   "fuzz": {
    "DedupeDurable": {
@@ -281,7 +314,26 @@
  "gates": [
   "V-003"
  ],
- "independence": "Model, reference machine and fuzzer written by a Claude agent; the design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The Python machine was written from the docs, not translated from the TLA+ model; step-label agreement on every TLC trace is cross-implementation evidence only.",
+ "independence": "Model, reference machine and fuzzer written by a Claude agent; the design package was authored by a ChatGPT design agent and Claude agents; under ADR-0117 a non-Anthropic reviewer is required for pre-engineering. The Python machine was written from the docs, not translated from the TLA+ model; step-label agreement on every TLC trace is cross-implementation evidence only.",
+ "restore_redelivery": {
+  "mutation_overwrite_import": [
+   "DeliveredAtQuiescence"
+  ],
+  "ok": true,
+  "residual": {
+   "history_gap_max_messages": 3,
+   "meaning": "messages intended only for the lost device after its backup point and before the sender learned the restore are not re-encrypted to the restored device; they reach it only through history sync from another device of the account (MULTI_DEVICE_SYNC.md) or not at all"
+  },
+  "stats": {
+   "dup_after_restore": 1540,
+   "max_history_gap": 3,
+   "misdeliveries": 5138,
+   "quiescent": 955,
+   "quiescent_states_with_delivery_to_restored": 86,
+   "restored_states": 5312,
+   "states": 13378
+  }
+ },
  "summary": {
   "design_gaps": [
    "K1",

@@ -112,3 +112,20 @@ TLC pass run.
 4. Decide whether lazy repair of a lost session (P1) is acceptable, or whether a restored/crashed device must
    proactively announce lost sessions.
 5. Register the new files in [`machine/file_registry.json`](../../../machine/file_registry.json) (not done here: this prototype does not edit `machine/`).
+
+## 2026-09-25: restore + redelivery and the R-206 floor
+
+- [`restore_redelivery.py`](restore_redelivery.py) is the dedicated restore scenario. It uses ADR-0131 semantics
+  (`World.restore_as`): a restore enrolls a **fresh DeviceID** through the account's control chain, and delivery checks
+  get no exemption. The older same-DeviceID `restore` exempted every intended delivery. The script explores every
+  bounded interleaving of backup, loss, restore, late learning, redelivery of the old device's queue to the restored
+  installation, duplicate delivery and a crash: 13,378 states, no violation. A scripted golden trace delivers the
+  post-restore message exactly once.
+- **Finding (for review):** the fresh installation can already be receiving when the backup import runs. The import
+  must therefore **merge**: union of the dedupe history, max of floors and control heads. An overwrite loses a message
+  the installation had already accepted. The mutation config catches this. No document states it yet.
+- **Residual:** messages sent only to the lost device between its backup and the sender learning of the restore are
+  not re-encrypted to the new DeviceID. They reach it only through history sync from another device of the account.
+- [`floor.py`](floor.py) writes [`one-to-one-floor-vectors.json`](../../vectors/one-to-one-floor-vectors.json): 14 vectors
+  driven by the real CryptoProfile registry, 6 of them negative. They include a peer profile below the relationship's
+  security_generation, and a SecurityAdvisory move to a lower generation (R-206).

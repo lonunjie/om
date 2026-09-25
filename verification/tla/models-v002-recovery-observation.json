@@ -1,0 +1,10 @@
+{
+  "purpose": "V-002 R-278 / ADR-0131 rule 6: recovery-alone activation is measured by each verifier's own observation interval; Home/custodian timestamps cannot accelerate it.",
+  "models": [
+    {"module": "RecoveryObservation", "config": "RecoveryObservation.cfg", "expect": "pass", "gate": "V-002", "claim": "R-278: no verifier accepts a recovery-alone successor before observing the request for the full delay; live controllers are never overridden; a seen veto blocks acceptance"},
+    {"module": "RecoveryObservation", "config": "RecoveryObservation_noreact.cfg", "expect": "pass", "gate": "V-002", "claim": "R-278 holds per verifier even when controllers do not react (withheld or delayed vetoes)"},
+    {"module": "RecoveryObservation", "config": "RecoveryObservation_mut_trust_timestamp.cfg", "expect": "violation", "invariant": "AcceptOnlyAfterOwnInterval", "gate": "V-002", "claim": "mutation: trusting a deliverer's age claim is the acceleration attack R-278 forbids"},
+    {"module": "RecoveryObservation", "config": "RecoveryObservation_trap_late.cfg", "expect": "violation", "invariant": "TrapLateVerifierStillPending", "gate": "V-002", "claim": "golden: a late verifier waits its own full interval after another verifier accepted"},
+    {"module": "RecoveryObservation", "config": "RecoveryObservation_residual_withheld.cfg", "expect": "violation", "invariant": "NoPeerAcceptsWhileControllersUninformed", "gate": "V-002", "claim": "T-090 residual: withholding from every live controller lets a partitioned peer accept after its own interval; fork detection on contact is the mitigation"}
+  ]
+}

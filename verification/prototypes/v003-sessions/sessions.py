@@ -105,6 +105,9 @@ class World:
         self.disturbed: set[str] = set()
         self.exempt: set[tuple] = set()
         self.log: list[list] = []
+        # ADR-0131 rule 2 restore (restore_as): lost old device ids, and new -> old
+        self.dead: set[str] = set()
+        self.restored_from: dict[str, str] = {}
 
     # ------------------------------------------------------------------ helpers
     def acct(self, d):
@@ -200,7 +203,7 @@ class World:
 
     def encrypt(self, s, m, r):
         D = self.dev[s]
-        if (m, r) not in D.fan:
+        if (m, r) not in D.fan or s in self.dead:
             raise Infeasible("not pending")
         hdr = D.known[self.acct(s)]
         ok_ghost = self.ever_eligible(s, r)
@@ -273,6 +276,8 @@ class World:
             return self._recv_reset(e, dup)
         _, f, r, sid, prof, ctr, m, pk, hdr = e
         self._take(e, dup)
+        if r in self.dead:
+            return ["DroppedLostDevice", r, m]
         D = self.dev[r]
         af = self.acct(f)
         D.known[af] = max(D.known[af], hdr)             # head gossip piggyback
@@ -367,6 +372,53 @@ class World:
         self.disturbed.add(d)
         self.exempt |= self.intended
         return ["Restore", d]
+
+    def restore_as(self, old, new):
+        """ADR-0131 rule 2 / ONE_TO_ONE_SESSION_MANAGEMENT.md replay-ledger note: a backup restore enrolls a FRESH
+        DeviceID (`new`, added by the account's control chain) and the old DeviceID is revoked there. The restored
+        installation gets non-secret state from the backup (dedupe history, per-peer floors, control heads) and no
+        ratchet state, prekeys or pending sends of the old device. Nothing is exempted from delivery checks."""
+        a = self.acct(old)
+        if (self.Bk[old] is None or new in self.restored_from or old in self.dead
+                or new not in self.t.members(a, self.gen[a]) or old in self.t.members(a, self.gen[a])):
+            raise Infeasible("restore_as not enabled")
+        b = copy.deepcopy(self.Bk[old])
+        D = self.dev[new]
+        # The fresh installation may already be live (enrolled, receiving) when the backup import runs, so the import
+        # MERGES and never replaces: dedupe history is a union, floors and control heads a max. An overwrite loses
+        # messages the installation already accepted (found by this explorer; see README "restore import merges").
+        # Live sessions and pending sends are the new device's own; nothing ratchet- or prekey-related is imported.
+        if self.k.get("RestoreImportMerges", True):
+            for m in b["seen"]:
+                if m not in D.seen:
+                    self.acc[new][m] = 1   # history restored: accepted once for the account, never again
+            D.seen = D.seen | set(b["seen"])
+            for p, f in b["floor"].items():
+                D.floor[p] = max(D.floor.get(p, 0), f)
+        else:  # mutation: overwrite
+            D.seen = set(b["seen"])
+            D.floor = dict(b["floor"])
+            self.acc[new] = {m: 1 for m in b["seen"]}
+        D.known = {x: max(b["known"][x], self.gen[x], D.known[x]) for x in self.t.accounts}
+        for x in self.t.accounts:
+            self.ever[new][x] = max(self.ever[new][x], D.known[x])
+        self.P[new] = D.snap()
+        self.dead.add(old)
+        self.restored_from[new] = old
+        return ["RestoreAsNewDevice", old, new]
+
+    def misdeliver_old_mailbox(self, e):
+        """The restored installation fetches the old device's queue (redelivery). Envelopes addressed to the old
+        DeviceID carry no key material for `new`; the manager must drop them, never accept them and never answer
+        with a reset in the old device's name."""
+        if e not in self.net or e[0] != "msg" or e[2] not in self.dead:
+            raise Infeasible("nothing to misdeliver")
+        new = next(n for n, o in self.restored_from.items() if o == e[2])
+        before = self.dev[new].snap()
+        self._take(e, False)
+        if self.dev[new].snap() != before:
+            self.violations.append(("RestoredIgnoresOldMailbox", (new, e)))
+        return ["RecvNotAddressedToMe", new, e[6]]
 
     # ------------------------------------------------------------------ invariants
     def check(self) -> list[str]:

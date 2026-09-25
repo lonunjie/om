@@ -59,6 +59,10 @@
     {
       "script": "verification/bounded/introgate_sybil_model.py",
       "returncode": 0
+    },
+    {
+      "script": "verification/bounded/acs_authorization_table.py",
+      "returncode": 0
     }
   ]
 }

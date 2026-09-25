@@ -1,0 +1,87 @@
+{
+ "gate": "V-002",
+ "source": "verification/tla/RecoveryObservation_residual_withheld.cfg",
+ "kind": "residual-risk",
+ "claim": "T-090 residual: withholding from every live controller lets a partitioned peer accept after its own interval; fork detection on contact is the mitigation",
+ "violated": "NoPeerAcceptsWhileControllersUninformed",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "now": "0",
+    "seen": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "real": "[c1 |-> 0, p1 |-> 0, p2 |-> 0]",
+    "accepted": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoSeen": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoIssued": "FALSE",
+    "local": "[c1 |-> 0, p1 |-> 0, p2 |-> 0]"
+   }
+  },
+  {
+   "step": 2,
+   "action": "Deliver",
+   "vars": {
+    "now": "0",
+    "seen": "[c1 |-> FALSE, p1 |-> TRUE, p2 |-> FALSE]",
+    "real": "[c1 |-> 0, p1 |-> 0, p2 |-> 0]",
+    "accepted": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoSeen": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoIssued": "FALSE",
+    "local": "[c1 |-> 0, p1 |-> 0, p2 |-> 0]"
+   }
+  },
+  {
+   "step": 3,
+   "action": "Tick",
+   "vars": {
+    "now": "1",
+    "seen": "[c1 |-> FALSE, p1 |-> TRUE, p2 |-> FALSE]",
+    "real": "[c1 |-> 0, p1 |-> 1, p2 |-> 0]",
+    "accepted": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoSeen": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoIssued": "FALSE",
+    "local": "[c1 |-> 0, p1 |-> 1, p2 |-> 0]"
+   }
+  },
+  {
+   "step": 4,
+   "action": "Tick",
+   "vars": {
+    "now": "2",
+    "seen": "[c1 |-> FALSE, p1 |-> TRUE, p2 |-> FALSE]",
+    "real": "[c1 |-> 0, p1 |-> 2, p2 |-> 0]",
+    "accepted": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoSeen": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoIssued": "FALSE",
+    "local": "[c1 |-> 0, p1 |-> 2, p2 |-> 0]"
+   }
+  },
+  {
+   "step": 5,
+   "action": "Tick",
+   "vars": {
+    "now": "3",
+    "seen": "[c1 |-> FALSE, p1 |-> TRUE, p2 |-> FALSE]",
+    "real": "[c1 |-> 0, p1 |-> 3, p2 |-> 0]",
+    "accepted": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoSeen": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoIssued": "FALSE",
+    "local": "[c1 |-> 0, p1 |-> 3, p2 |-> 0]"
+   }
+  },
+  {
+   "step": 6,
+   "action": "Accept",
+   "vars": {
+    "now": "3",
+    "seen": "[c1 |-> FALSE, p1 |-> TRUE, p2 |-> FALSE]",
+    "real": "[c1 |-> 0, p1 |-> 3, p2 |-> 0]",
+    "accepted": "[c1 |-> FALSE, p1 |-> TRUE, p2 |-> FALSE]",
+    "vetoSeen": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoIssued": "FALSE",
+    "local": "[c1 |-> 0, p1 |-> 3, p2 |-> 0]"
+   }
+  }
+ ]
+}

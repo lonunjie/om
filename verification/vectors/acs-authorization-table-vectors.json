@@ -1,0 +1,3076 @@
+{
+ "gate": "V-002",
+ "source": "verification/bounded/acs_authorization_table.py",
+ "table": "ACCOUNT_CONTINUITY_AND_CONTROL.md \u00a74.1 (ADR-0127)",
+ "semantics": "authorize(parent, child, context) -> accept | pending | reject; signers are controller signatures counted against the parent; recovery = RecoveryPolicy vote with this verifier's own elapsed observation (R-278)",
+ "vectors": [
+  {
+   "name": "link_messaging_by_one_controller",
+   "class": "link_messaging",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1",
+     "m2"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ]
+   },
+   "expect": "accept",
+   "reason": "single active controller"
+  },
+  {
+   "name": "link_messaging_by_messaging_device_rejected",
+   "class": "link_messaging",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1",
+     "m2"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "m1"
+    ]
+   },
+   "expect": "reject",
+   "reason": "a signer is not an active, non-quarantined controller of the parent"
+  },
+  {
+   "name": "promote_majority",
+   "class": "promote",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3",
+     "d4"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1,
+     "d4": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2"
+    ]
+   },
+   "expect": "accept",
+   "reason": "majority"
+  },
+  {
+   "name": "promote_single_signer_N3_rejected",
+   "class": "promote",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3",
+     "d4"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1,
+     "d4": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ]
+   },
+   "expect": "reject",
+   "reason": "majority 2 of N=3 required"
+  },
+  {
+   "name": "promote_single_signer_N1",
+   "class": "promote",
+   "parent": {
+    "control": [
+     "d1"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d4"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d4": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ]
+   },
+   "expect": "accept",
+   "reason": "majority"
+  },
+  {
+   "name": "promote_one_controller_plus_recovery_vote",
+   "class": "promote",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3",
+     "d4"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1,
+     "d4": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ],
+    "recovery": {
+     "elapsed": 0,
+     "delay": 2,
+     "veto": false
+    }
+   },
+   "expect": "accept",
+   "reason": "majority reached with a co-signed recovery vote"
+  },
+  {
+   "name": "quarantine_by_other_controller",
+   "class": "quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [
+     "d2"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ]
+   },
+   "expect": "accept",
+   "reason": "single active controller"
+  },
+  {
+   "name": "quarantine_self_signed_rejected",
+   "class": "quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [
+     "d2"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d2"
+    ]
+   },
+   "expect": "reject",
+   "reason": "quarantine target must be another control device of the parent"
+  },
+  {
+   "name": "quarantine_by_quarantined_controller_rejected",
+   "class": "quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [
+     "d3"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [
+     "d1",
+     "d3"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d3"
+    ]
+   },
+   "expect": "reject",
+   "reason": "a signer is not an active, non-quarantined controller of the parent"
+  },
+  {
+   "name": "lift_quarantine_majority",
+   "class": "lift_quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [
+     "d3"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2"
+    ]
+   },
+   "expect": "accept",
+   "reason": "majority"
+  },
+  {
+   "name": "lift_quarantine_single_rejected",
+   "class": "lift_quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [
+     "d3"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ]
+   },
+   "expect": "reject",
+   "reason": "majority 2 of N=3 required"
+  },
+  {
+   "name": "lift_quarantine_with_recovery_vote_rejected",
+   "class": "lift_quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [
+     "d3"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ],
+    "recovery": {
+     "elapsed": 2,
+     "delay": 2,
+     "veto": false
+    }
+   },
+   "expect": "reject",
+   "reason": "this delta takes no recovery vote"
+  },
+  {
+   "name": "remove_messaging_by_one_controller",
+   "class": "remove_messaging",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [],
+    "revoked": [
+     "m1"
+    ],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d2"
+    ]
+   },
+   "expect": "accept",
+   "reason": "single active controller"
+  },
+  {
+   "name": "remove_messaging_unsigned_rejected",
+   "class": "remove_messaging",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [],
+    "revoked": [
+     "m1"
+    ],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": []
+   },
+   "expect": "reject",
+   "reason": "no controller signature"
+  },
+  {
+   "name": "revoke_control_majority",
+   "class": "revoke_control",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [
+     "d3"
+    ],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2"
+    ]
+   },
+   "expect": "accept",
+   "reason": "majority"
+  },
+  {
+   "name": "revoke_control_recovery_alone_pending",
+   "class": "revoke_control",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [
+     "d3"
+    ],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [],
+    "recovery": {
+     "elapsed": 0,
+     "delay": 2,
+     "veto": false
+    }
+   },
+   "expect": "pending",
+   "reason": "recovery alone: waiting for this verifier's own activation interval (R-278)"
+  },
+  {
+   "name": "revoke_control_recovery_alone_after_delay",
+   "class": "revoke_control",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [
+     "d3"
+    ],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [],
+    "recovery": {
+     "elapsed": 2,
+     "delay": 2,
+     "veto": false
+    }
+   },
+   "expect": "accept",
+   "reason": "recovery alone after the full delay with no veto"
+  },
+  {
+   "name": "revoke_control_recovery_alone_vetoed",
+   "class": "revoke_control",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [
+     "d3"
+    ],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [],
+    "recovery": {
+     "elapsed": 2,
+     "delay": 2,
+     "veto": true
+    }
+   },
+   "expect": "reject",
+   "reason": "RecoveryVeto observed"
+  },
+  {
+   "name": "revoke_control_single_signer_rejected",
+   "class": "revoke_control",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [
+     "d3"
+    ],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ]
+   },
+   "expect": "reject",
+   "reason": "majority 2 of N=3 required"
+  },
+  {
+   "name": "recovery_policy_majority",
+   "class": "recovery_policy",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p1",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d3"
+    ]
+   },
+   "expect": "accept",
+   "reason": "majority"
+  },
+  {
+   "name": "recovery_policy_single_rejected",
+   "class": "recovery_policy",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p1",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ]
+   },
+   "expect": "reject",
+   "reason": "majority 2 of N=3 required"
+  },
+  {
+   "name": "constitutional_policy_majority",
+   "class": "constitutional_policy",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 2,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2"
+    ]
+   },
+   "expect": "accept",
+   "reason": "majority"
+  },
+  {
+   "name": "constitutional_policy_recovery_vote_rejected",
+   "class": "constitutional_policy",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 2,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ],
+    "recovery": {
+     "elapsed": 2,
+     "delay": 2,
+     "veto": false
+    }
+   },
+   "expect": "reject",
+   "reason": "this delta takes no recovery vote"
+  },
+  {
+   "name": "raise_min_profile_one_controller",
+   "class": "raise_min_profile",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 3,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d2"
+    ]
+   },
+   "expect": "accept",
+   "reason": "single active controller"
+  },
+  {
+   "name": "raise_min_profile_unsigned_rejected",
+   "class": "raise_min_profile",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 3,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": []
+   },
+   "expect": "reject",
+   "reason": "no controller signature"
+  },
+  {
+   "name": "lower_min_profile_forbidden_even_unanimous",
+   "class": "lower_min_profile",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 1,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2",
+     "d3"
+    ]
+   },
+   "expect": "reject",
+   "reason": "lowering minimum_crypto_profile is forbidden"
+  },
+  {
+   "name": "rotate_own_key_self",
+   "class": "rotate_own_key",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 2,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d2"
+    ]
+   },
+   "expect": "accept",
+   "reason": "single active controller"
+  },
+  {
+   "name": "rotate_other_device_key_rejected",
+   "class": "rotate_own_key",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 2,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ]
+   },
+   "expect": "reject",
+   "reason": "only the device itself, not quarantined, may rotate its own key entry"
+  },
+  {
+   "name": "transparency_one_controller",
+   "class": "transparency",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t1",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d3"
+    ]
+   },
+   "expect": "accept",
+   "reason": "single active controller"
+  },
+  {
+   "name": "transparency_unsigned_rejected",
+   "class": "transparency",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t1",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": []
+   },
+   "expect": "reject",
+   "reason": "no controller signature"
+  },
+  {
+   "name": "fork_bridge_device_only_majority_covering_trusted_head",
+   "class": "fork_bridge",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": [
+     "hA",
+     "hB"
+    ],
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2"
+    ],
+    "trusted_heads": [
+     "hA"
+    ]
+   },
+   "expect": "accept",
+   "reason": "device-only majority of the common ancestor"
+  },
+  {
+   "name": "fork_bridge_not_covering_trusted_head_rejected",
+   "class": "fork_bridge",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": [
+     "hA",
+     "hB"
+    ],
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2"
+    ],
+    "trusted_heads": [
+     "hC"
+    ]
+   },
+   "expect": "reject",
+   "reason": "fork_ack does not cover a head this verifier trusts"
+  },
+  {
+   "name": "fork_bridge_with_recovery_vote_rejected",
+   "class": "fork_bridge",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": [
+     "hA",
+     "hB"
+    ],
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ],
+    "recovery": {
+     "elapsed": 2,
+     "delay": 2,
+     "veto": false
+    },
+    "trusted_heads": [
+     "hA"
+    ]
+   },
+   "expect": "reject",
+   "reason": "a recovery vote never counts for a fork bridge"
+  },
+  {
+   "name": "fork_bridge_single_signer_rejected",
+   "class": "fork_bridge",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": [
+     "hA",
+     "hB"
+    ],
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ],
+    "trusted_heads": [
+     "hA"
+    ]
+   },
+   "expect": "reject",
+   "reason": "fork bridge needs a device-only majority"
+  },
+  {
+   "name": "fork_bridge_listing_one_head_rejected",
+   "class": "fork_bridge",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": [
+     "hA"
+    ],
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2"
+    ],
+    "trusted_heads": [
+     "hA"
+    ]
+   },
+   "expect": "reject",
+   "reason": "fork bridge must list every observed branch head (>= 2)"
+  },
+  {
+   "name": "retirement_moved_majority",
+   "class": "retirement",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": {
+     "reason": "moved",
+     "successor": "acct-2"
+    },
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2"
+    ]
+   },
+   "expect": "accept",
+   "reason": "majority"
+  },
+  {
+   "name": "retirement_moved_single_device_rejected",
+   "class": "retirement",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": {
+     "reason": "moved",
+     "successor": "acct-2"
+    },
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ]
+   },
+   "expect": "reject",
+   "reason": "majority 2 of N=3 required"
+  },
+  {
+   "name": "retirement_moved_by_recovery_alone_rejected",
+   "class": "retirement",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": {
+     "reason": "moved",
+     "successor": "acct-2"
+    },
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [],
+    "recovery": {
+     "elapsed": 2,
+     "delay": 2,
+     "veto": false
+    }
+   },
+   "expect": "reject",
+   "reason": "R-201: a successor pointer needs device signers under the parent state (guardians alone cannot move an account)"
+  },
+  {
+   "name": "retirement_moved_cosigned_recovery_vote",
+   "class": "retirement",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": {
+     "reason": "moved",
+     "successor": "acct-2"
+    },
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ],
+    "recovery": {
+     "elapsed": 0,
+     "delay": 2,
+     "veto": false
+    }
+   },
+   "expect": "accept",
+   "reason": "majority reached with a co-signed recovery vote"
+  },
+  {
+   "name": "retirement_deleted_recovery_alone_pending",
+   "class": "retirement",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": {
+     "reason": "deleted"
+    },
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [],
+    "recovery": {
+     "elapsed": 1,
+     "delay": 2,
+     "veto": false
+    }
+   },
+   "expect": "pending",
+   "reason": "recovery alone: waiting for this verifier's own activation interval (R-278)"
+  },
+  {
+   "name": "retirement_deleted_recovery_alone_after_delay",
+   "class": "retirement",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": {
+     "reason": "deleted"
+    },
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [],
+    "recovery": {
+     "elapsed": 2,
+     "delay": 2,
+     "veto": false
+    }
+   },
+   "expect": "accept",
+   "reason": "recovery alone after the full delay with no veto"
+  },
+  {
+   "name": "retirement_deleted_recovery_alone_vetoed",
+   "class": "retirement",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": {
+     "reason": "deleted"
+    },
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [],
+    "recovery": {
+     "elapsed": 2,
+     "delay": 2,
+     "veto": true
+    }
+   },
+   "expect": "reject",
+   "reason": "RecoveryVeto observed"
+  },
+  {
+   "name": "any_transition_after_retirement_rejected",
+   "class": "retirement",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": {
+     "reason": "deleted"
+    },
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t1",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2",
+     "d3"
+    ]
+   },
+   "expect": "reject",
+   "reason": "parent retired: AccountRetirement is terminal"
+  },
+  {
+   "name": "combined_link_and_promote_needs_majority",
+   "class": "promote",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3",
+     "d4"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1",
+     "m2"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1,
+     "d4": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ]
+   },
+   "expect": "reject",
+   "reason": "majority 2 of N=3 required"
+  },
+  {
+   "name": "unlisted_delta_rejected",
+   "class": "unlisted",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [
+     "zz"
+    ],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t1",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2",
+     "d3"
+    ]
+   },
+   "expect": "reject",
+   "reason": "delta not listed in \u00a74.1"
+  },
+  {
+   "name": "revoke_last_voting_controller_rejected_s13",
+   "class": "revoke_control",
+   "parent": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [
+     "d1"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1"
+    ],
+    "quarantined": [
+     "d1"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [
+     "d2"
+    ],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d2"
+    ],
+    "recovery": {
+     "elapsed": 0,
+     "delay": 2,
+     "veto": false
+    }
+   },
+   "expect": "reject",
+   "reason": "\u00a713: child would have zero voting controllers"
+  },
+  {
+   "name": "quarantine_last_voting_controller_rejected_s13",
+   "class": "quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [
+     "d1"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [
+     "d1",
+     "d2"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d2"
+    ]
+   },
+   "expect": "reject",
+   "reason": "quarantine target must be another control device of the parent"
+  },
+  {
+   "name": "revoked_device_id_never_repromoted",
+   "class": "promote",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [
+     "d4"
+    ],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3",
+     "d4"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [
+     "d4"
+    ],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1,
+     "d4": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2",
+     "d3"
+    ]
+   },
+   "expect": "reject",
+   "reason": "a revoked device id is never reused"
+  }
+ ]
+}

@@ -1,0 +1,295 @@
+{
+ "gate": "V-003",
+ "requirement": "R-206",
+ "source": "verification/prototypes/v003-sessions/floor.py",
+ "registry": "spec/registries/om-crypto-profiles.json + vector-only experimental profiles",
+ "test_profiles": [
+  {
+   "id": 65280,
+   "name": "test-1to1-gen2",
+   "status": "experimental",
+   "security_generation": {
+    "one_to_one": 2
+   }
+  },
+  {
+   "id": 65281,
+   "name": "test-1to1-gen2-alt",
+   "status": "experimental",
+   "security_generation": {
+    "one_to_one": 2
+   }
+  },
+  {
+   "id": 65282,
+   "name": "test-group-only",
+   "status": "experimental",
+   "security_generation": {
+    "group": 1
+   }
+  }
+ ],
+ "vectors": [
+  {
+   "name": "accept_om_crypto_v1_at_floor_1",
+   "op": "accept_profile",
+   "state": {
+    "floor": 1,
+    "profile": 1,
+    "forbidden": [],
+    "sending": true
+   },
+   "profile": 1,
+   "expect_accept": true,
+   "reason": "ok",
+   "after": {
+    "floor": 1,
+    "profile": 1,
+    "forbidden": [],
+    "sending": true
+   }
+  },
+  {
+   "name": "reject_test_profile_generation_0_below_floor_1",
+   "op": "accept_profile",
+   "state": {
+    "floor": 1,
+    "profile": 1,
+    "forbidden": [],
+    "sending": true
+   },
+   "profile": 65535,
+   "expect_accept": false,
+   "reason": "authenticated reject naming the message; sender retries at the floor (ADR-0120)",
+   "after": {
+    "floor": 1,
+    "profile": 1,
+    "forbidden": [],
+    "sending": true
+   }
+  },
+  {
+   "name": "reject_profile_below_floor_after_upgrade",
+   "op": "accept_profile",
+   "state": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [],
+    "sending": true
+   },
+   "profile": 1,
+   "expect_accept": false,
+   "reason": "authenticated reject naming the message; sender retries at the floor (ADR-0120)",
+   "after": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [],
+    "sending": true
+   }
+  },
+  {
+   "name": "reject_group_only_profile_for_1to1",
+   "op": "accept_profile",
+   "state": {
+    "floor": 1,
+    "profile": 1,
+    "forbidden": [],
+    "sending": true
+   },
+   "profile": 65282,
+   "expect_accept": false,
+   "reason": "authenticated reject naming the message; sender retries at the floor (ADR-0120)",
+   "after": {
+    "floor": 1,
+    "profile": 1,
+    "forbidden": [],
+    "sending": true
+   }
+  },
+  {
+   "name": "reject_unknown_profile",
+   "op": "accept_profile",
+   "state": {
+    "floor": 1,
+    "profile": 1,
+    "forbidden": [],
+    "sending": true
+   },
+   "profile": 4242,
+   "expect_accept": false,
+   "reason": "authenticated reject naming the message; sender retries at the floor (ADR-0120)",
+   "after": {
+    "floor": 1,
+    "profile": 1,
+    "forbidden": [],
+    "sending": true
+   }
+  },
+  {
+   "name": "accept_higher_generation_raises_floor",
+   "op": "accept_profile",
+   "state": {
+    "floor": 1,
+    "profile": 1,
+    "forbidden": [],
+    "sending": true
+   },
+   "profile": 65280,
+   "expect_accept": true,
+   "reason": "ok",
+   "after": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [],
+    "sending": true
+   }
+  },
+  {
+   "name": "accept_equal_generation_alternative",
+   "op": "accept_profile",
+   "state": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [],
+    "sending": true
+   },
+   "profile": 65281,
+   "expect_accept": true,
+   "reason": "ok",
+   "after": {
+    "floor": 2,
+    "profile": 65281,
+    "forbidden": [],
+    "sending": true
+   }
+  },
+  {
+   "name": "reject_forbidden_profile",
+   "op": "accept_profile",
+   "state": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [
+     65281
+    ],
+    "sending": true
+   },
+   "profile": 65281,
+   "expect_accept": false,
+   "reason": "authenticated reject naming the message; sender retries at the floor (ADR-0120)",
+   "after": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [
+     65281
+    ],
+    "sending": true
+   }
+  },
+  {
+   "name": "advisory_move_to_equal_generation",
+   "op": "security_advisory",
+   "state": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [],
+    "sending": true
+   },
+   "forbid": 65280,
+   "new_profile": 65281,
+   "expect_accept": true,
+   "reason": "moved to an equal-or-higher generation profile",
+   "after": {
+    "floor": 2,
+    "profile": 65281,
+    "forbidden": [
+     65280
+    ],
+    "sending": true
+   }
+  },
+  {
+   "name": "advisory_move_to_lower_generation_rejected",
+   "op": "security_advisory",
+   "state": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [],
+    "sending": true
+   },
+   "forbid": 65280,
+   "new_profile": 1,
+   "expect_accept": false,
+   "reason": "advisory move rejected (security_generation 1 below the relationship floor 2); the floor never moves lower",
+   "after": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [
+     65280
+    ],
+    "sending": false
+   }
+  },
+  {
+   "name": "advisory_with_no_admissible_profile_stops_sending",
+   "op": "security_advisory",
+   "state": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [
+     65281
+    ],
+    "sending": true
+   },
+   "forbid": 65280,
+   "new_profile": null,
+   "expect_accept": true,
+   "reason": "no admissible profile of equal or higher generation: stop sending and say so",
+   "after": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [
+     65280,
+     65281
+    ],
+    "sending": false
+   }
+  },
+  {
+   "name": "advisory_on_other_profile_changes_nothing",
+   "op": "security_advisory",
+   "state": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [],
+    "sending": true
+   },
+   "forbid": 1,
+   "new_profile": null,
+   "expect_accept": true,
+   "reason": "current profile not affected",
+   "after": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [
+     1
+    ],
+    "sending": true
+   }
+  },
+  {
+   "name": "restore_floor_is_max_of_backup_and_acs_minimum",
+   "op": "restore_floor",
+   "backed_up": 2,
+   "acs_minimum_crypto_profile": 1,
+   "expect_floor": 2
+  },
+  {
+   "name": "restore_floor_lifted_by_acs_minimum",
+   "op": "restore_floor",
+   "backed_up": 0,
+   "acs_minimum_crypto_profile": 1,
+   "expect_floor": 1
+  }
+ ]
+}

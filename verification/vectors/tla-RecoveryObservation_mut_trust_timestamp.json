@@ -1,0 +1,48 @@
+{
+ "gate": "V-002",
+ "source": "verification/tla/RecoveryObservation_mut_trust_timestamp.cfg",
+ "kind": "residual-risk",
+ "claim": "mutation: trusting a deliverer's age claim is the acceleration attack R-278 forbids",
+ "violated": "AcceptOnlyAfterOwnInterval",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "now": "0",
+    "seen": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "real": "[c1 |-> 0, p1 |-> 0, p2 |-> 0]",
+    "accepted": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoSeen": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoIssued": "FALSE",
+    "local": "[c1 |-> 0, p1 |-> 0, p2 |-> 0]"
+   }
+  },
+  {
+   "step": 2,
+   "action": "Deliver",
+   "vars": {
+    "now": "0",
+    "seen": "[c1 |-> TRUE, p1 |-> FALSE, p2 |-> FALSE]",
+    "real": "[c1 |-> 0, p1 |-> 0, p2 |-> 0]",
+    "accepted": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoSeen": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoIssued": "FALSE",
+    "local": "[c1 |-> 3, p1 |-> 0, p2 |-> 0]"
+   }
+  },
+  {
+   "step": 3,
+   "action": "Accept",
+   "vars": {
+    "now": "0",
+    "seen": "[c1 |-> TRUE, p1 |-> FALSE, p2 |-> FALSE]",
+    "real": "[c1 |-> 0, p1 |-> 0, p2 |-> 0]",
+    "accepted": "[c1 |-> TRUE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoSeen": "[c1 |-> FALSE, p1 |-> FALSE, p2 |-> FALSE]",
+    "vetoIssued": "FALSE",
+    "local": "[c1 |-> 3, p1 |-> 0, p2 |-> 0]"
+   }
+  }
+ ]
+}

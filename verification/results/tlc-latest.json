@@ -4,6 +4,64 @@
   "all_as_expected": true,
   "runs": [
     {
+      "config": "RecoveryObservation.cfg",
+      "gate": "V-002",
+      "claim": "R-278: no verifier accepts a recovery-alone successor before observing the request for the full delay; live controllers are never overridden; a seen veto blocks acceptance",
+      "expect": "pass",
+      "outcome": "pass",
+      "violated": null,
+      "distinct_states": 15978,
+      "depth": 16,
+      "as_expected": true
+    },
+    {
+      "config": "RecoveryObservation_noreact.cfg",
+      "gate": "V-002",
+      "claim": "R-278 holds per verifier even when controllers do not react (withheld or delayed vetoes)",
+      "expect": "pass",
+      "outcome": "pass",
+      "violated": null,
+      "distinct_states": 21139,
+      "depth": 16,
+      "as_expected": true
+    },
+    {
+      "config": "RecoveryObservation_mut_trust_timestamp.cfg",
+      "gate": "V-002",
+      "claim": "mutation: trusting a deliverer's age claim is the acceleration attack R-278 forbids",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "AcceptOnlyAfterOwnInterval",
+      "distinct_states": null,
+      "depth": null,
+      "as_expected": true,
+      "trace_length": 3
+    },
+    {
+      "config": "RecoveryObservation_trap_late.cfg",
+      "gate": "V-002",
+      "claim": "golden: a late verifier waits its own full interval after another verifier accepted",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "TrapLateVerifierStillPending",
+      "distinct_states": null,
+      "depth": null,
+      "as_expected": true,
+      "trace_length": 7
+    },
+    {
+      "config": "RecoveryObservation_residual_withheld.cfg",
+      "gate": "V-002",
+      "claim": "T-090 residual: withholding from every live controller lets a partitioned peer accept after its own interval; fork detection on contact is the mitigation",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "NoPeerAcceptsWhileControllersUninformed",
+      "distinct_states": null,
+      "depth": null,
+      "as_expected": true,
+      "trace_length": 6
+    },
+    {
       "config": "OneToOneSessions.cfg",
       "gate": "V-003",
       "claim": "all rules K1..K11 on: S1..S5, C1, C2 hold with crash, duplicate delivery, weak bundle, rogue device, link+revoke",

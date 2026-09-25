@@ -86,7 +86,7 @@ Model-check AccountControlState majority authorization, quarantine denominator, 
 - **Independence:** pre-engineering independent_tool, independent_reviewer; pre-release external_review
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `verification/bounded/continuity_assessment.py`; `verification/results/authority-bounded-latest.json`; `verification/results/tlc-latest.json`; `verification/tla/AccountControl.tla`; `verification/tla/AccountControlState.cfg`; `verification/tla/AccountControlState.tla`; `verification/tla/models.json`; `verification/vectors/account-control-regression-vectors.json`; `verification/vectors/tla-AccountControl_trap_recover.json`
+- **Evidence:** `verification/bounded/acs_authorization_table.py`; `verification/bounded/continuity_assessment.py`; `verification/results/acs-authorization-table-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/tlc-latest.json`; `verification/tla/AccountControl.tla`; `verification/tla/AccountControlState.cfg`; `verification/tla/AccountControlState.tla`; `verification/tla/RecoveryObservation.tla`; `verification/tla/models-v002-recovery-observation.json`; `verification/tla/models.json`; `verification/vectors/account-control-regression-vectors.json`; `verification/vectors/acs-authorization-table-vectors.json`; `verification/vectors/tla-AccountControl_trap_recover.json`; `verification/vectors/tla-RecoveryObservation_mut_trust_timestamp.json`; `verification/vectors/tla-RecoveryObservation_residual_withheld.json`; `verification/vectors/tla-RecoveryObservation_trap_late.json`
 
 Pre-engineering criteria:
 
@@ -95,10 +95,10 @@ Pre-engineering criteria:
 - [x] regression/golden vectors derived from the model
 - [ ] model reviewed by someone other than its author
 - [x] model covers ADR-0111 default recovery: delayed activation, veto by any live controller, immediate completion only with controller co-sign, RecoveryRoot as exactly one vote, revocation of all earlier controllers on completion
-- [ ] withheld RecoveryRequest trace: a verifier that first sees a recovery-alone transition late waits its own full policy interval; Home/custodian timestamps cannot accelerate acceptance (R-278, ADR-0131 rule 6)
-- [ ] model mirrors the ACCOUNT_CONTINUITY_AND_CONTROL §4.1 authorization table and vectors cover every transition class
-- [ ] successor pointer without constitutional authority is rejected even when syntactically valid (R-201)
-- [ ] recovery-vote retirement/revocation obeys delay+veto, and fork bridging requires om.acs.fork_ack with device-only majority (R-200, R-205)
+- [x] withheld RecoveryRequest trace: a verifier that first sees a recovery-alone transition late waits its own full policy interval; Home/custodian timestamps cannot accelerate acceptance (R-278, ADR-0131 rule 6)
+- [x] model mirrors the ACCOUNT_CONTINUITY_AND_CONTROL §4.1 authorization table and vectors cover every transition class
+- [x] successor pointer without constitutional authority is rejected even when syntactically valid (R-201)
+- [x] recovery-vote retirement/revocation obeys delay+veto, and fork bridging requires om.acs.fork_ack with device-only majority (R-200, R-205)
 
 Pre-release criteria:
 
@@ -108,10 +108,6 @@ Pre-release criteria:
 Mechanically unfinished pre-engineering work:
 
 - model reviewed by someone other than its author
-- withheld RecoveryRequest trace: a verifier that first sees a recovery-alone transition late waits its own full policy interval; Home/custodian timestamps cannot accelerate acceptance (R-278, ADR-0131 rule 6)
-- model mirrors the ACCOUNT_CONTINUITY_AND_CONTROL §4.1 authorization table and vectors cover every transition class
-- successor pointer without constitutional authority is rejected even when syntactically valid (R-201)
-- recovery-vote retirement/revocation obeys delay+veto, and fork bridging requires om.acs.fork_ack with device-only majority (R-200, R-205)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-003 — `one_to_one_session_model`
@@ -123,15 +119,15 @@ Model/fuzz the per-device 1:1 session manager across crossed initiation, add/rev
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `verification/tla/OneToOneSessions.tla`; `verification/tla/models-v003.json`; `verification/prototypes/v003-sessions/README.md`; `verification/results/v003-sessions-latest.json`; `verification/vectors/one-to-one-session-regression-vectors.json`; `decisions/ADR-0120-one-to-one-session-manager-rules.md`
+- **Evidence:** `decisions/ADR-0120-one-to-one-session-manager-rules.md`; `verification/prototypes/v003-sessions/README.md`; `verification/prototypes/v003-sessions/floor.py`; `verification/prototypes/v003-sessions/restore_redelivery.py`; `verification/results/v003-sessions-latest.json`; `verification/tla/OneToOneSessions.tla`; `verification/tla/models-v003.json`; `verification/vectors/one-to-one-floor-vectors.json`; `verification/vectors/one-to-one-session-regression-vectors.json`
 
 Pre-engineering criteria:
 
 - [x] executable model/fuzzer of the per-device 1:1 session manager covering crossed initiation, add/revoke races, stale/reset sessions, dedupe and persistence
 - [x] every discovered failing trace captured as a vector
 - [ ] model reviewed by someone other than its author
-- [ ] restore+redelivery is covered by a dedicated executable scenario or an explicitly equivalent bounded trace, not only an informal argument
-- [ ] negative vector rejects a peer profile below the current security_generation and rejects a floor move to a lower generation after a SecurityAdvisory (R-206)
+- [x] restore+redelivery is covered by a dedicated executable scenario or an explicitly equivalent bounded trace, not only an informal argument
+- [x] negative vector rejects a peer profile below the current security_generation and rejects a floor move to a lower generation after a SecurityAdvisory (R-206)
 
 Pre-release criteria:
 
@@ -140,8 +136,6 @@ Pre-release criteria:
 Mechanically unfinished pre-engineering work:
 
 - model reviewed by someone other than its author
-- restore+redelivery is covered by a dedicated executable scenario or an explicitly equivalent bounded trace, not only an informal argument
-- negative vector rejects a peer profile below the current security_generation and rejects a floor move to a lower generation after a SecurityAdvisory (R-206)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-004 — `group_commit_control_model`

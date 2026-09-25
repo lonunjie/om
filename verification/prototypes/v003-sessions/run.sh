@@ -11,6 +11,8 @@ cd "$here"
 rc=0
 python3 tlc_runs.py || rc=1
 uv run --frozen --quiet python fuzzer.py work/fuzz.json "$@" || rc=1
+uv run --frozen --quiet python restore_redelivery.py work/restore-redelivery.json || rc=1
+python3 floor.py work/floor.json || rc=1
 python3 results.py "tla2tools=1.7.4" "hypothesis=6.140.2" \
   "python=$(uv run --frozen --quiet python -c 'import platform;print(platform.python_version())')" || rc=1
 echo "v003-sessions: $( [[ $rc == 0 ]] && echo PASS || echo FAIL )"
