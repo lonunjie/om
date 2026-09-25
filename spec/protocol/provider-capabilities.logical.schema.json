@@ -1,5 +1,120 @@
 {
-  "$comment": "Canonical logical ProviderCapabilities schema for the 2026-09-22 architecture-hardening checkpoint.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec.om.example/v1/provider-capabilities.schema.json",
+  "title": "OM ProviderCapabilities v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provider_id",
+    "provider_kinds",
+    "durability_class",
+    "features"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provider_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "provider_kinds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "directory",
+          "discovery_relay",
+          "intro_gate",
+          "key_material",
+          "transparency_witness",
+          "relay",
+          "push",
+          "blob",
+          "backup",
+          "recovery",
+          "media",
+          "transport",
+          "link_preview",
+          "safety_advisory"
+        ]
+      }
+    },
+    "durability_class": {
+      "enum": [
+        "ephemeral",
+        "best_effort",
+        "durable",
+        "archive"
+      ]
+    },
+    "features": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9._-]{0,95}$"
+      }
+    },
+    "api_versions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9]+(\\.[0-9]+)?$"
+      }
+    },
+    "health": {
+      "enum": [
+        "healthy",
+        "degraded",
+        "unhealthy",
+        "unknown"
+      ]
+    },
+    "quota_state": {
+      "type": "object"
+    },
+    "cost_state": {
+      "type": "object"
+    },
+    "failure_domain": {
+      "type": "object",
+      "properties": {
+        "operator": {
+          "type": "string"
+        },
+        "cloud": {
+          "type": "string"
+        },
+        "account": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "asn": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "privacy_properties": {
+      "type": "object"
+    },
+    "abuse_controls": {
+      "type": "object"
+    },
+    "security_properties": {
+      "type": "object"
+    },
+    "limits": {
+      "type": "object"
+    }
+  },
   "ProviderCapabilities": {
     "provider_kind": [
       "directory",
@@ -17,14 +132,6 @@
       "link_preview",
       "safety_advisory"
     ],
-    "features": "versioned feature identifiers",
-    "health": "abstract availability/latency state",
-    "quota_state": "abstract remaining/limit/reset/hard-vs-billable behavior",
-    "cost_state": "configured/estimated cost and budget compatibility",
-    "failure_domain": "declared operator/cloud/account/region/ASN-like hints used by local policy; never trusted as cryptographic proof of independence",
-    "privacy_properties": "declared metadata/trust characteristics, preferably structured as/linked to a MetadataExposureDescriptor; provider assertions are not cryptographic proof",
-    "abuse_controls": "declared admission/rate-limit/ticket and optional safety-advisory/report-target capabilities where applicable; never universal protocol authority",
-    "security_properties": "declared provider-local security features; not protocol authority"
-  },
-  "Rule": "Protocol core branches on capabilities/policy, not vendor name. Co-hosted provider roles remain logically separable and failure-domain declarations are hints, not trusted security identity."
+    "note": "Compatibility summary for architecture validator; normative validation is the JSON Schema properties above."
+  }
 }

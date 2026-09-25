@@ -11,15 +11,79 @@
     "required_bundle_fields (ADR-0126) lists AsyncKeyBundle fields that must be present for bundles of that profile."
   ],
   "profiles": [
-    {"id": 0, "name": null, "status": "reserved"},
-    {"id": 1, "name": "OM-Crypto-v1", "status": "experimental", "note": "PQXDH (X25519 + ML-KEM-768) + Double Ratchet, HKDF/SHA-256 (ADR-0118). SPQR/ML-KEM Braid is deferred to OM-Crypto-v2 (clean-room).", "hash_alg": 1, "security_generation": {"one_to_one": 1}, "required_bundle_fields": ["pq_signed_prekey"]},
-    {"id": 65535, "name": "insecure-test-profile", "status": "test_only", "note": "Used only by V-005 vectors: signature bytes are fixed placeholders (insecure_test_signature). Must be rejected by any production build.", "hash_alg": 1, "security_generation": {"one_to_one": 0}}
+    {
+      "id": 0,
+      "name": null,
+      "status": "reserved"
+    },
+    {
+      "id": 1,
+      "name": "OM-Crypto-v1",
+      "status": "experimental",
+      "note": "PQXDH (X25519 + ML-KEM-768) + Double Ratchet; no SPQR/PQ post-compromise healing in v1. Device binding requires Ed25519 + ML-DSA-65. DR payload AEAD AES-256-GCM-SIV. MessageRequest HPKE pins draft-ietf-hpke-pq-05 MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305 base mode (ADR-0131).",
+      "hash_alg": 1,
+      "security_generation": {
+        "one_to_one": 1
+      },
+      "required_bundle_fields": [
+        "pq_signed_prekey"
+      ],
+      "aead": "AES-256-GCM-SIV (RFC 8452)",
+      "message_request_hpke": {
+        "spec": "draft-ietf-hpke-pq-05",
+        "mode": "base",
+        "kem": "MLKEM768-X25519",
+        "kem_id": 25722,
+        "kdf": "HKDF-SHA256",
+        "aead": "ChaCha20Poly1305"
+      },
+      "device_binding_signatures": [
+        "Ed25519",
+        "ML-DSA-65"
+      ]
+    },
+    {
+      "id": 65535,
+      "name": "insecure-test-profile",
+      "status": "test_only",
+      "note": "Used only by V-005 vectors: signature bytes are fixed placeholders (insecure_test_signature). Must be rejected by any production build.",
+      "hash_alg": 1,
+      "security_generation": {
+        "one_to_one": 0
+      }
+    }
   ],
   "hash_algs": [
-    {"id": 1, "name": "sha-256", "digest_bytes": 32}
+    {
+      "id": 1,
+      "name": "sha-256",
+      "digest_bytes": 32
+    }
   ],
   "signature_roles": [
-    {"id": 1, "name": "controller"}, {"id": 2, "name": "recovery"}, {"id": 3, "name": "device"},
-    {"id": 4, "name": "intro_identity"}, {"id": 5, "name": "provider"}, {"id": 6, "name": "legacy"}
+    {
+      "id": 1,
+      "name": "controller"
+    },
+    {
+      "id": 2,
+      "name": "recovery"
+    },
+    {
+      "id": 3,
+      "name": "device"
+    },
+    {
+      "id": 4,
+      "name": "intro_identity"
+    },
+    {
+      "id": 5,
+      "name": "provider"
+    },
+    {
+      "id": 6,
+      "name": "legacy"
+    }
   ]
 }

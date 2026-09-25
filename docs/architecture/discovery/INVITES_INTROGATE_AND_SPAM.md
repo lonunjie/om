@@ -103,8 +103,9 @@ W0 first contact uses three objects ([`discovery.cddl`](../../../spec/cddl/disco
 1. **Request key.** The recipient publishes a `request_key` (a public key of the hybrid KEM of the active
    CryptoProfile) in its ContactDescriptor, signed by the alias-specific intro identity, and may repeat it in an
    IntroductionTicket that the intro identity also signs. A sender uses a request key only from such a signed object.
-2. **`MessageRequest`.** The sender seals a signed `MessageRequestPayload` with HPKE (RFC 9180, base mode) to the
-   request key. No new primitive is involved; the HPKE suite is that CryptoProfile's hybrid KEM with its KDF and AEAD.
+2. **`MessageRequest`.** The sender seals a signed `MessageRequestPayload` using the exact PQ/T HPKE construction
+   pinned by ADR-0131: RFC 9180 base-mode semantics with `draft-ietf-hpke-pq-05` MLKEM768-X25519, HKDF-SHA256 and
+   ChaCha20Poly1305. The draft version is part of the profile; OM defines no ad-hoc hybrid KEM.
    The payload is signed by the **sender's** intro identity and carries the sender's signed ContactDescriptor, an
    optional greeting, optional referral attestations and a one-use reply route. It repeats the ticket id and
    request-key digest, so it cannot be replayed into another request.
@@ -150,7 +151,7 @@ Normal users should never see these mechanisms during ordinary traffic.
 
 Privacy Pass-style unlinkable tokens are a candidate for proving that a requester passed an anti-abuse step without creating a permanent global user identifier or reputation score.
 
-OM should not require a specific Privacy Pass issuer in the core protocol. Define an opaque `AdmissionProof` interface and standardize concrete schemes only after review.
+The generic `AdmissionProof` interface remains extensible, but W0 standardizes the recipient-issued referral profile in ADR-0132 so independent clients and IntroGates interoperate. Other admission mechanisms remain optional and explicitly profiled.
 
 ## 8. DDoS responsibility
 
@@ -204,3 +205,26 @@ Normative consequences:
 3. Onboarding and discovery steer first contact through invites, QR codes and contact sharing. The public handle is
    a convenience, not a guaranteed channel.
 
+### Symmetric stable-identity binding
+
+Acceptance does not immediately create a stable-account relationship. The recipient first sends its
+`IntroIdentityBinding`; after verifying it, the requester sends an `IntroIdentityBinding` for the intro identity used
+in the original request. The relationship is `ACCEPTED_UNBOUND` until both verify against active, non-quarantined
+DeviceCredentials and their referenced AccountControlState heads. Only then does it become `ACTIVE`, expose
+relationship-scoped key-material fetch authority and establish normal PQXDH sessions to stable-account device bundles.
+
+This keeps the requester's AccountID hidden before acceptance while ensuring the accepting recipient authenticates the
+requester just as strongly as the requester authenticates the recipient.
+
+## Concrete referral-token profile
+
+W0 referral admission uses RFC 9578 **token type 0x0002**, publicly verifiable Blind RSA (2048-bit). The recipient
+client controls the issuer private key; its selected IntroGate receives only the issuer public key/key id, so the gate
+can verify but cannot mint referral capacity. Issuance happens only to already accepted contacts and is locally
+budgeted per relationship.
+
+The Privacy Pass challenge commits to the IntroGate identity, recipient request-key digest, issuer epoch and admission
+class under an OM domain-separation label. The IntroGate treats tokens as single-use and keeps the spent nonce through
+the issuer epoch. Revocation is issuer-epoch rotation with bounded overlap; individual unlinkable tokens are not
+individually revocable. `admission_proof` remains opaque framing on the W0 wire. ReferralAttestation is separate
+client-side provenance and never admission authority or global reputation.

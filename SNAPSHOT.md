@@ -1,49 +1,67 @@
 # OM Architecture Snapshot
 
-Generated: **2026-09-24 23:30 PHT (UTC+08:00)**, after the independent architecture review R1–R4 (ADR-0117)
+Generated: **2026-09-25 11:54 PHT (UTC+08:00)**, after design-side verification-lifecycle hardening (ADR-0134)
 
 ## State
 
-OM is in **architecture verification / pre-engineering**. **Engineering is not authorized.** `engineering_authorized=false`, and every entry in `engineering_scopes` is `authorized: false`.
+OM remains in **architecture verification / pre-engineering**. **Engineering is not authorized.** The blocking architecture-design queue is closed; remaining blockers are objective V-* evidence/review obligations.
 
-- design queue: 13 open items (`design_open=13`), 10 of them blocking: A-024..A-028, A-032 and A-047 (`core_kernel`), A-035 (`calls`), A-045 (`provider_reference`), A-046 and A-047 (`reference_client_ui`); A-030, A-031 and A-036 are open but non-blocking;
-- verification gates V-001..V-023: all open (`verification_open=23`, `pre_engineering_open=23`); V-023 (ClientHost update lifecycle) is new;
-- public release gates PR-001..PR-014: all open; each now declares `applies_to`, `criteria` and `independence`;
-- ledgers: requirements R-001..R-277 (268 records), threats T-001..T-089 (79 records), decisions through D-152 (ADR-0130). The per-scope gate and design-item table is generated in [`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`](docs/process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md) §3.
+- blocking architecture design items: **0**;
+- open non-blocking/later-wave design items: **3** — A-030 (LegacyPolicy), A-031 (unlinkable AsyncKeyBundle ACS binding), A-036 (possible deniable groups research);
+- verification gates V-001..V-023: **23 open**;
+- engineering scopes authorized: **0 / 11**; `engineering_authorized=false`;
+- machine ledgers: **275 requirements, 84 threats, 156 decisions through D-156 / ADR-0134**.
 
-## What changed: architecture review R1–R4 (2026-09-24)
+## 11:54 verification-process hardening
 
-Four independent reviews (records in `verification/reviews/2026-09-24-claude-opus-architecture-r1..r4.md`) were
-applied as ADR-0126..ADR-0130: the W0 spec addendum (first-contact MessageRequest objects, fork bridge, mandatory PQ
-signed prekey), account-authority transition rules, group reduction liveness and membership consent with a room
-capability registry, extension/service/client trust boundaries, and distribution, provisioning and provider trust
-roots (T0 client origin, verified-release provisioning, advisory-floor governance, a ClientHost lifecycle gate,
-machine-applicable release gates, conformance-suite registry). V-005 now has 619 agreeing W0 vectors across two
-codecs and two CDDL tools.
+ADR-0134 removes the remaining process ambiguity before handing execution to the repo agent:
 
-## Earlier: 2026-09-24 02:29 hardening checkpoint ([`CHECKPOINT_20260924_0229.md`](docs/checkpoints/CHECKPOINT_20260924_0229.md))
+- evidence is separated into design-complete, repo-local pre-engineering, post-scope implementation, and genuinely external/human phases;
+- isolated `verification/` prototypes are explicitly allowed before scope authorization but are non-production evidence only;
+- every W0-impacting later-wave gate now has explicit `feasibility_criteria`, so W0 does not need full W1-W4 gate passage;
+- substantive requirements formerly hidden only in free-text `remaining` notes were promoted into canonical gate criteria;
+- free-text `remaining` lists were removed; unfinished work is derived mechanically from canonical criteria;
+- `criteria_met` must exactly match canonical criteria, and a passed pre-engineering phase must also record satisfied independence;
+- independent-review-only work is batched after the verification executor exhausts repo-local evidence, preventing model-to-model ping-pong;
+- [`verification/CLAUDE_OPUS_5_5_HANDOFF.md`](verification/CLAUDE_OPUS_5_5_HANDOFF.md) is the one-way execution brief for the next repo pass.
 
-An independent hardening review ([`HARDENING_REVIEW_20260924.md`](docs/reviews/HARDENING_REVIEW_20260924.md), findings F-01..F-17) found that the protocol core held up, and that the weaknesses sat around it:
+## What changed on 2026-09-25
 
-1. **The engineering lock was circular.** Several gates need real implementations to pass. Gates are now two-phase, with independence rules, and unlock is scope-granular across waves W0..W4 ([`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`](docs/process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md), [`verification/GATE_PASS_CRITERIA.md`](verification/GATE_PASS_CRITERIA.md)).
-2. **Onboarding required a personal Cloudflare account.** New Home tiers give zero-signup sponsored starter mailboxes from invites, hosted and self-hosted Homes, and a required second non-cloud reference provider. Vendor monoculture is a declared 0M risk ([`HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`](docs/architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md)).
-3. **Endpoint adversaries were missing.** Device linking is never silent, lock controls are defined, OM refuses deniability claims, and a platform leakage matrix is required ([`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](docs/architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md)).
-4. **Two honesty fixes.** v1 groups are classical, not PQ, and there is now an objective migration path. Recovery is informed-off with a ContinuityAssessment.
-5. **Lifecycles.** Vulnerability response without a kill switch; account retirement, deletion and legacy; a public-surface illegal-content process.
-6. **Machine truth.** Every requirement is traced ([`machine/requirement_traceability.json`](machine/requirement_traceability.json)), threats are in a register ([`machine/threat_register.jsonl`](machine/threat_register.jsonl)), and the validator enforces both, along with gate schema, scopes and the no-PQ-group-overclaim rule.
+ADR-0131 closes the remaining W0 core design questions and three newly found cross-boundary gaps:
 
-## Evidence
+- dual Ed25519 + ML-DSA-65 binding for PQXDH identity/prekey material;
+- exact durable last-resort PQXDH replay ledger with a fail-closed 4096-per-prekey cap;
+- AES-256-GCM-SIV Double Ratchet payload profile and explicit unencrypted-header metadata exposure;
+- exact v1 PQ wording: hybrid-PQ handshake/HNDL protection, no PQ post-compromise healing;
+- recovery-alone activation measured from **each verifier's own first observation**, defeating withheld-request maturity claims without a trusted clock;
+- every live/rebasable reduction targets an immutable incarnation, closing stale-reduction/ABA attacks;
+- reciprocal `IntroIdentityBinding`, with `ACCEPTED_UNBOUND -> ACTIVE` only after both stable AccountID bindings verify;
+- MessageRequest HPKE pins `draft-ietf-hpke-pq-05` MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305 rather than inventing an OM hybrid.
 
-`python3 verification/run_phase1.py`: bounded cases now include 1,620 ContinuityAssessment cases (total recorded in [`verification/results/phase1-summary.json`](verification/results/phase1-summary.json)). No gate is promoted; evidence is not passage.
+ADR-0132 closes referral-token, group-call and executable-extension boundary questions:
 
-## Next verification work (in unlock order)
+- RFC 9578 publicly verifiable token type 0x0002 for recipient-issued referral admission;
+- per-sender SFrame call keys distributed only to joined participant DeviceIDs; Room MLS epoch possession alone does not reveal media keys;
+- plaintext crossing into a remote mini-app origin is egress itself;
+- continuous 1:1 plaintext egress is explicit bilateral signed relationship policy.
 
-W0 (`core_kernel`, `reference_client_ui`, `provider_reference`) needs, besides the pre-engineering criteria listed per gate in [`verification/GATE_PASS_CRITERIA.md`](verification/GATE_PASS_CRITERIA.md):
+ADR-0133 closes the provider/distribution design blockers:
 
-1. design items: A-024..A-028 and A-032 (crypto and referral-token choices), A-045 (Home API), A-046 (release-transparency log), A-047 (W0 conformance case lists);
-2. independent (non-author) review of the evidence already produced for V-002, V-005, V-015, V-017, V-020 and V-021 (ADR-0117);
-3. V-001 and V-003: the v1 path without the spqr crate; the 1:1 session-manager model;
-4. V-006, V-018, V-021, V-022, V-023: browser DeviceVault prototype, comprehension study, ClientHost update lifecycle;
-5. V-017 (always required): review of the continuity bundle script and drills.
+- normative Home API v1, CDDL bodies, typed error registry, real ProviderCapabilities JSON Schema with `durability_class`, and missing provider interface contracts;
+- Rekor-v2/C2SP-checkpoint-compatible release transparency with two independent monitor observations while preserving the owner-pinned TUF/root as authority;
+- all W0 conformance suites now contain concrete case lists and are registered `specified`.
 
-No product engineering begins from this checkpoint.
+## Verification status
+
+No implementation, formal-model, browser/platform, crypto, fuzz or environment verification suite was executed during the 11:54 design-hardening pass. The prior 08:59 checkpoint's captured evidence remains in the repository unchanged.
+
+Only architecture/document consistency checks were run after the process changes:
+
+- `python3 tools/validate_architecture.py` — **pass**;
+- `python3 tools/om_docs.py check` — **pass**.
+
+Current validator state: **680 current files; design_open=3; verification_open=23; pre_engineering_open=23; engineering_authorized=false; scopes_authorized=0/11**.
+
+## Next work
+
+Claude Opus 5.5 is the current `verification_executor`. It should complete all repo-local V-* evidence in one pass, beginning with the `core_kernel` prerequisites and the seven cross-wave feasibility obligations, then batch only genuine independent-review leftovers. It must not begin product engineering or self-authorize a scope. V-018 remains an external real-user study.

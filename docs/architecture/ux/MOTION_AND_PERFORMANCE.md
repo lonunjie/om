@@ -160,3 +160,15 @@ Performance telemetry should be local-first and opt-in if exported. Development 
 - media decode latency.
 
 No production analytics dependency is required for OM to work.
+
+## CONFORMANCE-PERFORMANCE
+
+The following are normative pass/fail cases for the registered W0 conformance suite. Passing these cases is evidence; it does not by itself authorize a scope.
+
+| ID | Case | Pass condition |
+|---|---|---|
+| PF-01 | cold start/reference devices | recorded budget is met or release gate fails |
+| PF-02 | open large conversation | latency/memory stay inside published budget |
+| PF-03 | send/encrypt fanout | crypto+serialization cost remains within W0 budget on native and wasm32 |
+| PF-04 | background idle | battery/network wake budget is not exceeded |
+| PF-05 | bundle/install size | shipped reference client stays within declared size budget |

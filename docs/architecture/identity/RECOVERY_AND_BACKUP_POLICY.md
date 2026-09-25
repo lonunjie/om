@@ -286,3 +286,22 @@ Profiles change **custody and delay**, never cryptographic floors (ADR-0037).
 Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
 
 - [ADR-0120](../../../decisions/ADR-0120-one-to-one-session-manager-rules.md): backups never contain handshake prekey secrets (signed, one-time or last-resort) or ratchet state. They do contain per-peer downgrade-floor records and peers' validated control heads, which are not secret. A restored device publishes fresh prekeys.
+
+## Withholding-resistant activation (ADR-0131)
+
+For a recovery action with no current non-quarantined controller co-signature, the activation delay is **verifier
+local**. Each verifier durably records the first valid observation of the RecoveryRequest digest and waits the full
+RecoveryPolicy delay using monotonic elapsed time. A verifier that was offline or partitioned starts its own interval
+when it first sees the request. Home receipt timestamps, request wall clocks and custodian assertions are never time
+authority. Any valid RecoveryVeto observed before local activation prevents acceptance.
+
+This deliberately makes a long-partitioned verifier slower to accept recovery. The trade is constitutional: a
+RecoveryRoot holder cannot hide a request from live controllers, wait elsewhere and later claim the veto window has
+already elapsed.
+
+## Distribution-bound passkey recovery
+
+A synced WebAuthn/passkey custodian is convenient but RP-scoped. For a PWA, passkey-only recovery is classified as
+**recovery available, distribution-bound**, not portable recovery. The client should continue offering an
+origin-independent method (recovery key, guardian quorum or supported hardware route) without blocking ordinary use.
+V-006 must include loss of the original ClientHost/RP followed by recovery from an unrelated origin/native client.

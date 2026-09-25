@@ -241,3 +241,15 @@ Identity continuity now explicitly separates `AccountControlState` from chat eve
 A messaging device is not automatically a control device. Promotion to control status is itself constitutional, preventing one compromised device from adding attacker devices and fabricating a quorum.
 
 Backups restore historical data but never make historical control state authoritative. See [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](ACCOUNT_CONTINUITY_AND_CONTROL.md) and [`RECOVERY_AND_BACKUP_POLICY.md`](RECOVERY_AND_BACKUP_POLICY.md).
+
+## CONFORMANCE-IDENTITY
+
+The following are normative pass/fail cases for the registered W0 conformance suite. Passing these cases is evidence; it does not by itself authorize a scope.
+
+| ID | Case | Pass condition |
+|---|---|---|
+| ID-01 | provider/Home changes | AccountID and valid ACS lineage remain unchanged |
+| ID-02 | device add/quarantine/revoke | only parent-state-authorized transitions validate; revoked DeviceID never re-used |
+| ID-03 | recovery request withheld from a verifier | verifier waits its own full activation interval before accepting recovery-alone successor |
+| ID-04 | conflicting ACS branches | client enters conflict/freeze behavior and never silently chooses provider ordering |
+| ID-05 | account moved | only valid AccountRetirement continuity proof produces `moved` identity UX |

@@ -49,8 +49,16 @@ V-001, V-003, V-006, V-007, V-010 and V-012 remain fully open. [`FEASIBILITY_REC
 
 Engineering remains unauthorized until every blocking gate is actually passed and a later explicit ADR unlocks engineering.
 
-## 2026-09-24 two-phase gates and independence
+## 2026-09-25 gate lifecycle and one-way execution
 
-Gates now carry `pre_engineering_criteria` and `pre_release_criteria`, an `independence` level per phase, and `unlock_scopes` (ADR-0108/0109). The human-readable view is [`GATE_PASS_CRITERIA.md`](GATE_PASS_CRITERIA.md). Bounded models written by the design's author, including everything in `bounded/`, count as **supporting evidence**. They cannot satisfy a phase alone: each phase needs the independent tool, reviewer, implementation, study or external review it names.
+ADR-0134 separates design closure, repo-local pre-engineering evidence, post-scope implementation evidence and genuinely external evidence. The machine ledger is authoritative.
 
-New in this checkpoint: `bounded/continuity_assessment.py` (1,620 cases, supporting V-002/V-018) reproduces the loss/takeover tolerance table in [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md) §11.
+- A blocked scope may use an isolated, non-production feasibility prototype under `verification/` only when a gate requires it.
+- A criterion that inherently needs the real blocked implementation belongs in `pre_release_criteria`.
+- Interface-impact gates now carry explicit `feasibility_criteria`; those criteria alone determine `feasibility_status=evidenced`.
+- `criteria_met` must exactly match canonical criteria. Free-text `remaining` lists are no longer authoritative and have been removed.
+- `independent_reviewer` work is batched **after** the verification executor finishes all repo-local criteria; it is not a reason to bounce the repository between agents mid-run.
+- `independent_implementation` may be a cleanly separated different-language/runtime implementation; cross-vendor review is needed only when the gate separately names `independent_reviewer`.
+- V-018 remains a real human participant study and cannot be synthesized by an agent.
+
+The current execution brief is [`CLAUDE_OPUS_5_5_HANDOFF.md`](CLAUDE_OPUS_5_5_HANDOFF.md). Product engineering remains unauthorized.

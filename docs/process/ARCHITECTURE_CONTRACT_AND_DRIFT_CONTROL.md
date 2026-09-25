@@ -23,7 +23,7 @@ OM's philosophy remains human-readable prose. Operational architecture is mapped
 - [`machine/file_registry.json`](../../machine/file_registry.json) — every current non-history file and its role/license/domain;
 - [`machine/stewardship.json`](../../machine/stewardship.json) — actual project custody stage;
 - [`machine/repository_contract.json`](../../machine/repository_contract.json) — phase and validator invariants;
-- `MANIFEST.json` — byte/hash inventory.
+- [`MANIFEST.json`](../../MANIFEST.json) — byte/hash inventory.
 
 A generic `open_questions.jsonl` is intentionally no longer current because it mixed fundamentally different work classes.
 

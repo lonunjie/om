@@ -18,9 +18,9 @@ change. The TLA model ([`AccountControl.tla`](../verification/tla/AccountControl
 
 ## Decision
 
-1. **Recovery is one vote everywhere.** Wherever a RecoveryPolicy can authorize a transition (permanent revocation,
-   retirement, promotion, recovery-policy change, fork or freeze resolution), it is one vote toward the parent
-   state's majority. It counts immediately only with at least one current, non-quarantined controller co-signing.
+1. **Recovery is one vote where recovery authority is permitted.** Wherever a RecoveryPolicy can authorize a
+   transition (permanent revocation, retirement, promotion or recovery-policy change), it is one vote toward the
+   parent state's majority. It counts immediately only with at least one current, non-quarantined controller co-signing.
    Otherwise the transition completes only after the policy's activation delay (at least 24 h) with no RecoveryVeto
    from any live controller. This applies to `AccountRetirement` with `authorization_kind = recovery_policy`. Freeze
    and fork resolution take a **device-only** majority; recovery never counts there. Delay and veto are mandatory
@@ -52,3 +52,9 @@ change. The TLA model ([`AccountControl.tla`](../verification/tla/AccountControl
 - R-171 is amended; R-200, R-201, R-204, R-205, R-207 and R-215 are new. V-002 gains remaining items: mirror the table,
   reject successor pointers without constitutional authority, and cover recovery-alone retirement with delay and veto.
 - T-050 and T-051 record the threats these rules close.
+
+### 2026-09-25 recovery-observation amendment
+
+ADR-0131 rule 6 is normative: when recovery acts alone, each verifier measures activation from its own first valid
+observation of the RecoveryRequest using monotonic elapsed time. A Home/custodian timestamp cannot make a late verifier
+accept immediately. A current controller co-signature remains the only v1 acceleration path.

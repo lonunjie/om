@@ -173,3 +173,15 @@ Custom theme bundles must provide valid light+dark variants, or the importer may
 OM should ship several calm, broadly appealing curated themes rather than one default plus novelty skins. When a user later creates another `IdentityProfile`, the UI MAY offer a distinct curated theme as an optional visual cue. Theme choice remains local/profile presentation state and never becomes public identity/discovery metadata.
 
 The future profile switcher must not flash/reload the application: preserve per-profile draft, selected conversation and navigation state and switch presentation/state atomically.
+
+## CONFORMANCE-UI-THEMES
+
+The following are normative pass/fail cases for the registered W0 conformance suite. Passing these cases is evidence; it does not by itself authorize a scope.
+
+| ID | Case | Pass condition |
+|---|---|---|
+| TH-01 | hostile theme values | compiler clamps/rejects unsafe values; no executable content |
+| TH-02 | theme targets reserved security UI | override is rejected/ignored |
+| TH-03 | custom font on reserved surface | built-in trusted font remains in use |
+| TH-04 | light/dark/auto | all required states remain legible and accessible |
+| TH-05 | missing optional theme asset | deterministic safe fallback, no network code execution |

@@ -154,3 +154,15 @@ Official clients should share:
 - screenshot/visual regression baselines for shared UI;
 - accessibility checks;
 - end-to-end security-sensitive flow tests.
+
+## CONFORMANCE-UI-INTENTS
+
+The following are normative pass/fail cases for the registered W0 conformance suite. Passing these cases is evidence; it does not by itself authorize a scope.
+
+| ID | Case | Pass condition |
+|---|---|---|
+| UI-01 | UI requests send | typed intent reaches Core; UI never writes protocol/key stores directly |
+| UI-02 | unavailable PlatformAdapter capability | feature degrades explicitly without semantic/security fallback |
+| UI-03 | malicious/invalid view input | no authority-changing Core command is synthesized |
+| UI-04 | security notice intent | reserved semantic survives platform/theme rendering |
+| UI-05 | same intent on two platforms | canonical Core transition is equivalent |

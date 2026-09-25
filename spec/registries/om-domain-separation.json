@@ -15,49 +15,389 @@
     "DS-HASH": "[label: tstr, body: bstr]"
   },
   "labels": [
-    {"label": "OM-ACS-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "AccountControlState", "wave": "W0", "status": "proposed"},
-    {"label": "OM-ACS-HASH-v1", "use": "hash", "construction": "DS-HASH", "object": "AccountControlState (state_hash, previous_state_hash)", "wave": "W0", "status": "proposed"},
-    {"label": "OM-ACH-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "AccountControlHead", "wave": "W0", "status": "proposed"},
-    {"label": "OM-RECOVERY-POLICY-HASH-v1", "use": "hash", "construction": "DS-HASH", "object": "RecoveryPolicy (AccountControlState.recovery_policy_commitment)", "wave": "W0", "status": "proposed"},
-    {"label": "OM-RECOVERY-REQUEST-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "RecoveryRequest", "wave": "W0", "status": "proposed"},
-    {"label": "OM-RECOVERY-REQUEST-HASH-v1", "use": "hash", "construction": "DS-HASH", "object": "RecoveryRequest (RecoveryVeto.request_digest)", "wave": "W0", "status": "proposed"},
-    {"label": "OM-RECOVERY-VETO-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "RecoveryVeto", "wave": "W0", "status": "proposed"},
-    {"label": "OM-ACCOUNT-RETIREMENT-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "AccountRetirement", "wave": "W0", "status": "proposed"},
-    {"label": "OM-ACCOUNT-RETIREMENT-HASH-v1", "use": "hash", "construction": "DS-HASH", "object": "AccountRetirement (terminal chain member)", "wave": "W0", "status": "proposed"},
-    {"label": "OM-DEVICE-CREDENTIAL-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "DeviceCredential", "wave": "W0", "status": "proposed"},
-    {"label": "OM-DEVICE-CREDENTIAL-HASH-v1", "use": "hash", "construction": "DS-HASH", "object": "DeviceCredential (AccountControlState.device_credentials, RecoveryRequest.new_device_credential)", "wave": "W0", "status": "proposed"},
-    {"label": "OM-DEVICE-ENROLLMENT-NOTICE-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "DeviceEnrollmentNotice", "wave": "W0", "status": "proposed"},
-    {"label": "OM-PREKEY-BUNDLE-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "AsyncKeyBundle", "wave": "W0", "status": "proposed"},
-    {"label": "OM-PREKEY-SIG-v1", "use": "signature", "construction": "DS-SIG (body = PrekeyItem without key 3)", "object": "PrekeyItem", "wave": "W0", "status": "proposed"},
-    {"label": "OM-CONTACT-DESCRIPTOR-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "ContactDescriptor", "wave": "W0", "status": "proposed"},
-    {"label": "OM-CONTACT-CAPSULE-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "ContactCapsule", "wave": "W0", "status": "proposed"},
-    {"label": "OM-CONTACT-CAPSULE-HASH-v1", "use": "hash", "construction": "DS-HASH", "object": "ContactCapsule (ReferralAttestation.capsule_digest)", "wave": "W0", "status": "proposed"},
-    {"label": "OM-REFERRAL-ATTESTATION-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "ReferralAttestation", "wave": "W0", "status": "proposed"},
-    {"label": "OM-INVITE-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "Invite", "wave": "W0", "status": "proposed"},
-    {"label": "OM-INVITE-SECRET-VERIFIER-v1", "use": "hash", "construction": "DS-HASH (body = raw invite_secret bytes)", "object": "IntroGate one-way representation of Invite.invite_secret", "wave": "W0", "status": "proposed"},
-    {"label": "OM-INTRO-TICKET-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "IntroductionTicket", "wave": "W0", "status": "proposed"},
-    {"label": "OM-SPONSOR-GRANT-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "SponsoredMailboxGrant", "wave": "W0", "status": "proposed"},
-    {"label": "OM-RELAYSET-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "RelaySet", "wave": "W0", "status": "proposed"},
-    {"label": "OM-RELAYSET-HASH-v1", "use": "hash", "construction": "DS-HASH", "object": "RelaySet (previous_set_hash chain)", "wave": "W0", "status": "proposed"},
-    {"label": "OM-BLOB-LOCATION-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "BlobLocationRecord", "wave": "W0", "status": "proposed"},
-    {"label": "OM-BLOB-LOCATION-HASH-v1", "use": "hash", "construction": "DS-HASH", "object": "BlobLocationRecord (previous_record_hash chain)", "wave": "W0", "status": "proposed"},
-    {"label": "OM-BLOB-CIPHERTEXT-HASH-v1", "use": "hash", "construction": "DS-HASH (body = ciphertext bytes)", "object": "AttachmentRef.ciphertext_digest", "wave": "W0", "status": "proposed"},
-    {"label": "OM-RECOVERY-HANDLE-INDEX-v1", "use": "hash", "construction": "DS-HASH (body = RecoveryHandle)", "object": "Home index H(RecoveryHandle) for the RecoveryRecord (RECOVERY_AND_BACKUP_POLICY.md §10.2)", "wave": "W0", "status": "proposed"},
-    {"label": "om/recovery-root/v1", "use": "kdf", "construction": "WebAuthn PRF salt input: label || epoch (RECOVERY_AND_BACKUP_POLICY.md §10.2)", "object": "RecoveryRoot (synced passkey custodian)", "wave": "W0", "status": "documented"},
-    {"label": "om recovery root", "use": "kdf", "construction": "HKDF info: label || RecoveryHandle (RECOVERY_AND_BACKUP_POLICY.md §10.2)", "object": "RecoveryRoot (synced passkey custodian)", "wave": "W0", "status": "documented"},
-    {"label": "OM-RECOVERY-PROVIDER-METADATA-KEY-v1", "use": "kdf", "construction": "reserved (HKDF info from RecoveryRoot)", "object": "provider-metadata recovery key (§10.1 'separate label')", "wave": "W0", "status": "reserved"},
-    {"label": "OM-RECOVERY-RELATIONSHIP-SNAPSHOT-KEY-v1", "use": "kdf", "construction": "reserved (HKDF info)", "object": "RelationshipSnapshot key (§10.1)", "wave": "W0", "status": "reserved"},
-    {"label": "OM-RECOVERY-RECORD-AEAD-AD-v1", "use": "aead_ad", "construction": "reserved", "object": "encrypted RecoveryRecord at the Home", "wave": "W0", "status": "reserved"},
-    {"label": "OM-Crypto-v1_PQXDH_X25519_SHA-256_ML-KEM-768", "use": "kdf", "construction": "reserved: PQXDH 'info' parameter (Signal PQXDH spec §2.1 application-defined info)", "object": "1:1 session establishment", "wave": "W0", "status": "reserved"},
-    {"label": "OM-1TO1-RATCHET-KDF-v1", "use": "kdf", "construction": "reserved: Double/Triple Ratchet KDF_RK/KDF_CK info (V-001)", "object": "1:1 ratchet", "wave": "W0", "status": "reserved"},
-    {"label": "OM-1TO1-EVENT-AEAD-AD-v1", "use": "aead_ad", "construction": "reserved: associated data binding session, sender/recipient device and envelope id to the ConversationEvent ciphertext (V-001)", "object": "ConversationEvent in a 1:1 session", "wave": "W0", "status": "reserved"},
-    {"label": "OM-BLOB-CONTENT-AEAD-AD-v1", "use": "aead_ad", "construction": "reserved: attachment content encryption AD (V-001)", "object": "encrypted blob", "wave": "W0", "status": "reserved"},
-    {"label": "OM-DEVICE-LINK-CEREMONY-MAC-v1", "use": "mac", "construction": "reserved: short-lived linking-ceremony transcript MAC (V-001/V-021)", "object": "device link ceremony", "wave": "W0", "status": "reserved"},
-    {"label": "OM-SAFETY-REF-v1", "use": "hash", "construction": "documented: 'OM-SAFETY-REF-v1' || issuer_scope_id || canonical_principal_id (DECENTRALIZED_ABUSE_MODERATION.md §14)", "object": "labeler-scoped subject reference", "wave": "W3", "status": "superseded: unused; raw concatenation is ambiguous (ADR-0128 rule 19)"},
-    {"label": "OM-REQUEST-KEY-HASH-v1", "use": "hash", "construction": "DS-HASH", "object": "RequestKey (MessageRequest/MessageRequestPayload/IntroIdentityBinding.request_key_digest)", "wave": "W0", "status": "proposed"},
-    {"label": "OM-MESSAGE-REQUEST-PAYLOAD-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "MessageRequestPayload", "wave": "W0", "status": "proposed"},
-    {"label": "OM-INTRO-IDENTITY-BINDING-SIG-v1", "use": "signature", "construction": "DS-SIG", "object": "IntroIdentityBinding", "wave": "W0", "status": "proposed"},
-    {"label": "OM-MESSAGE-REQUEST-HPKE-INFO-v1", "use": "kdf", "construction": "reserved: HPKE (RFC 9180) base-mode info input for MessageRequest sealing; suite ids fixed with V-001", "object": "MessageRequest", "wave": "W0", "status": "reserved"},
-    {"label": "OM-SAFETY-REF-v2", "use": "hash", "construction": "DS-HASH over the canonical CBOR array [issuer_scope_id, principal_ref]", "object": "labeler-scoped subject reference", "wave": "W3", "status": "proposed"}
+    {
+      "label": "OM-ACS-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "AccountControlState",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-ACS-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "AccountControlState (state_hash, previous_state_hash)",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-ACH-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "AccountControlHead",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-RECOVERY-POLICY-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "RecoveryPolicy (AccountControlState.recovery_policy_commitment)",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-RECOVERY-REQUEST-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "RecoveryRequest",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-RECOVERY-REQUEST-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "RecoveryRequest (RecoveryVeto.request_digest)",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-RECOVERY-VETO-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "RecoveryVeto",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-ACCOUNT-RETIREMENT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "AccountRetirement",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-ACCOUNT-RETIREMENT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "AccountRetirement (terminal chain member)",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-DEVICE-CREDENTIAL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "DeviceCredential",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-DEVICE-CREDENTIAL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "DeviceCredential (AccountControlState.device_credentials, RecoveryRequest.new_device_credential)",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-DEVICE-ENROLLMENT-NOTICE-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "DeviceEnrollmentNotice",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-PREKEY-BUNDLE-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "AsyncKeyBundle",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-PREKEY-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG (body = PrekeyItem without key 3)",
+      "object": "PrekeyItem",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-CONTACT-DESCRIPTOR-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ContactDescriptor",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-CONTACT-CAPSULE-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ContactCapsule",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-CONTACT-CAPSULE-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "ContactCapsule (ReferralAttestation.capsule_digest)",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-REFERRAL-ATTESTATION-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "ReferralAttestation",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-INVITE-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "Invite",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-INVITE-SECRET-VERIFIER-v1",
+      "use": "hash",
+      "construction": "DS-HASH (body = raw invite_secret bytes)",
+      "object": "IntroGate one-way representation of Invite.invite_secret",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-INTRO-TICKET-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "IntroductionTicket",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-SPONSOR-GRANT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "SponsoredMailboxGrant",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-RELAYSET-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "RelaySet",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-RELAYSET-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "RelaySet (previous_set_hash chain)",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-BLOB-LOCATION-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "BlobLocationRecord",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-BLOB-LOCATION-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "BlobLocationRecord (previous_record_hash chain)",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-BLOB-CIPHERTEXT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH (body = ciphertext bytes)",
+      "object": "AttachmentRef.ciphertext_digest",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-RECOVERY-HANDLE-INDEX-v1",
+      "use": "hash",
+      "construction": "DS-HASH (body = RecoveryHandle)",
+      "object": "Home index H(RecoveryHandle) for the RecoveryRecord (RECOVERY_AND_BACKUP_POLICY.md §10.2)",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "om/recovery-root/v1",
+      "use": "kdf",
+      "construction": "WebAuthn PRF salt input: label || epoch (RECOVERY_AND_BACKUP_POLICY.md §10.2)",
+      "object": "RecoveryRoot (synced passkey custodian)",
+      "wave": "W0",
+      "status": "documented"
+    },
+    {
+      "label": "om recovery root",
+      "use": "kdf",
+      "construction": "HKDF info: label || RecoveryHandle (RECOVERY_AND_BACKUP_POLICY.md §10.2)",
+      "object": "RecoveryRoot (synced passkey custodian)",
+      "wave": "W0",
+      "status": "documented"
+    },
+    {
+      "label": "OM-RECOVERY-PROVIDER-METADATA-KEY-v1",
+      "use": "kdf",
+      "construction": "reserved (HKDF info from RecoveryRoot)",
+      "object": "provider-metadata recovery key (§10.1 'separate label')",
+      "wave": "W0",
+      "status": "reserved"
+    },
+    {
+      "label": "OM-RECOVERY-RELATIONSHIP-SNAPSHOT-KEY-v1",
+      "use": "kdf",
+      "construction": "reserved (HKDF info)",
+      "object": "RelationshipSnapshot key (§10.1)",
+      "wave": "W0",
+      "status": "reserved"
+    },
+    {
+      "label": "OM-RECOVERY-RECORD-AEAD-AD-v1",
+      "use": "aead_ad",
+      "construction": "reserved",
+      "object": "encrypted RecoveryRecord at the Home",
+      "wave": "W0",
+      "status": "reserved"
+    },
+    {
+      "label": "OM-Crypto-v1_PQXDH_X25519_SHA-256_ML-KEM-768",
+      "use": "kdf",
+      "construction": "reserved: PQXDH 'info' parameter (Signal PQXDH spec §2.1 application-defined info)",
+      "object": "1:1 session establishment",
+      "wave": "W0",
+      "status": "reserved"
+    },
+    {
+      "label": "OM-1TO1-RATCHET-KDF-v1",
+      "use": "kdf",
+      "construction": "reserved: Double/Triple Ratchet KDF_RK/KDF_CK info (V-001)",
+      "object": "1:1 ratchet",
+      "wave": "W0",
+      "status": "reserved"
+    },
+    {
+      "label": "OM-1TO1-EVENT-AEAD-AD-v1",
+      "use": "aead_ad",
+      "construction": "reserved: associated data binding session, sender/recipient device and envelope id to the ConversationEvent ciphertext (V-001)",
+      "object": "ConversationEvent in a 1:1 session",
+      "wave": "W0",
+      "status": "reserved"
+    },
+    {
+      "label": "OM-BLOB-CONTENT-AEAD-AD-v1",
+      "use": "aead_ad",
+      "construction": "reserved: attachment content encryption AD (V-001)",
+      "object": "encrypted blob",
+      "wave": "W0",
+      "status": "reserved"
+    },
+    {
+      "label": "OM-DEVICE-LINK-CEREMONY-MAC-v1",
+      "use": "mac",
+      "construction": "reserved: short-lived linking-ceremony transcript MAC (V-001/V-021)",
+      "object": "device link ceremony",
+      "wave": "W0",
+      "status": "reserved"
+    },
+    {
+      "label": "OM-SAFETY-REF-v1",
+      "use": "hash",
+      "construction": "documented: 'OM-SAFETY-REF-v1' || issuer_scope_id || canonical_principal_id (DECENTRALIZED_ABUSE_MODERATION.md §14)",
+      "object": "labeler-scoped subject reference",
+      "wave": "W3",
+      "status": "superseded: unused; raw concatenation is ambiguous (ADR-0128 rule 19)"
+    },
+    {
+      "label": "OM-REQUEST-KEY-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "RequestKey (MessageRequest/MessageRequestPayload/IntroIdentityBinding.request_key_digest)",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-MESSAGE-REQUEST-PAYLOAD-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "MessageRequestPayload",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-INTRO-IDENTITY-BINDING-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "IntroIdentityBinding",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-MESSAGE-REQUEST-HPKE-INFO-v1",
+      "use": "kdf",
+      "construction": "reserved: HPKE (RFC 9180) base-mode info input for MessageRequest sealing; suite ids fixed with V-001",
+      "object": "MessageRequest",
+      "wave": "W0",
+      "status": "reserved"
+    },
+    {
+      "label": "OM-SAFETY-REF-v2",
+      "use": "hash",
+      "construction": "DS-HASH over the canonical CBOR array [issuer_scope_id, principal_ref]",
+      "object": "labeler-scoped subject reference",
+      "wave": "W3",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-PQXDH-HANDSHAKE-ID-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PQXDH last-resort canonical initiation transcript",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-DR-AEAD-KEY-v1",
+      "use": "kdf_info",
+      "construction": "HKDF-SHA256 info",
+      "object": "Double Ratchet message-key to AES-256-GCM-SIV key",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-DR-AEAD-NONCE-v1",
+      "use": "kdf_info",
+      "construction": "HKDF-SHA256 info + authenticated header hash",
+      "object": "Double Ratchet message-key to AES-256-GCM-SIV nonce",
+      "wave": "W0",
+      "status": "proposed"
+    },
+    {
+      "label": "OM-REFERRAL-PRIVPASS-CHALLENGE-v1",
+      "use": "context",
+      "construction": "canonical challenge context",
+      "object": "RFC 9578 referral admission token challenge",
+      "wave": "W0",
+      "status": "proposed"
+    }
   ]
 }

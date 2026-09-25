@@ -7,6 +7,8 @@ until the operator makes it public. Write everything as if a stranger will read 
 **Engineering is NOT authorized.** Research, specification, formal models and bounded feasibility prototypes
 (`verification/`) are allowed. Product code is not. The architecture rules below say exactly what is locked.
 
+**Current verification handoff:** follow [`verification/CLAUDE_OPUS_5_5_HANDOFF.md`](verification/CLAUDE_OPUS_5_5_HANDOFF.md) and ADR-0134. The verification executor must exhaust repo-local gate work before requesting independent-review-only sign-off; do not bounce the repository between agents one criterion at a time.
+
 ## Part 1: Working in this repository
 
 ### Where things live
@@ -42,15 +44,15 @@ python3 tools/om_drop.py export                   # HEAD -> design-drops/om-desi
 python3 tools/om_drop.py import design-drops/X.zip # merge a returned drop into the current branch
 ```
 
-- `export` packages a committed ref (never uncommitted work). It adds `OM_EXPORT.json` (the base commit) and a
-  `MANIFEST.json`, and validates the result before zipping.
+- `export` packages a committed ref (never uncommitted work). It adds [`OM_EXPORT.json`](OM_EXPORT.json) (the base commit) and a
+  [`MANIFEST.json`](MANIFEST.json), and validates the result before zipping.
 - `import` applies the drop on a branch cut from the drop's base, commits it, tags it `checkpoint/<stamp>`, and
   **merges** it into the current branch, so concurrent repository work is kept and real conflicts are surfaced. It
   accepts both this layout and the legacy flat layout (drops up to 2026-09-24 02:29), mapped by [`tools/layout.json`](tools/layout.json).
   It then runs `om_docs.py fmt` and the validator.
 
 **If you are an agent editing an exported drop:** edit files in place, keeping this layout. Do not create `history/`
-or nest zips; git is the history. Leave `OM_EXPORT.json` unchanged. Record the checkpoint in [`SNAPSHOT.md`](SNAPSHOT.md),
+or nest zips; git is the history. Leave [`OM_EXPORT.json`](OM_EXPORT.json) unchanged. Record the checkpoint in [`SNAPSHOT.md`](SNAPSHOT.md),
 [`CHANGELOG.md`](CHANGELOG.md) and a new `docs/checkpoints/CHECKPOINT_YYYYMMDD_HHMM.md`. Register new files, run
 `python3 tools/validate_architecture.py` and `python3 tools/om_docs.py check`, then zip the folder as
 `om-design-YYYYMMDD-HHMM-PHT.zip`.
@@ -233,6 +235,8 @@ Agents must preserve these invariants:
 - Read [`HARDENING_REVIEW_20260924.md`](docs/reviews/HARDENING_REVIEW_20260924.md) for the findings register (F-01..F-17) and their fixes.
 - Engineering unlock is scope-granular ([`RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md`](docs/process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md)). Never set a scope `authorized: true` without an ADR naming it and passed or ADR-waived `pre_engineering_status` on every gate listing it. Global `engineering_authorized` stays `false` until then.
 - Never mark a gate `passed` on evidence produced solely by the agent/author who designed the thing under test; follow the gate's `independence` field.
+- Under ADR-0134, `pre_engineering_criteria` / `criteria_met` are the canonical checklist; free-text "remaining" notes are not. Complete all non-review evidence first, then batch review-only blockers.
+- For any gate with `interface_impact`, use its explicit `feasibility_criteria`; do not require full later-wave passage merely to unlock an earlier scope.
 - Every new requirement needs a [`machine/requirement_traceability.json`](machine/requirement_traceability.json) entry, and every new threat needs a [`machine/threat_register.jsonl`](machine/threat_register.jsonl) entry.
 - Do not claim post-quantum confidentiality for v1 groups or group calls.
 - Do not make any single cloud vendor the only zero-signup onboarding path. T0 sponsorship and T1 hosted Homes are first-class.

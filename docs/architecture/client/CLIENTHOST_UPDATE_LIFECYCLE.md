@@ -87,3 +87,20 @@ Obligations:
 ## 2026-09-23 updater resolution
 
 Reference deployment prefers an external release/deployment controller that verifies signed/TUF-style metadata from the owner-pinned release root (§4, ADR-0129) before replacing a ClientHost origin. Service-worker verification is defense-in-depth only. Suspected origin compromise is handled as authenticated new-origin/new-device enrollment followed by old-device revocation, not raw browser-state migration.
+
+## Rekor-compatible release transparency profile (ADR-0133)
+
+The reference release log uses Rekor-v2/C2SP signed-checkpoint compatible append-only semantics. A release entry
+commits to distribution id, release digest, TUF-target metadata digest, provenance/source digest when available and
+release generation. Inclusion and append-only consistency are independently verifiable. The transparency log is
+**evidence**, never update authority; the owner's pinned TUF/root remains authority.
+
+At least two separately operated monitors verify consistency/inclusion and publish signed `ReleaseObservation`s over
+release digest + checkpoint. Automatic deployment requires two valid observations from distinct configured monitor
+operators/failure domains plus the owner's update delay. Monitor snapshots are batch/epoch addressed and mirrorable to
+avoid per-user/per-version lookup privacy. Missing observations pause automatic deployment; they never disable the
+installed client or messaging.
+
+A hostile ClientHost origin can replace its own JavaScript/service worker and therefore cannot be assumed to enforce
+these checks on itself. Transparency reduces supply-chain and equivocation risk before compromise; recovery from a
+compromised origin is authenticated new-device enrollment at another origin/native client.

@@ -28,7 +28,7 @@ ContactDescriptor = {
 ; Trusted only when carried in an object signed by the recipient's intro identity.
 ; Digest: OM-REQUEST-KEY-HASH-v1 over the canonical encoding of this struct.
 request-key = {
-  0: profile-id,                            ; crypto_profile (selects the hybrid KEM and HPKE suite)
+  0: profile-id,                            ; crypto_profile (OM-Crypto-v1 pins draft-ietf-hpke-pq-05 MLKEM768-X25519 HPKE)
   1: bstr .size (32..2592),                 ; public_key
   ? 2: posix-seconds,                       ; expires_at
 }
@@ -95,7 +95,7 @@ MessageRequest = {
   0: 19, 1: 1,
   2: opaque-id16,                           ; ticket_id
   3: digest,                                ; request_key_digest (OM-REQUEST-KEY-HASH-v1)
-  4: profile-id,                            ; crypto_profile (HPKE suite = that profile's hybrid KEM)
+  4: profile-id,                            ; crypto_profile (exact HPKE suite/version is profile-defined; no ad-hoc hybrid)
   5: bstr .size (32..2048),                 ; hpke_enc (encapsulated key)
   6: bstr .size (17..65552),                ; ciphertext
   ? 7: bstr .size (1..4096),                ; admission_proof (e.g. an Alice-issued referral token)

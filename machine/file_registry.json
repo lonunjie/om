@@ -1,15 +1,8 @@
 {
-  "snapshot": "2026-09-24T02:29:00+08:00",
+  "snapshot": "2026-09-25T11:54:00+08:00",
   "scope": "current_non_history",
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
-    {
-      "path": ".github/workflows/verify.yml",
-      "class": "repo_plumbing",
-      "domain": "architecture_process",
-      "license": "Apache-2.0",
-      "authority": "executable_guardrail"
-    },
     {
       "path": ".gitignore",
       "class": "repo_plumbing",
@@ -1027,6 +1020,27 @@
     },
     {
       "path": "decisions/ADR-0130-distribution-provisioning-and-provider-trust-roots.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0131-core-kernel-final-pre-engineering-hardening.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0132-abuse-calls-and-extension-boundary-closure.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0133-provider-release-and-conformance-closure.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",
@@ -2139,6 +2153,13 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "spec/cddl/home-api.cddl",
+      "class": "spec_artifact",
+      "domain": "provider_deployment_supply_chain",
+      "license": "Apache-2.0",
+      "authority": "normative_wire_schema"
+    },
+    {
       "path": "spec/cddl/keys.cddl",
       "class": "spec_artifact",
       "domain": "crypto_1to1",
@@ -2319,6 +2340,13 @@
       "domain": "groups",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/protocol/home-api.md",
+      "class": "protocol_schema",
+      "domain": "provider_deployment_supply_chain",
+      "license": "Apache-2.0",
+      "authority": "normative_protocol_spec"
     },
     {
       "path": "spec/protocol/imported-history-record.logical.schema.json",
@@ -2543,6 +2571,13 @@
       "domain": "crypto_1to1",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/registries/om-home-errors.json",
+      "class": "spec_artifact",
+      "domain": "provider_deployment_supply_chain",
+      "license": "Apache-2.0",
+      "authority": "normative_registry"
     },
     {
       "path": "spec/registries/om-numeric-fields.json",
@@ -4706,6 +4741,20 @@
       "domain": "architecture_verification",
       "license": "Apache-2.0",
       "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "decisions/ADR-0134-verification-execution-lifecycle-and-no-bounce-handoff.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "verification/CLAUDE_OPUS_5_5_HANDOFF.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_execution_handoff"
     }
   ]
 }
