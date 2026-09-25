@@ -3,7 +3,7 @@
  "gates": [
   "V-015"
  ],
- "cases": 120,
+ "cases": 144,
  "roles": [
   "blob_store",
   "clienthost_origin",
@@ -11,6 +11,7 @@
   "home_relay_mailbox",
   "introgate",
   "key_material_provider",
+  "lan_observer",
   "platform_credential_manager",
   "push_provider",
   "recovery_record_store",

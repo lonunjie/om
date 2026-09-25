@@ -1,0 +1,73 @@
+{
+ "model": "metadata_w0_rules",
+ "gates": [
+  "V-015"
+ ],
+ "passed": true,
+ "checks": {
+  "push_cross_profile": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "native/shared_gateway: one push token presented to ['home-p1', 'home-p2']",
+    "native/keep_separate: one push token presented to ['home-p1', 'home-p2']"
+   ]
+  },
+  "shared_blob": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "default per-send encryption produced a shared BlobID across conversations"
+   ]
+  },
+  "lan_rendezvous": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "n=0: link-layer address not rotated across epochs",
+    "n=1: link-layer address not rotated across epochs",
+    "n=2: link-layer address not rotated across epochs"
+   ]
+  },
+  "colocated_home_roles": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "discovery_publisher: descriptor does not state co-located roles are one observer",
+    "discovery_publisher: descriptor claims non-collusion between co-located roles",
+    "introgate: descriptor does not state co-located roles are one observer"
+   ]
+  },
+  "first_contact_introgate": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "submit_message_request: IntroGate sees ['intro_identity_public']"
+   ]
+  },
+  "key_material_provider": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "one fetch capability is used for several relationships (links the fetcher's contacts)"
+   ]
+  },
+  "group_fanout": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "a relay-visible copy contains the raw MLS group_id or epoch",
+    "a relay-visible copy contains the raw MLS group_id or epoch",
+    "a relay-visible copy contains the raw MLS group_id or epoch"
+   ]
+  },
+  "dr_header_exposure": {
+   "problems": [],
+   "mutation_caught": true,
+   "header_bytes_seen": [
+    38
+   ]
+  }
+ },
+ "gate_status_effect": "evidence_only_no_gate_automatically_passed"
+}

@@ -2825,6 +2825,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/metadata_w0_rules.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/wire_boundary_models.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -3764,6 +3771,13 @@
     },
     {
       "path": "verification/results/metadata-trace-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/metadata-w0-rules-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

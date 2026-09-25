@@ -498,21 +498,21 @@ Instrument/model normal and privacy-enhanced paths across relay, MLS/group contr
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_privacy_model`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `docs/process/METADATA_TRACE_TEST_PLAN.md`; `spec/metadata/w0-metadata-exposure-descriptors.json`; `verification/bounded/metadata_trace_model.py`; `verification/results/metadata-trace-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
+- **Evidence:** `docs/process/METADATA_TRACE_TEST_PLAN.md`; `spec/metadata/w0-metadata-exposure-descriptors.json`; `verification/bounded/metadata_trace_model.py`; `verification/bounded/metadata_w0_rules.py`; `verification/results/metadata-trace-latest.json`; `verification/results/metadata-w0-rules-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
 
 Pre-engineering criteria:
 
 - [x] MetadataExposureDescriptor written for every provider role in the scope being unlocked, including the sponsored starter mailbox
 - [x] trace-model assertions for each descriptor and a packet-capture test plan
-- [ ] two IdentityProfiles on one install never present the same push subscription or token to two parties unless the push provider's descriptor declares the linkage (ADR-0129 rule 14)
-- [ ] shared-blob mode for expressive assets has a BlobStore descriptor line; default per-send encryption yields no shared BlobID across conversations (ADR-0129 rule 10)
-- [ ] LAN trace: rendezvous only for marked contacts, tags retired on block/relationship end, fixed-cardinality advertisement, epoch rotation with link-layer address where available; the model shows advertisement size and cross-epoch sets reveal neither contact count nor linkage (R-270, R-271)
-- [ ] descriptors declare roles co-located on one operator's Home as one observer (descriptor_mailbox_linkage, contact_graph_edge) and state no non-collusion between them (R-265)
-- [ ] OM-Crypto-v1 relay descriptor explicitly records unencrypted Double Ratchet header fields/shape; packet trace matches the descriptor (ADR-0131 rule 4)
-- [ ] first-contact trace proves neither stable AccountID is exposed through IntroGate before acceptance and reciprocal binding occurs only inside accepted relationship (R-280)
-- [ ] MessageRequest/IntroIdentityBinding trace proves IntroGate sees no sender AccountID, DeviceID or intro private/public identity material beyond the admission surface, and stable AccountID binding occurs only after acceptance (R-202, R-203, R-280)
-- [ ] KeyMaterialProvider trace uses a per-relationship fetch capability and exposes only the documented acs_state_hash linkage; A-031 unlinkability remains an explicit later privacy choice (R-209)
-- [ ] group fan-out outer-encrypts every recipient copy; relays never see raw MLS group_id/epoch and group_id is unrelated to ConversationID (R-226)
+- [x] two IdentityProfiles on one install never present the same push subscription or token to two parties unless the push provider's descriptor declares the linkage (ADR-0129 rule 14)
+- [x] shared-blob mode for expressive assets has a BlobStore descriptor line; default per-send encryption yields no shared BlobID across conversations (ADR-0129 rule 10)
+- [x] LAN trace: rendezvous only for marked contacts, tags retired on block/relationship end, fixed-cardinality advertisement, epoch rotation with link-layer address where available; the model shows advertisement size and cross-epoch sets reveal neither contact count nor linkage (R-270, R-271)
+- [x] descriptors declare roles co-located on one operator's Home as one observer (descriptor_mailbox_linkage, contact_graph_edge) and state no non-collusion between them (R-265)
+- [x] OM-Crypto-v1 relay descriptor explicitly records unencrypted Double Ratchet header fields/shape; packet trace matches the descriptor (ADR-0131 rule 4)
+- [x] first-contact trace proves neither stable AccountID is exposed through IntroGate before acceptance and reciprocal binding occurs only inside accepted relationship (R-280)
+- [x] MessageRequest/IntroIdentityBinding trace proves IntroGate sees no sender AccountID, DeviceID or intro private/public identity material beyond the admission surface, and stable AccountID binding occurs only after acceptance (R-202, R-203, R-280)
+- [x] KeyMaterialProvider trace uses a per-relationship fetch capability and exposes only the documented acs_state_hash linkage; A-031 unlinkability remains an explicit later privacy choice (R-209)
+- [x] group fan-out outer-encrypts every recipient copy; relays never see raw MLS group_id/epoch and group_id is unrelated to ConversationID (R-226)
 
 Pre-release criteria:
 
@@ -520,15 +520,6 @@ Pre-release criteria:
 
 Mechanically unfinished pre-engineering work:
 
-- two IdentityProfiles on one install never present the same push subscription or token to two parties unless the push provider's descriptor declares the linkage (ADR-0129 rule 14)
-- shared-blob mode for expressive assets has a BlobStore descriptor line; default per-send encryption yields no shared BlobID across conversations (ADR-0129 rule 10)
-- LAN trace: rendezvous only for marked contacts, tags retired on block/relationship end, fixed-cardinality advertisement, epoch rotation with link-layer address where available; the model shows advertisement size and cross-epoch sets reveal neither contact count nor linkage (R-270, R-271)
-- descriptors declare roles co-located on one operator's Home as one observer (descriptor_mailbox_linkage, contact_graph_edge) and state no non-collusion between them (R-265)
-- OM-Crypto-v1 relay descriptor explicitly records unencrypted Double Ratchet header fields/shape; packet trace matches the descriptor (ADR-0131 rule 4)
-- first-contact trace proves neither stable AccountID is exposed through IntroGate before acceptance and reciprocal binding occurs only inside accepted relationship (R-280)
-- MessageRequest/IntroIdentityBinding trace proves IntroGate sees no sender AccountID, DeviceID or intro private/public identity material beyond the admission surface, and stable AccountID binding occurs only after acceptance (R-202, R-203, R-280)
-- KeyMaterialProvider trace uses a per-relationship fetch capability and exposes only the documented acs_state_hash linkage; A-031 unlinkability remains an explicit later privacy choice (R-209)
-- group fan-out outer-encrypts every recipient copy; relays never see raw MLS group_id/epoch and group_id is unrelated to ConversationID (R-226)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-016 — `decentralized_abuse_moderation_authority_model`

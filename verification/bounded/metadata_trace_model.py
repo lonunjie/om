@@ -34,8 +34,9 @@ def msg(role, *fields, ip=True):
 def flows(recipient_home: str, privacy_path: bool, multi_device: bool, push_on: bool):
     """Yield (flow_name, [(role, observed_fields)]) for one configuration."""
     ip = not privacy_path
-    send = [msg(recipient_home, "message_timing", "ciphertext_size", ip=ip),                   # deposit (opaque capability)
-            msg(recipient_home, "message_timing", "ciphertext_size", ip=True)]                 # recipient drains
+    # ADR-0131 rule 4: the unencrypted Double Ratchet header travels inside the routed envelope
+    send = [msg(recipient_home, "message_timing", "ciphertext_size", "ratchet_header_shape", ip=ip),  # deposit (opaque capability)
+            msg(recipient_home, "message_timing", "ciphertext_size", "ratchet_header_shape", ip=True)]  # recipient drains
     if multi_device:
         send.append(msg(recipient_home, "message_timing", "ciphertext_size", "device_count", ip=True))
     if push_on:
@@ -54,6 +55,7 @@ def flows(recipient_home: str, privacy_path: bool, multi_device: bool, push_on: 
     yield "recovery", [msg("recovery_record_store", "recovery_attempt", ip=ip),
                        ("platform_credential_manager", {"recovery_attempt"})]
     yield "pwa_load", [msg("clienthost_origin", ip=True)]
+    yield "lan_rendezvous", [msg("lan_observer", "lan_advertisement", ip=True)]
 
 
 def main() -> int:

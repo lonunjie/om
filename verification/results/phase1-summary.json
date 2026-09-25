@@ -63,6 +63,10 @@
     {
       "script": "verification/bounded/acs_authorization_table.py",
       "returncode": 0
+    },
+    {
+      "script": "verification/bounded/metadata_w0_rules.py",
+      "returncode": 0
     }
   ]
 }
