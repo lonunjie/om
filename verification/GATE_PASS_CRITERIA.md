@@ -531,19 +531,19 @@ Model/property-test block/revocation/Sybil behavior, IntroGate resource abuse, R
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/bounded/introgate_sybil_model.py`; `verification/results/authority-bounded-latest.json`; `verification/results/introgate-sybil-latest.json`; `verification/results/v016-room-moderation-latest.json`; `verification/tla/RoomModeration.tla`; `verification/tla/models-v016-room-moderation.json`
+- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/bounded/abuse_w0_rules.py`; `verification/bounded/introgate_sybil_model.py`; `verification/results/abuse-w0-rules-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/introgate-sybil-latest.json`; `verification/results/v016-room-moderation-latest.json`; `verification/tla/RoomModeration.tla`; `verification/tla/models-v016-room-moderation.json`
 
 Pre-engineering criteria:
 
-- [ ] IntroGate/block/Sybil/resource model for the W0 surfaces
-- [ ] Room timeout/remove/ban race and evidence model before communities_publications is unlocked
-- [ ] RFC 9578 token-type 0x0002 referral admission: IntroGate verifies with issuer public key but cannot mint; token is single-use, issuer-epoch-bound, and old epoch stops after bounded overlap (ADR-0132 rule 1)
-- [ ] stale moderation/member reduction cannot target a later incarnation after re-add/regrant (R-279)
-- [ ] IntroGate model covers referral-token admission into reserved capacity, per-IntroGate max_uses, and MessageRequest size rejection before expensive work (R-210, R-214)
-- [ ] unsolicited group add without an accepted invitation is rejected (R-224)
-- [ ] bans and restrictions end only through committed lifts; a ModerationDecision alone changes no Room state (R-231)
-- [ ] call.offer from a principal without an accepted relationship is dropped before call setup (R-234)
-- [ ] providers never resolve AccountID-keyed advisories to delivery capabilities and safety-reference v2 encoding is injective (R-238)
+- [x] IntroGate/block/Sybil/resource model for the W0 surfaces
+- [x] Room timeout/remove/ban race and evidence model before communities_publications is unlocked
+- [x] RFC 9578 token-type 0x0002 referral admission: IntroGate verifies with issuer public key but cannot mint; token is single-use, issuer-epoch-bound, and old epoch stops after bounded overlap (ADR-0132 rule 1)
+- [x] stale moderation/member reduction cannot target a later incarnation after re-add/regrant (R-279)
+- [x] IntroGate model covers referral-token admission into reserved capacity, per-IntroGate max_uses, and MessageRequest size rejection before expensive work (R-210, R-214)
+- [x] unsolicited group add without an accepted invitation is rejected (R-224)
+- [x] bans and restrictions end only through committed lifts; a ModerationDecision alone changes no Room state (R-231)
+- [x] call.offer from a principal without an accepted relationship is dropped before call setup (R-234)
+- [x] providers never resolve AccountID-keyed advisories to delivery capabilities and safety-reference v2 encoding is injective (R-238)
 
 Pre-release criteria:
 
@@ -551,15 +551,6 @@ Pre-release criteria:
 
 Mechanically unfinished pre-engineering work:
 
-- IntroGate/block/Sybil/resource model for the W0 surfaces
-- Room timeout/remove/ban race and evidence model before communities_publications is unlocked
-- RFC 9578 token-type 0x0002 referral admission: IntroGate verifies with issuer public key but cannot mint; token is single-use, issuer-epoch-bound, and old epoch stops after bounded overlap (ADR-0132 rule 1)
-- stale moderation/member reduction cannot target a later incarnation after re-add/regrant (R-279)
-- IntroGate model covers referral-token admission into reserved capacity, per-IntroGate max_uses, and MessageRequest size rejection before expensive work (R-210, R-214)
-- unsolicited group add without an accepted invitation is rejected (R-224)
-- bans and restrictions end only through committed lifts; a ModerationDecision alone changes no Room state (R-231)
-- call.offer from a principal without an accepted relationship is dropped before call setup (R-234)
-- providers never resolve AccountID-keyed advisories to delivery capabilities and safety-reference v2 encoding is injective (R-238)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-017 — `protocol_longevity_and_0m_continuity_drill`

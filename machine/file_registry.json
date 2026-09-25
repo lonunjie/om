@@ -2769,6 +2769,13 @@
       "authority": "verification_evidence_non_normative"
     },
     {
+      "path": "verification/bounded/abuse_w0_rules.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/acs_authorization_table.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -3712,6 +3719,13 @@
       "domain": "architecture_verification",
       "license": "Apache-2.0",
       "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/results/abuse-w0-rules-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
     },
     {
       "path": "verification/results/acs-authorization-table-latest.json",

@@ -1,0 +1,61 @@
+{
+ "model": "abuse_w0_rules",
+ "gates": [
+  "V-016"
+ ],
+ "passed": true,
+ "checks": {
+  "referral_token_0x0002": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "token accepted twice"
+   ]
+  },
+  "introgate_admission": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "oversized MessageRequest reached expensive work",
+    "oversized MessageRequest reached expensive work"
+   ]
+  },
+  "stale_reduction": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "order ('remove', 'readd', 'reduce_i1_applied'): stale reduction hit a later incarnation i2"
+   ]
+  },
+  "unsolicited_group_add": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "carol joined room1 without an accepted invitation",
+    "bob joined room2 without an accepted invitation"
+   ]
+  },
+  "committed_lifts_only": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "a ModerationDecision alone lifted a ban or restriction"
+   ]
+  },
+  "call_offer_gate": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "call setup performed for 2 caller(s) without an accepted relationship"
+   ]
+  },
+  "advisory_and_safety_ref_v2": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "safety reference not injective (issuer/principal boundary shift collides)"
+   ]
+  }
+ },
+ "gate_status_effect": "evidence_only_no_gate_automatically_passed"
+}
