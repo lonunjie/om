@@ -1,9 +1,10 @@
-# ADR-0116: every push/PR runs the architecture validator, docs link check, all executable
-# evidence and TLC (digest-pinned), then fails if regenerated evidence differs from the commit.
+# ADR-0116 (amended 2026-09-25): runs on checkpoint/* tags and on manual dispatch only; local
+# `make verify` is the per-commit check. Runs the architecture validator, docs link check, all
+# executable evidence and TLC (digest-pinned), then fails if regenerated evidence differs from the commit.
 name: verify
 on:
   push:
-  pull_request:
+    tags: ["checkpoint/*"]
   workflow_dispatch:
     inputs:
       prototypes:
