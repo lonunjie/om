@@ -1,34 +1,35 @@
 // SPDX-License-Identifier: Apache-2.0
 //! Feasibility prototype for V-001 (`production_crypto_path`). Not product code. Not for production.
 //!
-//! OM-Crypto-v1 1:1 path as selected by `CRYPTOGRAPHY_AND_AGILITY.md` (2026-09-23 resolution):
-//! PQXDH (X25519 + ML-KEM-768) followed by the Triple Ratchet (EC Double Ratchet + Sparse
-//! Post-Quantum Ratchet). Implemented from the public specifications:
+//! OM-Crypto-v1 as frozen by ADR-0118 (no SPQR in v1), ADR-0131 and ADR-0135:
+//! PQXDH (X25519 + ML-KEM-768) + Double Ratchet with AES-256-GCM-SIV, a dual Ed25519 + ML-DSA-65
+//! DeviceIdentity binding of every PQXDH public object, an exact last-resort replay ledger, and the
+//! draft-ietf-hpke-pq-05 MLKEM768-X25519 HPKE suite for MessageRequests. From the public specifications:
 //!
 //! * [PQXDH] Signal, "The PQXDH Key Agreement Protocol", revision 3 (2023-05-24, updated 2024-01-23).
-//! * [DR]    Signal, "The Double Ratchet Algorithm", revision 4 (2025-11-04), incl. §5 SPQR, §6 Triple Ratchet.
-//! * [XEdDSA] Signal, "The XEdDSA and VXEdDSA Signature Schemes", revision 1 (2016-10-20).
-//! * [FIPS203] NIST FIPS 203 ML-KEM (via `libcrux-ml-kem`).
-//! * [RFC8452] AES-GCM-SIV, [RFC5869] HKDF, [RFC8949] deterministic CBOR.
+//! * [DR]    Signal, "The Double Ratchet Algorithm", revision 4 (2025-11-04) §3.
+//! * [FIPS203] ML-KEM (`libcrux-ml-kem`), [FIPS204] ML-DSA (`libcrux-ml-dsa`), [RFC8032] Ed25519.
+//! * [RFC8452] AES-GCM-SIV, [RFC5869] HKDF, [RFC8949] deterministic CBOR, [RFC8439] ChaCha20Poly1305.
+//! * draft-ietf-hpke-pq-05 and its normative references (hpke.rs).
 //!
-//! The SCKA / SPQR half of the Triple Ratchet is NOT implemented here: it is Signal's own
-//! `spqr` crate (AGPL-3.0-only), used through its public `initial_state`/`send`/`recv` API.
-//!
-//! Written by a Claude agent. Every domain-separation string below is a prototype value
-//! (`OM-Crypto-v1-proto`), not a frozen OM registry entry.
+//! Written by a Claude agent. Every domain-separation string is a label registered in
+//! spec/registries/om-domain-separation.json.
 
 pub mod acvp;
 pub mod bench;
+pub mod binding;
 pub mod cbor;
 pub mod error;
+pub mod hpke;
 pub mod kdf;
+pub mod ledger;
 pub mod otk;
 pub mod pqxdh;
 pub mod ratchet;
 pub mod rng;
+pub mod session;
+pub mod sig;
 pub mod store;
-pub mod triple;
-pub mod xeddsa;
 
 #[cfg(feature = "insecure-test-rng")]
 pub mod persist;
@@ -37,8 +38,8 @@ pub mod vectors;
 
 pub use error::Error;
 
-/// Prototype profile identifier carried in every ratchet header (not a frozen CryptoProfile ID).
-pub const PROFILE_PROTO: u64 = 1;
+/// CryptoProfile id of OM-Crypto-v1 (spec/registries/om-crypto-profiles.json).
+pub const PROFILE_V1: u64 = 1;
 
 /// Hex helper used by vectors/results.
 pub fn hex(b: &[u8]) -> String {

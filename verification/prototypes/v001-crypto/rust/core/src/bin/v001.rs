@@ -72,8 +72,15 @@ fn main() -> ExitCode {
             print(&r);
             if ok { ExitCode::SUCCESS } else { ExitCode::FAILURE }
         }
+        "hpke-kat" => {
+            let v = std::fs::read_to_string(&args[2]).expect("draft-ietf-hpke-pq-05 test-vectors.json");
+            let r = om_v001_proto::hpke::check_kats(&v);
+            let ok = r["all_passed"].as_bool().unwrap_or(false);
+            print(&r);
+            if ok { ExitCode::SUCCESS } else { ExitCode::FAILURE }
+        }
         _ => {
-            eprintln!("usage: v001 selftest|vectors|persist-nsteps|persist-step DIR K|bench [SETUP MSGS]|acvp KEYGEN.json ENCAPDECAP.json");
+            eprintln!("usage: v001 selftest|vectors|persist-nsteps|persist-step DIR K|bench [SETUP MSGS]|acvp KEYGEN.json ENCAPDECAP.json|hpke-kat VECTORS.json");
             ExitCode::from(2)
         }
     }

@@ -5,8 +5,10 @@ use core::fmt;
 pub enum Error {
     /// Malformed or non-canonical encoding.
     Decode(&'static str),
-    /// A prekey signature did not verify (PQXDH §3.3: "Alice aborts the protocol").
+    /// A composite Ed25519 + ML-DSA-65 signature did not verify (PQXDH §3.3: "Alice aborts").
     BadSignature,
+    /// The device binding chain (ACS -> DeviceCredential -> signed bundle) is inconsistent.
+    Binding(&'static str),
     /// Bundle lacks a signed PQ prekey. OM never falls back to a classical-only handshake.
     MissingPqPrekey,
     /// PQ public key failed ML-KEM encapsulation-key validation (FIPS 203 §7.2).
@@ -18,8 +20,12 @@ pub enum Error {
     UnknownOrConsumedPqPrekey,
     /// One-time EC prekey id is unknown or was already consumed.
     UnknownOrConsumedEcPrekey,
-    /// Replay of a handshake that used the reusable last-resort PQ prekey (PQXDH §4.2 mitigation).
+    /// Replay of a no-one-time-key handshake (PQXDH §4.2; ADR-0131 rule 2 exact ledger).
     ReplayedLastResortHandshake,
+    /// The signed-prekey epoch reached last_resort_accept_limit (4096); fails closed, no eviction.
+    LastResortExhausted,
+    /// The durable vault did not confirm the commit; nothing was released.
+    VaultCommitFailed,
     /// AEAD authentication failed.
     DecryptFailed,
     /// DR §3.5 SkipMessageKeys bound exceeded.
@@ -29,10 +35,6 @@ pub enum Error {
     NoSession,
     /// A different handshake for an existing session; multi-session policy belongs to V-003.
     SessionConflict,
-    /// SPQR produced no message key: PQ ratchet disabled or downgraded. Never accepted.
-    PqRatchetUnavailable,
-    /// Error surfaced by Signal's `spqr` crate (e.g. MinimumVersion on a V0 downgrade).
-    Spqr(String),
     NoPrekeysPublished,
 }
 
@@ -44,17 +46,11 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-impl From<spqr::Error> for Error {
-    fn from(e: spqr::Error) -> Self {
-        Error::Spqr(format!("{e:?}"))
-    }
-}
-
 impl Error {
     /// Stable short name for results JSON.
     pub fn name(&self) -> String {
         match self {
-            Error::Spqr(s) => format!("Spqr({})", s.split('(').next().unwrap_or(s)),
+            Error::Binding(s) => format!("Binding({s})"),
             Error::Decode(s) => format!("Decode({s})"),
             e => format!("{e:?}"),
         }

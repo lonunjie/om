@@ -140,3 +140,5 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0133 — Provider, release-transparency and conformance closure](ADR-0133-provider-release-and-conformance-closure.md)
 
 - [ADR-0134 — Verification execution lifecycle and no-bounce handoff](ADR-0134-verification-execution-lifecycle-and-no-bounce-handoff.md)
+
+- [ADR-0135 — OM-Crypto-v1 construction pinning (closes the V-001 constructions)](ADR-0135-om-crypto-v1-construction-pinning.md)

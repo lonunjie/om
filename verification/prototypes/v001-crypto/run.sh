@@ -6,12 +6,10 @@
 # and writes deterministic results to verification/results/v001-crypto-latest.json.
 # Timing numbers (not deterministic) go to rust/target/v001-perf.json only.
 #
-#   run.sh          default checks (~1-3 min after first build; first build downloads crates)
-#   run.sh --long   also clone+build upstream Signal spqr/libsignal for native/wasm32 (several minutes)
+#   run.sh          all checks (~2-4 min after first build; first build downloads crates and KAT files)
 set -euo pipefail
 
 LONG=0
-[[ "${1:-}" == "--long" ]] && LONG=1
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
@@ -42,6 +40,16 @@ fetch_acvp ML-KEM-keyGen-FIPS203 d7a62a2c3476957f56dd8d24f9004ea6776ccfe995ffe71
 fetch_acvp ML-KEM-encapDecap-FIPS203 a556952ce869bb89c3a3196a701dad89647c193a34c86eafb61a9d710d5b810f
 KG="$ACVP_CACHE/ML-KEM-keyGen-FIPS203.json"
 ED="$ACVP_CACHE/ML-KEM-encapDecap-FIPS203.json"
+
+# draft-ietf-hpke-pq-05 published test vectors (github.com/hpkewg/hpke-pq, tag draft-ietf-hpke-pq-05)
+HPKE_COMMIT=6433c8fce0b8b749dfc86c1095081a88698ccfab
+HPKE_VEC="$RUST/target/hpke-pq-05-$HPKE_COMMIT.json"
+if [[ ! -f "$HPKE_VEC" ]]; then
+  log "fetching draft-ietf-hpke-pq-05 test vectors @ $HPKE_COMMIT"
+  curl -sfL --retry 3 -o "$HPKE_VEC.tmp" "https://raw.githubusercontent.com/hpkewg/hpke-pq/$HPKE_COMMIT/test-vectors.json" || fail "download hpke vectors"
+  mv "$HPKE_VEC.tmp" "$HPKE_VEC"
+fi
+echo "35c59f4a0132e5631e50ac039d8ca3a72e99f5e92dfd94d45338d6ae243f613c  $HPKE_VEC" | shasum -a 256 -c --status || fail "hpke vector hash mismatch"
 
 # ---- 2. Build ------------------------------------------------------------------------------
 cd "$RUST"
@@ -88,20 +96,29 @@ COMMITTED="$HERE/vectors/om-v001-proto-vectors.json"
 
 # ---- 6. Independent Python implementation + ACVP ------------------------------------------
 log "independent Python check (uv)"
-(cd "$HERE/python" && uv run --locked -q python check_vectors.py "$COMMITTED" "$KG" "$ED") > "$OUT/python.json" || fail "python independent check"
-# Mutation test: the checker must reject a vector with one flipped ciphertext nibble.
-python3 - "$COMMITTED" "$OUT/vectors-mutated.json" <<'PY'
+(cd "$HERE/python" && uv run --locked -q python check_vectors.py "$COMMITTED" "$KG" "$ED" "$HPKE_VEC") > "$OUT/python.json" || fail "python independent check"
+# Mutation tests: the checker must reject (a) one flipped ciphertext nibble and (b) one flipped byte in
+# the ML-DSA-65 half of the positive bundle signature.
+python3 - "$COMMITTED" "$OUT" <<'PY'
 import json, sys
 v = json.load(open(sys.argv[1]))
 ev = next(e for e in v["cases"][0]["events"] if e["type"] == "send")
 c = ev["ciphertext"]; ev["ciphertext"] = ("0" if c[0] != "0" else "1") + c[1:]
-json.dump(v, open(sys.argv[2], "w"))
+json.dump(v, open(sys.argv[2] + "/vectors-mutated-ct.json", "w"))
+v = json.load(open(sys.argv[1]))
+f = v["binding"]["positive_fetch"][0]
+i = len(f) - 200
+v["binding"]["positive_fetch"][0] = f[:i] + ("0" if f[i] != "0" else "1") + f[i + 1:]
+json.dump(v, open(sys.argv[2] + "/vectors-mutated-sig.json", "w"))
 PY
-if (cd "$HERE/python" && uv run --locked -q python check_vectors.py "$OUT/vectors-mutated.json") > /dev/null 2>&1; then
-  echo '{"mutated_vector_rejected": false}' > "$OUT/mutation.json"
-else
-  echo '{"mutated_vector_rejected": true}' > "$OUT/mutation.json"
-fi
+M1=true; M2=true
+(cd "$HERE/python" && uv run --locked -q python check_vectors.py "$OUT/vectors-mutated-ct.json") > /dev/null 2>&1 && M1=false
+(cd "$HERE/python" && uv run --locked -q python check_vectors.py "$OUT/vectors-mutated-sig.json") > /dev/null 2>&1 && M2=false
+echo "{\"mutated_ciphertext_rejected\": $M1, \"mutated_mldsa_signature_rejected\": $M2}" > "$OUT/mutation.json"
+log "draft-ietf-hpke-pq-05 KATs on the Rust HPKE (native, wasi, node)"
+"$NATIVE" hpke-kat "$HPKE_VEC" > "$OUT/hpke-native.json" || fail "native hpke kat"
+wasi --dir "$RUST/target::/t" "$WASI" hpke-kat "/t/$(basename "$HPKE_VEC")" > "$OUT/hpke-wasi.json" || fail "wasi hpke kat"
+node "$HERE/node/run_wasm.mjs" "$NODEWASM" hpke-kat "$HPKE_VEC" > "$OUT/hpke-node.json" || fail "node hpke kat"
 log "ACVP on the Rust ML-KEM layer (native + wasi)"
 "$NATIVE" acvp "$KG" "$ED" > "$OUT/acvp-native.json" || fail "native ACVP"
 wasi --dir "$ACVP_CACHE::/acvp" "$WASI" acvp /acvp/ML-KEM-keyGen-FIPS203.json /acvp/ML-KEM-encapDecap-FIPS203.json > "$OUT/acvp-wasi.json" || fail "wasi ACVP"
@@ -138,14 +155,7 @@ cargo metadata --locked --format-version 1 --filter-platform aarch64-apple-darwi
   echo "python=$(cd "$HERE/python" && uv run --locked -q python --version)"
 } > "$OUT/tools.txt"
 
-# ---- 10. Optional upstream probes ------------------------------------------------------------
-if [[ $LONG == 1 ]]; then
-  log "--long: upstream spqr/libsignal build probes"
-  # Outside the prototype tree so its .cargo/config.toml and toolchain pin do not leak into the probes.
-  bash "$HERE/probe_upstream.sh" "${TMPDIR:-/tmp}/om-v001-upstream-probes" > "$OUT/probes.json" || fail "upstream probes"
-fi
-
-# ---- 11. Assemble deterministic results -------------------------------------------------------
+# ---- 10. Assemble deterministic results -------------------------------------------------------
 python3 "$HERE/assemble_results.py" "$OUT" "$HERE" "$RESULTS" "$LONG"
 STATUS=$?
 log "results: ${RESULTS#$ROOT/}"

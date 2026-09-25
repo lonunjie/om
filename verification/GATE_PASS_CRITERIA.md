@@ -23,7 +23,7 @@
 
 | Gate | Name | Scopes | Pre-engineering | Overall | Feasibility | W0 interface impact |
 |---|---|---|---|---|---|---|
-| V-001 | `production_crypto_path` | core_kernel | open | open | open | — |
+| V-001 | `production_crypto_path` | core_kernel | passed | open | open | — |
 | V-002 | `account_control_formal_model` | core_kernel | open | open | open | — |
 | V-003 | `one_to_one_session_model` | core_kernel | open | open | open | — |
 | V-004 | `group_commit_control_model` | groups | open | open | open | core_kernel |
@@ -54,11 +54,11 @@
 Demonstrate the selected OM-Crypto-v1 state-machine path, PQXDH + Double Ratchet (ADR-0118; no PQ post-compromise healing in v1, SPQR is OM-Crypto-v2), in Rust on native and wasm32, including state persistence/reload, deterministic vectors, one-time key material and dependency/licensing/update strategy, without relying on an unsupported external API contract.
 
 - **Scopes blocked:** core_kernel
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_implementation_or_upstream_kat; pre-release external_review
 - **Execution class:** `repo_local_feasibility`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md`; `verification/prototypes/v001-crypto/README.md`; `verification/results/v001-crypto-latest.json`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md`; `decisions/ADR-0135-om-crypto-v1-construction-pinning.md`; `verification/prototypes/v001-crypto/README.md`; `verification/prototypes/v001-crypto/python/hpke_pq.py`; `verification/prototypes/v001-crypto/vectors/om-v001-proto-vectors.json`; `verification/results/v001-crypto-latest.json`
 
 Pre-engineering criteria:
 
@@ -66,25 +66,16 @@ Pre-engineering criteria:
 - [x] deterministic vectors produced by the prototype are consumed by a second independent implementation or checked against upstream KATs
 - [x] one-time key material handling and depletion behavior demonstrated without downgrade
 - [x] dependency, licensing and update strategy recorded in an ADR
-- [ ] no reliance on an unsupported external library API contract
-- [ ] PQXDH DeviceIdentity binding vectors require both Ed25519 and ML-DSA-65 over the PQXDH identity/prekey binding and reject either-signature substitution (ADR-0131 rule 1)
-- [ ] last-resort PQXDH replay prototype persists an exact per-signed-prekey transcript ledger before acknowledgement, rejects duplicates across crash, and fails closed at the 4096 cap without eviction (ADR-0131 rule 2)
-- [ ] AES-256-GCM-SIV payload vectors verify the OM-DR-AEAD-KEY-v1 / OM-DR-AEAD-NONCE-v1 derivation and authenticated header context (ADR-0131 rule 3)
-- [ ] MessageRequest HPKE consumes draft-ietf-hpke-pq-05 MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305 KATs plus OM context vectors; no ad-hoc hybrid implementation (ADR-0131 rule 9)
+- [x] no reliance on an unsupported external library API contract
+- [x] PQXDH DeviceIdentity binding vectors require both Ed25519 and ML-DSA-65 over the PQXDH identity/prekey binding and reject either-signature substitution (ADR-0131 rule 1)
+- [x] last-resort PQXDH replay prototype persists an exact per-signed-prekey transcript ledger before acknowledgement, rejects duplicates across crash, and fails closed at the 4096 cap without eviction (ADR-0131 rule 2)
+- [x] AES-256-GCM-SIV payload vectors verify the OM-DR-AEAD-KEY-v1 / OM-DR-AEAD-NONCE-v1 derivation and authenticated header context (ADR-0131 rule 3)
+- [x] MessageRequest HPKE consumes draft-ietf-hpke-pq-05 MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305 KATs plus OM context vectors; no ad-hoc hybrid implementation (ADR-0131 rule 9)
 
 Pre-release criteria:
 
 - [ ] independent cryptographic review of the integrated production path
 - [ ] production build provably excludes dev/test CryptoProvider (R-072)
-
-Mechanically unfinished pre-engineering work:
-
-- no reliance on an unsupported external library API contract
-- PQXDH DeviceIdentity binding vectors require both Ed25519 and ML-DSA-65 over the PQXDH identity/prekey binding and reject either-signature substitution (ADR-0131 rule 1)
-- last-resort PQXDH replay prototype persists an exact per-signed-prekey transcript ledger before acknowledgement, rejects duplicates across crash, and fails closed at the 4096 cap without eviction (ADR-0131 rule 2)
-- AES-256-GCM-SIV payload vectors verify the OM-DR-AEAD-KEY-v1 / OM-DR-AEAD-NONCE-v1 derivation and authenticated header context (ADR-0131 rule 3)
-- MessageRequest HPKE consumes draft-ietf-hpke-pq-05 MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305 KATs plus OM context vectors; no ad-hoc hybrid implementation (ADR-0131 rule 9)
-- phase independence evidence is not yet recorded as satisfied
 
 ### V-002 — `account_control_formal_model`
 

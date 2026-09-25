@@ -48,7 +48,8 @@ pub extern "C" fn om_in_alloc(len: u32) -> *mut u8 {
 
 /// cmd 1 = selftest JSON, 2 = bench(a, b) JSON, 3 = vectors JSON,
 /// 4 = persist step `a` on the input buffer (world bytes; ignored for step 0) -> new world bytes,
-/// 5 = system-RNG smoke test (host entropy reaches the Rust CSPRNG interface).
+/// 5 = system-RNG smoke test (host entropy reaches the Rust CSPRNG interface),
+/// 6 = number of persist steps, 7 = draft-ietf-hpke-pq-05 KATs over the input buffer (vector JSON).
 /// Returns output length; 0xFFFF_FFFF on error (message in output buffer).
 #[no_mangle]
 pub extern "C" fn om_run(cmd: u32, a: u32, b: u32) -> u32 {
@@ -77,6 +78,11 @@ pub extern "C" fn om_run(cmd: u32, a: u32, b: u32) -> u32 {
             Ok(format!("{{\"distinct\": {}}}", x != y).into_bytes())
         }
         6 => Ok(om_v001_proto::persist::n_steps().to_string().into_bytes()),
+        7 => {
+            let input = unsafe { (*core::ptr::addr_of!(IN)).clone() };
+            let r = om_v001_proto::hpke::check_kats(&String::from_utf8_lossy(&input));
+            Ok(serde_json::to_vec_pretty(&r).unwrap())
+        }
         _ => Err(b"unknown command".to_vec()),
     };
     match out {

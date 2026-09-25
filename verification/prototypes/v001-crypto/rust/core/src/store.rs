@@ -2,40 +2,46 @@
 //! Device-side prekey store + sessions, and a toy KeyMaterialProvider (`ASYNC_KEY_MATERIAL.md`
 //! §2 publish/fetch/inventory). Everything persists as deterministic CBOR.
 //!
-//! One-time semantics: the provider hands out each one-time item at most once (pop), and the
-//! device deletes a one-time private key only after the initial ciphertext authenticates
-//! ([PQXDH] §3.4). A second use of the same id therefore fails even if a provider misbehaves.
-//! When one-time PQ keys run out the provider returns the signed last-resort PQ key
-//! ([PQXDH] §3.3); there is no bundle shape without a PQ key.
+//! Identity (ADR-0131 rule 1): each device has an AccountID, a DeviceID, a composite Ed25519 + ML-DSA-65
+//! signing key and a PQXDH X25519 identity key, published as a DeviceCredential committed by a
+//! one-device AccountControlState. Every prekey the provider serves is signed by the composite key.
+//!
+//! One-time semantics: the provider hands out each one-time item at most once (pop), and the device
+//! deletes a one-time private key only after the initial ciphertext authenticates ([PQXDH] §3.4). A
+//! handshake that used no one-time key at all goes through the exact replay ledger (ledger.rs), and
+//! `receive` commits the new state (ledger included) to the vault before releasing plaintext.
 
+use crate::binding::{self, Acs, Credential, PeerView, StaticKeys, VerifiedBundle, KIND_EC_ONE_TIME, KIND_PQ_ONE_TIME};
 use crate::cbor::{self, V};
-use crate::kdf::LR_REPLAY_TAG;
-use crate::pqxdh::{self, encode_ec, encode_kem, InitHeader, PqKind, PrekeyBundle};
+use crate::ledger::LastResortLedger;
+use crate::pqxdh::{self, encode_ec, InitHeader, PqKind};
 use crate::rng::{arr32, arr64, CryptoRng, RngCore};
-use crate::triple::TripleState;
-use crate::{sha256, xeddsa, Error};
+use crate::session::{MsgKeys, SessionState};
+use crate::sig::DeviceSigner;
+use crate::Error;
 use std::collections::{BTreeMap, BTreeSet};
 
-/// Bound on the last-resort replay cache (OM policy; oldest-by-value evicted deterministically).
-pub const LR_REPLAY_CACHE_MAX: usize = 4096;
+/// Fixed prototype clock values (bundle expiry is checked against `NOW`).
+pub const NOW: u64 = 1_790_000_000;
+pub const BUNDLE_EXPIRES: u64 = 4_102_444_800;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignedEc {
     pub id: u32,
+    pub epoch: u64,
     pub secret: [u8; 32],
-    pub sig: [u8; 64],
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignedPq {
     pub id: u32,
+    pub epoch: u64,
     pub seed: [u8; 64],
-    pub sig: [u8; 64],
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Session {
-    pub tr: TripleState,
+    pub dr: SessionState,
     pub initiator: bool,
     /// Alice: PQXDH prefix re-sent until Bob's first reply ([DR] §7.1).
     pub pending_init: Option<InitHeader>,
@@ -46,41 +52,76 @@ pub struct Session {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Device {
+    pub account_id: [u8; 32],
+    pub device_id: [u8; 16],
+    pub signer: DeviceSigner,
     pub ik_secret: [u8; 32],
+    pub acs_generation: u64,
+    pub epoch: u64,
     pub next_id: u32,
     pub spk: SignedEc,
     pub prev_spk: Option<SignedEc>,
     pub last_resort: SignedPq,
     pub prev_last_resort: Option<SignedPq>,
     pub opks: BTreeMap<u32, [u8; 32]>,
-    pub pqopks: BTreeMap<u32, SignedPq>,
-    pub lr_replay: BTreeSet<[u8; 32]>,
+    pub pqopks: BTreeMap<u32, [u8; 64]>,
+    pub ledger: LastResortLedger,
     /// Sessions keyed by EncodeEC(peer IK).
     pub sessions: BTreeMap<Vec<u8>, Session>,
 }
 
-/// What a device uploads to a provider: public halves only.
+/// What a device uploads to ONE provider pool: signed public material only.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct Upload {
-    pub opks: Vec<(u32, [u8; 32])>,
-    pub pqopks: Vec<(u32, Vec<u8>, [u8; 64])>,
+    pub bundle: Vec<u8>,
+    pub opks: Vec<Vec<u8>>,
+    pub pqopks: Vec<Vec<u8>>,
+}
+
+/// Durable device storage (DeviceVault). `commit` must be durable when it returns Ok.
+pub trait Vault {
+    fn commit(&mut self, device_state: &[u8]) -> Result<(), Error>;
+}
+
+/// In-memory vault with an injectable failure, for crash scenarios.
+#[derive(Default)]
+pub struct MemVault {
+    pub stored: Option<Vec<u8>>,
+    pub fail_next: bool,
+}
+
+impl Vault for MemVault {
+    fn commit(&mut self, s: &[u8]) -> Result<(), Error> {
+        if std::mem::take(&mut self.fail_next) {
+            return Err(Error::VaultCommitFailed);
+        }
+        self.stored = Some(s.to_vec());
+        Ok(())
+    }
 }
 
 impl Device {
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+        let account_id = arr32(rng);
+        let mut device_id = [0u8; 16];
+        rng.fill_bytes(&mut device_id);
+        let signer = DeviceSigner::generate(rng);
         let ik_secret = arr32(rng);
-        let spk = Self::make_spk(&ik_secret, 1, rng);
-        let last_resort = Self::make_pq(&ik_secret, 2, rng);
         Device {
+            account_id,
+            device_id,
+            signer,
             ik_secret,
+            acs_generation: 1,
+            epoch: 1,
             next_id: 3,
-            spk,
+            spk: SignedEc { id: 1, epoch: 1, secret: arr32(rng) },
             prev_spk: None,
-            last_resort,
+            last_resort: SignedPq { id: 2, epoch: 1, seed: arr64(rng) },
             prev_last_resort: None,
             opks: BTreeMap::new(),
             pqopks: BTreeMap::new(),
-            lr_replay: BTreeSet::new(),
+            ledger: LastResortLedger::default(),
             sessions: BTreeMap::new(),
         }
     }
@@ -89,18 +130,39 @@ impl Device {
         pqxdh::x25519_pub(&self.ik_secret)
     }
 
-    fn make_spk<R: RngCore + CryptoRng>(ik: &[u8; 32], id: u32, rng: &mut R) -> SignedEc {
-        let secret = arr32(rng);
-        let z = arr64(rng);
-        let sig = xeddsa::sign(ik, &encode_ec(&pqxdh::x25519_pub(&secret)), &z);
-        SignedEc { id, secret, sig }
+    pub fn credential(&self) -> Credential {
+        Credential { device_id: self.device_id, account_id: self.account_id, signing_pk: self.signer.public(), ik: self.ik() }
     }
 
-    fn make_pq<R: RngCore + CryptoRng>(ik: &[u8; 32], id: u32, rng: &mut R) -> SignedPq {
-        let seed = arr64(rng);
-        let z = arr64(rng);
-        let sig = xeddsa::sign(ik, &encode_kem(&pqxdh::mlkem_pub(&seed)), &z);
-        SignedPq { id, seed, sig }
+    /// One-device account: the device is the (only) control device.
+    pub fn acs(&self) -> Acs {
+        Acs {
+            account_id: self.account_id,
+            generation: self.acs_generation,
+            control: BTreeSet::from([self.device_id]),
+            quarantined: BTreeSet::new(),
+            messaging: BTreeSet::new(),
+            revoked: BTreeSet::new(),
+            credentials: vec![(self.device_id, self.credential().hash())],
+        }
+    }
+
+    fn static_keys(&self) -> StaticKeys {
+        StaticKeys {
+            spk_id: self.spk.id,
+            spk: pqxdh::x25519_pub(&self.spk.secret),
+            pqspk_id: self.last_resort.id,
+            pqspk: pqxdh::mlkem_pub(&self.last_resort.seed),
+            epoch: self.epoch,
+            pool_id: [0x11; 16],
+            expires_at: BUNDLE_EXPIRES,
+        }
+    }
+
+    /// The signed-AsyncKeyBundle for the current signed-prekey epoch.
+    pub fn signed_bundle<R: RngCore + CryptoRng>(&self, rng: &mut R) -> Vec<u8> {
+        let body = binding::bundle_body(&self.device_id, &self.acs(), &self.static_keys());
+        binding::sign_bundle(&self.signer, &self.device_id, body, arr32(rng))
     }
 
     fn alloc_id(&mut self) -> u32 {
@@ -109,61 +171,86 @@ impl Device {
         i
     }
 
-    /// Generate one-time prekeys ([PQXDH] §3.2) and return the public upload for ONE provider pool.
+    /// Generate one-time prekeys ([PQXDH] §3.2) and return the signed upload for ONE provider pool.
     pub fn generate_one_time<R: RngCore + CryptoRng>(&mut self, n_ec: usize, n_pq: usize, rng: &mut R) -> Upload {
-        let mut up = Upload::default();
+        let mut up = Upload { bundle: self.signed_bundle(rng), ..Default::default() };
         for _ in 0..n_ec {
             let id = self.alloc_id();
             let s = arr32(rng);
             self.opks.insert(id, s);
-            up.opks.push((id, pqxdh::x25519_pub(&s)));
+            up.opks.push(binding::sign_item(&self.signer, &self.device_id, id, KIND_EC_ONE_TIME, &pqxdh::x25519_pub(&s), arr32(rng)));
         }
         for _ in 0..n_pq {
             let id = self.alloc_id();
-            let k = Self::make_pq(&self.ik_secret, id, rng);
-            up.pqopks.push((id, pqxdh::mlkem_pub(&k.seed), k.sig));
-            self.pqopks.insert(id, k);
+            let seed = arr64(rng);
+            self.pqopks.insert(id, seed);
+            up.pqopks.push(binding::sign_item(&self.signer, &self.device_id, id, KIND_PQ_ONE_TIME, &pqxdh::mlkem_pub(&seed), arr32(rng)));
         }
         up
     }
 
-    /// Rotate the signed last-resort PQ prekey; the previous one is kept for a grace period ([PQXDH] §3.2).
-    pub fn rotate_last_resort<R: RngCore + CryptoRng>(&mut self, rng: &mut R) {
-        let id = self.alloc_id();
-        let new = Self::make_pq(&self.ik_secret, id, rng);
-        self.prev_last_resort = Some(std::mem::replace(&mut self.last_resort, new));
+    /// New signed-prekey epoch: fresh EC signed prekey and ML-KEM signed (last-resort) prekey. The
+    /// previous epoch stays acceptable for a grace period ([PQXDH] §3.2) with its own ledger.
+    pub fn rotate_signed_prekeys<R: RngCore + CryptoRng>(&mut self, rng: &mut R) -> Upload {
+        self.epoch += 1;
+        let (a, b) = (self.alloc_id(), self.alloc_id());
+        let spk = SignedEc { id: a, epoch: self.epoch, secret: arr32(rng) };
+        let lr = SignedPq { id: b, epoch: self.epoch, seed: arr64(rng) };
+        self.prev_spk = Some(std::mem::replace(&mut self.spk, spk));
+        self.prev_last_resort = Some(std::mem::replace(&mut self.last_resort, lr));
+        Upload { bundle: self.signed_bundle(rng), ..Default::default() }
     }
 
-    /// End of grace period: delete the previous last-resort key ([PQXDH] §3.2 "eventually delete").
+    /// End of grace period: delete the previous epoch's secrets, and with them its ledger.
     pub fn expire_previous(&mut self) {
+        if let Some(p) = self.prev_spk.take() {
+            self.ledger.drop_epoch(p.epoch);
+        }
         self.prev_last_resort = None;
-        self.prev_spk = None;
+    }
+
+    pub fn peer_view<'a>(acs_body: &'a [u8], cred_body: &'a [u8]) -> PeerView<'a> {
+        PeerView { acs_body, trusted_acs_hash: crate::sig::ds_hash(binding::LBL_ACS_HASH, acs_body), credential_body: cred_body, now: NOW }
     }
 
     // ---- sending ------------------------------------------------------------------------
 
-    /// Alice: PQXDH with a fetched bundle, create the Triple Ratchet session.
-    pub fn start_session<R: RngCore + CryptoRng>(&mut self, bundle: &PrekeyBundle, rng: &mut R) -> Result<pqxdh::Transcript, Error> {
-        let est = pqxdh::initiate(&self.ik_secret, bundle, rng)?;
-        let tr = TripleState::init_alice(&est.sk, est.ad.clone(), &bundle.spk, rng)?;
-        let sess = Session { tr, initiator: true, init_ek: est.header.ek_a, pending_init: Some(est.header), pq_kind: bundle.pq_kind };
-        self.sessions.insert(encode_ec(&bundle.ik).to_vec(), sess);
-        Ok(est.transcript)
+    /// Alice: verify the fetched material against Bob's trusted ACS head, then PQXDH + DR init.
+    pub fn start_session<R: RngCore + CryptoRng>(&mut self, fetch: &[Vec<u8>], peer: &PeerView, rng: &mut R) -> Result<(VerifiedBundle, pqxdh::Transcript), Error> {
+        let vb = binding::verify_fetch(fetch, peer)?;
+        let est = pqxdh::initiate(&self.ik_secret, &vb, rng)?;
+        let dr = SessionState::init_alice(&est.sk, est.ad.clone(), &vb.spk, rng);
+        let kind = if vb.pq_one_time { PqKind::OneTime } else { PqKind::LastResort };
+        let sess = Session { dr, initiator: true, init_ek: est.header.ek_a, pending_init: Some(est.header), pq_kind: kind };
+        self.sessions.insert(encode_ec(&vb.ik).to_vec(), sess);
+        Ok((vb, est.transcript))
     }
 
-    /// Envelope = [sender EncodeEC(IK), PQXDH prefix or null, TR header bstr, ciphertext bstr].
-    pub fn encrypt<R: RngCore + CryptoRng>(&mut self, peer_ik: &[u8; 32], pt: &[u8], rng: &mut R) -> Result<(Vec<u8>, crate::triple::MsgKeys), Error> {
+    /// Envelope = [sender EncodeEC(IK), PQXDH prefix or null, DR header bstr, ciphertext bstr].
+    /// The AEAD envelope context is OM-CBOR [sender EncodeEC(IK), PQXDH prefix or null].
+    pub fn encrypt(&mut self, peer_ik: &[u8; 32], pt: &[u8]) -> Result<(Vec<u8>, MsgKeys), Error> {
         let me = encode_ec(&self.ik()).to_vec();
         let s = self.sessions.get_mut(encode_ec(peer_ik).as_slice()).ok_or(Error::NoSession)?;
-        let e = s.tr.encrypt(pt, rng)?;
         let init = s.pending_init.as_ref().map(|h| h.to_cbor()).unwrap_or(V::Null);
+        let ctx = cbor::encode(&V::A(vec![V::B(me.clone()), init.clone()]));
+        let e = s.dr.encrypt(pt, &ctx)?;
         Ok((cbor::encode(&V::A(vec![V::B(me), init, V::B(e.header), V::B(e.ct)])), e.keys))
     }
 
     // ---- receiving ----------------------------------------------------------------------
 
-    /// Decrypt an envelope. Returns (sender IK, plaintext). On error nothing is changed.
-    pub fn decrypt<R: RngCore + CryptoRng>(&mut self, env: &[u8], rng: &mut R) -> Result<([u8; 32], Vec<u8>, crate::triple::MsgKeys), Error> {
+    /// Decrypt, then commit the whole new device state (ledger included) to `vault` BEFORE returning
+    /// plaintext. If the commit fails nothing changes and nothing is released.
+    pub fn receive<R: RngCore + CryptoRng>(&mut self, env: &[u8], vault: &mut dyn Vault, rng: &mut R) -> Result<([u8; 32], Vec<u8>, MsgKeys), Error> {
+        let mut next = self.clone();
+        let r = next.decrypt(env, rng)?;
+        vault.commit(&next.to_bytes())?;
+        *self = next;
+        Ok(r)
+    }
+
+    /// In-memory decrypt (the caller persists). Returns (sender IK, plaintext). On error nothing changes.
+    pub fn decrypt<R: RngCore + CryptoRng>(&mut self, env: &[u8], rng: &mut R) -> Result<([u8; 32], Vec<u8>, MsgKeys), Error> {
         let v = cbor::decode(env)?;
         let a = v.a()?;
         if a.len() != 4 {
@@ -176,6 +263,7 @@ impl Device {
         let sender_ik: [u8; 32] = sender[1..].try_into().unwrap();
         let header = a[2].b()?;
         let ct = a[3].b()?;
+        let ctx = cbor::encode(&V::A(vec![a[0].clone(), a[1].clone()]));
         let init = if a[1].is_null() { None } else { Some(InitHeader::from_cbor(&a[1])?) };
         if let Some(h) = &init {
             if h.ik_a != sender_ik {
@@ -189,17 +277,17 @@ impl Device {
                         return Err(Error::SessionConflict);
                     }
                 }
-                let (pt, keys) = s.tr.decrypt(header, ct, rng)?;
+                let (pt, keys) = s.dr.decrypt(header, ct, &ctx, rng)?;
                 s.pending_init = None; // [DR] §7.1: a reply has been received
                 Ok((sender_ik, pt, keys))
             }
-            (None, Some(h)) => self.accept_initial(&h, header, ct, rng),
+            (None, Some(h)) => self.accept_initial(&h, header, ct, &ctx, rng),
             (None, None) => Err(Error::NoSession),
         }
     }
 
-    /// Bob: [PQXDH] §3.4 then first Triple Ratchet decrypt; consume one-time keys only on success.
-    fn accept_initial<R: RngCore + CryptoRng>(&mut self, h: &InitHeader, header: &[u8], ct: &[u8], rng: &mut R) -> Result<([u8; 32], Vec<u8>, crate::triple::MsgKeys), Error> {
+    /// Bob: [PQXDH] §3.4 then first DR decrypt; consume one-time keys / record the ledger only on success.
+    fn accept_initial<R: RngCore + CryptoRng>(&mut self, h: &InitHeader, header: &[u8], ct: &[u8], ctx: &[u8], rng: &mut R) -> Result<([u8; 32], Vec<u8>, MsgKeys), Error> {
         let spk = [Some(&self.spk), self.prev_spk.as_ref()]
             .into_iter()
             .flatten()
@@ -207,8 +295,12 @@ impl Device {
             .ok_or(Error::UnknownSignedPrekey)?
             .clone();
         let (pq_seed, kind) = if let Some(k) = self.pqopks.get(&h.pq_id) {
-            (k.seed, PqKind::OneTime)
-        } else if let Some(k) = [Some(&self.last_resort), self.prev_last_resort.as_ref()].into_iter().flatten().find(|k| k.id == h.pq_id) {
+            (*k, PqKind::OneTime)
+        } else if let Some(k) = [Some(&self.last_resort), self.prev_last_resort.as_ref()]
+            .into_iter()
+            .flatten()
+            .find(|k| k.id == h.pq_id && k.epoch == spk.epoch)
+        {
             (k.seed, PqKind::LastResort)
         } else {
             return Err(Error::UnknownOrConsumedPqPrekey);
@@ -217,29 +309,28 @@ impl Device {
             Some(id) => Some(*self.opks.get(&id).ok_or(Error::UnknownOrConsumedEcPrekey)?),
             None => None,
         };
-        let replay_tag = sha256(&[LR_REPLAY_TAG, &h.ek_a, &h.ct]);
-        if kind == PqKind::LastResort && self.lr_replay.contains(&replay_tag) {
-            return Err(Error::ReplayedLastResortHandshake);
+        // ADR-0131 rule 2: only initiations that consume NO one-time key use the ledger.
+        let ledgered = kind == PqKind::LastResort && opk.is_none();
+        let hid = pqxdh::handshake_id(&self.device_id, spk.epoch, h);
+        if ledgered {
+            self.ledger.check(spk.epoch, &hid)?;
         }
         let (sk, ad) = pqxdh::respond(&self.ik_secret, &spk.secret, opk.as_ref(), &pq_seed, h)?;
-        let mut tr = TripleState::init_bob(&sk, ad, &spk.secret)?;
-        let (pt, keys) = tr.decrypt(header, ct, rng)?;
-        // Success: delete used one-time private keys (forward secrecy + single use).
+        let mut dr = SessionState::init_bob(&sk, ad, &spk.secret);
+        let (pt, keys) = dr.decrypt(header, ct, ctx, rng)?;
+        // Success: delete used one-time private keys (forward secrecy + single use) or record the ledger.
         if kind == PqKind::OneTime {
             self.pqopks.remove(&h.pq_id);
-        } else {
-            if self.lr_replay.len() >= LR_REPLAY_CACHE_MAX {
-                let first = *self.lr_replay.iter().next().unwrap();
-                self.lr_replay.remove(&first);
-            }
-            self.lr_replay.insert(replay_tag);
         }
         if let Some(id) = h.opk_id {
             self.opks.remove(&id);
         }
+        if ledgered {
+            self.ledger.record(spk.epoch, hid);
+        }
         self.sessions.insert(
             encode_ec(&h.ik_a).to_vec(),
-            Session { tr, initiator: false, pending_init: None, init_ek: h.ek_a, pq_kind: kind },
+            Session { dr, initiator: false, pending_init: None, init_ek: h.ek_a, pq_kind: kind },
         );
         Ok((h.ik_a, pt, keys))
     }
@@ -247,10 +338,10 @@ impl Device {
     // ---- persistence --------------------------------------------------------------------
 
     pub fn to_cbor(&self) -> V {
-        let ec = |k: &SignedEc| V::A(vec![V::U(k.id as u64), V::B(k.secret.to_vec()), V::B(k.sig.to_vec())]);
-        let pq = |k: &SignedPq| V::A(vec![V::U(k.id as u64), V::B(k.seed.to_vec()), V::B(k.sig.to_vec())]);
+        let ec = |k: &SignedEc| V::A(vec![V::U(k.id as u64), V::U(k.epoch), V::B(k.secret.to_vec())]);
+        let pq = |k: &SignedPq| V::A(vec![V::U(k.id as u64), V::U(k.epoch), V::B(k.seed.to_vec())]);
         V::M(vec![
-            (0, V::T("om-v001-proto-device".into())),
+            (0, V::T("om-v001-device".into())),
             (1, V::B(self.ik_secret.to_vec())),
             (2, V::U(self.next_id as u64)),
             (3, ec(&self.spk)),
@@ -258,8 +349,8 @@ impl Device {
             (5, pq(&self.last_resort)),
             (6, self.prev_last_resort.as_ref().map(pq).unwrap_or(V::Null)),
             (7, V::A(self.opks.iter().map(|(i, s)| V::A(vec![V::U(*i as u64), V::B(s.to_vec())])).collect())),
-            (8, V::A(self.pqopks.values().map(pq).collect())),
-            (9, V::A(self.lr_replay.iter().map(|t| V::B(t.to_vec())).collect())),
+            (8, V::A(self.pqopks.iter().map(|(i, s)| V::A(vec![V::U(*i as u64), V::B(s.to_vec())])).collect())),
+            (9, self.ledger.to_cbor()),
             (
                 10,
                 V::A(
@@ -268,7 +359,7 @@ impl Device {
                         .map(|(peer, s)| {
                             V::A(vec![
                                 V::B(peer.clone()),
-                                s.tr.to_cbor(),
+                                s.dr.to_cbor(),
                                 V::Bool(s.initiator),
                                 s.pending_init.as_ref().map(|h| h.to_cbor()).unwrap_or(V::Null),
                                 V::B(s.init_ek.to_vec()),
@@ -278,11 +369,16 @@ impl Device {
                         .collect(),
                 ),
             ),
+            (11, V::B(self.account_id.to_vec())),
+            (12, V::B(self.device_id.to_vec())),
+            (13, V::A(vec![V::B(self.signer.ed_seed.to_vec()), V::B(self.signer.mldsa_seed.to_vec())])),
+            (14, V::U(self.acs_generation)),
+            (15, V::U(self.epoch)),
         ])
     }
 
     pub fn from_cbor(v: &V) -> Result<Self, Error> {
-        if v.get(0)?.t()? != "om-v001-proto-device" {
+        if v.get(0)?.t()? != "om-v001-device" {
             return Err(Error::Decode("device: type tag"));
         }
         let ec = |x: &V| -> Result<SignedEc, Error> {
@@ -290,14 +386,14 @@ impl Device {
             if a.len() != 3 {
                 return Err(Error::Decode("device: signed ec"));
             }
-            Ok(SignedEc { id: a[0].u32()?, secret: a[1].b32()?, sig: a[2].b64()? })
+            Ok(SignedEc { id: a[0].u32()?, epoch: a[1].u()?, secret: a[2].b32()? })
         };
         let pq = |x: &V| -> Result<SignedPq, Error> {
             let a = x.a()?;
             if a.len() != 3 {
                 return Err(Error::Decode("device: signed pq"));
             }
-            Ok(SignedPq { id: a[0].u32()?, seed: a[1].b64()?, sig: a[2].b64()? })
+            Ok(SignedPq { id: a[0].u32()?, epoch: a[1].u()?, seed: a[2].b64()? })
         };
         let mut opks = BTreeMap::new();
         for e in v.get(7)?.a()? {
@@ -308,14 +404,10 @@ impl Device {
         }
         let mut pqopks = BTreeMap::new();
         for e in v.get(8)?.a()? {
-            let k = pq(e)?;
-            if pqopks.insert(k.id, k).is_some() {
-                return Err(Error::Decode("device: duplicate pqopk"));
+            let a = e.a()?;
+            if a.len() != 2 || pqopks.insert(a[0].u32()?, a[1].b64()?).is_some() {
+                return Err(Error::Decode("device: pqopk"));
             }
-        }
-        let mut lr_replay = BTreeSet::new();
-        for t in v.get(9)?.a()? {
-            lr_replay.insert(t.b32()?);
         }
         let mut sessions = BTreeMap::new();
         for e in v.get(10)?.a()? {
@@ -324,7 +416,7 @@ impl Device {
                 return Err(Error::Decode("device: session"));
             }
             let s = Session {
-                tr: TripleState::from_cbor(&a[1])?,
+                dr: SessionState::from_cbor(&a[1])?,
                 initiator: matches!(a[2], V::Bool(true)),
                 pending_init: opt(&a[3]).map(InitHeader::from_cbor).transpose()?,
                 init_ek: a[4].b32()?,
@@ -332,8 +424,18 @@ impl Device {
             };
             sessions.insert(a[0].b()?.to_vec(), s);
         }
+        let did = v.get(12)?.b()?;
+        let sg = v.get(13)?.a()?;
+        if did.len() != 16 || sg.len() != 2 {
+            return Err(Error::Decode("device: identity"));
+        }
         Ok(Device {
+            account_id: v.get(11)?.b32()?,
+            device_id: did.try_into().unwrap(),
+            signer: DeviceSigner { ed_seed: sg[0].b32()?, mldsa_seed: sg[1].b32()? },
             ik_secret: v.get(1)?.b32()?,
+            acs_generation: v.get(14)?.u()?,
+            epoch: v.get(15)?.u()?,
             next_id: v.get(2)?.u32()?,
             spk: ec(v.get(3)?)?,
             prev_spk: opt(v.get(4)?).map(ec).transpose()?,
@@ -341,7 +443,7 @@ impl Device {
             prev_last_resort: opt(v.get(6)?).map(pq).transpose()?,
             opks,
             pqopks,
-            lr_replay,
+            ledger: LastResortLedger::from_cbor(v.get(9)?)?,
             sessions,
         })
     }
@@ -355,67 +457,82 @@ impl Device {
     }
 }
 
-/// Toy KeyMaterialProvider holding ONE disjoint pool per device (`ASYNC_KEY_MATERIAL.md` §4).
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct Provider {
-    /// device IK -> published material
-    pub devices: BTreeMap<[u8; 32], Published>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Published {
-    pub spk: (u32, [u8; 32], [u8; 64]),
-    pub last_resort: (u32, Vec<u8>, [u8; 64]),
-    pub opks: Vec<(u32, [u8; 32])>,
-    pub pqopks: Vec<(u32, Vec<u8>, [u8; 64])>,
-}
-
 fn opt(x: &V) -> Option<&V> {
     if x.is_null() { None } else { Some(x) }
 }
 
+/// Toy KeyMaterialProvider holding ONE disjoint pool per device (`ASYNC_KEY_MATERIAL.md` §4). It stores
+/// only signed bytes it cannot alter without breaking a signature, plus the peer's ACS/credential bodies
+/// that a real client would get from the account's control-state sync (V-002).
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct Provider {
+    /// device_id -> published material
+    pub devices: BTreeMap<[u8; 16], Published>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Published {
+    pub bundle: Vec<u8>,
+    pub opks: Vec<Vec<u8>>,
+    pub pqopks: Vec<Vec<u8>>,
+    pub acs_body: Vec<u8>,
+    pub cred_body: Vec<u8>,
+}
+
 impl Provider {
-    /// publishHandshakeMaterial: signed prekey + last-resort (replacing) and one-time items (appending).
+    /// publishHandshakeMaterial: signed bundle (replacing) and one-time items (appending).
     pub fn publish(&mut self, d: &Device, up: Upload) {
-        let spk = (d.spk.id, pqxdh::x25519_pub(&d.spk.secret), d.spk.sig);
-        let lr = (d.last_resort.id, pqxdh::mlkem_pub(&d.last_resort.seed), d.last_resort.sig);
-        let e = self.devices.entry(d.ik()).or_insert_with(|| Published { spk: spk.clone(), last_resort: lr.clone(), opks: vec![], pqopks: vec![] });
-        e.spk = spk;
-        e.last_resort = lr;
+        let e = self.devices.entry(d.device_id).or_insert_with(|| Published {
+            bundle: vec![],
+            opks: vec![],
+            pqopks: vec![],
+            acs_body: vec![],
+            cred_body: vec![],
+        });
+        e.bundle = up.bundle;
+        e.acs_body = d.acs().body();
+        e.cred_body = d.credential().body();
         e.opks.extend(up.opks);
         e.pqopks.extend(up.pqopks);
     }
 
-    /// fetchHandshakeMaterial ([PQXDH] §3.3): pop one-time items; last-resort PQ key when depleted.
-    pub fn fetch(&mut self, ik: &[u8; 32]) -> Result<PrekeyBundle, Error> {
-        let p = self.devices.get_mut(ik).ok_or(Error::NoPrekeysPublished)?;
-        let opk = if p.opks.is_empty() { None } else { Some(p.opks.remove(0)) };
-        let (pq_id, pq, pq_sig, pq_kind) = if p.pqopks.is_empty() {
-            let (i, k, s) = p.last_resort.clone();
-            (i, k, s, PqKind::LastResort)
-        } else {
-            let (i, k, s) = p.pqopks.remove(0);
-            (i, k, s, PqKind::OneTime)
-        };
-        Ok(PrekeyBundle { ik: *ik, spk_id: p.spk.0, spk: p.spk.1, spk_sig: p.spk.2, pq_id, pq_kind, pq, pq_sig, opk })
+    /// fetchHandshakeMaterial: [signed bundle, popped EC one-time item?, popped PQ one-time item?].
+    /// With the PQ pool empty the bundle's signed ML-KEM prekey is the last-resort key ([PQXDH] §3.3).
+    pub fn fetch(&mut self, device_id: &[u8; 16]) -> Result<Vec<Vec<u8>>, Error> {
+        let p = self.devices.get_mut(device_id).ok_or(Error::NoPrekeysPublished)?;
+        let mut out = vec![p.bundle.clone()];
+        if !p.opks.is_empty() {
+            out.push(p.opks.remove(0));
+        }
+        if !p.pqopks.is_empty() {
+            out.push(p.pqopks.remove(0));
+        }
+        Ok(out)
+    }
+
+    pub fn view(&self, device_id: &[u8; 16]) -> (Vec<u8>, Vec<u8>) {
+        let p = &self.devices[device_id];
+        (p.acs_body.clone(), p.cred_body.clone())
     }
 
     /// inventory(): counts only (the bounded state `ASYNC_KEY_MATERIAL.md` §6 allows).
-    pub fn inventory(&self, ik: &[u8; 32]) -> (usize, usize) {
-        self.devices.get(ik).map(|p| (p.opks.len(), p.pqopks.len())).unwrap_or((0, 0))
+    pub fn inventory(&self, device_id: &[u8; 16]) -> (usize, usize) {
+        self.devices.get(device_id).map(|p| (p.opks.len(), p.pqopks.len())).unwrap_or((0, 0))
     }
 
     pub fn to_cbor(&self) -> V {
+        let list = |v: &Vec<Vec<u8>>| V::A(v.iter().map(|b| V::B(b.clone())).collect());
         V::A(
             self.devices
                 .iter()
-                .map(|(ik, p)| {
+                .map(|(d, p)| {
                     V::A(vec![
-                        V::B(ik.to_vec()),
-                        V::A(vec![V::U(p.spk.0 as u64), V::B(p.spk.1.to_vec()), V::B(p.spk.2.to_vec())]),
-                        V::A(vec![V::U(p.last_resort.0 as u64), V::B(p.last_resort.1.clone()), V::B(p.last_resort.2.to_vec())]),
-                        V::A(p.opks.iter().map(|(i, k)| V::A(vec![V::U(*i as u64), V::B(k.to_vec())])).collect()),
-                        V::A(p.pqopks.iter().map(|(i, k, s)| V::A(vec![V::U(*i as u64), V::B(k.clone()), V::B(s.to_vec())])).collect()),
+                        V::B(d.to_vec()),
+                        V::B(p.bundle.clone()),
+                        list(&p.opks),
+                        list(&p.pqopks),
+                        V::B(p.acs_body.clone()),
+                        V::B(p.cred_body.clone()),
                     ])
                 })
                 .collect(),
@@ -423,40 +540,22 @@ impl Provider {
     }
 
     pub fn from_cbor(v: &V) -> Result<Self, Error> {
+        let list = |x: &V| -> Result<Vec<Vec<u8>>, Error> { x.a()?.iter().map(|b| Ok(b.b()?.to_vec())).collect() };
         let mut devices = BTreeMap::new();
         for e in v.a()? {
             let a = e.a()?;
-            if a.len() != 5 {
+            let d = a.first().ok_or(Error::Decode("provider entry"))?.b()?;
+            if a.len() != 6 || d.len() != 16 {
                 return Err(Error::Decode("provider entry"));
             }
-            let s = a[1].a()?;
-            let l = a[2].a()?;
-            if s.len() != 3 || l.len() != 3 {
-                return Err(Error::Decode("provider keys"));
-            }
-            let mut opks = vec![];
-            for o in a[3].a()? {
-                let o = o.a()?;
-                if o.len() != 2 {
-                    return Err(Error::Decode("provider opk"));
-                }
-                opks.push((o[0].u32()?, o[1].b32()?));
-            }
-            let mut pqopks = vec![];
-            for o in a[4].a()? {
-                let o = o.a()?;
-                if o.len() != 3 {
-                    return Err(Error::Decode("provider pqopk"));
-                }
-                pqopks.push((o[0].u32()?, o[1].b()?.to_vec(), o[2].b64()?));
-            }
             devices.insert(
-                a[0].b32()?,
+                d.try_into().unwrap(),
                 Published {
-                    spk: (s[0].u32()?, s[1].b32()?, s[2].b64()?),
-                    last_resort: (l[0].u32()?, l[1].b()?.to_vec(), l[2].b64()?),
-                    opks,
-                    pqopks,
+                    bundle: a[1].b()?.to_vec(),
+                    opks: list(&a[2])?,
+                    pqopks: list(&a[3])?,
+                    acs_body: a[4].b()?.to_vec(),
+                    cred_body: a[5].b()?.to_vec(),
                 },
             );
         }

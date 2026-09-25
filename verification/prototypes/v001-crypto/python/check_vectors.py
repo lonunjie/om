@@ -2,18 +2,19 @@
 """Feasibility prototype for V-001. Not product code. Not for production.
 
 Second, independent implementation (Python; different language, different libraries) that
-consumes the Rust prototype's vectors and must reproduce them from the public specs:
+consumes the Rust prototype's vectors and must reproduce or verify them from the public specs:
 
-  * Signal PQXDH rev 3 §2.2 KDF, §3.3 DH1..DH4, SK, AD
-  * XEdDSA rev 1 §3.4 verification (u -> Edwards y = (u-1)/(u+1), sign 0, then Ed25519 verify)
-  * FIPS 203 ML-KEM-768 via kyber-py (keygen from d||z, encaps with m, decaps)
-  * Double Ratchet rev 4 §3 (KDF_RK, KDF_CK, skipped keys, DH ratchet), §6 KDF_HYBRID, §7.1 split
-  * RFC 8452 AES-256-GCM-SIV via `cryptography` (deterministic, so ciphertexts must match bit-for-bit)
-  * the prototype header CBOR [profile, dh, pn, n, scka] via this file's own RFC 8949 codec
-
-Only SPQR message keys (pq_mk) are taken as inputs: they come from Signal's `spqr` crate.
-Also runs the official NIST ACVP ML-KEM-768 KATs against kyber-py (an ML-KEM implementation
-independent of the Rust side's libcrux).
+  * OM-Crypto-v1 device binding (ADR-0131 rule 1, ADR-0135 §1-§2): DS-SIG / DS-HASH, the
+    AccountControlState -> DeviceCredential -> signed AsyncKeyBundle chain, composite Ed25519 AND
+    ML-DSA-65 signatures (pyca/cryptography on OpenSSL; the Rust side uses ed25519-dalek and
+    libcrux-ml-dsa), key derivation from seeds, and every negative binding vector;
+  * Signal PQXDH rev 3 §2.2 KDF, §3.3 DH1..DH4, SK, AD; handshake_id (ADR-0131 rule 2);
+  * FIPS 203 ML-KEM-768 via kyber-py (keygen from d||z, encaps with m, decaps);
+  * Double Ratchet rev 4 §3 (KDF_RK, KDF_CK, skipped keys, DH ratchet) with the ADR-0131 rule 3
+    AEAD derivation, header hash and associated data;
+  * RFC 8452 AES-256-GCM-SIV via `cryptography` (deterministic, so ciphertexts must match bit-for-bit);
+  * the MessageRequest HPKE envelope (hpke_pq.py, draft-ietf-hpke-pq-05), and optionally the draft's
+    official KATs and the NIST ACVP ML-KEM-768 KATs.
 
 Written by a Claude agent, from the specifications, without reading the Rust code's logic.
 """
@@ -27,14 +28,16 @@ import sys
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+from cryptography.hazmat.primitives.asymmetric.mldsa import MLDSA65PrivateKey, MLDSA65PublicKey
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import AESGCMSIV
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from kyber_py.ml_kem import ML_KEM_768
 
+import hpke_pq
+
 H = bytes.fromhex
-P = 2**255 - 19
 
 
 # ---------------------------------------------------------------- minimal deterministic CBOR
@@ -110,6 +113,15 @@ def hkdf(salt: bytes, ikm: bytes, info: bytes, n: int) -> bytes:
     return HKDF(algorithm=hashes.SHA256(), length=n, salt=salt, info=info).derive(ikm)
 
 
+def hkdf_expand(prk: bytes, info: bytes, n: int) -> bytes:
+    out, t, i = b"", b"", 1
+    while len(out) < n:
+        t = hmac.new(prk, t + info + bytes([i]), "sha256").digest()
+        out += t
+        i += 1
+    return out[:n]
+
+
 def x25519_pub(sk: bytes) -> bytes:
     return X25519PrivateKey.from_private_bytes(sk).public_key().public_bytes(
         serialization.Encoding.Raw, serialization.PublicFormat.Raw
@@ -120,17 +132,87 @@ def dh(sk: bytes, pk: bytes) -> bytes:
     return X25519PrivateKey.from_private_bytes(sk).exchange(X25519PublicKey.from_public_bytes(pk))
 
 
-def xeddsa_verify(u_bytes: bytes, msg: bytes, sig: bytes) -> bool:
-    """XEdDSA §3.4: reject u >= p or s >= 2^253; A = convert_mont(u) with sign 0; Ed25519 check."""
-    u = int.from_bytes(u_bytes, "little")
-    if u >= P or sig[63] & 0xE0:
+RAW = serialization.Encoding.Raw, serialization.PublicFormat.Raw
+PROFILE, ROLE_DEVICE = 1, 3
+
+
+def ds_sig(label: str, profile: int, role: int, signer: bytes, body: bytes) -> bytes:
+    return cbor_enc([label, profile, role, signer, body])
+
+
+def ds_hash(label: str, body: bytes) -> bytes:
+    return hashlib.sha256(cbor_enc([label, body])).digest()
+
+
+def composite_pk(ed_seed: bytes, mldsa_seed: bytes) -> bytes:
+    ed = Ed25519PrivateKey.from_private_bytes(ed_seed).public_key().public_bytes(*RAW)
+    return ed + MLDSA65PrivateKey.from_seed_bytes(mldsa_seed).public_key().public_bytes(*RAW)
+
+
+def composite_verify(pk: bytes, msg: bytes, sig: bytes) -> bool:
+    """ADR-0135 §1: Ed25519 pk(32)||ML-DSA-65 vk(1952); sig = Ed25519(64)||ML-DSA-65(3309); both must verify."""
+    if len(pk) != 32 + 1952 or len(sig) != 64 + 3309:
         return False
-    y = (u - 1) * pow(u + 1, P - 2, P) % P
     try:
-        Ed25519PublicKey.from_public_bytes(y.to_bytes(32, "little")).verify(sig, msg)
+        Ed25519PublicKey.from_public_bytes(pk[:32]).verify(sig[:64], msg)
+        MLDSA65PublicKey.from_public_bytes(pk[32:]).verify(sig[64:], msg, b"")
         return True
     except (InvalidSignature, ValueError):
         return False
+
+
+def verify_binding(fetch: list[bytes], acs_body: bytes, cred_body: bytes, trusted: bytes, now: int):
+    """Independent reading of ADR-0131 rule 1 over the frozen W0 CDDL. Returns (ok, reason, keys)."""
+    if ds_hash("OM-ACS-HASH-v1", acs_body) != trusted:
+        return False, "acs not trusted head", None
+    acs, cred = cbor_dec(acs_body), cbor_dec(cred_body)
+    if acs[0] != 1 or cred[0] != 7 or cred[4] != PROFILE or cred[3] != acs[2]:
+        return False, "acs/credential shape", None
+    did = cred[2]
+    ref = {0: did, 1: {0: 1, 1: ds_hash("OM-DEVICE-CREDENTIAL-HASH-v1", cred_body)}}
+    if ref not in acs.get(13, []):
+        return False, "credential digest not in acs", None
+    live = did in acs.get(5, []) or did in acs.get(7, [])
+    if not live or did in acs.get(6, []) or did in acs.get(8, []):
+        return False, "device not active", None
+    env = cbor_dec(fetch[0])
+    sigs = env[2]
+    if len(sigs) != 1 or (sigs[0][0], sigs[0][1], sigs[0][2]) != (did, PROFILE, ROLE_DEVICE):
+        return False, "signature entries", None
+    if not composite_verify(cred[5], ds_sig("OM-PREKEY-BUNDLE-SIG-v1", PROFILE, ROLE_DEVICE, did, env[1]), sigs[0][3]):
+        return False, "bundle signature", None
+    b = cbor_dec(env[1])
+    if b[0] != 9 or b[2] != did or b[3] != acs[3] or b[4] != {0: 1, 1: trusted} or b[5] != PROFILE or b[13] <= now:
+        return False, "bundle binding", None
+    if 8 not in b:
+        return False, "no pq signed prekey", None
+    keys = {"ik": cred[6], "spk": b[7][2], "pq": b[8][2], "pq_id": b[8][0], "opk": None}
+    for raw in fetch[1:]:
+        it = cbor_dec(raw)
+        unsigned = cbor_enc({0: it[0], 1: it[1], 2: it[2]})
+        if not composite_verify(cred[5], ds_sig("OM-PREKEY-SIG-v1", PROFILE, ROLE_DEVICE, did, unsigned), it[3]):
+            return False, "item signature", None
+        if it[1] == 3:
+            keys["opk"] = (it[0], it[2])
+        elif it[1] == 4:
+            keys["pq"], keys["pq_id"] = it[2], it[0]
+    return True, "ok", keys
+
+
+def check_binding(bv, ck):
+    s = bv["signer"]
+    pk = composite_pk(H(s["ed25519_seed"]), H(s["mldsa65_seed"]))
+    ck.eq("binding/composite_pk_from_seeds", hashlib.sha256(pk).hexdigest(), s["composite_public_key_sha256"])
+    acs, cred = H(bv["acs_body"]), H(bv["credential_body"])
+    ck.eq("binding/acs_hash", ds_hash("OM-ACS-HASH-v1", acs).hex(), bv["acs_hash"])
+    ck.eq("binding/credential_hash", ds_hash("OM-DEVICE-CREDENTIAL-HASH-v1", cred).hex(), bv["credential_hash"])
+    ck.eq("binding/credential_signing_key_is_composite", cbor_dec(cred)[5], pk)
+    ok, why, keys = verify_binding([H(x) for x in bv["positive_fetch"]], acs, cred, H(bv["acs_hash"]), bv["now"])
+    ck.eq("binding/positive_accepted", (ok, why), (True, "ok"))
+    ck.eq("binding/ik_from_credential", keys and keys["ik"].hex(), bv["ik_pub"])
+    for n in bv["negatives"]:
+        ok, why, _ = verify_binding([H(x) for x in n["fetch"]], H(n["acs_body"]), H(n["credential_body"]), H(n["trusted_acs_hash"]), bv["now"])
+        ck.eq(f"binding/negative/{n['name']}_rejected", ok, False)
 
 
 # ---------------------------------------------------------------- EC Double Ratchet (spec §3)
@@ -209,20 +291,18 @@ class Checker:
 def check_case(c, consts, ck: Checker):
     n = c["name"]
     bob, alice, hs = c["bob"], c["alice"], c["handshake"]
-    ec, kem = bytes([consts["ec_type_byte"]]), bytes([consts["kem_type_byte"]])
+    ec = bytes([consts["ec_type_byte"]])
     ik_b, spk_b = x25519_pub(H(bob["ik_secret"])), x25519_pub(H(bob["spk_secret"]))
     ck.eq(f"{n}/bob_ik_pub", ik_b.hex(), bob["ik_pub"])
     ck.eq(f"{n}/bob_spk_pub", spk_b.hex(), bob["spk_pub"])
     seed = H(bob["pq_seed_d_z"])
     ek, dk = ML_KEM_768._keygen_internal(seed[:32], seed[32:])
     ck.eq(f"{n}/mlkem_ek_from_seed", hashlib.sha256(ek).hexdigest(), bob["pq_pub_sha256"])
-    ck.eq(f"{n}/xeddsa_spk_sig_verifies", xeddsa_verify(ik_b, ec + spk_b, H(bob["spk_sig"])), True)
-    ck.eq(f"{n}/xeddsa_pq_sig_verifies", xeddsa_verify(ik_b, kem + ek, H(bob["pq_sig"])), True)
-    ck.eq(f"{n}/xeddsa_wrong_msg_rejected", xeddsa_verify(ik_b, kem + ek[:-1] + b"\x00", H(bob["pq_sig"])), False)
-
-    # Bundle CBOR: map 1..10 as the prototype defines it (decoded with this file's codec).
-    bundle = cbor_dec(H(bob["bundle_cbor"]))
-    ck.eq(f"{n}/bundle_fields", (bundle[1], bundle[3], bundle[7], bundle[8]), (ik_b, spk_b, ek, H(bob["pq_sig"])))
+    acs = H(bob["acs_body"])
+    ok, why, keys = verify_binding([H(x) for x in bob["fetch"]], acs, H(bob["credential_body"]), ds_hash("OM-ACS-HASH-v1", acs), 1790000000)
+    ck.eq(f"{n}/binding_verified", (ok, why), (True, "ok"))
+    ck.eq(f"{n}/binding_keys", (keys["ik"], keys["spk"], keys["pq"], keys["opk"] and keys["opk"][1]),
+          (ik_b, spk_b, ek, bob["opk_pub"] and H(bob["opk_pub"])))
 
     ik_a_sk, ek_sk = H(alice["ik_secret"]), H(alice["ek_secret"])
     ck.eq(f"{n}/alice_ik_pub", x25519_pub(ik_a_sk).hex(), alice["ik_pub"])
@@ -236,55 +316,78 @@ def check_case(c, consts, ck: Checker):
     if bob["opk_secret"] is not None:
         dhs.append(dh(ek_sk, x25519_pub(H(bob["opk_secret"]))))
     ck.eq(f"{n}/dh_outputs", [d.hex() for d in dhs], hs["dh"])
-    # Responder-side DH values must agree with initiator-side ones (§3.4).
     bob_side = [dh(H(bob["spk_secret"]), x25519_pub(ik_a_sk)), dh(H(bob["ik_secret"]), x25519_pub(ek_sk)), dh(H(bob["spk_secret"]), x25519_pub(ek_sk))]
     ck.eq(f"{n}/dh_responder_agrees", [d.hex() for d in bob_side], hs["dh"][:3])
     sk = hkdf(b"\x00" * 32, b"\xff" * 32 + b"".join(dhs) + k, consts["pqxdh_info"].encode(), 32)
     ck.eq(f"{n}/pqxdh_sk", sk.hex(), hs["sk"])
     ad = ec + x25519_pub(ik_a_sk) + ec + ik_b
     ck.eq(f"{n}/pqxdh_ad", ad.hex(), hs["ad"])
-    split = hkdf(b"\x00" * 32, sk, consts["tr_split_info"].encode(), 64)
-    ck.eq(f"{n}/tr_split", (split[:32].hex(), split[32:].hex()), (hs["sk_ec"], hs["sk_scka"]))
     init = cbor_dec(H(hs["init_header_cbor"]))
     ck.eq(f"{n}/init_header", (init[1], init[2], init[3], init[4], init[5], init.get(6)),
           (x25519_pub(ik_a_sk), x25519_pub(ek_sk), ct, bob["spk_id"], bob["pq_id"], bob["opk_id"]))
+    hid = ds_hash(consts["handshake_id_label"], cbor_enc([consts["profile"], H(bob["device_id"]), bob["epoch"], init[4], init[5], init[1], init[2], init[3]]))
+    ck.eq(f"{n}/handshake_id", hid.hex(), hs["handshake_id"])
+    ck.eq(f"{n}/ledger_applies_iff_no_one_time_key", hs["uses_last_resort_ledger"], bob["pq_kind"] == "last_resort" and bob["opk_id"] is None)
 
-    # Ratchets: Alice from her recorded initial ratchet secret, Bob from SPK_B (DR §7.1).
     party = {"A": DR(consts), "B": DR(consts)}
-    party["A"].init_alice(split[:32], spk_b, H(alice["ratchet_init_secret"]))
-    party["B"].init_bob(split[:32], H(bob["spk_secret"]))
+    party["A"].init_alice(sk, spk_b, H(alice["ratchet_init_secret"]))
+    party["B"].init_bob(sk, H(bob["spk_secret"]))
+    key_info, nonce_info = consts["dr_aead_key_info"].encode(), consts["dr_aead_nonce_info"].encode()
+
+    def aead_inputs(mk, hdr_bytes, ctx):
+        hh = ds_hash(consts["dr_header_hash_label"], hdr_bytes)
+        key = hkdf_expand(mk, key_info, 32)
+        nonce = hkdf_expand(mk, nonce_info + hh, 32)[:12]
+        aad = cbor_enc([consts["event_aead_ad_label"], consts["profile"], ad, hh, ctx])
+        return hh, key, nonce, aad
+
     sent = {}
-    info = consts["tr_protocol_info"].encode()
     for ev in c["events"]:
         lab = f"{n}/{ev['type']}:{ev['label']}"
         if ev["type"] == "send":
             d = party[ev["from"]]
-            num, ec_mk = d.send_key()
-            ck.eq(f"{lab}/ec_mk", ec_mk.hex(), ev["ec_mk"])
+            num, mk = d.send_key()
+            ck.eq(f"{lab}/mk", mk.hex(), ev["mk"])
             hdr_bytes = H(ev["header"])
             hdr = cbor_dec(hdr_bytes)
-            ck.eq(f"{lab}/header", (hdr[0], hdr[1], hdr[2], hdr[3]), (consts["header_profile"], x25519_pub(d.dhs), d.pn, num))
-            okm = hkdf(H(ev["pq_mk"]), ec_mk, info, 44)
-            ck.eq(f"{lab}/kdf_hybrid", (okm[:32].hex(), okm[32:].hex()), (ev["aead_key"], ev["aead_nonce"]))
-            ctext = AESGCMSIV(okm[:32]).encrypt(okm[32:], H(ev["plaintext"]), ad + hdr_bytes)
+            ck.eq(f"{lab}/header", hdr, [consts["profile"], x25519_pub(d.dhs), d.pn, num])
+            ctx = H(ev["envelope_context"])
+            hh, key, nonce, aad = aead_inputs(mk, hdr_bytes, ctx)
+            ck.eq(f"{lab}/aead_inputs", (hh.hex(), key.hex(), nonce.hex(), aad.hex()), (ev["header_hash"], ev["aead_key"], ev["aead_nonce"], ev["aad"]))
+            ctext = AESGCMSIV(key).encrypt(nonce, H(ev["plaintext"]), aad)
             ck.eq(f"{lab}/ciphertext", ctext.hex(), ev["ciphertext"])
             ck.eq(f"{lab}/init_prefix_until_reply", ev["has_init_prefix"], ev["from"] == "A" and party["A"].ckr is None)
-            sent[ev["label"]] = (hdr, hdr_bytes, ctext)
+            sent[ev["label"]] = (hdr, hdr_bytes, ctext, ctx)
         else:
             d = party[ev["to"]]
-            hdr, hdr_bytes, ctext = sent[ev["label"]]
+            hdr, hdr_bytes, ctext, ctx = sent[ev["label"]]
             new = H(ev["new_ratchet_secret"]) if ev["new_ratchet_secret"] else None
-            ec_mk, stepped = d.receive_key(hdr[1], hdr[2], hdr[3], new)
-            ck.eq(f"{lab}/ec_mk", ec_mk.hex(), ev["ec_mk"])
+            mk, stepped = d.receive_key(hdr[1], hdr[2], hdr[3], new)
+            ck.eq(f"{lab}/mk", mk.hex(), ev["mk"])
             ck.eq(f"{lab}/dh_ratchet_step_matches", stepped, new is not None)
-            okm = hkdf(H(ev["pq_mk"]), ec_mk, info, 44)
-            pt = AESGCMSIV(okm[:32]).decrypt(okm[32:], ctext, ad + hdr_bytes)
-            ck.eq(f"{lab}/plaintext", pt.hex(), ev["plaintext"])
+            _, key, nonce, aad = aead_inputs(mk, hdr_bytes, ctx)
+            ck.eq(f"{lab}/plaintext", AESGCMSIV(key).decrypt(nonce, ctext, aad).hex(), ev["plaintext"])
+            bad = hdr_bytes[:-1] + bytes([hdr_bytes[-1] ^ 1])
+            _, k2, n2, a2 = aead_inputs(mk, bad, ctx)
             try:
-                AESGCMSIV(okm[:32]).decrypt(okm[32:], ctext, ad + hdr_bytes[:-1] + bytes([hdr_bytes[-1] ^ 1]))
+                AESGCMSIV(k2).decrypt(n2, ctext, a2)
                 ck.eq(f"{lab}/tampered_header_rejected", False, True)
             except Exception:
                 ck.eq(f"{lab}/tampered_header_rejected", True, True)
+
+
+def check_hpke(hv, ck: Checker):
+    seed = H(hv["sk_seed"])
+    pk = hpke_pq._expand(seed)
+    ck.eq("hpke/pk_from_seed", (pk[0] + pk[1]).hex(), hv["pk"])
+    ck.eq("hpke/request_key_digest", ds_hash("OM-REQUEST-KEY-HASH-v1", H(hv["request_key"])).hex(), hv["request_key_digest"])
+    info = cbor_enc(["OM-MESSAGE-REQUEST-HPKE-INFO-v1", PROFILE, H(hv["ticket_id"]), {0: 1, 1: H(hv["request_key_digest"])}])
+    ck.eq("hpke/info", info.hex(), hv["info"])
+    enc, ss, ctx = hpke_pq.setup_base_s_derand(H(hv["pk"]), info, H(hv["encaps_randomness"]))
+    ck.eq("hpke/enc_and_shared_secret", (enc.hex(), ss.hex()), (hv["enc"], hv["shared_secret"]))
+    ck.eq("hpke/ciphertext", ctx.seal(b"", H(hv["plaintext"])).hex(), hv["ciphertext"])
+    _, rctx = hpke_pq.setup_base_r(H(hv["enc"]), seed, info)
+    ck.eq("hpke/open", rctx.open(b"", H(hv["ciphertext"])).hex(), hv["plaintext"])
 
 
 # ---------------------------------------------------------------- ACVP (kyber-py)
@@ -349,19 +452,25 @@ def acvp(keygen: dict, encdec: dict) -> dict:
 def main() -> int:
     vectors = json.load(open(sys.argv[1]))
     ck = Checker()
+    check_binding(vectors["binding"], ck)
     for c in vectors["cases"]:
         check_case(c, vectors["constants"], ck)
+    check_hpke(vectors["hpke_message_request"], ck)
     out = {
         "vector_checks": len(ck.results),
         "vector_checks_passed": sum(ok for _, ok in ck.results),
         "vector_messages": sum(1 for c in vectors["cases"] for e in c["events"] if e["type"] == "send"),
         "vector_cases": [c["name"] for c in vectors["cases"]],
+        "binding_negatives": len(vectors["binding"]["negatives"]),
         "failures": [name for name, ok in ck.results if not ok],
     }
     out["vectors_ok"] = out["vector_checks"] == out["vector_checks_passed"] and out["vector_checks"] > 0
     if len(sys.argv) > 3:
         out["acvp"] = acvp(json.load(open(sys.argv[2])), json.load(open(sys.argv[3])))
-    ok = out["vectors_ok"] and out.get("acvp", {"all_passed": True})["all_passed"]
+    if len(sys.argv) > 4:
+        k = hpke_pq.check_kats(json.load(open(sys.argv[4])))
+        out["hpke_pq_05_kats"] = dict(k, all_passed=k["vectors"] > 0 and not k["failed"])
+    ok = out["vectors_ok"] and all(out.get(x, {"all_passed": True})["all_passed"] for x in ("acvp", "hpke_pq_05_kats"))
     print(json.dumps(out, indent=2, sort_keys=True))
     return 0 if ok else 1
 

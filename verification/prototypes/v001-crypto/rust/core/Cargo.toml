@@ -4,7 +4,7 @@ version = "0.0.0"
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "V-001 feasibility prototype: PQXDH + Triple Ratchet (EC Double Ratchet + Signal SPQR). Not for production."
+description = "V-001 feasibility prototype: OM-Crypto-v1 (PQXDH + Double Ratchet, dual Ed25519/ML-DSA-65 device binding, PQ/T HPKE). Not for production."
 
 [lib]
 path = "src/lib.rs"
@@ -22,11 +22,14 @@ insecure-test-rng = ["dep:rand_chacha"]
 production = []
 
 [dependencies]
-# Signal's Sparse Post-Quantum Ratchet (ML-KEM Braid SCKA + SPQR chains). AGPL-3.0-only; not on crates.io.
-spqr = { git = "https://github.com/signalapp/SparsePostQuantumRatchet.git", tag = "v1.6.0" }
 libcrux-ml-kem = { version = "0.0.10", default-features = false, features = ["mlkem768"] }
 x25519-dalek = { version = "3.0.0", default-features = false, features = ["static_secrets", "zeroize", "precomputed-tables"] }
 curve25519-dalek = { version = "5.0.0" }
+ed25519-dalek = { version = "3.0.0", default-features = false, features = ["zeroize"] }
+libcrux-ml-dsa = { version = "0.0.10", default-features = false, features = ["mldsa65"] }
+sha3 = "0.12"
+shake = "0.1"
+chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc"] }
 hkdf = "0.13"
 hmac = "0.13"
 sha2 = "0.11"

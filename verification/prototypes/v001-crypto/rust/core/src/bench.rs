@@ -21,9 +21,11 @@ fn stats(mut v: Vec<u64>) -> Value {
 
 /// Returns timing statistics (microseconds). `now_ns` must be monotonic.
 pub fn run<R: RngCore + CryptoRng>(rng: &mut R, now_ns: &dyn Fn() -> u64, setup_iters: usize, msg_iters: usize) -> Value {
-    // Prekey generation cost (one ML-KEM-768 keygen + XEdDSA signature per one-time PQ prekey).
+    // Prekey generation cost (per one-time EC + PQ prekey pair: X25519 + ML-KEM-768 keygen and two
+    // composite Ed25519 + ML-DSA-65 item signatures, plus re-signing the static bundle).
     let mut bob = Device::new(rng);
     let bob_ik = bob.ik();
+    let did = bob.device_id;
     let mut prov = Provider::default();
     let mut gen = vec![];
     for _ in 0..setup_iters {
@@ -33,15 +35,17 @@ pub fn run<R: RngCore + CryptoRng>(rng: &mut R, now_ns: &dyn Fn() -> u64, setup_
         prov.publish(&bob, up);
     }
 
-    // Session establishment: initiator (verify bundle, PQXDH, TR init, first encrypt) and
-    // responder (PQXDH incl. ML-KEM re-expansion + decaps, TR init, first decrypt).
+    // Session establishment: initiator (verify ACS/credential/dual-signed bundle + items, PQXDH, DR init,
+    // first encrypt) and responder (PQXDH incl. ML-KEM re-expansion + decaps, DR init, first decrypt).
+    let (acs_b, cred_b) = prov.view(&did);
+    let view = Device::peer_view(&acs_b, &cred_b);
     let (mut ta, mut tb, mut tt) = (vec![], vec![], vec![]);
     for _ in 0..setup_iters {
         let mut alice = Device::new(rng);
-        let bundle = prov.fetch(&bob_ik).expect("bundle");
+        let fetch = prov.fetch(&did).expect("bundle");
         let t0 = now_ns();
-        alice.start_session(&bundle, rng).expect("initiate");
-        let env = alice.encrypt(&bob_ik, b"first message", rng).expect("encrypt").0;
+        alice.start_session(&fetch, &view, rng).expect("initiate");
+        let env = alice.encrypt(&bob_ik, b"first message").expect("encrypt").0;
         let t1 = now_ns();
         bob.decrypt(&env, rng).expect("accept");
         let t2 = now_ns();
@@ -50,25 +54,23 @@ pub fn run<R: RngCore + CryptoRng>(rng: &mut R, now_ns: &dyn Fn() -> u64, setup_
         tt.push(t2 - t0);
     }
 
-    // Steady-state messaging on one session, bursts of 3 in alternating directions so both
-    // the EC DH ratchet and the SPQR/ML-KEM Braid epochs advance.
+    // Steady-state messaging on one session, bursts of 3 in alternating directions so the DH ratchet advances.
     bob.sessions.clear();
     let mut alice = Device::new(rng);
     let up = bob.generate_one_time(1, 1, rng);
     prov.publish(&bob, up);
-    let b = prov.fetch(&bob_ik).unwrap();
-    alice.start_session(&b, rng).unwrap();
-    let env = alice.encrypt(&bob_ik, b"hello", rng).unwrap().0;
+    let b = prov.fetch(&did).unwrap();
+    alice.start_session(&b, &view, rng).unwrap();
+    let env = alice.encrypt(&bob_ik, b"hello").unwrap().0;
     bob.decrypt(&env, rng).unwrap();
     let alice_ik = alice.ik();
     let (mut enc, mut dec, mut both) = (vec![], vec![], vec![]);
     let payload = [0x42u8; 160];
-    let mut max_epoch = 0u64;
     for i in 0..msg_iters {
         let a_to_b = (i / 3) % 2 == 0;
         let (s, r, peer) = if a_to_b { (&mut alice, &mut bob, bob_ik) } else { (&mut bob, &mut alice, alice_ik) };
         let t0 = now_ns();
-        let env = s.encrypt(&peer, &payload, rng).unwrap().0;
+        let env = s.encrypt(&peer, &payload).unwrap().0;
         let t1 = now_ns();
         let (_, pt, _) = r.decrypt(&env, rng).unwrap();
         let t2 = now_ns();
@@ -76,11 +78,6 @@ pub fn run<R: RngCore + CryptoRng>(rng: &mut R, now_ns: &dyn Fn() -> u64, setup_
         enc.push(t1 - t0);
         dec.push(t2 - t1);
         both.push(t2 - t0);
-        if let Ok(v) = crate::cbor::decode(&env) {
-            if let Ok(h) = crate::triple::parse_header(v.a().unwrap()[2].b().unwrap()) {
-                max_epoch = max_epoch.max(crate::triple::spqr_epoch(&h.scka).unwrap_or(0));
-            }
-        }
     }
 
     // State serialize + reload of the initiator device holding one active session.
@@ -97,7 +94,7 @@ pub fn run<R: RngCore + CryptoRng>(rng: &mut R, now_ns: &dyn Fn() -> u64, setup_
         ser.push(t1 - t0);
         de.push(t2 - t1);
     }
-    let sess_bytes = crate::cbor::encode(&alice.sessions.values().next().unwrap().tr.to_cbor()).len();
+    let sess_bytes = crate::cbor::encode(&alice.sessions.values().next().unwrap().dr.to_cbor()).len();
 
     json!({
         "prekey_generate_one_time_pq_and_ec": stats(gen),
@@ -111,7 +108,6 @@ pub fn run<R: RngCore + CryptoRng>(rng: &mut R, now_ns: &dyn Fn() -> u64, setup_
         "state_reload": stats(de),
         "device_state_bytes_one_session": size,
         "session_state_bytes": sess_bytes,
-        "spqr_max_epoch_reached": max_epoch,
         "payload_bytes": payload.len(),
         "setup_iters": setup_iters,
         "msg_iters": msg_iters,

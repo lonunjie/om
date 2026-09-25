@@ -1,19 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
-//! PQXDH per [PQXDH] revision 3 with curve = curve25519, hash = SHA-256,
-//! pqkem = ML-KEM-768 (FIPS 203), info = "OM-Crypto-v1-proto".
+//! PQXDH per [PQXDH] revision 3 with curve = curve25519, hash = SHA-256, pqkem = ML-KEM-768 (FIPS 203),
+//! info = "OM-Crypto-v1_PQXDH_X25519_SHA-256_ML-KEM-768".
+//!
+//! OM deviation from [PQXDH] §3.2 (ADR-0131 rule 1, ADR-0135 §2): prekeys are not XEdDSA-signed by IK_B.
+//! They are signed by the device's composite Ed25519 + ML-DSA-65 key, and IK_B itself is the
+//! DeviceCredential's key_agreement_public_key committed by the AccountControlState. `initiate` accepts
+//! only a `VerifiedBundle`, which exists only after binding::verify_fetch succeeded.
 
+use crate::binding::VerifiedBundle;
 use crate::cbor::{self, V};
 use crate::kdf;
 use crate::rng::{arr32, CryptoRng, RngCore};
-use crate::xeddsa;
-use crate::Error;
+use crate::sig::ds_hash;
+use crate::{Error, PROFILE_V1};
 use libcrux_ml_kem::mlkem768 as mlkem;
 use x25519_dalek::{PublicKey, StaticSecret};
 
 /// [PQXDH] §2.1 EncodeEC: single-byte curve id || little-endian u. 0x05 follows the Signal convention.
 pub const EC_TYPE_X25519: u8 = 0x05;
-/// [PQXDH] §2.1 EncodeKEM: single-byte pqkem id || FIPS 203 ek. 0x21 is a PROTOTYPE value (not a registry entry).
-pub const KEM_TYPE_MLKEM768: u8 = 0x21;
 pub const MLKEM768_EK_LEN: usize = 1184;
 pub const MLKEM768_CT_LEN: usize = 1088;
 
@@ -21,13 +25,6 @@ pub fn encode_ec(pk: &[u8; 32]) -> [u8; 33] {
     let mut o = [0u8; 33];
     o[0] = EC_TYPE_X25519;
     o[1..].copy_from_slice(pk);
-    o
-}
-
-pub fn encode_kem(ek: &[u8]) -> Vec<u8> {
-    let mut o = Vec::with_capacity(1 + ek.len());
-    o.push(KEM_TYPE_MLKEM768);
-    o.extend_from_slice(ek);
     o
 }
 
@@ -69,64 +66,6 @@ impl PqKind {
             PqKind::OneTime => "one_time",
             PqKind::LastResort => "last_resort",
         }
-    }
-}
-
-/// [PQXDH] §3.3 prekey bundle. The PQ prekey is NOT optional: there is no classical-only bundle.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PrekeyBundle {
-    pub ik: [u8; 32],
-    pub spk_id: u32,
-    pub spk: [u8; 32],
-    pub spk_sig: [u8; 64],
-    pub pq_id: u32,
-    /// Informational (§2.5 "a way to identify"); the device decides by id, never by this flag.
-    pub pq_kind: PqKind,
-    pub pq: Vec<u8>,
-    pub pq_sig: [u8; 64],
-    pub opk: Option<(u32, [u8; 32])>,
-}
-
-impl PrekeyBundle {
-    pub fn to_cbor(&self) -> V {
-        let mut m = vec![
-            (1, V::B(self.ik.to_vec())),
-            (2, V::U(self.spk_id as u64)),
-            (3, V::B(self.spk.to_vec())),
-            (4, V::B(self.spk_sig.to_vec())),
-            (5, V::U(self.pq_id as u64)),
-            (6, V::U(self.pq_kind as u64)),
-            (7, V::B(self.pq.clone())),
-            (8, V::B(self.pq_sig.to_vec())),
-        ];
-        if let Some((id, k)) = self.opk {
-            m.push((9, V::U(id as u64)));
-            m.push((10, V::B(k.to_vec())));
-        }
-        V::M(m)
-    }
-
-    pub fn from_cbor(v: &V) -> Result<Self, Error> {
-        // Any missing PQ field is a hard failure, never a classical fallback.
-        let (Some(pq_id), Some(pq_kind), Some(pq), Some(pq_sig)) = (v.opt(5), v.opt(6), v.opt(7), v.opt(8)) else {
-            return Err(Error::MissingPqPrekey);
-        };
-        let opk = match (v.opt(9), v.opt(10)) {
-            (Some(i), Some(k)) => Some((i.u32()?, k.b32()?)),
-            (None, None) => None,
-            _ => return Err(Error::Decode("bundle: partial opk")),
-        };
-        Ok(PrekeyBundle {
-            ik: v.get(1)?.b32()?,
-            spk_id: v.get(2)?.u32()?,
-            spk: v.get(3)?.b32()?,
-            spk_sig: v.get(4)?.b64()?,
-            pq_id: pq_id.u32()?,
-            pq_kind: PqKind::from_u(pq_kind.u()?)?,
-            pq: pq.b()?.to_vec(),
-            pq_sig: pq_sig.b64()?,
-            opk,
-        })
     }
 }
 
@@ -192,15 +131,8 @@ pub struct Established {
     pub transcript: Transcript,
 }
 
-/// [PQXDH] §3.3 Alice's side.
-pub fn initiate<R: RngCore + CryptoRng>(ik_a_secret: &[u8; 32], b: &PrekeyBundle, rng: &mut R) -> Result<Established, Error> {
-    // "Alice verifies the signatures on the prekeys. If any signature check fails, Alice aborts."
-    if !xeddsa::verify(&b.ik, &encode_ec(&b.spk), &b.spk_sig) {
-        return Err(Error::BadSignature);
-    }
-    if !xeddsa::verify(&b.ik, &encode_kem(&b.pq), &b.pq_sig) {
-        return Err(Error::BadSignature);
-    }
+/// [PQXDH] §3.3 Alice's side, from a bundle whose dual-signed binding has been verified.
+pub fn initiate<R: RngCore + CryptoRng>(ik_a_secret: &[u8; 32], b: &VerifiedBundle, rng: &mut R) -> Result<Established, Error> {
     let pk = mlkem::MlKem768PublicKey::try_from(b.pq.as_slice()).map_err(|_| Error::InvalidPqKey)?;
     if !mlkem::validate_public_key(&pk) {
         return Err(Error::InvalidPqKey);
@@ -237,6 +169,22 @@ pub fn initiate<R: RngCore + CryptoRng>(ik_a_secret: &[u8; 32], b: &PrekeyBundle
     Ok(Established { header, sk, ad, transcript })
 }
 
+/// ADR-0131 rule 2 / ADR-0135 §3: handshake_id = DS-HASH("OM-PQXDH-HANDSHAKE-ID-v1", OM-CBOR
+/// [profile, recipient_device_id, signed_prekey_epoch, spk_id, pq_id, IK_A, EK_A, CT]).
+pub fn handshake_id(recipient_device_id: &[u8; 16], epoch: u64, h: &InitHeader) -> [u8; 32] {
+    let body = cbor::encode(&V::A(vec![
+        V::U(PROFILE_V1),
+        V::B(recipient_device_id.to_vec()),
+        V::U(epoch),
+        V::U(h.spk_id as u64),
+        V::U(h.pq_id as u64),
+        V::B(h.ik_a.to_vec()),
+        V::B(h.ek_a.to_vec()),
+        V::B(h.ct.clone()),
+    ]));
+    ds_hash(kdf::HANDSHAKE_ID, &body)
+}
+
 /// [PQXDH] §3.4 Bob's side. Key lookup/consumption is done by the caller (store.rs) so that
 /// one-time keys are deleted only after the initial ciphertext decrypts.
 pub fn respond(
@@ -265,8 +213,4 @@ pub fn respond(
     let mut ad = encode_ec(&h.ik_a).to_vec();
     ad.extend_from_slice(&encode_ec(&x25519_pub(ik_b_secret)));
     Ok((sk, ad))
-}
-
-pub fn bundle_bytes(b: &PrekeyBundle) -> Vec<u8> {
-    cbor::encode(&b.to_cbor())
 }

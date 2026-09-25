@@ -1,15 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
-//! Deterministic test vectors (insecure seeded RNG) for a second, independent implementation.
-//! The consumer must reproduce: X25519 public keys, XEdDSA prekey-signature verification,
-//! ML-KEM-768 keygen/encaps/decaps, PQXDH DH1..DH4/SK/AD, the Triple-Ratchet SK split, every
-//! EC Double Ratchet message key, KDF_HYBRID, header encoding and AES-256-GCM-SIV ciphertexts.
-//! SPQR message keys (pq_mk) come from Signal's `spqr` crate and are given as inputs.
+//! Deterministic test vectors (insecure seeded RNG) for a second, independent implementation
+//! (python/check_vectors.py). The consumer must reproduce or verify:
+//!
+//! * binding: DeviceCredential / AccountControlState digests, composite Ed25519 + ML-DSA-65 key derivation
+//!   from seeds, bundle and item signatures, and the verdict of every negative binding vector;
+//! * sessions: X25519 / ML-KEM-768 keys from seeds, PQXDH DH1..DH4/SS/SK/AD, handshake_id, every Double
+//!   Ratchet message key, header hash, AEAD key/nonce/AD and AES-256-GCM-SIV ciphertexts;
+//! * hpke: the OM MessageRequest envelope (info construction, enc, ciphertext).
 
+use crate::binding::{self, Acs, Credential};
+use crate::cbor::{self, V};
 use crate::hex;
+use crate::hpke;
 use crate::kdf;
-use crate::pqxdh::{self, PqKind};
+use crate::pqxdh;
 use crate::rng::insecure_test_rng::InsecureTestRng;
-use crate::store::{Device, Provider};
+use crate::rng::{arr32, RngCore};
+use crate::sig::{self, ds_hash, ds_sig, ROLE_DEVICE};
+use crate::store::{Device, Provider, NOW};
+use crate::PROFILE_V1;
 use serde_json::{json, Value};
 
 enum Ev {
@@ -17,44 +26,49 @@ enum Ev {
     Recv(bool, &'static str), // (to Alice?, label)
 }
 
+fn hexes(v: &[Vec<u8>]) -> Vec<String> {
+    v.iter().map(|b| hex(b)).collect()
+}
+
 fn case(name: &str, with_one_time: bool, schedule: &[Ev]) -> Value {
     let mut rng = InsecureTestRng::from_label(format!("om-v001-vectors/{name}").as_bytes());
     let mut bob = Device::new(&mut rng);
     let mut alice = Device::new(&mut rng);
     let mut prov = Provider::default();
-    let up = if with_one_time { bob.generate_one_time(1, 1, &mut rng) } else { Default::default() };
+    let up = if with_one_time { bob.generate_one_time(1, 1, &mut rng) } else { crate::store::Upload { bundle: bob.signed_bundle(&mut rng), ..Default::default() } };
     prov.publish(&bob, up);
-    let bundle = prov.fetch(&bob.ik()).unwrap();
-    let tr = alice.start_session(&bundle, &mut rng).unwrap();
+    let (acs_b, cred_b) = prov.view(&bob.device_id);
+    let fetch = prov.fetch(&bob.device_id).unwrap();
+    let (vb, tr) = alice.start_session(&fetch, &Device::peer_view(&acs_b, &cred_b), &mut rng).unwrap();
     let a_sess = alice.sessions.values().next().unwrap().clone();
-    let (sk_ec, sk_scka) = kdf::tr_split(&tr.sk);
+    let init = a_sess.pending_init.clone().unwrap();
+    let pq_seed = if vb.pq_one_time { bob.pqopks[&vb.pq_id] } else { bob.last_resort.seed };
 
-    let pq_seed = match bundle.pq_kind {
-        PqKind::OneTime => bob.pqopks[&bundle.pq_id].seed,
-        PqKind::LastResort => bob.last_resort.seed,
-    };
     let bob_json = json!({
+        "device_id": hex(&bob.device_id), "epoch": bob.epoch,
         "ik_secret": hex(&bob.ik_secret), "ik_pub": hex(&bob.ik()),
-        "spk_id": bob.spk.id, "spk_secret": hex(&bob.spk.secret), "spk_pub": hex(&bundle.spk), "spk_sig": hex(&bob.spk.sig),
-        "pq_id": bundle.pq_id, "pq_kind": bundle.pq_kind.name(), "pq_seed_d_z": hex(&pq_seed),
-        "pq_pub_sha256": hex(&crate::sha256(&[&bundle.pq])), "pq_sig": hex(&bundle.pq_sig),
-        "opk_id": bundle.opk.map(|(i, _)| i), "opk_secret": bundle.opk.map(|(i, _)| hex(&bob.opks[&i])),
-        "opk_pub": bundle.opk.map(|(_, k)| hex(&k)),
-        "bundle_cbor": hex(&pqxdh::bundle_bytes(&bundle)),
+        "spk_id": bob.spk.id, "spk_secret": hex(&bob.spk.secret), "spk_pub": hex(&vb.spk),
+        "pq_id": vb.pq_id, "pq_kind": if vb.pq_one_time { "one_time" } else { "last_resort" }, "pq_seed_d_z": hex(&pq_seed),
+        "pq_pub_sha256": hex(&crate::sha256(&[&vb.pq])),
+        "opk_id": vb.opk.map(|(i, _)| i), "opk_secret": vb.opk.map(|(i, _)| hex(&bob.opks[&i])),
+        "opk_pub": vb.opk.map(|(_, k)| hex(&k)),
+        "acs_body": hex(&acs_b), "credential_body": hex(&cred_b), "fetch": hexes(&fetch),
     });
     let alice_json = json!({
         "ik_secret": hex(&alice.ik_secret), "ik_pub": hex(&alice.ik()),
         "ek_secret": hex(&tr.ek_secret), "ek_pub": hex(&pqxdh::x25519_pub(&tr.ek_secret)),
         "kem_encaps_m": hex(&tr.kem_m),
-        "ratchet_init_secret": hex(&a_sess.tr.ec.dhs_secret),
+        "ratchet_init_secret": hex(&a_sess.dr.ec.dhs_secret),
     });
+    let ledgered = !vb.pq_one_time && vb.opk.is_none();
     let handshake = json!({
-        "ct": hex(&a_sess.pending_init.as_ref().unwrap().ct),
+        "ct": hex(&init.ct),
         "ss": hex(&tr.ss),
         "dh": tr.dh.iter().map(|d| hex(d)).collect::<Vec<_>>(),
         "sk": hex(&tr.sk), "ad": hex(&tr.ad),
-        "sk_ec": hex(&sk_ec), "sk_scka": hex(&sk_scka),
-        "init_header_cbor": hex(&crate::cbor::encode(&a_sess.pending_init.as_ref().unwrap().to_cbor())),
+        "init_header_cbor": hex(&cbor::encode(&init.to_cbor())),
+        "uses_last_resort_ledger": ledgered,
+        "handshake_id": hex(&pqxdh::handshake_id(&bob.device_id, bob.epoch, &init)),
     });
 
     let bob_ik = bob.ik();
@@ -66,14 +80,15 @@ fn case(name: &str, with_one_time: bool, schedule: &[Ev]) -> Value {
             Ev::Send(from_a, label) => {
                 let pt = format!("vector message {label}").into_bytes();
                 let (s, peer) = if *from_a { (&mut alice, bob_ik) } else { (&mut bob, alice_ik) };
-                let (env, k) = s.encrypt(&peer, &pt, &mut rng).unwrap();
-                let v = crate::cbor::decode(&env).unwrap();
+                let (env, k) = s.encrypt(&peer, &pt).unwrap();
+                let v = cbor::decode(&env).unwrap();
                 let a = v.a().unwrap();
                 events.push(json!({
                     "type": "send", "from": if *from_a { "A" } else { "B" }, "label": label,
-                    "plaintext": hex(&pt), "header": hex(a[2].b().unwrap()), "ciphertext": hex(a[3].b().unwrap()),
+                    "plaintext": hex(&pt), "envelope_context": hex(&cbor::encode(&V::A(vec![a[0].clone(), a[1].clone()]))),
+                    "header": hex(a[2].b().unwrap()), "ciphertext": hex(a[3].b().unwrap()),
                     "has_init_prefix": !a[1].is_null(),
-                    "ec_mk": hex(&k.ec_mk), "pq_mk": hex(&k.pq_mk), "aead_key": hex(&k.key), "aead_nonce": hex(&k.nonce),
+                    "mk": hex(&k.mk), "header_hash": hex(&k.header_hash), "aead_key": hex(&k.key), "aead_nonce": hex(&k.nonce), "aad": hex(&k.aad),
                 }));
                 queue.push((label, env));
             }
@@ -81,18 +96,134 @@ fn case(name: &str, with_one_time: bool, schedule: &[Ev]) -> Value {
                 let i = queue.iter().position(|(l, _)| l == label).unwrap();
                 let (_, env) = queue.remove(i);
                 let r = if *to_a { &mut alice } else { &mut bob };
-                let before = r.sessions.values().next().map(|s| s.tr.ec.dhs_secret);
+                let before = r.sessions.values().next().map(|s| s.dr.ec.dhs_secret);
                 let (_, pt, k) = r.decrypt(&env, &mut rng).unwrap();
-                let after = r.sessions.values().next().unwrap().tr.ec.dhs_secret;
+                let after = r.sessions.values().next().unwrap().dr.ec.dhs_secret;
                 events.push(json!({
                     "type": "recv", "to": if *to_a { "A" } else { "B" }, "label": label,
-                    "plaintext": hex(&pt), "ec_mk": hex(&k.ec_mk), "pq_mk": hex(&k.pq_mk),
+                    "plaintext": hex(&pt), "mk": hex(&k.mk),
                     "new_ratchet_secret": if before == Some(after) { Value::Null } else { json!(hex(&after)) },
                 }));
             }
         }
     }
     json!({ "name": name, "bob": bob_json, "alice": alice_json, "handshake": handshake, "events": events })
+}
+
+fn with_key(body: &[u8], key: u64, val: Option<V>) -> Vec<u8> {
+    let mut v = cbor::decode(body).unwrap();
+    if let V::M(ref mut m) = v {
+        m.retain(|(k, _)| *k != key);
+        if let Some(x) = val {
+            m.push((key, x));
+        }
+    }
+    cbor::encode(&v)
+}
+
+/// Binding vectors: one positive fetch and named negatives, each with the inputs a verifier needs.
+fn binding_vectors() -> Value {
+    let mut rng = InsecureTestRng::from_label(b"om-v001-vectors/binding");
+    let mut bob = Device::new(&mut rng);
+    let evil = Device::new(&mut rng);
+    let did = bob.device_id;
+    let mut prov = Provider::default();
+    let up = bob.generate_one_time(1, 1, &mut rng);
+    prov.publish(&bob, up);
+    let (acs_b, cred_b) = prov.view(&did);
+    let fetch = prov.fetch(&did).unwrap();
+    let trusted = ds_hash(binding::LBL_ACS_HASH, &acs_b);
+
+    let v = cbor::decode(&fetch[0]).unwrap();
+    let body = v.get(1).unwrap().b().unwrap().to_vec();
+    let s = v.get(2).unwrap().a().unwrap()[0].get(3).unwrap().b().unwrap().to_vec();
+    let msg = ds_sig(binding::LBL_BUNDLE_SIG, PROFILE_V1, ROLE_DEVICE, &did, &body);
+    let es = evil.signer.sign(&msg, &mut rng);
+    let entry = |sb: Vec<u8>| sig::signature_entry(&did, PROFILE_V1, ROLE_DEVICE, sb);
+    let env = |b: &[u8], sigs: Vec<V>| sig::envelope(b.to_vec(), sigs);
+    let rest = |first: Vec<u8>| {
+        let mut f = vec![first];
+        f.extend_from_slice(&fetch[1..]);
+        f
+    };
+    let cat = |a: &[u8], b: &[u8]| [a, b].concat();
+
+    let mut neg: Vec<(String, Vec<Vec<u8>>, Vec<u8>, Vec<u8>, [u8; 32])> = vec![];
+    let mut push = |n: &str, f: Vec<Vec<u8>>, a: Vec<u8>, c: Vec<u8>, t: [u8; 32]| neg.push((n.into(), f, a, c, t));
+    push("ed25519_half_from_other_key", rest(env(&body, vec![entry(cat(&es[..64], &s[64..]))])), acs_b.clone(), cred_b.clone(), trusted);
+    push("mldsa65_half_from_other_key", rest(env(&body, vec![entry(cat(&s[..64], &es[64..]))])), acs_b.clone(), cred_b.clone(), trusted);
+    push("ed25519_only", rest(env(&body, vec![entry(s[..64].to_vec())])), acs_b.clone(), cred_b.clone(), trusted);
+    push("mldsa65_only", rest(env(&body, vec![entry(s[64..].to_vec())])), acs_b.clone(), cred_b.clone(), trusted);
+    push("split_into_two_entries", rest(env(&body, vec![entry(s[..64].to_vec()), entry(s[64..].to_vec())])), acs_b.clone(), cred_b.clone(), trusted);
+    let evil_pq = pqxdh::mlkem_pub(&evil.last_resort.seed);
+    let b8 = with_key(&body, 8, Some(V::M(vec![(0, V::U(bob.last_resort.id as u64)), (1, V::U(2)), (2, V::B(evil_pq.clone()))])));
+    push("pq_signed_prekey_substituted", rest(env(&b8, vec![entry(s.clone())])), acs_b.clone(), cred_b.clone(), trusted);
+    let b7 = with_key(&body, 7, Some(V::M(vec![(0, V::U(bob.spk.id as u64)), (1, V::U(1)), (2, V::B(evil.ik().to_vec()))])));
+    push("ec_signed_prekey_substituted", rest(env(&b7, vec![entry(s.clone())])), acs_b.clone(), cred_b.clone(), trusted);
+    let mut item = cbor::decode(&fetch[2]).unwrap();
+    if let V::M(ref mut m) = item {
+        m.retain(|(k, _)| *k != 2);
+        m.push((2, V::B(evil_pq)));
+    }
+    push("pq_one_time_item_substituted", vec![fetch[0].clone(), fetch[1].clone(), cbor::encode(&item)], acs_b.clone(), cred_b.clone(), trusted);
+    let nopq = binding::sign_bundle(&bob.signer, &did, with_key(&body, 8, None), arr32(&mut rng));
+    push("validly_signed_bundle_without_pq_signed_prekey", vec![nopq], acs_b.clone(), cred_b.clone(), trusted);
+    let mut c = Credential::from_body(&cred_b).unwrap();
+    c.ik = evil.ik();
+    push("identity_key_substituted_in_credential", fetch.clone(), acs_b.clone(), c.body(), trusted);
+    let mut q = Acs::from_body(&acs_b).unwrap();
+    q.quarantined.insert(did);
+    let qb = q.body();
+    push("device_quarantined_at_trusted_head", fetch.clone(), qb.clone(), cred_b.clone(), ds_hash(binding::LBL_ACS_HASH, &qb));
+    let mut g = Acs::from_body(&acs_b).unwrap();
+    g.generation += 1;
+    let gb = g.body();
+    push("bundle_bound_to_older_acs_head", fetch.clone(), gb.clone(), cred_b.clone(), ds_hash(binding::LBL_ACS_HASH, &gb));
+
+    let mut negatives = vec![];
+    for (name, f, a, c, t) in &neg {
+        let view = binding::PeerView { acs_body: a, trusted_acs_hash: *t, credential_body: c, now: NOW };
+        let r = binding::verify_fetch(f, &view);
+        assert!(r.is_err(), "negative binding vector {name} was accepted");
+        negatives.push(json!({
+            "name": name, "fetch": hexes(f), "acs_body": hex(a), "credential_body": hex(c), "trusted_acs_hash": hex(t),
+            "rust_error": r.err().unwrap().name(),
+        }));
+    }
+    let cred = Credential::from_body(&cred_b).unwrap();
+    json!({
+        "now": NOW,
+        "signer": { "ed25519_seed": hex(&bob.signer.ed_seed), "mldsa65_seed": hex(&bob.signer.mldsa_seed),
+                    "composite_public_key_sha256": hex(&crate::sha256(&[&cred.signing_pk])) },
+        "account_id": hex(&bob.account_id), "device_id": hex(&did), "ik_pub": hex(&bob.ik()),
+        "acs_body": hex(&acs_b), "acs_hash": hex(&trusted), "credential_body": hex(&cred_b), "credential_hash": hex(&cred.hash()),
+        "positive_fetch": hexes(&fetch),
+        "negatives": negatives,
+    })
+}
+
+fn hpke_vector() -> Value {
+    let mut rng = InsecureTestRng::from_label(b"om-v001-vectors/hpke");
+    let seed = arr32(&mut rng);
+    let pk = hpke::public_key(&seed);
+    let mut ticket = [0u8; 16];
+    rng.fill_bytes(&mut ticket);
+    let request_key = cbor::encode(&V::M(vec![(0, V::U(PROFILE_V1)), (1, V::B(pk.clone()))]));
+    let rk_digest = ds_hash("OM-REQUEST-KEY-HASH-v1", &request_key);
+    let info = hpke::message_request_info(PROFILE_V1, &ticket, &rk_digest);
+    let mut rnd = [0u8; 64];
+    rng.fill_bytes(&mut rnd);
+    let pt = b"stand-in bytes for a signed-MessageRequestPayload".to_vec();
+    let (ss, enc) = hpke::encaps_derand(&pk, &rnd).unwrap();
+    let mut ctx = hpke::key_schedule(&ss, &info);
+    let ct = ctx.seal(b"", &pt);
+    json!({
+        "suite": {"spec": "draft-ietf-hpke-pq-05", "kem_id": hpke::KEM_ID, "kdf_id": hpke::KDF_ID, "aead_id": hpke::AEAD_ID, "mode": 0},
+        "sk_seed": hex(&seed), "pk": hex(&pk), "ticket_id": hex(&ticket), "request_key": hex(&request_key),
+        "request_key_digest": hex(&rk_digest), "info": hex(&info), "encaps_randomness": hex(&rnd),
+        "shared_secret": hex(&ss), "enc": hex(&enc), "key": hex(&ctx.key), "base_nonce": hex(&ctx.base_nonce),
+        "aad": "", "plaintext": hex(&pt), "ciphertext": hex(&ct),
+    })
 }
 
 pub fn generate() -> Value {
@@ -114,26 +245,32 @@ pub fn generate() -> Value {
         Send(true, "a1"), Send(true, "a2"), Recv(false, "a2"), Recv(false, "a1"),
     ];
     json!({
-        "format": "om-v001-proto-vectors/1",
-        "status": "Feasibility prototype vectors for V-001. INSECURE seeded RNG. Not product vectors; no value here is a frozen OM registry entry.",
+        "format": "om-v001-vectors/2",
+        "status": "Feasibility prototype vectors for V-001 (OM-Crypto-v1, ADR-0131/ADR-0135). INSECURE seeded RNG. Not product vectors.",
         "specs": {
-            "pqxdh": "Signal PQXDH revision 3 (2023-05-24, updated 2024-01-23)",
-            "double_ratchet": "Signal Double Ratchet revision 4 (2025-11-04) §3, §6, §7",
-            "xeddsa": "Signal XEdDSA revision 1 (2016-10-20)",
+            "pqxdh": "Signal PQXDH revision 3 (2023-05-24, updated 2024-01-23); prekeys authenticated by the OM composite device key (ADR-0135 §2)",
+            "double_ratchet": "Signal Double Ratchet revision 4 (2025-11-04) §3; AEAD per ADR-0131 rule 3",
+            "signatures": "Ed25519 (RFC 8032) AND ML-DSA-65 (FIPS 204, empty context) over DS-SIG bytes",
             "mlkem": "FIPS 203 ML-KEM-768 (keygen seed = d || z)",
             "aead": "RFC 8452 AES-256-GCM-SIV",
+            "hpke": "draft-ietf-hpke-pq-05 MLKEM768-X25519 / HKDF-SHA256 / ChaCha20Poly1305, base mode",
         },
         "constants": {
             "pqxdh_info": String::from_utf8_lossy(kdf::PQXDH_INFO),
-            "tr_split_info": String::from_utf8_lossy(kdf::TR_SPLIT_INFO),
             "dr_rk_info": String::from_utf8_lossy(kdf::DR_RK_INFO),
-            "tr_protocol_info": String::from_utf8_lossy(kdf::TR_PROTOCOL_INFO),
-            "ec_type_byte": pqxdh::EC_TYPE_X25519, "kem_type_byte": pqxdh::KEM_TYPE_MLKEM768,
-            "header_profile": crate::PROFILE_PROTO,
+            "dr_aead_key_info": String::from_utf8_lossy(kdf::DR_AEAD_KEY_INFO),
+            "dr_aead_nonce_info": String::from_utf8_lossy(kdf::DR_AEAD_NONCE_INFO),
+            "dr_header_hash_label": kdf::DR_HEADER_HASH,
+            "event_aead_ad_label": kdf::EVENT_AEAD_AD,
+            "handshake_id_label": kdf::HANDSHAKE_ID,
+            "ec_type_byte": pqxdh::EC_TYPE_X25519,
+            "profile": PROFILE_V1,
         },
+        "binding": binding_vectors(),
         "cases": [
             case("one_time_pq_and_ec_prekeys", true, &c1),
-            case("last_resort_pq_no_ec_one_time", false, &c2),
+            case("last_resort_pq_no_one_time_keys", false, &c2),
         ],
+        "hpke_message_request": hpke_vector(),
     })
 }

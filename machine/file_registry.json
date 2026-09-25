@@ -1061,6 +1061,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0135-om-crypto-v1-construction-pinning.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -2664,6 +2671,13 @@
       "authority": "executable_guardrail"
     },
     {
+      "path": "tools/om_gate.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
       "path": "tools/om_registry.py",
       "class": "architecture_tool",
       "domain": "architecture_process",
@@ -2874,14 +2888,14 @@
       "authority": "executable_verification_evidence"
     },
     {
-      "path": "verification/prototypes/v001-crypto/probe_upstream.sh",
+      "path": "verification/prototypes/v001-crypto/python/check_vectors.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
       "authority": "executable_verification_evidence"
     },
     {
-      "path": "verification/prototypes/v001-crypto/python/check_vectors.py",
+      "path": "verification/prototypes/v001-crypto/python/hpke_pq.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -2958,6 +2972,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/v001-crypto/rust/core/src/binding.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/v001-crypto/rust/core/src/cbor.rs",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -2972,7 +2993,21 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/v001-crypto/rust/core/src/hpke.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/v001-crypto/rust/core/src/kdf.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v001-crypto/rust/core/src/ledger.rs",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -3021,6 +3056,20 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/v001-crypto/rust/core/src/session.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v001-crypto/rust/core/src/sig.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/v001-crypto/rust/core/src/store.rs",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -3028,21 +3077,7 @@
       "authority": "executable_verification_evidence"
     },
     {
-      "path": "verification/prototypes/v001-crypto/rust/core/src/triple.rs",
-      "class": "verification_tool",
-      "domain": "architecture_verification",
-      "license": "Apache-2.0",
-      "authority": "executable_verification_evidence"
-    },
-    {
       "path": "verification/prototypes/v001-crypto/rust/core/src/vectors.rs",
-      "class": "verification_tool",
-      "domain": "architecture_verification",
-      "license": "Apache-2.0",
-      "authority": "executable_verification_evidence"
-    },
-    {
-      "path": "verification/prototypes/v001-crypto/rust/core/src/xeddsa.rs",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

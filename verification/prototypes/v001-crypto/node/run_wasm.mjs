@@ -2,6 +2,7 @@
 // Feasibility prototype for V-001. Not product code. Not for production.
 // Drives the wasm32-unknown-unknown build inside Node (V8). Usage:
 //   node run_wasm.mjs WASM selftest|vectors|rng
+//   node run_wasm.mjs WASM hpke-kat VECTORS.json
 //   node run_wasm.mjs WASM bench SETUP MSGS
 //   node run_wasm.mjs WASM persist DIR     (fresh WebAssembly.Instance per step; one JSON line per step)
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -48,6 +49,10 @@ if (cmd === 'selftest') {
   console.log(txt(run(instance(), 2, Number(a), Number(b))));
 } else if (cmd === 'vectors') {
   console.log(txt(run(instance(), 3)));
+} else if (cmd === 'hpke-kat') {
+  const out = txt(run(instance(), 7, 0, 0, readFileSync(a)));
+  console.log(out);
+  process.exit(JSON.parse(out).all_passed ? 0 : 1);
 } else if (cmd === 'rng') {
   console.log(txt(run(instance(), 5)));
 } else if (cmd === 'persist') {

@@ -8,7 +8,6 @@
 use crate::cbor::{self, V};
 use crate::rng::insecure_test_rng::InsecureTestRng;
 use crate::store::{Device, Provider};
-use crate::triple::{parse_header, spqr_epoch};
 use crate::{sha256, Error};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -65,7 +64,7 @@ struct World {
     bob: Device,
     provider: Provider,
     queue: Vec<(String, Vec<u8>)>,
-    max_epoch: u64,
+    max_ratchet_steps: u64,
     delivered: u64,
 }
 
@@ -77,7 +76,7 @@ impl World {
             (2, self.bob.to_cbor()),
             (3, self.provider.to_cbor()),
             (4, V::A(self.queue.iter().map(|(l, e)| V::A(vec![V::T(l.clone()), V::B(e.clone())])).collect())),
-            (5, V::U(self.max_epoch)),
+            (5, V::U(self.max_ratchet_steps)),
             (6, V::U(self.delivered)),
         ]))
     }
@@ -96,7 +95,7 @@ impl World {
             bob: Device::from_cbor(v.get(2)?)?,
             provider: Provider::from_cbor(v.get(3)?)?,
             queue,
-            max_epoch: v.get(5)?.u()?,
+            max_ratchet_steps: v.get(5)?.u()?,
             delivered: v.get(6)?.u()?,
         })
     }
@@ -118,7 +117,7 @@ pub fn step(k: usize, world: Option<&[u8]>) -> Result<Vec<u8>, String> {
             let mut provider = Provider::default();
             let up = bob.generate_one_time(2, 2, &mut rng);
             provider.publish(&bob, up);
-            World { alice, bob, provider, queue: vec![], max_epoch: 0, delivered: 0 }
+            World { alice, bob, provider, queue: vec![], max_ratchet_steps: 0, delivered: 0 }
         }
         (_, Some(b)) => {
             let w = World::from_bytes(b).map_err(|e| format!("load: {e}"))?;
@@ -132,16 +131,17 @@ pub fn step(k: usize, world: Option<&[u8]>) -> Result<Vec<u8>, String> {
     match st {
         Step::Init => {}
         Step::Start => {
-            let b = w.provider.fetch(&w.bob.ik()).map_err(|e| e.to_string())?;
-            w.alice.start_session(&b, &mut rng).map_err(|e| e.to_string())?;
+            let (acs, cred) = w.provider.view(&w.bob.device_id);
+            let f = w.provider.fetch(&w.bob.device_id).map_err(|e| e.to_string())?;
+            w.alice.start_session(&f, &Device::peer_view(&acs, &cred), &mut rng).map_err(|e| e.to_string())?;
         }
         Step::Send(who, labels) => {
             for l in labels {
                 let (s, peer) = if *who == Who::A { (&mut w.alice, w.bob.ik()) } else { (&mut w.bob, w.alice.ik()) };
-                let env = s.encrypt(&peer, &plaintext(l), &mut rng).map_err(|e| format!("encrypt {l}: {e}"))?.0;
+                let env = s.encrypt(&peer, &plaintext(l)).map_err(|e| format!("encrypt {l}: {e}"))?.0;
                 let v = cbor::decode(&env).unwrap();
-                let h = parse_header(v.a().unwrap()[2].b().unwrap()).unwrap();
-                w.max_epoch = w.max_epoch.max(spqr_epoch(&h.scka).unwrap_or(0));
+                let h = crate::session::parse_header(v.a().unwrap()[2].b().unwrap()).unwrap();
+                w.max_ratchet_steps = w.max_ratchet_steps.max(h.pn + h.n);
                 w.queue.push((l.clone(), env));
             }
         }
@@ -169,8 +169,8 @@ pub fn summary(world: &[u8]) -> Result<serde_json::Value, String> {
         "world_bytes": world.len(),
         "delivered": w.delivered,
         "queued": w.queue.len(),
-        "spqr_max_epoch": w.max_epoch,
-        "alice_skipped_keys": w.alice.sessions.values().map(|s| s.tr.ec.skipped.len()).sum::<usize>(),
-        "bob_skipped_keys": w.bob.sessions.values().map(|s| s.tr.ec.skipped.len()).sum::<usize>(),
+        "max_chain_position": w.max_ratchet_steps,
+        "alice_skipped_keys": w.alice.sessions.values().map(|s| s.dr.ec.skipped.len()).sum::<usize>(),
+        "bob_skipped_keys": w.bob.sessions.values().map(|s| s.dr.ec.skipped.len()).sum::<usize>(),
     }))
 }
