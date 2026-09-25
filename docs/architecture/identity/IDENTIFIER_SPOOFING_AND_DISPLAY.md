@@ -22,3 +22,15 @@ Internationalized domains should have a reveal/canonical-detail affordance. Exte
 ## Avatars/display names
 
 These are presentation claims and can be copied. They never imply verification. Avoid blue-check-style global trust semantics in the protocol.
+
+## CONFORMANCE-IDENTIFIER-SPOOFING
+
+The following are normative pass/fail cases for the registered W0 conformance suite. Passing these cases is evidence; it does not by itself authorize a scope.
+
+| ID | Case | Pass condition |
+|---|---|---|
+| IS-01 | confusable display names | UI preserves stable disambiguation path and never treats name as identity proof |
+| IS-02 | copied avatar/name | safety number/AccountID verification remains independently reachable |
+| IS-03 | bidi/control characters | rendering is bounded and cannot rewrite surrounding security chrome |
+| IS-04 | alias changes owner | prior relationship identity is not silently rebound |
+| IS-05 | service/bridge imitates person | typed principal indicator remains reserved and visible |

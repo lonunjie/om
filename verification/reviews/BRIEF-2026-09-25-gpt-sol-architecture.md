@@ -29,7 +29,7 @@ absolute rules and the constitution. Skip style. Prefer fewer solid findings.
 
 - Add **only** new files under `verification/reviews/`: `2026-09-25-gpt-sol-architecture.md` (one file, or one per
   area if large). Don't edit other files; put proposed text changes inside the findings.
-- Header: reviewer (gpt-sol), exact model id, date, the base commit from `OM_EXPORT.json`, scope.
+- Header: reviewer (gpt-sol), exact model id, date, the base commit from [`OM_EXPORT.json`](../../OM_EXPORT.json), scope.
 - A verdict of two or three sentences, then findings: `### F-GS-<n> — <title>`, `Severity:` blocker|major|minor,
   `Where:` file:line or §, `Problem:`, `Proposed fix:`, and an empty `Resolution:` line for the integrator.
-- Return the whole repository as a zip with the same layout (leave `OM_EXPORT.json` unchanged).
+- Return the whole repository as a zip with the same layout (leave [`OM_EXPORT.json`](../../OM_EXPORT.json) unchanged).

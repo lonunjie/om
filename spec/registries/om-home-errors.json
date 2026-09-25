@@ -1,0 +1,28 @@
+{
+  "registry": "om-home-errors",
+  "registry_version": 1,
+  "rules": [
+    "Codes are permanent and never reused.",
+    "Unknown codes are non-retryable failures.",
+    "retry_after_seconds is valid only when retryable is true.",
+    "A moved response is followed only after its signed forwarding/continuity proof verifies."
+  ],
+  "errors": [
+    {"code": 1, "name": "invalid_request", "retryable": false},
+    {"code": 2, "name": "unsupported_version", "retryable": false},
+    {"code": 3, "name": "unauthorized", "retryable": false},
+    {"code": 4, "name": "revoked", "retryable": false},
+    {"code": 5, "name": "expired", "retryable": false},
+    {"code": 6, "name": "not_found", "retryable": false},
+    {"code": 7, "name": "stale_generation", "retryable": false},
+    {"code": 8, "name": "invalid_signature", "retryable": false},
+    {"code": 9, "name": "quota", "retryable": false, "detail": "quota class and hard-vs-billable state"},
+    {"code": 10, "name": "rate_limited", "retryable": true},
+    {"code": 11, "name": "retryable", "retryable": true},
+    {"code": 12, "name": "moved", "retryable": false, "detail": "signed replacement locator/proof"},
+    {"code": 13, "name": "payload_too_large", "retryable": false},
+    {"code": 14, "name": "policy_denied", "retryable": false},
+    {"code": 15, "name": "admission_denied", "retryable": false},
+    {"code": 16, "name": "spent_token", "retryable": false}
+  ]
+}

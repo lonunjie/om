@@ -25,10 +25,11 @@ ADR collects every W0 wire addition from the review in one place.
    11). The key is a public key of the hybrid KEM of the named CryptoProfile (for OM-Crypto-v1: X25519 + ML-KEM-768).
    A sender uses a request key only from an object signed by the recipient's intro identity. Its digest uses the new
    label `OM-REQUEST-KEY-HASH-v1`.
-2. **MessageRequest (object type 19).** The first-contact message is sealed with HPKE (RFC 9180, base mode) to the
-   request key, using that CryptoProfile's hybrid KEM. No new primitive is introduced; the HPKE suite identifiers and
-   the `info` input (`OM-MESSAGE-REQUEST-HPKE-INFO-v1`, reserved) are fixed with the other OM-Crypto-v1 labels when
-   V-001 closes. The outer object carries only the ticket id, the request-key digest, the profile, the HPKE
+2. **MessageRequest (object type 19).** The first-contact message is sealed using RFC 9180 base-mode semantics and
+   the exact PQ/T HPKE profile pinned by ADR-0131 rule 9: `draft-ietf-hpke-pq-05` MLKEM768-X25519, HKDF-SHA256,
+   ChaCha20Poly1305. OM does not invent a hybrid KEM. The draft version is part of OM-Crypto-v1; an incompatible later
+   draft/RFC requires a new profile/version. The `info` input is `OM-MESSAGE-REQUEST-HPKE-INFO-v1` plus profile id,
+   ticket id and request-key digest. The outer object carries only the ticket id, the request-key digest, the profile, the HPKE
    encapsulation, the ciphertext and an optional admission proof. It carries **no** sender AccountID, device id or
    sender intro key, so the IntroGate sees the ticket and admission token only. The IntroGate rejects a ciphertext
    longer than the ticket's `payload_limit_bytes` plus the AEAD tag.
@@ -36,12 +37,11 @@ ADR collects every W0 wire addition from the review in one place.
    with its own intro identity (role `intro_identity`). It repeats the outer ticket id and request-key digest, so a
    payload cannot be replayed into another request, and carries the sender's signed ContactDescriptor, an optional
    greeting, optional ReferralAttestations and a reply route (a `relay-entry`).
-4. **IntroIdentityBinding (object type 21).** A signature, by a device that the recipient's AccountControlState lists
-   as active and not quarantined (role `device`), over the recipient's AccountID, the intro public key, the
-   request-key digest and the ACS generation and hash it was made under. It is disclosed only inside the accepted
-   relationship. The sender verifies it against the recipient's ACS before treating the relationship as bound to that
-   AccountID. After acceptance, sessions are established with PQXDH to the recipient's device bundles (ADR-0118,
-   ADR-0120).
+4. **IntroIdentityBinding (object type 21).** A signature, by a device that the subject AccountControlState lists as
+   active and not quarantined (role `device`), over the subject AccountID, intro public key, request-key digest and the
+   ACS generation/hash it was made under. It is disclosed only after acceptance. ADR-0131 rule 8 makes the exchange
+   symmetric: recipient binding first, requester binding second. The relationship remains `ACCEPTED_UNBOUND` until
+   both bindings verify; only then may normal PQXDH fanout use stable-account device bundles.
 5. **Fork bridge extension `om.acs.fork_ack`.** A critical key-23 extension of AccountControlState whose value is
    `{0: [2*16 digest]}`, the set of observed branch-head digests (OM-ACS-HASH-v1). A bridge state's
    `previous_state_hash` is the common ancestor. Authorization rules are in ADR-0127.

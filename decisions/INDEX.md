@@ -132,3 +132,11 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0128 — Group reduction liveness, membership consent and room capabilities](ADR-0128-group-reduction-liveness-membership-consent-and-room-capabilities.md)
 - [ADR-0129 — Extension, service and client trust boundaries](ADR-0129-extension-service-and-client-trust-boundaries.md)
 - [ADR-0130 — Distribution, provisioning and provider trust roots](ADR-0130-distribution-provisioning-and-provider-trust-roots.md)
+
+- [ADR-0131 — Core-kernel final pre-engineering hardening](ADR-0131-core-kernel-final-pre-engineering-hardening.md)
+
+- [ADR-0132 — Abuse, calls and extension-boundary closure](ADR-0132-abuse-calls-and-extension-boundary-closure.md)
+
+- [ADR-0133 — Provider, release-transparency and conformance closure](ADR-0133-provider-release-and-conformance-closure.md)
+
+- [ADR-0134 — Verification execution lifecycle and no-bounce handoff](ADR-0134-verification-execution-lifecycle-and-no-bounce-handoff.md)

@@ -107,3 +107,15 @@ Attachment/object identity is separated from provider location. Canonical events
 ## 2026-09-23 blob resolution
 
 BlobID is a random identifier that stably names the inner encrypted object; integrity comes from `ciphertext_digest`; provider locators are mutable. E2EE events carry decryption material and an opaque repair capability; authenticated BlobLocationRecord repair permits relocation/mirroring without changing canonical message identity.
+
+## CONFORMANCE-ATTACHMENTS
+
+The following are normative pass/fail cases for the registered W0 conformance suite. Passing these cases is evidence; it does not by itself authorize a scope.
+
+| ID | Case | Pass condition |
+|---|---|---|
+| AT-01 | blob fetched from alternate store | digest/authentication yields identical plaintext or rejects |
+| AT-02 | locator tamper/truncation | detected before rendering; no partial trusted content |
+| AT-03 | moved/repaired BlobLocationRecord | only signed valid newer location state is followed |
+| AT-04 | expired/deleted attachment | lifecycle policy prevents normal re-materialization from OM-managed stores |
+| AT-05 | expressive asset ref | digest-bound blob, not provider locator/blob id, is rendering authority |

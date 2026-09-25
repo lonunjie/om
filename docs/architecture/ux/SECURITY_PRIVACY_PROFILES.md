@@ -121,3 +121,9 @@ The profiles above are policy bundles, not privacy badges. In particular:
 "Strongest approved E2EE/PQ-hybrid profile" above means the strongest approved profile **for each conversation type**. In OM-Crypto-v1, 1:1 conversations are hybrid-PQ. Private groups and group calls use the classical RFC 9420 X25519 MLS suite until the ADR-0107 adoption triggers are met. No preset may claim PQ confidentiality for groups. Presets never change this; it is a property of the CryptoProfile, not of privacy policy.
 
 Coercion, device-access and platform-leakage controls (app lock, secure surfaces, keyboard/spellcheck hints, backup exclusion) are defined in [`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md) and are part of the Hardened and Maximum Privacy bundles.
+
+## Post-quantum wording
+
+For OM-Crypto-v1, user-facing status may say **Post-quantum handshake protection**. It must not imply PQ
+post-compromise healing or per-message PQ security. Group conversations remain explicitly classical until their
+separate migration gate passes.

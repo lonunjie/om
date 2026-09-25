@@ -237,3 +237,49 @@ DiagnosticsStore
 ```
 
 `IdentityProfileStore` is a local application namespace, not a global identity registry. `DeviceVault` never exposes provider-specific key handles as protocol fields.
+
+## 2026-09-25 frozen W0 provider contracts (ADR-0133)
+
+The former A-045 "Missing contracts" are now explicit logical interfaces. Wire bindings are in
+[`spec/protocol/home-api.md`](../../../spec/protocol/home-api.md) and [`spec/cddl/home-api.cddl`](../../../spec/cddl/home-api.cddl).
+
+```text
+KeyMaterialProvider
+  publish_bundle(device_auth, signed_async_key_bundle)
+  fetch_bundles(relationship_cap, device_ids)
+  rotate_fetch_capability(device_auth, relationship_id)
+
+BackupStore
+  put_encrypted_backup(object_cap, ciphertext, retention_policy)
+  get_encrypted_backup(object_cap)
+  delete_backup(object_cap)
+  usage_state()
+
+RecoveryStore
+  put_recovery_record(device_auth, encrypted_record)
+  fanout_recovery_request(recovery_auth, signed_request)
+  drain_recovery_requests(controller_cap)
+
+StoragePool
+  put_ciphertext(object_cap, ciphertext, durability_class)
+  get_ciphertext(object_cap)
+  delete_ciphertext(object_cap)
+  repair_locations(device_auth, signed_blob_location_records)
+
+CryptoProvider
+  profile_capabilities()
+  random_bytes(n)
+  hkdf(profile, inputs)
+  aead_seal(profile, key_handle, nonce, aad, plaintext)
+  aead_open(profile, key_handle, nonce, aad, ciphertext)
+  kem_encap(profile, public_key)
+  kem_decap(profile, private_key_handle, encapsulation)
+  sign(role, key_handle, canonical_bytes)
+  verify(role, public_key, canonical_bytes, signature)
+```
+
+`CryptoProvider` is a local implementation boundary, never a network provider. Raw durable private-key bytes need not
+be exportable; handles are implementation-private. Protocol outputs remain canonical and interoperable.
+
+Per-contact deposit-capability mint/revoke, sponsorship redemption, `RecoveryRecord`, blob repair and signed `moved`
+responses are Home API v1 operations. `NetworkTransport` remains the untrusted byte-carrier contract above.

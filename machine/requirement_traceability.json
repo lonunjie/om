@@ -1731,6 +1731,58 @@
         "review:PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
         "PR-005"
       ]
+    },
+    {
+      "requirement": "R-278",
+      "verified_by": [
+        "V-002",
+        "conformance:identity"
+      ]
+    },
+    {
+      "requirement": "R-279",
+      "verified_by": [
+        "V-004",
+        "V-008",
+        "V-011",
+        "V-016"
+      ]
+    },
+    {
+      "requirement": "R-280",
+      "verified_by": [
+        "V-005",
+        "V-015",
+        "V-016",
+        "conformance:discovery"
+      ]
+    },
+    {
+      "requirement": "R-281",
+      "verified_by": [
+        "V-001",
+        "V-005"
+      ]
+    },
+    {
+      "requirement": "R-282",
+      "verified_by": [
+        "V-010"
+      ]
+    },
+    {
+      "requirement": "R-283",
+      "verified_by": [
+        "V-007"
+      ]
+    },
+    {
+      "requirement": "R-284",
+      "verified_by": [
+        "V-020",
+        "V-023",
+        "conformance:provider"
+      ]
     }
   ]
 }

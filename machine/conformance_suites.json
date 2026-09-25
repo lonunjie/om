@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-24T23:30:00+08:00",
+  "snapshot": "2026-09-25T08:59:00+08:00",
   "purpose": "Registry of conformance suites that traceability and threat entries may name as conformance:<name> (ADR-0130 rule 10). 'specified' = the spec document holds a pass/fail case list; 'planned' = the spec document states the rules a future case list must test. A scope listed here cannot be authorized while the suite is still planned; the validator enforces both.",
   "statuses": [
     "specified",
@@ -27,7 +27,7 @@
     {
       "name": "identity",
       "spec_doc": "docs/architecture/identity/IDENTITY_CONTINUITY.md",
-      "status": "planned",
+      "status": "specified",
       "scopes": [
         "core_kernel"
       ],
@@ -36,7 +36,7 @@
     {
       "name": "discovery",
       "spec_doc": "docs/architecture/discovery/DISCOVERY_FABRIC.md",
-      "status": "planned",
+      "status": "specified",
       "scopes": [
         "core_kernel"
       ],
@@ -45,7 +45,7 @@
     {
       "name": "attachments",
       "spec_doc": "docs/architecture/storage/STORAGE_AND_BLOB_ARCHITECTURE.md",
-      "status": "planned",
+      "status": "specified",
       "scopes": [
         "core_kernel"
       ],
@@ -54,7 +54,7 @@
     {
       "name": "security_floor",
       "spec_doc": "docs/architecture/providers/VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md",
-      "status": "planned",
+      "status": "specified",
       "scopes": [
         "core_kernel"
       ],
@@ -63,7 +63,7 @@
     {
       "name": "accessibility",
       "spec_doc": "docs/architecture/ux/ACCESSIBILITY_AND_INPUT.md",
-      "status": "planned",
+      "status": "specified",
       "scopes": [
         "reference_client_ui"
       ],
@@ -72,7 +72,7 @@
     {
       "name": "identifier_spoofing",
       "spec_doc": "docs/architecture/identity/IDENTIFIER_SPOOFING_AND_DISPLAY.md",
-      "status": "planned",
+      "status": "specified",
       "scopes": [
         "reference_client_ui"
       ],
@@ -81,7 +81,7 @@
     {
       "name": "performance",
       "spec_doc": "docs/architecture/ux/MOTION_AND_PERFORMANCE.md",
-      "status": "planned",
+      "status": "specified",
       "scopes": [
         "reference_client_ui"
       ],
@@ -90,7 +90,7 @@
     {
       "name": "ui_intents",
       "spec_doc": "docs/architecture/ux/UI_CORE_PLATFORM_CONTRACT.md",
-      "status": "planned",
+      "status": "specified",
       "scopes": [
         "reference_client_ui"
       ],
@@ -99,7 +99,7 @@
     {
       "name": "ui_themes",
       "spec_doc": "docs/architecture/ux/THEMES_FONTS_AND_PERSONALIZATION.md",
-      "status": "planned",
+      "status": "specified",
       "scopes": [
         "reference_client_ui"
       ],

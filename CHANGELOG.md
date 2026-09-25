@@ -1,3 +1,22 @@
+## 2026-09-25 11:54 PHT — verification lifecycle hardened for one-way execution
+
+- accepted ADR-0134: design closure, repo-local pre-engineering evidence, post-scope implementation evidence and genuinely external evidence are now explicit phases;
+- eliminated the verification chicken-and-egg ambiguity: non-production feasibility prototypes under `verification/` are permitted, but evidence requiring the real blocked implementation belongs to pre-release;
+- added explicit `feasibility_criteria` for V-004/V-008/V-009/V-011/V-013/V-014/V-019, so `core_kernel` needs only proof that frozen W0 interfaces can carry later waves, not full later-wave gate passage;
+- promoted hidden V-* obligations from stale `remaining` notes into canonical criteria and removed free-text remaining lists;
+- strengthened the validator: exact criterion matching, independence required for pre-engineering passage, and explicit feasibility criteria required for interface-impact gates;
+- added `verification/CLAUDE_OPUS_5_5_HANDOFF.md`: the verification executor must exhaust repo-local evidence before one batched review queue, preventing agent-to-agent ping-pong;
+- no engineering/environment verification was run in this pass; architecture validator and document/link consistency checks pass; engineering remains unauthorized.
+
+## 2026-09-25 08:59 PHT — blocking architecture design queue closed
+
+- accepted ADR-0131..ADR-0133 and resolved A-024..A-028, A-032, A-035, A-045..A-047 plus new A-048..A-053 findings; **open blocking design items = 0**;
+- pinned core security decisions: dual PQXDH credential binding, exact replay ledger, AES-256-GCM-SIV, explicit v1 ratchet-header exposure, verifier-local recovery activation, incarnation-bound reductions, reciprocal first-contact identity binding, and version-pinned PQ/T HPKE;
+- froze W0 referral Privacy Pass profile, participant-isolated group-call SFrame key distribution, remote-mini-app egress semantics and bilateral 1:1 plaintext-egress consent;
+- froze Home API v1/CDDL/error registry, ProviderCapabilities JSON Schema and Rekor/C2SP-style release transparency; W0 conformance suites are specified;
+- phase-1 executable verification passed with 347,316 bounded/adversarial cases; full `make verify` could not complete TLC because the isolated runner could not download the pinned TLC dependency; no gate was waived or auto-passed;
+- engineering remains unauthorized pending V-* proof/review criteria.
+
 ## 2026-09-24 23:30 PHT — architecture review R1–R4 applied
 
 - four independent architecture reviews (ADR-0117 records in `verification/reviews/`) applied as ADR-0126..ADR-0130;

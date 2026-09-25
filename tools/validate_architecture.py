@@ -514,11 +514,25 @@ def validate_0924_scope_and_gate_guardrails() -> None:
     ok_pre = {"passed", "waived_by_adr"}
     for g in gates:
         gid = g.get("id")
-        for field in ("pre_engineering_criteria", "pre_release_criteria", "independence", "unlock_scopes", "pre_engineering_status"):
+        for field in ("pre_engineering_criteria", "pre_release_criteria", "independence", "unlock_scopes", "pre_engineering_status", "pre_engineering_evidence_class", "executor_role", "review_batching", "pre_engineering_independence_status", "feasibility_criteria", "feasibility_criteria_met"):
             if field not in g:
-                fail(f"09:24 guard: {gid} missing {field}")
+                fail(f"ADR-0134 guard: {gid} missing {field}")
         if g.get("pre_engineering_status") not in {"open", "passed", "failed", "waived_by_adr"}:
             fail(f"09:24 guard: {gid} invalid pre_engineering_status")
+        if g.get("pre_engineering_independence_status") not in {"open", "satisfied", "waived_by_adr"}:
+            fail(f"ADR-0134 guard: {gid} invalid pre_engineering_independence_status")
+        pre = g.get("pre_engineering_criteria") or []
+        rel = g.get("pre_release_criteria") or []
+        met = g.get("criteria_met") or []
+        unknown_met = [c for c in met if c not in pre and c not in rel]
+        if unknown_met:
+            fail(f"ADR-0134 guard: {gid} criteria_met contains non-canonical strings: {unknown_met}")
+        if g.get("pre_engineering_status") == "passed":
+            missing = [c for c in pre if c not in met]
+            if missing:
+                fail(f"ADR-0134 guard: {gid} pre-engineering passed with unmet criteria {missing}")
+            if g.get("pre_engineering_independence_status") != "satisfied":
+                fail(f"ADR-0134 guard: {gid} pre-engineering passed without satisfied independence evidence")
         if not isinstance(g.get("interface_impact"), list) or g.get("feasibility_status") not in {"open", "evidenced"}:
             fail(f"ADR-0113 guard: {gid} must declare interface_impact (list) and feasibility_status (open|evidenced)")
         for s_ in g.get("interface_impact", []) or []:
@@ -526,6 +540,19 @@ def validate_0924_scope_and_gate_guardrails() -> None:
                 fail(f"ADR-0113 guard: {gid} interface_impact names unknown scope {s_}")
         if g.get("feasibility_status") == "evidenced" and not g.get("evidence"):
             fail(f"ADR-0113 guard: {gid} feasibility evidenced without evidence links")
+        fcrit = g.get("feasibility_criteria") or []
+        fmet = g.get("feasibility_criteria_met") or []
+        unknown_fmet = [c for c in fmet if c not in fcrit]
+        if unknown_fmet:
+            fail(f"ADR-0134 guard: {gid} feasibility_criteria_met contains non-canonical strings: {unknown_fmet}")
+        if g.get("interface_impact") and not fcrit:
+            fail(f"ADR-0134 guard: {gid} has interface_impact but no explicit feasibility_criteria")
+        if not g.get("interface_impact") and fcrit:
+            fail(f"ADR-0134 guard: {gid} has feasibility_criteria but no interface_impact")
+        if g.get("feasibility_status") == "evidenced":
+            missing_f = [c for c in fcrit if c not in fmet]
+            if missing_f:
+                fail(f"ADR-0134 guard: {gid} feasibility evidenced with unmet criteria {missing_f}")
         if not g.get("pre_engineering_criteria") or not g.get("pre_release_criteria"):
             fail(f"09:24 guard: {gid} must list criteria for both phases")
         ind = g.get("independence", {})

@@ -182,3 +182,16 @@ Screen share is another SFrame-protected media track/capability. The same partic
 ## 2026-09-23 media-key resolution
 
 1:1 call media secrets derive from the existing secure session with CallID/participant-bound exporter labels. Group call keys derive through the MLS exporter bound to CallID, MLS epoch and (since ADR-0128) the sorted joined-participant set, with directional/per-sender SFrame keys and no counter restart under the same key. Interoperability is verified by `V-007`.
+
+## Participant-isolated group media keys (ADR-0132)
+
+Room MLS authenticates call-control context but is **not** the media-key source. Every sending DeviceID generates a
+fresh SFrame sender key for each participant-set generation and sends that key only to currently joined participant
+DeviceIDs over authenticated OM pairwise device channels (or an equivalent already-authenticated pairwise HPKE
+channel). The key package binds CallID, ConversationID, MLS epoch, participant-set generation, the sorted participant
+DeviceID set, sender DeviceID and SFrame key id.
+
+Join, leave, revocation/quarantine or participant correction increments the generation and requires fresh sender keys
+before further media. The SFU never receives media keys. A Room member/service/bridge that is not joined cannot
+decrypt merely by possessing the Room MLS epoch. Joined services/bridges are visible call participants. V-007 must
+exercise silent-listener, stale-generation, leave/rejoin and revocation traces.

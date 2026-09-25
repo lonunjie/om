@@ -92,3 +92,11 @@ Normative, from the V-series models. The ADR is authoritative where this summary
 
 - [ADR-0120](../../../decisions/ADR-0120-one-to-one-session-manager-rules.md): rules K1–K11 are MUST rules for the session manager: persist before send (K1); dedupe durable before the relay ack (K2); re-send on an authenticated reset (K4); re-check eligibility at every encryption (K5); recipients only from validated AccountControlState (K6); keep peers' control heads across crash and restore (K7); never restore ratchet state (K8); reject traffic from revoked devices (K9); prekey header until confirmed (K10); no prekey secrets in backups, and fresh prekeys after a restore (K11). Each rule's V-003 vector is its conformance test.
 - [ADR-0120](../../../decisions/ADR-0120-one-to-one-session-manager-rules.md): lazy repair is accepted. A device that lost sessions does not broadcast; an undecryptable message triggers an authenticated reset and a re-send.
+
+## Last-resort handshake replay ledger
+
+No-one-time-key PQXDH acceptance is idempotent by an exact transcript `handshake_id` persisted before plaintext release
+or acknowledgement. The replay set is scoped to DeviceID + signed-prekey epoch, has no LRU/probabilistic eviction and
+is retained through that prekey epoch's acceptance overlap. At 4096 accepted last-resort ids the endpoint rejects
+more last-resort initiations until fresh key material is published. Backup restore creates a fresh DeviceID/prekey
+state rather than rolling this ledger backward.

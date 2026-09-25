@@ -1,0 +1,39 @@
+; OM Home API v1 semantic bodies (ADR-0133). Transport headers/auth bindings are outside CBOR bodies.
+api-major = 1
+opaque-id16 = bstr .size 16
+digest32 = bstr .size 32
+opaque-cap = bstr .size (16..96)
+request-id = opaque-id16
+
+HomeError = {
+  0: api-major,
+  1: uint,                 ; code from om-home-errors.json
+  ? 2: tstr .size (1..256),; safe human/debug hint, not authority
+  ? 3: uint,               ; retry_after_seconds only where registry permits
+  ? 4: bstr,               ; typed detail, code-specific
+}
+
+RelayDepositRequest = {0: api-major, 1: request-id, 2: opaque-cap, 3: bstr, ?4: uint}
+RelayDepositReceipt = {0: api-major, 1: opaque-id16, ?2: uint}
+RelayDrainRequest = {0: api-major, 1: request-id, 2: opaque-cap, ?3: uint}
+RelayDrainResponse = {0: api-major, 1: [* RelayItem], ?2: bstr}
+RelayItem = {0: opaque-id16, 1: bstr, ?2: uint}
+RelayAckRequest = {0: api-major, 1: request-id, 2: opaque-cap, 3: [1*256 opaque-id16]}
+RelayRotateRequest = {0: api-major, 1: request-id, 2: opaque-cap}
+RelayRotateResponse = {0: api-major, 1: opaque-cap, 2: opaque-cap, ?3: uint}
+
+MintDepositCapabilityRequest = {0: api-major, 1: request-id, 2: bstr, ?3: uint, ?4: uint}
+DepositCapabilityRecord = {0: api-major, 1: opaque-id16, 2: opaque-cap, ?3: uint}
+
+IntroTicketRequest = {0: api-major, 1: request-id, 2: bstr, ?3: uint}
+
+KeyBundleFetchRequest = {0: api-major, 1: request-id, 2: opaque-cap, 3: [1*64 bstr .size (16..64)]}
+KeyBundleFetchResponse = {0: api-major, 1: [* bstr]}
+
+RecoveryRequestFanout = {0: api-major, 1: request-id, 2: bstr} ; signed-RecoveryRequest bytes
+
+BlobPutRequest = {0: api-major, 1: request-id, 2: opaque-cap, 3: bstr, ?4: uint}
+BlobPutResponse = {0: api-major, 1: opaque-cap, 2: bstr, ?3: uint}
+BlobRepairRequest = {0: api-major, 1: request-id, 2: [1*32 bstr]}
+
+SponsorshipRedeemRequest = {0: api-major, 1: request-id, 2: bstr}

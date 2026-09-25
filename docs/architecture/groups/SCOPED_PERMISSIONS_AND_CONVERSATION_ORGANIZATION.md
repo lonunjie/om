@@ -288,3 +288,11 @@ Normative, from the V-series models. The ADR is authoritative where this summary
 
 - [ADR-0121](../../../decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md) rule 7 is the kind-to-capability table (reply, edit, delete, vote, close, topic management).
 - [ADR-0122](../../../decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md): every grant records its authorization basis and lapses when that basis is revoked (cascade). Re-rooting a grant needs a governance transition.
+
+## Immutable reduction incarnation
+
+Every grant, membership, service installation, endpoint admission, invite and delegated binding that can later be
+reduced has a unique immutable instance id (or canonical creation digest). A revoke/remove targets that exact instance.
+When rebased onto a state where the instance is already absent, it is an idempotent no-op; it never removes a later
+re-created object merely because AccountID, ServiceID, role name or capability tuple matches. This is the normative
+ABA protection for ADR-0122/ADR-0128 reduction liveness.

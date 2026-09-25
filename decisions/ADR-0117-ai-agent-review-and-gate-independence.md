@@ -38,3 +38,9 @@ Consequences for current evidence:
 - The V-001..V-016 prototypes and models were written by Claude agents. They need a non-Anthropic reviewer, such as an
   OpenAI Codex or Google Gemini agent. A different Claude session does not count (Option 3 stays rejected).
 - A reviewer may not have authored any part of the artifact it reviews, including its vectors.
+
+## 2026-09-25 execution amendment — reviews are batched, not bounced
+
+ADR-0134 changes workflow, not the independence threshold. The verification executor must finish every non-review criterion it can complete before asking for an `independent_reviewer`. Review-only blockers are consolidated into one final queue. A reviewer finding that changes the semantics of a reviewed artifact requires re-review of that changed semantic artifact; adding configs/vectors that do not alter its semantics does not automatically invalidate the review.
+
+`independent_implementation` is distinct from `independent_reviewer`: a different-language/runtime clean-room implementation can satisfy implementation diversity under ADR-0109/0134 without cross-vendor review unless the gate separately requires a reviewer.

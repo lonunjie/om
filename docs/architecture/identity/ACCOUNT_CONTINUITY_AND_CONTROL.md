@@ -303,3 +303,8 @@ The TLC model [`verification/tla/AccountControl.tla`](../../../verification/tla/
 2. **Recovery targets stay fresh.** A pending recovery request is bound to its target device key and recovery epoch.
    Completion is rejected if that device was enrolled or revoked by another transition in the meantime.
 
+## Recovery activation observation
+
+ADR-0131 makes recovery-alone activation withholding-resistant. Every verifier that has not already observed the
+RecoveryRequest for the full policy delay treats the successor as pending, even if another peer already accepted it.
+There is no global trusted recovery clock. Controller co-signature is the only v1 immediate path.

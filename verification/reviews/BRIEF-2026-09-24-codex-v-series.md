@@ -27,7 +27,7 @@ toolchain), `uv`/Python 3.14, Node and the Ruby `cddl` gem. Say which ones you c
 
 - Add **only** new files under `verification/reviews/`, one per gate:
   `2026-09-24-codex-<gate>.md`. Don't edit any other file; propose changes inside your review instead.
-- Each file starts with: reviewer (Codex), exact model id, date, and the commit in `OM_EXPORT.json`.
+- Each file starts with: reviewer (Codex), exact model id, date, and the commit in [`OM_EXPORT.json`](../../OM_EXPORT.json).
 - Then a verdict: `pass`, `pass with findings`, or `fail`, for the gate's review criterion.
 - Then the findings, one per heading: `F-<gate>-<n>`, severity (`blocker`, `major`, `minor`), the file and line,
   the problem, and a proposed fix. Leave a `Resolution:` line empty; the integrator fills it in.

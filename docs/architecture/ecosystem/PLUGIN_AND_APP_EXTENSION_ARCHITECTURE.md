@@ -345,3 +345,16 @@ The OM Project may operate a recommended catalog for its own distribution in the
 - package signatures mean provenance/update continuity, not trust;
 - remote code/data/principals stay visibly separate;
 - provider/plugin/catalog success cannot become protocol ownership.
+
+## Remote-origin plaintext is egress
+
+Host taint/network-capability enforcement applies only where OM controls the execution capability boundary. A remote
+mini-app origin has ambient network authority of its own; therefore **sending conversation plaintext into that origin
+is itself egress**. Remote frames receive no plaintext by default. Plaintext crosses only through a one-shot
+user-confirmed selected-context disclosure or an explicit conversation-authorized service/recipient path visible to
+all affected participants. OM never claims that withholding a host `fetch` capability can contain plaintext already
+given to a foreign origin.
+
+Continuous plaintext egress in a 1:1 additionally requires signed `RelationshipPolicyConsent` from both participants.
+The effective policy is the intersection of their newest valid consents; either side can revoke unilaterally and
+absence/staleness fails closed.

@@ -25,7 +25,7 @@ HEADER = """# Verification Gate Pass Criteria
 
 - **Status:** Canonical verification-process view, **generated** by `tools/render_gates.py` from
   `machine/architecture_verification_gates.jsonl` (the machine ledger is authoritative; do not hand-edit)
-- **Decisions:** ADR-0108, ADR-0109, ADR-0113, ADR-0115, ADR-0117 (proposed)
+- **Decisions:** ADR-0108, ADR-0109, ADR-0113, ADR-0115, ADR-0117, ADR-0134
 
 ## Rules
 
@@ -33,13 +33,14 @@ HEADER = """# Verification Gate Pass Criteria
 2. **Independence.** Evidence produced solely by the author/agent who designed the thing under test cannot pass a phase. Each phase names the minimum independence:
    - `independent_tool`: a checker not written by the design author (TLC, fuzzers, sanitizers);
    - `independent_reviewer`: a named reviewer other than the author signs off in an ADR or review record (for pre-engineering phases a different-vendor AI agent counts, with a record in `verification/reviews/`: ADR-0117);
-   - `independent_implementation`: a second implementation/model written by a different author or in a different language agrees;
+   - `independent_implementation`: a cleanly separated second implementation/model in a different language/runtime or by a different author agrees; organizational/vendor independence is required only when the gate also names `independent_reviewer`;
    - `upstream_kat`: official known-answer tests from the standard's publisher;
    - `external_review`: an external security/crypto review organization or qualified outside reviewer;
    - `participant_study` / `independent_facilitator`: moderated sessions with real target users, facilitated by someone other than the flow's designer.
 3. **Two phases.** `pre_engineering_status` gates scope authorization; overall `status` = passed requires both phases and gates public releases/claims.
-4. **Cross-wave feasibility (ADR-0113).** A gate with `interface_impact` must reach `feasibility_status: evidenced` before the listed scopes can be authorized, even though its own scope is a later wave.
-5. **Waivers** (`waived_by_adr`) must name the ADR, the risk accepted and the compensating control.
+4. **Cross-wave feasibility (ADR-0113/0134).** A gate with `interface_impact` must reach `feasibility_status: evidenced` before the listed scopes can be authorized. Only that gate's explicit `feasibility_criteria` are required for this status; full later-wave gate passage is not.
+5. **No-bounce execution (ADR-0134).** The verification executor completes all repo-local/non-review evidence first and batches independent-review-only items at the end. Verification prototypes under `verification/` are evidence, not product engineering.
+6. **Waivers** (`waived_by_adr`) must name the ADR, the risk accepted and the compensating control.
 
 ## Summary
 
@@ -63,19 +64,29 @@ def render() -> str:
         out.append(f"- **Scopes blocked:** {', '.join(g.get('unlock_scopes') or []) or 'none (always required pre-engineering; blocks public production claims)'}\n")
         out.append(f"- **Status:** pre-engineering `{g.get('pre_engineering_status')}`, overall `{g.get('status')}`, feasibility `{g.get('feasibility_status')}`\n")
         out.append(f"- **Independence:** pre-engineering {', '.join(ind.get('pre_engineering', []))}; pre-release {', '.join(ind.get('pre_release', []))}\n")
+        out.append(f"- **Execution class:** `{g.get('pre_engineering_evidence_class', 'unspecified')}`; next executor role `{g.get('executor_role', 'verification_executor')}`\n")
+        out.append(f"- **Pre-engineering independence status:** `{g.get('pre_engineering_independence_status', 'open')}`\n")
         if g.get("evidence"):
             out.append("- **Evidence:** " + "; ".join(f"`{e}`" for e in g["evidence"]) + "\n")
         met = set(g.get("criteria_met", []))
         out.append("\nPre-engineering criteria:\n\n")
         for c in g.get("pre_engineering_criteria", []):
             out.append(f"- [{'x' if c in met else ' '}] {c}\n")
+        if g.get("feasibility_criteria"):
+            fmet = set(g.get("feasibility_criteria_met", []))
+            out.append("\nCross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):\n\n")
+            for c in g.get("feasibility_criteria", []):
+                out.append(f"- [{'x' if c in fmet else ' '}] {c}\n")
         out.append("\nPre-release criteria:\n\n")
         for c in g.get("pre_release_criteria", []):
             out.append(f"- [{'x' if c in met else ' '}] {c}\n")
-        if g.get("remaining"):
-            out.append("\nWhat remains (needs someone other than the author):\n\n")
-            for r in g["remaining"]:
-                out.append(f"- {r}\n")
+        unfinished = [c for c in g.get("pre_engineering_criteria", []) if c not in met]
+        if unfinished or g.get('pre_engineering_independence_status', 'open') != 'satisfied':
+            out.append("\nMechanically unfinished pre-engineering work:\n\n")
+            for c in unfinished:
+                out.append(f"- {c}\n")
+            if g.get('pre_engineering_independence_status', 'open') != 'satisfied':
+                out.append("- phase independence evidence is not yet recorded as satisfied\n")
     return "".join(out)
 
 

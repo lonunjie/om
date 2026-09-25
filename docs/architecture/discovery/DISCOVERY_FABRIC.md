@@ -327,3 +327,15 @@ The same resolver principles apply to `ServicePrincipal` discovery without forci
 A client may resolve/share a signed service descriptor through direct links/QR, domain-scoped aliases, Space recommendations, organization directories or independent public catalogs. `ServiceID` remains the cryptographic identity; names/listings/hosting endpoints are replaceable claims and rendezvous information.
 
 There is no global OM bot/service directory root. Creating a ServiceID does not require publication in any directory, and delisting cannot revoke an already known ServiceID. See [`SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md`](../ecosystem/SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md).
+
+## CONFORMANCE-DISCOVERY
+
+The following are normative pass/fail cases for the registered W0 conformance suite. Passing these cases is evidence; it does not by itself authorize a scope.
+
+| ID | Case | Pass condition |
+|---|---|---|
+| DS-01 | signed descriptor via two providers | same verified descriptor semantics independent of provider |
+| DS-02 | stale/rolled-back descriptor | rejected or shown stale; never replaces a newer validated head |
+| DS-03 | first-contact accept | relationship stays ACCEPTED_UNBOUND until reciprocal IntroIdentityBinding verifies |
+| DS-04 | invalid request-key binding | MessageRequest is rejected before stable identity/session creation |
+| DS-05 | discovery provider unavailable | alternate locator/manual capsule path works or fails clearly without identity downgrade |

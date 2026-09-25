@@ -91,3 +91,15 @@ Every shared primitive should have automated and manual coverage for:
 - screen-reader smoke tests on representative platforms.
 
 Accessibility regressions in shared primitives block release in the same way as core navigation regressions.
+
+## CONFORMANCE-ACCESSIBILITY
+
+The following are normative pass/fail cases for the registered W0 conformance suite. Passing these cases is evidence; it does not by itself authorize a scope.
+
+| ID | Case | Pass condition |
+|---|---|---|
+| AX-01 | keyboard-only navigation | every interactive core action is reachable with visible focus |
+| AX-02 | screen-reader semantics | messages, composer, security notices and dialogs expose meaningful names/roles/state |
+| AX-03 | text scaling/reflow | reference layouts remain operable at required scale without hidden security controls |
+| AX-04 | reduced motion | semantic state changes remain understandable with non-motion alternative |
+| AX-05 | reserved security surface | theme/plugin cannot suppress or relabel required security/accessibility semantics |

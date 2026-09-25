@@ -213,3 +213,16 @@ Normative, from the V-series models. The ADR is authoritative where this summary
 
 - [ADR-0120](../../../decisions/ADR-0120-one-to-one-session-manager-rules.md) (downgrade floor): per-peer floor records are included in backups. After a restore the floor is the maximum of the restored record and the AccountControlState minimum profile. A receiver that rejects a session below the floor sends an authenticated reject naming the message, and the sender retries at the floor.
 - [ADR-0118](../../../decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md): OM-Crypto-v1 is PQXDH + Double Ratchet, because the only SPQR implementation is AGPL. v1 is hybrid-PQ against harvest-now-decrypt-later but has no PQ post-compromise healing. `OM-Crypto-v2` adds a clean-room SPQR/ML-KEM Braid implementation.
+
+## OM-Crypto-v1 final profile details (ADR-0131)
+
+- PQXDH redirecting identity/prekey material is bound to AccountID/DeviceID/DeviceCredential/ACS and requires both
+  Ed25519 and ML-DSA-65 signatures.
+- Last-resort (no one-time-key) handshakes use an exact durable per-signed-prekey replay ledger. The default hard cap
+  is 4096 accepted last-resort transcript ids per signed-prekey epoch; exhaustion fails closed and triggers refresh.
+- Double Ratchet payload encryption uses AES-256-GCM-SIV (RFC 8452). HKDF-SHA256 derives disjoint AEAD key and
+  deterministic nonce material; immutable header/envelope context is associated data.
+- OM-Crypto-v1 does not encrypt Double Ratchet headers. Metadata documentation must state the resulting exposure.
+- `MessageRequest` HPKE pins `draft-ietf-hpke-pq-05` MLKEM768-X25519 + HKDF-SHA256 + ChaCha20Poly1305 in base mode.
+  Later incompatible standardization creates a new profile/version rather than silently changing v1.
+- v1 claims **post-quantum handshake / harvest-now-decrypt-later protection**, not PQ post-compromise healing.

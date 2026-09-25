@@ -317,3 +317,9 @@ Discovery/contact sharing may use alias/share-specific introduction identity so 
 ## Local IdentityProfile is not a protocol identity
 
 `IdentityProfile` is a client-local isolation/container concept for hosting multiple independent AccountIDs in one application. It MUST NOT appear as a global person/device identifier, and Core must not create an automatic public binding among profiles.
+
+### First-contact binding state
+
+The accepted relationship has an explicit intermediate `ACCEPTED_UNBOUND` state. Recipient and requester exchange
+`IntroIdentityBinding` in that order after acceptance; stable-account session fanout, contact auto-merge and durable
+AccountID attribution begin only after both bindings verify (`ACTIVE`).

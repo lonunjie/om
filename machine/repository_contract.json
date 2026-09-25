@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-24T02:29:00+08:00",
+  "snapshot": "2026-09-25T11:54:00+08:00",
   "phase": "architecture_hardening_pre_engineering",
   "engineering_authorized": false,
   "engineering_unlock_requires": [
@@ -72,7 +72,9 @@
     "docs/architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md",
     "docs/architecture/providers/VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md",
     "docs/architecture/identity/ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md",
-    "verification/GATE_PASS_CRITERIA.md"
+    "verification/GATE_PASS_CRITERIA.md",
+    "decisions/ADR-0134-verification-execution-lifecycle-and-no-bounce-handoff.md",
+    "verification/CLAUDE_OPUS_5_5_HANDOFF.md"
   ],
   "current_file_registry": "machine/file_registry.json",
   "architecture_map": "machine/architecture_map.json",
@@ -120,7 +122,11 @@
     "every document basename is unique so docs resolve independent of folder layout",
     "every conformance:<suite> target is registered in machine/conformance_suites.json with an existing spec document, and no scope is authorized while a suite listing it is planned (ADR-0130)",
     "every public release gate declares applies_to/criteria/independence from the contract vocabulary, and no declared public release is authorized or published with an applicable open release gate (ADR-0130)",
-    "no current document outside decision history, research and reviews claims Triple Ratchet/SPQR or PQ post-compromise healing for OM-Crypto-v1, or PQ protection for v1 groups (ADR-0130 rule 12)"
+    "no current document outside decision history, research and reviews claims Triple Ratchet/SPQR or PQ post-compromise healing for OM-Crypto-v1, or PQ protection for v1 groups (ADR-0130 rule 12)",
+    "gate criteria_met entries exactly match canonical gate criteria; pre-engineering passed requires all criteria plus satisfied phase independence (ADR-0134)",
+    "every interface-impact gate declares feasibility_criteria and feasibility_status evidenced requires every feasibility criterion met (ADR-0134)",
+    "verification prototypes used before scope authorization are non-production evidence only; implementation-dependent evidence belongs to pre-release (ADR-0134)",
+    "verification review-only dependencies are batched after repo-local evidence rather than forming an agent-to-agent execution loop (ADR-0134)"
   ],
   "legal_risk_policy": {
     "protocol_home_jurisdiction": "none",
