@@ -20,6 +20,7 @@
     "frozen": "FALSE",
     "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
     "controllers": "{\"h1\", \"h2\"}",
+    "last": "[rv |-> 0, kind |-> \"none\", signers |-> {}, challenge |-> {}]",
     "revoked": "{}",
     "lost": "{}",
     "gen": "0",
@@ -28,32 +29,11 @@
   },
   {
    "step": 2,
-   "action": "Compromise",
+   "action": "Next",
    "vars": {
     "epoch": "0",
-    "quarantined": "{}",
-    "compromised": "{\"h1\"}",
-    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
-    "idle": "0",
-    "atkMethods": "1",
-    "linkLog": "{}",
-    "offline": "{}",
-    "frozen": "FALSE",
-    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
-    "controllers": "{\"h1\", \"h2\"}",
-    "revoked": "{}",
-    "lost": "{}",
-    "gen": "0",
-    "retired": "FALSE"
-   }
-  },
-  {
-   "step": 3,
-   "action": "Fork",
-   "vars": {
-    "epoch": "0",
-    "quarantined": "{}",
-    "compromised": "{\"h1\"}",
+    "quarantined": "{\"h1\"}",
+    "compromised": "{}",
     "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
     "idle": "0",
     "atkMethods": "1",
@@ -62,9 +42,10 @@
     "frozen": "TRUE",
     "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
     "controllers": "{\"h1\", \"h2\"}",
+    "last": "[rv |-> 0, kind |-> \"quarantine\", signers |-> {\"h2\"}, challenge |-> {}]",
     "revoked": "{}",
     "lost": "{}",
-    "gen": "0",
+    "gen": "1",
     "retired": "FALSE"
    }
   }

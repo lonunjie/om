@@ -1,3 +1,14 @@
+## 2026-09-26 PHT — core_kernel independent-review remediation (ADR-0136)
+
+- imported gpt-5.6-sol's core_kernel review (`checkpoint/20260926-0043`): all 7 items rejected, 9 findings (3 blockers);
+- **F-1** any live controller vetoes recovery regardless of method count (TLA `veto_any` passes; `mut_method_count` caught);
+- **F-2/F-3** device-only lift, threshold-disabling quarantine freezes, freeze resolution counts challenge signatures, lift rule state-derived; `acs_tla_crosscheck.py` replays every AccountControl trace through the §4.1 table;
+- **F-4/F-9** responder binds IK_A to exactly one active committed DeviceCredential before any secret-key operation (session rule K12; V-001 `verify_initiator` + 11 vectors checked by the Python implementation; V-003 `pass-forged-initiator` 9.7M states, K12 gap reproduced); ADR-0135 §7 composed authentication argument; V-001 reopened pending re-review;
+- **F-5** `stable_device_correlator` declared for KeyMaterialProvider, mailbox-class Homes (sender IK in every envelope, found while fixing) and push provider; A-054 opened;
+- **F-6/F-7** RFC 9578 type 0x0002 with 48-byte-salt PSS and id-RSASSA-PSS SPKI key id; RFC 9474/9578 KATs; blind issuance and issuer-transcript test;
+- **F-8** explicit continuity-bundle normative manifest with `check-manifest` and drill D7 (offline reconstruction);
+- `make verify` passes; engineering remains unauthorized.
+
 ## 2026-09-25 11:54 PHT — verification lifecycle hardened for one-way execution
 
 - accepted ADR-0134: design closure, repo-local pre-engineering evidence, post-scope implementation evidence and genuinely external evidence are now explicit phases;

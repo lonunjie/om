@@ -766,6 +766,317 @@
    "reason": "this delta takes no recovery vote"
   },
   {
+   "name": "lift_quarantine_counting_quarantined_signer_rejected",
+   "class": "lift_quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [
+     "d3"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d3"
+    ]
+   },
+   "expect": "reject",
+   "reason": "a signer is not an active, non-quarantined controller of the parent"
+  },
+  {
+   "name": "frozen_lift_with_challenge_signature_resolves",
+   "class": "lift_quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [
+     "d2"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2"
+    ],
+    "frozen": true
+   },
+   "expect": "accept",
+   "reason": "device-only majority (challenge signatures count) resolves the freeze"
+  },
+  {
+   "name": "frozen_lift_without_challenge_signature_rejected",
+   "class": "lift_quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [
+     "d2"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ],
+    "frozen": true
+   },
+   "expect": "reject",
+   "reason": "freeze resolution needs a device-only majority"
+  },
+  {
+   "name": "frozen_lift_with_recovery_vote_rejected",
+   "class": "lift_quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [
+     "d2"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1"
+    ],
+    "recovery": {
+     "elapsed": 2,
+     "delay": 2,
+     "veto": false
+    },
+    "frozen": true
+   },
+   "expect": "reject",
+   "reason": "a recovery vote never resolves a freeze"
+  },
+  {
+   "name": "frozen_other_delta_rejected",
+   "class": "revoke_control",
+   "parent": {
+    "control": [
+     "d1",
+     "d2"
+    ],
+    "quarantined": [
+     "d2"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1"
+    ],
+    "quarantined": [],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [
+     "d2"
+    ],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2"
+    ],
+    "frozen": true
+   },
+   "expect": "reject",
+   "reason": "parent is under safety freeze; only a lift or a fork bridge resolves it"
+  },
+  {
    "name": "remove_messaging_by_one_controller",
    "class": "remove_messaging",
    "parent": {

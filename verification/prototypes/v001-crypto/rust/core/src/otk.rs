@@ -61,6 +61,8 @@ fn set_key(body: &[u8], key: u64, val: Option<V>) -> Vec<u8> {
 fn initiator<R: RngCore + CryptoRng>(template: &Device, rng: &mut R) -> Device {
     let mut a = template.clone();
     a.ik_secret = arr32(rng);
+    a.account_id = arr32(rng);
+    rng.fill_bytes(&mut a.device_id);
     a.sessions.clear();
     a
 }
@@ -168,6 +170,7 @@ fn otk_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
     let mut opk_present = vec![];
     for i in 0..5 {
         let mut a = initiator(&tmpl, rng);
+        bob.trust_device(&a).unwrap();
         let f = prov.fetch(&did).expect("fetch");
         let (vb, _) = a.start_session(&f, &view, rng).expect("PQXDH initiate");
         kinds.push(if vb.pq_one_time { PqKind::OneTime } else { PqKind::LastResort });
@@ -212,6 +215,7 @@ fn otk_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
     let up = bob.generate_one_time(1, 0, rng);
     prov.publish(&bob, up);
     let mut a5 = initiator(&tmpl, rng);
+    bob.trust_device(&a5).unwrap();
     let f5 = prov.fetch(&did).unwrap();
     let (vb5, _) = a5.start_session(&f5, &view, rng).unwrap();
     let env5 = a5.encrypt(&bob_ik, b"ec one-time, pq last resort").unwrap().0;
@@ -226,6 +230,7 @@ fn otk_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
     let up = bob.generate_one_time(1, 1, rng);
     prov.publish(&bob, up);
     let mut a6 = initiator(&tmpl, rng);
+    bob.trust_device(&a6).unwrap();
     let f6 = prov.fetch(&did).unwrap();
     let (vb6, _) = a6.start_session(&f6, &view, rng).unwrap();
     chk(out, "replenished_pool_serves_one_time_again", vb6.pq_one_time && vb6.opk.is_some(), format!("pq_one_time={}", vb6.pq_one_time));
@@ -252,6 +257,7 @@ fn otk_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
 
     // Classical-only initial message (ML-KEM ciphertext removed) is rejected by the recipient.
     let mut a7 = initiator(&tmpl, rng);
+    bob.trust_device(&a7).unwrap();
     let f7 = prov.fetch(&did).unwrap();
     a7.start_session(&f7, &view, rng).unwrap();
     let env7 = a7.encrypt(&bob_ik, b"seven").unwrap().0;
@@ -267,10 +273,12 @@ fn otk_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
 
     // Signed-prekey epoch rotation: grace period, then expiry together with that epoch's ledger.
     let mut a8 = initiator(&tmpl, rng);
+    bob.trust_device(&a8).unwrap();
     let f8 = prov.fetch(&did).unwrap();
     a8.start_session(&f8, &view, rng).unwrap();
     let env8 = a8.encrypt(&bob_ik, b"eight").unwrap().0;
     let mut a9 = initiator(&tmpl, rng);
+    bob.trust_device(&a9).unwrap();
     a9.start_session(&f8, &view, rng).unwrap();
     let env9 = a9.encrypt(&bob_ik, b"nine").unwrap().0;
     let old_epoch = bob.epoch;
@@ -299,15 +307,16 @@ fn ledger_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
     let (acs_b, cred_b) = prov.view(&did);
     let view = Device::peer_view(&acs_b, &cred_b);
     let tmpl = Device::new(rng);
-    let lr_env = |rng: &mut R, prov: &mut Provider| {
+    let lr_env = |rng: &mut R, prov: &mut Provider, bob: &mut Device| {
         let mut a = initiator(&tmpl, rng);
+        bob.trust_device(&a).unwrap();
         a.start_session(&prov.fetch(&did).unwrap(), &view, rng).unwrap();
         a.encrypt(&bob_ik, b"last resort").unwrap().0
     };
 
     // Commit ordering and crash/reload.
     let mut vault = MemVault::default();
-    let e1 = lr_env(rng, &mut prov);
+    let e1 = lr_env(rng, &mut prov, &mut bob);
     let h1 = {
         let v = cbor::decode(&e1).unwrap();
         pqxdh::handshake_id(&did, bob.epoch, &pqxdh::InitHeader::from_cbor(&v.a().unwrap()[1]).unwrap())
@@ -330,11 +339,11 @@ fn ledger_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
     let mut n = bob.ledger.count(bob.epoch);
     let first = e1.clone();
     while n < LAST_RESORT_ACCEPT_LIMIT {
-        let e = lr_env(rng, &mut prov);
+        let e = lr_env(rng, &mut prov, &mut bob);
         bob.decrypt(&e, rng).expect("last-resort accept");
         n += 1;
     }
-    let extra = lr_env(rng, &mut prov);
+    let extra = lr_env(rng, &mut prov, &mut bob);
     let before = bob.clone();
     let (ok, d) = expect_err(bob.decrypt(&extra, rng), &Error::LastResortExhausted);
     chk(out, "ledger_cap_4096_fails_closed", ok && bob == before && bob.ledger.count(bob.epoch) == LAST_RESORT_ACCEPT_LIMIT,
@@ -346,6 +355,7 @@ fn ledger_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
     let up = bob.generate_one_time(0, 1, rng);
     prov.publish(&bob, up);
     let mut a = initiator(&tmpl, rng);
+    bob.trust_device(&a).unwrap();
     a.start_session(&prov.fetch(&did).unwrap(), &view, rng).unwrap();
     let ot = a.encrypt(&bob_ik, b"one-time at cap").unwrap().0;
     chk(out, "ledger_one_time_initiation_still_accepted_at_cap", bob.decrypt(&ot, rng).is_ok(), "PQ one-time handshake does not touch the exhausted allowance");
@@ -355,6 +365,7 @@ fn ledger_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
     let (acs2, cred2) = prov.view(&did);
     let view2 = Device::peer_view(&acs2, &cred2);
     let mut a = initiator(&tmpl, rng);
+    bob.trust_device(&a).unwrap();
     a.start_session(&prov.fetch(&did).unwrap(), &view2, rng).unwrap();
     let fresh = a.encrypt(&bob_ik, b"fresh epoch").unwrap().0;
     let ok = bob.decrypt(&fresh, rng).is_ok();
@@ -411,9 +422,110 @@ fn hpke_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
     chk(out, "hpke_pq_only_enc_rejected", ok, d);
 }
 
+/// ADR-0136 rule 4 (review F-4/F-9): the responder binds IK_A to exactly one active, non-quarantined
+/// DeviceCredential of a trusted relationship peer before any secret-key operation.
+fn initiator_binding_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
+    let mut bob = Device::new(rng);
+    let did = bob.device_id;
+    let bob_ik = bob.ik();
+    let mut prov = Provider::default();
+    let up = bob.generate_one_time(16, 16, rng);
+    prov.publish(&bob, up);
+    let (acs_b, cred_b) = prov.view(&did);
+    let view = Device::peer_view(&acs_b, &cred_b);
+    let mut send = |a: &mut Device, rng: &mut R| {
+        a.sessions.clear();
+        a.start_session(&prov.fetch(&did).unwrap(), &view, rng).unwrap();
+        a.encrypt(&bob_ik, b"hello bob").unwrap().0
+    };
+    let mut alice = Device::new(rng);
+    let mut carol = Device::new(rng);
+    let mut mallory = Device::new(rng);
+    let unbound = |b: &Device, env: &[u8], route: Option<&[u8; 32]>, rng: &mut R| {
+        let mut t = b.clone();
+        let r = t.decrypt_on_route(env, route, rng);
+        (matches!(r, Err(Error::Binding(_))) && t == *b, format!("{:?}; state unchanged={}", r.as_ref().err(), t == *b))
+    };
+
+    let env_a = send(&mut alice, rng);
+    let (ok, d) = unbound(&bob, &env_a, None, rng);
+    chk(out, "initiator_unknown_identity_key_rejected_nothing_consumed", ok, d);
+
+    bob.trust_device(&alice).unwrap();
+    bob.trust_device(&carol).unwrap();
+    let ok = bob.clone().decrypt(&env_a, rng).map(|x| x.1 == b"hello bob").unwrap_or(false);
+    chk(out, "initiator_bound_to_trusted_peer_credential_accepted", ok, "IK_A is the key of an active credential committed by the peer's trusted ACS head");
+    let (ok, d) = unbound(&bob, &env_a, Some(&carol.account_id), rng);
+    let ok2 = bob.clone().decrypt_on_route(&env_a, Some(&alice.account_id), rng).is_ok();
+    chk(out, "initiator_pinned_to_relationship_route", ok && ok2, format!("carol's route: {d}; alice's route accepted={ok2}"));
+
+    // Revoked and quarantined at the trusted head.
+    for (name, revoke) in [("initiator_revoked_device_rejected", true), ("initiator_quarantined_device_rejected", false)] {
+        let mut b = bob.clone();
+        let mut acs = alice.acs();
+        acs.generation += 1;
+        if revoke {
+            acs.control.remove(&alice.device_id);
+            acs.revoked.insert(alice.device_id);
+        } else {
+            acs.quarantined.insert(alice.device_id);
+        }
+        b.trust_peer(acs.body(), vec![alice.credential().body()]).unwrap();
+        let (ok, d) = unbound(&b, &env_a, None, rng);
+        chk(out, name, ok, d);
+    }
+
+    // Stale: alice rotates her identity key (generation 2); the old key no longer binds, and K7 refuses the old head.
+    let mut b = bob.clone();
+    let mut alice2 = alice.clone();
+    alice2.ik_secret = arr32(rng);
+    alice2.acs_generation = 2;
+    b.trust_device(&alice2).unwrap();
+    let (ok, d) = unbound(&b, &env_a, None, rng);
+    let k7 = matches!(b.trust_device(&alice), Err(Error::Binding(_)));
+    let ok2 = b.clone().decrypt(&send(&mut alice2, rng), rng).is_ok();
+    chk(out, "initiator_stale_credential_rejected_after_rotation", ok && k7 && ok2, format!("{d}; older head refused={k7}; new key accepted={ok2}"));
+
+    // Substituted: a credential body claiming mallory's key under alice's account is not committed by her head.
+    let mut b = bob.clone();
+    let mut forged = alice.credential();
+    forged.ik = mallory.ik();
+    b.trust_peer(alice.acs().body(), vec![alice.credential().body(), forged.body()]).unwrap();
+    mallory.account_id = alice.account_id;
+    mallory.device_id = alice.device_id;
+    let env_m = send(&mut mallory, rng);
+    let (ok, d) = unbound(&b, &env_m, None, rng);
+    chk(out, "initiator_substituted_identity_key_rejected", ok, d);
+
+    // Ambiguous: carol's head also commits a credential with alice's key; only a route disambiguates.
+    let mut b = bob.clone();
+    let mut cc = carol.credential();
+    cc.ik = alice.ik();
+    let mut cacs = carol.acs();
+    cacs.generation += 1;
+    cacs.credentials = vec![(carol.device_id, cc.hash())];
+    b.trust_peer(cacs.body(), vec![cc.body()]).unwrap();
+    let (ok, d) = unbound(&b, &env_a, None, rng);
+    let ok2 = b.clone().decrypt_on_route(&env_a, Some(&alice.account_id), rng).is_ok();
+    chk(out, "initiator_identity_key_in_two_credentials_rejected", ok && ok2, format!("{d}; alice's route accepted={ok2}"));
+
+    // Crossed initiation between bound peers still reaches the session rule (SessionConflict), not the binding.
+    let mut b = bob.clone();
+    carol.trust_device(&b).unwrap();
+    let mut cprov = Provider::default();
+    let up = carol.generate_one_time(1, 1, rng);
+    cprov.publish(&carol, up);
+    let (acs_c, cred_c) = cprov.view(&carol.device_id);
+    b.start_session(&cprov.fetch(&carol.device_id).unwrap(), &Device::peer_view(&acs_c, &cred_c), rng).unwrap();
+    let env_c = send(&mut carol, rng);
+    let (ok, d) = expect_err(b.decrypt(&env_c, rng), &Error::SessionConflict);
+    chk(out, "initiator_crossed_initiation_between_bound_peers_reaches_session_rule", ok, d);
+}
+
 pub fn run<R: RngCore + CryptoRng>(rng: &mut R) -> Vec<Check> {
     let mut out = vec![];
     binding_checks(&mut out, rng);
+    initiator_binding_checks(&mut out, rng);
     otk_checks(&mut out, rng);
     ledger_checks(&mut out, rng);
     aead_checks(&mut out, rng);

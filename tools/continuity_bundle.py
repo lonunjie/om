@@ -4,10 +4,17 @@
   python3 tools/continuity_bundle.py build [--ref HEAD] [--out design-drops]   # deterministic .tar.gz
   python3 tools/continuity_bundle.py verify <bundle.tar.gz>                    # offline integrity check
   python3 tools/continuity_bundle.py check-registries [--base REF]             # immutability of assigned IDs
+  python3 tools/continuity_bundle.py check-manifest [--ref HEAD]               # manifest matches the repo
 
 A bundle must let someone interpret published canonical bytes with no live OM server: normative specs and
 schemas, canonical-encoding rules, vectors, registry and ledger snapshots, license texts, and the source
 revision, all committed to one integrity root. `verify` uses only the bytes in the bundle.
+
+Which docs are "normative" is not a basename allowlist (that missed real semantic docs — F-8, 2026-09-26
+independent review) but an explicit, versioned manifest: MANIFEST_PATH below. `select`/`build` bundle exactly
+its members (plus what INCLUDE already covers); `verify` requires every member and rejects an unresolved
+normative markdown/CDDL/JSON reference from a bundled doc unless it is in the manifest's `exceptions`;
+`check-manifest` recomputes the doc set from the repo tree and fails if the manifest has drifted from it.
 """
 from __future__ import annotations
 
@@ -20,9 +27,11 @@ import subprocess
 import sys
 import tarfile
 from pathlib import Path
+import posixpath
 
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLE_VERSION = "om-continuity-bundle/1"
+MANIFEST_PATH = "spec/continuity/om-crypto-v1-bundle-manifest.json"
 # What a bundle carries (path prefixes or exact paths in the git tree).
 INCLUDE = (
     "spec/", "verification/vectors/", "verification/cbor/fixtures.json", "LICENSES/", "LICENSE.md", "REUSE.toml",
@@ -30,9 +39,31 @@ INCLUDE = (
     "machine/threat_register.jsonl", "machine/architecture_verification_gates.jsonl",
     "decisions/", "CHANGELOG.md", "SNAPSHOT.md",
 )
-NORMATIVE_DOCS = ("CANONICAL_ENCODING.md", "CRYPTOGRAPHY_AND_AGILITY.md", "PROTOCOL_EXTENSIBILITY.md",
-                  "PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md", "IDENTITY_PROTOCOL.md",
-                  "ACCOUNT_CONTINUITY_AND_CONTROL.md", "TIME_AND_EXPIRY_SEMANTICS.md")
+LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+
+
+def load_manifest(text: str) -> dict:
+    return json.loads(text)
+
+
+def manifest_doc_members(manifest: dict) -> list[str]:
+    return sorted(manifest["members"]["architecture_and_constitution_docs"])
+
+
+def normative_refs(text: str, doc_path: str) -> list[str]:
+    """Relative links inside `doc_path` that point at a .md/.cddl/.json file in the repo tree."""
+    here = posixpath.dirname(doc_path)
+    out = []
+    for target in LINK_RE.findall(text):
+        if target.startswith(("#", "http://", "https://", "mailto:", "data:", "sandbox:")):
+            continue
+        path = target.split("#", 1)[0]
+        if not path or not path.endswith((".md", ".cddl", ".json")):
+            continue
+        out.append(posixpath.normpath(posixpath.join(here, path)) if here else posixpath.normpath(path))
+    return out
+
+
 # Ledgers whose ids may be amended but never deleted or re-used.
 LEDGERS = ("machine/decisions.jsonl", "machine/requirements.jsonl", "machine/resolved_questions.jsonl",
            "machine/threat_register.jsonl", "machine/architecture_verification_gates.jsonl",
@@ -49,6 +80,19 @@ def git_bytes(ref: str, path: str) -> bytes:
     return subprocess.run(["git", "show", f"{ref}:{path}"], cwd=ROOT, check=True, capture_output=True).stdout
 
 
+def git_bytes_or_worktree(ref: str, path: str) -> bytes:
+    """Like git_bytes, but falls back to the worktree file for a path not yet committed at `ref`.
+
+    Only the manifest itself should hit the fallback in practice (right after it is added, before the first
+    commit that registers it); every other selected path is already tracked. This keeps `build` reproducible
+    from a commit in the normal case while not hard-failing on the manifest's own bootstrap commit.
+    """
+    try:
+        return git_bytes(ref, path)
+    except subprocess.CalledProcessError:
+        return (ROOT / path).read_bytes()
+
+
 def integrity_root(rows: list[dict]) -> str:
     h = hashlib.sha256(b"om/continuity-bundle/integrity-root/v1\0")
     for r in sorted(rows, key=lambda x: x["path"]):
@@ -56,19 +100,24 @@ def integrity_root(rows: list[dict]) -> str:
     return h.hexdigest()
 
 
-def select(ref: str) -> list[str]:
-    files = git("ls-tree", "-r", "--name-only", ref).splitlines()
+def select(ref: str, manifest: dict) -> list[str]:
+    files = set(git("ls-tree", "-r", "--name-only", ref).splitlines()) | {MANIFEST_PATH}
+    members = manifest_doc_members(manifest)
+    missing = [m for m in members if m not in files]
+    if missing:
+        raise SystemExit("manifest member(s) not in tree " + ref + ": " + ", ".join(missing))
     out = [f for f in files if f.startswith(INCLUDE) or f in INCLUDE]
-    out += [f for f in files if f.rsplit("/", 1)[-1] in NORMATIVE_DOCS]
+    out += members
     return sorted(set(out))
 
 
 def cmd_build(a) -> int:
     sha = git("rev-parse", a.ref).strip()
     snap = json.loads(git_bytes(sha, "machine/repository_contract.json"))["snapshot"]
+    manifest = load_manifest(git_bytes_or_worktree(sha, MANIFEST_PATH).decode())
     rows, blobs = [], {}
-    for f in select(sha):
-        b = git_bytes(sha, f)
+    for f in select(sha, manifest):
+        b = git_bytes_or_worktree(sha, f)
         blobs[f] = b
         rows.append({"path": f, "bytes": len(b), "sha256": hashlib.sha256(b).hexdigest()})
     kind = lambda p: ("schema" if p.startswith("spec/") else "vector" if "vectors/" in p or p.endswith("fixtures.json")
@@ -155,6 +204,27 @@ def cmd_verify(a) -> int:
             errors.append("integrity_root mismatch")
         if not any(r["path"].startswith("LICENSES/") for r in bundle["license_inventory"]):
             errors.append("no license texts")
+
+        # F-8: the bundle must carry every manifest-listed normative doc, and every normative doc/spec/CDDL
+        # reference inside a bundled normative doc must resolve inside the bundle or be a checked exception.
+        bundled_paths = {r["path"] for r in bundle["files"]}
+        manifest_member = members.get(MANIFEST_PATH)
+        if manifest_member is None:
+            errors.append(f"missing {MANIFEST_PATH} (normative doc manifest)")
+        else:
+            manifest = load_manifest(t.extractfile(manifest_member).read().decode())
+            doc_members = manifest_doc_members(manifest)
+            exceptions = {e["target"] for e in manifest.get("exceptions", [])}
+            errors += [f"manifest member missing from bundle {p}" for p in doc_members if p not in bundled_paths]
+            for p in doc_members:
+                m = members.get(p)
+                if m is None:
+                    continue
+                text = t.extractfile(m).read().decode("utf-8", errors="replace")
+                for ref in normative_refs(text, p):
+                    if ref in bundled_paths or ref in exceptions:
+                        continue
+                    errors.append(f"unresolved normative reference {p} -> {ref} (not bundled, not in manifest exceptions)")
     for e in errors:
         print(f"ERROR: {e}", file=sys.stderr)
     print(f"bundle {'INVALID' if errors else 'OK'}: {len(bundle.get('files', []))} files, root {bundle.get('integrity_root')}")
@@ -257,6 +327,35 @@ def cmd_check_registries(a) -> int:
     return 1 if errors else 0
 
 
+def cmd_check_manifest(a) -> int:
+    """Recompute the normative-doc set from the repo and fail if MANIFEST_PATH has drifted from it (F-8)."""
+    errors = []
+    if a.ref:
+        sha = git("rev-parse", a.ref).strip()
+        tree = git("ls-tree", "-r", "--name-only", sha).splitlines()
+        manifest = load_manifest(git_bytes_or_worktree(sha, MANIFEST_PATH).decode())
+        exists = lambda p: p in tree  # noqa: E731
+    else:
+        tree = [p for p in git("ls-files", "-co", "--exclude-standard").splitlines() if (ROOT / p).is_file()]
+        manifest = load_manifest((ROOT / MANIFEST_PATH).read_text())
+        exists = lambda p: (ROOT / p).is_file()  # noqa: E731
+
+    actual = sorted(p for p in tree if (p.startswith("docs/architecture/") or p.startswith("docs/constitution/"))
+                     and p.endswith(".md"))
+    listed = set(manifest_doc_members(manifest))
+    errors += [f"reachable normative doc missing from manifest: {p}" for p in actual if p not in listed]
+    errors += [f"manifest lists a doc no longer in the repo: {p}" for p in listed if p not in set(actual)]
+    for e in manifest.get("exceptions", []):
+        if not exists(e["target"]):
+            errors.append(f"exception target no longer exists: {e['target']}")
+
+    for e in errors:
+        print(f"ERROR: {e}", file=sys.stderr)
+    where = a.ref or "working tree"
+    print(f"manifest check vs {where}: {'FAILED' if errors else 'OK'} ({len(listed)} doc(s), {len(errors)} problem(s))")
+    return 1 if errors else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -267,8 +366,11 @@ def main() -> int:
     v.add_argument("bundle")
     c = sub.add_parser("check-registries")
     c.add_argument("--base")
+    m = sub.add_parser("check-manifest")
+    m.add_argument("--ref", default=None, help="check a git ref instead of the working tree")
     a = ap.parse_args()
-    return {"build": cmd_build, "verify": cmd_verify, "check-registries": cmd_check_registries}[a.cmd](a)
+    return {"build": cmd_build, "verify": cmd_verify, "check-registries": cmd_check_registries,
+            "check-manifest": cmd_check_manifest}[a.cmd](a)
 
 
 if __name__ == "__main__":

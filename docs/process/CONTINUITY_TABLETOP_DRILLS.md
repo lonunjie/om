@@ -2,7 +2,13 @@
 
 - **Status:** Written drills, pre-engineering (V-017 criterion 3). Live drills are pre-release criteria.
 - **Author:** Claude agent, 2026-09-24. Independent review is still required (ADR-0109; under ADR-0117 a non-Anthropic agent or a human).
-- **Tools:** [`tools/continuity_bundle.py`](../../tools/continuity_bundle.py) (build/verify bundles, registry immutability), [`tools/om_drop.py`](../../tools/om_drop.py) export.
+- **Tools:** [`tools/continuity_bundle.py`](../../tools/continuity_bundle.py) (build/verify bundles, registry immutability,
+  manifest drift check), [`tools/om_drop.py`](../../tools/om_drop.py) export.
+- **Normative-doc manifest:** [`spec/continuity/om-crypto-v1-bundle-manifest.json`](../../spec/continuity/om-crypto-v1-bundle-manifest.json)
+  lists every `docs/architecture/`/`docs/constitution/` doc a bundle carries, plus the checked `exceptions` for
+  normative-looking references that are deliberately left out. `continuity_bundle.py build`/`verify` enforce it;
+  `continuity_bundle.py check-manifest` recomputes the doc set from the repo and fails if the manifest drifted
+  (F-8, 2026-09-26 independent review — the prior basename allowlist silently dropped real semantic docs).
 
 Each drill asks four questions. What breaks? Who can act, with which mechanism? What must already exist *today* for
 the answer to hold? Which gaps did the drill expose? The gaps are listed at the end with their dispositions.
@@ -98,6 +104,63 @@ pre-engineering scope.
 **Gap G6:** the design has no advisory "embargo window" guidance for multi-distribution coordination. Disposition:
 record it as a pre-release criterion of PR-level vulnerability response (proposed).
 
+## D7. Offline reconstruction from the bundle alone (F-8)
+
+**Scenario.** An independent implementer has only a Protocol Continuity Bundle produced by
+[`continuity_bundle.py build`](../../tools/continuity_bundle.py) — no live OM registry, no forge, no site — and must locate the
+rules for every frozen W0 object and every provider-observation interaction using only the bundled bytes.
+
+This drill is mechanical, not narrative: `verify` already proves the reviewer can trust what is enumerated below,
+because it (a) requires every doc listed in
+[`spec/continuity/om-crypto-v1-bundle-manifest.json`](../../spec/continuity/om-crypto-v1-bundle-manifest.json) to be present
+and hash-correct, and (b) rejects any relative markdown/CDDL/JSON reference from inside a bundled normative doc that
+does not resolve inside the bundle or the manifest's `exceptions`. What was previously untested is whether the
+manifest's member list actually *covers* the semantics needed to read the frozen bytes. The two tables below are
+that coverage check, worked by hand once; `continuity_bundle.py check-manifest` keeps the member list itself from
+drifting afterward, but it cannot know whether a table row is *correct* — that judgment stays a human/independent-review
+task, to be redone whenever a row's CDDL type or provider role changes shape.
+
+### Frozen W0 objects (`spec/cddl/*.cddl` top-level types) → defining bundled doc
+
+| CDDL type(s) | Defined in (`spec/cddl/`) | Rules live in (bundled doc) |
+|---|---|---|
+| `AccountControlState`, `AccountControlHead`, `constitutional-policy`, `control-key-epoch`, `device-credential-ref`, `fork-ack` | [`account.cddl`](../../spec/cddl/account.cddl) | [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md) |
+| `RecoveryPolicy`, `RecoveryRequest`, `RecoveryVeto`, `recovery-method`, `recovery-activation` | [`account.cddl`](../../spec/cddl/account.cddl) | [`RECOVERY_AND_BACKUP_POLICY.md`](../architecture/identity/RECOVERY_AND_BACKUP_POLICY.md) |
+| `AccountRetirement` | [`account.cddl`](../../spec/cddl/account.cddl) | [`ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md`](../architecture/identity/ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md) |
+| `DeviceCredential`, `DeviceEnrollmentNotice` | [`account.cddl`](../../spec/cddl/account.cddl) | [`IDENTITY_PROTOCOL.md`](../architecture/identity/IDENTITY_PROTOCOL.md), [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md) (device authority) |
+| `AsyncKeyBundle`, `prekey-item` | [`keys.cddl`](../../spec/cddl/keys.cddl) | [`ASYNC_KEY_MATERIAL.md`](../architecture/crypto/ASYNC_KEY_MATERIAL.md) (named in the CDDL header comment) |
+| `ContactDescriptor`, `ContactCapsule`, `request-key` | [`discovery.cddl`](../../spec/cddl/discovery.cddl) | [`CONTACT_SHARING.md`](../architecture/discovery/CONTACT_SHARING.md) |
+| `ReferralAttestation`, `Invite`, `IntroductionTicket`, `MessageRequest`, `MessageRequestPayload`, `intro-service-ref` | [`discovery.cddl`](../../spec/cddl/discovery.cddl) | [`INVITES_INTROGATE_AND_SPAM.md`](../architecture/discovery/INVITES_INTROGATE_AND_SPAM.md) |
+| `IntroIdentityBinding` | [`discovery.cddl`](../../spec/cddl/discovery.cddl) | [`ONE_TO_ONE_SESSION_MANAGEMENT.md`](../architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md) (session acceptance), [`INVITES_INTROGATE_AND_SPAM.md`](../architecture/discovery/INVITES_INTROGATE_AND_SPAM.md) (introduction flow) |
+| `SponsoredMailboxGrant` | [`delivery.cddl`](../../spec/cddl/delivery.cddl) | [`HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`](../architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md) |
+| `RelaySet`, `relay-entry` | [`delivery.cddl`](../../spec/cddl/delivery.cddl) | [`MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`](../architecture/delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md), [`RELAY_AND_DELIVERY_ARCHITECTURE.md`](../architecture/delivery/RELAY_AND_DELIVERY_ARCHITECTURE.md) |
+| `BlobLocationRecord` | [`delivery.cddl`](../../spec/cddl/delivery.cddl) | [`STORAGE_AND_BLOB_ARCHITECTURE.md`](../architecture/storage/STORAGE_AND_BLOB_ARCHITECTURE.md) |
+| `ConversationEvent` and variants (`event-create/-edit/-delete/-reaction/-receipt/-other`), `MessageCreate`, `MessageEdit`, `MessageDelete`, `ReactionSet`, `ReceiptUpdate`, `hlc` | [`events.cddl`](../../spec/cddl/events.cddl) | [`EVENT_MODEL.md`](../architecture/events/EVENT_MODEL.md) (named in the CDDL header comment), [`TIME_AND_EXPIRY_SEMANTICS.md`](../architecture/events/TIME_AND_EXPIRY_SEMANTICS.md) (`hlc`) |
+| `RichText`, `block*`, `inline*`, `attachment-ref` | [`events.cddl`](../../spec/cddl/events.cddl) | [`RICH_TEXT_AND_CONTENT_SECURITY.md`](../architecture/safety/RICH_TEXT_AND_CONTENT_SECURITY.md) |
+| `HomeError`, `Relay*Request/Response`, `BlobPut*`, `BlobRepairRequest`, `*CapabilityRequest/Record`, `IntroTicketRequest`, `KeyBundleFetch*`, `RecoveryRequestFanout`, `SponsorshipRedeemRequest` | [`home-api.cddl`](../../spec/cddl/home-api.cddl) (ADR-0133) | [`IMPLEMENTATION_INTERFACES.md`](../architecture/providers/IMPLEMENTATION_INTERFACES.md) |
+| `account-id`, `device-id`, `event-id`, `conversation-id`, `blob-id`, `digest`, `hash-alg`, `signature`, `sig-role`, `principal-ref`, `principal-kind`, `extensions` | [`common.cddl`](../../spec/cddl/common.cddl) | [`CANONICAL_ENCODING.md`](../architecture/crypto/CANONICAL_ENCODING.md), [`IDENTITY_PROTOCOL.md`](../architecture/identity/IDENTITY_PROTOCOL.md) (`account-id`/`device-id` scope), [`CRYPTOGRAPHY_AND_AGILITY.md`](../architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md) (`signature`/`sig-role`) |
+
+### W0 provider roles (`spec/metadata/w0-metadata-exposure-descriptors.json`) → defining bundled doc
+
+| Provider role | Defining/observation rules in (bundled doc) |
+|---|---|
+| `home_relay_mailbox`, `t0_sponsored_mailbox`, `t1_hosted_home` | [`HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`](../architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md), [`MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`](../architecture/delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md) |
+| `key_material_provider` | [`ASYNC_KEY_MATERIAL.md`](../architecture/crypto/ASYNC_KEY_MATERIAL.md) |
+| `blob_store` | [`STORAGE_AND_BLOB_ARCHITECTURE.md`](../architecture/storage/STORAGE_AND_BLOB_ARCHITECTURE.md) |
+| `push_provider` | [`NOTIFICATIONS_AND_PUSH.md`](../architecture/client/NOTIFICATIONS_AND_PUSH.md) |
+| `discovery_publisher` | [`DISCOVERY_FABRIC.md`](../architecture/discovery/DISCOVERY_FABRIC.md), [`KEY_TRANSPARENCY_AND_DIRECTORY.md`](../architecture/discovery/KEY_TRANSPARENCY_AND_DIRECTORY.md) |
+| `introgate` | [`INVITES_INTROGATE_AND_SPAM.md`](../architecture/discovery/INVITES_INTROGATE_AND_SPAM.md) |
+| `recovery_record_store` | [`RECOVERY_AND_BACKUP_POLICY.md`](../architecture/identity/RECOVERY_AND_BACKUP_POLICY.md), [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md) |
+| `platform_credential_manager` | [`DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md`](../architecture/client/DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md) |
+| `clienthost_origin` | [`PWA_REFERENCE_CLIENT.md`](../architecture/client/PWA_REFERENCE_CLIENT.md), [`CLIENTHOST_UPDATE_LIFECYCLE.md`](../architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md) |
+| `lan_observer` | [`LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md`](../architecture/network/LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md) |
+
+**Gap G7:** the two tables above are maintained by hand; a CDDL type renamed/added or a provider role added to the
+metadata descriptors will not automatically grow a new row. Disposition: `check-manifest` guards the *doc set*, not
+this doc-to-object mapping; re-walk these tables whenever `spec/cddl/*.cddl` or
+[`w0-metadata-exposure-descriptors.json`](../../spec/metadata/w0-metadata-exposure-descriptors.json) changes shape (added as
+a pre-release criterion of V-017, alongside G1).
+
 ## Gaps found
 
 | Gap | Severity | Disposition |
@@ -108,3 +171,4 @@ record it as a pre-release criterion of PR-level vulnerability response (propose
 | G4 extension dependence measurement | low | proposed PR gate |
 | G5 Cloudflare-first T1 lowers day-one diversity | **high** | added to V-020 scope: fallback-route fraction model plus host-console second-family fallback |
 | G6 embargo guidance | low | proposed vulnerability-response criterion |
+| G7 hand-maintained object/role → doc tables (D7) | low | re-walk tables when CDDL types or W0 provider roles change; V-017 pre-release |

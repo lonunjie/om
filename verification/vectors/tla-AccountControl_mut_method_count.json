@@ -1,0 +1,141 @@
+{
+ "gate": "V-002",
+ "source": "verification/tla/AccountControl_mut_method_count.cfg",
+ "kind": "residual-risk",
+ "claim": "mutation F-1: method-count veto rule is caught (custodian holder wins against a live owner)",
+ "violated": "AttackerNeverOwns",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "2",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h1\", \"h2\"}",
+    "last": "[rv |-> 0, kind |-> \"none\", signers |-> {}, challenge |-> {}]",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "0",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 2,
+   "action": "RequestRecovery",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "2",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> TRUE, party |-> \"attacker\", dev |-> \"x1\", methods |-> 2, elapsed |-> 0 ]",
+    "controllers": "{\"h1\", \"h2\"}",
+    "last": "[rv |-> 0, kind |-> \"none\", signers |-> {}, challenge |-> {}]",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "0",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 3,
+   "action": "GoOffline",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "2",
+    "linkLog": "{}",
+    "offline": "{\"h1\"}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> TRUE, party |-> \"attacker\", dev |-> \"x1\", methods |-> 2, elapsed |-> 0 ]",
+    "controllers": "{\"h1\", \"h2\"}",
+    "last": "[rv |-> 0, kind |-> \"none\", signers |-> {}, challenge |-> {}]",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "0",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 4,
+   "action": "Tick",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "2",
+    "linkLog": "{}",
+    "offline": "{\"h1\"}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> TRUE, party |-> \"attacker\", dev |-> \"x1\", methods |-> 2, elapsed |-> 1 ]",
+    "controllers": "{\"h1\", \"h2\"}",
+    "last": "[rv |-> 0, kind |-> \"none\", signers |-> {}, challenge |-> {}]",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "0",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 5,
+   "action": "Tick",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "2",
+    "linkLog": "{}",
+    "offline": "{\"h1\"}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> TRUE, party |-> \"attacker\", dev |-> \"x1\", methods |-> 2, elapsed |-> 2 ]",
+    "controllers": "{\"h1\", \"h2\"}",
+    "last": "[rv |-> 0, kind |-> \"none\", signers |-> {}, challenge |-> {}]",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "0",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 6,
+   "action": "DelayedComplete",
+   "vars": {
+    "epoch": "1",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "2",
+    "linkLog": "{[dev |-> \"x1\", notified |-> {\"h1\", \"h2\"}]}",
+    "offline": "{\"h1\"}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"x1\"}",
+    "last": "[rv |-> 1, kind |-> \"recovery_delayed\", signers |-> {}, challenge |-> {}]",
+    "revoked": "{\"h1\", \"h2\"}",
+    "lost": "{}",
+    "gen": "1",
+    "retired": "FALSE"
+   }
+  }
+ ]
+}

@@ -61,6 +61,13 @@
     "a relay-visible copy contains the raw MLS group_id or epoch"
    ]
   },
+  "stable_device_correlator": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "AsyncKeyBundle exposes subject_device_id but the KeyMaterialProvider does not declare stable_device_correlator always"
+   ]
+  },
   "dr_header_exposure": {
    "problems": [],
    "mutation_caught": true,

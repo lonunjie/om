@@ -37,7 +37,7 @@ def main() -> int:
          "status": "met" if ok else "partial", "evidence": ev_model,
          "note": "TLA+ model (TLC, bounded: 3 real devices, 2-3 messages, <=4 sessions) plus an independently written "
                  "Python reference machine driven by hypothesis on a larger topology (5 devices, 5 messages). Rules "
-                 "K1..K11 all on: every pass config exhausts its state space and the all-rules fuzz finds nothing."},
+                 "K1..K12 all on: every pass config exhausts its state space and the all-rules fuzz finds nothing."},
         {"gate": "V-003", "criterion": "every discovered failing trace captured as a vector",
          "status": "met" if gaps_ok and replay_ok else "partial", "evidence": ev_vec,
          "note": "3 traces found against earlier model versions, 11 TLC gap/probe counterexamples (one per disabled "

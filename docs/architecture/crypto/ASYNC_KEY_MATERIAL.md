@@ -42,6 +42,10 @@ Providers return provider-signed/transport-authenticated receipts where useful, 
 They are identical for all of an account's devices and across providers, so a provider or fetcher can group devices
 per account and follow an account across providers. The W0 metadata descriptor says so (`device_count: sometimes`,
 `stable_account_id: sometimes`). An unlinkable binding is design-queue item A-031, recorded under V-015.
+Each bundle also carries `subject_device_id` in the clear. That is a stable **per-device** correlator: it stays the
+same across bundle refreshes and providers, so a provider can follow one device over time and an observer of two
+providers can link that device across them. The descriptor declares it (`stable_device_correlator: always`,
+ADR-0136 rule 5).
 
 ## 3. 1:1 handshake material
 

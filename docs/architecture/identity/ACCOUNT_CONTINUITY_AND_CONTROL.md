@@ -114,7 +114,10 @@ A compromised controller must not be able to quarantine every other controller s
 OM therefore uses these rules:
 
 1. quarantine does **not** remove the target from the constitutional denominator;
-2. one controller cannot use quarantines it initiated to satisfy a quorum;
+2. only active, non-quarantined controllers' signatures count toward a quorum, so quarantining other controllers
+   never helps the quarantining controller reach one. This rule is derived from the committed parent state alone:
+   no verifier needs, or may use, a record of who initiated a quarantine (ADR-0136 rule 3). The one exception is §5:
+   a quarantined controller's challenge signature counts toward resolving a safety freeze;
 3. promotion of a new control device uses the parent state's controller set/recovery authority;
 4. a quarantine that would leave fewer non-quarantined controllers than the parent state's majority (that is, one
    that "disables the safety threshold") triggers a **safety freeze**, which only a device-only majority resolves (§5);
@@ -134,7 +137,7 @@ A child that combines several deltas needs the strongest row among them. A delta
 | link a messaging device (add to `messaging_devices`, add its credential) | 1 active, non-quarantined controller, after the linking ceremony and enrollment notice (§12) | yes |
 | promote to control device (add to `active_control_devices`) | majority, or majority reached with a recovery vote | only when N = 1 |
 | quarantine a control device (add to `quarantined_control_devices`) | 1 active, non-quarantined controller other than the target; never the last voting controller (§13) | yes |
-| lift a quarantine (remove from `quarantined_control_devices`) | majority, not counting quarantines the signer initiated (§4 rule 2) | only when N = 1 |
+| lift a quarantine (remove from `quarantined_control_devices`) | majority of active, non-quarantined controllers (quarantined controllers stay in N, §4 rules 1–2); no recovery vote. Under a safety freeze, §5 applies instead | only when N = 1 |
 | remove a messaging device (drop from `messaging_devices`, add to `permanently_revoked_devices`) | 1 active, non-quarantined controller | yes |
 | permanently revoke a control device | majority, or majority reached with a recovery vote | only when N = 1 |
 | change the recovery policy (`recovery_policy_commitment`) | majority, or majority reached with a recovery vote | only when N = 1 |
@@ -166,7 +169,10 @@ While frozen:
 - no recovery-policy replacement becomes final;
 - no security floor is lowered;
 - resolution requires a **device-only** majority of the parent state's controllers (the TLA `ResolveFreeze`); a
-  recovery vote never resolves a freeze.
+  recovery vote never resolves a freeze. Quarantined controllers are part of that majority and sign with their
+  challenge capability, so one compromised controller cannot make a freeze permanent by quarantining the others
+  (ADR-0136 rule 2). A freeze entered by a quarantine is resolved by a child that lifts the quarantines; a fork is
+  resolved by the §8 fork bridge.
 
 There is no last-write-wins authority rule.
 

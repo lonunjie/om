@@ -215,6 +215,36 @@ def check_binding(bv, ck):
         ck.eq(f"binding/negative/{n['name']}_rejected", ok, False)
 
 
+def verify_initiator(ik_a: bytes, peers: list, route):
+    """Independent reading of ADR-0136 rule 4: IK_A must be the key of exactly one DeviceCredential committed by a
+    trusted peer head (route-pinned when given), and that device must be active and not quarantined."""
+    found = []
+    for p in peers:
+        acs_body = H(p["acs_body"])
+        if ds_hash("OM-ACS-HASH-v1", acs_body) != H(p["trusted_acs_hash"]):
+            return False, "peer acs not trusted head"
+        acs = cbor_dec(acs_body)
+        for cb in p["credential_bodies"]:
+            cb = H(cb)
+            cred = cbor_dec(cb)
+            ref = {0: cred[2], 1: {0: 1, 1: ds_hash("OM-DEVICE-CREDENTIAL-HASH-v1", cb)}}
+            if cred[3] != acs[2] or ref not in acs.get(13, []):
+                continue
+            did = cred[2]
+            live = (did in acs.get(5, []) or did in acs.get(7, [])) and did not in acs.get(6, []) and did not in acs.get(8, [])
+            if cred[6] == ik_a and (route is None or acs[2] == route):
+                found.append(live)
+    if len(found) != 1:
+        return False, f"{len(found)} matching credentials"
+    return (True, "ok") if found[0] else (False, "device not active")
+
+
+def check_initiator_binding(vs, ck):
+    for v in vs:
+        ok, why = verify_initiator(H(v["ik_a"]), v["peers"], v["route_account"] and H(v["route_account"]))
+        ck.eq(f"initiator_binding/{v['name']}", "accept" if ok else "reject", v["expect"])
+
+
 # ---------------------------------------------------------------- EC Double Ratchet (spec §3)
 class DR:
     MAX_SKIP = 1000
@@ -453,6 +483,7 @@ def main() -> int:
     vectors = json.load(open(sys.argv[1]))
     ck = Checker()
     check_binding(vectors["binding"], ck)
+    check_initiator_binding(vectors["initiator_binding"], ck)
     for c in vectors["cases"]:
         check_case(c, vectors["constants"], ck)
     check_hpke(vectors["hpke_message_request"], ck)
@@ -462,6 +493,7 @@ def main() -> int:
         "vector_messages": sum(1 for c in vectors["cases"] for e in c["events"] if e["type"] == "send"),
         "vector_cases": [c["name"] for c in vectors["cases"]],
         "binding_negatives": len(vectors["binding"]["negatives"]),
+        "initiator_binding_vectors": len(vectors["initiator_binding"]),
         "failures": [name for name, ok in ck.results if not ok],
     }
     out["vectors_ok"] = out["vector_checks"] == out["vector_checks_passed"] and out["vector_checks"] > 0

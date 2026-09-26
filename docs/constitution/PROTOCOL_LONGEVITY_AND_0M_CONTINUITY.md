@@ -70,6 +70,10 @@ Bundles are mirrorable/content-addressable and can be stored on multiple forges,
 
 A live registry is a convenience/update source, not a runtime oracle required to interpret already-published canonical bytes.
 
+"Normative schemas/specs" is an explicit, versioned manifest of artifacts — not a basename allowlist that can silently
+miss a semantic doc — kept at [`spec/continuity/om-crypto-v1-bundle-manifest.json`](../../spec/continuity/om-crypto-v1-bundle-manifest.json)
+and enforced by [`tools/continuity_bundle.py`](../../tools/continuity_bundle.py) `build`/`verify`/`check-manifest`.
+
 ## 4. Registry continuity
 
 Canonical registry IDs already assigned are immutable and never reused.

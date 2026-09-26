@@ -115,6 +115,7 @@ pub fn step(k: usize, world: Option<&[u8]>) -> Result<Vec<u8>, String> {
             let alice = Device::new(&mut rng);
             let mut bob = Device::new(&mut rng);
             let mut provider = Provider::default();
+            bob.trust_device(&alice).map_err(|e| e.to_string())?;
             let up = bob.generate_one_time(2, 2, &mut rng);
             provider.publish(&bob, up);
             World { alice, bob, provider, queue: vec![], max_ratchet_steps: 0, delivered: 0 }

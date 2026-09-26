@@ -126,7 +126,7 @@
     "negative_per_class": {
       "constitutional_policy": 1,
       "fork_bridge": 4,
-      "lift_quarantine": 2,
+      "lift_quarantine": 5,
       "link_messaging": 1,
       "lower_min_profile": 1,
       "promote": 3,
@@ -135,14 +135,14 @@
       "recovery_policy": 1,
       "remove_messaging": 1,
       "retirement": 4,
-      "revoke_control": 3,
+      "revoke_control": 4,
       "rotate_own_key": 1,
       "transparency": 1
     },
     "positive_per_class": {
       "constitutional_policy": 1,
       "fork_bridge": 1,
-      "lift_quarantine": 1,
+      "lift_quarantine": 2,
       "link_messaging": 1,
       "lower_min_profile": 0,
       "promote": 3,
@@ -155,6 +155,6 @@
       "rotate_own_key": 1,
       "transparency": 1
     },
-    "total": 48
+    "total": 53
   }
 }

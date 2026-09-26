@@ -302,3 +302,46 @@ pub fn verify_fetch(fetch: &[Vec<u8>], peer: &PeerView) -> Result<VerifiedBundle
     }
     Ok(out)
 }
+
+/// Responder side of the identity binding (ADR-0136 rule 4, review F-4/F-9). A relationship peer as the
+/// session manager holds it (K6/K7): the peer account's trusted ACS head and the credential bodies it commits.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TrustedPeer {
+    pub acs_body: Vec<u8>,
+    pub credential_bodies: Vec<Vec<u8>>,
+}
+
+/// One committed device of a trusted peer: (identity key, AccountID, DeviceID, active and not quarantined).
+pub type PeerDevice = ([u8; 32], [u8; 32], [u8; 16], bool);
+
+/// Validate a peer view against the ACS head the caller already trusts, and list its committed devices.
+/// A credential body the head does not commit (stale, rotated away, or from another account) is dropped,
+/// so it can never authenticate an initiator.
+pub fn peer_devices(p: &TrustedPeer, trusted_acs_hash: &[u8; 32]) -> Result<Vec<PeerDevice>, Error> {
+    let acs = Acs::from_body(&p.acs_body)?;
+    if acs.hash() != *trusted_acs_hash {
+        return Err(Error::Binding("peer ACS body is not the trusted head"));
+    }
+    let mut out = vec![];
+    for b in &p.credential_bodies {
+        let c = Credential::from_body(b)?;
+        if c.account_id == acs.account_id && acs.credentials.iter().any(|(d, h)| *d == c.device_id && *h == c.hash()) {
+            out.push((c.ik, c.account_id, c.device_id, acs.device_active(&c.device_id)));
+        }
+    }
+    Ok(out)
+}
+
+/// Resolve an inbound initiator IK_A to exactly one committed DeviceCredential of a trusted peer, optionally
+/// pinned to the account whose relationship route delivered the envelope. Fails closed on no match, on more
+/// than one match, and on a device that is not active or is quarantined at the trusted head. Callers run it
+/// before any secret-key operation, one-time-key consumption or session change.
+pub fn verify_initiator(ik_a: &[u8; 32], matches: &[PeerDevice], route_account: Option<&[u8; 32]>) -> Result<([u8; 32], [u8; 16]), Error> {
+    let m: Vec<&PeerDevice> = matches.iter().filter(|(ik, a, _, _)| ik == ik_a && route_account.map_or(true, |r| r == a)).collect();
+    match m.as_slice() {
+        [] => Err(Error::Binding("initiator IK_A matches no committed credential of the relationship peer")),
+        [(_, a, d, true)] => Ok((*a, *d)),
+        [_] => Err(Error::Binding("initiator device not active or quarantined at the trusted ACS head")),
+        _ => Err(Error::Binding("initiator IK_A matches more than one credential")),
+    }
+}

@@ -95,7 +95,7 @@ def mirror_check() -> dict:
         r = RULE[c]
         ok = {"one": "1 active, non-quarantined controller" in text,
               "majority_rv": text.startswith("majority, or majority reached with a recovery vote"),
-              "majority": text.startswith("majority") and "recovery vote" not in text,
+              "majority": text.startswith("majority") and ("recovery vote" not in text or "no recovery vote" in text),
               "self": "that device" in text,
               "bridge": "device-only majority" in text and "no recovery vote" in text,
               "forbidden": text.startswith("forbidden")}[r]
@@ -187,11 +187,20 @@ def _authorize(p: dict, c: dict, ctx: dict) -> tuple[str, str]:
     rule = max((RULE[k] for k, _ in ds), key=STRENGTH.get)
     if rule == "forbidden":
         return "reject", "lowering minimum_crypto_profile is forbidden"
-    if ctx.get("frozen") and rule != "bridge" and not (rule == "majority" and ctx.get("device_only_majority_resolves")):
-        return "reject", "parent is under safety freeze; only a device-only majority resolves it"
     control, quarantined = set(p["control"]), set(p["quarantined"])
     voting = control - quarantined
     signers = set(ctx.get("signers", ()))
+    if ctx.get("frozen") and rule != "bridge":
+        # §5 (ADR-0136 rule 2): a freeze is resolved only by a device-only majority of the parent's controllers,
+        # quarantined ones signing with their challenge capability; a quarantine freeze resolves by lifting.
+        if any(k != "lift_quarantine" for k, _ in ds):
+            return "reject", "parent is under safety freeze; only a lift or a fork bridge resolves it"
+        if ctx.get("recovery"):
+            return "reject", "a recovery vote never resolves a freeze"
+        if signers - control:
+            return "reject", "a freeze-resolution signer is not a controller of the parent"
+        return (("accept", "device-only majority (challenge signatures count) resolves the freeze")
+                if len(signers) >= majority(len(control)) else ("reject", "freeze resolution needs a device-only majority"))
     if signers - voting:
         return "reject", "a signer is not an active, non-quarantined controller of the parent"
     n, maj = len(control), majority(len(control))
@@ -381,6 +390,13 @@ def vectors() -> list[dict]:
     add("lift_quarantine_majority", "lift_quarantine", P3q, kids3q[("lift_quarantine", "d3")], {"signers": ["d1", "d2"]}, "accept")
     add("lift_quarantine_single_rejected", "lift_quarantine", P3q, kids3q[("lift_quarantine", "d3")], {"signers": ["d1"]}, "reject")
     add("lift_quarantine_with_recovery_vote_rejected", "lift_quarantine", P3q, kids3q[("lift_quarantine", "d3")], {"signers": ["d1"], "recovery": rec(2)}, "reject")
+    add("lift_quarantine_counting_quarantined_signer_rejected", "lift_quarantine", P3q, kids3q[("lift_quarantine", "d3")], {"signers": ["d1", "d3"]}, "reject")
+    P2q1 = state(["d1", "d2"], quarantined=["d2"], messaging=[MSG], min_gen=2)
+    k2q1 = {(k, t): c for k, t, c in children(P2q1)}
+    add("frozen_lift_with_challenge_signature_resolves", "lift_quarantine", P2q1, k2q1[("lift_quarantine", "d2")], {"signers": ["d1", "d2"], "frozen": True}, "accept")
+    add("frozen_lift_without_challenge_signature_rejected", "lift_quarantine", P2q1, k2q1[("lift_quarantine", "d2")], {"signers": ["d1"], "frozen": True}, "reject")
+    add("frozen_lift_with_recovery_vote_rejected", "lift_quarantine", P2q1, k2q1[("lift_quarantine", "d2")], {"signers": ["d1"], "recovery": rec(2), "frozen": True}, "reject")
+    add("frozen_other_delta_rejected", "revoke_control", P2q1, k2q1[("revoke_control", "d2")], {"signers": ["d1", "d2"], "frozen": True}, "reject")
     add("remove_messaging_by_one_controller", "remove_messaging", P3, kids3[("remove_messaging", MSG)], {"signers": ["d2"]}, "accept")
     add("remove_messaging_unsigned_rejected", "remove_messaging", P3, kids3[("remove_messaging", MSG)], {"signers": []}, "reject")
     add("revoke_control_majority", "revoke_control", P3, kids3[("revoke_control", "d3")], {"signers": ["d1", "d2"]}, "accept")

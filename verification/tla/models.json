@@ -11,6 +11,13 @@
     {"module": "AccountControl", "config": "AccountControl_trap_recover.cfg", "expect": "violation", "invariant": "TrapOwnerRecoversAfterTotalLoss", "gate": "V-002", "claim": "golden: owner recovers after losing every device"},
     {"module": "AccountControl", "config": "AccountControl_trap_two_device.cfg", "expect": "violation", "invariant": "TrapTwoDeviceReconstitution", "gate": "V-002", "claim": "golden: two-device lockout removed"},
     {"module": "AccountControl", "config": "AccountControl_trap_legacy.cfg", "expect": "violation", "invariant": "TrapLegacyActivates", "gate": "V-002", "claim": "golden: legacy activates only after inactivity"},
-    {"module": "AccountControl", "config": "AccountControl_trap_fork.cfg", "expect": "violation", "invariant": "TrapForkFreezes", "gate": "V-002", "claim": "golden: conflicting authorized transitions freeze"}
+    {"module": "AccountControl", "config": "AccountControl_trap_fork.cfg", "expect": "violation", "invariant": "TrapForkFreezes", "gate": "V-002", "claim": "golden: conflicting authorized transitions freeze"},
+    {"module": "AccountControl", "config": "AccountControl_veto_any.cfg", "expect": "pass", "gate": "V-002", "claim": "F-1: any live controller vetoes a recovery-alone request whatever the custodian/method count; attacker holding both custodians never takes over a live owner"},
+    {"module": "AccountControl", "config": "AccountControl_mut_method_count.cfg", "expect": "violation", "invariant": "AttackerNeverOwns", "gate": "V-002", "claim": "mutation F-1: method-count veto rule is caught (custodian holder wins against a live owner)"},
+    {"module": "AccountControl", "config": "AccountControl_trap_lift.cfg", "expect": "violation", "invariant": "TrapLift", "gate": "V-002", "claim": "golden F-2: device-only majority lifts a quarantine"},
+    {"module": "AccountControl", "config": "AccountControl_trap_quarantine_freeze.cfg", "expect": "violation", "invariant": "TrapQuarantineFreeze", "gate": "V-002", "claim": "golden F-2: threshold-disabling quarantine enters SAFETY_FREEZE"},
+    {"module": "AccountControl", "config": "AccountControl_trap_challenge_resolve.cfg", "expect": "violation", "invariant": "TrapChallengeResolves", "gate": "V-002", "claim": "golden F-2: freeze resolved by a device-only majority counting the quarantined device's challenge signature"},
+    {"module": "AccountControl", "config": "AccountControl_trap_cosigned_recovery.cfg", "expect": "violation", "invariant": "TrapCosignedRecovery", "gate": "V-002", "claim": "golden: co-signed recovery vote reconstitutes immediately"},
+    {"module": "AccountControl", "config": "AccountControl_trap_delayed_recovery.cfg", "expect": "violation", "invariant": "TrapDelayedRecovery", "gate": "V-002", "claim": "golden: recovery alone completes after the full delay"}
   ]
 }

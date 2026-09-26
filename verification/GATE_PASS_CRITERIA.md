@@ -23,7 +23,7 @@
 
 | Gate | Name | Scopes | Pre-engineering | Overall | Feasibility | W0 interface impact |
 |---|---|---|---|---|---|---|
-| V-001 | `production_crypto_path` | core_kernel | passed | open | open | — |
+| V-001 | `production_crypto_path` | core_kernel | open | open | open | — |
 | V-002 | `account_control_formal_model` | core_kernel | open | open | open | — |
 | V-003 | `one_to_one_session_model` | core_kernel | open | open | open | — |
 | V-004 | `group_commit_control_model` | groups | open | open | evidenced | core_kernel |
@@ -54,11 +54,11 @@
 Demonstrate the selected OM-Crypto-v1 state-machine path, PQXDH + Double Ratchet (ADR-0118; no PQ post-compromise healing in v1, SPQR is OM-Crypto-v2), in Rust on native and wasm32, including state persistence/reload, deterministic vectors, one-time key material and dependency/licensing/update strategy, without relying on an unsupported external API contract.
 
 - **Scopes blocked:** core_kernel
-- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_implementation_or_upstream_kat; pre-release external_review
 - **Execution class:** `repo_local_feasibility`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `satisfied`
-- **Evidence:** `decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md`; `decisions/ADR-0135-om-crypto-v1-construction-pinning.md`; `verification/prototypes/v001-crypto/README.md`; `verification/prototypes/v001-crypto/python/hpke_pq.py`; `verification/prototypes/v001-crypto/vectors/om-v001-proto-vectors.json`; `verification/results/v001-crypto-latest.json`
+- **Evidence:** `decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md`; `decisions/ADR-0135-om-crypto-v1-construction-pinning.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `verification/prototypes/v001-crypto/README.md`; `verification/prototypes/v001-crypto/python/hpke_pq.py`; `verification/prototypes/v001-crypto/vectors/om-v001-proto-vectors.json`; `verification/results/v001-crypto-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`
 
 Pre-engineering criteria:
 
@@ -71,11 +71,17 @@ Pre-engineering criteria:
 - [x] last-resort PQXDH replay prototype persists an exact per-signed-prekey transcript ledger before acknowledgement, rejects duplicates across crash, and fails closed at the 4096 cap without eviction (ADR-0131 rule 2)
 - [x] AES-256-GCM-SIV payload vectors verify the OM-DR-AEAD-KEY-v1 / OM-DR-AEAD-NONCE-v1 derivation and authenticated header context (ADR-0131 rule 3)
 - [x] MessageRequest HPKE consumes draft-ietf-hpke-pq-05 MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305 KATs plus OM context vectors; no ad-hoc hybrid implementation (ADR-0131 rule 9)
+- [x] responder binds the inbound PQXDH initiator IK_A to exactly one active, non-quarantined DeviceCredential committed by the trusted relationship ACS head before any secret-key operation, with negative vectors for unknown, route-mismatched, revoked, quarantined, stale, substituted and ambiguous keys checked by the independent implementation (ADR-0136 rule 4, review F-9)
+- [ ] ADR-0135 §7 / ADR-0136 rule 4 responder binding accepted on re-review by a non-Anthropic reviewer (review F-9 reopened V-001)
 
 Pre-release criteria:
 
 - [ ] independent cryptographic review of the integrated production path
 - [ ] production build provably excludes dev/test CryptoProvider (R-072)
+
+Mechanically unfinished pre-engineering work:
+
+- ADR-0135 §7 / ADR-0136 rule 4 responder binding accepted on re-review by a non-Anthropic reviewer (review F-9 reopened V-001)
 
 ### V-002 — `account_control_formal_model`
 
@@ -86,7 +92,7 @@ Model-check AccountControlState majority authorization, quarantine denominator, 
 - **Independence:** pre-engineering independent_tool, independent_reviewer; pre-release external_review
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `verification/bounded/acs_authorization_table.py`; `verification/bounded/continuity_assessment.py`; `verification/results/acs-authorization-table-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/tlc-latest.json`; `verification/tla/AccountControl.tla`; `verification/tla/AccountControlState.cfg`; `verification/tla/AccountControlState.tla`; `verification/tla/RecoveryObservation.tla`; `verification/tla/models-v002-recovery-observation.json`; `verification/tla/models.json`; `verification/vectors/account-control-regression-vectors.json`; `verification/vectors/acs-authorization-table-vectors.json`; `verification/vectors/tla-AccountControl_trap_recover.json`; `verification/vectors/tla-RecoveryObservation_mut_trust_timestamp.json`; `verification/vectors/tla-RecoveryObservation_residual_withheld.json`; `verification/vectors/tla-RecoveryObservation_trap_late.json`
+- **Evidence:** `decisions/ADR-0136-core-kernel-review-remediation.md`; `verification/bounded/acs_authorization_table.py`; `verification/bounded/acs_tla_crosscheck.py`; `verification/bounded/continuity_assessment.py`; `verification/results/acs-authorization-table-latest.json`; `verification/results/acs-tla-crosscheck-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/tlc-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/tla/AccountControl.tla`; `verification/tla/AccountControlState.cfg`; `verification/tla/AccountControlState.tla`; `verification/tla/RecoveryObservation.tla`; `verification/tla/models-v002-recovery-observation.json`; `verification/tla/models.json`; `verification/vectors/account-control-regression-vectors.json`; `verification/vectors/acs-authorization-table-vectors.json`; `verification/vectors/tla-AccountControl_mut_method_count.json`; `verification/vectors/tla-AccountControl_trap_challenge_resolve.json`; `verification/vectors/tla-AccountControl_trap_lift.json`; `verification/vectors/tla-AccountControl_trap_quarantine_freeze.json`; `verification/vectors/tla-AccountControl_trap_recover.json`; `verification/vectors/tla-RecoveryObservation_mut_trust_timestamp.json`; `verification/vectors/tla-RecoveryObservation_residual_withheld.json`; `verification/vectors/tla-RecoveryObservation_trap_late.json`
 
 Pre-engineering criteria:
 
@@ -119,7 +125,7 @@ Model/fuzz the per-device 1:1 session manager across crossed initiation, add/rev
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0120-one-to-one-session-manager-rules.md`; `verification/prototypes/v003-sessions/README.md`; `verification/prototypes/v003-sessions/floor.py`; `verification/prototypes/v003-sessions/restore_redelivery.py`; `verification/results/v003-sessions-latest.json`; `verification/tla/OneToOneSessions.tla`; `verification/tla/models-v003.json`; `verification/vectors/one-to-one-floor-vectors.json`; `verification/vectors/one-to-one-session-regression-vectors.json`
+- **Evidence:** `decisions/ADR-0120-one-to-one-session-manager-rules.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `verification/prototypes/v003-sessions/README.md`; `verification/prototypes/v003-sessions/floor.py`; `verification/prototypes/v003-sessions/restore_redelivery.py`; `verification/results/v003-sessions-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/tla/OneToOneSessions.tla`; `verification/tla/models-v003.json`; `verification/vectors/one-to-one-floor-vectors.json`; `verification/vectors/one-to-one-session-regression-vectors.json`; `verification/vectors/tla-OneToOneSessions_K12.json`
 
 Pre-engineering criteria:
 
@@ -498,7 +504,7 @@ Instrument/model normal and privacy-enhanced paths across relay, MLS/group contr
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_privacy_model`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `docs/process/METADATA_TRACE_TEST_PLAN.md`; `spec/metadata/w0-metadata-exposure-descriptors.json`; `verification/bounded/metadata_trace_model.py`; `verification/bounded/metadata_w0_rules.py`; `verification/results/metadata-trace-latest.json`; `verification/results/metadata-w0-rules-latest.json`; `verification/results/wire-boundary-bounded-latest.json`
+- **Evidence:** `decisions/ADR-0136-core-kernel-review-remediation.md`; `docs/process/METADATA_TRACE_TEST_PLAN.md`; `spec/metadata/w0-metadata-exposure-descriptors.json`; `verification/bounded/metadata_trace_model.py`; `verification/bounded/metadata_w0_rules.py`; `verification/results/metadata-trace-latest.json`; `verification/results/metadata-w0-rules-latest.json`; `verification/results/wire-boundary-bounded-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`
 
 Pre-engineering criteria:
 
@@ -531,7 +537,7 @@ Model/property-test block/revocation/Sybil behavior, IntroGate resource abuse, R
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/bounded/abuse_w0_rules.py`; `verification/bounded/introgate_sybil_model.py`; `verification/results/abuse-w0-rules-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/introgate-sybil-latest.json`; `verification/results/v016-room-moderation-latest.json`; `verification/tla/RoomModeration.tla`; `verification/tla/models-v016-room-moderation.json`
+- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `verification/bounded/abuse_w0_rules.py`; `verification/bounded/introgate_sybil_model.py`; `verification/bounded/privacy_pass_issuance.py`; `verification/results/abuse-w0-rules-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/introgate-sybil-latest.json`; `verification/results/v016-room-moderation-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/tla/RoomModeration.tla`; `verification/tla/models-v016-room-moderation.json`; `verification/vectors/privacy-pass-blind-rsa-vectors.json`
 
 Pre-engineering criteria:
 
@@ -562,7 +568,7 @@ Run the 20-year continuity exercise with founder/forge/domain/provider unavailab
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation, external_review
 - **Execution class:** `repo_local_continuity`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `docs/process/CONTINUITY_TABLETOP_DRILLS.md`; `tools/continuity_bundle.py`; `verification/results/continuity-dry-run-latest.json`
+- **Evidence:** `decisions/ADR-0136-core-kernel-review-remediation.md`; `docs/process/CONTINUITY_TABLETOP_DRILLS.md`; `spec/continuity/om-crypto-v1-bundle-manifest.json`; `tools/continuity_bundle.py`; `verification/results/continuity-dry-run-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`
 
 Pre-engineering criteria:
 

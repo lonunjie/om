@@ -38,8 +38,11 @@ CONSTANTS
   RestoreDropsSessions,   \* K8 backup restore never restores ratchet state (re-establish instead)
   RejectFromRevoked,      \* K9 receiver rejects traffic from a device it knows is revoked
   PrekeyUntilConfirmed,   \* K10 every message on an unconfirmed (Initiating) session carries the prekey header
-  RestoreRotatesPrekeys   \* K11 backups exclude handshake prekey secrets; a restored device publishes fresh
+  RestoreRotatesPrekeys,  \* K11 backups exclude handshake prekey secrets; a restored device publishes fresh
                           \*     prekeys, so a prekey message for a pre-restore prekey is undecryptable
+  BindInitiator,          \* K12 (ADR-0136 rule 4) a new inbound session is accepted only if the initiation's
+                          \*     identity key is the key of the sender DeviceCredential in the receiver's view
+  MaxForge                \* bound: initiations an attacker injects claiming a real DeviceID with its own key
 
 Accounts == {"A", "B"}
 Real     == {"a1", "b1", "b3"}
@@ -76,11 +79,12 @@ VARIABLES
   refused,    \* <<m, r>> the sender deliberately gave up on (ineligible / below floor)
   disturbed,  \* devices that crashed or restored
   restored,   \* <<m, r, s>> intended before some restore: history lost by design, exempt from C1
+  forge,      \* [n: forged initiations injected, bad: <<r, f>> sessions r attributed to f on a foreign key]
   lastAct
 
 vars == <<gen, known, sess, floor, seen, fan, P, Bk, epoch, net, nextSid, msgCount, crashes, restores,
           dups, weak, injected, everKnown, acc, keyLog, sendLog, badAccept, downgrade, gfloor,
-          intended, refused, disturbed, restored, lastAct>>
+          intended, refused, disturbed, restored, forge, lastAct>>
 
 Snap(d) == [sess |-> sess[d], floor |-> floor[d], seen |-> seen[d], fan |-> fan[d], known |-> known[d]]
 
@@ -102,6 +106,7 @@ Init ==
   /\ keyLog = {} /\ sendLog = {} /\ badAccept = {} /\ downgrade = {}
   /\ gfloor = [q \in {{x, y} : x, y \in Real} |-> 0]
   /\ intended = {} /\ refused = {} /\ disturbed = {} /\ restored = {}
+  /\ forge = [n |-> 0, bad |-> {}]
   /\ lastAct = <<"Init">>
 
 \* ---------------------------------------------------------------- helpers
@@ -140,7 +145,7 @@ ControlStep ==
                 THEN [d \in Real |-> IF d \in linked THEN [P[d] EXCEPT !.known = known'[d]] ELSE P[d]] ELSE P
   /\ lastAct' = <<"ControlStep", gen["B"] + 1>>
   /\ UNCHANGED <<epoch, sess, floor, seen, fan, Bk, net, nextSid, msgCount, crashes, restores, dups, weak,
-                 injected, acc, keyLog, sendLog, badAccept, downgrade, gfloor, intended, refused, disturbed, restored>>
+                 injected, acc, keyLog, sendLog, badAccept, downgrade, gfloor, intended, refused, disturbed, restored, forge>>
 
 Learn(d, a) ==
   /\ known[d][a] < gen[a]
@@ -148,7 +153,7 @@ Learn(d, a) ==
   /\ P' = IF ReconcileControlHead THEN [P EXCEPT ![d].known = known'[d]] ELSE P
   /\ lastAct' = <<"Learn", d, a>>
   /\ UNCHANGED <<epoch, gen, sess, floor, seen, fan, Bk, net, nextSid, msgCount, crashes, restores, dups,
-                 weak, injected, acc, keyLog, sendLog, badAccept, downgrade, gfloor, intended, refused, disturbed, restored>>
+                 weak, injected, acc, keyLog, sendLog, badAccept, downgrade, gfloor, intended, refused, disturbed, restored, forge>>
 
 \* ---------------------------------------------------------------- adversary / provider
 ServeWeakBundle(r) ==   \* provider (or depletion) offers only weaker handshake material for r
@@ -157,7 +162,7 @@ ServeWeakBundle(r) ==   \* provider (or depletion) offers only weaker handshake 
   /\ lastAct' = <<"ServeWeakBundle", r>>
   /\ UNCHANGED <<epoch, gen, known, sess, floor, seen, fan, P, Bk, net, nextSid, msgCount, crashes, restores,
                  dups, injected, everKnown, acc, keyLog, sendLog, badAccept, downgrade, gfloor,
-                 intended, refused, disturbed, restored>>
+                 intended, refused, disturbed, restored, forge>>
 
 InjectRogueDevice ==     \* provider advertises bx for account B
   /\ ~injected /\ MaxInject > 0
@@ -165,7 +170,19 @@ InjectRogueDevice ==     \* provider advertises bx for account B
   /\ lastAct' = <<"InjectRogueDevice">>
   /\ UNCHANGED <<epoch, gen, known, sess, floor, seen, fan, P, Bk, net, nextSid, msgCount, crashes, restores,
                  dups, weak, everKnown, acc, keyLog, sendLog, badAccept, downgrade, gfloor, intended,
-                 refused, disturbed, restored>>
+                 refused, disturbed, restored, forge>>
+
+\* An attacker injects an initiation to r that claims real device f but carries the attacker's identity key.
+ForgeInitiation(f, r) ==
+  /\ forge.n < MaxForge /\ f # r /\ nextSid <= MaxSid
+  /\ forge' = [forge EXCEPT !.n = @ + 1]
+  /\ nextSid' = nextSid + 1
+  /\ net' = net \cup {[t |-> "msg", from |-> f, to |-> r, sid |-> nextSid, prof |-> 2, ctr |-> 1, m |-> 1,
+                       pk |-> TRUE, hdr |-> known[r][Acct(f)], ik |-> "attacker"]}
+  /\ lastAct' = <<"ForgeInitiation", f, r, nextSid>>
+  /\ UNCHANGED <<epoch, gen, known, sess, floor, seen, fan, P, Bk, msgCount, crashes, restores, dups, weak,
+                 injected, everKnown, acc, keyLog, sendLog, badAccept, downgrade, gfloor, intended, refused,
+                 disturbed, restored>>
 
 \* ---------------------------------------------------------------- sending
 NewMessage(s) ==
@@ -178,7 +195,7 @@ NewMessage(s) ==
         /\ P' = IF PersistBeforeSend THEN [P EXCEPT ![s].fan = f2] ELSE P
         /\ lastAct' = <<"NewMessage", s, m>>
   /\ UNCHANGED <<epoch, gen, known, sess, floor, seen, Bk, net, nextSid, crashes, restores, dups, weak,
-                 injected, everKnown, acc, keyLog, sendLog, badAccept, downgrade, gfloor, refused, disturbed, restored>>
+                 injected, everKnown, acc, keyLog, sendLog, badAccept, downgrade, gfloor, refused, disturbed, restored, forge>>
 
 \* Encrypt one pending <<m, r>>: existing preferred session, or initiate a new one.
 Encrypt(s, m, r) ==
@@ -193,7 +210,7 @@ Encrypt(s, m, r) ==
         /\ refused' = refused \cup {<<m, r>>}
         /\ P' = IF PersistBeforeSend THEN [P EXCEPT ![s].fan = f2] ELSE P
         /\ lastAct' = <<"EncryptRefusedIneligible", s, m, r>>
-        /\ UNCHANGED <<epoch, sess, floor, net, nextSid, keyLog, sendLog, downgrade, gfloor>>
+        /\ UNCHANGED <<epoch, sess, floor, net, nextSid, keyLog, sendLog, downgrade, gfloor, forge>>
      ELSE IF r \in Real /\ Live(s, r) # {} THEN
         LET x == CHOOSE y \in Live(s, r) : y.sid = Pref(s, r)
             x2 == [x EXCEPT !.ctr = @ + 1]
@@ -201,18 +218,18 @@ Encrypt(s, m, r) ==
         IN /\ sess' = [sess EXCEPT ![s] = s2]
            /\ fan' = [fan EXCEPT ![s] = f2]
            /\ net' = net \cup {[t |-> "msg", from |-> s, to |-> r, sid |-> x.sid, prof |-> x.prof,
-                                ctr |-> x2.ctr, m |-> m, pk |-> PrekeyUntilConfirmed /\ ~x.conf, hdr |-> hdr]}
+                                ctr |-> x2.ctr, m |-> m, pk |-> PrekeyUntilConfirmed /\ ~x.conf, hdr |-> hdr, ik |-> s]}
            /\ keyLog' = keyLog \cup {<<x.sid, s, x2.ctr, m>>}
            /\ sendLog' = sendLog \cup {[s |-> s, r |-> r, ok |-> okGhost]}
            /\ P' = IF PersistBeforeSend THEN [P EXCEPT ![s].sess = s2, ![s].fan = f2] ELSE P
            /\ lastAct' = <<"Encrypt", s, m, r, x.sid>>
-           /\ UNCHANGED <<epoch, floor, nextSid, refused, downgrade, gfloor>>
+           /\ UNCHANGED <<epoch, floor, nextSid, refused, downgrade, gfloor, forge>>
      ELSE IF r \in Real /\ BundleProf(r) < EffFloor(s, r) THEN   \* refuse to initiate below floor
         /\ fan' = [fan EXCEPT ![s] = f2]
         /\ refused' = refused \cup {<<m, r>>}
         /\ P' = IF PersistBeforeSend THEN [P EXCEPT ![s].fan = f2] ELSE P
         /\ lastAct' = <<"EncryptRefusedFloor", s, m, r>>
-        /\ UNCHANGED <<epoch, sess, floor, net, nextSid, keyLog, sendLog, downgrade, gfloor>>
+        /\ UNCHANGED <<epoch, sess, floor, net, nextSid, keyLog, sendLog, downgrade, gfloor, forge>>
      ELSE
         /\ nextSid <= MaxSid
         /\ LET prof == IF r \in Real THEN BundleProf(r) ELSE 2
@@ -225,7 +242,7 @@ Encrypt(s, m, r) ==
               /\ nextSid' = nextSid + 1
               /\ net' = IF r \in Real
                         THEN net \cup {[t |-> "msg", from |-> s, to |-> r, sid |-> nextSid, prof |-> prof,
-                                        ctr |-> 1, m |-> m, pk |-> TRUE, hdr |-> hdr]}
+                                        ctr |-> 1, m |-> m, pk |-> TRUE, hdr |-> hdr, ik |-> s]}
                         ELSE net   \* envelope to a rogue device leaves our model (attacker reads it)
               /\ keyLog' = keyLog \cup {<<nextSid, s, 1, m>>}
               /\ sendLog' = sendLog \cup {[s |-> s, r |-> r, ok |-> okGhost]}
@@ -233,9 +250,9 @@ Encrypt(s, m, r) ==
                               THEN downgrade \cup {<<s, r, nextSid>>} ELSE downgrade
               /\ P' = IF PersistBeforeSend THEN [P EXCEPT ![s].sess = s2, ![s].floor = fl2, ![s].fan = f2] ELSE P
               /\ lastAct' = <<"Initiate", s, m, r, nextSid, prof>>
-              /\ UNCHANGED <<epoch, refused, gfloor>>
+              /\ UNCHANGED <<epoch, refused, gfloor, forge>>
   /\ UNCHANGED <<epoch, gen, known, seen, Bk, msgCount, crashes, restores, dups, weak, injected, everKnown,
-                 acc, badAccept, intended, disturbed, restored>>
+                 acc, badAccept, intended, disturbed, restored, forge>>
 
 \* ---------------------------------------------------------------- receiving
 \* Deliver envelope e; keep it in the network when this is a bounded redelivery (duplicate).
@@ -260,19 +277,25 @@ RecvMsg(e, dup) ==
         /\ net' = rest
         /\ lastAct' = <<"RecvRejectedRevoked", r, f, e.m>>
         /\ P' = IF ReconcileControlHead THEN [P EXCEPT ![r].known = k1] ELSE P
-        /\ UNCHANGED <<epoch, sess, floor, seen, acc, badAccept, gfloor, downgrade>>
+        /\ UNCHANGED <<epoch, sess, floor, seen, acc, badAccept, gfloor, downgrade, forge>>
      ELSE IF have = {} /\ (~e.pk \/ (RestoreRotatesPrekeys /\ e.sid < epoch[r])) THEN
         \* undecryptable: unknown/lost session, or a prekey message for a prekey this device no longer
         \* holds (K11) -> authenticated reset request naming sid and m
         /\ net' = rest \cup {[t |-> "reset", from |-> r, to |-> f, sid |-> e.sid, m |-> e.m]}
         /\ lastAct' = <<"RecvUndecryptable", r, f, e.sid, e.m>>
         /\ P' = IF ReconcileControlHead THEN [P EXCEPT ![r].known = k1] ELSE P
-        /\ UNCHANGED <<epoch, sess, floor, seen, acc, badAccept, gfloor, downgrade>>
+        /\ UNCHANGED <<epoch, sess, floor, seen, acc, badAccept, gfloor, downgrade, forge>>
+     ELSE IF have = {} /\ BindInitiator /\ e.ik # f THEN
+        \* K12: the initiation's identity key is not f's committed credential key: fail closed, nothing changes
+        /\ net' = rest
+        /\ lastAct' = <<"RecvRejectedUnboundInitiator", r, f, e.sid>>
+        /\ P' = IF ReconcileControlHead THEN [P EXCEPT ![r].known = k1] ELSE P
+        /\ UNCHANGED <<epoch, sess, floor, seen, acc, badAccept, gfloor, downgrade, forge>>
      ELSE IF have = {} /\ e.prof < EffFloor(r, f) THEN
         /\ net' = rest
         /\ lastAct' = <<"RecvRejectedBelowFloor", r, f, e.sid>>
         /\ P' = IF ReconcileControlHead THEN [P EXCEPT ![r].known = k1] ELSE P
-        /\ UNCHANGED <<epoch, sess, floor, seen, acc, badAccept, gfloor, downgrade>>
+        /\ UNCHANGED <<epoch, sess, floor, seen, acc, badAccept, gfloor, downgrade, forge>>
      ELSE
         LET created == have = {}
             x == IF created
@@ -297,6 +320,7 @@ RecvMsg(e, dup) ==
                            THEN downgrade \cup {<<r, f, e.sid>>} ELSE downgrade
            /\ P' = IF DedupeDurable THEN Commit(r, s2, fl2, n2, fan[r], k1)
                    ELSE IF ReconcileControlHead THEN [P EXCEPT ![r].known = k1] ELSE P
+           /\ forge' = IF created /\ e.ik # f THEN [forge EXCEPT !.bad = @ \cup {<<r, f>>}] ELSE forge
            /\ lastAct' = <<"Recv", r, f, e.sid, e.m, IF created THEN "created" ELSE "existing">>
   /\ UNCHANGED <<epoch, gen, fan, Bk, nextSid, msgCount, crashes, restores, weak, injected, keyLog, sendLog,
                  intended, refused, disturbed, restored>>
@@ -316,7 +340,7 @@ RecvReset(e, dup) ==
   /\ P' = IF PersistBeforeSend THEN [P EXCEPT ![s].sess = stale2, ![s].fan = f2] ELSE P
   /\ lastAct' = <<"RecvReset", s, e.from, e.sid, e.m>>
   /\ UNCHANGED <<epoch, gen, known, floor, seen, Bk, nextSid, msgCount, crashes, restores, weak, injected,
-                 everKnown, acc, keyLog, sendLog, badAccept, downgrade, gfloor, intended, refused, disturbed, restored>>
+                 everKnown, acc, keyLog, sendLog, badAccept, downgrade, gfloor, intended, refused, disturbed, restored, forge>>
 
 \* ---------------------------------------------------------------- persistence
 Persist(d) ==
@@ -325,7 +349,7 @@ Persist(d) ==
   /\ lastAct' = <<"Persist", d>>
   /\ UNCHANGED <<epoch, gen, known, sess, floor, seen, fan, Bk, net, nextSid, msgCount, crashes, restores, dups,
                  weak, injected, everKnown, acc, keyLog, sendLog, badAccept, downgrade, gfloor, intended,
-                 refused, disturbed, restored>>
+                 refused, disturbed, restored, forge>>
 
 \* Crash: volatile state lost, durable state P[d] survives.
 Crash(d) ==
@@ -339,7 +363,7 @@ Crash(d) ==
   /\ disturbed' = disturbed \cup {d}
   /\ lastAct' = <<"Crash", d>>
   /\ UNCHANGED <<epoch, gen, P, Bk, net, nextSid, msgCount, restores, dups, weak, injected, everKnown, acc,
-                 keyLog, sendLog, badAccept, downgrade, gfloor, intended, refused, restored>>
+                 keyLog, sendLog, badAccept, downgrade, gfloor, intended, refused, restored, forge>>
 
 TakeBackup(d) ==
   /\ ~Bk[d].has /\ MaxRestore > 0 /\ d \in RestoreDevs
@@ -347,7 +371,7 @@ TakeBackup(d) ==
   /\ lastAct' = <<"TakeBackup", d>>
   /\ UNCHANGED <<epoch, gen, known, sess, floor, seen, fan, P, net, nextSid, msgCount, crashes, restores, dups,
                  weak, injected, everKnown, acc, keyLog, sendLog, badAccept, downgrade, gfloor, intended,
-                 refused, disturbed, restored>>
+                 refused, disturbed, restored, forge>>
 
 \* Restore from an older backup (history after the backup is lost with the device).
 Restore(d) ==
@@ -370,13 +394,14 @@ Restore(d) ==
   /\ restored' = restored \cup intended
   /\ lastAct' = <<"Restore", d>>
   /\ UNCHANGED <<gen, Bk, net, nextSid, msgCount, crashes, dups, weak, injected, keyLog, sendLog,
-                 badAccept, downgrade, gfloor, intended, refused>>
+                 badAccept, downgrade, gfloor, intended, refused, forge>>
 
 Next ==
   \/ ControlStep
   \/ \E d \in Real, a \in Accounts : Learn(d, a)
   \/ \E r \in Real : ServeWeakBundle(r)
   \/ InjectRogueDevice
+  \/ \E f, r \in Real : ForgeInitiation(f, r)
   \/ \E s \in Senders : NewMessage(s)
   \/ \E s \in Real : \E pr \in fan[s] : Encrypt(s, pr[1], pr[2])
   \/ \E e \in net : \E dup \in BOOLEAN : RecvMsg(e, dup) \/ RecvReset(e, dup)
@@ -429,6 +454,9 @@ NoBlackHoleAtQuiescence ==
   Quiescent =>
     \A d, p \in Real :
       (d # p /\ Live(d, p) # {}) => Pref(d, p) \in SidsOf({x \in sess[p] : x.peer = d})
+
+\* S6 (K12) no session is attributed to a device on an identity key other than its committed credential key
+NoMisattributedSession == forge.bad = {}
 
 StateBound == nextSid <= MaxSid + 1
 =============================================================================

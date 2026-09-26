@@ -363,6 +363,7 @@ V1 does not claim to defeat:
 9. Provider metadata claims are distinguishable from protocol-enforced properties.
 10. Metadata privacy failures cannot silently downgrade message cryptographic authentication/E2EE.
 11. AsyncKeyBundle `acs_generation`/`acs_state_hash` are a stable per-account correlator visible to KeyMaterialProviders and fetchers (not the AccountID); this is disclosed in the W0 descriptor and tracked as A-031.
+12. W0 exposes stable per-device correlators, and the W0 descriptor declares them (`stable_device_correlator`, ADR-0136 rule 5). They are the AsyncKeyBundle `subject_device_id` at KeyMaterialProviders, the sender's device identity key at the front of every 1:1 envelope at mailbox-class Homes, and the push token at push providers. A mailbox operator can therefore tell which of a sender's devices deposits, and can link that device across the mailboxes it hosts. Hiding it needs a sealed-sender outer envelope (a new CryptoProfile, tracked as A-054).
 
 ## 21. Verification obligation
 

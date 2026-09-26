@@ -77,6 +77,10 @@ All are far inside the [`MOTION_AND_PERFORMANCE.md`](../../../docs/architecture/
 ## Not covered
 
 - Multi-device session management (V-003) and multi-provider pools. One provider pool per device is exercised.
-- Authenticating the initiator's IK_A through the initiator's own ACS. That belongs to the session manager (V-003) and IntroIdentityBinding (V-005/V-015).
+- (Covered since 2026-09-26, review F-9.) The responder binds the initiator's IK_A to exactly one active,
+  non-quarantined DeviceCredential committed by a trusted relationship peer's ACS head before any secret-key
+  operation (`binding::verify_initiator`, `Device::trust_peer`, ADR-0136 rule 4). Nine selftest checks and eleven
+  `initiator_binding` vectors cover unknown, route-mismatched, revoked, quarantined, stale, substituted and ambiguous
+  keys, and crossed initiation. The Python checker verifies the vectors independently.
 - Real DeviceVault durability (fsync, OS keystore). The vault here is an in-memory trait with fault injection.
 - Side channels and constant-time properties beyond what the chosen libraries claim.

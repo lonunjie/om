@@ -20,7 +20,7 @@
         "verification/prototypes/v001-crypto/rust/core/src/acvp.rs"
       ],
       "gate": "V-001",
-      "note": "Python (cryptography/OpenSSL + kyber-py) reproduces or verifies 202/202 values: binding chain and 12 negative binding vectors, PQXDH, handshake_id, ML-KEM, DR keys, AEAD inputs, bit-exact AES-GCM-SIV ciphertexts and the HPKE envelope; it rejects a mutated ciphertext and a mutated ML-DSA-65 signature. NIST ACVP ML-KEM-768: 80/80 on libcrux (native+wasi), 80/80 on kyber-py.",
+      "note": "Python (cryptography/OpenSSL + kyber-py) reproduces or verifies 213/213 values: binding chain and 12 negative binding vectors, PQXDH, handshake_id, ML-KEM, DR keys, AEAD inputs, bit-exact AES-GCM-SIV ciphertexts and the HPKE envelope; it rejects a mutated ciphertext and a mutated ML-DSA-65 signature. NIST ACVP ML-KEM-768: 80/80 on libcrux (native+wasi), 80/80 on kyber-py.",
       "status": "met"
     },
     {
@@ -30,7 +30,7 @@
         "verification/prototypes/v001-crypto/rust/core/src/store.rs"
       ],
       "gate": "V-001",
-      "note": "17 checks pass on native, wasip1 and Node: depletion to the signed ML-KEM prekey, single-use deletion, replay rejection, tampered handshake consumes nothing, PQ-less bundle and CT-less initial message refused, epoch rotation with grace and expiry.",
+      "note": "26 checks pass on native, wasip1 and Node: depletion to the signed ML-KEM prekey, single-use deletion, replay rejection, tampered handshake consumes nothing, PQ-less bundle and CT-less initial message refused, epoch rotation with grace and expiry.",
       "status": "met"
     },
     {
@@ -192,7 +192,7 @@
     },
     "persistence": {
       "byte_identical_at_every_step": true,
-      "final_world_sha256": "6b36c662fc47094b4b4ff32d01604a89a95383a5d8a33a70dc16686682587fae",
+      "final_world_sha256": "50dbb3aec69867923446ac5f32d76c7133723206ea33565108bbd4cd6351bed6",
       "max_skipped_keys_persisted": 1,
       "messages_delivered": 367,
       "schedules": [
@@ -203,7 +203,7 @@
       ],
       "steps_each_in_fresh_process": 249
     },
-    "python_vector_checks": "202/202",
+    "python_vector_checks": "213/213",
     "r072_sketch": {
       "production_alone_builds": true,
       "production_plus_test_rng_rejected": true,
@@ -232,6 +232,15 @@
       "binding_quarantined_device_rejected",
       "binding_bundle_for_stale_acs_head_rejected",
       "binding_untrusted_acs_body_rejected",
+      "initiator_unknown_identity_key_rejected_nothing_consumed",
+      "initiator_bound_to_trusted_peer_credential_accepted",
+      "initiator_pinned_to_relationship_route",
+      "initiator_revoked_device_rejected",
+      "initiator_quarantined_device_rejected",
+      "initiator_stale_credential_rejected_after_rotation",
+      "initiator_substituted_identity_key_rejected",
+      "initiator_identity_key_in_two_credentials_rejected",
+      "initiator_crossed_initiation_between_bound_peers_reaches_session_rule",
       "depletion_falls_back_to_signed_pq_prekey",
       "every_handshake_includes_mlkem_no_classical_only",
       "one_time_private_keys_deleted_after_use",
@@ -267,7 +276,7 @@
       "hpke_pq_only_enc_rejected"
     ],
     "vectors_identical_native_wasi_node_committed": true,
-    "vectors_sha256": "978b612e1f7433a9da71df0184c800bc0da1a90d04cd967a2e707d823f65086d"
+    "vectors_sha256": "b26b17ec8583d80a38c6e879b41f5a713eae74636f5d0173d21b83a0f7e26c0d"
   },
   "tool_versions": {
     "acvp_server_commit": "975de31eb83d87039ec88934fdc47d8c312b892d",
@@ -291,7 +300,7 @@
     "pypi:kyber-py": "1.2.0",
     "python": "Python 3.14.6",
     "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
-    "uv": "uv 0.12.18 (Homebrew 2026-09-22 aarch64-apple-darwin)",
+    "uv": "uv 0.12.19 (Homebrew 2026-09-24 aarch64-apple-darwin)",
     "wasmtime": "wasmtime 49.0.1 (46c23a87d 2026-09-24)"
   }
 }

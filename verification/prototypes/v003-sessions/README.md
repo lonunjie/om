@@ -37,7 +37,7 @@ C1 `DeliveredAtQuiescence` (unless deliberately refused, or the sender or recipi
 C2 `SamePreferredAtQuiescence` (undisturbed authorized pairs prefer the same session). The probe
 `NoBlackHoleAtQuiescence` is a design question, so it is not in the passing configs.
 
-## Session-manager rules (K1..K11) and the design gaps they expose
+## Session-manager rules (K1..K12) and the design gaps they expose
 
 The docs state most of these rules only as outcomes, or not at all. With every rule on, all invariants hold. Turning
 off any one rule gives a TLC counterexample, which becomes a regression vector.
@@ -55,6 +55,7 @@ off any one rule gives a TLC counterexample, which becomes a regression vector.
 | K9 RejectFromRevoked | reject traffic from a device known to be revoked | S4 | partially stated |
 | K10 PrekeyUntilConfirmed | every message on an unconfirmed session carries the prekey header | C2 | gap |
 | K11 RestoreRotatesPrekeys | backups exclude prekey secrets; a restored device publishes fresh prekeys | S2 | gap (**new, found by the fuzzer**) |
+| K12 BindInitiator | accept a new inbound session only if the initiation's identity key is the sender's committed credential key (ADR-0136 rule 4) | S6 (session attributed to a real device on an attacker's key) | gap (**found by review F-4**, now normative) |
 | P1 probe | a peer that lost a session is repaired only on the next send | black hole until then | gap (lazy repair) |
 
 ## Failing traces found (all captured as vectors)

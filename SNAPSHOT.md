@@ -2,6 +2,17 @@
 
 Generated: **2026-09-25 11:54 PHT (UTC+08:00)**, after design-side verification-lifecycle hardening (ADR-0134)
 
+## 2026-09-26 core_kernel review remediation (ADR-0136)
+
+gpt-5.6-sol's independent review ([`2026-09-26-gpt-5-6-sol-core-kernel.md`](verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md))
+rejected all seven core_kernel queue items, with 9 findings. The executor applied all of them (ADR-0136; each finding
+has a `Resolution:` line). One finding was widened: the sender device key at the front of every 1:1 envelope is a
+stable per-device correlator visible to mailbox Homes (A-054).
+- V-001 is reopened (F-9): its new responder-binding criterion is met, and its re-review criterion is open.
+- V-002, V-003, V-015, V-016 and V-017 wait on re-review of the changed artifacts only:
+  [`BRIEF-2026-09-26-core-kernel-re-review.md`](verification/reviews/BRIEF-2026-09-26-core-kernel-re-review.md).
+- Engineering is still not authorized.
+
 ## 2026-09-26 verification executor pass (ADR-0134)
 
 Every repo-local `core_kernel` criterion now has passing evidence. V-001 and V-005 are `passed`. V-002, V-003,
@@ -17,10 +28,10 @@ Engineering is still not authorized.
 OM remains in **architecture verification / pre-engineering**. **Engineering is not authorized.** The blocking architecture-design queue is closed; remaining blockers are objective V-* evidence/review obligations.
 
 - blocking architecture design items: **0**;
-- open non-blocking/later-wave design items: **3** — A-030 (LegacyPolicy), A-031 (unlinkable AsyncKeyBundle ACS binding), A-036 (possible deniable groups research);
+- open non-blocking/later-wave design items: **4** — A-030 (LegacyPolicy), A-031 (unlinkable AsyncKeyBundle ACS binding), A-036 (possible deniable groups research), A-054 (sealed-sender outer envelope);
 - verification gates V-001..V-023: **23 open**;
 - engineering scopes authorized: **0 / 11**; `engineering_authorized=false`;
-- machine ledgers: **275 requirements, 84 threats, 156 decisions through D-156 / ADR-0134**.
+- machine ledgers: **275 requirements, 84 threats, 158 decisions through D-158 / ADR-0136**.
 
 ## 11:54 verification-process hardening
 

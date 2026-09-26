@@ -34,6 +34,7 @@ fn case(name: &str, with_one_time: bool, schedule: &[Ev]) -> Value {
     let mut rng = InsecureTestRng::from_label(format!("om-v001-vectors/{name}").as_bytes());
     let mut bob = Device::new(&mut rng);
     let mut alice = Device::new(&mut rng);
+    bob.trust_device(&alice).unwrap();
     let mut prov = Provider::default();
     let up = if with_one_time { bob.generate_one_time(1, 1, &mut rng) } else { crate::store::Upload { bundle: bob.signed_bundle(&mut rng), ..Default::default() } };
     prov.publish(&bob, up);
@@ -119,6 +120,73 @@ fn with_key(body: &[u8], key: u64, val: Option<V>) -> Vec<u8> {
         }
     }
     cbor::encode(&v)
+}
+
+/// Initiator-binding vectors (ADR-0136 rule 4, review F-4/F-9): trusted relationship peers, an inbound IK_A
+/// and an optional route account; the responder must bind IK_A to exactly one active committed credential.
+fn initiator_binding_vectors() -> Value {
+    let mut rng = InsecureTestRng::from_label(b"om-v001-vectors/initiator-binding");
+    let alice = Device::new(&mut rng);
+    let carol = Device::new(&mut rng);
+    let mallory = Device::new(&mut rng);
+    let peer = |acs: &Acs, creds: Vec<Vec<u8>>| (acs.body(), ds_hash(binding::LBL_ACS_HASH, &acs.body()), creds);
+    let pa = peer(&alice.acs(), vec![alice.credential().body()]);
+    let pc = peer(&carol.acs(), vec![carol.credential().body()]);
+    let mut rev = alice.acs();
+    rev.generation += 1;
+    rev.control.remove(&alice.device_id);
+    rev.revoked.insert(alice.device_id);
+    let mut qua = alice.acs();
+    qua.generation += 1;
+    qua.quarantined.insert(alice.device_id);
+    let mut a2 = alice.clone();
+    a2.ik_secret = arr32(&mut rng);
+    a2.acs_generation = 2;
+    let mut forged = alice.credential();
+    forged.ik = mallory.ik();
+    let mut cc = carol.credential();
+    cc.ik = alice.ik();
+    let mut cacs = carol.acs();
+    cacs.credentials = vec![(carol.device_id, cc.hash())];
+    let mut untrusted = pa.clone();
+    untrusted.1 = [0u8; 32];
+    type P = (Vec<u8>, [u8; 32], Vec<Vec<u8>>);
+    let cases: Vec<(&str, Vec<P>, [u8; 32], Option<[u8; 32]>, bool)> = vec![
+        ("bound_to_trusted_peer", vec![pa.clone()], alice.ik(), None, true),
+        ("unknown_identity_key", vec![pc.clone()], alice.ik(), None, false),
+        ("route_of_another_relationship", vec![pa.clone(), pc.clone()], alice.ik(), Some(carol.account_id), false),
+        ("route_of_the_relationship", vec![pa.clone(), pc.clone()], alice.ik(), Some(alice.account_id), true),
+        ("revoked_device", vec![peer(&rev, vec![alice.credential().body()])], alice.ik(), None, false),
+        ("quarantined_device", vec![peer(&qua, vec![alice.credential().body()])], alice.ik(), None, false),
+        ("stale_credential_after_rotation", vec![peer(&a2.acs(), vec![a2.credential().body(), alice.credential().body()])], alice.ik(), None, false),
+        ("substituted_identity_key_not_committed", vec![peer(&alice.acs(), vec![alice.credential().body(), forged.body()])], mallory.ik(), None, false),
+        ("identity_key_in_two_credentials", vec![pa.clone(), peer(&cacs, vec![cc.body()])], alice.ik(), None, false),
+        ("identity_key_in_two_credentials_route_disambiguates", vec![pa.clone(), peer(&cacs, vec![cc.body()])], alice.ik(), Some(alice.account_id), true),
+        ("peer_acs_not_the_trusted_head", vec![untrusted], alice.ik(), None, false),
+    ];
+    let mut out = vec![];
+    for (name, peers, ik, route, expect) in cases {
+        let mut devs = vec![];
+        let mut err = None;
+        for (a, h, c) in &peers {
+            match binding::peer_devices(&binding::TrustedPeer { acs_body: a.clone(), credential_bodies: c.clone() }, h) {
+                Ok(d) => devs.extend(d),
+                Err(e) => err = Some(e),
+            }
+        }
+        let r = match err {
+            Some(e) => Err(e),
+            None => binding::verify_initiator(&ik, &devs, route.as_ref()),
+        };
+        assert_eq!(r.is_ok(), expect, "initiator binding vector {name}: {r:?}");
+        out.push(json!({
+            "name": name, "ik_a": hex(&ik), "route_account": route.map(|r| hex(&r)),
+            "peers": peers.iter().map(|(a, h, c)| json!({"acs_body": hex(a), "trusted_acs_hash": hex(h), "credential_bodies": hexes(c)})).collect::<Vec<_>>(),
+            "expect": if expect { "accept" } else { "reject" },
+            "rust_result": match &r { Ok((a, d)) => json!({"account_id": hex(a), "device_id": hex(d)}), Err(e) => json!(e.name()) },
+        }));
+    }
+    json!(out)
 }
 
 /// Binding vectors: one positive fetch and named negatives, each with the inputs a verifier needs.
@@ -267,6 +335,7 @@ pub fn generate() -> Value {
             "profile": PROFILE_V1,
         },
         "binding": binding_vectors(),
+        "initiator_binding": initiator_binding_vectors(),
         "cases": [
             case("one_time_pq_and_ec_prekeys", true, &c1),
             case("last_resort_pq_no_one_time_keys", false, &c2),

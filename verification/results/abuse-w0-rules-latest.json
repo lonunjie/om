@@ -12,6 +12,37 @@
     "token accepted twice"
    ]
   },
+  "referral_token_0x0002_kat": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "RFC 9578 A.2 vector 1 not admitted: reject:bad_signature",
+    "RFC 9578 A.2 vector 2 not admitted: reject:bad_signature"
+   ]
+  },
+  "blind_rsa_rfc9474_kat": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "A.3 under RSABSSA-SHA384-PSSZERO-Deterministic: ValueError RSABSSA-SHA384-PSSZERO-Deterministic needs a 0-byte salt"
+   ]
+  },
+  "privacy_pass_issuance_rfc9578_kat": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "RFC 9578 A.2 vector 1 under RSABSSA-SHA384-PSSZERO-Deterministic: ValueError RSABSSA-SHA384-PSSZERO-Deterministic needs a 0-byte salt",
+    "RFC 9578 A.2 vector 2 under RSABSSA-SHA384-PSSZERO-Deterministic: ValueError RSABSSA-SHA384-PSSZERO-Deterministic needs a 0-byte salt"
+   ]
+  },
+  "issuer_transcript_unlinkable": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "issuer transcript contains EMSA-PSS(token_input)",
+    "issuer transcript contains authenticator"
+   ]
+  },
   "introgate_admission": {
    "problems": [],
    "mutation_caught": true,

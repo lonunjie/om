@@ -35,12 +35,14 @@ def flows(recipient_home: str, privacy_path: bool, multi_device: bool, push_on: 
     """Yield (flow_name, [(role, observed_fields)]) for one configuration."""
     ip = not privacy_path
     # ADR-0131 rule 4: the unencrypted Double Ratchet header travels inside the routed envelope
-    send = [msg(recipient_home, "message_timing", "ciphertext_size", "ratchet_header_shape", ip=ip),  # deposit (opaque capability)
-            msg(recipient_home, "message_timing", "ciphertext_size", "ratchet_header_shape", ip=True)]  # recipient drains
+    # ADR-0136 rule 5: the envelope also starts with the sender's EncodeEC(IK), a stable per-device correlator
+    env = ("message_timing", "ciphertext_size", "ratchet_header_shape", "stable_device_correlator")
+    send = [msg(recipient_home, *env, ip=ip),     # deposit (opaque capability)
+            msg(recipient_home, *env, ip=True)]   # recipient drains
     if multi_device:
-        send.append(msg(recipient_home, "message_timing", "ciphertext_size", "device_count", ip=True))
+        send.append(msg(recipient_home, "message_timing", "ciphertext_size", "device_count", "stable_device_correlator", ip=True))
     if push_on:
-        send.append(("push_provider", {"push_timing"} | ({"device_count"} if multi_device else set())))
+        send.append(("push_provider", {"push_timing", "stable_device_correlator"} | ({"device_count"} if multi_device else set())))
     if recipient_home == "t0_sponsored_mailbox":
         send = [(r, f | {"sponsor_relationship"}) if r == recipient_home else (r, f) for r, f in send]
     if recipient_home == "t1_hosted_home":
@@ -49,7 +51,7 @@ def flows(recipient_home: str, privacy_path: bool, multi_device: bool, push_on: 
     yield "first_contact", [
         msg("discovery_publisher", "query_plaintext", ip=ip),
         msg("introgate", "message_timing", ip=ip),                                  # sealed request under a ticket
-        msg("key_material_provider", "contact_graph_edge", ip=ip),                  # fetching B's bundle links fetcher to B
+        msg("key_material_provider", "contact_graph_edge", "stable_device_correlator", ip=ip),  # B's bundle: subject_device_id
     ]
     yield "attachment", [msg("blob_store", "blob_size", ip=ip), msg("blob_store", "blob_size", "message_timing", ip=True)]
     yield "recovery", [msg("recovery_record_store", "recovery_attempt", ip=ip),

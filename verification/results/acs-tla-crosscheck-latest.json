@@ -1,0 +1,93 @@
+{
+  "all_ok": true,
+  "failures": [],
+  "gate": "V-002",
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed",
+  "missing_step_kinds": [],
+  "per_trace": {
+    "tla-AccountControl_mut_method_count.json": {
+      "negative": 2,
+      "positive": 1,
+      "skipped": 0,
+      "steps": 1
+    },
+    "tla-AccountControl_residual.json": {
+      "negative": 2,
+      "positive": 1,
+      "skipped": 0,
+      "steps": 1
+    },
+    "tla-AccountControl_trap_challenge_resolve.json": {
+      "negative": 3,
+      "positive": 2,
+      "skipped": 0,
+      "steps": 2
+    },
+    "tla-AccountControl_trap_cosigned_recovery.json": {
+      "negative": 1,
+      "positive": 1,
+      "skipped": 0,
+      "steps": 1
+    },
+    "tla-AccountControl_trap_delayed_recovery.json": {
+      "negative": 2,
+      "positive": 1,
+      "skipped": 0,
+      "steps": 1
+    },
+    "tla-AccountControl_trap_fork.json": {
+      "negative": 1,
+      "positive": 1,
+      "skipped": 0,
+      "steps": 1
+    },
+    "tla-AccountControl_trap_legacy.json": {
+      "negative": 0,
+      "positive": 1,
+      "skipped": 1,
+      "steps": 2
+    },
+    "tla-AccountControl_trap_lift.json": {
+      "negative": 3,
+      "positive": 2,
+      "skipped": 0,
+      "steps": 2
+    },
+    "tla-AccountControl_trap_quarantine_freeze.json": {
+      "negative": 1,
+      "positive": 1,
+      "skipped": 0,
+      "steps": 1
+    },
+    "tla-AccountControl_trap_recover.json": {
+      "negative": 2,
+      "positive": 1,
+      "skipped": 0,
+      "steps": 1
+    },
+    "tla-AccountControl_trap_two_device.json": {
+      "negative": 0,
+      "positive": 0,
+      "skipped": 0,
+      "steps": 0
+    }
+  },
+  "source": "verification/bounded/acs_tla_crosscheck.py",
+  "step_kinds_seen": [
+    "legacy",
+    "lift",
+    "none",
+    "quarantine",
+    "recovery_cosigned",
+    "recovery_delayed",
+    "resolve",
+    "retire"
+  ],
+  "totals": {
+    "negative": 17,
+    "positive": 12,
+    "skipped": 1,
+    "steps": 13
+  },
+  "traces": 11
+}

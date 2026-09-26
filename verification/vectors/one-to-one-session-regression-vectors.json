@@ -196,6 +196,7 @@
     "MaxDup": "0",
     "MaxWeak": "0",
     "MaxInject": "0",
+    "MaxForge": "0",
     "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
     "PersistBeforeSend": "FALSE",
     "DedupeDurable": "TRUE",
@@ -207,7 +208,8 @@
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
     "PrekeyUntilConfirmed": "TRUE",
-    "RestoreRotatesPrekeys": "TRUE"
+    "RestoreRotatesPrekeys": "TRUE",
+    "BindInitiator": "TRUE"
    },
    "actions": [
     [
@@ -276,6 +278,7 @@
     "MaxDup": "1",
     "MaxWeak": "0",
     "MaxInject": "0",
+    "MaxForge": "0",
     "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
     "PersistBeforeSend": "TRUE",
     "DedupeDurable": "FALSE",
@@ -287,7 +290,8 @@
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
     "PrekeyUntilConfirmed": "TRUE",
-    "RestoreRotatesPrekeys": "TRUE"
+    "RestoreRotatesPrekeys": "TRUE",
+    "BindInitiator": "TRUE"
    },
    "actions": [
     [
@@ -344,6 +348,7 @@
     "MaxDup": "1",
     "MaxWeak": "1",
     "MaxInject": "0",
+    "MaxForge": "0",
     "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
     "PersistBeforeSend": "TRUE",
     "DedupeDurable": "TRUE",
@@ -355,7 +360,8 @@
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
     "PrekeyUntilConfirmed": "TRUE",
-    "RestoreRotatesPrekeys": "TRUE"
+    "RestoreRotatesPrekeys": "TRUE",
+    "BindInitiator": "TRUE"
    },
    "actions": [
     [
@@ -420,6 +426,7 @@
     "MaxDup": "1",
     "MaxWeak": "0",
     "MaxInject": "0",
+    "MaxForge": "0",
     "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
     "PersistBeforeSend": "TRUE",
     "DedupeDurable": "TRUE",
@@ -431,7 +438,8 @@
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
     "PrekeyUntilConfirmed": "TRUE",
-    "RestoreRotatesPrekeys": "TRUE"
+    "RestoreRotatesPrekeys": "TRUE",
+    "BindInitiator": "TRUE"
    },
    "actions": [
     [
@@ -510,6 +518,7 @@
     "MaxDup": "1",
     "MaxWeak": "0",
     "MaxInject": "0",
+    "MaxForge": "0",
     "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
     "PersistBeforeSend": "TRUE",
     "DedupeDurable": "TRUE",
@@ -521,7 +530,8 @@
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
     "PrekeyUntilConfirmed": "TRUE",
-    "RestoreRotatesPrekeys": "TRUE"
+    "RestoreRotatesPrekeys": "TRUE",
+    "BindInitiator": "TRUE"
    },
    "actions": [
     [
@@ -566,6 +576,7 @@
     "MaxDup": "1",
     "MaxWeak": "0",
     "MaxInject": "1",
+    "MaxForge": "0",
     "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
     "PersistBeforeSend": "TRUE",
     "DedupeDurable": "TRUE",
@@ -577,7 +588,8 @@
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
     "PrekeyUntilConfirmed": "TRUE",
-    "RestoreRotatesPrekeys": "TRUE"
+    "RestoreRotatesPrekeys": "TRUE",
+    "BindInitiator": "TRUE"
    },
    "actions": [
     [
@@ -617,6 +629,7 @@
     "MaxDup": "1",
     "MaxWeak": "0",
     "MaxInject": "0",
+    "MaxForge": "0",
     "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
     "PersistBeforeSend": "TRUE",
     "DedupeDurable": "TRUE",
@@ -628,7 +641,8 @@
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
     "PrekeyUntilConfirmed": "TRUE",
-    "RestoreRotatesPrekeys": "TRUE"
+    "RestoreRotatesPrekeys": "TRUE",
+    "BindInitiator": "TRUE"
    },
    "actions": [
     [
@@ -681,6 +695,7 @@
     "MaxDup": "0",
     "MaxWeak": "0",
     "MaxInject": "0",
+    "MaxForge": "0",
     "RestoreDevs": "{\"a1\"}",
     "PersistBeforeSend": "TRUE",
     "DedupeDurable": "TRUE",
@@ -692,7 +707,8 @@
     "RestoreDropsSessions": "FALSE",
     "RejectFromRevoked": "TRUE",
     "PrekeyUntilConfirmed": "TRUE",
-    "RestoreRotatesPrekeys": "TRUE"
+    "RestoreRotatesPrekeys": "TRUE",
+    "BindInitiator": "TRUE"
    },
    "actions": [
     [
@@ -761,6 +777,7 @@
     "MaxDup": "1",
     "MaxWeak": "0",
     "MaxInject": "0",
+    "MaxForge": "0",
     "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
     "PersistBeforeSend": "TRUE",
     "DedupeDurable": "TRUE",
@@ -772,7 +789,8 @@
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "FALSE",
     "PrekeyUntilConfirmed": "TRUE",
-    "RestoreRotatesPrekeys": "TRUE"
+    "RestoreRotatesPrekeys": "TRUE",
+    "BindInitiator": "TRUE"
    },
    "actions": [
     [
@@ -825,6 +843,7 @@
     "MaxDup": "1",
     "MaxWeak": "0",
     "MaxInject": "0",
+    "MaxForge": "0",
     "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
     "PersistBeforeSend": "TRUE",
     "DedupeDurable": "TRUE",
@@ -836,7 +855,8 @@
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
     "PrekeyUntilConfirmed": "FALSE",
-    "RestoreRotatesPrekeys": "TRUE"
+    "RestoreRotatesPrekeys": "TRUE",
+    "BindInitiator": "TRUE"
    },
    "actions": [
     [
@@ -923,6 +943,7 @@
     "MaxDup": "1",
     "MaxWeak": "0",
     "MaxInject": "0",
+    "MaxForge": "0",
     "RestoreDevs": "{\"b1\"}",
     "PersistBeforeSend": "TRUE",
     "DedupeDurable": "TRUE",
@@ -934,7 +955,8 @@
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
     "PrekeyUntilConfirmed": "TRUE",
-    "RestoreRotatesPrekeys": "FALSE"
+    "RestoreRotatesPrekeys": "FALSE",
+    "BindInitiator": "TRUE"
    },
    "actions": [
     [
@@ -1004,6 +1026,57 @@
    ]
   },
   {
+   "id": "V003-TLC-K12",
+   "source": "TLC counterexample (verification/tla/OneToOneSessions_K12.cfg)",
+   "rule_disabled": "BindInitiator",
+   "violates": "NoMisattributedSession",
+   "classification": "design_gap",
+   "doc_basis": "Review F-4 (2026-09-26 gpt-5.6-sol): K1..K11 model the sender as an already authenticated DeviceID; the V-001 responder accepted any PQXDH initiator identity key and delegated its binding to V-003, which never stated it. An attacker's initiation claiming a real DeviceID then creates a session attributed to that device (ADR-0136 rule 4 makes K12 normative)",
+   "constants": {
+    "Senders": "{\"a1\", \"b1\"}",
+    "MaxMsgs": "2",
+    "MaxSid": "4",
+    "MaxCrash": "0",
+    "MaxRestore": "0",
+    "MaxDup": "1",
+    "MaxWeak": "0",
+    "MaxInject": "0",
+    "MaxForge": "1",
+    "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
+    "PersistBeforeSend": "TRUE",
+    "DedupeDurable": "TRUE",
+    "FloorFromACS": "TRUE",
+    "RetryOnReset": "TRUE",
+    "RecheckOnEncrypt": "TRUE",
+    "ValidateAgainstACS": "TRUE",
+    "ReconcileControlHead": "TRUE",
+    "RestoreDropsSessions": "TRUE",
+    "RejectFromRevoked": "TRUE",
+    "PrekeyUntilConfirmed": "TRUE",
+    "RestoreRotatesPrekeys": "TRUE",
+    "BindInitiator": "FALSE"
+   },
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "ForgeInitiation",
+     "b1",
+     "a1",
+     1
+    ],
+    [
+     "Recv",
+     "a1",
+     "b1",
+     1,
+     1,
+     "created"
+    ]
+   ]
+  },
+  {
    "id": "V003-TLC-P1-black-hole",
    "source": "TLC counterexample (verification/tla/OneToOneSessions_P1_black_hole.cfg)",
    "rule_disabled": null,
@@ -1019,6 +1092,7 @@
     "MaxDup": "1",
     "MaxWeak": "0",
     "MaxInject": "0",
+    "MaxForge": "0",
     "RestoreDevs": "{\"a1\", \"b1\", \"b3\"}",
     "PersistBeforeSend": "TRUE",
     "DedupeDurable": "TRUE",
@@ -1030,7 +1104,8 @@
     "RestoreDropsSessions": "TRUE",
     "RejectFromRevoked": "TRUE",
     "PrekeyUntilConfirmed": "TRUE",
-    "RestoreRotatesPrekeys": "TRUE"
+    "RestoreRotatesPrekeys": "TRUE",
+    "BindInitiator": "TRUE"
    },
    "actions": [
     [

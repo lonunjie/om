@@ -10,8 +10,13 @@
 //! deletes a one-time private key only after the initial ciphertext authenticates ([PQXDH] §3.4). A
 //! handshake that used no one-time key at all goes through the exact replay ledger (ledger.rs), and
 //! `receive` commits the new state (ledger included) to the vault before releasing plaintext.
+//!
+//! Initiator binding (ADR-0136 rule 4, review F-4/F-9): a responder accepts a new inbound session only if
+//! the initiator's IK_A is the identity key of exactly one active, non-quarantined DeviceCredential that a
+//! trusted relationship peer's ACS head commits (`trust_peer`, persisted like the peer heads of K7). The check
+//! runs before any secret-key operation, so an unbound initiation consumes nothing and changes nothing.
 
-use crate::binding::{self, Acs, Credential, PeerView, StaticKeys, VerifiedBundle, KIND_EC_ONE_TIME, KIND_PQ_ONE_TIME};
+use crate::binding::{self, Acs, Credential, PeerDevice, PeerView, StaticKeys, TrustedPeer, VerifiedBundle, KIND_EC_ONE_TIME, KIND_PQ_ONE_TIME};
 use crate::cbor::{self, V};
 use crate::ledger::LastResortLedger;
 use crate::pqxdh::{self, encode_ec, InitHeader, PqKind};
@@ -68,6 +73,10 @@ pub struct Device {
     pub ledger: LastResortLedger,
     /// Sessions keyed by EncodeEC(peer IK).
     pub sessions: BTreeMap<Vec<u8>, Session>,
+    /// Relationship peers by AccountID: the trusted ACS head (hash) and view (K6/K7).
+    pub peers: BTreeMap<[u8; 32], ([u8; 32], TrustedPeer)>,
+    /// Derived from `peers` (not persisted): every committed peer device, for IK_A lookup.
+    pub peer_devices: Vec<PeerDevice>,
 }
 
 /// What a device uploads to ONE provider pool: signed public material only.
@@ -123,7 +132,42 @@ impl Device {
             pqopks: BTreeMap::new(),
             ledger: LastResortLedger::default(),
             sessions: BTreeMap::new(),
+            peers: BTreeMap::new(),
+            peer_devices: vec![],
         }
+    }
+
+    /// Store a relationship peer's validated ACS head (V-002 supplies the trust decision; the prototype takes
+    /// the given body as the trusted head). K7: an older generation than the stored head is refused.
+    pub fn trust_peer(&mut self, acs_body: Vec<u8>, credential_bodies: Vec<Vec<u8>>) -> Result<(), Error> {
+        let acs = Acs::from_body(&acs_body)?;
+        if let Some((_, old)) = self.peers.get(&acs.account_id) {
+            if Acs::from_body(&old.acs_body)?.generation > acs.generation {
+                return Err(Error::Binding("peer ACS head older than the stored head (K7)"));
+            }
+        }
+        let p = TrustedPeer { acs_body, credential_bodies };
+        let devs = binding::peer_devices(&p, &acs.hash())?;
+        self.peers.insert(acs.account_id, (acs.hash(), p));
+        self.peer_devices.retain(|d| d.1 != acs.account_id);
+        self.peer_devices.extend(devs);
+        self.peer_devices.sort();
+        Ok(())
+    }
+
+    /// Convenience for tests: trust `other`'s one-device account as it publishes itself.
+    pub fn trust_device(&mut self, other: &Device) -> Result<(), Error> {
+        self.trust_peer(other.acs().body(), vec![other.credential().body()])
+    }
+
+    fn reindex_peers(&mut self) -> Result<(), Error> {
+        let mut all = vec![];
+        for (h, p) in self.peers.values() {
+            all.extend(binding::peer_devices(p, h)?);
+        }
+        all.sort();
+        self.peer_devices = all;
+        Ok(())
     }
 
     pub fn ik(&self) -> [u8; 32] {
@@ -251,6 +295,12 @@ impl Device {
 
     /// In-memory decrypt (the caller persists). Returns (sender IK, plaintext). On error nothing changes.
     pub fn decrypt<R: RngCore + CryptoRng>(&mut self, env: &[u8], rng: &mut R) -> Result<([u8; 32], Vec<u8>, MsgKeys), Error> {
+        self.decrypt_on_route(env, None, rng)
+    }
+
+    /// As `decrypt`, for an envelope delivered on the relationship route of `route_account`: a new session
+    /// is accepted only from a device of that account.
+    pub fn decrypt_on_route<R: RngCore + CryptoRng>(&mut self, env: &[u8], route_account: Option<&[u8; 32]>, rng: &mut R) -> Result<([u8; 32], Vec<u8>, MsgKeys), Error> {
         let v = cbor::decode(env)?;
         let a = v.a()?;
         if a.len() != 4 {
@@ -281,7 +331,10 @@ impl Device {
                 s.pending_init = None; // [DR] §7.1: a reply has been received
                 Ok((sender_ik, pt, keys))
             }
-            (None, Some(h)) => self.accept_initial(&h, header, ct, &ctx, rng),
+            (None, Some(h)) => {
+                binding::verify_initiator(&h.ik_a, &self.peer_devices, route_account)?;
+                self.accept_initial(&h, header, ct, &ctx, rng)
+            }
             (None, None) => Err(Error::NoSession),
         }
     }
@@ -374,6 +427,15 @@ impl Device {
             (13, V::A(vec![V::B(self.signer.ed_seed.to_vec()), V::B(self.signer.mldsa_seed.to_vec())])),
             (14, V::U(self.acs_generation)),
             (15, V::U(self.epoch)),
+            (
+                16,
+                V::A(
+                    self.peers
+                        .values()
+                        .map(|(h, p)| V::A(vec![V::B(h.to_vec()), V::B(p.acs_body.clone()), V::A(p.credential_bodies.iter().map(|c| V::B(c.clone())).collect())]))
+                        .collect(),
+                ),
+            ),
         ])
     }
 
@@ -424,12 +486,21 @@ impl Device {
             };
             sessions.insert(a[0].b()?.to_vec(), s);
         }
+        let mut peers = BTreeMap::new();
+        for e in v.opt(16).map(|x| x.a()).transpose()?.unwrap_or(&[]) {
+            let a = e.a()?;
+            if a.len() != 3 {
+                return Err(Error::Decode("device: peer"));
+            }
+            let p = TrustedPeer { acs_body: a[1].b()?.to_vec(), credential_bodies: a[2].a()?.iter().map(|c| c.b().map(|b| b.to_vec())).collect::<Result<_, _>>()? };
+            peers.insert(Acs::from_body(&p.acs_body)?.account_id, (a[0].b32()?, p));
+        }
         let did = v.get(12)?.b()?;
         let sg = v.get(13)?.a()?;
         if did.len() != 16 || sg.len() != 2 {
             return Err(Error::Decode("device: identity"));
         }
-        Ok(Device {
+        Device {
             account_id: v.get(11)?.b32()?,
             device_id: did.try_into().unwrap(),
             signer: DeviceSigner { ed_seed: sg[0].b32()?, mldsa_seed: sg[1].b32()? },
@@ -445,7 +516,15 @@ impl Device {
             pqopks,
             ledger: LastResortLedger::from_cbor(v.get(9)?)?,
             sessions,
-        })
+            peers,
+            peer_devices: vec![],
+        }
+        .reindexed()
+    }
+
+    fn reindexed(mut self) -> Result<Self, Error> {
+        self.reindex_peers()?;
+        Ok(self)
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

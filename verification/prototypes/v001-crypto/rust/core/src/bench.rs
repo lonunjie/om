@@ -42,6 +42,7 @@ pub fn run<R: RngCore + CryptoRng>(rng: &mut R, now_ns: &dyn Fn() -> u64, setup_
     let (mut ta, mut tb, mut tt) = (vec![], vec![], vec![]);
     for _ in 0..setup_iters {
         let mut alice = Device::new(rng);
+        bob.trust_device(&alice).expect("trust");
         let fetch = prov.fetch(&did).expect("bundle");
         let t0 = now_ns();
         alice.start_session(&fetch, &view, rng).expect("initiate");
@@ -57,6 +58,7 @@ pub fn run<R: RngCore + CryptoRng>(rng: &mut R, now_ns: &dyn Fn() -> u64, setup_
     // Steady-state messaging on one session, bursts of 3 in alternating directions so the DH ratchet advances.
     bob.sessions.clear();
     let mut alice = Device::new(rng);
+    bob.trust_device(&alice).expect("trust");
     let up = bob.generate_one_time(1, 1, rng);
     prov.publish(&bob, up);
     let b = prov.fetch(&did).unwrap();

@@ -64,7 +64,7 @@
     {
       "config": "OneToOneSessions.cfg",
       "gate": "V-003",
-      "claim": "all rules K1..K11 on: S1..S5, C1, C2 hold with crash, duplicate delivery, weak bundle, rogue device, link+revoke",
+      "claim": "all rules K1..K12 on: S1..S6, C1, C2 hold with crash, duplicate delivery, weak bundle, rogue device, link+revoke",
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
@@ -75,7 +75,7 @@
     {
       "config": "OneToOneSessions_pass_restore.cfg",
       "gate": "V-003",
-      "claim": "all rules on: S1..S5, C1, C2 hold across one backup restore (backups on a1, which both sends and receives)",
+      "claim": "all rules on: S1..S6, C1, C2 hold across one backup restore (backups on a1, which both sends and receives)",
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
@@ -86,12 +86,23 @@
     {
       "config": "OneToOneSessions_pass_revoked_sender.cfg",
       "gate": "V-003",
-      "claim": "all rules on: S1..S5, C1, C2 hold when the later-revoked device b3 is also a sender",
+      "claim": "all rules on: S1..S6, C1, C2 hold when the later-revoked device b3 is also a sender",
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
       "distinct_states": 850798,
       "depth": 17,
+      "as_expected": true
+    },
+    {
+      "config": "OneToOneSessions_pass_forged_initiator.cfg",
+      "gate": "V-003",
+      "claim": "all rules on: S1..S6, C1, C2 hold when an attacker injects an initiation claiming a real DeviceID with its own identity key (K12)",
+      "expect": "pass",
+      "outcome": "pass",
+      "violated": null,
+      "distinct_states": 9693268,
+      "depth": 19,
       "as_expected": true
     },
     {
@@ -225,6 +236,18 @@
       "depth": null,
       "as_expected": true,
       "trace_length": 11
+    },
+    {
+      "config": "OneToOneSessions_K12.cfg",
+      "gate": "V-003",
+      "claim": "BindInitiator (rule K12) disabled: counterexample violates NoMisattributedSession (design_gap)",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "NoMisattributedSession",
+      "distinct_states": null,
+      "depth": null,
+      "as_expected": true,
+      "trace_length": 3
     },
     {
       "config": "OneToOneSessions_P1_black_hole.cfg",
@@ -751,7 +774,7 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 402192,
+      "distinct_states": 1882467,
       "depth": 22,
       "as_expected": true
     },
@@ -762,8 +785,8 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 1104,
-      "depth": 10,
+      "distinct_states": 3221,
+      "depth": 11,
       "as_expected": true
     },
     {
@@ -773,8 +796,8 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 2999,
-      "depth": 10,
+      "distinct_states": 14992,
+      "depth": 11,
       "as_expected": true
     },
     {
@@ -784,8 +807,8 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 4909,
-      "depth": 10,
+      "distinct_states": 16193,
+      "depth": 11,
       "as_expected": true
     },
     {
@@ -795,7 +818,7 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 552,
+      "distinct_states": 2053,
       "depth": 9,
       "as_expected": true
     },
@@ -868,7 +891,90 @@
       "distinct_states": null,
       "depth": null,
       "as_expected": true,
+      "trace_length": 2
+    },
+    {
+      "config": "AccountControl_veto_any.cfg",
+      "gate": "V-002",
+      "claim": "F-1: any live controller vetoes a recovery-alone request whatever the custodian/method count; attacker holding both custodians never takes over a live owner",
+      "expect": "pass",
+      "outcome": "pass",
+      "violated": null,
+      "distinct_states": 90,
+      "depth": 6,
+      "as_expected": true
+    },
+    {
+      "config": "AccountControl_mut_method_count.cfg",
+      "gate": "V-002",
+      "claim": "mutation F-1: method-count veto rule is caught (custodian holder wins against a live owner)",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "AttackerNeverOwns",
+      "distinct_states": null,
+      "depth": null,
+      "as_expected": true,
+      "trace_length": 6
+    },
+    {
+      "config": "AccountControl_trap_lift.cfg",
+      "gate": "V-002",
+      "claim": "golden F-2: device-only majority lifts a quarantine",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "TrapLift",
+      "distinct_states": null,
+      "depth": null,
+      "as_expected": true,
       "trace_length": 3
+    },
+    {
+      "config": "AccountControl_trap_quarantine_freeze.cfg",
+      "gate": "V-002",
+      "claim": "golden F-2: threshold-disabling quarantine enters SAFETY_FREEZE",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "TrapQuarantineFreeze",
+      "distinct_states": null,
+      "depth": null,
+      "as_expected": true,
+      "trace_length": 3
+    },
+    {
+      "config": "AccountControl_trap_challenge_resolve.cfg",
+      "gate": "V-002",
+      "claim": "golden F-2: freeze resolved by a device-only majority counting the quarantined device's challenge signature",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "TrapChallengeResolves",
+      "distinct_states": null,
+      "depth": null,
+      "as_expected": true,
+      "trace_length": 4
+    },
+    {
+      "config": "AccountControl_trap_cosigned_recovery.cfg",
+      "gate": "V-002",
+      "claim": "golden: co-signed recovery vote reconstitutes immediately",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "TrapCosignedRecovery",
+      "distinct_states": null,
+      "depth": null,
+      "as_expected": true,
+      "trace_length": 3
+    },
+    {
+      "config": "AccountControl_trap_delayed_recovery.cfg",
+      "gate": "V-002",
+      "claim": "golden: recovery alone completes after the full delay",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "TrapDelayedRecovery",
+      "distinct_states": null,
+      "depth": null,
+      "as_expected": true,
+      "trace_length": 5
     }
   ]
 }

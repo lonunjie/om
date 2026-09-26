@@ -44,7 +44,7 @@ Problem: The model gives a two-method recovery request stronger authority than a
 
 Proposed fix: Remove recovery-method count from authorization/veto semantics. Any pending recovery-alone request must be vetoable by any current live non-quarantined controller. `OwnerMustReact` should require that reaction whenever such a controller has observed an attacker request, independent of one-vs-two recovery methods. Keep multi-method/guardian mechanics only as conditions for producing the single RecoveryPolicy vote. Add a mutation/golden trace demonstrating that changing custodian method count never changes the set of authorized ACS outcomes.
 
-Resolution:
+Resolution: Accepted; fixed 2026-09-26 by the executor (ADR-0136 rule 1). [`AccountControl.tla`](../tla/AccountControl.tla): `Veto` and `OwnerMustReact` no longer depend on `pending.methods` (any usable controller vetoes, `CanVeto`), and the README no longer says two-method requests need a majority act. The new [`AccountControl_veto_any.cfg`](../tla/AccountControl_veto_any.cfg) passes: the attacker holds both custodians and the owner none, yet one live owner device of two still vetoes. The mutation [`AccountControl_mut_method_count.cfg`](../tla/AccountControl_mut_method_count.cfg) (constant `MethodCountMutation`, which restores the old rule) is caught by TLC as an `AttackerNeverOwns` violation.
 
 ### F-2 — AccountControl.tla does not mirror the quarantine/lift authority rules
 
@@ -56,7 +56,13 @@ Problem: There are two model/spec divergences. First, `Unquarantine` calls the g
 
 Proposed fix: Give lift-quarantine a dedicated device-only-majority authorization predicate with `rv = 0`. Make a threshold-disabling quarantine enter `frozen = TRUE` (or model the exact equivalent state transition) and prove that only the specified device-only freeze resolution can leave it. Add cross-check traces against [`acs_authorization_table.py`](../bounded/acs_authorization_table.py) so the executable table and TLA cannot silently encode different authorities.
 
-Resolution:
+Resolution: Accepted; fixed (ADR-0136 rule 2).
+- `Unquarantine` needs a device-only majority with no recovery vote.
+- `Quarantine` sets `frozen` when fewer than a majority of controllers can still vote.
+- `ResolveFreeze` counts quarantined controllers' challenge signatures (`Signable`), because otherwise one compromised device could freeze a two-controller account forever. That reading is now stated in §5.
+- New checks: invariants `LiftIsDeviceOnlyMajority` and `QuarantineBelowThresholdFreezes`; action property `FreezeExitOnlyByResolve`; golden traces `trap_lift`, `trap_quarantine_freeze`, `trap_challenge_resolve`.
+- The TLA variable `last` records each step's signers. [`acs_tla_crosscheck.py`](../bounded/acs_tla_crosscheck.py) replays every AccountControl trace step through [`acs_authorization_table.py`](../bounded/acs_authorization_table.py): 12 positives, 17 negatives. It fails if the table's lift rule is weakened.
+- The table gained freeze-resolution vectors.
 
 ### F-3 — The normative lift-quarantine row depends on provenance the ACS does not encode
 
@@ -68,7 +74,7 @@ Problem: The phrase “not counting quarantines the signer initiated” cannot b
 
 Proposed fix: Rewrite the normative row purely in terms of committed state, preferably: quarantined controllers remain in `N`; only current active non-quarantined device signatures count toward the lift; a device-only parent-state majority is required and recovery never counts. If initiator provenance is actually intended to affect authorization, add a canonical authenticated provenance field and corresponding transition rules instead of relying on local history. The simpler state-derived rule is consistent with the existing bounded table model.
 
-Resolution:
+Resolution: Accepted; fixed (ADR-0136 rule 3). §4 rule 2 and the §4.1 lift row are now state-derived: only active, non-quarantined controllers sign, quarantined controllers stay in N, no recovery vote, and no initiator provenance. §5 covers resolution under a freeze. The table's mirror check parses the new row text.
 
 ## 2. V-003 — one-to-one session model and restore semantics
 
@@ -88,7 +94,11 @@ Problem: V-003 models a sender as a DeviceID that can already be looked up in th
 
 Proposed fix: Make receiver-side initiator binding normative and executable in the session-manager rules. Before a new inbound session is accepted, resolve the peer identity key to exactly one sender DeviceCredential whose digest/DeviceID is authorized by an acceptable trusted sender ACS head, with the device active and not quarantined/revoked; fail closed otherwise. This may be satisfied by a previously validated reciprocal relationship/device-bundle view or by explicit authenticated evidence carried/referenced by the initiation, but the rule must say which. Strengthen K9/K6 (or add a new rule) and add negative vectors for arbitrary identity keys, swapped keys between credentials, stale/revoked/quarantined credentials, and crossed initiation. F-9 separately covers the concrete ADR-0135/V-001 construction consequence.
 
-Resolution:
+Resolution: Accepted; fixed (ADR-0136 rule 4, session rule K12).
+- [`ONE_TO_ONE_SESSION_MANAGEMENT.md`](../../docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md) §3 makes the binding normative: the relationship route pins the mapping, and a stale head is refreshed before processing. First contact is HPKE MessageRequest, never unbound PQXDH.
+- [`OneToOneSessions.tla`](../tla/OneToOneSessions.tla): the new `BindInitiator` and `ForgeInitiation` actions add an attacker initiation that claims a real DeviceID with its own key, plus invariant S6 `NoMisattributedSession`.
+- `pass-forged-initiator` passes (9,693,268 states). The K12 gap config reproduces a misattributed session in 3 steps.
+- The negative vectors are in the V-001 prototype (see F-9).
 
 ## 3. V-015 — W0 metadata-exposure descriptors
 
@@ -108,7 +118,12 @@ Problem: Every AsyncKeyBundle exposes `subject_device_id` in cleartext. It is a 
 
 Proposed fix: Add an explicit exposure dimension such as `stable_device_id` / `stable_device_correlator` to the logical metadata schema and mark the KeyMaterialProvider at the frequency actually exposed by W0 bundles. Update the threat-model prose and both metadata checkers to derive it from real `AsyncKeyBundle` key 2. Add a mutation proving the model fails if the DeviceID disclosure is omitted or incorrectly downgraded to device-count-only information.
 
-Resolution:
+Resolution: Accepted; fixed and extended (ADR-0136 rule 5).
+- The logical metadata vocabulary gains `stable_device_correlator`. It is `always` for the KeyMaterialProvider (AsyncKeyBundle key 2).
+- The executor also found the sender's `EncodeEC(IK)` at the start of every 1:1 envelope, visible to mailbox-class Homes (ADR-0131 rule 4). Those three roles and the push provider (push token) are now `always` too.
+- `metadata_w0_rules.py::device_correlator` derives both exposures from real V-001 bytes. Its mutation (the old "covered by device_count" claim) is caught. [`metadata_trace_model.py`](../bounded/metadata_trace_model.py) models the field.
+- Prose updated: [`ASYNC_KEY_MATERIAL.md`](../../docs/architecture/crypto/ASYNC_KEY_MATERIAL.md) §2 and [`METADATA_THREAT_MODEL.md`](../../docs/threat-model/METADATA_THREAT_MODEL.md) §20 invariant 12.
+- New design item A-054: a sealed-sender outer envelope.
 
 ## 4. V-016 — IntroGate/Sybil, referral tokens, room moderation
 
@@ -128,7 +143,10 @@ Problem: The script describes token type `0x0002` as RFC 9578 / RFC 9474 `RSABSS
 
 Proposed fix: Replace the zero-salt primitive with the exact RFC 9578 type-0x0002 verification parameters and add published/independently generated known-answer positives and negatives. Keep algorithm/profile names exact so PSSZERO and ordinary 48-byte-salt PSS cannot be interchanged by a future implementation.
 
-Resolution:
+Resolution: Accepted; fixed (ADR-0136 rule 6).
+- [`abuse_w0_rules.py`](../bounded/abuse_w0_rules.py) verifies type 0x0002 with RSASSA-PSS SHA-384 / MGF1-SHA-384, salt 48. PSSZERO is named separately and never accepted. `token_key_id` uses the RFC 9578 §6.5 id-RSASSA-PSS SPKI; the old model hashed an rsaEncryption SPKI.
+- Known-answer tests: RFC 9474 A.3/A.4 and RFC 9578 A.2, all five vectors, with 7 redemption negatives including PSSZERO verification. They are in [`privacy-pass-blind-rsa-vectors.json`](../vectors/privacy-pass-blind-rsa-vectors.json).
+- Rebinding to salt 0 fails all three KAT checks.
 
 ### F-7 — Redemption-only token model does not evidence the unlinkable issuance property
 
@@ -140,7 +158,11 @@ Problem: Omitting blind/unblind mechanics is acceptable **only** if the criterio
 
 Proposed fix: State the evidence boundary explicitly and add a separate standards-conforming issuance/finalization test using RFC 9578 blind RSA (or authoritative vectors/library behavior), including a structural test that the issuer transcript does not contain the final token input/signature linkage available at redemption. If issuance unlinkability is deliberately left to a different gate, record that dependency in V-016 rather than crediting this direct-signing model for it.
 
-Resolution:
+Resolution: Accepted; fixed with an open question (ADR-0136 rule 6).
+- The redemption model's evidence boundary is stated in the script and in [`INVITES_INTROGATE_AND_SPAM.md`](../../docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md).
+- [`privacy_pass_issuance.py`](../bounded/privacy_pass_issuance.py) implements RFC 9474 Blind/BlindSign/Finalize and reproduces the RFC vectors. Its tokens are then admitted by the IntroGate path.
+- A structural test shows the issuer transcript holds no token_input, nonce or final signature, and that every transcript is consistent with every redeemed token. The same test flags the old direct-signing issuer.
+- Open for the re-reviewer: is this enough for F-7? And what should W0 issuance unlinkability protect, and from whom? The recipient is the issuer and picks the IntroGate.
 
 ## 5. V-017 — Protocol Continuity Bundle and tabletop drills
 
@@ -160,7 +182,10 @@ Problem: The builder includes all `spec/` and all ADRs but only seven architectu
 
 Proposed fix: Replace the basename heuristic with a versioned, explicit profile manifest of every normative artifact required to interpret that profile, including all transitive normative semantic references. Have `cmd_verify` require every manifest member and reject unresolved normative references (or maintain a generated closure with checked exceptions). Add a tabletop/offline reconstruction step in which an implementation reviewer starts from the bundle only and can locate the rules for every frozen W0 object/provider interaction. Release signatures/authentication can remain a pre-release criterion as scoped by this review; this finding is about semantic completeness now.
 
-Resolution:
+Resolution: Accepted; fixed (ADR-0136 rule 7).
+- [`om-crypto-v1-bundle-manifest.json`](../../spec/continuity/om-crypto-v1-bundle-manifest.json) lists every `docs/architecture/**` and `docs/constitution/**` doc (76), plus 9 checked exceptions.
+- `continuity_bundle.py build` selects exactly the manifest. `verify` requires every member and rejects unresolved normative references. `check-manifest` fails on drift.
+- [`CONTINUITY_TABLETOP_DRILLS.md`](../../docs/process/CONTINUITY_TABLETOP_DRILLS.md) gains drill D7, offline reconstruction. It maps every frozen W0 CDDL object and W0 provider role to its defining document.
 
 ## 6. ADR-0135 — OM-Crypto-v1 construction pinning
 
@@ -182,7 +207,12 @@ Problem: ADR-0135 §2 provides a concrete ACS → DeviceCredential → dual-sign
 
 Proposed fix: Extend the construction boundary (or a mandatory, explicitly referenced session-manager precondition) so `accept_initial` cannot release plaintext or commit a new session until `IK_A` is matched to a validated sender DeviceCredential in an acceptable trusted sender ACS view. Specify whether this mapping is established by a pre-fetched verified sender bundle after reciprocal IntroIdentityBinding or by authenticated evidence referenced in the initiation, and pin the mapping to the relationship/account being contacted. Exercise that same input in the V-001 responder path and add negative KATs for unknown, substituted, revoked, quarantined and stale initiator credentials. Document the adapted PQXDH authentication argument as a composition of ACS/credential authenticity + mandatory dual-signature verification + PQXDH. This finding **reopens V-001** under the review brief.
 
-Resolution:
+Resolution: Accepted; fixed (ADR-0136 rule 4; ADR-0135 §7 records the composed authentication argument).
+- The V-001 responder holds trusted relationship peer heads (`Device::trust_peer`, persisted like K7).
+- Before any secret-key operation, `decrypt`/`decrypt_on_route` calls `binding::verify_initiator`: exactly one committed credential, active, not quarantined, route-pinned.
+- 9 new selftest checks, and every rejection leaves the device state byte-identical. 11 `initiator_binding` vectors are checked independently by the Python implementation (213/213).
+- Existing V-001 KATs are unchanged.
+- V-001 stays open until this resolution is re-reviewed.
 
 No finding in this pass reopens V-005.
 

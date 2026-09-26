@@ -223,6 +223,19 @@ client controls the issuer private key; its selected IntroGate receives only the
 can verify but cannot mint referral capacity. Issuance happens only to already accepted contacts and is locally
 budgeted per relationship.
 
+Type 0x0002 is exactly RFC 9474 `RSABSSA-SHA384-PSS-Deterministic`: the IntroGate verifies the token authenticator
+with RSASSA-PSS, SHA-384, MGF1-SHA-384 and a **48-byte salt** (RFC 9578 §6.4), and `token_key_id` is SHA-256 of the
+id-RSASSA-PSS SPKI (§6.5). The zero-salt `RSABSSA-SHA384-PSSZERO-*` variants are a different profile; an
+implementation must not accept one in place of the other.
+
+Evidence boundary: the IntroGate redemption model in [`verification/bounded/abuse_w0_rules.py`](../../../verification/bounded/abuse_w0_rules.py) covers only
+redemption-side signature verification, challenge binding, issuer-epoch rotation/overlap and single-use (replay)
+enforcement. Issuance unlinkability is evidenced separately by [`verification/bounded/privacy_pass_issuance.py`](../../../verification/bounded/privacy_pass_issuance.py)
+(RFC 9474 Blind/BlindSign/Finalize reproducing the RFC 9474 and RFC 9578 test vectors, plus a structural check that
+the issuer's TokenRequest/TokenResponse transcript contains neither the redeemed token input nor its authenticator
+and is consistent with every redeemed token). Neither is a proof of the RFC 9474 blindness property itself, which
+rests on the RFC's analysis and a uniformly random blinding factor.
+
 The Privacy Pass challenge commits to the IntroGate identity, recipient request-key digest, issuer epoch and admission
 class under an OM domain-separation label. The IntroGate treats tokens as single-use and keeps the spent nonce through
 the issuer epoch. Revocation is issuer-epoch rotation with bounded overlap; individual unlinkable tokens are not

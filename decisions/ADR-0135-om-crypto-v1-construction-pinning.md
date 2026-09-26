@@ -55,6 +55,26 @@ The ledger applies exactly when an initiation consumes **no** one-time key of ei
 
 The v1 path uses crates.io releases through their public APIs only: `libcrux-ml-kem` and `libcrux-ml-dsa` (formally verified, Apache-2.0); `x25519-dalek`, `curve25519-dalek` and `ed25519-dalek` (BSD-3-Clause); and RustCrypto `aes-gcm-siv`, `chacha20poly1305`, `hkdf`, `hmac`, `sha2`, `sha3` and `shake` (MIT/Apache-2.0). The graph contains no copyleft crate and no git dependency. Signal's `spqr` and `libsignal` are no longer used by any v1 artifact. Update strategy stays as in ADR-0118: pinned lockfile, and upstream KATs rerun on every bump.
 
+### 7. Responder-side initiator binding and the composed authentication argument (2026-09-26, ADR-0136)
+
+Review F-9 found §2 asymmetric: it pinned the chain that authenticates the recipient's `IK_B`, while the responder
+accepted any `IK_A` that matched the PQXDH header. ADR-0136 rule 4 closes it. Before `accept_initial` performs any
+secret-key operation, `IK_A` must be the `key_agreement_public_key` of exactly one DeviceCredential committed by the
+trusted ACS head of the relationship that delivered the envelope, and that device must be active and not quarantined.
+Otherwise the initiation fails closed and nothing is consumed.
+
+The resulting party-authentication argument is a composition, not XEdDSA-PQXDH's original proof:
+
+1. **ACS/credential authenticity.** Each peer's trusted ACS head (V-002) commits the peer's DeviceCredential by
+   digest, and the credential carries both the composite signing key and the X25519 identity key.
+2. **Mandatory dual signatures.** The recipient's signed prekeys verify under the committed composite key, and both
+   Ed25519 and ML-DSA-65 halves are required (§1). This replaces the XEdDSA prekey signature.
+3. **PQXDH key establishment** over identity keys that (1) binds on *both* sides: the initiator binds `IK_B` through
+   §2, and the responder binds `IK_A` through rule 4.
+
+PQXDH's authentication guarantee applies to the OM identities only when all three hold. Removing any one of them is a
+conformance failure.
+
 ## Consequences
 
 - [`om-domain-separation.json`](../spec/registries/om-domain-separation.json) fills the four reserved constructions and adds `OM-DR-HEADER-HASH-v1`.

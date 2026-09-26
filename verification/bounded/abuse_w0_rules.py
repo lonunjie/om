@@ -2,10 +2,17 @@
 """V-016: executable checks for the ADR-0131/0132 abuse and moderation rules (R-210, R-214, R-224, R-231, R-234,
 R-238, R-279). One function per criterion; each also runs a mutation that must be caught.
 
-The RFC 9578 check uses real RSA: token type 0x0002 is RSABSSA-SHA384-PSS-Deterministic with a 2048-bit key
-(RFC 9474), so a finalized token verifies like an RSA-PSS SHA-384 signature with salt length 0 over
-token_input = token_type || nonce || challenge_digest || token_key_id. Blinding happens only between issuer and
-client and does not change what the IntroGate verifies, so it is not modelled.
+RFC 9578 token type 0x0002 (Blind RSA 2048-bit) is RSABSSA-SHA384-PSS-Deterministic (RFC 9474): redemption verifies
+the authenticator with RSASSA-PSS, SHA-384, MGF1-SHA-384, salt length 48 (RFC 9578 section 6.4) over
+token_input = token_type || nonce || challenge_digest || token_key_id, where token_key_id is SHA-256 of the
+id-RSASSA-PSS SPKI (section 6.5). The zero-salt PSSZERO variants are a different profile and must not verify.
+
+Evidence boundary (review F-7): the IntroGate model here covers redemption only: signature verification under the
+exact 0x0002 parameters, challenge binding, issuer-epoch rotation/overlap and single-use (replay) enforcement,
+including RFC 9578 A.2 known-answer positives and derived negatives. Every token it redeems is issued through the
+RFC 9474 Blind/BlindSign/Finalize flow in privacy_pass_issuance.py, whose own checks (RFC 9474 A.3/A.4 and RFC 9578
+A.2 vectors, issuer-transcript unlinkability) are the only evidence here for issuance privacy. The redemption checks
+alone say nothing about unlinkability.
 
 Written by a Claude agent (verification executor). Deterministic.
 """
@@ -20,14 +27,15 @@ from pathlib import Path
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "verification/results/abuse-w0-rules-latest.json"
 sys.path.insert(0, str(ROOT / "verification/cbor"))
 from python_canonical import enc  # noqa: E402
-
-PSS0 = padding.PSS(mgf=padding.MGF1(hashes.SHA384()), salt_length=0)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import privacy_pass_issuance as ppi  # noqa: E402
+from privacy_pass_issuance import (RSABSSA_SHA384_PSSZERO_DETERMINISTIC, TOKEN_TYPE_0002_VARIANT, VARIANTS,  # noqa: E402
+                                   Issuer, issue)
 
 
 def sha256(b):
@@ -35,28 +43,18 @@ def sha256(b):
 
 
 # ---- RFC 9578 type 0x0002 referral admission (ADR-0132 rule 1) --------------------------------------------
-class Issuer:   # the recipient's referral issuer: holds the private key
-    def __init__(self, seed: int):
-        self.sk = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        self.pk_der = self.sk.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
-        self.key_id = sha256(self.pk_der)
-
-    def token(self, nonce: bytes, challenge: bytes) -> bytes:
-        ti = b"\x00\x02" + nonce + sha256(challenge) + self.key_id
-        return ti + self.sk.sign(ti, PSS0, hashes.SHA384())
-
-
 class IntroGate:  # holds only public keys: it can verify, never mint
-    def __init__(self, overlap: int):
+    def __init__(self, overlap: int, variant=TOKEN_TYPE_0002_VARIANT):
+        self.variant = variant
         self.keys: dict[bytes, tuple[object, int, int | None]] = {}   # key_id -> (public key, epoch, retire_at)
         self.spent: set[bytes] = set()
         self.overlap = overlap
 
-    def rotate(self, issuer: Issuer, epoch: int, now: int):
+    def rotate(self, spki: bytes, epoch: int, now: int):
         for kid, (pk, e, ret) in list(self.keys.items()):
             if ret is None:
                 self.keys[kid] = (pk, e, now + self.overlap)
-        self.keys[issuer.key_id] = (serialization.load_der_public_key(issuer.pk_der), epoch, None)
+        self.keys[sha256(spki)] = (serialization.load_der_public_key(spki), epoch, None)
 
     def admit(self, tok: bytes, challenge: bytes, now: int, mutate_no_spent=False) -> str:
         ti, sig = tok[:2 + 32 + 32 + 32], tok[98:]
@@ -69,7 +67,7 @@ class IntroGate:  # holds only public keys: it can verify, never mint
         if ret is not None and now >= ret:
             return "reject:issuer_epoch_retired"
         try:
-            pk.verify(sig, ti, PSS0, hashes.SHA384())
+            pk.verify(sig, ti, ppi.pss(self.variant), hashes.SHA384())
         except InvalidSignature:
             return "reject:bad_signature"
         nonce = ti[2:34]
@@ -82,10 +80,10 @@ class IntroGate:  # holds only public keys: it can verify, never mint
 def referral_tokens(mutate=False):
     bad = []
     ch = enc(["OM-REFERRAL-PRIVPASS-CHALLENGE-v1", {"$bytes": "11" * 16}])
-    i1, i2 = Issuer(1), Issuer(2)
+    i1, i2 = Issuer(), Issuer()          # blind issuance only: the issuer never sees token_input (ppi.Issuer)
     g = IntroGate(overlap=3)
-    g.rotate(i1, 1, now=0)
-    t1 = i1.token(b"\x01" * 32, ch)
+    g.rotate(i1.spki, 1, now=0)
+    t1 = issue(i1, b"\x01" * 32, ch)
     if g.admit(t1, ch, 0) != "admit:reserved_capacity":
         bad.append("genuine token not admitted")
     if g.admit(t1, ch, 1, mutate_no_spent=mutate) != "reject:double_spend":
@@ -96,15 +94,39 @@ def referral_tokens(mutate=False):
         bad.append("forged token admitted")
     if not hasattr(g, "keys") or any(hasattr(v[0], "sign") for v in g.keys.values()):
         bad.append("IntroGate holds a signing key")
-    if g.admit(i1.token(b"\x03" * 32, enc(["x"])), ch, 1) != "reject:malformed_or_wrong_challenge":
+    if g.admit(issue(i1, b"\x03" * 32, enc(["x"])), ch, 1) != "reject:malformed_or_wrong_challenge":
         bad.append("token for another challenge admitted")
-    g.rotate(i2, 2, now=5)
-    if g.admit(i1.token(b"\x04" * 32, ch), ch, 7) != "admit:reserved_capacity":
+    g.rotate(i2.spki, 2, now=5)
+    if g.admit(issue(i1, b"\x04" * 32, ch), ch, 7) != "admit:reserved_capacity":
         bad.append("old epoch rejected inside the overlap")
-    if g.admit(i1.token(b"\x05" * 32, ch), ch, 8) != "reject:issuer_epoch_retired":
+    if g.admit(issue(i1, b"\x05" * 32, ch), ch, 8) != "reject:issuer_epoch_retired":
         bad.append("old epoch still accepted after the bounded overlap")
-    if g.admit(i2.token(b"\x06" * 32, ch), ch, 8) != "admit:reserved_capacity":
+    if g.admit(issue(i2, b"\x06" * 32, ch), ch, 8) != "admit:reserved_capacity":
         bad.append("new epoch token rejected")
+    return bad
+
+
+def referral_token_kat(mutate=False):
+    """RFC 9578 A.2 tokens redeemed by the IntroGate, plus the derived negatives in the vectors file (review F-6).
+    Mutation: the IntroGate verifies with the PSSZERO parameters (the pre-F-6 behaviour)."""
+    bad = []
+    V = ppi.load_vectors()
+    variant = RSABSSA_SHA384_PSSZERO_DETERMINISTIC if mutate else TOKEN_TYPE_0002_VARIANT
+    for v in V["rfc9578"]["vectors"]:
+        g = IntroGate(overlap=3, variant=variant)
+        g.rotate(bytes.fromhex(v["pkI"]), 1, now=0)
+        tok, ch = bytes.fromhex(v["token"]), bytes.fromhex(v["token_challenge"])
+        if (r := g.admit(tok, ch, 0)) != "admit:reserved_capacity":
+            bad.append(f"RFC 9578 A.2 vector {v['id']} not admitted: {r}")
+        elif g.admit(tok, ch, 1) != "reject:double_spend":
+            bad.append(f"RFC 9578 A.2 vector {v['id']} admitted twice")
+    pk1 = V["rfc9578"]["vectors"][0]["pkI"]
+    for c in V["redemption_negatives"]:
+        vv = RSABSSA_SHA384_PSSZERO_DETERMINISTIC if mutate else VARIANTS[c["verifier_variant"]]
+        g = IntroGate(overlap=3, variant=vv)
+        g.rotate(bytes.fromhex(pk1), 1, now=0)
+        if (r := g.admit(bytes.fromhex(c["token"]), bytes.fromhex(c["challenge"]), 0)) != c["expect"]:
+            bad.append(f"negative {c['name']}: {r}, expected {c['expect']}")
     return bad
 
 
@@ -252,7 +274,8 @@ def advisories_and_safety_ref(mutate=False):
 
 
 def main() -> int:
-    checks = {"referral_token_0x0002": referral_tokens, "introgate_admission": introgate_admission,
+    checks = {"referral_token_0x0002": referral_tokens, "referral_token_0x0002_kat": referral_token_kat,
+              **ppi.CHECKS, "introgate_admission": introgate_admission,
               "stale_reduction": stale_reduction, "unsolicited_group_add": unsolicited_add,
               "committed_lifts_only": committed_lifts, "call_offer_gate": call_gate,
               "advisory_and_safety_ref_v2": advisories_and_safety_ref}

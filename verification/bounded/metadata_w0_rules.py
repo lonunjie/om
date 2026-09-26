@@ -235,6 +235,35 @@ def key_material(mutate=False):
     return bad
 
 
+# ---- criterion: stable per-device correlators (ADR-0136 rule 5, review F-5), real V-001 bytes ------------
+def device_correlator(mutate=False):
+    """Derive the per-device values W0 bytes carry in the clear and require an `always` stable_device_correlator
+    claim for every role that sees them: AsyncKeyBundle key 2 (subject_device_id) at the KeyMaterialProvider, and
+    the envelope's leading sender EncodeEC(IK) at mailbox-class Homes."""
+    bad = []
+    expo = {r: dict(e) for r, e in EXPO.items()}
+    if mutate:  # the pre-F-5 claim: "covered by device_count"
+        expo["key_material_provider"]["stable_device_correlator"] = "no_by_design"
+    b = V001["binding"]
+    body = dec(dec(bytes.fromhex(b["positive_fetch"][0]))[1])
+    if body.get(2) == bytes.fromhex(b["device_id"]) and expo["key_material_provider"].get("stable_device_correlator") != "always":
+        bad.append("AsyncKeyBundle exposes subject_device_id but the KeyMaterialProvider does not declare stable_device_correlator always")
+    senders = set()
+    for case in V001["cases"]:
+        iks = {case[w]["ik_pub"] for w in ("alice", "bob") if "ik_pub" in case[w]}
+        for ev in case["events"]:
+            if ev["type"] == "send":
+                lead = dec(bytes.fromhex(ev["envelope_context"]))[0]
+                if lead[1:].hex() in iks:
+                    senders.add(lead)
+    if not senders:
+        bad.append("no V-001 envelope context starts with the sender identity key (vector shape changed?)")
+    for r in ("home_relay_mailbox", "t0_sponsored_mailbox", "t1_hosted_home"):
+        if senders and expo[r].get("stable_device_correlator") != "always":
+            bad.append(f"{r}: envelopes carry the sender EncodeEC(IK) but the descriptor does not declare stable_device_correlator always")
+    return bad
+
+
 # ---- criterion: group fan-out (R-226) ------------------------------------------------------------------
 def group_fanout(mutate=False):
     from cryptography.hazmat.primitives.ciphers.aead import AESGCMSIV
@@ -262,6 +291,7 @@ def main() -> int:
     checks = {
         "push_cross_profile": push, "shared_blob": shared_blob, "lan_rendezvous": lan, "colocated_home_roles": colocation,
         "first_contact_introgate": first_contact_flows, "key_material_provider": key_material, "group_fanout": group_fanout,
+        "stable_device_correlator": device_correlator,
     }
     res = {}
     for name, fn in checks.items():

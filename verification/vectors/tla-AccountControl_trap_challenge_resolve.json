@@ -1,0 +1,97 @@
+{
+ "gate": "V-002",
+ "source": "verification/tla/AccountControl_trap_challenge_resolve.cfg",
+ "kind": "golden",
+ "claim": "golden F-2: freeze resolved by a device-only majority counting the quarantined device's challenge signature",
+ "violated": "TrapChallengeResolves",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h1\", \"h2\"}",
+    "last": "[rv |-> 0, kind |-> \"none\", signers |-> {}, challenge |-> {}]",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "0",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 2,
+   "action": "Compromise",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{\"h1\"}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h1\", \"h2\"}",
+    "last": "[rv |-> 0, kind |-> \"none\", signers |-> {}, challenge |-> {}]",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "0",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 3,
+   "action": "Next",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{\"h2\"}",
+    "compromised": "{\"h1\"}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "TRUE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h1\", \"h2\"}",
+    "last": "[rv |-> 0, kind |-> \"quarantine\", signers |-> {\"h1\"}, challenge |-> {}]",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "1",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 4,
+   "action": "Next",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{\"h1\"}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h1\", \"h2\"}",
+    "last": "[rv |-> 0, kind |-> \"resolve\", signers |-> {\"h1\", \"h2\"}, challenge |-> {\"h2\"}]",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "2",
+    "retired": "FALSE"
+   }
+  }
+ ]
+}

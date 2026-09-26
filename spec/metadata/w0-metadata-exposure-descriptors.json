@@ -8,7 +8,8 @@
   "ratchet_header_shape (ADR-0131 rule 4): OM-Crypto-v1 does not encrypt the Double Ratchet header. The mailbox-class Homes that carry a 1:1 envelope see the header OM-CBOR [crypto_profile, ratchet public key (32 B), pn, n] and its length: they can count messages per ratchet chain and see DH-ratchet turns. No identity is in the header. Header encryption needs a new CryptoProfile.",
   "shared_blob_linkage (ADR-0129 rule 10): the default per-send encryption gives every send a fresh content key, so the same asset has a different BlobID in each conversation. Only the opt-in shared-blob mode for expressive assets (stickers, custom emoji) reuses one BlobID, and then the BlobStore can link those conversations by it.",
   "lan_observer (R-270, R-271): the LAN advertisement has a fixed number of rendezvous tags per epoch. Real tags exist only for contacts marked for local mode; the rest are padding. Tags and, where available, the link-layer address rotate every epoch, and a tag is retired when its relationship ends or is blocked. The observer learns that an OM device is present, not how many contacts it has or which advertisements across epochs are the same device.",
-  "key_material_provider: a bundle's subject_device_id is also constant across providers; it adds no linkage beyond the acs_generation/acs_state_hash grouping already stated (it is covered by device_count 'sometimes'). Fetches use a per-relationship fetch capability, so the provider cannot tell which of a fetcher's relationships a fetch belongs to except by network address or timing (A-031 keeps full unlinkability as a later choice)."
+  "key_material_provider: a bundle's subject_device_id is also constant across providers; it adds no linkage beyond the acs_generation/acs_state_hash grouping already stated (it is covered by device_count 'sometimes'). Fetches use a per-relationship fetch capability, so the provider cannot tell which of a fetcher's relationships a fetch belongs to except by network address or timing (A-031 keeps full unlinkability as a later choice).",
+  "stable_device_correlator (ADR-0136 rule 5, review F-5): a value that stays the same for one device across messages, refreshes and providers, so an observer can follow that device over time and link it across providers it sees on both sides. It is more than device_count. KeyMaterialProvider: every AsyncKeyBundle carries subject_device_id (key 2) in the clear. Mailbox-class Homes: every 1:1 envelope starts with the sender's EncodeEC(IK) in the clear (the envelope context, ADR-0135 §4; the envelope is visible at the relay layer, ADR-0131 rule 4), so the recipient's mailbox sees which sender device deposits and can link that device across mailboxes it hosts. Push provider: the push token is per device. Hiding the sender device key needs a sealed-sender outer envelope, which is a new CryptoProfile/design item (A-054), not W0."
  ],
  "fields": [
   "client_network_address",
@@ -28,7 +29,8 @@
   "descriptor_mailbox_linkage",
   "ratchet_header_shape",
   "shared_blob_linkage",
-  "lan_advertisement"
+  "lan_advertisement",
+  "stable_device_correlator"
  ],
  "descriptors": [
   {
@@ -51,7 +53,8 @@
     "descriptor_mailbox_linkage": "sometimes",
     "ratchet_header_shape": "always",
     "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design"
+    "lan_advertisement": "no_by_design",
+    "stable_device_correlator": "always"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md; RELAY_AND_DELIVERY_ARCHITECTURE.md",
@@ -85,7 +88,8 @@
     "descriptor_mailbox_linkage": "sometimes",
     "ratchet_header_shape": "always",
     "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design"
+    "lan_advertisement": "no_by_design",
+    "stable_device_correlator": "always"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "HOME_ONBOARDING §3.3-3.5 (sponsor sees delivery timing/volume/sizes and contact edges among co-resident users, not content; 30-day revocation overlap)",
@@ -118,7 +122,8 @@
     "descriptor_mailbox_linkage": "sometimes",
     "ratchet_header_shape": "always",
     "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design"
+    "lan_advertisement": "no_by_design",
+    "stable_device_correlator": "always"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "HOME_ONBOARDING §4.1 (host sees member delivery timing/volume/sizes)",
@@ -151,7 +156,8 @@
     "descriptor_mailbox_linkage": "no_by_design",
     "ratchet_header_shape": "no_by_design",
     "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design"
+    "lan_advertisement": "no_by_design",
+    "stable_device_correlator": "always"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "ASYNC_KEY_MATERIAL.md",
@@ -183,7 +189,8 @@
     "descriptor_mailbox_linkage": "no_by_design",
     "ratchet_header_shape": "no_by_design",
     "shared_blob_linkage": "sometimes",
-    "lan_advertisement": "no_by_design"
+    "lan_advertisement": "no_by_design",
+    "stable_device_correlator": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "STORAGE_AND_BLOB_ARCHITECTURE.md",
@@ -216,7 +223,8 @@
     "descriptor_mailbox_linkage": "no_by_design",
     "ratchet_header_shape": "no_by_design",
     "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design"
+    "lan_advertisement": "no_by_design",
+    "stable_device_correlator": "always"
    },
    "source_of_claim": "mixed",
    "retention_policy_reference": "NOTIFICATIONS_AND_PUSH.md (opaque wake only)",
@@ -251,7 +259,8 @@
     "descriptor_mailbox_linkage": "sometimes",
     "ratchet_header_shape": "no_by_design",
     "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design"
+    "lan_advertisement": "no_by_design",
+    "stable_device_correlator": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "DISCOVERY_FABRIC.md",
@@ -283,7 +292,8 @@
     "descriptor_mailbox_linkage": "sometimes",
     "ratchet_header_shape": "no_by_design",
     "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design"
+    "lan_advertisement": "no_by_design",
+    "stable_device_correlator": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "INVITES_INTROGATE_AND_SPAM.md",
@@ -314,7 +324,8 @@
     "descriptor_mailbox_linkage": "no_by_design",
     "ratchet_header_shape": "no_by_design",
     "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design"
+    "lan_advertisement": "no_by_design",
+    "stable_device_correlator": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md §10 (RecoveryRecord under H(RecoveryHandle))",
@@ -345,7 +356,8 @@
     "descriptor_mailbox_linkage": "no_by_design",
     "ratchet_header_shape": "no_by_design",
     "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design"
+    "lan_advertisement": "no_by_design",
+    "stable_device_correlator": "no_by_design"
    },
    "source_of_claim": "provider_asserted",
    "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md §10.6-10.7 (rpId + random RecoveryHandle)",
@@ -376,7 +388,8 @@
     "descriptor_mailbox_linkage": "no_by_design",
     "ratchet_header_shape": "no_by_design",
     "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design"
+    "lan_advertisement": "no_by_design",
+    "stable_device_correlator": "no_by_design"
    },
    "source_of_claim": "mixed",
    "retention_policy_reference": "CLIENTHOST_UPDATE_LIFECYCLE.md; R-188",
@@ -408,7 +421,8 @@
     "descriptor_mailbox_linkage": "no_by_design",
     "ratchet_header_shape": "no_by_design",
     "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "always"
+    "lan_advertisement": "always",
+    "stable_device_correlator": "no_by_design"
    },
    "source_of_claim": "protocol_enforced",
    "retention_policy_reference": "LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md",

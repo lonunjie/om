@@ -142,3 +142,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0134 — Verification execution lifecycle and no-bounce handoff](ADR-0134-verification-execution-lifecycle-and-no-bounce-handoff.md)
 
 - [ADR-0135 — OM-Crypto-v1 construction pinning (closes the V-001 constructions)](ADR-0135-om-crypto-v1-construction-pinning.md)
+- [ADR-0136 — core_kernel independent-review remediation (gpt-5.6-sol, 2026-09-26)](ADR-0136-core-kernel-review-remediation.md)

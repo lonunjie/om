@@ -16,6 +16,7 @@ SCRIPTS = [
     ROOT / "verification/bounded/metadata_trace_model.py",
     ROOT / "verification/bounded/introgate_sybil_model.py",
     ROOT / "verification/bounded/acs_authorization_table.py",
+    ROOT / "verification/bounded/acs_tla_crosscheck.py",
     ROOT / "verification/bounded/metadata_w0_rules.py",
     ROOT / "verification/bounded/abuse_w0_rules.py",
     ROOT / "verification/bounded/cross_wave_feasibility.py",

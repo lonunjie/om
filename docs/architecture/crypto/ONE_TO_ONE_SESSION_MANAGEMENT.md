@@ -40,6 +40,20 @@ AccountControlState
 
 Provider data may help locate material, but authorization is cryptographically checked.
 
+**Inbound initiator binding (K12, ADR-0136 rule 4).** The chain above runs in both directions. An initiator binds
+the recipient through ACS → DeviceCredential → dual-signed AsyncKeyBundle (ADR-0135 §2). A responder MUST bind the
+initiator before it accepts a new inbound session. The initiation's X25519 identity key `IK_A` must be the
+`key_agreement_public_key` of **exactly one** DeviceCredential that is committed (by digest) by the trusted ACS head
+the session manager holds for the relationship whose route delivered the envelope (K6/K7), and that device must be
+active and not quarantined at that head. The check runs before any secret-key operation, one-time-key consumption,
+session creation or plaintext release. On no match, several matches or an inactive device, the initiation is
+rejected and nothing changes. When the held head may be stale (for example, a peer's newly linked device), the
+session manager refreshes and validates the peer's head (never accepting an older one, K7) and only then processes the
+initiation; until then the envelope is held unprocessed. 1:1 device sessions exist only inside an accepted
+relationship: first contact uses the HPKE `MessageRequest` (ADR-0126), never an unbound PQXDH initiation, so a
+responder always has a relationship head to bind against. No wire field is added: the binding uses the frozen
+DeviceCredential and AccountControlState objects.
+
 ## 4. Logical-message identity versus envelopes
 
 A single user-visible message has one canonical logical event/message identity even if encrypted into several independent device envelopes.
@@ -90,7 +104,7 @@ Before 1:1 wire/security freeze:
 
 Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
 
-- [ADR-0120](../../../decisions/ADR-0120-one-to-one-session-manager-rules.md): rules K1–K11 are MUST rules for the session manager: persist before send (K1); dedupe durable before the relay ack (K2); re-send on an authenticated reset (K4); re-check eligibility at every encryption (K5); recipients only from validated AccountControlState (K6); keep peers' control heads across crash and restore (K7); never restore ratchet state (K8); reject traffic from revoked devices (K9); prekey header until confirmed (K10); no prekey secrets in backups, and fresh prekeys after a restore (K11). Each rule's V-003 vector is its conformance test.
+- [ADR-0120](../../../decisions/ADR-0120-one-to-one-session-manager-rules.md): rules K1–K11 are MUST rules for the session manager: persist before send (K1); dedupe durable before the relay ack (K2); re-send on an authenticated reset (K4); re-check eligibility at every encryption (K5); recipients only from validated AccountControlState (K6); keep peers' control heads across crash and restore (K7); never restore ratchet state (K8); reject traffic from revoked devices (K9); prekey header until confirmed (K10); no prekey secrets in backups, and fresh prekeys after a restore (K11). [ADR-0136](../../../decisions/ADR-0136-core-kernel-review-remediation.md) adds K12: bind the inbound initiator's identity key to exactly one active committed DeviceCredential before accepting a session (§3). Each rule's V-003 vector is its conformance test.
 - [ADR-0120](../../../decisions/ADR-0120-one-to-one-session-manager-rules.md): lazy repair is accepted. A device that lost sessions does not broadcast; an undecryptable message triggers an authenticated reset and a re-send.
 
 ## Last-resort handshake replay ledger
