@@ -3931,6 +3931,13 @@
       "authority": "verification_evidence_non_normative"
     },
     {
+      "path": "verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
       "path": "verification/reviews/BRIEF-2026-09-24-codex-v-series.md",
       "class": "verification_doc",
       "domain": "architecture_verification",
