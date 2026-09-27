@@ -62,9 +62,7 @@ ADR collects every W0 wire addition from the review in one place.
 9. **Disappearing-message timer.** `ConversationEvent.expiry` (key 12, absolute wall clock) is the v1 interoperable
    timer. `MessageCreate.expires_after` is a local hint; a receiver MUST NOT use it to keep content past `expiry`.
    The time registry row gets a note; no value changes.
-10. **Metadata descriptor correction.** `key_material_provider` now declares `stable_account_id: sometimes` and
-    `device_count: sometimes`: every bundle carries `acs_generation`/`acs_state_hash`, which are the same for all of
-    an account's devices and across providers. An unlinkable binding is design-queue item A-031.
+10. **Metadata descriptor correction (superseded 2026-09-27 by ADR-0140).** This ADR originally declared `stable_account_id: sometimes` and `device_count: sometimes` because the pre-deployment bundle carried account-wide ACS fields. ADR-0140 removes those fields from AsyncKeyBundle v1 before release; current descriptors therefore use `no_by_design` for those two bundle-wire exposures while retaining `stable_device_correlator: always` for `subject_device_id`.
 
 ## Consequences
 

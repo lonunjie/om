@@ -16,7 +16,7 @@ AccountControlState = {
   ? 10: digest,                             ; recovery_policy_commitment (OM-RECOVERY-POLICY-HASH-v1)
   11: profile-id,                           ; minimum_crypto_profile
   ? 12: [1*64 control-key-epoch],           ; control_key_epochs (set)
-  ? 13: [1*320 device-credential-ref],      ; device_credentials (set; proposed addition)
+  ? 13: [1*320 device-credential-ref],      ; device_credentials (set; frozen by ADR-0119/ADR-0135)
   ? 14: digest,                             ; transparency_commitment
   ? 23: extensions,
 }
@@ -27,6 +27,18 @@ control-key-epoch = { 0: device-id, 1: uint }
 ; The bridge's previous_state_hash is the common ancestor; this set lists every observed branch head.
 fork-ack = { 0: [2*16 digest] }             ; observed_branch_heads (set, OM-ACS-HASH-v1)
 device-credential-ref = { 0: device-id, 1: digest }
+
+; ADR-0138/ADR-0141 / W1: value of CRITICAL key-23 extension "om.acs.legacy_policy".
+; A decoder that does not implement this extension rejects the containing ACS; W0 also rejects legacy_policy AccountRetirement authorization.
+legacy-guardian = { 0: opaque-id16, 1: profile-id, 2: bstr .size (32..4096) } ; id, profile, verification key blob
+legacy-policy = {
+  0: 1,                                      ; policy version
+  1: [1*16 legacy-guardian],                 ; guardians (set)
+  2: 1..16,                                  ; threshold <= guardian count (semantic check)
+  3: 86400..31536000,                        ; owner_inactivity_wait_seconds
+  4: 86400..31536000,                        ; minimum_contest_window_seconds
+  ? 5: account-id,                           ; predesignated_successor_account_id
+}
 
 signed-AccountControlHead = { 1: bstr .cbor AccountControlHead, 2: [1*16 signature] }
 AccountControlHead = {

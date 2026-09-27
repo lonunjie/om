@@ -58,7 +58,7 @@ Demonstrate the selected OM-Crypto-v1 state-machine path, PQXDH + Double Ratchet
 - **Independence:** pre-engineering independent_implementation_or_upstream_kat; pre-release external_review
 - **Execution class:** `repo_local_feasibility`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `satisfied`
-- **Evidence:** `decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md`; `decisions/ADR-0135-om-crypto-v1-construction-pinning.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `verification/prototypes/v001-crypto/README.md`; `verification/prototypes/v001-crypto/python/hpke_pq.py`; `verification/prototypes/v001-crypto/vectors/om-v001-proto-vectors.json`; `verification/results/v001-crypto-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`
+- **Evidence:** `decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md`; `decisions/ADR-0135-om-crypto-v1-construction-pinning.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `decisions/ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `docs/reports/2026-09-26-security-equivalence-evidence-report.md`; `verification/bounded/async_prekey_adr0140_rules.py`; `verification/bounded/relationship_context_surface.py`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/prototypes/v001-crypto/README.md`; `verification/prototypes/v001-crypto/python/hpke_pq.py`; `verification/prototypes/v001-crypto/vectors/om-v001-proto-vectors.json`; `verification/results/async-prekey-adr0140-latest.json`; `verification/results/relationship-context-surface-latest.json`; `verification/results/sealed-delivery-adr0142-latest.json`; `verification/results/v001-crypto-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/reviews/2026-09-27-gpt-5-6-sol-v001-f9-re-review.md`
 
 Pre-engineering criteria:
 
@@ -72,7 +72,9 @@ Pre-engineering criteria:
 - [x] AES-256-GCM-SIV payload vectors verify the OM-DR-AEAD-KEY-v1 / OM-DR-AEAD-NONCE-v1 derivation and authenticated header context (ADR-0131 rule 3)
 - [x] MessageRequest HPKE consumes draft-ietf-hpke-pq-05 MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305 KATs plus OM context vectors; no ad-hoc hybrid implementation (ADR-0131 rule 9)
 - [x] responder binds the inbound PQXDH initiator IK_A to exactly one active, non-quarantined DeviceCredential committed by the trusted relationship ACS head before any secret-key operation, with negative vectors for unknown, route-mismatched, revoked, quarantined, stale, substituted and ambiguous keys checked by the independent implementation (ADR-0136 rule 4, review F-9)
-- [ ] ADR-0135 §7 / ADR-0136 rule 4 responder binding accepted on re-review by a non-Anthropic reviewer (review F-9 reopened V-001)
+- [x] ADR-0135 §7 / ADR-0136 rule 4 responder binding accepted on re-review by a non-Anthropic reviewer (review F-9 reopened V-001)
+- [ ] ADR-0140 AsyncKeyBundle v1 prototype persists a recipient high-water mark across reload/provider migration, rejects lower-generation replay and equal-generation core equivocation, and rejects one-time-prekey transplantation across device/profile/generation/provider-pool context
+- [ ] SealedDeliveryEnvelope HPKE consumes the OM-Crypto-v1 pinned draft-ietf-hpke-pq-05 suite under ADR-0142 route-bound info/AAD and padding buckets, rejects wrong route/key/expiry, and never treats outer open as sender authentication
 
 Pre-release criteria:
 
@@ -81,7 +83,8 @@ Pre-release criteria:
 
 Mechanically unfinished pre-engineering work:
 
-- ADR-0135 §7 / ADR-0136 rule 4 responder binding accepted on re-review by a non-Anthropic reviewer (review F-9 reopened V-001)
+- ADR-0140 AsyncKeyBundle v1 prototype persists a recipient high-water mark across reload/provider migration, rejects lower-generation replay and equal-generation core equivocation, and rejects one-time-prekey transplantation across device/profile/generation/provider-pool context
+- SealedDeliveryEnvelope HPKE consumes the OM-Crypto-v1 pinned draft-ietf-hpke-pq-05 suite under ADR-0142 route-bound info/AAD and padding buckets, rejects wrong route/key/expiry, and never treats outer open as sender authentication
 
 ### V-002 — `account_control_formal_model`
 
@@ -92,7 +95,7 @@ Model-check AccountControlState majority authorization, quarantine denominator, 
 - **Independence:** pre-engineering independent_tool, independent_reviewer; pre-release external_review
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0136-core-kernel-review-remediation.md`; `verification/bounded/acs_authorization_table.py`; `verification/bounded/acs_tla_crosscheck.py`; `verification/bounded/continuity_assessment.py`; `verification/results/acs-authorization-table-latest.json`; `verification/results/acs-tla-crosscheck-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/tlc-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/tla/AccountControl.tla`; `verification/tla/AccountControlState.cfg`; `verification/tla/AccountControlState.tla`; `verification/tla/RecoveryObservation.tla`; `verification/tla/models-v002-recovery-observation.json`; `verification/tla/models.json`; `verification/vectors/account-control-regression-vectors.json`; `verification/vectors/acs-authorization-table-vectors.json`; `verification/vectors/tla-AccountControl_mut_method_count.json`; `verification/vectors/tla-AccountControl_trap_challenge_resolve.json`; `verification/vectors/tla-AccountControl_trap_lift.json`; `verification/vectors/tla-AccountControl_trap_quarantine_freeze.json`; `verification/vectors/tla-AccountControl_trap_recover.json`; `verification/vectors/tla-RecoveryObservation_mut_trust_timestamp.json`; `verification/vectors/tla-RecoveryObservation_residual_withheld.json`; `verification/vectors/tla-RecoveryObservation_trap_late.json`
+- **Evidence:** `decisions/ADR-0136-core-kernel-review-remediation.md`; `verification/bounded/acs_authorization_table.py`; `verification/bounded/acs_tla_crosscheck.py`; `verification/bounded/continuity_assessment.py`; `verification/results/acs-authorization-table-latest.json`; `verification/results/acs-tla-crosscheck-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/tlc-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/tla/AccountControl.tla`; `verification/tla/AccountControlState.cfg`; `verification/tla/AccountControlState.tla`; `verification/tla/RecoveryObservation.tla`; `verification/tla/models-v002-recovery-observation.json`; `verification/tla/models.json`; `verification/vectors/account-control-regression-vectors.json`; `verification/vectors/acs-authorization-table-vectors.json`; `verification/vectors/tla-AccountControl_mut_method_count.json`; `verification/vectors/tla-AccountControl_trap_challenge_resolve.json`; `verification/vectors/tla-AccountControl_trap_lift.json`; `verification/vectors/tla-AccountControl_trap_quarantine_freeze.json`; `verification/vectors/tla-AccountControl_trap_recover.json`; `verification/vectors/tla-RecoveryObservation_mut_trust_timestamp.json`; `verification/vectors/tla-RecoveryObservation_residual_withheld.json`; `verification/vectors/tla-RecoveryObservation_trap_late.json`; `docs/reports/2026-09-26-security-equivalence-evidence-report.md`; `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/results/design-consistency-adr0141-latest.json`
 
 Pre-engineering criteria:
 
@@ -125,7 +128,7 @@ Model/fuzz the per-device 1:1 session manager across crossed initiation, add/rev
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0120-one-to-one-session-manager-rules.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `verification/prototypes/v003-sessions/README.md`; `verification/prototypes/v003-sessions/floor.py`; `verification/prototypes/v003-sessions/restore_redelivery.py`; `verification/results/v003-sessions-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/tla/OneToOneSessions.tla`; `verification/tla/models-v003.json`; `verification/vectors/one-to-one-floor-vectors.json`; `verification/vectors/one-to-one-session-regression-vectors.json`; `verification/vectors/tla-OneToOneSessions_K12.json`
+- **Evidence:** `decisions/ADR-0120-one-to-one-session-manager-rules.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `verification/prototypes/v003-sessions/README.md`; `verification/prototypes/v003-sessions/floor.py`; `verification/prototypes/v003-sessions/restore_redelivery.py`; `verification/results/v003-sessions-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/tla/OneToOneSessions.tla`; `verification/tla/models-v003.json`; `verification/vectors/one-to-one-floor-vectors.json`; `verification/vectors/one-to-one-session-regression-vectors.json`; `verification/vectors/tla-OneToOneSessions_K12.json`; `spec/protocol/one-to-one-session-state.logical.schema.json`; `verification/bounded/async_prekey_adr0140_rules.py`; `verification/results/async-prekey-adr0140-latest.json`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/results/sealed-delivery-adr0142-latest.json`; `decisions/ADR-0143-crash-safe-sealed-delivery-replay-and-retry.md`; `verification/prototypes/v003-sessions/sealed_delivery_state.py`; `verification/results/v003-sealed-delivery-latest.json`; `verification/vectors/sealed-delivery-session-vectors.json`
 
 Pre-engineering criteria:
 
@@ -134,6 +137,8 @@ Pre-engineering criteria:
 - [ ] model reviewed by someone other than its author
 - [x] restore+redelivery is covered by a dedicated executable scenario or an explicitly equivalent bounded trace, not only an informal argument
 - [x] negative vector rejects a peer profile below the current security_generation and rejects a floor move to a lower generation after a SecurityAdvisory (R-206)
+- [x] ADR-0140 recipient prekey freshness state merges monotonically across private multi-device state/restore: higher generation wins, equal generation with a different generation-core hash is a security conflict, and provider migration never resets the floor (R-298, R-299)
+- [x] session state enforces per-device/per-route sealed-delivery key refresh/revocation, durable (delivery_key_id, delivery_id) replay reservation before plaintext release, same-route exact-wrapper retry semantics and no clear-sender fallback (ADR-0142)
 
 Pre-release criteria:
 
@@ -192,7 +197,7 @@ Publish deterministic-CBOR/CDDL golden vectors produced and consumed correctly b
 - **Independence:** pre-engineering independent_implementation; pre-release independent_implementation
 - **Execution class:** `repo_local_interop`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `satisfied`
-- **Evidence:** `decisions/ADR-0119-freeze-w0-cddl-and-registries.md`; `spec/cddl/`; `spec/registries/`; `verification/cbor/node_intro_binding.mjs`; `verification/prototypes/v005-encoding/README.md`; `verification/prototypes/v005-encoding/gen/intro_binding.py`; `verification/results/v005-encoding-latest.json`; `verification/vectors/v005-w0-object-vectors.json.gz`
+- **Evidence:** `decisions/ADR-0119-freeze-w0-cddl-and-registries.md`; `decisions/ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md`; `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `spec/cddl/`; `spec/registries/`; `verification/bounded/async_prekey_adr0140_rules.py`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/cbor/node_intro_binding.mjs`; `verification/prototypes/v005-encoding/README.md`; `verification/prototypes/v005-encoding/gen/assemble.py`; `verification/prototypes/v005-encoding/gen/intro_binding.py`; `verification/prototypes/v005-encoding/run.sh`; `verification/results/async-prekey-adr0140-latest.json`; `verification/results/design-consistency-adr0141-latest.json`; `verification/results/sealed-delivery-adr0142-latest.json`; `verification/results/v005-encoding-latest.json`; `verification/results/v005-node-adr0141-latest.json`; `verification/results/v005-node-adr0142-latest.json`; `verification/vectors/v005-w0-object-vectors.json.gz`
 
 Pre-engineering criteria:
 
@@ -202,6 +207,8 @@ Pre-engineering criteria:
 - [x] MessageRequest HPKE vectors pin the exact draft-ietf-hpke-pq-05 suite/version named by OM-Crypto-v1 (R-281)
 - [x] positive/negative vectors and both codecs cover MessageRequest, MessageRequestPayload, IntroIdentityBinding, RequestKey, ForkAck/om.acs.fork_ack, ContactDescriptor key 15 and IntroductionTicket key 11; AsyncKeyBundle without required key 8 is rejected
 - [x] a later-wave rich-text node or attachment field inside a W0 body is rejected, while the same semantic content carried in a named non-critical extension beside a W0-valid body is accepted (R-237)
+- [x] AsyncKeyBundle v1 vectors reject retired keys 3/4 and derive one-time-prekey signature input from DeviceID, CryptoProfile, generation, provider_pool_id, kind, key_id and public_key (ADR-0140)
+- [x] canonical vectors and two independent strict codecs cover DeliveryKeyMaterial, SealedDeliveryKeyRecord, SealedDeliveryEnvelope and required MessageRequestPayload.reply_delivery_key, including OM-Crypto-v1 HPKE exact-length/padding-bucket negatives (ADR-0142)
 
 Pre-release criteria:
 
@@ -216,6 +223,7 @@ Prove the WebAuthn-PRF/non-extractable-WebCrypto DeviceVault hierarchy and migra
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `platform_empirical_feasibility`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
+- **Evidence:** `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/results/design-consistency-adr0141-latest.json`
 
 Pre-engineering criteria:
 
@@ -504,7 +512,7 @@ Instrument/model normal and privacy-enhanced paths across relay, MLS/group contr
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_privacy_model`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0136-core-kernel-review-remediation.md`; `docs/process/METADATA_TRACE_TEST_PLAN.md`; `spec/metadata/w0-metadata-exposure-descriptors.json`; `verification/bounded/metadata_trace_model.py`; `verification/bounded/metadata_w0_rules.py`; `verification/results/metadata-trace-latest.json`; `verification/results/metadata-w0-rules-latest.json`; `verification/results/wire-boundary-bounded-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`
+- **Evidence:** `decisions/ADR-0136-core-kernel-review-remediation.md`; `docs/process/METADATA_TRACE_TEST_PLAN.md`; `spec/metadata/w0-metadata-exposure-descriptors.json`; `verification/bounded/metadata_trace_model.py`; `verification/bounded/metadata_w0_rules.py`; `verification/results/metadata-trace-latest.json`; `verification/results/metadata-w0-rules-latest.json`; `verification/results/wire-boundary-bounded-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `docs/reports/2026-09-26-security-equivalence-evidence-report.md`; `docs/architecture/providers/METADATA_OBSERVER_MATRIX.md`; `decisions/ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md`; `verification/results/async-prekey-adr0140-latest.json`; `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/results/design-consistency-adr0141-latest.json`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/results/sealed-delivery-adr0142-latest.json`
 
 Pre-engineering criteria:
 
@@ -514,11 +522,12 @@ Pre-engineering criteria:
 - [x] shared-blob mode for expressive assets has a BlobStore descriptor line; default per-send encryption yields no shared BlobID across conversations (ADR-0129 rule 10)
 - [x] LAN trace: rendezvous only for marked contacts, tags retired on block/relationship end, fixed-cardinality advertisement, epoch rotation with link-layer address where available; the model shows advertisement size and cross-epoch sets reveal neither contact count nor linkage (R-270, R-271)
 - [x] descriptors declare roles co-located on one operator's Home as one observer (descriptor_mailbox_linkage, contact_graph_edge) and state no non-collusion between them (R-265)
-- [x] OM-Crypto-v1 relay descriptor explicitly records unencrypted Double Ratchet header fields/shape; packet trace matches the descriptor (ADR-0131 rule 4)
+- [x] OM-Crypto-v1 established-relationship relay trace/model uses SealedDeliveryEnvelope so mailbox-class Homes receive no sender AccountID/DeviceID/identity key/Double Ratchet header/ConversationID; timing, padding bucket, source-network metadata and opaque route/key identifiers remain declared, while first contact remains MessageRequest/IntroGate (ADR-0142)
 - [x] first-contact trace proves neither stable AccountID is exposed through IntroGate before acceptance and reciprocal binding occurs only inside accepted relationship (R-280)
 - [x] MessageRequest/IntroIdentityBinding trace proves IntroGate sees no sender AccountID, DeviceID or intro private/public identity material beyond the admission surface, and stable AccountID binding occurs only after acceptance (R-202, R-203, R-280)
-- [x] KeyMaterialProvider trace uses a per-relationship fetch capability and exposes only the documented acs_state_hash linkage; A-031 unlinkability remains an explicit later privacy choice (R-209)
+- [x] KeyMaterialProvider W0 trace uses a per-relationship fetch capability; AsyncKeyBundle v1 exposes no provider-visible ACS generation/hash after ADR-0140, while stable subject_device_id, provider_pool_id, timing and inventory-shape leakage remain declared (R-209, R-291, R-298..R-300)
 - [x] group fan-out outer-encrypts every recipient copy; relays never see raw MLS group_id/epoch and group_id is unrelated to ConversationID (R-226)
+- [ ] provider-resource administration traces contain no AccountID/DeviceCredential/ACS auth material for routine descriptor/key/relay/recovery-record/blob administration, while RecoveryRequest fan-out explicitly records AccountID + recovery_attempt exposure (R-287, R-294, R-295)
 
 Pre-release criteria:
 
@@ -526,6 +535,7 @@ Pre-release criteria:
 
 Mechanically unfinished pre-engineering work:
 
+- provider-resource administration traces contain no AccountID/DeviceCredential/ACS auth material for routine descriptor/key/relay/recovery-record/blob administration, while RecoveryRequest fan-out explicitly records AccountID + recovery_attempt exposure (R-287, R-294, R-295)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-016 — `decentralized_abuse_moderation_authority_model`
@@ -537,7 +547,7 @@ Model/property-test block/revocation/Sybil behavior, IntroGate resource abuse, R
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `verification/bounded/abuse_w0_rules.py`; `verification/bounded/introgate_sybil_model.py`; `verification/bounded/privacy_pass_issuance.py`; `verification/results/abuse-w0-rules-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/introgate-sybil-latest.json`; `verification/results/v016-room-moderation-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/tla/RoomModeration.tla`; `verification/tla/models-v016-room-moderation.json`; `verification/vectors/privacy-pass-blind-rsa-vectors.json`
+- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `verification/bounded/abuse_w0_rules.py`; `verification/bounded/introgate_sybil_model.py`; `verification/bounded/privacy_pass_issuance.py`; `verification/results/abuse-w0-rules-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/introgate-sybil-latest.json`; `verification/results/v016-room-moderation-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/tla/RoomModeration.tla`; `verification/tla/models-v016-room-moderation.json`; `verification/vectors/privacy-pass-blind-rsa-vectors.json`; `docs/reports/2026-09-26-security-equivalence-evidence-report.md`; `verification/bounded/provider_negative_capabilities.py`; `verification/results/provider-negative-capabilities-latest.json`
 
 Pre-engineering criteria:
 
@@ -659,7 +669,7 @@ Prove zero-signup sponsored onboarding, bounded sponsorship, migration between H
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_provider_model`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md`; `docs/process/CONTINUITY_TABLETOP_DRILLS.md`; `verification/bounded/home_tiers_model.py`; `verification/results/home-tiers-latest.json`
+- **Evidence:** `docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md`; `docs/process/CONTINUITY_TABLETOP_DRILLS.md`; `verification/bounded/home_tiers_model.py`; `verification/results/home-tiers-latest.json`; `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/results/design-consistency-adr0141-latest.json`
 
 Pre-engineering criteria:
 

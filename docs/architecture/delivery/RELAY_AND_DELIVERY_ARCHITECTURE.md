@@ -82,6 +82,21 @@ Unknown senders do not receive normal private delivery capabilities. They use a 
 
 Acceptance creates a private `RelationshipBinding` and new delivery capabilities.
 
+## Mandatory sealed delivery for established 1:1 traffic
+
+ADR-0142 promotes sealed delivery into W0 / OM-Crypto-v1 for accepted `ACTIVE` 1:1 relationships. A normal
+mailbox/relay deposit carries an unsigned `SealedDeliveryEnvelope` around the complete ordinary inner 1:1 envelope.
+The outer wrapper exposes only the profile, opaque delivery-key id, fresh delivery id, HPKE encapsulation, padded
+ciphertext bucket and expiry; it does **not** expose sender AccountID/DeviceID/identity key, ConversationID or the
+Double Ratchet header. Opening that outer HPKE layer is not sender authentication: the recipient must still validate
+the unchanged inner envelope under its required `RelationshipContext`.
+
+Delivery keys are signed per accepted relationship × recipient device × exact RelayEntry route and are exchanged
+inside relationship E2EE, rather than inflating the 32 KiB `RelaySet`. First contact remains
+`MessageRequest`/IntroGate and carries one request-scoped reply delivery key so the first post-acceptance response can
+already be sealed. There is no clear-sender fallback for OM-Crypto-v1; missing/stale/unsupported sealed-delivery state
+queues, refreshes or fails explicitly. See [`SEALED_SENDER_DELIVERY_PROFILE.md`](SEALED_SENDER_DELIVERY_PROFILE.md).
+
 ## Abuse enforcement
 
 Because modified open-source clients can remove UI rate limits, a relay/recipient boundary enforces:

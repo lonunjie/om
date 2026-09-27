@@ -1,5 +1,6 @@
-; Status: frozen (ADR-0119, 2026-09-24).
-; W0 delivery/storage objects: SponsoredMailboxGrant, RelaySet, BlobLocationRecord.
+; Status: frozen (ADR-0119, 2026-09-24); sealed-delivery additions by ADR-0142 (2026-09-27).
+; W0 delivery/storage objects: SponsoredMailboxGrant, RelaySet, BlobLocationRecord,
+; SealedDeliveryKeyRecord and SealedDeliveryEnvelope.
 
 signed-SponsoredMailboxGrant = { 1: bstr .cbor SponsoredMailboxGrant, 2: [1*16 signature] }
 SponsoredMailboxGrant = {
@@ -44,5 +45,36 @@ BlobLocationRecord = {
   5: [1*8 tstr .size (1..2048)],            ; locators
   6: posix-seconds,                         ; valid_from
   ? 7: posix-seconds,                       ; overlap_until
+  ? 23: extensions,
+}
+
+
+; ADR-0142. Relationship-private per-recipient-device/per-route HPKE delivery material.
+; The signed record is carried only inside an accepted relationship.
+delivery-key-material = {
+  0: profile-id,                            ; crypto_profile
+  1: opaque-id16,                           ; delivery_key_id
+  2: bstr .size (32..2592),                 ; HPKE public_key; profile pins exact length
+  3: digest,                                ; route_binding (OM-SEALED-DELIVERY-ROUTE-v1)
+  4: posix-seconds,                         ; expires_at
+}
+
+signed-SealedDeliveryKeyRecord = { 1: bstr .cbor SealedDeliveryKeyRecord, 2: [1*16 signature] }
+SealedDeliveryKeyRecord = {
+  0: 22, 1: 1,
+  2: device-id,                             ; recipient_device_id
+  3: delivery-key-material,
+  ? 23: extensions,
+}
+
+; ADR-0142. Unsigned outer transport wrapper. Opening this wrapper is NOT sender authentication.
+SealedDeliveryEnvelope = {
+  0: 23, 1: 1,
+  2: profile-id,                            ; crypto_profile
+  3: opaque-id16,                           ; delivery_key_id
+  4: opaque-id16,                           ; delivery_id (fresh per new wrapper)
+  5: bstr .size (32..2048),                 ; hpke_enc; profile pins exact length
+  6: bstr .size (17..131088),               ; ciphertext; profile pins bucket+tag lengths
+  7: posix-seconds,                         ; expires_at
   ? 23: extensions,
 }

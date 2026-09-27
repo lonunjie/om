@@ -1,437 +1,446 @@
 {
- "status": "W0 MetadataExposureDescriptors (V-015). Checked by verification/bounded/metadata_trace_model.py.",
- "schema": "docs/ux-design/metadata-exposure.logical.schema.json",
- "notes": [
-  "key_material_provider (ADR-0126, F-R1-9): stable_account_id and device_count are 'sometimes'. Every AsyncKeyBundle carries acs_generation and acs_state_hash in the clear; they are identical for all of an account's devices and across providers, so a provider or a fetcher can group devices per account and follow the account across providers. That is a stable per-account correlator, not the AccountID itself. An unlinkable binding is design-queue item A-031.",
-  "cross_profile_linkage (ADR-0129 rule 14): a native per-app push token presented for two IdentityProfiles links them at the push provider unless vendor push is disabled for a Keep-separate profile or one declared gateway is used; on web each profile has its own Web Push subscription.",
-  "descriptor_mailbox_linkage and contact_graph_edge on Home roles (ADR-0130 rule 4, F-R4-4): one operator running the discovery publisher, IntroGate and mailbox can link the published contact identity (alias, intro identity) to every deposit and drain, and sees contact edges among its co-resident users (the same client address or session drains one mailbox and deposits into another). 'sometimes' means: whenever those roles or those contacts share one operator.",
-  "ratchet_header_shape (ADR-0131 rule 4): OM-Crypto-v1 does not encrypt the Double Ratchet header. The mailbox-class Homes that carry a 1:1 envelope see the header OM-CBOR [crypto_profile, ratchet public key (32 B), pn, n] and its length: they can count messages per ratchet chain and see DH-ratchet turns. No identity is in the header. Header encryption needs a new CryptoProfile.",
-  "shared_blob_linkage (ADR-0129 rule 10): the default per-send encryption gives every send a fresh content key, so the same asset has a different BlobID in each conversation. Only the opt-in shared-blob mode for expressive assets (stickers, custom emoji) reuses one BlobID, and then the BlobStore can link those conversations by it.",
-  "lan_observer (R-270, R-271): the LAN advertisement has a fixed number of rendezvous tags per epoch. Real tags exist only for contacts marked for local mode; the rest are padding. Tags and, where available, the link-layer address rotate every epoch, and a tag is retired when its relationship ends or is blocked. The observer learns that an OM device is present, not how many contacts it has or which advertisements across epochs are the same device.",
-  "key_material_provider: a bundle's subject_device_id is also constant across providers; it adds no linkage beyond the acs_generation/acs_state_hash grouping already stated (it is covered by device_count 'sometimes'). Fetches use a per-relationship fetch capability, so the provider cannot tell which of a fetcher's relationships a fetch belongs to except by network address or timing (A-031 keeps full unlinkability as a later choice).",
-  "stable_device_correlator (ADR-0136 rule 5, review F-5): a value that stays the same for one device across messages, refreshes and providers, so an observer can follow that device over time and link it across providers it sees on both sides. It is more than device_count. KeyMaterialProvider: every AsyncKeyBundle carries subject_device_id (key 2) in the clear. Mailbox-class Homes: every 1:1 envelope starts with the sender's EncodeEC(IK) in the clear (the envelope context, ADR-0135 §4; the envelope is visible at the relay layer, ADR-0131 rule 4), so the recipient's mailbox sees which sender device deposits and can link that device across mailboxes it hosts. Push provider: the push token is per device. Hiding the sender device key needs a sealed-sender outer envelope, which is a new CryptoProfile/design item (A-054), not W0."
- ],
- "fields": [
-  "client_network_address",
-  "stable_account_id",
-  "conversation_id",
-  "contact_graph_edge",
-  "membership_or_roster",
-  "message_timing",
-  "ciphertext_size",
-  "blob_size",
-  "query_plaintext",
-  "push_timing",
-  "sponsor_relationship",
-  "recovery_attempt",
-  "device_count",
-  "cross_profile_linkage",
-  "descriptor_mailbox_linkage",
-  "ratchet_header_shape",
-  "shared_blob_linkage",
-  "lan_advertisement",
-  "stable_device_correlator"
- ],
- "descriptors": [
-  {
-   "role": "home_relay_mailbox",
-   "exposures": {
-    "client_network_address": "always",
-    "stable_account_id": "no_by_design",
-    "conversation_id": "no_by_design",
-    "contact_graph_edge": "sometimes",
-    "membership_or_roster": "no_by_design",
-    "message_timing": "always",
-    "ciphertext_size": "always",
-    "blob_size": "no_by_design",
-    "query_plaintext": "no_by_design",
-    "push_timing": "no_by_design",
-    "sponsor_relationship": "no_by_design",
-    "recovery_attempt": "no_by_design",
-    "device_count": "sometimes",
-    "cross_profile_linkage": "no_by_design",
-    "descriptor_mailbox_linkage": "sometimes",
-    "ratchet_header_shape": "always",
-    "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design",
-    "stable_device_correlator": "always"
-   },
-   "source_of_claim": "protocol_enforced",
-   "retention_policy_reference": "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md; RELAY_AND_DELIVERY_ARCHITECTURE.md",
-   "non_collusion_assumptions": [
-    "the depositor's own Home and this Home do not share logs",
-    "roles co-located on one operator's Home (discovery publisher, IntroGate, mailbox) are one observer and collude by construction (ADR-0130 rule 4); the assumptions listed here concern roles run by different operators"
-   ],
-   "optional_mitigations": [
-    "size padding classes",
-    "batched drain",
-    "privacy-enhanced path (OHTTP/Tor) for deposit"
-   ]
-  },
-  {
-   "role": "t0_sponsored_mailbox",
-   "exposures": {
-    "client_network_address": "always",
-    "stable_account_id": "no_by_design",
-    "conversation_id": "no_by_design",
-    "contact_graph_edge": "sometimes",
-    "membership_or_roster": "no_by_design",
-    "message_timing": "always",
-    "ciphertext_size": "always",
-    "blob_size": "no_by_design",
-    "query_plaintext": "no_by_design",
-    "push_timing": "no_by_design",
-    "sponsor_relationship": "always",
-    "recovery_attempt": "no_by_design",
-    "device_count": "sometimes",
-    "cross_profile_linkage": "no_by_design",
-    "descriptor_mailbox_linkage": "sometimes",
-    "ratchet_header_shape": "always",
-    "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design",
-    "stable_device_correlator": "always"
-   },
-   "source_of_claim": "protocol_enforced",
-   "retention_policy_reference": "HOME_ONBOARDING §3.3-3.5 (sponsor sees delivery timing/volume/sizes and contact edges among co-resident users, not content; 30-day revocation overlap)",
-   "non_collusion_assumptions": [
-    "sponsor does not collude with the contact's Homes to join capabilities",
-    "roles co-located on one operator's Home (discovery publisher, IntroGate, mailbox) are one observer and collude by construction (ADR-0130 rule 4); the assumptions listed here concern roles run by different operators"
-   ],
-   "optional_mitigations": [
-    "move to own Home",
-    "fallback route elsewhere"
-   ]
-  },
-  {
-   "role": "t1_hosted_home",
-   "exposures": {
-    "client_network_address": "always",
-    "stable_account_id": "no_by_design",
-    "conversation_id": "no_by_design",
-    "contact_graph_edge": "sometimes",
-    "membership_or_roster": "always",
-    "message_timing": "always",
-    "ciphertext_size": "always",
-    "blob_size": "no_by_design",
-    "query_plaintext": "no_by_design",
-    "push_timing": "no_by_design",
-    "sponsor_relationship": "no_by_design",
-    "recovery_attempt": "no_by_design",
-    "device_count": "sometimes",
-    "cross_profile_linkage": "no_by_design",
-    "descriptor_mailbox_linkage": "sometimes",
-    "ratchet_header_shape": "always",
-    "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design",
-    "stable_device_correlator": "always"
-   },
-   "source_of_claim": "protocol_enforced",
-   "retention_policy_reference": "HOME_ONBOARDING §4.1 (host sees member delivery timing/volume/sizes)",
-   "non_collusion_assumptions": [
-    "host does not collude with other Homes",
-    "roles co-located on one operator's Home (discovery publisher, IntroGate, mailbox) are one observer and collude by construction (ADR-0130 rule 4); the assumptions listed here concern roles run by different operators"
-   ],
-   "optional_mitigations": [
-    "second-family fallback (R-194)",
-    "privacy-enhanced deposit path"
-   ]
-  },
-  {
-   "role": "key_material_provider",
-   "exposures": {
-    "client_network_address": "always",
-    "stable_account_id": "sometimes",
-    "conversation_id": "no_by_design",
-    "contact_graph_edge": "sometimes",
-    "membership_or_roster": "no_by_design",
-    "message_timing": "sometimes",
-    "ciphertext_size": "no_by_design",
-    "blob_size": "no_by_design",
-    "query_plaintext": "no_by_design",
-    "push_timing": "no_by_design",
-    "sponsor_relationship": "no_by_design",
-    "recovery_attempt": "no_by_design",
-    "device_count": "sometimes",
-    "cross_profile_linkage": "no_by_design",
-    "descriptor_mailbox_linkage": "no_by_design",
-    "ratchet_header_shape": "no_by_design",
-    "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design",
-    "stable_device_correlator": "always"
-   },
-   "source_of_claim": "protocol_enforced",
-   "retention_policy_reference": "ASYNC_KEY_MATERIAL.md",
-   "non_collusion_assumptions": [
-    "prekey host and relay do not collude"
-   ],
-   "optional_mitigations": [
-    "fetch prekeys over privacy-enhanced path",
-    "per-relationship or per-ticket fetch capability with drain rate limits (R-209)"
-   ]
-  },
-  {
-   "role": "blob_store",
-   "exposures": {
-    "client_network_address": "always",
-    "stable_account_id": "no_by_design",
-    "conversation_id": "no_by_design",
-    "contact_graph_edge": "no_by_design",
-    "membership_or_roster": "no_by_design",
-    "message_timing": "sometimes",
-    "ciphertext_size": "no_by_design",
-    "blob_size": "always",
-    "query_plaintext": "no_by_design",
-    "push_timing": "no_by_design",
-    "sponsor_relationship": "no_by_design",
-    "recovery_attempt": "no_by_design",
-    "device_count": "no_by_design",
-    "cross_profile_linkage": "no_by_design",
-    "descriptor_mailbox_linkage": "no_by_design",
-    "ratchet_header_shape": "no_by_design",
-    "shared_blob_linkage": "sometimes",
-    "lan_advertisement": "no_by_design",
-    "stable_device_correlator": "no_by_design"
-   },
-   "source_of_claim": "protocol_enforced",
-   "retention_policy_reference": "STORAGE_AND_BLOB_ARCHITECTURE.md",
-   "non_collusion_assumptions": [
-    "blob store and relay do not collude"
-   ],
-   "optional_mitigations": [
-    "size classes",
-    "prefetch/decoy downloads",
-    "shared-blob expressive mode links conversations when enabled (ADR-0129 rule 10); off by default"
-   ]
-  },
-  {
-   "role": "push_provider",
-   "exposures": {
-    "client_network_address": "sometimes",
-    "stable_account_id": "no_by_design",
-    "conversation_id": "no_by_design",
-    "contact_graph_edge": "no_by_design",
-    "membership_or_roster": "no_by_design",
-    "message_timing": "no_by_design",
-    "ciphertext_size": "no_by_design",
-    "blob_size": "no_by_design",
-    "query_plaintext": "no_by_design",
-    "push_timing": "always",
-    "sponsor_relationship": "no_by_design",
-    "recovery_attempt": "no_by_design",
-    "device_count": "sometimes",
-    "cross_profile_linkage": "sometimes",
-    "descriptor_mailbox_linkage": "no_by_design",
-    "ratchet_header_shape": "no_by_design",
-    "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design",
-    "stable_device_correlator": "always"
-   },
-   "source_of_claim": "mixed",
-   "retention_policy_reference": "NOTIFICATIONS_AND_PUSH.md (opaque wake only)",
-   "non_collusion_assumptions": [
-    "platform push service does not collude with the Home"
-   ],
-   "optional_mitigations": [
-    "disable push; poll",
-    "coalesced wakes",
-    "per-profile Web Push registration (web)",
-    "disable vendor push per Keep-separate profile",
-    "single declared gateway"
-   ]
-  },
-  {
-   "role": "discovery_publisher",
-   "exposures": {
-    "client_network_address": "always",
-    "stable_account_id": "no_by_design",
-    "conversation_id": "no_by_design",
-    "contact_graph_edge": "no_by_design",
-    "membership_or_roster": "no_by_design",
-    "message_timing": "sometimes",
-    "ciphertext_size": "no_by_design",
-    "blob_size": "no_by_design",
-    "query_plaintext": "always",
-    "push_timing": "no_by_design",
-    "sponsor_relationship": "no_by_design",
-    "recovery_attempt": "no_by_design",
-    "device_count": "no_by_design",
-    "cross_profile_linkage": "no_by_design",
-    "descriptor_mailbox_linkage": "sometimes",
-    "ratchet_header_shape": "no_by_design",
-    "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design",
-    "stable_device_correlator": "no_by_design"
-   },
-   "source_of_claim": "protocol_enforced",
-   "retention_policy_reference": "DISCOVERY_FABRIC.md",
-   "non_collusion_assumptions": [
-    "resolver relay and publisher do not collude",
-    "when the publisher is co-located with the user's mailbox Home they are one observer (ADR-0130 rule 4)"
-   ],
-   "optional_mitigations": [
-    "oblivious resolver relay"
-   ]
-  },
-  {
-   "role": "introgate",
-   "exposures": {
-    "client_network_address": "always",
-    "stable_account_id": "no_by_design",
-    "conversation_id": "no_by_design",
-    "contact_graph_edge": "sometimes",
-    "membership_or_roster": "no_by_design",
-    "message_timing": "sometimes",
-    "ciphertext_size": "no_by_design",
-    "blob_size": "no_by_design",
-    "query_plaintext": "no_by_design",
-    "push_timing": "no_by_design",
-    "sponsor_relationship": "no_by_design",
-    "recovery_attempt": "no_by_design",
-    "device_count": "no_by_design",
-    "cross_profile_linkage": "no_by_design",
-    "descriptor_mailbox_linkage": "sometimes",
-    "ratchet_header_shape": "no_by_design",
-    "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design",
-    "stable_device_correlator": "no_by_design"
-   },
-   "source_of_claim": "protocol_enforced",
-   "retention_policy_reference": "INVITES_INTROGATE_AND_SPAM.md",
-   "non_collusion_assumptions": [
-    "IntroGate and discovery publisher are run by different operators; when they are co-located on one Home this assumption does not hold (ADR-0130 rule 4)"
-   ],
-   "optional_mitigations": [
-    "ticket via privacy-enhanced path"
-   ]
-  },
-  {
-   "role": "recovery_record_store",
-   "exposures": {
-    "client_network_address": "always",
-    "stable_account_id": "no_by_design",
-    "conversation_id": "no_by_design",
-    "contact_graph_edge": "no_by_design",
-    "membership_or_roster": "no_by_design",
-    "message_timing": "sometimes",
-    "ciphertext_size": "no_by_design",
-    "blob_size": "no_by_design",
-    "query_plaintext": "no_by_design",
-    "push_timing": "no_by_design",
-    "sponsor_relationship": "no_by_design",
-    "recovery_attempt": "always",
-    "device_count": "no_by_design",
-    "cross_profile_linkage": "no_by_design",
-    "descriptor_mailbox_linkage": "no_by_design",
-    "ratchet_header_shape": "no_by_design",
-    "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design",
-    "stable_device_correlator": "no_by_design"
-   },
-   "source_of_claim": "protocol_enforced",
-   "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md §10 (RecoveryRecord under H(RecoveryHandle))",
-   "non_collusion_assumptions": [
-    "recovery store cannot map H(RecoveryHandle) to a mailbox"
-   ],
-   "optional_mitigations": [
-    "request over privacy-enhanced path"
-   ]
-  },
-  {
-   "role": "platform_credential_manager",
-   "exposures": {
-    "client_network_address": "no_by_design",
-    "stable_account_id": "no_by_design",
-    "conversation_id": "no_by_design",
-    "contact_graph_edge": "no_by_design",
-    "membership_or_roster": "no_by_design",
-    "message_timing": "no_by_design",
-    "ciphertext_size": "no_by_design",
-    "blob_size": "no_by_design",
-    "query_plaintext": "no_by_design",
-    "push_timing": "no_by_design",
-    "sponsor_relationship": "no_by_design",
-    "recovery_attempt": "sometimes",
-    "device_count": "no_by_design",
-    "cross_profile_linkage": "no_by_design",
-    "descriptor_mailbox_linkage": "no_by_design",
-    "ratchet_header_shape": "no_by_design",
-    "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design",
-    "stable_device_correlator": "no_by_design"
-   },
-   "source_of_claim": "provider_asserted",
-   "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md §10.6-10.7 (rpId + random RecoveryHandle)",
-   "non_collusion_assumptions": [
-    "platform vendor does not correlate rpId use with other telemetry"
-   ],
-   "optional_mitigations": [
-    "Maximum Privacy: recovery key only"
-   ]
-  },
-  {
-   "role": "clienthost_origin",
-   "exposures": {
-    "client_network_address": "always",
-    "stable_account_id": "no_by_design",
-    "conversation_id": "no_by_design",
-    "contact_graph_edge": "no_by_design",
-    "membership_or_roster": "no_by_design",
-    "message_timing": "sometimes",
-    "ciphertext_size": "no_by_design",
-    "blob_size": "no_by_design",
-    "query_plaintext": "no_by_design",
-    "push_timing": "no_by_design",
-    "sponsor_relationship": "no_by_design",
-    "recovery_attempt": "no_by_design",
-    "device_count": "no_by_design",
-    "cross_profile_linkage": "no_by_design",
-    "descriptor_mailbox_linkage": "no_by_design",
-    "ratchet_header_shape": "no_by_design",
-    "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "no_by_design",
-    "stable_device_correlator": "no_by_design"
-   },
-   "source_of_claim": "mixed",
-   "retention_policy_reference": "CLIENTHOST_UPDATE_LIFECYCLE.md; R-188",
-   "non_collusion_assumptions": [
-    "origin host is not the mailbox Home (R-188)"
-   ],
-   "optional_mitigations": [
-    "native client",
-    "transparency-monitored independent origin"
-   ]
-  },
-  {
-   "role": "lan_observer",
-   "exposures": {
-    "client_network_address": "sometimes",
-    "stable_account_id": "no_by_design",
-    "conversation_id": "no_by_design",
-    "contact_graph_edge": "no_by_design",
-    "membership_or_roster": "no_by_design",
-    "message_timing": "sometimes",
-    "ciphertext_size": "no_by_design",
-    "blob_size": "no_by_design",
-    "query_plaintext": "no_by_design",
-    "push_timing": "no_by_design",
-    "sponsor_relationship": "no_by_design",
-    "recovery_attempt": "no_by_design",
-    "device_count": "no_by_design",
-    "cross_profile_linkage": "no_by_design",
-    "descriptor_mailbox_linkage": "no_by_design",
-    "ratchet_header_shape": "no_by_design",
-    "shared_blob_linkage": "no_by_design",
-    "lan_advertisement": "always",
-    "stable_device_correlator": "no_by_design"
-   },
-   "source_of_claim": "protocol_enforced",
-   "retention_policy_reference": "LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md",
-   "non_collusion_assumptions": [
-    "a LAN observer cannot compute relationship rendezvous tags (it holds no relationship secret)"
-   ],
-   "optional_mitigations": [
-    "link-layer address randomization per epoch where the platform allows it"
-   ]
-  }
- ]
+  "status": "W0 MetadataExposureDescriptors (V-015). Checked by verification/bounded/metadata_trace_model.py.",
+  "schema": "docs/ux-design/metadata-exposure.logical.schema.json",
+  "notes": [
+    "key_material_provider (ADR-0140): AsyncKeyBundle v1 omits provider-visible acs_generation/acs_state_hash. The provider still sees stable subject_device_id, provider_pool_id, timing and inventory shape, but the protocol no longer gives it an account-wide ACS correlator. Authorization is checked by the fetcher against relationship-pinned trusted ACS/DeviceCredential state.",
+    "cross_profile_linkage (ADR-0129 rule 14): a native per-app push token presented for two IdentityProfiles links them at the push provider unless vendor push is disabled for a Keep-separate profile or one declared gateway is used; on web each profile has its own Web Push subscription.",
+    "descriptor_mailbox_linkage and contact_graph_edge on Home roles (ADR-0130 rule 4, F-R4-4): one operator running the discovery publisher, IntroGate and mailbox can link the published contact identity (alias, intro identity) to every deposit and drain, and sees contact edges among its co-resident users (the same client address or session drains one mailbox and deposits into another). 'sometimes' means: whenever those roles or those contacts share one operator.",
+    "ratchet_header_shape (ADR-0131 rule 4): OM-Crypto-v1 does not encrypt the Double Ratchet header. The mailbox-class Homes that carry a 1:1 envelope see the header OM-CBOR [crypto_profile, ratchet public key (32 B), pn, n] and its length: they can count messages per ratchet chain and see DH-ratchet turns. No identity is in the header. Header encryption needs a new CryptoProfile.",
+    "shared_blob_linkage (ADR-0129 rule 10): the default per-send encryption gives every send a fresh content key, so the same asset has a different BlobID in each conversation. Only the opt-in shared-blob mode for expressive assets (stickers, custom emoji) reuses one BlobID, and then the BlobStore can link those conversations by it.",
+    "lan_observer (R-270, R-271): the LAN advertisement has a fixed number of rendezvous tags per epoch. Real tags exist only for contacts marked for local mode; the rest are padding. Tags and, where available, the link-layer address rotate every epoch, and a tag is retired when its relationship ends or is blocked. The observer learns that an OM device is present, not how many contacts it has or which advertisements across epochs are the same device.",
+    "key_material_provider: subject_device_id remains constant for a device and is therefore an always-stable device correlator. It no longer automatically groups several devices into one account; any account/contact linkage is deployment/traffic dependent rather than a bundle-wire property (ADR-0140).",
+    "provider-resource authentication (ADR-0138): routine provider administration uses independent opaque capabilities rather than device_auth; repeated use may link the same provider resource but does not expose a DeviceCredential/DeviceID. Mailbox RecoveryRequest fan-out is separate and exposes the request AccountID plus recovery-attempt fact for that operation."
+  ],
+  "fields": [
+    "client_network_address",
+    "stable_account_id",
+    "conversation_id",
+    "contact_graph_edge",
+    "membership_or_roster",
+    "message_timing",
+    "ciphertext_size",
+    "blob_size",
+    "query_plaintext",
+    "push_timing",
+    "sponsor_relationship",
+    "recovery_attempt",
+    "device_count",
+    "cross_profile_linkage",
+    "descriptor_mailbox_linkage",
+    "ratchet_header_shape",
+    "shared_blob_linkage",
+    "lan_advertisement",
+    "stable_device_correlator"
+  ],
+  "descriptors": [
+    {
+      "role": "home_relay_mailbox",
+      "exposures": {
+        "client_network_address": "always",
+        "stable_account_id": "sometimes",
+        "conversation_id": "no_by_design",
+        "contact_graph_edge": "sometimes",
+        "membership_or_roster": "no_by_design",
+        "message_timing": "always",
+        "ciphertext_size": "always",
+        "blob_size": "no_by_design",
+        "query_plaintext": "no_by_design",
+        "push_timing": "no_by_design",
+        "sponsor_relationship": "no_by_design",
+        "recovery_attempt": "sometimes",
+        "device_count": "sometimes",
+        "cross_profile_linkage": "no_by_design",
+        "descriptor_mailbox_linkage": "sometimes",
+        "ratchet_header_shape": "no_by_design",
+        "shared_blob_linkage": "no_by_design",
+        "lan_advertisement": "no_by_design",
+        "stable_device_correlator": "no_by_design"
+      },
+      "source_of_claim": "protocol_enforced",
+      "retention_policy_reference": "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md; RELAY_AND_DELIVERY_ARCHITECTURE.md",
+      "non_collusion_assumptions": [
+        "the depositor's own Home and this Home do not share logs",
+        "roles co-located on one operator's Home (discovery publisher, IntroGate, mailbox) are one observer and collude by construction (ADR-0130 rule 4); the assumptions listed here concern roles run by different operators"
+      ],
+      "optional_mitigations": [
+        "size padding classes",
+        "batched drain",
+        "privacy-enhanced path (OHTTP/Tor) for deposit",
+        "ADR-0142 sealed delivery hides sender identity-key/ratchet-header fields for established 1:1 relay deposits; timing, size bucket, opaque route/key ids and network metadata remain"
+      ]
+    },
+    {
+      "role": "t0_sponsored_mailbox",
+      "exposures": {
+        "client_network_address": "always",
+        "stable_account_id": "sometimes",
+        "conversation_id": "no_by_design",
+        "contact_graph_edge": "sometimes",
+        "membership_or_roster": "no_by_design",
+        "message_timing": "always",
+        "ciphertext_size": "always",
+        "blob_size": "no_by_design",
+        "query_plaintext": "no_by_design",
+        "push_timing": "no_by_design",
+        "sponsor_relationship": "always",
+        "recovery_attempt": "sometimes",
+        "device_count": "sometimes",
+        "cross_profile_linkage": "no_by_design",
+        "descriptor_mailbox_linkage": "sometimes",
+        "ratchet_header_shape": "no_by_design",
+        "shared_blob_linkage": "no_by_design",
+        "lan_advertisement": "no_by_design",
+        "stable_device_correlator": "no_by_design"
+      },
+      "source_of_claim": "protocol_enforced",
+      "retention_policy_reference": "HOME_ONBOARDING §3.3-3.5 (sponsor sees delivery timing/volume/sizes and contact edges among co-resident users, not content; 30-day revocation overlap)",
+      "non_collusion_assumptions": [
+        "sponsor does not collude with the contact's Homes to join capabilities",
+        "roles co-located on one operator's Home (discovery publisher, IntroGate, mailbox) are one observer and collude by construction (ADR-0130 rule 4); the assumptions listed here concern roles run by different operators"
+      ],
+      "optional_mitigations": [
+        "move to own Home",
+        "fallback route elsewhere",
+        "ADR-0142 sealed delivery hides sender identity-key/ratchet-header fields for established 1:1 relay deposits; timing, size bucket, opaque route/key ids and network metadata remain"
+      ]
+    },
+    {
+      "role": "t1_hosted_home",
+      "exposures": {
+        "client_network_address": "always",
+        "stable_account_id": "sometimes",
+        "conversation_id": "no_by_design",
+        "contact_graph_edge": "sometimes",
+        "membership_or_roster": "always",
+        "message_timing": "always",
+        "ciphertext_size": "always",
+        "blob_size": "no_by_design",
+        "query_plaintext": "no_by_design",
+        "push_timing": "no_by_design",
+        "sponsor_relationship": "no_by_design",
+        "recovery_attempt": "sometimes",
+        "device_count": "sometimes",
+        "cross_profile_linkage": "no_by_design",
+        "descriptor_mailbox_linkage": "sometimes",
+        "ratchet_header_shape": "no_by_design",
+        "shared_blob_linkage": "no_by_design",
+        "lan_advertisement": "no_by_design",
+        "stable_device_correlator": "no_by_design"
+      },
+      "source_of_claim": "protocol_enforced",
+      "retention_policy_reference": "HOME_ONBOARDING §4.1 (host sees member delivery timing/volume/sizes)",
+      "non_collusion_assumptions": [
+        "host does not collude with other Homes",
+        "roles co-located on one operator's Home (discovery publisher, IntroGate, mailbox) are one observer and collude by construction (ADR-0130 rule 4); the assumptions listed here concern roles run by different operators"
+      ],
+      "optional_mitigations": [
+        "second-family fallback (R-194)",
+        "privacy-enhanced deposit path",
+        "ADR-0142 sealed delivery hides sender identity-key/ratchet-header fields for established 1:1 relay deposits; timing, size bucket, opaque route/key ids and network metadata remain"
+      ]
+    },
+    {
+      "role": "key_material_provider",
+      "exposures": {
+        "client_network_address": "always",
+        "stable_account_id": "no_by_design",
+        "conversation_id": "no_by_design",
+        "contact_graph_edge": "sometimes",
+        "membership_or_roster": "no_by_design",
+        "message_timing": "sometimes",
+        "ciphertext_size": "no_by_design",
+        "blob_size": "no_by_design",
+        "query_plaintext": "no_by_design",
+        "push_timing": "no_by_design",
+        "sponsor_relationship": "no_by_design",
+        "recovery_attempt": "no_by_design",
+        "device_count": "no_by_design",
+        "cross_profile_linkage": "no_by_design",
+        "descriptor_mailbox_linkage": "no_by_design",
+        "ratchet_header_shape": "no_by_design",
+        "shared_blob_linkage": "no_by_design",
+        "lan_advertisement": "no_by_design",
+        "stable_device_correlator": "always"
+      },
+      "source_of_claim": "protocol_enforced",
+      "retention_policy_reference": "ASYNC_KEY_MATERIAL.md",
+      "non_collusion_assumptions": [
+        "prekey host and relay do not collude"
+      ],
+      "optional_mitigations": [
+        "fetch prekeys over privacy-enhanced path",
+        "per-relationship or per-ticket fetch capability with drain rate limits (R-209)"
+      ]
+    },
+    {
+      "role": "blob_store",
+      "exposures": {
+        "client_network_address": "always",
+        "stable_account_id": "no_by_design",
+        "conversation_id": "no_by_design",
+        "contact_graph_edge": "no_by_design",
+        "membership_or_roster": "no_by_design",
+        "message_timing": "sometimes",
+        "ciphertext_size": "no_by_design",
+        "blob_size": "always",
+        "query_plaintext": "no_by_design",
+        "push_timing": "no_by_design",
+        "sponsor_relationship": "no_by_design",
+        "recovery_attempt": "no_by_design",
+        "device_count": "no_by_design",
+        "cross_profile_linkage": "no_by_design",
+        "descriptor_mailbox_linkage": "no_by_design",
+        "ratchet_header_shape": "no_by_design",
+        "shared_blob_linkage": "sometimes",
+        "lan_advertisement": "no_by_design",
+        "stable_device_correlator": "no_by_design"
+      },
+      "source_of_claim": "protocol_enforced",
+      "retention_policy_reference": "STORAGE_AND_BLOB_ARCHITECTURE.md",
+      "non_collusion_assumptions": [
+        "blob store and relay do not collude"
+      ],
+      "optional_mitigations": [
+        "size classes",
+        "prefetch/decoy downloads",
+        "shared-blob expressive mode links conversations when enabled (ADR-0129 rule 10); off by default",
+        "blob-repair capability is resource-scoped and not a DeviceCredential (ADR-0138)"
+      ]
+    },
+    {
+      "role": "push_provider",
+      "exposures": {
+        "client_network_address": "sometimes",
+        "stable_account_id": "no_by_design",
+        "conversation_id": "no_by_design",
+        "contact_graph_edge": "no_by_design",
+        "membership_or_roster": "no_by_design",
+        "message_timing": "no_by_design",
+        "ciphertext_size": "no_by_design",
+        "blob_size": "no_by_design",
+        "query_plaintext": "no_by_design",
+        "push_timing": "always",
+        "sponsor_relationship": "no_by_design",
+        "recovery_attempt": "no_by_design",
+        "device_count": "sometimes",
+        "cross_profile_linkage": "sometimes",
+        "descriptor_mailbox_linkage": "no_by_design",
+        "ratchet_header_shape": "no_by_design",
+        "shared_blob_linkage": "no_by_design",
+        "lan_advertisement": "no_by_design",
+        "stable_device_correlator": "always"
+      },
+      "source_of_claim": "mixed",
+      "retention_policy_reference": "NOTIFICATIONS_AND_PUSH.md (opaque wake only)",
+      "non_collusion_assumptions": [
+        "platform push service does not collude with the Home"
+      ],
+      "optional_mitigations": [
+        "disable push; poll",
+        "coalesced wakes",
+        "per-profile Web Push registration (web)",
+        "disable vendor push per Keep-separate profile",
+        "single declared gateway"
+      ]
+    },
+    {
+      "role": "discovery_publisher",
+      "exposures": {
+        "client_network_address": "always",
+        "stable_account_id": "no_by_design",
+        "conversation_id": "no_by_design",
+        "contact_graph_edge": "no_by_design",
+        "membership_or_roster": "no_by_design",
+        "message_timing": "sometimes",
+        "ciphertext_size": "no_by_design",
+        "blob_size": "no_by_design",
+        "query_plaintext": "always",
+        "push_timing": "no_by_design",
+        "sponsor_relationship": "no_by_design",
+        "recovery_attempt": "no_by_design",
+        "device_count": "no_by_design",
+        "cross_profile_linkage": "no_by_design",
+        "descriptor_mailbox_linkage": "sometimes",
+        "ratchet_header_shape": "no_by_design",
+        "shared_blob_linkage": "no_by_design",
+        "lan_advertisement": "no_by_design",
+        "stable_device_correlator": "no_by_design"
+      },
+      "source_of_claim": "protocol_enforced",
+      "retention_policy_reference": "DISCOVERY_FABRIC.md",
+      "non_collusion_assumptions": [
+        "resolver relay and publisher do not collude",
+        "when the publisher is co-located with the user's mailbox Home they are one observer (ADR-0130 rule 4)"
+      ],
+      "optional_mitigations": [
+        "oblivious resolver relay",
+        "provider-resource publication capability is distinct per descriptor/provider resource (ADR-0138)"
+      ]
+    },
+    {
+      "role": "introgate",
+      "exposures": {
+        "client_network_address": "always",
+        "stable_account_id": "no_by_design",
+        "conversation_id": "no_by_design",
+        "contact_graph_edge": "sometimes",
+        "membership_or_roster": "no_by_design",
+        "message_timing": "sometimes",
+        "ciphertext_size": "no_by_design",
+        "blob_size": "no_by_design",
+        "query_plaintext": "no_by_design",
+        "push_timing": "no_by_design",
+        "sponsor_relationship": "no_by_design",
+        "recovery_attempt": "no_by_design",
+        "device_count": "no_by_design",
+        "cross_profile_linkage": "no_by_design",
+        "descriptor_mailbox_linkage": "sometimes",
+        "ratchet_header_shape": "no_by_design",
+        "shared_blob_linkage": "no_by_design",
+        "lan_advertisement": "no_by_design",
+        "stable_device_correlator": "no_by_design"
+      },
+      "source_of_claim": "protocol_enforced",
+      "retention_policy_reference": "INVITES_INTROGATE_AND_SPAM.md",
+      "non_collusion_assumptions": [
+        "IntroGate and discovery publisher are run by different operators; when they are co-located on one Home this assumption does not hold (ADR-0130 rule 4)"
+      ],
+      "optional_mitigations": [
+        "ticket via privacy-enhanced path"
+      ]
+    },
+    {
+      "role": "recovery_record_store",
+      "exposures": {
+        "client_network_address": "always",
+        "stable_account_id": "no_by_design",
+        "conversation_id": "no_by_design",
+        "contact_graph_edge": "no_by_design",
+        "membership_or_roster": "no_by_design",
+        "message_timing": "sometimes",
+        "ciphertext_size": "no_by_design",
+        "blob_size": "no_by_design",
+        "query_plaintext": "no_by_design",
+        "push_timing": "no_by_design",
+        "sponsor_relationship": "no_by_design",
+        "recovery_attempt": "sometimes",
+        "device_count": "no_by_design",
+        "cross_profile_linkage": "no_by_design",
+        "descriptor_mailbox_linkage": "no_by_design",
+        "ratchet_header_shape": "no_by_design",
+        "shared_blob_linkage": "no_by_design",
+        "lan_advertisement": "no_by_design",
+        "stable_device_correlator": "no_by_design"
+      },
+      "source_of_claim": "protocol_enforced",
+      "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md §10 (opaque RecoveryRecord locator/read+write capabilities; authenticated advisory freshness; ADR-0138/ADR-0141)",
+      "non_collusion_assumptions": [
+        "recovery store does not collude with a mailbox Home that separately observes RecoveryRequest fan-out; if colocated they are one observer and may join timing/network logs"
+      ],
+      "optional_mitigations": [
+        "request over privacy-enhanced path",
+        "read/write capabilities are RecoveryRoot-derived per RecoveryStore scope and disclose no AccountID by protocol design",
+        "bearer capabilities are redacted from URLs/query/cookies/referrers/ordinary logs/analytics/crash reports and authenticated responses are no-store (ADR-0141)",
+        "client record-generation high-water mark rejects stale-record rollback; recovered provider state is revalidated (ADR-0141)"
+      ]
+    },
+    {
+      "role": "platform_credential_manager",
+      "exposures": {
+        "client_network_address": "no_by_design",
+        "stable_account_id": "no_by_design",
+        "conversation_id": "no_by_design",
+        "contact_graph_edge": "no_by_design",
+        "membership_or_roster": "no_by_design",
+        "message_timing": "no_by_design",
+        "ciphertext_size": "no_by_design",
+        "blob_size": "no_by_design",
+        "query_plaintext": "no_by_design",
+        "push_timing": "no_by_design",
+        "sponsor_relationship": "no_by_design",
+        "recovery_attempt": "sometimes",
+        "device_count": "no_by_design",
+        "cross_profile_linkage": "no_by_design",
+        "descriptor_mailbox_linkage": "no_by_design",
+        "ratchet_header_shape": "no_by_design",
+        "shared_blob_linkage": "no_by_design",
+        "lan_advertisement": "no_by_design",
+        "stable_device_correlator": "no_by_design"
+      },
+      "source_of_claim": "provider_asserted",
+      "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md §10.2/10.6-10.7 (RP ID + random RecoveryHandle + human recovery locator; ADR-0141)",
+      "non_collusion_assumptions": [
+        "none required for the protocol claim; platform correlation of RP ID, WebAuthn user metadata and vendor telemetry remains possible"
+      ],
+      "optional_mitigations": [
+        "Maximum Privacy: recovery key only (no platform custody)",
+        "random RecoveryHandle avoids directly encoding AccountID in user.id but does not hide user.name/RP ID from the credential manager"
+      ]
+    },
+    {
+      "role": "clienthost_origin",
+      "exposures": {
+        "client_network_address": "always",
+        "stable_account_id": "no_by_design",
+        "conversation_id": "no_by_design",
+        "contact_graph_edge": "no_by_design",
+        "membership_or_roster": "no_by_design",
+        "message_timing": "sometimes",
+        "ciphertext_size": "no_by_design",
+        "blob_size": "no_by_design",
+        "query_plaintext": "no_by_design",
+        "push_timing": "no_by_design",
+        "sponsor_relationship": "no_by_design",
+        "recovery_attempt": "no_by_design",
+        "device_count": "no_by_design",
+        "cross_profile_linkage": "no_by_design",
+        "descriptor_mailbox_linkage": "no_by_design",
+        "ratchet_header_shape": "no_by_design",
+        "shared_blob_linkage": "no_by_design",
+        "lan_advertisement": "no_by_design",
+        "stable_device_correlator": "no_by_design"
+      },
+      "source_of_claim": "mixed",
+      "retention_policy_reference": "CLIENTHOST_UPDATE_LIFECYCLE.md; R-188",
+      "non_collusion_assumptions": [
+        "origin host is not the mailbox Home (R-188)"
+      ],
+      "optional_mitigations": [
+        "native client",
+        "transparency-monitored independent origin"
+      ]
+    },
+    {
+      "role": "lan_observer",
+      "exposures": {
+        "client_network_address": "sometimes",
+        "stable_account_id": "no_by_design",
+        "conversation_id": "no_by_design",
+        "contact_graph_edge": "no_by_design",
+        "membership_or_roster": "no_by_design",
+        "message_timing": "sometimes",
+        "ciphertext_size": "no_by_design",
+        "blob_size": "no_by_design",
+        "query_plaintext": "no_by_design",
+        "push_timing": "no_by_design",
+        "sponsor_relationship": "no_by_design",
+        "recovery_attempt": "no_by_design",
+        "device_count": "no_by_design",
+        "cross_profile_linkage": "no_by_design",
+        "descriptor_mailbox_linkage": "no_by_design",
+        "ratchet_header_shape": "no_by_design",
+        "shared_blob_linkage": "no_by_design",
+        "lan_advertisement": "always",
+        "stable_device_correlator": "no_by_design"
+      },
+      "source_of_claim": "protocol_enforced",
+      "retention_policy_reference": "LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md",
+      "non_collusion_assumptions": [
+        "a LAN observer cannot compute relationship rendezvous tags (it holds no relationship secret)"
+      ],
+      "optional_mitigations": [
+        "link-layer address randomization per epoch where the platform allows it"
+      ]
+    }
+  ]
 }

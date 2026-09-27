@@ -1,0 +1,965 @@
+{
+ "gate": "V-003",
+ "mutations": [
+  {
+   "caught": true,
+   "got": "delivery_replay_dropped_reserved",
+   "id": "M1_drop_reserved_retry",
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "crash",
+     "result": "durable_state_preserved"
+    },
+    {
+     "op": "reserve",
+     "result": "delivery_replay_dropped_reserved"
+    }
+   ],
+   "violates": "same-route retry liveness after crash"
+  },
+  {
+   "caught": true,
+   "id": "M2_clear_sender_fallback",
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "key": "kA",
+     "op": "revoke_for_send"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "clear_fallback",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "clear-1",
+      "event_id": "e1",
+      "expires": 1100,
+      "inner_auth": true,
+      "key_id": "CLEAR",
+      "route": "routeA",
+      "sealed": false
+     }
+    }
+   ],
+   "violates": "no clear-sender fallback"
+  },
+  {
+   "caught": true,
+   "got": "released_or_deduped",
+   "id": "M3_route_binding_disabled",
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "complete_inner",
+     "result": "complete"
+    },
+    {
+     "op": "release",
+     "result": "released_or_deduped"
+    }
+   ],
+   "violates": "route isolation"
+  },
+  {
+   "caught": true,
+   "got": "released_or_deduped",
+   "id": "M4_outer_open_authenticates_sender",
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": false,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "complete_inner",
+     "result": "complete"
+    },
+    {
+     "op": "release",
+     "result": "released_or_deduped"
+    }
+   ],
+   "violates": "inner sender authentication remains authoritative"
+  },
+  {
+   "caught": true,
+   "id": "M5_cross_route_delivery_id_reuse",
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "key": "kB",
+     "op": "add_key",
+     "route": "routeB"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeB",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kB",
+      "route": "routeB",
+      "sealed": true
+     }
+    }
+   ],
+   "violates": "fresh delivery_id on different route"
+  }
+ ],
+ "ok": true,
+ "scenarios": [
+  {
+   "expected": "released_or_deduped",
+   "got": "released_or_deduped",
+   "id": "normal",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "complete_inner",
+     "result": "complete"
+    },
+    {
+     "op": "release",
+     "result": "released_or_deduped"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": {
+    "effects": [
+     "e1"
+    ],
+    "first": "released_or_deduped",
+    "retry": "delivery_replay_complete_ack"
+   },
+   "got": {
+    "effects": [
+     "e1"
+    ],
+    "first": "released_or_deduped",
+    "retry": "delivery_replay_complete_ack"
+   },
+   "id": "same_route_exact_retry",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "complete_inner",
+     "result": "complete"
+    },
+    {
+     "op": "release",
+     "result": "released_or_deduped"
+    },
+    {
+     "op": "reserve",
+     "result": "delivery_replay_complete_ack"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": {
+    "effects": [
+     "e1"
+    ],
+    "reserve": "reserved",
+    "retry": "released_or_deduped"
+   },
+   "got": {
+    "effects": [
+     "e1"
+    ],
+    "reserve": "reserved",
+    "retry": "released_or_deduped"
+   },
+   "id": "crash_after_reserve_then_exact_retry",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "crash",
+     "result": "durable_state_preserved"
+    },
+    {
+     "op": "reserve",
+     "result": "resume_reserved"
+    },
+    {
+     "op": "complete_inner",
+     "result": "complete"
+    },
+    {
+     "op": "release",
+     "result": "released_or_deduped"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": {
+    "acked": true,
+    "complete": "complete",
+    "effects": [],
+    "reserve": "reserved",
+    "retry": "delivery_replay_complete_ack"
+   },
+   "got": {
+    "acked": true,
+    "complete": "complete",
+    "effects": [],
+    "reserve": "reserved",
+    "retry": "delivery_replay_complete_ack"
+   },
+   "id": "crash_after_complete_before_release",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "complete_inner",
+     "result": "complete"
+    },
+    {
+     "op": "crash",
+     "result": "durable_state_preserved"
+    },
+    {
+     "op": "reserve",
+     "result": "delivery_replay_complete_ack"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": {
+    "effects": [],
+    "replay": 0,
+    "result": "persistence_failed"
+   },
+   "got": {
+    "effects": [],
+    "replay": 0,
+    "result": "persistence_failed"
+   },
+   "id": "reserve_persistence_failure_fail_closed",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "persistence_failed"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": {
+    "effects": [
+     "e1"
+    ],
+    "first": "persistence_failed_reserved",
+    "retry": "released_or_deduped"
+   },
+   "got": {
+    "effects": [
+     "e1"
+    ],
+    "first": "persistence_failed_reserved",
+    "retry": "released_or_deduped"
+   },
+   "id": "complete_persistence_failure_resumes",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "complete_inner",
+     "result": "persistence_failed_reserved"
+    },
+    {
+     "op": "crash",
+     "result": "durable_state_preserved"
+    },
+    {
+     "op": "reserve",
+     "result": "resume_reserved"
+    },
+    {
+     "op": "complete_inner",
+     "result": "complete"
+    },
+    {
+     "op": "release",
+     "result": "released_or_deduped"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": "delivery_route_mismatch",
+   "got": "delivery_route_mismatch",
+   "id": "wrong_route_rejected",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "delivery_route_mismatch"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": "delivery_expired",
+   "got": "delivery_expired",
+   "id": "wrapper_expiry_rejected",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "delivery_expired"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": {
+    "clear_seen": false,
+    "wrapper": null
+   },
+   "got": {
+    "clear_seen": false,
+    "wrapper": null
+   },
+   "id": "missing_key_never_clear_fallback",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "key": "kA",
+     "op": "revoke_for_send"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "delivery_key_unknown_or_stale",
+     "route": "routeA"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": {
+    "effects": [
+     "old",
+     "new"
+    ],
+    "new": "released_or_deduped",
+    "new_key": "kA2",
+    "old": "released_or_deduped",
+    "old_key": "kA"
+   },
+   "got": {
+    "effects": [
+     "old",
+     "new"
+    ],
+    "new": "released_or_deduped",
+    "new_key": "kA2",
+    "old": "released_or_deduped",
+    "old_key": "kA"
+   },
+   "id": "key_refresh_old_overlap_and_new_current",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "old",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "old",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "key": "kA2",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "new",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0002",
+      "event_id": "new",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA2",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "complete_inner",
+     "result": "complete"
+    },
+    {
+     "op": "release",
+     "result": "released_or_deduped"
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "complete_inner",
+     "result": "complete"
+    },
+    {
+     "op": "release",
+     "result": "released_or_deduped"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": "delivery_key_unknown_or_stale",
+   "got": "delivery_key_unknown_or_stale",
+   "id": "retired_old_key_rejects_queued_wrapper",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "key": "kA2",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "key": "kA",
+     "op": "retire_receive"
+    },
+    {
+     "op": "reserve",
+     "result": "delivery_key_unknown_or_stale"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": {
+    "effects": [
+     "e1"
+    ],
+    "first": "released_or_deduped",
+    "ids_differ": true,
+    "keys": [
+     "kA",
+     "kB"
+    ],
+    "second": "released_or_deduped"
+   },
+   "got": {
+    "effects": [
+     "e1"
+    ],
+    "first": "released_or_deduped",
+    "ids_differ": true,
+    "keys": [
+     "kA",
+     "kB"
+    ],
+    "second": "released_or_deduped"
+   },
+   "id": "route_migration_reseals_fresh_id_and_dedupes_event",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "key": "kB",
+     "op": "add_key",
+     "route": "routeB"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeB",
+     "wrapper": {
+      "delivery_id": "d0002",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kB",
+      "route": "routeB",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "complete_inner",
+     "result": "complete"
+    },
+    {
+     "op": "release",
+     "result": "released_or_deduped"
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "complete_inner",
+     "result": "complete"
+    },
+    {
+     "op": "release",
+     "result": "released_or_deduped"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": "delivery_replay_collision",
+   "got": "delivery_replay_collision",
+   "id": "same_key_id_delivery_id_different_wrapper_rejected",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": true,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "reserve",
+     "result": "delivery_replay_collision"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": {
+    "effects": [],
+    "first": "inner_auth_failed",
+    "retry": "delivery_replay_rejected"
+   },
+   "got": {
+    "effects": [],
+    "first": "inner_auth_failed",
+    "retry": "delivery_replay_rejected"
+   },
+   "id": "outer_open_never_authenticates_sender",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "sealed",
+     "route": "routeA",
+     "wrapper": {
+      "delivery_id": "d0001",
+      "event_id": "e1",
+      "expires": 1300,
+      "inner_auth": false,
+      "key_id": "kA",
+      "route": "routeA",
+      "sealed": true
+     }
+    },
+    {
+     "op": "reserve",
+     "result": "reserved"
+    },
+    {
+     "op": "complete_inner",
+     "result": "inner_auth_failed"
+    },
+    {
+     "op": "reserve",
+     "result": "delivery_replay_rejected"
+    }
+   ],
+   "violations": []
+  },
+  {
+   "expected": null,
+   "got": null,
+   "id": "revoked_device_no_new_send",
+   "ok": true,
+   "trace": [
+    {
+     "key": "kA",
+     "op": "add_key",
+     "route": "routeA"
+    },
+    {
+     "event": "e1",
+     "op": "seal",
+     "result": "ineligible",
+     "route": "routeA"
+    }
+   ],
+   "violations": []
+  }
+ ],
+ "scope": "ADR-0142/ADR-0143 sealed-delivery state semantics only; HPKE primitive/KAT execution belongs to V-001",
+ "summary": {
+  "mutations": 5,
+  "mutations_caught": 5,
+  "passed": 15,
+  "scenarios": 15
+ }
+}

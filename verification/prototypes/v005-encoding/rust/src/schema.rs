@@ -64,6 +64,8 @@ pub struct Registry {
     pub bundle_required: HashMap<u64, Vec<u64>>,
     /// CryptoProfile id -> exact (hpke_enc, request-key public_key) lengths of its pinned MessageRequest HPKE suite
     pub hpke_sizes: HashMap<u64, (usize, usize)>,
+    /// CryptoProfile id -> exact (hpke_enc, delivery public_key, ciphertext lengths) for sealed delivery.
+    pub sealed_hpke: HashMap<u64, (usize, usize, Vec<usize>)>,
     pub lim: Limits,
 }
 
@@ -195,13 +197,23 @@ impl Registry {
                 hpke_sizes.insert(prof["id"].as_u64().unwrap(), (e as usize, k as usize));
             }
         }
+        let mut sealed_hpke = HashMap::new();
+        for prof in c["profiles"].as_array().unwrap() {
+            let h = &prof["sealed_delivery_hpke"];
+            if let (Some(e), Some(k), Some(buckets), Some(tag)) =
+                (h["enc_bytes"].as_u64(), h["public_key_bytes"].as_u64(), h["plaintext_buckets"].as_array(), h["aead_tag_bytes"].as_u64())
+            {
+                let ciphertexts = buckets.iter().map(|b| b.as_u64().unwrap() as usize + tag as usize).collect();
+                sealed_hpke.insert(prof["id"].as_u64().unwrap(), (e as usize, k as usize, ciphertexts));
+            }
+        }
         let mut ext_schema = HashMap::new();
         for e in f.get("extensions").and_then(|x| x.as_array()).into_iter().flatten() {
             if let Some(r) = e["value"]["ref"].as_str() {
                 ext_schema.insert(e["name"].as_str().unwrap().to_string(), (e["critical"].as_bool().unwrap_or(false), r.to_string()));
             }
         }
-        Registry { structs, enums, types, known_ext, ext_schema, bundle_required, hpke_sizes, lim }
+        Registry { structs, enums, types, known_ext, ext_schema, bundle_required, hpke_sizes, sealed_hpke, lim }
     }
 
     /// Decode + validate a top-level object of the declared type (SignedEnvelope for signed types).
@@ -347,6 +359,21 @@ impl<'a> Cx<'a> {
                 match name {
                     "MessageRequest" => pinned(4, 5, |s| s.0)?,
                     "RequestKey" => pinned(0, 1, |s| s.1)?,
+                    "DeliveryKeyMaterial" => {
+                        if let (Some(Value::Uint(p)), Some(Value::Bytes(b))) = (field(0), field(2)) {
+                            if let Some(s) = self.r.sealed_hpke.get(p) {
+                                if b.len() != s.1 { return Err("value_range"); }
+                            }
+                        }
+                    },
+                    "SealedDeliveryEnvelope" => {
+                        if let Some(Value::Uint(p)) = field(2) {
+                            if let Some(s) = self.r.sealed_hpke.get(p) {
+                                if let Some(Value::Bytes(b)) = field(5) { if b.len() != s.0 { return Err("value_range"); } }
+                                if let Some(Value::Bytes(b)) = field(6) { if !s.2.contains(&b.len()) { return Err("value_range"); } }
+                            }
+                        }
+                    },
                     _ => {}
                 }
                 Ok(())

@@ -6,11 +6,14 @@
 //!   PQXDH X25519 identity key (key 6, key_agreement_public_key);
 //! * `AccountControlState` (type 1) commits to the credential through `device_credentials` (key 13,
 //!   {device_id, OM-DEVICE-CREDENTIAL-HASH-v1 digest}) and lists the device as active/not quarantined;
-//! * `signed-AsyncKeyBundle` (type 9) commits to acs_generation/acs_state_hash, the signed EC prekey
-//!   (key 7), the ML-KEM-768 signed prekey (key 8) and the signed-prekey epoch (key 6, generation), and
-//!   is signed by the device's composite key under OM-PREKEY-BUNDLE-SIG-v1;
-//! * one-time items travel as individually signed `prekey-item`s (key 3 = composite signature under
-//!   OM-PREKEY-SIG-v1 over the item without key 3), so a provider can hand each out once.
+//! * `signed-AsyncKeyBundle` (type 9) deliberately omits provider-visible ACS generation/hash. The
+//!   recipient validates the DeviceCredential against the relationship-pinned ACS, then verifies the
+//!   bundle's signed-prekey generation and public material under OM-PREKEY-BUNDLE-SIG-v1;
+//! * recipients persist a highest-seen signed-prekey generation per (peer AccountID, DeviceID,
+//!   CryptoProfile), shared across provider pools. Lower generations roll back and equal generations
+//!   with a different signed-prekey core are equivocation;
+//! * one-time items are individually signed under OM-PREKEY-SIG-v1 over an explicit context tuple
+//!   binding DeviceID, profile, bundle generation, provider pool, kind, key id and public key.
 //!
 //! A fetch (Home API `KeyBundleFetchResponse`, `[* bstr]`) is [signed bundle, one-time items...].
 //! The verifier accepts it only against an ACS head it already trusts (V-002 supplies that head).
@@ -18,13 +21,14 @@
 use crate::cbor::{self, V};
 use crate::sig::{self, ds_hash, ds_sig, digest, DeviceSigner, ROLE_DEVICE};
 use crate::Error;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub const PROFILE_V1: u64 = 1;
 pub const LBL_ACS_HASH: &str = "OM-ACS-HASH-v1";
 pub const LBL_CRED_HASH: &str = "OM-DEVICE-CREDENTIAL-HASH-v1";
 pub const LBL_BUNDLE_SIG: &str = "OM-PREKEY-BUNDLE-SIG-v1";
 pub const LBL_ITEM_SIG: &str = "OM-PREKEY-SIG-v1";
+pub const LBL_GENERATION_CORE: &str = "OM-PREKEY-GENERATION-CORE-v1";
 
 /// prekey_kind enum (om-numeric-fields.json).
 pub const KIND_EC_SIGNED: u64 = 1;
@@ -185,10 +189,10 @@ fn item(id: u32, kind: u64, pk: &[u8]) -> V {
     V::M(vec![(0, V::U(id as u64)), (1, V::U(kind)), (2, V::B(pk.to_vec()))])
 }
 
-pub fn bundle_body(device_id: &[u8; 16], acs: &Acs, k: &StaticKeys) -> Vec<u8> {
+pub fn bundle_body(device_id: &[u8; 16], k: &StaticKeys) -> Vec<u8> {
     cbor::encode(&V::M(vec![
         (0, V::U(9)), (1, V::U(1)),
-        (2, V::B(device_id.to_vec())), (3, V::U(acs.generation)), (4, digest(&acs.hash())),
+        (2, V::B(device_id.to_vec())),
         (5, V::U(PROFILE_V1)), (6, V::U(k.epoch)),
         (7, item(k.spk_id, KIND_EC_SIGNED, &k.spk)),
         (8, item(k.pqspk_id, KIND_PQ_SIGNED, &k.pqspk)),
@@ -201,11 +205,62 @@ pub fn sign_bundle(signer: &DeviceSigner, device_id: &[u8; 16], body: Vec<u8>, r
     sig::envelope(body, vec![sig::signature_entry(device_id, PROFILE_V1, ROLE_DEVICE, s)])
 }
 
-/// A one-time prekey item signed on its own: {0: id, 1: kind, 2: pk, 3: composite signature}.
-pub fn sign_item(signer: &DeviceSigner, device_id: &[u8; 16], id: u32, kind: u64, pk: &[u8], rnd: [u8; 32]) -> Vec<u8> {
-    let unsigned = cbor::encode(&item(id, kind, pk));
-    let s = signer.sign_with(&ds_sig(LBL_ITEM_SIG, PROFILE_V1, ROLE_DEVICE, device_id, &unsigned), rnd);
+fn one_time_context(device_id: &[u8; 16], profile: u64, generation: u64, pool_id: &[u8; 16], id: u32, kind: u64, pk: &[u8]) -> Vec<u8> {
+    cbor::encode(&V::A(vec![
+        V::U(1), V::B(device_id.to_vec()), V::U(profile), V::U(generation), V::B(pool_id.to_vec()),
+        V::U(kind), V::U(id as u64), V::B(pk.to_vec()),
+    ]))
+}
+
+/// A one-time prekey item signed in its bundle/provider context (ADR-0140).
+pub fn sign_item(
+    signer: &DeviceSigner,
+    device_id: &[u8; 16],
+    generation: u64,
+    pool_id: &[u8; 16],
+    id: u32,
+    kind: u64,
+    pk: &[u8],
+    rnd: [u8; 32],
+) -> Vec<u8> {
+    let context = one_time_context(device_id, PROFILE_V1, generation, pool_id, id, kind, pk);
+    let s = signer.sign_with(&ds_sig(LBL_ITEM_SIG, PROFILE_V1, ROLE_DEVICE, device_id, &context), rnd);
     cbor::encode(&V::M(vec![(0, V::U(id as u64)), (1, V::U(kind)), (2, V::B(pk.to_vec())), (3, V::B(s))]))
+}
+
+fn generation_core_hash(b: &V) -> Result<[u8; 32], Error> {
+    let core = V::A(vec![
+        V::B(b.get(2)?.b()?.to_vec()),
+        V::U(b.get(5)?.u()?),
+        V::U(b.get(6)?.u()?),
+        b.get(7)?.clone(),
+        b.get(8)?.clone(),
+        b.opt(11).cloned().unwrap_or(V::Null),
+    ]);
+    Ok(ds_hash(LBL_GENERATION_CORE, &cbor::encode(&core)))
+}
+
+/// Durable anti-rollback state. The key deliberately excludes provider_pool_id: all pools for the same
+/// peer device/profile share one signed-prekey generation floor.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct BundleFreshness {
+    pub floors: BTreeMap<([u8; 32], [u8; 16], u64), (u64, [u8; 32])>,
+}
+
+impl BundleFreshness {
+    pub fn observe(&mut self, account: [u8; 32], device: [u8; 16], profile: u64, generation: u64, core_hash: [u8; 32]) -> Result<(), Error> {
+        let key = (account, device, profile);
+        match self.floors.get(&key) {
+            Some((highest, _)) if generation < *highest => return Err(Error::PrekeyGenerationRollback),
+            Some((highest, old_hash)) if generation == *highest && core_hash != *old_hash => return Err(Error::PrekeyGenerationEquivocation),
+            _ => {}
+        }
+        match self.floors.get(&key) {
+            Some((highest, _)) if generation <= *highest => {}
+            _ => { self.floors.insert(key, (generation, core_hash)); }
+        }
+        Ok(())
+    }
 }
 
 /// Output of a successful binding check: the only way to obtain PQXDH inputs for a peer device.
@@ -232,6 +287,11 @@ pub struct PeerView<'a> {
 }
 
 pub fn verify_fetch(fetch: &[Vec<u8>], peer: &PeerView) -> Result<VerifiedBundle, Error> {
+    let mut transient = BundleFreshness::default();
+    verify_fetch_with_freshness(fetch, peer, &mut transient)
+}
+
+pub fn verify_fetch_with_freshness(fetch: &[Vec<u8>], peer: &PeerView, freshness: &mut BundleFreshness) -> Result<VerifiedBundle, Error> {
     let acs = Acs::from_body(peer.acs_body)?;
     if acs.hash() != peer.trusted_acs_hash {
         return Err(Error::Binding("ACS body is not the trusted head"));
@@ -255,8 +315,8 @@ pub fn verify_fetch(fetch: &[Vec<u8>], peer: &PeerView) -> Result<VerifiedBundle
     if b.get(2)?.b()? != cred.device_id {
         return Err(Error::Binding("bundle subject_device_id differs from credential"));
     }
-    if b.get(3)?.u()? != acs.generation || b.get(4)?.get(1)?.b32()? != acs.hash() {
-        return Err(Error::Binding("bundle not bound to the trusted ACS head"));
+    if b.opt(3).is_some() || b.opt(4).is_some() {
+        return Err(Error::Binding("retired provider-visible ACS fields are forbidden"));
     }
     if b.get(5)?.u()? != PROFILE_V1 {
         return Err(Error::Binding("bundle profile"));
@@ -264,6 +324,13 @@ pub fn verify_fetch(fetch: &[Vec<u8>], peer: &PeerView) -> Result<VerifiedBundle
     if b.get(13)?.u()? <= peer.now {
         return Err(Error::Binding("bundle expired"));
     }
+    let pool = b.get(12)?.b()?;
+    if pool.len() != 16 {
+        return Err(Error::Binding("provider_pool_id size"));
+    }
+    let pool_id: [u8; 16] = pool.try_into().unwrap();
+    let generation = b.get(6)?.u()?;
+    let core_hash = generation_core_hash(&b)?;
     let spk = b.get(7)?;
     let pqspk = b.opt(8).ok_or(Error::MissingPqPrekey)?;
     if spk.get(1)?.u()? != KIND_EC_SIGNED || pqspk.get(1)?.u()? != KIND_PQ_SIGNED {
@@ -277,7 +344,7 @@ pub fn verify_fetch(fetch: &[Vec<u8>], peer: &PeerView) -> Result<VerifiedBundle
         account_id: cred.account_id,
         device_id: cred.device_id,
         ik: cred.ik,
-        epoch: b.get(6)?.u()?,
+        epoch: generation,
         spk_id: spk.get(0)?.u32()?,
         spk: spk.get(2)?.b32()?,
         pq_id: pqspk.get(0)?.u32()?,
@@ -288,8 +355,11 @@ pub fn verify_fetch(fetch: &[Vec<u8>], peer: &PeerView) -> Result<VerifiedBundle
     for raw in items {
         let v = cbor::decode(raw)?;
         let (id, kind, pk) = (v.get(0)?.u32()?, v.get(1)?.u()?, v.get(2)?.b()?.to_vec());
-        let unsigned = cbor::encode(&item(id, kind, &pk));
-        sig::verify(&cred.signing_pk, &ds_sig(LBL_ITEM_SIG, PROFILE_V1, ROLE_DEVICE, &cred.device_id, &unsigned), v.get(3)?.b()?)?;
+        if kind != KIND_EC_ONE_TIME && kind != KIND_PQ_ONE_TIME {
+            return Err(Error::Binding("unexpected one-time item"));
+        }
+        let context = one_time_context(&cred.device_id, PROFILE_V1, generation, &pool_id, id, kind, &pk);
+        sig::verify(&cred.signing_pk, &ds_sig(LBL_ITEM_SIG, PROFILE_V1, ROLE_DEVICE, &cred.device_id, &context), v.get(3)?.b()?)?;
         match kind {
             KIND_EC_ONE_TIME if out.opk.is_none() && pk.len() == 32 => out.opk = Some((id, pk.try_into().unwrap())),
             KIND_PQ_ONE_TIME if !out.pq_one_time && pk.len() == MLKEM768_EK_LEN => {
@@ -300,6 +370,9 @@ pub fn verify_fetch(fetch: &[Vec<u8>], peer: &PeerView) -> Result<VerifiedBundle
             _ => return Err(Error::Binding("unexpected one-time item")),
         }
     }
+    // Raise the durable floor only after the entire signed bundle and all returned one-time items
+    // have verified. This happens before PQXDH private-key work in Device::start_session.
+    freshness.observe(cred.account_id, cred.device_id, PROFILE_V1, generation, core_hash)?;
     Ok(out)
 }
 
@@ -313,6 +386,20 @@ pub struct TrustedPeer {
 
 /// One committed device of a trusted peer: (identity key, AccountID, DeviceID, active and not quarantined).
 pub type PeerDevice = ([u8; 32], [u8; 32], [u8; 16], bool);
+
+/// Mandatory relationship-routing context for every inbound 1:1 decrypt (ADR-0137).
+/// There is deliberately no `Option`/unbound form: a caller must name the peer
+/// AccountID whose relationship route delivered the envelope.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RelationshipContext {
+    pub peer_account_id: [u8; 32],
+}
+
+impl RelationshipContext {
+    pub fn new(peer_account_id: [u8; 32]) -> Self {
+        Self { peer_account_id }
+    }
+}
 
 /// Validate a peer view against the ACS head the caller already trusts, and list its committed devices.
 /// A credential body the head does not commit (stale, rotated away, or from another account) is dropped,
@@ -332,12 +419,13 @@ pub fn peer_devices(p: &TrustedPeer, trusted_acs_hash: &[u8; 32]) -> Result<Vec<
     Ok(out)
 }
 
-/// Resolve an inbound initiator IK_A to exactly one committed DeviceCredential of a trusted peer, optionally
-/// pinned to the account whose relationship route delivered the envelope. Fails closed on no match, on more
-/// than one match, and on a device that is not active or is quarantined at the trusted head. Callers run it
-/// before any secret-key operation, one-time-key consumption or session change.
-pub fn verify_initiator(ik_a: &[u8; 32], matches: &[PeerDevice], route_account: Option<&[u8; 32]>) -> Result<([u8; 32], [u8; 16]), Error> {
-    let m: Vec<&PeerDevice> = matches.iter().filter(|(ik, a, _, _)| ik == ik_a && route_account.map_or(true, |r| r == a)).collect();
+/// Resolve an inbound initiator IK_A to exactly one committed DeviceCredential of the
+/// relationship peer named by `relationship`. Fails closed on no match, on more than
+/// one match, and on a device that is not active or is quarantined at the trusted head.
+/// Callers run it for *every* inbound envelope, including established sessions, before
+/// any secret-key operation, one-time-key consumption or session change.
+pub fn verify_initiator(ik_a: &[u8; 32], matches: &[PeerDevice], relationship: &RelationshipContext) -> Result<([u8; 32], [u8; 16]), Error> {
+    let m: Vec<&PeerDevice> = matches.iter().filter(|(ik, a, _, _)| ik == ik_a && *a == relationship.peer_account_id).collect();
     match m.as_slice() {
         [] => Err(Error::Binding("initiator IK_A matches no committed credential of the relationship peer")),
         [(_, a, d, true)] => Ok((*a, *d)),

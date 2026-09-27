@@ -1,0 +1,112 @@
+{
+  "format": "om.account-control-transition-policy/1",
+  "status": "normative",
+  "decision": "ADR-0137",
+  "authority_rule": "A verifier derives deltas by diffing child and parent. Signers and thresholds are evaluated against the parent. An unlisted delta is rejected.",
+  "parent_majority": "floor(N/2)+1 where N is the number of parent active_control_devices; quarantined controllers remain in N",
+  "ordinary_signer_set": "parent active_control_devices minus parent quarantined_control_devices",
+  "recovery_vote": "one constitutional vote only where the transition row permits it; it never counts for ordinary quarantine lift, safety-freeze resolution or fork bridge",
+  "transitions": [
+    {
+      "id": "link_messaging",
+      "doc_prefix": "link a messaging device",
+      "authorization": "one_active_nonquarantined",
+      "recovery": "forbidden"
+    },
+    {
+      "id": "promote",
+      "doc_prefix": "promote to control device",
+      "authorization": "parent_majority_or_recovery_vote",
+      "recovery": "allowed"
+    },
+    {
+      "id": "quarantine",
+      "doc_prefix": "quarantine a control device",
+      "authorization": "one_active_nonquarantined_other_than_target",
+      "recovery": "forbidden"
+    },
+    {
+      "id": "lift_quarantine",
+      "doc_prefix": "lift a quarantine",
+      "authorization": "parent_majority_active_nonquarantined",
+      "recovery": "forbidden"
+    },
+    {
+      "id": "remove_messaging",
+      "doc_prefix": "remove a messaging device",
+      "authorization": "one_active_nonquarantined",
+      "recovery": "forbidden"
+    },
+    {
+      "id": "revoke_control",
+      "doc_prefix": "permanently revoke a control device",
+      "authorization": "parent_majority_or_recovery_vote",
+      "recovery": "allowed"
+    },
+    {
+      "id": "recovery_policy",
+      "doc_prefix": "change the recovery policy",
+      "authorization": "parent_majority_or_recovery_vote",
+      "recovery": "allowed"
+    },
+    {
+      "id": "constitutional_policy",
+      "doc_prefix": "change `constitutional_policy`",
+      "authorization": "parent_majority",
+      "recovery": "forbidden"
+    },
+    {
+      "id": "raise_min_profile",
+      "doc_prefix": "raise `minimum_crypto_profile`",
+      "authorization": "one_active_nonquarantined",
+      "recovery": "forbidden"
+    },
+    {
+      "id": "lower_min_profile",
+      "doc_prefix": "lower `minimum_crypto_profile`",
+      "authorization": "forbidden",
+      "recovery": "forbidden"
+    },
+    {
+      "id": "rotate_own_key",
+      "doc_prefix": "rotate the signer's own",
+      "authorization": "self_active_nonquarantined",
+      "recovery": "forbidden"
+    },
+    {
+      "id": "transparency",
+      "doc_prefix": "change `transparency_commitment`",
+      "authorization": "one_active_nonquarantined",
+      "recovery": "forbidden"
+    },
+    {
+      "id": "fork_bridge",
+      "doc_prefix": "fork bridge",
+      "authorization": "device_only_parent_majority_common_ancestor",
+      "recovery": "forbidden"
+    },
+    {
+      "id": "retirement",
+      "doc_prefix": "`AccountRetirement`",
+      "authorization": "parent_majority_or_recovery_vote",
+      "recovery": "allowed"
+    }
+  ],
+  "safety_freeze_resolution": {
+    "id": "resolve_safety_freeze",
+    "applies_when": "the parent is in a quarantine-induced SAFETY_FREEZE because active non-quarantined parent controllers are fewer than the parent majority",
+    "allowed_delta_classes": [
+      "lift_quarantine"
+    ],
+    "restored_set": "a non-empty subset of parent quarantined_control_devices; every restored controller must contribute its own freeze-challenge signature",
+    "signer_universe": "all parent controllers; quarantined controllers may sign only with the freeze-challenge capability",
+    "threshold": "parent majority",
+    "recovery": "forbidden",
+    "postcondition": "the child has at least the parent majority active and non-quarantined controllers",
+    "other_changes": "forbidden except normal generation/previous-state/authorization material"
+  },
+  "fork_resolution": {
+    "id": "fork_bridge",
+    "rule": "separate from safety-freeze resolution; device-only majority of the common ancestor and fork_ack covering every trusted observed branch; recovery forbidden"
+  }
+}

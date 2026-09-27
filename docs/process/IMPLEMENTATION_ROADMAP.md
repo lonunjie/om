@@ -1,6 +1,6 @@
 # OM Implementation Roadmap
 
-> **CURRENT STATUS — ROADMAP NOT AUTHORIZED:** This is the intended implementation order after architecture freeze. The 2026-09-22 23:02 checkpoint remains pre-engineering. Architecture work may use bounded feasibility experiments, but must not begin this roadmap as product implementation.
+> **CURRENT STATUS — DESIGN FROZEN, ROADMAP NOT AUTHORIZED:** ADR-0139 closes architecture design, but no engineering scope is authorized. This is an intended implementation order only after the relevant named scope satisfies [`machine/repository_contract.json`](../../machine/repository_contract.json). Pre-scope verification may use only the bounded/non-production work allowed by ADR-0134.
 
 ## Guiding rule
 

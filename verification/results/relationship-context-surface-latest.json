@@ -1,0 +1,45 @@
+{
+  "dynamic_rust_execution": "not performed by this script; run the v001 Rust selftest when Cargo/Rust are available",
+  "gate": "V-001",
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed",
+  "invariants": [
+    "I2",
+    "I3",
+    "I4",
+    "I5"
+  ],
+  "mutation_problem_samples": {
+    "binding_after_session_lookup": [
+      "verify_initiator does not precede self.sessions.get_mut"
+    ],
+    "missing_reload_test": [
+      "missing behavioral selftest initiator_reloaded_established_session_wrong_route_rejected_before_commit"
+    ],
+    "optional_relationship": [
+      "Device::receive lacks mandatory &RelationshipContext",
+      "Device::receive makes relationship optional"
+    ]
+  },
+  "mutations_caught": {
+    "binding_after_session_lookup": true,
+    "missing_reload_test": true,
+    "optional_relationship": true
+  },
+  "passed": true,
+  "problems": [],
+  "public_inbound_entry_points": [
+    "Device::receive",
+    "Device::decrypt"
+  ],
+  "required_behavioral_selftests": [
+    "initiator_ambiguous_same_account_identity_key_rejected",
+    "initiator_established_session_wrong_route_rejected_state_unchanged",
+    "initiator_pinned_to_relationship_route",
+    "initiator_quarantined_device_rejected",
+    "initiator_reloaded_established_session_correct_route_accepted_and_committed",
+    "initiator_reloaded_established_session_wrong_route_rejected_before_commit",
+    "initiator_revoked_device_rejected",
+    "initiator_stale_credential_rejected_after_rotation",
+    "initiator_unknown_identity_key_rejected_nothing_consumed"
+  ]
+}

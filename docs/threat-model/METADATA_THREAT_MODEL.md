@@ -240,7 +240,18 @@ Examples:
 
 None of these automatically justify a permanent cross-provider user fingerprint.
 
-Privacy Pass-style admission may prove limited entitlement without exposing a stable per-client identifier, but its non-collusion/network-address assumptions must be documented.
+Privacy Pass-style admission may prove limited entitlement without exposing a stable per-client identifier in the
+cryptographic token protocol, but its non-collusion/network-address assumptions must be documented. ADR-0137 uses four
+separate terms so claims do not silently expand: **cryptographic unlinkability**, **protocol-identifier unlinkability**,
+**transport unlinkability**, and **operational unlinkability**. W0 referral issuance targets the first two for the
+issuance-to-redemption mapping; it does not claim the latter two.
+
+Provider observation also includes **authentication-layer metadata**. ADR-0138 removes DeviceCredential/ACS
+authentication from routine provider administration and uses independent provider-resource capabilities instead. Such
+a capability can correlate operations on the same provider resource, but it is not a stable OM device/account
+credential. RecoveryRequest fan-out is a separate exception: the signed request contains AccountID, so a mailbox
+Home performing fan-out observes that AccountID and the recovery-attempt fact for that operation.
+[`METADATA_OBSERVER_MATRIX.md`](../architecture/providers/METADATA_OBSERVER_MATRIX.md) and the machine exposure descriptors are updated together.
 
 ## 12. ServicePrincipal and LLM metadata
 
@@ -362,8 +373,8 @@ V1 does not claim to defeat:
 8. Expensive padding/cover traffic is policy-selectable and bounded, not silently mandatory.
 9. Provider metadata claims are distinguishable from protocol-enforced properties.
 10. Metadata privacy failures cannot silently downgrade message cryptographic authentication/E2EE.
-11. AsyncKeyBundle `acs_generation`/`acs_state_hash` are a stable per-account correlator visible to KeyMaterialProviders and fetchers (not the AccountID); this is disclosed in the W0 descriptor and tracked as A-031.
-12. W0 exposes stable per-device correlators, and the W0 descriptor declares them (`stable_device_correlator`, ADR-0136 rule 5). They are the AsyncKeyBundle `subject_device_id` at KeyMaterialProviders, the sender's device identity key at the front of every 1:1 envelope at mailbox-class Homes, and the push token at push providers. A mailbox operator can therefore tell which of a sender's devices deposits, and can link that device across the mailboxes it hosts. Hiding it needs a sealed-sender outer envelope (a new CryptoProfile, tracked as A-054).
+11. AsyncKeyBundle v1 omits provider-visible `acs_generation`/`acs_state_hash` (ADR-0140). KeyMaterialProviders therefore receive no protocol-mandated account-wide ACS correlator from the bundle; authorization is checked against relationship-pinned ACS/DeviceCredential state at the fetcher. `subject_device_id` remains a stable per-device correlator.
+12. W0 declares stable per-device correlators exactly where they remain (`stable_device_correlator`, ADR-0136 rule 5). AsyncKeyBundle `subject_device_id` remains visible to KeyMaterialProviders and the platform push token remains visible to push providers. ADR-0142 removes the sender identity key, sender DeviceID/AccountID, ConversationID and Double Ratchet header from the **established 1:1 mailbox payload** by wrapping the complete inner envelope in mandatory sealed delivery. Mailbox-class Homes still observe source-network metadata unless separately hidden, timing, traffic volume, ciphertext bucket and opaque route/key identifiers; first contact remains the separately declared MessageRequest/IntroGate surface.
 
 ## 21. Verification obligation
 

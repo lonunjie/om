@@ -132,6 +132,11 @@ child against its parent. Signers are counted against the **parent** state. "Maj
 parent's `active_control_devices`, with quarantined controllers still in N (§4 rule 1). "Recovery vote" follows §3.
 A child that combines several deltas needs the strongest row among them. A delta not listed here is rejected.
 
+The machine-readable source for this authorization relation is
+[`account-control-transition-policy.json`](../../../spec/protocol/account-control-transition-policy.json) (ADR-0137).
+This table is its normative human rendering. An implementation must not create a second transition table with a
+larger accepted set.
+
 | Delta (child vs parent) | Required signers (role `controller` unless noted) | Single signer allowed? |
 |---|---|---|
 | link a messaging device (add to `messaging_devices`, add its credential) | 1 active, non-quarantined controller, after the linking ceremony and enrollment notice (§12) | yes |
@@ -168,11 +173,17 @@ While frozen:
 - no contested controller promotion/removal becomes final;
 - no recovery-policy replacement becomes final;
 - no security floor is lowered;
-- resolution requires a **device-only** majority of the parent state's controllers (the TLA `ResolveFreeze`); a
-  recovery vote never resolves a freeze. Quarantined controllers are part of that majority and sign with their
-  challenge capability, so one compromised controller cannot make a freeze permanent by quarantining the others
-  (ADR-0136 rule 2). A freeze entered by a quarantine is resolved by a child that lifts the quarantines; a fork is
-  resolved by the §8 fork bridge.
+- a quarantine-induced freeze is resolved only by a **device-only** majority of the parent state's controllers; a
+  recovery vote never resolves it. Quarantined parent controllers may contribute only a narrow freeze-challenge
+  signature. The child may restore a **non-empty subset** of the quarantined controllers, and every restored controller
+  must itself contribute that freeze-challenge signature. The child may change no other constitutional field and is
+  valid only when the resulting active, non-quarantined controller set again reaches the parent majority. Suspected compromised controllers therefore need not be restored merely to exit the freeze
+  (ADR-0137 rule 2);
+- challenge capability does not guarantee availability against a withholding threshold member. In a two-controller
+  account the parent majority is two, so either controller can still deny freeze resolution by refusing to sign; OM
+  does not lower the threshold or give recovery a freeze vote to hide that limitation; and
+- a fork is resolved separately by the §8 `fork_ack` bridge. Fork resolution and quarantine-freeze resolution are
+  never interchangeable transition classes.
 
 There is no last-write-wins authority rule.
 
@@ -205,6 +216,8 @@ AccountControlHead {
 Established contacts, user's other relays/devices, optional witnesses, or recovery guardians may remember heads. They do not need account contents or device lists.
 
 Normal messages may piggyback a relationship-scoped assertion of the current control generation/hash. A restored device that sees a lower state than several previously seen heads knows it is being rolled back or partitioned.
+
+ADR-0141 applies the same monotonic principle to RecoveryRecord restoration: its `last_known_acs_head` is an advisory remembered observation. A recovered device never treats that head or any recovered provider route/capability as authority; it uses the head to detect rollback and revalidates current ACS/provider state before reuse.
 
 This is detection, not external authority: witnesses cannot create a valid successor state.
 

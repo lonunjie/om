@@ -91,7 +91,7 @@ High-assurance users may prefer independently verifiable installed clients.
 
 Publish append-only release metadata/artifact hashes and permit independent monitors. A transparency service detects equivocation; it must not itself gain release-signing authority.
 
-Roles (ADR-0130 rule 5, R-274; the concrete log protocol is design item A-046):
+Roles (ADR-0130 rule 5, R-274; A-046 was resolved by ADR-0133 with the frozen release-transparency profile):
 
 - **Release-transparency log.** Each distribution appends every release's metadata digest and artifact digests to at
   least one public append-only log with signed checkpoints. Anyone may run a log; a distribution may use several. A

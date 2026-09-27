@@ -1,8 +1,8 @@
 # Account Lifecycle End: Retirement, Deletion, Succession and Legacy
 
 - **Status:** Canonical architecture
-- **Checkpoint:** 2026-09-24 02:29 PHT
-- **Decision:** ADR-0105
+- **Checkpoint:** 2026-09-26 design closure set 1
+- **Decision:** ADR-0105, ADR-0138
 - **Gate:** V-002 (extended)
 - **Schema:** [`spec/protocol/account-retirement.logical.schema.json`](../../../spec/protocol/account-retirement.logical.schema.json)
 
@@ -54,40 +54,65 @@ A user who only wants to leave one device uses device removal, not retirement.
 
 ## 4. LegacyPolicy (optional, off by default)
 
-For death or permanent incapacity, a user may configure a **LegacyPolicy** naming legacy contacts (guardians) and a threshold. It is part of the RecoveryPolicy family and needs explicit user action (R-029).
+LegacyPolicy is **architecturally closed but not enabled in W0** (ADR-0138). A future profile that enables it commits
+the policy in the critical AccountControlState key-23 extension `om.acs.legacy_policy`. The commitment fixes the
+guardian verification credentials and threshold, an `owner_inactivity_wait_seconds`, a
+`minimum_contest_window_seconds`, and optionally one pre-designated successor AccountID. W0 verifiers continue to
+reject `authorization_kind = legacy_policy`; enabling the extension requires an explicit compatible profile/wire
+upgrade rather than silently changing W0 semantics.
 
-**Deferred to W1 (ADR-0127).** No frozen W0 object can yet commit a LegacyPolicy, so W0 verifiers reject every
-`AccountRetirement` with `authorization_kind = legacy_policy`. Before LegacyPolicy ships, design-queue item A-030
-must define: where the commitment lives (a key-23 AccountControlState extension, so W0 objects carry it unchanged),
-including guardian keys, threshold and a policy-fixed **minimum contest window**; that verifiers reject a legacy
-retirement whose `contest_window_seconds` is below the committed minimum; and the pending-state wire behavior below.
+Legacy guardian credentials are a separate authority class. They are not controllers, RecoveryPolicy votes,
+messaging devices or provider credentials. They can authorize only the narrow terminal path described here.
 
-A LegacyPolicy can authorize **only**:
+### 4.1 Verifier-local inactivity; no trusted death clock
 
-- AccountRetirement with `reason_class = legacy`;
-- an optional memorial note (E2EE to contacts);
-- an optional successor pointer that the user pre-designated when configuring the policy.
+OM cannot prove death or inactivity from a provider timestamp. A threshold-signed legacy claim therefore starts a
+**verifier-local dormancy interval**. Each verifier records its own first valid observation of the claim and waits
+`owner_inactivity_wait_seconds` using monotonic elapsed time. Home timestamps, guardian wall clocks and a claimed
+"last seen" value cannot shorten the interval.
 
-A LegacyPolicy can **never**:
+Any valid newer owner-authorized AccountControlState transition or a legacy veto during this interval cancels the
+claim. This is deliberately conservative: time never becomes authority; guardian threshold signatures remain
+necessary, and a malicious provider cannot age a claim into validity.
 
-- decrypt or export history;
-- send as the account;
-- enroll devices or change control;
-- designate a successor that the user did not pre-designate.
+### 4.2 LegacyRetirementPending
 
-History inheritance, if a user wants it, is a separate explicit export or grant the user makes while alive. It is not a protocol power.
+Only after the local inactivity interval may the same claim enter **`LegacyRetirementPending`**. That state is
+non-terminal for at least the policy's committed `minimum_contest_window_seconds`. Contacts continue treating the
+account as live during the contest period. They may display that a legacy request is pending, but they do not render
+**Closed** until the terminal retirement is accepted.
 
-Abuse guards (normative now, enforced when legacy ships):
+Any controller authorized in the parent state may veto during either waiting interval. A quarantined parent
+controller may use only its narrow quarantine/freeze challenge credential to veto this irreversible action; that
+signature grants no ordinary AccountControlState authority. A veto cancels the pending legacy action rather than
+creating a competing constitutional branch.
 
-- **Owner inactivity first.** A legacy claim can be made only after the owner's devices have been inactive for the
-  committed waiting period (the TLA model's `idle >= LegacyWait`).
-- **`LegacyRetirementPending` is non-terminal.** A legacy retirement first enters this pending state and starts a
-  **contest window** that live controllers can see. Any valid signature by a live controller during the window
-  cancels it. It becomes terminal only at window end. During the window contacts keep the account open, keep
-  delivering and may show "a legacy request is pending"; they render **Closed** only at window end.
-- This deliberately does not follow the quarantine rule: legacy retirement is irreversible, so it must be
-  cancellable by the living owner. Time never grants authority by itself here either, because the threshold
-  signatures are still required.
+### 4.3 Narrow guardian authority
+
+After both waiting intervals, a verifier may accept `AccountRetirement(reason_class = legacy)` only if the guardian
+threshold still verifies against the committed policy. Legacy authority may:
+
+- retire the account;
+- include an optional memorial note; and
+- use the successor AccountID only if that exact successor was committed in LegacyPolicy.
+
+It can **never**:
+
+- decrypt/export history or obtain backup keys;
+- send messages as the account;
+- enroll, promote, revoke or quarantine devices;
+- change RecoveryPolicy, LegacyPolicy or any constitutional threshold;
+- designate a successor that the user did not pre-designate; or
+- turn guardian credentials into ordinary account/controller authority.
+
+History inheritance, if wanted, is a separate explicit export/grant made while the user is alive. It is not a
+LegacyPolicy power.
+
+### 4.4 Failure preference
+
+The design intentionally prefers delayed/non-completion over false retirement. A malicious guardian quorum can start
+the two waiting intervals, but cannot make provider time authoritative, skip the owner's veto opportunity or gain any
+other account power.
 
 ## 5. Moved accounts
 
@@ -101,5 +126,8 @@ V-002 now includes:
 - a successor pointer without constitutional authority is rejected;
 - no descendant after a terminal state;
 - retirement/promotion races;
-- a legacy retirement cancelled by a live controller during the contest window;
+- a legacy claim whose provider/guardian timestamp tries to shorten the verifier-local inactivity interval;
+- a legacy retirement cancelled by an eligible controller during dormancy or contest, including the narrow quarantined-controller veto;
+- a contest window below the committed minimum;
+- a successor different from the pre-designated successor; and
 - a LegacyPolicy attempting forbidden powers.

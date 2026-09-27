@@ -8,8 +8,16 @@
     "remote_control_head": "last authorization/control evidence used for eligibility",
     "session_generation": "local session lifecycle generation",
     "ratchet_state_ref": "DeviceVault-protected state reference",
-    "status": ["establishing", "active", "stale", "reset_required", "revoked"],
-    "logical_message_dedup_state": "bounded session-independent message identity tracking"
+    "status": [
+      "establishing",
+      "active",
+      "stale",
+      "reset_required",
+      "revoked"
+    ],
+    "logical_message_dedup_state": "bounded session-independent message identity tracking",
+    "remote_bundle_freshness": "durable (highest_generation, generation_core_hash) for remote AccountID + DeviceID + CryptoProfile; monotonic across providers/restores",
+    "sealed_delivery_replay_state": "durable local map keyed by (delivery_key_id, delivery_id): exact-wrapper fingerprint + RESERVED|COMPLETE|REJECTED; RESERVED exact retry may resume after crash, COMPLETE is idempotent; inner K2 session/dedupe acceptance and COMPLETE commit crash-consistently before app release/ack"
   },
-  "Rule": "Provider device lists do not authorize sessions; AccountControlState evidence does."
+  "Rule": "Provider device lists do not authorize sessions; AccountControlState evidence does. AsyncKeyBundle generations below the durable peer/device/profile freshness floor are rejected before key consumption/session establishment. Sealed-delivery replay persistence follows ADR-0143 crash-safe RESERVED/COMPLETE/REJECTED semantics."
 }

@@ -39,8 +39,8 @@ python3 gen/gen_vectors.py "$B/w0-object-vectors.json" >&2
 gzip -9 -n -c "$B/w0-object-vectors.json" > "$B/w0-object-vectors.json.gz"
 if [ "$update" = 1 ]; then
   cp "$B/w0-object-vectors.json.gz" "$committed"
-elif ! cmp -s "$B/w0-object-vectors.json.gz" "$committed"; then
-  echo "regenerated vectors differ from $committed (rerun with --update-vectors if intended)" >&2
+elif ! gzip -dc "$committed" | cmp -s - "$B/w0-object-vectors.json"; then
+  echo "regenerated canonical vectors differ from $committed (rerun with --update-vectors if intended)" >&2
   exit 1
 fi
 

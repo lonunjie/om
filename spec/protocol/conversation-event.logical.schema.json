@@ -22,7 +22,7 @@
     },
     "event_id": {
       "type": "string",
-      "description": "Opaque 128-bit random ID; final encoding TBD"
+      "description": "Opaque 128-bit random ID; canonical W0 wire encoding is opaque-id16 in spec/cddl/events.cddl."
     },
     "conversation_id": {
       "type": "string"

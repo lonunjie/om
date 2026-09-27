@@ -21,9 +21,15 @@
 (* authority (any live controller vetoes; MethodCountMutation restores the *)
 (* old rule so TLC can show it is caught); lifting a quarantine needs a    *)
 (* device-only majority; a quarantine that leaves fewer voting controllers *)
-(* than the majority enters SAFETY_FREEZE (§4 rule 4). `last` records the  *)
-(* signers of each constitutional step; acs_tla_crosscheck.py replays      *)
-(* every trace step through the §4.1 table model.                          *)
+(* than the majority enters SAFETY_FREEZE (§4 rule 4).                     *)
+(*                                                                         *)
+(* ADR-0137: a quarantine-induced safety freeze may be resolved by a       *)
+(* device-only parent majority using the narrow challenge capability. The  *)
+(* resolution may selectively restore a non-empty subset of quarantined    *)
+(* controllers; each restored controller must challenge-sign, and the      *)
+(* resulting state MUST regain a voting majority. A                        *)
+(* fork freeze is a separate device-only bridge action and never uses the  *)
+(* quarantine challenge exception.                                        *)
 (***************************************************************************)
 EXTENDS Naturals, FiniteSets
 
@@ -287,19 +293,39 @@ Fork ==
   /\ UNCHANGED <<controllers, quarantined, revoked, compromised, offline, lost, atkMethods,
                  gen, epoch, retired, legacy, idle, linkLog, last>>
 
-\* Only a device-only majority of the parent's controllers (no recovery vote)
-\* resolves a freeze. Quarantined controllers sign with their challenge
-\* capability (§5); the resolution lifts every quarantine (the only resolution
-\* this model offers; a fork freeze has none to lift).
-ResolveFreeze(p, V) ==
+\* ADR-0137: quarantine-induced SAFETY_FREEZE resolution. Quarantined
+\* controllers retain only a challenge-signing capability for this action.
+\* The restored set R may be selective so a controller suspected of compromise
+\* can remain quarantined, but the child MUST exit the freeze.
+ResolveFreeze(p, V, R) ==
   /\ frozen /\ ~retired
+  /\ quarantined # {}
+  /\ Cardinality(controllers \ quarantined) < Majority(controllers)
+  /\ R \subseteq quarantined /\ R # {}
+  /\ R \subseteq V
   /\ V \subseteq Signable(p)
   /\ Cardinality(V) >= Majority(controllers)
+  /\ Cardinality(controllers \ (quarantined \ R)) >= Majority(controllers)
   /\ frozen' = FALSE
-  /\ quarantined' = {}
+  /\ quarantined' = quarantined \ R
   /\ gen' = gen + 1
   /\ last' = [kind |-> "resolve", signers |-> V, rv |-> 0, challenge |-> V \cap quarantined]
   /\ UNCHANGED <<controllers, revoked, compromised, offline, lost, atkMethods,
+                 epoch, pending, retired, legacy, idle, linkLog>>
+
+\* Fork resolution is deliberately separate. It uses only ordinary usable
+\* controller authority of the common-ancestor state; quarantined challenge
+\* signatures and recovery votes do not count. Branch-coverage/fork_ack is
+\* checked by the protocol authorization model outside this bounded state model.
+ResolveFork(p, V) ==
+  /\ frozen /\ ~retired
+  /\ Cardinality(controllers \ quarantined) >= Majority(controllers)
+  /\ V \subseteq Usable(p)
+  /\ Cardinality(V) >= Majority(controllers)
+  /\ frozen' = FALSE
+  /\ gen' = gen + 1
+  /\ last' = Act("fork_bridge", V, 0)
+  /\ UNCHANGED <<controllers, quarantined, revoked, compromised, offline, lost, atkMethods,
                  epoch, pending, retired, legacy, idle, linkLog>>
 
 -----------------------------------------------------------------------------
@@ -397,7 +423,8 @@ Next ==
   \/ \E p \in Parties, a \in controllers, t \in controllers : Quarantine(p, a, t)
   \/ \E p \in Parties, d \in HonestSpare \cup AttackerDevs, m \in 1..2 : RequestRecovery(p, d, m)
   \/ \E p \in Parties : Veto(p) \/ DelayedComplete(p)
-  \/ \E p \in Parties, V \in SUBSET controllers : CosignComplete(p, V) \/ ResolveFreeze(p, V)
+  \/ \E p \in Parties, V \in SUBSET controllers : CosignComplete(p, V) \/ ResolveFork(p, V)
+  \/ \E p \in Parties, V \in SUBSET controllers, R \in SUBSET controllers : ResolveFreeze(p, V, R)
   \/ Fork
   \/ \E V \in SUBSET controllers, rv \in 0..1 : ArmLegacy(V, rv)
   \/ ClaimLegacy \/ ContestLegacy \/ ActivateLegacy
@@ -437,13 +464,14 @@ NoSilentLink ==
 \* A pending request is always bound to an epoch that exists.
 PendingEpochSane == pending.active => pending.epoch <= epoch
 
-\* F-2: a lift and a freeze resolution are device-only majorities of N (a lift
-\* or resolution never changes the controller set, so N is the parent's N).
+\* F-2 / ADR-0137: lifts, quarantine-freeze resolution and fork bridges are
+\* device-only majorities of N. Only quarantine-freeze resolution may carry
+\* challenge signatures from quarantined controllers.
 LiftIsDeviceOnlyMajority ==
-  last.kind \in {"lift", "resolve"} =>
+  last.kind \in {"lift", "resolve", "fork_bridge"} =>
     /\ last.rv = 0
     /\ Cardinality(last.signers) >= Majority(controllers)
-    /\ (last.kind = "lift") => last.challenge = {}
+    /\ (last.kind \in {"lift", "fork_bridge"}) => last.challenge = {}
 
 \* F-2: a quarantine below the safety threshold is always frozen or resolved.
 QuarantineBelowThresholdFreezes ==
@@ -478,9 +506,11 @@ FrozenBlocksControllerChanges ==
 LegacyNeverAddsControllers ==
   [][(legacy.claim /\ retired' /\ ~retired) => controllers' = controllers]_vars
 
-\* F-2: only a device-only freeze resolution ever leaves SAFETY_FREEZE.
+\* F-2 / ADR-0137: SAFETY_FREEZE exits only through the matching device-only
+\* resolution path: quarantine challenge resolution or a separate fork bridge.
 FreezeExitOnlyByResolve ==
-  [][(frozen /\ ~frozen') => (last'.kind = "resolve" /\ last'.rv = 0)]_vars
+  [][(frozen /\ ~frozen') =>
+       (last'.kind \in {"resolve", "fork_bridge"} /\ last'.rv = 0)]_vars
 
 -----------------------------------------------------------------------------
 (* Trap invariants: expected to be VIOLATED. Each counterexample is a      *)

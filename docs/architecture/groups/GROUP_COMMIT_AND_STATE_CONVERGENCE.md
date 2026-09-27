@@ -79,7 +79,7 @@ GroupControlTransition {
 }
 ```
 
-Exact encoding is deferred, but the security property is not: a client must not commit the application membership change while failing to bind/complete the corresponding MLS transition, or vice versa.
+This is a later-wave group object rather than a frozen W0 wire object. Its exact encoding is owned by the groups freeze/conformance work before that scope can authorize; the architecture property is already fixed: a client must not commit the application membership change while failing to bind/complete the corresponding MLS transition, or vice versa.
 
 ## 5. Crash/retry/idempotency
 

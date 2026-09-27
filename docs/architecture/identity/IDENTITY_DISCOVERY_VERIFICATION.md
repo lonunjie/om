@@ -424,19 +424,20 @@ Automatic cryptographic key verification can detect inconsistencies in directory
 11. Security confidence and search ranking are separate systems.
 12. The normal UI remains name/photo-first; high-assurance evidence is available progressively.
 
-## Open questions
+## Disposition of former discovery/verification questions — final design closure
 
-- Exact canonical syntax for namespaced aliases: `alice@example.com`, `@alice@example.com`, or URI form underneath a simpler presentation.
-- Whether a configured directory offers bare `@alice` and how its hidden canonical namespace is represented.
-- Reserved-name and dispute policy guidance for directory providers (each provider sets its own).
-- Exact DNS/HTTPS proof format for DomainClaim.
-- Whether DNSSEC is required, preferred, or optional when HTTPS proof also exists.
-- Organization root-key recovery and rotation.
-- VerificationProvider trust-store governance.
-- Privacy-preserving mutual-contact discovery mechanism.
-- Alias/key transparency protocol and witness model.
-- Search-ranking resistance to Sybil/profile-copy attacks.
-- UX distinction between `domain verified`, `real-world identity verified`, and `cryptographic continuity verified`.
+These items no longer represent unresolved architecture:
+
+- **Namespaced alias syntax:** the protocol carries `alias` and `alias_scope` separately in the discovery object. User interfaces may render `alice@example.org`, `@alice@example.org` or a friendlier local form, but the canonical meaning always retains the provider/domain namespace; no protocol-global bare handle exists.
+- **Bare `@alice`:** a configured directory may offer it as UI shorthand only. Resolver results preserve namespace/provenance and collisions are disambiguated locally.
+- **Reserved names/disputes:** directory-provider policy, never OM protocol authority. A provider may refuse or reassign a name in its namespace without changing AccountID or an established relationship.
+- **DomainClaim proof format/DNSSEC:** DomainClaim is optional verification evidence, not root identity. A concrete proof method is versioned and self-describing (for example HTTPS well-known and/or DNS-based evidence) and must state its own validation requirements. OM does not impose a global DNSSEC requirement merely to use a domain alias.
+- **Organization root rotation/recovery:** handled by the organization's own signed delegation/revocation/control policy. Loss/rotation of that root changes organization evidence, not a person's AccountID, and cannot authorize account control.
+- **VerificationProvider trust stores:** selected by the client/distribution/user. There is no global OM verifier root and no mandatory SeedLife verifier.
+- **Mutual-contact discovery:** optional recognition only. W0 may omit server-computed mutual counts entirely; any later mechanism must minimize graph disclosure and cannot become an authenticator.
+- **Alias/key transparency:** architecture is fixed as per-directory/replaceable with no global transparency root. Advertising a public key-transparency claim remains gated by `PR-011` external review; private continuity still uses direct verification, reciprocal binding and relationship-scoped head gossip.
+- **Search ranking/Sybil resistance:** local/provider product policy and abuse control. Ranking never feeds cryptographic validity, continuity or a universal trust score.
+- **Verification UX labels:** render the evidence type (`domain verified`, `continuity verified`, `manual/directly verified`, etc.) rather than one ambiguous global badge; contradictory evidence takes precedence over popularity/recognition hints.
 
 ## 2026-09-21 discovery checkpoint: Resolver + ContactDescriptor
 

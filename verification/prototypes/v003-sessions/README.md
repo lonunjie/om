@@ -77,12 +77,23 @@ Vectors: [`verification/vectors/one-to-one-session-regression-vectors.json`](../
 (found + TLC traces, each replayed step for step on [`sessions.py`](sessions.py)) and [`fuzzer_vectors.json`](fuzzer_vectors.json)
 (hypothesis-shrunk traces per disabled rule).
 
+## ADR-0142/ADR-0143 sealed-delivery state pass
+
+[`sealed_delivery_state.py`](sealed_delivery_state.py) is a focused, dependency-free V-003 model for the established-relationship sealed-delivery state added by ADR-0142 and corrected by ADR-0143. It is deliberately **not** HPKE evidence; V-001 owns primitive/KAT execution.
+
+The pass exercises 15 deterministic scenarios covering per-device/per-route delivery-key selection and overlap, expiry, route mismatch, no clear-sender fallback, exact same-route retry, route migration with a fresh delivery id, EventID dedupe, invalid inner authentication, and crash/persistence boundaries around the replay ledger. It also runs five mutation controls.
+
+The pass found one real ambiguity in the original ADR-0142 prose: treating every durable replay reservation as terminal loses a message if the receiver crashes after reservation but before inner durable acceptance. ADR-0143 resolves this by making the local replay record `RESERVED` / `COMPLETE` / `REJECTED`: only the exact same wrapper may resume `RESERVED`; `COMPLETE` is idempotent; a same-key/id different-wrapper collision is rejected; and inner K2 session/dedupe acceptance plus `COMPLETE` commit crash-consistently before application release/ack. The M1 mutation deliberately restores the lossy behavior and is caught.
+
+Current focused result: **15/15 scenarios pass; 5/5 deliberate mutations are caught**. Canonical evidence is [`verification/results/v003-sealed-delivery-latest.json`](../../results/v003-sealed-delivery-latest.json) with compact cases in [`verification/vectors/sealed-delivery-session-vectors.json`](../../vectors/sealed-delivery-session-vectors.json).
+
 ## Criteria
 
 | Criterion | Status | Evidence |
 |---|---|---|
 | executable model/fuzzer covering crossed initiation, add/revoke races, stale/reset, dedupe, persistence | met (bounded) | TLA+ + [`sessions.py`](sessions.py) + [`fuzzer.py`](fuzzer.py); results JSON |
 | every discovered failing trace captured as a vector | met | vectors files above |
+| ADR-0142/0143 sealed-delivery key/replay/retry/no-downgrade state semantics | met (bounded) | [`sealed_delivery_state.py`](sealed_delivery_state.py); 15/15 scenarios, 5/5 mutation controls |
 | model reviewed by someone other than its author | unmet | needs an independent reviewer |
 
 ## Run

@@ -25,6 +25,7 @@
    "docs/architecture/delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
    "docs/architecture/delivery/REACHABILITY_AND_OBJECT_REPAIR.md",
    "docs/architecture/delivery/RELAY_AND_DELIVERY_ARCHITECTURE.md",
+   "docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md",
    "docs/architecture/discovery/CONTACT_SHARING.md",
    "docs/architecture/discovery/DISCOVERY_FABRIC.md",
    "docs/architecture/discovery/INTRODUCTION_AND_SERVICE_ACCOUNTS.md",
@@ -56,6 +57,7 @@
    "docs/architecture/providers/CLOUDFLARE_REFERENCE_DEPLOYMENT.md",
    "docs/architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
    "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md",
+   "docs/architecture/providers/METADATA_OBSERVER_MATRIX.md",
    "docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md",
    "docs/architecture/providers/PROVISIONING_AND_BOOTSTRAP.md",
    "docs/architecture/providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
@@ -64,6 +66,7 @@
    "docs/architecture/safety/DECENTRALIZED_ABUSE_MODERATION.md",
    "docs/architecture/safety/EVIDENCE_AND_EXTERNAL_REPORTING.md",
    "docs/architecture/safety/RICH_TEXT_AND_CONTENT_SECURITY.md",
+   "docs/architecture/safety/SECURITY_INVARIANTS.md",
    "docs/architecture/storage/DISAPPEARING_MESSAGES_AND_RETENTION.md",
    "docs/architecture/storage/LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md",
    "docs/architecture/storage/STORAGE_AND_BLOB_ARCHITECTURE.md",
@@ -116,6 +119,10 @@
   {
    "target": "verification/bounded/introgate_sybil_model.py",
    "reason": "verification evidence script, not a normative artifact"
+  },
+  {
+   "target": "verification/reviews/BRIEF-2026-09-26-security-equivalence-pass.md",
+   "reason": "verification handoff/evidence plan; not a normative protocol definition"
   },
   {
    "target": "verification/tla/AccountControl.tla",

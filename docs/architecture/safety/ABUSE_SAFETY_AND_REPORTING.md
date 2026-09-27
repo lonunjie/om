@@ -82,7 +82,7 @@ Per-user infrastructure reduces the blast radius of global relay abuse but creat
 parse bounds -> capability/ticket validity -> replay check -> quota -> optional admission proof -> expensive work
 ```
 
-Privacy Pass-style unlinkable tokens are a candidate for proving limited entitlement without stable global identity. Provider-local quotas/budgets remain independent of any universal reputation system.
+For W0 referral admission, the RFC 9578 publicly verifiable Blind-RSA profile selected by ADR-0132 provides limited unlinkable entitlement at the protocol-value layer without a stable global reputation identifier. Provider-local quotas/budgets remain independent of any universal reputation system.
 
 ## 2026-09-22 operatorless reporting refinement
 

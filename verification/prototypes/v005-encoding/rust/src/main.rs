@@ -97,11 +97,21 @@ fn derived(reg: &Registry, name: &str, top: &Value, top_bytes: &[u8]) -> Vec<J> 
                 if it.get(3).is_none() {
                     continue;
                 }
-                let stripped = match it {
-                    Value::Map(m) => Value::Map(m.iter().filter(|(k, _)| *k != Value::Uint(3)).cloned().collect()),
-                    _ => unreachable!(),
-                };
-                out.push(json!({"kind": "sig_input", "hex": hex(&ds_sig("OM-PREKEY-SIG-v1", profile, 3, dev, &encode(&stripped)))}));
+                let kind = uint_of(it.get(1));
+                if kind != 3 && kind != 4 {
+                    continue;
+                }
+                let context = Value::Array(vec![
+                    Value::Uint(1),
+                    b.get(2).unwrap().clone(),
+                    b.get(5).unwrap().clone(),
+                    b.get(6).unwrap().clone(),
+                    b.get(12).unwrap().clone(),
+                    Value::Uint(kind),
+                    it.get(0).unwrap().clone(),
+                    it.get(2).unwrap().clone(),
+                ]);
+                out.push(json!({"kind": "sig_input", "hex": hex(&ds_sig("OM-PREKEY-SIG-v1", profile, 3, dev, &encode(&context)))}));
             }
         }
     }

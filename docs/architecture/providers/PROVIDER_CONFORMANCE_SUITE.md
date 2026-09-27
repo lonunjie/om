@@ -6,8 +6,7 @@
 - **Rule:** a case either passes or fails. There is no vendor-specific branch, and no case may name a vendor.
 
 The runner drives a Home only through its public provider contracts ([`IMPLEMENTATION_INTERFACES.md`](IMPLEMENTATION_INTERFACES.md): RelayProvider,
-BlobStore, IntroGate, discovery publishing, sponsorship). Those contracts become the normative Home API (design item
-A-045, ADR-0130); until it is frozen the cases below are specified but the runner cannot be written. Registered as
+BlobStore, IntroGate, discovery publishing, sponsorship). Those contracts and the normative Home API were frozen by ADR-0133 when A-045 was resolved. The cases below therefore target the frozen design; the executable runner remains engineering/conformance work under V-020. Registered as
 `conformance:provider` in [`machine/conformance_suites.json`](../../../machine/conformance_suites.json). It uses a black-box client and, for metadata cases, a trace
 tap on the Home's own logs and network egress. Each case lists the requirements it proves.
 
@@ -61,13 +60,26 @@ tap on the Home's own logs and network egress. Each case lists the requirements 
 | PC-E02 | remove the old route after overlap | deposits to the old route get a typed "moved" response for the forwarding window |
 | PC-E03 | T0 → T2/T3 graduation | every contact that drains its mailbox, or sends to the old route, before the forwarding window closes keeps a route; AccountID unchanged (model: [`verification/bounded/home_tiers_model.py`](../../../verification/bounded/home_tiers_model.py)) |
 
+## PC-K KeyMaterialProvider freshness/privacy (ADR-0140; R-291, R-298..R-301)
+
+| ID | Case | Pass condition |
+|---|---|---|
+| PC-K01 | current v1 bundle surface | provider accepts/stores a conforming bundle with retired keys 3/4 absent and never requires `acs_generation` or `acs_state_hash` |
+| PC-K02 | relationship-scoped fetch | fetch requires the relationship capability; provider storage does not need AccountID/DeviceCredential/ACS as routine resource authorization |
+| PC-K03 | provider migration | the same valid signed-prekey generation/core may be published at two provider pools with different `provider_pool_id`, expiry and one-time inventories; migration does not create a new generation namespace |
+| PC-K04 | one-time item pool binding | copying a one-time prekey from pool A into pool B is rejected by end-to-end validation because its device signature context binds the pool |
+| PC-K05 | stale provider replay | after the recipient has accepted generation N+1, replay of a valid generation N bundle is rejected by the client even if the provider serves it and even if provider deletion failed |
+| PC-K06 | best-effort generation revoke | deletion is idempotent and useful for cleanup, but a client never lowers/clears its freshness floor because the provider reports a generation deleted |
+
 ## PC-F Recovery support (ADR-0111)
 
 | ID | Case | Pass condition |
 |---|---|---|
-| PC-F01 | RecoveryRecord storage | stored under `H(RecoveryHandle)`, encrypted, and not linkable to a mailbox by the Home |
-| PC-F02 | RecoveryRequest fan-out | a request reaches every controller route the Home serves |
+| PC-F01 | RecoveryRecord storage | encrypted bytes are addressed by the opaque locator derived from `recovery_record_read_cap`; GET with read cap succeeds, PUT requires the distinct write cap, and neither protocol value contains AccountID |
+| PC-F02 | RecoveryRequest fan-out | a request reaches every controller route the Home serves; the Home trace explicitly records operation-scoped AccountID/recovery-attempt exposure |
 | PC-F03 | rate limiting | repeated requests are rate-limited per account and deduplicated |
+| PC-F04 | stale RecoveryRecord replay | client with a surviving higher record-generation high-water mark rejects a lower authenticated record; provider acceptance/storage never authorizes rollback |
+| PC-F05 | bearer-capability hygiene | capability bytes are absent from URLs/query/cookies/referrers/ordinary logs/analytics/crash reports, authenticated responses are `no-store`, and cross-origin redirects do not receive credentials |
 
 ## PC-G Discovery descriptors and IntroGate
 

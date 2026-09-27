@@ -9,6 +9,10 @@ pub enum Error {
     BadSignature,
     /// The device binding chain (ACS -> DeviceCredential -> signed bundle) is inconsistent.
     Binding(&'static str),
+    /// Authenticated AsyncKeyBundle generation is below the durable highest-seen floor.
+    PrekeyGenerationRollback,
+    /// Same authenticated generation carries a different signed-prekey core.
+    PrekeyGenerationEquivocation,
     /// Bundle lacks a signed PQ prekey. OM never falls back to a classical-only handshake.
     MissingPqPrekey,
     /// PQ public key failed ML-KEM encapsulation-key validation (FIPS 203 §7.2).

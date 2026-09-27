@@ -886,11 +886,11 @@
   ],
   "specs": {
     "aead": "RFC 8452 AES-256-GCM-SIV",
-    "double_ratchet": "Signal Double Ratchet revision 4 (2025-11-04) §3; AEAD per ADR-0131 rule 3",
+    "double_ratchet": "Signal Double Ratchet revision 4 (2025-11-04) \u00a73; AEAD per ADR-0131 rule 3",
     "hpke": "draft-ietf-hpke-pq-05 MLKEM768-X25519 / HKDF-SHA256 / ChaCha20Poly1305, base mode",
     "mlkem": "FIPS 203 ML-KEM-768 (keygen seed = d || z)",
-    "pqxdh": "Signal PQXDH revision 3 (2023-05-24, updated 2024-01-23); prekeys authenticated by the OM composite device key (ADR-0135 §2)",
+    "pqxdh": "Signal PQXDH revision 3 (2023-05-24, updated 2024-01-23); prekeys authenticated by the OM composite device key (ADR-0135 \u00a72)",
     "signatures": "Ed25519 (RFC 8032) AND ML-DSA-65 (FIPS 204, empty context) over DS-SIG bytes"
   },
-  "status": "Feasibility prototype vectors for V-001 (OM-Crypto-v1, ADR-0131/ADR-0135). INSECURE seeded RNG. Not product vectors."
+  "status": "Historical pre-ADR-0140 V-001 execution corpus (OM-Crypto-v1 ADR-0131/ADR-0135), INSECURE seeded RNG. The ADR-0140 source amendment requires regeneration with run.sh --update-vectors on a Rust-capable runner before this corpus is current again."
 }

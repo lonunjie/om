@@ -143,3 +143,10 @@ Checkpoint: 2026-09-23 07:18 PHT
 
 - [ADR-0135 — OM-Crypto-v1 construction pinning (closes the V-001 constructions)](ADR-0135-om-crypto-v1-construction-pinning.md)
 - [ADR-0136 — core_kernel independent-review remediation (gpt-5.6-sol, 2026-09-26)](ADR-0136-core-kernel-review-remediation.md)
+- [ADR-0137 — Security invariants and core-boundary hardening](ADR-0137-security-invariants-and-core-boundary-hardening.md)
+- [ADR-0138 — Design closure set 1: legacy, privacy profiles and provider-scoped administration](ADR-0138-design-closure-set-1.md)
+- [ADR-0139 — Final design closure and engineering handoff boundary](ADR-0139-final-design-closure-and-engineering-handoff.md)
+- [ADR-0140 — AsyncKeyBundle v1 privacy, freshness and one-time-prekey context binding](ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md)
+- [ADR-0141 — Recovery freshness, capability hygiene and frozen-spec consistency](ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md)
+- [ADR-0142 — Sealed delivery v1 for established one-to-one relationships](ADR-0142-sealed-delivery-v1-for-established-one-to-one.md)
+- [ADR-0143 — Crash-safe sealed-delivery replay reservation and exact retry completion](ADR-0143-crash-safe-sealed-delivery-replay-and-retry.md)

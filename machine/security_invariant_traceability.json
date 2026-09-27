@@ -1,0 +1,735 @@
+{
+  "snapshot": "2026-09-27 ADR-0141 semantic consistency remediation",
+  "purpose": "Final design-closure mapping from each named security invariant to current requirements, threats, decisions, evidence obligations and normative sources. Mapping does not mark gates passed or authorize engineering.",
+  "invariants": [
+    {
+      "id": "A1",
+      "requirements": [
+        "R-102",
+        "R-204"
+      ],
+      "threats": [
+        "T-010",
+        "T-012"
+      ],
+      "decisions": [
+        "D-149",
+        "D-159"
+      ],
+      "evidence": [
+        "V-002"
+      ],
+      "sources": [
+        "docs/architecture/safety/SECURITY_INVARIANTS.md",
+        "decisions/ADR-0137-security-invariants-and-core-boundary-hardening.md"
+      ]
+    },
+    {
+      "id": "A2",
+      "requirements": [
+        "R-032",
+        "R-204"
+      ],
+      "threats": [
+        "T-010"
+      ],
+      "decisions": [
+        "D-149"
+      ],
+      "evidence": [
+        "V-002"
+      ],
+      "sources": [
+        "docs/architecture/safety/SECURITY_INVARIANTS.md",
+        "decisions/ADR-0127-account-authority-transition-rules.md"
+      ]
+    },
+    {
+      "id": "A3",
+      "requirements": [
+        "R-185",
+        "R-200"
+      ],
+      "threats": [
+        "T-041",
+        "T-050"
+      ],
+      "decisions": [
+        "D-149"
+      ],
+      "evidence": [
+        "V-002"
+      ],
+      "sources": [
+        "docs/architecture/safety/SECURITY_INVARIANTS.md"
+      ]
+    },
+    {
+      "id": "A4",
+      "requirements": [
+        "R-285"
+      ],
+      "threats": [
+        "T-010",
+        "T-095"
+      ],
+      "decisions": [
+        "D-158",
+        "D-159"
+      ],
+      "evidence": [
+        "V-002"
+      ],
+      "sources": [
+        "spec/protocol/account-control-transition-policy.json",
+        "decisions/ADR-0137-security-invariants-and-core-boundary-hardening.md"
+      ]
+    },
+    {
+      "id": "A5",
+      "requirements": [
+        "R-200",
+        "R-285"
+      ],
+      "threats": [
+        "T-010",
+        "T-095"
+      ],
+      "decisions": [
+        "D-159"
+      ],
+      "evidence": [
+        "V-002"
+      ],
+      "sources": [
+        "spec/protocol/account-control-transition-policy.json"
+      ]
+    },
+    {
+      "id": "A6",
+      "requirements": [
+        "R-285"
+      ],
+      "threats": [
+        "T-095"
+      ],
+      "decisions": [
+        "D-159"
+      ],
+      "evidence": [
+        "V-002"
+      ],
+      "sources": [
+        "spec/protocol/account-control-transition-policy.json"
+      ]
+    },
+    {
+      "id": "A7",
+      "requirements": [
+        "R-285"
+      ],
+      "threats": [
+        "T-095"
+      ],
+      "decisions": [
+        "D-159"
+      ],
+      "evidence": [
+        "V-002"
+      ],
+      "sources": [
+        "spec/protocol/account-control-transition-policy.json"
+      ]
+    },
+    {
+      "id": "A8",
+      "requirements": [
+        "R-290"
+      ],
+      "threats": [
+        "T-100"
+      ],
+      "decisions": [
+        "D-160"
+      ],
+      "evidence": [
+        "V-002"
+      ],
+      "sources": [
+        "docs/architecture/identity/ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md",
+        "decisions/ADR-0138-design-closure-set-1.md"
+      ]
+    },
+    {
+      "id": "I1",
+      "requirements": [
+        "R-202",
+        "R-280"
+      ],
+      "threats": [
+        "T-052",
+        "T-092"
+      ],
+      "decisions": [
+        "D-148",
+        "D-153"
+      ],
+      "evidence": [
+        "V-003",
+        "V-005"
+      ],
+      "sources": [
+        "docs/architecture/identity/IDENTITY_DISCOVERY_VERIFICATION.md"
+      ]
+    },
+    {
+      "id": "I2",
+      "requirements": [
+        "R-286"
+      ],
+      "threats": [
+        "T-096"
+      ],
+      "decisions": [
+        "D-159"
+      ],
+      "evidence": [
+        "V-001",
+        "V-003"
+      ],
+      "sources": [
+        "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md"
+      ]
+    },
+    {
+      "id": "I3",
+      "requirements": [
+        "R-281",
+        "R-286"
+      ],
+      "threats": [
+        "T-096"
+      ],
+      "decisions": [
+        "D-157",
+        "D-159"
+      ],
+      "evidence": [
+        "V-001",
+        "V-003"
+      ],
+      "sources": [
+        "decisions/ADR-0135-om-crypto-v1-construction-pinning.md"
+      ]
+    },
+    {
+      "id": "I4",
+      "requirements": [
+        "R-286"
+      ],
+      "threats": [
+        "T-096"
+      ],
+      "decisions": [
+        "D-159"
+      ],
+      "evidence": [
+        "V-001",
+        "V-003"
+      ],
+      "sources": [
+        "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md"
+      ]
+    },
+    {
+      "id": "I5",
+      "requirements": [
+        "R-033",
+        "R-286"
+      ],
+      "threats": [
+        "T-011",
+        "T-096"
+      ],
+      "decisions": [
+        "D-142",
+        "D-159"
+      ],
+      "evidence": [
+        "V-003"
+      ],
+      "sources": [
+        "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md"
+      ]
+    },
+    {
+      "id": "I6",
+      "requirements": [
+        "R-298",
+        "R-299",
+        "R-300",
+        "R-301"
+      ],
+      "threats": [
+        "T-104",
+        "T-105",
+        "T-106"
+      ],
+      "decisions": [
+        "D-162"
+      ],
+      "evidence": [
+        "V-001",
+        "V-003",
+        "V-005",
+        "V-017"
+      ],
+      "sources": [
+        "docs/architecture/safety/SECURITY_INVARIANTS.md",
+        "decisions/ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md",
+        "docs/architecture/crypto/ASYNC_KEY_MATERIAL.md"
+      ]
+    },
+    {
+      "id": "M1",
+      "requirements": [
+        "R-287"
+      ],
+      "threats": [
+        "T-001",
+        "T-007",
+        "T-083"
+      ],
+      "decisions": [
+        "D-159",
+        "D-160"
+      ],
+      "evidence": [
+        "V-015"
+      ],
+      "sources": [
+        "docs/architecture/providers/METADATA_OBSERVER_MATRIX.md"
+      ]
+    },
+    {
+      "id": "M2",
+      "requirements": [
+        "R-294",
+        "R-287"
+      ],
+      "threats": [
+        "T-097"
+      ],
+      "decisions": [
+        "D-160"
+      ],
+      "evidence": [
+        "V-015",
+        "V-020"
+      ],
+      "sources": [
+        "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md",
+        "decisions/ADR-0138-design-closure-set-1.md"
+      ]
+    },
+    {
+      "id": "M3",
+      "requirements": [
+        "R-265",
+        "R-289"
+      ],
+      "threats": [
+        "T-007",
+        "T-099"
+      ],
+      "decisions": [
+        "D-152",
+        "D-159"
+      ],
+      "evidence": [
+        "V-015"
+      ],
+      "sources": [
+        "docs/architecture/providers/METADATA_OBSERVER_MATRIX.md"
+      ]
+    },
+    {
+      "id": "M4",
+      "requirements": [
+        "R-293",
+        "R-309",
+        "R-312"
+      ],
+      "threats": [
+        "T-111",
+        "T-112"
+      ],
+      "decisions": [
+        "D-160",
+        "D-164"
+      ],
+      "evidence": [
+        "V-005",
+        "V-015"
+      ],
+      "sources": [
+        "docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md",
+        "decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md"
+      ]
+    },
+    {
+      "id": "M5",
+      "requirements": [
+        "R-295",
+        "R-287"
+      ],
+      "threats": [
+        "T-101"
+      ],
+      "decisions": [
+        "D-160"
+      ],
+      "evidence": [
+        "V-002",
+        "V-015",
+        "V-020"
+      ],
+      "sources": [
+        "docs/architecture/identity/RECOVERY_AND_BACKUP_POLICY.md",
+        "decisions/ADR-0138-design-closure-set-1.md"
+      ]
+    },
+    {
+      "id": "G1",
+      "requirements": [
+        "R-292"
+      ],
+      "threats": [
+        "T-060"
+      ],
+      "decisions": [
+        "D-150",
+        "D-160"
+      ],
+      "evidence": [
+        "V-004",
+        "V-016"
+      ],
+      "sources": [
+        "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md",
+        "decisions/ADR-0138-design-closure-set-1.md"
+      ]
+    },
+    {
+      "id": "P1",
+      "requirements": [
+        "R-210",
+        "R-288"
+      ],
+      "threats": [
+        "T-055",
+        "T-098"
+      ],
+      "decisions": [
+        "D-154",
+        "D-158"
+      ],
+      "evidence": [
+        "V-016"
+      ],
+      "sources": [
+        "docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md"
+      ]
+    },
+    {
+      "id": "P2",
+      "requirements": [
+        "R-288"
+      ],
+      "threats": [
+        "T-098"
+      ],
+      "decisions": [
+        "D-159"
+      ],
+      "evidence": [
+        "V-016"
+      ],
+      "sources": [
+        "docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md"
+      ]
+    },
+    {
+      "id": "P3",
+      "requirements": [
+        "R-288"
+      ],
+      "threats": [
+        "T-098"
+      ],
+      "decisions": [
+        "D-159"
+      ],
+      "evidence": [
+        "V-016"
+      ],
+      "sources": [
+        "docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md"
+      ]
+    },
+    {
+      "id": "P4",
+      "requirements": [
+        "R-287",
+        "R-288"
+      ],
+      "threats": [
+        "T-001",
+        "T-098"
+      ],
+      "decisions": [
+        "D-159"
+      ],
+      "evidence": [
+        "V-015",
+        "V-016"
+      ],
+      "sources": [
+        "docs/architecture/providers/METADATA_OBSERVER_MATRIX.md"
+      ]
+    },
+    {
+      "id": "C1",
+      "requirements": [
+        "R-289"
+      ],
+      "threats": [
+        "T-099"
+      ],
+      "decisions": [
+        "D-159"
+      ],
+      "evidence": [
+        "conformance:provider"
+      ],
+      "sources": [
+        "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md"
+      ]
+    },
+    {
+      "id": "C2",
+      "requirements": [
+        "R-265",
+        "R-289"
+      ],
+      "threats": [
+        "T-007",
+        "T-099"
+      ],
+      "decisions": [
+        "D-152",
+        "D-159"
+      ],
+      "evidence": [
+        "V-015",
+        "conformance:provider"
+      ],
+      "sources": [
+        "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md"
+      ]
+    },
+    {
+      "id": "C3",
+      "requirements": [
+        "R-289",
+        "R-294"
+      ],
+      "threats": [
+        "T-099"
+      ],
+      "decisions": [
+        "D-159",
+        "D-160"
+      ],
+      "evidence": [
+        "conformance:provider"
+      ],
+      "sources": [
+        "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md"
+      ]
+    },
+    {
+      "id": "C4",
+      "requirements": [
+        "R-208",
+        "R-289"
+      ],
+      "threats": [
+        "T-004",
+        "T-099"
+      ],
+      "decisions": [
+        "D-159"
+      ],
+      "evidence": [
+        "conformance:discovery"
+      ],
+      "sources": [
+        "docs/architecture/discovery/DISCOVERY_FABRIC.md"
+      ]
+    },
+    {
+      "id": "C5",
+      "requirements": [
+        "R-029",
+        "R-295",
+        "R-289",
+        "R-304",
+        "R-305"
+      ],
+      "threats": [
+        "T-012",
+        "T-101",
+        "T-108",
+        "T-109"
+      ],
+      "decisions": [
+        "D-159",
+        "D-160",
+        "D-163"
+      ],
+      "evidence": [
+        "V-002",
+        "conformance:provider"
+      ],
+      "sources": [
+        "docs/architecture/identity/RECOVERY_AND_BACKUP_POLICY.md",
+        "decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md"
+      ]
+    },
+    {
+      "id": "C6",
+      "requirements": [
+        "R-202",
+        "R-210",
+        "R-289"
+      ],
+      "threats": [
+        "T-052",
+        "T-055",
+        "T-099"
+      ],
+      "decisions": [
+        "D-154",
+        "D-159"
+      ],
+      "evidence": [
+        "V-016"
+      ],
+      "sources": [
+        "docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md"
+      ]
+    },
+    {
+      "id": "C7",
+      "requirements": [
+        "R-294",
+        "R-289",
+        "R-303"
+      ],
+      "threats": [
+        "T-097",
+        "T-099",
+        "T-107"
+      ],
+      "decisions": [
+        "D-160",
+        "D-163"
+      ],
+      "evidence": [
+        "V-015",
+        "V-020"
+      ],
+      "sources": [
+        "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md",
+        "spec/protocol/home-api.md",
+        "decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md"
+      ]
+    },
+    {
+      "id": "D1",
+      "requirements": [
+        "R-013",
+        "R-296"
+      ],
+      "threats": [
+        "T-013",
+        "T-056",
+        "T-102"
+      ],
+      "decisions": [
+        "D-126",
+        "D-161"
+      ],
+      "evidence": [
+        "V-017",
+        "PR-012",
+        "conformance:security_floor"
+      ],
+      "sources": [
+        "docs/architecture/providers/VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md",
+        "decisions/ADR-0139-final-design-closure-and-engineering-handoff.md"
+      ]
+    },
+    {
+      "id": "E1",
+      "requirements": [
+        "R-044",
+        "R-297",
+        "R-302",
+        "R-307"
+      ],
+      "threats": [
+        "T-103"
+      ],
+      "decisions": [
+        "D-141",
+        "D-161",
+        "D-163"
+      ],
+      "evidence": [
+        "V-005",
+        "validator"
+      ],
+      "sources": [
+        "docs/architecture/crypto/CANONICAL_ENCODING.md",
+        "decisions/ADR-0139-final-design-closure-and-engineering-handoff.md",
+        "decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md"
+      ]
+    },
+    {
+      "id": "M6",
+      "requirements": [
+        "R-308",
+        "R-310",
+        "R-313"
+      ],
+      "threats": [
+        "T-113",
+        "T-114"
+      ],
+      "decisions": [
+        "D-164"
+      ],
+      "evidence": [
+        "V-001",
+        "V-003",
+        "V-015"
+      ],
+      "sources": [
+        "docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md",
+        "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md"
+      ]
+    }
+  ]
+}

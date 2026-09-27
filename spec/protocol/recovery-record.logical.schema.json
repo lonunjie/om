@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://om.invalid/spec/recovery-record.logical.schema.json",
+  "title": "RecoveryRecord v1 decrypted logical payload (modeling view)",
+  "description": "Authenticated advisory recovery metadata. It is not AccountControlState authority. Frozen wire/encryption constructions remain governed by CDDL/registries/ADR-0141.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "record_generation",
+    "recovery_epoch",
+    "last_known_acs_head",
+    "provider_metadata_snapshot"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "record_generation": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic per RecoveryStore scope/record lineage; lower than the durable client high-water mark is stale."
+    },
+    "recovery_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Observed recovery epoch; authenticated metadata, not authority."
+    },
+    "last_known_acs_head": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generation",
+        "state_hash"
+      ],
+      "properties": {
+        "generation": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "state_hash": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Last authenticated ACS head known to the writer; used for rollback/partition detection only."
+    },
+    "provider_metadata_snapshot": {
+      "type": "object",
+      "description": "Potentially stale provider routes/capabilities/descriptors; revalidate before reuse."
+    },
+    "relationship_snapshot": {
+      "type": "object",
+      "description": "Normal-profile recovered relationship metadata; potentially stale and revalidated."
+    },
+    "relationship_snapshot_ciphertext": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "description": "Maximum-Privacy second-layer relationship snapshot encrypted under an independent RelationshipRecoveryKey."
+    }
+  },
+  "not": {
+    "required": [
+      "relationship_snapshot",
+      "relationship_snapshot_ciphertext"
+    ]
+  }
+}

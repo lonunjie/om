@@ -8,7 +8,7 @@
       "screen-share",
       "mixed"
     ],
-    "participants": "authenticated, sorted set of joined DeviceIdentity endpoints inside the E2EE context; bound into the group-call key exporter context and changed (with rekey) on every join or leave (ADR-0128 rule 14)",
+    "participants": "authenticated, sorted set of joined DeviceIdentity endpoints; media-key delivery/rekey follows joined participant generation (ADR-0132/R-283)",
     "media_e2ee": "SFrame profile",
     "route_policy": [
       "automatic",
@@ -24,8 +24,8 @@
       "sfu"
     ],
     "key_epoch": "monotonic within call/group context",
-    "key_derivation": "1:1: session exporter bound to CallID and participants. Group: MLS exporter over (CallID, epoch, sorted participant set); any Room endpoint holding the epoch can compute it, so key isolation from non-joined members is open (A-035).",
-    "key_capable_non_participants": "full-room ServicePrincipals and BridgePrincipals that could derive call keys; the call UI shows them"
+    "key_derivation": "1:1: session exporter bound to CallID and participants. Group: per-sender SFrame media keys are delivered only to joined participant DeviceIDs and rotated whenever the authenticated joined-participant-set generation changes; Room MLS epoch possession alone grants no media-key access (ADR-0132/R-283).",
+    "key_capable_non_participants": "none merely by Room membership or MLS epoch possession; a ServicePrincipal/BridgePrincipal receives media keys only when explicitly joined as a visible call participant under call policy"
   },
   "EphemeralControlKinds": [
     "call.offer",

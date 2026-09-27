@@ -57,6 +57,18 @@ A public discovery descriptor may contain only safe introduction relay hints. Ac
   revoking its drain capability at the relay; the catastrophic-loss rendezvous is the separate
   ReachabilityRecoveryDescriptor ([`REACHABILITY_AND_OBJECT_REPAIR.md`](REACHABILITY_AND_OBJECT_REPAIR.md)).
 
+### 2.2 Sealed-delivery keys (ADR-0142)
+
+`RelaySet` deliberately stays small. For every active RelayEntry, each eligible recipient device issues a separate
+signed `SealedDeliveryKeyRecord` to the accepted relationship. The record's `route_binding` commits to the exact
+`relay_uri` and deposit capability, so a key learned for route A cannot be transplanted to route B. Records rotate or
+expire independently of RelaySet publication and are removed when the relationship, device or route is revoked.
+
+A byte-identical wrapper retry MAY use the same `(delivery_key_id, delivery_id)` on the same route. A new attempt on a
+different route MUST select that route's delivery key, run a fresh HPKE seal and use a fresh `delivery_id`. If a usable
+record is absent, the sender refreshes/queues or returns an explicit local failure; it never sends the ordinary inner
+envelope in the clear as a compatibility fallback.
+
 ## 3. Different capability per relay
 
 Never reuse one mailbox/capability identifier across providers.

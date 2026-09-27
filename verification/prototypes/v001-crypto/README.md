@@ -13,14 +13,14 @@ A Rust implementation of OM-Crypto-v1, written from the public specifications:
 | Layer | Specification | Where |
 |---|---|---|
 | Device identity signatures | Ed25519 (RFC 8032, strict) **and** ML-DSA-65 (FIPS 204, empty context) over DS-SIG bytes; composite layout per ADR-0135 §1 | `rust/core/src/sig.rs` |
-| PQXDH binding | frozen W0 `AccountControlState` → `DeviceCredential` → `signed-AsyncKeyBundle` and signed `prekey-item`s (ADR-0131 rule 1, ADR-0135 §2) | `rust/core/src/binding.rs` |
+| PQXDH binding | relationship-pinned `AccountControlState` → `DeviceCredential` → `signed-AsyncKeyBundle`; ADR-0140 generation floor/equivocation state and context-bound one-time `prekey-item`s | `rust/core/src/binding.rs` |
 | Async handshake | Signal **PQXDH** rev 3: curve25519, SHA-256, ML-KEM-768 (`libcrux-ml-kem`), OM info label; prekeys authenticated by the composite device key instead of XEdDSA | `rust/core/src/pqxdh.rs` |
 | Last-resort replay ledger | exact per-epoch `handshake_id` set, cap 4096, no eviction, committed to the vault before plaintext (ADR-0131 rule 2) | `rust/core/src/ledger.rs`, `store.rs` |
 | Ratchet | Signal **Double Ratchet** rev 4 §3 (KDF_RK / KDF_CK, MAX_SKIP 1000, cap 2000). No SPQR and no header encryption (ADR-0131 rule 4) | `rust/core/src/ratchet.rs`, `session.rs` |
 | Payload AEAD | RFC 8452 AES-256-GCM-SIV; K/N from `OM-DR-AEAD-KEY-v1` / `OM-DR-AEAD-NONCE-v1` ‖ header hash; AD per ADR-0135 §4 | `rust/core/src/kdf.rs`, `session.rs` |
 | MessageRequest HPKE | draft-ietf-hpke-pq-05 MLKEM768-X25519 / HKDF-SHA256 / ChaCha20Poly1305, base mode, with its normative references (hybrid-kems-12, concrete-hybrid-kems-03, hpke-hpke-03) | `rust/core/src/hpke.rs` |
 | State and wire encoding | strict deterministic CBOR (RFC 8949 §4.2.1 subset, the [`CANONICAL_ENCODING.md`](../../../docs/architecture/crypto/CANONICAL_ENCODING.md) decoder rules) | `rust/core/src/cbor.rs` |
-| Prekey publication | toy `KeyMaterialProvider`: one disjoint pool per device; a fetch returns `[signed bundle, one-time items…]` | `rust/core/src/store.rs` |
+| Prekey publication | toy `KeyMaterialProvider`: provider-distinct pools; generation remains global per device/profile; a fetch returns the signed bundle plus pool-bound one-time material | `rust/core/src/store.rs` |
 
 Other pieces:
 
@@ -37,15 +37,23 @@ Deterministic randomness exists only behind the `insecure-test-rng` cargo featur
 
 ```sh
 cd verification/prototypes/v001-crypto && ./run.sh
+# after reviewing an intentional frozen-wire/vector change:
+./run.sh --update-vectors
 ```
 
 - Needs rustup (toolchain pinned in `rust/rust-toolchain.toml`, wasm targets installed automatically), wasmtime, Node ≥ 22, uv, python3, curl and network access on the first run (crates, PyPI, ACVP files, the HPKE vector file).
 - Pinned downloads: ACVP-Server `975de31e` (SHA-256 checked); hpkewg/hpke-pq `6433c8f` = tag `draft-ietf-hpke-pq-05` (`test-vectors.json` SHA-256 `35c59f4a…613c`).
 - Output: [`verification/results/v001-crypto-latest.json`](../../results/v001-crypto-latest.json) is deterministic. Raw timings go to `rust/target/v001-perf.json`, which is not committed. The script exits non-zero if any check fails.
 
-## Results
+## Current-tree ADR-0140 amendment (2026-09-27)
 
-All nine V-001 pre-engineering criteria have passing executable evidence (see the results file):
+The prototype source now implements the ADR-0140 v1 bundle shape, durable recipient generation floor/equal-generation core-hash check, provider-pool migration semantics, pool-bound one-time-prekey signatures, and restore persistence for the floor. [`verification/bounded/async_prekey_adr0140_rules.py`](../../bounded/async_prekey_adr0140_rules.py) supplies current structural/bounded evidence.
+
+The committed [`v001-crypto-latest.json`](../../results/v001-crypto-latest.json) and frozen V-001 KAT corpus were produced **before ADR-0140**. This checkpoint's runner has no Rust toolchain, so those dynamic Rust/native/wasm vectors were not regenerated and are not claimed as current execution evidence. A Rust-capable verification run must regenerate/independently check the amended vectors before the newly added ADR-0140 V-001 criterion can be marked met. Historical primitive/session evidence below remains useful for the unchanged crypto constructions.
+
+## Historical executed results (pre-ADR-0140 wire amendment)
+
+The prior V-001 run recorded passing executable evidence for the then-current criteria (see the results file):
 
 | Criterion | Evidence |
 |---|---|
@@ -76,7 +84,7 @@ All are far inside the [`MOTION_AND_PERFORMANCE.md`](../../../docs/architecture/
 
 ## Not covered
 
-- Multi-device session management (V-003) and multi-provider pools. One provider pool per device is exercised.
+- Full multi-device session management remains V-003. ADR-0140 cross-provider generation/floor cases are now present in source and in the bounded checker, but the updated Rust runtime cases still require a Rust-capable rerun.
 - (Covered since 2026-09-26, review F-9.) The responder binds the initiator's IK_A to exactly one active,
   non-quarantined DeviceCredential committed by a trusted relationship peer's ACS head before any secret-key
   operation (`binding::verify_initiator`, `Device::trust_peer`, ADR-0136 rule 4). Nine selftest checks and eleven

@@ -126,6 +126,15 @@
       "status": "partial"
     }
   ],
+  "current_tree_adr0140": {
+    "bounded_structural_result": "verification/results/async-prekey-adr0140-latest.json",
+    "claim": "No current Rust/native/wasm pass is claimed for the ADR-0140 amendment; the new V-001 criterion remains unmet until a tool-complete rerun.",
+    "current_vector_regeneration": false,
+    "reason": "cargo/rust toolchain unavailable in this checkpoint environment",
+    "rust_native_wasm_rerun": false,
+    "source_updated": true
+  },
+  "execution_scope": "historical execution against the pre-ADR-0140 AsyncKeyBundle wire/binding shape; unchanged crypto primitive/session evidence remains historical evidence, not a current-tree ADR-0140 rerun",
   "gate_status_effect": "evidence_only_no_gate_passed",
   "gates": [
     "V-001",

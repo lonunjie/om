@@ -1,0 +1,15 @@
+{
+  "adr": "ADR-0138",
+  "checks": {
+    "legacy": [],
+    "metadata": [],
+    "privacy_and_prekey_freshness": [],
+    "provider_auth": [],
+    "queue": [],
+    "recovery_caps": []
+  },
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed",
+  "model": "design_closure_set1",
+  "passed": true,
+  "scope_note": "design/specification structural evidence only; no TLC/Rust/Wasm/product build executed"
+}

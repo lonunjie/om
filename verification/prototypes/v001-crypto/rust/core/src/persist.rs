@@ -5,6 +5,7 @@
 //! The RNG for step k is the insecure test RNG labelled "persist-step-k", so native, WASI
 //! and mixed runs must produce byte-identical worlds.
 
+use crate::binding::RelationshipContext;
 use crate::cbor::{self, V};
 use crate::rng::insecure_test_rng::InsecureTestRng;
 use crate::store::{Device, Provider};
@@ -112,10 +113,11 @@ pub fn step(k: usize, world: Option<&[u8]>) -> Result<Vec<u8>, String> {
     let mut rng = InsecureTestRng::from_label(format!("persist-step-{k}").as_bytes());
     let mut w = match (st, world) {
         (Step::Init, _) => {
-            let alice = Device::new(&mut rng);
+            let mut alice = Device::new(&mut rng);
             let mut bob = Device::new(&mut rng);
             let mut provider = Provider::default();
             bob.trust_device(&alice).map_err(|e| e.to_string())?;
+            alice.trust_device(&bob).map_err(|e| e.to_string())?;
             let up = bob.generate_one_time(2, 2, &mut rng);
             provider.publish(&bob, up);
             World { alice, bob, provider, queue: vec![], max_ratchet_steps: 0, delivered: 0 }
@@ -150,8 +152,9 @@ pub fn step(k: usize, world: Option<&[u8]>) -> Result<Vec<u8>, String> {
             for l in labels {
                 let i = w.queue.iter().position(|(x, _)| x == l).ok_or(format!("{l} not queued"))?;
                 let (_, env) = w.queue.remove(i);
+                let route = if *who == Who::A { w.bob.account_id } else { w.alice.account_id };
                 let r = if *who == Who::A { &mut w.alice } else { &mut w.bob };
-                let (_, pt, _) = r.decrypt(&env, &mut rng).map_err(|e| format!("decrypt {l}: {e}"))?;
+                let (_, pt, _) = r.decrypt(&RelationshipContext::new(route), &env, &mut rng).map_err(|e| format!("decrypt {l}: {e}"))?;
                 if pt != plaintext(l) {
                     return Err(format!("plaintext mismatch for {l}"));
                 }

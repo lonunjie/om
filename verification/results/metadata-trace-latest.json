@@ -3,7 +3,7 @@
  "gates": [
   "V-015"
  ],
- "cases": 144,
+ "cases": 216,
  "roles": [
   "blob_store",
   "clienthost_origin",
@@ -20,5 +20,34 @@
  ],
  "violations": [],
  "passed": true,
+ "security_mutations_caught": {
+  "home_relay_mailbox": true,
+  "t0_sponsored_mailbox": true,
+  "t1_hosted_home": true,
+  "provider_auth_no_device_id": true,
+  "adr0142_clear_sender_regression": true
+ },
+ "security_mutation_samples": {
+  "home_relay_mailbox": [
+   "under-claim: home_relay_mailbox observes recovery_attempt in recovery_fanout (home_relay_mailbox, privacy=False)",
+   "under-claim: home_relay_mailbox observes stable_account_id in recovery_fanout (home_relay_mailbox, privacy=False)"
+  ],
+  "t0_sponsored_mailbox": [
+   "under-claim: t0_sponsored_mailbox observes recovery_attempt in recovery_fanout (t0_sponsored_mailbox, privacy=False)",
+   "under-claim: t0_sponsored_mailbox observes stable_account_id in recovery_fanout (t0_sponsored_mailbox, privacy=False)"
+  ],
+  "t1_hosted_home": [
+   "under-claim: t1_hosted_home observes recovery_attempt in recovery_fanout (t1_hosted_home, privacy=False)",
+   "under-claim: t1_hosted_home observes stable_account_id in recovery_fanout (t1_hosted_home, privacy=False)"
+  ],
+  "provider_auth_no_device_id": [
+   "over-claim: discovery_publisher marks stable_device_correlator always but first_contact (home_relay_mailbox) does not reveal it",
+   "over-claim: discovery_publisher marks stable_device_correlator always but descriptor_publish (home_relay_mailbox) does not reveal it"
+  ],
+  "adr0142_clear_sender_regression": [
+   "over-claim: home_relay_mailbox marks ratchet_header_shape always but send_1to1 (home_relay_mailbox) does not reveal it",
+   "over-claim: home_relay_mailbox marks stable_device_correlator always but send_1to1 (home_relay_mailbox) does not reveal it"
+  ]
+ },
  "gate_status_effect": "evidence_only_no_gate_automatically_passed"
 }

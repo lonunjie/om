@@ -1,0 +1,37 @@
+{
+  "checks": {
+    "equal_generation_merge_conflict": true,
+    "generation_floor_global_across_provider_pools": true,
+    "otk_context_all_coordinates_bound": true,
+    "restore_merge_monotonic": true,
+    "retired_provider_visible_acs_fields": true,
+    "rollback_rejected": true,
+    "same_generation_equivocation_rejected": true,
+    "v005_retired_key_negatives_present": true
+  },
+  "failures": [],
+  "freshness_trace": [
+    "accept-first",
+    "accept-equal",
+    "accept-advance",
+    "reject-rollback",
+    "reject-equivocation"
+  ],
+  "gate_relationship": [
+    "V-001",
+    "V-003",
+    "V-005",
+    "V-015"
+  ],
+  "otk_context_mutations": [
+    "device",
+    "generation",
+    "key_id",
+    "kind",
+    "pool",
+    "profile",
+    "public_key"
+  ],
+  "passed": true,
+  "scope": "ADR-0140 structural architecture semantics; not a substitute for Rust/wasm crypto execution"
+}

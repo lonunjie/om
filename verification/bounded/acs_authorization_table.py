@@ -28,36 +28,26 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DOC = ROOT / "docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md"
+POLICY_FILE = ROOT / "spec/protocol/account-control-transition-policy.json"
 VEC = ROOT / "verification/vectors/acs-authorization-table-vectors.json"
 RES = ROOT / "verification/results/acs-authorization-table-latest.json"
 
-# Table row (first cell prefix) -> transition class.
-ROWS = {
-    "link a messaging device": "link_messaging",
-    "promote to control device": "promote",
-    "quarantine a control device": "quarantine",
-    "lift a quarantine": "lift_quarantine",
-    "remove a messaging device": "remove_messaging",
-    "permanently revoke a control device": "revoke_control",
-    "change the recovery policy": "recovery_policy",
-    "change `constitutional_policy`": "constitutional_policy",
-    "raise `minimum_crypto_profile`": "raise_min_profile",
-    "lower `minimum_crypto_profile`": "lower_min_profile",
-    "rotate the signer's own": "rotate_own_key",
-    "change `transparency_commitment`": "transparency",
-    "fork bridge": "fork_bridge",
-    "`AccountRetirement`": "retirement",
+# ADR-0137: the JSON policy is the machine-readable source of truth. This executable
+# model derives its table-row map and authorization rule classes from that source
+# instead of carrying a second hand-maintained authorization table.
+POLICY = json.loads(POLICY_FILE.read_text(encoding="utf-8"))
+AUTH_RULE = {
+    "one_active_nonquarantined": "one",
+    "one_active_nonquarantined_other_than_target": "one",
+    "parent_majority_or_recovery_vote": "majority_rv",
+    "parent_majority_active_nonquarantined": "majority",
+    "parent_majority": "majority",
+    "self_active_nonquarantined": "self",
+    "device_only_parent_majority_common_ancestor": "bridge",
+    "forbidden": "forbidden",
 }
-# Rule per class: one = 1 active non-quarantined controller; majority_rv = majority or majority reached with a recovery
-# vote; majority = majority, no recovery vote; self = the device itself; forbidden; bridge = device-only majority of
-# the common ancestor. Strength order for combined deltas.
-RULE = {
-    "link_messaging": "one", "quarantine": "one", "remove_messaging": "one", "raise_min_profile": "one",
-    "transparency": "one", "rotate_own_key": "self",
-    "promote": "majority_rv", "revoke_control": "majority_rv", "recovery_policy": "majority_rv", "retirement": "majority_rv",
-    "lift_quarantine": "majority", "constitutional_policy": "majority",
-    "fork_bridge": "bridge", "lower_min_profile": "forbidden",
-}
+ROWS = {row["doc_prefix"]: row["id"] for row in POLICY["transitions"]}
+RULE = {row["id"]: AUTH_RULE[row["authorization"]] for row in POLICY["transitions"]}
 STRENGTH = {"self": 0, "one": 1, "majority_rv": 2, "majority": 3, "bridge": 4, "forbidden": 5}
 
 
@@ -101,7 +91,7 @@ def mirror_check() -> dict:
               "forbidden": text.startswith("forbidden")}[r]
         if not ok:
             problems.append(f"{c}: signer text '{text}' does not match model rule {r}")
-    return {"rows": len(rows), "classes": sorted(c for c in classes if c), "problems": problems}
+    return {"policy": str(POLICY_FILE.relative_to(ROOT)), "rows": len(rows), "classes": sorted(c for c in classes if c), "problems": problems}
 
 
 # ------------------------------------------------------------------ states and deltas
@@ -190,17 +180,34 @@ def _authorize(p: dict, c: dict, ctx: dict) -> tuple[str, str]:
     control, quarantined = set(p["control"]), set(p["quarantined"])
     voting = control - quarantined
     signers = set(ctx.get("signers", ()))
-    if ctx.get("frozen") and rule != "bridge":
-        # §5 (ADR-0136 rule 2): a freeze is resolved only by a device-only majority of the parent's controllers,
-        # quarantined ones signing with their challenge capability; a quarantine freeze resolves by lifting.
+    maj = majority(len(control))
+    safety_frozen = bool(quarantined) and len(voting) < maj
+    if safety_frozen:
+        # §5 / ADR-0137: SAFETY_FREEZE is derived from the parent state, never from
+        # caller-supplied provenance. Selective restoration is the sole exception
+        # that can count quarantined challenge signatures.
+        if rule == "bridge":
+            return "reject", "a quarantine-induced safety freeze is not a fork freeze; fork bridge is a separate transition"
         if any(k != "lift_quarantine" for k, _ in ds):
-            return "reject", "parent is under safety freeze; only a lift or a fork bridge resolves it"
+            return "reject", "parent is under quarantine-induced SAFETY_FREEZE; only threshold-restoring quarantine lifts may resolve it"
         if ctx.get("recovery"):
             return "reject", "a recovery vote never resolves a freeze"
         if signers - control:
             return "reject", "a freeze-resolution signer is not a controller of the parent"
-        return (("accept", "device-only majority (challenge signatures count) resolves the freeze")
-                if len(signers) >= majority(len(control)) else ("reject", "freeze resolution needs a device-only majority"))
+        if len(signers) < maj:
+            return "reject", "freeze resolution needs a device-only parent majority"
+        restored = set(p["quarantined"]) - set(c["quarantined"])
+        if not restored:
+            return "reject", "freeze resolution must restore at least one quarantined controller"
+        if not restored <= signers:
+            return "reject", "every restored controller must contribute its freeze-challenge signature"
+        if set(c["quarantined"]) - set(p["quarantined"]):
+            return "reject", "freeze resolution may not add new quarantines"
+        if len(control - set(c["quarantined"])) < maj:
+            return "reject", "selective restoration must exit SAFETY_FREEZE by restoring a voting majority"
+        return "accept", "device-only parent majority resolves the freeze; selected challenge-signed controllers restored"
+    if ctx.get("frozen") and rule != "bridge":
+        return "reject", "a non-quarantine freeze is resolved only by the fork-bridge path"
     if signers - voting:
         return "reject", "a signer is not an active, non-quarantined controller of the parent"
     n, maj = len(control), majority(len(control))
@@ -337,7 +344,8 @@ def explore() -> dict:
                 rec = ctx.get("recovery")
                 tag = f"{cls}/{tgt} N={n} q={p['quarantined']} ctx={ctx}"
                 if v == "accept":
-                    if s - voting:
+                    safety_resolution = len(voting) < maj and cls == "lift_quarantine"
+                    if s - voting and not safety_resolution:
                         violations.append(f"accepted with a non-voting signer: {tag}")
                     if RULE[cls] in ("majority", "bridge") and len(s) < maj:
                         violations.append(f"majority-only delta accepted below majority: {tag}")
@@ -397,6 +405,15 @@ def vectors() -> list[dict]:
     add("frozen_lift_without_challenge_signature_rejected", "lift_quarantine", P2q1, k2q1[("lift_quarantine", "d2")], {"signers": ["d1"], "frozen": True}, "reject")
     add("frozen_lift_with_recovery_vote_rejected", "lift_quarantine", P2q1, k2q1[("lift_quarantine", "d2")], {"signers": ["d1"], "recovery": rec(2), "frozen": True}, "reject")
     add("frozen_other_delta_rejected", "revoke_control", P2q1, k2q1[("revoke_control", "d2")], {"signers": ["d1", "d2"], "frozen": True}, "reject")
+    # ADR-0137: selective restoration is allowed only when the child actually exits
+    # SAFETY_FREEZE. A known-bad controller may remain quarantined.
+    P3q2 = state(["d1", "d2", "d3"], quarantined=["d2", "d3"], messaging=[MSG], min_gen=2)
+    C3q1 = state(["d1", "d2", "d3"], quarantined=["d3"], messaging=[MSG], min_gen=2, gen=2)
+    add("frozen_selective_restore_to_majority", "lift_quarantine", P3q2, C3q1, {"signers": ["d1", "d2"], "frozen": True}, "accept")
+    add("frozen_restore_without_restored_controller_challenge_rejected", "lift_quarantine", P3q2, C3q1, {"signers": ["d1", "d3"], "frozen": True}, "reject")
+    P4q3 = state(["d1", "d2", "d3", "d4"], quarantined=["d2", "d3", "d4"], messaging=[MSG], min_gen=2)
+    C4q2 = state(["d1", "d2", "d3", "d4"], quarantined=["d3", "d4"], messaging=[MSG], min_gen=2, gen=2)
+    add("frozen_selective_restore_below_majority_rejected", "lift_quarantine", P4q3, C4q2, {"signers": ["d1", "d2", "d3"], "frozen": True}, "reject")
     add("remove_messaging_by_one_controller", "remove_messaging", P3, kids3[("remove_messaging", MSG)], {"signers": ["d2"]}, "accept")
     add("remove_messaging_unsigned_rejected", "remove_messaging", P3, kids3[("remove_messaging", MSG)], {"signers": []}, "reject")
     add("revoke_control_majority", "revoke_control", P3, kids3[("revoke_control", "d3")], {"signers": ["d1", "d2"]}, "accept")

@@ -1,0 +1,142 @@
+{
+  "cases": [
+    {
+      "expected": "released_or_deduped",
+      "id": "normal"
+    },
+    {
+      "expected": {
+        "effects": [
+          "e1"
+        ],
+        "first": "released_or_deduped",
+        "retry": "delivery_replay_complete_ack"
+      },
+      "id": "same_route_exact_retry"
+    },
+    {
+      "expected": {
+        "effects": [
+          "e1"
+        ],
+        "reserve": "reserved",
+        "retry": "released_or_deduped"
+      },
+      "id": "crash_after_reserve_then_exact_retry"
+    },
+    {
+      "expected": {
+        "acked": true,
+        "complete": "complete",
+        "effects": [],
+        "reserve": "reserved",
+        "retry": "delivery_replay_complete_ack"
+      },
+      "id": "crash_after_complete_before_release"
+    },
+    {
+      "expected": {
+        "effects": [],
+        "replay": 0,
+        "result": "persistence_failed"
+      },
+      "id": "reserve_persistence_failure_fail_closed"
+    },
+    {
+      "expected": {
+        "effects": [
+          "e1"
+        ],
+        "first": "persistence_failed_reserved",
+        "retry": "released_or_deduped"
+      },
+      "id": "complete_persistence_failure_resumes"
+    },
+    {
+      "expected": "delivery_route_mismatch",
+      "id": "wrong_route_rejected"
+    },
+    {
+      "expected": "delivery_expired",
+      "id": "wrapper_expiry_rejected"
+    },
+    {
+      "expected": {
+        "clear_seen": false,
+        "wrapper": null
+      },
+      "id": "missing_key_never_clear_fallback"
+    },
+    {
+      "expected": {
+        "effects": [
+          "old",
+          "new"
+        ],
+        "new": "released_or_deduped",
+        "new_key": "kA2",
+        "old": "released_or_deduped",
+        "old_key": "kA"
+      },
+      "id": "key_refresh_old_overlap_and_new_current"
+    },
+    {
+      "expected": "delivery_key_unknown_or_stale",
+      "id": "retired_old_key_rejects_queued_wrapper"
+    },
+    {
+      "expected": {
+        "effects": [
+          "e1"
+        ],
+        "first": "released_or_deduped",
+        "ids_differ": true,
+        "keys": [
+          "kA",
+          "kB"
+        ],
+        "second": "released_or_deduped"
+      },
+      "id": "route_migration_reseals_fresh_id_and_dedupes_event"
+    },
+    {
+      "expected": "delivery_replay_collision",
+      "id": "same_key_id_delivery_id_different_wrapper_rejected"
+    },
+    {
+      "expected": {
+        "effects": [],
+        "first": "inner_auth_failed",
+        "retry": "delivery_replay_rejected"
+      },
+      "id": "outer_open_never_authenticates_sender"
+    },
+    {
+      "expected": null,
+      "id": "revoked_device_no_new_send"
+    }
+  ],
+  "format": "om-v003-sealed-delivery-state-v1",
+  "mutation_controls": [
+    {
+      "id": "M1_drop_reserved_retry",
+      "violates": "same-route retry liveness after crash"
+    },
+    {
+      "id": "M2_clear_sender_fallback",
+      "violates": "no clear-sender fallback"
+    },
+    {
+      "id": "M3_route_binding_disabled",
+      "violates": "route isolation"
+    },
+    {
+      "id": "M4_outer_open_authenticates_sender",
+      "violates": "inner sender authentication remains authoritative"
+    },
+    {
+      "id": "M5_cross_route_delivery_id_reuse",
+      "violates": "fresh delivery_id on different route"
+    }
+  ]
+}

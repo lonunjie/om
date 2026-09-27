@@ -1,6 +1,6 @@
 # OM Engineering Repository Layout
 
-> **FUTURE LAYOUT:** retained as the planned repository structure after architecture freeze; it is not authorization to begin implementation in the 23:02 checkpoint.
+> **FUTURE LAYOUT:** architecture is design-frozen by ADR-0139, but this planned repository structure is not authorization to begin product implementation. A named scope must first satisfy [`machine/repository_contract.json`](../../machine/repository_contract.json) and its gate/dependency rules.
 
 ## Goal
 

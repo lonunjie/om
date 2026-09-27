@@ -1,0 +1,27 @@
+{
+  "checker": "sealed_delivery_adr0142_rules",
+  "passed": true,
+  "errors": [],
+  "checks": {
+    "object_types": [
+      22,
+      23
+    ],
+    "profile1_enc_bytes": 1120,
+    "profile1_public_key_bytes": 1216,
+    "plaintext_buckets": [
+      1024,
+      4096,
+      16384,
+      65536,
+      131072
+    ],
+    "route_binding_distinct": true,
+    "replay_duplicate_detected": true,
+    "v005_vectors": 735,
+    "v005_node_mismatches": 0,
+    "metadata_trace_passed": true,
+    "metadata_rules_passed": true
+  },
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed"
+}

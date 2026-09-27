@@ -62,7 +62,7 @@ Implementation begins only after the architecture-freeze contract says it may be
 
 ### P-11 — Prose states values; executable contracts prevent drift
 
-This constitution is intentionally human-readable. Operational obligations are represented in machine-readable requirements, decisions, open questions, schemas, architecture maps, and repository validation code.
+This constitution is intentionally human-readable. Operational obligations are represented in machine-readable requirements, decisions, question/disposition records, schemas, architecture maps, and repository validation code.
 
 A prose claim that is not reflected in the machine contract where enforceable is incomplete.
 

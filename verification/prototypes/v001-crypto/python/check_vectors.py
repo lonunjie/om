@@ -161,8 +161,9 @@ def composite_verify(pk: bytes, msg: bytes, sig: bytes) -> bool:
         return False
 
 
-def verify_binding(fetch: list[bytes], acs_body: bytes, cred_body: bytes, trusted: bytes, now: int):
-    """Independent reading of ADR-0131 rule 1 over the frozen W0 CDDL. Returns (ok, reason, keys)."""
+def verify_binding(fetch: list[bytes], acs_body: bytes, cred_body: bytes, trusted: bytes, now: int, freshness=None):
+    """Independent reading of ADR-0131 + ADR-0140 over frozen W0. `freshness`, when supplied, is
+    durable state keyed by (AccountID, DeviceID, CryptoProfile) -> (highest_generation, core_hash)."""
     if ds_hash("OM-ACS-HASH-v1", acs_body) != trusted:
         return False, "acs not trusted head", None
     acs, cred = cbor_dec(acs_body), cbor_dec(cred_body)
@@ -182,20 +183,35 @@ def verify_binding(fetch: list[bytes], acs_body: bytes, cred_body: bytes, truste
     if not composite_verify(cred[5], ds_sig("OM-PREKEY-BUNDLE-SIG-v1", PROFILE, ROLE_DEVICE, did, env[1]), sigs[0][3]):
         return False, "bundle signature", None
     b = cbor_dec(env[1])
-    if b[0] != 9 or b[2] != did or b[3] != acs[3] or b[4] != {0: 1, 1: trusted} or b[5] != PROFILE or b[13] <= now:
+    if b[0] != 9 or b[2] != did or b[5] != PROFILE or b[13] <= now:
         return False, "bundle binding", None
-    if 8 not in b:
-        return False, "no pq signed prekey", None
+    if 3 in b or 4 in b:
+        return False, "retired provider-visible acs fields", None
+    if 8 not in b or 12 not in b or len(b[12]) != 16:
+        return False, "bundle required fields", None
+    generation = b[6]
+    core_hash = ds_hash("OM-PREKEY-GENERATION-CORE-v1", cbor_enc([did, b[5], generation, b[7], b[8], b.get(11)]))
     keys = {"ik": cred[6], "spk": b[7][2], "pq": b[8][2], "pq_id": b[8][0], "opk": None}
     for raw in fetch[1:]:
         it = cbor_dec(raw)
-        unsigned = cbor_enc({0: it[0], 1: it[1], 2: it[2]})
-        if not composite_verify(cred[5], ds_sig("OM-PREKEY-SIG-v1", PROFILE, ROLE_DEVICE, did, unsigned), it[3]):
+        if it[1] not in (3, 4):
+            return False, "unexpected one-time kind", None
+        context = cbor_enc([1, did, b[5], generation, b[12], it[1], it[0], it[2]])
+        if not composite_verify(cred[5], ds_sig("OM-PREKEY-SIG-v1", PROFILE, ROLE_DEVICE, did, context), it[3]):
             return False, "item signature", None
         if it[1] == 3:
             keys["opk"] = (it[0], it[2])
         elif it[1] == 4:
             keys["pq"], keys["pq_id"] = it[2], it[0]
+    if freshness is not None:
+        fkey = (acs[2], did, b[5])
+        old = freshness.get(fkey)
+        if old is not None and generation < old[0]:
+            return False, "prekey generation rollback", None
+        if old is not None and generation == old[0] and core_hash != old[1]:
+            return False, "prekey generation equivocation", None
+        if old is None or generation > old[0]:
+            freshness[fkey] = (generation, core_hash)
     return True, "ok", keys
 
 
@@ -210,6 +226,18 @@ def check_binding(bv, ck):
     ok, why, keys = verify_binding([H(x) for x in bv["positive_fetch"]], acs, cred, H(bv["acs_hash"]), bv["now"])
     ck.eq("binding/positive_accepted", (ok, why), (True, "ok"))
     ck.eq("binding/ik_from_credential", keys and keys["ik"].hex(), bv["ik_pub"])
+    # Independent ADR-0140 freshness checks use the already-valid signed fetch. Seeding a durable
+    # floor above it must reject rollback; seeding the same generation with another core hash must
+    # reject authenticated equivocation without needing to manufacture another signature.
+    fetch_bytes = [H(x) for x in bv["positive_fetch"]]
+    bundle = cbor_dec(cbor_dec(fetch_bytes[0])[1])
+    fkey = (cbor_dec(acs)[2], cbor_dec(cred)[2], bundle[5])
+    floor = {fkey: (bundle[6] + 1, b"\x00" * 32)}
+    rok, rwhy, _ = verify_binding(fetch_bytes, acs, cred, H(bv["acs_hash"]), bv["now"], floor)
+    ck.eq("binding/prekey_generation_rollback_rejected", (rok, rwhy), (False, "prekey generation rollback"))
+    equiv = {fkey: (bundle[6], b"\xff" * 32)}
+    eok, ewhy, _ = verify_binding(fetch_bytes, acs, cred, H(bv["acs_hash"]), bv["now"], equiv)
+    ck.eq("binding/equal_generation_different_core_rejected", (eok, ewhy), (False, "prekey generation equivocation"))
     for n in bv["negatives"]:
         ok, why, _ = verify_binding([H(x) for x in n["fetch"]], H(n["acs_body"]), H(n["credential_body"]), H(n["trusted_acs_hash"]), bv["now"])
         ck.eq(f"binding/negative/{n['name']}_rejected", ok, False)

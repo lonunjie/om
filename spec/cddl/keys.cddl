@@ -1,12 +1,11 @@
-; Status: frozen (ADR-0119, 2026-09-24); key 8 made mandatory by ADR-0126 (ADR-0118 §6).
+; Status: frozen (ADR-0119) and amended/re-frozen by ADR-0140 (2026-09-27); keys 3/4 retired/reserved; key 8 mandatory.
 ; W0 asynchronous key material (ASYNC_KEY_MATERIAL.md). Key sizes admit X25519 (32) .. ML-KEM-1024 (1568).
 
 signed-AsyncKeyBundle = { 1: bstr .cbor AsyncKeyBundle, 2: [1*16 signature] }
 AsyncKeyBundle = {
   0: 9, 1: 1,
   2: device-id,                             ; subject_device_id
-  3: uint,                                  ; acs_generation
-  4: digest,                                ; acs_state_hash
+  ; keys 3 and 4 are retired/reserved by ADR-0140 and MUST be absent
   5: profile-id,                            ; crypto_profile
   6: uint,                                  ; generation
   7: prekey-item,                           ; signed_prekey
@@ -22,5 +21,5 @@ prekey-item = {
   0: uint .le 4294967295,                   ; key_id
   1: 1..5,                                  ; kind
   2: bstr .size (32..1568),                 ; public_key
-  ? 3: bstr .size (1..8192),                ; signature over DS-SIG(OM-PREKEY-SIG-v1, ..., item without key 3)
+  ? 3: bstr .size (1..8192),                ; one-time kinds: device signature over ADR-0140 context tuple
 }

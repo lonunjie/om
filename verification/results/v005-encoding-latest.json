@@ -10,13 +10,16 @@
  "cddl": "spec/cddl/*.cddl",
  "vectors": {
   "file": "verification/vectors/v005-w0-object-vectors.json.gz",
-  "total": 677,
-  "positive": 68,
-  "negative": 609,
-  "object_types": 21
+  "total": 735,
+  "positive": 71,
+  "negative": 664,
+  "object_types": 23,
+  "canonical_bytes": 1204364,
+  "canonical_sha256": "d5de1deaca350942b286a55d09de2748c234b37c26f77cad315d6c72bb46644a"
  },
  "toolchain": {
   "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
   "node": "v24.14.0",
   "ruby": "ruby 2.6.10p210 (2022-04-12 revision 67958) [universal.arm64e-darwin25]",
   "python": "3.14.7"
@@ -27,12 +30,12 @@
  },
  "codec_agreement": {
   "rust": {
-   "vectors": 677,
+   "vectors": 735,
    "mismatches": 0,
    "first_mismatches": []
   },
   "node": {
-   "vectors": 677,
+   "vectors": 735,
    "mismatches": 0,
    "first_mismatches": []
   }
@@ -126,6 +129,14 @@
      "unknown_critical_extension"
     ]
    },
+   "SealedDeliveryEnvelope": {
+    "accepted": 3,
+    "generated": 12,
+    "rejected_classes": [
+     "size_limit",
+     "unknown_critical_extension"
+    ]
+   },
    "signed-AccountControlHead": {
     "accepted": 8,
     "generated": 12,
@@ -148,7 +159,7 @@
     ]
    },
    "signed-AsyncKeyBundle": {
-    "accepted": 8,
+    "accepted": 9,
     "generated": 12,
     "rejected_classes": [
      "unknown_critical_extension"
@@ -215,7 +226,7 @@
     ]
    },
    "signed-MessageRequestPayload": {
-    "accepted": 3,
+    "accepted": 1,
     "generated": 12,
     "rejected_classes": [
      "size_limit",
@@ -252,6 +263,13 @@
      "unknown_critical_extension"
     ]
    },
+   "signed-SealedDeliveryKeyRecord": {
+    "accepted": 5,
+    "generated": 12,
+    "rejected_classes": [
+     "size_limit"
+    ]
+   },
    "signed-SponsoredMailboxGrant": {
     "accepted": 5,
     "generated": 12,
@@ -274,7 +292,7 @@
    "cddl (Rust crate) 0.10.7",
    "cddl (Ruby gem) 0.12.14"
   ],
-  "vector_checks": 366
+  "vector_checks": 399
  },
  "codec_cost_v022": {
   "status": "measured",
@@ -287,251 +305,283 @@
   "wasm_runtime": "wasmtime 49.0.1 (46c23a87d 2026-09-24)",
   "summary_native": {
    "decode_ns": {
-    "median": 416.0,
-    "max": 3038.0
+    "median": 298.0,
+    "max": 2180.0
    },
    "decode_validate_ns": {
-    "median": 1686.0,
-    "max": 8000.0
+    "median": 1171.0,
+    "max": 5824.0
    },
    "encode_ns": {
-    "median": 590.0,
-    "max": 5137.0
+    "median": 435.0,
+    "max": 2708.0
    },
    "sig_hash_inputs_ns": {
-    "median": 1102.0,
-    "max": 17428.0
+    "median": 1185.0,
+    "max": 8437.0
    }
   },
   "summary_wasm32_wasip1": {
    "decode_ns": {
-    "median": 349.0,
-    "max": 4302.0
+    "median": 245.0,
+    "max": 2135.0
    },
    "decode_validate_ns": {
-    "median": 1543.0,
-    "max": 7445.0
+    "median": 1303.0,
+    "max": 6606.0
    },
    "encode_ns": {
-    "median": 488.0,
-    "max": 4326.0
+    "median": 291.0,
+    "max": 2566.0
    },
    "sig_hash_inputs_ns": {
-    "median": 968.0,
-    "max": 12747.0
+    "median": 978.0,
+    "max": 9016.0
    }
   },
   "wasm32_over_native_decode_validate": {
-   "median": 1.21,
-   "max": 1.81
+   "median": 1.22,
+   "max": 1.41
   },
   "per_object": [
    {
     "id": "AccountControlState/typical",
     "bytes": 486,
     "native": {
-     "decode_ns": 469.0,
-     "decode_validate_ns": 5481.0,
-     "encode_ns": 564.0,
-     "sig_hash_inputs_ns": 3880.0
+     "decode_ns": 413.0,
+     "decode_validate_ns": 3709.0,
+     "encode_ns": 507.0,
+     "sig_hash_inputs_ns": 3219.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 362.0,
-     "decode_validate_ns": 4403.0,
-     "encode_ns": 443.0,
-     "sig_hash_inputs_ns": 3506.0
+     "decode_ns": 338.0,
+     "decode_validate_ns": 3693.0,
+     "encode_ns": 411.0,
+     "sig_hash_inputs_ns": 3070.0
     }
    },
    {
     "id": "AccountControlHead/typical",
     "bytes": 139,
     "native": {
-     "decode_ns": 318.0,
-     "decode_validate_ns": 734.0,
-     "encode_ns": 331.0,
-     "sig_hash_inputs_ns": 570.0
+     "decode_ns": 233.0,
+     "decode_validate_ns": 697.0,
+     "encode_ns": 332.0,
+     "sig_hash_inputs_ns": 561.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 225.0,
-     "decode_validate_ns": 1308.0,
-     "encode_ns": 380.0,
-     "sig_hash_inputs_ns": 719.0
+     "decode_ns": 204.0,
+     "decode_validate_ns": 855.0,
+     "encode_ns": 262.0,
+     "sig_hash_inputs_ns": 475.0
     }
    },
    {
     "id": "RecoveryPolicy/typical",
     "bytes": 112,
     "native": {
-     "decode_ns": 474.0,
-     "decode_validate_ns": 1156.0,
-     "encode_ns": 998.0,
-     "sig_hash_inputs_ns": 1102.0
+     "decode_ns": 486.0,
+     "decode_validate_ns": 977.0,
+     "encode_ns": 823.0,
+     "sig_hash_inputs_ns": 1185.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 845.0,
-     "decode_validate_ns": 1543.0,
-     "encode_ns": 809.0,
-     "sig_hash_inputs_ns": 968.0
+     "decode_ns": 492.0,
+     "decode_validate_ns": 1303.0,
+     "encode_ns": 740.0,
+     "sig_hash_inputs_ns": 978.0
     }
    },
    {
     "id": "DeviceCredential/typical",
     "bytes": 264,
     "native": {
-     "decode_ns": 414.0,
-     "decode_validate_ns": 1475.0,
-     "encode_ns": 590.0,
-     "sig_hash_inputs_ns": 2931.0
+     "decode_ns": 389.0,
+     "decode_validate_ns": 1284.0,
+     "encode_ns": 554.0,
+     "sig_hash_inputs_ns": 2428.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 349.0,
-     "decode_validate_ns": 1495.0,
-     "encode_ns": 547.0,
-     "sig_hash_inputs_ns": 2821.0
+     "decode_ns": 346.0,
+     "decode_validate_ns": 1421.0,
+     "encode_ns": 403.0,
+     "sig_hash_inputs_ns": 2109.0
     }
    },
    {
     "id": "AsyncKeyBundle/typical",
-    "bytes": 3956,
+    "bytes": 3890,
     "native": {
-     "decode_ns": 292.0,
-     "decode_validate_ns": 3207.0,
-     "encode_ns": 1137.0,
-     "sig_hash_inputs_ns": 17428.0
+     "decode_ns": 298.0,
+     "decode_validate_ns": 2181.0,
+     "encode_ns": 435.0,
+     "sig_hash_inputs_ns": 8437.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 329.0,
-     "decode_validate_ns": 3870.0,
-     "encode_ns": 559.0,
-     "sig_hash_inputs_ns": 12747.0
+     "decode_ns": 245.0,
+     "decode_validate_ns": 2644.0,
+     "encode_ns": 291.0,
+     "sig_hash_inputs_ns": 9016.0
     }
    },
    {
     "id": "ConversationEvent/create-typical",
     "bytes": 602,
     "native": {
-     "decode_ns": 3038.0,
-     "decode_validate_ns": 7874.0,
-     "encode_ns": 5137.0,
-     "sig_hash_inputs_ns": 121.0
+     "decode_ns": 2180.0,
+     "decode_validate_ns": 4135.0,
+     "encode_ns": 2708.0,
+     "sig_hash_inputs_ns": 39.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 4302.0,
-     "decode_validate_ns": 7168.0,
-     "encode_ns": 4326.0,
-     "sig_hash_inputs_ns": 60.0
+     "decode_ns": 2135.0,
+     "decode_validate_ns": 5185.0,
+     "encode_ns": 2566.0,
+     "sig_hash_inputs_ns": 47.0
     }
    },
    {
     "id": "ConversationEvent/create-minimal",
     "bytes": 149,
     "native": {
-     "decode_ns": 1013.0,
-     "decode_validate_ns": 1076.0,
-     "encode_ns": 904.0,
-     "sig_hash_inputs_ns": 38.0
+     "decode_ns": 461.0,
+     "decode_validate_ns": 898.0,
+     "encode_ns": 778.0,
+     "sig_hash_inputs_ns": 29.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 508.0,
-     "decode_validate_ns": 1350.0,
-     "encode_ns": 887.0,
-     "sig_hash_inputs_ns": 50.0
+     "decode_ns": 471.0,
+     "decode_validate_ns": 1214.0,
+     "encode_ns": 651.0,
+     "sig_hash_inputs_ns": 32.0
     }
    },
    {
     "id": "ContactCapsule/typical",
     "bytes": 383,
     "native": {
-     "decode_ns": 273.0,
-     "decode_validate_ns": 2574.0,
-     "encode_ns": 372.0,
-     "sig_hash_inputs_ns": 2549.0
+     "decode_ns": 250.0,
+     "decode_validate_ns": 2037.0,
+     "encode_ns": 335.0,
+     "sig_hash_inputs_ns": 2281.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 411.0,
-     "decode_validate_ns": 4207.0,
-     "encode_ns": 369.0,
-     "sig_hash_inputs_ns": 2731.0
+     "decode_ns": 212.0,
+     "decode_validate_ns": 2334.0,
+     "encode_ns": 256.0,
+     "sig_hash_inputs_ns": 2199.0
     }
    },
    {
     "id": "Invite/typical",
     "bytes": 190,
     "native": {
-     "decode_ns": 269.0,
-     "decode_validate_ns": 1686.0,
-     "encode_ns": 595.0,
-     "sig_hash_inputs_ns": 1045.0
+     "decode_ns": 233.0,
+     "decode_validate_ns": 1171.0,
+     "encode_ns": 349.0,
+     "sig_hash_inputs_ns": 624.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 316.0,
-     "decode_validate_ns": 1306.0,
-     "encode_ns": 284.0,
-     "sig_hash_inputs_ns": 670.0
+     "decode_ns": 201.0,
+     "decode_validate_ns": 1226.0,
+     "encode_ns": 251.0,
+     "sig_hash_inputs_ns": 523.0
     }
    },
    {
     "id": "RelaySet/typical",
     "bytes": 283,
     "native": {
-     "decode_ns": 1270.0,
-     "decode_validate_ns": 2480.0,
-     "encode_ns": 451.0,
-     "sig_hash_inputs_ns": 2705.0
+     "decode_ns": 243.0,
+     "decode_validate_ns": 1387.0,
+     "encode_ns": 334.0,
+     "sig_hash_inputs_ns": 2031.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 320.0,
-     "decode_validate_ns": 2032.0,
-     "encode_ns": 305.0,
-     "sig_hash_inputs_ns": 1985.0
+     "decode_ns": 202.0,
+     "decode_validate_ns": 1581.0,
+     "encode_ns": 251.0,
+     "sig_hash_inputs_ns": 1837.0
+    }
+   },
+   {
+    "id": "SealedDeliveryKeyRecord/typical",
+    "bytes": 1367,
+    "native": {
+     "decode_ns": 267.0,
+     "decode_validate_ns": 926.0,
+     "encode_ns": 344.0,
+     "sig_hash_inputs_ns": 1489.0
+    },
+    "wasm32_wasip1": {
+     "decode_ns": 218.0,
+     "decode_validate_ns": 1128.0,
+     "encode_ns": 259.0,
+     "sig_hash_inputs_ns": 1689.0
+    }
+   },
+   {
+    "id": "SealedDeliveryEnvelope/typical",
+    "bytes": 5289,
+    "native": {
+     "decode_ns": 303.0,
+     "decode_validate_ns": 507.0,
+     "encode_ns": 693.0,
+     "sig_hash_inputs_ns": 97.0
+    },
+    "wasm32_wasip1": {
+     "decode_ns": 287.0,
+     "decode_validate_ns": 669.0,
+     "encode_ns": 413.0,
+     "sig_hash_inputs_ns": 90.0
     }
    },
    {
     "id": "MessageRequest/typical",
     "bytes": 1771,
     "native": {
-     "decode_ns": 416.0,
-     "decode_validate_ns": 573.0,
-     "encode_ns": 665.0,
-     "sig_hash_inputs_ns": 116.0
+     "decode_ns": 331.0,
+     "decode_validate_ns": 554.0,
+     "encode_ns": 612.0,
+     "sig_hash_inputs_ns": 46.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 403.0,
-     "decode_validate_ns": 1035.0,
-     "encode_ns": 560.0,
-     "sig_hash_inputs_ns": 57.0
+     "decode_ns": 341.0,
+     "decode_validate_ns": 782.0,
+     "encode_ns": 446.0,
+     "sig_hash_inputs_ns": 56.0
     }
    },
    {
     "id": "MessageRequestPayload/typical",
-    "bytes": 767,
+    "bytes": 2054,
     "native": {
-     "decode_ns": 288.0,
-     "decode_validate_ns": 8000.0,
-     "encode_ns": 392.0,
-     "sig_hash_inputs_ns": 1292.0
+     "decode_ns": 270.0,
+     "decode_validate_ns": 5824.0,
+     "encode_ns": 379.0,
+     "sig_hash_inputs_ns": 2042.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 229.0,
-     "decode_validate_ns": 7445.0,
-     "encode_ns": 309.0,
-     "sig_hash_inputs_ns": 1566.0
+     "decode_ns": 239.0,
+     "decode_validate_ns": 6606.0,
+     "encode_ns": 270.0,
+     "sig_hash_inputs_ns": 2384.0
     }
    },
    {
     "id": "IntroIdentityBinding/typical",
     "bytes": 217,
     "native": {
-     "decode_ns": 565.0,
-     "decode_validate_ns": 1027.0,
-     "encode_ns": 371.0,
-     "sig_hash_inputs_ns": 704.0
+     "decode_ns": 249.0,
+     "decode_validate_ns": 944.0,
+     "encode_ns": 338.0,
+     "sig_hash_inputs_ns": 617.0
     },
     "wasm32_wasip1": {
-     "decode_ns": 264.0,
-     "decode_validate_ns": 1331.0,
-     "encode_ns": 488.0,
-     "sig_hash_inputs_ns": 864.0
+     "decode_ns": 201.0,
+     "decode_validate_ns": 1148.0,
+     "encode_ns": 254.0,
+     "sig_hash_inputs_ns": 554.0
     }
    }
   ]

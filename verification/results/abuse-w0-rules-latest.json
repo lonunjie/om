@@ -35,12 +35,34 @@
     "RFC 9578 A.2 vector 2 under RSABSSA-SHA384-PSSZERO-Deterministic: ValueError RSABSSA-SHA384-PSSZERO-Deterministic needs a 0-byte salt"
    ]
   },
-  "issuer_transcript_unlinkable": {
+  "issuer_transcript_unlinkable_reused_nontrivial_r": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "issuer candidate matrix exposes repeated blinding factor 2 at [(0, 0), (1, 1), (2, 2), (3, 3)]"
+   ]
+  },
+  "issuer_unblinded_r1_regression": {
    "problems": [],
    "mutation_caught": true,
    "mutation_problems": [
     "issuer transcript contains EMSA-PSS(token_input)",
     "issuer transcript contains authenticator"
+   ]
+  },
+  "issuer_direct_signing_regression": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "an issuer transcript is inconsistent with some redeemed token (linkable)",
+    "issuer transcript contains authenticator"
+   ]
+  },
+  "issuer_csprng_blinding_path": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "CSPRNG issuance sample reused a blinding factor"
    ]
   },
   "introgate_admission": {

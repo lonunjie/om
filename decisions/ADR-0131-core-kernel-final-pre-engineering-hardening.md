@@ -22,14 +22,14 @@ A `PQXDHDeviceBinding` certificate commits to:
 
 - AccountID;
 - DeviceID and DeviceCredential digest;
-- AccountControlState generation and state hash;
+- the relationship-pinned AccountControlState head that authorizes the DeviceCredential (verifier input, not provider-visible AsyncKeyBundle fields after ADR-0140);
 - PQXDH X25519 identity public key;
 - signed-prekey public key and signed-prekey epoch;
 - ML-KEM-768 signed prekey/ciphertext-key public material used by the profile;
 - profile id and object version;
 - validity/rotation epoch, not wall-clock authority.
 
-The binding is accepted only when both signatures verify and the DeviceCredential is active and non-quarantined at the referenced ACS head. A server cannot substitute either the classical identity key or PQ prekey material by relying on only a classical signature. This does **not** claim fully post-quantum mutual authentication for PQXDH; it protects OM's durable credential binding against future classical-signature forgery.
+The binding is accepted only when both signatures verify and the DeviceCredential is active and non-quarantined at the relationship-pinned ACS head. ADR-0140 removes ACS generation/hash from the provider-visible bundle and adds a separate recipient-side signed-prekey generation freshness floor. A server cannot substitute either the classical identity key or PQ prekey material by relying on only a classical signature. This does **not** claim fully post-quantum mutual authentication for PQXDH; it protects OM's durable credential binding against future classical-signature forgery.
 
 ### 2. Last-resort PQXDH replays use an exact, durable per-prekey ledger
 

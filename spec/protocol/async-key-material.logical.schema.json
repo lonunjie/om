@@ -1,16 +1,22 @@
 {
-  "$comment": "Logical architecture schema; exact wire fields are CryptoProfile-dependent and not frozen.",
+  "$comment": "Logical architecture schema aligned with frozen W0 AsyncKeyBundle v1; exact wire keys are in spec/cddl/keys.cddl (ADR-0140).",
   "AsyncKeyMaterial": {
-    "subject_device_id": "opaque DeviceIdentity identifier",
-    "account_control_head": "binding/freshness evidence sufficient to validate subject authorization",
+    "subject_device_id": "stable DeviceID selected from relationship-pinned AccountControlState/DeviceCredential state",
     "crypto_profile": "versioned CryptoProfile identifier",
-    "generation": "monotonic device key-material generation",
-    "signed_prekey_material": "profile-defined authenticated public handshake material",
-    "post_quantum_prekey_material": "profile-defined PQ public handshake material when applicable",
-    "one_time_material": "provider-pool-scoped consumable items when applicable",
+    "generation": "globally monotonic signed-prekey generation for this DeviceID + CryptoProfile across provider pools",
+    "signed_prekey_material": "profile-defined authenticated public handshake material; rotation strictly raises generation",
+    "post_quantum_prekey_material": "profile-defined PQ signed/last-resort public handshake material when applicable",
+    "provider_pool_id": "provider-distinct consumable-pool identifier; never a rollback namespace",
+    "one_time_material": "consumable items individually signed over DeviceID + profile + generation + provider_pool_id + kind + key_id + public_key",
     "fallback_material": "explicitly identified reusable fallback only when permitted by profile",
     "expiry": "profile/policy-defined wall-clock expiry semantics",
-    "authorization": "DeviceIdentity/account binding"
+    "authorization": "validated by the fetcher against relationship-pinned trusted peer ACS -> committed DeviceCredential -> bundle signature; no ACS generation/hash is provider-visible"
   },
-  "ProviderRule": "Consumable one-time material is disjoint across independent provider pools unless the selected reviewed profile proves safe shared-consumption semantics."
+  "ProviderRule": "Consumable one-time material is disjoint across independent provider pools; all pools for one DeviceID/CryptoProfile share the same signed-prekey generation namespace.",
+  "RecipientFreshnessState": {
+    "key": "peer AccountID + peer DeviceID + CryptoProfile",
+    "highest_generation": "durable monotonic high-water mark",
+    "generation_core_hash": "OM-PREKEY-GENERATION-CORE-v1 hash for equality/equivocation detection",
+    "merge": "higher generation wins; equal generation with unequal core hash is a security conflict"
+  }
 }

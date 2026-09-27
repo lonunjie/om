@@ -16,7 +16,9 @@ token_key_id. Checks:
 Profiles are named exactly: token type 0x0002 is RSABSSA-SHA384-PSS-Deterministic (sLen 48, RFC 9578 section 6.4),
 never RSABSSA-SHA384-PSSZERO-* (sLen 0). The structural unlinkability test is evidence that the issuer's messages
 carry no redemption-side value; it is not a proof of RFC 9474 blindness, which rests on the RFC's analysis and on r
-being uniform. Mutations: 0x0002 bound to the PSSZERO variant (KATs), and an unblinded client r = 1 (transcript).
+being uniform. Mutations cover the PSSZERO profile, unblinded r=1, repeated nontrivial r=2, direct signing, and forced factor
+reuse on the production CSPRNG path. Network/timing/cardinality and ReferralAttestation remain outside this
+cryptographic issuance-linkability claim (ADR-0137/P4).
 
 Written by a Claude agent (verification executor). Deterministic verdicts (fresh keys and blinds, fixed checks).
 """
@@ -264,24 +266,101 @@ def transcript_problems(issuer: Issuer, tokens: list[bytes]) -> list[str]:
     return sorted(set(bad))
 
 
-def issuer_transcript_unlinkable(mutate=False):
-    bad = []
-    issuer = Issuer()
+def candidate_factor_reuse(issuer: Issuer, tokens: list[bytes]) -> dict[int, list[tuple[int, int]]]:
+    """Issuer-side candidate blinding factors for every transcript/token pairing.
+
+    For the true issuance/redemption pairing, r = blind_sig * sig^-1 (mod n). If one nontrivial r is reused across
+    issuances, the issuer sees the same candidate value at several pairings and can link those redemptions as a set.
+    With independently chosen factors, candidate collisions are negligible; the deterministic positive control below
+    uses distinct known factors so the regression is exact rather than statistical.
+    """
+    n = issuer.sk.public_key().public_numbers().n
+    seen: dict[int, list[tuple[int, int]]] = {}
+    for i, (_, resp) in enumerate(issuer.transcript):
+        bs = b2i(resp)
+        for j, tok in enumerate(tokens):
+            sig = b2i(tok[98:])
+            r = bs * pow(sig, -1, n) % n
+            seen.setdefault(r, []).append((i, j))
+    return {r: pairs for r, pairs in seen.items() if len(pairs) > 1}
+
+
+def _fixed_issuer() -> Issuer:
+    v = load_vectors()["rfc9578"]["vectors"][0]
+    return Issuer(serialization.load_pem_private_key(bytes.fromhex(v["skI"]), None))
+
+
+def _probe_factors(factors: list[int]) -> list[str]:
+    issuer = _fixed_issuer()
     ch = b"OM-REFERRAL-PRIVPASS-CHALLENGE-v1 unlinkability probe"
-    toks = [issue(issuer, bytes([i]) * 32, ch, r=1 if mutate else None) for i in range(1, 5)]
-    bad += transcript_problems(issuer, toks)
-    # detector control: the pre-F-7 direct-signing issuer (receives token_input, returns the final signature)
-    direct = Issuer(issuer.sk)
-    ti = token_input(b"\x09" * 32, ch, direct.key_id)
-    sig = direct.sk.sign(ti, pss(TOKEN_TYPE_0002_VARIANT), hashes.SHA384())
-    direct.transcript.append((TOKEN_TYPE_0002 + direct.key_id[-1:] + ti, sig))
-    if not transcript_problems(direct, [ti + sig]):
-        bad.append("detector missed a direct-signing issuer")
+    n = issuer.sk.public_key().public_numbers().n
+    bad=[]
+    if any(r <= 0 or r >= n or math.gcd(r, n) != 1 for r in factors):
+        return ["blinding-factor control contains a non-invertible/out-of-range factor"]
+    toks=[issue(issuer, bytes([i])*32, ch, r=r) for i,r in enumerate(factors,1)]
+    bad += transcript_problems(issuer,toks)
+    reuse=candidate_factor_reuse(issuer,toks)
+    if reuse:
+        r,pairs=next(iter(reuse.items()))
+        bad.append(f"issuer candidate matrix exposes repeated blinding factor {r} at {pairs}")
     return bad
 
 
-CHECKS = {"blind_rsa_rfc9474_kat": rfc9474_kat, "privacy_pass_issuance_rfc9578_kat": rfc9578_kat,
-          "issuer_transcript_unlinkable": issuer_transcript_unlinkable}
+def issuer_transcript_unlinkable(mutate=False):
+    """F-13 set-linkability regression: distinct factors pass; repeated nontrivial r=2 is detected."""
+    return _probe_factors([2,3,5,7] if not mutate else [2,2,2,2])
+
+
+def unblinded_r1_regression(mutate=False):
+    """Separate control for the trivial no-blinding case; do not let it substitute for reuse testing."""
+    return _probe_factors([11,13,17,19] if not mutate else [1,1,1,1])
+
+
+def direct_signing_detector(mutate=False):
+    """The old direct-signing shape gives the issuer redemption material and must be detected independently."""
+    issuer=_fixed_issuer(); ch=b"OM-REFERRAL-PRIVPASS-CHALLENGE-v1 direct-sign probe"
+    if not mutate:
+        tok=issue(issuer,b"\x08"*32,ch,r=23)
+        return transcript_problems(issuer,[tok])
+    ti=token_input(b"\x09"*32,ch,issuer.key_id)
+    sig=issuer.sk.sign(ti,pss(TOKEN_TYPE_0002_VARIANT),hashes.SHA384())
+    issuer.transcript.append((TOKEN_TYPE_0002+issuer.key_id[-1:]+ti,sig))
+    return transcript_problems(issuer,[ti+sig])
+
+
+def csprng_blinding_path(mutate=False):
+    """Exercise Client.request's production r=None path and recover the actual blind factors from inv.
+
+    ADR-0137 requires an independently sampled, uniform nonzero invertible factor per issuance. This executable
+    check can prove use of the CSPRNG path, range/invertibility, and absence of collisions in the bounded sample;
+    uniformity itself is the contract of secrets.randbelow and is not inferred from a tiny statistical sample.
+    """
+    issuer=_fixed_issuer(); c=Client(issuer.spki); n=issuer.sk.public_key().public_numbers().n
+    ch=b"OM-REFERRAL-PRIVPASS-CHALLENGE-v1 csprng probe"; factors=[]; bad=[]
+    source=Path(__file__).read_text()
+    if 'secrets.randbelow(n - 1) + 1' not in source:
+        bad.append('blind() no longer samples r with secrets.randbelow')
+    for i in range(16):
+        forced=2 if mutate else None
+        req,(ti,inv)=c.request(ch,bytes([i+1])*32,r=forced)
+        # inv = r^-1 mod n; recover r solely for this test.
+        r=pow(inv,-1,n); factors.append(r)
+        if not (1 <= r < n) or math.gcd(r,n) != 1:
+            bad.append(f'issuance {i}: r is not a nonzero invertible scalar')
+        issuer.respond(req)
+    if len(set(factors)) != len(factors):
+        bad.append('CSPRNG issuance sample reused a blinding factor')
+    return bad
+
+
+CHECKS = {
+    "blind_rsa_rfc9474_kat": rfc9474_kat,
+    "privacy_pass_issuance_rfc9578_kat": rfc9578_kat,
+    "issuer_transcript_unlinkable_reused_nontrivial_r": issuer_transcript_unlinkable,
+    "issuer_unblinded_r1_regression": unblinded_r1_regression,
+    "issuer_direct_signing_regression": direct_signing_detector,
+    "issuer_csprng_blinding_path": csprng_blinding_path,
+}
 
 
 def main() -> int:

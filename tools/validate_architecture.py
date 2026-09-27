@@ -9,6 +9,7 @@ checkpoint integrity manifest no longer matches the bytes on disk.
 from __future__ import annotations
 
 import hashlib
+import gzip
 import json
 import re
 import subprocess
@@ -796,7 +797,211 @@ def validate_pq_claims() -> None:
         fail("09:24 guard: continuity assessment evidence missing or regressed")
 
 
+
+
+def validate_0143_crash_safe_sealed_delivery_guardrails() -> None:
+    """ADR-0143: a durable outer reservation must be resumable without weakening replay/inner-auth safety."""
+    adr = (ROOT / "decisions/ADR-0143-crash-safe-sealed-delivery-replay-and-retry.md").read_text(encoding="utf-8")
+    profile = (ROOT / "docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md").read_text(encoding="utf-8")
+    session = (ROOT / "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md").read_text(encoding="utf-8")
+    schema = load_json(ROOT / "spec/protocol/one-to-one-session-state.logical.schema.json")
+    for token in ("RESERVED", "COMPLETE", "REJECTED", "exact-wrapper retry", "crash-consistent"):
+        if token.lower() not in adr.lower(): fail(f"ADR-0143 guard: ADR missing {token!r}")
+    for name, text in (("delivery profile", profile), ("session management", session)):
+        for token in ("RESERVED", "COMPLETE", "exact"):
+            if token.lower() not in text.lower(): fail(f"ADR-0143 guard: {name} missing {token!r}")
+    state = schema.get("OneToOneSessionState", {}) if isinstance(schema, dict) else {}
+    sr = str(state.get("sealed_delivery_replay_state", ""))
+    if not all(tok in sr for tok in ("RESERVED", "COMPLETE", "REJECTED")):
+        fail("ADR-0143 guard: logical session schema lacks replay stages")
+    reqs = {r.get("id") for r in load_jsonl(ROOT / "machine/requirements.jsonl")}
+    if "R-314" not in reqs: fail("ADR-0143 guard: R-314 missing")
+    gates = {r.get("id"): r for r in load_jsonl(ROOT / "machine/architecture_verification_gates.jsonl")}
+    v3 = gates.get("V-003", {})
+    sealed_criterion = "session state enforces per-device/per-route sealed-delivery key refresh/revocation, durable (delivery_key_id, delivery_id) replay reservation before plaintext release, same-route exact-wrapper retry semantics and no clear-sender fallback (ADR-0142)"
+    if sealed_criterion not in v3.get("criteria_met", []):
+        fail("ADR-0143 guard: V-003 sealed-delivery state criterion not backed by current evidence")
+    result = load_json(ROOT / "verification/results/v003-sealed-delivery-latest.json")
+    summary = result.get("summary", {}) if isinstance(result, dict) else {}
+    if result.get("ok") is not True or summary.get("scenarios") != 15 or summary.get("passed") != 15 or summary.get("mutations") != 5 or summary.get("mutations_caught") != 5:
+        fail("ADR-0143 guard: focused V-003 sealed-delivery state result missing/regressed")
+    ids = {x.get("id") for x in result.get("scenarios", []) if isinstance(x, dict)} if isinstance(result, dict) else set()
+    for sid in ("crash_after_reserve_then_exact_retry", "crash_after_complete_before_release", "same_key_id_delivery_id_different_wrapper_rejected", "route_migration_reseals_fresh_id_and_dedupes_event", "outer_open_never_authenticates_sender"):
+        if sid not in ids: fail(f"ADR-0143 guard: focused V-003 scenario missing {sid}")
+
+def validate_0142_sealed_delivery_guardrails() -> None:
+    """ADR-0142: established OM-Crypto-v1 1:1 relay delivery is mandatory sealed delivery."""
+    num = load_json(ROOT / "spec/registries/om-numeric-fields.json")
+    types = load_json(ROOT / "spec/registries/om-object-types.json")
+    crypto = load_json(ROOT / "spec/registries/om-crypto-profiles.json")
+    ds = load_json(ROOT / "spec/registries/om-domain-separation.json")
+    if not all(isinstance(x, dict) for x in (num, types, crypto, ds)):
+        fail("ADR-0142 guard: registries unreadable"); return
+    objs = {x.get("name"): x for x in types.get("types", []) if isinstance(x, dict)}
+    for name, tid, signed in (("SealedDeliveryKeyRecord",22,True),("SealedDeliveryEnvelope",23,False)):
+        x=objs.get(name,{})
+        if x.get("type_id") != tid or bool(x.get("signed")) != signed:
+            fail(f"ADR-0142 guard: {name} type/signedness drift")
+    structs=num.get("structs",{})
+    mrp={x.get("key"):x for x in structs.get("MessageRequestPayload",{}).get("fields",[]) if isinstance(x,dict)}
+    if 9 not in mrp or mrp[9].get("name") != "reply_delivery_key" or mrp[9].get("req") is not True:
+        fail("ADR-0142 guard: MessageRequestPayload.reply_delivery_key is not required")
+    p1=next((x for x in crypto.get("profiles",[]) if x.get("id")==1),{})
+    h=p1.get("sealed_delivery_hpke",{})
+    expected={"spec":"draft-ietf-hpke-pq-05","mode":"base","kem":"MLKEM768-X25519","kem_id":25722,"kdf":"HKDF-SHA256","aead":"ChaCha20Poly1305","enc_bytes":1120,"public_key_bytes":1216,"plaintext_buckets":[1024,4096,16384,65536,131072],"aead_tag_bytes":16}
+    for k,v in expected.items():
+        if h.get(k) != v: fail(f"ADR-0142 guard: sealed_delivery_hpke {k} drift")
+    labels={x.get("label"):x for x in ds.get("labels",[]) if isinstance(x,dict)}
+    for lab in ("OM-SEALED-DELIVERY-KEY-SIG-v1","OM-SEALED-DELIVERY-ROUTE-v1","OM-SEALED-DELIVERY-HPKE-INFO-v1","OM-SEALED-DELIVERY-HPKE-AAD-v1"):
+        if labels.get(lab,{}).get("status") != "frozen": fail(f"ADR-0142 guard: domain label not frozen: {lab}")
+    delivery=(ROOT/"spec/cddl/delivery.cddl").read_text(encoding="utf-8")
+    discovery=(ROOT/"spec/cddl/discovery.cddl").read_text(encoding="utf-8")
+    for tok in ("SealedDeliveryKeyRecord = {","SealedDeliveryEnvelope = {","delivery-key-material = {"):
+        if tok not in delivery: fail(f"ADR-0142 guard: delivery CDDL missing {tok}")
+    if "9: delivery-key-material" not in discovery: fail("ADR-0142 guard: discovery CDDL missing reply delivery key")
+    meta=load_json(ROOT/"spec/metadata/w0-metadata-exposure-descriptors.json")
+    ex={d.get("role"):d.get("exposures",{}) for d in meta.get("descriptors",[]) if isinstance(d,dict)} if isinstance(meta,dict) else {}
+    for role in ("home_relay_mailbox","t0_sponsored_mailbox","t1_hosted_home"):
+        if ex.get(role,{}).get("stable_device_correlator") != "no_by_design" or ex.get(role,{}).get("ratchet_header_shape") != "no_by_design":
+            fail(f"ADR-0142 guard: {role} clear sender/header exposure reintroduced")
+    reqs={q.get("id") for q in load_jsonl(ROOT/"machine/requirements.jsonl")}; threats={q.get("id") for q in load_jsonl(ROOT/"machine/threat_register.jsonl")}
+    for rid in ("R-293","R-308","R-309","R-310","R-311","R-312","R-313"):
+        if rid not in reqs: fail(f"ADR-0142 guard: {rid} missing")
+    for tid in ("T-111","T-112","T-113","T-114"):
+        if tid not in threats: fail(f"ADR-0142 guard: {tid} missing")
+    gates={q.get("id"):q for q in load_jsonl(ROOT/"machine/architecture_verification_gates.jsonl")}
+    v15=json.dumps(gates.get("V-015",{}),sort_keys=True)
+    if "unencrypted Double Ratchet header fields/shape" in v15: fail("ADR-0142 guard: V-015 retains superseded clear-header criterion")
+    v005=load_json(ROOT/"verification/results/v005-node-adr0142-latest.json")
+    if not isinstance(v005,dict) or v005.get("passed_for_node_slice") is not True or int(v005.get("vector_count",0)) < 735 or v005.get("mismatch_count") != 0:
+        fail("ADR-0142 guard: current sealed-delivery V-005 Node evidence missing/stale")
+    result=load_json(ROOT/"verification/results/sealed-delivery-adr0142-latest.json")
+    if not isinstance(result,dict) or result.get("passed") is not True:
+        fail("ADR-0142 guard: bounded sealed-delivery result missing/not passing")
+
+
+def validate_0141_semantic_consistency_guardrails() -> None:
+    num = load_json(ROOT / "spec/registries/om-numeric-fields.json")
+    legacy = next((x for x in num.get("extensions", []) if x.get("name") == "om.acs.legacy_policy"), None) if isinstance(num, dict) else None
+    if not legacy or legacy.get("critical") is not True: fail("ADR-0141 guard: om.acs.legacy_policy must be critical")
+    acs13 = next((x for x in num.get("structs", {}).get("AccountControlState", {}).get("fields", []) if x.get("key") == 13), None) if isinstance(num, dict) else None
+    if not acs13 or "proposed" in str(acs13.get("note", "")).lower(): fail("ADR-0141 guard: AccountControlState device_credentials registry row remains proposed")
+    cddl = (ROOT / "spec/cddl/account.cddl").read_text(encoding="utf-8")
+    if "device_credentials (set; proposed addition)" in cddl or "non-critical key-23 extension" in cddl or "preserve/ignore it" in cddl: fail("ADR-0141 guard: frozen/critical AccountControlState semantics drift")
+    ds = load_json(ROOT / "spec/registries/om-domain-separation.json")
+    proposed = [x.get("label") for x in ds.get("labels", []) if x.get("wave") == "W0" and x.get("status") == "proposed"] if isinstance(ds, dict) else ["registry unreadable"]
+    if proposed: fail(f"ADR-0141 guard: assigned W0 domain labels still proposed: {proposed}")
+    labels = {x.get("label"): x for x in ds.get("labels", []) if isinstance(x, dict)} if isinstance(ds, dict) else {}
+    for lab in ("OM-RECOVERY-PROVIDER-METADATA-KEY-v1", "OM-RECOVERY-RELATIONSHIP-SNAPSHOT-KEY-v1", "OM-RECOVERY-RECORD-AEAD-AD-v1", "OM-RECOVERY-RECORD-KEY-v1"):
+        x = labels.get(lab)
+        if not x or x.get("status") != "frozen" or "reserved" in str(x.get("construction", "")).lower(): fail(f"ADR-0141 guard: recovery construction not frozen/filled: {lab}")
+    tf = load_json(ROOT / "spec/registries/om-time-fields.json"); rules = "\n".join(tf.get("rules", [])) if isinstance(tf, dict) else ""
+    if "normatively frozen at 300 s" not in rules or "Proposed; per-object constants remain policy work" in rules: fail("ADR-0141 guard: default 300-second skew is not frozen")
+    home = (ROOT / "spec/protocol/home-api.md").read_text(encoding="utf-8").lower()
+    for token in ("url path", "query string", "cookie", "referrer-policy: no-referrer", "cross-origin redirect", "cache-control: no-store", "analytics", "crash reports"):
+        if token not in home: fail(f"ADR-0141 guard: Home API capability hygiene missing {token!r}")
+    rr = load_json(ROOT / "spec/protocol/recovery-record.logical.schema.json"); required = set(rr.get("required", [])) if isinstance(rr, dict) else set()
+    for fld in ("record_generation", "recovery_epoch", "last_known_acs_head"):
+        if fld not in required: fail(f"ADR-0141 guard: RecoveryRecord required field missing {fld}")
+    rdoc = (ROOT / "docs/architecture/identity/RECOVERY_AND_BACKUP_POLICY.md").read_text(encoding="utf-8").lower()
+    for token in ("advisory and potentially stale", "high-water mark", "relationshiprecoverykey", "revalidate"):
+        if token not in rdoc: fail(f"ADR-0141 guard: recovery semantics missing {token!r}")
+    call = (ROOT / "spec/protocol/call-session.logical.schema.json").read_text(encoding="utf-8")
+    if "is open (A-035)" in call or "MLS exporter over (CallID" in call or "joined participant DeviceIDs" not in call or "Room MLS epoch possession alone" not in call: fail("ADR-0141 guard: resolved group-call isolation semantics drift")
+    callsdoc = (ROOT / "docs/architecture/calls/CALLS_AND_REALTIME_MEDIA.md").read_text(encoding="utf-8")
+    if "Call keys come from an MLS exporter" in callsdoc or "Group call keys derive through the MLS exporter" in callsdoc: fail("ADR-0141 guard: calls architecture reverted to superseded MLS-exporter media-key source")
+    reqs = {q.get("id"): q for q in load_jsonl(ROOT / "machine/requirements.jsonl")}; threats = {q.get("id"): q for q in load_jsonl(ROOT / "machine/threat_register.jsonl")}
+    for rid in ("R-302","R-303","R-304","R-305","R-306","R-307"):
+        if rid not in reqs: fail(f"ADR-0141 guard: {rid} missing")
+    for tid in ("T-107","T-108","T-109","T-110"):
+        if tid not in threats: fail(f"ADR-0141 guard: {tid} missing")
+    queue = {q.get("id"): q for q in load_jsonl(ROOT / "machine/architecture_design_queue.jsonl")}
+    if "non-critical om.acs.legacy_policy" in str(queue.get("A-030", {}).get("resolution", "")):
+        fail("ADR-0141 guard: A-030 retains superseded non-critical LegacyPolicy resolution")
+    v005_path = ROOT / ("verification/results/v005-node-adr0142-latest.json" if (ROOT / "verification/results/v005-node-adr0142-latest.json").exists() else "verification/results/v005-node-adr0141-latest.json")
+    v005 = load_json(v005_path)
+    if not isinstance(v005, dict) or v005.get("passed_for_node_slice") is not True or int(v005.get("vector_count", 0)) < 681 or v005.get("mismatch_count") != 0:
+        fail("ADR-0141 guard: current V-005 Node evidence no longer preserves ADR-0141 coverage")
+    result = load_json(ROOT / "verification/results/design-consistency-adr0141-latest.json")
+    if not isinstance(result, dict) or result.get("passed") is not True: fail("ADR-0141 guard: bounded semantic consistency result missing/not passing")
+
+def validate_0140_async_prekey_guardrails() -> None:
+    """ADR-0140: v1 bundles hide ACS linkage, reject rollback, and context-bind one-time prekeys."""
+    reg = load_json(ROOT / "spec/registries/om-numeric-fields.json")
+    ds = load_json(ROOT / "spec/registries/om-domain-separation.json")
+    if not isinstance(reg, dict) or not isinstance(ds, dict):
+        return
+    akb = reg.get("structs", {}).get("AsyncKeyBundle", {})
+    active = {x.get("key"): x for x in akb.get("fields", []) if isinstance(x, dict)}
+    reserved = {x.get("key"): x for x in akb.get("reserved", []) if isinstance(x, dict)}
+    for k, old_name in ((3, "acs_generation"), (4, "acs_state_hash")):
+        if k in active:
+            fail(f"ADR-0140 guard: retired AsyncKeyBundle key {k} remains active")
+        if reserved.get(k, {}).get("name") != old_name:
+            fail(f"ADR-0140 guard: retired AsyncKeyBundle key {k} must remain reserved as {old_name}")
+    for k in (2, 5, 6, 7, 8, 12, 13):
+        if k not in active:
+            fail(f"ADR-0140 guard: required AsyncKeyBundle key {k} missing")
+
+    keys = (ROOT / "spec/cddl/keys.cddl").read_text(encoding="utf-8")
+    m = re.search(r"AsyncKeyBundle\s*=\s*\{(.*?)\n\}", keys, re.S)
+    if not m:
+        fail("ADR-0140 guard: AsyncKeyBundle CDDL block missing")
+    else:
+        body = m.group(1)
+        if re.search(r"^\s*[34]\s*:", body, re.M):
+            fail("ADR-0140 guard: retired ACS fields remain in AsyncKeyBundle CDDL")
+
+    labels = {x.get("label"): x for x in ds.get("labels", []) if isinstance(x, dict)}
+    core = labels.get("OM-PREKEY-GENERATION-CORE-v1")
+    if not core or core.get("status") != "frozen":
+        fail("ADR-0140 guard: frozen generation-core domain label missing")
+    item = labels.get("OM-PREKEY-SIG-v1", {}).get("construction", "")
+    for token in ("subject_device_id", "bundle_generation", "provider_pool_id", "key_id", "public_key"):
+        if token not in item:
+            fail(f"ADR-0140 guard: one-time-prekey signature construction missing {token}")
+
+    doc = (ROOT / "docs/architecture/crypto/ASYNC_KEY_MATERIAL.md").read_text(encoding="utf-8")
+    for token in ("highest_generation", "relationship-pinned ACS", "first-observation", "provider_pool_id", "revokeGeneration"):
+        if token.lower() not in doc.lower():
+            fail(f"ADR-0140 guard: ASYNC_KEY_MATERIAL.md missing {token!r}")
+
+    # Current canonical encoding vectors must make the retired fields syntactically invalid.
+    vp = ROOT / "verification/vectors/v005-w0-object-vectors.json.gz"
+    try:
+        vec = json.loads(gzip.decompress(vp.read_bytes()))
+        byid = {x.get("id"): x for x in vec.get("vectors", [])}
+        for vid in ("AsyncKeyBundle/neg/retired-acs-generation-key-3", "AsyncKeyBundle/neg/retired-acs-state-hash-key-4"):
+            if byid.get(vid, {}).get("expect") != "reject" or byid.get(vid, {}).get("error") != "unknown_field":
+                fail(f"ADR-0140 guard: missing negative vector {vid}")
+    except Exception as e:
+        fail(f"ADR-0140 guard: cannot inspect V-005 vectors: {e}")
+
+    reqs = {r.get("id") for r in load_jsonl(ROOT / "machine/requirements.jsonl")}
+    threats = {r.get("id") for r in load_jsonl(ROOT / "machine/threat_register.jsonl")}
+    for rid in ("R-298", "R-299", "R-300", "R-301"):
+        if rid not in reqs: fail(f"ADR-0140 guard: {rid} missing")
+    for tid in ("T-104", "T-105", "T-106"):
+        if tid not in threats: fail(f"ADR-0140 guard: {tid} missing")
+    # Gate text and provider contracts must not preserve the superseded provider-visible ACS design.
+    gates = {r.get("id"): r for r in load_jsonl(ROOT / "machine/architecture_verification_gates.jsonl")}
+    v15 = json.dumps(gates.get("V-015", {}), sort_keys=True)
+    if "ACS-hash/device linkage" in v15 or "v2 unlinkability target" in v15:
+        fail("ADR-0140 guard: V-015 still describes superseded provider-visible ACS linkage")
+    home = (ROOT / "spec/protocol/home-api.md").read_text(encoding="utf-8")
+    for token in ("relationship-pinned trusted peer ACS", "recipient's durable", "best-effort cleanup"):
+        if token.lower() not in home.lower():
+            fail(f"ADR-0140 guard: Home API missing provider freshness rule {token!r}")
+    result = load_json(ROOT / "verification/results/async-prekey-adr0140-latest.json")
+    if not isinstance(result, dict) or result.get("passed") is not True:
+        fail("ADR-0140 guard: current bounded prekey semantics result missing/not passing")
+
+
 def main() -> int:
+    validate_0143_crash_safe_sealed_delivery_guardrails()
+    validate_0142_sealed_delivery_guardrails()
+    validate_0141_semantic_consistency_guardrails()
+    validate_0140_async_prekey_guardrails()
     validate_0718_extension_guardrails()
     validate_0756_zero_control_interop_portability_guardrails()
     validate_0821_metadata_abuse_longevity_guardrails()
