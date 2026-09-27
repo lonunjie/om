@@ -888,7 +888,7 @@
     "frozen": true
    },
    "expect": "accept",
-   "reason": "device-only majority (challenge signatures count) resolves the freeze"
+   "reason": "device-only parent majority resolves the freeze; selected challenge-signed controllers restored"
   },
   {
    "name": "frozen_lift_without_challenge_signature_rejected",
@@ -948,7 +948,7 @@
     "frozen": true
    },
    "expect": "reject",
-   "reason": "freeze resolution needs a device-only majority"
+   "reason": "freeze resolution needs a device-only parent majority"
   },
   {
    "name": "frozen_lift_with_recovery_vote_rejected",
@@ -1074,7 +1074,218 @@
     "frozen": true
    },
    "expect": "reject",
-   "reason": "parent is under safety freeze; only a lift or a fork bridge resolves it"
+   "reason": "parent is under quarantine-induced SAFETY_FREEZE; only threshold-restoring quarantine lifts may resolve it"
+  },
+  {
+   "name": "frozen_selective_restore_to_majority",
+   "class": "lift_quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [
+     "d2",
+     "d3"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [
+     "d3"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2"
+    ],
+    "frozen": true
+   },
+   "expect": "accept",
+   "reason": "device-only parent majority resolves the freeze; selected challenge-signed controllers restored"
+  },
+  {
+   "name": "frozen_restore_without_restored_controller_challenge_rejected",
+   "class": "lift_quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [
+     "d2",
+     "d3"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "quarantined": [
+     "d3"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d3"
+    ],
+    "frozen": true
+   },
+   "expect": "reject",
+   "reason": "every restored controller must contribute its freeze-challenge signature"
+  },
+  {
+   "name": "frozen_selective_restore_below_majority_rejected",
+   "class": "lift_quarantine",
+   "parent": {
+    "control": [
+     "d1",
+     "d2",
+     "d3",
+     "d4"
+    ],
+    "quarantined": [
+     "d2",
+     "d3",
+     "d4"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1,
+     "d4": 1
+    },
+    "transparency": "t0",
+    "generation": 1,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "child": {
+    "control": [
+     "d1",
+     "d2",
+     "d3",
+     "d4"
+    ],
+    "quarantined": [
+     "d3",
+     "d4"
+    ],
+    "messaging": [
+     "m1"
+    ],
+    "revoked": [],
+    "recovery_policy": "p0",
+    "constitutional_policy": 1,
+    "min_security_generation": 2,
+    "key_epochs": {
+     "d1": 1,
+     "d2": 1,
+     "d3": 1,
+     "d4": 1
+    },
+    "transparency": "t0",
+    "generation": 2,
+    "retirement": null,
+    "fork_ack": null,
+    "previous": "h0"
+   },
+   "context": {
+    "signers": [
+     "d1",
+     "d2",
+     "d3"
+    ],
+    "frozen": true
+   },
+   "expect": "reject",
+   "reason": "selective restoration must exit SAFETY_FREEZE by restoring a voting majority"
   },
   {
    "name": "remove_messaging_by_one_controller",
@@ -3250,7 +3461,7 @@
     }
    },
    "expect": "reject",
-   "reason": "\u00a713: child would have zero voting controllers"
+   "reason": "parent is under quarantine-induced SAFETY_FREEZE; only threshold-restoring quarantine lifts may resolve it"
   },
   {
    "name": "quarantine_last_voting_controller_rejected_s13",
@@ -3312,7 +3523,7 @@
     ]
    },
    "expect": "reject",
-   "reason": "quarantine target must be another control device of the parent"
+   "reason": "parent is under quarantine-induced SAFETY_FREEZE; only threshold-restoring quarantine lifts may resolve it"
   },
   {
    "name": "revoked_device_id_never_repromoted",

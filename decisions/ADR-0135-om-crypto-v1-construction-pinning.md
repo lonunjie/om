@@ -26,8 +26,8 @@ The `PQXDHDeviceBinding` of ADR-0131 rule 1 is the following chain. It uses only
 
 1. The verifier holds a trusted `AccountControlState` head (from V-002 processing): the ACS body whose `OM-ACS-HASH-v1` digest it already trusts.
 2. The peer's `DeviceCredential` is accepted only if its `OM-DEVICE-CREDENTIAL-HASH-v1` digest appears with its DeviceID in ACS key 13, its AccountID equals the ACS AccountID, and the DeviceID is in ACS key 5 or 7 and in neither key 6 nor key 8. The credential's key 6 (`key_agreement_public_key`) is the PQXDH X25519 identity key IK. Key 5 is the composite key of §1.
-3. The `signed-AsyncKeyBundle` must carry exactly one composite device signature under `OM-PREKEY-BUNDLE-SIG-v1`. Its body must name the same DeviceID, profile 1, the trusted ACS `generation` and `state_hash` (keys 3 and 4), and an `expires_at` in the future. Key 6 (`generation`) is the **signed-prekey epoch**. Key 7 is the EC signed prekey (kind 1). Key 8 is the ML-KEM-768 signed prekey (kind 2), which is also the PQXDH last-resort key. A bundle without key 8 is refused.
-4. One-time prekeys (kinds 3 and 4) travel as individually signed `prekey-item`s. Key 3 holds a composite signature under `OM-PREKEY-SIG-v1` over the item without key 3. A Home fetch (`KeyBundleFetchResponse`, `[* bstr]`) returns `[signed bundle, EC one-time item?, PQ one-time item?]`, so a provider can hand out each item once without re-signing anything.
+3. **ADR-0140 amendment.** The `signed-AsyncKeyBundle` carries exactly one composite device signature under `OM-PREKEY-BUNDLE-SIG-v1`, but no provider-visible ACS generation/hash. Keys 3/4 are retired/reserved. The fetcher supplies the trusted ACS head from `RelationshipContext`, verifies the DeviceCredential against it, then verifies the bundle signer. Key 6 (`generation`) is the globally monotonic signed-prekey epoch for that DeviceID/profile across providers; key 7 is the EC signed prekey and key 8 is the mandatory ML-KEM-768 signed/last-resort prekey. Recipient freshness state rejects rollback below the highest accepted generation and equal-generation signed-prekey-core equivocation.
+4. One-time prekeys (kinds 3 and 4) travel as individually signed `prekey-item`s. Key 3 holds a composite signature under `OM-PREKEY-SIG-v1` over `OM-CBOR [1, DeviceID, CryptoProfile, bundle_generation, provider_pool_id, kind, key_id, public_key]` (ADR-0140), not merely the standalone item. A Home fetch (`KeyBundleFetchResponse`, `[* bstr]`) returns `[signed bundle, EC one-time item?, PQ one-time item?]`; a provider can hand out each item once without re-signing, but cannot transplant it across device/profile/generation/pool context.
 
 This replaces PQXDH §3.2's XEdDSA prekey signatures by IK. IK is still the PQXDH identity key and is authenticated through the ACS-committed credential. Every PQXDH public object that can redirect a session is covered by both signature families, as ADR-0131 rule 1 requires.
 
@@ -61,7 +61,9 @@ Review F-9 found §2 asymmetric: it pinned the chain that authenticates the reci
 accepted any `IK_A` that matched the PQXDH header. ADR-0136 rule 4 closes it. Before `accept_initial` performs any
 secret-key operation, `IK_A` must be the `key_agreement_public_key` of exactly one DeviceCredential committed by the
 trusted ACS head of the relationship that delivered the envelope, and that device must be active and not quarantined.
-Otherwise the initiation fails closed and nothing is consumed.
+ADR-0137 makes that relationship identity a mandatory `RelationshipContext` input to every inbound receive/decrypt
+acceptance path; there is no unpinned `Option`/default path, and existing sessions are route-checked too. Otherwise the
+initiation/message fails closed and nothing is consumed or released.
 
 The resulting party-authentication argument is a composition, not XEdDSA-PQXDH's original proof:
 
@@ -77,7 +79,7 @@ conformance failure.
 
 ## Consequences
 
-- [`om-domain-separation.json`](../spec/registries/om-domain-separation.json) fills the four reserved constructions and adds `OM-DR-HEADER-HASH-v1`.
+- [`om-domain-separation.json`](../spec/registries/om-domain-separation.json) pins the v1 constructions; ADR-0140 further freezes context-bound `OM-PREKEY-SIG-v1` and adds `OM-PREKEY-GENERATION-CORE-v1`.
 - V-001 criteria 4–9 have executable evidence. V-005 and V-015 consume the same byte layouts.
 - A later profile (for example OM-Crypto-v2 with SPQR, or header encryption) gets a new profile id and never reinterprets these bytes.
 - Review question for the independent reviewer: does §1–§4 faithfully implement ADR-0131 rules 1–3 and 9 without weakening PQXDH's security argument, given that §2 replaces XEdDSA by a separately certified composite key?

@@ -157,23 +157,34 @@ def colocation(mutate=False):
     return bad
 
 
-# ---- criterion: DR header exposure (ADR-0131 rule 4), real V-001 header bytes ---------------------------
-def dr_header(mutate=False):
+# ---- criterion: mandatory sealed delivery (ADR-0142), real V-005 outer bytes -----------------------------
+def sealed_delivery(mutate=False):
     bad = []
-    shown = set()
+    v = next(x for x in V005["vectors"] if x["id"] == "SealedDeliveryEnvelope/typical")
+    raw = bytes.fromhex(v["hex"] if isinstance(v["hex"], str) else "".join(p if isinstance(p,str) else p["fill"]*p["len"] for p in v["hex"]))
+    body = dec(raw)
+    if mutate:
+        body[8] = bytes.fromhex(V001["cases"][0]["alice"]["ik_pub"])
+    allowed = {0, 1, 2, 3, 4, 5, 6, 7, 23}
+    if set(body) - allowed:
+        bad.append(f"sealed outer carries unexpected clear fields: {sorted(set(body)-allowed)}")
+    # Real inner session identifiers/headers must not occur in the provider-facing wrapper.
+    # Use the canonical vector bytes directly; `dec` returns native bytes that the diagnostic encoder does not accept.
+    blob = raw
+    secrets = []
     for case in V001["cases"]:
+        for who in ("alice", "bob"):
+            if "ik_pub" in case[who]: secrets.append(bytes.fromhex(case[who]["ik_pub"]))
         for ev in case["events"]:
-            if ev["type"] != "send":
-                continue
-            h = dec(bytes.fromhex(ev["header"]))
-            if mutate:
-                h = h + [b"sender-identity"]
-            if not (isinstance(h, list) and len(h) == 4 and h[0] == 1 and isinstance(h[1], bytes) and len(h[1]) == 32):
-                bad.append(f"{case['name']}/{ev['label']}: header shape {h!r} differs from the declared [profile, dh, pn, n]")
-            shown.add(len(ev["header"]) // 2)
-    if not all(declared(r, "ratchet_header_shape") for r in ("home_relay_mailbox", "t0_sponsored_mailbox", "t1_hosted_home")):
-        bad.append("a mailbox-class descriptor does not record the unencrypted ratchet header")
-    return bad, sorted(shown)
+            if ev["type"] == "send": secrets.append(bytes.fromhex(ev["header"]))
+    if any(x and x in blob for x in secrets):
+        bad.append("sealed outer contains a sender identity key or Double Ratchet header")
+    for r in ("home_relay_mailbox", "t0_sponsored_mailbox", "t1_hosted_home"):
+        if EXPO[r].get("ratchet_header_shape") != "no_by_design":
+            bad.append(f"{r}: ratchet_header_shape must be no_by_design under ADR-0142")
+        if EXPO[r].get("stable_device_correlator") != "no_by_design":
+            bad.append(f"{r}: established 1:1 stable_device_correlator must be no_by_design under ADR-0142")
+    return bad, len(blob)
 
 
 # ---- criteria: first contact (R-202, R-203, R-280), real V-005 MessageRequest ---------------------------
@@ -215,15 +226,20 @@ def first_contact_flows(mutate=False):
 # ---- criterion: KeyMaterialProvider (R-209), real V-001 bundle bytes ------------------------------------
 def key_material(mutate=False):
     bad = []
-    b = V001["binding"]
-    env = dec(bytes.fromhex(b["positive_fetch"][0]))
+    # ADR-0140 made the V-005 current AsyncKeyBundle encoding authoritative for this metadata check;
+    # older V-001 session KATs predate the provider-visible ACS-field removal.
+    v = next(x for x in V005["vectors"] if x["id"] == "AsyncKeyBundle/typical")
+    raw = bytes.fromhex(v["hex"] if isinstance(v["hex"], str) else "".join(p if isinstance(p,str) else p["fill"]*p["len"] for p in v["hex"]))
+    env = dec(raw)
     body = dec(env[1])
     visible = set(body)
-    documented = {0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 13}   # type, version, device, acs gen/hash, profile, epoch, prekeys, pool, expiry
+    documented = {0, 1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13}
     if visible - documented:
         bad.append(f"bundle exposes undocumented fields {sorted(visible - documented)}")
-    if not (declared("key_material_provider", "stable_account_id") and declared("key_material_provider", "device_count")):
-        bad.append("descriptor does not document the acs_state_hash / device grouping")
+    if 3 in visible or 4 in visible:
+        bad.append("bundle still exposes retired ACS generation/hash")
+    if EXPO["key_material_provider"].get("stable_account_id") != "no_by_design" or EXPO["key_material_provider"].get("device_count") != "no_by_design":
+        bad.append("KeyMaterialProvider descriptor still claims account-wide ACS linkage")
     # per-relationship fetch capabilities: the provider's log keys (cap) never repeat across a fetcher's relationships
     caps = {rel: (b"cap-shared" if mutate else H(b"fetch-cap", rel.encode())) for rel in ("alice-bob", "alice-carol", "alice-dave")}
     if len(set(caps.values())) != len(caps):
@@ -235,34 +251,86 @@ def key_material(mutate=False):
     return bad
 
 
-# ---- criterion: stable per-device correlators (ADR-0136 rule 5, review F-5), real V-001 bytes ------------
+# ---- criterion: stable per-device correlators (ADR-0136/0137, review F-5/F-12), real W0 bytes ---------
 def device_correlator(mutate=False):
-    """Derive the per-device values W0 bytes carry in the clear and require an `always` stable_device_correlator
-    claim for every role that sees them: AsyncKeyBundle key 2 (subject_device_id) at the KeyMaterialProvider, and
-    the envelope's leading sender EncodeEC(IK) at mailbox-class Homes."""
+    """Check stable-device frequency after ADR-0142 sealed delivery.
+
+    KeyMaterialProvider subject DeviceID and push registration remain stable. Established 1:1 mailbox wrappers do
+    not carry a stable sender-device correlator. Provider-resource capabilities remain non-identity handles.
+    """
     bad = []
     expo = {r: dict(e) for r, e in EXPO.items()}
-    if mutate:  # the pre-F-5 claim: "covered by device_count"
-        expo["key_material_provider"]["stable_device_correlator"] = "no_by_design"
+    affected = {
+        "key_material_provider": "always", "home_relay_mailbox": "no_by_design", "t0_sponsored_mailbox": "no_by_design",
+        "t1_hosted_home": "no_by_design", "push_provider": "always", "discovery_publisher": "no_by_design",
+        "recovery_record_store": "no_by_design", "blob_store": "no_by_design",
+    }
+    if mutate:
+        for role, expected in affected.items():
+            expo[role]["stable_device_correlator"] = ("no_by_design" if expected == "always" else "always")
     b = V001["binding"]
     body = dec(dec(bytes.fromhex(b["positive_fetch"][0]))[1])
     if body.get(2) == bytes.fromhex(b["device_id"]) and expo["key_material_provider"].get("stable_device_correlator") != "always":
-        bad.append("AsyncKeyBundle exposes subject_device_id but the KeyMaterialProvider does not declare stable_device_correlator always")
-    senders = set()
-    for case in V001["cases"]:
-        iks = {case[w]["ik_pub"] for w in ("alice", "bob") if "ik_pub" in case[w]}
-        for ev in case["events"]:
-            if ev["type"] == "send":
-                lead = dec(bytes.fromhex(ev["envelope_context"]))[0]
-                if lead[1:].hex() in iks:
-                    senders.add(lead)
-    if not senders:
-        bad.append("no V-001 envelope context starts with the sender identity key (vector shape changed?)")
+        bad.append("key_material_provider: AsyncKeyBundle exposes subject_device_id but descriptor is not always")
     for r in ("home_relay_mailbox", "t0_sponsored_mailbox", "t1_hosted_home"):
-        if senders and expo[r].get("stable_device_correlator") != "always":
-            bad.append(f"{r}: envelopes carry the sender EncodeEC(IK) but the descriptor does not declare stable_device_correlator always")
+        if expo[r].get("stable_device_correlator") != "no_by_design":
+            bad.append(f"{r}: ADR-0142 established wrapper must not expose a stable sender-device correlator")
+    if expo["push_provider"].get("stable_device_correlator") != "always":
+        bad.append("push_provider: registered push token/device handle is stable but descriptor is not always")
+    for r in ("discovery_publisher", "recovery_record_store", "blob_store"):
+        if expo[r].get("stable_device_correlator") != "no_by_design":
+            bad.append(f"{r}: provider-resource capability must not be modeled as a stable OM device correlator")
     return bad
 
+
+def observer_matrix_alignment(mutate=False):
+    """Human matrix and machine descriptor must name the same stable-device frequencies for canonical roles."""
+    text = (ROOT / "docs/architecture/providers/METADATA_OBSERVER_MATRIX.md").read_text()
+    machine = {r: dict(e) for r, e in EXPO.items()}
+    if mutate:
+        machine["discovery_publisher"]["stable_device_correlator"] = "sometimes"
+    rows = {}
+    for line in text.splitlines():
+        if not line.startswith("|") or "Observer" in line or line.startswith("|---"):
+            continue
+        cells = [x.strip() for x in line.strip().strip("|").split("|")]
+        if len(cells) < 2: continue
+        obs, claim = cells[0], cells[1]
+        if "**always**" in claim: freq = "always"
+        elif "**sometimes**" in claim: freq = "sometimes"
+        elif "no stable device correlator" in claim or "no stable sender-device correlator" in claim or "no OM stable account/device field" in claim or "no stable OM identity" in claim: freq = "no_by_design"
+        else: continue  # platform-dependent row intentionally has no exact W0 machine frequency
+        rows[obs] = freq
+    mapping = {
+        "mailbox-class Home / relay": ("home_relay_mailbox", "t0_sponsored_mailbox", "t1_hosted_home"),
+        "KeyMaterialProvider": ("key_material_provider",), "push provider/gateway": ("push_provider",),
+        "discovery publisher": ("discovery_publisher",), "RecoveryRecord store": ("recovery_record_store",),
+        "BlobStore / StoragePool": ("blob_store",), "IntroGate": ("introgate",),
+        "ClientHost origin": ("clienthost_origin",), "LAN observer": ("lan_observer",),
+    }
+    bad=[]
+    for human, roles in mapping.items():
+        if human not in rows:
+            bad.append(f"matrix row missing/unparseable: {human}"); continue
+        for role in roles:
+            got=machine[role].get("stable_device_correlator","no_by_design")
+            if got != rows[human]: bad.append(f"matrix/descriptor drift: {human}={rows[human]} but {role}={got}")
+    return bad
+
+
+def provider_resource_auth(mutate=False):
+    """ADR-0138: routine Home admin is capability-scoped; AccountID/DeviceCredential auth is not required."""
+    text=(ROOT/"spec/protocol/home-api.md").read_text()
+    if mutate:
+        text=text.replace('`directory_publish_cap` | publish/replace one descriptor namespace entry', '`device_auth` | publish/replace one descriptor namespace entry',1)
+    bad=[]
+    if '`device_auth`' in text:
+        bad.append('Home API still exposes device_auth for routine provider administration')
+    for cap in ('relay_admin_cap','directory_publish_cap','key_publish_cap','recovery_record_read_cap','recovery_record_write_cap','blob_repair_cap'):
+        if cap not in text: bad.append(f'Home API missing {cap}')
+    if '`GET /v1/recovery/records/{opaque_locator}`' not in text:
+        bad.append('RecoveryRecord get operation missing')
+    return bad
 
 # ---- criterion: group fan-out (R-226) ------------------------------------------------------------------
 def group_fanout(mutate=False):
@@ -291,15 +359,16 @@ def main() -> int:
     checks = {
         "push_cross_profile": push, "shared_blob": shared_blob, "lan_rendezvous": lan, "colocated_home_roles": colocation,
         "first_contact_introgate": first_contact_flows, "key_material_provider": key_material, "group_fanout": group_fanout,
-        "stable_device_correlator": device_correlator,
+        "stable_device_correlator": device_correlator, "observer_matrix_alignment": observer_matrix_alignment,
+        "provider_resource_auth": provider_resource_auth,
     }
     res = {}
     for name, fn in checks.items():
         ok, mut = fn(), fn(mutate=True)
         res[name] = {"problems": ok, "mutation_caught": bool(mut), "mutation_problems": mut[:3]}
-    hb, sizes = dr_header()
-    mb, _ = dr_header(mutate=True)
-    res["dr_header_exposure"] = {"problems": hb, "mutation_caught": bool(mb), "header_bytes_seen": sizes}
+    hb, outer_bytes = sealed_delivery()
+    mb, _ = sealed_delivery(mutate=True)
+    res["sealed_delivery_outer"] = {"problems": hb, "mutation_caught": bool(mb), "outer_bytes_seen": outer_bytes}
     passed = all(not r["problems"] and r["mutation_caught"] for r in res.values())
     OUT.write_text(json.dumps({"model": "metadata_w0_rules", "gates": ["V-015"], "passed": passed, "checks": res,
                                "gate_status_effect": "evidence_only_no_gate_automatically_passed"}, indent=1) + "\n")

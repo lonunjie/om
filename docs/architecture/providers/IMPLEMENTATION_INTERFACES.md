@@ -6,8 +6,7 @@ These are conceptual interfaces, not frozen language APIs.
 > normative **Home API** (operations, request authentication, CDDL request/response bodies, a typed error registry
 > with at least `quota`, `moved` and `retryable`, and versioning) covering relay, IntroGate, descriptor publishing,
 > sponsorship, recovery records and blob spool, a real ProviderCapabilities JSON Schema with `durability_class`, and
-> the interfaces listed under "Missing contracts" below are design item **A-045**. It blocks `provider_reference`,
-> and "Home API frozen" is a V-020 pre-engineering criterion. The provider conformance runner targets that API.
+> ADR-0133 resolved **A-045**: the Home API, typed errors, ProviderCapabilities schema and formerly missing provider contracts are now frozen architecture inputs. V-020 still owns implementation/conformance evidence before `provider_reference` can authorize. The provider conformance runner targets that API.
 
 ```rust
 trait CryptoProfileRegistry {
@@ -49,6 +48,48 @@ trait TransportAdapter {
     fn send(&self, semantic_event: CanonicalEvent) -> TransportResult;
 }
 ```
+
+## Negative-capability contracts (ADR-0137)
+
+The positive method list is only half of a provider interface. The following powers are **not** ambient capabilities
+of the role and must be absent from its ordinary credentials/key material/interface surface. This is a protocol
+boundary, not a promise that an operator of open-source software cannot write unrelated software.
+
+| Role | Must be structurally unable to do merely by holding the role |
+|---|---|
+| `RelayProvider` / mailbox Home | decrypt E2EE payloads; sign AccountControlState transitions; mint a recipient's referral issuer tokens; turn a queue/deposit capability into AccountID authority |
+| `DirectoryProvider` | authorize controllers/devices; make an alias a permanent/global AccountID root; sign as the discovered account |
+| `RecoveryStore` | independently authorize an AccountControlState transition; decrypt message-history backups; convert possession of a stored RecoveryRecord into controller authority |
+| `IntroGate` | decrypt sealed MessageRequest plaintext; mint the recipient's issuer private-key output; derive a stable requester identifier from the W0 referral-token protocol |
+| `BlobStore` / `StoragePool` | obtain blob content keys; derive canonical AccountID/ConversationID from an opaque blob locator by protocol design |
+| `PushProvider` / gateway | obtain message plaintext/content keys; become account, relationship or conversation authority from an opaque wake handle |
+| `CryptoProvider` | become a remote mandatory service or network trust root; W0 `CryptoProvider` is a local implementation boundary only |
+
+Role colocation gives an operator the **union of observations and local service powers**, never additional cryptographic
+protocol authority. Combining a directory, mailbox and recovery service does not satisfy an AccountControlState
+threshold unless the operator separately possesses the required end-user controller/recovery credentials.
+
+Conformance work should test these as negative cases by withholding forbidden keys/credentials and attempting the
+prohibited operation. It must not phrase them as an impossible claim that a malicious host cannot run arbitrary
+extra code.
+
+### Provider-resource administration capabilities (ADR-0138)
+
+Routine provider administration never requires the provider to validate an AccountControlState or receive a
+DeviceCredential solely to decide whether the caller may edit provider-local state. The canonical auth inputs are
+resource capabilities (`relay_admin_cap`, `directory_publish_cap`, `key_publish_cap`,
+`recovery_record_read_cap`/`write_cap`, `blob_repair_cap`). They are independent per provider/resource and cannot be
+used as AccountID, controller, recovery or E2EE authority.
+
+ADR-0141 makes their **transport** a negative-capability boundary too: bearer capabilities never travel in URL
+paths/query strings/fragments/cookies, ordinary logs/analytics/telemetry/crash reports, referrers or cross-origin
+redirects. Authenticated/private responses are non-cacheable (`no-store` on HTTP). `RecoveryStore` additionally
+stores only authenticated encrypted advisory snapshots; provider-side generation checks never replace the client's
+durable RecoveryRecord high-water mark, and recovered routes/capabilities are revalidated before use.
+
+The provider may reject malformed objects, but end-to-end clients decide whether signed OM objects are current and
+authorized. This prevents a convenience Home from becoming an identity verifier/root while keeping compromised
+provider capabilities bounded to service-level nuisance until rotation.
 
 ## ProviderUsageState
 
@@ -123,10 +164,9 @@ Conformance cases (`conformance:network_transport`, registered in [`machine/conf
 | NT-04 | transport sees only ciphertext and opaque locators | trace tap finds no AccountID, ConversationID, key or plaintext |
 | NT-05 | all transports blocked | the client reports "can't reach" and queues; it never falls back to a weaker security level |
 
-## Missing contracts (A-045)
+## Provider contracts resolved by A-045 / ADR-0133
 
-AGENTS.md lists these as core interfaces; each needs a sketch here and, where a Home implements it, an operation in
-the Home API: `KeyMaterialProvider` (bundle publish/fetch with per-relationship fetch capabilities, R-209),
+AGENTS.md lists these as core interfaces. ADR-0133 resolved the architecture contract; the sketches below and the Home API define their design boundary, while V-020/conformance owns executable provider evidence: `KeyMaterialProvider` (bundle publish/fetch/revoke with per-relationship fetch capabilities and client-side ADR-0140 freshness, R-209/R-291/R-298..R-301),
 `BackupStore`, `RecoveryStore` (RecoveryRecord store and RecoveryRequest fan-out, ADR-0111), `StoragePool`,
 `CryptoProvider`, per-contact deposit-capability mint/revoke (block), sponsorship redemption (ADR-0102),
 BlobLocationRecord repair (ADR-0075) and the forwarding "moved" state.
@@ -245,9 +285,10 @@ The former A-045 "Missing contracts" are now explicit logical interfaces. Wire b
 
 ```text
 KeyMaterialProvider
-  publish_bundle(device_auth, signed_async_key_bundle)
+  publish_bundle(key_publish_cap, signed_async_key_bundle)
   fetch_bundles(relationship_cap, device_ids)
-  rotate_fetch_capability(device_auth, relationship_id)
+  revoke_generation(key_publish_cap, device_id, generation)  # best-effort deletion only
+  rotate_fetch_capability(key_publish_cap, relationship_id)
 
 BackupStore
   put_encrypted_backup(object_cap, ciphertext, retention_policy)
@@ -256,7 +297,8 @@ BackupStore
   usage_state()
 
 RecoveryStore
-  put_recovery_record(device_auth, encrypted_record)
+  put_recovery_record(recovery_record_write_cap, opaque_locator, encrypted_record)
+  get_recovery_record(recovery_record_read_cap, opaque_locator)
   fanout_recovery_request(recovery_auth, signed_request)
   drain_recovery_requests(controller_cap)
 
@@ -264,7 +306,7 @@ StoragePool
   put_ciphertext(object_cap, ciphertext, durability_class)
   get_ciphertext(object_cap)
   delete_ciphertext(object_cap)
-  repair_locations(device_auth, signed_blob_location_records)
+  repair_locations(blob_repair_cap, signed_blob_location_records)
 
 CryptoProvider
   profile_capabilities()
@@ -277,6 +319,9 @@ CryptoProvider
   sign(role, key_handle, canonical_bytes)
   verify(role, public_key, canonical_bytes, signature)
 ```
+
+**ADR-0140 provider rule:** `KeyMaterialProvider` stores the current v1 bundle without provider-visible ACS generation/hash. `generation` is global per DeviceID + CryptoProfile across provider pools; `provider_pool_id` scopes consumable items but never resets freshness. `revoke_generation` is cleanup only. Clients/fetchers authenticate the DeviceCredential against relationship-pinned ACS and enforce the durable recipient high-water mark/equal-generation core hash.
+
 
 `CryptoProvider` is a local implementation boundary, never a network provider. Raw durable private-key bytes need not
 be exportable; handles are implementation-private. Protocol outputs remain canonical and interoperable.

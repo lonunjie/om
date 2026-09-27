@@ -107,8 +107,10 @@ W0 first contact uses three objects ([`discovery.cddl`](../../../spec/cddl/disco
    pinned by ADR-0131: RFC 9180 base-mode semantics with `draft-ietf-hpke-pq-05` MLKEM768-X25519, HKDF-SHA256 and
    ChaCha20Poly1305. The draft version is part of the profile; OM defines no ad-hoc hybrid KEM.
    The payload is signed by the **sender's** intro identity and carries the sender's signed ContactDescriptor, an
-   optional greeting, optional referral attestations and a one-use reply route. It repeats the ticket id and
-   request-key digest, so it cannot be replayed into another request.
+   optional greeting, optional referral attestations, a one-use reply route, and a required request-scoped
+   `reply_delivery_key` bound to that route (ADR-0142). It repeats the ticket id and request-key digest, so it cannot
+   be replayed into another request. The reply delivery key is not a stable identity credential; it exists solely so
+   the first post-acceptance response can be sealed before established relationship delivery keys have been exchanged.
    - **Sender hiding.** The outer object carries only the ticket id, request-key digest, profile, HPKE encapsulation,
      ciphertext and an optional admission proof. The IntroGate sees the ticket and admission token, the size, the
      timing and the network address; never the sender's AccountID, device id or intro key. It MUST NOT require any.
@@ -143,15 +145,15 @@ tickets: invite-bound tickets and **referral tokens**. Alice's client pre-issues
 `admission_proof`. The IntroGate verifies only the token, never Carol's identity, so it learns nothing about Alice's
 contacts. "Introduced by Carol" is a separate label that Alice's client verifies from the ReferralAttestation inside
 the sealed payload, and shows only when Carol is Alice's contact. A request without a valid token uses the public
-queue. The token profile is design-queue item A-032.
+queue. A-032 was resolved by ADR-0132: W0 uses the RFC 9578 publicly verifiable Blind-RSA referral-token profile.
 
 Normal users should never see these mechanisms during ordinary traffic.
 
 ## 7. Privacy Pass direction
 
-Privacy Pass-style unlinkable tokens are a candidate for proving that a requester passed an anti-abuse step without creating a permanent global user identifier or reputation score.
+W0 uses the recipient-issued RFC 9578 publicly verifiable Blind-RSA referral-token profile to prove limited referral admission without a permanent global user identifier or reputation score. The cryptographic property and its metadata limits are defined by ADR-0132/ADR-0137.
 
-The generic `AdmissionProof` interface remains extensible, but W0 standardizes the recipient-issued referral profile in ADR-0132 so independent clients and IntroGates interoperate. Other admission mechanisms remain optional and explicitly profiled.
+The generic `AdmissionProof` interface remains extensible, but W0 standardizes this profile so independent clients and IntroGates interoperate. Other admission mechanisms remain optional and explicitly profiled.
 
 ## 8. DDoS responsibility
 
@@ -211,7 +213,9 @@ Acceptance does not immediately create a stable-account relationship. The recipi
 `IntroIdentityBinding`; after verifying it, the requester sends an `IntroIdentityBinding` for the intro identity used
 in the original request. The relationship is `ACCEPTED_UNBOUND` until both verify against active, non-quarantined
 DeviceCredentials and their referenced AccountControlState heads. Only then does it become `ACTIVE`, expose
-relationship-scoped key-material fetch authority and establish normal PQXDH sessions to stable-account device bundles.
+relationship-scoped key-material fetch authority, exchange per-device/per-route `SealedDeliveryKeyRecord`s, and
+establish normal PQXDH sessions to stable-account device bundles. The recipient's first accepted response uses the
+request-scoped `reply_delivery_key`; established records take over immediately after relationship state is available.
 
 This keeps the requester's AccountID hidden before acceptance while ensuring the accepting recipient authenticates the
 requester just as strongly as the requester authenticates the recipient.
@@ -228,13 +232,26 @@ with RSASSA-PSS, SHA-384, MGF1-SHA-384 and a **48-byte salt** (RFC 9578 §6.4), 
 id-RSASSA-PSS SPKI (§6.5). The zero-salt `RSABSSA-SHA384-PSSZERO-*` variants are a different profile; an
 implementation must not accept one in place of the other.
 
+**W0 issuance-unlinkability property (ADR-0137).** Given issuance transcripts and later redeemed token bytes, the
+issuer — and an IntroGate or other party that obtains/colludes with those issuance transcripts — must not be able,
+from the Blind-RSA protocol values themselves, to determine which issuance transaction produced a particular redeemed
+token except with negligible advantage. Every issuance therefore samples a fresh, independently generated, uniformly
+distributed non-zero blinding scalar from a CSPRNG, resampling values that are not invertible modulo `n`. Reusing a
+nontrivial blinding scalar across issuances violates W0 even when the value is not `1`.
+
+This is a **cryptographic/protocol** unlinkability claim. It does not hide from the issuer which contact participated
+in an issuance; it does not hide redemption IP address, timing, token use or ticket metadata from the IntroGate; it
+does not defeat timing/cardinality correlation when observations are combined; and it does not hide an optional
+ReferralAttestation from the recipient after the sealed request is decrypted.
+
 Evidence boundary: the IntroGate redemption model in [`verification/bounded/abuse_w0_rules.py`](../../../verification/bounded/abuse_w0_rules.py) covers only
 redemption-side signature verification, challenge binding, issuer-epoch rotation/overlap and single-use (replay)
-enforcement. Issuance unlinkability is evidenced separately by [`verification/bounded/privacy_pass_issuance.py`](../../../verification/bounded/privacy_pass_issuance.py)
-(RFC 9474 Blind/BlindSign/Finalize reproducing the RFC 9474 and RFC 9578 test vectors, plus a structural check that
-the issuer's TokenRequest/TokenResponse transcript contains neither the redeemed token input nor its authenticator
-and is consistent with every redeemed token). Neither is a proof of the RFC 9474 blindness property itself, which
-rests on the RFC's analysis and a uniformly random blinding factor.
+enforcement. Issuance unlinkability/freshness is evidenced separately by
+[`verification/bounded/privacy_pass_issuance.py`](../../../verification/bounded/privacy_pass_issuance.py): RFC 9474
+Blind/BlindSign/Finalize reproduces the RFC 9474/RFC 9578 vectors; a deterministic positive control uses distinct
+known invertible blinding factors; and a negative control reuses the same nontrivial factor and must expose an
+issuer-side repeated candidate marker. This remains executable regression evidence rather than a new proof of RFC
+9474 blindness.
 
 The Privacy Pass challenge commits to the IntroGate identity, recipient request-key digest, issuer epoch and admission
 class under an OM domain-separation label. The IntroGate treats tokens as single-use and keeps the spent nonce through

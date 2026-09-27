@@ -159,6 +159,8 @@ restore encrypted history
 
 If freshness cannot be established, the client enters a restricted recovery state rather than silently trusting old authority.
 
+**Async prekey freshness (ADR-0140).** A backup may carry the recipient's observed `(peer AccountID, peer DeviceID, CryptoProfile) -> (highest_generation, generation_core_hash)` records as encrypted local security state, but an old backup is never allowed to lower a fresher value learned from another surviving device/private-sync copy. Merge is monotonic: higher generation wins; equal generation with a different core hash is a security conflict. After restoring an old snapshot, the client treats prekey freshness as stale until it has merged every surviving local/private-sync copy and compared reachable provider pools. Provider `revokeGeneration()` is not a substitute for this state. If every copy of a newer observation was lost, OM cannot cryptographically reconstruct that observation; the client uses current relationship-pinned ACS authorization, expiry and the highest valid generation obtainable across reachable providers, and the residual first-observation limitation is surfaced rather than hidden.
+
 ## 9. Recovery UX
 
 Normal users see goals, not cryptographic terms. The first option is the default (§10):
@@ -195,12 +197,16 @@ authority, and identity recovery always goes through §10.3.
 The client picks the first available custodian and says, in one sentence, where recovery lives:
 
 1. **Synced passkey (platform or password-manager vault)** with WebAuthn PRF. OM creates a passkey whose
-   `user.id` is a random 32-byte **RecoveryHandle**, not the AccountID, so the credential manager cannot link it to
-   the OM identity. `user.name` is the user's human recovery locator (their handle or Home address), updated with
-   `signalCurrentUserDetails` when they move Home. `RecoveryRoot = HKDF(PRF(passkey, "om/recovery-root/v1" ‖ epoch),
-   "om recovery root" ‖ RecoveryHandle)`. No wrapped secret needs to be stored anywhere: the passkey *is* the custody.
-   The Home stores only an encrypted **RecoveryRecord**, indexed by `H(RecoveryHandle)`, that holds the provider
-   metadata and RelationshipSnapshot (§10.1).
+   `user.id` is a random 32-byte **RecoveryHandle**, not the AccountID. This avoids directly encoding AccountID in
+   `user.id`; it does **not** make the credential anonymous to the credential manager. The RP ID is visible,
+   `user.name` remains the user's human recovery locator (their handle or Home address) for the existing recovery UX,
+   and the platform may correlate those fields with its own telemetry. `user.name` is updated with
+   `signalCurrentUserDetails` when the recovery locator changes. `RecoveryRoot = HKDF(PRF(passkey,
+   "om/recovery-root/v1" ‖ epoch), "om recovery root" ‖ RecoveryHandle)`. No wrapped identity secret needs to be
+   stored anywhere: the passkey *is* the custody.
+   The Home stores only an encrypted **RecoveryRecord** under the opaque RecoveryStore locator defined below. It
+   holds provider metadata and the RelationshipSnapshot (§10.1) but is not indexed by AccountID or a raw
+   RecoveryHandle.
    *User sees:* "Recovery is on. It's saved with your passkeys (Google Password Manager)."
 2. **Recovery key** (printable sheet or password-manager text: 256-bit root, checksummed, plus locator). This is the
    default when no PRF-capable synced passkey exists, and the default custodian under Maximum Privacy (§10.6).
@@ -211,6 +217,47 @@ The client picks the first available custodian and says, in one sentence, where 
 
 If the automatic custodian cannot be established, as with a PRF-less browser and no saved key, the identity is
 created with a **pending** recovery policy. The continuity check (§10.5) then stays visible until a custodian exists.
+
+### 10.2.1 RecoveryRecord locator and capabilities (ADR-0138)
+
+Each RecoveryStore advertises a random public `recovery_scope_id`. From `RecoveryRoot`, the client derives two
+independent 32-byte capabilities with the selected profile's HKDF:
+
+```text
+read_cap  = KDF(RecoveryRoot, "OM-RECOVERY-RECORD-READ-CAP-v1"  || recovery_scope_id)
+write_cap = KDF(RecoveryRoot, "OM-RECOVERY-RECORD-WRITE-CAP-v1" || recovery_scope_id)
+locator   = DS-HASH("OM-RECOVERY-RECORD-LOCATOR-v1", read_cap)
+```
+
+The RecoveryStore indexes encrypted bytes by `locator`. `GET` requires `read_cap`; `PUT` requires the distinct
+`write_cap`. These are provider/resource capabilities only: neither is an AccountControlState vote, RecoveryPolicy
+vote or message-history key. The provider can correlate operations on the same record, but cannot derive AccountID
+from the protocol values.
+
+A restricted recovering device that reconstructs RecoveryRoot and knows the RecoveryStore endpoint/scope can
+therefore fetch the encrypted record **before** account recovery completes, exactly as §10.3 requires. Loss of the
+store may lose this convenience metadata but not identity authority.
+
+#### RecoveryRecord v1 freshness and advisory semantics (ADR-0141)
+
+The decrypted RecoveryRecord v1 is authenticated and carries `record_generation`, `recovery_epoch` and
+`last_known_acs_head` as defined by [`recovery-record.logical.schema.json`](../../../spec/protocol/recovery-record.logical.schema.json).
+For each RecoveryStore scope/record lineage, clients durably retain the highest accepted `record_generation` and merge
+that value monotonically across private sync/backup. A lower generation is stale when a fresher observation survives;
+the same generation with different authenticated plaintext is fail-closed equivocation. Restoring an old local backup
+MUST NOT lower this high-water mark.
+
+The whole record is **advisory and potentially stale**. `last_known_acs_head` is a remembered authenticated observation,
+not a second authority object. Provider routes, capabilities, descriptors and other mutable snapshot data are
+revalidated before reuse. A record that claims a newer recovery epoch or ACS head cannot authorize it; the normal
+AccountControlState/recovery chain must establish that state.
+
+In the normal profile, RecoveryRoot can derive the outer record/provider/relationship recovery keys, so compromise of
+RecoveryRoot plus the RecoveryStore rendezvous can expose provider-recovery metadata and relationship metadata even
+while the §10.3 delay/veto still protects account **authority**. Maximum Privacy may instead use an independently
+generated `RelationshipRecoveryKey`, not derived from or wrapped by RecoveryRoot. The record then stores only a
+second-layer encrypted relationship snapshot; losing that separate key loses relationship restoration convenience,
+not AccountID authority.
 
 ### 10.3 Activation: no silent takeover
 
@@ -234,7 +281,9 @@ RecoveryCompletion: new device becomes the sole controller, every earlier contro
 - A request is bound to its target device key and recovery epoch. Completion is rejected if that device was
   enrolled or revoked by any other transition while the request was pending (found by the V-002 model).
 - Homes rate-limit RecoveryRequests per account and drop duplicates; repeated vetoed requests trigger custody
-  rotation, not an endless veto loop.
+  rotation, not an endless veto loop. RecoveryRequest fan-out necessarily exposes the request AccountID and the fact
+  of a recovery attempt to each mailbox Home performing the fan-out; metadata descriptors declare that operation-
+  scoped leakage rather than claiming `no_by_design`.
 - The delay protects users who **still have a device**. A user who has lost every device and whose custodian is
   also compromised loses the race. That is the disclosed residual risk (T-041).
 
@@ -263,9 +312,9 @@ acknowledgement. The persistent, non-blocking check now appears only when:
 
 | Profile | Default custodian | Delay | Notes |
 |---|---|---|---|
-| Recommended | synced passkey, else recovery key | 72 h | the platform credential vault learns "uses OM" (the rpId) plus a random handle |
+| Recommended | synced passkey, else recovery key | 72 h | the credential manager sees the OM RP ID, random RecoveryHandle and human recovery locator; platform telemetry may correlate them |
 | Hardened | recovery key + synced passkey (both methods) | 7 d | guardians suggested |
-| Maximum Privacy | recovery key only (no platform custody) | 7 d | may explicitly choose none |
+| Maximum Privacy | recovery key only (no platform custody) | 7 d | may explicitly choose none; may hold RelationshipRecoveryKey separately from RecoveryRoot |
 
 Profiles change **custody and delay**, never cryptographic floors (ADR-0037).
 
@@ -273,7 +322,11 @@ Profiles change **custody and delay**, never cryptographic floors (ADR-0037).
 
 - The synced-passkey custodian inherits the security of the user's platform account and the platform's passkey
   sync encryption. Phishing that account plus defeating the device-passcode escrow lets an attacker *start*
-  recovery, and the live-device veto is what stops it.
+  recovery, and the live-device veto is what stops it. The credential manager also sees the RP ID and WebAuthn user
+  metadata described above; a random `user.id` is not an unlinkability guarantee.
+- RecoveryRoot compromise has two different consequences: activation delay/veto still protects account authority, but
+  in the normal profile the attacker may fetch/decrypt RecoveryRecord provider and relationship metadata. Maximum
+  Privacy can split relationship-snapshot custody with an independent `RelationshipRecoveryKey`.
 - Passkeys are bound to the RP ID of the client distribution that created them. Recovering through a different
   distribution needs the recovery key or guardians, or a device of the original distribution. V-006 records the
   per-browser and per-platform support matrix (PRF on synced passkeys, `signalCurrentUserDetails`).

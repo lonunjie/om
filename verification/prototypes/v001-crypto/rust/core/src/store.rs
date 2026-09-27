@@ -11,12 +11,13 @@
 //! handshake that used no one-time key at all goes through the exact replay ledger (ledger.rs), and
 //! `receive` commits the new state (ledger included) to the vault before releasing plaintext.
 //!
-//! Initiator binding (ADR-0136 rule 4, review F-4/F-9): a responder accepts a new inbound session only if
-//! the initiator's IK_A is the identity key of exactly one active, non-quarantined DeviceCredential that a
-//! trusted relationship peer's ACS head commits (`trust_peer`, persisted like the peer heads of K7). The check
-//! runs before any secret-key operation, so an unbound initiation consumes nothing and changes nothing.
+//! Initiator/relationship binding (ADR-0137, review F-11): every inbound 1:1 envelope requires a
+//! `RelationshipContext`. The sender IK is accepted only if it is the identity key of exactly one active,
+//! non-quarantined DeviceCredential committed by that relationship peer's trusted ACS head (`trust_peer`,
+//! persisted like the peer heads of K7). The check runs before any secret-key operation for both new and
+//! established sessions, so there is no optional/unpinned receive path.
 
-use crate::binding::{self, Acs, Credential, PeerDevice, PeerView, StaticKeys, TrustedPeer, VerifiedBundle, KIND_EC_ONE_TIME, KIND_PQ_ONE_TIME};
+use crate::binding::{self, Acs, BundleFreshness, Credential, PeerDevice, PeerView, RelationshipContext, StaticKeys, TrustedPeer, VerifiedBundle, KIND_EC_ONE_TIME, KIND_PQ_ONE_TIME};
 use crate::cbor::{self, V};
 use crate::ledger::LastResortLedger;
 use crate::pqxdh::{self, encode_ec, InitHeader, PqKind};
@@ -75,6 +76,8 @@ pub struct Device {
     pub sessions: BTreeMap<Vec<u8>, Session>,
     /// Relationship peers by AccountID: the trusted ACS head (hash) and view (K6/K7).
     pub peers: BTreeMap<[u8; 32], ([u8; 32], TrustedPeer)>,
+    /// Durable highest-seen AsyncKeyBundle generation/core per peer AccountID+DeviceID+profile.
+    pub bundle_freshness: BundleFreshness,
     /// Derived from `peers` (not persisted): every committed peer device, for IK_A lookup.
     pub peer_devices: Vec<PeerDevice>,
 }
@@ -133,6 +136,7 @@ impl Device {
             ledger: LastResortLedger::default(),
             sessions: BTreeMap::new(),
             peers: BTreeMap::new(),
+            bundle_freshness: BundleFreshness::default(),
             peer_devices: vec![],
         }
     }
@@ -191,22 +195,26 @@ impl Device {
         }
     }
 
-    fn static_keys(&self) -> StaticKeys {
+    fn static_keys_for_pool(&self, pool_id: [u8; 16]) -> StaticKeys {
         StaticKeys {
             spk_id: self.spk.id,
             spk: pqxdh::x25519_pub(&self.spk.secret),
             pqspk_id: self.last_resort.id,
             pqspk: pqxdh::mlkem_pub(&self.last_resort.seed),
             epoch: self.epoch,
-            pool_id: [0x11; 16],
+            pool_id,
             expires_at: BUNDLE_EXPIRES,
         }
     }
 
-    /// The signed-AsyncKeyBundle for the current signed-prekey epoch.
-    pub fn signed_bundle<R: RngCore + CryptoRng>(&self, rng: &mut R) -> Vec<u8> {
-        let body = binding::bundle_body(&self.device_id, &self.acs(), &self.static_keys());
+    /// The signed-AsyncKeyBundle for the current signed-prekey generation and provider pool.
+    pub fn signed_bundle_for_pool<R: RngCore + CryptoRng>(&self, pool_id: [u8; 16], rng: &mut R) -> Vec<u8> {
+        let body = binding::bundle_body(&self.device_id, &self.static_keys_for_pool(pool_id));
         binding::sign_bundle(&self.signer, &self.device_id, body, arr32(rng))
+    }
+
+    pub fn signed_bundle<R: RngCore + CryptoRng>(&self, rng: &mut R) -> Vec<u8> {
+        self.signed_bundle_for_pool([0x11; 16], rng)
     }
 
     fn alloc_id(&mut self) -> u32 {
@@ -215,23 +223,35 @@ impl Device {
         i
     }
 
-    /// Generate one-time prekeys ([PQXDH] §3.2) and return the signed upload for ONE provider pool.
-    pub fn generate_one_time<R: RngCore + CryptoRng>(&mut self, n_ec: usize, n_pq: usize, rng: &mut R) -> Upload {
-        let mut up = Upload { bundle: self.signed_bundle(rng), ..Default::default() };
+    /// Generate one-time prekeys ([PQXDH] §3.2) for a named provider pool. Each item signature
+    /// commits to this pool and the current signed-prekey generation (ADR-0140).
+    pub fn generate_one_time_for_pool<R: RngCore + CryptoRng>(&mut self, pool_id: [u8; 16], n_ec: usize, n_pq: usize, rng: &mut R) -> Upload {
+        let mut up = Upload { bundle: self.signed_bundle_for_pool(pool_id, rng), ..Default::default() };
         for _ in 0..n_ec {
             let id = self.alloc_id();
-            let s = arr32(rng);
-            self.opks.insert(id, s);
-            up.opks.push(binding::sign_item(&self.signer, &self.device_id, id, KIND_EC_ONE_TIME, &pqxdh::x25519_pub(&s), arr32(rng)));
+            let secret = arr32(rng);
+            self.opks.insert(id, secret);
+            up.opks.push(binding::sign_item(
+                &self.signer, &self.device_id, self.epoch, &pool_id, id, KIND_EC_ONE_TIME,
+                &pqxdh::x25519_pub(&secret), arr32(rng),
+            ));
         }
         for _ in 0..n_pq {
             let id = self.alloc_id();
             let seed = arr64(rng);
             self.pqopks.insert(id, seed);
-            up.pqopks.push(binding::sign_item(&self.signer, &self.device_id, id, KIND_PQ_ONE_TIME, &pqxdh::mlkem_pub(&seed), arr32(rng)));
+            up.pqopks.push(binding::sign_item(
+                &self.signer, &self.device_id, self.epoch, &pool_id, id, KIND_PQ_ONE_TIME,
+                &pqxdh::mlkem_pub(&seed), arr32(rng),
+            ));
         }
         up
     }
+
+    pub fn generate_one_time<R: RngCore + CryptoRng>(&mut self, n_ec: usize, n_pq: usize, rng: &mut R) -> Upload {
+        self.generate_one_time_for_pool([0x11; 16], n_ec, n_pq, rng)
+    }
+
 
     /// New signed-prekey epoch: fresh EC signed prekey and ML-KEM signed (last-resort) prekey. The
     /// previous epoch stays acceptable for a grace period ([PQXDH] §3.2) with its own ledger.
@@ -261,7 +281,10 @@ impl Device {
 
     /// Alice: verify the fetched material against Bob's trusted ACS head, then PQXDH + DR init.
     pub fn start_session<R: RngCore + CryptoRng>(&mut self, fetch: &[Vec<u8>], peer: &PeerView, rng: &mut R) -> Result<(VerifiedBundle, pqxdh::Transcript), Error> {
-        let vb = binding::verify_fetch(fetch, peer)?;
+        let vb = binding::verify_fetch_with_freshness(fetch, peer, &mut self.bundle_freshness)?;
+        // The trusted PeerView that authorizes initiation is also installed as relationship
+        // state, so replies can only be accepted with that peer's mandatory route context.
+        self.trust_peer(peer.acs_body.to_vec(), vec![peer.credential_body.to_vec()])?;
         let est = pqxdh::initiate(&self.ik_secret, &vb, rng)?;
         let dr = SessionState::init_alice(&est.sk, est.ad.clone(), &vb.spk, rng);
         let kind = if vb.pq_one_time { PqKind::OneTime } else { PqKind::LastResort };
@@ -284,23 +307,18 @@ impl Device {
     // ---- receiving ----------------------------------------------------------------------
 
     /// Decrypt, then commit the whole new device state (ledger included) to `vault` BEFORE returning
-    /// plaintext. If the commit fails nothing changes and nothing is released.
-    pub fn receive<R: RngCore + CryptoRng>(&mut self, env: &[u8], vault: &mut dyn Vault, rng: &mut R) -> Result<([u8; 32], Vec<u8>, MsgKeys), Error> {
+    /// plaintext. The relationship context is mandatory; if the commit fails nothing changes and nothing is released.
+    pub fn receive<R: RngCore + CryptoRng>(&mut self, relationship: &RelationshipContext, env: &[u8], vault: &mut dyn Vault, rng: &mut R) -> Result<([u8; 32], Vec<u8>, MsgKeys), Error> {
         let mut next = self.clone();
-        let r = next.decrypt(env, rng)?;
+        let r = next.decrypt(relationship, env, rng)?;
         vault.commit(&next.to_bytes())?;
         *self = next;
         Ok(r)
     }
 
-    /// In-memory decrypt (the caller persists). Returns (sender IK, plaintext). On error nothing changes.
-    pub fn decrypt<R: RngCore + CryptoRng>(&mut self, env: &[u8], rng: &mut R) -> Result<([u8; 32], Vec<u8>, MsgKeys), Error> {
-        self.decrypt_on_route(env, None, rng)
-    }
-
-    /// As `decrypt`, for an envelope delivered on the relationship route of `route_account`: a new session
-    /// is accepted only from a device of that account.
-    pub fn decrypt_on_route<R: RngCore + CryptoRng>(&mut self, env: &[u8], route_account: Option<&[u8; 32]>, rng: &mut R) -> Result<([u8; 32], Vec<u8>, MsgKeys), Error> {
+    /// In-memory decrypt (the caller persists). The relationship context is mandatory for every envelope,
+    /// including an established session. Returns (sender IK, plaintext). On error nothing changes.
+    pub fn decrypt<R: RngCore + CryptoRng>(&mut self, relationship: &RelationshipContext, env: &[u8], rng: &mut R) -> Result<([u8; 32], Vec<u8>, MsgKeys), Error> {
         let v = cbor::decode(env)?;
         let a = v.a()?;
         if a.len() != 4 {
@@ -320,6 +338,9 @@ impl Device {
                 return Err(Error::Decode("envelope sender/IK_A mismatch"));
             }
         }
+        // ADR-0137: relationship identity is checked before *any* session lookup/decrypt.
+        // This closes the established-session bypass as well as new-session initiation.
+        binding::verify_initiator(&sender_ik, &self.peer_devices, relationship)?;
         match (self.sessions.get_mut(sender), init) {
             (Some(s), init) => {
                 if let Some(h) = &init {
@@ -331,10 +352,7 @@ impl Device {
                 s.pending_init = None; // [DR] §7.1: a reply has been received
                 Ok((sender_ik, pt, keys))
             }
-            (None, Some(h)) => {
-                binding::verify_initiator(&h.ik_a, &self.peer_devices, route_account)?;
-                self.accept_initial(&h, header, ct, &ctx, rng)
-            }
+            (None, Some(h)) => self.accept_initial(&h, header, ct, &ctx, rng),
             (None, None) => Err(Error::NoSession),
         }
     }
@@ -436,6 +454,18 @@ impl Device {
                         .collect(),
                 ),
             ),
+            (
+                17,
+                V::A(
+                    self.bundle_freshness
+                        .floors
+                        .iter()
+                        .map(|((account, device, profile), (generation, core))| V::A(vec![
+                            V::B(account.to_vec()), V::B(device.to_vec()), V::U(*profile), V::U(*generation), V::B(core.to_vec()),
+                        ]))
+                        .collect(),
+                ),
+            ),
         ])
     }
 
@@ -495,6 +525,17 @@ impl Device {
             let p = TrustedPeer { acs_body: a[1].b()?.to_vec(), credential_bodies: a[2].a()?.iter().map(|c| c.b().map(|b| b.to_vec())).collect::<Result<_, _>>()? };
             peers.insert(Acs::from_body(&p.acs_body)?.account_id, (a[0].b32()?, p));
         }
+        let mut bundle_freshness = BundleFreshness::default();
+        for e in v.opt(17).map(|x| x.a()).transpose()?.unwrap_or(&[]) {
+            let a = e.a()?;
+            if a.len() != 5 || a[1].b()?.len() != 16 {
+                return Err(Error::Decode("device: bundle freshness"));
+            }
+            let key = (a[0].b32()?, a[1].b()?.try_into().unwrap(), a[2].u()?);
+            if bundle_freshness.floors.insert(key, (a[3].u()?, a[4].b32()?)).is_some() {
+                return Err(Error::Decode("device: duplicate bundle freshness"));
+            }
+        }
         let did = v.get(12)?.b()?;
         let sg = v.get(13)?.a()?;
         if did.len() != 16 || sg.len() != 2 {
@@ -517,6 +558,7 @@ impl Device {
             ledger: LastResortLedger::from_cbor(v.get(9)?)?,
             sessions,
             peers,
+            bundle_freshness,
             peer_devices: vec![],
         }
         .reindexed()

@@ -1,0 +1,17 @@
+{
+  "checker": "design_consistency_adr0141_rules",
+  "passed": true,
+  "errors": [],
+  "checks": {
+    "legacy_critical": true,
+    "w0_proposed_labels": [],
+    "recovery_freshness_fields": [
+      "version",
+      "record_generation",
+      "recovery_epoch",
+      "last_known_acs_head",
+      "provider_metadata_snapshot"
+    ],
+    "call_isolation": true
+  }
+}

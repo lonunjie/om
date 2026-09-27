@@ -3,6 +3,7 @@
 //! under WASI and inside a JS host (performance.now()).
 
 use crate::rng::{CryptoRng, RngCore};
+use crate::binding::RelationshipContext;
 use crate::store::{Device, Provider};
 use serde_json::{json, Value};
 
@@ -43,12 +44,13 @@ pub fn run<R: RngCore + CryptoRng>(rng: &mut R, now_ns: &dyn Fn() -> u64, setup_
     for _ in 0..setup_iters {
         let mut alice = Device::new(rng);
         bob.trust_device(&alice).expect("trust");
+        let alice_account = alice.account_id;
         let fetch = prov.fetch(&did).expect("bundle");
         let t0 = now_ns();
         alice.start_session(&fetch, &view, rng).expect("initiate");
         let env = alice.encrypt(&bob_ik, b"first message").expect("encrypt").0;
         let t1 = now_ns();
-        bob.decrypt(&env, rng).expect("accept");
+        bob.decrypt(&RelationshipContext::new(alice_account), &env, rng).expect("accept");
         let t2 = now_ns();
         ta.push(t1 - t0);
         tb.push(t2 - t1);
@@ -59,13 +61,16 @@ pub fn run<R: RngCore + CryptoRng>(rng: &mut R, now_ns: &dyn Fn() -> u64, setup_
     bob.sessions.clear();
     let mut alice = Device::new(rng);
     bob.trust_device(&alice).expect("trust");
+    alice.trust_device(&bob).expect("trust");
     let up = bob.generate_one_time(1, 1, rng);
     prov.publish(&bob, up);
     let b = prov.fetch(&did).unwrap();
     alice.start_session(&b, &view, rng).unwrap();
     let env = alice.encrypt(&bob_ik, b"hello").unwrap().0;
-    bob.decrypt(&env, rng).unwrap();
+    bob.decrypt(&RelationshipContext::new(alice.account_id), &env, rng).unwrap();
     let alice_ik = alice.ik();
+    let alice_account = alice.account_id;
+    let bob_account = bob.account_id;
     let (mut enc, mut dec, mut both) = (vec![], vec![], vec![]);
     let payload = [0x42u8; 160];
     for i in 0..msg_iters {
@@ -74,7 +79,8 @@ pub fn run<R: RngCore + CryptoRng>(rng: &mut R, now_ns: &dyn Fn() -> u64, setup_
         let t0 = now_ns();
         let env = s.encrypt(&peer, &payload).unwrap().0;
         let t1 = now_ns();
-        let (_, pt, _) = r.decrypt(&env, rng).unwrap();
+        let route = if a_to_b { alice_account } else { bob_account };
+        let (_, pt, _) = r.decrypt(&RelationshipContext::new(route), &env, rng).unwrap();
         let t2 = now_ns();
         assert_eq!(pt, payload);
         enc.push(t1 - t0);

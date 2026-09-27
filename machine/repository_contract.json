@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-25T11:54:00+08:00",
+  "snapshot": "2026-09-27T08:42:00+08:00",
   "phase": "architecture_hardening_pre_engineering",
   "engineering_authorized": false,
   "engineering_unlock_requires": [
@@ -33,7 +33,8 @@
     "machine/deferred_product_questions.jsonl",
     "machine/requirement_traceability.json",
     "machine/threat_register.jsonl",
-    "machine/conformance_suites.json"
+    "machine/conformance_suites.json",
+    "machine/security_invariant_traceability.json"
   ],
   "canonical_identity": {
     "account_id": "cryptographically random 256-bit stable identifier independent of keys/providers/aliases",
@@ -126,7 +127,15 @@
     "gate criteria_met entries exactly match canonical gate criteria; pre-engineering passed requires all criteria plus satisfied phase independence (ADR-0134)",
     "every interface-impact gate declares feasibility_criteria and feasibility_status evidenced requires every feasibility criterion met (ADR-0134)",
     "verification prototypes used before scope authorization are non-production evidence only; implementation-dependent evidence belongs to pre-release (ADR-0134)",
-    "verification review-only dependencies are batched after repo-local evidence rather than forming an agent-to-agent execution loop (ADR-0134)"
+    "verification review-only dependencies are batched after repo-local evidence rather than forming an agent-to-agent execution loop (ADR-0134)",
+    "every named security invariant in SECURITY_INVARIANTS.md has exactly one machine/security_invariant_traceability.json entry whose referenced requirements/threats/decisions/evidence/sources exist; this mapping never marks a gate passed (ADR-0139)",
+    "for frozen W0 wire objects, canonical CDDL plus frozen registries/domain-separation rules are authoritative over logical modeling schemas; logical schemas cannot add wire fields or semantics (ADR-0139)",
+    "SecurityAdvisory expiry, supersession or override cannot lower an established stored relationship security floor or revive a forbidden profile (ADR-0139)",
+    "OMA-ENC-1-candidate is verification-only and cannot become a production portability encryption profile without V-014 freeze/review (ADR-0139)",
+    "final design closure keeps engineering_authorized false until named scopes independently satisfy the existing unlock contract; design_open=0 is not engineering authorization (ADR-0139)",
+    "AsyncKeyBundle v1 omits retired ACS keys 3/4; prekey generation is globally monotonic per device/profile across provider pools and one-time prekeys are context-bound (ADR-0140)",
+    "LegacyPolicy criticality, bearer-capability transport hygiene, RecoveryRecord freshness/advisory semantics, frozen W0 domain-label status, resolved group-call participant-only media-key semantics and the 300-second default time skew are machine-checked semantic invariants (ADR-0141)",
+    "Established OM-Crypto-v1 1:1 relay delivery uses ADR-0142 sealed delivery with relationship/device/route-bound keys, request bootstrap, frozen padding/HPKE binding and no silent clear-sender fallback; ADR-0143 makes durable replay crash-safe with exact-wrapper RESERVED resume and COMPLETE idempotence; outer open never authenticates the sender (ADR-0142/ADR-0143)"
   ],
   "legal_risk_policy": {
     "protocol_home_jurisdiction": "none",

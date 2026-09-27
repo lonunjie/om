@@ -1,4 +1,4 @@
-; Status: frozen (ADR-0119, 2026-09-24); additions by ADR-0126 (2026-09-24).
+; Status: frozen (ADR-0119, 2026-09-24); additions by ADR-0126 and ADR-0142.
 ; W0 discovery/introduction objects: ContactDescriptor, ContactCapsule, ReferralAttestation,
 ; Invite, IntroductionTicket, MessageRequest, MessageRequestPayload, IntroIdentityBinding.
 
@@ -113,6 +113,7 @@ MessageRequestPayload = {
   ? 6: RichText,                            ; greeting
   ? 7: [1*4 bstr .cbor signed-ReferralAttestation], ; referrals (client-side label only)
   8: relay-entry,                           ; reply_route (one-use deposit capability for the reply)
+  9: delivery-key-material,                 ; reply_delivery_key, bound to reply_route (ADR-0142)
   ? 23: extensions,
 }
 

@@ -6,10 +6,18 @@
 # and writes deterministic results to verification/results/v001-crypto-latest.json.
 # Timing numbers (not deterministic) go to rust/target/v001-perf.json only.
 #
-#   run.sh          all checks (~2-4 min after first build; first build downloads crates and KAT files)
+#   run.sh                  all checks (~2-4 min after first build; first build downloads crates and KAT files)
+#   run.sh --update-vectors regenerate the committed deterministic corpus after an intentional frozen-wire amendment
 set -euo pipefail
 
 LONG=0
+UPDATE_VECTORS=0
+for a in "$@"; do
+  case "$a" in
+    --update-vectors) UPDATE_VECTORS=1 ;;
+    *) printf '[v001] unknown option: %s\n' "$a" >&2; exit 2 ;;
+  esac
+done
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
@@ -92,7 +100,13 @@ log "vectors"
 wasi "$WASI" vectors > "$OUT/vectors-wasi.json"
 node "$HERE/node/run_wasm.mjs" "$NODEWASM" vectors > "$OUT/vectors-node.json"
 COMMITTED="$HERE/vectors/om-v001-proto-vectors.json"
-[[ -f "$COMMITTED" ]] || cp "$OUT/vectors-native.json" "$COMMITTED"
+cmp -s "$OUT/vectors-native.json" "$OUT/vectors-wasi.json" || fail "native/wasi vector outputs differ"
+cmp -s "$OUT/vectors-native.json" "$OUT/vectors-node.json" || fail "native/node vector outputs differ"
+if [[ "$UPDATE_VECTORS" == 1 ]]; then
+  cp "$OUT/vectors-native.json" "$COMMITTED"
+elif [[ ! -f "$COMMITTED" ]] || ! cmp -s "$OUT/vectors-native.json" "$COMMITTED"; then
+  fail "generated vectors differ from committed corpus (expected after an intentional wire amendment; review then rerun with --update-vectors)"
+fi
 
 # ---- 6. Independent Python implementation + ACVP ------------------------------------------
 log "independent Python check (uv)"

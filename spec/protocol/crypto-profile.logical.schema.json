@@ -1,5 +1,5 @@
 {
-  "$comment": "Logical schema only; canonical wire encoding TBD.",
+  "$comment": "Logical modeling view only. CryptoProfile registry entries and the frozen W0 CDDL/registries define canonical protocol values; this JSON file is not a wire encoding and cannot add fields or negotiation semantics.",
   "CryptoProfile": {
     "profile_id": "opaque versioned identifier",
     "generation": "monotonic security generation integer",

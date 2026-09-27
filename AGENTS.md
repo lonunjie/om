@@ -7,7 +7,7 @@ until the operator makes it public. Write everything as if a stranger will read 
 **Engineering is NOT authorized.** Research, specification, formal models and bounded feasibility prototypes
 (`verification/`) are allowed. Product code is not. The architecture rules below say exactly what is locked.
 
-**Current verification handoff:** follow [`verification/CLAUDE_OPUS_5_5_HANDOFF.md`](verification/CLAUDE_OPUS_5_5_HANDOFF.md) and ADR-0134. The verification executor must exhaust repo-local gate work before requesting independent-review-only sign-off; do not bounce the repository between agents one criterion at a time.
+**Current phase:** architecture is design-frozen by ADR-0139 as amended by the targeted AsyncKeyBundle re-freeze in ADR-0140, while engineering remains unauthorized. For verification execution follow [`verification/CLAUDE_OPUS_5_5_HANDOFF.md`](verification/CLAUDE_OPUS_5_5_HANDOFF.md) and ADR-0134; for the future engineering boundary start at [`docs/process/ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). The verification executor must exhaust repo-local gate work before requesting independent-review-only sign-off; do not bounce the repository between agents one criterion at a time.
 
 ## Part 1: Working in this repository
 
@@ -83,7 +83,7 @@ Build OM as a fast, simple, reliable secure messenger whose identity and canonic
 2. [`ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`](docs/process/ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md) — executable process/phase lock.
 3. [`machine/repository_contract.json`](machine/repository_contract.json) — machine authority for checkpoint state.
 
-**Current rule:** product engineering is not authorized. Research, specification, formal modeling and bounded feasibility experiments may be used to harden architecture, but do not begin the product implementation plan or let a prototype silently freeze a wire/security choice.
+**Current rule:** product engineering is not authorized. Architecture is design-frozen; research, formal modeling and bounded feasibility experiments may verify/challenge it, but reopen canonical design only for a demonstrated contradiction, new requirement/standard or accepted ADR. Do not begin product implementation or let a prototype silently change/freeze a wire/security choice.
 
 SeedLife/lonunjie is the initial steward, not protocol authority. Businesses may participate commercially but receive no hidden/mandatory protocol privilege.
 

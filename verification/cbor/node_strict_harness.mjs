@@ -34,6 +34,9 @@ const BUNDLE_REQUIRED = new Map(CRYPTO.profiles.filter((p) => p.required_bundle_
 // CryptoProfile id -> exact MessageRequest HPKE enc / RequestKey public-key lengths (ADR-0135 §5)
 const HPKE_SIZES = new Map(CRYPTO.profiles.filter((p) => p.message_request_hpke && p.message_request_hpke.enc_bytes)
   .map((p) => [BigInt(p.id), { enc: p.message_request_hpke.enc_bytes, pk: p.message_request_hpke.public_key_bytes }]));
+const SEALED_HPKE = new Map(CRYPTO.profiles.filter((p) => p.sealed_delivery_hpke && p.sealed_delivery_hpke.enc_bytes)
+  .map((p) => [BigInt(p.id), { enc: p.sealed_delivery_hpke.enc_bytes, pk: p.sealed_delivery_hpke.public_key_bytes,
+    ciphertexts: new Set(p.sealed_delivery_hpke.plaintext_buckets.map((n) => n + p.sealed_delivery_hpke.aead_tag_bytes)) }]));
 
 class Reject extends Error { constructor(c) { super(c); this.cls = c; } }
 const fail = (c) => { throw new Reject(c); };
@@ -256,6 +259,15 @@ function checkStruct(x, name, topId) {
   };
   if (name === 'MessageRequest') pin(4, 5, 'enc');
   if (name === 'RequestKey') pin(0, 1, 'pk');
+  if (name === 'DeliveryKeyMaterial') {
+    const prof = get(x, 0); const h = prof ? SEALED_HPKE.get(prof.v) : undefined;
+    if (h && get(x, 2).v.length !== h.pk) fail('value_range');
+  }
+  if (name === 'SealedDeliveryEnvelope') {
+    const prof = get(x, 2); const h = prof ? SEALED_HPKE.get(prof.v) : undefined;
+    if (h && get(x, 5).v.length !== h.enc) fail('value_range');
+    if (h && !h.ciphertexts.has(get(x, 6).v.length)) fail('value_range');
+  }
 }
 
 function checkEnvelope(v, t) {
@@ -306,8 +318,10 @@ function derived(name, top, bytes) {
       if (!x) continue;
       for (const it of x.t === 'a' ? x.v : [x]) {
         if (!has(it, 3)) continue;
-        const stripped = { t: 'm', v: it.v.filter(([kk]) => kk.v !== 3n) };
-        out.push({ kind: 'sig_input', hex: dsSig('OM-PREKEY-SIG-v1', get(b, 5), U(3), get(b, 2).v, encode(stripped)).toString('hex') });
+        const kind = get(it, 1);
+        if (kind.v !== 3n && kind.v !== 4n) continue;
+        const context = { t: 'a', v: [U(1), get(b, 2), get(b, 5), get(b, 6), get(b, 12), kind, get(it, 0), get(it, 2)] };
+        out.push({ kind: 'sig_input', hex: dsSig('OM-PREKEY-SIG-v1', get(b, 5), U(3), get(b, 2).v, encode(context)).toString('hex') });
       }
     }
   }

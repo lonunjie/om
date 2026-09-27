@@ -9,8 +9,8 @@ OM is stewarded by SeedLife ("Protect life. Seed it.") under the [lonunjie](http
 
 ## Status
 
-**Architecture verification. Product engineering is not yet authorized.** The design is complete across every planned
-delivery wave. It is now being checked by formal models, prototypes and reviews, called verification gates, before any
+**Architecture verification, design-frozen. Product engineering is not yet authorized.** The design is complete across every planned
+delivery wave and final architecture closure is recorded in ADR-0139. It is now being checked by formal models, prototypes and reviews, called verification gates, before any
 product code is written. The current state is always in [`SNAPSHOT.md`](SNAPSHOT.md). The gate list and what each gate
 still needs is in [`verification/GATE_PASS_CRITERIA.md`](verification/GATE_PASS_CRITERIA.md).
 
@@ -32,7 +32,7 @@ still needs is in [`verification/GATE_PASS_CRITERIA.md`](verification/GATE_PASS_
 README.md  SNAPSHOT.md  AGENTS.md  CHANGELOG.md  CONTRIBUTING.md  SECURITY.md  LICENSE.md
 docs/          human-readable design (constitution, overview, architecture/<domain>, process, reviews, ...)
 decisions/     architecture decision records (ADRs), indexed in decisions/INDEX.md
-spec/          normative logical schemas (protocol/, client/) and, as they freeze, CDDL and registries
+spec/          protocol/client models plus normative frozen CDDL/registries; for frozen W0 wire objects, CDDL/registries are the canonical bytes
 machine/       machine-checked project state: decisions, requirements, gates, threats, traceability
 verification/  formal models (TLA+), bounded models, prototypes, test vectors and recorded results
 tools/         validator, docs formatter, design-drop import/export

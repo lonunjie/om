@@ -1,3 +1,100 @@
+## 2026-09-27 17:23 PHT — V-001 F-9 independent re-review
+
+- GPT-5.6 Sol independently accepted the ADR-0135 §7 / ADR-0136 rule 4 responder-side `IK_A` binding remediation for review finding F-9;
+- recorded V-001 criterion 10 met and added the focused review as evidence, bringing V-001 to 11/13 pre-engineering criteria;
+- reran the ADR-0140 and ADR-0142 bounded/static checks successfully; no current Rust/native/wasm execution is claimed because this runner lacks Rust/Cargo/Wasmtime and outbound network;
+- the only remaining V-001 pre-engineering items are the ADR-0140 current runtime rerun and ADR-0142 sealed-delivery HPKE runtime evidence; engineering remains unauthorized.
+
+## 2026-09-27 16:44 PHT — V-005 Rust/CDDL verification
+
+- reproduced the cross-gzip false failure and changed the runner to compare decompressed canonical JSON; no vectors changed;
+- ran the pinned Rust strict codec, Node strict codec, Rust CDDL 0.10.7 and Ruby CDDL 0.12.14 against the current 735-vector corpus;
+- Rust and Node had zero mismatches; both CDDL validators agreed on 399 applicable cases; all 276 generated examples had zero unexpected Rust strict-codec rejections;
+- recorded Cargo and canonical corpus SHA-256 in the machine result, and marked V-005 pre-engineering 8/8 passed with independence satisfied;
+- overall V-005 remains open for its pre-release criterion; other gates and engineering authorization are unchanged.
+
+## 2026-09-27 13:08 PHT — verification continuation / ADR-0143 crash-safe sealed delivery
+
+- attempted the Run-3 next item first: the current V-005 Rust/CDDL rerun remains blocked because this runner has no Rust toolchain and outbound DNS cannot reach rustup; no historical result was relabeled current;
+- added a focused V-003 sealed-delivery state model covering key refresh/overlap/revocation, expiry, route binding/migration, exact retry, replay collision, persistence failure, no clear fallback and inner-auth authority;
+- found and corrected a crash-consistency ambiguity where a crash after durable outer replay reservation but before inner acceptance could make an exact retry look terminal and lose the message;
+- accepted ADR-0143 / D-165 / R-314: durable replay state is `RESERVED` / `COMPLETE` / `REJECTED`, exact-wrapper `RESERVED` retries resume, and inner K2 state plus `COMPLETE` commit before app-visible release/ack;
+- focused V-003 result is 15/15 passing scenarios with 5/5 deliberate mutation controls caught; the existing sealed-delivery state criterion is now met, leaving V-003 open only for independent review (6/7 pre-engineering criteria);
+- V-001 sealed-delivery HPKE execution, V-005 Rust/CDDL agreement and V-015 real traces remain open; engineering remains unauthorized.
+
+## 2026-09-27 11:19 PHT — Run 3 established 1:1 sealed delivery (ADR-0142)
+
+- promoted sealed delivery into W0 for ACTIVE accepted 1:1 relay/mailbox deposits, with no clear-sender fallback under CryptoProfile 1 and no weakening of inner sender/session authentication;
+- added signed route-bound `SealedDeliveryKeyRecord` (type 22) and unsigned HPKE `SealedDeliveryEnvelope` (type 23), keeping large hybrid delivery keys out of `RelaySet`;
+- added the one-request `reply_delivery_key` bootstrap to `MessageRequestPayload` so the first post-acceptance response can already be sealed without treating first contact as established traffic;
+- froze the existing draft-ietf-hpke-pq-05 MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305 suite for sealed delivery, exact key/encapsulation lengths, route/info/AAD domains, padding buckets, fresh delivery IDs, replay-before-release and cross-route reseal rules;
+- changed established mailbox metadata descriptors/models so sender identity/device correlators and Double Ratchet header shape are absent by design while residual timing/size/source-network/volume/opaque-route leakage remains declared;
+- expanded V-005 to 735 vectors (71 positive / 664 negative); Python generation + Node strict decoding agree on every current verdict/error class, and the dedicated ADR-0142 plus metadata bounded checks pass;
+- Cargo/Rust and the current CDDL two-codec rerun are unavailable in this runner, and real V-015 packet/provider/browser traces remain open; engineering remains unauthorized.
+
+## 2026-09-27 08:42 PHT — Run 2 security semantics/spec consistency (ADR-0141)
+
+- made `om.acs.legacy_policy` critical/fail-closed across current CDDL, registries, machine queue/decisions/requirements and conformance semantics while keeping activation later-wave/off by default;
+- added normative bearer-capability transport hygiene: encrypted/authenticated authorization transport, no URL/query/fragment/cookie placement, no-referrer/cross-origin leakage, `no-store`, and log/analytics/crash redaction;
+- defined RecoveryRecord v1 monotonic record generation/recovery epoch/last-known ACS observation, stale-snapshot rollback handling and mandatory revalidation of provider-mutable data;
+- made RecoveryRoot metadata-confidentiality exposure explicit and added optional independently held `RelationshipRecoveryKey` split custody for Maximum Privacy;
+- corrected passkey privacy wording, froze all assigned W0 domain labels and the default 300-second skew, and removed stale `proposed` semantics from frozen AccountControlState fields;
+- reconciled stale A-035 group-call text with ADR-0132 participant-only SFrame media-key delivery and strengthened semantic closure guardrails;
+- regenerated V-005 to 681 vectors (69 positive / 612 negative); Python generator + Node strict harness agree on all 681 current cases; Rust/CDDL two-codec evidence remains open because Cargo is unavailable;
+- Run 3 sealed delivery and later v1-scope conveniences remain outside this checkpoint; engineering remains unauthorized.
+
+## 2026-09-27 08:08 PHT — Run 1 AsyncKeyBundle/prekey remediation (ADR-0140)
+
+- pulled the unlinkable AsyncKeyBundle design into v1: retired provider-visible ACS keys 3/4; relationship-pinned ACS now supplies device authority;
+- added cross-provider signed-prekey generation rollback/equivocation state and monotonic restore/private-sync semantics;
+- context-bound one-time prekeys to device/profile/generation/provider pool/kind/key id/public key and documented compromise rotation;
+- updated provider/recovery contracts, metadata descriptors, CDDL/registries, logical schemas, V-001 source and V-005 vectors;
+- regenerated 679 V-005 vectors and passed the current Node/Python checks plus the dedicated ADR-0140 bounded checker;
+- no Rust toolchain was available, so current V-001 native/wasm/vector evidence and V-005 Rust/CDDL agreement were not claimed; V-005 two-codec passage is intentionally reopened;
+- sealed sender/SPQR and Run 2+ remediation are outside this checkpoint; engineering remains unauthorized.
+
+## 2026-09-26 23:45 PHT — final architecture design closure (ADR-0139)
+
+- completed Set 2: whole-canonical-tree normative ambiguity sweep, full requirement/threat/decision/invariant traceability closure, 11-scope adversarial architecture pass and definitive engineering handoff;
+- fixed the final semantic ambiguities: SecurityAdvisory lifecycle cannot lower an established relationship floor, and frozen W0 CDDL/registries/domain-separation rules outrank logical modeling schemas for wire bytes;
+- reconciled stale current-document references to already-resolved A-032/A-035/A-045/A-046 and clarified that `OMA-ENC-1-candidate` is verification-only until V-014 freezes a reviewed production archive profile;
+- added `machine/security_invariant_traceability.json` and the design-only Set-2 closure auditor; all 288 requirements are traced, all 93 threats have valid references/mitigations, all 32 named security invariants are mapped, and all 161 decisions are indexed;
+- final adversarial review covers authority laundering, optional security context, stable correlators, fail-open/ABA/downgrade/recovery/provider-colocation/multi-device/multi-account/portability/offline/update/resource-exhaustion boundaries across all 11 engineering scopes; no additional blocking architecture choice remains;
+- replaced the stale inactive/pending-freeze engineering handoff with a design-frozen source-of-truth/precedence and architecture-change contract;
+- Protocol Continuity Bundle manifest check remains clean at 79 normative architecture/constitution docs; a 372-file disposable-probe bundle builds and verifies offline;
+- no TLC, Rust, Wasm/native build or product engineering was run; all engineering scopes remain unauthorized and `engineering_authorized=false`.
+
+## 2026-09-26 23:02 PHT — design closure set 1 (ADR-0138)
+
+- resolved the remaining design queue A-030/A-031/A-036/A-054: narrow verifier-local LegacyPolicy retirement; a later unlinkable-account AsyncKeyBundle target; explicit no-deniability claim for v1 MLS groups; and a later sealed-sender delivery profile;
+- replaced routine provider AccountID/DeviceCredential/ACS administration with independent provider/resource-scoped opaque capabilities that confer no account, recovery or E2E authority;
+- repaired RecoveryRecord access with distinct RecoveryRoot-derived read/write capabilities and an opaque locator, while explicitly declaring AccountID/recovery-attempt exposure during actual RecoveryRequest mailbox fan-out;
+- added ADR-0138, the sealed-sender profile, D-160, R-290..R-295, T-100..T-101 and design-only Set-1 evidence;
+- design-only bounded/structural checks pass, including 216 metadata traces / 12 roles / 0 violations; no TLC, Rust, wasm/native runtime or product engineering was run;
+- architecture validator reports `design_open=0`, all 23 verification gates remain open, and `engineering_authorized=false`;
+- this checkpoint intentionally stops before Set 2: whole-repository ambiguity/traceability/adversarial closure and the definitive engineering handoff.
+
+## 2026-09-26 16:52 PHT — ADR-0137 security-equivalence evidence pass
+
+- upgraded the ACS/TLA cross-check from one-way trace replay to bounded **bidirectional accepted-set equality**: 66,816 freeze-resolution candidates, zero table-only or TLA-only acceptances, plus explicit freeze/fork negatives;
+- strengthened V-001 relationship binding with a public-ingress structural verifier and new established-session, persisted/reloaded-state and ambiguous-credential negative selftests; the structural evidence passes, while fresh Rust execution remains pending because this runner has no Rust toolchain;
+- made W0 auth-layer metadata frequencies exact and mutation-tested, added 216-flow trace coverage and executable human/machine observer-matrix drift detection;
+- split Privacy Pass issuance evidence into fresh/distinct, repeated nontrivial `r=2`, `r=1`, direct-sign and actual CSPRNG-path controls; every intended regression is caught;
+- added provider negative-capability conformance checks covering key authority, recovery-authority laundering, directory/ACS type separation, IntroGate minting and role-colocation union semantics;
+- the pinned TLC JAR was unavailable, so current-tree TLC was not freshly rerun; historical committed TLC results were left intact rather than overwritten;
+- this is verification evidence, not ADR-0117 independent approval of ADR-0137. No gate was self-passed and engineering remains unauthorized.
+
+## 2026-09-26 14:32 PHT — security invariants and core-boundary hardening (ADR-0137)
+
+- made `spec/protocol/account-control-transition-policy.json` the machine-readable ACS authorization source; selective safety-freeze restoration now requires a parent device majority, self-challenge by every restored controller, and a child that regains voting majority;
+- made inbound 1:1 relationship context non-optional in the V-001 prototype API and removed the unpinned decrypt path;
+- added `METADATA_OBSERVER_MATRIX.md`, authentication-layer `device_auth` correlators and matching W0 trace coverage;
+- defined W0 referral issuance unlinkability precisely and added a repeated-nontrivial-blinding-factor negative control;
+- added provider/subsystem negative-capability contracts and `SECURITY_INVARIANTS.md`;
+- added D-159, R-285..R-289 and T-095..T-099;
+- **did not run point 6 / the cross-model equivalence pass**; its complete next-agent brief is `verification/reviews/BRIEF-2026-09-26-security-equivalence-pass.md`;
+- design-side bounded ACS/metadata/privacy/abuse checks pass; TLC/cross-model evidence was not regenerated and Rust/wasm tooling was unavailable; engineering remains unauthorized.
+
 ## 2026-09-26 PHT — core_kernel independent-review remediation (ADR-0136)
 
 - imported gpt-5.6-sol's core_kernel review (`checkpoint/20260926-0043`): all 7 items rejected, 9 findings (3 blockers);

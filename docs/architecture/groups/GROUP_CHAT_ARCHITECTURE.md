@@ -208,6 +208,17 @@ The v1 MLS suite/policy is selected by the 2026-09-23 architecture resolution; l
 
 OM may still choose a separate reviewed 1:1 protocol; the application event model must not depend on this choice.
 
+## Authentication and deniability boundary (ADR-0138)
+
+OM v1 Rooms use MLS authentication and therefore **do not promise cryptographic deniability** for group sender
+authentication. Members holding the relevant authenticated transcript/material can obtain stronger transferable
+authentication evidence than a deniable messenger would provide. The UI, threat model and documentation must state
+that honestly.
+
+This closes A-036 as a deliberate v1 non-goal. Any future deniable-group mode is a separate research
+CryptoProfile/conversation mode under absolute rule 3. It must not weaken, silently replace or ambiguously inherit the
+authentication semantics of ordinary MLS Rooms.
+
 ## Group history
 
 Default:

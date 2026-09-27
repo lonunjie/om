@@ -21,7 +21,7 @@
       "construction": "DS-SIG",
       "object": "AccountControlState",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-ACS-HASH-v1",
@@ -29,7 +29,7 @@
       "construction": "DS-HASH",
       "object": "AccountControlState (state_hash, previous_state_hash)",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-ACH-SIG-v1",
@@ -37,7 +37,7 @@
       "construction": "DS-SIG",
       "object": "AccountControlHead",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-RECOVERY-POLICY-HASH-v1",
@@ -45,7 +45,7 @@
       "construction": "DS-HASH",
       "object": "RecoveryPolicy (AccountControlState.recovery_policy_commitment)",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-RECOVERY-REQUEST-SIG-v1",
@@ -53,7 +53,7 @@
       "construction": "DS-SIG",
       "object": "RecoveryRequest",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-RECOVERY-REQUEST-HASH-v1",
@@ -61,7 +61,7 @@
       "construction": "DS-HASH",
       "object": "RecoveryRequest (RecoveryVeto.request_digest)",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-RECOVERY-VETO-SIG-v1",
@@ -69,7 +69,7 @@
       "construction": "DS-SIG",
       "object": "RecoveryVeto",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-ACCOUNT-RETIREMENT-SIG-v1",
@@ -77,7 +77,7 @@
       "construction": "DS-SIG",
       "object": "AccountRetirement",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-ACCOUNT-RETIREMENT-HASH-v1",
@@ -85,7 +85,7 @@
       "construction": "DS-HASH",
       "object": "AccountRetirement (terminal chain member)",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-DEVICE-CREDENTIAL-SIG-v1",
@@ -93,7 +93,7 @@
       "construction": "DS-SIG",
       "object": "DeviceCredential",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-DEVICE-CREDENTIAL-HASH-v1",
@@ -101,7 +101,7 @@
       "construction": "DS-HASH",
       "object": "DeviceCredential (AccountControlState.device_credentials, RecoveryRequest.new_device_credential)",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-DEVICE-ENROLLMENT-NOTICE-SIG-v1",
@@ -109,23 +109,31 @@
       "construction": "DS-SIG",
       "object": "DeviceEnrollmentNotice",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-PREKEY-BUNDLE-SIG-v1",
       "use": "signature",
-      "construction": "DS-SIG",
+      "construction": "DS-SIG over canonical AsyncKeyBundle v1 body; fetcher authorizes signer through relationship-pinned ACS -> DeviceCredential and applies ADR-0140 generation freshness checks",
       "object": "AsyncKeyBundle",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-PREKEY-SIG-v1",
       "use": "signature",
-      "construction": "DS-SIG (body = PrekeyItem without key 3)",
-      "object": "PrekeyItem",
+      "construction": "DS-SIG; for one-time kinds body = OM-CBOR [1, subject_device_id, crypto_profile, bundle_generation, provider_pool_id, kind, key_id, public_key] (ADR-0140)",
+      "object": "PrekeyItem one-time kinds 3/4",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PREKEY-GENERATION-CORE-v1",
+      "use": "hash",
+      "construction": "DS-HASH over OM-CBOR [DeviceID, CryptoProfile, generation, signed_prekey, pq_signed_prekey, pq_last_resort_prekey-or-null] (ADR-0140)",
+      "object": "AsyncKeyBundle recipient freshness/equivocation state",
+      "wave": "W0",
+      "status": "frozen"
     },
     {
       "label": "OM-CONTACT-DESCRIPTOR-SIG-v1",
@@ -133,7 +141,7 @@
       "construction": "DS-SIG",
       "object": "ContactDescriptor",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-CONTACT-CAPSULE-SIG-v1",
@@ -141,7 +149,7 @@
       "construction": "DS-SIG",
       "object": "ContactCapsule",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-CONTACT-CAPSULE-HASH-v1",
@@ -149,7 +157,7 @@
       "construction": "DS-HASH",
       "object": "ContactCapsule (ReferralAttestation.capsule_digest)",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-REFERRAL-ATTESTATION-SIG-v1",
@@ -157,7 +165,7 @@
       "construction": "DS-SIG",
       "object": "ReferralAttestation",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-INVITE-SIG-v1",
@@ -165,7 +173,7 @@
       "construction": "DS-SIG",
       "object": "Invite",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-INVITE-SECRET-VERIFIER-v1",
@@ -173,7 +181,7 @@
       "construction": "DS-HASH (body = raw invite_secret bytes)",
       "object": "IntroGate one-way representation of Invite.invite_secret",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-INTRO-TICKET-SIG-v1",
@@ -181,7 +189,7 @@
       "construction": "DS-SIG",
       "object": "IntroductionTicket",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-SPONSOR-GRANT-SIG-v1",
@@ -189,7 +197,7 @@
       "construction": "DS-SIG",
       "object": "SponsoredMailboxGrant",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-RELAYSET-SIG-v1",
@@ -197,7 +205,7 @@
       "construction": "DS-SIG",
       "object": "RelaySet",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-RELAYSET-HASH-v1",
@@ -205,7 +213,7 @@
       "construction": "DS-HASH",
       "object": "RelaySet (previous_set_hash chain)",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-BLOB-LOCATION-SIG-v1",
@@ -213,7 +221,7 @@
       "construction": "DS-SIG",
       "object": "BlobLocationRecord",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-BLOB-LOCATION-HASH-v1",
@@ -221,7 +229,7 @@
       "construction": "DS-HASH",
       "object": "BlobLocationRecord (previous_record_hash chain)",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-BLOB-CIPHERTEXT-HASH-v1",
@@ -229,15 +237,15 @@
       "construction": "DS-HASH (body = ciphertext bytes)",
       "object": "AttachmentRef.ciphertext_digest",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
-      "label": "OM-RECOVERY-HANDLE-INDEX-v1",
+      "label": "OM-RECOVERY-RECORD-LOCATOR-v1",
       "use": "hash",
-      "construction": "DS-HASH (body = RecoveryHandle)",
-      "object": "Home index H(RecoveryHandle) for the RecoveryRecord (RECOVERY_AND_BACKUP_POLICY.md §10.2)",
+      "construction": "DS-HASH (body = recovery_record_read_cap)",
+      "object": "opaque RecoveryStore index for encrypted RecoveryRecord (ADR-0138)",
       "wave": "W0",
-      "status": "proposed"
+      "status": "documented"
     },
     {
       "label": "om/recovery-root/v1",
@@ -258,26 +266,26 @@
     {
       "label": "OM-RECOVERY-PROVIDER-METADATA-KEY-v1",
       "use": "kdf",
-      "construction": "reserved (HKDF info from RecoveryRoot)",
-      "object": "provider-metadata recovery key (§10.1 'separate label')",
+      "construction": "HKDF-SHA256 from RecoveryRoot; info = label || recovery_scope_id; output 32 bytes",
+      "object": "provider-metadata recovery key for RecoveryRecord v1 (ADR-0141)",
       "wave": "W0",
-      "status": "reserved"
+      "status": "frozen"
     },
     {
       "label": "OM-RECOVERY-RELATIONSHIP-SNAPSHOT-KEY-v1",
       "use": "kdf",
-      "construction": "reserved (HKDF info)",
-      "object": "RelationshipSnapshot key (§10.1)",
+      "construction": "normal profile: HKDF-SHA256 from RecoveryRoot, info = label || recovery_scope_id, output 32 bytes; Maximum Privacy may instead use an independent RelationshipRecoveryKey not derived from/wrapped by RecoveryRoot",
+      "object": "RelationshipSnapshot encryption/custody key (ADR-0141)",
       "wave": "W0",
-      "status": "reserved"
+      "status": "frozen"
     },
     {
       "label": "OM-RECOVERY-RECORD-AEAD-AD-v1",
       "use": "aead_ad",
-      "construction": "reserved",
-      "object": "encrypted RecoveryRecord at the Home",
+      "construction": "canonical OM-CBOR [label, recovery_scope_id, opaque_locator, record_version=1]",
+      "object": "AEAD associated data for encrypted RecoveryRecord v1 (ADR-0141)",
       "wave": "W0",
-      "status": "reserved"
+      "status": "frozen"
     },
     {
       "label": "OM-Crypto-v1_PQXDH_X25519_SHA-256_ML-KEM-768",
@@ -333,7 +341,7 @@
       "construction": "DS-HASH",
       "object": "RequestKey (MessageRequest/MessageRequestPayload/IntroIdentityBinding.request_key_digest)",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-MESSAGE-REQUEST-PAYLOAD-SIG-v1",
@@ -341,7 +349,7 @@
       "construction": "DS-SIG",
       "object": "MessageRequestPayload",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-INTRO-IDENTITY-BINDING-SIG-v1",
@@ -349,7 +357,7 @@
       "construction": "DS-SIG",
       "object": "IntroIdentityBinding",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-MESSAGE-REQUEST-HPKE-INFO-v1",
@@ -373,7 +381,7 @@
       "construction": "DS-HASH",
       "object": "PQXDH last-resort canonical initiation transcript",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-DR-AEAD-KEY-v1",
@@ -381,7 +389,7 @@
       "construction": "HKDF-SHA256 info",
       "object": "Double Ratchet message-key to AES-256-GCM-SIV key",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-DR-AEAD-NONCE-v1",
@@ -389,7 +397,7 @@
       "construction": "HKDF-SHA256 info + authenticated header hash",
       "object": "Double Ratchet message-key to AES-256-GCM-SIV nonce",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-DR-HEADER-HASH-v1",
@@ -397,7 +405,7 @@
       "construction": "DS-HASH over the canonical OM-CBOR ratchet header [crypto_profile, dh_pub, pn, n] (ADR-0135 §4)",
       "object": "Double Ratchet header (input to OM-DR-AEAD-NONCE-v1 and the AEAD associated data)",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
     },
     {
       "label": "OM-REFERRAL-PRIVPASS-CHALLENGE-v1",
@@ -405,7 +413,63 @@
       "construction": "canonical challenge context",
       "object": "RFC 9578 referral admission token challenge",
       "wave": "W0",
-      "status": "proposed"
+      "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-RECORD-READ-CAP-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from RecoveryRoot; info = label || recovery_scope_id; output 32 bytes",
+      "object": "RecoveryRecord ciphertext-read capability",
+      "wave": "W0",
+      "status": "documented"
+    },
+    {
+      "label": "OM-RECOVERY-RECORD-WRITE-CAP-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from RecoveryRoot; info = label || recovery_scope_id; output 32 bytes",
+      "object": "RecoveryRecord ciphertext-write capability",
+      "wave": "W0",
+      "status": "documented"
+    },
+    {
+      "label": "OM-RECOVERY-RECORD-KEY-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from RecoveryRoot; info = label || recovery_scope_id; output 32 bytes",
+      "object": "outer RecoveryRecord v1 AEAD key (ADR-0141)",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SEALED-DELIVERY-KEY-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG over canonical SealedDeliveryKeyRecord v1 body; exactly one device-role signer equal to recipient_device_id (ADR-0142)",
+      "object": "SealedDeliveryKeyRecord",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SEALED-DELIVERY-ROUTE-v1",
+      "use": "hash",
+      "construction": "SHA-256 over OM-CBOR [this label, relay_uri, deposit_capability]; binds relationship-private delivery key material to one RelayEntry without exposing the capability in the outer wrapper (ADR-0142)",
+      "object": "DeliveryKeyMaterial route_binding",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SEALED-DELIVERY-HPKE-INFO-v1",
+      "use": "kdf",
+      "construction": "HPKE base-mode info = OM-CBOR [this label, crypto_profile, delivery_key_id, route_binding]; suite is profile-defined and OM-Crypto-v1 pins draft-ietf-hpke-pq-05 MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305 (ADR-0142)",
+      "object": "SealedDeliveryEnvelope",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SEALED-DELIVERY-HPKE-AAD-v1",
+      "use": "aead_ad",
+      "construction": "HPKE aad = OM-CBOR [this label, 23, 1, crypto_profile, delivery_key_id, delivery_id, expires_at, plaintext_bucket_bytes] (ADR-0142)",
+      "object": "SealedDeliveryEnvelope",
+      "wave": "W0",
+      "status": "frozen"
     }
   ]
 }

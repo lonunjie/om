@@ -11,360 +11,3561 @@
     "Type grammar: {uint:[min,max|null]}, {bool:null|true|false} (true/false = constant), {bstr:[min,max]}, {tstr:[min,max]} (byte length), {enum:name}, {ref:Struct}, {array:T,n:[min,max]}, {set:T,n:[min,max]}, {union:{on:key,variants:{value:Struct}}}, {dispatch:{on:field_name,table:{value:Struct},default:'opaque_map'}}, {signed:TypeName} (bstr holding a canonical SignedEnvelope whose body is that type), {any:null}, {ext:null}."
   ],
   "common_top_level_fields": [
-    {"key": 0, "name": "object_type", "type": {"uint": [0, 65535]}, "req": true},
-    {"key": 1, "name": "object_version", "type": {"uint": [1, 1]}, "req": true},
-    {"key": 23, "name": "extensions", "type": {"ext": null}, "req": false}
+    {
+      "key": 0,
+      "name": "object_type",
+      "type": {
+        "uint": [
+          0,
+          65535
+        ]
+      },
+      "req": true
+    },
+    {
+      "key": 1,
+      "name": "object_version",
+      "type": {
+        "uint": [
+          1,
+          1
+        ]
+      },
+      "req": true
+    },
+    {
+      "key": 23,
+      "name": "extensions",
+      "type": {
+        "ext": null
+      },
+      "req": false
+    }
   ],
   "enums": {
-    "hash_alg": {"1": "sha-256"},
-    "sig_role": {"1": "controller", "2": "recovery", "3": "device", "4": "intro_identity", "5": "provider", "6": "legacy"},
-    "principal_kind": {"1": "account", "2": "service", "3": "bridge"},
-    "constitutional_rule": {"1": "majority_floor_n_half_plus_one", "2": "explicit_threshold"},
-    "recovery_state": {"1": "on", "2": "pending", "3": "off_explicit"},
-    "recovery_method_kind": {"1": "synced_passkey_prf", "2": "recovery_key", "3": "guardians_shamir", "4": "spare_controller", "5": "hardware_authenticator", "6": "future_threshold"},
-    "recover_target": {"1": "identity", "2": "history", "3": "provider_metadata", "4": "relationships"},
-    "veto_by": {"1": "any_live_controller"},
-    "retirement_reason": {"1": "user_closed", "2": "moved", "3": "legacy"},
-    "retirement_authorization": {"1": "parent_constitutional_rule", "2": "recovery_policy", "3": "legacy_policy"},
-    "device_class": {"1": "messaging", "2": "control"},
-    "enrollment_ceremony": {"1": "link_ceremony", "2": "recovery_completion", "3": "genesis"},
-    "prekey_kind": {"1": "ec_signed_prekey", "2": "pq_signed_prekey", "3": "ec_one_time", "4": "pq_one_time", "5": "pq_last_resort"},
-    "event_kind": {"1": "message.create", "2": "message.edit", "3": "message.delete", "4": "reaction.set", "5": "receipt.update", "6": "pin.set", "7": "moderation.redact", "8": "poll.create", "9": "poll.vote", "10": "poll.close", "11": "topic.create", "12": "topic.update", "13": "topic.status.set", "14": "message.topic.set"},
-    "receipt_type": {"1": "delivered", "2": "read"},
-    "block_type": {"1": "paragraph", "2": "quote", "3": "code_block"},
-    "inline_type": {"1": "text", "2": "link", "3": "mention"},
-    "text_mark": {"1": "bold", "2": "italic", "3": "underline", "4": "strikethrough", "5": "spoiler", "6": "inline_code"},
-    "provenance_issuer": {"1": "self", "2": "directory", "3": "introduction_service"},
-    "share_policy": {"1": "until_expiry", "2": "n_times", "3": "contacts_only", "4": "referral_required", "5": "disabled"},
-    "invite_scope": {"1": "request_only", "2": "lan_rendezvous", "3": "sponsorship"},
-    "metadata_exposure": {"1": "sponsor_sees_timing_volume_sizes_not_content"}
+    "hash_alg": {
+      "1": "sha-256"
+    },
+    "sig_role": {
+      "1": "controller",
+      "2": "recovery",
+      "3": "device",
+      "4": "intro_identity",
+      "5": "provider",
+      "6": "legacy"
+    },
+    "principal_kind": {
+      "1": "account",
+      "2": "service",
+      "3": "bridge"
+    },
+    "constitutional_rule": {
+      "1": "majority_floor_n_half_plus_one",
+      "2": "explicit_threshold"
+    },
+    "recovery_state": {
+      "1": "on",
+      "2": "pending",
+      "3": "off_explicit"
+    },
+    "recovery_method_kind": {
+      "1": "synced_passkey_prf",
+      "2": "recovery_key",
+      "3": "guardians_shamir",
+      "4": "spare_controller",
+      "5": "hardware_authenticator",
+      "6": "future_threshold"
+    },
+    "recover_target": {
+      "1": "identity",
+      "2": "history",
+      "3": "provider_metadata",
+      "4": "relationships"
+    },
+    "veto_by": {
+      "1": "any_live_controller"
+    },
+    "retirement_reason": {
+      "1": "user_closed",
+      "2": "moved",
+      "3": "legacy"
+    },
+    "retirement_authorization": {
+      "1": "parent_constitutional_rule",
+      "2": "recovery_policy",
+      "3": "legacy_policy"
+    },
+    "device_class": {
+      "1": "messaging",
+      "2": "control"
+    },
+    "enrollment_ceremony": {
+      "1": "link_ceremony",
+      "2": "recovery_completion",
+      "3": "genesis"
+    },
+    "prekey_kind": {
+      "1": "ec_signed_prekey",
+      "2": "pq_signed_prekey",
+      "3": "ec_one_time",
+      "4": "pq_one_time",
+      "5": "pq_last_resort"
+    },
+    "event_kind": {
+      "1": "message.create",
+      "2": "message.edit",
+      "3": "message.delete",
+      "4": "reaction.set",
+      "5": "receipt.update",
+      "6": "pin.set",
+      "7": "moderation.redact",
+      "8": "poll.create",
+      "9": "poll.vote",
+      "10": "poll.close",
+      "11": "topic.create",
+      "12": "topic.update",
+      "13": "topic.status.set",
+      "14": "message.topic.set"
+    },
+    "receipt_type": {
+      "1": "delivered",
+      "2": "read"
+    },
+    "block_type": {
+      "1": "paragraph",
+      "2": "quote",
+      "3": "code_block"
+    },
+    "inline_type": {
+      "1": "text",
+      "2": "link",
+      "3": "mention"
+    },
+    "text_mark": {
+      "1": "bold",
+      "2": "italic",
+      "3": "underline",
+      "4": "strikethrough",
+      "5": "spoiler",
+      "6": "inline_code"
+    },
+    "provenance_issuer": {
+      "1": "self",
+      "2": "directory",
+      "3": "introduction_service"
+    },
+    "share_policy": {
+      "1": "until_expiry",
+      "2": "n_times",
+      "3": "contacts_only",
+      "4": "referral_required",
+      "5": "disabled"
+    },
+    "invite_scope": {
+      "1": "request_only",
+      "2": "lan_rendezvous",
+      "3": "sponsorship"
+    },
+    "metadata_exposure": {
+      "1": "sponsor_sees_timing_volume_sizes_not_content"
+    }
   },
   "structs": {
-    "Digest": {"fields": [
-      {"key": 0, "name": "alg", "type": {"enum": "hash_alg"}, "req": true},
-      {"key": 1, "name": "value", "type": {"bstr": [32, 32]}, "req": true}]},
-    "Signature": {"fields": [
-      {"key": 0, "name": "signer", "type": {"bstr": [16, 32]}, "req": true},
-      {"key": 1, "name": "crypto_profile", "type": {"uint": [1, 65535]}, "req": true},
-      {"key": 2, "name": "role", "type": {"enum": "sig_role"}, "req": true},
-      {"key": 3, "name": "signature", "type": {"bstr": [1, 8192]}, "req": true}]},
-    "SignedEnvelope": {"fields": [
-      {"key": 1, "name": "body", "type": {"bstr": [1, 65536]}, "req": true, "note": "canonical encoding of a top-level object; validated recursively"},
-      {"key": 2, "name": "signatures", "type": {"array": {"ref": "Signature"}, "n": [1, 16]}, "req": true}]},
-    "ExtEntry": {"fields": [
-      {"key": 0, "name": "critical", "type": {"bool": null}, "req": true},
-      {"key": 1, "name": "value", "type": {"any": null}, "req": true}]},
-    "PrincipalRef": {"fields": [
-      {"key": 0, "name": "kind", "type": {"enum": "principal_kind"}, "req": true},
-      {"key": 1, "name": "id", "type": {"bstr": [16, 32]}, "req": true}]},
-    "ConstitutionalPolicy": {"fields": [
-      {"key": 0, "name": "rule", "type": {"enum": "constitutional_rule"}, "req": true},
-      {"key": 1, "name": "threshold", "type": {"uint": [1, 64]}, "req": false}]},
-    "DeviceCredentialRef": {"fields": [
-      {"key": 0, "name": "device_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 1, "name": "credential_digest", "type": {"ref": "Digest"}, "req": true}]},
-    "ControlKeyEpoch": {"fields": [
-      {"key": 0, "name": "device_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 1, "name": "epoch", "type": {"uint": [0, null]}, "req": true}]},
-    "AccountControlState": {"top_level": true, "fields": [
-      {"key": 2, "name": "account_id", "type": {"bstr": [32, 32]}, "req": true},
-      {"key": 3, "name": "generation", "type": {"uint": [0, null]}, "req": true},
-      {"key": 4, "name": "previous_state_hash", "type": {"ref": "Digest"}, "req": false},
-      {"key": 5, "name": "active_control_devices", "type": {"set": {"bstr": [16, 16]}, "n": [1, 64]}, "req": true},
-      {"key": 6, "name": "quarantined_control_devices", "type": {"set": {"bstr": [16, 16]}, "n": [1, 64]}, "req": false},
-      {"key": 7, "name": "messaging_devices", "type": {"set": {"bstr": [16, 16]}, "n": [1, 256]}, "req": false},
-      {"key": 8, "name": "permanently_revoked_devices", "type": {"set": {"bstr": [16, 16]}, "n": [1, 1024]}, "req": false},
-      {"key": 9, "name": "constitutional_policy", "type": {"ref": "ConstitutionalPolicy"}, "req": true},
-      {"key": 10, "name": "recovery_policy_commitment", "type": {"ref": "Digest"}, "req": false},
-      {"key": 11, "name": "minimum_crypto_profile", "type": {"uint": [1, 65535]}, "req": true},
-      {"key": 12, "name": "control_key_epochs", "type": {"set": {"ref": "ControlKeyEpoch"}, "n": [1, 64]}, "req": false},
-      {"key": 13, "name": "device_credentials", "type": {"set": {"ref": "DeviceCredentialRef"}, "n": [1, 320]}, "req": false, "note": "proposed addition: binds device ids to DeviceCredential digests"},
-      {"key": 14, "name": "transparency_commitment", "type": {"ref": "Digest"}, "req": false}]},
-    "AccountControlHead": {"top_level": true, "fields": [
-      {"key": 2, "name": "subject", "type": {"bstr": [16, 32]}, "req": true},
-      {"key": 3, "name": "generation", "type": {"uint": [0, null]}, "req": true},
-      {"key": 4, "name": "state_hash", "type": {"ref": "Digest"}, "req": true},
-      {"key": 5, "name": "epoch", "type": {"uint": [0, null]}, "req": false}]},
-    "RecoveryMethod": {"fields": [
-      {"key": 0, "name": "kind", "type": {"enum": "recovery_method_kind"}, "req": true},
-      {"key": 1, "name": "commitment", "type": {"bstr": [32, 2592]}, "req": true},
-      {"key": 2, "name": "guardian_threshold", "type": {"uint": [1, 255]}, "req": false},
-      {"key": 3, "name": "guardian_count", "type": {"uint": [1, 255]}, "req": false}]},
-    "RecoveryAuthorizationRule": {"fields": [
-      {"key": 0, "name": "vote_weight", "type": {"uint": [1, 1]}, "req": true},
-      {"key": 1, "name": "immediate_requires_controller_cosign", "type": {"bool": true}, "req": true}]},
-    "RecoveryActivationPolicy": {"fields": [
-      {"key": 0, "name": "delay_seconds", "type": {"uint": [86400, 31536000]}, "req": true},
-      {"key": 1, "name": "veto_by", "type": {"enum": "veto_by"}, "req": true},
-      {"key": 2, "name": "rotate_custody_on_veto", "type": {"bool": true}, "req": false},
-      {"key": 3, "name": "notify_contacts_on_completion", "type": {"bool": true}, "req": false}]},
-    "RecoveryPolicy": {"top_level": true, "fields": [
-      {"key": 2, "name": "state", "type": {"enum": "recovery_state"}, "req": true},
-      {"key": 3, "name": "methods", "type": {"array": {"ref": "RecoveryMethod"}, "n": [0, 8]}, "req": true},
-      {"key": 4, "name": "authorization_rule", "type": {"ref": "RecoveryAuthorizationRule"}, "req": true},
-      {"key": 5, "name": "recovers", "type": {"set": {"enum": "recover_target"}, "n": [1, 4]}, "req": true},
-      {"key": 6, "name": "activation_policy", "type": {"ref": "RecoveryActivationPolicy"}, "req": true},
-      {"key": 7, "name": "rotation_epoch", "type": {"uint": [0, null]}, "req": false}],
-     "reserved": [{"key": 8, "name": "policy_commitment", "note": "not a field: the commitment is Hash(OM-RECOVERY-POLICY-HASH-v1, body) stored in AccountControlState key 10"}]},
-    "RecoveryRequest": {"top_level": true, "fields": [
-      {"key": 2, "name": "account_id", "type": {"bstr": [32, 32]}, "req": true},
-      {"key": 3, "name": "recovery_epoch", "type": {"uint": [0, null]}, "req": true},
-      {"key": 4, "name": "new_device_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 5, "name": "new_device_credential", "type": {"ref": "Digest"}, "req": true},
-      {"key": 6, "name": "parent_state_hash", "type": {"ref": "Digest"}, "req": true},
-      {"key": 7, "name": "request_nonce", "type": {"bstr": [16, 16]}, "req": true}]},
-    "RecoveryVeto": {"top_level": true, "fields": [
-      {"key": 2, "name": "account_id", "type": {"bstr": [32, 32]}, "req": true},
-      {"key": 3, "name": "recovery_epoch", "type": {"uint": [0, null]}, "req": true},
-      {"key": 4, "name": "request_digest", "type": {"ref": "Digest"}, "req": true}]},
-    "AccountRetirement": {"top_level": true, "fields": [
-      {"key": 2, "name": "account_id", "type": {"bstr": [32, 32]}, "req": true},
-      {"key": 3, "name": "previous_state_hash", "type": {"ref": "Digest"}, "req": true},
-      {"key": 4, "name": "reason_class", "type": {"enum": "retirement_reason"}, "req": true},
-      {"key": 5, "name": "successor_account_id", "type": {"bstr": [32, 32]}, "req": false},
-      {"key": 6, "name": "farewell_note_ref", "type": {"bstr": [16, 64]}, "req": false},
-      {"key": 7, "name": "effective_at", "type": {"uint": [0, null]}, "req": false},
-      {"key": 8, "name": "authorization_kind", "type": {"enum": "retirement_authorization"}, "req": true},
-      {"key": 9, "name": "contest_window_seconds", "type": {"uint": [0, 31536000]}, "req": false}]},
-    "DeviceCredential": {"top_level": true, "fields": [
-      {"key": 2, "name": "device_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 3, "name": "account_id", "type": {"bstr": [32, 32]}, "req": true},
-      {"key": 4, "name": "crypto_profile", "type": {"uint": [1, 65535]}, "req": true},
-      {"key": 5, "name": "signing_public_key", "type": {"bstr": [32, 4096]}, "req": true},
-      {"key": 6, "name": "key_agreement_public_key", "type": {"bstr": [32, 4096]}, "req": true},
-      {"key": 7, "name": "device_class", "type": {"enum": "device_class"}, "req": true},
-      {"key": 8, "name": "capabilities", "type": {"set": {"tstr": [1, 64]}, "n": [1, 32]}, "req": false},
-      {"key": 9, "name": "created_at", "type": {"uint": [0, null]}, "req": false}]},
-    "DeviceEnrollmentNotice": {"top_level": true, "fields": [
-      {"key": 2, "name": "account_id", "type": {"bstr": [32, 32]}, "req": true},
-      {"key": 3, "name": "new_device_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 4, "name": "device_class", "type": {"enum": "device_class"}, "req": true},
-      {"key": 5, "name": "acs_generation", "type": {"uint": [0, null]}, "req": true},
-      {"key": 6, "name": "acs_state_hash", "type": {"ref": "Digest"}, "req": true},
-      {"key": 7, "name": "enrolled_by_device_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 8, "name": "ceremony", "type": {"enum": "enrollment_ceremony"}, "req": true},
-      {"key": 9, "name": "enrolled_at", "type": {"uint": [0, null]}, "req": false}]},
-    "PrekeyItem": {"fields": [
-      {"key": 0, "name": "key_id", "type": {"uint": [0, 4294967295]}, "req": true},
-      {"key": 1, "name": "kind", "type": {"enum": "prekey_kind"}, "req": true},
-      {"key": 2, "name": "public_key", "type": {"bstr": [32, 1568]}, "req": true},
-      {"key": 3, "name": "signature", "type": {"bstr": [1, 8192]}, "req": false, "note": "per-item signature (label OM-PREKEY-SIG-v1) so a fetched subset stays verifiable"}]},
-    "AsyncKeyBundle": {"top_level": true, "fields": [
-      {"key": 2, "name": "subject_device_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 3, "name": "acs_generation", "type": {"uint": [0, null]}, "req": true},
-      {"key": 4, "name": "acs_state_hash", "type": {"ref": "Digest"}, "req": true},
-      {"key": 5, "name": "crypto_profile", "type": {"uint": [1, 65535]}, "req": true},
-      {"key": 6, "name": "generation", "type": {"uint": [0, null]}, "req": true},
-      {"key": 7, "name": "signed_prekey", "type": {"ref": "PrekeyItem"}, "req": true},
-      {"key": 8, "name": "pq_signed_prekey", "type": {"ref": "PrekeyItem"}, "req": false, "note": "mandatory since ADR-0126 (ADR-0118 §6): validators reject a bundle without it. 'req' keeps its assigned value because assigned values are immutable; the rule is carried by keys.cddl and by om-crypto-profiles required_bundle_fields."},
-      {"key": 9, "name": "one_time_prekeys", "type": {"array": {"ref": "PrekeyItem"}, "n": [1, 100]}, "req": false},
-      {"key": 10, "name": "pq_one_time_prekeys", "type": {"array": {"ref": "PrekeyItem"}, "n": [1, 32]}, "req": false},
-      {"key": 11, "name": "pq_last_resort_prekey", "type": {"ref": "PrekeyItem"}, "req": false},
-      {"key": 12, "name": "provider_pool_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 13, "name": "expires_at", "type": {"uint": [0, null]}, "req": true}]},
-    "Hlc": {"fields": [
-      {"key": 0, "name": "physical_ms", "type": {"uint": [0, null]}, "req": true},
-      {"key": 1, "name": "logical", "type": {"uint": [0, 4294967295]}, "req": true},
-      {"key": 2, "name": "endpoint_tiebreak", "type": {"bstr": [1, 32]}, "req": true}]},
-    "ConversationEvent": {"top_level": true, "fields": [
-      {"key": 2, "name": "protocol_version", "type": {"uint": [1, 65535]}, "req": true},
-      {"key": 3, "name": "event_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 4, "name": "conversation_id", "type": {"bstr": [32, 32]}, "req": true},
-      {"key": 5, "name": "author_principal", "type": {"ref": "PrincipalRef"}, "req": true},
-      {"key": 6, "name": "author_endpoint_id", "type": {"bstr": [16, 32]}, "req": true},
-      {"key": 7, "name": "clock", "type": {"ref": "Hlc"}, "req": true},
-      {"key": 8, "name": "kind", "type": {"enum": "event_kind"}, "req": true},
-      {"key": 9, "name": "kind_version", "type": {"uint": [1, 65535]}, "req": true},
-      {"key": 10, "name": "required_capabilities", "type": {"set": {"tstr": [1, 128]}, "n": [1, 16]}, "req": false},
-      {"key": 11, "name": "body", "type": {"dispatch": {"on": "kind", "table": {"1": "MessageCreate", "2": "MessageEdit", "3": "MessageDelete", "4": "ReactionSet", "5": "ReceiptUpdate"}, "default": "opaque_map"}}, "req": true},
-      {"key": 12, "name": "expiry", "type": {"uint": [0, null]}, "req": false}],
-     "reserved": [
-      {"key": 13, "name": "representation", "note": "W4 services_bots RepresentationGrant; unknown to W0 decoders (critical)"},
-      {"key": 14, "name": "foreign_provenance", "note": "W4 bridges ForeignProvenance; unknown to W0 decoders (critical)"}]},
-    "EncryptionDescriptor": {"fields": [
-      {"key": 0, "name": "content_profile", "type": {"uint": [1, 65535]}, "req": true},
-      {"key": 1, "name": "content_key", "type": {"bstr": [32, 32]}, "req": true}]},
-    "AttachmentRef": {"fields": [
-      {"key": 0, "name": "blob_id", "type": {"bstr": [32, 32]}, "req": true},
-      {"key": 1, "name": "media_type", "type": {"tstr": [1, 127]}, "req": true},
-      {"key": 2, "name": "plaintext_size", "type": {"uint": [0, null]}, "req": true},
-      {"key": 3, "name": "ciphertext_digest", "type": {"ref": "Digest"}, "req": true},
-      {"key": 4, "name": "encryption", "type": {"ref": "EncryptionDescriptor"}, "req": true},
-      {"key": 5, "name": "locations", "type": {"array": {"tstr": [1, 2048]}, "n": [1, 8]}, "req": false},
-      {"key": 6, "name": "filename", "type": {"tstr": [1, 255]}, "req": false},
-      {"key": 7, "name": "width", "type": {"uint": [1, 65535]}, "req": false},
-      {"key": 8, "name": "height", "type": {"uint": [1, 65535]}, "req": false},
-      {"key": 9, "name": "duration_ms", "type": {"uint": [0, null]}, "req": false},
-      {"key": 10, "name": "repair_capability", "type": {"bstr": [16, 64]}, "req": false}]},
-    "InlineText": {"fields": [
-      {"key": 0, "name": "type", "type": {"enum": "inline_type"}, "req": true},
-      {"key": 1, "name": "text", "type": {"tstr": [0, 65536]}, "req": true},
-      {"key": 2, "name": "marks", "type": {"set": {"enum": "text_mark"}, "n": [1, 6]}, "req": false}]},
-    "InlineLink": {"fields": [
-      {"key": 0, "name": "type", "type": {"enum": "inline_type"}, "req": true},
-      {"key": 3, "name": "url", "type": {"tstr": [1, 2048]}, "req": true},
-      {"key": 4, "name": "label", "type": {"array": {"ref": "Inline"}, "n": [0, 256]}, "req": true}]},
-    "InlineMention": {"fields": [
-      {"key": 0, "name": "type", "type": {"enum": "inline_type"}, "req": true},
-      {"key": 4, "name": "label", "type": {"array": {"ref": "Inline"}, "n": [0, 256]}, "req": true},
-      {"key": 5, "name": "subject_ref", "type": {"ref": "PrincipalRef"}, "req": true}],
-     "reserved": [{"key": 6, "name": "custom_emoji_asset", "note": "W1 expressive_media inline type 4"}]},
-    "Inline": {"union": {"on": 0, "variants": {"1": "InlineText", "2": "InlineLink", "3": "InlineMention"}}},
-    "BlockInlines": {"fields": [
-      {"key": 0, "name": "type", "type": {"enum": "block_type"}, "req": true},
-      {"key": 1, "name": "inlines", "type": {"array": {"ref": "Inline"}, "n": [0, 4096]}, "req": true}]},
-    "BlockCode": {"fields": [
-      {"key": 0, "name": "type", "type": {"enum": "block_type"}, "req": true},
-      {"key": 2, "name": "text", "type": {"tstr": [0, 65536]}, "req": true},
-      {"key": 3, "name": "language_hint", "type": {"tstr": [1, 64]}, "req": false}]},
-    "Block": {"union": {"on": 0, "variants": {"1": "BlockInlines", "2": "BlockInlines", "3": "BlockCode"}}},
-    "RichText": {"fields": [
-      {"key": 0, "name": "version", "type": {"uint": [1, 1]}, "req": true},
-      {"key": 1, "name": "blocks", "type": {"array": {"ref": "Block"}, "n": [0, 4096]}, "req": true}]},
-    "MessageCreate": {"fields": [
-      {"key": 0, "name": "content", "type": {"ref": "RichText"}, "req": false},
-      {"key": 1, "name": "attachments", "type": {"array": {"ref": "AttachmentRef"}, "n": [0, 32]}, "req": true},
-      {"key": 2, "name": "reply_to", "type": {"bstr": [16, 16]}, "req": false},
-      {"key": 3, "name": "mentions", "type": {"set": {"ref": "PrincipalRef"}, "n": [1, 64]}, "req": false},
-      {"key": 4, "name": "expires_after", "type": {"uint": [1, null]}, "req": false},
-      {"key": 5, "name": "thread_root_event_id", "type": {"bstr": [16, 16]}, "req": false},
-      {"key": 6, "name": "topic_id", "type": {"bstr": [16, 16]}, "req": false}]},
-    "MessageEdit": {"fields": [
-      {"key": 0, "name": "target_event_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 1, "name": "replacement", "type": {"ref": "RichText"}, "req": true}]},
-    "MessageDelete": {"fields": [
-      {"key": 0, "name": "target_event_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 1, "name": "reason", "type": {"tstr": [1, 256]}, "req": false}]},
-    "ReactionSet": {"fields": [
-      {"key": 0, "name": "target_event_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 1, "name": "reaction_key", "type": {"tstr": [1, 64]}, "req": true},
-      {"key": 2, "name": "present", "type": {"bool": null}, "req": true}],
-     "reserved": [{"key": 3, "name": "reaction_asset", "note": "W1 expressive_media ExpressiveAssetRef"}]},
-    "ReceiptUpdate": {"fields": [
-      {"key": 0, "name": "receipt_type", "type": {"enum": "receipt_type"}, "req": true},
-      {"key": 1, "name": "event_ids", "type": {"set": {"bstr": [16, 16]}, "n": [1, 256]}, "req": true}]},
-    "IntroServiceRef": {"fields": [
-      {"key": 0, "name": "uri", "type": {"tstr": [1, 2048]}, "req": true},
-      {"key": 1, "name": "service_key", "type": {"bstr": [32, 2592]}, "req": false}]},
-    "Provenance": {"fields": [
-      {"key": 0, "name": "issuer_kind", "type": {"enum": "provenance_issuer"}, "req": true},
-      {"key": 1, "name": "issuer_ref", "type": {"bstr": [16, 64]}, "req": false}]},
-    "ContactDescriptor": {"top_level": true, "fields": [
-      {"key": 2, "name": "descriptor_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 3, "name": "subject_hint", "type": {"tstr": [1, 64]}, "req": false},
-      {"key": 4, "name": "alias", "type": {"tstr": [1, 256]}, "req": false},
-      {"key": 5, "name": "alias_scope", "type": {"tstr": [1, 256]}, "req": false},
-      {"key": 6, "name": "protocol_versions", "type": {"set": {"uint": [1, 65535]}, "n": [1, 8]}, "req": true},
-      {"key": 7, "name": "introduction_services", "type": {"array": {"ref": "IntroServiceRef"}, "n": [1, 8]}, "req": true},
-      {"key": 8, "name": "relay_hints", "type": {"array": {"tstr": [1, 2048]}, "n": [1, 8]}, "req": false},
-      {"key": 9, "name": "verification_claims", "type": {"array": {"bstr": [1, 4096]}, "n": [1, 8]}, "req": false},
-      {"key": 10, "name": "crypto_profiles", "type": {"set": {"uint": [1, 65535]}, "n": [1, 8]}, "req": false},
-      {"key": 11, "name": "not_before", "type": {"uint": [0, null]}, "req": false},
-      {"key": 12, "name": "expires_at", "type": {"uint": [0, null]}, "req": true},
-      {"key": 13, "name": "provenance", "type": {"ref": "Provenance"}, "req": true},
-      {"key": 14, "name": "transparency_proof", "type": {"bstr": [1, 8192]}, "req": false},
-      {"key": 15, "name": "request_key", "type": {"ref": "RequestKey"}, "req": false, "note": "ADR-0126"}]},
-    "ContactCapsule": {"top_level": true, "fields": [
-      {"key": 2, "name": "capsule_version", "type": {"uint": [1, 65535]}, "req": true},
-      {"key": 3, "name": "share_id", "type": {"bstr": [16, 16]}, "req": false},
-      {"key": 4, "name": "share_epoch", "type": {"uint": [0, null]}, "req": false},
-      {"key": 5, "name": "subject_intro_identity", "type": {"bstr": [32, 2592]}, "req": true},
-      {"key": 6, "name": "contact_descriptor", "type": {"signed": "ContactDescriptor"}, "req": true},
-      {"key": 7, "name": "expires_at", "type": {"uint": [0, null]}, "req": true},
-      {"key": 8, "name": "share_policy_hint", "type": {"enum": "share_policy"}, "req": false}],
-     "reserved": [{"key": 9, "name": "referral_attestation", "note": "cannot live inside the subject-signed body; carried as a separate ReferralAttestation object"}]},
-    "ReferralAttestation": {"top_level": true, "fields": [
-      {"key": 2, "name": "capsule_digest", "type": {"ref": "Digest"}, "req": true},
-      {"key": 3, "name": "relationship_context", "type": {"bstr": [16, 32]}, "req": true},
-      {"key": 4, "name": "issued_at", "type": {"uint": [0, null]}, "req": false}]},
-    "Invite": {"top_level": true, "fields": [
-      {"key": 2, "name": "invite_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 3, "name": "invite_secret", "type": {"bstr": [16, 32]}, "req": true},
-      {"key": 4, "name": "introduction_services", "type": {"array": {"ref": "IntroServiceRef"}, "n": [1, 8]}, "req": true},
-      {"key": 5, "name": "issued_at", "type": {"uint": [0, null]}, "req": true},
-      {"key": 6, "name": "expires_at", "type": {"uint": [0, null]}, "req": true},
-      {"key": 7, "name": "max_uses", "type": {"uint": [1, 1000000]}, "req": false},
-      {"key": 8, "name": "scopes", "type": {"set": {"enum": "invite_scope"}, "n": [1, 3]}, "req": true},
-      {"key": 9, "name": "lan_rendezvous", "type": {"bstr": [1, 1024]}, "req": false},
-      {"key": 10, "name": "revocation_epoch", "type": {"uint": [0, null]}, "req": false},
-      {"key": 11, "name": "sponsorship_ticket", "type": {"bstr": [16, 32]}, "req": false}]},
-    "IntroductionTicket": {"top_level": true, "fields": [
-      {"key": 2, "name": "ticket_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 3, "name": "service_binding", "type": {"bstr": [16, 32]}, "req": true},
-      {"key": 4, "name": "expires_at", "type": {"uint": [0, null]}, "req": true},
-      {"key": 5, "name": "max_uses", "type": {"uint": [1, 16]}, "req": true},
-      {"key": 6, "name": "payload_limit_bytes", "type": {"uint": [1, 65536]}, "req": true},
-      {"key": 7, "name": "allow_attachments", "type": {"bool": null}, "req": false},
-      {"key": 8, "name": "allow_calls", "type": {"bool": null}, "req": false},
-      {"key": 9, "name": "nonce", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 10, "name": "admission_proof", "type": {"bstr": [1, 4096]}, "req": false},
-      {"key": 11, "name": "request_key", "type": {"ref": "RequestKey"}, "req": false, "note": "ADR-0126; trusted only when the ticket carries an intro_identity signature"}]},
-    "MailboxQuotas": {"fields": [
-      {"key": 0, "name": "max_stored_bytes", "type": {"uint": [0, null]}, "req": true},
-      {"key": 1, "name": "max_envelopes_per_hour", "type": {"uint": [0, null]}, "req": true},
-      {"key": 2, "name": "max_envelope_bytes", "type": {"uint": [0, null]}, "req": true},
-      {"key": 3, "name": "max_blob_spool_bytes", "type": {"uint": [0, null]}, "req": true},
-      {"key": 4, "name": "retention_seconds", "type": {"uint": [0, null]}, "req": true}]},
-    "SponsoredMailboxGrant": {"top_level": true, "fields": [
-      {"key": 2, "name": "grant_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 3, "name": "sponsor_home_ref", "type": {"tstr": [1, 2048]}, "req": true},
-      {"key": 4, "name": "deposit_capability_ref", "type": {"bstr": [16, 64]}, "req": true},
-      {"key": 5, "name": "drain_capability_ref", "type": {"bstr": [16, 64]}, "req": true},
-      {"key": 6, "name": "quotas", "type": {"ref": "MailboxQuotas"}, "req": true},
-      {"key": 7, "name": "expires_at", "type": {"uint": [0, null]}, "req": true},
-      {"key": 8, "name": "renewable", "type": {"bool": null}, "req": false},
-      {"key": 9, "name": "may_sponsor_further", "type": {"bool": false}, "req": true},
-      {"key": 10, "name": "metadata_exposure", "type": {"enum": "metadata_exposure"}, "req": true},
-      {"key": 11, "name": "revoked", "type": {"bool": null}, "req": false}]},
-    "RelayEntry": {"fields": [
-      {"key": 0, "name": "relay_uri", "type": {"tstr": [1, 2048]}, "req": true},
-      {"key": 1, "name": "capability", "type": {"bstr": [16, 64]}, "req": true},
-      {"key": 2, "name": "priority", "type": {"uint": [0, 255]}, "req": true},
-      {"key": 3, "name": "weight", "type": {"uint": [0, 65535]}, "req": false},
-      {"key": 4, "name": "expires_at", "type": {"uint": [0, null]}, "req": true},
-      {"key": 5, "name": "transports", "type": {"set": {"tstr": [1, 64]}, "n": [1, 8]}, "req": false},
-      {"key": 6, "name": "failure_domain", "type": {"tstr": [1, 128]}, "req": false}]},
-    "RelaySet": {"top_level": true, "fields": [
-      {"key": 2, "name": "version", "type": {"uint": [1, null]}, "req": true},
-      {"key": 3, "name": "previous_set_hash", "type": {"ref": "Digest"}, "req": false},
-      {"key": 4, "name": "entries", "type": {"array": {"ref": "RelayEntry"}, "n": [1, 16]}, "req": true}]},
-    "BlobLocationRecord": {"top_level": true, "fields": [
-      {"key": 2, "name": "blob_id", "type": {"bstr": [32, 32]}, "req": true},
-      {"key": 3, "name": "version", "type": {"uint": [1, null]}, "req": true},
-      {"key": 4, "name": "previous_record_hash", "type": {"ref": "Digest"}, "req": false},
-      {"key": 5, "name": "locators", "type": {"array": {"tstr": [1, 2048]}, "n": [1, 8]}, "req": true},
-      {"key": 6, "name": "valid_from", "type": {"uint": [0, null]}, "req": true},
-      {"key": 7, "name": "overlap_until", "type": {"uint": [0, null]}, "req": false}]},
-    "RequestKey": {"fields": [
-      {"key": 0, "name": "crypto_profile", "type": {"uint": [1, 65535]}, "req": true},
-      {"key": 1, "name": "public_key", "type": {"bstr": [32, 2592]}, "req": true},
-      {"key": 2, "name": "expires_at", "type": {"uint": [0, null]}, "req": false}]},
-    "MessageRequest": {"top_level": true, "fields": [
-      {"key": 2, "name": "ticket_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 3, "name": "request_key_digest", "type": {"ref": "Digest"}, "req": true},
-      {"key": 4, "name": "crypto_profile", "type": {"uint": [1, 65535]}, "req": true},
-      {"key": 5, "name": "hpke_enc", "type": {"bstr": [32, 2048]}, "req": true},
-      {"key": 6, "name": "ciphertext", "type": {"bstr": [17, 65552]}, "req": true, "note": "HPKE base-mode ciphertext of a signed MessageRequestPayload; length <= ticket payload_limit_bytes + AEAD tag"},
-      {"key": 7, "name": "admission_proof", "type": {"bstr": [1, 4096]}, "req": false}]},
-    "MessageRequestPayload": {"top_level": true, "fields": [
-      {"key": 2, "name": "ticket_id", "type": {"bstr": [16, 16]}, "req": true},
-      {"key": 3, "name": "request_key_digest", "type": {"ref": "Digest"}, "req": true},
-      {"key": 4, "name": "sender_intro_identity", "type": {"bstr": [32, 2592]}, "req": true},
-      {"key": 5, "name": "sender_descriptor", "type": {"signed": "ContactDescriptor"}, "req": true},
-      {"key": 6, "name": "greeting", "type": {"ref": "RichText"}, "req": false},
-      {"key": 7, "name": "referrals", "type": {"array": {"signed": "ReferralAttestation"}, "n": [1, 4]}, "req": false},
-      {"key": 8, "name": "reply_route", "type": {"ref": "RelayEntry"}, "req": true}]},
-    "IntroIdentityBinding": {"top_level": true, "fields": [
-      {"key": 2, "name": "account_id", "type": {"bstr": [32, 32]}, "req": true},
-      {"key": 3, "name": "intro_identity", "type": {"bstr": [32, 2592]}, "req": true},
-      {"key": 4, "name": "request_key_digest", "type": {"ref": "Digest"}, "req": true},
-      {"key": 5, "name": "acs_generation", "type": {"uint": [0, null]}, "req": true},
-      {"key": 6, "name": "acs_state_hash", "type": {"ref": "Digest"}, "req": true},
-      {"key": 7, "name": "issued_at", "type": {"uint": [0, null]}, "req": false}]},
-    "ForkAck": {"fields": [
-      {"key": 0, "name": "observed_branch_heads", "type": {"set": {"ref": "Digest"}, "n": [2, 16]}, "req": true}]}
+    "Digest": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "alg",
+          "type": {
+            "enum": "hash_alg"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "value",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "Signature": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "signer",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "role",
+          "type": {
+            "enum": "sig_role"
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "signature",
+          "type": {
+            "bstr": [
+              1,
+              8192
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "SignedEnvelope": {
+      "fields": [
+        {
+          "key": 1,
+          "name": "body",
+          "type": {
+            "bstr": [
+              1,
+              65536
+            ]
+          },
+          "req": true,
+          "note": "canonical encoding of a top-level object; validated recursively"
+        },
+        {
+          "key": 2,
+          "name": "signatures",
+          "type": {
+            "array": {
+              "ref": "Signature"
+            },
+            "n": [
+              1,
+              16
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "ExtEntry": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "critical",
+          "type": {
+            "bool": null
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "value",
+          "type": {
+            "any": null
+          },
+          "req": true
+        }
+      ]
+    },
+    "PrincipalRef": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "kind",
+          "type": {
+            "enum": "principal_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "id",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "ConstitutionalPolicy": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "rule",
+          "type": {
+            "enum": "constitutional_rule"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "threshold",
+          "type": {
+            "uint": [
+              1,
+              64
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "DeviceCredentialRef": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "device_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "credential_digest",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        }
+      ]
+    },
+    "ControlKeyEpoch": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "device_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "epoch",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "AccountControlState": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "generation",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "previous_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "active_control_devices",
+          "type": {
+            "set": {
+              "bstr": [
+                16,
+                16
+              ]
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "quarantined_control_devices",
+          "type": {
+            "set": {
+              "bstr": [
+                16,
+                16
+              ]
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 7,
+          "name": "messaging_devices",
+          "type": {
+            "set": {
+              "bstr": [
+                16,
+                16
+              ]
+            },
+            "n": [
+              1,
+              256
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 8,
+          "name": "permanently_revoked_devices",
+          "type": {
+            "set": {
+              "bstr": [
+                16,
+                16
+              ]
+            },
+            "n": [
+              1,
+              1024
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 9,
+          "name": "constitutional_policy",
+          "type": {
+            "ref": "ConstitutionalPolicy"
+          },
+          "req": true
+        },
+        {
+          "key": 10,
+          "name": "recovery_policy_commitment",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        },
+        {
+          "key": 11,
+          "name": "minimum_crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 12,
+          "name": "control_key_epochs",
+          "type": {
+            "set": {
+              "ref": "ControlKeyEpoch"
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 13,
+          "name": "device_credentials",
+          "type": {
+            "set": {
+              "ref": "DeviceCredentialRef"
+            },
+            "n": [
+              1,
+              320
+            ]
+          },
+          "req": false,
+          "note": "frozen set: binds DeviceID to DeviceCredential digest (ADR-0119/ADR-0135/ADR-0141)"
+        },
+        {
+          "key": 14,
+          "name": "transparency_commitment",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        }
+      ]
+    },
+    "AccountControlHead": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "subject",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "generation",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "epoch",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "RecoveryMethod": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "kind",
+          "type": {
+            "enum": "recovery_method_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "commitment",
+          "type": {
+            "bstr": [
+              32,
+              2592
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "guardian_threshold",
+          "type": {
+            "uint": [
+              1,
+              255
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 3,
+          "name": "guardian_count",
+          "type": {
+            "uint": [
+              1,
+              255
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "RecoveryAuthorizationRule": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "vote_weight",
+          "type": {
+            "uint": [
+              1,
+              1
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "immediate_requires_controller_cosign",
+          "type": {
+            "bool": true
+          },
+          "req": true
+        }
+      ]
+    },
+    "RecoveryActivationPolicy": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "delay_seconds",
+          "type": {
+            "uint": [
+              86400,
+              31536000
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "veto_by",
+          "type": {
+            "enum": "veto_by"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "rotate_custody_on_veto",
+          "type": {
+            "bool": true
+          },
+          "req": false
+        },
+        {
+          "key": 3,
+          "name": "notify_contacts_on_completion",
+          "type": {
+            "bool": true
+          },
+          "req": false
+        }
+      ]
+    },
+    "RecoveryPolicy": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "state",
+          "type": {
+            "enum": "recovery_state"
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "methods",
+          "type": {
+            "array": {
+              "ref": "RecoveryMethod"
+            },
+            "n": [
+              0,
+              8
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "authorization_rule",
+          "type": {
+            "ref": "RecoveryAuthorizationRule"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "recovers",
+          "type": {
+            "set": {
+              "enum": "recover_target"
+            },
+            "n": [
+              1,
+              4
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "activation_policy",
+          "type": {
+            "ref": "RecoveryActivationPolicy"
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "rotation_epoch",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        }
+      ],
+      "reserved": [
+        {
+          "key": 8,
+          "name": "policy_commitment",
+          "note": "not a field: the commitment is Hash(OM-RECOVERY-POLICY-HASH-v1, body) stored in AccountControlState key 10"
+        }
+      ]
+    },
+    "RecoveryRequest": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "recovery_epoch",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "new_device_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "new_device_credential",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "parent_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "request_nonce",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "RecoveryVeto": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "recovery_epoch",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "request_digest",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        }
+      ]
+    },
+    "AccountRetirement": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "previous_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "reason_class",
+          "type": {
+            "enum": "retirement_reason"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "successor_account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 6,
+          "name": "farewell_note_ref",
+          "type": {
+            "bstr": [
+              16,
+              64
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 7,
+          "name": "effective_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 8,
+          "name": "authorization_kind",
+          "type": {
+            "enum": "retirement_authorization"
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "contest_window_seconds",
+          "type": {
+            "uint": [
+              0,
+              31536000
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "DeviceCredential": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "device_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "signing_public_key",
+          "type": {
+            "bstr": [
+              32,
+              4096
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "key_agreement_public_key",
+          "type": {
+            "bstr": [
+              32,
+              4096
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "device_class",
+          "type": {
+            "enum": "device_class"
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "capabilities",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                64
+              ]
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 9,
+          "name": "created_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "DeviceEnrollmentNotice": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "new_device_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "device_class",
+          "type": {
+            "enum": "device_class"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "acs_generation",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "acs_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "enrolled_by_device_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "ceremony",
+          "type": {
+            "enum": "enrollment_ceremony"
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "enrolled_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "PrekeyItem": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "key_id",
+          "type": {
+            "uint": [
+              0,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "kind",
+          "type": {
+            "enum": "prekey_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "public_key",
+          "type": {
+            "bstr": [
+              32,
+              1568
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "signature",
+          "type": {
+            "bstr": [
+              1,
+              8192
+            ]
+          },
+          "req": false,
+          "note": "for one-time kinds 3/4: composite device signature under OM-PREKEY-SIG-v1 over ADR-0140 context [1, DeviceID, CryptoProfile, bundle_generation, provider_pool_id, kind, key_id, public_key]"
+        }
+      ]
+    },
+    "AsyncKeyBundle": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "subject_device_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "generation",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true,
+          "note": "signed-prekey generation; strictly monotonic per DeviceID + CryptoProfile across all provider pools (ADR-0140)"
+        },
+        {
+          "key": 7,
+          "name": "signed_prekey",
+          "type": {
+            "ref": "PrekeyItem"
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "pq_signed_prekey",
+          "type": {
+            "ref": "PrekeyItem"
+          },
+          "req": false,
+          "note": "mandatory since ADR-0126 (ADR-0118 §6): validators reject a bundle without it. 'req' keeps its assigned value because assigned values are immutable; the rule is carried by keys.cddl and by om-crypto-profiles required_bundle_fields."
+        },
+        {
+          "key": 9,
+          "name": "one_time_prekeys",
+          "type": {
+            "array": {
+              "ref": "PrekeyItem"
+            },
+            "n": [
+              1,
+              100
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 10,
+          "name": "pq_one_time_prekeys",
+          "type": {
+            "array": {
+              "ref": "PrekeyItem"
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 11,
+          "name": "pq_last_resort_prekey",
+          "type": {
+            "ref": "PrekeyItem"
+          },
+          "req": false
+        },
+        {
+          "key": 12,
+          "name": "provider_pool_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "note": "provider-distinct consumable-pool id; does not reset the signed-prekey generation namespace (ADR-0140)"
+        },
+        {
+          "key": 13,
+          "name": "expires_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        }
+      ],
+      "reserved": [
+        {
+          "key": 3,
+          "name": "acs_generation",
+          "note": "retired before first release by ADR-0140; MUST be absent in current AsyncKeyBundle v1 and never reused"
+        },
+        {
+          "key": 4,
+          "name": "acs_state_hash",
+          "note": "retired before first release by ADR-0140; MUST be absent in current AsyncKeyBundle v1 and never reused"
+        }
+      ]
+    },
+    "Hlc": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "physical_ms",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "logical",
+          "type": {
+            "uint": [
+              0,
+              4294967295
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "endpoint_tiebreak",
+          "type": {
+            "bstr": [
+              1,
+              32
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "ConversationEvent": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "protocol_version",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "event_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "conversation_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "author_principal",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "author_endpoint_id",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "clock",
+          "type": {
+            "ref": "Hlc"
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "kind",
+          "type": {
+            "enum": "event_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "kind_version",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 10,
+          "name": "required_capabilities",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              1,
+              16
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 11,
+          "name": "body",
+          "type": {
+            "dispatch": {
+              "on": "kind",
+              "table": {
+                "1": "MessageCreate",
+                "2": "MessageEdit",
+                "3": "MessageDelete",
+                "4": "ReactionSet",
+                "5": "ReceiptUpdate"
+              },
+              "default": "opaque_map"
+            }
+          },
+          "req": true
+        },
+        {
+          "key": 12,
+          "name": "expiry",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        }
+      ],
+      "reserved": [
+        {
+          "key": 13,
+          "name": "representation",
+          "note": "W4 services_bots RepresentationGrant; unknown to W0 decoders (critical)"
+        },
+        {
+          "key": 14,
+          "name": "foreign_provenance",
+          "note": "W4 bridges ForeignProvenance; unknown to W0 decoders (critical)"
+        }
+      ]
+    },
+    "EncryptionDescriptor": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "content_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "content_key",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "AttachmentRef": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "blob_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "media_type",
+          "type": {
+            "tstr": [
+              1,
+              127
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "plaintext_size",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "ciphertext_digest",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "encryption",
+          "type": {
+            "ref": "EncryptionDescriptor"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "locations",
+          "type": {
+            "array": {
+              "tstr": [
+                1,
+                2048
+              ]
+            },
+            "n": [
+              1,
+              8
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 6,
+          "name": "filename",
+          "type": {
+            "tstr": [
+              1,
+              255
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 7,
+          "name": "width",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 8,
+          "name": "height",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 9,
+          "name": "duration_ms",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 10,
+          "name": "repair_capability",
+          "type": {
+            "bstr": [
+              16,
+              64
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "InlineText": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "type",
+          "type": {
+            "enum": "inline_type"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "text",
+          "type": {
+            "tstr": [
+              0,
+              65536
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "marks",
+          "type": {
+            "set": {
+              "enum": "text_mark"
+            },
+            "n": [
+              1,
+              6
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "InlineLink": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "type",
+          "type": {
+            "enum": "inline_type"
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "url",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "label",
+          "type": {
+            "array": {
+              "ref": "Inline"
+            },
+            "n": [
+              0,
+              256
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "InlineMention": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "type",
+          "type": {
+            "enum": "inline_type"
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "label",
+          "type": {
+            "array": {
+              "ref": "Inline"
+            },
+            "n": [
+              0,
+              256
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "subject_ref",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        }
+      ],
+      "reserved": [
+        {
+          "key": 6,
+          "name": "custom_emoji_asset",
+          "note": "W1 expressive_media inline type 4"
+        }
+      ]
+    },
+    "Inline": {
+      "union": {
+        "on": 0,
+        "variants": {
+          "1": "InlineText",
+          "2": "InlineLink",
+          "3": "InlineMention"
+        }
+      }
+    },
+    "BlockInlines": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "type",
+          "type": {
+            "enum": "block_type"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "inlines",
+          "type": {
+            "array": {
+              "ref": "Inline"
+            },
+            "n": [
+              0,
+              4096
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "BlockCode": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "type",
+          "type": {
+            "enum": "block_type"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "text",
+          "type": {
+            "tstr": [
+              0,
+              65536
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "language_hint",
+          "type": {
+            "tstr": [
+              1,
+              64
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "Block": {
+      "union": {
+        "on": 0,
+        "variants": {
+          "1": "BlockInlines",
+          "2": "BlockInlines",
+          "3": "BlockCode"
+        }
+      }
+    },
+    "RichText": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "version",
+          "type": {
+            "uint": [
+              1,
+              1
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "blocks",
+          "type": {
+            "array": {
+              "ref": "Block"
+            },
+            "n": [
+              0,
+              4096
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "MessageCreate": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "content",
+          "type": {
+            "ref": "RichText"
+          },
+          "req": false
+        },
+        {
+          "key": 1,
+          "name": "attachments",
+          "type": {
+            "array": {
+              "ref": "AttachmentRef"
+            },
+            "n": [
+              0,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "reply_to",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 3,
+          "name": "mentions",
+          "type": {
+            "set": {
+              "ref": "PrincipalRef"
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 4,
+          "name": "expires_after",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "thread_root_event_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 6,
+          "name": "topic_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "MessageEdit": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "target_event_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "replacement",
+          "type": {
+            "ref": "RichText"
+          },
+          "req": true
+        }
+      ]
+    },
+    "MessageDelete": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "target_event_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "reason",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "ReactionSet": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "target_event_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "reaction_key",
+          "type": {
+            "tstr": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "present",
+          "type": {
+            "bool": null
+          },
+          "req": true
+        }
+      ],
+      "reserved": [
+        {
+          "key": 3,
+          "name": "reaction_asset",
+          "note": "W1 expressive_media ExpressiveAssetRef"
+        }
+      ]
+    },
+    "ReceiptUpdate": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "receipt_type",
+          "type": {
+            "enum": "receipt_type"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "event_ids",
+          "type": {
+            "set": {
+              "bstr": [
+                16,
+                16
+              ]
+            },
+            "n": [
+              1,
+              256
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "IntroServiceRef": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "uri",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "service_key",
+          "type": {
+            "bstr": [
+              32,
+              2592
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "Provenance": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "issuer_kind",
+          "type": {
+            "enum": "provenance_issuer"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "issuer_ref",
+          "type": {
+            "bstr": [
+              16,
+              64
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "ContactDescriptor": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "descriptor_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "subject_hint",
+          "type": {
+            "tstr": [
+              1,
+              64
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 4,
+          "name": "alias",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "alias_scope",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 6,
+          "name": "protocol_versions",
+          "type": {
+            "set": {
+              "uint": [
+                1,
+                65535
+              ]
+            },
+            "n": [
+              1,
+              8
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "introduction_services",
+          "type": {
+            "array": {
+              "ref": "IntroServiceRef"
+            },
+            "n": [
+              1,
+              8
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "relay_hints",
+          "type": {
+            "array": {
+              "tstr": [
+                1,
+                2048
+              ]
+            },
+            "n": [
+              1,
+              8
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 9,
+          "name": "verification_claims",
+          "type": {
+            "array": {
+              "bstr": [
+                1,
+                4096
+              ]
+            },
+            "n": [
+              1,
+              8
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 10,
+          "name": "crypto_profiles",
+          "type": {
+            "set": {
+              "uint": [
+                1,
+                65535
+              ]
+            },
+            "n": [
+              1,
+              8
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 11,
+          "name": "not_before",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 12,
+          "name": "expires_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 13,
+          "name": "provenance",
+          "type": {
+            "ref": "Provenance"
+          },
+          "req": true
+        },
+        {
+          "key": 14,
+          "name": "transparency_proof",
+          "type": {
+            "bstr": [
+              1,
+              8192
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 15,
+          "name": "request_key",
+          "type": {
+            "ref": "RequestKey"
+          },
+          "req": false,
+          "note": "ADR-0126"
+        }
+      ]
+    },
+    "ContactCapsule": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "capsule_version",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "share_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 4,
+          "name": "share_epoch",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "subject_intro_identity",
+          "type": {
+            "bstr": [
+              32,
+              2592
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "contact_descriptor",
+          "type": {
+            "signed": "ContactDescriptor"
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "expires_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "share_policy_hint",
+          "type": {
+            "enum": "share_policy"
+          },
+          "req": false
+        }
+      ],
+      "reserved": [
+        {
+          "key": 9,
+          "name": "referral_attestation",
+          "note": "cannot live inside the subject-signed body; carried as a separate ReferralAttestation object"
+        }
+      ]
+    },
+    "ReferralAttestation": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "capsule_digest",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "relationship_context",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "issued_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "Invite": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "invite_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "invite_secret",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "introduction_services",
+          "type": {
+            "array": {
+              "ref": "IntroServiceRef"
+            },
+            "n": [
+              1,
+              8
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "issued_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "expires_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "max_uses",
+          "type": {
+            "uint": [
+              1,
+              1000000
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 8,
+          "name": "scopes",
+          "type": {
+            "set": {
+              "enum": "invite_scope"
+            },
+            "n": [
+              1,
+              3
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "lan_rendezvous",
+          "type": {
+            "bstr": [
+              1,
+              1024
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 10,
+          "name": "revocation_epoch",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 11,
+          "name": "sponsorship_ticket",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "IntroductionTicket": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "ticket_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "service_binding",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "expires_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "max_uses",
+          "type": {
+            "uint": [
+              1,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "payload_limit_bytes",
+          "type": {
+            "uint": [
+              1,
+              65536
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "allow_attachments",
+          "type": {
+            "bool": null
+          },
+          "req": false
+        },
+        {
+          "key": 8,
+          "name": "allow_calls",
+          "type": {
+            "bool": null
+          },
+          "req": false
+        },
+        {
+          "key": 9,
+          "name": "nonce",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 10,
+          "name": "admission_proof",
+          "type": {
+            "bstr": [
+              1,
+              4096
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 11,
+          "name": "request_key",
+          "type": {
+            "ref": "RequestKey"
+          },
+          "req": false,
+          "note": "ADR-0126; trusted only when the ticket carries an intro_identity signature"
+        }
+      ]
+    },
+    "MailboxQuotas": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "max_stored_bytes",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "max_envelopes_per_hour",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "max_envelope_bytes",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "max_blob_spool_bytes",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "retention_seconds",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "SponsoredMailboxGrant": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "grant_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "sponsor_home_ref",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "deposit_capability_ref",
+          "type": {
+            "bstr": [
+              16,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "drain_capability_ref",
+          "type": {
+            "bstr": [
+              16,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "quotas",
+          "type": {
+            "ref": "MailboxQuotas"
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "expires_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "renewable",
+          "type": {
+            "bool": null
+          },
+          "req": false
+        },
+        {
+          "key": 9,
+          "name": "may_sponsor_further",
+          "type": {
+            "bool": false
+          },
+          "req": true
+        },
+        {
+          "key": 10,
+          "name": "metadata_exposure",
+          "type": {
+            "enum": "metadata_exposure"
+          },
+          "req": true
+        },
+        {
+          "key": 11,
+          "name": "revoked",
+          "type": {
+            "bool": null
+          },
+          "req": false
+        }
+      ]
+    },
+    "RelayEntry": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "relay_uri",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "capability",
+          "type": {
+            "bstr": [
+              16,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "priority",
+          "type": {
+            "uint": [
+              0,
+              255
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "weight",
+          "type": {
+            "uint": [
+              0,
+              65535
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 4,
+          "name": "expires_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "transports",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                64
+              ]
+            },
+            "n": [
+              1,
+              8
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 6,
+          "name": "failure_domain",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "RelaySet": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "version",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "previous_set_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        },
+        {
+          "key": 4,
+          "name": "entries",
+          "type": {
+            "array": {
+              "ref": "RelayEntry"
+            },
+            "n": [
+              1,
+              16
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "BlobLocationRecord": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "blob_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "version",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "previous_record_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "locators",
+          "type": {
+            "array": {
+              "tstr": [
+                1,
+                2048
+              ]
+            },
+            "n": [
+              1,
+              8
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "valid_from",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "overlap_until",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "RequestKey": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "public_key",
+          "type": {
+            "bstr": [
+              32,
+              2592
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "expires_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "MessageRequest": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "ticket_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "request_key_digest",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "hpke_enc",
+          "type": {
+            "bstr": [
+              32,
+              2048
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "ciphertext",
+          "type": {
+            "bstr": [
+              17,
+              65552
+            ]
+          },
+          "req": true,
+          "note": "HPKE base-mode ciphertext of a signed MessageRequestPayload; length <= ticket payload_limit_bytes + AEAD tag"
+        },
+        {
+          "key": 7,
+          "name": "admission_proof",
+          "type": {
+            "bstr": [
+              1,
+              4096
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "MessageRequestPayload": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "ticket_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "request_key_digest",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "sender_intro_identity",
+          "type": {
+            "bstr": [
+              32,
+              2592
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "sender_descriptor",
+          "type": {
+            "signed": "ContactDescriptor"
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "greeting",
+          "type": {
+            "ref": "RichText"
+          },
+          "req": false
+        },
+        {
+          "key": 7,
+          "name": "referrals",
+          "type": {
+            "array": {
+              "signed": "ReferralAttestation"
+            },
+            "n": [
+              1,
+              4
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 8,
+          "name": "reply_route",
+          "type": {
+            "ref": "RelayEntry"
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "reply_delivery_key",
+          "type": {
+            "ref": "DeliveryKeyMaterial"
+          },
+          "req": true,
+          "note": "ADR-0142 request-scoped acceptance-reply bootstrap key; route_binding must match reply_route"
+        }
+      ]
+    },
+    "IntroIdentityBinding": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "intro_identity",
+          "type": {
+            "bstr": [
+              32,
+              2592
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "request_key_digest",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "acs_generation",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "acs_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "issued_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "ForkAck": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "observed_branch_heads",
+          "type": {
+            "set": {
+              "ref": "Digest"
+            },
+            "n": [
+              2,
+              16
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "LegacyGuardian": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "guardian_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "verification_key",
+          "type": {
+            "bstr": [
+              32,
+              4096
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "LegacyPolicyExtension": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "version",
+          "type": {
+            "uint": [
+              1,
+              1
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "guardians",
+          "type": {
+            "set": {
+              "ref": "LegacyGuardian"
+            },
+            "n": [
+              1,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "threshold",
+          "type": {
+            "uint": [
+              1,
+              16
+            ]
+          },
+          "req": true,
+          "note": "semantic check: <= guardian count"
+        },
+        {
+          "key": 3,
+          "name": "owner_inactivity_wait_seconds",
+          "type": {
+            "uint": [
+              86400,
+              31536000
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "minimum_contest_window_seconds",
+          "type": {
+            "uint": [
+              86400,
+              31536000
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "predesignated_successor_account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "DeliveryKeyMaterial": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "delivery_key_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "public_key",
+          "type": {
+            "bstr": [
+              32,
+              2592
+            ]
+          },
+          "req": true,
+          "note": "OM-Crypto-v1 exact length is 1216 bytes (ADR-0142)"
+        },
+        {
+          "key": 3,
+          "name": "route_binding",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "expires_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "SealedDeliveryKeyRecord": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "recipient_device_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "key_material",
+          "type": {
+            "ref": "DeliveryKeyMaterial"
+          },
+          "req": true
+        }
+      ]
+    },
+    "SealedDeliveryEnvelope": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "delivery_key_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "delivery_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "hpke_enc",
+          "type": {
+            "bstr": [
+              32,
+              2048
+            ]
+          },
+          "req": true,
+          "note": "OM-Crypto-v1 exact length is 1120 bytes (ADR-0142)"
+        },
+        {
+          "key": 6,
+          "name": "ciphertext",
+          "type": {
+            "bstr": [
+              17,
+              131088
+            ]
+          },
+          "req": true,
+          "note": "OM-Crypto-v1 exact allowed lengths are padding bucket + 16: 1040, 4112, 16400, 65552, 131088"
+        },
+        {
+          "key": 7,
+          "name": "expires_at",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        }
+      ]
+    }
   },
   "extensions": [
-    {"name": "om.acs.fork_ack", "object": "AccountControlState", "critical": true, "value": {"ref": "ForkAck"}, "wave": "W0", "adr": "ADR-0126", "note": "only on a fork bridge state, whose previous_state_hash is the common ancestor; authorization per ADR-0127"}
+    {
+      "name": "om.acs.fork_ack",
+      "object": "AccountControlState",
+      "critical": true,
+      "value": {
+        "ref": "ForkAck"
+      },
+      "wave": "W0",
+      "adr": "ADR-0126",
+      "note": "only on a fork bridge state, whose previous_state_hash is the common ancestor; authorization per ADR-0127"
+    },
+    {
+      "name": "om.acs.legacy_policy",
+      "object": "AccountControlState",
+      "critical": true,
+      "value": {
+        "ref": "LegacyPolicyExtension"
+      },
+      "wave": "W1",
+      "adr": "ADR-0138; ADR-0141",
+      "note": "critical commitment: unsupported verifiers reject the containing ACS; W0 still rejects legacy_policy retirement authorization; activation remains W1/off by default"
+    }
   ]
 }

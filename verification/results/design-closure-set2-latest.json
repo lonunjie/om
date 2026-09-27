@@ -1,0 +1,66 @@
+{
+  "kind": "design_closure_set2",
+  "design_only": true,
+  "requirements": 298,
+  "threats": 100,
+  "decisions": 163,
+  "design_queue_items": 43,
+  "security_invariants": 33,
+  "checks": [
+    {
+      "name": "design_queue_closed",
+      "items": 43,
+      "open": 0
+    },
+    {
+      "name": "requirement_traceability",
+      "requirements": 298,
+      "rows": 298,
+      "missing": 0,
+      "duplicates": 0
+    },
+    {
+      "name": "threat_traceability",
+      "threats": 100,
+      "problems": 0
+    },
+    {
+      "name": "decision_adr_index",
+      "decisions": 163,
+      "indexed_adrs": 141,
+      "problems": 0
+    },
+    {
+      "name": "security_invariant_traceability",
+      "document_invariants": 33,
+      "mapped": 33,
+      "problems": 0
+    },
+    {
+      "name": "canonical_ambiguity_markers",
+      "selected_stale_problems": 0,
+      "canonical_files_scanned": 168,
+      "whole_tree_hits": []
+    },
+    {
+      "name": "closure_semantics",
+      "advisory_floor_rule": true,
+      "archive_candidate_nonproduction": true,
+      "wire_authority": true
+    },
+    {
+      "name": "engineering_lock",
+      "global_authorized": false,
+      "authorized_scopes": []
+    },
+    {
+      "name": "eleven_scope_adversarial_coverage",
+      "scopes": 11,
+      "missing_scopes": [],
+      "missing_attack_classes": []
+    }
+  ],
+  "problems": [],
+  "passed": true,
+  "note": "No TLC, Rust, Wasm/native build or product implementation was executed by this audit."
+}

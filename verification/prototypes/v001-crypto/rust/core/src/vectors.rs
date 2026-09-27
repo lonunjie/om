@@ -2,13 +2,14 @@
 //! Deterministic test vectors (insecure seeded RNG) for a second, independent implementation
 //! (python/check_vectors.py). The consumer must reproduce or verify:
 //!
-//! * binding: DeviceCredential / AccountControlState digests, composite Ed25519 + ML-DSA-65 key derivation
-//!   from seeds, bundle and item signatures, and the verdict of every negative binding vector;
+//! * binding: DeviceCredential / relationship-pinned AccountControlState digests, composite Ed25519 +
+//!   ML-DSA-65 key derivation, privacy-preserving bundle signatures, context-bound one-time item
+//!   signatures, and the verdict of every negative binding vector;
 //! * sessions: X25519 / ML-KEM-768 keys from seeds, PQXDH DH1..DH4/SS/SK/AD, handshake_id, every Double
 //!   Ratchet message key, header hash, AEAD key/nonce/AD and AES-256-GCM-SIV ciphertexts;
 //! * hpke: the OM MessageRequest envelope (info construction, enc, ciphertext).
 
-use crate::binding::{self, Acs, Credential};
+use crate::binding::{self, Acs, Credential, RelationshipContext};
 use crate::cbor::{self, V};
 use crate::hex;
 use crate::hpke;
@@ -35,6 +36,7 @@ fn case(name: &str, with_one_time: bool, schedule: &[Ev]) -> Value {
     let mut bob = Device::new(&mut rng);
     let mut alice = Device::new(&mut rng);
     bob.trust_device(&alice).unwrap();
+    alice.trust_device(&bob).unwrap();
     let mut prov = Provider::default();
     let up = if with_one_time { bob.generate_one_time(1, 1, &mut rng) } else { crate::store::Upload { bundle: bob.signed_bundle(&mut rng), ..Default::default() } };
     prov.publish(&bob, up);
@@ -96,9 +98,10 @@ fn case(name: &str, with_one_time: bool, schedule: &[Ev]) -> Value {
             Ev::Recv(to_a, label) => {
                 let i = queue.iter().position(|(l, _)| l == label).unwrap();
                 let (_, env) = queue.remove(i);
+                let route = if *to_a { bob.account_id } else { alice.account_id };
                 let r = if *to_a { &mut alice } else { &mut bob };
                 let before = r.sessions.values().next().map(|s| s.dr.ec.dhs_secret);
-                let (_, pt, k) = r.decrypt(&env, &mut rng).unwrap();
+                let (_, pt, k) = r.decrypt(&RelationshipContext::new(route), &env, &mut rng).unwrap();
                 let after = r.sessions.values().next().unwrap().dr.ec.dhs_secret;
                 events.push(json!({
                     "type": "recv", "to": if *to_a { "A" } else { "B" }, "label": label,
@@ -122,8 +125,8 @@ fn with_key(body: &[u8], key: u64, val: Option<V>) -> Vec<u8> {
     cbor::encode(&v)
 }
 
-/// Initiator-binding vectors (ADR-0136 rule 4, review F-4/F-9): trusted relationship peers, an inbound IK_A
-/// and an optional route account; the responder must bind IK_A to exactly one active committed credential.
+/// Initiator-binding vectors (ADR-0137): trusted relationship peers, an inbound IK_A
+/// and a mandatory relationship route; the responder must bind IK_A to exactly one active committed credential of that account.
 fn initiator_binding_vectors() -> Value {
     let mut rng = InsecureTestRng::from_label(b"om-v001-vectors/initiator-binding");
     let alice = Device::new(&mut rng);
@@ -151,18 +154,18 @@ fn initiator_binding_vectors() -> Value {
     let mut untrusted = pa.clone();
     untrusted.1 = [0u8; 32];
     type P = (Vec<u8>, [u8; 32], Vec<Vec<u8>>);
-    let cases: Vec<(&str, Vec<P>, [u8; 32], Option<[u8; 32]>, bool)> = vec![
-        ("bound_to_trusted_peer", vec![pa.clone()], alice.ik(), None, true),
-        ("unknown_identity_key", vec![pc.clone()], alice.ik(), None, false),
-        ("route_of_another_relationship", vec![pa.clone(), pc.clone()], alice.ik(), Some(carol.account_id), false),
-        ("route_of_the_relationship", vec![pa.clone(), pc.clone()], alice.ik(), Some(alice.account_id), true),
-        ("revoked_device", vec![peer(&rev, vec![alice.credential().body()])], alice.ik(), None, false),
-        ("quarantined_device", vec![peer(&qua, vec![alice.credential().body()])], alice.ik(), None, false),
-        ("stale_credential_after_rotation", vec![peer(&a2.acs(), vec![a2.credential().body(), alice.credential().body()])], alice.ik(), None, false),
-        ("substituted_identity_key_not_committed", vec![peer(&alice.acs(), vec![alice.credential().body(), forged.body()])], mallory.ik(), None, false),
-        ("identity_key_in_two_credentials", vec![pa.clone(), peer(&cacs, vec![cc.body()])], alice.ik(), None, false),
-        ("identity_key_in_two_credentials_route_disambiguates", vec![pa.clone(), peer(&cacs, vec![cc.body()])], alice.ik(), Some(alice.account_id), true),
-        ("peer_acs_not_the_trusted_head", vec![untrusted], alice.ik(), None, false),
+    let cases: Vec<(&str, Vec<P>, [u8; 32], [u8; 32], bool)> = vec![
+        ("bound_to_trusted_peer", vec![pa.clone()], alice.ik(), alice.account_id, true),
+        ("unknown_identity_key", vec![pc.clone()], alice.ik(), carol.account_id, false),
+        ("route_of_another_relationship", vec![pa.clone(), pc.clone()], alice.ik(), carol.account_id, false),
+        ("route_of_the_relationship", vec![pa.clone(), pc.clone()], alice.ik(), alice.account_id, true),
+        ("revoked_device", vec![peer(&rev, vec![alice.credential().body()])], alice.ik(), alice.account_id, false),
+        ("quarantined_device", vec![peer(&qua, vec![alice.credential().body()])], alice.ik(), alice.account_id, false),
+        ("stale_credential_after_rotation", vec![peer(&a2.acs(), vec![a2.credential().body(), alice.credential().body()])], alice.ik(), alice.account_id, false),
+        ("substituted_identity_key_not_committed", vec![peer(&alice.acs(), vec![alice.credential().body(), forged.body()])], mallory.ik(), alice.account_id, false),
+        ("same_identity_key_other_relationship_route", vec![pa.clone(), peer(&cacs, vec![cc.body()])], alice.ik(), carol.account_id, true),
+        ("same_identity_key_correct_relationship_route", vec![pa.clone(), peer(&cacs, vec![cc.body()])], alice.ik(), alice.account_id, true),
+        ("peer_acs_not_the_trusted_head", vec![untrusted], alice.ik(), alice.account_id, false),
     ];
     let mut out = vec![];
     for (name, peers, ik, route, expect) in cases {
@@ -176,11 +179,11 @@ fn initiator_binding_vectors() -> Value {
         }
         let r = match err {
             Some(e) => Err(e),
-            None => binding::verify_initiator(&ik, &devs, route.as_ref()),
+            None => binding::verify_initiator(&ik, &devs, &RelationshipContext::new(route)),
         };
         assert_eq!(r.is_ok(), expect, "initiator binding vector {name}: {r:?}");
         out.push(json!({
-            "name": name, "ik_a": hex(&ik), "route_account": route.map(|r| hex(&r)),
+            "name": name, "ik_a": hex(&ik), "route_account": hex(&route),
             "peers": peers.iter().map(|(a, h, c)| json!({"acs_body": hex(a), "trusted_acs_hash": hex(h), "credential_bodies": hexes(c)})).collect::<Vec<_>>(),
             "expect": if expect { "accept" } else { "reject" },
             "rust_result": match &r { Ok((a, d)) => json!({"account_id": hex(a), "device_id": hex(d)}), Err(e) => json!(e.name()) },
@@ -243,10 +246,19 @@ fn binding_vectors() -> Value {
     q.quarantined.insert(did);
     let qb = q.body();
     push("device_quarantined_at_trusted_head", fetch.clone(), qb.clone(), cred_b.clone(), ds_hash(binding::LBL_ACS_HASH, &qb));
-    let mut g = Acs::from_body(&acs_b).unwrap();
-    g.generation += 1;
-    let gb = g.body();
-    push("bundle_bound_to_older_acs_head", fetch.clone(), gb.clone(), cred_b.clone(), ds_hash(binding::LBL_ACS_HASH, &gb));
+    // Keys 3/4 were retired before first release by ADR-0140. Even a device-signed bundle carrying
+    // them is rejected so providers cannot reintroduce account-wide ACS linkage.
+    let retired3 = binding::sign_bundle(&bob.signer, &did, with_key(&body, 3, Some(V::U(1))), arr32(&mut rng));
+    push("retired_provider_visible_acs_generation_present", rest(retired3), acs_b.clone(), cred_b.clone(), trusted);
+    let retired4 = binding::sign_bundle(&bob.signer, &did, with_key(&body, 4, Some(sig::digest(&trusted))), arr32(&mut rng));
+    push("retired_provider_visible_acs_state_hash_present", rest(retired4), acs_b.clone(), cred_b.clone(), trusted);
+
+    // A one-time item from pool A cannot be transplanted under a valid pool-B bundle.
+    let pool_a = [0x31; 16];
+    let pool_b = [0x32; 16];
+    let mut pa = bob.generate_one_time_for_pool(pool_a, 0, 1, &mut rng);
+    let pb = bob.generate_one_time_for_pool(pool_b, 0, 0, &mut rng);
+    push("one_time_prekey_transplanted_across_provider_pool", vec![pb.bundle, pa.pqopks.remove(0)], acs_b.clone(), cred_b.clone(), trusted);
 
     let mut negatives = vec![];
     for (name, f, a, c, t) in &neg {

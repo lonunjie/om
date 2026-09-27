@@ -223,16 +223,18 @@ High-assurance users can expand these notices to inspect fingerprints, signature
 9. Historical aliases are retained as provenance but hidden from mainstream UI by default.
 10. Security detail is progressive: normal users see people; high-assurance users can inspect the proof chain.
 
-## Open questions
+## Disposition of former continuity questions — final design closure
 
-- ~~Exact schema and signature format for `ContinuityProof`.~~ Resolved by ADR-0127: the proof is `AccountRetirement(moved)` ([`account.cddl`](../../../spec/cddl/account.cddl)).
-- Whether recovery guardian identities are accounts, devices, hardware keys, or a mix.
-- Guardian replacement/rotation semantics.
-- How to prevent stale guardian policies from causing recovery lockout.
-- Whether direct attestations can be requested privately from mutual contacts without revealing a broader contact graph.
-- Alias-claim expiration and re-verification policy for phone-number discovery.
-- How phone-number discovery is made privacy-preserving across provider implementations.
-- How SMS conversations map to a PersonRecord when the same number is later reassigned.
+These items are no longer architecture-open. Their current dispositions are:
+
+- **`ContinuityProof` schema/signature:** resolved by ADR-0127. The only cryptographic "moved" proof is the constitutionally authorized `AccountRetirement(reason_class=moved)` object in [`account.cddl`](../../../spec/cddl/account.cddl).
+- **Guardian identity form:** the protocol does not create a privileged `GuardianPrincipal`. Recovery authority comes from the current `RecoveryPolicy` commitment and the proof for its selected method. A guardian may be represented locally as a contact, account, hardware custody route or offline holder, but that representation never changes its vote weight or grants ordinary account authority.
+- **Guardian replacement/rotation:** rotate the RecoveryPolicy/RecoveryRoot under an authorized AccountControlState transition and increment the recovery rotation epoch. Proofs/requests bound to an obsolete policy generation do not acquire authority against a newer validated head.
+- **Stale guardian policy/lockout:** clients reconcile the current authenticated AccountControlState head before accepting recovery authority. Backups or old guardian material cannot resurrect an obsolete RecoveryPolicy; recovery remains deliberately fail-closed if current policy cannot be proven.
+- **Direct attestations from mutual contacts:** optional recognition evidence only. Implementations may request/share them privately, but W0 correctness and account authentication never depend on a social-graph query or attestation count.
+- **Phone/alias expiration and re-verification:** alias ownership/expiry is provider-namespace policy expressed through expiring signed discovery descriptors/claims. Expiry or reassignment affects discovery only; it never rewrites an accepted relationship or transfers cryptographic trust.
+- **Privacy-preserving phone discovery:** no mandatory phone-number directory exists in W0. A future provider may offer a privacy-reviewed mechanism, but clients may omit phone discovery entirely and no such provider becomes identity authority.
+- **SMS mapping after number reassignment:** this is local PersonRecord/transport-adapter UX. A recycled number starts as a new untrusted candidate; historical SMS provenance may remain attached locally but cannot transfer OM AccountIdentity continuity.
 
 ## Account-control continuity refinement — 2026-09-21 21:32
 

@@ -62,9 +62,11 @@ A witness gains detection power, not identity-rewrite power.
 
 OM permits multiple directories or direct invites. A user may have multiple aliases with separate provenance. A QR/invite can bypass public directory lookup entirely.
 
-## Open question
+## Optional transparency-profile release gate
 
-Select a reviewed key-transparency protocol/implementation appropriate to OM AccountControlState/device updates and privacy constraints. Do not invent a bespoke Merkle-log protocol without expert review.
+The architecture question is closed: OM v1 has **no global transparency authority**. Relationship-scoped AccountControlHead gossip, direct verification and the reciprocal IntroIdentityBinding remain sufficient for private continuity. A DirectoryProvider may additionally publish an independently witnessed transparency mechanism for its own namespace.
+
+OM does not freeze a bespoke Merkle construction here. Advertising a public `key_transparency` claim is gated by `PR-011`, which requires selection and external review of a reviewed per-directory mechanism. Until that gate passes, clients describe a directory without such a mechanism as trust-on-first-use for first contact. Choosing the concrete mechanism is therefore a release-claim verification task, not an unresolved architecture decision.
 
 ## Discovery privacy and resolver separation
 

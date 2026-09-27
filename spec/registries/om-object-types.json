@@ -9,26 +9,364 @@
     "max_bytes bounds the encoded top-level item (envelope included) and is checked before decoding."
   ],
   "types": [
-    {"type_id": 1, "name": "AccountControlState", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-ACS-SIG-v1", "roles": ["controller", "recovery"]}, "hash": "OM-ACS-HASH-v1", "max_bytes": 65536, "source": "ACCOUNT_CONTINUITY_AND_CONTROL.md §2", "logical_schema": "spec/protocol/account-control-state.logical.schema.json"},
-    {"type_id": 2, "name": "AccountControlHead", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-ACH-SIG-v1", "roles": ["controller"]}, "hash": null, "max_bytes": 16384, "source": "ACCOUNT_CONTINUITY_AND_CONTROL.md §7", "logical_schema": "spec/protocol/account-control-head.logical.schema.json"},
-    {"type_id": 3, "name": "RecoveryPolicy", "wave": "W0", "scope": "core_kernel", "signed": null, "hash": "OM-RECOVERY-POLICY-HASH-v1", "max_bytes": 32768, "source": "RECOVERY_AND_BACKUP_POLICY.md §10", "logical_schema": "spec/protocol/recovery-policy.logical.schema.json"},
-    {"type_id": 4, "name": "RecoveryRequest", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-RECOVERY-REQUEST-SIG-v1", "roles": ["recovery"]}, "hash": "OM-RECOVERY-REQUEST-HASH-v1", "max_bytes": 16384, "source": "RECOVERY_AND_BACKUP_POLICY.md §10.3", "logical_schema": null},
-    {"type_id": 5, "name": "RecoveryVeto", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-RECOVERY-VETO-SIG-v1", "roles": ["controller"]}, "hash": null, "max_bytes": 16384, "source": "RECOVERY_AND_BACKUP_POLICY.md §10.3", "logical_schema": null},
-    {"type_id": 6, "name": "AccountRetirement", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-ACCOUNT-RETIREMENT-SIG-v1", "roles": ["controller", "recovery", "legacy"]}, "hash": "OM-ACCOUNT-RETIREMENT-HASH-v1", "max_bytes": 65536, "source": "ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md §2", "logical_schema": "spec/protocol/account-retirement.logical.schema.json"},
-    {"type_id": 7, "name": "DeviceCredential", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-DEVICE-CREDENTIAL-SIG-v1", "roles": ["device", "controller", "recovery"]}, "hash": "OM-DEVICE-CREDENTIAL-HASH-v1", "max_bytes": 32768, "source": "IDENTITY_PROTOCOL.md DeviceIdentity", "logical_schema": null},
-    {"type_id": 8, "name": "DeviceEnrollmentNotice", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-DEVICE-ENROLLMENT-NOTICE-SIG-v1", "roles": ["controller", "recovery"]}, "hash": null, "max_bytes": 16384, "source": "ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md §2 (R-166)", "logical_schema": null},
-    {"type_id": 9, "name": "AsyncKeyBundle", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-PREKEY-BUNDLE-SIG-v1", "roles": ["device"]}, "hash": null, "max_bytes": 65536, "source": "ASYNC_KEY_MATERIAL.md §3-4", "logical_schema": "spec/protocol/async-key-material.logical.schema.json"},
-    {"type_id": 10, "name": "ConversationEvent", "wave": "W0", "scope": "core_kernel", "signed": null, "hash": null, "aead_authenticated": true, "max_bytes": 65536, "source": "EVENT_MODEL.md native event envelope; size limit 64 KiB", "logical_schema": "spec/protocol/conversation-event.logical.schema.json"},
-    {"type_id": 11, "name": "ContactDescriptor", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-CONTACT-DESCRIPTOR-SIG-v1", "roles": ["intro_identity"]}, "hash": null, "max_bytes": 32768, "source": "CONTACT_SHARING.md §2; IDENTITY_DISCOVERY_VERIFICATION.md", "logical_schema": "spec/protocol/contact-descriptor.logical.schema.json"},
-    {"type_id": 12, "name": "ContactCapsule", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-CONTACT-CAPSULE-SIG-v1", "roles": ["intro_identity"]}, "hash": "OM-CONTACT-CAPSULE-HASH-v1", "max_bytes": 49152, "source": "CONTACT_SHARING.md §2-3", "logical_schema": "spec/protocol/contact-capsule.logical.schema.json"},
-    {"type_id": 13, "name": "ReferralAttestation", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-REFERRAL-ATTESTATION-SIG-v1", "roles": ["device"]}, "hash": null, "max_bytes": 16384, "source": "CONTACT_SHARING.md §3", "logical_schema": null},
-    {"type_id": 14, "name": "Invite", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-INVITE-SIG-v1", "roles": ["device", "intro_identity"]}, "hash": null, "max_bytes": 16384, "source": "INVITES_INTROGATE_AND_SPAM.md §2; HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md §3.1", "logical_schema": "spec/protocol/invite.logical.schema.json"},
-    {"type_id": 15, "name": "IntroductionTicket", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-INTRO-TICKET-SIG-v1", "roles": ["provider", "intro_identity"]}, "hash": null, "max_bytes": 16384, "source": "INVITES_INTROGATE_AND_SPAM.md §5", "logical_schema": "spec/protocol/introduction-ticket.logical.schema.json"},
-    {"type_id": 16, "name": "SponsoredMailboxGrant", "wave": "W0", "scope": "provider_reference", "signed": {"label": "OM-SPONSOR-GRANT-SIG-v1", "roles": ["provider"]}, "hash": null, "max_bytes": 16384, "source": "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md §3.2", "logical_schema": "spec/protocol/sponsored-mailbox-grant.logical.schema.json"},
-    {"type_id": 17, "name": "RelaySet", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-RELAYSET-SIG-v1", "roles": ["device"]}, "hash": "OM-RELAYSET-HASH-v1", "max_bytes": 32768, "source": "MULTI_RELAY_AND_DELIVERY_RESILIENCE.md §2; RELAY_AND_DELIVERY_ARCHITECTURE.md 2026-09-23", "logical_schema": "spec/protocol/relay-set.logical.schema.json"},
-    {"type_id": 18, "name": "BlobLocationRecord", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-BLOB-LOCATION-SIG-v1", "roles": ["device"]}, "hash": "OM-BLOB-LOCATION-HASH-v1", "max_bytes": 32768, "source": "REACHABILITY_AND_OBJECT_REPAIR.md §3; STORAGE_AND_BLOB_ARCHITECTURE.md", "logical_schema": "spec/protocol/blob-location-record.logical.schema.json"},
-    {"type_id": 19, "name": "MessageRequest", "wave": "W0", "scope": "core_kernel", "signed": null, "hash": null, "hpke_sealed": true, "max_bytes": 73728, "source": "INVITES_INTROGATE_AND_SPAM.md §5.1; ADR-0126", "logical_schema": null},
-    {"type_id": 20, "name": "MessageRequestPayload", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-MESSAGE-REQUEST-PAYLOAD-SIG-v1", "roles": ["intro_identity"]}, "hash": null, "max_bytes": 65536, "source": "INVITES_INTROGATE_AND_SPAM.md §5.1; ADR-0126", "logical_schema": null},
-    {"type_id": 21, "name": "IntroIdentityBinding", "wave": "W0", "scope": "core_kernel", "signed": {"label": "OM-INTRO-IDENTITY-BINDING-SIG-v1", "roles": ["device"]}, "hash": null, "max_bytes": 16384, "source": "INVITES_INTROGATE_AND_SPAM.md §5.1; DISCOVERY_FABRIC.md §7; ADR-0126", "logical_schema": null}
+    {
+      "type_id": 1,
+      "name": "AccountControlState",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-ACS-SIG-v1",
+        "roles": [
+          "controller",
+          "recovery"
+        ]
+      },
+      "hash": "OM-ACS-HASH-v1",
+      "max_bytes": 65536,
+      "source": "ACCOUNT_CONTINUITY_AND_CONTROL.md §2",
+      "logical_schema": "spec/protocol/account-control-state.logical.schema.json"
+    },
+    {
+      "type_id": 2,
+      "name": "AccountControlHead",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-ACH-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "ACCOUNT_CONTINUITY_AND_CONTROL.md §7",
+      "logical_schema": "spec/protocol/account-control-head.logical.schema.json"
+    },
+    {
+      "type_id": 3,
+      "name": "RecoveryPolicy",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": "OM-RECOVERY-POLICY-HASH-v1",
+      "max_bytes": 32768,
+      "source": "RECOVERY_AND_BACKUP_POLICY.md §10",
+      "logical_schema": "spec/protocol/recovery-policy.logical.schema.json"
+    },
+    {
+      "type_id": 4,
+      "name": "RecoveryRequest",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-RECOVERY-REQUEST-SIG-v1",
+        "roles": [
+          "recovery"
+        ]
+      },
+      "hash": "OM-RECOVERY-REQUEST-HASH-v1",
+      "max_bytes": 16384,
+      "source": "RECOVERY_AND_BACKUP_POLICY.md §10.3",
+      "logical_schema": null
+    },
+    {
+      "type_id": 5,
+      "name": "RecoveryVeto",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-RECOVERY-VETO-SIG-v1",
+        "roles": [
+          "controller"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "RECOVERY_AND_BACKUP_POLICY.md §10.3",
+      "logical_schema": null
+    },
+    {
+      "type_id": 6,
+      "name": "AccountRetirement",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-ACCOUNT-RETIREMENT-SIG-v1",
+        "roles": [
+          "controller",
+          "recovery",
+          "legacy"
+        ]
+      },
+      "hash": "OM-ACCOUNT-RETIREMENT-HASH-v1",
+      "max_bytes": 65536,
+      "source": "ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md §2",
+      "logical_schema": "spec/protocol/account-retirement.logical.schema.json"
+    },
+    {
+      "type_id": 7,
+      "name": "DeviceCredential",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-DEVICE-CREDENTIAL-SIG-v1",
+        "roles": [
+          "device",
+          "controller",
+          "recovery"
+        ]
+      },
+      "hash": "OM-DEVICE-CREDENTIAL-HASH-v1",
+      "max_bytes": 32768,
+      "source": "IDENTITY_PROTOCOL.md DeviceIdentity",
+      "logical_schema": null
+    },
+    {
+      "type_id": 8,
+      "name": "DeviceEnrollmentNotice",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-DEVICE-ENROLLMENT-NOTICE-SIG-v1",
+        "roles": [
+          "controller",
+          "recovery"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md §2 (R-166)",
+      "logical_schema": null
+    },
+    {
+      "type_id": 9,
+      "name": "AsyncKeyBundle",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-PREKEY-BUNDLE-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 65536,
+      "source": "ASYNC_KEY_MATERIAL.md §3-4",
+      "logical_schema": "spec/protocol/async-key-material.logical.schema.json"
+    },
+    {
+      "type_id": 10,
+      "name": "ConversationEvent",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "aead_authenticated": true,
+      "max_bytes": 65536,
+      "source": "EVENT_MODEL.md native event envelope; size limit 64 KiB",
+      "logical_schema": "spec/protocol/conversation-event.logical.schema.json"
+    },
+    {
+      "type_id": 11,
+      "name": "ContactDescriptor",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-CONTACT-DESCRIPTOR-SIG-v1",
+        "roles": [
+          "intro_identity"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 32768,
+      "source": "CONTACT_SHARING.md §2; IDENTITY_DISCOVERY_VERIFICATION.md",
+      "logical_schema": "spec/protocol/contact-descriptor.logical.schema.json"
+    },
+    {
+      "type_id": 12,
+      "name": "ContactCapsule",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-CONTACT-CAPSULE-SIG-v1",
+        "roles": [
+          "intro_identity"
+        ]
+      },
+      "hash": "OM-CONTACT-CAPSULE-HASH-v1",
+      "max_bytes": 49152,
+      "source": "CONTACT_SHARING.md §2-3",
+      "logical_schema": "spec/protocol/contact-capsule.logical.schema.json"
+    },
+    {
+      "type_id": 13,
+      "name": "ReferralAttestation",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-REFERRAL-ATTESTATION-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "CONTACT_SHARING.md §3",
+      "logical_schema": null
+    },
+    {
+      "type_id": 14,
+      "name": "Invite",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-INVITE-SIG-v1",
+        "roles": [
+          "device",
+          "intro_identity"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "INVITES_INTROGATE_AND_SPAM.md §2; HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md §3.1",
+      "logical_schema": "spec/protocol/invite.logical.schema.json"
+    },
+    {
+      "type_id": 15,
+      "name": "IntroductionTicket",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-INTRO-TICKET-SIG-v1",
+        "roles": [
+          "provider",
+          "intro_identity"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "INVITES_INTROGATE_AND_SPAM.md §5",
+      "logical_schema": "spec/protocol/introduction-ticket.logical.schema.json"
+    },
+    {
+      "type_id": 16,
+      "name": "SponsoredMailboxGrant",
+      "wave": "W0",
+      "scope": "provider_reference",
+      "signed": {
+        "label": "OM-SPONSOR-GRANT-SIG-v1",
+        "roles": [
+          "provider"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md §3.2",
+      "logical_schema": "spec/protocol/sponsored-mailbox-grant.logical.schema.json"
+    },
+    {
+      "type_id": 17,
+      "name": "RelaySet",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-RELAYSET-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": "OM-RELAYSET-HASH-v1",
+      "max_bytes": 32768,
+      "source": "MULTI_RELAY_AND_DELIVERY_RESILIENCE.md §2; RELAY_AND_DELIVERY_ARCHITECTURE.md 2026-09-23",
+      "logical_schema": "spec/protocol/relay-set.logical.schema.json"
+    },
+    {
+      "type_id": 18,
+      "name": "BlobLocationRecord",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-BLOB-LOCATION-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": "OM-BLOB-LOCATION-HASH-v1",
+      "max_bytes": 32768,
+      "source": "REACHABILITY_AND_OBJECT_REPAIR.md §3; STORAGE_AND_BLOB_ARCHITECTURE.md",
+      "logical_schema": "spec/protocol/blob-location-record.logical.schema.json"
+    },
+    {
+      "type_id": 19,
+      "name": "MessageRequest",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "hpke_sealed": true,
+      "max_bytes": 73728,
+      "source": "INVITES_INTROGATE_AND_SPAM.md §5.1; ADR-0126",
+      "logical_schema": null
+    },
+    {
+      "type_id": 20,
+      "name": "MessageRequestPayload",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-MESSAGE-REQUEST-PAYLOAD-SIG-v1",
+        "roles": [
+          "intro_identity"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 65536,
+      "source": "INVITES_INTROGATE_AND_SPAM.md §5.1; ADR-0126",
+      "logical_schema": null
+    },
+    {
+      "type_id": 21,
+      "name": "IntroIdentityBinding",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-INTRO-IDENTITY-BINDING-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 16384,
+      "source": "INVITES_INTROGATE_AND_SPAM.md §5.1; DISCOVERY_FABRIC.md §7; ADR-0126",
+      "logical_schema": null
+    },
+    {
+      "type_id": 22,
+      "name": "SealedDeliveryKeyRecord",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": {
+        "label": "OM-SEALED-DELIVERY-KEY-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 8192,
+      "source": "SEALED_SENDER_DELIVERY_PROFILE.md §4; ADR-0142",
+      "logical_schema": null
+    },
+    {
+      "type_id": 23,
+      "name": "SealedDeliveryEnvelope",
+      "wave": "W0",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "hpke_sealed": true,
+      "max_bytes": 139264,
+      "source": "SEALED_SENDER_DELIVERY_PROFILE.md §5-7; ADR-0142",
+      "logical_schema": null
+    }
   ]
 }

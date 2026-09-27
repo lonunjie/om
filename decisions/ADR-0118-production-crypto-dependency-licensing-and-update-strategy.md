@@ -9,9 +9,9 @@
   drafted by a Claude agent and filed by the integrator.
 - **Blocks:** design-queue items A-023..A-028; V-001 criteria 4-5.
 
-**Context.** V-001 needs the OM-Crypto-v1 1:1 path (PQXDH + Triple Ratchet/SPQR) to rest on maintained libraries whose licences fit the policy in [`LICENSING_AND_CONTRIBUTION_POLICY.md`](../docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md) (om-core MPL-2.0). It must also not rely on an unsupported external API contract. This prototype shows the path works on native and wasm32 using the libraries below.
+**Context.** V-001 needs the OM-Crypto-v1 1:1 path (PQXDH + classic Double Ratchet) to rest on maintained libraries whose licences fit the policy in [`LICENSING_AND_CONTRIBUTION_POLICY.md`](../docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md) (om-core MPL-2.0). It must also not rely on an unsupported external API contract. This prototype shows the path works on native and wasm32 using the libraries below.
 
-**Decision (proposed).**
+**Decision.**
 
 1. **Primitive libraries** (all permissive, all build for native, wasm32-wasip1 and wasm32-unknown-unknown):
    - X25519 and XEdDSA group operations: `x25519-dalek` / `curve25519-dalek` (BSD-3-Clause).

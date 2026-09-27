@@ -155,7 +155,7 @@ Official client update metadata should eventually support hybrid/classical+PQ ve
 
 ## Recovery crypto is independently agile
 
-Recovery mechanisms use versioned `RecoveryPolicy` methods rather than embedding one mnemonic/guardian algorithm forever. A 256-bit random offline recovery root is the baseline candidate. Shamir mnemonic shares are feasible prior art; future standardized threshold/MPC authorization can replace them without changing AccountID.
+Recovery mechanisms use versioned `RecoveryPolicy` methods rather than embedding one mnemonic/guardian algorithm forever. A 256-bit random offline recovery root is the W0 baseline. Shamir mnemonic shares are feasible prior art; future standardized threshold/MPC authorization can replace them without changing AccountID.
 
 NIST's 2026 crypto-agility guidance reinforces the architectural requirement that algorithms be replaceable while operations continue. NIST's 2026 threshold call is a reason to reserve the future threshold interface rather than invent one prematurely.
 
@@ -183,6 +183,14 @@ Multi-device session selection is outside the ratchet itself and is defined by [
 
 Q-001/Q-044 are no longer open design choices. OM-Crypto-v1 targets the published PQXDH + ~~Triple-Ratchet/SPQR-class~~ Double Ratchet construction (ADR-0118; SPQR is the v2 path) with X25519 + ML-KEM-768 for asynchronous hybrid establishment, classical PQXDH authentication semantics as currently specified, HKDF/SHA-256 family derivation, and misuse-resistant authenticated encryption. Durable constitutional authentication uses versioned dual classical/PQ signatures where the AccountControl/CryptoProfile requires it. The remaining production-library/runtime work is `V-001`, a proof gate—not permission to substitute a different wire protocol during implementation.
 
+### OM-Crypto-v1 sealed-delivery binding (ADR-0142)
+
+OM-Crypto-v1 also pins mandatory sealed relay delivery for established 1:1 traffic. It reuses the profile's reviewed
+`draft-ietf-hpke-pq-05` MLKEM768-X25519 / HKDF-SHA256 / ChaCha20Poly1305 suite under distinct sealed-delivery
+domain-separation labels and route-bound `info`/AAD. Reuse of the suite does not reuse request keys or HPKE contexts.
+The outer open is transport confidentiality only; sender authentication remains entirely in the inner
+relationship-pinned PQXDH/Double-Ratchet path. OM-Crypto-v1 has no clear-sender compatibility fallback.
+
 ## 2026-09-24 post-quantum status is per conversation type (ADR-0107)
 
 OM-Crypto-v1 provides different confidentiality properties to different conversation types, and OM must say so precisely:
@@ -191,7 +199,8 @@ OM-Crypto-v1 provides different confidentiality properties to different conversa
 |---|---|---|
 | 1:1 | PQXDH (X25519 + ML-KEM-768) + Double Ratchet (ADR-0118; SPQR in v2) | mitigated (hybrid handshake); no PQ post-compromise healing until v2 |
 | Private group / Room (MLS) | RFC 9420 X25519 suite | **not mitigated in v1** (classical) |
-| Calls | derived from the underlying 1:1 session or MLS exporter | inherits the parent type |
+| 1:1 calls | derived from the underlying 1:1 secure session | inherits the 1:1 session property |
+| Group calls | per-sender SFrame media keys distributed only to joined participant DeviceIDs; MLS authenticates call-control membership but is not the media-key source (ADR-0132) | **no PQ confidentiality claim in v1** (R-173) |
 | Durable control signatures | Ed25519 + ML-DSA-65 | n/a (authentication, dual) |
 
 Rules:
@@ -218,6 +227,7 @@ Normative, from the V-series models. The ADR is authoritative where this summary
 
 - PQXDH redirecting identity/prekey material is bound to AccountID/DeviceID/DeviceCredential/ACS and requires both
   Ed25519 and ML-DSA-65 signatures.
+- ADR-0140 re-freezes AsyncKeyBundle v1 without provider-visible ACS generation/hash, adds a durable per-peer/device/profile signed-prekey generation floor, rejects equal-generation core equivocation, and context-binds one-time prekeys to their DeviceID/profile/generation/provider-pool.
 - Last-resort (no one-time-key) handshakes use an exact durable per-signed-prekey replay ledger. The default hard cap
   is 4096 accepted last-resort transcript ids per signed-prekey epoch; exhaustion fails closed and triggers refresh.
 - Double Ratchet payload encryption uses AES-256-GCM-SIV (RFC 8452). HKDF-SHA256 derives disjoint AEAD key and

@@ -1,0 +1,59 @@
+{
+  "checks": {
+    "colocation_union_only": {
+      "mutation_caught": true,
+      "mutation_problems": [
+        "role colocation synthesized cryptographic authority: ['sign_account_control_state']"
+      ],
+      "problems": []
+    },
+    "directory_alias_not_device_or_acs_authority": {
+      "mutation_caught": true,
+      "mutation_problems": [
+        "ContactDescriptor aliases an ACS/DeviceCredential type id",
+        "ContactDescriptor reuses an ACS/DeviceCredential signature domain"
+      ],
+      "problems": []
+    },
+    "introgate_public_material_cannot_mint": {
+      "mutation_caught": true,
+      "mutation_problems": [
+        "IntroGate key surface contains signing/private-key capability"
+      ],
+      "problems": []
+    },
+    "negative_contracts_present": {
+      "mutation_caught": true,
+      "mutation_problems": [
+        "RelayProvider / mailbox Home contract missing: sign AccountControlState transitions"
+      ],
+      "problems": []
+    },
+    "provider_interface_key_surface": {
+      "mutation_caught": true,
+      "mutation_problems": [
+        "RelayProvider surface contains forbidden key/authority material matching acs.*sign.*(?:key|private)",
+        "RelayProvider surface contains forbidden key/authority material matching controller.*(?:key|private)"
+      ],
+      "problems": []
+    },
+    "recovery_transport_not_constitutional_vote": {
+      "mutation_caught": true,
+      "mutation_problems": [
+        "RecoveryStore transport credential became ACS/recovery authority (accept)"
+      ],
+      "problems": []
+    }
+  },
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed",
+  "invariants": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+  ],
+  "passed": true,
+  "scope_note": "Conformance of canonical role interfaces/credentials, not a claim about arbitrary code run by a malicious host."
+}

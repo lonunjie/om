@@ -24,7 +24,8 @@ The 1:1 session manager owns:
 - reaction to device quarantine/revocation;
 - newly added recipient devices;
 - duplicate/replayed envelope handling;
-- safe interaction between control-state changes and sends already in flight.
+- safe interaction between control-state changes and sends already in flight;
+- sealed-delivery key selection, expiry/revocation, durable outer replay state and no-downgrade failure handling.
 
 ## 3. Authority source
 
@@ -40,6 +41,8 @@ AccountControlState
 
 Provider data may help locate material, but authorization is cryptographically checked.
 
+**AsyncKeyBundle freshness (ADR-0140).** For each `(peer AccountID, peer DeviceID, CryptoProfile)`, the session manager persists the highest accepted signed-prekey generation plus `OM-PREKEY-GENERATION-CORE-v1`. A fetched bundle below that floor is rejected before one-time-key consumption or PQXDH secret work. Equal generation with a different signed-prekey core is an equivocation/security conflict. Provider migration or a new `provider_pool_id` never resets the floor. Account-private multi-device sync merges the floor monotonically (higher generation wins; equal conflicting core fails closed).
+
 **Inbound initiator binding (K12, ADR-0136 rule 4).** The chain above runs in both directions. An initiator binds
 the recipient through ACS → DeviceCredential → dual-signed AsyncKeyBundle (ADR-0135 §2). A responder MUST bind the
 initiator before it accepts a new inbound session. The initiation's X25519 identity key `IK_A` must be the
@@ -49,10 +52,39 @@ active and not quarantined at that head. The check runs before any secret-key op
 session creation or plaintext release. On no match, several matches or an inactive device, the initiation is
 rejected and nothing changes. When the held head may be stale (for example, a peer's newly linked device), the
 session manager refreshes and validates the peer's head (never accepting an older one, K7) and only then processes the
-initiation; until then the envelope is held unprocessed. 1:1 device sessions exist only inside an accepted
-relationship: first contact uses the HPKE `MessageRequest` (ADR-0126), never an unbound PQXDH initiation, so a
-responder always has a relationship head to bind against. No wire field is added: the binding uses the frozen
-DeviceCredential and AccountControlState objects.
+initiation; until then the envelope is held unprocessed.
+
+**ADR-0137 API rule:** the expected peer AccountID/trusted-head tuple is a required `RelationshipContext` input to
+every inbound 1:1 receive/decrypt path. It is not an optional argument, mode bit or default. Existing sessions are
+checked against the same relationship route as new initiations, so a valid established session cannot be replayed as
+authenticated traffic on a different accepted relationship. An implementation may have lower-level private helpers,
+but no public/session-manager acceptance path may omit this context.
+
+1:1 device sessions exist only inside an accepted relationship: first contact uses the HPKE `MessageRequest`
+(ADR-0126), never an unbound PQXDH initiation, so a responder always has a relationship head to bind against. No wire
+field is added: the binding uses the frozen DeviceCredential and AccountControlState objects plus trusted local
+relationship state.
+
+## 3.1 Sealed delivery is part of accepted-relationship session state
+
+For OM-Crypto-v1, every normal mailbox/relay-bound 1:1 send in an `ACTIVE` relationship selects a current
+`SealedDeliveryKeyRecord` for the exact recipient DeviceID and exact RelayEntry. The route binding, recipient-device
+signer eligibility and key expiry are checked before sealing. Missing or stale key material triggers authenticated
+state refresh/queueing or an explicit failure; it never causes a clear-sender fallback.
+
+On receive, the endpoint validates the bounded outer `SealedDeliveryEnvelope`, enforces expiry and durably creates
+an ADR-0143 `RESERVED` replay record for `(delivery_key_id, delivery_id)` plus the exact-wrapper fingerprint before
+releasing inner plaintext/event data or acknowledging the delivery. A crash while `RESERVED` does not turn the exact
+same-wrapper retry into permanent loss: that retry may resume. A different wrapper under the same key/id is rejected.
+HPKE open only recovers the ordinary inner envelope. The existing mandatory `RelationshipContext`,
+ACS/DeviceCredential checks, PQXDH/ratchet authentication and replay rules then run unchanged. The inner K2
+session/dedupe state and replay transition to `COMPLETE` become durable in one crash-consistent commit before
+application release/ack; a `COMPLETE` retry is idempotent and never repeats inner effects. Successful outer open alone
+therefore cannot create or authenticate a session.
+
+First contact remains `MessageRequest`. Its signed payload carries a request-scoped `reply_delivery_key` bound to the
+one-use `reply_route`; that key can seal only the first post-acceptance control response. Once reciprocal stable
+identity binding is complete, ordinary per-device/per-route delivery records replace the bootstrap key.
 
 ## 4. Logical-message identity versus envelopes
 

@@ -2,10 +2,10 @@
   "all_ok": true,
   "exhaustive": {
     "counts": {
-      "accept": 1012,
+      "accept": 918,
       "cases": 16200,
-      "pending": 55,
-      "reject": 15133
+      "pending": 32,
+      "reject": 15250
     },
     "per_class": {
       "constitutional_policy": {
@@ -19,14 +19,14 @@
         "reject": 822
       },
       "lift_quarantine": {
-        "accept": 9,
+        "accept": 69,
         "pending": 0,
-        "reject": 951
+        "reject": 891
       },
       "link_messaging": {
-        "accept": 75,
+        "accept": 60,
         "pending": 0,
-        "reject": 765
+        "reject": 780
       },
       "lower_min_profile": {
         "accept": 0,
@@ -34,9 +34,9 @@
         "reject": 840
       },
       "promote": {
-        "accept": 88,
-        "pending": 11,
-        "reject": 741
+        "accept": 73,
+        "pending": 6,
+        "reject": 761
       },
       "quarantine": {
         "accept": 51,
@@ -44,39 +44,39 @@
         "reject": 1317
       },
       "raise_min_profile": {
-        "accept": 75,
+        "accept": 60,
         "pending": 0,
-        "reject": 765
+        "reject": 780
       },
       "recovery_policy": {
-        "accept": 88,
-        "pending": 11,
-        "reject": 741
+        "accept": 73,
+        "pending": 6,
+        "reject": 761
       },
       "remove_messaging": {
-        "accept": 75,
+        "accept": 60,
         "pending": 0,
-        "reject": 765
+        "reject": 780
       },
       "retirement": {
-        "accept": 165,
-        "pending": 11,
-        "reject": 1504
+        "accept": 140,
+        "pending": 6,
+        "reject": 1534
       },
       "revoke_control": {
-        "accept": 215,
-        "pending": 22,
-        "reject": 2067
+        "accept": 191,
+        "pending": 14,
+        "reject": 2099
       },
       "rotate_own_key": {
-        "accept": 51,
+        "accept": 36,
         "pending": 0,
-        "reject": 2277
+        "reject": 2292
       },
       "transparency": {
-        "accept": 75,
+        "accept": 60,
         "pending": 0,
-        "reject": 765
+        "reject": 780
       }
     },
     "violation_count": 0,
@@ -101,6 +101,7 @@
       "rotate_own_key",
       "transparency"
     ],
+    "policy": "spec/protocol/account-control-transition-policy.json",
     "problems": [],
     "rows": 14
   },
@@ -126,7 +127,7 @@
     "negative_per_class": {
       "constitutional_policy": 1,
       "fork_bridge": 4,
-      "lift_quarantine": 5,
+      "lift_quarantine": 7,
       "link_messaging": 1,
       "lower_min_profile": 1,
       "promote": 3,
@@ -142,7 +143,7 @@
     "positive_per_class": {
       "constitutional_policy": 1,
       "fork_bridge": 1,
-      "lift_quarantine": 2,
+      "lift_quarantine": 3,
       "link_messaging": 1,
       "lower_min_profile": 0,
       "promote": 3,
@@ -155,6 +156,6 @@
       "rotate_own_key": 1,
       "transparency": 1
     },
-    "total": 53
+    "total": 56
   }
 }

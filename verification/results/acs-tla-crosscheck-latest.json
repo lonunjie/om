@@ -1,93 +1,119 @@
 {
   "all_ok": true,
-  "failures": [],
+  "bounded_freeze_accepted_set_equivalence": {
+    "accepted_table": 136,
+    "accepted_tla": 136,
+    "checked": 66816,
+    "equal": true,
+    "mismatch_examples": [],
+    "table_only": 0,
+    "tla_only": 0
+  },
+  "explicit_negatives": {
+    "freeze_plus_constitutional_policy": true,
+    "freeze_plus_promote": true,
+    "freeze_plus_raise_min_profile": true,
+    "freeze_plus_recovery_policy": true,
+    "freeze_plus_revoke": true,
+    "outsider_challenge_signer": true,
+    "partial_restore_below_majority": true,
+    "quarantine_freeze_not_fork_bridge": true,
+    "quarantined_challenge_on_ordinary_lift": true,
+    "recovery_vote_in_freeze": true
+  },
+  "fresh_tlc_note": "This script compares the committed TLA source/trace corpus. TLC itself is run by tools/run_tlc.py when tla2tools is available.",
   "gate": "V-002",
   "gate_status_effect": "evidence_only_no_gate_automatically_passed",
-  "missing_step_kinds": [],
-  "per_trace": {
-    "tla-AccountControl_mut_method_count.json": {
-      "negative": 2,
-      "positive": 1,
-      "skipped": 0,
-      "steps": 1
-    },
-    "tla-AccountControl_residual.json": {
-      "negative": 2,
-      "positive": 1,
-      "skipped": 0,
-      "steps": 1
-    },
-    "tla-AccountControl_trap_challenge_resolve.json": {
-      "negative": 3,
-      "positive": 2,
-      "skipped": 0,
-      "steps": 2
-    },
-    "tla-AccountControl_trap_cosigned_recovery.json": {
-      "negative": 1,
-      "positive": 1,
-      "skipped": 0,
-      "steps": 1
-    },
-    "tla-AccountControl_trap_delayed_recovery.json": {
-      "negative": 2,
-      "positive": 1,
-      "skipped": 0,
-      "steps": 1
-    },
-    "tla-AccountControl_trap_fork.json": {
-      "negative": 1,
-      "positive": 1,
-      "skipped": 0,
-      "steps": 1
-    },
-    "tla-AccountControl_trap_legacy.json": {
-      "negative": 0,
-      "positive": 1,
-      "skipped": 1,
-      "steps": 2
-    },
-    "tla-AccountControl_trap_lift.json": {
-      "negative": 3,
-      "positive": 2,
-      "skipped": 0,
-      "steps": 2
-    },
-    "tla-AccountControl_trap_quarantine_freeze.json": {
-      "negative": 1,
-      "positive": 1,
-      "skipped": 0,
-      "steps": 1
-    },
-    "tla-AccountControl_trap_recover.json": {
-      "negative": 2,
-      "positive": 1,
-      "skipped": 0,
-      "steps": 1
-    },
-    "tla-AccountControl_trap_two_device.json": {
-      "negative": 0,
-      "positive": 0,
-      "skipped": 0,
-      "steps": 0
-    }
-  },
+  "negative_failures": [],
   "source": "verification/bounded/acs_tla_crosscheck.py",
-  "step_kinds_seen": [
-    "legacy",
-    "lift",
-    "none",
-    "quarantine",
-    "recovery_cosigned",
-    "recovery_delayed",
-    "resolve",
-    "retire"
-  ],
-  "totals": {
-    "negative": 17,
-    "positive": 12,
-    "skipped": 1,
-    "steps": 13
+  "tla_source_guard_problems": [],
+  "trace_replay": {
+    "failures": [],
+    "missing_step_kinds": [],
+    "per_trace": {
+      "tla-AccountControl_mut_method_count.json": {
+        "negative": 2,
+        "positive": 1,
+        "skipped": 0,
+        "steps": 1
+      },
+      "tla-AccountControl_residual.json": {
+        "negative": 2,
+        "positive": 1,
+        "skipped": 0,
+        "steps": 1
+      },
+      "tla-AccountControl_trap_challenge_resolve.json": {
+        "negative": 3,
+        "positive": 2,
+        "skipped": 0,
+        "steps": 2
+      },
+      "tla-AccountControl_trap_cosigned_recovery.json": {
+        "negative": 1,
+        "positive": 1,
+        "skipped": 0,
+        "steps": 1
+      },
+      "tla-AccountControl_trap_delayed_recovery.json": {
+        "negative": 2,
+        "positive": 1,
+        "skipped": 0,
+        "steps": 1
+      },
+      "tla-AccountControl_trap_fork.json": {
+        "negative": 1,
+        "positive": 1,
+        "skipped": 0,
+        "steps": 1
+      },
+      "tla-AccountControl_trap_legacy.json": {
+        "negative": 0,
+        "positive": 1,
+        "skipped": 1,
+        "steps": 2
+      },
+      "tla-AccountControl_trap_lift.json": {
+        "negative": 3,
+        "positive": 2,
+        "skipped": 0,
+        "steps": 2
+      },
+      "tla-AccountControl_trap_quarantine_freeze.json": {
+        "negative": 1,
+        "positive": 1,
+        "skipped": 0,
+        "steps": 1
+      },
+      "tla-AccountControl_trap_recover.json": {
+        "negative": 2,
+        "positive": 1,
+        "skipped": 0,
+        "steps": 1
+      },
+      "tla-AccountControl_trap_two_device.json": {
+        "negative": 0,
+        "positive": 0,
+        "skipped": 0,
+        "steps": 0
+      }
+    },
+    "step_kinds_seen": [
+      "legacy",
+      "lift",
+      "none",
+      "quarantine",
+      "recovery_cosigned",
+      "recovery_delayed",
+      "resolve",
+      "retire"
+    ],
+    "totals": {
+      "negative": 17,
+      "positive": 12,
+      "skipped": 1,
+      "steps": 13
+    }
   },
   "traces": 11
 }

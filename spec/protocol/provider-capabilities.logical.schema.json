@@ -113,6 +113,11 @@
     },
     "limits": {
       "type": "object"
+    },
+    "recovery_scope_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{43}$",
+      "description": "base64url without padding of a 32-byte public random RecoveryStore scope id; present when the recovery role supports ADR-0138 RecoveryRecord capability derivation"
     }
   },
   "ProviderCapabilities": {

@@ -31,6 +31,9 @@ KeyBundleFetchRequest = {0: api-major, 1: request-id, 2: opaque-cap, 3: [1*64 bs
 KeyBundleFetchResponse = {0: api-major, 1: [* bstr]}
 
 RecoveryRequestFanout = {0: api-major, 1: request-id, 2: bstr} ; signed-RecoveryRequest bytes
+RecoveryRecordPutRequest = {0: api-major, 1: request-id, 2: bstr} ; encrypted RecoveryRecord bytes
+RecoveryRecordGetRequest = {0: api-major, 1: request-id}
+RecoveryRecordGetResponse = {0: api-major, 1: bstr} ; encrypted RecoveryRecord bytes
 
 BlobPutRequest = {0: api-major, 1: request-id, 2: opaque-cap, 3: bstr, ?4: uint}
 BlobPutResponse = {0: api-major, 1: opaque-cap, 2: bstr, ?3: uint}

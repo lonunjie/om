@@ -6,6 +6,7 @@ Combines the per-step outputs of run.sh into one results file. Exit 1 if any
 codec, fixture or CDDL check disagrees.
 """
 import json
+import hashlib
 import platform
 import statistics
 import subprocess
@@ -66,6 +67,7 @@ def bench_summary(native, wasm):
 def main(build, out):
     b = Path(build)
     vec = json.loads((b / "w0-object-vectors.json").read_text())["vectors"]
+    canonical_vectors = (b / "w0-object-vectors.json").read_bytes()
     fixtures = json.loads((REPO / "verification/cbor/fixtures.json").read_text())
     rust_fx = load(b / "fixtures-rust.json") or {}
     # fixtures without an "expected" field are checked against the Python/Node golden output
@@ -102,8 +104,11 @@ def main(build, out):
             "positive": sum(v["expect"] == "accept" for v in vec),
             "negative": sum(v["expect"] == "reject" for v in vec),
             "object_types": len({v["object"] for v in vec}),
+            "canonical_bytes": len(canonical_vectors),
+            "canonical_sha256": hashlib.sha256(canonical_vectors).hexdigest(),
         },
-        "toolchain": {"rustc": ver("rustc", "--version"), "node": ver("node", "--version"), "ruby": ver("ruby", "--version"),
+        "toolchain": {"rustc": ver("rustc", "--version"), "cargo": ver("cargo", "--version"),
+                      "node": ver("node", "--version"), "ruby": ver("ruby", "--version"),
                       "python": platform.python_version()},
         "existing_fixtures_rust": {"fixtures": len(fixtures), "mismatches": fx_bad},
         "codec_agreement": cmp,

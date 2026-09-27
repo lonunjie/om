@@ -10,13 +10,17 @@ Each DeviceIdentity has independent keys, capabilities, and revocation state. Ac
 
 ## Delivery
 
-A sender encrypts/delivers to the recipient's eligible devices according to the selected 1:1/group protocol. Relays hold per-device/opaque-capability envelopes.
+A sender encrypts/delivers to the recipient's eligible devices according to the selected 1:1/group protocol. For
+established OM-Crypto-v1 1:1 traffic, each target device also has relationship-private `SealedDeliveryKeyRecord`s
+scoped to its active relay routes; relay deposits carry only the corresponding `SealedDeliveryEnvelope`. Device
+removal/quarantine or route revocation invalidates future use of the affected records. Relays hold per-device opaque
+capability envelopes, not clear sender identity or Double Ratchet headers.
 
 ## Account-private sync
 
 Preferences and account-local state that should appear on multiple devices are synchronized through a separate encrypted account-private mechanism, not by making chat events globally authoritative for every UI preference.
 
-Candidate design direction: an account self-group or equivalent authenticated device-sync channel carrying versioned sync records.
+The settled architecture is an **account-private authenticated E2EE sync channel** carrying versioned sync records to currently eligible devices. It is separate from conversation delivery and from AccountControlState authority. The transport/storage realization may vary, but it cannot give a provider merge or authorization power and cannot turn settings/history sync into constitutional state.
 
 ## History transfer
 
@@ -35,14 +39,16 @@ Revoked device:
 
 Backup restore recreates local state and then performs protocol-supported reconciliation/migration. It must not require the original relay/storage vendor.
 
-## Open details
+## Verification- and implementation-owned details
 
-- exact self-sync protocol;
-- exact one-to-one multi-device session-manager state machine ([`ONE_TO_ONE_SESSION_MANAGEMENT.md`](ONE_TO_ONE_SESSION_MANAGEMENT.md));
-- conflict semantics for settings/account-private state;
-- new-device bootstrap authentication;
-- history bundle chunking/resume;
-- offline revocation propagation constraints.
+No architecture choice remains open in this section. The following details are deliberately owned by the named verification/implementation surfaces while preserving the boundaries above:
+
+- the exact account-private sync record transport/codec is an implementation choice behind the authenticated E2EE sync interface;
+- the one-to-one per-device session-manager state machine is canonical in [`ONE_TO_ONE_SESSION_MANAGEMENT.md`](ONE_TO_ONE_SESSION_MANAGEMENT.md) and verified by `V-003`;
+- ordinary account-private preference conflicts may use typed record-specific convergence, but authority/security state may never use LWW/ordinary CRDT merge;
+- new-device bootstrap requires the explicit account-authorized enrollment ceremony and non-suppressible device-link notice;
+- HistoryBundle chunking/resume is a transport/storage detail and never changes history provenance or grants authority;
+- offline revocation propagation is fail-closed for new governance/secret distribution until a current authenticated control head is reconciled.
 
 ## Authority convergence
 

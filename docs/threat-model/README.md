@@ -123,6 +123,7 @@ Provider independence improves survivability but does not make any single endpoi
 ## 2026-09-22 architecture-hardening threats
 
 - **Key-material split-brain:** the same nominally one-time prekey/MLS KeyPackage is consumed independently through mirrored providers. Default mitigation: disjoint consumable pools per provider/failure domain.
+- **Signed-prekey rollback/transplant:** a malicious provider replays an older valid bundle or moves a one-time prekey across contexts. ADR-0140 uses a global recipient-side per-peer/device/profile generation floor plus equal-generation core hashing, and signs each one-time key with its DeviceID/profile/generation/provider-pool context.
 - **Multi-device session confusion:** stale/provider-invented device records or crossed initiations create encryption to unauthorized/wrong sessions. Authority must trace to AccountControlState; session management is explicit.
 - **MLS same-epoch fork:** two valid Commits race and different members accept different successors. Application-level canonical ordering/conflict handling is required.
 - **Group-policy/MLS divergence:** human role/membership state commits without matching MLS state or vice versa. Bind transitions atomically/cryptographically.

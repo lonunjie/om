@@ -65,15 +65,29 @@
    "problems": [],
    "mutation_caught": true,
    "mutation_problems": [
-    "AsyncKeyBundle exposes subject_device_id but the KeyMaterialProvider does not declare stable_device_correlator always"
+    "key_material_provider: AsyncKeyBundle exposes subject_device_id but descriptor is not always",
+    "home_relay_mailbox: ADR-0142 established wrapper must not expose a stable sender-device correlator",
+    "t0_sponsored_mailbox: ADR-0142 established wrapper must not expose a stable sender-device correlator"
    ]
   },
-  "dr_header_exposure": {
+  "observer_matrix_alignment": {
    "problems": [],
    "mutation_caught": true,
-   "header_bytes_seen": [
-    38
+   "mutation_problems": [
+    "matrix/descriptor drift: discovery publisher=no_by_design but discovery_publisher=sometimes"
    ]
+  },
+  "provider_resource_auth": {
+   "problems": [],
+   "mutation_caught": true,
+   "mutation_problems": [
+    "Home API still exposes device_auth for routine provider administration"
+   ]
+  },
+  "sealed_delivery_outer": {
+   "problems": [],
+   "mutation_caught": true,
+   "outer_bytes_seen": 5289
   }
  },
  "gate_status_effect": "evidence_only_no_gate_automatically_passed"

@@ -62,6 +62,12 @@ def fake_digest(label: str) -> dict:
     return M([0, 1], [1, B(det(label, 32))])
 
 
+def sealed_route_binding(relay_uri: str, capability: bytes) -> dict:
+    # ADR-0142: SHA-256(OM-CBOR [label, relay_uri, deposit_capability]).
+    body = py_enc(["OM-SEALED-DELIVERY-ROUTE-v1", relay_uri, B(capability)])
+    return M([0, 1], [1, B(hashlib.sha256(body).digest())])
+
+
 def ds_sig(label: str, profile: int, role: int, signer: bytes, body: bytes) -> bytes:
     return py_enc([label, profile, role, B(signer), B(body)])
 
@@ -216,14 +222,14 @@ def prekey(kid, kind, n, signed):
         item = mset(item, 3, B(TEST_SIG))
     return item
 
-AKB = top("AsyncKeyBundle", [2, B(D1)], [3, 1], [4, ACS1_HASH], [5, 1], [6, 4],
-          [7, prekey(1, 1, 32, True)], [8, prekey(2, 2, 1184, True)],
-          [9, [prekey(10, 3, 32, False), prekey(11, 3, 32, False)]],
+AKB = top("AsyncKeyBundle", [2, B(D1)], [5, 1], [6, 4],
+          [7, prekey(1, 1, 32, False)], [8, prekey(2, 2, 1184, False)],
+          [9, [prekey(10, 3, 32, True), prekey(11, 3, 32, True)]],
           [10, [prekey(20, 4, 1184, True)]],
-          [11, prekey(30, 5, 1184, True)],
+          [11, prekey(30, 5, 1184, False)],
           [12, B(det("provider-pool-A", 16))], [13, T0 + 30 * 86400])
-AKB_MIN = top("AsyncKeyBundle", [2, B(D1)], [3, 1], [4, ACS1_HASH], [5, 1], [6, 1],
-              [7, prekey(1, 1, 32, True)], [8, prekey(2, 2, 1184, True)],  # key 8 mandatory (ADR-0126)
+AKB_MIN = top("AsyncKeyBundle", [2, B(D1)], [5, 1], [6, 1],
+              [7, prekey(1, 1, 32, False)], [8, prekey(2, 2, 1184, False)],  # key 8 mandatory (ADR-0126)
               [12, B(det("provider-pool-B", 16))], [13, T0 + 86400])
 
 ALICE = M([0, 1], [1, B(ACC)])
@@ -298,22 +304,38 @@ REQKEY = M([0, 1], [1, B(det("request-key-pub", 1216))], [2, T0 + 30 * 86400])
 REQKEY_MIN = M([0, TEST_PROFILE], [1, B(det("request-key-pub-min", 32))])  # test profile: no pinned HPKE sizes
 REQKEY_DIGEST = digest_of("OM-REQUEST-KEY-HASH-v1", py_enc(REQKEY))
 SENDER_INTRO = det("bob-intro-identity-key", 32)
-REPLY_ROUTE = M([0, "https://relay.bob-home.example"], [1, B(det("reply-cap", 32))], [2, 0], [4, T0 + 7 * 86400])
+REPLY_URI = "https://relay.bob-home.example"
+REPLY_CAP = det("reply-cap", 32)
+REPLY_ROUTE = M([0, REPLY_URI], [1, B(REPLY_CAP)], [2, 0], [4, T0 + 7 * 86400])
+REPLY_DKM = M([0, 1], [1, B(det("reply-delivery-key-id", 16))],
+                [2, B(det("reply-delivery-pk", 1216))],
+                [3, sealed_route_binding(REPLY_URI, REPLY_CAP)], [4, T0 + 7 * 86400])
 REF_ENV, _ = envelope("ReferralAttestation", REFERRAL, ["device"])
 MREQ = top("MessageRequest", [2, B(det("ticket-1", 16))], [3, REQKEY_DIGEST], [4, 1],
            [5, B(det("hpke-enc", 1120))], [6, B(det("mreq-ciphertext", 512))], [7, B(det("admission-proof", 64))])
 MREQ_MIN = top("MessageRequest", [2, B(det("ticket-2", 16))], [3, REQKEY_DIGEST], [4, 1],
                [5, B(det("hpke-enc-min", 1120))], [6, B(det("mreq-ct-min", 17))])  # profile 1: enc is exactly Nenc = 1120
 MRP = top("MessageRequestPayload", [2, B(det("ticket-1", 16))], [3, REQKEY_DIGEST], [4, B(SENDER_INTRO)],
-          [5, B(py_enc(DESC_ENV))], [6, RICH], [7, [B(py_enc(REF_ENV))]], [8, REPLY_ROUTE])
+          [5, B(py_enc(DESC_ENV))], [6, RICH], [7, [B(py_enc(REF_ENV))]], [8, REPLY_ROUTE], [9, REPLY_DKM])
 MRP_MIN = top("MessageRequestPayload", [2, B(det("ticket-2", 16))], [3, REQKEY_DIGEST], [4, B(SENDER_INTRO)],
-              [5, B(py_enc(DESC_ENV))], [8, REPLY_ROUTE])
+              [5, B(py_enc(DESC_ENV))], [8, REPLY_ROUTE], [9, REPLY_DKM])
 IIB = top("IntroIdentityBinding", [2, B(ACC)], [3, B(INTRO)], [4, REQKEY_DIGEST], [5, 1], [6, ACS1_HASH], [7, T0])
 IIB_MIN = top("IntroIdentityBinding", [2, B(ACC)], [3, B(INTRO)], [4, REQKEY_DIGEST], [5, 0], [6, ACS0_HASH])
 DESC_RK = mset(DESC, 15, REQKEY)
 TICKET_RK = mset(TICKET, 11, REQKEY_MIN)
 ACS_FORK = mset(mset(ACS1, 3, 2), 23, M(["om.acs.fork_ack", M([0, True], [1, M([0, setof([
     fake_digest("branch-head-a"), fake_digest("branch-head-b")])])])]))
+
+# ADR-0142 established 1:1 sealed delivery. The key is relationship-private and exact-route bound.
+SEALED_URI = "https://relay.alice-home.example"
+SEALED_CAP = det("cap-r1", 32)
+SEALED_DKM = M([0, 1], [1, B(det("sealed-delivery-key-id", 16))],
+                 [2, B(det("sealed-delivery-pk", 1216))],
+                 [3, sealed_route_binding(SEALED_URI, SEALED_CAP)], [4, T0 + 30 * 86400])
+SDKR = top("SealedDeliveryKeyRecord", [2, B(D1)], [3, SEALED_DKM])
+SDE = top("SealedDeliveryEnvelope", [2, 1], [3, B(det("sealed-delivery-key-id", 16))],
+          [4, B(det("sealed-delivery-id", 16))], [5, B(det("sealed-delivery-enc", 1120))],
+          [6, B(det("sealed-delivery-ct", 4096 + 16))], [7, T0 + 3600])
 
 # ADR-0131 rule 9 / ADR-0135 §5 (R-281): a MessageRequest actually sealed with the pinned draft-ietf-hpke-pq-05 suite,
 # taken from the V-001 prototype's vector file (Rust HPKE, reproduced by the independent Python HPKE there).
@@ -368,6 +390,8 @@ POSITIVES = [
     ("SponsoredMailboxGrant", "typical", GRANT, None, False),
     ("RelaySet", "typical", RELAYSET, None, True),
     ("BlobLocationRecord", "typical", BLR, None, False),
+    ("SealedDeliveryKeyRecord", "typical", SDKR, ["device"], True),
+    ("SealedDeliveryEnvelope", "typical", SDE, None, True),
     ("MessageRequest", "typical", MREQ, None, True),
     ("MessageRequest", "minimal", MREQ_MIN, None, False),
     ("MessageRequestPayload", "typical", MRP, None, True),
@@ -414,7 +438,12 @@ def prekey_derived(body_value) -> list:
     for it in items:
         try: mget(it, 3)
         except KeyError: continue
-        tbs = ds_sig("OM-PREKEY-SIG-v1", mget(body_value, 5), 3, dev, py_enc(mdel(it, 3)))  # bundle crypto_profile
+        kind = mget(it, 1)
+        if kind not in (3, 4):
+            continue
+        context = [1, B(dev), mget(body_value, 5), mget(body_value, 6), mget(body_value, 12),
+                   kind, mget(it, 0), mget(it, 2)]
+        tbs = ds_sig("OM-PREKEY-SIG-v1", mget(body_value, 5), 3, dev, py_enc(context))
         out.append({"kind": "sig_input", "label": "OM-PREKEY-SIG-v1", "role": 3, "key_id": mget(it, 0), "hex": tbs.hex()})
     return out
 
@@ -575,6 +604,8 @@ def gen():
     neg("SponsoredMailboxGrant", "quota-field-missing", "missing_field", mset(GRANT, 6, M([0, 1], [1, 1], [2, 1], [3, 1])))
     neg("DeviceCredential", "device-class-3", "value_range", mset(DC1, 7, 3))
     neg("DeviceCredential", "capability-set-unsorted", "set_order", mset(DC1, 8, ["om.control", "om.msg"]), "valid")
+    neg("AsyncKeyBundle", "retired-acs-generation-key-3", "unknown_field", mset(AKB_MIN, 3, 1))
+    neg("AsyncKeyBundle", "retired-acs-state-hash-key-4", "unknown_field", mset(AKB_MIN, 4, ACS1_HASH))
     neg("AsyncKeyBundle", "missing-pq-signed-prekey", "missing_field", mdel(AKB_MIN, 8))
     neg("AsyncKeyBundle", "prekey-kind-6", "value_range", mset(AKB_MIN, 7, M([0, 1], [1, 6], [2, B(det("pk", 32))])))
     neg("AsyncKeyBundle", "prekey-31-bytes", "value_range", mset(AKB_MIN, 7, M([0, 1], [1, 1], [2, B(det("pk", 31))])))
@@ -621,6 +652,23 @@ def gen():
     neg("MessageRequestPayload", "referrals-5", "value_range", mset(MRP, 7, [B(py_enc(REF_ENV))] * 5))
     neg("MessageRequestPayload", "sender-intro-identity-31-bytes", "value_range", mset(MRP, 4, B(det("i", 31))))
     neg("MessageRequestPayload", "reply-route-missing", "missing_field", mdel(MRP, 8))
+    neg("MessageRequestPayload", "reply-delivery-key-missing", "missing_field", mdel(MRP, 9))
+    neg("MessageRequestPayload", "reply-delivery-key-profile1-public-key-32", "value_range",
+        mset(MRP, 9, mset(REPLY_DKM, 2, B(det("reply-dk-pk32", 32)))), "valid")
+    neg("MessageRequestPayload", "reply-delivery-key-profile1-public-key-1215", "value_range",
+        mset(MRP, 9, mset(REPLY_DKM, 2, B(det("reply-dk-pk1215", 1215)))), "valid")
+    neg("SealedDeliveryKeyRecord", "profile1-public-key-32", "value_range",
+        mset(SDKR, 3, mset(SEALED_DKM, 2, B(det("sealed-pk32", 32)))), "valid")
+    neg("SealedDeliveryKeyRecord", "profile1-public-key-1217", "value_range",
+        mset(SDKR, 3, mset(SEALED_DKM, 2, B(det("sealed-pk1217", 1217)))), "valid")
+    neg("SealedDeliveryEnvelope", "profile1-classical-x25519-enc-32", "value_range",
+        mset(SDE, 5, B(det("sealed-enc32", 32))), "valid")
+    neg("SealedDeliveryEnvelope", "profile1-enc-1121", "value_range",
+        mset(SDE, 5, B(det("sealed-enc1121", 1121))), "valid")
+    neg("SealedDeliveryEnvelope", "ciphertext-not-padding-bucket", "value_range",
+        mset(SDE, 6, B(det("sealed-ct1041", 1041))), "valid")
+    neg("SealedDeliveryEnvelope", "delivery-id-15-bytes", "value_range",
+        mset(SDE, 4, B(det("sealed-id15", 15))))
     neg("IntroIdentityBinding", "intro-identity-31-bytes", "value_range", mset(IIB, 3, B(det("i", 31))))
     neg("IntroIdentityBinding", "acs-hash-alg-2", "value_range", mset(IIB, 6, M([0, 2], [1, B(det("h", 32))])))
     neg("IntroIdentityBinding", "account-id-31-bytes", "value_range", mset(IIB, 2, B(ACC[:31])))
@@ -646,6 +694,15 @@ def gen():
     neg("AccountControlState", "fork-ack-head-alg-2", "value_range", cddl="valid", mutated=fork(setof([M([0, 2], [1, B(det("a", 32))]), hb])))
     neg("AccountControlState", "fork-ack-value-not-a-map", "wrong_type", cddl="valid", mutated=
         mset(ACS_FORK, 23, M(["om.acs.fork_ack", M([0, True], [1, [ha, hb]])])))
+    # ADR-0141: registered LegacyPolicy commitment is critical. A wire parser that knows the
+    # extension registry accepts the correctly critical commitment and rejects a false criticality bit.
+    legacy_policy = M([0, 1], [1, [M([0, B(det("legacy-guardian-id", 16))], [1, TEST_PROFILE],
+                                     [2, B(det("legacy-guardian-vk", 32))])]],
+                      [2, 1], [3, 86400], [4, 86400], [5, B(ACC2)])
+    legacy_critical = mset(ACS1, 23, M(["om.acs.legacy_policy", M([0, True], [1, legacy_policy])]))
+    emit_positive("AccountControlState", "legacy-policy-critical", legacy_critical, ["controller"], False)
+    neg("AccountControlState", "legacy-policy-marked-noncritical", "value_range",
+        mset(ACS1, 23, M(["om.acs.legacy_policy", M([0, False], [1, legacy_policy])])), "valid")
     # R-237: later-wave attachment field inside a W0 body is rejected ...
     att_w1 = mset(ATT, 11, B(det("w1-thumbnail", 64)))
     neg("ConversationEvent", "attachment-later-wave-field-11", "unknown_field", mset(EV_CREATE_MIN, 11, M([1, [att_w1]])))

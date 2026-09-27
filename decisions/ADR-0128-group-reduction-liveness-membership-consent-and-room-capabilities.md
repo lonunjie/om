@@ -84,11 +84,11 @@ CDDL and registries, or with each other. This ADR records the decisions; the can
     `prev_post_hash` chain and a `control_state_hash`. A revocation transition records the last valid `(key, seq)`;
     posts beyond it are invalid regardless of clock. Subscribers keep the highest validated control head and reject
     rollback (ADR-0122 rule 6).
-14. **Group call keys are participant-bound.** Call keys come from an MLS exporter whose context binds the CallID,
-    the epoch and the authenticated, sorted participant set, rekeyed on every join or leave. The call UI shows every
-    full-room service or bridge that could derive call keys. Because any Room endpoint that holds the epoch can
-    compute that exporter, "a non-joined member cannot decrypt" is **not** met by this construction alone; design
-    queue A-035 decides the isolation mechanism before the `calls` scope unlocks. Starting a call that rings the Room
+14. **Group call keys are participant-bound (amended by ADR-0132).** The earlier MLS-exporter-only construction
+    was rejected because every Room endpoint holding the epoch could derive it. The resolved design uses per-sender
+    SFrame media keys delivered only to explicitly joined participant DeviceIDs and rotates them whenever the joined
+    participant-set generation changes. Room MLS epoch possession alone grants no call-media key. Services/bridges
+    obtain media keys only by joining as visible call participants under policy. Starting a call that rings the Room
     needs `room.start_call`.
 15. **Unknown callers do not ring.** A `call.offer` from a principal without an accepted relationship is dropped. At
     most it becomes a MessageRequest-class "missed call" notice: no ringing, no ICE, no TURN allocation. For
@@ -121,7 +121,7 @@ CDDL and registries, or with each other. This ADR records the decisions; the can
 
 ## Consequences
 
-- Requirements R-220..R-239, threats T-060..T-066 and design-queue items A-035 (call key isolation, blocks `calls`)
+- Requirements R-220..R-239, threats T-060..T-066 and design-queue items A-035 (call key isolation; later resolved by ADR-0132)
   and A-036 (deniable groups, research only) are added. V-004, V-007, V-008, V-009 and V-016 gain criteria or
   remaining items.
 - W1 CDDL for GroupControlState must carry the succession order, `sequencing_timeout`, `policy.disappearing_timer`,
