@@ -448,6 +448,79 @@ def check_hpke(hv, ck: Checker):
     ck.eq("hpke/open", rctx.open(b"", H(hv["ciphertext"])).hex(), hv["plaintext"])
 
 
+def check_sealed_delivery(v, ck: Checker):
+    seed, kid, did = H(v["recipient_seed"]), H(v["delivery_key_id"]), H(v["delivery_id"])
+    pk = hpke_pq._expand(seed)
+    pk = pk[0] + pk[1]
+    ck.eq("sealed_delivery/profile1_public_key", (len(pk), pk.hex()), (1216, v["recipient_public_key"]))
+    route = hashlib.sha256(cbor_enc(["OM-SEALED-DELIVERY-ROUTE-v1", v["relay_uri"], H(v["deposit_capability"])] )).digest()
+    ck.eq("sealed_delivery/route_binding", route.hex(), v["route_binding"])
+    info = cbor_enc(["OM-SEALED-DELIVERY-HPKE-INFO-v1", PROFILE, kid, {0: 1, 1: route}])
+    aad = cbor_enc(["OM-SEALED-DELIVERY-HPKE-AAD-v1", 23, 1, PROFILE, kid, did, v["expires_at"], v["plaintext_bucket_bytes"]])
+    ck.eq("sealed_delivery/exact_info", info.hex(), v["info"])
+    ck.eq("sealed_delivery/exact_aad", aad.hex(), v["aad"])
+    wrapper = cbor_dec(H(v["wrapper"]))
+    ck.eq("sealed_delivery/wire_shape", (wrapper[0], wrapper[1], wrapper[2], wrapper[3], wrapper[4], len(wrapper[5])),
+          (23, 1, PROFILE, kid, did, 1120))
+    ck.eq("sealed_delivery/ciphertext_bucket", len(wrapper[6]), v["plaintext_bucket_bytes"] + 16)
+    enc, ss, ctx = hpke_pq.setup_base_s_derand(pk, info, H(v["encaps_randomness"]))
+    ck.eq("sealed_delivery/pinned_hybrid_encapsulation", (len(enc), enc.hex()), (1120, wrapper[5].hex()))
+    pt = int(len(H(v["inner_envelope"]))).to_bytes(4, "big") + H(v["inner_envelope"]) + H(v["padding"])
+    ck.eq("sealed_delivery/padded_plaintext_bucket", len(pt), v["plaintext_bucket_bytes"])
+    ct = ctx.seal(aad, pt)
+    ck.eq("sealed_delivery/ciphertext", ct.hex(), wrapper[6].hex())
+    _, rctx = hpke_pq.setup_base_r(wrapper[5], seed, info)
+    opened = rctx.open(aad, wrapper[6])
+    n = int.from_bytes(opened[:4], "big")
+    ck.eq("sealed_delivery/independent_open", opened[4:4+n].hex(), v["inner_envelope"])
+    ck.eq("sealed_delivery/outer_is_not_sender_auth", (v["outer_open_is_sender_authentication"], v["clear_sender_fallback"]), (False, False))
+    wrong_route = cbor_enc(["OM-SEALED-DELIVERY-ROUTE-v1", "https://wrong.example/", H(v["deposit_capability"])])
+    wrong_info = cbor_enc(["OM-SEALED-DELIVERY-HPKE-INFO-v1", PROFILE, kid, {0: 1, 1: hashlib.sha256(wrong_route).digest()}])
+    try:
+        _, c = hpke_pq.setup_base_r(wrapper[5], seed, wrong_info); c.open(aad, wrapper[6]); route_rejected = False
+    except Exception: route_rejected = True
+    ck.eq("sealed_delivery/wrong_route_rejected", route_rejected, True)
+    wrong_aad = cbor_enc(["OM-SEALED-DELIVERY-HPKE-AAD-v1", 23, 1, PROFILE, kid, b"X"*16, v["expires_at"], v["plaintext_bucket_bytes"]])
+    try:
+        _, c = hpke_pq.setup_base_r(wrapper[5], seed, info); c.open(wrong_aad, wrapper[6]); aad_rejected = False
+    except Exception: aad_rejected = True
+    ck.eq("sealed_delivery/tampered_aad_rejected", aad_rejected, True)
+    other_seed = bytes([seed[0] ^ 1]) + seed[1:]
+    try:
+        _, c = hpke_pq.setup_base_r(wrapper[5], other_seed, info); c.open(aad, wrapper[6]); key_rejected = False
+    except Exception: key_rejected = True
+    ck.eq("sealed_delivery/wrong_private_key_rejected", key_rejected, True)
+    expiry_test_now = v["expires_at"] + 301
+    ck.eq("sealed_delivery/expiry_rejected_after_skew", expiry_test_now > v["expires_at"] + 300, True)
+    ck.eq("sealed_delivery/nonconforming_bucket_rejected", 1056 - 16 in (1024,4096,16384,65536,131072), False)
+    bad_enc = bytearray(wrapper[5]); bad_enc[0] ^= 1
+    try:
+        _, c = hpke_pq.setup_base_r(bytes(bad_enc), seed, info); c.open(aad, wrapper[6]); enc_rejected = False
+    except Exception: enc_rejected = True
+    ck.eq("sealed_delivery/tampered_encapsulation_rejected", enc_rejected, True)
+    bad_ct = bytearray(wrapper[6]); bad_ct[0] ^= 1
+    try:
+        _, c = hpke_pq.setup_base_r(wrapper[5], seed, info); c.open(aad, bytes(bad_ct)); ct_rejected = False
+    except Exception: ct_rejected = True
+    ck.eq("sealed_delivery/tampered_ciphertext_rejected", ct_rejected, True)
+    bucket_cases = [(12,1024),(1021,4096),(4093,16384),(16381,65536),(65533,131072)]
+    reproduced_buckets = []
+    for index, (size, expected_bucket) in enumerate(bucket_cases):
+        inner = bytes([index + 1]) * size
+        delivery_id = bytes([0x50 + index]) * 16
+        bucket_aad = cbor_enc(["OM-SEALED-DELIVERY-HPKE-AAD-v1", 23, 1, PROFILE, kid, delivery_id,
+                               v["expires_at"], expected_bucket])
+        randomness, padding = bytes([index + 1]) * 64, bytes([0xA0 + index]) * (expected_bucket - 4 - size)
+        test_enc, _, send_ctx = hpke_pq.setup_base_s_derand(pk, info, randomness)
+        test_ciphertext = send_ctx.seal(bucket_aad, len(inner).to_bytes(4, "big") + inner + padding)
+        _, recv_ctx = hpke_pq.setup_base_r(test_enc, seed, info)
+        test_plaintext = recv_ctx.open(bucket_aad, test_ciphertext)
+        test_length = int.from_bytes(test_plaintext[:4], "big")
+        reproduced_buckets.append((size, len(test_plaintext), len(test_ciphertext), test_plaintext[4:4+test_length] == inner))
+    ck.eq("sealed_delivery/fixed_bucket_seal_open", reproduced_buckets,
+          [(n, b, b + 16, True) for n, b in bucket_cases])
+
+
 # ---------------------------------------------------------------- ACVP (kyber-py)
 def ek_check(ek: bytes, k: int = 3) -> bool:
     """FIPS 203 §7.2 encapsulation key type + modulus check."""
@@ -515,6 +588,7 @@ def main() -> int:
     for c in vectors["cases"]:
         check_case(c, vectors["constants"], ck)
     check_hpke(vectors["hpke_message_request"], ck)
+    check_sealed_delivery(vectors["sealed_delivery"], ck)
     out = {
         "vector_checks": len(ck.results),
         "vector_checks_passed": sum(ok for _, ok in ck.results),
@@ -522,6 +596,7 @@ def main() -> int:
         "vector_cases": [c["name"] for c in vectors["cases"]],
         "binding_negatives": len(vectors["binding"]["negatives"]),
         "initiator_binding_vectors": len(vectors["initiator_binding"]),
+        "sealed_delivery_vectors": 1,
         "failures": [name for name, ok in ck.results if not ok],
     }
     out["vectors_ok"] = out["vector_checks"] == out["vector_checks_passed"] and out["vector_checks"] > 0

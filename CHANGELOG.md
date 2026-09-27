@@ -1,3 +1,13 @@
+## 2026-09-27 18:08 PHT — V-001 ADR-0140 and ADR-0142 runtime completion
+
+- added bounded sealed-delivery HPKE verification under the existing V-001 prototype, reusing the pinned draft-ietf-hpke-pq-05 hybrid suite with ADR-0142 route-bound info/AAD, padding buckets and explicit sender-authentication separation;
+- added runtime checks for all five padding buckets, wrong route/key/expiry, route/info and AAD tampering, encapsulation/ciphertext tampering, malformed buckets, and no clear-sender fallback;
+- added ADR-0140 freshness persistence/reload, cross-provider migration, lower-generation rollback, equal-generation equivocation and device/profile/generation/provider-pool one-time-key transplantation cases;
+- reviewed the intentional vector drift, regenerated the canonical corpus and extended the independent Python checker and current-tree result report;
+- full V-001 runner passed on native, wasip1 and Node/V8: 90/90 selftests, Python vectors 236/236, HPKE KATs 33/33 per runtime, ACVP 80/80 per implementation, and persistence 249 steps / 367 messages;
+- repository-wide `make verify` passed phase-1 evidence (347,316 bounded cases), all 83 configured TLC outcomes, architecture validation, docs checks and registry immutability;
+- V-001 pre-engineering is 13/13 passed; the overall gate remains open for separate pre-release obligations and engineering remains unauthorized.
+
 ## 2026-09-27 17:23 PHT — V-001 F-9 independent re-review
 
 - GPT-5.6 Sol independently accepted the ADR-0135 §7 / ADR-0136 rule 4 responder-side `IK_A` binding remediation for review finding F-9;

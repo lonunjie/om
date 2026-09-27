@@ -20,7 +20,7 @@
         "verification/prototypes/v001-crypto/rust/core/src/acvp.rs"
       ],
       "gate": "V-001",
-      "note": "Python (cryptography/OpenSSL + kyber-py) reproduces or verifies 213/213 values: binding chain and 12 negative binding vectors, PQXDH, handshake_id, ML-KEM, DR keys, AEAD inputs, bit-exact AES-GCM-SIV ciphertexts and the HPKE envelope; it rejects a mutated ciphertext and a mutated ML-DSA-65 signature. NIST ACVP ML-KEM-768: 80/80 on libcrux (native+wasi), 80/80 on kyber-py.",
+      "note": "Python (cryptography/OpenSSL + kyber-py) reproduces or verifies 236/236 values: binding chain and 14 negative binding vectors, PQXDH, handshake_id, ML-KEM, DR keys, AEAD inputs, bit-exact AES-GCM-SIV ciphertexts and the HPKE envelope; it rejects a mutated ciphertext and a mutated ML-DSA-65 signature. NIST ACVP ML-KEM-768: 80/80 on libcrux (native+wasi), 80/80 on kyber-py.",
       "status": "met"
     },
     {
@@ -30,7 +30,7 @@
         "verification/prototypes/v001-crypto/rust/core/src/store.rs"
       ],
       "gate": "V-001",
-      "note": "26 checks pass on native, wasip1 and Node: depletion to the signed ML-KEM prekey, single-use deletion, replay rejection, tampered handshake consumes nothing, PQ-less bundle and CT-less initial message refused, epoch rotation with grace and expiry.",
+      "note": "17 checks pass on native, wasip1 and Node: depletion to the signed ML-KEM prekey, single-use deletion, replay rejection, tampered handshake consumes nothing, PQ-less bundle and CT-less initial message refused, epoch rotation with grace and expiry.",
       "status": "met"
     },
     {
@@ -62,7 +62,7 @@
         "verification/prototypes/v001-crypto/python/check_vectors.py"
       ],
       "gate": "V-001",
-      "note": "16 Rust checks on three runtimes and 12 negative vectors the Python verifier (OpenSSL Ed25519/ML-DSA-65) also rejects: either half substituted, either half alone, halves split into two entries, prekey/one-time-item/identity-key/signing-key substitution, quarantined device, stale or untrusted ACS head.",
+      "note": "20 Rust checks on three runtimes and 14 negative vectors the Python verifier (OpenSSL Ed25519/ML-DSA-65) also rejects: either half substituted, either half alone, halves split into two entries, prekey/one-time-item/identity-key/signing-key substitution, quarantined device, stale or untrusted ACS head.",
       "status": "met"
     },
     {
@@ -99,6 +99,56 @@
       "status": "met"
     },
     {
+      "criterion": "responder binds the inbound PQXDH initiator IK_A to exactly one active, non-quarantined DeviceCredential committed by the trusted relationship ACS head before any secret-key operation, with negative vectors for unknown, route-mismatched, revoked, quarantined, stale, substituted and ambiguous keys checked by the independent implementation (ADR-0136 rule 4, review F-9)",
+      "evidence": [
+        "verification/prototypes/v001-crypto/rust/core/src/binding.rs",
+        "verification/prototypes/v001-crypto/rust/core/src/store.rs",
+        "verification/prototypes/v001-crypto/rust/core/src/otk.rs",
+        "verification/prototypes/v001-crypto/vectors/om-v001-proto-vectors.json",
+        "verification/prototypes/v001-crypto/python/check_vectors.py",
+        "verification/reviews/2026-09-27-gpt-5-6-sol-v001-f9-re-review.md"
+      ],
+      "gate": "V-001",
+      "note": "Responder IK_A is checked against the trusted relationship ACS/DeviceCredential before secret-key work. Current selftests and independent Python vectors include route mismatch, stale/revoked/quarantined/substituted/ambiguous cases; focused non-Anthropic GPT-5.6 Sol re-review accepted the remediation.",
+      "status": "met"
+    },
+    {
+      "criterion": "ADR-0135 \u00a77 / ADR-0136 rule 4 responder binding accepted on re-review by a non-Anthropic reviewer (review F-9 reopened V-001)",
+      "evidence": [
+        "verification/reviews/2026-09-27-gpt-5-6-sol-v001-f9-re-review.md"
+      ],
+      "gate": "V-001",
+      "note": "GPT-5.6 Sol independently accepted the responder-side initiator binding remediation for F-9.",
+      "status": "met"
+    },
+    {
+      "criterion": "ADR-0140 AsyncKeyBundle v1 prototype persists a recipient high-water mark across reload/provider migration, rejects lower-generation replay and equal-generation core equivocation, and rejects one-time-prekey transplantation across device/profile/generation/provider-pool context",
+      "evidence": [
+        "verification/prototypes/v001-crypto/rust/core/src/binding.rs",
+        "verification/prototypes/v001-crypto/rust/core/src/store.rs",
+        "verification/prototypes/v001-crypto/rust/core/src/otk.rs",
+        "verification/prototypes/v001-crypto/vectors/om-v001-proto-vectors.json",
+        "verification/prototypes/v001-crypto/python/check_vectors.py"
+      ],
+      "gate": "V-001",
+      "note": "8 focused native/wasip1/Node checks cover same-generation migration across disjoint pools, generation-floor persistence through Device serialization/reload, lower-generation rollback, equal-generation core equivocation, and item transplantation across pool/device/profile/generation. Independent Python consumes refreshed current-tree vectors.",
+      "status": "met"
+    },
+    {
+      "criterion": "SealedDeliveryEnvelope HPKE consumes the OM-Crypto-v1 pinned draft-ietf-hpke-pq-05 suite under ADR-0142 route-bound info/AAD and padding buckets, rejects wrong route/key/expiry, and never treats outer open as sender authentication",
+      "evidence": [
+        "verification/prototypes/v001-crypto/rust/core/src/delivery.rs",
+        "verification/prototypes/v001-crypto/rust/core/src/hpke.rs",
+        "verification/prototypes/v001-crypto/rust/core/src/otk.rs",
+        "verification/prototypes/v001-crypto/vectors/om-v001-proto-vectors.json",
+        "verification/prototypes/v001-crypto/python/check_vectors.py",
+        "verification/prototypes/v001-crypto/python/hpke_pq.py"
+      ],
+      "gate": "V-001",
+      "note": "15 focused native/wasip1/Node checks plus an independent Python seal/open vector exercise the exact 1216-byte public key, 1120-byte hybrid encapsulation, draft-05 suite, route-bound info, wrapper AAD, all five padding buckets, expiry, wrong route/key, tampering and the sender-authentication boundary. No clear-sender fallback is accepted.",
+      "status": "met"
+    },
+    {
       "criterion": "[pre-release] independent cryptographic review of the integrated production path",
       "evidence": [],
       "gate": "V-001",
@@ -126,15 +176,6 @@
       "status": "partial"
     }
   ],
-  "current_tree_adr0140": {
-    "bounded_structural_result": "verification/results/async-prekey-adr0140-latest.json",
-    "claim": "No current Rust/native/wasm pass is claimed for the ADR-0140 amendment; the new V-001 criterion remains unmet until a tool-complete rerun.",
-    "current_vector_regeneration": false,
-    "reason": "cargo/rust toolchain unavailable in this checkpoint environment",
-    "rust_native_wasm_rerun": false,
-    "source_updated": true
-  },
-  "execution_scope": "historical execution against the pre-ADR-0140 AsyncKeyBundle wire/binding shape; unchanged crypto primitive/session evidence remains historical evidence, not a current-tree ADR-0140 rerun",
   "gate_status_effect": "evidence_only_no_gate_passed",
   "gates": [
     "V-001",
@@ -201,7 +242,7 @@
     },
     "persistence": {
       "byte_identical_at_every_step": true,
-      "final_world_sha256": "50dbb3aec69867923446ac5f32d76c7133723206ea33565108bbd4cd6351bed6",
+      "final_world_sha256": "8d6acdce265a38b8e4d1d2bcab4dd1f593f71464193cae3b7d70f007bcc5dbcc",
       "max_skipped_keys_persisted": 1,
       "messages_delivered": 367,
       "schedules": [
@@ -212,7 +253,7 @@
       ],
       "steps_each_in_fresh_process": 249
     },
-    "python_vector_checks": "213/213",
+    "python_vector_checks": "236/236",
     "r072_sketch": {
       "production_alone_builds": true,
       "production_plus_test_rng_rejected": true,
@@ -239,16 +280,25 @@
       "binding_substituted_identity_key_rejected",
       "binding_substituted_signing_key_rejected",
       "binding_quarantined_device_rejected",
-      "binding_bundle_for_stale_acs_head_rejected",
+      "binding_bundle_uses_relationship_pinned_acs_not_provider_visible_generation",
+      "binding_same_generation_same_core_across_provider_pools_accepted",
+      "binding_one_time_prekey_transplanted_across_provider_pool_rejected",
+      "binding_provider_replay_of_lower_signed_prekey_generation_rejected",
+      "binding_equal_generation_different_core_rejected_as_equivocation",
       "binding_untrusted_acs_body_rejected",
       "initiator_unknown_identity_key_rejected_nothing_consumed",
       "initiator_bound_to_trusted_peer_credential_accepted",
       "initiator_pinned_to_relationship_route",
+      "initiator_established_session_wrong_route_rejected_state_unchanged",
+      "initiator_established_session_correct_route_accepted",
+      "initiator_reloaded_established_session_wrong_route_rejected_before_commit",
+      "initiator_reloaded_established_session_correct_route_accepted_and_committed",
+      "initiator_ambiguous_same_account_identity_key_rejected",
       "initiator_revoked_device_rejected",
       "initiator_quarantined_device_rejected",
       "initiator_stale_credential_rejected_after_rotation",
       "initiator_substituted_identity_key_rejected",
-      "initiator_identity_key_in_two_credentials_rejected",
+      "initiator_same_ik_across_relationships_resolved_by_mandatory_route",
       "initiator_crossed_initiation_between_bound_peers_reaches_session_rule",
       "depletion_falls_back_to_signed_pq_prekey",
       "every_handshake_includes_mlkem_no_classical_only",
@@ -282,10 +332,33 @@
       "hpke_message_request_roundtrip",
       "hpke_info_binds_ticket_id",
       "hpke_x25519_half_bound_into_shared_secret",
-      "hpke_pq_only_enc_rejected"
+      "hpke_pq_only_enc_rejected",
+      "sealed_delivery_hpke_roundtrip",
+      "sealed_delivery_outer_open_is_not_sender_authentication",
+      "sealed_delivery_wrong_route_rejected",
+      "sealed_delivery_tampered_route_bound_info_rejected",
+      "sealed_delivery_wrong_key_id_rejected",
+      "sealed_delivery_wrong_recipient_private_key_rejected",
+      "sealed_delivery_expiry_skew_boundary_rejected",
+      "sealed_delivery_tampered_aad_delivery_id_rejected",
+      "sealed_delivery_tampered_aad_expiry_rejected",
+      "sealed_delivery_tampered_hybrid_encapsulation_rejected",
+      "sealed_delivery_tampered_ciphertext_rejected",
+      "sealed_delivery_nonconforming_padding_bucket_rejected",
+      "sealed_delivery_invalid_padding_length_rejected",
+      "sealed_delivery_all_fixed_plaintext_buckets_roundtrip",
+      "sealed_delivery_no_clear_sender_fallback",
+      "adr0140_cross_provider_migration_same_generation_core_accepted",
+      "adr0140_generation_floor_survives_device_reload",
+      "adr0140_lower_generation_replay_rejected_after_reload",
+      "adr0140_equal_generation_core_equivocation_rejected_after_reload",
+      "adr0140_one_time_prekey_provider_pool_transplant_rejected",
+      "adr0140_one_time_prekey_generation_transplant_rejected",
+      "adr0140_one_time_prekey_device_transplant_rejected",
+      "adr0140_one_time_prekey_profile_transplant_rejected"
     ],
     "vectors_identical_native_wasi_node_committed": true,
-    "vectors_sha256": "b26b17ec8583d80a38c6e879b41f5a713eae74636f5d0173d21b83a0f7e26c0d"
+    "vectors_sha256": "b67a854a23cc6958bfc85251f5c85800a2d4617e3d00f0f6e8c0939cdf0b8d8b"
   },
   "tool_versions": {
     "acvp_server_commit": "975de31eb83d87039ec88934fdc47d8c312b892d",

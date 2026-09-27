@@ -29,16 +29,16 @@
  },
  "security_mutation_samples": {
   "home_relay_mailbox": [
-   "under-claim: home_relay_mailbox observes recovery_attempt in recovery_fanout (home_relay_mailbox, privacy=False)",
-   "under-claim: home_relay_mailbox observes stable_account_id in recovery_fanout (home_relay_mailbox, privacy=False)"
+   "under-claim: home_relay_mailbox observes stable_account_id in recovery_fanout (home_relay_mailbox, privacy=False)",
+   "under-claim: home_relay_mailbox observes recovery_attempt in recovery_fanout (home_relay_mailbox, privacy=False)"
   ],
   "t0_sponsored_mailbox": [
-   "under-claim: t0_sponsored_mailbox observes recovery_attempt in recovery_fanout (t0_sponsored_mailbox, privacy=False)",
-   "under-claim: t0_sponsored_mailbox observes stable_account_id in recovery_fanout (t0_sponsored_mailbox, privacy=False)"
+   "under-claim: t0_sponsored_mailbox observes stable_account_id in recovery_fanout (t0_sponsored_mailbox, privacy=False)",
+   "under-claim: t0_sponsored_mailbox observes recovery_attempt in recovery_fanout (t0_sponsored_mailbox, privacy=False)"
   ],
   "t1_hosted_home": [
-   "under-claim: t1_hosted_home observes recovery_attempt in recovery_fanout (t1_hosted_home, privacy=False)",
-   "under-claim: t1_hosted_home observes stable_account_id in recovery_fanout (t1_hosted_home, privacy=False)"
+   "under-claim: t1_hosted_home observes stable_account_id in recovery_fanout (t1_hosted_home, privacy=False)",
+   "under-claim: t1_hosted_home observes recovery_attempt in recovery_fanout (t1_hosted_home, privacy=False)"
   ],
   "provider_auth_no_device_id": [
    "over-claim: discovery_publisher marks stable_device_correlator always but first_contact (home_relay_mailbox) does not reveal it",

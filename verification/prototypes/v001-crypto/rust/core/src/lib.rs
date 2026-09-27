@@ -19,6 +19,7 @@ pub mod acvp;
 pub mod bench;
 pub mod binding;
 pub mod cbor;
+pub mod delivery;
 pub mod error;
 pub mod hpke;
 pub mod kdf;

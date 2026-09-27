@@ -4,6 +4,13 @@
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
     {
+      "path": ".github/workflows/verify.yml",
+      "class": "repo_plumbing",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
       "path": ".gitignore",
       "class": "repo_plumbing",
       "domain": "architecture_process",
@@ -1782,6 +1789,13 @@
       "authority": "historical_checkpoint_record"
     },
     {
+      "path": "docs/checkpoints/CHECKPOINT_20260927_1808.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
       "path": "docs/checkpoints/README.md",
       "class": "checkpoint",
       "domain": "architecture_process",
@@ -3274,6 +3288,13 @@
     },
     {
       "path": "verification/prototypes/v001-crypto/rust/core/src/cbor.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v001-crypto/rust/core/src/delivery.rs",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

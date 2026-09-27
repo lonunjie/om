@@ -8,7 +8,7 @@
   },
   "continuity_assessment_cases": 2808,
   "cross_impl_cbor_vectors": 14,
-  "offline_continuity_artifacts": 63,
+  "offline_continuity_artifacts": 65,
   "gates_with_new_evidence": [
     "V-002",
     "V-004",

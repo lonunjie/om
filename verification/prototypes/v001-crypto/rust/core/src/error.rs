@@ -40,6 +40,8 @@ pub enum Error {
     /// A different handshake for an existing session; multi-session policy belongs to V-003.
     SessionConflict,
     NoPrekeysPublished,
+    /// Sealed-delivery wrapper failed route, key, expiry, or padding validation.
+    SealedDelivery(&'static str),
 }
 
 impl fmt::Display for Error {
@@ -56,6 +58,7 @@ impl Error {
         match self {
             Error::Binding(s) => format!("Binding({s})"),
             Error::Decode(s) => format!("Decode({s})"),
+            Error::SealedDelivery(s) => format!("SealedDelivery({s})"),
             e => format!("{e:?}"),
         }
     }

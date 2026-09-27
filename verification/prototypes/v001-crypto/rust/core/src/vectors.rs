@@ -11,6 +11,7 @@
 
 use crate::binding::{self, Acs, Credential, RelationshipContext};
 use crate::cbor::{self, V};
+use crate::delivery;
 use crate::hex;
 use crate::hpke;
 use crate::kdf;
@@ -306,6 +307,38 @@ fn hpke_vector() -> Value {
     })
 }
 
+fn sealed_delivery_vector() -> Value {
+    let mut rng = InsecureTestRng::from_label(b"om-v001-vectors/sealed-delivery");
+    let seed = arr32(&mut rng);
+    let pk = hpke::public_key(&seed);
+    let key_id = [0x41; 16];
+    let delivery_id = [0x42; 16];
+    let relay_uri = "https://relay.example.test/v1/deposit";
+    let capability = b"route-capability-vector";
+    let expires_at = 1_800_000_000u64;
+    let inner = b"ordinary complete OM one-to-one envelope";
+    let mut randomness = [0u8; 64]; rng.fill_bytes(&mut randomness);
+    let bucket = 1024usize;
+    let mut padding = vec![0u8; bucket - 4 - inner.len()]; rng.fill_bytes(&mut padding);
+    let wrapper = delivery::seal_deterministic(&pk, &key_id, &delivery_id, relay_uri, capability, expires_at,
+        inner, &randomness, &padding).unwrap();
+    let parsed = cbor::decode(&wrapper).unwrap();
+    let route = delivery::route_binding(relay_uri, capability);
+    json!({
+        "suite": {"spec":"draft-ietf-hpke-pq-05", "kem_id":hpke::KEM_ID, "kdf_id":hpke::KDF_ID, "aead_id":hpke::AEAD_ID, "mode":0},
+        "recipient_seed":hex(&seed), "recipient_public_key":hex(&pk), "delivery_key_id":hex(&key_id),
+        "delivery_id":hex(&delivery_id), "relay_uri":relay_uri, "deposit_capability":hex(capability),
+        "route_binding":hex(&route), "info":hex(&delivery::info(PROFILE_V1, &key_id, &route)),
+        "aad":hex(&delivery::aad(PROFILE_V1, &key_id, &delivery_id, expires_at, bucket)),
+        "expires_at":expires_at, "now":expires_at-10, "plaintext_bucket_bytes":bucket,
+        "inner_envelope":hex(inner), "encaps_randomness":hex(&randomness), "padding":hex(&padding),
+        "wrapper":hex(&wrapper), "hpke_enc":hex(parsed.get(5).unwrap().b().unwrap()),
+        "ciphertext":hex(parsed.get(6).unwrap().b().unwrap()),
+        "outer_open_is_sender_authentication":false, "clear_sender_fallback":false,
+        "authenticated_by": ["RelationshipContext", "ACS-DeviceCredential", "inner OM session"]
+    })
+}
+
 pub fn generate() -> Value {
     use Ev::*;
     let c1 = [
@@ -326,7 +359,7 @@ pub fn generate() -> Value {
     ];
     json!({
         "format": "om-v001-vectors/2",
-        "status": "Feasibility prototype vectors for V-001 (OM-Crypto-v1, ADR-0131/ADR-0135). INSECURE seeded RNG. Not product vectors.",
+        "status": "Current-tree V-001 feasibility vectors for OM-Crypto-v1 (ADR-0131/ADR-0135/ADR-0140/ADR-0142). INSECURE seeded RNG. Not product vectors.",
         "specs": {
             "pqxdh": "Signal PQXDH revision 3 (2023-05-24, updated 2024-01-23); prekeys authenticated by the OM composite device key (ADR-0135 §2)",
             "double_ratchet": "Signal Double Ratchet revision 4 (2025-11-04) §3; AEAD per ADR-0131 rule 3",
@@ -353,5 +386,6 @@ pub fn generate() -> Value {
             case("last_resort_pq_no_one_time_keys", false, &c2),
         ],
         "hpke_message_request": hpke_vector(),
+        "sealed_delivery": sealed_delivery_vector(),
     })
 }

@@ -126,7 +126,9 @@ names = set(check_names)
 def group(prefix):
     return [n for n in check_names if n.startswith(prefix)]
 binding_checks, ledger_checks, aead_checks, hpke_checks = group("binding_"), group("ledger_"), group("aead_"), group("hpke_")
-otk_checks = [n for n in check_names if not n.startswith(("binding_", "ledger_", "aead_", "hpke_", "dr_header"))]
+delivery_checks, freshness_checks = group("sealed_delivery_"), group("adr0140_")
+freshness_checks = group("adr0140_")
+otk_checks = [n for n in check_names if not n.startswith(("binding_", "ledger_", "aead_", "hpke_", "dr_header", "initiator_", "sealed_delivery_", "adr0140_"))]
 lock_has_spqr = "spqr" in lock or any("GPL" in k for k in licenses)
 C = "verification/prototypes/v001-crypto"
 criteria = [
@@ -173,6 +175,21 @@ criteria = [
      "note": f"Official draft-05 vectors (pinned commit + SHA-256): Rust {hpke_rust['native']['checks']} checks on native/wasi/node and Python "
              f"{py['hpke_pq_05_kats']['checks']} checks, all pass; the OM info/ticket binding vector is reproduced by Python. The combiner is the draft's CG "
              "construction, verified by its KATs, not an OM design."},
+    {"gate": "V-001", "criterion": "responder binds the inbound PQXDH initiator IK_A to exactly one active, non-quarantined DeviceCredential committed by the trusted relationship ACS head before any secret-key operation, with negative vectors for unknown, route-mismatched, revoked, quarantined, stale, substituted and ambiguous keys checked by the independent implementation (ADR-0136 rule 4, review F-9)",
+     "status": "met" if selftest_ok and py["vectors_ok"] else "unmet",
+     "evidence": E("rust/core/src/binding.rs", "rust/core/src/store.rs", "rust/core/src/otk.rs", "vectors/om-v001-proto-vectors.json", "python/check_vectors.py", "verification/reviews/2026-09-27-gpt-5-6-sol-v001-f9-re-review.md"),
+     "note": "Responder IK_A is checked against the trusted relationship ACS/DeviceCredential before secret-key work. Current selftests and independent Python vectors include route mismatch, stale/revoked/quarantined/substituted/ambiguous cases; focused non-Anthropic GPT-5.6 Sol re-review accepted the remediation."},
+    {"gate": "V-001", "criterion": "ADR-0135 §7 / ADR-0136 rule 4 responder binding accepted on re-review by a non-Anthropic reviewer (review F-9 reopened V-001)",
+     "status": "met", "evidence": ["verification/reviews/2026-09-27-gpt-5-6-sol-v001-f9-re-review.md"],
+     "note": "GPT-5.6 Sol independently accepted the responder-side initiator binding remediation for F-9."},
+    {"gate": "V-001", "criterion": "ADR-0140 AsyncKeyBundle v1 prototype persists a recipient high-water mark across reload/provider migration, rejects lower-generation replay and equal-generation core equivocation, and rejects one-time-prekey transplantation across device/profile/generation/provider-pool context",
+     "status": "met" if selftest_ok and py["vectors_ok"] and len(freshness_checks) >= 8 else "unmet",
+     "evidence": E("rust/core/src/binding.rs", "rust/core/src/store.rs", "rust/core/src/otk.rs", "vectors/om-v001-proto-vectors.json", "python/check_vectors.py"),
+     "note": f"{len(freshness_checks)} focused native/wasip1/Node checks cover same-generation migration across disjoint pools, generation-floor persistence through Device serialization/reload, lower-generation rollback, equal-generation core equivocation, and item transplantation across pool/device/profile/generation. Independent Python consumes refreshed current-tree vectors."},
+    {"gate": "V-001", "criterion": "SealedDeliveryEnvelope HPKE consumes the OM-Crypto-v1 pinned draft-ietf-hpke-pq-05 suite under ADR-0142 route-bound info/AAD and padding buckets, rejects wrong route/key/expiry, and never treats outer open as sender authentication",
+     "status": "met" if selftest_ok and py["vectors_ok"] and py["sealed_delivery_vectors"] == 1 and len(delivery_checks) >= 14 else "unmet",
+     "evidence": E("rust/core/src/delivery.rs", "rust/core/src/hpke.rs", "rust/core/src/otk.rs", "vectors/om-v001-proto-vectors.json", "python/check_vectors.py", "python/hpke_pq.py"),
+     "note": f"{len(delivery_checks)} focused native/wasip1/Node checks plus an independent Python seal/open vector exercise the exact 1216-byte public key, 1120-byte hybrid encapsulation, draft-05 suite, route-bound info, wrapper AAD, all five padding buckets, expiry, wrong route/key, tampering and the sender-authentication boundary. No clear-sender fallback is accepted."},
     {"gate": "V-001", "criterion": "[pre-release] independent cryptographic review of the integrated production path",
      "status": "unmet", "evidence": [], "note": "External reviewer required (external_review)."},
     {"gate": "V-001", "criterion": "[pre-release] production build provably excludes dev/test CryptoProvider (R-072)",

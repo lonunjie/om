@@ -1,6 +1,22 @@
 # OM Architecture Snapshot
 
-Generated: **2026-09-27 17:23 PHT (UTC+08:00)**, after the focused V-001 F-9 independent re-review
+Generated: **2026-09-27 18:08 PHT (UTC+08:00)**, after completing V-001 ADR-0140/ADR-0142 runtime evidence
+
+## 2026-09-27 18:08 PHT — V-001 current-tree runtime completion
+
+The supplied `om-design-20260927-1723-PHT.zip` was imported as checkpoint `20260927-1723`; its omitted `.github/workflows/verify.yml` registry entry was repaired. The already accepted GPT-5.6 Sol F-9 review was carried forward unchanged.
+
+Both remaining V-001 pre-engineering criteria now have current-tree runtime evidence:
+
+- ADR-0140 AsyncKeyBundle: Rust tests exercise same-generation/core migration between provider pools, persistence of the freshness floor through device serialization/reload, lower-generation replay rejection after reload, equal-generation core equivocation rejection, and one-time-prekey transplantation rejection across pool, device, profile and generation contexts.
+- ADR-0142 SealedDeliveryEnvelope: the bounded Rust prototype reuses the pinned draft-ietf-hpke-pq-05 MLKEM768-X25519 / HKDF-SHA256 / ChaCha20Poly1305 implementation. Native, wasip1 and Node/V8 tests cover route-bound info, wrapper AAD, profile-1 key/encapsulation sizes, all five padding buckets, expiry, wrong route/key, tampering, malformed padding and the outer-open versus sender-authentication boundary. No clear-sender fallback is accepted.
+- The independent Python checker verifies the refreshed deterministic vector corpus, including sealed-delivery wire/context/seal/open semantics. The previous vectors were compared before regeneration; changes match the ADR-0140 wire amendment, refreshed current initiator-binding cases and new ADR-0142 vector.
+
+The complete V-001 runner passed: 90/90 selftests on native, Wasmtime and Node/V8; Python vectors 236/236; pinned draft-05 HPKE KATs 33/33 on each Rust runtime and Python; NIST ACVP ML-KEM-768 80/80 on Rust native, Rust WASI and Python; 249 fresh-instance persistence steps / 367 delivered messages with byte-identical runtime schedules. See [`verification/results/v001-crypto-latest.json`](verification/results/v001-crypto-latest.json).
+
+V-001 pre-engineering is **13/13 passed** and `pre_engineering_status=passed`. The overall gate remains open for independent cryptographic review and production-build exclusion proof; engineering remains unauthorized. V-005 and V-005's 16:44 checkpoint were not modified.
+
+Repository-wide `make verify` also passed: phase-1 evidence covered **347,316 bounded cases**, and all **83 configured TLC runs** matched their expected outcomes; architecture validation, docs links and registry immutability passed.
 
 ## 2026-09-27 17:23 PHT — V-001 F-9 independent re-review
 

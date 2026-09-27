@@ -774,7 +774,7 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 1882467,
+      "distinct_states": 1881657,
       "depth": 22,
       "as_expected": true
     },
@@ -796,7 +796,7 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 14992,
+      "distinct_states": 15076,
       "depth": 11,
       "as_expected": true
     },
@@ -807,7 +807,7 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 16193,
+      "distinct_states": 16149,
       "depth": 11,
       "as_expected": true
     },
@@ -818,7 +818,7 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 2053,
+      "distinct_states": 2084,
       "depth": 9,
       "as_expected": true
     },

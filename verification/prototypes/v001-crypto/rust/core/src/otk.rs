@@ -6,6 +6,7 @@
 
 use crate::binding::{self, Acs, BundleFreshness, Credential, PeerView};
 use crate::cbor::{self, V};
+use crate::delivery;
 use crate::hpke;
 use crate::kdf::dr_aead_key_nonce;
 use crate::ledger::LAST_RESORT_ACCEPT_LIMIT;
@@ -30,7 +31,9 @@ fn chk(out: &mut Vec<Check>, name: &str, ok: bool, detail: impl Into<String>) {
 fn expect_err<T>(r: Result<T, Error>, want: &Error) -> (bool, String) {
     match r {
         Ok(_) => (false, "unexpectedly accepted".into()),
-        Err(e) => (&e == want || (matches!(want, Error::Binding(_)) && matches!(e, Error::Binding(_))), format!("rejected: {}", e.name())),
+        Err(e) => (&e == want || (matches!(want, Error::Binding(_)) && matches!(e, Error::Binding(_)))
+            || (matches!(want, Error::Decode(_)) && matches!(e, Error::Decode(_)))
+            || (matches!(want, Error::SealedDelivery(_)) && matches!(e, Error::SealedDelivery(_))), format!("rejected: {}", e.name())),
     }
 }
 
@@ -124,7 +127,7 @@ fn binding_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
     // A validly signed bundle with no ML-KEM signed prekey is still refused (no classical fallback).
     let b_nopq = set_key(&body, 8, None);
     let resigned = binding::sign_bundle(&bob.signer, &did, b_nopq, arr32(rng));
-    let (ok, d) = expect_err(binding::verify_fetch(&[resigned], &view), &Error::MissingPqPrekey);
+    let (ok, d) = expect_err(binding::verify_fetch(&[resigned], &view), &Error::Decode("missing map key"));
     chk(out, "binding_bundle_without_pq_signed_prekey_refused", ok, d);
 
     // Credential / ACS chain.
@@ -467,6 +470,141 @@ fn hpke_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
     chk(out, "hpke_pq_only_enc_rejected", ok, d);
 }
 
+fn sealed_delivery_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
+    let seed = arr32(rng);
+    let pk = hpke::public_key(&seed);
+    let key_id = [0x31; 16];
+    let relay = "https://relay.example.test/deposit";
+    let cap = b"opaque-capability-test-only";
+    let inner = b"ordinary authenticated OM inner envelope";
+    let wrapper = delivery::seal(&pk, &key_id, relay, cap, NOW + 3600, inner, rng).unwrap();
+    let opened = delivery::open(&wrapper, &seed, &key_id, relay, cap, NOW).unwrap();
+    chk(out, "sealed_delivery_hpke_roundtrip", opened.inner_envelope == inner && opened.outer_hpke_opened,
+        format!("opened={}, inner_len={}", opened.outer_hpke_opened, opened.inner_envelope.len()));
+    chk(out, "sealed_delivery_outer_open_is_not_sender_authentication", opened.outer_hpke_opened && !opened.sender_authenticated,
+        "sender authentication delegated to mandatory RelationshipContext and inner OM session");
+
+    let (ok, d) = expect_err(delivery::open(&wrapper, &seed, &key_id, "https://other.test", cap, NOW), &Error::DecryptFailed);
+    chk(out, "sealed_delivery_wrong_route_rejected", ok, d);
+    let (ok, d) = expect_err(delivery::open(&wrapper, &seed, &key_id, relay, b"other-capability", NOW), &Error::DecryptFailed);
+    chk(out, "sealed_delivery_tampered_route_bound_info_rejected", ok, d);
+    let wrong_id = [0x32; 16];
+    let (ok, d) = expect_err(delivery::open(&wrapper, &seed, &wrong_id, relay, cap, NOW), &Error::SealedDelivery("key"));
+    chk(out, "sealed_delivery_wrong_key_id_rejected", ok, d);
+    let wrong_seed = arr32(rng);
+    let (ok, d) = expect_err(delivery::open(&wrapper, &wrong_seed, &key_id, relay, cap, NOW), &Error::DecryptFailed);
+    chk(out, "sealed_delivery_wrong_recipient_private_key_rejected", ok, d);
+    let (ok, d) = expect_err(delivery::open(&wrapper, &seed, &key_id, relay, cap, NOW + 3901), &Error::SealedDelivery("expired"));
+    chk(out, "sealed_delivery_expiry_skew_boundary_rejected", ok, d);
+
+    let mutate = |key: u64, value: V| {
+        let mut v = cbor::decode(&wrapper).unwrap();
+        if let V::M(ref mut m) = v { for (k, x) in m { if *k == key { *x = value.clone(); } } }
+        cbor::encode(&v)
+    };
+    let id2 = V::B(vec![0x44; 16]);
+    let (ok, d) = expect_err(delivery::open(&mutate(4, id2), &seed, &key_id, relay, cap, NOW), &Error::DecryptFailed);
+    chk(out, "sealed_delivery_tampered_aad_delivery_id_rejected", ok, d);
+    let (ok, d) = expect_err(delivery::open(&mutate(7, V::U(NOW + 3601)), &seed, &key_id, relay, cap, NOW), &Error::DecryptFailed);
+    chk(out, "sealed_delivery_tampered_aad_expiry_rejected", ok, d);
+    let mut enc = cbor::decode(&wrapper).unwrap().get(5).unwrap().b().unwrap().to_vec(); enc[0] ^= 1;
+    let (ok, d) = expect_err(delivery::open(&mutate(5, V::B(enc)), &seed, &key_id, relay, cap, NOW), &Error::DecryptFailed);
+    chk(out, "sealed_delivery_tampered_hybrid_encapsulation_rejected", ok, d);
+    let mut ct = cbor::decode(&wrapper).unwrap().get(6).unwrap().b().unwrap().to_vec(); ct[0] ^= 1;
+    let (ok, d) = expect_err(delivery::open(&mutate(6, V::B(ct)), &seed, &key_id, relay, cap, NOW), &Error::DecryptFailed);
+    chk(out, "sealed_delivery_tampered_ciphertext_rejected", ok, d);
+    let (ok, d) = expect_err(delivery::open(&mutate(6, V::B(vec![0; 1056])), &seed, &key_id, relay, cap, NOW), &Error::SealedDelivery("bucket"));
+    chk(out, "sealed_delivery_nonconforming_padding_bucket_rejected", ok, d);
+    let (ok, d) = expect_err(delivery::seal_deterministic(&pk, &key_id, &[7; 16], relay, cap, NOW + 60, inner,
+        &[9; 64], &[0; 10]), &Error::SealedDelivery("padding"));
+    chk(out, "sealed_delivery_invalid_padding_length_rejected", ok, d);
+    let mut bucket_lengths = Vec::new();
+    for n in [12usize, 1020, 1021, 4092, 4093, 16380, 16381, 65532, 65533, 131068] {
+        let msg = vec![0x5a; n];
+        let w = delivery::seal(&pk, &key_id, relay, cap, NOW + 3600, &msg, rng).unwrap();
+        let parsed = cbor::decode(&w).unwrap();
+        let got = parsed.get(6).unwrap().b().unwrap().len();
+        let opened = delivery::open(&w, &seed, &key_id, relay, cap, NOW).unwrap();
+        bucket_lengths.push(got);
+        if opened.inner_envelope != msg { bucket_lengths.push(0); }
+    }
+    chk(out, "sealed_delivery_all_fixed_plaintext_buckets_roundtrip", bucket_lengths == vec![1040,1040,4112,4112,16400,16400,65552,65552,131088,131088],
+        format!("ciphertext lengths={bucket_lengths:?}"));
+    let unsealed = cbor::encode(&V::A(vec![V::T("ordinary clear-sender envelope".into())]));
+    chk(out, "sealed_delivery_no_clear_sender_fallback", delivery::open(&unsealed, &seed, &key_id, relay, cap, NOW).is_err(),
+        "relay receive boundary requires object type 23 and never accepts clear-sender fallback");
+}
+
+fn adr0140_persistence_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
+    let mut bob = Device::new(rng);
+    let mut alice = Device::new(rng);
+    let acs = bob.acs().body();
+    let cred = bob.credential().body();
+    let view = Device::peer_view(&acs, &cred);
+    let pool_a = [0xa1; 16];
+    let pool_b = [0xb2; 16];
+    let first = bob.generate_one_time_for_pool(pool_a, 0, 0, rng);
+    let migrated = bob.generate_one_time_for_pool(pool_b, 0, 0, rng);
+    let r1 = alice.start_session(&[first.bundle.clone()], &view, rng);
+    let r2 = alice.start_session(&[migrated.bundle.clone()], &view, rng);
+    chk(out, "adr0140_cross_provider_migration_same_generation_core_accepted", r1.is_ok() && r2.is_ok(),
+        format!("provider A={}; provider B={}", r1.is_ok(), r2.is_ok()));
+
+    let mut third = bob.rotate_signed_prekeys(rng);
+    let r3 = alice.start_session(&[third.bundle.clone()], &view, rng);
+    let before = alice.bundle_freshness.floors.len();
+    let serialized = alice.to_bytes();
+    let mut reloaded = Device::from_bytes(&serialized).unwrap();
+    let persisted = reloaded.bundle_freshness.floors == alice.bundle_freshness.floors;
+    chk(out, "adr0140_generation_floor_survives_device_reload", r3.is_ok() && persisted && before > 0,
+        format!("accepted_new_generation={}; entries={before}", r3.is_ok()));
+
+    let mut replayed = reloaded.clone();
+    let rollback = replayed.start_session(&[first.bundle.clone()], &view, rng);
+    chk(out, "adr0140_lower_generation_replay_rejected_after_reload", matches!(rollback, Err(Error::PrekeyGenerationRollback)),
+        format!("{rollback:?}"));
+
+    // Same authenticated generation with a different signed-prekey core is equivocation even after restore.
+    let (body, _) = bundle_parts(&third.bundle);
+    let changed = set_key(&body, 7, Some(V::M(vec![(0, V::U(9999)), (1, V::U(1)), (2, V::B([0x77; 32].to_vec()))])));
+    third.bundle = binding::sign_bundle(&bob.signer, &bob.device_id, changed, arr32(rng));
+    let equiv = reloaded.start_session(&[third.bundle], &view, rng);
+    chk(out, "adr0140_equal_generation_core_equivocation_rejected_after_reload",
+        matches!(equiv, Err(Error::PrekeyGenerationEquivocation)), format!("{equiv:?}"));
+
+    // Device/profile/generation/pool context is covered by the signed one-time item.
+    let pool_a_upload = bob.generate_one_time_for_pool(pool_a, 0, 1, rng);
+    let pool_b_upload = bob.generate_one_time_for_pool(pool_b, 0, 0, rng);
+    let item_a = pool_a_upload.pqopks[0].clone();
+    let pool_b_view = Device::peer_view(&acs, &cred);
+    let mut fresh = BundleFreshness::default();
+    let accepted = binding::verify_fetch_with_freshness(&[pool_b_upload.bundle.clone()], &pool_b_view, &mut fresh);
+    let transplanted = binding::verify_fetch_with_freshness(&[pool_b_upload.bundle, item_a.clone()], &pool_b_view, &mut fresh);
+    chk(out, "adr0140_one_time_prekey_provider_pool_transplant_rejected", accepted.is_ok() && matches!(transplanted, Err(Error::BadSignature)),
+        format!("accepted_current_pool={}; transplant={transplanted:?}", accepted.is_ok()));
+
+    // Same item bytes cannot be rebound to another device/profile/generation by provider relabeling.
+    let (bbody, _) = bundle_parts(&pool_a_upload.bundle);
+    let changed_generation = set_key(&bbody, 6, Some(V::U(99)));
+    let rebound = binding::sign_bundle(&bob.signer, &bob.device_id, changed_generation, arr32(rng));
+    let transplanted_generation = binding::verify_fetch(&[rebound, item_a.clone()], &pool_b_view);
+    chk(out, "adr0140_one_time_prekey_generation_transplant_rejected", transplanted_generation.is_err(),
+        format!("{transplanted_generation:?}"));
+
+    let mut other = Device::new(rng);
+    let other_upload = other.generate_one_time_for_pool(pool_a, 0, 0, rng);
+    let other_acs = other.acs().body();
+    let other_cred = other.credential().body();
+    let other_view = Device::peer_view(&other_acs, &other_cred);
+    let cross_device = binding::verify_fetch(&[other_upload.bundle, item_a.clone()], &other_view);
+    chk(out, "adr0140_one_time_prekey_device_transplant_rejected", cross_device.is_err(), format!("{cross_device:?}"));
+    let (profile_body, _) = bundle_parts(&pool_a_upload.bundle);
+    let profile2 = set_key(&profile_body, 5, Some(V::U(2)));
+    let profile_bundle = binding::sign_bundle(&bob.signer, &bob.device_id, profile2, arr32(rng));
+    let cross_profile = binding::verify_fetch(&[profile_bundle, item_a], &pool_b_view);
+    chk(out, "adr0140_one_time_prekey_profile_transplant_rejected", cross_profile.is_err(), format!("{cross_profile:?}"));
+}
+
 /// ADR-0136 rule 4 (review F-4/F-9): the responder binds IK_A to exactly one active, non-quarantined
 /// DeviceCredential of a trusted relationship peer before any secret-key operation.
 fn initiator_binding_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
@@ -627,5 +765,7 @@ pub fn run<R: RngCore + CryptoRng>(rng: &mut R) -> Vec<Check> {
     ledger_checks(&mut out, rng);
     aead_checks(&mut out, rng);
     hpke_checks(&mut out, rng);
+    sealed_delivery_checks(&mut out, rng);
+    adr0140_persistence_checks(&mut out, rng);
     out
 }

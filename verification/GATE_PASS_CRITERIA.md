@@ -23,7 +23,7 @@
 
 | Gate | Name | Scopes | Pre-engineering | Overall | Feasibility | W0 interface impact |
 |---|---|---|---|---|---|---|
-| V-001 | `production_crypto_path` | core_kernel | open | open | open | — |
+| V-001 | `production_crypto_path` | core_kernel | passed | open | open | — |
 | V-002 | `account_control_formal_model` | core_kernel | open | open | open | — |
 | V-003 | `one_to_one_session_model` | core_kernel | open | open | open | — |
 | V-004 | `group_commit_control_model` | groups | open | open | evidenced | core_kernel |
@@ -54,11 +54,11 @@
 Demonstrate the selected OM-Crypto-v1 state-machine path, PQXDH + Double Ratchet (ADR-0118; no PQ post-compromise healing in v1, SPQR is OM-Crypto-v2), in Rust on native and wasm32, including state persistence/reload, deterministic vectors, one-time key material and dependency/licensing/update strategy, without relying on an unsupported external API contract.
 
 - **Scopes blocked:** core_kernel
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_implementation_or_upstream_kat; pre-release external_review
 - **Execution class:** `repo_local_feasibility`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `satisfied`
-- **Evidence:** `decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md`; `decisions/ADR-0135-om-crypto-v1-construction-pinning.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `decisions/ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `docs/reports/2026-09-26-security-equivalence-evidence-report.md`; `verification/bounded/async_prekey_adr0140_rules.py`; `verification/bounded/relationship_context_surface.py`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/prototypes/v001-crypto/README.md`; `verification/prototypes/v001-crypto/python/hpke_pq.py`; `verification/prototypes/v001-crypto/vectors/om-v001-proto-vectors.json`; `verification/results/async-prekey-adr0140-latest.json`; `verification/results/relationship-context-surface-latest.json`; `verification/results/sealed-delivery-adr0142-latest.json`; `verification/results/v001-crypto-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/reviews/2026-09-27-gpt-5-6-sol-v001-f9-re-review.md`
+- **Evidence:** `decisions/ADR-0118-production-crypto-dependency-licensing-and-update-strategy.md`; `decisions/ADR-0135-om-crypto-v1-construction-pinning.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `decisions/ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `docs/reports/2026-09-26-security-equivalence-evidence-report.md`; `verification/bounded/async_prekey_adr0140_rules.py`; `verification/bounded/relationship_context_surface.py`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/prototypes/v001-crypto/README.md`; `verification/prototypes/v001-crypto/python/check_vectors.py`; `verification/prototypes/v001-crypto/python/hpke_pq.py`; `verification/prototypes/v001-crypto/rust/core/src/delivery.rs`; `verification/prototypes/v001-crypto/rust/core/src/otk.rs`; `verification/prototypes/v001-crypto/rust/core/src/vectors.rs`; `verification/prototypes/v001-crypto/vectors/om-v001-proto-vectors.json`; `verification/results/async-prekey-adr0140-latest.json`; `verification/results/relationship-context-surface-latest.json`; `verification/results/sealed-delivery-adr0142-latest.json`; `verification/results/v001-crypto-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/reviews/2026-09-27-gpt-5-6-sol-v001-f9-re-review.md`
 
 Pre-engineering criteria:
 
@@ -73,18 +73,13 @@ Pre-engineering criteria:
 - [x] MessageRequest HPKE consumes draft-ietf-hpke-pq-05 MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305 KATs plus OM context vectors; no ad-hoc hybrid implementation (ADR-0131 rule 9)
 - [x] responder binds the inbound PQXDH initiator IK_A to exactly one active, non-quarantined DeviceCredential committed by the trusted relationship ACS head before any secret-key operation, with negative vectors for unknown, route-mismatched, revoked, quarantined, stale, substituted and ambiguous keys checked by the independent implementation (ADR-0136 rule 4, review F-9)
 - [x] ADR-0135 §7 / ADR-0136 rule 4 responder binding accepted on re-review by a non-Anthropic reviewer (review F-9 reopened V-001)
-- [ ] ADR-0140 AsyncKeyBundle v1 prototype persists a recipient high-water mark across reload/provider migration, rejects lower-generation replay and equal-generation core equivocation, and rejects one-time-prekey transplantation across device/profile/generation/provider-pool context
-- [ ] SealedDeliveryEnvelope HPKE consumes the OM-Crypto-v1 pinned draft-ietf-hpke-pq-05 suite under ADR-0142 route-bound info/AAD and padding buckets, rejects wrong route/key/expiry, and never treats outer open as sender authentication
+- [x] ADR-0140 AsyncKeyBundle v1 prototype persists a recipient high-water mark across reload/provider migration, rejects lower-generation replay and equal-generation core equivocation, and rejects one-time-prekey transplantation across device/profile/generation/provider-pool context
+- [x] SealedDeliveryEnvelope HPKE consumes the OM-Crypto-v1 pinned draft-ietf-hpke-pq-05 suite under ADR-0142 route-bound info/AAD and padding buckets, rejects wrong route/key/expiry, and never treats outer open as sender authentication
 
 Pre-release criteria:
 
 - [ ] independent cryptographic review of the integrated production path
 - [ ] production build provably excludes dev/test CryptoProvider (R-072)
-
-Mechanically unfinished pre-engineering work:
-
-- ADR-0140 AsyncKeyBundle v1 prototype persists a recipient high-water mark across reload/provider migration, rejects lower-generation replay and equal-generation core equivocation, and rejects one-time-prekey transplantation across device/profile/generation/provider-pool context
-- SealedDeliveryEnvelope HPKE consumes the OM-Crypto-v1 pinned draft-ietf-hpke-pq-05 suite under ADR-0142 route-bound info/AAD and padding buckets, rejects wrong route/key/expiry, and never treats outer open as sender authentication
 
 ### V-002 — `account_control_formal_model`
 
