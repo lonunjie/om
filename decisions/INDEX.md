@@ -160,3 +160,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0151 — Rich-list validation-layer closure](ADR-0151-rich-list-validation-layer-closure.md)
 - [ADR-0152 — Promote desktop, replaceable Android wake and local contact cleanup into V1](ADR-0152-v1-desktop-replaceable-android-wake-and-contact-cleanup.md)
 - [ADR-0153 — Wake-registration retirement and residual-leakage closure](ADR-0153-wake-registration-retirement-and-residual-leakage-closure.md)
+- [ADR-0154 — Verifier-local timer runtime segments and web-verifier liveness](ADR-0154-verifier-timer-runtime-segments-and-web-verifier-liveness.md)

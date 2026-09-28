@@ -2192,6 +2192,12 @@
         "V-021",
         "conformance:ui_intents"
       ]
+    },
+    {
+      "requirement": "R-340",
+      "verified_by": [
+        "V-002"
+      ]
     }
   ]
 }

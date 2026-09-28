@@ -4,6 +4,7 @@
 - **Date:** 2026-09-28
 - **Scope:** Run 5A normative design closure before executable hardening; no wire-object change and no engineering authorization
 - **Amends:** ADR-0039 backup/restore boundary, ADR-0127/0131 recovery-observation timing, ADR-0144/0145/0146 MessageRequest bootstrap lifecycle
+- **Amended by:** ADR-0154 §5 runtime-segment definition (one OS boot session) and guarded web-verifier wall-assisted gap credit
 
 ## Context
 

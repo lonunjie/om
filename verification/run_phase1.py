@@ -30,6 +30,7 @@ RUNS = [
     ([sys.executable, str(ROOT / "verification/bounded/sealed_delivery_adr0145_closure.py")], "verification/bounded/sealed_delivery_adr0145_closure.py"),
     ([sys.executable, str(ROOT / "verification/bounded/sealed_delivery_adr0146_final_closure.py")], "verification/bounded/sealed_delivery_adr0146_final_closure.py"),
     ([sys.executable, str(ROOT / "verification/bounded/recovery_durable_timer_adr0147.py")], "verification/bounded/recovery_durable_timer_adr0147.py"),
+    ([sys.executable, str(ROOT / "verification/bounded/recovery_timer_adr0154.py")], "verification/bounded/recovery_timer_adr0154.py"),
     ([sys.executable, str(ROOT / "verification/bounded/sealed_delivery_adr0147_lifecycle_restore.py")], "verification/bounded/sealed_delivery_adr0147_lifecycle_restore.py"),
     ([sys.executable, str(ROOT / "verification/bounded/account_private_sync_adr0148.py")], "verification/bounded/account_private_sync_adr0148.py"),
     ([sys.executable, str(ROOT / "verification/bounded/account_private_sync_adr0149_hardening.py")], "verification/bounded/account_private_sync_adr0149_hardening.py"),

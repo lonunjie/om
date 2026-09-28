@@ -1,0 +1,379 @@
+{
+  "checker": "recovery_timer_adr0154",
+  "failures": [],
+  "gates": [
+    "V-002"
+  ],
+  "mutations": [
+    {
+      "caught": true,
+      "id": "M1_process_death_treated_as_boot_break",
+      "mutated": [
+        false,
+        0
+      ],
+      "spec": [
+        true,
+        0
+      ]
+    },
+    {
+      "caught": true,
+      "id": "M2_new_boot_treated_as_same_session",
+      "mutated": [
+        true,
+        true,
+        true,
+        0
+      ],
+      "spec": [
+        false,
+        false,
+        true,
+        0
+      ]
+    },
+    {
+      "caught": true,
+      "id": "M3_double_credit_after_backward_forward_jump",
+      "mutated": [
+        100,
+        true,
+        550
+      ],
+      "spec": [
+        60,
+        false,
+        50
+      ]
+    },
+    {
+      "caught": true,
+      "id": "M4_accept_wall_assisted_without_sweep",
+      "mutated": [
+        true,
+        true,
+        90
+      ],
+      "spec": [
+        false,
+        true,
+        90
+      ]
+    },
+    {
+      "caught": true,
+      "id": "M5_wall_credit_under_hardened",
+      "mutated": [
+        100,
+        true,
+        10000
+      ],
+      "spec": [
+        10,
+        false,
+        0
+      ]
+    },
+    {
+      "caught": true,
+      "id": "M6_boot_session_wall_credit_across_reboot",
+      "mutated": [
+        false,
+        false,
+        false,
+        10000
+      ],
+      "spec": [
+        false,
+        false,
+        true,
+        0
+      ]
+    }
+  ],
+  "passed": true,
+  "requirements": [
+    "R-340",
+    "R-322"
+  ],
+  "scenarios": [
+    {
+      "expected": [
+        true,
+        0
+      ],
+      "got": [
+        true,
+        0
+      ],
+      "id": "S1_boot_session_process_death_keeps_credit",
+      "ok": true,
+      "trace": [
+        [
+          "run",
+          10,
+          10
+        ],
+        [
+          "process_exit",
+          90,
+          100
+        ]
+      ]
+    },
+    {
+      "expected": [
+        false,
+        false,
+        true,
+        0
+      ],
+      "got": [
+        false,
+        false,
+        true,
+        0
+      ],
+      "id": "S2_boot_session_reboot_not_credited",
+      "ok": true,
+      "trace": [
+        [
+          "run",
+          40,
+          40
+        ],
+        [
+          "reboot",
+          10000,
+          40
+        ],
+        [
+          "run",
+          59,
+          99
+        ],
+        [
+          "run",
+          1,
+          100
+        ]
+      ]
+    },
+    {
+      "expected": [
+        false,
+        true,
+        90
+      ],
+      "got": [
+        false,
+        true,
+        90
+      ],
+      "id": "S3_web_gap_credit_requires_final_sweep",
+      "ok": true,
+      "trace": [
+        [
+          "run",
+          10,
+          10
+        ],
+        [
+          "process_exit",
+          90,
+          100
+        ],
+        [
+          "sweep",
+          "clear"
+        ]
+      ]
+    },
+    {
+      "expected": [
+        60,
+        false,
+        50
+      ],
+      "got": [
+        60,
+        false,
+        50
+      ],
+      "id": "S4_backward_then_forward_jump_no_double_credit",
+      "ok": true,
+      "trace": [
+        [
+          "run",
+          10,
+          10
+        ],
+        [
+          "wall_jump",
+          -500,
+          10
+        ],
+        [
+          "process_exit",
+          50,
+          60
+        ],
+        [
+          "sweep",
+          "clear"
+        ]
+      ]
+    },
+    {
+      "expected": [
+        10,
+        false,
+        0
+      ],
+      "got": [
+        10,
+        false,
+        0
+      ],
+      "id": "S5_hardened_web_verifier_monotonic_only",
+      "ok": true,
+      "trace": [
+        [
+          "run",
+          10,
+          10
+        ],
+        [
+          "process_exit",
+          10000,
+          10
+        ],
+        [
+          "sweep",
+          "clear"
+        ]
+      ]
+    },
+    {
+      "expected": [
+        false,
+        false,
+        false
+      ],
+      "got": [
+        false,
+        false,
+        false
+      ],
+      "id": "S6_unavailable_sweep_pending_and_veto_final",
+      "ok": true,
+      "trace": [
+        [
+          "run",
+          10,
+          10
+        ],
+        [
+          "process_exit",
+          90,
+          100
+        ],
+        [
+          "sweep",
+          "unavailable"
+        ],
+        [
+          "sweep",
+          "veto"
+        ],
+        [
+          "sweep",
+          "clear"
+        ]
+      ]
+    },
+    {
+      "expected": [
+        100,
+        false
+      ],
+      "got": [
+        100,
+        false
+      ],
+      "id": "S7_sweep_must_be_in_current_segment",
+      "ok": true,
+      "trace": [
+        [
+          "run",
+          10,
+          10
+        ],
+        [
+          "process_exit",
+          40,
+          50
+        ],
+        [
+          "sweep",
+          "clear"
+        ],
+        [
+          "process_exit",
+          50,
+          100
+        ]
+      ]
+    },
+    {
+      "expected": [
+        true,
+        0
+      ],
+      "got": [
+        true,
+        0
+      ],
+      "id": "S8_maximum_accepts_on_monotonic_alone",
+      "ok": true,
+      "trace": [
+        [
+          "run",
+          99,
+          99
+        ],
+        [
+          "process_exit",
+          5,
+          99
+        ],
+        [
+          "run",
+          1,
+          100
+        ]
+      ]
+    }
+  ],
+  "scope": "ADR-0154 runtime-segment definition and guarded web-verifier wall-assisted gap credit",
+  "structural_checks": {
+    "a3_maps_r340_t132": true,
+    "adr_defines_boot_session_segment": true,
+    "adr_final_veto_sweep": true,
+    "adr_hardened_maximum_strict": true,
+    "adr_high_water_rule": true,
+    "r340_present": true,
+    "registry_mentions_adr0154": true,
+    "t132_present": true
+  },
+  "summary": {
+    "mutations": 6,
+    "mutations_caught": 6,
+    "scenarios": 8,
+    "scenarios_passed": 8
+  },
+  "threats": [
+    "T-132"
+  ]
+}

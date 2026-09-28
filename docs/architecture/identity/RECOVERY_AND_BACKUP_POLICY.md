@@ -345,8 +345,10 @@ Normative, from the V-series models. The ADR is authoritative where this summary
 For a recovery action with no current non-quarantined controller co-signature, the activation delay is **verifier
 local**. Each verifier durably records the first valid observation of the RecoveryRequest digest and waits the full
 RecoveryPolicy delay using the crash-safe monotonic elapsed-time lower-bound rule in ADR-0147. A verifier that was offline or partitioned starts its own interval
-when it first sees the request. Across reboot, only durably checkpointed monotonic runtime counts; unmeasured downtime and wall-clock jumps never shorten the interval, and missing/rolled-back timer state restarts or otherwise conservatively lengthens the delay. Home receipt timestamps, request wall clocks and custodian assertions are never time
+when it first sees the request. Across reboot, only durably checkpointed monotonic runtime counts; unmeasured downtime and wall-clock jumps never shorten the interval (except the bounded ADR-0154 web-verifier gap credit described below), and missing/rolled-back timer state restarts or otherwise conservatively lengthens the delay. Home receipt timestamps, request wall clocks and custodian assertions are never time
 authority. Any valid RecoveryVeto observed before local activation prevents acceptance.
+
+ADR-0154 keeps this usable on the PWA. A runtime segment is one OS boot session on native platforms, so app-process death does not reset credit. A web (`process_only`) verifier under the Recommended profile may credit wall-clock gaps between app sessions, forward of a durable high-water mark only. It accepts only after a final authenticated refresh of the recovering account's control state shows no RecoveryVeto and no superseding controller head. Hardened/Maximum verifiers keep the strict monotonic-only rule.
 
 This deliberately makes a long-partitioned verifier slower to accept recovery. The trade is constitutional: a
 RecoveryRoot holder cannot hide a request from live controllers, wait elsewhere and later claim the veto window has

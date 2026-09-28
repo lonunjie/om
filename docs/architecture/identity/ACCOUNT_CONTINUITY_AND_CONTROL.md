@@ -326,4 +326,4 @@ The TLC model [`verification/tla/AccountControl.tla`](../../../verification/tla/
 
 ADR-0131 makes recovery-alone activation withholding-resistant. Every verifier that has not already observed the
 RecoveryRequest for the full policy delay treats the successor as pending, even if another peer already accepted it.
-There is no global trusted recovery clock. Controller co-signature is the only v1 immediate path.
+There is no global trusted recovery clock. Controller co-signature is the only v1 immediate path. ADR-0154 defines the verifier's runtime segment (one OS boot session) and the guarded wall-assisted gap credit that web verifiers may use under the Recommended profile, always ending in an authenticated veto sweep.

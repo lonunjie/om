@@ -1194,6 +1194,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0154-verifier-timer-runtime-segments-and-web-verifier-liveness.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -3406,6 +3413,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/recovery_timer_adr0154.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/relationship_context_surface.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -4611,6 +4625,13 @@
     },
     {
       "path": "verification/results/recovery-durable-timer-adr0147-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/recovery-timer-adr0154-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

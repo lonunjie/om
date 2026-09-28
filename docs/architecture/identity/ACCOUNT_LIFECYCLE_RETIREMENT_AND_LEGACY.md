@@ -68,7 +68,7 @@ messaging devices or provider credentials. They can authorize only the narrow te
 
 OM cannot prove death or inactivity from a provider timestamp. A threshold-signed legacy claim therefore starts a
 **verifier-local dormancy interval**. Each verifier records its own first valid observation of the claim and waits
-`owner_inactivity_wait_seconds` using monotonic elapsed time. Home timestamps, guardian wall clocks and a claimed
+`owner_inactivity_wait_seconds` using the ADR-0147/ADR-0154 verifier-local elapsed-time rules. Home timestamps, guardian wall clocks and a claimed
 "last seen" value cannot shorten the interval.
 
 Any valid newer owner-authorized AccountControlState transition or a legacy veto during this interval cancels the

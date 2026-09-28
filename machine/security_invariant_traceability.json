@@ -50,24 +50,28 @@
         "R-185",
         "R-200",
         "R-278",
-        "R-322"
+        "R-322",
+        "R-340"
       ],
       "threats": [
         "T-041",
         "T-050",
         "T-090",
-        "T-124"
+        "T-124",
+        "T-132"
       ],
       "decisions": [
         "D-149",
-        "D-169"
+        "D-169",
+        "D-176"
       ],
       "evidence": [
         "V-002"
       ],
       "sources": [
         "docs/architecture/safety/SECURITY_INVARIANTS.md",
-        "decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md"
+        "decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md",
+        "decisions/ADR-0154-verifier-timer-runtime-segments-and-web-verifier-liveness.md"
       ]
     },
     {
