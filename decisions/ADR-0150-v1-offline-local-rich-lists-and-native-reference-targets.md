@@ -4,7 +4,7 @@
 - **Date:** 2026-09-28
 - **Scope:** Run 8A normative V1-scope promotion; executable/adversarial evidence deferred to Run 8B
 - **Builds on:** ADR-0130 LAN privacy hardening, ADR-0148 V1 product-base promotion and ADR-0149 promoted-surface hardening
-- **Amended by:** ADR-0151 clarifies registered-schema rejection versus schema-valid rich-list semantic fallback; ADR-0152 promotes desktop into the V1 reference family; ADR-0155 makes registered-schema failures ignore the enhancement and binds list annotations to the carrying event's text
+- **Amended by:** ADR-0151 clarifies registered-schema rejection versus schema-valid rich-list semantic fallback; ADR-0152 promotes desktop into the V1 reference family; ADR-0155 makes registered-schema failures ignore the enhancement and binds list annotations to the carrying event's text; ADR-0156 fixes four LAN architectural rules and moves the concrete LAN wire binding to design item A-055, scope `local_delivery` and gate V-024
 - **Does not amend:** OM-Crypto-v1, AccountControlState authority, the frozen W0 ConversationEvent body grammar, MLS/group security, relay authority, provider trust semantics, or the rule that platform capabilities are discovered rather than assumed
 
 ## Context

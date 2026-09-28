@@ -42,7 +42,7 @@ A reference client may implement more than the minimum conformance surface, but 
 | Drafts | V1 local/account-private UX | Stored locally and, for linked eligible devices of the same IdentityProfile, synchronizable through the authenticated E2EE account-private channel under ADR-0148 conflict-preservation rules. Never conversation authority. |
 | Mute | V1 local/account-private UX | Notification preference, not room authority; may sync account-privately under the ADR-0148 allowlist. |
 | Archive / folders / labels | V1 local/account-private UX | Organizational view state only; may sync account-privately under the ADR-0148 allowlist. |
-| Scheduled send | Local/account-private UX | Encrypted local queue until actual send time. If no authorized device is online, nothing is sent. |
+| Scheduled send | Local UX (device-local queue) | Encrypted device-local, profile-bound queue until actual send time. Sent as an ordinary message stamped at actual send time; an overdue item goes out at the next opportunity marked sent-late to the sender; a device that loses eligibility discards it (ADR-0156). |
 | Stickers | Product-baseline capability | First-class UX is required; bounded inert media + portable pack semantics are frozen in [`EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`](../ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md). |
 | GIF-like looping animation | Product-baseline capability | Modeled semantically as looping animation; baseline interoperable expressive payload is bounded animated WebP rather than a requirement to use the legacy GIF codec. |
 | Contact sharing | Core interoperable | Existing signed/expiring `ContactCapsule` model. |
@@ -170,6 +170,13 @@ The secure default is deliberately boring:
 ```text
 compose -> encrypt/store in local authorized-device queue -> at due time create/send normal message event
 ```
+
+ADR-0156 fixes the details:
+
+1. The queue is device-local and profile-bound; it is not in the V1 account-private sync allowlist, and each item captures its `ProfileExecutionContext`.
+2. At send time the item becomes an ordinary new `message.create`. EventClock, sending epoch, authorization and `expiry` are taken at actual send time, never backdated to compose or due time.
+3. If the device was not running at the due time, the item goes out at the next opportunity and the sender's UI marks it "sent late". Recipients see an ordinary message.
+4. If the device or profile loses eligibility first (device revoked, profile removed, left or removed from the room, relationship ended or blocked), the item is discarded with a local notice and never migrated to another device.
 
 No relay/provider gets a special “send this plaintext later” privilege. If users later want guaranteed cloud scheduling while all devices are offline, that becomes an explicit optional service with a visible trust model.
 

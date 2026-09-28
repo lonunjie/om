@@ -1208,6 +1208,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0156-engineering-handoff-closure-lan-binding-and-later-wave-wire-freeze.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",

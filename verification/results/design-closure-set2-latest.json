@@ -1,33 +1,36 @@
 {
   "kind": "design_closure_set2",
   "design_only": true,
-  "requirements": 332,
-  "threats": 123,
-  "decisions": 177,
-  "design_queue_items": 43,
+  "requirements": 336,
+  "threats": 125,
+  "decisions": 178,
+  "design_queue_items": 44,
   "security_invariants": 36,
   "checks": [
     {
-      "name": "design_queue_closed",
-      "items": 43,
-      "open": 0
+      "name": "design_queue_closed_for_w0",
+      "items": 44,
+      "open": 1,
+      "open_tracked_later_wave": [
+        "A-055"
+      ]
     },
     {
       "name": "requirement_traceability",
-      "requirements": 332,
-      "rows": 332,
+      "requirements": 336,
+      "rows": 336,
       "missing": 0,
       "duplicates": 0
     },
     {
       "name": "threat_traceability",
-      "threats": 123,
+      "threats": 125,
       "problems": 0
     },
     {
       "name": "decision_adr_index",
-      "decisions": 177,
-      "indexed_adrs": 155,
+      "decisions": 178,
+      "indexed_adrs": 156,
       "problems": 0
     },
     {
@@ -55,7 +58,7 @@
     },
     {
       "name": "eleven_scope_adversarial_coverage",
-      "scopes": 11,
+      "scopes": 12,
       "missing_scopes": [],
       "missing_attack_classes": []
     }

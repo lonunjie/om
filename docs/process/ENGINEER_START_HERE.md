@@ -1,7 +1,7 @@
 # ENGINEER START HERE — design-frozen, engineering still locked
 
 **Final architecture checkpoint:** 2026-09-26 (ADR-0139)  
-**Architecture design:** closed (`design_open=0`)  
+**Architecture design:** closed for every scope except `local_delivery` (`design_open=1`: A-055, the LAN wire binding; ADR-0156)  
 **Engineering authorization:** **NO** — use [`machine/repository_contract.json`](../../machine/repository_contract.json); a closed design is not an authorized scope. Engineering is not authorized.
 
 This is the shortest correct entry point for a future repo/build agent. Do not reconstruct policy from chat history.
@@ -19,7 +19,7 @@ For the subsystem you are working on, then follow the architecture map/ADRs/spec
 
 ## Phase rule
 
-Architecture is **design-frozen**, but product engineering is not currently authorized. Work that the verification lifecycle explicitly permits before scope authorization stays under `verification/` and must remain non-production evidence. Do not create production code because `design_open=0`.
+Architecture is **design-frozen**, but product engineering is not currently authorized. Work that the verification lifecycle explicitly permits before scope authorization stays under `verification/` and must remain non-production evidence. Do not create production code because the design is closed for your scope. The one open design item (A-055) blocks only `local_delivery`. Later-wave scopes also require their own wire objects to be frozen as CDDL with two-codec vectors before authorization (ADR-0156).
 
 A named engineering scope becomes legal only when [`machine/repository_contract.json`](../../machine/repository_contract.json) says its unlock conditions are satisfied and an accepted ADR explicitly authorizes that scope.
 

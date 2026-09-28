@@ -113,6 +113,8 @@ A revoked device cannot regain future group secrets merely because an old KeyPac
 
 ## 7. Freeze gate
 
+ADR-0156 makes the encoding item enforceable: V-004 now requires frozen CDDL, registered fields/labels and two-codec vectors for GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition and the pin/poll event bodies before `groups` can be authorized.
+
 Private-group architecture is not frozen until:
 
 - GroupCommitOrdering is selected/formalized;

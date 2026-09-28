@@ -194,7 +194,7 @@ Agents must preserve these invariants:
 - Production crypto integration is blocked by [`PRODUCTION_CRYPTO_INTEGRATION_GATE.md`](docs/architecture/crypto/PRODUCTION_CRYPTO_INTEGRATION_GATE.md); never homebrew primitives or an ad-hoc hybrid combiner.
 - Use strict deterministic CBOR for canonical signed/wire objects; never sign JSON serialization.
 - Treat PWA ClientHost/origin as an endpoint trust boundary; provider migration is device linking/transfer, not IndexedDB copying.
-- Namespace local state by IdentityProfile from the first migration/schema even if v1 UI shows one identity.
+- Namespace local state by IdentityProfile from the first migration/schema; the V1 reference client exposes a profile switcher (ADR-0148).
 - Do not create a hidden device/person identifier linking profiles.
 - Rich messages use RichTextV1 semantic data only; no message/theme HTML/script execution.
 - Decrypted files remain hostile; validate before preview and fuzz parsers.

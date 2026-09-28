@@ -182,3 +182,5 @@ Join, leave, revocation/quarantine or participant correction increments the gene
 before further media. The SFU never receives media keys. A Room member/service/bridge that is not joined cannot
 decrypt merely by possessing the Room MLS epoch. Joined services/bridges are visible call participants. V-007 must
 exercise silent-listener, stale-generation, leave/rejoin and revocation traces.
+
+Joined co-members often share no 1:1 relationship, so "an equivalent already-authenticated pairwise HPKE channel" is a cryptographic-construction choice, not an implementation detail. ADR-0156 requires the `calls` freeze (V-007) to pick one construction, freeze it with the call signaling and sender-key package as CDDL plus two-codec vectors, and obtain specialist cryptographic review before `calls` can be authorized.

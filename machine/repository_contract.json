@@ -1,11 +1,11 @@
 {
-  "snapshot": "2026-09-27T08:42:00+08:00",
+  "snapshot": "2026-09-28T23:30:00+08:00",
   "phase": "architecture_hardening_pre_engineering",
   "engineering_authorized": false,
   "engineering_unlock_requires": [
     "accepted ADR explicitly authorizing a named engineering scope",
     "every gate listing that scope in unlock_scopes, and every always_required_pre_engineering_gates entry, has pre_engineering_status passed or waived_by_adr",
-    "machine/architecture_design_queue.jsonl has no open blocks_engineering item",
+    "machine/architecture_design_queue.jsonl has no open blocks_engineering item listing that scope (an open blocking item with no scopes blocks every scope; ADR-0156)",
     "scopes named in depends_on are already authorized",
     "every gate whose interface_impact lists the scope has feasibility_status evidenced (ADR-0113)",
     "clean tools/validate_architecture.py run",
@@ -234,6 +234,14 @@
         "groups"
       ],
       "description": "external-network bridges"
+    },
+    "local_delivery": {
+      "wave": "W1",
+      "authorized": false,
+      "depends_on": [
+        "core_kernel"
+      ],
+      "description": "offline-local LAN message/file delivery binding (ADR-0150 invariants in core_kernel; concrete LanDeliveryProfile under A-055, ADR-0156)"
     }
   },
   "public_release_vocabulary": {

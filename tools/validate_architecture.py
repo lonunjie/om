@@ -567,7 +567,7 @@ def validate_0924_scope_and_gate_guardrails() -> None:
         if g.get("status") == "passed" and not g.get("evidence"):
             fail(f"09:24 guard: {gid} passed without evidence links")
     design = load_jsonl(ROOT / "machine/architecture_design_queue.jsonl")
-    open_design = [q["id"] for q in design if q.get("status") == "open" and q.get("blocks_engineering")]
+    open_design = [q for q in design if q.get("status") == "open" and q.get("blocks_engineering")]
     for name, sc in scopes.items():
         for field in ("wave", "authorized", "depends_on"):
             if field not in sc:
@@ -588,8 +588,11 @@ def validate_0924_scope_and_gate_guardrails() -> None:
             unfeasible = [g["id"] for g in gates if name in (g.get("interface_impact") or []) and g.get("feasibility_status") != "evidenced"]
             if unfeasible:
                 fail(f"ADR-0113 guard: scope {name} authorized before cross-wave feasibility evidence on {unfeasible}")
-            if open_design:
-                fail(f"09:24 guard: scope {name} authorized with open design blockers {open_design}")
+            # RELEASE_WAVES §5.3 / ADR-0156: an open blocking item blocks the scopes it lists; an item
+            # that lists no scope blocks every scope.
+            blockers = [q["id"] for q in open_design if not q.get("scopes") or name in q["scopes"]]
+            if blockers:
+                fail(f"09:24 guard: scope {name} authorized with open design blockers {blockers}")
             for dep in sc.get("depends_on", []):
                 if not scopes.get(dep, {}).get("authorized"):
                     fail(f"09:24 guard: scope {name} authorized before dependency {dep}")

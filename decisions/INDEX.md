@@ -162,3 +162,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0153 — Wake-registration retirement and residual-leakage closure](ADR-0153-wake-registration-retirement-and-residual-leakage-closure.md)
 - [ADR-0154 — Verifier-local timer runtime segments and web-verifier liveness](ADR-0154-verifier-timer-runtime-segments-and-web-verifier-liveness.md)
 - [ADR-0155 — Non-critical extension validity independence and presentation-extension edit closure](ADR-0155-non-critical-extension-validity-and-presentation-edit-closure.md)
+- [ADR-0156 — Engineering-handoff closure: LAN wire binding, later-wave wire freeze, scheduled send and sync namespacing](ADR-0156-engineering-handoff-closure-lan-binding-and-later-wave-wire-freeze.md)

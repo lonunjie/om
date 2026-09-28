@@ -106,3 +106,13 @@ OM promises interoperable local-mode semantics where a route can be established;
 ## 2026-09-23 LAN resolution
 
 Relationship-derived, short-lived opaque rendezvous tags replace stable identifier broadcast. Native mDNS/DNS-SD is optional capability; QR/manual/known-endpoint is universal fallback. Browsers/PWAs are never required to expose native-equivalent automatic LAN discovery. LAN continues to carry ordinary OM E2EE ciphertext.
+
+## 2026-09-28 wire-binding status (ADR-0156)
+
+The invariants above are frozen, and route-independent EventID dedupe and blob backfill belong to `core_kernel`. The concrete LAN wire binding is **not yet specified**. It is design item A-055 under the W1 scope `local_delivery`, verified by V-024. Until A-055 is resolved, no conforming client may ship LAN message/file delivery. The following rules bind any binding:
+
+1. **No clear sender.** 1:1 messages carry `SealedDeliveryEnvelope` protection or a reviewed equivalent that hides sender identity, device key and Double Ratchet header from LAN observers. Group messages carry MLS `PrivateMessage` bytes.
+2. **No stable LAN-visible identifier.** Connection ids, delivery-key ids and route tokens rotate at least per rendezvous epoch and with link-layer address changes.
+3. **No LAN-only relationship path.** First contact over LAN uses ordinary MessageRequest/IntroGate semantics; the LAN endpoint is only a reply route.
+4. **Registered derivation.** The rendezvous-token KDF, label and epoch are registered in [`om-domain-separation.json`](../../../spec/registries/om-domain-separation.json).
+

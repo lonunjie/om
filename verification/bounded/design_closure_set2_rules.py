@@ -30,9 +30,14 @@ def main():
     review_basenames={p.name for p in ROOT.rglob('*') if p.is_file()}
 
     # Design queue closure.
-    open_design=[x['id'] for x in design if x.get('status') not in {'resolved','superseded','closed'}]
-    if open_design: fail(problems,f'open design queue items: {open_design}')
-    checks.append({'name':'design_queue_closed','items':len(design),'open':len(open_design)})
+    # ADR-0156: an explicitly tracked open item is allowed only when it blocks engineering, names
+    # its scopes, and none of them is a W0 scope; anything else is a closure failure.
+    w0={k for k,v in json.load(open(ROOT/'machine/repository_contract.json'))['engineering_scopes'].items() if v.get('wave')=='W0'}
+    open_items=[x for x in design if x.get('status') not in {'resolved','superseded','closed'}]
+    open_design=[x['id'] for x in open_items]
+    bad_open=[x['id'] for x in open_items if not x.get('blocks_engineering') or not x.get('scopes') or set(x['scopes'])&w0]
+    if bad_open: fail(problems,f'open design queue items not confined to tracked later-wave scopes: {bad_open}')
+    checks.append({'name':'design_queue_closed_for_w0','items':len(design),'open':len(open_design),'open_tracked_later_wave':open_design})
 
     # Every requirement exactly once in traceability and only valid targets.
     tr=json.load(open(ROOT/'machine/requirement_traceability.json'))['traces']
@@ -131,6 +136,9 @@ def main():
             try: txt=fp.read_text()
             except UnicodeDecodeError: continue
             for m in ambiguity_re.finditer(txt):
+                # A marker on a line that cites a tracked open design item is tracked, not hidden.
+                line=txt[txt.rfind('\n',0,m.start())+1:txt.find('\n',m.end()) if txt.find('\n',m.end())>=0 else len(txt)]
+                if any(i in line for i in open_design): continue
                 ambiguity_hits.append(f"{fp.relative_to(ROOT)}:{m.group(0)}")
     if ambiguity_hits: problems.extend('unresolved canonical ambiguity marker '+x for x in ambiguity_hits)
     checks.append({'name':'canonical_ambiguity_markers','selected_stale_problems':len(stale),'canonical_files_scanned':scanned,'whole_tree_hits':ambiguity_hits})

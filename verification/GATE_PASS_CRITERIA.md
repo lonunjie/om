@@ -25,7 +25,7 @@
 |---|---|---|---|---|---|---|
 | V-001 | `production_crypto_path` | core_kernel | passed | open | open | — |
 | V-002 | `account_control_formal_model` | core_kernel | open | open | open | — |
-| V-003 | `one_to_one_session_model` | core_kernel | open | open | open | — |
+| V-003 | `one_to_one_session_model` | core_kernel, local_delivery | open | open | open | — |
 | V-004 | `group_commit_control_model` | groups | open | open | evidenced | core_kernel |
 | V-005 | `canonical_encoding_vectors` | core_kernel | open | open | open | — |
 | V-006 | `web_device_vault_feasibility` | reference_client_ui | open | open | open | — |
@@ -37,7 +37,7 @@
 | V-012 | `expressive_media_and_pack_parser_safety` | expressive_media | open | open | open | — |
 | V-013 | `bridge_provenance_fidelity_and_loop_model` | bridges | open | open | evidenced | core_kernel |
 | V-014 | `portable_archive_interop_and_import_safety` | portability | open | open | evidenced | core_kernel |
-| V-015 | `metadata_exposure_and_privacy_path_model` | core_kernel, provider_reference | open | open | open | — |
+| V-015 | `metadata_exposure_and_privacy_path_model` | core_kernel, provider_reference, local_delivery | open | open | open | — |
 | V-016 | `decentralized_abuse_moderation_authority_model` | core_kernel, communities_publications | open | open | open | — |
 | V-017 | `protocol_longevity_and_0m_continuity_drill` | none | open | open | open | — |
 | V-018 | `security_ux_comprehension` | reference_client_ui | open | open | open | — |
@@ -46,6 +46,7 @@
 | V-021 | `endpoint_coercion_and_platform_leakage` | reference_client_ui | open | open | open | — |
 | V-022 | `performance_budgets` | reference_client_ui, provider_reference | open | open | open | — |
 | V-023 | `clienthost_update_lifecycle` | reference_client_ui | open | open | open | — |
+| V-024 | `lan_delivery_binding` | local_delivery | open | open | open | — |
 
 ## Gates
 
@@ -120,7 +121,7 @@ Mechanically unfinished pre-engineering work:
 
 Model/fuzz the per-device 1:1 session manager across crossed initiation, add/revoke races, stale/reset sessions, dedupe and persistence.
 
-- **Scopes blocked:** core_kernel
+- **Scopes blocked:** core_kernel, local_delivery
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
@@ -172,6 +173,7 @@ Pre-engineering criteria:
 - [ ] account-control events: no sending after a learned revocation until the Remove is accepted, no adds under CONTROL_CONFLICT/SAFETY_FREEZE, device-add deduplication (R-221)
 - [ ] two disconnected partitions independently create different direct reducing Commits from the same MLS epoch after sequencing_timeout; reconnection converges without silent key/state continuation on the losing branch
 - [ ] stale reduction targets an immutable membership/service incarnation and becomes a no-op after that exact incarnation is gone; it cannot remove a later re-add (R-279)
+- [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition, and the pin.set and poll.create/poll.vote/poll.close event bodies (R-343)
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
@@ -190,6 +192,7 @@ Mechanically unfinished pre-engineering work:
 - account-control events: no sending after a learned revocation until the Remove is accepted, no adds under CONTROL_CONFLICT/SAFETY_FREEZE, device-add deduplication (R-221)
 - two disconnected partitions independently create different direct reducing Commits from the same MLS epoch after sequencing_timeout; reconnection converges without silent key/state continuation on the losing branch
 - stale reduction targets an immutable membership/service incarnation and becomes a no-op after that exact incarnation is gone; it cannot remove a later re-add (R-279)
+- ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition, and the pin.set and poll.create/poll.vote/poll.close event bodies (R-343)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-005 — `canonical_encoding_vectors`
@@ -273,6 +276,7 @@ Pre-engineering criteria:
 - [ ] SFrame key schedule and counter/replay prototype interoperates across at least two browser engines and one native runtime through an SFU with reconnect and membership rekey
 - [ ] call.offer from a principal without an accepted relationship causes no ringing, ICE gathering or TURN allocation; mesh uses relay-only candidates toward non-contacts (R-234)
 - [ ] a non-joined Room member, service or bridge cannot decrypt call media merely by holding the Room MLS epoch; silent-SFU-listener trace fails closed (R-283)
+- [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): call signaling messages (call.offer..call.key_epoch), CallSession and the SFrame sender-key package; the key-delivery channel to joined participants without a 1:1 relationship is chosen and receives specialist cryptographic review (R-343)
 
 Pre-release criteria:
 
@@ -283,6 +287,7 @@ Mechanically unfinished pre-engineering work:
 - SFrame key schedule and counter/replay prototype interoperates across at least two browser engines and one native runtime through an SFU with reconnect and membership rekey
 - call.offer from a principal without an accepted relationship causes no ringing, ICE gathering or TURN allocation; mesh uses relay-only candidates toward non-contacts (R-234)
 - a non-joined Room member, service or bridge cannot decrypt call media merely by holding the Room MLS epoch; silent-SFU-listener trace fails closed (R-283)
+- ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): call signaling messages (call.offer..call.key_epoch), CallSession and the SFrame sender-key package; the key-delivery channel to joined participants without a 1:1 relationship is chosen and receives specialist cryptographic review (R-343)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-008 — `space_room_permission_authority_model`
@@ -303,6 +308,7 @@ Pre-engineering criteria:
 - [ ] role-edit and assignment ceilings reject any role/grant whose effective or grantable scope exceeds the grantor's current ceiling (R-229)
 - [ ] SpaceDelegatedIntent committed by a non-privileged member is rejected; stale Space heads fail closed; Space reductions remain live (R-230)
 - [ ] invite links lapse when the issuer loses room.invite, and no governance/binding path can change CryptoProfile (R-225, R-227)
+- [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): SpaceControlState, SpaceDelegatedIntent, topic.create/topic.update/topic.status.set/message.topic.set, moderation.redact and Publication/publication events (R-343)
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
@@ -319,6 +325,7 @@ Mechanically unfinished pre-engineering work:
 - role-edit and assignment ceilings reject any role/grant whose effective or grantable scope exceeds the grantor's current ceiling (R-229)
 - SpaceDelegatedIntent committed by a non-privileged member is rejected; stale Space heads fail closed; Space reductions remain live (R-230)
 - invite links lapse when the issuer loses room.invite, and no governance/binding path can change CryptoProfile (R-225, R-227)
+- ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): SpaceControlState, SpaceDelegatedIntent, topic.create/topic.update/topic.status.set/message.topic.set, moderation.redact and Publication/publication events (R-343)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-009 — `baseline_event_materialization_convergence`
@@ -375,6 +382,7 @@ Pre-engineering criteria:
 - [ ] PWA: plugins and mini-apps run on a separate registrable domain with cross-origin isolation and exact-origin message binding; content.* plugins disabled without site isolation; mini-app cannot occlude host chrome or render OM-like security prompts (ADR-0129 rule 8)
 - [ ] remote-origin mini-app test treats plaintext postMessage/disclosure itself as egress; no claim that host fetch-cap denial contains plaintext after crossing origin (R-282)
 - [ ] continuous 1:1 plaintext egress requires valid current RelationshipPolicyConsent from both participants; unilateral revoke or stale consent blocks egress (R-282)
+- [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): plugin package manifest, capability grants and plugin-to-host message formats (R-343)
 
 Pre-release criteria:
 
@@ -388,6 +396,7 @@ Mechanically unfinished pre-engineering work:
 - PWA: plugins and mini-apps run on a separate registrable domain with cross-origin isolation and exact-origin message binding; content.* plugins disabled without site isolation; mini-app cannot occlude host chrome or render OM-like security prompts (ADR-0129 rule 8)
 - remote-origin mini-app test treats plaintext postMessage/disclosure itself as egress; no claim that host fetch-cap denial contains plaintext after crossing origin (R-282)
 - continuous 1:1 plaintext egress requires valid current RelationshipPolicyConsent from both participants; unilateral revoke or stale consent blocks egress (R-282)
+- ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): plugin package manifest, capability grants and plugin-to-host message formats (R-343)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-011 — `service_principal_authority_and_automation_model`
@@ -409,6 +418,7 @@ Pre-engineering criteria:
 - [ ] RepresentationGrant issued by a messaging-only device is rejected; grant whose issuing control device is quarantined stops validating; counterparty-recipient grant without counterparty notice fails (ADR-0129 rules 4-5)
 - [ ] revoked service endpoint is removed from every Room by any member after sequencing_timeout when the coordinator does not; removal rebases over forks (ADR-0129 rule 6)
 - [ ] service endpoint/install removals target immutable endpoint/service-installation incarnations; stale removal cannot remove a later reinstallation (R-279)
+- [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): ServicePrincipal, ServiceControlState, RepresentationGrant and ConversationEvent key 13 representation (R-343)
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
@@ -426,6 +436,7 @@ Mechanically unfinished pre-engineering work:
 - RepresentationGrant issued by a messaging-only device is rejected; grant whose issuing control device is quarantined stops validating; counterparty-recipient grant without counterparty notice fails (ADR-0129 rules 4-5)
 - revoked service endpoint is removed from every Room by any member after sequencing_timeout when the coordinator does not; removal rebases over forks (ADR-0129 rule 6)
 - service endpoint/install removals target immutable endpoint/service-installation incarnations; stale removal cannot remove a later reinstallation (R-279)
+- ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): ServicePrincipal, ServiceControlState, RepresentationGrant and ConversationEvent key 13 representation (R-343)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-012 — `expressive_media_and_pack_parser_safety`
@@ -442,6 +453,7 @@ Pre-engineering criteria:
 
 - [ ] candidate decoders and pack parsers fuzzed for an agreed CPU-hour budget under resource ceilings with no unresolved crash
 - [ ] canonical ContentPack manifest/signature vectors agree across two implementations
+- [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): inline type 4 custom_emoji, ReactionSet key 3 reaction_asset and ExpressiveAssetRef, alongside the existing ContentPack manifest vectors (R-343)
 
 Pre-release criteria:
 
@@ -451,6 +463,7 @@ Mechanically unfinished pre-engineering work:
 
 - candidate decoders and pack parsers fuzzed for an agreed CPU-hour budget under resource ceilings with no unresolved crash
 - canonical ContentPack manifest/signature vectors agree across two implementations
+- ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): inline type 4 custom_emoji, ReactionSet key 3 reaction_asset and ExpressiveAssetRef, alongside the existing ContentPack manifest vectors (R-343)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-013 — `bridge_provenance_fidelity_and_loop_model`
@@ -469,6 +482,7 @@ Pre-engineering criteria:
 - [ ] reviewed bridge adapter contract specification
 - [x] loop/reflection-suppression model with at least two simulated bridges and fidelity-loss signaling
 - [ ] bridge adapter contract states bridges are always full Room members and that allowed_event_classes limits export, not reading (ADR-0129 rule 3)
+- [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): BridgePrincipal, BridgeControlState and ConversationEvent key 14 foreign_provenance (R-343)
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
@@ -482,6 +496,7 @@ Mechanically unfinished pre-engineering work:
 
 - reviewed bridge adapter contract specification
 - bridge adapter contract states bridges are always full Room members and that allowed_event_classes limits export, not reading (ADR-0129 rule 3)
+- ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): BridgePrincipal, BridgeControlState and ConversationEvent key 14 foreign_provenance (R-343)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-014 — `portable_archive_interop_and_import_safety`
@@ -519,7 +534,7 @@ Mechanically unfinished pre-engineering work:
 
 Instrument/model normal and privacy-enhanced paths across relay, MLS/group control, KeyMaterialProvider, discovery/OHTTP split, IntroGate, push, blob, calls, services, bridges and archive migration; prove no accidental canonical AccountID/ConversationID/group-identifier exposure in normal routing, verify per-provider capability/randomized wrapping, validate MetadataExposureDescriptor claims against traces, and document remaining timing/size/IP/collusion leakage.
 
-- **Scopes blocked:** core_kernel, provider_reference
+- **Scopes blocked:** core_kernel, provider_reference, local_delivery
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_privacy_model`; next executor role `verification_executor`
@@ -799,4 +814,34 @@ Pre-release criteria:
 
 Mechanically unfinished pre-engineering work:
 
+- phase independence evidence is not yet recorded as satisfied
+
+### V-024 — `lan_delivery_binding`
+
+Freeze and verify the A-055 LanDeliveryProfile that carries ADR-0150 offline-local message/file delivery: sealed-equivalent LAN protection with no clear sender, no LAN-visible identifier stable across rendezvous epochs, first contact over LAN only through MessageRequest/IntroGate semantics, registered rendezvous derivation, and interoperable framing on native and browser platforms (ADR-0156).
+
+- **Scopes blocked:** local_delivery
+- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
+- **Execution class:** `repo_local_model`; next executor role `verification_executor`
+- **Pre-engineering independence status:** `open`
+- **Evidence:** `decisions/ADR-0156-engineering-handoff-closure-lan-binding-and-later-wave-wire-freeze.md`
+
+Pre-engineering criteria:
+
+- [ ] A-055 LanDeliveryProfile frozen as CDDL with registered numeric fields and domain-separation labels (including the rendezvous-token KDF/label/epoch), with positive/negative vectors on which two independently written codecs agree (R-342)
+- [ ] passive LAN-observer trace model: no clear sender device key or Double Ratchet header, and no connection/delivery-key/route identifier stable across rendezvous epochs or link-layer address changes; mutations that send the bare inner envelope or reuse an identifier across epochs are caught (R-342, T-134)
+- [ ] offline first-contact model: a QR-linked LAN first contact runs the ordinary MessageRequest/IntroGate/reciprocal-binding path with the LAN endpoint only as reply route; mutations that create a relationship or device eligibility from LAN reachability are caught (R-342)
+- [ ] browser-feasible variant demonstrated or the PWA capability row states LAN delivery unavailable, with no native-only protocol semantics (R-342)
+
+Pre-release criteria:
+
+- [ ] two independent implementations interoperate over a real LAN, including a browser client where the capability row claims support
+
+Mechanically unfinished pre-engineering work:
+
+- A-055 LanDeliveryProfile frozen as CDDL with registered numeric fields and domain-separation labels (including the rendezvous-token KDF/label/epoch), with positive/negative vectors on which two independently written codecs agree (R-342)
+- passive LAN-observer trace model: no clear sender device key or Double Ratchet header, and no connection/delivery-key/route identifier stable across rendezvous epochs or link-layer address changes; mutations that send the bare inner envelope or reuse an identifier across epochs are caught (R-342, T-134)
+- offline first-contact model: a QR-linked LAN first contact runs the ordinary MessageRequest/IntroGate/reciprocal-binding path with the LAN endpoint only as reply route; mutations that create a relationship or device eligibility from LAN reachability are caught (R-342)
+- browser-feasible variant demonstrated or the PWA capability row states LAN delivery unavailable, with no native-only protocol semantics (R-342)
 - phase independence evidence is not yet recorded as satisfied

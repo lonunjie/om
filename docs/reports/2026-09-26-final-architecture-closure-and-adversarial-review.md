@@ -209,6 +209,21 @@ No other cross-boundary issue in this pass required a new architecture rule. Tha
 
 **Residual evidence:** V-013 bridge mapping/loop/provenance interoperability remains open.
 
+### 3.12 `local_delivery` (addendum 2026-09-28, ADR-0156)
+
+Added when the 2026-09-28 independent review split offline-local LAN delivery into its own scope.
+
+**Boundaries attacked:** clear-sender exposure to LAN observers, stable LAN-visible correlators, LAN reachability as relationship or device authority, incompatible LAN bindings, unauthenticated resource exhaustion before crypto/blob work.
+
+**Disposition:**
+
+- 1:1 LAN traffic must carry `SealedDeliveryEnvelope` protection or a reviewed equivalent; a LAN route is never a clear-sender fallback, and group traffic stays MLS `PrivateMessage`.
+- every LAN-visible identifier rotates at least per rendezvous epoch; no stable AccountID/DeviceID/device key is broadcast.
+- first contact over LAN reuses MessageRequest/IntroGate; LAN reachability grants no relationship, device eligibility or security-floor change.
+- route-independent EventID dedupe and blob backfill stay in `core_kernel`, so W0 is correct whatever route delivered an event.
+
+**Residual evidence:** the concrete binding is design item A-055, and V-024 (frozen CDDL/vectors, passive-observer trace, offline first-contact model, browser feasibility) is open.
+
 ## 4. Cross-scope conclusions
 
 ### Authority

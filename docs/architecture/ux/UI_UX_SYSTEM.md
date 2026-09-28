@@ -343,7 +343,7 @@ The product should feel continuous rather than page-based.
 
 ## Multiple identities (architecture now, UI later)
 
-`om-ui` is profile-aware from its first state model even if v1 exposes one identity. Later switching is intentionally simple: avatar/profile chip -> choose Personal/Work/Temporary/etc. -> immediate switch without logout/reload.
+`om-ui` is profile-aware from its first state model, and the V1 reference client exposes switching when two or more profiles exist (ADR-0148). Switching is intentionally simple: avatar/profile chip -> choose Personal/Work/Temporary/etc. -> immediate switch without logout/reload.
 
 Each profile preserves its own drafts, navigation, notification/privacy settings and optional theme. New profiles may be offered a different curated theme, but the user can inherit the global appearance instead.
 

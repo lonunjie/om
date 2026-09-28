@@ -34,6 +34,8 @@ For one stable item key, a tombstone wins against a causally concurrent stale va
 
 HLC is presentation/convergence assistance, not authority. A remote physical component more than the frozen default skew (300 s) ahead of local wall time is quarantined/not merged until it falls within the window or is superseded; it never advances a durable preference floor merely by being far in the future. Causal order and authenticated ACS generation precede HLC/device-id tie-breaking.
 
+**ADR-0156 implementation namespacing.** Every sync record and HistoryBundle carries an implementation/codec identifier inside its authenticated E2EE framing. A device ignores whole records whose identifier it does not recognize and never interprets part of one. Cross-implementation draft/preference/history sync is not a V1 interoperability promise; the Devices screen should say when a linked device cannot share them. Conversation delivery, AccountControlState and device-link notices remain fully interoperable.
+
 Historical backup restore uses the existing fresh-DeviceID rule. Imported draft/preference material is tentative local state until current ACS and reachable sync state are reconciled and is never automatically republished under the fresh DeviceID. Explicit user recreation after reconciliation emits a fresh current-generation causal descendant.
 
 ## History transfer

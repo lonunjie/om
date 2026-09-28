@@ -53,6 +53,7 @@ Every verification gate now carries:
 | `services_bots` | W4 | ServicePrincipals, LLM agents | V-011 | — |
 | `plugins` | W4 | Wasm Component-Model plugin host | V-010 | — |
 | `bridges` | W4 | external-network bridges | V-013 | — |
+| `local_delivery` | W1 | offline-local LAN message/file delivery binding (ADR-0150 invariants in core_kernel; concrete LanDeliveryProfile under A-055, ADR-0156) | V-003, V-015, V-024 | A-055 |
 <!-- scope-table:end -->
 
 V-017 (0M continuity drill) blocks **every public production claim**, not any engineering scope. Its pre-engineering criteria (continuity bundle assembly, registry immutability checks, tabletop drills) still have to be done before `core_kernel` is authorized, because it is also listed in the contract's `always_required_pre_engineering_gates`.
@@ -77,7 +78,7 @@ V1 remains a **semantic** contract: [`MESSENGER_BASELINE_V1.md`](../architecture
 | Wave | Delivers | Why this order |
 |---|---|---|
 | W0 | 1:1 messaging, attachments, multi-device, onboarding with Home tiers, block/IntroGate, local search | Smallest system that proves identity, delivery, continuity and usability. Everything else depends on it. |
-| W1 | Private groups, pins, polls, reactions/edits at group scale, stickers/animation, archive export | Group ergonomics are an adoption requirement (R-113). |
+| W1 | Private groups, pins, polls, reactions/edits at group scale, stickers/animation, archive export, offline-local LAN delivery binding (ADR-0156) | Group ergonomics are an adoption requirement (R-113). LAN delivery needs its A-055 binding, not new core semantics. |
 | W2 | 1:1 and group calls | Calls depend on stable sessions, groups and push lifecycle, and platform risk is highest here. |
 | W3 | Spaces, topics, Publications, delegated moderation | Community features need a stable group/authority core. |
 | W4 | Services/bots/LLM agents, plugins, bridges | Ecosystem surfaces; highest authority-boundary risk. |
@@ -87,6 +88,7 @@ Rules:
 - A later-wave feature must not add wire requirements to an earlier wave beyond the reserved extension/criticality points already frozen in V1 semantics.
 - A later-wave gate's **pre-release** criteria never block an earlier-wave scope. Its **feasibility evidence** does when that later feature could change an earlier wave's wire formats or authority objects (§7).
 - Reordering waves needs an ADR. Reordering must not remove a gate from a scope.
+- Every scope freezes its own wire objects (CDDL, registered fields/labels, two-codec vectors) before authorization; logical JSON schemas never substitute (ADR-0156, R-343).
 
 ## 7. Reconciliation with LEAN rules
 
