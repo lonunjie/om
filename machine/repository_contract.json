@@ -135,7 +135,7 @@
     "final design closure keeps engineering_authorized false until named scopes independently satisfy the existing unlock contract; design_open=0 is not engineering authorization (ADR-0139)",
     "AsyncKeyBundle v1 omits retired ACS keys 3/4; prekey generation is globally monotonic per device/profile across provider pools and one-time prekeys are context-bound (ADR-0140)",
     "LegacyPolicy criticality, bearer-capability transport hygiene, RecoveryRecord freshness/advisory semantics, frozen W0 domain-label status, resolved group-call participant-only media-key semantics and the 300-second default time skew are machine-checked semantic invariants (ADR-0141)",
-    "Established OM-Crypto-v1 1:1 relay delivery uses ADR-0142 sealed delivery with relationship/device/route-bound keys, request bootstrap, frozen padding/HPKE binding and no silent clear-sender fallback; ADR-0143 makes durable replay crash-safe with exact-wrapper RESERVED resume and COMPLETE idempotence; outer open never authenticates the sender (ADR-0142/ADR-0143)"
+    "Established OM-Crypto-v1 1:1 relay delivery uses ADR-0142 sealed delivery with relationship/device/route-bound keys, request bootstrap, frozen padding/HPKE binding and no silent clear-sender fallback; ADR-0143 makes durable replay crash-safe with exact-wrapper RESERVED resume and COMPLETE idempotence; ADR-0144 makes bootstrap keys fresh/request-scoped and keeps stale-ACS-indeterminate inner authentication RESERVED until monotonic refresh; outer open never authenticates the sender (ADR-0142/ADR-0143/ADR-0144)"
   ],
   "legal_risk_policy": {
     "protocol_home_jurisdiction": "none",
@@ -152,7 +152,7 @@
       "wave": "W0",
       "authorized": false,
       "depends_on": [],
-      "description": "canonical encoding, AccountControlState, 1:1 sessions/crypto, async key material, relay delivery, blobs, multi-device sync, IntroGate/block"
+      "description": "canonical encoding, AccountControlState, 1:1 sessions/crypto, async key material, relay delivery, blobs, multi-device plus bounded account-private draft/preference sync, IntroGate/block, V1 optional presentation extensions"
     },
     "reference_client_ui": {
       "wave": "W0",
@@ -160,7 +160,7 @@
       "depends_on": [
         "core_kernel"
       ],
-      "description": "om-ui shell, onboarding, DeviceVault, PWA ClientHost"
+      "description": "om-ui shell, onboarding, DeviceVault, PWA ClientHost, V1 IdentityProfile switcher, voice-note and one-shot location-card UX"
     },
     "provider_reference": {
       "wave": "W0",

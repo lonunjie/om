@@ -126,7 +126,7 @@ That consistency is more valuable than optimizing away one encryption layer.
 
 Keeping local traffic local saves bandwidth and latency, especially in regions with expensive or unreliable Internet. It also increases resilience: a local router can remain functional during WAN outages.
 
-Long-term OM should allow established peers on the same LAN to continue communicating without cloud media transit. The difficult part is private local rendezvous: ordinary mDNS device-name broadcasting can leak identity, so discovery should eventually use rotating relationship-derived identifiers or another reviewed privacy-preserving design.
+OM V1 treats same-LAN delivery as an optional local-first route for established or short-lived QR/invite-linked peers when platform capability permits it. The difficult part remains private local rendezvous: ordinary mDNS device-name broadcasting can leak identity, so V1 uses the reviewed rotating relationship-derived/temporary capability design and never makes automatic discovery universal (ADR-0150).
 
 ## 13. Why group calls use adaptive mesh/SFU
 

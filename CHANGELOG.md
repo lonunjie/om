@@ -1,3 +1,138 @@
+## 2026-09-28 22:00 PHT — Run 10A residual V1 boundary audit
+
+- completed the final bounded residual post-V1-to-V1 scope audit after Runs 6A–9B;
+- promoted **zero** additional features: the remaining deferrals now reflect real crypto/authority/privacy/parser/platform-policy/carrier/API/measurement costs rather than arbitrary sequencing;
+- rechecked SMS/MMS/RCS against current Android/Google platform policy and APIs, including Android API 37 `AlternativeMessageTransportService`; the existing `TransportAdapter`/provenance boundary is sufficient to add carrier integrations later without core redesign;
+- classified exact privacy-preset defaults, UI framework/breakpoint/theme/font/motion values and IndexedDB/OPFS crossover as measurement/product choices behind already-frozen abstractions, not missing V1 semantics;
+- added no ADR, machine decision, requirement, threat, wire/schema change or verification criterion; Run-9B evidence and the active consolidated different-vendor review handoff remain unchanged.
+
+## 2026-09-28 21:22 PHT — Run 9B final V1 platform evidence closure
+
+- Added replaceable-Android-wake bounded evidence: 13/13 scenarios pass and 8/8 message/authority/linkage mutations are caught across FCM, UnifiedPush-compatible, persistent and `none` transitions.
+- Added desktop/PersonRecord endpoint evidence: 12/12 scenarios pass and 10/10 semantic/profile/export mutations are caught across PWA/mobile/macOS/Windows/Linux capability surfaces and explicit local contact export.
+- Added ADR-0153 / D-175 to correct the stale-registration privacy overclaim: unconfirmed provider-side retirement is residual metadata/wake exposure with provider-defined duration unless an enforceable finite lease is declared; obsolete wake handles never become fetch/message/account authority.
+- Closed the new ADR-0152 repo-local criteria: V-015 is 16/16 and V-021 is 10/10; required independent-review and pre-release obligations remain open.
+- Reactivated the consolidated different-vendor review handoff; engineering remains unauthorized.
+- Refreshed all **43/43** portable producers in bounded execution; a monolithic retry was wrapper-terminated after producers 1–18 passed while producer 19 was starting, with no evidence failure.
+
+## 2026-09-28 20:42 PHT — Run 9A final V1 platform-base promotion
+
+- added ADR-0152: native desktop is a V1 reference-family target over shared Core/UI/PlatformAdapter semantics;
+- made Android wake explicitly replaceable across FCM, UnifiedPush-compatible, persistent encrypted wake/fetch and none, with no identity/correctness authority;
+- promoted explicit local PersonRecord cleanup/export UX with preview, permission, provenance preservation and no continuity-authority effect;
+- reconciled stale current-design language for rich lists, account-private preference sync, desktop deferral, alternate Android wake and contact cleanup;
+- added D-174 and R-337..R-339; intentionally reopened one repo-local criterion in V-015 and one in V-021 for Run 9B; independent review is paused and engineering remains unauthorized.
+
+## 2026-09-28 19:37 PHT — Run 8B additional V1 evidence closure
+
+- added ADR-0151 to resolve the rich-list known-schema-rejection versus non-critical semantic-fallback ambiguity without changing valid ADR-0150 encodings;
+- added LAN/WAN EventID + blob-backfill reconciliation evidence: 8/8 scenarios, 6/6 mutations caught;
+- added `om.rich-list.v1` two-implementation evidence: 34 vectors, 34/34 Python↔Node verdict and deterministic-CBOR agreement;
+- added LAN privacy/resource trace: 9/9 scenarios, 6/6 mutations caught;
+- added PWA/Android/iOS reference-family capability-parity evidence: 8/8 scenarios, 5/5 mutations caught;
+- reconciled repo-local gate progress to V-003 13/14, V-005 11/11, V-015 15/15 and V-021 9/9; independence records remain open and engineering remains unauthorized.
+- all **41/41** portable evidence producers pass in bounded batches; architecture/docs/registry/continuity checks are clean at 851 current files and 79/79 continuity documents.
+
+## 2026-09-28 19:10 PHT — ADR-0150 / Run 8A
+
+- Promoted optional privacy-preserving offline-LAN message/file delivery into V1 without making local discovery universal or authoritative.
+- Registered bounded `om.rich-list.v1` list presentation with deterministic W0 fallback binding and no RichTextV1 grammar change.
+- Made Android and iOS explicit V1 reference-family targets while preserving PWA-first sequencing.
+- Added D-172, R-334..R-336 and T-129..T-131; reopened one repo-local criterion each in V-003/V-005/V-015/V-021 for Run 8B.
+- Paused the consolidated different-vendor review until Run 8B evidence is current.
+
+## 2026-09-28 18:21 PHT — Run 7B ADR-0149 adversarial evidence closure
+
+- added causal/revocation/restore account-private-sync hardening evidence: 8/8 scenarios, 6/6 mutations caught; V-003 is 12/13 with independent model review remaining;
+- amended the voice/location extension corpus to ADR-0149 integer-key payloads and 24 vectors with 24/24 Python/Node agreement; added registry/object/criticality/schema hardening evidence; V-005 is 10/10 and pre-engineering passed;
+- added ProfileExecutionContext TOCTOU evidence: 8/8 scenarios across async paths/independent windows, 5/5 retargeting mutations caught; V-021 is 8/8 repo-local with independent review remaining;
+- added update role/key/policy authorization evidence: 13/13 scenarios, 8/8 substitution/threshold/root-chain mutations caught; V-023 is 9/9 repo-local with independent review remaining;
+- reactivated the consolidated different-vendor core-kernel reviewer handoff; engineering remains unauthorized.
+
+## 2026-09-28 17:33 PHT — Run 7A ADR-0149 promoted-V1 adversarial hardening
+
+- registered/object-scoped/schema-bound `om.voice-note.v1` and `om.location-card.v1` using integer-keyed canonical extension structs;
+- bound static-location fallback to the exact canonical `geo:<lat-fixed-7>,<lon-fixed-7>` token and defined mismatch as ignore-extension/render-W0-fallback;
+- hardened account-private sync with authenticated per-origin causal context, future-HLC quarantine, revocation checks, tombstone-wins anti-resurrection, draft-parent binding and stale-backup non-republication;
+- required immutable `ProfileExecutionContext` for profile-sensitive async work and independent windows so profile switching cannot retarget callbacks;
+- hardened update agility to distinct authorized role/key/algorithm/root-policy thresholds with sequential dual-threshold root rotation;
+- added D-171 / R-330..R-333 / T-125..T-128 and deliberately reopened one Run-7B criterion each in V-003, V-005, V-021 and V-023; external review is paused and engineering remains unauthorized.
+
+## 2026-09-28 17:18 PHT — Run 6B ADR-0148 evidence closure
+
+- added bounded account-private sync evidence: 6/6 scenarios, 4/4 forbidden mutations caught; V-003 is now 11/12 with independent model review remaining;
+- added a 20-vector `om.voice-note.v1` / `om.location-card.v1` corpus with independent Python/Node deterministic-CBOR/semantic agreement; V-005 is now 9/9 and pre-engineering passed;
+- completed V-021 repo-local evidence (7/7) for personal-grant notices, PlatformAdapter capability mapping, ClientHost root/transparency constraints and multi-profile isolation; independent review remains open;
+- completed V-023 repo-local update-lifecycle/signature-agility evidence (8/8), with 15/15 scenarios and 5/5 security mutations caught; independent review and live pre-release drills remain open;
+- reactivated the consolidated different-vendor `core_kernel` review handoff; engineering remains unauthorized;
+- refreshed all 33 portable evidence producers successfully in bounded batches.
+
+## 2026-09-28 16:30 PHT — Run 6A ADR-0148 V1 product-base promotion
+
+- promoted visible multi-IdentityProfile switching into the V1 reference-client baseline while preserving strict profile/push/cache/deep-link isolation;
+- promoted bounded same-profile account-private E2EE sync for drafts plus selected non-authoritative preferences, with concurrent-draft loss protection and explicit authority/security/provider/push/vault exclusions;
+- standardized non-critical `om.voice-note.v1` and one-shot `om.location-card.v1` presentation extensions beside W0-valid fallbacks, without changing the frozen W0 body grammar;
+- made first-public-release software metadata/verifiers algorithm-agile and ML-DSA-65 co-signature-ready under owner-pinned root policy, without turning distribution keys into OM protocol identity;
+- intentionally reopened local evidence obligations in V-003, V-005, V-021 and V-023 for Run 6B; the consolidated different-vendor review handoff is paused and engineering remains unauthorized.
+
+## 2026-09-28 15:22 PHT — Run 5B ADR-0147 executable closure
+
+- added crash-safe verifier-local recovery timer evidence: 5/5 normative restart/restore scenarios pass and 2/2 forbidden acceleration mutations are caught;
+- added bootstrap lifecycle/restore evidence: 5/5 scenarios pass and 4/4 mutations are caught for hidden request expiry, ninth-after-prune, stale OPEN/RESERVED/private-key restore and stale replay-only restore;
+- reconciled the ADR-0146 harness so MessageRequest v1 no longer carries a fictitious independent `request_expires` input;
+- closed the new repo-local V-002/V-003/V-015 criteria, yielding 9/10, 10/11 and 14/14 respectively; remaining blockers are independent review / phase independence;
+- reactivated the consolidated different-vendor review handoff; engineering remains unauthorized.
+- all 29/29 portable evidence producers pass in bounded batches; validator/docs/79-document continuity checks pass.
+
+## 2026-09-28 14:43 PHT — Run 5A ADR-0147 normative lifecycle/restore closure
+
+- froze the MessageRequest bootstrap acceptance deadline as the authenticated minimum of reply-route and reply-delivery-key expiry, with no hidden local request-expiry value;
+- made the eight-candidate OPEN budget durable and non-replenishable across rejection/GC, pinned replay-only expiry/GC, and excluded live bootstrap state from historical restore;
+- defined crash-safe conservative monotonic-duration persistence for recovery-alone activation and related security-critical local durations;
+- intentionally left the new V-002/V-003/V-015 evidence criteria open for Run 5B.
+
+## 2026-09-28 10:10 PHT — Run 4 final bootstrap/resource closure
+
+- accepted ADR-0146 / D-168 / R-318..R-319 / T-119..T-120 and added M8;
+- atomically terminalized all losing `RESERVED` bootstrap candidates on every MessageRequest exit from `OPEN` before request-scoped key destruction;
+- clarified `reply_route` as one logical response with exact retries and at most 8 distinct candidate wrappers while open, rather than one physical deposit;
+- bound sealed-wrapper expiry to delivery-key/route/request acceptance and bounded replay/tombstone retention without imposing a globally short offline-delivery lifetime;
+- added focused V-003/V-015 executable evidence and removed stale historical wording that still called K2/EventID dedupe-before-ack unspecified.
+
+## 2026-09-28 09:17 PHT — Run 3 ADR-0145 final bootstrap closure
+
+- closed the lost-ack liveness gap by recognizing an existing exact `COMPLETE` replay before live delivery-key lookup/HPKE, allowing completed bootstrap private-key destruction without breaking idempotent retry;
+- made exactly one logical bootstrap response authoritative per MessageRequest, with first valid crash-consistent commit winning recipient-device races and different/losing wrappers unable to create another branch;
+- made winning bootstrap acceptance, authenticated recipient binding/imported established delivery state, inner dedupe, replay `COMPLETE` and request `COMPLETE_REPLAY_ONLY` closure one crash-consistent transition;
+- added ADR-0145 / D-167 / R-317 / T-118 and focused V-003 evidence: 5/5 scenarios pass and 3/3 deliberate mutations are caught;
+- V-003 is now 8/9 with only independent review remaining; engineering remains unauthorized.
+
+
+## 2026-09-28 08:57 PHT — Run 2 ADR-0144 executable closure
+
+- added `sealed_delivery_adr0144_composition.py`, a focused V-003 bounded harness for request-scoped `reply_delivery_key` semantics and stale-ACS × `RESERVED` composition;
+- 12/12 scenarios pass and 7/7 deliberate security mutations are caught, including premature stale-state `REJECTED`, wrong route/profile/expiry, key/id reuse, cross-request transplant and authority promotion;
+- marked the ADR-0144 local V-003 criterion met, making V-003 7/8 with only independent review remaining;
+- activated the consolidated different-vendor review brief and compatibility handoff; engineering remains unauthorized.
+
+
+## 2026-09-28 08:12 PHT — Run 1 pre-review semantic hardening (ADR-0144)
+
+- made MessageRequest `reply_delivery_key` fresh/request/profile/route/expiry scoped with explicit lifecycle disposal and no promotion into relationship authority;
+- composed sealed-delivery `RESERVED` replay state with stale trusted-ACS refresh so temporary authentication indeterminacy cannot become premature terminal `REJECTED`;
+- added R-315/R-316, T-115..T-117, M7 and strengthened M6/V-003 traceability;
+- reconciled A-020 with ADR-0111;
+- added one intentionally-open V-003 local composition-evidence criterion for Run 2; external review is staged until that evidence closes.
+## 2026-09-28 05:30 PHT — Run 3 pre-Opus reconciliation
+
+- reconciled V-002/V-003/V-015/V-016/V-017 progress prose to the authoritative gate ledger without changing gate passage;
+- reconciled stale V-016 prototype metadata/README to ADR-0121/0122/0123 while preserving recorded TLC outcomes;
+- rewrote the final independent-review brief around `make verify-drop` for raw ZIPs and full `make verify` only in a tool-complete Git worktree;
+- converted `verification/CLAUDE_OPUS_5_5_HANDOFF.md` into a stable redirect to the consolidated independent-review brief;
+- removed stale V-002 evidence aliases for the retired `AccountControlState` files and updated the TLA+ pin example to the current `AccountControl.tla` / `AccountControl.cfg`;
+- refreshed agent/verification guidance and snapshot state for the final pre-Opus checkpoint;
+- reran `make verify-drop`: 24/24 portable producers plus validator/docs/79-document continuity manifest passed; stronger committed Rust/TLC evidence was preserved because this runner lacks that toolchain/network.
+
 ## 2026-09-27 18:08 PHT — V-001 ADR-0140 and ADR-0142 runtime completion
 
 - added bounded sealed-delivery HPKE verification under the existing V-001 prototype, reusing the pinned draft-ietf-hpke-pq-05 hybrid suite with ADR-0142 route-bound info/AAD, padding buckets and explicit sender-authentication separation;

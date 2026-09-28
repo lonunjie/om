@@ -122,6 +122,25 @@ def vec_file(tmp: Path, samples, name) -> Path:
     return p
 
 
+def ensure_rust_codec() -> Path:
+    """Build the V-005 Rust codec on demand in a clean design-drop extraction.
+
+    `target/` is intentionally not exported, so cross-wave feasibility must not assume a binary created by an
+    earlier V-005 run is still present.  The build is verification tooling only; no generated binary is committed.
+    """
+    binary = V5 / "rust/target/release/v005"
+    if binary.exists():
+        return binary
+    cargo = shutil.which("cargo")
+    if not cargo:
+        raise RuntimeError("V-005 Rust codec is absent and cargo is unavailable; install the pinned Rust toolchain or run verification/prototypes/v005-encoding/run.sh first")
+    subprocess.run([cargo, "build", "--release", "--locked", "--manifest-path", str(V5 / "rust/Cargo.toml")],
+                   cwd=ROOT, check=True)
+    if not binary.exists():
+        raise RuntimeError(f"cargo build succeeded but V-005 codec was not produced at {binary}")
+    return binary
+
+
 def run_codecs(vfile: Path, overlay: Path | None) -> dict:
     env = dict(__import__("os").environ)
     if overlay:
@@ -130,7 +149,8 @@ def run_codecs(vfile: Path, overlay: Path | None) -> dict:
                                      capture_output=True, text=True, env=env, check=True).stdout)
     out = {"node": {k: v["verdict"] for k, v in node.items() if isinstance(v, dict) and "verdict" in v}}
     if not overlay:
-        rust = json.loads(subprocess.run([str(V5 / "rust/target/release/v005"), "vectors", str(vfile)],
+        rust_bin = ensure_rust_codec()
+        rust = json.loads(subprocess.run([str(rust_bin), "vectors", str(vfile)],
                                          capture_output=True, text=True, check=True).stdout)
         out["rust"] = {k: v["verdict"] for k, v in rust.items() if isinstance(v, dict) and "verdict" in v}
     return out

@@ -6,7 +6,7 @@ OM is **PWA-first, not PWA-only**.
 
 The first operatorless reference client should be an installable PWA because it can be distributed directly, can use standards-based Web Push, and does not require an app-store publisher merely to prove the protocol and product.
 
-Native clients remain part of the long-term architecture because they provide stronger OS integration and unlock capabilities that a browser cannot universally provide.
+Android and iOS native clients are explicit V1 reference-family targets because they provide stronger OS integration and catch assumptions a browser cannot validate. The PWA remains the first vertical slice; this is not a simultaneous-launch requirement (ADR-0150).
 
 ## 2. Shared portable core
 
@@ -44,6 +44,7 @@ The PWA is expected to support:
 - Web Push notifications;
 - WebRTC voice/video while the runtime is active;
 - LAN/P2P/TURN/SFU media paths where browser APIs allow;
+- optional offline-local message/file delivery through manual/QR/known-endpoint/WebRTC-style local routing when browser capabilities permit it;
 - backup/restore flows;
 - multi-device linking;
 - installable icon/standalone app presentation.
@@ -67,7 +68,7 @@ Therefore a PWA-only policy would unnecessarily constrain the future product.
 
 ## 5. Native clients are convenience/assurance shells, not the protocol
 
-Future native distributions may add:
+V1 native reference shells add/validate:
 
 ### Android
 
@@ -83,7 +84,16 @@ Future native distributions may add:
 - native push/calling integration;
 - better background behavior and OS integration.
 
-They still speak the exact same OM protocol and use the same user-owned infrastructure.
+### Desktop (V1 reference-family target)
+
+- native secure-storage integration appropriate to macOS/Windows/Linux;
+- multi-window and filesystem/share integration through `PlatformAdapter`;
+- native notification/update lifecycle integration;
+- keyboard/pointer density and large-window layouts without a separate protocol/UI semantic model.
+
+Desktop OS support may be staged; V1 target status means the shared contracts are validated against desktop constraints before V1 architecture is considered complete, not that every desktop binary must launch simultaneously.
+
+All native shells speak the exact same OM protocol and use the same user-owned infrastructure. Native-only APIs are capabilities, not native-only protocol semantics; automatic LAN discovery may be available here while the PWA uses a manual/QR/known-endpoint fallback.
 
 ## 6. Avoid the fragmented-client trap
 
@@ -96,7 +106,7 @@ om-core/
 om-web/
 om-android/
 om-ios/
-om-desktop/   (later)
+om-desktop/
 ```
 
 Third-party clients remain welcome and must be able to interoperate through public specifications/conformance suites.
@@ -132,14 +142,15 @@ No universal OM push gateway is required.
 
 Native path:
 
-A particular native distribution may operate or outsource a narrowly scoped APNs/FCM gateway. That gateway is a property of that distribution, not a mandatory protocol service.
+A particular native distribution may operate or outsource a narrowly scoped APNs/FCM/UnifiedPush-compatible gateway, or use a bounded persistent encrypted wake/fetch connection where the OS permits. Every adapter is a property of that distribution/user configuration, not a mandatory protocol service.
 
 ## 9. Roadmap consequence
 
 1. operatorless PWA proves the protocol and product;
 2. polish it into a usable daily messenger;
-3. build native shells over the same OM Core;
-4. add Android SMS/MMS/RCS adapters later;
+3. build Android, iOS and desktop V1 reference shells over the same OM Core/shared UI, staged as practical;
+4. provide replaceable Android wake adapters so FCM is convenience rather than protocol dependency;
+5. add Android SMS/MMS/RCS adapters later;
 5. optional providers/businesses compete on convenience without owning the network.
 
 ## 10. Shared UI architecture

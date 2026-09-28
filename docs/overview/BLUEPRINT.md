@@ -12,6 +12,7 @@ OM is an open secure messenger optimized for ordinary users and hostile assumpti
 - post-quantum/hybrid-ready CryptoProfiles with invisible migration;
 - reviewed 1:1 ratchet and MLS group architecture;
 - local-first encrypted state and portable storage;
+- optional V1 same-LAN encrypted message/file delivery where privacy-preserving rendezvous and platform capability permit it;
 - WebRTC/SFrame calls using LAN/P2P when practical and TURN/SFU when required;
 - a transport adapter layer ready for future SMS/MMS/RCS without blocking v1;
 - public protocol/conformance so OM-the-project is not itself a permanent central authority.
@@ -162,7 +163,9 @@ First useful OM should prove:
 - 1:1 E2EE OM-native delivery through replaceable multi-relay RelaySets/failover;
 - canonical event convergence;
 - encrypted attachments through replaceable BlobStore;
-- basic multi-device sync;
+- basic multi-device sync, including bounded account-private draft/preference sync;
+- isolated multi-IdentityProfile switching in the reference client;
+- ordinary audio/voice-note and one-shot static-location presentation with safe old-client fallback;
 - identity verification/continuity;
 - profile negotiation/downgrade safety;
 - provider migration.

@@ -168,6 +168,10 @@
     },
     "metadata_exposure": {
       "1": "sponsor_sees_timing_volume_sizes_not_content"
+    },
+    "rich_list_style": {
+      "1": "unordered",
+      "2": "ordered"
     }
   },
   "structs": {
@@ -1241,7 +1245,7 @@
             "ref": "PrekeyItem"
           },
           "req": false,
-          "note": "mandatory since ADR-0126 (ADR-0118 §6): validators reject a bundle without it. 'req' keeps its assigned value because assigned values are immutable; the rule is carried by keys.cddl and by om-crypto-profiles required_bundle_fields."
+          "note": "mandatory since ADR-0126 (ADR-0118 \u00a76): validators reject a bundle without it. 'req' keeps its assigned value because assigned values are immutable; the rule is carried by keys.cddl and by om-crypto-profiles required_bundle_fields."
         },
         {
           "key": 9,
@@ -3182,7 +3186,8 @@
           "type": {
             "ref": "RelayEntry"
           },
-          "req": true
+          "req": true,
+          "note": "ADR-0146 request-scoped reply capability: one logical bootstrap response; exact retries and at most 8 distinct candidate wrappers while OPEN; no new candidate after closure"
         },
         {
           "key": 9,
@@ -3191,7 +3196,7 @@
             "ref": "DeliveryKeyMaterial"
           },
           "req": true,
-          "note": "ADR-0142 request-scoped acceptance-reply bootstrap key; route_binding must match reply_route"
+          "note": "ADR-0142/0144/0145/0146/0147 request-scoped acceptance-reply bootstrap key: fresh key/id per MessageRequest; crypto_profile matches request; route_binding matches exact reply_route; expires_at <= reply_route.expires_at; bootstrap acceptance deadline is min(reply_route.expires_at, reply_delivery_key.expires_at) with no independent v1 request expiry; wrapper expiry is bounded by that authenticated context; never promoted to established relationship authority"
         }
       ]
     },
@@ -3542,6 +3547,157 @@
           "req": true
         }
       ]
+    },
+    "VoiceNoteV1Extension": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "attachment_index",
+          "type": {
+            "uint": [
+              0,
+              31
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "waveform_u8",
+          "type": {
+            "bstr": [
+              16,
+              256
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "LocationCardV1Extension": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "lat_e7_offset",
+          "type": {
+            "uint": [
+              0,
+              1800000000
+            ]
+          },
+          "req": true,
+          "note": "signed lat_e7 = value - 900000000"
+        },
+        {
+          "key": 1,
+          "name": "lon_e7_offset",
+          "type": {
+            "uint": [
+              0,
+              3600000000
+            ]
+          },
+          "req": true,
+          "note": "signed lon_e7 = value - 1800000000"
+        },
+        {
+          "key": 2,
+          "name": "accuracy_m",
+          "type": {
+            "uint": [
+              1,
+              1000000
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 3,
+          "name": "label",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "RichListItemV1Extension": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "block_index",
+          "type": {
+            "uint": [
+              0,
+              4095
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "depth",
+          "type": {
+            "uint": [
+              0,
+              3
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "style",
+          "type": {
+            "enum": "rich_list_style"
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "ordinal",
+          "type": {
+            "uint": [
+              1,
+              9999
+            ]
+          },
+          "req": false
+        }
+      ],
+      "semantic_rules": [
+        "meaningful only on ConversationEvent message.create content.blocks or message.edit replacement.blocks; other event kinds ignore the non-critical presentation metadata",
+        "block_index values are strictly increasing and unique within one RichListV1Extension",
+        "referenced block must exist and be W0 paragraph",
+        "ordinal is required exactly when style=ordered and forbidden when style=unordered",
+        "first inline is unmarked InlineText beginning with ADR-0150 canonical fallback prefix for depth/style/ordinal",
+        "first annotation and first annotation after any block_index gap have depth 0; inside a contiguous run depth increase is at most +1"
+      ]
+    },
+    "RichListV1Extension": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "items",
+          "type": {
+            "array": {
+              "ref": "RichListItemV1Extension"
+            },
+            "n": [
+              1,
+              256
+            ]
+          },
+          "req": true
+        }
+      ],
+      "semantic_rules": [
+        "after registered payload schema validation, any invalid reference/order/nesting/ordinal-presence/fallback semantic check invalidates/ignores the whole non-critical rich-list interpretation; base W0 RichText remains valid",
+        "registered object/criticality/payload-schema violations are malformed and reject the containing object per ADR-0149/ADR-0151"
+      ]
     }
   },
   "extensions": [
@@ -3566,6 +3722,39 @@
       "wave": "W1",
       "adr": "ADR-0138; ADR-0141",
       "note": "critical commitment: unsupported verifiers reject the containing ACS; W0 still rejects legacy_policy retirement authorization; activation remains W1/off by default"
+    },
+    {
+      "name": "om.voice-note.v1",
+      "object": "ConversationEvent",
+      "critical": false,
+      "value": {
+        "ref": "VoiceNoteV1Extension"
+      },
+      "wave": "W0",
+      "adr": "ADR-0148; ADR-0149",
+      "note": "non-critical V1 presentation metadata; object/criticality/schema are registry-bound; attachment_index refers to the immutable message.create attachment list"
+    },
+    {
+      "name": "om.location-card.v1",
+      "object": "ConversationEvent",
+      "critical": false,
+      "value": {
+        "ref": "LocationCardV1Extension"
+      },
+      "wave": "W0",
+      "adr": "ADR-0148; ADR-0149",
+      "note": "non-critical one-shot static point; signed E7 coordinates use unsigned offsets; RichText must carry the exact canonical geo: fallback token per ADR-0149"
+    },
+    {
+      "name": "om.rich-list.v1",
+      "object": "ConversationEvent",
+      "critical": false,
+      "value": {
+        "ref": "RichListV1Extension"
+      },
+      "wave": "W0",
+      "adr": "ADR-0150; ADR-0151",
+      "note": "non-critical V1 list presentation over existing paragraph blocks; registered schema violations reject the containing object, while schema-valid reference/nesting/fallback semantic failures ignore the whole enhancement; no W0 RichText block-type change"
     }
   ]
 }

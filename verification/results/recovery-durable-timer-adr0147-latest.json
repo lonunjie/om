@@ -1,0 +1,336 @@
+{
+  "checker": "recovery_durable_timer_adr0147",
+  "failures": [],
+  "gates": [
+    "V-002"
+  ],
+  "mutations": [
+    {
+      "caught": true,
+      "id": "M1_credit_reboot_downtime_from_wall_clock",
+      "mutated_accepts": true,
+      "trace": [
+        {
+          "durable": 0,
+          "op": "observe",
+          "wall": 1000000
+        },
+        {
+          "elapsed_lb": 10,
+          "op": "runtime",
+          "seconds": 10
+        },
+        {
+          "durable": 10,
+          "generation": 2,
+          "op": "checkpoint"
+        },
+        {
+          "clean": false,
+          "downtime": 90,
+          "durable_after": 100,
+          "durable_before": 10,
+          "elapsed_lb": 100,
+          "op": "restart"
+        }
+      ]
+    },
+    {
+      "caught": true,
+      "id": "M2_trust_restored_elapsed_as_newer_authority",
+      "mutated_accepts": true,
+      "trace": [
+        {
+          "durable": 0,
+          "op": "observe",
+          "wall": 1000000
+        },
+        {
+          "elapsed_lb": 20,
+          "op": "runtime",
+          "seconds": 20
+        },
+        {
+          "durable": 20,
+          "generation": 2,
+          "op": "checkpoint"
+        },
+        {
+          "durable_after": 99,
+          "historical_elapsed": 99,
+          "historical_generation": 999,
+          "op": "restore_historical_timer",
+          "trusted": true
+        },
+        {
+          "elapsed_lb": 100,
+          "op": "runtime",
+          "seconds": 1
+        }
+      ]
+    }
+  ],
+  "passed": true,
+  "requirements": [
+    "R-322"
+  ],
+  "scenarios": [
+    {
+      "expected": [
+        false,
+        true,
+        100
+      ],
+      "got": [
+        false,
+        true,
+        100
+      ],
+      "id": "clean_restart_downtime_not_credited",
+      "ok": true,
+      "trace": [
+        {
+          "durable": 0,
+          "op": "observe",
+          "wall": 1000000
+        },
+        {
+          "elapsed_lb": 40,
+          "op": "runtime",
+          "seconds": 40
+        },
+        {
+          "durable": 40,
+          "generation": 2,
+          "op": "checkpoint"
+        },
+        {
+          "clean": true,
+          "downtime": 10000,
+          "durable_after": 40,
+          "durable_before": 40,
+          "elapsed_lb": 40,
+          "op": "restart"
+        },
+        {
+          "elapsed_lb": 99,
+          "op": "runtime",
+          "seconds": 59
+        },
+        {
+          "elapsed_lb": 100,
+          "op": "runtime",
+          "seconds": 1
+        }
+      ]
+    },
+    {
+      "expected": [
+        40,
+        false,
+        true
+      ],
+      "got": [
+        40,
+        false,
+        true
+      ],
+      "id": "crash_loses_uncheckpointed_elapsed_but_never_accelerates",
+      "ok": true,
+      "trace": [
+        {
+          "durable": 0,
+          "op": "observe",
+          "wall": 1000000
+        },
+        {
+          "elapsed_lb": 40,
+          "op": "runtime",
+          "seconds": 40
+        },
+        {
+          "durable": 40,
+          "generation": 2,
+          "op": "checkpoint"
+        },
+        {
+          "elapsed_lb": 70,
+          "op": "runtime",
+          "seconds": 30
+        },
+        {
+          "clean": false,
+          "downtime": 50000,
+          "durable_after": 40,
+          "durable_before": 40,
+          "elapsed_lb": 40,
+          "op": "restart"
+        },
+        {
+          "elapsed_lb": 99,
+          "op": "runtime",
+          "seconds": 59
+        },
+        {
+          "elapsed_lb": 100,
+          "op": "runtime",
+          "seconds": 1
+        }
+      ]
+    },
+    {
+      "expected": [
+        false,
+        false,
+        true,
+        100
+      ],
+      "got": [
+        false,
+        false,
+        true,
+        100
+      ],
+      "id": "wall_clock_jumps_do_not_credit_elapsed",
+      "ok": true,
+      "trace": [
+        {
+          "durable": 0,
+          "op": "observe",
+          "wall": 1000000
+        },
+        {
+          "elapsed_lb": 30,
+          "op": "runtime",
+          "seconds": 30
+        },
+        {
+          "elapsed_lb": 30,
+          "op": "wall_jump",
+          "seconds": 999999,
+          "wall": 2000029
+        },
+        {
+          "elapsed_lb": 30,
+          "op": "wall_jump",
+          "seconds": -1500000,
+          "wall": 500029
+        },
+        {
+          "elapsed_lb": 99,
+          "op": "runtime",
+          "seconds": 69
+        },
+        {
+          "elapsed_lb": 100,
+          "op": "runtime",
+          "seconds": 1
+        }
+      ]
+    },
+    {
+      "expected": [
+        false,
+        true
+      ],
+      "got": [
+        false,
+        true
+      ],
+      "id": "missing_or_corrupt_record_restarts_interval",
+      "ok": true,
+      "trace": [
+        {
+          "durable": 0,
+          "op": "observe",
+          "wall": 1000000
+        },
+        {
+          "elapsed_lb": 75,
+          "op": "runtime",
+          "seconds": 75
+        },
+        {
+          "durable": 75,
+          "generation": 2,
+          "op": "checkpoint"
+        },
+        {
+          "durable_after": 0,
+          "op": "timer_record_missing_or_corrupt"
+        },
+        {
+          "elapsed_lb": 99,
+          "op": "runtime",
+          "seconds": 99
+        },
+        {
+          "elapsed_lb": 100,
+          "op": "runtime",
+          "seconds": 1
+        }
+      ]
+    },
+    {
+      "expected": [
+        false,
+        true
+      ],
+      "got": [
+        false,
+        true
+      ],
+      "id": "historical_or_rolled_back_timer_state_is_not_authority",
+      "ok": true,
+      "trace": [
+        {
+          "durable": 0,
+          "op": "observe",
+          "wall": 1000000
+        },
+        {
+          "elapsed_lb": 60,
+          "op": "runtime",
+          "seconds": 60
+        },
+        {
+          "durable": 60,
+          "generation": 2,
+          "op": "checkpoint"
+        },
+        {
+          "durable_after": 0,
+          "historical_elapsed": 95,
+          "historical_generation": 1,
+          "op": "restore_historical_timer",
+          "trusted": false
+        },
+        {
+          "elapsed_lb": 99,
+          "op": "runtime",
+          "seconds": 99
+        },
+        {
+          "elapsed_lb": 100,
+          "op": "runtime",
+          "seconds": 1
+        }
+      ]
+    }
+  ],
+  "scope": "ADR-0147 verifier-local crash-safe monotonic elapsed-time lower bound across restart/restore",
+  "structural_checks": {
+    "adr_elapsed_lower_bound": true,
+    "adr_restored_state_fails_safe": true,
+    "adr_unmeasured_downtime_not_counted": true,
+    "r322_present": true,
+    "registry_per_verifier": true,
+    "registry_restart_lower_bound": true
+  },
+  "summary": {
+    "mutations": 2,
+    "mutations_caught": 2,
+    "scenarios": 5,
+    "scenarios_passed": 5
+  }
+}

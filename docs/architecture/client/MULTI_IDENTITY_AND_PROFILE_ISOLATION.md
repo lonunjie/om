@@ -2,7 +2,7 @@
 
 ## Decision
 
-OM Core is multi-identity from its first storage schema, even if v1 UI exposes a single identity. A later account/profile switcher must be a UI feature, not a database rewrite.
+OM Core is multi-identity from its first storage schema. The V1 reference client exposes an account/profile switcher whenever two or more IdentityProfiles are configured; this remains a UI feature over already-isolated state, not a database/key rewrite (ADR-0148).
 
 Internally call these **IdentityProfiles** to avoid confusing a local profile with an AccountID.
 
@@ -39,7 +39,7 @@ Future UX can offer:
 
 OM must not silently fingerprint a physical device to tie profiles together for abuse control.
 
-## Later account switcher UX
+## V1 account switcher UX
 
 Account switching should be Telegram-simple:
 
@@ -47,7 +47,18 @@ Account switching should be Telegram-simple:
 - select identity;
 - preserve each identity's draft/navigation state;
 - notifications indicate destination identity according to privacy policy;
-- no logout/reload/rekey just to switch views.
+- no logout/reload/rekey just to switch views;
+- the active-profile selector is local installation state and is not synchronized as an account preference;
+- switching purges/rebinds profile-scoped decrypted view caches before rendering the destination profile;
+- unknown deep links ask which profile to use rather than choosing by hidden cross-profile heuristics.
+
+## V1 ProfileExecutionContext / async isolation (ADR-0149)
+
+Namespace isolation is not sufficient if asynchronous work resolves after the visible profile changes. Every profile-sensitive intent/task captures an immutable `ProfileExecutionContext` when dispatched. It includes the originating `profile_id` and the profile-scoped vault/storage/session namespace needed by that operation. Continuations never consult a mutable process-global `active_profile` to decide where results belong.
+
+This applies to attachment transfer/media processing, composer drafts/send preparation, search/index queries, file/media picker callbacks, OS share/import intents, notification opens/quick replies, deep links, background account-private sync, clipboard-triggered actions and desktop/multi-window navigation. Switching A -> B does not rebind an A task to B: its result stays in A, is presented only by explicitly navigating to A, or is cancelled/discarded if A is no longer eligible.
+
+Each independent window/navigation surface is explicitly profile-bound. External intents without an unambiguous profile require user choice. A notification action retains the profile/conversation/notification instance that created it and cannot be retargeted by a later active-profile change. OS clipboard contents are an explicitly shared platform boundary, not a profile-private namespace; OM never auto-imports clipboard data on switch and may use timed sensitive-clipboard clearing where the platform supports it.
 
 ## Theme suggestion per identity
 
@@ -71,4 +82,4 @@ If an `om:` link does not already belong to a known relationship/profile, the UI
 
 ## V1 engineering requirement
 
-All persistence tables/keys/cache namespaces take a `profile_id` or are explicitly global. Tests MUST prove no query/cache/notification can accidentally return another profile's data.
+All persistence tables/keys/cache namespaces take a `profile_id` or are explicitly global. Tests MUST prove no query/cache/draft/sync/notification or deep-link path can accidentally return or mutate another profile's data. Run-6B evidence is tracked under V-021 (ADR-0148).

@@ -112,8 +112,8 @@ MessageRequestPayload = {
   5: bstr .cbor signed-ContactDescriptor,   ; sender_descriptor
   ? 6: RichText,                            ; greeting
   ? 7: [1*4 bstr .cbor signed-ReferralAttestation], ; referrals (client-side label only)
-  8: relay-entry,                           ; reply_route (one-use deposit capability for the reply)
-  9: delivery-key-material,                 ; reply_delivery_key, bound to reply_route (ADR-0142)
+  8: relay-entry,                           ; reply_route (one logical response; bounded transport use, ADR-0146)
+  9: delivery-key-material,                 ; fresh per request; profile/route/expiry scoped (ADR-0142/0144)
   ? 23: extensions,
 }
 

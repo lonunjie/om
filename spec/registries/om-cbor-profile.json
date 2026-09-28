@@ -23,17 +23,43 @@
     "default_max_object_bytes": 65536
   },
   "schema_error_classes": [
-    "wrong_object_type", "unsupported_version", "unknown_field", "missing_field", "wrong_type",
-    "null_forbidden", "value_range", "set_order", "unknown_critical_extension"
+    "wrong_object_type",
+    "unsupported_version",
+    "unknown_field",
+    "missing_field",
+    "wrong_type",
+    "null_forbidden",
+    "value_range",
+    "set_order",
+    "unknown_critical_extension"
   ],
   "decoder_error_classes": [
-    "truncated", "trailing_bytes", "malformed", "noncanonical_int", "noncanonical_length", "indefinite_length",
-    "float_forbidden", "tag_forbidden", "invalid_simple", "invalid_utf8", "key_type", "duplicate_key",
-    "unsorted_keys", "depth_limit", "count_limit", "size_limit"
+    "truncated",
+    "trailing_bytes",
+    "malformed",
+    "noncanonical_int",
+    "noncanonical_length",
+    "indefinite_length",
+    "float_forbidden",
+    "tag_forbidden",
+    "invalid_simple",
+    "invalid_utf8",
+    "key_type",
+    "duplicate_key",
+    "unsorted_keys",
+    "depth_limit",
+    "count_limit",
+    "size_limit"
   ],
   "error_precedence": "The first violation met in a depth-first, left-to-right walk wins. size_limit on the whole object is checked first. Decoder (encoding) checks complete before schema checks begin. A SignedEnvelope body is decoded and validated when its field is visited. Each negative vector contains exactly one violation, so precedence only matters for implementations that report more than one.",
   "extensions": {
-    "known_extensions": [],
-    "rule": "Key 23 of a top-level object is a map of extension-id (tstr, 1..128 bytes) to ExtEntry {0: critical bool, 1: value any}. An unknown extension with critical=true rejects the object (unknown_critical_extension). An unknown non-critical extension is ignored semantically and its bytes are preserved (it remains inside the signed/hashed body)."
+    "known_extensions": [
+      "om.acs.fork_ack",
+      "om.acs.legacy_policy",
+      "om.voice-note.v1",
+      "om.location-card.v1",
+      "om.rich-list.v1"
+    ],
+    "rule": "Key 23 of a top-level object is a map of extension-id (tstr, 1..128 bytes) to ExtEntry {0: critical bool, 1: value any}. Registered IDs are mirrored in known_extensions and normatively defined by om-numeric-fields.json: owning object, exact criticality and registered payload schema are enforced. A registered extension on the wrong owning object, with the wrong criticality, or with an invalid payload is rejected. An unknown extension with critical=true rejects the object (unknown_critical_extension). An unknown non-critical extension is ignored semantically and its bytes are preserved (it remains inside the signed/hashed body)."
   }
 }

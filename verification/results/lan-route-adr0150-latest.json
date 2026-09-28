@@ -1,0 +1,31 @@
+{
+  "kind": "adr0150_lan_route_reconciliation",
+  "design_evidence_only": true,
+  "gates": [
+    "V-003"
+  ],
+  "scenarios": {
+    "lan_then_wan_exact_retry_materializes_once": true,
+    "wan_then_lan_exact_retry_materializes_once": true,
+    "same_eventid_different_authenticated_event_rejected": true,
+    "lan_discovery_cannot_authorize_peer": true,
+    "route_change_cannot_lower_security_floor_or_profile": true,
+    "lan_blob_then_provider_backfill_preserves_identity": true,
+    "local_receipt_is_not_storage_durability": true,
+    "backfill_cannot_rewrite_blob_identity": true
+  },
+  "mutations": {
+    "route_keyed_materialization_would_duplicate_caught": true,
+    "lan_endpoint_as_authority_mutation_caught": true,
+    "route_downgrade_mutation_caught": true,
+    "local_receipt_equals_durable_mutation_caught": true,
+    "backfill_new_blobid_mutation_caught": true,
+    "eventid_collision_last_write_wins_mutation_caught": true
+  },
+  "scenario_passed": 8,
+  "scenario_total": 8,
+  "mutations_caught": 6,
+  "mutation_total": 6,
+  "passed": true,
+  "note": "LAN/WAN are transport alternatives only. EventID/session authority and BlobID/ciphertext identity remain route-independent; local blob receipt is not storage durability."
+}

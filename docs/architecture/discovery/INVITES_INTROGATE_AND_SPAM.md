@@ -107,10 +107,14 @@ W0 first contact uses three objects ([`discovery.cddl`](../../../spec/cddl/disco
    pinned by ADR-0131: RFC 9180 base-mode semantics with `draft-ietf-hpke-pq-05` MLKEM768-X25519, HKDF-SHA256 and
    ChaCha20Poly1305. The draft version is part of the profile; OM defines no ad-hoc hybrid KEM.
    The payload is signed by the **sender's** intro identity and carries the sender's signed ContactDescriptor, an
-   optional greeting, optional referral attestations, a one-use reply route, and a required request-scoped
-   `reply_delivery_key` bound to that route (ADR-0142). It repeats the ticket id and request-key digest, so it cannot
-   be replayed into another request. The reply delivery key is not a stable identity credential; it exists solely so
-   the first post-acceptance response can be sealed before established relationship delivery keys have been exchanged.
+   optional greeting, optional referral attestations, a one-logical-response reply route with bounded transport use, and a required request-scoped
+   `reply_delivery_key` bound to that route (ADR-0142/0144/0146/0147). It repeats the ticket id and request-key digest, so it cannot
+   be replayed into another request. The requester generates a fresh reply key pair and `delivery_key_id` for every
+   MessageRequest and durably binds them to `(ticket_id, request_key_digest, crypto_profile, reply_route)`. The key's
+   profile equals the MessageRequest profile, its route-binding digest must match the exact reply route, and its expiry
+   cannot exceed the route expiry. The bootstrap acceptance deadline is the authenticated minimum of the reply-route and reply-key expiries; v1 has no separate hidden request-expiry value. The same key/id is not reused across requests or promoted into established state.
+   The reply delivery key is not a stable identity credential; it exists solely so the first post-acceptance response
+   can be sealed before established relationship delivery keys have been exchanged.
    - **Sender hiding.** The outer object carries only the ticket id, request-key digest, profile, HPKE encapsulation,
      ciphertext and an optional admission proof. The IntroGate sees the ticket and admission token, the size, the
      timing and the network address; never the sender's AccountID, device id or intro key. It MUST NOT require any.
@@ -214,8 +218,21 @@ Acceptance does not immediately create a stable-account relationship. The recipi
 in the original request. The relationship is `ACCEPTED_UNBOUND` until both verify against active, non-quarantined
 DeviceCredentials and their referenced AccountControlState heads. Only then does it become `ACTIVE`, expose
 relationship-scoped key-material fetch authority, exchange per-device/per-route `SealedDeliveryKeyRecord`s, and
-establish normal PQXDH sessions to stable-account device bundles. The recipient's first accepted response uses the
-request-scoped `reply_delivery_key`; established records take over immediately after relationship state is available.
+establish normal PQXDH sessions to stable-account device bundles. Exactly one logical recipient bootstrap response may
+win each MessageRequest under the request-scoped `reply_delivery_key`. The `reply_route` is one-logical-response rather
+than one-physical-deposit: exact retries remain admissible and at most 8 distinct candidate wrappers may be admitted over the
+request lifetime while it is `OPEN`. If recipient devices race, the first valid requester-side crash-consistent commit wins;
+another different wrapper cannot create a second branch. Established records
+then carry the reciprocal response while the relationship remains `ACCEPTED_UNBOUND` until both bindings verify.
+
+The winning commit atomically installs the authenticated recipient binding/established route+delivery-key state, marks
+the exact wrapper `COMPLETE`, marks every losing `RESERVED` sibling `REJECTED`, and closes the MessageRequest to new
+logical bootstrap responses. Cancellation, decline, expiry and terminal invalidation compete on that same `OPEN`
+transition and also terminalize every outstanding `RESERVED` candidate before key destruction. The completed bootstrap
+private key may then be destroyed: a minimal non-secret replay/request tombstone recognizes the exact winning wrapper
+before key lookup so a lost-ack byte-identical retry remains idempotently acknowledgeable. Wrapper expiry cannot exceed
+the derived request acceptance deadline, reply-route or reply-delivery-key acceptance window. Candidate rejection or tombstone pruning while `OPEN` never frees one of the eight lifetime slots. Historical backup/restore never reactivates the bootstrap private key, `OPEN`/`RESERVED` state or replay-only request state; a needed introduction is re-issued fresh. Cross-request reuse is a protocol error
+(ADR-0144/0145/0146/0147).
 
 This keeps the requester's AccountID hidden before acceptance while ensuring the accepting recipient authenticates the
 requester just as strongly as the requester authenticates the recipient.

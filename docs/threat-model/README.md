@@ -150,3 +150,9 @@ Adversary classes added in this checkpoint:
 - **Harvest-now-decrypt-later against groups:** v1 MLS groups are classical. Mitigation: honest per-type PQ status, ReInit path, objective adoption triggers (V-019).
 - **Uncoordinated vulnerability disclosure / straggler implementations:** mitigation is signed SecurityAdvisories and peer-local floors, with no kill switch (PR-012).
 - **Self-verifying design author:** evidence produced only by the design's author. Mitigation: gate independence rules (`../verification/GATE_PASS_CRITERIA.md`).
+## 2026-09-28 pre-review sealed-delivery composition threats
+
+- **Crash/replay atomicity gap:** a process crash after durable outer reservation but before inner acceptance must not either lose the exact retry or repeat inner effects. ADR-0143/0144 require exact-wrapper fingerprint binding, resumable `RESERVED`, crash-consistent inner K2 + `COMPLETE`, and idempotent completed retry (T-115).
+- **Bootstrap-key scope confusion:** a `MessageRequest.reply_delivery_key` reused or transplanted across requests/routes could become a cross-request capability or accidental stable relationship handle. ADR-0144 requires a fresh key/id per request, exact route/profile/expiry binding, pending-request tuple binding, terminal disposal and no promotion to `SealedDeliveryKeyRecord` (T-116).
+- **Stale-head false rejection:** after outer reservation, temporarily stale relationship authority can make inner authentication undecidable. Treating that as terminal failure could burn a valid exact retry. ADR-0144 keeps the wrapper `RESERVED` with no release/ack until authenticated monotonic ACS refresh yields a definitive accept/reject decision (T-117).
+

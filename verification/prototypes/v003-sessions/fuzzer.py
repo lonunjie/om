@@ -34,7 +34,7 @@ FUZZ_VECTORS = HERE / "fuzzer_vectors.json"
 def bounds_from(c):
     return Bounds(max_msgs=int(c["MaxMsgs"]), max_sid=int(c["MaxSid"]), max_crash=int(c["MaxCrash"]),
                   max_restore=int(c["MaxRestore"]), max_dup=int(c["MaxDup"]), max_weak=int(c["MaxWeak"]),
-                  max_inject=int(c["MaxInject"]))
+                  max_inject=int(c["MaxInject"]), max_forge=int(c.get("MaxForge", 0)))
 
 
 def rules_from(c):
@@ -53,14 +53,15 @@ def find_env(w, step):
             cands = [e for e in cands if e[3] == step[3] and e[6] == step[4]]
         elif lab == "RecvRejectedRevoked":
             cands = [e for e in cands if e[6] == step[3]]
-        elif lab == "RecvRejectedBelowFloor":
+        elif lab in ("RecvRejectedBelowFloor", "RecvRejectedUnboundInitiator"):
             cands = [e for e in cands if e[3] == step[3]]
     if not cands:
         raise Infeasible(f"no envelope for {step}")
     return sorted(cands, key=repr)[0]
 
 
-RECV = {"Recv", "RecvUndecryptable", "RecvRejectedRevoked", "RecvRejectedBelowFloor", "RecvReset"}
+RECV = {"Recv", "RecvUndecryptable", "RecvRejectedRevoked", "RecvRejectedBelowFloor",
+        "RecvRejectedUnboundInitiator", "RecvReset"}
 ENC = {"Encrypt", "Initiate", "EncryptRefusedFloor", "EncryptRefusedIneligible"}
 
 
@@ -84,6 +85,8 @@ def replay(actions, topo, bounds, rules):
                 got = w.serve_weak(step[1])
             elif lab == "InjectRogueDevice":
                 got = w.inject()
+            elif lab == "ForgeInitiation":
+                got = w.forge_initiation(step[1], step[2])
             elif lab == "NewMessage":
                 got = w.new_message(step[1])
             elif lab in ENC:
@@ -155,7 +158,7 @@ def run_replays():
 # ----------------------------------------------------------------------------- fuzzing
 
 
-FUZZ_BOUNDS = Bounds(max_msgs=5, max_sid=12, max_crash=2, max_restore=1, max_dup=3, max_weak=1, max_inject=1)
+FUZZ_BOUNDS = Bounds(max_msgs=5, max_sid=12, max_crash=2, max_restore=1, max_dup=3, max_weak=1, max_inject=1, max_forge=1)
 
 
 def run_schedule(choices, rules, bounds=FUZZ_BOUNDS, topo=FUZZ_TOPOLOGY):

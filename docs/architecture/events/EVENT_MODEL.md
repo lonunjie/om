@@ -339,7 +339,7 @@ Never make the relay/network store these merely because the UI needs them:
 - UI layout;
 - scheduled-send queue before the message is actually sent.
 
-Shared room pins are **not** in this list; they use `pin.set`. Private multi-device preference sync can be designed later as account-private encrypted sync.
+Shared room pins are **not** in this list; they use `pin.set`. Bounded private multi-device draft/selected-preference sync is V1 account-private encrypted sync under ADR-0148/0149; local-only categories remain local unless explicitly included by that typed sync profile.
 
 ## Attachments
 
@@ -562,7 +562,7 @@ extension criticality cannot rescue an unknown node placed in the body. Therefor
   the unsupported-content placeholder;
 - a sender emits a reserved later-wave encoding in the body (for example inline type 4, `custom_emoji`, reserved for
   W1) only when every recipient device advertises support for it, and otherwise sends a W0-valid fallback event;
-- List blocks and voice-note presentation (`presentation_role`, waveform) are later-wave and are carried this way.
+- ADR-0150 promotes bounded list presentation into V1 as the non-critical `om.rich-list.v1` extension over existing paragraph blocks. Voice-note and static-location presentation remain `om.voice-note.v1` / `om.location-card.v1`. All three stay beside a W0-valid body and therefore do not change the frozen W0 RichText grammar.
 
 Clients must always be able to produce a safe plain-text fallback for supported content.
 

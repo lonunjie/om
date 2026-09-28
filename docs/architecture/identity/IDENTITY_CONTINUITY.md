@@ -79,7 +79,19 @@ Historical aliases: 3   [show]
 
 The client should prefer current signed profile/identity state. Historical phone numbers are collapsed unless the user needs them for SMS, forensics, or manual contact cleanup.
 
-OM should not automatically mutate the operating system address book without explicit permission. It can maintain a cleaner OM-local PersonRecord and later offer safe export/cleanup tools.
+OM should not automatically mutate the operating system address book without explicit permission. It maintains a cleaner OM-local PersonRecord and V1 offers explicit safe export/cleanup tools under ADR-0152. Export requires a user-visible preview/diff and explicit OS permission; it never upgrades alias/address-book coincidence into cryptographic identity continuity.
+
+## V1 PersonRecord cleanup/export
+
+The V1 client may help the user clean a local PersonRecord and export selected current contact fields to the operating-system address book. This is convenience UI only.
+
+- Show current, historical, stale, superseded and reassigned aliases with their provenance/evidence level.
+- Require an explicit user action and OS Contacts permission before each mutation.
+- Show a preview/diff of fields that will be created, replaced or left untouched.
+- Never silently delete/overwrite an OS contact because OM marks an alias stale.
+- Exporting or matching a phone/email/name/photo never proves that two AccountIDs are the same person and never changes RelationshipBinding or continuity level.
+- Preserve OM-local provenance after export; the OS address book is an external convenience store, not an authority source.
+- No PersonRecord cleanup/export object is published to providers or peers by this feature.
 
 ## Identity continuity levels
 

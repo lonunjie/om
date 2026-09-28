@@ -1,0 +1,57 @@
+{
+  "kind": "adr0150_platform_reference_family",
+  "design_evidence_only": true,
+  "gates": [
+    "V-021"
+  ],
+  "capabilities": {
+    "pwa": {
+      "local_discovery": "manual_or_browser",
+      "background_wake": "web_push_or_lifecycle",
+      "secure_storage": "devicevault_browser",
+      "share_media": "browser_limited"
+    },
+    "android": {
+      "local_discovery": "native_or_manual",
+      "background_wake": "platform_push_background",
+      "secure_storage": "keystore_or_strongbox",
+      "share_media": "native_adapter"
+    },
+    "ios": {
+      "local_discovery": "native_or_manual",
+      "background_wake": "apns_background",
+      "secure_storage": "keychain_or_secure_enclave",
+      "share_media": "native_adapter"
+    }
+  },
+  "scenarios": {
+    "canonical_core_event_is_platform_independent": true,
+    "pwa_never_assumes_native_automatic_discovery": true,
+    "native_discovery_changes_route_capability_not_message_semantics": true,
+    "ios_discovery_changes_route_capability_not_message_semantics": true,
+    "background_wake_is_capability_not_authority": true,
+    "secure_storage_backend_differences_do_not_change_protocol_output": true,
+    "share_media_system_integration_is_adapter_only": true,
+    "unknown_adapter_authority_surface_rejected": true
+  },
+  "structural": {
+    "matrix_names_pwa_android_ios_v1_references": true,
+    "matrix_localdiscovery_is_capability_reported": true,
+    "shared_ui_core_contract_present": true,
+    "strategy_is_pwa_first_not_pwa_only": true,
+    "native_targets_are_v1_not_simultaneous_launch_promise": true
+  },
+  "mutations": {
+    "platform_in_eventid_mutation_caught": true,
+    "pwa_native_discovery_assumption_mutation_caught": true,
+    "native_adapter_protocol_authority_mutation_caught": true,
+    "secure_storage_semantic_fork_mutation_caught": true,
+    "background_push_plaintext_semantic_fork_mutation_caught": true
+  },
+  "scenario_passed": 8,
+  "scenario_total": 8,
+  "mutations_caught": 5,
+  "mutation_total": 5,
+  "passed": true,
+  "note": "PWA/Android/iOS may differ in system capabilities, but adapters report capabilities and Core/shared UI retain canonical messaging/security meaning."
+}

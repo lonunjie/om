@@ -27,6 +27,8 @@ Conceptual examples:
 
 ```text
 SendMessage(conversation, draft)
+SwitchIdentityProfile(profile_id)
+ShareStaticLocation(conversation, location_card)
 AcceptIntroduction(request_id)
 BlockPerson(person_id)
 SuspendDevice(device_id)
@@ -109,8 +111,12 @@ Example:
 ```text
 capabilities.callSystemIntegration = true
 capabilities.localContacts = read_optional
-capabilities.backgroundPush = webpush | apns | fcm | unifiedpush | none
+capabilities.backgroundPush = webpush | apns | fcm | unifiedpush | persistent | none
+capabilities.localDiscovery = automatic | manual_known_endpoint | unavailable
 ```
+
+
+`backgroundPush` is a wake capability only. On Android, V1 may switch among FCM, UnifiedPush-compatible, persistent encrypted wake/fetch, or none without changing identity, message correctness or canonical state (ADR-0152). Desktop is a V1 reference-family target and reports its actual windowing/storage/notification capabilities rather than gaining desktop-only product semantics.
 
 ## Native shell policy
 
@@ -166,3 +172,7 @@ The following are normative pass/fail cases for the registered W0 conformance su
 | UI-03 | malicious/invalid view input | no authority-changing Core command is synthesized |
 | UI-04 | security notice intent | reserved semantic survives platform/theme rendering |
 | UI-05 | same intent on two platforms | canonical Core transition is equivalent |
+| UI-06 | switch between two IdentityProfiles | destination view/cache/draft state is profile-namespaced; no logout/rekey/cross-profile read occurs |
+| UI-07 | unknown deep link with several profiles | client asks which profile should act; no hidden cross-profile heuristic chooses one |
+| UI-08 | voice-note extension unsupported | ordinary audio attachment remains playable and no required capability is fabricated |
+| UI-09 | location-card extension unsupported | W0-valid textual/`geo:` fallback remains usable; no background location or third-party map fetch is implicitly granted |

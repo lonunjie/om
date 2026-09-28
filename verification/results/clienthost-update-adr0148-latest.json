@@ -1,0 +1,42 @@
+{
+  "kind": "v023_clienthost_update_adr0148",
+  "design_evidence_only": true,
+  "scenarios": {
+    "mirror_discovery_same_signed_digest": true,
+    "optional_pq_cosignature_accepted": true,
+    "owner_pinned_root_not_remote_metadata": true,
+    "two_monitor_precondition": true,
+    "authenticated_root_policy_activation": true,
+    "dual_signature_after_activation": true,
+    "signature_stripping_fails_closed": true,
+    "root_policy_rollback_fails": true,
+    "verifier_first_atomic_switch": true,
+    "service_worker_broken_recovery": true,
+    "release_rollback_floor": true,
+    "long_neglected_requires_root_chain": true,
+    "compromised_origin_recovery_is_new_enrollment": true,
+    "deploy_credentials_separate_from_protocol_identity": true,
+    "distribution_root_separate_from_om_identity": true
+  },
+  "mutations": {
+    "remote_root_change": true,
+    "one_monitor": true,
+    "strip_new_required_signature": true,
+    "release_rollback": true,
+    "unauthenticated_root_transition": true
+  },
+  "structural": {
+    "service_worker_lifecycle_documented": true,
+    "compromised_origin_new_device_enrollment": true,
+    "owner_local_minimum_version_floor": true,
+    "credential_scoping_documented": true,
+    "rekor_c2sp_profile_documented": true,
+    "offline_long_neglected_host_listed": true
+  },
+  "scenario_passed": 15,
+  "scenario_total": 15,
+  "mutations_caught": 5,
+  "mutation_total": 5,
+  "passed": true,
+  "note": "Models deployment/update trust boundaries only. Live browser/provider drills remain pre-release evidence."
+}

@@ -2,10 +2,11 @@
 
 - **Status:** Accepted
 - **Checkpoint:** 2026-09-22 14:34 PHT
+- **Amended by:** ADR-0148 (visible multi-profile switching promoted into the V1 reference client)
 
 ## Decision
 
-Core/storage are profile-namespaced from v1. Multiple-account switching can ship later without schema/key redesign; profiles do not receive a hidden global person/device identifier.
+Core/storage are profile-namespaced from v1. ADR-0148 now requires the V1 reference client to expose explicit profile switching when multiple IdentityProfiles are configured, without schema/key redesign; profiles do not receive a hidden global person/device identifier.
 
 ## Rationale
 

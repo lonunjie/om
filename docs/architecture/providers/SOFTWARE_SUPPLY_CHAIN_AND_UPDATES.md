@@ -57,6 +57,14 @@ snapshot/timestamp roles
 
 Trust expires and is compartmentalized. Compromising one online release secret must not permanently grant root authority.
 
+### V1 signature-algorithm agility (ADR-0148, hardened by ADR-0149)
+
+The first-public-release metadata/verifier format supports **algorithm-tagged multiple signatures**, but algorithms are not authority by themselves. The already-trusted owner-pinned root policy binds each metadata role to authorized key IDs/public keys, algorithms and distinct-key thresholds. Verification is over the exact canonical metadata bytes plus the declared distribution/role/root-policy version. A right algorithm from an unauthorized/wrong-role key, a duplicate signature from one key, or the same key ID paired with a different public key/algorithm does not satisfy policy.
+
+An optional additional co-signature may be ignored only while no current trusted threshold counts its key/algorithm/role; once an authenticated root-policy transition requires it, stripping it or rolling back to metadata that predates the requirement fails under the same rollback/freeze rules. Unknown required algorithms fail closed. Root transition uses TUF-style continuity: the next root is accepted through the previously trusted root threshold and its own new-root threshold, and long-neglected verifiers authenticate intermediate root versions rather than skipping to an attacker-selected later version.
+
+The reference distribution is ML-DSA-65 co-signature-ready for long-lived root and release/targets metadata and SHOULD emit such co-signatures once a maintained reviewed implementation fits the release toolchain. This does not make ML-DSA a universal OM distribution requirement, does not couple software-signing keys to AccountID/protocol identity, and does not require every online freshness role to use PQ signatures initially.
+
 **The SecurityAdvisory key is a delegated role (ADR-0130 rule 3).** A distribution's advisory signing key is a TUF
 role delegated from the same root, with its own expiry, rotation and revocation, and it is listed in the custody map
 (PROJECT_STEWARDSHIP §5). It can sign advisories and a `min_release` floor for the distribution's own clients. It

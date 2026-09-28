@@ -4,6 +4,7 @@
 - **Date:** 2026-09-27
 - **Scope:** verification-derived correction to ADR-0142 local receive state; no new wire object and no engineering authorization
 - **Amends:** ADR-0142 §6 replay/retry semantics and the accepted-relationship session-state profile
+- **Amended by:** ADR-0144 stale-head deferred-authentication composition; ADR-0145 completed-replay lookup ordering
 
 ## Context
 

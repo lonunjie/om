@@ -202,6 +202,7 @@ Push rules remain:
 - local client renders notification content after fetching/decrypting;
 - Maximum Privacy may disable vendor push with an explicit background-delivery tradeoff;
 - one platform push token or Web Push subscription must not be shared across IdentityProfiles toward different parties; a native per-app token is a declared linkage point (ADR-0129, [`NOTIFICATIONS_AND_PUSH.md`](../architecture/client/NOTIFICATIONS_AND_PUSH.md)).
+- adapter/provider retirement is best-effort at the third-party boundary: if deletion cannot be confirmed, the obsolete registration may retain token/profile-linkage history and observe late wake attempts until provider expiry/retention ends. OM does not claim a universal finite duration unless an enforceable lease is declared; the obsolete wake handle carries no message-fetch/account/relationship authority (ADR-0153).
 
 The UI must not say “Apple/Google learns nothing” merely because the payload is opaque.
 

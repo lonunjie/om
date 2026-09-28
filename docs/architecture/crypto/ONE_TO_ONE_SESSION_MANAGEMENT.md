@@ -77,14 +77,24 @@ an ADR-0143 `RESERVED` replay record for `(delivery_key_id, delivery_id)` plus t
 releasing inner plaintext/event data or acknowledging the delivery. A crash while `RESERVED` does not turn the exact
 same-wrapper retry into permanent loss: that retry may resume. A different wrapper under the same key/id is rejected.
 HPKE open only recovers the ordinary inner envelope. The existing mandatory `RelationshipContext`,
-ACS/DeviceCredential checks, PQXDH/ratchet authentication and replay rules then run unchanged. The inner K2
+ACS/DeviceCredential checks, PQXDH/ratchet authentication and replay rules then run unchanged.
+
+ADR-0144 composes this replay state with K7/K12. If inner authentication is temporarily **indeterminate** only because
+the held trusted peer ACS head may be stale, or its authenticated monotonic refresh is unavailable, the wrapper stays
+`RESERVED`; no plaintext/event is released and no successful delivery acknowledgement is emitted. After refresh, a
+valid initiator proceeds normally; a definitive invalid/ineligible result may transition the exact wrapper to
+`REJECTED`. A need for stale-head refresh is never itself a terminal authentication failure. The inner K2
 session/dedupe state and replay transition to `COMPLETE` become durable in one crash-consistent commit before
 application release/ack; a `COMPLETE` retry is idempotent and never repeats inner effects. Successful outer open alone
 therefore cannot create or authenticate a session.
 
-First contact remains `MessageRequest`. Its signed payload carries a request-scoped `reply_delivery_key` bound to the
-one-use `reply_route`; that key can seal only the first post-acceptance control response. Once reciprocal stable
-identity binding is complete, ordinary per-device/per-route delivery records replace the bootstrap key.
+First contact remains `MessageRequest`. Its signed payload carries a fresh request-scoped `reply_delivery_key` bound to the
+request-scoped `reply_route`; that key can seal exactly one logical post-acceptance bootstrap/control response for the request while ADR-0146 permits bounded physical transport retries/candidates.
+Pending-request state binds it to the request's ticket id, request-key digest and CryptoProfile; its expiry cannot exceed
+the reply route; key/id reuse across requests is forbidden; and bootstrap material is never promoted into stable relationship delivery state. The first valid response whose authenticated bootstrap/import state commits atomically wins the request; a second
+different wrapper cannot become another bootstrap even if another recipient device raced acceptance. The winning wrapper's
+`COMPLETE` replay record remains a replay-only tombstone through the bounded acceptance window, so an exact lost-ack retry
+can be acknowledged before delivery-key lookup without retaining the completed bootstrap private key. Any transition out of request `OPEN` atomically terminalizes non-winning `RESERVED` siblings before bootstrap-key destruction, so no resumable record can outlive required key material. Established per-device/per-route delivery records carry the reciprocal response; relationship `ACTIVE` still waits for both stable identity bindings (ADR-0144/0145/0146).
 
 ## 4. Logical-message identity versus envelopes
 

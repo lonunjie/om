@@ -1,0 +1,3323 @@
+[
+  {
+    "id": "unordered-simple",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "accept_extension",
+    "expected_error": null
+  },
+  {
+    "id": "ordered-simple",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 2,
+        "ordinal": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "accept_extension",
+    "expected_error": null
+  },
+  {
+    "id": "nested-mixed",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 1,
+        "depth": 1,
+        "style": 1
+      },
+      {
+        "block_index": 2,
+        "depth": 2,
+        "style": 2,
+        "ordinal": 1
+      },
+      {
+        "block_index": 3,
+        "depth": 3,
+        "style": 2,
+        "ordinal": 2
+      }
+    ],
+    "block_count": 4,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "accept_extension",
+    "expected_error": null
+  },
+  {
+    "id": "gap-restarts-depth-zero",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 3,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 4,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "accept_extension",
+    "expected_error": null
+  },
+  {
+    "id": "message-edit",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.edit",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 2,
+        "ordinal": 9
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "accept_extension",
+    "expected_error": null
+  },
+  {
+    "id": "max-depth",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 1,
+        "depth": 1,
+        "style": 1
+      },
+      {
+        "block_index": 2,
+        "depth": 2,
+        "style": 1
+      },
+      {
+        "block_index": 3,
+        "depth": 3,
+        "style": 1
+      }
+    ],
+    "block_count": 4,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "accept_extension",
+    "expected_error": null
+  },
+  {
+    "id": "max-ordinal",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 2,
+        "ordinal": 9999
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "accept_extension",
+    "expected_error": null
+  },
+  {
+    "id": "max-block-index",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 4095,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 4096,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "accept_extension",
+    "expected_error": null
+  },
+  {
+    "id": "max-item-count",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 1,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 2,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 3,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 4,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 5,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 6,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 7,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 8,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 9,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 10,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 11,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 12,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 13,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 14,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 15,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 16,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 17,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 18,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 19,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 20,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 21,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 22,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 23,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 24,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 25,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 26,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 27,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 28,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 29,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 30,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 31,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 32,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 33,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 34,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 35,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 36,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 37,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 38,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 39,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 40,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 41,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 42,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 43,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 44,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 45,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 46,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 47,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 48,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 49,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 50,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 51,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 52,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 53,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 54,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 55,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 56,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 57,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 58,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 59,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 60,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 61,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 62,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 63,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 64,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 65,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 66,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 67,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 68,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 69,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 70,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 71,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 72,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 73,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 74,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 75,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 76,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 77,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 78,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 79,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 80,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 81,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 82,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 83,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 84,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 85,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 86,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 87,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 88,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 89,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 90,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 91,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 92,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 93,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 94,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 95,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 96,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 97,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 98,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 99,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 100,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 101,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 102,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 103,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 104,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 105,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 106,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 107,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 108,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 109,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 110,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 111,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 112,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 113,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 114,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 115,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 116,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 117,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 118,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 119,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 120,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 121,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 122,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 123,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 124,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 125,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 126,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 127,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 128,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 129,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 130,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 131,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 132,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 133,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 134,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 135,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 136,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 137,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 138,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 139,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 140,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 141,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 142,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 143,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 144,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 145,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 146,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 147,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 148,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 149,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 150,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 151,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 152,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 153,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 154,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 155,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 156,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 157,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 158,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 159,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 160,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 161,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 162,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 163,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 164,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 165,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 166,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 167,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 168,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 169,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 170,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 171,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 172,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 173,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 174,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 175,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 176,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 177,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 178,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 179,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 180,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 181,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 182,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 183,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 184,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 185,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 186,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 187,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 188,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 189,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 190,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 191,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 192,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 193,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 194,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 195,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 196,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 197,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 198,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 199,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 200,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 201,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 202,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 203,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 204,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 205,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 206,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 207,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 208,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 209,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 210,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 211,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 212,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 213,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 214,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 215,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 216,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 217,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 218,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 219,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 220,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 221,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 222,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 223,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 224,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 225,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 226,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 227,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 228,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 229,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 230,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 231,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 232,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 233,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 234,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 235,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 236,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 237,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 238,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 239,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 240,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 241,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 242,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 243,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 244,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 245,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 246,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 247,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 248,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 249,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 250,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 251,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 252,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 253,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 254,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 255,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 256,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "accept_extension",
+    "expected_error": null
+  },
+  {
+    "id": "wrong-object",
+    "owning_object": "AccountControlState",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "reject_object",
+    "expected_error": "wrong_extension_object"
+  },
+  {
+    "id": "wrong-criticality",
+    "owning_object": "ConversationEvent",
+    "critical": true,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "reject_object",
+    "expected_error": "criticality_mismatch"
+  },
+  {
+    "id": "unknown-payload-field",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {
+      "9": 1
+    },
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "reject_object",
+    "expected_error": "unknown_field"
+  },
+  {
+    "id": "missing-items",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": true,
+    "item_extra": {},
+    "expected_verdict": "reject_object",
+    "expected_error": "missing_field"
+  },
+  {
+    "id": "zero-items",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "reject_object",
+    "expected_error": "item_count_schema"
+  },
+  {
+    "id": "too-many-items",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 1,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 2,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 3,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 4,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 5,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 6,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 7,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 8,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 9,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 10,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 11,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 12,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 13,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 14,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 15,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 16,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 17,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 18,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 19,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 20,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 21,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 22,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 23,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 24,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 25,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 26,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 27,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 28,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 29,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 30,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 31,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 32,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 33,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 34,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 35,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 36,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 37,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 38,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 39,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 40,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 41,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 42,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 43,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 44,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 45,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 46,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 47,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 48,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 49,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 50,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 51,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 52,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 53,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 54,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 55,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 56,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 57,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 58,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 59,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 60,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 61,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 62,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 63,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 64,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 65,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 66,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 67,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 68,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 69,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 70,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 71,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 72,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 73,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 74,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 75,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 76,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 77,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 78,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 79,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 80,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 81,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 82,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 83,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 84,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 85,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 86,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 87,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 88,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 89,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 90,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 91,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 92,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 93,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 94,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 95,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 96,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 97,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 98,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 99,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 100,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 101,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 102,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 103,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 104,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 105,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 106,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 107,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 108,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 109,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 110,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 111,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 112,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 113,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 114,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 115,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 116,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 117,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 118,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 119,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 120,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 121,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 122,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 123,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 124,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 125,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 126,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 127,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 128,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 129,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 130,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 131,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 132,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 133,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 134,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 135,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 136,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 137,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 138,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 139,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 140,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 141,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 142,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 143,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 144,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 145,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 146,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 147,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 148,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 149,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 150,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 151,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 152,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 153,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 154,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 155,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 156,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 157,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 158,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 159,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 160,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 161,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 162,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 163,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 164,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 165,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 166,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 167,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 168,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 169,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 170,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 171,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 172,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 173,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 174,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 175,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 176,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 177,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 178,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 179,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 180,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 181,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 182,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 183,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 184,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 185,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 186,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 187,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 188,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 189,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 190,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 191,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 192,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 193,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 194,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 195,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 196,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 197,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 198,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 199,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 200,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 201,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 202,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 203,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 204,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 205,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 206,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 207,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 208,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 209,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 210,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 211,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 212,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 213,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 214,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 215,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 216,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 217,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 218,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 219,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 220,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 221,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 222,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 223,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 224,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 225,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 226,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 227,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 228,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 229,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 230,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 231,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 232,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 233,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 234,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 235,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 236,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 237,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 238,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 239,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 240,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 241,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 242,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 243,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 244,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 245,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 246,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 247,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 248,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 249,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 250,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 251,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 252,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 253,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 254,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 255,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 256,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 257,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "reject_object",
+    "expected_error": "item_count_schema"
+  },
+  {
+    "id": "block-index-schema-high",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 4096,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 4097,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "reject_object",
+    "expected_error": "block_index_schema"
+  },
+  {
+    "id": "depth-schema-high",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 4,
+        "style": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "reject_object",
+    "expected_error": "depth_schema"
+  },
+  {
+    "id": "style-schema-invalid",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 3
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "reject_object",
+    "expected_error": "style_schema"
+  },
+  {
+    "id": "ordinal-schema-zero",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 2,
+        "ordinal": 0
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "reject_object",
+    "expected_error": "ordinal_schema"
+  },
+  {
+    "id": "ordinal-schema-high",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 2,
+        "ordinal": 10000
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "reject_object",
+    "expected_error": "ordinal_schema"
+  },
+  {
+    "id": "unknown-item-field",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {
+      "7": 1
+    },
+    "expected_verdict": "reject_object",
+    "expected_error": "unknown_field"
+  },
+  {
+    "id": "wrong-event-kind",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "reaction.add",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "event_kind"
+  },
+  {
+    "id": "duplicate-block-index",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "block_index_order"
+  },
+  {
+    "id": "decreasing-block-index",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 1,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 2,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "block_index_order"
+  },
+  {
+    "id": "missing-referenced-block",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 2,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 2,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "block_reference"
+  },
+  {
+    "id": "nonparagraph-block",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {
+      "0": {
+        "kind": "quote",
+        "text": "- item",
+        "marked": false
+      }
+    },
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "block_kind"
+  },
+  {
+    "id": "first-depth-nonzero",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 1,
+        "style": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "depth_run"
+  },
+  {
+    "id": "gap-depth-nonzero",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 2,
+        "depth": 1,
+        "style": 1
+      }
+    ],
+    "block_count": 3,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "depth_run"
+  },
+  {
+    "id": "depth-jump",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      },
+      {
+        "block_index": 1,
+        "depth": 2,
+        "style": 1
+      }
+    ],
+    "block_count": 2,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "depth_transition"
+  },
+  {
+    "id": "ordered-missing-ordinal",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 2
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "ordinal_semantics"
+  },
+  {
+    "id": "unordered-has-ordinal",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1,
+        "ordinal": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "ordinal_semantics"
+  },
+  {
+    "id": "fallback-mismatch",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {
+      "0": {
+        "kind": "paragraph",
+        "text": "* item",
+        "marked": false
+      }
+    },
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "fallback_prefix"
+  },
+  {
+    "id": "fallback-marked-first-inline",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {
+      "0": {
+        "kind": "paragraph",
+        "text": "- item",
+        "marked": true
+      }
+    },
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "fallback_prefix"
+  },
+  {
+    "id": "ordered-leading-zero-fallback",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 2,
+        "ordinal": 1
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {
+      "0": {
+        "kind": "paragraph",
+        "text": "01. item",
+        "marked": false
+      }
+    },
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "fallback_prefix"
+  }
+]

@@ -818,7 +818,7 @@ def validate_0143_crash_safe_sealed_delivery_guardrails() -> None:
     if "R-314" not in reqs: fail("ADR-0143 guard: R-314 missing")
     gates = {r.get("id"): r for r in load_jsonl(ROOT / "machine/architecture_verification_gates.jsonl")}
     v3 = gates.get("V-003", {})
-    sealed_criterion = "session state enforces per-device/per-route sealed-delivery key refresh/revocation, durable (delivery_key_id, delivery_id) replay reservation before plaintext release, same-route exact-wrapper retry semantics and no clear-sender fallback (ADR-0142)"
+    sealed_criterion = "session state enforces per-device/per-route sealed-delivery key refresh/revocation; exact-wrapper-fingerprint replay state RESERVED/COMPLETE/REJECTED; resumable same-route RESERVED after crash; same-key/id different-wrapper collision rejection; crash-consistent inner K2/session-dedupe + COMPLETE before release/ack; idempotent COMPLETE retry; fresh id on cross-route reseal; outer-open is not sender auth; and no clear-sender fallback (ADR-0142/0143, R-314)"
     if sealed_criterion not in v3.get("criteria_met", []):
         fail("ADR-0143 guard: V-003 sealed-delivery state criterion not backed by current evidence")
     result = load_json(ROOT / "verification/results/v003-sealed-delivery-latest.json")
@@ -828,6 +828,69 @@ def validate_0143_crash_safe_sealed_delivery_guardrails() -> None:
     ids = {x.get("id") for x in result.get("scenarios", []) if isinstance(x, dict)} if isinstance(result, dict) else set()
     for sid in ("crash_after_reserve_then_exact_retry", "crash_after_complete_before_release", "same_key_id_delivery_id_different_wrapper_rejected", "route_migration_reseals_fresh_id_and_dedupes_event", "outer_open_never_authenticates_sender"):
         if sid not in ids: fail(f"ADR-0143 guard: focused V-003 scenario missing {sid}")
+
+def validate_0145_bootstrap_retry_closure_guardrails() -> None:
+    """ADR-0145: one logical bootstrap response and COMPLETE replay must survive completed-key retirement."""
+    adr = (ROOT / "decisions/ADR-0145-bootstrap-single-response-and-complete-retry-closure.md").read_text(encoding="utf-8")
+    profile = (ROOT / "docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md").read_text(encoding="utf-8")
+    session = (ROOT / "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md").read_text(encoding="utf-8")
+    discovery = (ROOT / "docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md").read_text(encoding="utf-8")
+    inv = (ROOT / "docs/architecture/safety/SECURITY_INVARIANTS.md").read_text(encoding="utf-8")
+    for token in ("one valid logical bootstrap response", "COMPLETE_REPLAY_ONLY", "first consults existing replay state", "private bootstrap key may be destroyed", "crash-consistent"):
+        if token.lower() not in adr.lower(): fail(f"ADR-0145 guard: ADR missing {token!r}")
+    for token in ("before requiring live key material", "complete", "reserved", "idempotent"):
+        if token.lower() not in profile.lower(): fail(f"ADR-0145 guard: delivery profile missing {token!r}")
+    for token in ("exactly one logical", "complete", "replay-only", "reserved"):
+        if token.lower() not in session.lower(): fail(f"ADR-0145 guard: session management missing {token!r}")
+    for token in ("exactly one logical recipient bootstrap response", "crash-consistent commit wins", "replay/request tombstone"):
+        if token.lower() not in discovery.lower(): fail(f"ADR-0145 guard: discovery lifecycle missing {token!r}")
+    if "`M7`" not in inv or "ADR-0142/0144/0145" not in inv:
+        fail("ADR-0145 guard: M7 does not name ADR-0145 closure")
+    reqs = {r.get("id") for r in load_jsonl(ROOT / "machine/requirements.jsonl")}
+    threats = {r.get("id") for r in load_jsonl(ROOT / "machine/threat_register.jsonl")}
+    if "R-317" not in reqs: fail("ADR-0145 guard: R-317 missing")
+    if "T-118" not in threats: fail("ADR-0145 guard: T-118 missing")
+    gates = {r.get("id"): r for r in load_jsonl(ROOT / "machine/architecture_verification_gates.jsonl")}
+    v3 = gates.get("V-003", {})
+    criterion = "ADR-0145 closure evidence proves exactly one logical MessageRequest bootstrap response, atomic winning response/imported-established-state + COMPLETE + request closure, exact COMPLETE lost-ack retry after private bootstrap-key destruction via replay-before-key lookup, RESERVED key retention, and negative mutations for key-before-replay, second-response acceptance and split completion/request closure (R-317)"
+    if criterion not in v3.get("pre_engineering_criteria", []) or criterion not in v3.get("criteria_met", []):
+        fail("ADR-0145 guard: V-003 closure criterion missing/not evidenced")
+    result = load_json(ROOT / "verification/results/sealed-delivery-adr0145-closure-latest.json")
+    summary = result.get("summary", {}) if isinstance(result, dict) else {}
+    if result.get("passed") is not True or summary.get("scenarios") != 5 or summary.get("scenarios_passed") != 5 or summary.get("mutations") != 3 or summary.get("mutations_caught") != 3:
+        fail("ADR-0145 guard: focused closure result missing/regressed")
+    ids = {x.get("id") for x in result.get("scenarios", []) if isinstance(x, dict)} if isinstance(result, dict) else set()
+    for sid in ("complete_lost_ack_retry_after_key_destroy", "different_wrapper_after_complete_is_closed", "multi_device_race_exactly_one_winner", "bootstrap_completion_atomic_crash_state", "reserved_retry_retains_key"):
+        if sid not in ids: fail(f"ADR-0145 guard: focused scenario missing {sid}")
+
+def validate_0144_pre_review_sealed_delivery_guardrails() -> None:
+    """ADR-0144: bootstrap scope is request-local and stale ACS defers rather than terminally rejects."""
+    adr = (ROOT / "decisions/ADR-0144-pre-review-sealed-delivery-bootstrap-and-stale-head-closure.md").read_text(encoding="utf-8")
+    session = (ROOT / "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md").read_text(encoding="utf-8")
+    discovery = (ROOT / "docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md").read_text(encoding="utf-8")
+    inv = (ROOT / "docs/architecture/safety/SECURITY_INVARIANTS.md").read_text(encoding="utf-8")
+    for token in ("fresh", "reply_delivery_key.expires_at", "reply_route.expires_at", "RESERVED", "stale", "monotonic", "REJECTED"):
+        if token.lower() not in adr.lower(): fail(f"ADR-0144 guard: ADR missing {token!r}")
+    for token in ("stays", "reserved", "stale", "refresh"):
+        if token.lower() not in session.lower(): fail(f"ADR-0144 guard: session composition missing {token!r}")
+    for token in ("fresh reply key pair", "route-binding", "expiry", "not reused"):
+        if token.lower() not in discovery.lower(): fail(f"ADR-0144 guard: discovery bootstrap scope missing {token!r}")
+    if "`M7`" not in inv or "ADR-0142/0143/0144" not in inv:
+        fail("ADR-0144 guard: security invariant map missing M7 or amended M6")
+    reqs = {r.get("id") for r in load_jsonl(ROOT / "machine/requirements.jsonl")}
+    threats = {r.get("id") for r in load_jsonl(ROOT / "machine/threat_register.jsonl")}
+    for rid in ("R-315", "R-316"):
+        if rid not in reqs: fail(f"ADR-0144 guard: {rid} missing")
+    for tid in ("T-115", "T-116", "T-117"):
+        if tid not in threats: fail(f"ADR-0144 guard: {tid} missing")
+    queue = {q.get("id"): q for q in load_jsonl(ROOT / "machine/architecture_design_queue.jsonl")}
+    if "keeping recovery off by default" in str(queue.get("A-020", {}).get("question", "")).lower():
+        fail("ADR-0144 guard: A-020 still embeds superseded recovery-off default")
+    gates = {r.get("id"): r for r in load_jsonl(ROOT / "machine/architecture_verification_gates.jsonl")}
+    v3 = gates.get("V-003", {})
+    criterion = "ADR-0144 composition evidence covers fresh request-scoped reply_delivery_key tuple/profile/route/expiry binding and no authority promotion, plus RESERVED -> authenticated stale-ACS refresh -> COMPLETE and the negative mutation that prematurely converts stale/unknown relationship state to REJECTED (R-315, R-316)"
+    if criterion not in v3.get("pre_engineering_criteria", []):
+        fail("ADR-0144 guard: V-003 composition criterion missing")
 
 def validate_0142_sealed_delivery_guardrails() -> None:
     """ADR-0142: established OM-Crypto-v1 1:1 relay delivery is mandatory sealed delivery."""
@@ -998,6 +1061,8 @@ def validate_0140_async_prekey_guardrails() -> None:
 
 
 def main() -> int:
+    validate_0145_bootstrap_retry_closure_guardrails()
+    validate_0144_pre_review_sealed_delivery_guardrails()
     validate_0143_crash_safe_sealed_delivery_guardrails()
     validate_0142_sealed_delivery_guardrails()
     validate_0141_semantic_consistency_guardrails()

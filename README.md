@@ -42,7 +42,8 @@ LICENSES/      full license texts (see LICENSE.md and REUSE.toml for which appli
 ## Verifying the design locally
 
 ```sh
-make verify          # validator + docs link check + phase-1 evidence + TLC model check
+make verify-drop     # fresh exported ZIP: portable evidence + validator/docs + continuity manifest
+make verify          # Git repo: full evidence + TLC + validator/docs + registry-history immutability
 ```
 
 `make help` lists every target. The validator enforces the architecture contract. It checks that engineering stays locked

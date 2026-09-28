@@ -6,7 +6,7 @@ ONE_TO_ONE_SESSION_MANAGEMENT.md, MULTI_DEVICE_SYNC.md, ASYNC_KEY_MATERIAL.md,
 ACCOUNT_CONTINUITY_AND_CONTROL.md, CRYPTOGRAPHY_AND_AGILITY.md ("Downgrade floor"), Q-050.
 No cryptography is performed: sessions, counters and profiles are abstract.
 
-Rules K1..K10 are switchable (see README "Session-manager rules"). Step labels match the TLA+
+Rules K1..K12 are switchable (see README "Session-manager rules"). Step labels match the TLA+
 model's `lastAct` labels so TLC counterexamples can be replayed step by step.
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 
 KNOBS = ["PersistBeforeSend", "DedupeDurable", "FloorFromACS", "RetryOnReset", "RecheckOnEncrypt",
          "ValidateAgainstACS", "ReconcileControlHead", "RestoreDropsSessions", "RejectFromRevoked",
-         "PrekeyUntilConfirmed", "RestoreRotatesPrekeys"]
+         "PrekeyUntilConfirmed", "RestoreRotatesPrekeys", "BindInitiator"]
 ACS_MIN_PROFILE = 2
 
 
@@ -62,6 +62,7 @@ class Bounds:
     max_dup: int = 1
     max_weak: int = 1
     max_inject: int = 1
+    max_forge: int = 0
 
 
 class Infeasible(Exception):
@@ -93,6 +94,7 @@ class World:
         self.epoch = {d: 0 for d in topo.devices}   # next_sid at d's last restore (K11)
         self.weak: set[str] = set()
         self.injected = False
+        self.forges = 0
         # ghosts
         self.ever = {d: {a: 0 for a in topo.accounts} for d in topo.devices}
         self.acc = {d: {} for d in topo.devices}
@@ -188,6 +190,19 @@ class World:
         self.injected = True
         return ["InjectRogueDevice"]
 
+    def forge_initiation(self, f, r):
+        """K12 adversary action: claim real DeviceID `f` while carrying an attacker's identity key."""
+        if self.forges >= self.b.max_forge or f == r or f not in self.dev or r not in self.dev:
+            raise Infeasible("forge budget/peer")
+        if self.next_sid > self.b.max_sid:
+            raise Infeasible("sid budget")
+        sid = self.next_sid
+        self.next_sid += 1
+        self.forges += 1
+        hdr = self.dev[r].known[self.acct(f)]
+        self.net.add(("msg", f, r, sid, 2, 1, 1, True, hdr, "attacker"))
+        return ["ForgeInitiation", f, r, sid]
+
     def new_message(self, s):
         if s not in self.t.senders or self.msg_count >= self.b.max_msgs or self.self_revoked(s):
             raise Infeasible("cannot send")
@@ -222,7 +237,7 @@ class World:
             x = next(y for y in self.live(s, r) if y["sid"] == self.pref(s, r))
             x["ctr"] += 1
             pk = self.k["PrekeyUntilConfirmed"] and not x["conf"]
-            self.net.add(("msg", s, r, x["sid"], x["prof"], x["ctr"], m, pk, hdr))
+            self.net.add(("msg", s, r, x["sid"], x["prof"], x["ctr"], m, pk, hdr, s))
             self._key(x["sid"], s, x["ctr"], m)
             self._sendcheck(s, r, ok_ghost)
             D.fan.discard((m, r))
@@ -241,7 +256,7 @@ class World:
         D.sess.append({"peer": r, "sid": sid, "prof": prof, "stale": False, "ctr": 1, "conf": False})
         if real:
             D.floor[r] = max(D.floor.get(r, 0), prof)
-            self.net.add(("msg", s, r, sid, prof, 1, m, True, hdr))
+            self.net.add(("msg", s, r, sid, prof, 1, m, True, hdr, s))
             if prof < self.gfloor.get(frozenset({s, r}), 0):
                 self.violations.append(("NoSilentDowngrade", (s, r, sid)))
         self._key(sid, s, 1, m)
@@ -274,7 +289,7 @@ class World:
             raise Infeasible("not in flight")
         if e[0] == "reset":
             return self._recv_reset(e, dup)
-        _, f, r, sid, prof, ctr, m, pk, hdr = e
+        _, f, r, sid, prof, ctr, m, pk, hdr, ik = e
         self._take(e, dup)
         if r in self.dead:
             return ["DroppedLostDevice", r, m]
@@ -292,11 +307,15 @@ class World:
         if not have and (not pk or (self.k["RestoreRotatesPrekeys"] and sid < self.epoch[r])):
             self.net.add(("reset", r, f, sid, m))
             return ["RecvUndecryptable", r, f, sid, m]
+        if not have and self.k["BindInitiator"] and ik != f:
+            return ["RecvRejectedUnboundInitiator", r, f, sid]
         if not have and prof < self.eff_floor(r, f):
             return ["RecvRejectedBelowFloor", r, f, sid]
         created = not have
         if created:
             x = {"peer": f, "sid": sid, "prof": prof, "stale": False, "ctr": 0, "conf": True}
+            if ik != f:
+                self.violations.append(("NoMisattributedSession", (r, f, sid)))
             pair = frozenset({r, f})
             if prof < self.gfloor.get(pair, 0):
                 self.violations.append(("NoSilentDowngrade", (r, f, sid)))
@@ -456,6 +475,8 @@ class World:
             acts += [("serve_weak", r) for r in self.t.devices if r not in self.weak]
         if not self.injected and self.b.max_inject:
             acts.append(("inject",))
+        if self.forges < self.b.max_forge:
+            acts += [("forge_initiation", f, r) for f in self.t.devices for r in self.t.devices if f != r]
         if self.msg_count < self.b.max_msgs:
             acts += [("new_message", s) for s in sorted(self.t.senders) if not self.self_revoked(s)]
         for d in self.t.devices:

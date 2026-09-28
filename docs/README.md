@@ -28,7 +28,7 @@ Normative protocol schemas live in [`spec/`](../spec/), executable evidence in [
 
 ## Product thesis
 
-OM is a fast, uncluttered, open-source messenger for Android, iOS, web, and later desktop/native variants, with strong end-to-end encryption and a protocol deliberately designed so no single company, relay, directory, storage service, media provider, or client vendor is indispensable.
+OM is a fast, uncluttered, open-source messenger for Android, iOS, web, and native desktop variants, with strong end-to-end encryption and a protocol deliberately designed so no single company, relay, directory, storage service, media provider, or client vendor is indispensable.
 
 **Normal users should not need to understand any of this architecture.**
 
@@ -83,10 +83,10 @@ And the implementation discipline remains:
 - R2 is one possible encrypted blob/storage provider;
 - Durable Objects/Workers can be one relay implementation; quotas/costs are operational provider metadata, not protocol constants;
 - SMS/MMS and RCS are future TransportAdapters and do not block the initial OM-native product;
-- local-first and LAN-capable behavior are architectural goals;
+- local-first offline-LAN message/file delivery is an optional V1 capability where a privacy-preserving route can be established;
 - abuse controls must remain enforceable against hostile modified clients without requiring universal content surveillance;
 - official/reference clients are interoperable distributions, never protocol authorities; protocol conformance is public and testable.
-- OM is PWA-first, not PWA-only; native shells later reuse the same portable OM Core.
+- OM is PWA-first, not PWA-only; Android and iOS are explicit V1 reference-family targets over the same portable OM Core/shared UI, while public native releases need not be simultaneous with the first PWA slice (ADR-0150).
 - no OM-operated relay/directory/push/abuse infrastructure is required for the operatorless core.
 - future convenience businesses/providers may exist, but users can migrate away without replacing AccountID or canonical history.
 - metadata privacy is surface-specific; E2EE does not imply hidden timing/IP/size/membership metadata.

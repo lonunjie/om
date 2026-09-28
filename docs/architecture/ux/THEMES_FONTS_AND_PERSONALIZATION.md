@@ -172,7 +172,7 @@ Custom theme bundles must provide valid light+dark variants, or the importer may
 
 OM should ship several calm, broadly appealing curated themes rather than one default plus novelty skins. When a user later creates another `IdentityProfile`, the UI MAY offer a distinct curated theme as an optional visual cue. Theme choice remains local/profile presentation state and never becomes public identity/discovery metadata.
 
-The future profile switcher must not flash/reload the application: preserve per-profile draft, selected conversation and navigation state and switch presentation/state atomically.
+The V1 profile switcher must not flash/reload the application: preserve per-profile draft, selected conversation and navigation state and switch presentation/state atomically.
 
 ## CONFORMANCE-UI-THEMES
 

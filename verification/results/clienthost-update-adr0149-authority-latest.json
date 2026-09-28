@@ -1,0 +1,41 @@
+{
+  "kind": "adr0149_clienthost_update_authority",
+  "design_evidence_only": true,
+  "scenarios": {
+    "distinct_authorized_key_threshold_accepts": true,
+    "right_algorithm_unauthorized_key_does_not_count": true,
+    "wrong_role_authorized_key_does_not_count": true,
+    "duplicate_key_does_not_satisfy_threshold": true,
+    "same_key_id_algorithm_substitution_fails": true,
+    "same_key_id_public_key_substitution_fails": true,
+    "metadata_version_or_role_substitution_breaks_exact_bytes": true,
+    "root_rotation_requires_old_and_new_thresholds": true,
+    "missing_old_root_threshold_rejected": true,
+    "missing_new_root_threshold_rejected": true,
+    "skipped_root_generation_rejected": true,
+    "new_policy_required_algorithm_is_key_authorized": true,
+    "pq_tag_without_authorized_pq_key_fails": true
+  },
+  "mutations": {
+    "algorithm_tag_only_authority_mutation_caught": true,
+    "role_agnostic_key_mutation_caught": true,
+    "signature_count_instead_of_distinct_key_mutation_caught": true,
+    "key_id_algorithm_rebinding_mutation_caught": true,
+    "metadata_substitution_mutation_caught": true,
+    "root_skip_mutation_caught": true,
+    "old_threshold_omission_mutation_caught": true,
+    "new_threshold_omission_mutation_caught": true
+  },
+  "structural": {
+    "distinct_authorized_key_language": true,
+    "role_binding_language": true,
+    "sequential_root_language": true,
+    "old_and_new_root_threshold_language": true
+  },
+  "scenario_passed": 13,
+  "scenario_total": 13,
+  "mutations_caught": 8,
+  "mutation_total": 8,
+  "passed": true,
+  "note": "Semantic authorization model only; live cryptographic signatures/browser/provider drills remain separate pre-release evidence."
+}

@@ -1,0 +1,29 @@
+{
+  "kind": "adr0149_account_private_sync_hardening",
+  "design_evidence_only": true,
+  "skew_seconds": 300,
+  "scenarios": {
+    "per_origin_out_of_order_and_idempotent_replay": true,
+    "far_future_hlc_quarantined_then_bounded": true,
+    "revoked_inflight_record_rejected_even_if_backdated": true,
+    "tombstone_wins_concurrent_stale_value": true,
+    "post_tombstone_recreation_requires_causal_descent": true,
+    "draft_resolution_binds_every_current_head": true,
+    "historical_backup_does_not_auto_republish": true,
+    "acs_generation_precedes_hlc_for_concurrent_scalar": true
+  },
+  "mutations": {
+    "timestamp_only_would_resurrect_tombstone_caught": true,
+    "future_clock_floor_mutation_caught": true,
+    "backdated_revoked_record_mutation_caught": true,
+    "sequence_highwater_only_out_of_order_drop_mutation_caught": true,
+    "partial_draft_parent_compaction_mutation_caught": true,
+    "stale_backup_auto_republish_mutation_caught": true
+  },
+  "scenario_passed": 8,
+  "scenario_total": 8,
+  "mutations_caught": 6,
+  "mutation_total": 6,
+  "passed": true,
+  "note": "Bounded semantic evidence only: no provider arrival order or unbounded remote timestamp is merge authority; current authenticated ACS eligibility is checked before new effect."
+}

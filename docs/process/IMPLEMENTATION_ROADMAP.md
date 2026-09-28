@@ -31,7 +31,8 @@ Exit: two independent test implementations can pass core vectors without sharing
 - local encrypted DB;
 - attachments via BlobStore;
 - push wakeups;
-- operatorless PWA/reference client first; native Android/iOS shells follow over the same Core/UI after the vertical slice;
+- operatorless PWA/reference client first; Android starts early after the vertical slice, iOS joins the same V1 cycle, and desktop is validated as a V1 reference-family target over shared Core/UI (public shells/desktop OS variants need not ship simultaneously);
+- optional privacy-preserving same-LAN message/file delivery where a route can be established, with manual/QR/known-endpoint fallback when automatic discovery is unavailable;
 - relay/provider migration.
 
 Exit: ordinary users can install and reliably message without infrastructure knowledge.
@@ -79,7 +80,7 @@ Exit: media provider cannot decrypt content; call survives route/provider change
 - ordinary VPS Docker Compose relay/blob/media alternatives;
 - provider health/cost discovery;
 - user/community provider onboarding;
-- local/LAN rendezvous prototype;
+- local/LAN rendezvous/provider hardening and cross-platform capability validation (the basic optional V1 local-delivery path is already Phase 1 scope);
 - failure-domain diversity policies.
 
 Exit: a community can replace the default infrastructure without forking OM.
@@ -128,8 +129,8 @@ Before public username search becomes a product dependency, implement in this or
 4. Replaceable DirectoryProvider search and domain-scoped `/.well-known/om` delegation.
 5. Directory transparency/equivocation defenses.
 6. Optional oblivious/private lookup path.
-7. Rotating LAN rendezvous and offline-local reconciliation.
-8. Pluggable network transports/censorship-resilience adapters after the core relay protocol is stable.
+7. Implement rotating LAN rendezvous and offline-local reconciliation as a V1 optional route once the basic relationship/session path is stable; do not wait for public username search or infrastructure-freedom work.
+8. Add broader pluggable censorship-resilience transports after the core relay/local-route contracts are stable.
 
 ## 21:32 priority refinements
 
@@ -141,7 +142,7 @@ Before wire-format freeze / public security claims:
 4. **ContactCapsule/share-contact** — subject-signed forwarding + optional referral context.
 5. **Supply-chain floor** — signed tags, dependency pinning, provenance, TUF-style update roles before first public binary.
 6. **Privacy presets** — Recommended/Hardened/Maximum Privacy as policy bundles; same crypto floor.
-7. **Push** — opaque wakeups, local decrypt/render; Android alternate path; honest iOS no-APNs limitation.
+7. **Push** — opaque wakeups, local decrypt/render; Android replaceable `fcm | unifiedpush | persistent | none` capability with no correctness/identity dependency; honest iOS no-APNs limitation.
 8. **Retention** — disappearing/view-once backup/convergence rules.
 9. **Extensibility** — critical-field semantics, canonical encoding and registries before interoperability freeze.
 
@@ -155,10 +156,12 @@ Add an operatorless client track:
 2. ship operatorless PWA against user-owned Worker/DO deployment;
 3. implement per-user Web Push and ordinary daily-driver messaging/calls;
 4. harden reproducible/provenance-aware reference distribution;
-5. build Android native shell over the same core;
-6. build iOS native shell over the same core;
-7. add Android SMS/MMS/RCS adapters only after OM-native behavior is stable;
-8. allow optional convenience/enterprise providers without protocol privilege.
+5. build the Android reference shell in the V1 cycle early enough to catch web-only assumptions;
+6. build the iOS reference shell in the same V1 reference family once core/push/device lifecycle contracts are stable;
+7. validate the desktop reference shell in the same V1 family before platform contracts freeze, staging macOS/Windows/Linux binaries as practical;
+8. make Android wake replaceable so FCM is convenience rather than protocol dependency;
+9. add Android SMS/MMS/RCS adapters only after OM-native behavior is stable;
+10. allow optional convenience/enterprise providers without protocol privilege.
 
 Add Creator-Disappearance Gate to release acceptance.
 
@@ -181,7 +184,7 @@ Before visual polish freezes, usability-test onboarding, message requests, Share
 
 ## Engineering execution checkpoint — 2026-09-22 14:34
 
-The authoritative execution order is now [`ENGINEERING_HANDOFF.md`](ENGINEERING_HANDOFF.md). Build multi-profile namespacing now but expose multiple-account switching later. RichTextV1, DeviceVault/ClientHost, LocalDataClass, diagnostics redaction and formal AccountControlState are no longer optional design research; they are implementation requirements.
+The authoritative execution order is now [`ENGINEERING_HANDOFF.md`](ENGINEERING_HANDOFF.md). Build multi-profile namespacing from the first storage slice and expose the ADR-0148 V1 profile switcher once the basic single-profile vertical slice is stable; this is sequencing within V1, not a post-V1 deferral. RichTextV1, DeviceVault/ClientHost, LocalDataClass, diagnostics redaction and formal AccountControlState are no longer optional design research; they are implementation requirements.
 
 The first product proof uses one visible profile and a dev-only crypto provider where necessary. Production cryptography is integrated only after the explicit crypto gate. This allows UI/state/relay engineering to proceed without pretending an unaudited protocol composition is secure.
 

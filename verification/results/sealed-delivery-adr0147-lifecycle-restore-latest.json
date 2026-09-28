@@ -1,0 +1,467 @@
+{
+  "checker": "sealed_delivery_adr0147_lifecycle_restore",
+  "failures": [],
+  "gates": [
+    "V-003",
+    "V-015"
+  ],
+  "mutations": [
+    {
+      "caught": true,
+      "id": "M1_independent_request_expires_diverges_from_v1",
+      "mutated_result": [
+        1300,
+        "expiry_out_of_context"
+      ],
+      "normative_deadline": 1900
+    },
+    {
+      "caught": true,
+      "id": "M2_pruning_replenishes_lifetime_candidate_budget",
+      "mutated_result": "reserved",
+      "trace": [
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d0",
+            "4ff19ab791a02f4611e7f66cd0b53a1d85803f31baaef0d09612ba926bb6d2aa"
+          ],
+          "used": 1
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d1",
+            "b64f7e6970fb693d97e6f910db6c684cfecc686446bb83fd4937947d0c0d8b3a"
+          ],
+          "used": 2
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d2",
+            "0ac235eb6ab9d3f989b12d6756bccadc4de9cfa080d45b66f6efc2775bebdb06"
+          ],
+          "used": 3
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d3",
+            "b6c5bf3a28e0b7bbace6a471715fdaeea5182d4efdb94da3fdc67e2ab40906eb"
+          ],
+          "used": 4
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d4",
+            "c4f285a21770c0fda49076a588f6874fca7657de21d7da3097a01f30f397b544"
+          ],
+          "used": 5
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d5",
+            "8ad4346cd88abe662d5d531df207edec84756da1e243dc1bc03683c1b73f9047"
+          ],
+          "used": 6
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d6",
+            "94e283b33db826da544560b058fb3e6fc18de6ec66c54acc7bee4d2e5591c106"
+          ],
+          "used": 7
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d7",
+            "afcceef0feb18f3195ebd95753f3b595b757d5255ffc7eaf77f8fd71317dad8c"
+          ],
+          "used": 8
+        },
+        {
+          "op": "reject",
+          "tuple": [
+            "k",
+            "d0",
+            "4ff19ab791a02f4611e7f66cd0b53a1d85803f31baaef0d09612ba926bb6d2aa"
+          ]
+        },
+        {
+          "admitted_budget_used": 7,
+          "op": "compact_rejected",
+          "removed": 1
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d8",
+            "a6ea0909fb7092345eef762a1b93e046b8995543fd5e9f6a730c1d60629872b1"
+          ],
+          "used": 8
+        }
+      ]
+    },
+    {
+      "caught": true,
+      "id": "M3_stale_backup_resurrects_open_reserved_key_state",
+      "mutated_result": "resume_reserved",
+      "trace": [
+        {
+          "live_state_restored": true,
+          "op": "restore_historical",
+          "private_key_present": true,
+          "state": "OPEN"
+        }
+      ]
+    },
+    {
+      "caught": true,
+      "id": "M4_stale_backup_resurrects_replay_only_state",
+      "mutated_result": "complete_idempotent_ack",
+      "trace": [
+        {
+          "live_state_restored": true,
+          "op": "restore_historical",
+          "private_key_present": false,
+          "state": "COMPLETE_REPLAY_ONLY"
+        }
+      ]
+    }
+  ],
+  "passed": true,
+  "requirements": [
+    "R-320",
+    "R-321",
+    "R-323",
+    "R-324"
+  ],
+  "scenarios": [
+    {
+      "expected": [
+        1800,
+        "reserved",
+        "expiry_out_of_context"
+      ],
+      "got": [
+        1800,
+        "reserved",
+        "expiry_out_of_context"
+      ],
+      "id": "deadline_is_authenticated_min_route_and_key",
+      "ok": true,
+      "resource_trace": {
+        "derived_deadline": 1800,
+        "independent_request_expiry": null,
+        "key_expires": 1800,
+        "route_expires": 2100
+      },
+      "trace": [
+        {
+          "deadline": 1800,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d0",
+            "7df1ab195ea7012063ef01b91ab208da1dc2ccb8186e2136d0e8f1107c980391"
+          ],
+          "used": 1
+        }
+      ]
+    },
+    {
+      "expected": [
+        [
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved"
+        ],
+        1,
+        8,
+        "candidate_limit"
+      ],
+      "got": [
+        [
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved"
+        ],
+        1,
+        8,
+        "candidate_limit"
+      ],
+      "id": "rejected_gc_does_not_replenish_lifetime_budget",
+      "ok": true,
+      "resource_trace": {
+        "durable_lifetime_slots_used": 8,
+        "live_replay_records_after_compaction": 7,
+        "max_candidates": 8
+      },
+      "trace": [
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d0",
+            "4ff19ab791a02f4611e7f66cd0b53a1d85803f31baaef0d09612ba926bb6d2aa"
+          ],
+          "used": 1
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d1",
+            "b64f7e6970fb693d97e6f910db6c684cfecc686446bb83fd4937947d0c0d8b3a"
+          ],
+          "used": 2
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d2",
+            "0ac235eb6ab9d3f989b12d6756bccadc4de9cfa080d45b66f6efc2775bebdb06"
+          ],
+          "used": 3
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d3",
+            "b6c5bf3a28e0b7bbace6a471715fdaeea5182d4efdb94da3fdc67e2ab40906eb"
+          ],
+          "used": 4
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d4",
+            "c4f285a21770c0fda49076a588f6874fca7657de21d7da3097a01f30f397b544"
+          ],
+          "used": 5
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d5",
+            "8ad4346cd88abe662d5d531df207edec84756da1e243dc1bc03683c1b73f9047"
+          ],
+          "used": 6
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d6",
+            "94e283b33db826da544560b058fb3e6fc18de6ec66c54acc7bee4d2e5591c106"
+          ],
+          "used": 7
+        },
+        {
+          "deadline": 1900,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "d7",
+            "afcceef0feb18f3195ebd95753f3b595b757d5255ffc7eaf77f8fd71317dad8c"
+          ],
+          "used": 8
+        },
+        {
+          "op": "reject",
+          "tuple": [
+            "k",
+            "d0",
+            "4ff19ab791a02f4611e7f66cd0b53a1d85803f31baaef0d09612ba926bb6d2aa"
+          ]
+        },
+        {
+          "admitted_budget_used": 8,
+          "op": "compact_rejected",
+          "removed": 1
+        }
+      ]
+    },
+    {
+      "expected": [
+        "reserved",
+        "reserved",
+        "closed",
+        "winner_wrapper_expired",
+        "rejected_terminal",
+        "COMPLETE_REPLAY_ONLY",
+        "COMPLETE_REPLAY_ONLY",
+        "EXPIRED",
+        "bootstrap_expired"
+      ],
+      "got": [
+        "reserved",
+        "reserved",
+        "closed",
+        "winner_wrapper_expired",
+        "rejected_terminal",
+        "COMPLETE_REPLAY_ONLY",
+        "COMPLETE_REPLAY_ONLY",
+        "EXPIRED",
+        "bootstrap_expired"
+      ],
+      "id": "winner_ack_window_and_request_replay_only_gc_are_distinct",
+      "ok": true,
+      "resource_trace": {
+        "final_records": 0,
+        "request_replay_only_through": 2300,
+        "winner_wrapper_ack_through": 1800
+      },
+      "trace": [
+        {
+          "deadline": 2000,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "win",
+            "3fe7ac5decb1eb98a7796c1d4b32f2942f32fbc7fa4d361a1900d9480afdf592"
+          ],
+          "used": 1
+        },
+        {
+          "deadline": 2000,
+          "op": "admit",
+          "tuple": [
+            "k",
+            "lose",
+            "d6c26813aa2149257b5beaee161b4f498303e9cc4f8ebe9fa0f25e76281f45a0"
+          ],
+          "used": 2
+        },
+        {
+          "op": "complete",
+          "private_key_present": false,
+          "state": "COMPLETE_REPLAY_ONLY",
+          "winner": [
+            "k",
+            "win"
+          ]
+        },
+        {
+          "now": 2300,
+          "op": "advance",
+          "state": "COMPLETE_REPLAY_ONLY"
+        },
+        {
+          "now": 2301,
+          "op": "expire_and_gc"
+        }
+      ]
+    },
+    {
+      "expected": [
+        "EXPIRED",
+        false,
+        0,
+        "bootstrap_expired"
+      ],
+      "got": [
+        "EXPIRED",
+        false,
+        0,
+        "bootstrap_expired"
+      ],
+      "id": "historical_open_reserved_private_key_backup_is_inert",
+      "ok": true,
+      "trace": [
+        {
+          "live_state_restored": false,
+          "op": "restore_historical",
+          "private_key_present": false,
+          "state": "EXPIRED"
+        }
+      ]
+    },
+    {
+      "expected": [
+        "EXPIRED",
+        false,
+        0,
+        "bootstrap_expired"
+      ],
+      "got": [
+        "EXPIRED",
+        false,
+        0,
+        "bootstrap_expired"
+      ],
+      "id": "historical_replay_only_backup_is_inert",
+      "ok": true,
+      "trace": [
+        {
+          "live_state_restored": false,
+          "op": "restore_historical",
+          "private_key_present": false,
+          "state": "EXPIRED"
+        }
+      ]
+    }
+  ],
+  "scope": "ADR-0147 derived bootstrap deadline, durable candidate budget, replay-only expiry/GC and historical-restore exclusion",
+  "structural_checks": {
+    "adr_derived_deadline": true,
+    "adr_no_hidden_request_expiry": true,
+    "adr_non_replenishable_budget": true,
+    "adr_replay_only_gc_deadline": true,
+    "backup_mentions_bootstrap_nonrestore": true,
+    "default_skew_300": true,
+    "profile_derived_deadline": true,
+    "profile_restore_inert": true,
+    "requirements_present": true
+  },
+  "summary": {
+    "mutations": 4,
+    "mutations_caught": 4,
+    "scenarios": 5,
+    "scenarios_passed": 5
+  }
+}

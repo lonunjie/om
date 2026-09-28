@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-27 ADR-0141 semantic consistency remediation",
+  "snapshot": "2026-09-28T20:42:00+08:00",
   "purpose": "Every requirement maps to at least one proof obligation. Target kinds: V-### verification gate, PR-### public release gate, validator (tools/validate_architecture.py), conformance:<suite> (a suite registered in machine/conformance_suites.json with its spec document; ADR-0130), review:<doc> (named document review obligation, discharged by a reviewer other than the document's author with a record in verification/reviews/, ADR-0117).",
   "target_kinds": [
     "V-###",
@@ -2018,6 +2018,179 @@
       "verified_by": [
         "V-003",
         "validator"
+      ]
+    },
+    {
+      "requirement": "R-315",
+      "verified_by": [
+        "V-003",
+        "V-005",
+        "V-015",
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-316",
+      "verified_by": [
+        "V-003",
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-317",
+      "verified_by": [
+        "V-003",
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-318",
+      "verified_by": [
+        "V-003"
+      ]
+    },
+    {
+      "requirement": "R-319",
+      "verified_by": [
+        "V-003",
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-320",
+      "verified_by": [
+        "V-003",
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-321",
+      "verified_by": [
+        "V-003"
+      ]
+    },
+    {
+      "requirement": "R-322",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-323",
+      "verified_by": [
+        "V-003",
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-324",
+      "verified_by": [
+        "V-003",
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-325",
+      "verified_by": [
+        "V-021",
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-326",
+      "verified_by": [
+        "V-003"
+      ]
+    },
+    {
+      "requirement": "R-327",
+      "verified_by": [
+        "V-005",
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-328",
+      "verified_by": [
+        "V-005",
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-329",
+      "verified_by": [
+        "V-023"
+      ]
+    },
+    {
+      "requirement": "R-330",
+      "verified_by": [
+        "V-005",
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-331",
+      "verified_by": [
+        "V-003"
+      ]
+    },
+    {
+      "requirement": "R-332",
+      "verified_by": [
+        "V-021",
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-333",
+      "verified_by": [
+        "V-023"
+      ]
+    },
+    {
+      "requirement": "R-334",
+      "verified_by": [
+        "V-003",
+        "V-015",
+        "conformance:network_transport",
+        "conformance:attachments"
+      ]
+    },
+    {
+      "requirement": "R-335",
+      "verified_by": [
+        "V-005",
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-336",
+      "verified_by": [
+        "V-021",
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-337",
+      "verified_by": [
+        "V-021",
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-338",
+      "verified_by": [
+        "V-015",
+        "V-021",
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-339",
+      "verified_by": [
+        "V-021",
+        "conformance:ui_intents"
       ]
     }
   ]

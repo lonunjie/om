@@ -212,6 +212,10 @@ Use Android work to validate:
 
 Only after OM-native core stabilizes should Android default-SMS/MMS integration become a product milestone.
 
+### P8 — iOS joins the V1 reference-family cycle
+
+Once Core and push/device-lifecycle contracts are stable enough to exercise them, build the iOS reference shell against the same vectors/Core/UI contracts. Use it to validate Keychain/Secure Enclave integration where applicable, APNs/background limitations, share/media surfaces and system-call integration without creating iOS-only protocol semantics. Android/iOS are V1 reference targets, but their public releases need not be simultaneous with the first PWA vertical slice (ADR-0150).
+
 ## Deployment simplicity
 
 Early reference deployment should be boring:
@@ -260,7 +264,7 @@ Web Push may be sent by the recipient's own Worker/PersonalRelay to the browser 
 
 The PWA is not expected to permanently replace native capabilities such as PushKit/CallKit-class incoming-call integration, platform hardware-key APIs, Android default-SMS integration, or all background execution semantics.
 
-The project should converge security/state logic into one portable OM Core compiled to WASM for the PWA and native libraries for later shells. Do not independently reinvent cryptographic/control-state behavior in each UI language.
+The project converges security/state logic into one portable OM Core compiled to WASM for the PWA and native libraries for the V1 Android/iOS/Desktop reference shells. Do not independently reinvent cryptographic/control-state behavior in each UI language.
 
 ## 2026-09-22 shared UI direction
 
@@ -276,7 +280,7 @@ Prototype order for the visible client:
 6. shared design tokens, accessibility primitives and MotionSystem;
 7. declarative theme/font import and preview.
 
-A successful PWA phase therefore validates both protocol behavior and the shared product experience that later native shells will host.
+A successful PWA phase therefore validates both protocol behavior and the shared product experience that the V1 Android/iOS/Desktop reference shells will host.
 
 ## ClientHost/origin engineering boundary — 2026-09-22
 
@@ -284,4 +288,4 @@ The installed PWA origin is a `ClientHost`, not the user's identity. Browser ori
 
 The reference deployment SHOULD separate the application origin from public discovery/IntroGate/relay endpoints. Changing PWA origin/provider is an authenticated new-device migration with fresh local vault/push state; it is never defined as raw IndexedDB copying.
 
-A malicious origin can eventually deliver malicious executable code. OM mitigates this with a user-owned origin where the user owns one (most T0/T1 users instead use a shared ClientHost, [`CLIENTHOST_UPDATE_LIFECYCLE.md`](CLIENTHOST_UPDATE_LIFECYCLE.md) §9), strict CSP/no remote runtime code, verifiable releases and a future native higher-assurance path, but must not claim that PWA cryptography defeats a fully compromised execution origin.
+A malicious origin can eventually deliver malicious executable code. OM mitigates this with a user-owned origin where the user owns one (most T0/T1 users instead use a shared ClientHost, [`CLIENTHOST_UPDATE_LIFECYCLE.md`](CLIENTHOST_UPDATE_LIFECYCLE.md) §9), strict CSP/no remote runtime code, verifiable releases and the V1 native reference higher-assurance paths, but must not claim that PWA cryptography defeats a fully compromised execution origin.

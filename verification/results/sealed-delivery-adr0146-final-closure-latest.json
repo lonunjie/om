@@ -1,0 +1,186 @@
+{
+  "checker": "sealed_delivery_adr0146_final_closure",
+  "failures": [],
+  "gates": [
+    "V-003",
+    "V-015"
+  ],
+  "mutations": [
+    {
+      "caught": true,
+      "id": "M1_sibling_left_reserved_after_key_destroy",
+      "mutated_result": [
+        "RESERVED",
+        "key_missing_reserved"
+      ]
+    },
+    {
+      "caught": true,
+      "id": "M2_physical_one_use_breaks_exact_retry",
+      "mutated_result": [
+        "reserved",
+        "route_consumed"
+      ]
+    },
+    {
+      "caught": true,
+      "id": "M3_unbounded_distinct_candidates_pin_state",
+      "mutated_result": [
+        "reserved",
+        9
+      ]
+    },
+    {
+      "caught": true,
+      "id": "M4_wrapper_outlives_key_context",
+      "mutated_result": [
+        "reserved",
+        1
+      ]
+    }
+  ],
+  "passed": true,
+  "scenarios": [
+    {
+      "expected": [
+        "reserved",
+        "reserved",
+        "closed",
+        "COMPLETE",
+        "REJECTED",
+        false,
+        "rejected_terminal"
+      ],
+      "got": [
+        "reserved",
+        "reserved",
+        "closed",
+        "COMPLETE",
+        "REJECTED",
+        false,
+        "rejected_terminal"
+      ],
+      "id": "winner_atomically_terminalizes_reserved_siblings",
+      "ok": true
+    },
+    {
+      "expected": [
+        "reserved",
+        "closed",
+        "lost_race",
+        "REJECTED",
+        false
+      ],
+      "got": [
+        "reserved",
+        "closed",
+        "lost_race",
+        "REJECTED",
+        false
+      ],
+      "id": "cancel_wins_same_open_cas",
+      "ok": true
+    },
+    {
+      "expected": [
+        "reserved",
+        "closed",
+        "lost_race",
+        "complete_idempotent_ack"
+      ],
+      "got": [
+        "reserved",
+        "closed",
+        "lost_race",
+        "complete_idempotent_ack"
+      ],
+      "id": "accept_wins_same_open_cas_and_exact_retry_survives",
+      "ok": true
+    },
+    {
+      "expected": [
+        "reserved",
+        "resume_reserved",
+        1
+      ],
+      "got": [
+        "reserved",
+        "resume_reserved",
+        1
+      ],
+      "id": "exact_retry_does_not_consume_candidate_slot",
+      "ok": true
+    },
+    {
+      "expected": [
+        [
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved"
+        ],
+        "candidate_limit",
+        8
+      ],
+      "got": [
+        [
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved",
+          "reserved"
+        ],
+        "candidate_limit",
+        8
+      ],
+      "id": "distinct_candidate_cap_is_eight",
+      "ok": true
+    },
+    {
+      "expected": [
+        "expiry_out_of_context",
+        0
+      ],
+      "got": [
+        "expiry_out_of_context",
+        0
+      ],
+      "id": "wrapper_beyond_key_expiry",
+      "ok": true
+    },
+    {
+      "expected": [
+        "expiry_out_of_context",
+        0
+      ],
+      "got": [
+        "expiry_out_of_context",
+        0
+      ],
+      "id": "wrapper_beyond_route_expiry",
+      "ok": true
+    }
+  ],
+  "scope": "ADR-0146 sibling terminalization, terminal-state race, bounded reply transport/candidates and wrapper authority-lifetime binding",
+  "structural_checks": {
+    "adr_atomic_sibling_terminalization": true,
+    "adr_candidate_cap_8": true,
+    "adr_expiry_context": true,
+    "cddl_not_physical_one_use": true,
+    "m8_adr0146": true,
+    "profile_candidate_cap": true
+  },
+  "summary": {
+    "mutations": 4,
+    "mutations_caught": 4,
+    "scenarios": 7,
+    "scenarios_passed": 7
+  }
+}

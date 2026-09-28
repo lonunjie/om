@@ -101,7 +101,7 @@ Do not expose direct candidates that reveal a peer's IP to an unknown peer or un
 
 If two established contacts are on the same local network, media should be able to remain local. Future local discovery should avoid broadcasting stable AccountIDs or human-readable device names. A preferred direction is rotating rendezvous tokens derived from existing relationship secrets and time epochs.
 
-Long-term resilience goal: where local connectivity exists but WAN access is unavailable, established peers on the same LAN should be able to exchange messages/files and conduct calls without cloud media transit. Full offline rendezvous details remain an implementation gate.
+V1 local-first resilience: where local connectivity exists but WAN access is unavailable, established or short-lived QR/invite-linked peers may exchange messages/encrypted files and conduct calls without cloud transit when the platform can establish a route. ADR-0150 freezes message/file transport semantics; Run 8B supplies the local-delivery reconciliation/privacy evidence, and automatic discovery remains capability-gated.
 
 ## Mid-call migration
 

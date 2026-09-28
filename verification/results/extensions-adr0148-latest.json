@@ -1,0 +1,15 @@
+{
+  "kind": "adr0148_v1_extension_vectors_amended_adr0149",
+  "vector_count": 24,
+  "python_node_agreement": 24,
+  "semantics": {
+    "integer_key_payloads": true,
+    "mismatched_nonempty_location_fallback_ignored": true,
+    "wrong_object_rejected": true,
+    "wrong_criticality_rejected": true,
+    "unknown_noncritical_ignored": true
+  },
+  "mismatches": [],
+  "passed": true,
+  "note": "ADR-0148 vectors amended by ADR-0149: registered payloads are integer-keyed; semantic cross-reference/fallback failures ignore the non-critical extension while schema/object/criticality violations reject the object."
+}

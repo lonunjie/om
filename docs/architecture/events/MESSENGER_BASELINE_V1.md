@@ -22,13 +22,14 @@ A reference client may implement more than the minimum conformance surface, but 
 | User expectation | V1 class | Canonical semantic decision |
 |---|---|---|
 | Text and bounded rich text | Core interoperable | `message.create` + `RichTextV1`; executable markup is never authoritative. |
+| Ordered/unordered lists | V1 interoperable presentation | Registered non-critical `om.rich-list.v1` annotates existing W0 paragraph fallbacks; registered schema violations reject malformed known payloads, while schema-valid presentation mismatches fall back to ordinary RichText (ADR-0150/0151). |
 | Reply / quote | Core interoperable | `reply_to` references an event in the **same ConversationID**. Cross-conversation pointers are not replies. |
 | Unicode/basic reactions | Core interoperable | `reaction.set` is idempotent actor/target/reaction state, an epoch-major register. Custom-pack reactions use `reaction_asset` (reserved for W1) under [`EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`](../ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md). |
 | Edit own message | Core interoperable | `message.edit` replaces editable presentation fields; replacing binary payloads means send a new message. |
 | Delete own message | Core interoperable | `message.delete` creates a shared tombstone; physical erasure after delivery is never promised. |
 | Moderator removal/redaction | Core interoperable for moderated rooms | Distinct `moderation.redact`; moderation authority is not impersonated as the author's delete. |
 | Files / photos / video / audio | Core interoperable | Encrypted `AttachmentRef`; camera/gallery/file-picker are local acquisition UX. |
-| Voice notes | Core interoperable presentation | Audio attachment (`AttachmentRef` with an audio media type and `duration_ms`); not a new transport or cryptographic class. The explicit `presentation_role = voice_note` marker and waveform are later-wave and travel as an event extension, since the frozen W0 `attachment-ref` has no such field (ADR-0128 rule 18). |
+| Voice notes | V1 interoperable presentation | Audio attachment (`AttachmentRef` with an audio media type and `duration_ms`) plus optional non-critical `om.voice-note.v1` presentation extension; old/W0 clients safely fall back to ordinary audio. No new transport or cryptographic class (ADR-0148). |
 | Mentions | Core interoperable | Semantic RichText mention nodes; notification indexes may be denormalized but must agree with content. |
 | Forward / resend | Core interoperable | A forward is a **new** `message.create` by the forwarding account. Private source identity/event IDs are not leaked across conversations by default. |
 | Shared room pins | Core interoperable for groups/rooms | `pin.set` is shared authorized state; a personal bookmark remains local-only. |
@@ -38,9 +39,9 @@ A reference client may implement more than the minimum conformance surface, but 
 | Delivery/read receipts | Standard optional capability | `receipt.update`; privacy policy may disable or reduce granularity. |
 | Disappearing messages | Core interoperable when used | Envelope `expiry` is the canonical timer; `expires_after` is only a local bound; group timer in GroupControlState ([`EVENT_MODEL.md`](EVENT_MODEL.md) "Expiry"). Expiry is deletion/retention policy, not proof that a recipient forgot plaintext. |
 | Search | Local/account-private UX | Local index over data the client can lawfully decrypt; no mandatory global search service. |
-| Drafts | Local/account-private UX | Local by default; future account-private encrypted sync may synchronize them. |
-| Mute | Local/account-private UX | Notification preference, not room authority. |
-| Archive / folders / labels | Local/account-private UX | Organizational view state only. |
+| Drafts | V1 local/account-private UX | Stored locally and, for linked eligible devices of the same IdentityProfile, synchronizable through the authenticated E2EE account-private channel under ADR-0148 conflict-preservation rules. Never conversation authority. |
+| Mute | V1 local/account-private UX | Notification preference, not room authority; may sync account-privately under the ADR-0148 allowlist. |
+| Archive / folders / labels | V1 local/account-private UX | Organizational view state only; may sync account-privately under the ADR-0148 allowlist. |
 | Scheduled send | Local/account-private UX | Encrypted local queue until actual send time. If no authorized device is online, nothing is sent. |
 | Stickers | Product-baseline capability | First-class UX is required; bounded inert media + portable pack semantics are frozen in [`EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`](../ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md). |
 | GIF-like looping animation | Product-baseline capability | Modeled semantically as looping animation; baseline interoperable expressive payload is bounded animated WebP rather than a requirement to use the legacy GIF codec. |
@@ -55,7 +56,7 @@ A reference client may implement more than the minimum conformance surface, but 
 | Forum topics / lightweight threads | Standard V1 capability | Layered room-local organization; see [`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](../groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md). |
 | Private announcement room | Standard V1 capability | Ordinary private MLS room with `room.post` granted only to allowed publishers. |
 | Public broadcast publication | Standard V1 capability | Separate signed `Publication`, not a pretend MLS group. |
-| Static location card | Later standardized capability | No wire shape is frozen in this pass; plain text/map links remain possible. |
+| Static location card | Standard optional V1 capability | One-shot `om.location-card.v1` non-critical event extension beside a W0-valid textual/`geo:` fallback. No continuous/background disclosure. |
 | Live location | Later capability | Requires explicit continuous-disclosure, expiry and background-access threat modeling. |
 | Stories/status feed | Later capability | Not required for messenger completeness and should not force social-network semantics into Core. |
 | Payments / wallet | Later/external capability | Explicitly outside OM Core and SeedLife operation. |
@@ -172,11 +173,23 @@ compose -> encrypt/store in local authorized-device queue -> at due time create/
 
 No relay/provider gets a special “send this plaintext later” privilege. If users later want guaranteed cloud scheduling while all devices are offline, that becomes an explicit optional service with a visible trust model.
 
+## Rich-list semantics
+
+V1 standardizes `om.rich-list.v1` as registered **non-critical** presentation metadata over existing W0 paragraph blocks; it does not add a RichText block type or duplicate item text. `RichListV1Extension` contains 1..256 `RichListItemV1` annotations. Each item binds a unique strictly increasing `block_index` (0..4095), `depth` (0..3), `style` (`unordered` or `ordered`) and, only for ordered items, `ordinal` (1..9999). The first item and the first item after any block-index gap have depth 0; within a contiguous run depth may rise by at most one per item.
+
+The extension is meaningful only for `message.create` (against `content.blocks`) and `message.edit` (against `replacement.blocks`); other event kinds ignore it as unusable non-critical presentation metadata. The referenced block must be a W0 paragraph. Its first inline must be an **unmarked** InlineText beginning with the canonical fallback marker: two spaces per depth followed by `- ` for unordered items or the unpadded decimal ordinal plus `. ` for ordered items. Supporting clients first apply the registered ADR-0149/ADR-0151 object/criticality/payload schema: a malformed known payload (including registry-declared item/depth/index/ordinal bounds) rejects the containing ConversationEvent. After that schema layer passes, any bad block reference/order, nesting transition, ordered/unordered ordinal-presence rule, or marker mismatch causes the entire non-critical list interpretation to be ignored and the authenticated W0 RichText to be rendered unchanged. Unannotated blocks terminate a list run; later runs restart at depth 0. Plain-text copy/export/accessibility fallback comes from the W0 RichText with its canonical markers. Links, mentions, marks and item text therefore retain exactly the semantics old clients receive (ADR-0150).
+
 ## Voice-note semantics
 
-Voice notes are ordinary encrypted attachments plus presentation metadata such as duration/waveform hints where safe. In W0 the only carrier is the attachment's media type and `duration_ms`; a voice-note marker and waveform arrive later as an event extension beside a W0-valid body. Clients can offer hold-to-record, playback speed and waveform UI without inventing a separate message security model.
+Voice notes are ordinary encrypted audio attachments plus optional presentation metadata; they never become a separate message security class. V1 standardizes the registered non-critical extension `om.voice-note.v1` beside a W0-valid `message.create` body. Its deterministic-CBOR value is the integer-keyed `VoiceNoteV1Extension` struct: key 0 `attachment_index` (0..31) and optional key 1 `waveform_u8` (16..256 normalized amplitude bytes). The index binds the immutable original `message.create` attachment list; a later edit cannot retarget it. The referenced attachment must be audio and carry `duration_ms`. A client that ignores or rejects only the presentation extension still renders ordinary playable audio, and waveform samples are only presentation hints that may be regenerated locally (ADR-0149).
 
-The exact baseline audio codec/container belongs with media capability negotiation rather than the conversation event taxonomy.
+The reference V1 UX includes record/lock/cancel, pause/resume, waveform where available, scrubbing and playback-speed controls. The exact baseline audio codec/container belongs with media capability negotiation rather than the conversation event taxonomy.
+
+## Static location-card semantics
+
+V1 standardizes `om.location-card.v1` as a registered **non-critical** event extension beside a W0-valid RichText fallback. Its integer-keyed `LocationCardV1Extension` value uses key 0 `lat_e7_offset` (0..1800000000, signed E7 = value - 900000000), key 1 `lon_e7_offset` (0..3600000000, signed E7 = value - 1800000000), optional key 2 `accuracy_m` (1..1000000) and optional key 3 `label` (1..256 UTF-8 bytes).
+
+The fallback must contain the exact canonical `geo:<lat-fixed-7>,<lon-fixed-7>` token derived from the extension point. If a new client receives a nonempty but mismatched fallback, it ignores the non-critical card extension and renders the W0 fallback; it does not show a different location than an old client. The label is sender-authored presentation text and cannot replace the coordinate-bearing point. Sharing is one explicit user action. The client does not silently promote EXIF/current-device location, and rendering the card does not grant background location. A third-party map request occurs only under the user's configured map/privacy policy. Live/continuous location remains later work (ADR-0149).
 
 ## Calls remain outside durable chat events
 

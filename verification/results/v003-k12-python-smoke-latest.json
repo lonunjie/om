@@ -1,0 +1,44 @@
+{
+ "fixed_rule_enabled": {
+  "bind_initiator": true,
+  "forge_action": [
+   "ForgeInitiation",
+   "b1",
+   "a1",
+   1
+  ],
+  "receive_action": [
+   "RecvRejectedUnboundInitiator",
+   "a1",
+   "b1",
+   1
+  ],
+  "violations": []
+ },
+ "gate": "V-003",
+ "gate_status_effect": "evidence_only_no_gate_automatically_passed",
+ "model": "v003_k12_python_reference_smoke",
+ "passed": true,
+ "scope": "focused deterministic replay; full Hypothesis/TLC suite still belongs to verification/prototypes/v003-sessions/run.sh",
+ "vector": "V003-TLC-K12",
+ "vulnerable_rule_disabled": {
+  "bind_initiator": false,
+  "forge_action": [
+   "ForgeInitiation",
+   "b1",
+   "a1",
+   1
+  ],
+  "receive_action": [
+   "Recv",
+   "a1",
+   "b1",
+   1,
+   1,
+   "created"
+  ],
+  "violations": [
+   "NoMisattributedSession"
+  ]
+ }
+}

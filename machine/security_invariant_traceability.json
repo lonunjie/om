@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-27 ADR-0141 semantic consistency remediation",
+  "snapshot": "2026-09-28T14:43:00+08:00 Run 5A ADR-0147 normative lifecycle/restore closure",
   "purpose": "Final design-closure mapping from each named security invariant to current requirements, threats, decisions, evidence obligations and normative sources. Mapping does not mark gates passed or authorize engineering.",
   "invariants": [
     {
@@ -48,20 +48,26 @@
       "id": "A3",
       "requirements": [
         "R-185",
-        "R-200"
+        "R-200",
+        "R-278",
+        "R-322"
       ],
       "threats": [
         "T-041",
-        "T-050"
+        "T-050",
+        "T-090",
+        "T-124"
       ],
       "decisions": [
-        "D-149"
+        "D-149",
+        "D-169"
       ],
       "evidence": [
         "V-002"
       ],
       "sources": [
-        "docs/architecture/safety/SECURITY_INVARIANTS.md"
+        "docs/architecture/safety/SECURITY_INVARIANTS.md",
+        "decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md"
       ]
     },
     {
@@ -712,14 +718,21 @@
       "requirements": [
         "R-308",
         "R-310",
-        "R-313"
+        "R-313",
+        "R-314",
+        "R-316"
       ],
       "threats": [
         "T-113",
-        "T-114"
+        "T-114",
+        "T-115",
+        "T-117"
       ],
       "decisions": [
-        "D-164"
+        "D-164",
+        "D-165",
+        "D-166",
+        "D-167"
       ],
       "evidence": [
         "V-001",
@@ -728,7 +741,71 @@
       ],
       "sources": [
         "docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md",
-        "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md"
+        "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md",
+        "decisions/ADR-0143-crash-safe-sealed-delivery-replay-and-retry.md",
+        "decisions/ADR-0144-pre-review-sealed-delivery-bootstrap-and-stale-head-closure.md",
+        "decisions/ADR-0145-bootstrap-single-response-and-complete-retry-closure.md"
+      ]
+    },
+    {
+      "id": "M7",
+      "requirements": [
+        "R-311",
+        "R-315",
+        "R-317",
+        "R-321"
+      ],
+      "threats": [
+        "T-116",
+        "T-118",
+        "T-123"
+      ],
+      "decisions": [
+        "D-164",
+        "D-166",
+        "D-167",
+        "D-169"
+      ],
+      "evidence": [
+        "V-003",
+        "V-005",
+        "V-015"
+      ],
+      "sources": [
+        "docs/architecture/safety/SECURITY_INVARIANTS.md",
+        "docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md",
+        "decisions/ADR-0144-pre-review-sealed-delivery-bootstrap-and-stale-head-closure.md",
+        "decisions/ADR-0145-bootstrap-single-response-and-complete-retry-closure.md",
+        "decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md"
+      ]
+    },
+    {
+      "id": "M8",
+      "requirements": [
+        "R-318",
+        "R-319",
+        "R-320",
+        "R-323",
+        "R-324"
+      ],
+      "threats": [
+        "T-119",
+        "T-120",
+        "T-121",
+        "T-122"
+      ],
+      "decisions": [
+        "D-168",
+        "D-169"
+      ],
+      "evidence": [
+        "V-003",
+        "V-015"
+      ],
+      "sources": [
+        "docs/architecture/safety/SECURITY_INVARIANTS.md",
+        "decisions/ADR-0146-bootstrap-candidate-terminalization-bounded-reply-transport-and-expiry.md",
+        "decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md"
       ]
     }
   ]

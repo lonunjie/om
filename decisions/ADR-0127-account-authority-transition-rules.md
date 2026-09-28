@@ -9,6 +9,7 @@
 - **Amends:** ADR-0028, ADR-0029, ADR-0105, ADR-0111; [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md),
   [`ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md`](../docs/architecture/identity/ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md), [`RECOVERY_AND_BACKUP_POLICY.md`](../docs/architecture/identity/RECOVERY_AND_BACKUP_POLICY.md),
   [`IDENTITY_CONTINUITY.md`](../docs/architecture/identity/IDENTITY_CONTINUITY.md), [`IDENTITY_PROTOCOL.md`](../docs/architecture/identity/IDENTITY_PROTOCOL.md)
+- **Amended by:** ADR-0147 crash-safe verifier-local duration semantics
 
 ## Context
 
@@ -56,5 +57,5 @@ change. The TLA model ([`AccountControl.tla`](../verification/tla/AccountControl
 ### 2026-09-25 recovery-observation amendment
 
 ADR-0131 rule 6 is normative: when recovery acts alone, each verifier measures activation from its own first valid
-observation of the RecoveryRequest using monotonic elapsed time. A Home/custodian timestamp cannot make a late verifier
+observation of the RecoveryRequest using monotonic elapsed time. ADR-0147 defines crash/reboot persistence as a conservative durable elapsed lower bound: unmeasured downtime, wall-clock movement and restored historical timer state cannot shorten the interval. A Home/custodian timestamp cannot make a late verifier
 accept immediately. A current controller co-signature remains the only v1 acceleration path.

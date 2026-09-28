@@ -13,11 +13,29 @@ The architecture contract remains locked: `engineering_authorized=false`. **Evid
 - `results/` — machine-readable captured results;
 - [`FEASIBILITY_RECONNAISSANCE_20260923.md`](FEASIBILITY_RECONNAISSANCE_20260923.md) — standards/runtime feasibility reconnaissance for gates that require real implementations.
 
-Run all currently executable phase-1 evidence with:
+Two verification entry points intentionally have different environment contracts:
 
 ```sh
-python3 verification/run_phase1.py
+make verify-drop     # fresh exported ZIP; no Git history, Rust, or TLC required
+make verify          # imported Git repo; full phase-1 evidence + TLC + registry-history checks
+make preflight       # report Rust/TLC/Hypothesis/tool availability without changing evidence
 ```
+
+`verify-drop` runs the deterministic portable evidence profile and writes [`phase1-drop-summary.json`](results/phase1-drop-summary.json). It does not
+claim the Rust-dependent cross-wave aggregate, TLC execution, or registry-history immutability. `verify` retains
+those stronger requirements. The continuity manifest's working-tree check is deliberately Git-independent; only
+`check-registries`, continuity-bundle publication, and other history comparisons require Git.
+
+For V-003 Hypothesis or the complete V-005 Rust/CDDL/Wasm prototype, use `tools/verify_preflight.py --profile v003`
+or `--profile v005` first. The preflight reports when an uncached dependency would require network access rather
+than silently fetching it. TLC itself is pinned and may bootstrap its JAR once; [`tools/run_tlc.py`](../tools/run_tlc.py) preflights that
+once before entering the model loop.
+
+## 2026-09-28 pre-independent-review state
+
+The current Run-9B portable path includes all ADR-0147 through ADR-0153 portable hardening evidence. For the `core_kernel` batch, V-001 and V-005 have completed their repo-local pre-engineering criteria; V-002 is 9/10 and V-003 is 13/14 with only their explicit independent-review criteria unchecked; V-015 is 16/16 repo-local, V-016 is 9/9 and V-017 is 3/3 with phase independence still open. V-021 is 10/10 repo-local and V-023 is 9/9 repo-local for the reference-client scope, each still requiring its own independent review. Run 9B adds replaceable Android wake evidence plus desktop/PersonRecord endpoint-safety evidence; ADR-0153 clarifies that unconfirmed third-party wake-registration retirement has no invented universal time bound. The final reviewer should not redo completed repo-local work merely because the independent-review fields remain open.
+
+The sections below preserve earlier evidence history and should not be read as the current remaining-work list.
 
 ## 2026-09-23 phase-1 evidence
 
@@ -61,4 +79,4 @@ ADR-0134 separates design closure, repo-local pre-engineering evidence, post-sco
 - `independent_implementation` may be a cleanly separated different-language/runtime implementation; cross-vendor review is needed only when the gate separately names `independent_reviewer`.
 - V-018 remains a real human participant study and cannot be synthesized by an agent.
 
-The current execution brief is [`CLAUDE_OPUS_5_5_HANDOFF.md`](CLAUDE_OPUS_5_5_HANDOFF.md). Product engineering remains unauthorized.
+The repo-local `core_kernel` executor pass is complete to the current checkpoint. The active next step is the consolidated different-vendor review in [`reviews/BRIEF-2026-09-27-final-core-kernel-independent-review.md`](reviews/BRIEF-2026-09-27-final-core-kernel-independent-review.md); [`CLAUDE_OPUS_5_5_HANDOFF.md`](CLAUDE_OPUS_5_5_HANDOFF.md) is retained as a stable redirect. Product engineering remains unauthorized.

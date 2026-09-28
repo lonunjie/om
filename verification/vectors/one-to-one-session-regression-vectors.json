@@ -268,7 +268,7 @@
    "rule_disabled": "DedupeDurable",
    "violates": "NoDoubleAccept",
    "classification": "design_gap_mechanism_unstated",
-   "doc_basis": "R-089 requires one conversation event per logical message; durability of the EventID dedupe record relative to the relay ack is unspecified",
+   "doc_basis": "R-089 requires one conversation event per logical message; ADR-0120 K2/ADR-0143 now require EventID/session dedupe durability before successful relay acknowledgement, so this vector preserves the historical regression case rather than an open design ambiguity",
    "constants": {
     "Senders": "{\"a1\", \"b1\"}",
     "MaxMsgs": "2",

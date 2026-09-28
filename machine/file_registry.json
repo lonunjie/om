@@ -1,15 +1,8 @@
 {
-  "snapshot": "2026-09-27T11:19:00+08:00",
+  "snapshot": "2026-09-28T21:22:00+08:00",
   "scope": "current_non_history",
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
-    {
-      "path": ".github/workflows/verify.yml",
-      "class": "repo_plumbing",
-      "domain": "architecture_process",
-      "license": "Apache-2.0",
-      "authority": "executable_guardrail"
-    },
     {
       "path": ".gitignore",
       "class": "repo_plumbing",
@@ -1124,6 +1117,76 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0144-pre-review-sealed-delivery-bootstrap-and-stale-head-closure.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0145-bootstrap-single-response-and-complete-retry-closure.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0146-bootstrap-candidate-terminalization-bounded-reply-transport-and-expiry.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0148-v1-product-base-promotion-without-kernel-expansion.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0149-promoted-v1-adversarial-hardening.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0150-v1-offline-local-rich-lists-and-native-reference-targets.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0151-rich-list-validation-layer-closure.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0152-v1-desktop-replaceable-android-wake-and-contact-cleanup.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0153-wake-registration-retirement-and-residual-leakage-closure.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -1796,6 +1859,118 @@
       "authority": "historical_checkpoint_record"
     },
     {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_0530.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_0812.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_0857.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_0917.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_1010.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_1443.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_1522.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_1630.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_1718.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_1733.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_1821.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_1910.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_1937.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_2042.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_2122.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260928_2200.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
       "path": "docs/checkpoints/README.md",
       "class": "checkpoint",
       "domain": "architecture_process",
@@ -2035,6 +2210,13 @@
     },
     {
       "path": "docs/reports/2026-09-27-v005-rust-cddl-verification.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-09-28-run10a-residual-v1-boundary-audit.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -2944,6 +3126,13 @@
       "authority": "executable_guardrail"
     },
     {
+      "path": "tools/verify_preflight.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
       "path": "verification/CLAUDE_OPUS_5_5_HANDOFF.md",
       "class": "verification_doc",
       "domain": "architecture_verification",
@@ -2986,6 +3175,20 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/account_private_sync_adr0148.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/account_private_sync_adr0149_hardening.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/acs_authorization_table.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -3000,6 +3203,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/android_wake_adr0152.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/async_prekey_adr0140_rules.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -3008,6 +3218,20 @@
     },
     {
       "path": "verification/bounded/authority_models.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/clienthost_update_adr0148.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/clienthost_update_adr0149_authority.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -3063,6 +3287,34 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/desktop_personrecord_adr0152.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/endpoint_profile_adr0148.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/extensions_adr0148.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/extensions_adr0149_hardening.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/home_tiers_model.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -3071,6 +3323,20 @@
     },
     {
       "path": "verification/bounded/introgate_sybil_model.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/lan_privacy_adr0150.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/lan_route_adr0150.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -3091,7 +3357,21 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/platform_reference_adr0150.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/privacy_pass_issuance.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/profile_context_adr0149_hardening.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -3105,6 +3385,20 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/provider_resource_admin_trace.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/recovery_durable_timer_adr0147.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/relationship_context_surface.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -3112,7 +3406,42 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/rich_list_adr0150.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/sealed_delivery_adr0142_rules.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/sealed_delivery_adr0144_composition.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/sealed_delivery_adr0145_closure.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/sealed_delivery_adr0146_final_closure.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/sealed_delivery_adr0147_lifecycle_restore.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -3131,6 +3460,20 @@
       "domain": "architecture_verification",
       "license": "Apache-2.0",
       "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/cbor/node_adr0148_extensions.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/cbor/node_adr0150_rich_list.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
     },
     {
       "path": "verification/cbor/node_canonical.mjs",
@@ -3463,6 +3806,13 @@
     },
     {
       "path": "verification/prototypes/v003-sessions/fuzzer_vectors.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v003-sessions/k12_smoke.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -4022,6 +4372,20 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/account-private-sync-adr0148-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/account-private-sync-adr0149-hardening-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/acs-authorization-table-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
@@ -4030,6 +4394,13 @@
     },
     {
       "path": "verification/results/acs-tla-crosscheck-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/android-wake-adr0152-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -4051,6 +4422,20 @@
     },
     {
       "path": "verification/results/cbor-cross-impl-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/clienthost-update-adr0148-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/clienthost-update-adr0149-authority-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -4106,6 +4491,34 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/desktop-personrecord-adr0152-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/endpoint-profile-adr0148-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/extensions-adr0148-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/extensions-adr0149-hardening-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/home-tiers-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
@@ -4114,6 +4527,20 @@
     },
     {
       "path": "verification/results/introgate-sybil-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/lan-privacy-adr0150-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/lan-route-adr0150-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -4134,7 +4561,28 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/phase1-drop-summary.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/phase1-summary.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/platform-reference-adr0150-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/profile-context-adr0149-hardening-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -4148,6 +4596,20 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/provider-resource-admin-trace-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/recovery-durable-timer-adr0147-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/relationship-context-surface-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
@@ -4155,7 +4617,42 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/rich-list-adr0150-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/sealed-delivery-adr0142-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/sealed-delivery-adr0144-composition-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/sealed-delivery-adr0145-closure-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/sealed-delivery-adr0146-final-closure-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/sealed-delivery-adr0147-lifecycle-restore-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -4170,6 +4667,13 @@
     },
     {
       "path": "verification/results/v001-crypto-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/v003-k12-python-smoke-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -4338,6 +4842,13 @@
     },
     {
       "path": "verification/reviews/BRIEF-2026-09-26-security-equivalence-pass.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/reviews/BRIEF-2026-09-27-final-core-kernel-independent-review.md",
       "class": "verification_doc",
       "domain": "architecture_verification",
       "license": "CC-BY-SA-4.0",
@@ -5038,6 +5549,20 @@
     },
     {
       "path": "verification/vectors/acs-authorization-table-vectors.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/adr0148-v1-extension-vectors.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/adr0150-rich-list-vectors.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

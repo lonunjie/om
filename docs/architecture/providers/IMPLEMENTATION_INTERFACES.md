@@ -163,6 +163,7 @@ Conformance cases (`conformance:network_transport`, registered in [`machine/conf
 | NT-03 | failover mid-conversation (endpoint blocked) | delivery continues on the next transport or route with no identity, key or history migration |
 | NT-04 | transport sees only ciphertext and opaque locators | trace tap finds no AccountID, ConversationID, key or plaintext |
 | NT-05 | all transports blocked | the client reports "can't reach" and queues; it never falls back to a weaker security level |
+| NT-06 | same logical EventID sent over a local route then WAN/provider retry | authenticated dedupe materializes one canonical event; local endpoint/route metadata grants no identity, device or relationship authority (ADR-0150) |
 
 ## Provider contracts resolved by A-045 / ADR-0133
 

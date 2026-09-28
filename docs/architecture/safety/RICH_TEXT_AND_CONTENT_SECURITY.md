@@ -18,7 +18,7 @@ Block
   Paragraph(inlines[])
   Quote(inlines[])
   CodeBlock(text, language_hint?)
-  List(ordered, items[])       # later-wave: not in the frozen W0 grammar (see below)
+  List(ordered, items[])       # V1 via om.rich-list.v1 extension; not in the frozen W0 body grammar
 
 Inline
   Text(text, marks[])

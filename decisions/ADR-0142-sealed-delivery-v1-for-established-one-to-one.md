@@ -4,7 +4,7 @@
 - **Date:** 2026-09-27
 - **Scope:** Run 3 architecture remediation only; no engineering authorization
 - **Amends:** ADR-0138 A-054 disposition, ADR-0131 relay-metadata exposure wording, OM-Crypto-v1 delivery profile
-- **Amended by:** ADR-0143 crash-safe replay reservation/exact-retry completion
+- **Amended by:** ADR-0143 crash-safe replay reservation/exact-retry completion; ADR-0144 request-bootstrap/stale-head composition closure; ADR-0145 single-response/completed-retry closure; ADR-0146 sibling-terminalization/reply-route/expiry closure; ADR-0147 bootstrap lifetime/restore/durable-timer closure
 
 ## Context
 
