@@ -1,3 +1,12 @@
+## 2026-09-28 23:00 PHT — independent architecture review (ADR-0154–0156)
+
+- Imported the Run 10A drop as `checkpoint/20260928-2200` (its stale contract snapshot would have stamped it 20260927-0842) and reviewed it as the different-vendor architecture reviewer; report in `docs/reports/2026-09-28-independent-architecture-review-run10a.md`.
+- **ADR-0154:** verifier runtime segment = one OS boot session; guarded wall-assisted gap credit for Recommended web verifiers with a final authenticated veto sweep (R-340, T-132, V-002 +1 criterion, 8/8 scenarios, 6/6 mutations).
+- **ADR-0155:** non-critical registered extensions never invalidate the containing object; location cards create-only, single-point and suppressed after edits; list annotations bound to the carrying event (R-341, T-133, V-005 +1 criterion; extension 29/29 and rich-list 35/35 Python↔Node; both V-005 strict codecs aligned, corpus rerun unchanged).
+- **ADR-0156:** LAN wire binding becomes open item A-055 under new W1 scope `local_delivery` and gate V-024; later-wave gates require frozen CDDL plus two-codec vectors; scheduled send and sync namespacing specified; design blockers now block only their listed scopes (R-342..R-345, T-134, T-135).
+- Stale single-identity wording fixed; SNAPSHOT restructured; contract snapshot updated; portable phase-1 44/44.
+- State: `design_open=1`, 24 gates (23 pre-engineering open), 0/12 scopes authorized; engineering remains unauthorized.
+
 ## 2026-09-28 22:00 PHT — Run 10A residual V1 boundary audit
 
 - completed the final bounded residual post-V1-to-V1 scope audit after Runs 6A–9B;

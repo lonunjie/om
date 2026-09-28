@@ -1,3 +1,24 @@
+# OM Architecture Snapshot
+
+Generated: **2026-09-28 23:00 PHT (UTC+08:00)**, after the independent architecture review of drop `20260928-2200` (ADR-0154–0156).
+
+## State
+
+- **Engineering is not authorized**: `engineering_authorized=false`, 0/12 scopes authorized.
+- **Design:** `design_open=1`. A-055, the LAN wire binding, blocks only the W1 scope `local_delivery`. The design is closed for every W0 scope.
+- **Verification:** V-001..V-024; 24 overall-open, 23 with pre-engineering open. Remaining W0 blockers are independent-review and tool-complete evidence, not design.
+- **Ledgers:** 336 requirements / 336 trace rows, 125 threats, 178 decisions / 156 ADRs, 36 security invariants.
+- **Next:** a non-Anthropic review of ADR-0154–0156, the consolidated `core_kernel` independence review (non-OpenAI, for the ADR-0140–0153 chain), and then the A-055 LAN binding design pass.
+
+## 2026-09-28 23:00 PHT — independent architecture review (ADR-0154–0156)
+
+Claude Opus 5.5 reviewed the Run 10A drop as the different-vendor architecture reviewer. Report: [`2026-09-28-independent-architecture-review-run10a.md`](docs/reports/2026-09-28-independent-architecture-review-run10a.md). The verdict is **ready for engineering for the W0 scopes after this review**: 0 blockers, and the 4 MAJOR defects are fixed or confined to a later scope. No W0 wire bytes change.
+
+- **ADR-0154 (F-01):** recovery-alone timers now define a runtime segment as one OS boot session. Web verifiers under Recommended may credit wall-clock gaps forward of a high-water mark, ending in an authenticated veto sweep. Before this, recovery was effectively unreachable for PWA contacts. V-002 +1 criterion, evidenced.
+- **ADR-0155 (F-02/F-03):** a non-critical registered extension can no longer make an event invalid, so validity no longer depends on registry version. Location cards and list annotations are bound to the text they were validated against, across edits. V-005 +1 criterion, evidenced (29/29 and 35/35 Python↔Node; V-005 corpus rerun unchanged).
+- **ADR-0156 (F-04..F-08):** the LAN delivery wire binding becomes A-055 under new scope `local_delivery` and gate V-024. Every later-wave gate must freeze its wire objects as CDDL with two-codec vectors, and `calls` needs specialist review of its non-contact key channel. Scheduled send and sync-record namespacing are specified, and open design items now block only the scopes they list.
+- The portable phase-1 suite passes 44/44 producers in one run. The run-10A boundary verdict (promote nothing) is independently confirmed.
+
 ## 2026-09-28 22:00 PHT — Run 10A residual V1 boundary audit
 
 Run 10A completes a deliberately narrow final sweep for post-V1 features that might still be safe to promote without new authority, cryptography, wire semantics or external gatekeepers. **No additional feature is promoted.** SMS/MMS/RCS remains the strongest residual candidate, but the already-frozen `TransportAdapter` + capability/provenance/security-class boundary removes later redesign pressure while current Android/Google policy still makes full carrier integration platform/default-handler dependent. Mutual-contact PSI, LegacyPolicy activation and additional expressive-media codecs retain substantive privacy/authority/parser reasons to remain later. Exact privacy presets, UI framework/breakpoints/themes/fonts/motion and IndexedDB/OPFS selection remain evidence-driven product/implementation choices behind stable V1 abstractions.
@@ -55,10 +76,6 @@ Final Run-6B integrity state is **826 current files**, `design_open=0`, `verific
 Run 6A pulls five low-risk foundations into the V1 baseline without changing OM-Crypto-v1, AccountControlState authority or the frozen W0 ConversationEvent body grammar: reference-client multi-profile switching; bounded account-private draft/selected-preference sync; optional non-critical `om.voice-note.v1`; optional one-shot `om.location-card.v1`; and owner-root-controlled algorithm-agile/PQ-ready software-release signatures. Live location, SPQR, PQ MLS, stories/status, guaranteed server-side scheduling, payments, mini-apps and massive private-broadcast crypto remain deferred.
 
 The change is normative only. New repo-local evidence is intentionally open for Run 6B in V-003 (sync), V-005 (extension vectors), V-021 (profile-switch isolation) and V-023 (release-signature agility). The consolidated different-vendor review handoff is paused until those checks are closed/reconciled. Engineering remains unauthorized.
-
-# OM Architecture Snapshot
-
-Generated: **2026-09-28 17:33 PHT (UTC+08:00)**, after Run-7A ADR-0149 normative hardening
 
 
 ## 2026-09-28 15:22 PHT — Run 5B / ADR-0147 executable closure and reviewer reactivation
@@ -289,7 +306,7 @@ remaining step before a `core_kernel` unlock ADR is
 [`BRIEF-2026-09-26-core-kernel-independent-review.md`](verification/reviews/BRIEF-2026-09-26-core-kernel-independent-review.md).
 Engineering is still not authorized.
 
-## State
+## State as of 2026-09-26 (historical; the current State is at the top)
 
 OM remains in **architecture verification / pre-engineering**. **Engineering is not authorized.** The blocking architecture-design queue is closed; remaining blockers are objective V-* evidence/review obligations.
 

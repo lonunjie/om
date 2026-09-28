@@ -9,8 +9,8 @@ OM is stewarded by SeedLife ("Protect life. Seed it.") under the [lonunjie](http
 
 ## Status
 
-**Architecture verification, design-frozen. Product engineering is not yet authorized.** The design is complete across every planned
-delivery wave and final architecture closure is recorded in ADR-0139. It is now being checked by formal models, prototypes and reviews, called verification gates, before any
+**Architecture verification, design-frozen for every W0 scope. Product engineering is not yet authorized.** The design covers every planned
+delivery wave: final architecture closure is recorded in ADR-0139, and one tracked item (A-055, the LAN wire binding) remains open for the later `local_delivery` scope (ADR-0156). It is now being checked by formal models, prototypes and reviews, called verification gates, before any
 product code is written. The current state is always in [`SNAPSHOT.md`](SNAPSHOT.md). The gate list and what each gate
 still needs is in [`verification/GATE_PASS_CRITERIA.md`](verification/GATE_PASS_CRITERIA.md).
 
