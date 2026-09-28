@@ -5,6 +5,7 @@ These are shared `om-ui` primitives/components, not native-platform duplicates.
 ## Foundations
 
 - AppShell
+- IdentityProfileSwitcher
 - ResponsivePane / SplitView
 - NavigationBar / NavigationRail
 - Button / IconButton
@@ -34,7 +35,8 @@ These are shared `om-ui` primitives/components, not native-platform duplicates.
 - ReactionBar
 - AttachmentTile
 - MediaViewer
-- VoiceMessage
+- VoiceMessage (record/lock/cancel, waveform, scrub, speed, pause/resume)
+- LocationCard
 - Composer
 - DeliveryState
 - Typing/Presence presentation (policy-controlled)

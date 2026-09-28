@@ -50,9 +50,15 @@ This is independent from E2EE.
 
 ## 5. Android
 
-Normal installations may use FCM for reliability/efficiency. A Google-free build/runtime can support a persistent encrypted connection or future alternate push provider such as a UnifiedPush-compatible adapter if implementation quality permits.
+Normal installations may use FCM for reliability/efficiency, but FCM is **not** a V1 protocol dependency. The Android `PlatformAdapter` supports a replaceable wake capability:
 
-Persistent connections cost battery/network and must be tested honestly rather than advertised as equivalent by assumption.
+```text
+fcm | unifiedpush | persistent | none
+```
+
+A V1 reference Android distribution MAY support one or more and SHOULD provide at least one practical non-FCM path when implementation quality permits. A UnifiedPush-compatible distributor/gateway is a replaceable `PushProvider` boundary; a persistent path is an authenticated encrypted relay/Home wake/fetch connection. Neither receives or creates account authority, and changing adapters never changes AccountID, DeviceID, RelationshipBinding, EventID or canonical message state.
+
+Persistent connections cost battery/network and OS background allowance; UnifiedPush availability depends on the selected distributor. These differences must be measured and disclosed rather than advertised as equivalent by assumption. `none` is valid and means delayed wake, never message loss.
 
 ## 6. iOS
 
@@ -72,7 +78,7 @@ Incoming-call UX may require platform-specific push/call mechanisms. The same ru
 
 ## 8. Failure behavior
 
-Push failure must never lose a message. Opening/resuming OM fetches pending relay envelopes. Push token rotation or provider migration must not change DeviceIdentity or AccountID.
+Push failure must never lose a message. Opening/resuming OM fetches pending relay envelopes. Push token rotation, adapter switching or provider migration must not change DeviceIdentity or AccountID. Old registrations are revoked/retired where the platform/provider permits. If retirement cannot be confirmed, the obsolete registration is residual metadata/wake exposure only: a late wake can at most trigger the ordinary local fetch path and is never message/account/fetch authority. OM claims a finite retention bound only when the provider/adapter contract declares an enforceable finite lease; otherwise duration is provider/platform-defined and disclosed honestly (ADR-0153).
 
 ## 2026-09-22 operatorless push refinement
 
@@ -84,11 +90,11 @@ sender -> recipient PersonalRelay/Worker -> browser Web Push endpoint -> recipie
 
 The OM Project does not need a universal push gateway.
 
-For future native distributions, APNs/FCM gateways may be operated by that distribution or another configured PushProvider. Their operational/legal boundary belongs to the distribution/provider and never becomes canonical protocol infrastructure.
+For the V1 Android/iOS/Desktop reference distributions, APNs/FCM/UnifiedPush-compatible gateways or other capability-declared wake adapters may be operated by that distribution or another configured PushProvider. Their operational/legal boundary belongs to the distribution/provider and never becomes canonical protocol infrastructure.
 
 ## Multiple IdentityProfiles
 
-A single client installation may later host several profiles. Push routing uses opaque per-profile/per-device handles that the recipient client maps locally. Push services must not receive a stable cross-profile person identifier. The notification UI may indicate the destination profile only according to that profile's privacy policy.
+A V1 client installation may host several IdentityProfiles and the reference client exposes switching when two or more profiles are configured. Push routing uses opaque per-profile/per-device handles that the recipient client maps locally. Push services must not receive a stable cross-profile person identifier. The notification UI may indicate the destination profile only according to that profile's privacy policy.
 
 **The platform push token is itself a linkage point (ADR-0129).** An APNs/FCM token is per app install, and a Web Push subscription is per service-worker registration. If profiles A and B hand the same token or endpoint to different Homes or PushGateways, those parties, and the platform push service that sees two senders targeting one endpoint, can link the profiles. Opaque wake handles above the token do not prevent this. Therefore:
 

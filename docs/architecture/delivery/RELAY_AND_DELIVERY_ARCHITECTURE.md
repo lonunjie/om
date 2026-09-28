@@ -94,7 +94,7 @@ the unchanged inner envelope under its required `RelationshipContext`.
 Delivery keys are signed per accepted relationship × recipient device × exact RelayEntry route and are exchanged
 inside relationship E2EE, rather than inflating the 32 KiB `RelaySet`. First contact remains
 `MessageRequest`/IntroGate and carries one request-scoped reply delivery key so the first post-acceptance response can
-already be sealed. There is no clear-sender fallback for OM-Crypto-v1; missing/stale/unsupported sealed-delivery state
+already be sealed. Its reply RelayEntry is one-logical-response, not one-packet: providers preserve exact admitted-wrapper retries and may admit at most the protocol cap of 8 distinct bootstrap candidates while the request is open; endpoints enforce the same cap regardless of provider behavior. There is no clear-sender fallback for OM-Crypto-v1; missing/stale/unsupported sealed-delivery state
 queues, refreshes or fails explicitly. See [`SEALED_SENDER_DELIVERY_PROFILE.md`](SEALED_SENDER_DELIVERY_PROFILE.md).
 
 ## Abuse enforcement
@@ -106,6 +106,7 @@ Because modified open-source clients can remove UI rate limits, a relay/recipien
 - per-capability rates;
 - introduction quotas;
 - storage/expiry limits;
+- for MessageRequest reply capabilities, bounded distinct-candidate allocation plus exact-wrapper retry semantics rather than destructive first-deposit consumption;
 - optional proof-of-work/token/billing mechanisms if later required;
 - local blocking/denial lists without a mandatory global identity score.
 

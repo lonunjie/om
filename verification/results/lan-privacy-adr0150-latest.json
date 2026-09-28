@@ -1,0 +1,42 @@
+{
+  "kind": "adr0150_lan_privacy_resource_trace",
+  "design_evidence_only": true,
+  "gates": [
+    "V-015"
+  ],
+  "policy": {
+    "fixed_cardinality": 4,
+    "discovery_budget": 16,
+    "connection_budget": 4,
+    "blob_offer_budget": 2
+  },
+  "scenarios": {
+    "fixed_cardinality_hides_enabled_contact_count": true,
+    "epoch_and_link_context_rotation_breaks_tag_reuse": true,
+    "more_than_k_contacts_rotate_without_size_leak": true,
+    "block_immediately_retires_relationship_tag": true,
+    "hardened_and_maximum_default_to_no_real_contact_tags": true,
+    "temporary_qr_scope_and_expiry": true,
+    "advertisement_has_no_stable_identity_fields": true,
+    "unauthenticated_work_bounded_before_crypto_or_blob_allocation": true,
+    "discovery_result_is_transport_candidate_not_authority": true
+  },
+  "mutations": {
+    "one_tag_per_contact_cardinality_leak_caught": true,
+    "stable_epoch_tag_mutation_caught": true,
+    "blocked_contact_continues_advertising_mutation_caught": true,
+    "unscoped_invite_mutation_caught": true,
+    "unauthenticated_expensive_crypto_mutation_caught": true,
+    "unauthenticated_blob_allocation_mutation_caught": true
+  },
+  "structural": {
+    "lan_doc_denies_stable_identity": true,
+    "lan_doc_requires_resource_bounds": true
+  },
+  "scenario_passed": 9,
+  "scenario_total": 9,
+  "mutations_caught": 6,
+  "mutation_total": 6,
+  "passed": true,
+  "note": "Bounded privacy/resource trace; concrete production K/rate values remain policy/configuration choices, while fixed cardinality/retirement/rotation and pre-auth cost bounding are normative."
+}

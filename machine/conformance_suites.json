@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-25T08:59:00+08:00",
+  "snapshot": "2026-09-28T19:10:00+08:00",
   "purpose": "Registry of conformance suites that traceability and threat entries may name as conformance:<name> (ADR-0130 rule 10). 'specified' = the spec document holds a pass/fail case list; 'planned' = the spec document states the rules a future case list must test. A scope listed here cannot be authorized while the suite is still planned; the validator enforces both.",
   "statuses": [
     "specified",
@@ -22,7 +22,7 @@
       "scopes": [
         "core_kernel"
       ],
-      "description": "NetworkTransport cases NT-01..NT-05: untrusted byte carrier, failover without semantic change."
+      "description": "NetworkTransport cases NT-01..NT-06: untrusted byte carrier, failover/local-route equivalence, no semantic or authority change."
     },
     {
       "name": "identity",
@@ -49,7 +49,7 @@
       "scopes": [
         "core_kernel"
       ],
-      "description": "Attachment references, blob integrity and expressive-asset refs."
+      "description": "Attachment cases AT-01..AT-06: blob integrity/location repair, lifecycle, expressive refs and direct-LAN receipt followed by provider backfill without identity rewrite."
     },
     {
       "name": "security_floor",

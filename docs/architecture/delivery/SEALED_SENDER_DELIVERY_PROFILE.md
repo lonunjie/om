@@ -2,7 +2,7 @@
 
 - **Status:** Canonical W0 / OM-Crypto-v1 architecture
 - **Checkpoint:** 2026-09-27 Run 3
-- **Decision:** ADR-0142 (supersedes ADR-0138's later-profile disposition for A-054)
+- **Decision:** ADR-0142, amended by ADR-0143 and ADR-0144 (supersedes ADR-0138's later-profile disposition for A-054)
 - **Design queue:** A-054 resolved and promoted into v1 before engineering
 
 ## 1. Goal and boundary
@@ -128,11 +128,13 @@ After open, `inner_envelope_length` must be at most `bucket-4`, exactly delimit 
 
 ## 7. Replay, expiry and retry
 
-`delivery_id` is fresh random 128-bit data for each newly sealed wrapper. The recipient keeps durable replay state for `(delivery_key_id, delivery_id)` through acceptance expiry. After valid outer open/structure checks, it creates a `RESERVED` record containing a collision-resistant fingerprint of the complete canonical wrapper before inner plaintext/event release or acknowledgement. A different wrapper under the same key/id is rejected. An exact same-wrapper retry may resume `RESERVED` after a crash; `COMPLETE` is an idempotent transport replay that never re-runs inner effects; `REJECTED` is terminal. Persistence failure is fail-closed.
+`delivery_id` is fresh random 128-bit data for each newly sealed wrapper. The recipient keeps durable replay state for `(delivery_key_id, delivery_id)` through acceptance expiry. For a **new** replay key, valid delivery-key/route/expiry checks and outer HPKE open/structure checks precede creation of a `RESERVED` record containing a collision-resistant fingerprint of the complete canonical wrapper before inner plaintext/event release or acknowledgement. A different wrapper under the same key/id is rejected. An exact same-wrapper retry may resume `RESERVED` after a crash; `COMPLETE` is an idempotent transport replay that never re-runs inner effects; `REJECTED` is terminal. Persistence failure is fail-closed.
 
-The authenticated inner session/dedupe acceptance and transition to `COMPLETE` must be one crash-consistent commit (transaction or equivalent write-ahead protocol) before application release/ack. If that commit fails, state remains `RESERVED` and an exact retry can resume. If a crash follows `COMPLETE` but precedes presentation/ack, normal local materialization recovers the already-durable event and the transport retry is acknowledged idempotently. See ADR-0143.
+For an **existing** replay key, bounded canonical outer parsing, local route-context checks and exact-wrapper fingerprint comparison occur before requiring live delivery-key material. `COMPLETE` plus the exact recorded fingerprint may therefore be acknowledged idempotently without delivery-key lookup, HPKE reopen or inner reprocessing; `REJECTED` remains terminal and a different fingerprint remains a collision. `RESERVED` exact retries still resume normal processing and therefore retain/access the private key needed to repeat HPKE open. This ordering is normative under ADR-0145 and permits completed bootstrap keys to be destroyed without breaking lost-ack retry liveness.
 
-`expires_at` is HPKE-authenticated and uses the registry's frozen default skew. Homes may impose shorter retention but cannot extend endpoint acceptance.
+The authenticated inner session/dedupe acceptance and transition to `COMPLETE` must be one crash-consistent commit (transaction or equivalent write-ahead protocol) before application release/ack. If that commit fails, state remains `RESERVED` and an exact retry can resume. If a crash follows `COMPLETE` but precedes presentation/ack, normal local materialization recovers the already-durable event and the transport retry is acknowledged idempotently. See ADR-0143/0145.
+
+`expires_at` is HPKE-authenticated and uses the registry's frozen default skew. Endpoint acceptance also requires `expires_at <= delivery_key.expires_at` and, when the bound RelayEntry has expiry, `expires_at <= route.expires_at`. For MessageRequest bootstrap, ADR-0147 defines the request acceptance deadline as `min(reply_route.expires_at, reply_delivery_key.expires_at)`; v1 has no independent local request-expiry input. A violating new wrapper is rejected before `RESERVED` allocation. Homes may impose shorter retention but cannot extend endpoint acceptance. Replay/tombstone state survives only through the authenticated acceptance window plus the skew needed to decide expiry and never extends message authority.
 
 - retry to the same route may resend the exact wrapper;
 - retry/fanout through another route must reseal using that route's key/context and a fresh `delivery_id`;
@@ -142,16 +144,17 @@ The authenticated inner session/dedupe acceptance and transition to `COMPLETE` m
 
 The receiving path is:
 
-1. identify the local route/queue context;
-2. find the relationship-local delivery-key record by opaque `delivery_key_id`;
-3. require route-binding, device eligibility and expiry validity;
-4. HPKE-open with the frozen info/AAD and validate the padded plaintext;
-5. durably create/validate the ADR-0143 replay record (`RESERVED`, exact-wrapper fingerprint);
-6. recover the unchanged ordinary inner envelope;
-7. process it only through the normal inbound 1:1 API requiring trusted `RelationshipContext`; and
-8. crash-consistently commit inner session/dedupe acceptance plus replay `COMPLETE` before application release/ack.
+1. identify the local route/queue context, bounded-parse the canonical outer wrapper and compute its exact fingerprint;
+2. consult durable replay state by opaque `(delivery_key_id, delivery_id)` before requiring live key material: exact `COMPLETE` on the same route/context is an idempotent acknowledgement/materialization path with no HPKE or inner rerun; exact `REJECTED` is terminal; a different fingerprint is a collision; exact `RESERVED` continues below;
+3. for a new record or resumable `RESERVED`, find the relationship/request-local delivery-key record by opaque `delivery_key_id`;
+4. require route-binding, device/request eligibility and expiry validity;
+5. HPKE-open with the frozen info/AAD and validate the padded plaintext;
+6. for a new record, durably create ADR-0143 `RESERVED` with the exact-wrapper fingerprint; for an existing `RESERVED`, require that exact fingerprint;
+7. recover the unchanged ordinary inner envelope;
+8. process it only through the normal inbound 1:1/bootstrap API requiring the appropriate trusted identity context; if an established-session API cannot yet decide authentication solely because the trusted peer ACS head may be stale or its authenticated monotonic refresh is temporarily unavailable, keep the exact wrapper `RESERVED` with no release/successful ack until refresh resolves the decision; and
+9. once inner authentication is decisively valid, crash-consistently commit inner session/dedupe acceptance plus replay `COMPLETE` before application release/ack. A definitive inner failure may become `REJECTED`; uncertainty caused by required stale-head refresh is not a terminal failure.
 
-Outer HPKE success is **not sender authentication**. The inner ACS/DeviceCredential/PQXDH/ratchet checks remain mandatory before plaintext/event acceptance.
+Outer HPKE success is **not sender authentication**. The inner ACS/DeviceCredential/PQXDH/ratchet checks remain mandatory before plaintext/event acceptance. ADR-0144 composes K7/K12 with ADR-0143 so a temporarily stale trusted head cannot burn an otherwise valid exact retry.
 
 ## 9. First-contact bootstrap
 
@@ -159,12 +162,14 @@ Unknown senders do not have an established relationship delivery key. `MessageRe
 
 `MessageRequestPayload` includes both:
 
-- `reply_route`: the existing one-use/private reply RelayEntry; and
-- `reply_delivery_key`: a request-scoped `DeliveryKeyMaterial` whose `route_binding` matches that route.
+- `reply_route`: the existing private request-scoped reply RelayEntry, interpreted as one **logical** bootstrap response with bounded transport use rather than one physical deposit; and
+- `reply_delivery_key`: fresh request-scoped `DeliveryKeyMaterial` whose `route_binding` matches that exact route.
 
-The accepting recipient uses that key to seal the first post-acceptance control reply containing its `IntroIdentityBinding` plus current relationship RelaySet/delivery-key records. After verifying the recipient binding, the requester can answer using the recipient's now-validated established delivery key and include its reciprocal binding and established key records. Existing rules still keep the relationship `ACCEPTED_UNBOUND` until both stable-identity bindings verify.
+ADR-0144 makes the local scope explicit. For each MessageRequest the requester generates a fresh key pair and `delivery_key_id`, binds `(ticket_id, request_key_digest, crypto_profile, reply_route, reply_delivery_key)` in pending-request state, requires the key profile to equal the MessageRequest profile, and requires `reply_delivery_key.expires_at <= reply_route.expires_at`. The same private key/id is not reused by another request, relationship or ordinary delivery record.
 
-The request-scoped key grants no stable identity, key-material-fetch authority or long-lived relationship privilege by itself.
+The accepting recipient uses that key only to seal one logical post-acceptance control reply containing its `IntroIdentityBinding` plus current relationship RelaySet/delivery-key records. A transport retry resends the exact already-sealed candidate/winning wrapper bytes; it does not reseal an equivalent response merely to retry transport. While the request is `OPEN`, exact retries do not consume another candidate slot and at most **8 distinct candidate wrappers over the request lifetime** may be admitted across racing recipient devices; the ninth is rejected before durable `RESERVED` allocation. Rejection, terminalization, tombstone cleanup or compaction never replenishes a consumed slot while the request remains `OPEN`; sufficient durable tuple/accounting state remains for the lifetime bound. If multiple recipient devices race, candidates may be processed, but the requester's crash-consistent bootstrap commit atomically selects exactly one valid winning wrapper. A second different wrapper cannot become another bootstrap branch. After verifying the winning recipient binding, the requester can answer using the recipient's now-validated established delivery key and include its reciprocal binding and established key records. Existing rules still keep the relationship `ACCEPTED_UNBOUND` until both stable-identity bindings verify.
+
+The winning bootstrap commit atomically binds the request to the winning `(delivery_key_id, delivery_id, wrapper fingerprint)`, installs the authenticated recipient binding/established route and delivery-key state needed for continuation, commits inner/session dedupe plus replay `COMPLETE`, marks every non-winning `RESERVED` candidate `REJECTED`, and changes the request to `COMPLETE_REPLAY_ONLY`. Only after that same commit may the bootstrap private key be destroyed. Cancellation, decline, expiry and terminal invalidation race on the same `OPEN` request transition and likewise terminalize all outstanding `RESERVED` candidates before key destruction. The non-secret replay/request tombstone remains through the bounded acceptance window. The winning wrapper is acknowledged idempotently only through its own expiry/skew window; the request remains `COMPLETE_REPLAY_ONLY` through the derived bootstrap acceptance deadline plus skew and then becomes `EXPIRED`, after which request-scoped tombstones may be collected. A wrapper still `RESERVED` therefore always has the private key needed to resume. Historical backup/restore never reactivates request-scoped bootstrap keys or live request/replay state. The bootstrap key is never promoted into a `SealedDeliveryKeyRecord` (ADR-0144/0145/0146/0147).
 
 ## 10. Authorization and abuse
 

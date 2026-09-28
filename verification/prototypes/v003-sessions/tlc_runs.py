@@ -53,7 +53,7 @@ GAPS = {
            "ONE_TO_ONE_SESSION_MANAGEMENT.md §7 requires no nonce/key reuse after restore but no doc states write-ahead ordering for ratchet state after a crash"),
     "K2": ("DedupeDurable", {"MaxWeak": 0, "MaxInject": 0}, "NoDoubleAccept",
            "design_gap_mechanism_unstated",
-           "R-089 requires one conversation event per logical message; durability of the EventID dedupe record relative to the relay ack is unspecified"),
+           "R-089 requires one conversation event per logical message; ADR-0120 K2/ADR-0143 now require EventID/session dedupe durability before successful relay acknowledgement, so this vector preserves the historical regression case rather than an open design ambiguity"),
     "K3": ("FloorFromACS", {"MaxCrash": 0, "MaxRestore": 1, "MaxInject": 0}, "NoSilentDowngrade",
            "design_gap",
            "CRYPTOGRAPHY_AND_AGILITY.md 'Downgrade floor' keeps the floor as local relationship state; a backup restore rolls it back and a weak bundle is then accepted silently. No doc says where the floor survives restore"),

@@ -4,6 +4,7 @@
 
 ```text
 AppShell
+├── IdentityProfile switcher (shown when 2+ profiles are configured)
 ├── Chats
 │   ├── Conversation list
 │   ├── Message requests
@@ -82,6 +83,23 @@ Recovery is not forced into this journey.
 3. Preview shows chat + settings + warning/destructive state + light/dark/high-contrast.
 4. Validator blocks unsafe/invalid bundle before apply.
 5. Accessibility overrides remain available above theme preferences.
+
+
+## Journey: switch IdentityProfile
+
+1. User opens the profile chip/switcher.
+2. Client shows only configured local IdentityProfiles, with each profile's own theme/name presentation.
+3. Selecting a profile rebinds the shell to that profile's namespaced view/cache/draft state without logout, reload or rekey.
+4. Unknown deep links ask which profile should act.
+5. Per-profile push/privacy policy remains in force; the switcher itself creates no public cross-profile identifier.
+
+## Journey: share a one-shot location
+
+1. Composer → Attach/share → Location.
+2. User explicitly chooses current point or another point; no background tracking begins.
+3. Composer shows the location card plus a textual fallback before send.
+4. Recipient with `om.location-card.v1` support first verifies that the fallback contains the exact canonical `geo:<lat-fixed-7>,<lon-fixed-7>` token for the extension point, then gets card presentation; on mismatch it ignores the non-critical card extension and renders the same W0 fallback an older client sees (ADR-0149).
+5. Opening an external map provider follows the recipient's configured map/privacy policy.
 
 ## Journey: offline/local
 

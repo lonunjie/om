@@ -123,7 +123,7 @@ Security UI remains exceptional and actionable. Routine E2EE/PQ state is not adv
 
 ## OwnMessenger identity personalization
 
-Multiple identities are a legitimate product need. OM should eventually let users switch profiles instantly and optionally distinguish them with curated themes. Do not infer or police the user's motive for creating identities; enforce abuse at relationship/IntroGate/provider boundaries rather than through hidden cross-profile fingerprinting.
+Multiple identities are a legitimate V1 product need. The reference client lets users switch configured IdentityProfiles instantly and optionally distinguish them with curated themes, while preserving the strict isolation/linkage rules in [`MULTI_IDENTITY_AND_PROFILE_ISOLATION.md`](../architecture/client/MULTI_IDENTITY_AND_PROFILE_ISOLATION.md). Do not infer or police the user's motive for creating identities; enforce abuse at relationship/IntroGate/provider boundaries rather than through hidden cross-profile fingerprinting (ADR-0148).
 
 All themes offer Auto light/dark behavior. The default remains ergonomics/functionality first: immediate clarity, calm hierarchy, fast local response, then aesthetics/personalization.
 

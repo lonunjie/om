@@ -1,15 +1,29 @@
 {
- "gates": ["V-016"],
- "independence": "Model written by a Claude agent from the public design prose (TLA+, different formalism and author from verification/bounded/authority_models.py); checked by TLC 1.7.4. The design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The pre-engineering phase requires independent_reviewer sign-off, which does not exist.",
+ "gates": [
+  "V-016"
+ ],
+ "independence": "RoomModeration.tla was written by a Claude agent and checked by TLC 1.7.4. The current machine ledger records all nine repo-local V-016 pre-engineering criteria as met, but ADR-0117 still requires a different-vendor independent reviewer for phase passage. The separate reference-provider adversarial load criterion is pre-release work.",
  "criteria": [
-  {"gate": "V-016", "criterion": "Room timeout/remove/ban race and evidence model before communities_publications is unlocked",
-   "status": "partial",
-   "evidence": "verification/tla/RoomModeration.tla; verification/tla/models-v016-room-moderation.json; verification/results/v016-room-moderation-latest.json; verification/vectors/tla-RoomModeration_*.json",
-   "note": "Model exists and TLC finds no counterexample for races, scope, epoch-bound write access and evidence ACL/retention within the bounds; 7 mutations caught; 5 golden and 1 residual-risk vector. Partial: independent_reviewer sign-off missing, small bounds, and two rules adopted by the model are not in the docs (governance protection, past-epoch window) - see README."},
-  {"gate": "V-016", "criterion": "IntroGate/block/Sybil/resource model for the W0 surfaces",
-   "status": "unmet", "evidence": "verification/bounded/introgate_sybil_model.py (another agent)",
-   "note": "Out of this prototype's scope (Room half only)."},
-  {"gate": "V-016", "criterion": "adversarial load and abuse tests against reference providers (pre-release)",
-   "status": "unmet", "evidence": "none", "note": "No reference providers exist."}
+  {
+   "gate": "V-016",
+   "criterion": "Room timeout/remove/ban race and evidence model before communities_publications is unlocked",
+   "status": "met",
+   "evidence": "verification/tla/RoomModeration.tla; verification/tla/models-v016-room-moderation.json; verification/results/v016-room-moderation-latest.json; verification/vectors/tla-RoomModeration_*.json; decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md; decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md; decisions/ADR-0123-moderation-evidence-access-and-appeal-hold.md",
+   "note": "Tool-complete TLC evidence records expected outcomes for the Room model. The prototype gaps it originally exposed are now normative decisions in ADR-0121/0122/0123. Gate-level different-vendor independent review remains separate."
+  },
+  {
+   "gate": "V-016",
+   "criterion": "IntroGate/block/Sybil/resource model for the W0 surfaces",
+   "status": "met",
+   "evidence": "verification/bounded/introgate_sybil_model.py; verification/results/introgate-sybil-latest.json; verification/bounded/abuse_w0_rules.py; verification/results/abuse-w0-rules-latest.json; verification/bounded/privacy_pass_issuance.py; verification/bounded/provider_negative_capabilities.py",
+   "note": "Current machine-ledger W0 IntroGate/Sybil/resource, Privacy Pass and provider-boundary criteria are evidenced. Gate-level independent review remains separate."
+  },
+  {
+   "gate": "V-016",
+   "criterion": "adversarial load and abuse tests against reference providers (pre-release)",
+   "status": "unmet",
+   "evidence": "none",
+   "note": "Pre-release criterion. It is intentionally not required for the current pre-engineering core_kernel review."
+  }
  ]
 }

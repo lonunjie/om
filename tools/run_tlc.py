@@ -72,6 +72,15 @@ def run(entry: dict) -> dict:
 
 
 def main() -> int:
+    # Bootstrap/validate the pinned TLC tool exactly once before the model loop. If it is unavailable,
+    # preserve the previously captured tlc-latest.json instead of replacing it with 80+ identical errors.
+    pre = subprocess.run([str(ROOT / "tools/tlc.sh"), "--preflight"], cwd=ROOT, text=True,
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if pre.returncode:
+        sys.stderr.write(pre.stdout); sys.stderr.write(pre.stderr)
+        return pre.returncode
+    if pre.stdout:
+        print(pre.stdout.strip())
     entries = [e for m in sorted(TLA.glob("models*.json")) for e in json.loads(m.read_text())["models"]]
     results = []
     for e in entries:

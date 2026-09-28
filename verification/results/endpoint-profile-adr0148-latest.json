@@ -1,0 +1,33 @@
+{
+  "kind": "v021_endpoint_profile_adr0148",
+  "design_evidence_only": true,
+  "profile_switching": {
+    "switch_no_logout_rekey": true,
+    "cache_isolation": true,
+    "draft_isolation": true,
+    "sync_isolation": true,
+    "notification_destination_is_explicit": true,
+    "unknown_deep_link_requires_choice": true,
+    "known_deep_link_uses_explicit_binding": true,
+    "no_public_installation_linkage": true
+  },
+  "grant_notice": {
+    "personal_grant_notice_all_other_devices": true,
+    "silent_grant_mutation_rejected": true
+  },
+  "clienthost": {
+    "metadata_cannot_change_owner_pinned_root": true,
+    "two_independent_monitor_observations_required": true,
+    "valid_root_and_two_monitors_can_stage": true
+  },
+  "structural": {
+    "matrix_has_all_platform_columns": true,
+    "matrix_has_required_control_rows": true,
+    "platform_adapter_families_declared": true,
+    "endpoint_section4_present": true,
+    "deletion_notification_surface": true,
+    "deletion_snapshot_surface": true
+  },
+  "passed": true,
+  "note": "Platform capability values are documented, not measured; release forensic audit remains V-021 pre-release."
+}

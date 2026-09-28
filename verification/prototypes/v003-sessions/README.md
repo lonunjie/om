@@ -87,6 +87,12 @@ The pass found one real ambiguity in the original ADR-0142 prose: treating every
 
 Current focused result: **15/15 scenarios pass; 5/5 deliberate mutations are caught**. Canonical evidence is [`verification/results/v003-sealed-delivery-latest.json`](../../results/v003-sealed-delivery-latest.json) with compact cases in [`verification/vectors/sealed-delivery-session-vectors.json`](../../vectors/sealed-delivery-session-vectors.json).
 
+### ADR-0144 Run-2 composition evidence
+
+[`../../bounded/sealed_delivery_adr0144_composition.py`](../../bounded/sealed_delivery_adr0144_composition.py) is the focused closure harness for the request-scoped acceptance-reply bootstrap key and the stale-ACS × replay-state composition added by ADR-0144. It covers valid request registration plus wrong route binding, CryptoProfile mismatch, key expiry beyond the reply route, delivery-key-id reuse, key-pair reuse, cross-request transplant, stable-authority promotion and retirement after bootstrap completion. It also composes `RESERVED` with stale authenticated peer-head refresh for both eventual accept and eventual reject, and verifies that a same-key/id different-wrapper collision cannot displace the original resumable wrapper.
+
+Current Run-2 result: **12/12 scenarios pass; 7/7 deliberate security mutations are caught**. In particular, the mutation that maps temporarily stale/unknown relationship state to terminal `REJECTED` makes the byte-identical retry terminal and is detected. Canonical result: [`verification/results/sealed-delivery-adr0144-composition-latest.json`](../../results/sealed-delivery-adr0144-composition-latest.json). This satisfies the new repo-local ADR-0144 V-003 criterion; independent review remains separate.
+
 ## Criteria
 
 | Criterion | Status | Evidence |
@@ -94,6 +100,7 @@ Current focused result: **15/15 scenarios pass; 5/5 deliberate mutations are cau
 | executable model/fuzzer covering crossed initiation, add/revoke races, stale/reset, dedupe, persistence | met (bounded) | TLA+ + [`sessions.py`](sessions.py) + [`fuzzer.py`](fuzzer.py); results JSON |
 | every discovered failing trace captured as a vector | met | vectors files above |
 | ADR-0142/0143 sealed-delivery key/replay/retry/no-downgrade state semantics | met (bounded) | [`sealed_delivery_state.py`](sealed_delivery_state.py); 15/15 scenarios, 5/5 mutation controls |
+| ADR-0144 request-scoped bootstrap + stale-ACS/`RESERVED` composition | met (bounded) | [`../../bounded/sealed_delivery_adr0144_composition.py`](../../bounded/sealed_delivery_adr0144_composition.py); 12/12 scenarios, 7/7 mutation controls |
 | model reviewed by someone other than its author | unmet | needs an independent reviewer |
 
 ## Run

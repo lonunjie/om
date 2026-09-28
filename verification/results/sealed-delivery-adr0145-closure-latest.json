@@ -1,0 +1,150 @@
+{
+  "checker": "sealed_delivery_adr0145_closure",
+  "failures": [],
+  "gate": "V-003",
+  "mutations": [
+    {
+      "caught": true,
+      "id": "M1_key_lookup_before_complete_replay",
+      "mutated_result": "key_missing_before_replay"
+    },
+    {
+      "caught": true,
+      "id": "M2_second_logical_bootstrap_allowed",
+      "mutated_result": [
+        "reserved",
+        "bootstrap_complete",
+        2
+      ]
+    },
+    {
+      "caught": true,
+      "id": "M3_completion_request_close_split",
+      "mutated_result": [
+        [
+          "reserved",
+          "split_complete_request_still_open",
+          "OPEN|imported=1|key=1|effects=1"
+        ],
+        [
+          "reserved",
+          "split_complete_request_still_open",
+          2
+        ]
+      ]
+    }
+  ],
+  "passed": true,
+  "scenarios": [
+    {
+      "expected": [
+        "reserved",
+        "bootstrap_complete",
+        false,
+        "complete_idempotent_ack",
+        1,
+        1
+      ],
+      "got": [
+        "reserved",
+        "bootstrap_complete",
+        false,
+        "complete_idempotent_ack",
+        1,
+        1
+      ],
+      "id": "complete_lost_ack_retry_after_key_destroy",
+      "ok": true
+    },
+    {
+      "expected": [
+        "reserved",
+        "bootstrap_complete",
+        "bootstrap_closed"
+      ],
+      "got": [
+        "reserved",
+        "bootstrap_complete",
+        "bootstrap_closed"
+      ],
+      "id": "different_wrapper_after_complete_is_closed",
+      "ok": true
+    },
+    {
+      "expected": [
+        "reserved",
+        "reserved",
+        "bootstrap_complete",
+        "bootstrap_closed_loser",
+        1,
+        [
+          "bootstrap-k1",
+          "delivery-b",
+          "a8061d3400ecae380f95fe24400e62b30366fa194c697cfee54a69cd9fa1c085"
+        ]
+      ],
+      "got": [
+        "reserved",
+        "reserved",
+        "bootstrap_complete",
+        "bootstrap_closed_loser",
+        1,
+        [
+          "bootstrap-k1",
+          "delivery-b",
+          "a8061d3400ecae380f95fe24400e62b30366fa194c697cfee54a69cd9fa1c085"
+        ]
+      ],
+      "id": "multi_device_race_exactly_one_winner",
+      "ok": true
+    },
+    {
+      "expected": [
+        [
+          "reserved",
+          "OPEN|imported=0|key=1|effects=0"
+        ],
+        "bootstrap_complete",
+        "COMPLETE_REPLAY_ONLY|imported=1|key=0|effects=1"
+      ],
+      "got": [
+        [
+          "reserved",
+          "OPEN|imported=0|key=1|effects=0"
+        ],
+        "bootstrap_complete",
+        "COMPLETE_REPLAY_ONLY|imported=1|key=0|effects=1"
+      ],
+      "id": "bootstrap_completion_atomic_crash_state",
+      "ok": true
+    },
+    {
+      "expected": [
+        "reserved",
+        true,
+        "resume_reserved"
+      ],
+      "got": [
+        "reserved",
+        true,
+        "resume_reserved"
+      ],
+      "id": "reserved_retry_retains_key",
+      "ok": true
+    }
+  ],
+  "scope": "ADR-0145 exactly-one MessageRequest bootstrap response, COMPLETE replay-before-key lookup, race and crash-atomic closure; bounded architecture evidence only",
+  "structural_checks": {
+    "adr_complete_replay_before_key": true,
+    "adr_one_logical_response": true,
+    "discovery_atomic_winner": true,
+    "m7_adr0145": true,
+    "profile_replay_before_key": true
+  },
+  "summary": {
+    "mutations": 3,
+    "mutations_caught": 3,
+    "scenarios": 5,
+    "scenarios_passed": 5
+  }
+}

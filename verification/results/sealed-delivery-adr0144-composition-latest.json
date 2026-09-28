@@ -1,0 +1,278 @@
+{
+  "checker": "sealed_delivery_adr0144_composition",
+  "failures": [],
+  "gate": "V-003",
+  "mutations": [
+    {
+      "caught": true,
+      "id": "M1_route_binding_check_removed",
+      "mutated_result": "registered"
+    },
+    {
+      "caught": true,
+      "id": "M2_profile_check_removed",
+      "mutated_result": "registered"
+    },
+    {
+      "caught": true,
+      "id": "M3_expiry_bound_removed",
+      "mutated_result": "registered"
+    },
+    {
+      "caught": true,
+      "id": "M4_key_id_reuse_guard_removed",
+      "mutated_result": "registered"
+    },
+    {
+      "caught": true,
+      "id": "M5_cross_request_transplant_guard_removed",
+      "mutated_result": "bootstrap_allowed"
+    },
+    {
+      "caught": true,
+      "id": "M6_authority_promotion_guard_removed",
+      "mutated_result": "promoted"
+    },
+    {
+      "caught": true,
+      "id": "M7_stale_state_prematurely_rejected",
+      "mutated_result": [
+        "premature_rejected",
+        "rejected_terminal"
+      ]
+    }
+  ],
+  "passed": true,
+  "scenarios": [
+    {
+      "expected": "registered",
+      "got": "registered",
+      "id": "bootstrap_valid_request",
+      "ok": true,
+      "trace": []
+    },
+    {
+      "expected": "route_binding_mismatch",
+      "got": "route_binding_mismatch",
+      "id": "bootstrap_wrong_route_binding",
+      "ok": true,
+      "trace": []
+    },
+    {
+      "expected": "profile_mismatch",
+      "got": "profile_mismatch",
+      "id": "bootstrap_profile_mismatch",
+      "ok": true,
+      "trace": []
+    },
+    {
+      "expected": "key_outlives_route",
+      "got": "key_outlives_route",
+      "id": "bootstrap_key_outlives_route",
+      "ok": true,
+      "trace": []
+    },
+    {
+      "expected": [
+        "registered",
+        "delivery_key_id_reuse"
+      ],
+      "got": [
+        "registered",
+        "delivery_key_id_reuse"
+      ],
+      "id": "bootstrap_delivery_key_id_reuse",
+      "ok": true,
+      "trace": []
+    },
+    {
+      "expected": [
+        "registered",
+        "keypair_reuse"
+      ],
+      "got": [
+        "registered",
+        "keypair_reuse"
+      ],
+      "id": "bootstrap_keypair_reuse",
+      "ok": true,
+      "trace": []
+    },
+    {
+      "expected": [
+        "registered",
+        "registered",
+        "bootstrap_key_transplant"
+      ],
+      "got": [
+        "registered",
+        "registered",
+        "bootstrap_key_transplant"
+      ],
+      "id": "bootstrap_cross_request_transplant",
+      "ok": true,
+      "trace": []
+    },
+    {
+      "expected": "promotion_forbidden",
+      "got": "promotion_forbidden",
+      "id": "bootstrap_never_promoted_to_stable",
+      "ok": true,
+      "trace": []
+    },
+    {
+      "expected": [
+        "bootstrap_allowed",
+        "retired",
+        "unknown_or_retired_request"
+      ],
+      "got": [
+        "bootstrap_allowed",
+        "retired",
+        "unknown_or_retired_request"
+      ],
+      "id": "bootstrap_retired_after_completion",
+      "ok": true,
+      "trace": []
+    },
+    {
+      "expected": [
+        "reserved",
+        "deferred_refresh",
+        "blocked",
+        "resume_reserved",
+        "complete",
+        "released"
+      ],
+      "got": [
+        "reserved",
+        "deferred_refresh",
+        "blocked",
+        "resume_reserved",
+        "complete",
+        "released"
+      ],
+      "id": "reserved_stale_refresh_then_complete",
+      "ok": true,
+      "trace": [
+        {
+          "op": "reserve",
+          "result": "reserved"
+        },
+        {
+          "op": "inner_auth",
+          "result": "deferred_refresh",
+          "state": "stale"
+        },
+        {
+          "op": "release",
+          "result": "blocked"
+        },
+        {
+          "op": "reserve",
+          "result": "resume_reserved"
+        },
+        {
+          "op": "inner_auth",
+          "result": "complete",
+          "state": "current_accept"
+        },
+        {
+          "op": "release",
+          "result": "released"
+        }
+      ]
+    },
+    {
+      "expected": [
+        "reserved",
+        "deferred_refresh",
+        "resume_reserved",
+        "rejected",
+        "blocked"
+      ],
+      "got": [
+        "reserved",
+        "deferred_refresh",
+        "resume_reserved",
+        "rejected",
+        "blocked"
+      ],
+      "id": "reserved_stale_refresh_then_reject",
+      "ok": true,
+      "trace": [
+        {
+          "op": "reserve",
+          "result": "reserved"
+        },
+        {
+          "op": "inner_auth",
+          "result": "deferred_refresh",
+          "state": "stale"
+        },
+        {
+          "op": "reserve",
+          "result": "resume_reserved"
+        },
+        {
+          "op": "inner_auth",
+          "result": "rejected",
+          "state": "current_reject"
+        },
+        {
+          "op": "release",
+          "result": "blocked"
+        }
+      ]
+    },
+    {
+      "expected": [
+        "reserved",
+        "deferred_refresh",
+        "collision",
+        "resume_reserved"
+      ],
+      "got": [
+        "reserved",
+        "deferred_refresh",
+        "collision",
+        "resume_reserved"
+      ],
+      "id": "reserved_collision_rejected_original_resumable",
+      "ok": true,
+      "trace": [
+        {
+          "op": "reserve",
+          "result": "reserved"
+        },
+        {
+          "op": "inner_auth",
+          "result": "deferred_refresh",
+          "state": "stale"
+        },
+        {
+          "op": "reserve",
+          "result": "collision"
+        },
+        {
+          "op": "reserve",
+          "result": "resume_reserved"
+        }
+      ]
+    }
+  ],
+  "scope": "ADR-0144 request-scoped reply_delivery_key and ADR-0143 RESERVED x K7/K12 stale-ACS composition; bounded architecture evidence only",
+  "structural_checks": {
+    "reply_delivery_key_required": true,
+    "route_binding_domain_present": true,
+    "session_doc_forbids_promotion": true,
+    "session_doc_names_bootstrap_scope": true,
+    "session_doc_preserves_reserved_on_stale": true
+  },
+  "summary": {
+    "mutations": 7,
+    "mutations_caught": 7,
+    "scenarios": 12,
+    "scenarios_passed": 12
+  }
+}

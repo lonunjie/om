@@ -54,9 +54,26 @@ def check_privacy_and_prekey_freshness()->list[str]:
     item=labels.get('OM-PREKEY-SIG-v1',{}).get('construction','')
     for x in ('provider_pool_id','bundle_generation','subject_device_id'):
         if x not in item: bad.append(f'one-time-prekey signature construction missing {x}')
-    # Still-later privacy features remain explicit; this run does not pull them forward.
-    for x in ('entire existing 1:1 envelope','does not reveal sender AccountID','silent fallback'):
-        if x not in s: bad.append(f'sealed sender target missing {x}')
+    # ADR-0142 moved sealed delivery into the pre-release v1 profile. Check the current canonical
+    # invariants rather than historical draft wording so this closure check cannot silently rot when
+    # prose is strengthened without changing the protocol requirement.
+    sealed_invariants = {
+        'complete unchanged ordinary envelope': (
+            'entire unchanged ordinary 1:1 envelope' in s
+            or 'complete unchanged ordinary 1:1 envelope' in s
+        ),
+        'provider-visible sender identity excluded': (
+            'must not receive protocol-visible sender accountid' in s.lower()
+            and 'wrapper itself contains no accountid' in s.lower()
+        ),
+        'no clear-sender fallback': (
+            'never an unsealed relay fallback' in s.lower()
+            and 'never causes an ordinary clear-sender envelope to be deposited as fallback' in s.lower()
+            and 'cannot be silently negotiated' in s.lower()
+        ),
+    }
+    for name, ok in sealed_invariants.items():
+        if not ok: bad.append(f'sealed sender invariant missing: {name}')
     if 'do not promise cryptographic deniability' not in g: bad.append('group deniability non-goal not explicit')
     return bad
 

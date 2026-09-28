@@ -148,9 +148,9 @@ A web session is never merely a password-authenticated mirror of the phone.
 
 1. build the first usable OM-native reference implementation as a web/PWA protocol lab;
 2. use it to validate identity, canonical events, relay/provider interfaces, 1:1 delivery, and groups;
-3. build Android native early enough to prevent browser assumptions from becoming protocol assumptions;
-4. add iOS after core protocol behavior and push/device lifecycle are stable;
-5. Android carrier/SMS integration remains native-only work after the OM-native core is stable.
+3. build the Android reference shell in V1 early enough to prevent browser assumptions from becoming protocol assumptions;
+4. add the iOS reference shell in the same V1 family after core protocol behavior and push/device lifecycle are stable enough to validate native boundaries;
+5. Android carrier/SMS integration remains separately sequenced native-only work after the OM-native core is stable. PWA/Android/iOS/Desktop are V1 reference-family targets, but public releases and desktop OS variants need not be simultaneous (ADR-0150/0152).
 
 Web-first does **not** mean web-only final product.
 
@@ -226,7 +226,7 @@ A successful web-first prototype proves:
 - groups interoperate;
 - relay/storage providers can be swapped;
 - browser refresh/restart restores encrypted local state safely enough for prototype use;
-- conformance vectors are shared with the future native clients.
+- conformance vectors are shared with the V1 Android/iOS/Desktop reference shells and later third-party/specialized clients.
 
 It does **not** prove:
 
@@ -258,7 +258,7 @@ om-core
 om-web
 om-android
 om-ios
-om-desktop (later)
+om-desktop
 ```
 
 Third-party clients remain first-class interoperability targets. The project should nevertheless maintain a coherent reference family so non-technical users are not forced to choose among incompatible/unvetted forks.

@@ -1,0 +1,91 @@
+{
+  "kind": "adr0152_desktop_personrecord_endpoint",
+  "design_evidence_only": true,
+  "gates": [
+    "V-021"
+  ],
+  "platform_capabilities": {
+    "pwa": {
+      "secure_storage": "browser_device_vault",
+      "windows": "browser_tabs",
+      "filesystem": "browser_picker",
+      "notifications": "web_notification",
+      "update": "web_distribution"
+    },
+    "android": {
+      "secure_storage": "keystore_or_strongbox",
+      "windows": "single_activity_or_os_windows",
+      "filesystem": "native_picker",
+      "notifications": "android_notification",
+      "update": "distribution_update"
+    },
+    "ios": {
+      "secure_storage": "keychain_or_secure_enclave",
+      "windows": "scene_windows",
+      "filesystem": "native_picker",
+      "notifications": "ios_notification",
+      "update": "distribution_update"
+    },
+    "macos": {
+      "secure_storage": "keychain_secure_storage",
+      "windows": "multi_window",
+      "filesystem": "filesystem_adapter",
+      "notifications": "native_notification",
+      "update": "signed_transparent_update"
+    },
+    "windows": {
+      "secure_storage": "os_protected_storage",
+      "windows": "multi_window",
+      "filesystem": "filesystem_adapter",
+      "notifications": "native_notification",
+      "update": "signed_transparent_update"
+    },
+    "linux": {
+      "secure_storage": "capability_reported_key_store",
+      "windows": "multi_window",
+      "filesystem": "filesystem_adapter",
+      "notifications": "native_notification",
+      "update": "signed_transparent_update"
+    }
+  },
+  "scenarios": {
+    "canonical_event_is_same_across_pwa_mobile_desktop": true,
+    "desktop_os_differences_are_capabilities_not_protocol_forks": true,
+    "desktop_windows_capture_immutable_profile_context": true,
+    "independent_windows_keep_distinct_vault_namespaces": true,
+    "linux_weaker_key_store_reporting_does_not_lower_protocol_semantics": true,
+    "export_requires_explicit_confirmation": true,
+    "export_requires_os_permission": true,
+    "export_exposes_preview_before_selected_mutation": true,
+    "export_does_not_silently_delete_stale_or_reassigned_alias": true,
+    "export_cannot_change_account_relationship_or_continuity_authority": true,
+    "export_creates_no_network_protocol_object": true,
+    "os_address_book_is_copy_target_not_identity_source": true
+  },
+  "mutations": {
+    "desktop_platform_in_eventid_mutation_caught": true,
+    "process_global_active_profile_retargets_callback_mutation_caught": true,
+    "window_namespace_collapse_mutation_caught": true,
+    "weak_linux_storage_downgrades_protocol_mutation_caught": true,
+    "silent_contact_overwrite_mutation_caught": true,
+    "permission_bypass_mutation_caught": true,
+    "addressbook_match_merges_accountids_mutation_caught": true,
+    "export_creates_relationship_authority_mutation_caught": true,
+    "cleanup_deletes_reassigned_alias_without_selection_mutation_caught": true,
+    "contact_export_becomes_network_object_mutation_caught": true
+  },
+  "structural": {
+    "matrix_names_desktop_v1_reference": true,
+    "strategy_names_desktop_as_v1_target_not_simultaneous_promise": true,
+    "ui_keeps_platformadapter_boundary": true,
+    "continuity_requires_preview_and_permission": true,
+    "continuity_denies_identity_authority_from_export": true,
+    "continuity_says_no_network_object": true
+  },
+  "scenario_passed": 12,
+  "scenario_total": 12,
+  "mutations_caught": 10,
+  "mutation_total": 10,
+  "passed": true,
+  "note": "Bounded endpoint/design evidence. It proves semantic/profile/export invariants in the architecture model, not actual OS keychain, screenshot, notification, contacts-permission or update behavior; those remain platform implementation/pre-release audits."
+}

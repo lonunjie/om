@@ -5,6 +5,7 @@
 - **Decided by:** integrator under operator delegation 2026-09-25 ("do what you need to do"), after independent architecture review
 - **Resolves:** A-024, A-025, A-026, A-027, A-028 and newly identified recovery/bootstrap/reduction gaps
 - **Amends:** ADR-0107, ADR-0118, ADR-0122, ADR-0126, ADR-0127, ADR-0128
+- **Amended by:** ADR-0147 crash-safe verifier-local duration semantics
 
 ## Context
 
@@ -66,7 +67,7 @@ For a v1 1:1 conversation the UI may say **"Post-quantum handshake protection"**
 
 There is no trusted global recovery clock.
 
-When recovery acts without a current non-quarantined controller co-signature, every verifier records the first valid observation of the `RecoveryRequest` digest in durable local security state. That verifier MUST NOT accept a recovery-alone successor as final until its own monotonic elapsed observation reaches the RecoveryPolicy activation delay and it has observed no valid RecoveryVeto.
+When recovery acts without a current non-quarantined controller co-signature, every verifier records the first valid observation of the `RecoveryRequest` digest in durable local security state. That verifier MUST NOT accept a recovery-alone successor as final until its own monotonic elapsed observation reaches the RecoveryPolicy activation delay and it has observed no valid RecoveryVeto. ADR-0147 further requires that elapsed observation to survive crash/reboot only as a conservative durably checkpointed monotonic lower bound: unmeasured downtime, wall-clock change and restored historical timer state never accelerate acceptance.
 
 A verifier coming online late starts its own observation interval. A Home timestamp, wall clock in the request, or assertion by the recovery custodian cannot shorten it. Current controllers may make the transition immediate by co-signing under ADR-0127. Optional future witness acceleration requires a separate reviewed protocol and cannot be assumed by v1.
 

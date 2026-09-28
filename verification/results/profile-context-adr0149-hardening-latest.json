@@ -1,0 +1,38 @@
+{
+  "kind": "adr0149_profile_execution_context_hardening",
+  "design_evidence_only": true,
+  "paths": {
+    "attachment": true,
+    "file_picker": true,
+    "search": true,
+    "share": true,
+    "deep_link": true,
+    "notification": true,
+    "background_sync": true,
+    "thumbnail": true,
+    "media_picker": true
+  },
+  "scenarios": {
+    "all_async_A_results_remain_in_A_after_switch_to_B": true,
+    "captured_vault_and_session_namespaces_remain_A": true,
+    "independent_windows_keep_distinct_profile_contexts": true,
+    "unknown_external_intent_requires_explicit_profile": true,
+    "explicit_external_intent_binding_ignores_active_profile": true,
+    "notification_action_bound_to_origin_profile": true,
+    "unavailable_origin_profile_cancels_instead_of_retargets": true,
+    "clipboard_is_explicit_global_disclosure_boundary": true
+  },
+  "mutations": {
+    "process_global_active_profile_callback_mutation_caught": true,
+    "window_uses_global_selector_mutation_caught": true,
+    "notification_retarget_to_current_profile_mutation_caught": true,
+    "unknown_share_intent_auto_active_mutation_caught": true,
+    "clipboard_auto_import_after_switch_mutation_caught": true
+  },
+  "scenario_passed": 8,
+  "scenario_total": 8,
+  "mutations_caught": 5,
+  "mutation_total": 5,
+  "passed": true,
+  "note": "Models immutable dispatch context only; OS leakage-control capability claims remain documented/pre-release measured evidence."
+}

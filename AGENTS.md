@@ -7,7 +7,7 @@ until the operator makes it public. Write everything as if a stranger will read 
 **Engineering is NOT authorized.** Research, specification, formal models and bounded feasibility prototypes
 (`verification/`) are allowed. Product code is not. The architecture rules below say exactly what is locked.
 
-**Current phase:** architecture is design-frozen by ADR-0139 as amended by the targeted AsyncKeyBundle re-freeze in ADR-0140, while engineering remains unauthorized. For verification execution follow [`verification/CLAUDE_OPUS_5_5_HANDOFF.md`](verification/CLAUDE_OPUS_5_5_HANDOFF.md) and ADR-0134; for the future engineering boundary start at [`docs/process/ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). The verification executor must exhaust repo-local gate work before requesting independent-review-only sign-off; do not bounce the repository between agents one criterion at a time.
+**Current phase:** architecture remains pre-engineering and is amended through ADR-0153. Run 9B closes the two repo-local ADR-0152 evidence obligations: replaceable Android wake/privacy is 13/13 scenarios with 8/8 mutations caught, and desktop/PersonRecord endpoint safety is 12/12 with 10/10 mutations caught. ADR-0153 removes an unsupported universal stale-push-registration time-bound claim while preserving the stronger rule that obsolete wake state is never fetch/message/account authority. V-003 is 13/14, V-005 11/11 repo-local, V-015 16/16 repo-local and V-021 10/10 repo-local; required independence/pre-release records remain open. The consolidated different-vendor `core_kernel` reviewer brief is **active** again. Engineering remains unauthorized. [`verification/CLAUDE_OPUS_5_5_HANDOFF.md`](verification/CLAUDE_OPUS_5_5_HANDOFF.md) is the stable compatibility entry point. For the future engineering boundary start at [`docs/process/ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). Do not bounce the repository between agents one criterion at a time.
 
 ## Part 1: Working in this repository
 
@@ -97,7 +97,7 @@ SeedLife/lonunjie is the initial steward, not protocol authority. Businesses may
 6. Never silently downgrade an established relationship/group/transport security level.
 7. Conversation semantics are transport-agnostic; SMS/MMS/RCS are future adapters.
 8. Media E2EE must remain independent of direct/TURN/SFU route.
-9. Use infrastructure only when it adds value; prefer LAN/P2P for calls when privacy policy permits.
+9. Use infrastructure only when it adds value; prefer privacy-preserving LAN/direct paths for V1 messages/files and calls when policy/capability permits, without making local routing authority.
 10. Unknown senders are constrained before expensive work and before direct calls.
 11. Open-source clients are adversarially modifiable; enforce abuse/resource limits at recipient/provider boundaries.
 12. No global trust score is required for protocol validity.

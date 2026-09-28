@@ -9,7 +9,8 @@
     "shared_blob_linkage (ADR-0129 rule 10): the default per-send encryption gives every send a fresh content key, so the same asset has a different BlobID in each conversation. Only the opt-in shared-blob mode for expressive assets (stickers, custom emoji) reuses one BlobID, and then the BlobStore can link those conversations by it.",
     "lan_observer (R-270, R-271): the LAN advertisement has a fixed number of rendezvous tags per epoch. Real tags exist only for contacts marked for local mode; the rest are padding. Tags and, where available, the link-layer address rotate every epoch, and a tag is retired when its relationship ends or is blocked. The observer learns that an OM device is present, not how many contacts it has or which advertisements across epochs are the same device.",
     "key_material_provider: subject_device_id remains constant for a device and is therefore an always-stable device correlator. It no longer automatically groups several devices into one account; any account/contact linkage is deployment/traffic dependent rather than a bundle-wire property (ADR-0140).",
-    "provider-resource authentication (ADR-0138): routine provider administration uses independent opaque capabilities rather than device_auth; repeated use may link the same provider resource but does not expose a DeviceCredential/DeviceID. Mailbox RecoveryRequest fan-out is separate and exposes the request AccountID plus recovery-attempt fact for that operation."
+    "provider-resource authentication (ADR-0138): routine provider administration uses independent opaque capabilities rather than device_auth; repeated use may link the same provider resource but does not expose a DeviceCredential/DeviceID. Mailbox RecoveryRequest fan-out is separate and exposes the request AccountID plus recovery-attempt fact for that operation.",
+    "replaceable Android wake (ADR-0152): FCM, UnifiedPush-compatible gateways/distributors and other push adapters are modeled as push_provider boundaries with opaque wake timing/token/profile-linkage exposure; a persistent encrypted relay/Home wake/fetch connection is observed by that relay/Home rather than inventing a privileged push authority. Adapter switching never changes canonical message/identity state. ADR-0153: obsolete registrations are retired where possible; if provider-side retirement cannot be confirmed, residual token/profile-linkage retention is provider-defined unless an enforceable finite lease is explicitly declared, and the obsolete handle remains wake-only rather than fetch/account authority."
   ],
   "fields": [
     "client_network_address",
@@ -93,7 +94,7 @@
         "stable_device_correlator": "no_by_design"
       },
       "source_of_claim": "protocol_enforced",
-      "retention_policy_reference": "HOME_ONBOARDING §3.3-3.5 (sponsor sees delivery timing/volume/sizes and contact edges among co-resident users, not content; 30-day revocation overlap)",
+      "retention_policy_reference": "HOME_ONBOARDING \u00a73.3-3.5 (sponsor sees delivery timing/volume/sizes and contact edges among co-resident users, not content; 30-day revocation overlap)",
       "non_collusion_assumptions": [
         "sponsor does not collude with the contact's Homes to join capabilities",
         "roles co-located on one operator's Home (discovery publisher, IntroGate, mailbox) are one observer and collude by construction (ADR-0130 rule 4); the assumptions listed here concern roles run by different operators"
@@ -128,7 +129,7 @@
         "stable_device_correlator": "no_by_design"
       },
       "source_of_claim": "protocol_enforced",
-      "retention_policy_reference": "HOME_ONBOARDING §4.1 (host sees member delivery timing/volume/sizes)",
+      "retention_policy_reference": "HOME_ONBOARDING \u00a74.1 (host sees member delivery timing/volume/sizes)",
       "non_collusion_assumptions": [
         "host does not collude with other Homes",
         "roles co-located on one operator's Home (discovery publisher, IntroGate, mailbox) are one observer and collude by construction (ADR-0130 rule 4); the assumptions listed here concern roles run by different operators"
@@ -333,7 +334,7 @@
         "stable_device_correlator": "no_by_design"
       },
       "source_of_claim": "protocol_enforced",
-      "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md §10 (opaque RecoveryRecord locator/read+write capabilities; authenticated advisory freshness; ADR-0138/ADR-0141)",
+      "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md \u00a710 (opaque RecoveryRecord locator/read+write capabilities; authenticated advisory freshness; ADR-0138/ADR-0141)",
       "non_collusion_assumptions": [
         "recovery store does not collude with a mailbox Home that separately observes RecoveryRequest fan-out; if colocated they are one observer and may join timing/network logs"
       ],
@@ -368,7 +369,7 @@
         "stable_device_correlator": "no_by_design"
       },
       "source_of_claim": "provider_asserted",
-      "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md §10.2/10.6-10.7 (RP ID + random RecoveryHandle + human recovery locator; ADR-0141)",
+      "retention_policy_reference": "RECOVERY_AND_BACKUP_POLICY.md \u00a710.2/10.6-10.7 (RP ID + random RecoveryHandle + human recovery locator; ADR-0141)",
       "non_collusion_assumptions": [
         "none required for the protocol claim; platform correlation of RP ID, WebAuthn user metadata and vendor telemetry remains possible"
       ],

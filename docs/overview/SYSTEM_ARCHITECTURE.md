@@ -114,7 +114,7 @@ The default UX is “Automatic.”
 
 ## Local-first resilience
 
-Long-term target: established peers on the same LAN should be able to message, transfer files, and call without WAN media transit; discovery must avoid broadcasting stable identities.
+V1 optional local-first capability: established peers on the same LAN can message, transfer encrypted files, and call without WAN transit where platform routing permits; short-lived QR/invite-linked peers may also use a temporary local route. Discovery must avoid broadcasting stable identities, and web/native discovery differences remain explicit capabilities (ADR-0150).
 
 ## Authority boundary
 

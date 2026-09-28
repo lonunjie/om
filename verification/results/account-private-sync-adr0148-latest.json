@@ -1,0 +1,24 @@
+{
+  "kind": "adr0148_account_private_sync",
+  "design_evidence_only": true,
+  "scenarios": {
+    "typed_scalar_convergence": true,
+    "typed_set_convergence": true,
+    "concurrent_draft_branches_preserved": true,
+    "revoked_device_gets_no_new_records": true,
+    "cross_profile_merge_rejected": true,
+    "authority_security_provider_secret_kinds_rejected": true
+  },
+  "mutations": {
+    "single_timestamp_draft_winner_detected": true,
+    "forbidden_authority_allowlist_mutation_detected": true,
+    "revoked_sender_mutation_detected": true,
+    "cross_profile_mutation_detected": true
+  },
+  "scenario_passed": 6,
+  "scenario_total": 6,
+  "mutations_caught": 4,
+  "mutation_total": 4,
+  "passed": true,
+  "note": "Bounded reference semantics only; record transport/codec remains implementation-owned behind authenticated same-account E2EE sync."
+}

@@ -28,6 +28,20 @@ Legend: ✅ available · ◐ partial or version-dependent · ✗ not available.
 | Limit non-assistive accessibility readers | ✗ | ◐ `setAccessibilityDataSensitive` (14+) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | Keep message content out of OS search / suggestions | ✅ do not index; delete donated `INInteraction`s | ✅ do not publish; remove dynamic/sharing shortcuts | ✅ do not index | ✅ | ✅ | ✅ nothing is indexed by default | ✅ | ✅ |
 
+### PlatformAdapter family mapping (V-021)
+
+The interface names used by [`UI_CORE_PLATFORM_CONTRACT.md`](../ux/UI_CORE_PLATFORM_CONTRACT.md) map to the per-platform rows above as follows; each family reports `available | partial | unavailable` at runtime rather than assuming the documentation row is always true:
+
+| PlatformAdapter family | Capability rows in this matrix |
+|---|---|
+| `SecureSurface` | Block screenshots / screen recording; blank app-switcher snapshot |
+| `BackupExclusion` | Exclude data from OS/cloud backup; keys sealed while locked where the adapter exposes a file/key protection class |
+| `InputPrivacy` | Keyboard / IME learning off; cloud spellcheck / writing tools off |
+| `NotificationRemoval` | Clear posted notifications |
+| sensitive `Clipboard` write | Mark clipboard data sensitive |
+
+This mapping records availability for every shipped platform column in the table; runtime adapters still probe/report the actual capability, and pre-release forensic testing verifies the claims on supported OS/browser versions.
+
 ### Consequences for product claims
 
 1. The **PWA cannot** exclude OS backups, block screenshots, blank the app switcher or stop extensions. Hardened and
@@ -39,6 +53,19 @@ Legend: ✅ available · ◐ partial or version-dependent · ✗ not available.
    wrapped by the DeviceVault hierarchy (V-006), so a copied browser profile is sealed.
 4. **Linux** has the fewest controls. The Linux client states that screenshots, clipboard history and backups are
    outside OM's control.
+
+## V1 reference-family capability expectations (ADR-0150)
+
+This table is a **contract expectation, not a frozen API-availability claim**. Runtime adapters probe/report actual support and the UI states limits. It exists to prevent the PWA-first vertical slice from hard-coding web assumptions into Core or, conversely, native shells from inventing protocol semantics.
+
+| Capability family | PWA V1 reference | Android V1 reference | iOS V1 reference | Desktop V1 reference | Semantic rule |
+|---|---|---|---|---|---|
+| `LocalDiscovery` | manual/QR/known-endpoint and browser-permitted local/WebRTC paths; automatic native-equivalent discovery is not assumed | permission-gated native local-network discovery where available, else manual/QR/known endpoint | permission-gated native local-network discovery where available, else manual/QR/known endpoint | native local discovery where OS support/permission exists, else manual/QR/known endpoint | every path yields only an ephemeral transport candidate; no platform path grants identity/relationship authority |
+| Background wake | Web Push/browser lifecycle | `fcm | unifiedpush | persistent | none`, capability-reported | APNs/background lifecycle or `none` with disclosed delay | OS notification/background/persistent mechanisms as available, or `none` | wake transport stays opaque; no platform gets plaintext or protocol authority |
+| Secure key/storage surfaces | DeviceVault + browser capabilities with stated limits | Keystore/StrongBox where available | Keychain/Secure Enclave where compatible | Keychain/DPAPI-TPM/keyring or equivalent, capability-reported | handles/availability differ; canonical protocol output and account authority do not |
+| Share/media/system calling | browser-capability limited | native adapters | native adapters | native filesystem/share/window/notification adapters | PlatformAdapter capability only; shared `om-ui`/Core semantics remain canonical |
+
+V1 means all four are explicit reference-family targets, not that every row is feature-identical or that all binaries/desktop OS variants ship on the same day.
 
 ## 2. Deletion-closure checklist
 

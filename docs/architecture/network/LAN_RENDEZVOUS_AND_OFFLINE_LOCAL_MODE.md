@@ -1,13 +1,13 @@
 # OM LAN Rendezvous and Offline Local Mode
 
-- **Status:** Canonical direction; platform capability verification remains
-- **Checkpoint:** 2026-09-21 10:08 PHT
+- **Status:** Canonical V1 optional capability; platform capability verification remains
+- **Checkpoint:** 2026-09-28 ADR-0150
 
 ## 1. Goal
 
 Existing contacts—and peers who just exchanged a QR/invite—should be able to discover each other on the same local network without broadcasting stable AccountIDs, usernames, device names, or globally linkable service identifiers.
 
-Longer-term goal: when WAN access is unavailable but the LAN remains functional, OM should still support local messaging, file transfer, and calls where cryptographic state permits.
+V1 optional capability: when WAN access is unavailable but the LAN remains functional, OM supports local messaging and encrypted file transfer for already-related or short-lived QR/invite-linked peers where the platform can establish a route; calls keep their existing LAN/direct RoutePolicy. Automatic discovery is capability-gated and is not promised on every platform (ADR-0150).
 
 ## 2. Existing-contact rendezvous
 
@@ -84,7 +84,9 @@ Alice OM <------> Bob OM
  messages / files / calls
 ```
 
-Canonical OM events remain the same. When WAN service returns, normal sync/deduplication reconciles the local exchange.
+Canonical OM events remain the same. A LAN endpoint/token is an ephemeral transport candidate, never identity or authority. Local delivery uses ordinary OM cryptographic/session authorization and the same logical EventID that a WAN/provider route would carry; route-specific transport wrapping may differ, but route selection cannot change message meaning or security level. When WAN service returns, ordinary sync/deduplication reconciles retries so one logical EventID materializes once.
+
+Encrypted file transfer is likewise transport-neutral: direct LAN transfer carries the same encrypted object named by the canonical BlobID and `ciphertext_digest`. A receiving endpoint authenticates it before plaintext release. Later BlobStore mirroring/backfill relocates the same object without rewriting EventID/BlobID. The client distinguishes local receipt from configured StoragePool durability until provider/storage replication is actually satisfied.
 
 ## 7. Security boundaries
 
@@ -92,7 +94,9 @@ Canonical OM events remain the same. When WAN service returns, normal sync/dedup
 - Discovery only identifies a candidate endpoint; OM cryptographic relationship verification remains mandatory.
 - No silent fallback from encrypted OM semantics to plaintext LAN protocols.
 - Public Wi-Fi adversaries must not learn stable identity from advertisements.
-- Clients must defend against token flooding/spoofing and resource exhaustion.
+- Clients must defend against token flooding/spoofing and resource exhaustion before expensive cryptographic/blob work.
+- LAN failure never falls back to plaintext or unauthenticated local messaging; it queues or chooses another allowed encrypted route.
+- A transport acknowledgement is not a conversation event, relationship grant, device-eligibility proof or storage-durability proof.
 ## 2026-09-22 hardening — platform capability boundary
 
 The LAN protocol remains client-agnostic, but discovery substrates are capabilities, not universal guarantees. Native clients may use OS mDNS/DNS-SD/local-network APIs where permitted. PWA clients may require explicit local-network permission and may need QR/manual/known-endpoint/WebRTC-style rendezvous when browser APIs do not expose native-equivalent discovery.

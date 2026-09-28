@@ -12,8 +12,8 @@ The JAR is **not vendored** in this checkpoint. Verification CI should fetch/pin
 
 ```sh
 java -cp /path/to/tla2tools.jar tlc2.TLC \
-  -config verification/tla/AccountControlState.cfg \
-  verification/tla/AccountControlState.tla
+  -config verification/tla/AccountControl.cfg \
+  verification/tla/AccountControl.tla
 ```
 
 Tooling is evidence infrastructure, not a runtime dependency of OM.

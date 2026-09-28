@@ -1,0 +1,52 @@
+{
+  "kind": "adr0152_replaceable_android_wake",
+  "design_evidence_only": true,
+  "gates": [
+    "V-015"
+  ],
+  "modes": [
+    "fcm",
+    "unifiedpush",
+    "persistent",
+    "none"
+  ],
+  "scenarios": {
+    "fcm_wake_fetches_relay_stored_event": true,
+    "unifiedpush_switch_preserves_canonical_state": true,
+    "persistent_path_is_ordinary_transport_not_new_authority": true,
+    "none_mode_delays_but_does_not_lose_messages": true,
+    "provider_failure_cannot_delete_or_hide_canonical_mailbox": true,
+    "switches_do_not_rekey_identity_or_relationship": true,
+    "old_registration_retires_where_possible": true,
+    "unretirable_old_registration_is_metadata_only": true,
+    "keep_separate_rejects_same_token_to_unrelated_gateways": true,
+    "keep_separate_allows_one_explicit_declared_gateway_linkage": true,
+    "opaque_handles_are_profile_scoped": true,
+    "push_descriptor_declares_only_metadata_not_identity_authority": true,
+    "descriptor_models_replaceable_wake_and_persistent_observer": true
+  },
+  "mutations": {
+    "push_delivery_as_message_storage_caught": true,
+    "provider_failure_deletes_message_mutation_caught": true,
+    "none_means_drop_message_mutation_caught": true,
+    "adapter_switch_rekeys_account_mutation_caught": true,
+    "wake_handle_as_fetch_capability_mutation_caught": true,
+    "undeclared_cross_profile_token_sharing_mutation_caught": true,
+    "persistent_path_as_privileged_push_authority_mutation_caught": true,
+    "provider_switch_changes_event_identity_mutation_caught": true
+  },
+  "structural": {
+    "docs_name_all_four_modes": true,
+    "docs_say_push_not_correctness_or_identity": true,
+    "docs_require_old_registration_retirement_where_possible": true,
+    "ui_capability_vocabulary_matches": true,
+    "docs_do_not_invent_universal_retirement_time_bound": true,
+    "android_matrix_lists_replaceable_modes": true
+  },
+  "scenario_passed": 13,
+  "scenario_total": 13,
+  "mutations_caught": 8,
+  "mutation_total": 8,
+  "passed": true,
+  "note": "Push adapters are modeled only as wake/metadata boundaries over the same canonical relay mailbox. This does not claim real FCM/UnifiedPush/battery behavior; those remain implementation/pre-release measurements."
+}

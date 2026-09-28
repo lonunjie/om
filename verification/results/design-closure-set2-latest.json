@@ -1,11 +1,11 @@
 {
   "kind": "design_closure_set2",
   "design_only": true,
-  "requirements": 298,
-  "threats": 100,
-  "decisions": 163,
+  "requirements": 330,
+  "threats": 121,
+  "decisions": 175,
   "design_queue_items": 43,
-  "security_invariants": 33,
+  "security_invariants": 36,
   "checks": [
     {
       "name": "design_queue_closed",
@@ -14,26 +14,26 @@
     },
     {
       "name": "requirement_traceability",
-      "requirements": 298,
-      "rows": 298,
+      "requirements": 330,
+      "rows": 330,
       "missing": 0,
       "duplicates": 0
     },
     {
       "name": "threat_traceability",
-      "threats": 100,
+      "threats": 121,
       "problems": 0
     },
     {
       "name": "decision_adr_index",
-      "decisions": 163,
-      "indexed_adrs": 141,
+      "decisions": 175,
+      "indexed_adrs": 153,
       "problems": 0
     },
     {
       "name": "security_invariant_traceability",
-      "document_invariants": 33,
-      "mapped": 33,
+      "document_invariants": 36,
+      "mapped": 36,
       "problems": 0
     },
     {

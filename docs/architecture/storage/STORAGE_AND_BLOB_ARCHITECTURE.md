@@ -93,7 +93,7 @@ Providers expose operational metadata such as free-tier allowance, hard/soft quo
 
 The baseline Cloudflare profile no longer requires R2. Worker + SQLite Durable Object can cover relay/control state and a tightly bounded temporary encrypted blob spool. R2/other BlobStore is enabled for larger/offline media or backup.
 
-Online/LAN file transfer should prefer direct encrypted paths where policy permits. Exact spool/blob cutoffs are operational benchmarks.
+V1 online/LAN file transfer prefers direct encrypted paths where policy permits. Direct transfer carries the same BlobID/ciphertext_digest-bound encrypted object as provider storage; later mirroring/backfill never rewrites canonical attachment identity. Local receipt is not presented as satisfying configured StoragePool durability until the normal replication policy is actually met (ADR-0150). Exact spool/blob cutoffs are operational benchmarks.
 
 ## Restore invariant
 
@@ -119,3 +119,4 @@ The following are normative pass/fail cases for the registered W0 conformance su
 | AT-03 | moved/repaired BlobLocationRecord | only signed valid newer location state is followed |
 | AT-04 | expired/deleted attachment | lifecycle policy prevents normal re-materialization from OM-managed stores |
 | AT-05 | expressive asset ref | digest-bound blob, not provider locator/blob id, is rendering authority |
+| AT-06 | encrypted blob received directly over LAN, then provider mirror/backfill appears | BlobID and ciphertext_digest identify the same authenticated object; provider location changes do not rewrite message identity, and UI/storage state distinguishes local receipt from configured durability until replication succeeds (ADR-0150) |

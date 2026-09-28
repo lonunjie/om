@@ -1,7 +1,7 @@
 # Time and Expiry Semantics
 
 - **Status:** Canonical cross-protocol rule; per-object constants remain profile/policy work
-- **Checkpoint:** 2026-09-23 05:45 PHT
+- **Checkpoint:** 2026-09-28 Run 5A / ADR-0147
 
 ## 1. Time is not authority
 
@@ -23,7 +23,7 @@ Used when the protocol intentionally expresses calendar expiry such as invitatio
 
 ### Monotonic local duration
 
-Preferred for local elapsed-time behavior where reset/clock changes should not extend a timer, such as certain disappearing-content UI timers during one device runtime.
+Preferred for local elapsed-time behavior where wall-clock changes must not decide the result. For ordinary in-runtime UI timers this may be ephemeral. For a **security-critical durable verifier-local duration** (for example recovery-alone activation), ADR-0147 requires a conservative persisted elapsed-time lower bound across runtime segments: only durably measured monotonic runtime is credited, unmeasured reboot/power-off time does not count, wall-clock jumps never accelerate the timer, and missing/rolled-back historical timer state restarts or otherwise lengthens the interval rather than shortening it.
 
 ### Provider retention clock
 
@@ -58,7 +58,7 @@ Backup/restore must not intentionally resurrect content already known to have ex
 
 ## 5. Security state
 
-AccountControlState generations, MLS epochs, ratchet steps, key generations, revocation state and replay windows use cryptographic/state-machine sequencing, not wall-clock winner selection.
+AccountControlState generations, MLS epochs, ratchet steps, key generations, revocation state and replay windows use cryptographic/state-machine sequencing, not wall-clock winner selection. Security-critical verifier-local delays use the ADR-0147 crash-safe monotonic lower-bound rule and cannot be accelerated by backup restore or provider/custodian timestamps.
 
 ## 6. Freeze requirement
 

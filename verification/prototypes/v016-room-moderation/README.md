@@ -39,28 +39,14 @@ accepted at or after the excluding epoch), `NoKeyAfterRemoval`, `StaleWriteWindo
 `GovernanceProtected`, `EvidenceScoped` and `RetentionBound`. The vectors are in
 `verification/vectors/tla-RoomModeration_*.json`.
 
-## Design gaps found (proposed design updates)
+## Historical gaps and accepted resolutions
 
-1. **Moderator vs. governance.** §6 and §10 do not say whether an ordinary `remove_member`/`ban_member` holder may
-   remove, ban or time out a *governance* principal. `mut_mod_vs_gov` shows that one malicious moderator can then
-   strip the governance set and orphan the Room. *Proposal (modelled):* moderation actions against a governance
-   principal are constitutional transitions that need governance authority or quorum.
-2. **The past-epoch window is unspecified and makes acceptance receiver-dependent.** MLS receivers keep old epoch
-   secrets for late messages. A removed or timed-out member (a hostile client) can keep sending in the last epoch it
-   was allowed in. Receivers accept those messages while that epoch is inside their window
-   (`trap_late_write`), and two receivers at different epochs disagree about the same message
-   (`residual_divergence`). *Proposal:* specify a small past-epoch window in the group profile. Authorize a message
-   against the state of its own epoch, never the receiver's current state. Document the bounded divergence as a
-   residual risk, or have the CommitCoordinator sequence application messages if exact convergence is required. This
-   touches V-009.
-3. **Timeout expiry.** §6 says expiry is "convenience/policy time, not constitutional authority". The model makes
-   expiry an explicit `untimeout` control transition that is bound to an epoch. *Proposal:* say normatively that a
-   timeout ends only through an accepted transition, whether manual or automatic but committed, so every receiver
-   evaluates the same state.
-4. **Evidence ACL across demotion.** The docs do not say to whom private report evidence is encrypted. *Proposal
-   (modelled):* encrypt each EvidencePackage to the moderator set in force when it is reported. A demotion takes away
-   access to *future* evidence, but it cannot claw back evidence already disclosed.
-5. **Appeal hold bound.** Retention during an appeal needs an explicit upper bound (`HoldMax`), so that an endless
-   appeal cannot hold evidence indefinitely.
+This prototype originally exposed five design gaps. They are no longer open design work:
 
-Registry note: the new files need `python3 tools/om_registry.py sync` (this agent may not edit `machine/`).
+1. **Moderator vs. governance** — resolved by ADR-0122: moderation against a governance principal is a constitutional transition requiring governance authority/quorum.
+2. **Past-epoch window / receiver divergence** — resolved by ADR-0121: authorization is against the sending epoch; `past_epoch_window` defaults to 2 and is capped at 8; late-arrival divergence is an explicit bounded residual risk.
+3. **Timeout expiry** — resolved by ADR-0122: timeout ends only through an accepted, epoch-bound `untimeout` transition.
+4. **Evidence ACL across demotion** — resolved by ADR-0123: evidence is encrypted to the moderator set at report time; demotion removes access only to future evidence.
+5. **Appeal hold bound** — resolved by ADR-0123: appeal retention is capped by `hold_max`, at most 180 days after original retention expiry.
+
+The current machine ledger records all **9/9 repo-local V-016 pre-engineering criteria as met**. V-016 remains pre-engineering-open only because ADR-0117's different-vendor independent-review record is still missing. The reference-provider adversarial load criterion is pre-release work and is intentionally not required for the present `core_kernel` review.

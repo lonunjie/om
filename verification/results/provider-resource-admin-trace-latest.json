@@ -1,0 +1,229 @@
+{
+ "gate_status_effect": "repo_local_criterion_evidence_only_independent_review_still_required",
+ "gates": [
+  "V-015"
+ ],
+ "model": "provider_resource_admin_trace",
+ "passed": true,
+ "recovery_fanout_trace_count": 3,
+ "requirements": [
+  "R-287",
+  "R-294",
+  "R-295"
+ ],
+ "routine_trace_count": 8,
+ "security_mutation_samples": {
+  "account_id_auth": [
+   "mint deposit capability: forbidden identity/ACS auth material ['account_id']"
+  ],
+  "acs_auth": [
+   "key bundle publish: forbidden identity/ACS auth material ['acs_controller_signature', 'acs_generation']"
+  ],
+  "capability_reuse": [
+   "provider-resource capability reused across unrelated scopes: [('directory-A', 'descriptor_publish'), ('home-A', 'relay_admin')] (94e2cf6d9e82)"
+  ],
+  "fanout_hides_account": [
+   "home_relay_mailbox: recovery fan-out hides stable_account_id",
+   "t0_sponsored_mailbox: recovery fan-out hides stable_account_id",
+   "t1_hosted_home: recovery fan-out hides stable_account_id"
+  ],
+  "fanout_hides_attempt": [
+   "home_relay_mailbox: recovery fan-out hides recovery_attempt",
+   "t0_sponsored_mailbox: recovery fan-out hides recovery_attempt",
+   "t1_hosted_home: recovery fan-out hides recovery_attempt"
+  ],
+  "identity_auth": [
+   "publish descriptor: unexpected routine auth class device_auth",
+   "publish descriptor: forbidden identity/ACS auth material ['device_credential']"
+  ],
+  "recovery_caps_collapsed": [
+   "provider-resource capability reused across unrelated scopes: [('recovery-A', 'recovery_record_read'), ('recovery-A', 'recovery_record_write')] (a14740fa3edd)",
+   "RecoveryRecord read/write capabilities collapsed into one bearer secret"
+  ]
+ },
+ "security_mutations_caught": {
+  "account_id_auth": true,
+  "acs_auth": true,
+  "capability_reuse": true,
+  "fanout_hides_account": true,
+  "fanout_hides_attempt": true,
+  "identity_auth": true,
+  "recovery_caps_collapsed": true
+ },
+ "trace_class": "repo_local_provider_observation_model_not_packet_capture",
+ "traces": [
+  {
+   "auth_class": "relay_admin_cap",
+   "auth_material": [
+    "opaque_provider_resource_capability"
+   ],
+   "binding": "`POST /v1/relay/deposit-capabilities`",
+   "capability_fingerprint": "94e2cf6d9e8271a23e5a75b40d2fed76a5222a12af37576a95eb043e45a208d1",
+   "kind": "routine_provider_admin",
+   "operation": "mint deposit capability",
+   "payload_metadata": [],
+   "provider": "home-A",
+   "provider_role": "home_relay_mailbox",
+   "resource_family": "relay_admin",
+   "spec_auth": "`relay_admin_cap`"
+  },
+  {
+   "auth_class": "relay_admin_cap",
+   "auth_material": [
+    "opaque_provider_resource_capability"
+   ],
+   "binding": "`DELETE /v1/relay/deposit-capabilities/{id}`",
+   "capability_fingerprint": "94e2cf6d9e8271a23e5a75b40d2fed76a5222a12af37576a95eb043e45a208d1",
+   "kind": "routine_provider_admin",
+   "operation": "revoke deposit capability",
+   "payload_metadata": [],
+   "provider": "home-A",
+   "provider_role": "home_relay_mailbox",
+   "resource_family": "relay_admin",
+   "spec_auth": "`relay_admin_cap`"
+  },
+  {
+   "auth_class": "directory_publish_cap",
+   "auth_material": [
+    "opaque_provider_resource_capability"
+   ],
+   "binding": "`PUT /v1/discovery/descriptors/{id}`",
+   "capability_fingerprint": "902e1cdd51b4f6149376ec229b9ea6a0c93883638a88b50355bc7943a4467f02",
+   "kind": "routine_provider_admin",
+   "operation": "publish descriptor",
+   "payload_metadata": [],
+   "provider": "directory-A",
+   "provider_role": "discovery_publisher",
+   "resource_family": "descriptor_publish",
+   "spec_auth": "`directory_publish_cap`"
+  },
+  {
+   "auth_class": "key_publish_cap",
+   "auth_material": [
+    "opaque_provider_resource_capability"
+   ],
+   "binding": "`PUT /v1/keys/bundles/{device}`",
+   "capability_fingerprint": "13234f59796c2ca565cb14f6a1e548d770e70b7b4a41e179184b73083161fbe4",
+   "kind": "routine_provider_admin",
+   "operation": "key bundle publish",
+   "payload_metadata": [
+    "stable_device_correlator"
+   ],
+   "provider": "keys-A",
+   "provider_role": "key_material_provider",
+   "resource_family": "key_publish",
+   "spec_auth": "`key_publish_cap`"
+  },
+  {
+   "auth_class": "key_publish_cap",
+   "auth_material": [
+    "opaque_provider_resource_capability"
+   ],
+   "binding": "`DELETE /v1/keys/bundles/{device}/generations/{generation}`",
+   "capability_fingerprint": "13234f59796c2ca565cb14f6a1e548d770e70b7b4a41e179184b73083161fbe4",
+   "kind": "routine_provider_admin",
+   "operation": "key generation revoke",
+   "payload_metadata": [
+    "stable_device_correlator"
+   ],
+   "provider": "keys-A",
+   "provider_role": "key_material_provider",
+   "resource_family": "key_publish",
+   "spec_auth": "`key_publish_cap`"
+  },
+  {
+   "auth_class": "recovery_record_write_cap",
+   "auth_material": [
+    "opaque_provider_resource_capability"
+   ],
+   "binding": "`PUT /v1/recovery/records/{opaque_locator}`",
+   "capability_fingerprint": "a14740fa3edd9b30f7d57a9609709e5ce0a7c69d1214ec2e490a04a036a45bf6",
+   "kind": "routine_provider_admin",
+   "operation": "RecoveryRecord put",
+   "payload_metadata": [],
+   "provider": "recovery-A",
+   "provider_role": "recovery_record_store",
+   "resource_family": "recovery_record_write",
+   "spec_auth": "`recovery_record_write_cap`"
+  },
+  {
+   "auth_class": "recovery_record_read_cap",
+   "auth_material": [
+    "opaque_provider_resource_capability"
+   ],
+   "binding": "`GET /v1/recovery/records/{opaque_locator}`",
+   "capability_fingerprint": "9712a15ed822b35ee7860750d5a37c724490e5384211f5a26997d1552bcda4b8",
+   "kind": "routine_provider_admin",
+   "operation": "RecoveryRecord get",
+   "payload_metadata": [],
+   "provider": "recovery-A",
+   "provider_role": "recovery_record_store",
+   "resource_family": "recovery_record_read",
+   "spec_auth": "`recovery_record_read_cap`"
+  },
+  {
+   "auth_class": "blob_repair_cap",
+   "auth_material": [
+    "opaque_provider_resource_capability"
+   ],
+   "binding": "`POST /v1/blobs/repair`",
+   "capability_fingerprint": "dd88a69a54d9f83d72cdad63f8e3514ea1f7d16b19640439880907947682aeb1",
+   "kind": "routine_provider_admin",
+   "operation": "blob location repair",
+   "payload_metadata": [],
+   "provider": "blob-A",
+   "provider_role": "blob_store",
+   "resource_family": "blob_repair",
+   "spec_auth": "`blob_repair_cap`/relationship policy"
+  },
+  {
+   "auth_class": "recovery_auth",
+   "auth_material": [
+    "signed_recovery_request"
+   ],
+   "binding": "`POST /v1/recovery/requests`",
+   "kind": "recovery_request_fanout",
+   "operation": "RecoveryRequest fan-out",
+   "provider": "home_relay_mailbox-A",
+   "provider_observations": [
+    "stable_account_id",
+    "recovery_attempt"
+   ],
+   "provider_role": "home_relay_mailbox",
+   "spec_auth": "`recovery_auth`"
+  },
+  {
+   "auth_class": "recovery_auth",
+   "auth_material": [
+    "signed_recovery_request"
+   ],
+   "binding": "`POST /v1/recovery/requests`",
+   "kind": "recovery_request_fanout",
+   "operation": "RecoveryRequest fan-out",
+   "provider": "t0_sponsored_mailbox-A",
+   "provider_observations": [
+    "stable_account_id",
+    "recovery_attempt"
+   ],
+   "provider_role": "t0_sponsored_mailbox",
+   "spec_auth": "`recovery_auth`"
+  },
+  {
+   "auth_class": "recovery_auth",
+   "auth_material": [
+    "signed_recovery_request"
+   ],
+   "binding": "`POST /v1/recovery/requests`",
+   "kind": "recovery_request_fanout",
+   "operation": "RecoveryRequest fan-out",
+   "provider": "t1_hosted_home-A",
+   "provider_observations": [
+    "stable_account_id",
+    "recovery_attempt"
+   ],
+   "provider_role": "t1_hosted_home",
+   "spec_auth": "`recovery_auth`"
+  }
+ ],
+ "violations": []
+}

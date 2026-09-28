@@ -22,6 +22,20 @@ Preferences and account-local state that should appear on multiple devices are s
 
 The settled architecture is an **account-private authenticated E2EE sync channel** carrying versioned sync records to currently eligible devices. It is separate from conversation delivery and from AccountControlState authority. The transport/storage realization may vary, but it cannot give a provider merge or authorization power and cannot turn settings/history sync into constitutional state.
 
+**ADR-0148 V1 minimum.** V1 uses this channel for unsent drafts plus an explicit non-authoritative preference allowlist: mute; personal archive/folder/label state; personal bookmarks/pins; topic/thread follow state; and ordinary per-profile appearance/theme selection. Drafts include text/caption and reply/thread/topic compose context. Raw OS file handles are never synchronized; an unsent attachment may be referenced only if its encrypted account-private/blob representation is already portable to the receiving device.
+
+Concurrent draft edits must not be silently lost to a single timestamp winner: preserve branches, merge deterministically, or surface a conflict until the resolved draft represents the content. Ordinary preferences use typed deterministic convergence. None of these records may send a message or mutate shared conversation/authority state merely because they merged.
+
+The account-private preference channel explicitly excludes AccountControlState/RecoveryPolicy, security floors, credentials, session/ratchet/MLS authority, provider capabilities/deployment credentials, push tokens/endpoints, DeviceVault/app-lock/recovery secrets, per-device notification privacy posture and the active-profile selector. Profile A records never merge into profile B. Revoked/ineligible devices receive no new sync records after revocation propagation.
+
+**ADR-0149 causal/restore hardening.** Every accepted record conceptually binds `profile_id`, origin DeviceID, authenticated origin ACS generation, a durable never-reused per-origin sequence, record type/version, stable item key, value-or-tombstone operation and causal context. The transport/codec may represent that context as a version vector/dotted vector or an independently equivalent form; provider arrival order is never merge authority. Receivers deduplicate without assuming in-order transport and re-check the best authenticated ACS they know before making a newly arrived record effective. Once a receiver knows an origin DeviceID is revoked/ineligible, a not-yet-accepted record from it cannot become newly effective merely because it claims earlier authorship.
+
+For one stable item key, a tombstone wins against a causally concurrent stale value; recreation requires a value whose causal context descends from the tombstone. Compaction may summarize payloads but retains sufficient causal/tombstone high-water state to prevent offline resurrection. Concurrent draft heads remain distinct until a resolution record explicitly binds every head it supersedes; timestamp ordering alone cannot authorize compaction.
+
+HLC is presentation/convergence assistance, not authority. A remote physical component more than the frozen default skew (300 s) ahead of local wall time is quarantined/not merged until it falls within the window or is superseded; it never advances a durable preference floor merely by being far in the future. Causal order and authenticated ACS generation precede HLC/device-id tie-breaking.
+
+Historical backup restore uses the existing fresh-DeviceID rule. Imported draft/preference material is tentative local state until current ACS and reachable sync state are reconciled and is never automatically republished under the fresh DeviceID. Explicit user recreation after reconciliation emits a fresh current-generation causal descendant.
+
 ## History transfer
 
 New device history access is distinct from permission to receive future messages. Existing device(s) may produce encrypted HistoryBundles/snapshots for the new device after explicit account authorization. Servers do not receive plaintext history.
@@ -43,7 +57,7 @@ Backup restore recreates local state and then performs protocol-supported reconc
 
 No architecture choice remains open in this section. The following details are deliberately owned by the named verification/implementation surfaces while preserving the boundaries above:
 
-- the exact account-private sync record transport/codec is an implementation choice behind the authenticated E2EE sync interface;
+- the exact account-private sync record transport/codec is an implementation choice behind the authenticated E2EE sync interface; ADR-0148 freezes the V1 record classes/boundaries above without inventing a second generic CRDT protocol;
 - the one-to-one per-device session-manager state machine is canonical in [`ONE_TO_ONE_SESSION_MANAGEMENT.md`](ONE_TO_ONE_SESSION_MANAGEMENT.md) and verified by `V-003`;
 - ordinary account-private preference conflicts may use typed record-specific convergence, but authority/security state may never use LWW/ordinary CRDT merge;
 - new-device bootstrap requires the explicit account-authorized enrollment ceremony and non-suppressible device-link notice;

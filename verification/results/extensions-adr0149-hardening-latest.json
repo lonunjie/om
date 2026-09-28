@@ -1,0 +1,30 @@
+{
+  "kind": "adr0149_extension_registry_hardening",
+  "design_evidence_only": true,
+  "structural": {
+    "om.voice-note.v1:registered": true,
+    "om.voice-note.v1:owner": true,
+    "om.voice-note.v1:criticality": true,
+    "om.voice-note.v1:schema_ref": true,
+    "om.voice-note.v1:cbor_mirror": true,
+    "om.location-card.v1:registered": true,
+    "om.location-card.v1:owner": true,
+    "om.location-card.v1:criticality": true,
+    "om.location-card.v1:schema_ref": true,
+    "om.location-card.v1:cbor_mirror": true,
+    "registry_rule_enforces_owner_criticality_schema": true,
+    "voice_payload_integer_keys": true,
+    "location_payload_integer_keys": true
+  },
+  "adversarial": {
+    "base_cross_impl_passes": true,
+    "all_required_vectors_present": true,
+    "cross_impl_all_vectors_agree": true,
+    "mismatched_nonempty_fallback_is_not_object_rejection": true,
+    "cross_object_misuse_is_object_rejection": true,
+    "wrong_criticality_is_object_rejection": true
+  },
+  "vector_count": 24,
+  "passed": true,
+  "note": "Registry tuple + independent Python/Node amended ADR-0148 vector evidence. Non-critical semantic mismatch ignores only the extension; object/criticality/schema violations fail the containing object."
+}

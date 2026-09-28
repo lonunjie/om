@@ -106,7 +106,7 @@ CDDL and registries, or with each other. This ADR records the decisions; the can
     named event extension (key 23) beside a W0-valid body, or under a new kind; a critical extension or a
     `required_capabilities` entry makes a W0 receiver show the unsupported-content placeholder. A sender emits a
     reserved later-wave encoding (for example inline type 4, `custom_emoji`) only when every recipient device
-    advertises it, and otherwise sends a W0-valid fallback. Voice-note presentation and List blocks are later-wave.
+    advertises it, and otherwise sends a W0-valid fallback. **ADR-0150 supersedes the earlier list-block deferral in this clause:** bounded ordered/unordered list presentation is now the optional non-critical `om.rich-list.v1` extension over W0-valid paragraph blocks, while the frozen W0 RichText grammar remains unchanged. ADR-0148 separately promotes voice-note presentation as the optional non-critical `om.voice-note.v1` extension beside a W0-valid audio attachment.
 19. **Safety references are honest and injective.** The labeler-scoped reference prevents enumeration by parties that
     do not already know the principal; it does not prevent linkage by those that do. Before W3, a DS-HASH construction
     over the CBOR array `[issuer_scope_id, principal_ref]` is registered under a new label and `OM-SAFETY-REF-v1`

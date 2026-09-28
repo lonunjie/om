@@ -26,7 +26,7 @@ OM Protocol / Commons
        |                               |
 User-owned deployments           Client distributions
   personal relay/IntroGate         reference PWA
-  personal discovery               native Android/iOS later
+  personal discovery               V1 Android/iOS/Desktop reference shells
   optional blob storage            third-party clients
   personal Web Push sender         enterprise clients
        |                               |
@@ -106,7 +106,7 @@ A future company may offer:
 - managed encrypted blob storage;
 - TURN/SFU capacity;
 - enterprise/domain directories;
-- managed push for a native distribution;
+- managed/replaceable push for a native distribution;
 - support/SLA/MDM/compliance tooling;
 - account migration assistance.
 

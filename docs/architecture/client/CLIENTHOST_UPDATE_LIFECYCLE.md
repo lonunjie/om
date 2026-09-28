@@ -26,13 +26,13 @@ Higher-assurance recovery uses an independent trusted path: a trusted native cli
 For supported self-host targets, OM should provide provider-native templates or declarative deployment tooling that can:
 
 1. discover signed release metadata, for the owner-pinned release root (below), from independent locations;
-2. verify allowed release/update root metadata outside the newly downloaded application bundle where practical;
+2. verify allowed release/update root metadata outside the newly downloaded application bundle where practical, including the exact authorized role/key-id/public-key/algorithm thresholds currently required by the owner-pinned root policy; algorithm tags alone never satisfy authority (ADR-0149);
 3. stage a new immutable build;
 4. atomically switch the ClientHost to that build;
 5. retain bounded rollback material;
 6. expose health/version status locally;
 7. preserve DeviceVault data only through the documented origin/security model;
-8. fail closed on invalid signatures/rollback metadata.
+8. fail closed on invalid signatures/rollback metadata, including stripping/downgrade after the pinned root policy has made an additional authorized key/algorithm/role requirement mandatory, wrong-role/unauthorized-key substitution, duplicate-key threshold counting, key-id algorithm substitution or skipped root-policy generations.
 
 Rules for every deployment controller (ADR-0129):
 
@@ -62,7 +62,7 @@ release-transparency log and monitor roles the controller and client rely on are
 [`SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md`](../providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md) §6.
 
 - release discovery/mirror rules;
-- signed metadata verification path;
+- signed metadata verification path, including algorithm-tagged multi-signature/root-policy activation semantics from ADR-0148;
 - provider-template update flow;
 - service-worker lifecycle;
 - rollback/freeze protection;

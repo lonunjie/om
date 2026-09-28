@@ -45,7 +45,7 @@ def evaluate(desc):
         for role,fields in per_role.items():
           if role not in desc: violations.append(f"{name}: role {role} has no descriptor"); continue
           observed_any[role]|=fields
-          for f in fields:
+          for f in sorted(fields):
             if desc[role].get(f,"no_by_design")=="no_by_design": violations.append(f"under-claim: {role} observes {f} in {name} ({home}, privacy={privacy})")
           # Descriptor frequency is scoped to the operation family that can carry the field.
           # RecoveryRequest fan-out is a control-plane operation, not a 1:1 message envelope;

@@ -1,0 +1,32 @@
+{
+  "kind": "adr0150_rich_list_cross_impl",
+  "design_evidence_only": true,
+  "gates": [
+    "V-005"
+  ],
+  "vector_count": 34,
+  "python_node_agreement": 34,
+  "structural": {
+    "registered": true,
+    "owner": true,
+    "criticality": true,
+    "schema_ref": true,
+    "structs_present": true,
+    "cbor_registry_mirror": true
+  },
+  "semantic": {
+    "all_python_node_agree": true,
+    "max_256_accepts": true,
+    "257_schema_rejects": true,
+    "depth4_schema_rejects": true,
+    "ordinal10000_schema_rejects": true,
+    "duplicate_reference_ignores_whole_extension": true,
+    "depth_transition_ignores_whole_extension": true,
+    "fallback_mismatch_ignores_whole_extension": true,
+    "ordered_ordinal_semantic_mismatch_ignored": true,
+    "w0_fallback_preserved_for_semantic_ignores": true
+  },
+  "mismatches": [],
+  "passed": true,
+  "note": "Schema/object/criticality violations reject the registered object; schema-valid presentation/reference/fallback mismatches ignore the entire non-critical list enhancement and preserve W0 RichText."
+}

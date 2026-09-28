@@ -336,7 +336,10 @@ def cmd_check_manifest(a) -> int:
         manifest = load_manifest(git_bytes_or_worktree(sha, MANIFEST_PATH).decode())
         exists = lambda p: p in tree  # noqa: E731
     else:
-        tree = [p for p in git("ls-files", "-co", "--exclude-standard").splitlines() if (ROOT / p).is_file()]
+        # Working-tree mode is intentionally Git-independent so an exported design-drop ZIP can
+        # validate its continuity manifest before it has been imported into a repository.
+        tree = [p.relative_to(ROOT).as_posix() for base in (ROOT / "docs/architecture", ROOT / "docs/constitution")
+                if base.is_dir() for p in base.rglob("*.md") if p.is_file()]
         manifest = load_manifest((ROOT / MANIFEST_PATH).read_text())
         exists = lambda p: (ROOT / p).is_file()  # noqa: E731
 

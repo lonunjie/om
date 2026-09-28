@@ -143,7 +143,7 @@ Backups may contain:
 - local contact labels/preferences where configured;
 - historical control-state records for audit/context.
 
-Backups MUST NOT make old control state authoritative.
+Backups MUST NOT make old control state authoritative. They also MUST NOT restore live MessageRequest bootstrap transport state: request-scoped reply private keys, `OPEN`/`RESERVED` request/candidate state and `COMPLETE_REPLAY_ONLY` tombstones from a historical backup are inert. A still-needed first-contact attempt is re-issued with fresh request/reply key material and route context (ADR-0147).
 
 Restore sequence:
 
@@ -344,8 +344,8 @@ Normative, from the V-series models. The ADR is authoritative where this summary
 
 For a recovery action with no current non-quarantined controller co-signature, the activation delay is **verifier
 local**. Each verifier durably records the first valid observation of the RecoveryRequest digest and waits the full
-RecoveryPolicy delay using monotonic elapsed time. A verifier that was offline or partitioned starts its own interval
-when it first sees the request. Home receipt timestamps, request wall clocks and custodian assertions are never time
+RecoveryPolicy delay using the crash-safe monotonic elapsed-time lower-bound rule in ADR-0147. A verifier that was offline or partitioned starts its own interval
+when it first sees the request. Across reboot, only durably checkpointed monotonic runtime counts; unmeasured downtime and wall-clock jumps never shorten the interval, and missing/rolled-back timer state restarts or otherwise conservatively lengthens the delay. Home receipt timestamps, request wall clocks and custodian assertions are never time
 authority. Any valid RecoveryVeto observed before local activation prevents acceptance.
 
 This deliberately makes a long-partitioned verifier slower to accept recovery. The trade is constitutional: a

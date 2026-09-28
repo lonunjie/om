@@ -138,7 +138,7 @@ PQ migration primarily changes public-key/KEM/signature assumptions. Strong symm
 
 ## Update/release signatures
 
-Official client update metadata should eventually support hybrid/classical+PQ verification so a future quantum break of a legacy signing algorithm does not become a software-supply-chain break. Release-key migration needs the same continuity/downgrade discipline as user credentials.
+V1 client update metadata is algorithm-agile and can carry multiple algorithm-tagged signatures under the owner-pinned release-root policy (ADR-0148). ADR-0149 makes the acceptance unit explicit: metadata role + authorized key ID/public key + algorithm + root-policy generation + exact canonical metadata bytes. Thresholds count distinct authorized keys, never algorithm tags or duplicate signatures; root versions transition sequentially under old-root and new-root threshold checks. A maintained reference distribution should add an ML-DSA-65 co-signature for long-lived root/release/targets metadata once a reviewed implementation is suitable; the co-signature remains optional until an authenticated root-policy transition makes its authorized role/key/algorithm contribution required. Required-signature stripping, algorithm/key/role substitution, rollback and release-key migration use the same continuity/fail-closed discipline as user credentials.
 
 ## Required tests
 
