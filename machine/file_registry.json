@@ -4,6 +4,13 @@
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
     {
+      "path": ".github/workflows/verify.yml",
+      "class": "repo_plumbing",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
       "path": ".gitignore",
       "class": "repo_plumbing",
       "domain": "architecture_process",
