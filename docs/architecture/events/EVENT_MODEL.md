@@ -417,6 +417,7 @@ Rules:
 3. Extensions cannot silently gain identity, crypto, storage, or device-authority privileges.
 4. Extension data counts against normal resource limits.
 5. A widely adopted extension may later become a standardized OM capability without changing old events.
+6. A non-critical extension never decides whether the event is valid. Once registered, a malformed or misplaced non-critical payload is ignored exactly as an unknown one would be; only a wire-criticality mismatch or a critical extension can reject the event (ADR-0155). Presentation extensions bind to the RichText they were validated against and never carry across a `message.edit`.
 
 Namespace recommendation:
 

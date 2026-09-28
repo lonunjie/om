@@ -40,12 +40,12 @@ def main():
       'all_required_vectors_present':all(x in ids for x in required_ids),
       'cross_impl_all_vectors_agree':base.get('python_node_agreement')==len(vectors),
       'mismatched_nonempty_fallback_is_not_object_rejection':ids['location-mismatched-nonempty-fallback']['expected_verdict']=='ignore_extension',
-      'cross_object_misuse_is_object_rejection':all(ids[x]['expected_verdict']=='reject_object' for x in ['voice-wrong-object','location-wrong-object']),
+      'cross_object_misuse_ignores_extension_not_object':all(ids[x]['expected_verdict']=='ignore_extension' for x in ['voice-wrong-object','location-wrong-object']),
       'wrong_criticality_is_object_rejection':all(ids[x]['expected_verdict']=='reject_object' for x in ['voice-critical-forbidden','location-critical-forbidden']),
     }
     passed=all(structural.values()) and all(adversarial.values())
     out={'kind':'adr0149_extension_registry_hardening','design_evidence_only':True,'structural':structural,'adversarial':adversarial,
          'vector_count':len(vectors),'passed':passed,
-         'note':'Registry tuple + independent Python/Node amended ADR-0148 vector evidence. Non-critical semantic mismatch ignores only the extension; object/criticality/schema violations fail the containing object.'}
+         'note':'Registry tuple + independent Python/Node amended ADR-0148 vector evidence. Under ADR-0155 a wire-criticality mismatch fails the containing object, while object/schema/semantic failures of these non-critical registrations ignore only the extension.'}
     OUT.write_text(json.dumps(out,indent=2)+'\n');print(json.dumps(out,indent=2));return 0 if passed else 1
 if __name__=='__main__':raise SystemExit(main())

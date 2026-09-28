@@ -21,10 +21,10 @@
     "all_required_vectors_present": true,
     "cross_impl_all_vectors_agree": true,
     "mismatched_nonempty_fallback_is_not_object_rejection": true,
-    "cross_object_misuse_is_object_rejection": true,
+    "cross_object_misuse_ignores_extension_not_object": true,
     "wrong_criticality_is_object_rejection": true
   },
-  "vector_count": 24,
+  "vector_count": 29,
   "passed": true,
-  "note": "Registry tuple + independent Python/Node amended ADR-0148 vector evidence. Non-critical semantic mismatch ignores only the extension; object/criticality/schema violations fail the containing object."
+  "note": "Registry tuple + independent Python/Node amended ADR-0148 vector evidence. Under ADR-0155 a wire-criticality mismatch fails the containing object, while object/schema/semantic failures of these non-critical registrations ignore only the extension."
 }

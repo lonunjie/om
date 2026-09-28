@@ -2198,6 +2198,12 @@
       "verified_by": [
         "V-002"
       ]
+    },
+    {
+      "requirement": "R-341",
+      "verified_by": [
+        "V-005"
+      ]
     }
   ]
 }

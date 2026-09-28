@@ -1,9 +1,9 @@
 {
   "kind": "design_closure_set2",
   "design_only": true,
-  "requirements": 330,
-  "threats": 121,
-  "decisions": 175,
+  "requirements": 332,
+  "threats": 123,
+  "decisions": 177,
   "design_queue_items": 43,
   "security_invariants": 36,
   "checks": [
@@ -14,20 +14,20 @@
     },
     {
       "name": "requirement_traceability",
-      "requirements": 330,
-      "rows": 330,
+      "requirements": 332,
+      "rows": 332,
       "missing": 0,
       "duplicates": 0
     },
     {
       "name": "threat_traceability",
-      "threats": 121,
+      "threats": 123,
       "problems": 0
     },
     {
       "name": "decision_adr_index",
-      "decisions": 175,
-      "indexed_adrs": 153,
+      "decisions": 177,
+      "indexed_adrs": 155,
       "problems": 0
     },
     {

@@ -211,9 +211,12 @@ function checkType(x, ty, parent, pfields) {
       const reg = EXT_SCHEMA.get(k.v);
       if (reg) {
         if (crit.v !== reg.critical) fail('value_range');
-        const val = get(e, 1);
-        if (val === undefined) fail('missing_field');
-        checkStruct(val, reg.ref, null);
+        // ADR-0155: only critical registrations make payload schema decide object validity.
+        if (reg.critical) {
+          const val = get(e, 1);
+          if (val === undefined) fail('missing_field');
+          checkStruct(val, reg.ref, null);
+        }
       }
     }
     return;

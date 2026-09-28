@@ -1511,7 +1511,7 @@
     "payload_extra": {},
     "missing_items": false,
     "item_extra": {},
-    "expected_verdict": "reject_object",
+    "expected_verdict": "ignore_extension",
     "expected_error": "wrong_extension_object"
   },
   {
@@ -1553,7 +1553,7 @@
     },
     "missing_items": false,
     "item_extra": {},
-    "expected_verdict": "reject_object",
+    "expected_verdict": "ignore_extension",
     "expected_error": "unknown_field"
   },
   {
@@ -1573,7 +1573,7 @@
     "payload_extra": {},
     "missing_items": true,
     "item_extra": {},
-    "expected_verdict": "reject_object",
+    "expected_verdict": "ignore_extension",
     "expected_error": "missing_field"
   },
   {
@@ -1587,7 +1587,7 @@
     "payload_extra": {},
     "missing_items": false,
     "item_extra": {},
-    "expected_verdict": "reject_object",
+    "expected_verdict": "ignore_extension",
     "expected_error": "item_count_schema"
   },
   {
@@ -2887,7 +2887,7 @@
     "payload_extra": {},
     "missing_items": false,
     "item_extra": {},
-    "expected_verdict": "reject_object",
+    "expected_verdict": "ignore_extension",
     "expected_error": "item_count_schema"
   },
   {
@@ -2907,7 +2907,7 @@
     "payload_extra": {},
     "missing_items": false,
     "item_extra": {},
-    "expected_verdict": "reject_object",
+    "expected_verdict": "ignore_extension",
     "expected_error": "block_index_schema"
   },
   {
@@ -2927,7 +2927,7 @@
     "payload_extra": {},
     "missing_items": false,
     "item_extra": {},
-    "expected_verdict": "reject_object",
+    "expected_verdict": "ignore_extension",
     "expected_error": "depth_schema"
   },
   {
@@ -2947,7 +2947,7 @@
     "payload_extra": {},
     "missing_items": false,
     "item_extra": {},
-    "expected_verdict": "reject_object",
+    "expected_verdict": "ignore_extension",
     "expected_error": "style_schema"
   },
   {
@@ -2968,7 +2968,7 @@
     "payload_extra": {},
     "missing_items": false,
     "item_extra": {},
-    "expected_verdict": "reject_object",
+    "expected_verdict": "ignore_extension",
     "expected_error": "ordinal_schema"
   },
   {
@@ -2989,7 +2989,7 @@
     "payload_extra": {},
     "missing_items": false,
     "item_extra": {},
-    "expected_verdict": "reject_object",
+    "expected_verdict": "ignore_extension",
     "expected_error": "ordinal_schema"
   },
   {
@@ -3011,7 +3011,7 @@
     "item_extra": {
       "7": 1
     },
-    "expected_verdict": "reject_object",
+    "expected_verdict": "ignore_extension",
     "expected_error": "unknown_field"
   },
   {
@@ -3319,5 +3319,27 @@
     "item_extra": {},
     "expected_verdict": "ignore_extension",
     "expected_error": "fallback_prefix"
+  },
+  {
+    "id": "create-annotations-over-edit-text",
+    "owning_object": "ConversationEvent",
+    "critical": false,
+    "event_kind": "message.create",
+    "items": [
+      {
+        "block_index": 0,
+        "depth": 0,
+        "style": 2,
+        "ordinal": 9
+      }
+    ],
+    "block_count": 1,
+    "block_overrides": {},
+    "payload_extra": {},
+    "missing_items": false,
+    "item_extra": {},
+    "expected_verdict": "ignore_extension",
+    "expected_error": "annotation_not_for_rendered_text",
+    "rendered_event": "winning message.edit replacement"
   }
 ]

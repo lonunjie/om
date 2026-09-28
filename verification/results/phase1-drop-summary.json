@@ -1,8 +1,6 @@
 {
   "phase1_passed": true,
   "profile": "drop",
-  "execution_mode": "bounded_batches_after_monolithic_wrapper_timeout",
-  "monolithic_attempt": "producers 1-18 passed; execution wrapper timed out while starting producer 19; all 43 producers independently passed in bounded batches",
   "gate_status_effect": "evidence_only_no_gate_automatically_passed",
   "bounded_cases": 347316,
   "vendor_block_surviving_fraction": {
@@ -124,6 +122,10 @@
     },
     {
       "script": "verification/bounded/recovery_durable_timer_adr0147.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/recovery_timer_adr0154.py",
       "returncode": 0
     },
     {

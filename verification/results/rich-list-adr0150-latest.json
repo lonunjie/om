@@ -4,8 +4,8 @@
   "gates": [
     "V-005"
   ],
-  "vector_count": 34,
-  "python_node_agreement": 34,
+  "vector_count": 35,
+  "python_node_agreement": 35,
   "structural": {
     "registered": true,
     "owner": true,
@@ -17,9 +17,11 @@
   "semantic": {
     "all_python_node_agree": true,
     "max_256_accepts": true,
-    "257_schema_rejects": true,
-    "depth4_schema_rejects": true,
-    "ordinal10000_schema_rejects": true,
+    "257_schema_ignored_not_rejected": true,
+    "depth4_schema_ignored_not_rejected": true,
+    "ordinal10000_schema_ignored_not_rejected": true,
+    "wrong_criticality_rejects_object": true,
+    "create_annotations_never_apply_to_edit_text": true,
     "duplicate_reference_ignores_whole_extension": true,
     "depth_transition_ignores_whole_extension": true,
     "fallback_mismatch_ignores_whole_extension": true,
@@ -28,5 +30,5 @@
   },
   "mismatches": [],
   "passed": true,
-  "note": "Schema/object/criticality violations reject the registered object; schema-valid presentation/reference/fallback mismatches ignore the entire non-critical list enhancement and preserve W0 RichText."
+  "note": "ADR-0155: wire-criticality mismatch rejects the object; object/schema/reference/nesting/fallback failures and annotations evaluated against another event text ignore the entire non-critical list enhancement and preserve W0 RichText."
 }

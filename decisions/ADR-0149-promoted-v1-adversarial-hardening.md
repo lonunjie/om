@@ -4,6 +4,7 @@
 - **Date:** 2026-09-28
 - **Scope:** Run 7A normative hardening of the five ADR-0148 V1 promotions; executable/conformance evidence deferred to Run 7B
 - **Amends:** ADR-0148 V1 product-base promotion
+- **Amended by:** ADR-0155 (non-critical registered extensions: object/schema failures ignore the extension instead of rejecting the object; location card create-only, single-point fallback and edit suppression)
 - **Does not amend:** OM-Crypto-v1, AccountControlState authority, the frozen W0 ConversationEvent body grammar, MLS/group security, IntroGate, relay authority, or provider trust semantics
 
 ## Context

@@ -3696,7 +3696,7 @@
       ],
       "semantic_rules": [
         "after registered payload schema validation, any invalid reference/order/nesting/ordinal-presence/fallback semantic check invalidates/ignores the whole non-critical rich-list interpretation; base W0 RichText remains valid",
-        "registered object/criticality/payload-schema violations are malformed and reject the containing object per ADR-0149/ADR-0151"
+        "a wire-criticality mismatch rejects the containing object; any other registered object/payload-schema violation makes the whole non-critical enhancement unusable and leaves the event valid (ADR-0155, amending ADR-0149/ADR-0151); annotations never apply to another event's RichText"
       ]
     }
   },
@@ -3732,7 +3732,7 @@
       },
       "wave": "W0",
       "adr": "ADR-0148; ADR-0149",
-      "note": "non-critical V1 presentation metadata; object/criticality/schema are registry-bound; attachment_index refers to the immutable message.create attachment list"
+      "note": "non-critical V1 presentation metadata; object/criticality/schema are registry-bound; attachment_index refers to the immutable message.create attachment list; ADR-0155: meaningful only on message.create; schema failures ignore the extension, never the event"
     },
     {
       "name": "om.location-card.v1",
@@ -3743,7 +3743,7 @@
       },
       "wave": "W0",
       "adr": "ADR-0148; ADR-0149",
-      "note": "non-critical one-shot static point; signed E7 coordinates use unsigned offsets; RichText must carry the exact canonical geo: fallback token per ADR-0149"
+      "note": "non-critical one-shot static point; signed E7 coordinates use unsigned offsets; RichText must carry the exact canonical geo: fallback token per ADR-0149; ADR-0155: meaningful only on message.create, fallback must name exactly one canonical point, card suppressed once an edit's materialized text fails the token check"
     },
     {
       "name": "om.rich-list.v1",
@@ -3754,7 +3754,7 @@
       },
       "wave": "W0",
       "adr": "ADR-0150; ADR-0151",
-      "note": "non-critical V1 list presentation over existing paragraph blocks; registered schema violations reject the containing object, while schema-valid reference/nesting/fallback semantic failures ignore the whole enhancement; no W0 RichText block-type change"
+      "note": "non-critical V1 list presentation over existing paragraph blocks; a wire-criticality mismatch rejects the containing object, while registered-schema violations and reference/nesting/fallback semantic failures ignore the whole enhancement (ADR-0155); annotations bind only to the carrying event's RichText; no W0 RichText block-type change"
     }
   ]
 }

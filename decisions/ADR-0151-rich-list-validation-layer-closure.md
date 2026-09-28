@@ -4,6 +4,7 @@
 - **Date:** 2026-09-28
 - **Scope:** Run 8B evidence-driven clarification of ADR-0150 `om.rich-list.v1`
 - **Builds on:** ADR-0149 registered-extension strictness; ADR-0150 rich-list promotion
+- **Amended by:** ADR-0155 — layer 1 no longer rejects the containing object for this non-critical registration: only a wire-criticality mismatch rejects; every other registered-schema failure ignores the enhancement
 - **Does not change:** W0 RichText/Event body grammar, valid `om.rich-list.v1` wire encodings, extension criticality, item/depth/ordinal V1 limits, or any protocol authority
 
 ## Context

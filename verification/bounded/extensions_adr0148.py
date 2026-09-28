@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ADR-0148 presentation-extension vectors, amended by ADR-0149.
+"""ADR-0148 presentation-extension vectors, amended by ADR-0149 and ADR-0155.
 
 Independent Python/Node agreement is preserved while current canonical semantics use
 integer-key payloads, registry-bound object/criticality, and deterministic geo fallback.
@@ -50,39 +50,51 @@ def contains_token(text:str,token:str)->bool:
     # ASCII token boundary: do not accept the required point merely as a prefix of a different coordinate.
     return re.search(r'(?<![A-Za-z0-9_.+-])'+re.escape(token)+r'(?![0-9.])',text) is not None
 
+GEO_RE=re.compile(r'(?<![A-Za-z0-9_.+-])geo:-?[0-9]+\.[0-9]{7},-?[0-9]+\.[0-9]{7}(?![0-9.])')
+
+def canonical_tokens(text:str)->set:
+    # ADR-0155: every other canonical-form geo token in the fallback must name the same point.
+    return set(GEO_RE.findall(text))
+
 def validate(raw):
     v=expand(raw); eid=v['extension_id']; critical=v['critical']; owner=v.get('owning_object'); c=v.get('context',{})
     if eid not in REG:
         return ('reject_object','unknown_critical_extension') if critical else ('accept_ignored',None)
     expected_owner,expected_critical=REG[eid]
-    if owner!=expected_owner:return 'reject_object','wrong_extension_object'
+    # ADR-0155: wire criticality is checked first; for a non-critical registration every other
+    # schema-layer failure makes the extension unusable instead of rejecting the containing object.
     if critical!=expected_critical:return 'reject_object','criticality_mismatch'
+    if owner!=expected_owner:return 'ignore_extension','wrong_extension_object'
     p=mapdict(v.get('payload'))
-    if p is None:return 'reject_object','wrong_type'
+    if p is None:return 'ignore_extension','wrong_type'
     if eid=='om.voice-note.v1':
-        if set(p)-{0,1}:return 'reject_object','unknown_field'
-        if 0 not in p:return 'reject_object','missing_field'
+        if set(p)-{0,1}:return 'ignore_extension','unknown_field'
+        if 0 not in p:return 'ignore_extension','missing_field'
         i=p[0]
-        if not isinstance(i,int) or isinstance(i,bool) or not 0<=i<=31:return 'reject_object','attachment_index_schema'
+        if not isinstance(i,int) or isinstance(i,bool) or not 0<=i<=31:return 'ignore_extension','attachment_index_schema'
         if 1 in p:
             n=blen(p[1])
-            if n is None or not 16<=n<=256:return 'reject_object','waveform_bounds'
+            if n is None or not 16<=n<=256:return 'ignore_extension','waveform_bounds'
+        if c.get('event_kind','message.create')!='message.create':return 'ignore_extension','event_kind'
         aa=c.get('attachments',[])
         if i>=len(aa):return 'ignore_extension','attachment_index'
         a=aa[i]
         if not isinstance(a.get('media_type'),str) or not a['media_type'].startswith('audio/'):return 'ignore_extension','audio_attachment'
         if not isinstance(a.get('duration_ms'),int) or isinstance(a.get('duration_ms'),bool) or a['duration_ms']<0:return 'ignore_extension','duration_ms'
         return 'accept_extension',None
-    if set(p)-{0,1,2,3}:return 'reject_object','unknown_field'
-    if 0 not in p or 1 not in p:return 'reject_object','missing_field'
+    if set(p)-{0,1,2,3}:return 'ignore_extension','unknown_field'
+    if 0 not in p or 1 not in p:return 'ignore_extension','missing_field'
     lat_off,lon_off=p[0],p[1]
-    if not isinstance(lat_off,int) or isinstance(lat_off,bool) or not 0<=lat_off<=1_800_000_000:return 'reject_object','lat_bounds'
-    if not isinstance(lon_off,int) or isinstance(lon_off,bool) or not 0<=lon_off<=3_600_000_000:return 'reject_object','lon_bounds'
-    if 2 in p and (not isinstance(p[2],int) or isinstance(p[2],bool) or not 1<=p[2]<=1_000_000):return 'reject_object','accuracy_bounds'
-    if 3 in p and (not isinstance(p[3],str) or not 1<=len(p[3].encode())<=256):return 'reject_object','label_bounds'
+    if not isinstance(lat_off,int) or isinstance(lat_off,bool) or not 0<=lat_off<=1_800_000_000:return 'ignore_extension','lat_bounds'
+    if not isinstance(lon_off,int) or isinstance(lon_off,bool) or not 0<=lon_off<=3_600_000_000:return 'ignore_extension','lon_bounds'
+    if 2 in p and (not isinstance(p[2],int) or isinstance(p[2],bool) or not 1<=p[2]<=1_000_000):return 'ignore_extension','accuracy_bounds'
+    if 3 in p and (not isinstance(p[3],str) or not 1<=len(p[3].encode())<=256):return 'ignore_extension','label_bounds'
     lat,lon=lat_off-900_000_000,lon_off-1_800_000_000
+    if c.get('event_kind','message.create')!='message.create':return 'ignore_extension','event_kind'
     fb=c.get('fallback')
-    if not isinstance(fb,str) or not contains_token(fb,geo_token(lat,lon)):return 'ignore_extension','fallback_mismatch'
+    tok=geo_token(lat,lon)
+    if not isinstance(fb,str) or not contains_token(fb,tok):return 'ignore_extension','fallback_mismatch'
+    if any(x!=tok for x in canonical_tokens(fb)):return 'ignore_extension','fallback_ambiguous'
     return 'accept_extension',None
 
 def main():
@@ -100,7 +112,12 @@ def main():
     semantics={
       'integer_key_payloads': all(set(x['payload'])=={'$map'} for x in vectors),
       'mismatched_nonempty_location_fallback_ignored': py['location-mismatched-nonempty-fallback']['verdict']=='ignore_extension',
-      'wrong_object_rejected': py['voice-wrong-object']['verdict']=='reject_object' and py['location-wrong-object']['verdict']=='reject_object',
+      'wrong_object_ignored_not_rejected': py['voice-wrong-object']['verdict']=='ignore_extension' and py['location-wrong-object']['verdict']=='ignore_extension',
+      'schema_violation_ignored_not_rejected': all(py[k]['verdict']=='ignore_extension' for k in ['voice-waveform-too-short','voice-unknown-payload-key','location-lat-over','location-label-empty']),
+      'conflicting_geo_token_ignored': py['location-conflicting-second-token']['error']=='fallback_ambiguous',
+      'repeated_same_geo_token_accepted': py['location-repeated-same-token']['verdict']=='accept_extension',
+      'create_only_extensions_ignored_on_edit': py['voice-on-edit-event']['error']=='event_kind' and py['location-on-edit-event']['error']=='event_kind',
+      'card_suppressed_after_edit_removes_token': py['location-after-edit-token-removed']['error']=='fallback_mismatch',
       'wrong_criticality_rejected': py['voice-critical-forbidden']['verdict']=='reject_object' and py['location-critical-forbidden']['verdict']=='reject_object',
       'unknown_noncritical_ignored': py['unknown-noncritical']['verdict']=='accept_ignored',
     }
@@ -108,6 +125,6 @@ def main():
     out={'kind':'adr0148_v1_extension_vectors_amended_adr0149','vector_count':len(vectors),
          'python_node_agreement':len(vectors)-sum(x.endswith(':python_node') for x in mismatches),
          'semantics':semantics,'mismatches':mismatches,'passed':passed,
-         'note':'ADR-0148 vectors amended by ADR-0149: registered payloads are integer-keyed; semantic cross-reference/fallback failures ignore the non-critical extension while schema/object/criticality violations reject the object.'}
+         'note':'ADR-0148 vectors amended by ADR-0149 and ADR-0155: registered payloads are integer-keyed; a wire-criticality mismatch rejects the object, while object/schema/semantic/fallback failures of these non-critical extensions ignore the extension and leave the W0 event valid.'}
     OUT.write_text(json.dumps(out,indent=2)+'\n');print(json.dumps(out,indent=2));return 0 if passed else 1
 if __name__=='__main__':raise SystemExit(main())

@@ -487,7 +487,11 @@ impl<'a> Cx<'a> {
                         if e.get(0) != Some(&Value::Bool(*crit)) {
                             return Err("value_range");
                         }
-                        self.strukt(e.get(1).ok_or("missing_field")?, s, None)?;
+                        if *crit {
+                            self.strukt(e.get(1).ok_or("missing_field")?, s, None)?;
+                        }
+                        // ADR-0155: a schema-invalid non-critical registered extension is unusable
+                        // presentation metadata; it never decides the containing object's validity.
                     }
                 }
                 Ok(())

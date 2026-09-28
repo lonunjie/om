@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """ADR-0150 V-005 two-implementation rich-list extension evidence.
 
-Registered-schema failures reject the containing object per ADR-0149. Schema-valid but unusable
-presentation semantics ignore the entire non-critical rich-list extension and leave W0 RichText intact.
+ADR-0155: a wire-criticality mismatch rejects the containing object; every other registered-schema or
+presentation-semantic failure ignores the entire non-critical rich-list extension and leaves W0 RichText intact.
 """
 from __future__ import annotations
 from pathlib import Path
@@ -31,25 +31,28 @@ def block(v,idx,it):
     o=v.get('block_overrides',{}).get(str(idx))
     return o if o is not None else {'kind':'paragraph','text':prefix(it)+f'item {idx}','marked':False}
 def schema(v):
-    if v['owning_object']!='ConversationEvent':return 'reject_object','wrong_extension_object'
+    # ADR-0155: wire criticality first (reject); every other registered-schema failure of this
+    # non-critical registration ignores the enhancement and leaves the W0 event valid.
     if v['critical'] is not False:return 'reject_object','criticality_mismatch'
-    if v.get('payload_extra'):return 'reject_object','unknown_field'
-    if v.get('missing_items'):return 'reject_object','missing_field'
-    if not isinstance(v['items'],list) or not 1<=len(v['items'])<=256:return 'reject_object','item_count_schema'
+    if v['owning_object']!='ConversationEvent':return 'ignore_extension','wrong_extension_object'
+    if v.get('payload_extra'):return 'ignore_extension','unknown_field'
+    if v.get('missing_items'):return 'ignore_extension','missing_field'
+    if not isinstance(v['items'],list) or not 1<=len(v['items'])<=256:return 'ignore_extension','item_count_schema'
     for it in v['items']:
-        if v.get('item_extra'):return 'reject_object','unknown_field'
+        if v.get('item_extra'):return 'ignore_extension','unknown_field'
         x=it.get('block_index'); d=it.get('depth'); s=it.get('style')
-        if not isinstance(x,int) or isinstance(x,bool) or not 0<=x<=4095:return 'reject_object','block_index_schema'
-        if not isinstance(d,int) or isinstance(d,bool) or not 0<=d<=3:return 'reject_object','depth_schema'
-        if not isinstance(s,int) or isinstance(s,bool) or s not in {1,2}:return 'reject_object','style_schema'
+        if not isinstance(x,int) or isinstance(x,bool) or not 0<=x<=4095:return 'ignore_extension','block_index_schema'
+        if not isinstance(d,int) or isinstance(d,bool) or not 0<=d<=3:return 'ignore_extension','depth_schema'
+        if not isinstance(s,int) or isinstance(s,bool) or s not in {1,2}:return 'ignore_extension','style_schema'
         if 'ordinal' in it:
             o=it['ordinal']
-            if not isinstance(o,int) or isinstance(o,bool) or not 1<=o<=9999:return 'reject_object','ordinal_schema'
+            if not isinstance(o,int) or isinstance(o,bool) or not 1<=o<=9999:return 'ignore_extension','ordinal_schema'
     return None
 def validate(v):
     s=schema(v)
     if s:return s
     if v['event_kind'] not in {'message.create','message.edit'}:return 'ignore_extension','event_kind'
+    if v.get('rendered_event','self')!='self':return 'ignore_extension','annotation_not_for_rendered_text'
     last=None
     for i,it in enumerate(v['items']):
         if last is not None and it['block_index']<=last:return 'ignore_extension','block_index_order'
@@ -87,9 +90,11 @@ def main()->int:
     semantic={
       'all_python_node_agree':len(mismatches)==0,
       'max_256_accepts':py['max-item-count']['verdict']=='accept_extension',
-      '257_schema_rejects':py['too-many-items']['verdict']=='reject_object',
-      'depth4_schema_rejects':py['depth-schema-high']['verdict']=='reject_object',
-      'ordinal10000_schema_rejects':py['ordinal-schema-high']['verdict']=='reject_object',
+      '257_schema_ignored_not_rejected':py['too-many-items']['verdict']=='ignore_extension',
+      'depth4_schema_ignored_not_rejected':py['depth-schema-high']['verdict']=='ignore_extension',
+      'ordinal10000_schema_ignored_not_rejected':py['ordinal-schema-high']['verdict']=='ignore_extension',
+      'wrong_criticality_rejects_object':py['wrong-criticality']['verdict']=='reject_object',
+      'create_annotations_never_apply_to_edit_text':py['create-annotations-over-edit-text']['error']=='annotation_not_for_rendered_text',
       'duplicate_reference_ignores_whole_extension':py['duplicate-block-index']['verdict']=='ignore_extension',
       'depth_transition_ignores_whole_extension':py['depth-jump']['verdict']=='ignore_extension',
       'fallback_mismatch_ignores_whole_extension':py['fallback-mismatch']['verdict']=='ignore_extension',
@@ -98,6 +103,6 @@ def main()->int:
     }
     passed=not mismatches and all(structural.values()) and all(semantic.values())
     out={'kind':'adr0150_rich_list_cross_impl','design_evidence_only':True,'gates':['V-005'],'vector_count':len(vectors),'python_node_agreement':len(vectors)-sum(x.endswith(':python_node') for x in mismatches),'structural':structural,'semantic':semantic,'mismatches':mismatches,'passed':passed,
-         'note':'Schema/object/criticality violations reject the registered object; schema-valid presentation/reference/fallback mismatches ignore the entire non-critical list enhancement and preserve W0 RichText.'}
+         'note':'ADR-0155: wire-criticality mismatch rejects the object; object/schema/reference/nesting/fallback failures and annotations evaluated against another event text ignore the entire non-critical list enhancement and preserve W0 RichText.'}
     OUT.write_text(json.dumps(out,indent=2)+'\n');print(json.dumps(out,indent=2));return 0 if passed else 1
 if __name__=='__main__':raise SystemExit(main())
