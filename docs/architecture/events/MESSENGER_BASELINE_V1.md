@@ -177,6 +177,7 @@ ADR-0156 fixes the details:
 2. At send time the item becomes an ordinary new `message.create`. EventClock, sending epoch, authorization and `expiry` are taken at actual send time, never backdated to compose or due time.
 3. If the device was not running at the due time, the item goes out at the next opportunity and the sender's UI marks it "sent late". Recipients see an ordinary message.
 4. If the device or profile loses eligibility first (device revoked, profile removed, left or removed from the room, relationship ended or blocked), the item is discarded with a local notice and never migrated to another device.
+5. The queued item is **compose intent, not precomputed protocol output** (ADR-0157). Before actual send it does not persist a signed future ConversationEvent, Double-Ratchet/MLS ciphertext, SealedDeliveryEnvelope, frozen recipient-device fanout/group epoch or provider deposit wrapper. At actual send the client re-resolves current relationship/group state, eligible devices/routes and cryptographic epoch, then constructs/encrypts/fans out normally. Staged attachment bytes may remain locally protected, but authorization/expiry/recipient visibility are rechecked before upload or delivery.
 
 No relay/provider gets a special “send this plaintext later” privilege. If users later want guaranteed cloud scheduling while all devices are offline, that becomes an explicit optional service with a visible trust model.
 

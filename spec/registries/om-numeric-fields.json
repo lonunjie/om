@@ -8,7 +8,8 @@
     "Optional fields are ABSENT when unused. CBOR null is never a valid value of a typed field (error null_forbidden).",
     "A key that is not listed in 'fields' (including a 'reserved' key) is an unknown critical field: the object is rejected (error unknown_field). Forward-compatible optional data goes into key 23 extensions.",
     "'set' arrays are sorted by the bytewise order of each element's canonical encoding and contain no duplicates (error set_order).",
-    "Type grammar: {uint:[min,max|null]}, {bool:null|true|false} (true/false = constant), {bstr:[min,max]}, {tstr:[min,max]} (byte length), {enum:name}, {ref:Struct}, {array:T,n:[min,max]}, {set:T,n:[min,max]}, {union:{on:key,variants:{value:Struct}}}, {dispatch:{on:field_name,table:{value:Struct},default:'opaque_map'}}, {signed:TypeName} (bstr holding a canonical SignedEnvelope whose body is that type), {any:null}, {ext:null}."
+    "Type grammar: {uint:[min,max|null]}, {bool:null|true|false} (true/false = constant), {bstr:[min,max]}, {tstr:[min,max]} (byte length), {enum:name}, {ref:Struct}, {array:T,n:[min,max]}, {set:T,n:[min,max]}, {union:{on:key,variants:{value:Struct}}}, {dispatch:{on:field_name,table:{value:Struct},default:'opaque_map'}}, {signed:TypeName} (bstr holding a canonical SignedEnvelope whose body is that type), {any:null}, {ext:null}.",
+    "The ASCII prefix 'om.critical.' is reserved by ADR-0157 for mandatory-to-understand extension IDs. Any unknown extension whose ID begins with that prefix is treated as critical and rejects the containing object even if ExtEntry.critical is false; non-critical registrations MUST NOT use the prefix. Existing critical om.acs.fork_ack and om.acs.legacy_policy are grandfathered because V1 already knows them."
   ],
   "common_top_level_fields": [
     {
@@ -172,6 +173,29 @@
     "rich_list_style": {
       "1": "unordered",
       "2": "ordered"
+    },
+    "lan_signal_kind": {
+      "1": "offer",
+      "2": "answer"
+    },
+    "lan_frame_kind": {
+      "1": "object_begin",
+      "2": "object_chunk",
+      "3": "object_end",
+      "4": "ack",
+      "5": "fetch_async_key",
+      "6": "fetch_blob",
+      "7": "error"
+    },
+    "lan_object_kind": {
+      "1": "sealed_delivery_envelope",
+      "2": "mls_private_message",
+      "3": "message_request",
+      "4": "signed_introduction_ticket",
+      "5": "signed_contact_descriptor",
+      "6": "signed_async_key_bundle",
+      "7": "signed_sealed_delivery_key_record",
+      "8": "encrypted_blob_ciphertext"
     }
   },
   "structs": {
@@ -1245,7 +1269,7 @@
             "ref": "PrekeyItem"
           },
           "req": false,
-          "note": "mandatory since ADR-0126 (ADR-0118 \u00a76): validators reject a bundle without it. 'req' keeps its assigned value because assigned values are immutable; the rule is carried by keys.cddl and by om-crypto-profiles required_bundle_fields."
+          "note": "mandatory since ADR-0126 (ADR-0118 §6): validators reject a bundle without it. 'req' keeps its assigned value because assigned values are immutable; the rule is carried by keys.cddl and by om-crypto-profiles required_bundle_fields."
         },
         {
           "key": 9,
@@ -3698,6 +3722,254 @@
         "after registered payload schema validation, any invalid reference/order/nesting/ordinal-presence/fallback semantic check invalidates/ignores the whole non-critical rich-list interpretation; base W0 RichText remains valid",
         "a wire-criticality mismatch rejects the containing object; any other registered object/payload-schema violation makes the whole non-critical enhancement unusable and leaves the event valid (ADR-0155, amending ADR-0149/ADR-0151); annotations never apply to another event's RichText"
       ]
+    },
+    "LanInviteRendezvousV1": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "profile_version",
+          "type": {
+            "uint": [
+              1,
+              1
+            ]
+          },
+          "req": true
+        }
+      ],
+      "note": "W1 local_delivery semantics for Invite.lan_rendezvous opaque W0 bytes: bstr.cbor LanInviteRendezvousV1 (ADR-0158)."
+    },
+    "LanSignalEnvelopeV1": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "version",
+          "type": {
+            "uint": [
+              1,
+              1
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "kind",
+          "type": {
+            "enum": "lan_signal_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "session_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "rendezvous_epoch",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "nonce",
+          "type": {
+            "bstr": [
+              12,
+              12
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "ciphertext",
+          "type": {
+            "bstr": [
+              17,
+              12304
+            ]
+          },
+          "req": true
+        }
+      ],
+      "note": "SDP/ICE credentials are encrypted under the seed-derived OM-LAN-SIGNAL-KEY-v1 with OM-LAN-SIGNAL-AAD-v1; this struct may travel via QR/manual/local signalling and carries no identity authority (ADR-0158)."
+    },
+    "LanFrameV1": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "version",
+          "type": {
+            "uint": [
+              1,
+              1
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "kind",
+          "type": {
+            "enum": "lan_frame_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "transfer_or_request_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "object_kind",
+          "type": {
+            "enum": "lan_object_kind"
+          },
+          "req": false
+        },
+        {
+          "key": 4,
+          "name": "total_bytes",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "sha256",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 6,
+          "name": "offset",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 7,
+          "name": "payload",
+          "type": {
+            "bstr": [
+              1,
+              16384
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 8,
+          "name": "target_device_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 9,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 10,
+          "name": "fetch_capability",
+          "type": {
+            "bstr": [
+              16,
+              64
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 11,
+          "name": "blob_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 12,
+          "name": "ciphertext_digest",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 13,
+          "name": "error_code",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 14,
+          "name": "ack_offset",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        }
+      ],
+      "note": "Kind-specific required/forbidden field combinations are normatively frozen in spec/cddl/lan.cddl; frames are transport records only (ADR-0158)."
     }
   },
   "extensions": [

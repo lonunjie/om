@@ -38,6 +38,8 @@ route_binding = SHA-256(
 
 The digest is not a public locator. It is relationship-private authenticated state. A delivery key is usable only with the RelayEntry that produces the same digest.
 
+ADR-0158 reuses this exact `RelayEntry` shape and route-binding rule for W1 `local_delivery`: an ephemeral `om+lan://v1/...` route is relationship-private, bounded by the LAN rendezvous epoch and **is not published into `RelaySet`**. No LAN-specific route authority or alternate delivery-key binding is introduced.
+
 ## 4. Delivery key material and signed record
 
 `DeliveryKeyMaterial` contains:

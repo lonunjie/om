@@ -4,13 +4,6 @@
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
     {
-      "path": ".github/workflows/verify.yml",
-      "class": "repo_plumbing",
-      "domain": "architecture_process",
-      "license": "Apache-2.0",
-      "authority": "executable_guardrail"
-    },
-    {
       "path": ".gitignore",
       "class": "repo_plumbing",
       "domain": "architecture_process",
@@ -1215,6 +1208,20 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0157-independent-review-remediation-extension-convergence-history-boundary-and-scheduled-send.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0158-lan-delivery-profile-v1.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -2006,6 +2013,13 @@
       "authority": "historical_checkpoint_record"
     },
     {
+      "path": "docs/checkpoints/CHECKPOINT_20260929_0634.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
       "path": "docs/checkpoints/README.md",
       "class": "checkpoint",
       "domain": "architecture_process",
@@ -2597,6 +2611,13 @@
       "path": "spec/cddl/keys.cddl",
       "class": "spec_artifact",
       "domain": "crypto_1to1",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/cddl/lan.cddl",
+      "class": "spec_artifact",
+      "domain": "network_lan_transport",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
@@ -4863,6 +4884,13 @@
     },
     {
       "path": "verification/reviews/2026-09-27-gpt-5-6-sol-v001-f9-re-review.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/reviews/2026-09-29-gpt-5-6-sol-adr0154-0156-independent-review.md",
       "class": "verification_doc",
       "domain": "architecture_verification",
       "license": "CC-BY-SA-4.0",

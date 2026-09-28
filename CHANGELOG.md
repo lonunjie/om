@@ -1,3 +1,12 @@
+## 2026-09-29 06:34 PHT — independent remediation / ADR-0157–0158
+
+- OpenAI GPT-5.6 Sol independently reviewed Anthropic-authored ADR-0154–0156 and recorded the review under `verification/reviews/2026-09-29-gpt-5-6-sol-adr0154-0156-independent-review.md`.
+- **ADR-0157:** closed future critical-extension downgrade divergence with the reserved `om.critical.*` namespace; split implementation-private `DeviceHistorySnapshot` from interoperable group `GroupHistoryBundle`; made scheduled-send queues compose-intent-only until actual send.
+- **ADR-0158:** resolved A-055 with LanDeliveryProfile v1: 900 s epochs, K=8, purpose-separated pair/invite rendezvous, encrypted WebRTC signalling that hides SDP/ICE credentials, ordered/reliable DataChannel framing, 16 KiB chunks, bounded backpressure, ephemeral `om+lan://` RelayEntry reuse of the frozen sealed-delivery route binding, and ordinary IntroGate/MessageRequest first-contact authority.
+- Added `spec/cddl/lan.cddl`, LAN numeric-field/domain-separation registrations, R-346..R-350 and T-136..T-138; updated V-004/V-005/V-024 criteria.
+- A-055 is resolved and `design_open=0`; `local_delivery` remains unauthorized behind V-024. New OpenAI-authored ADR-0157/0158 changes still require different-vendor review; the consolidated `core_kernel` review still needs a non-OpenAI reviewer.
+- Current-tree validation, docs, registry and 79-document continuity checks pass. Portable producers 1–30 passed under the aggregate runner before the execution wrapper stopped it while producer 31 was starting; producers 31–44 were then run directly and all passed. No product engineering was performed.
+
 ## 2026-09-28 23:00 PHT — independent architecture review (ADR-0154–0156)
 
 - Imported the Run 10A drop as `checkpoint/20260928-2200` (its stale contract snapshot would have stamped it 20260927-0842) and reviewed it as the different-vendor architecture reviewer; report in `docs/reports/2026-09-28-independent-architecture-review-run10a.md`.

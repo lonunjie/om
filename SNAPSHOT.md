@@ -1,14 +1,24 @@
 # OM Architecture Snapshot
 
-Generated: **2026-09-28 23:00 PHT (UTC+08:00)**, after the independent architecture review of drop `20260928-2200` (ADR-0154–0156).
+Generated: **2026-09-29 06:34 PHT (UTC+08:00)**, after the OpenAI independent remediation review and A-055 LAN design closure (ADR-0157–0158).
 
 ## State
 
 - **Engineering is not authorized**: `engineering_authorized=false`, 0/12 scopes authorized.
-- **Design:** `design_open=1`. A-055, the LAN wire binding, blocks only the W1 scope `local_delivery`. The design is closed for every W0 scope.
-- **Verification:** V-001..V-024; 24 overall-open, 23 with pre-engineering open. Remaining W0 blockers are independent-review and tool-complete evidence, not design.
-- **Ledgers:** 336 requirements / 336 trace rows, 125 threats, 178 decisions / 156 ADRs, 36 security invariants.
-- **Next:** a non-Anthropic review of ADR-0154–0156, the consolidated `core_kernel` independence review (non-OpenAI, for the ADR-0140–0153 chain), and then the A-055 LAN binding design pass.
+- **Design:** `design_open=0`. A-055 is resolved by ADR-0158; `local_delivery` remains verification-gated by V-024 rather than design-open.
+- **Verification:** V-001..V-024; 24 overall-open, 23 with pre-engineering open. No new gate is self-approved by this review.
+- **Ledgers:** 341 requirements / 341 trace rows, 128 threats, 180 decisions / 158 ADRs, 36 security invariants.
+- **Tree:** 873 current files; docs/registry checks clean; continuity manifest 79/79.
+- **Next:** different-vendor (non-OpenAI) review of the new ADR-0157/0158 amendments, the consolidated `core_kernel` non-OpenAI independence review, and V-024 repo-local two-codec/observer/first-contact/browser evidence.
+
+## 2026-09-29 06:34 PHT — independent remediation review / ADR-0157–0158
+
+OpenAI GPT-5.6 Sol reviewed Anthropic-authored ADR-0154–0156 and accepted ADR-0154 while finding three additional semantic gaps in ADR-0155/0156 plus completing the already-tracked A-055 LAN design item. Review record: [`2026-09-29-gpt-5-6-sol-adr0154-0156-independent-review.md`](verification/reviews/2026-09-29-gpt-5-6-sol-adr0154-0156-independent-review.md).
+
+- **ADR-0157:** reserves `om.critical.*` so future mandatory extensions fail closed across registry versions even if a sender clears the wire critical bit; separates implementation-private `DeviceHistorySnapshot` from interoperable `GroupHistoryBundle`; and makes scheduled-send queues compose-intent-only until actual send.
+- **ADR-0158 / A-055:** freezes LanDeliveryProfile v1 at 900-second epochs, K=8 fixed-cardinality tags, purpose-separated pair/invite derivations, seed-encrypted WebRTC signalling that hides SDP/ICE credentials, ordered/reliable DataChannel framing, <=16 KiB chunks, bounded backpressure, ephemeral `om+lan://` RelayEntry reuse of `OM-SEALED-DELIVERY-ROUTE-v1`, ordinary SealedDeliveryEnvelope/MLS payloads, and ordinary IntroGate/MessageRequest first-contact authority.
+- **Verification honesty:** A-055 is design-resolved, but V-024 remains open for two-codec vectors, passive-observer and first-contact mutation models, real-browser feasibility (or an honest unavailable result) and independent review. ADR-0157/0158 are OpenAI-authored and therefore this same review cannot independently approve them.
+- **Portable current-tree evidence:** aggregate producers 1–30 passed before the execution wrapper stopped while producer 31 was starting; producers 31–44 were then run directly and all passed. No producer failed. This is recorded as split execution, not misrepresented as one uninterrupted aggregate run.
 
 ## 2026-09-28 23:00 PHT — independent architecture review (ADR-0154–0156)
 

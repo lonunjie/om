@@ -177,7 +177,7 @@ Exit: two browsers on different machines can reliably message after restarts.
 - add/remove account;
 - add/revoke device;
 - since-join history;
-- HistoryBundle experiment.
+- GroupHistoryBundle experiment.
 
 ### P5 — provider portability
 

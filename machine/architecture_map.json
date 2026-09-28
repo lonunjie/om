@@ -180,7 +180,8 @@
         "ADR-0107",
         "ADR-0121",
         "ADR-0122",
-        "ADR-0128"
+        "ADR-0128",
+        "ADR-0157"
       ],
       "resolved_questions": [
         "Q-002",
@@ -303,7 +304,8 @@
         "ADR-0087",
         "ADR-0088",
         "ADR-0121",
-        "ADR-0128"
+        "ADR-0128",
+        "ADR-0157"
       ],
       "resolved_questions": [
         "Q-005",
@@ -342,7 +344,8 @@
         "docs/architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md"
       ],
       "schemas": [
-        "spec/protocol/transport-adapter.logical.schema.json"
+        "spec/protocol/transport-adapter.logical.schema.json",
+        "spec/cddl/lan.cddl"
       ],
       "adrs": [
         "ADR-0015",
@@ -350,7 +353,8 @@
         "ADR-0023",
         "ADR-0024",
         "ADR-0096",
-        "ADR-0130"
+        "ADR-0130",
+        "ADR-0158"
       ],
       "resolved_questions": [
         "Q-011",
@@ -579,7 +583,9 @@
         "ADR-0113",
         "ADR-0116",
         "ADR-0117",
-        "ADR-0130"
+        "ADR-0130",
+        "ADR-0157",
+        "ADR-0158"
       ],
       "resolved_questions": [],
       "design_queue": [

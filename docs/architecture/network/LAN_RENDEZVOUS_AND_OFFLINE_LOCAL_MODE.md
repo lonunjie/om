@@ -1,7 +1,7 @@
 # OM LAN Rendezvous and Offline Local Mode
 
 - **Status:** Canonical V1 optional capability; platform capability verification remains
-- **Checkpoint:** 2026-09-28 ADR-0150
+- **Checkpoint:** 2026-09-29 ADR-0158
 
 ## 1. Goal
 
@@ -107,12 +107,17 @@ OM promises interoperable local-mode semantics where a route can be established;
 
 Relationship-derived, short-lived opaque rendezvous tags replace stable identifier broadcast. Native mDNS/DNS-SD is optional capability; QR/manual/known-endpoint is universal fallback. Browsers/PWAs are never required to expose native-equivalent automatic LAN discovery. LAN continues to carry ordinary OM E2EE ciphertext.
 
-## 2026-09-28 wire-binding status (ADR-0156)
+## 2026-09-29 concrete LanDeliveryProfile v1 (ADR-0158)
 
-The invariants above are frozen, and route-independent EventID dedupe and blob backfill belong to `core_kernel`. The concrete LAN wire binding is **not yet specified**. It is design item A-055 under the W1 scope `local_delivery`, verified by V-024. Until A-055 is resolved, no conforming client may ship LAN message/file delivery. The following rules bind any binding:
+A-055 is resolved. The normative binding is [`ADR-0158`](../../../decisions/ADR-0158-lan-delivery-profile-v1.md) plus [`spec/cddl/lan.cddl`](../../../spec/cddl/lan.cddl). Key constants and boundaries are:
 
-1. **No clear sender.** 1:1 messages carry `SealedDeliveryEnvelope` protection or a reviewed equivalent that hides sender identity, device key and Double Ratchet header from LAN observers. Group messages carry MLS `PrivateMessage` bytes.
-2. **No stable LAN-visible identifier.** Connection ids, delivery-key ids and route tokens rotate at least per rendezvous epoch and with link-layer address changes.
-3. **No LAN-only relationship path.** First contact over LAN uses ordinary MessageRequest/IntroGate semantics; the LAN endpoint is only a reply route.
-4. **Registered derivation.** The rendezvous-token KDF, label and epoch are registered in [`om-domain-separation.json`](../../../spec/registries/om-domain-separation.json).
+- 900-second rendezvous epochs, adjacent-epoch skew only, fixed advertisement cardinality **K=8**, 16-byte rendezvous tags;
+- relationship tags derive with `OM-LAN-PAIR-SEED-v1` from the PQXDH session secret; invite tags derive from the signed Invite's secret with `OM-LAN-INVITE-SEED-v1`; tags use `OM-LAN-RENDEZVOUS-TAG-v1`;
+- canonical seed-encrypted `LanSignalEnvelopeV1` that hides SDP/ICE credentials; ordered/reliable WebRTC `RTCDataChannel` (`om-lan-v1`) is the V1 interoperable byte channel, with manual/QR signalling available to browser clients;
+- a local destination reuses the frozen `RelayEntry` shape as an ephemeral `om+lan://v1/<route-token>` route. Its 32-byte capability participates in the unchanged `OM-SEALED-DELIVERY-ROUTE-v1` binding, so established 1:1 traffic uses an ordinary `SealedDeliveryEnvelope`;
+- local route tokens, delivery-key ids and connection/transfer ids rotate no later than epoch/link-layer change and are never public RelaySet entries;
+- canonical `LanFrameV1` limits chunks to 16 KiB, streams rather than eagerly allocating, uses 256 KiB/64 KiB backpressure thresholds, and treats transport ACKs as non-authoritative;
+- encrypted blob transfer carries the same BlobID/ciphertext_digest object and later WAN backfill does not rewrite identity;
+- first contact exposes a **local adapter of the ordinary IntroGate**: invite capability -> intro-identity-signed ticket/request key -> ordinary HPKE MessageRequest whose reply route is the ephemeral LAN RelayEntry -> reciprocal IntroIdentityBinding -> only then relationship-scoped signed AsyncKeyBundle fetch. LAN reachability never creates a relationship or device eligibility.
 
+`local_delivery` remains unauthorized until V-024 supplies two-codec vectors, observer/first-contact mutation models, real browser feasibility evidence (or an honest unavailable capability result) and independent review.

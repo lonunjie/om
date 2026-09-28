@@ -162,7 +162,7 @@ For each observed foreign event `f`:
    relay through OM.
 4. **Retroactive export.** The source says bridge admission is a visible boundary but does not forbid exporting
    history from before admission. *Proposal:* BAC-OUT-1. History sharing to a bridge would need the separate
-   HistoryBundle consent path.
+   GroupHistoryBundle consent path.
 5. **Membership intervals.** A re-admitted bridge must not gain export rights over epochs from while it was removed.
    The model needed interval history, not a single admission epoch.
 

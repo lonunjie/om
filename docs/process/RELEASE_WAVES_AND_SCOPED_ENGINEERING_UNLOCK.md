@@ -53,7 +53,7 @@ Every verification gate now carries:
 | `services_bots` | W4 | ServicePrincipals, LLM agents | V-011 | — |
 | `plugins` | W4 | Wasm Component-Model plugin host | V-010 | — |
 | `bridges` | W4 | external-network bridges | V-013 | — |
-| `local_delivery` | W1 | offline-local LAN message/file delivery binding (ADR-0150 invariants in core_kernel; concrete LanDeliveryProfile under A-055, ADR-0156) | V-003, V-015, V-024 | A-055 |
+| `local_delivery` | W1 | offline-local LAN message/file delivery binding frozen by ADR-0158; verification remains V-024 | V-003, V-015, V-024 | — |
 <!-- scope-table:end -->
 
 V-017 (0M continuity drill) blocks **every public production claim**, not any engineering scope. Its pre-engineering criteria (continuity bundle assembly, registry immutability checks, tabletop drills) still have to be done before `core_kernel` is authorized, because it is also listed in the contract's `always_required_pre_engineering_gates`.
@@ -78,7 +78,7 @@ V1 remains a **semantic** contract: [`MESSENGER_BASELINE_V1.md`](../architecture
 | Wave | Delivers | Why this order |
 |---|---|---|
 | W0 | 1:1 messaging, attachments, multi-device, onboarding with Home tiers, block/IntroGate, local search | Smallest system that proves identity, delivery, continuity and usability. Everything else depends on it. |
-| W1 | Private groups, pins, polls, reactions/edits at group scale, stickers/animation, archive export, offline-local LAN delivery binding (ADR-0156) | Group ergonomics are an adoption requirement (R-113). LAN delivery needs its A-055 binding, not new core semantics. |
+| W1 | Private groups, pins, polls, reactions/edits at group scale, stickers/animation, archive export, offline-local LAN delivery binding (ADR-0156) | Group ergonomics are an adoption requirement (R-113). LAN delivery uses the ADR-0158 binding and still needs V-024 evidence, not new core semantics. |
 | W2 | 1:1 and group calls | Calls depend on stable sessions, groups and push lifecycle, and platform risk is highest here. |
 | W3 | Spaces, topics, Publications, delegated moderation | Community features need a stable group/authority core. |
 | W4 | Services/bots/LLM agents, plugins, bridges | Ecosystem surfaces; highest authority-boundary risk. |

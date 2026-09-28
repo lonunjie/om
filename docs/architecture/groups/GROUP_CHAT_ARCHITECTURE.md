@@ -235,7 +235,7 @@ recent_window
 full_shared_history
 ```
 
-Prior history is shared through an independently encrypted `HistoryBundle` created for the newcomer.
+Prior history is shared through an independently encrypted interoperable `GroupHistoryBundle` created for the newcomer (ADR-0157). `GroupHistoryBundle` belongs to the W1 `groups` wire profile and must be frozen as CDDL/vectors before that scope is authorized; it is not an implementation-private same-account sync record.
 
 OM does not grant history by exporting old MLS epoch secrets.
 
@@ -413,7 +413,7 @@ Reference clients can begin with a conservative product cap while performance is
 14. malicious member attempts state fragmentation;
 15. the CommitCoordinator is offline or refuses to sequence its own removal;
 16. a member attempts to add a person who has not accepted an invitation;
-17. a newcomer receives a HistoryBundle containing forged events.
+17. a newcomer receives a GroupHistoryBundle containing forged events.
 
 ## UX
 

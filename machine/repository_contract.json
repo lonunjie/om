@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-28T23:00:00+08:00",
+  "snapshot": "2026-09-29T06:34:00+08:00",
   "phase": "architecture_hardening_pre_engineering",
   "engineering_authorized": false,
   "engineering_unlock_requires": [
@@ -241,7 +241,7 @@
       "depends_on": [
         "core_kernel"
       ],
-      "description": "offline-local LAN message/file delivery binding (ADR-0150 invariants in core_kernel; concrete LanDeliveryProfile under A-055, ADR-0156)"
+      "description": "offline-local LAN message/file delivery binding frozen by ADR-0158; verification remains V-024"
     }
   },
   "public_release_vocabulary": {
