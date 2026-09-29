@@ -27,6 +27,24 @@
    "security_generation": {
     "group": 1
    }
+  },
+  {
+   "id": 65283,
+   "name": "test-mixed-1to1-gen2-group0",
+   "status": "experimental",
+   "security_generation": {
+    "one_to_one": 2,
+    "group": 0
+   }
+  },
+  {
+   "id": 65284,
+   "name": "test-mixed-1to1-gen1-group99",
+   "status": "experimental",
+   "security_generation": {
+    "one_to_one": 1,
+    "group": 99
+   }
   }
  ],
  "vectors": [
@@ -137,6 +155,44 @@
    "profile": 65280,
    "expect_accept": true,
    "reason": "ok",
+   "after": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [],
+    "sending": true
+   }
+  },
+  {
+   "name": "acs_1to1_axis_ignores_lower_group_generation",
+   "op": "accept_profile",
+   "state": {
+    "floor": 1,
+    "profile": 1,
+    "forbidden": [],
+    "sending": true
+   },
+   "profile": 65283,
+   "expect_accept": true,
+   "reason": "ok",
+   "after": {
+    "floor": 2,
+    "profile": 65283,
+    "forbidden": [],
+    "sending": true
+   }
+  },
+  {
+   "name": "large_group_generation_cannot_bypass_1to1_floor",
+   "op": "accept_profile",
+   "state": {
+    "floor": 2,
+    "profile": 65280,
+    "forbidden": [],
+    "sending": true
+   },
+   "profile": 65284,
+   "expect_accept": false,
+   "reason": "authenticated reject naming the message; sender retries at the floor (ADR-0120)",
    "after": {
     "floor": 2,
     "profile": 65280,
@@ -290,6 +346,13 @@
    "backed_up": 0,
    "acs_minimum_crypto_profile": 1,
    "expect_floor": 1
+  },
+  {
+   "name": "restore_rejects_group_only_acs_minimum",
+   "op": "restore_invalid_acs_minimum",
+   "backed_up": 1,
+   "acs_minimum_crypto_profile": 65282,
+   "expect_error": "ACS minimum_crypto_profile lacks security_generation.one_to_one"
   }
  ]
 }

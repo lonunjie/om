@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM GroupHistoryBundle logical contract (pre-freeze)",
+  "description": "Pre-freeze groups-scope logical contract for the interoperable GroupHistoryBundle (ADR-0157 naming, ADR-0161 binding/isolation rules). This is not a frozen wire schema and does not satisfy V-004.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bundle_id", "conversation_id", "author_account_id", "author_device_id",
+    "recipient_account_id", "recipient_membership_incarnation", "group_control_state_hash",
+    "mls_epoch_ref", "creation_nonce", "items"
+  ],
+  "properties": {
+    "bundle_id": {"type": "string", "minLength": 1},
+    "conversation_id": {"type": "string", "minLength": 1},
+    "author_account_id": {"type": "string", "minLength": 1},
+    "author_device_id": {"type": "string", "minLength": 1},
+    "recipient_account_id": {"type": "string", "minLength": 1},
+    "recipient_membership_incarnation": {"type": "string", "minLength": 1},
+    "group_control_state_hash": {"type": "string", "minLength": 1},
+    "mls_epoch_ref": {"type": "string", "minLength": 1},
+    "creation_nonce": {"type": "string", "minLength": 1},
+    "items": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["history_item_id", "presentation_snapshot"],
+        "properties": {
+          "history_item_id": {"type": "string", "minLength": 1},
+          "claimed_original_event_id": {"type": ["string", "null"]},
+          "claimed_original_author": {"type": ["string", "null"]},
+          "claimed_original_time": {"type": ["integer", "null"], "minimum": 0},
+          "presentation_snapshot": {"type": "object"}
+        }
+      }
+    }
+  }
+}

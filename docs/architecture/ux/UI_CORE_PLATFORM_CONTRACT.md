@@ -37,19 +37,27 @@ ChangePrivacyPolicy(policy)
 StartCall(target, media_kind)
 ShareContact(person_id)
 RestoreHistory(source)
+OpenOmnibarResult(profile_context, result_id)
+PinNavigationTarget(profile_context, target_id)
+ClearAdaptiveNavigation(profile_id)
 ```
 
-Core returns explicit state such as:
+Core returns a stable **outcome class** separately from the provider/protocol-specific reason:
 
 ```text
 Committed
 PendingAuthorization
 PendingNetwork
-Rejected(reason)
+PendingReconciliation
 NeedsUserAction(action)
+Rejected(reason)
 ```
 
-The UI must not infer that a security-sensitive operation succeeded because a local button was pressed.
+`PendingNetwork` means safe exact retry/backoff may still be in progress. `PendingReconciliation` means an externally visible mutation may have happened but its authenticated/canonical outcome is not yet known; a timeout after send is never silently translated to `Rejected`. Core retains the same logical operation identity while reconciling or exact-retrying. The UI must not originate a second semantic operation merely because its process restarted or an acknowledgement was lost.
+
+`Rejected(reason)` is terminal for that operation instance unless changed authenticated state/input is explicitly required. Stable reason classes are provider-neutral (for example invalid/malformed, unsupported, unauthorized, revoked, expired, stale state, conflict, policy denied, quota, rate limited, integrity failure, unavailable and not found). Raw provider/runtime details belong in diagnostics. Home API `HomeError` values map into these semantics; the frozen provider wire registry is not replaced by this UI/Core model.
+
+The UI must not infer that a security-sensitive operation succeeded because a local button was pressed. Omnibar/autocomplete selection is not an authority shortcut: destructive, recovery, provider, permission and plaintext-egress results dispatch the same typed intents and confirmations as their ordinary UI surfaces.
 
 ## View models
 
@@ -176,6 +184,10 @@ The following are normative pass/fail cases for the registered W0 conformance su
 | UI-07 | unknown deep link with several profiles | client asks which profile should act; no hidden cross-profile heuristic chooses one |
 | UI-08 | voice-note extension unsupported | ordinary audio attachment remains playable and no required capability is fabricated |
 | UI-09 | location-card extension unsupported | W0-valid textual/`geo:` fallback remains usable; no background location or third-party map fetch is implicitly granted |
+| UI-10 | adaptive Omnibar suggestion after profile switch | captured ProfileExecutionContext stays bound to origin profile or cancels; no result lands in another profile |
+| UI-11 | destructive/security Omnibar command | ordinary typed Core intent/confirmation/authorization is preserved; learned rank cannot auto-execute or make it the default confirmation action |
+| UI-12 | network timeout after a mutating Core operation may already have been transmitted | result remains `PendingNetwork`/`PendingReconciliation`; UI does not show terminal rejection or create a new semantic operation id |
+| UI-13 | app/UI process restarts while a durable mutating operation is pending | Core reconstructs pending/committed/rejected state from durable operation context; shell does not infer failure from restart |
 
 ## R15 Action Registry reconciliation (ADR-0159)
 

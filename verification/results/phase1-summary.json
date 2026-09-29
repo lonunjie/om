@@ -1,5 +1,6 @@
 {
   "phase1_passed": true,
+  "profile": "full",
   "gate_status_effect": "evidence_only_no_gate_automatically_passed",
   "bounded_cases": 347316,
   "vendor_block_surviving_fraction": {
@@ -8,9 +9,10 @@
   },
   "continuity_assessment_cases": 2808,
   "cross_impl_cbor_vectors": 14,
-  "offline_continuity_artifacts": 65,
+  "offline_continuity_artifacts": 67,
   "gates_with_new_evidence": [
     "V-002",
+    "V-003",
     "V-004",
     "V-005",
     "V-008",
@@ -21,7 +23,9 @@
     "V-015",
     "V-016",
     "V-017",
-    "V-020"
+    "V-020",
+    "V-021",
+    "V-023"
   ],
   "runs": [
     {
@@ -73,7 +77,151 @@
       "returncode": 0
     },
     {
+      "script": "verification/bounded/provider_resource_admin_trace.py",
+      "returncode": 0
+    },
+    {
       "script": "verification/bounded/abuse_w0_rules.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/privacy_pass_issuance.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/async_prekey_adr0140_rules.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/design_consistency_adr0141_rules.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/provider_negative_capabilities.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/relationship_context_surface.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/sealed_delivery_adr0142_rules.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/sealed_delivery_adr0144_composition.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/sealed_delivery_adr0145_closure.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/sealed_delivery_adr0146_final_closure.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/recovery_durable_timer_adr0147.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/recovery_timer_adr0154.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/sealed_delivery_adr0147_lifecycle_restore.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/account_private_sync_adr0148.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/account_private_sync_adr0149_hardening.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/extensions_adr0148.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/extensions_adr0149_hardening.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/endpoint_profile_adr0148.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/profile_context_adr0149_hardening.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/clienthost_update_adr0148.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/clienthost_update_adr0149_authority.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/lan_route_adr0150.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/rich_list_adr0150.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/lan_privacy_adr0150.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/platform_reference_adr0150.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/android_wake_adr0152.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/desktop_personrecord_adr0152.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/design_closure_set1_rules.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/design_closure_set2_rules.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/critical_extension_adr0157.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/prototypes/v003-sessions/k12_smoke.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/prototypes/v003-sessions/sealed_delivery_state.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/protocol_semantics_adr0161.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/ui_integration_adr0162.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/dangerous_algorithms_adr0164.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/protocol_evolution_adr0165.py",
       "returncode": 0
     },
     {

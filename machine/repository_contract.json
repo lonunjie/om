@@ -34,7 +34,9 @@
     "machine/requirement_traceability.json",
     "machine/threat_register.jsonl",
     "machine/conformance_suites.json",
-    "machine/security_invariant_traceability.json"
+    "machine/security_invariant_traceability.json",
+    "machine/engineering_scope_contracts.json",
+    "machine/protocol_evolution_policy.json"
   ],
   "canonical_identity": {
     "account_id": "cryptographically random 256-bit stable identifier independent of keys/providers/aliases",
@@ -75,7 +77,11 @@
     "docs/architecture/identity/ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md",
     "verification/GATE_PASS_CRITERIA.md",
     "decisions/ADR-0134-verification-execution-lifecycle-and-no-bounce-handoff.md",
-    "verification/CLAUDE_OPUS_5_5_HANDOFF.md"
+    "verification/CLAUDE_OPUS_5_5_HANDOFF.md",
+    "docs/process/IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md",
+    "decisions/ADR-0163-implementation-readiness-crash-retry-and-scope-contracts.md",
+    "docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md",
+    "decisions/ADR-0165-protocol-evolution-compatibility-and-engineering-guardrails.md"
   ],
   "current_file_registry": "machine/file_registry.json",
   "architecture_map": "machine/architecture_map.json",

@@ -10,7 +10,7 @@ Accessibility behavior belongs in shared `om-ui` primitives so it cannot diverge
 ## Mandatory baseline
 
 - complete keyboard operability for every interactive feature;
-- visible, high-contrast focus indicator;
+- visible, high-contrast focus indicator; the reference authored indicator targets WCAG 2.2 Focus Appearance geometry/change-of-contrast guidance in addition to the AA baseline;
 - semantic accessible names/descriptions;
 - predictable focus movement after navigation/dialog actions;
 - screen-reader compatible landmarks, lists, buttons, menus, dialogs and live regions;
@@ -70,7 +70,9 @@ Always provide non-audio communication of:
 - camera state;
 - participant joined/left;
 - dominant/speaking participant where useful;
-- captions/transcription availability and state.
+- captions/transcription availability and state;
+- a user-pinned participant/video tile remains pinned and is not displaced merely by active-speaker detection;
+- captions/controls avoid covering the primary face/hands region when layout space permits, supporting sign-language use.
 
 Future caption/transcription implementations should prefer local/on-device processing where feasible. Remote captioning or transcription sends other participants' speech to a third party, so it is a ServicePrincipal invocation under [`SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md`](../ecosystem/SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md): because it receives audio continuously it joins the call as a visible service participant, shown to **all** call participants in the call roster as able to hear the call, and is never enabled silently by one participant (ADR-0129).
 
@@ -103,6 +105,8 @@ The following are normative pass/fail cases for the registered W0 conformance su
 | AX-03 | text scaling/reflow | reference layouts remain operable at required scale without hidden security controls |
 | AX-04 | reduced motion | semantic state changes remain understandable with non-motion alternative |
 | AX-05 | reserved security surface | theme/plugin cannot suppress or relabel required security/accessibility semantics |
+| AX-06 | pinned visual participant | active-speaker changes do not steal a user-pinned video tile; keyboard/screen-reader control remains available |
+| AX-07 | authored focus indicator | focus remains clearly visible under light/dark/theme/high-contrast surfaces and meets the stronger reference-product target |
 
 ## R15 semantic action parity
 

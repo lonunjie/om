@@ -164,6 +164,7 @@ Conformance cases (`conformance:network_transport`, registered in [`machine/conf
 | NT-04 | transport sees only ciphertext and opaque locators | trace tap finds no AccountID, ConversationID, key or plaintext |
 | NT-05 | all transports blocked | the client reports "can't reach" and queues; it never falls back to a weaker security level |
 | NT-06 | same logical EventID sent over a local route then WAN/provider retry | authenticated dedupe materializes one canonical event; local endpoint/route metadata grants no identity, device or relationship authority (ADR-0150) |
+| NT-07 | concurrent valid RelaySet branches arrive in different orders, including child-before-parent | after all valid records are known every peer selects the same effective set (highest version, then smallest canonical hash); version jumps/cross-lineage parents reject and signer revocation recomputes eligibility without reviving authority (ADR-0161) |
 
 ## Provider contracts resolved by A-045 / ADR-0133
 

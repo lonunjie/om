@@ -1,6 +1,6 @@
 # Group Commit and State Convergence
 
-- **Status:** Canonical architecture direction; sequencing profile blocks group freeze
+- **Status:** Canonical architecture; W1 wire/runtime verification still blocks `groups` authorization
 - **Checkpoint:** 2026-09-23 05:45 PHT
 
 ## 1. Separation
@@ -83,15 +83,30 @@ This is a later-wave group object rather than a frozen W0 wire object. Its exact
 
 ## 5. Crash/retry/idempotency
 
-The transition protocol must specify:
+ADR-0163 closes the local transaction semantics for membership/role-affecting transitions without freezing the later-wave wire encoding. A conforming implementation keeps a durable local transition journal:
 
-- crash after local commit creation but before publication;
-- publication acknowledged by one relay but not another;
-- duplicate commit delivery;
-- receipt of a losing conflicting commit;
-- rebase of pending application operations;
-- device removal racing with an admin role change;
-- recovery after long offline periods.
+```text
+INTENT_DURABLE
+  -> CANDIDATE_PREPARED
+  -> PUBLISHED_UNCONFIRMED
+  -> ACCEPTED
+       \-> SUPERSEDED | ABANDONED
+```
+
+Rules:
+
+1. Persist the authenticated `GroupControlIntent`, immutable target incarnation, authorization evidence and parent `(GroupControlState hash, MLS epoch)` before creating or publishing a Commit.
+2. Before network publication, persist the **exact MLS Commit bytes/hash**, `GroupCommitBinding`, parent identifiers and enough tentative post-commit MLS/application state to resume or safely discard the candidate after restart. Tentative state is isolated from canonical Room state.
+3. A relay/storage acknowledgement is transport progress only; it is never canonical group acceptance. If publication outcome is uncertain and the recorded parent is still canonical, retry the exact prepared commit/binding rather than generating a second same-parent semantic mutation merely because an acknowledgement was lost.
+4. Acceptance under the GroupCommitOrdering profile atomically promotes MLS state, GroupControlState/application authority state, the canonical group head and the accepted-commit/dedupe marker. If one local transaction cannot span those stores, a durable recovery journal must complete the same promotion before application release/ack or further application-message sending.
+5. No application message is sent under a tentative membership/control branch before that branch's Commit is accepted as canonical.
+6. Duplicate observation of an accepted Commit/Binding is idempotent and never repeats application/control effects.
+7. A losing same-epoch candidate becomes `SUPERSEDED`; its tentative state is never materialized. A still-applicable reducing intent is rebased per §3.1. A non-reducing intent is re-validated against the new parent and may be dropped.
+8. After a long offline period or restart with a stale/unknown parent, reconcile the authenticated canonical group/control chain first. A prepared candidate whose parent is no longer canonical is superseded/abandoned before any new candidate is built.
+9. If the exact prepared state required for safe retry is missing/corrupt after crash, fail closed: reconcile the canonical head and create a fresh authorized candidate only if the underlying intent remains valid. Do not reconstruct supposedly equivalent Commit bytes from partial state.
+10. Device-removal/admin-role races are resolved by the existing parent-state authorization rule: reductions remain live/rebaseable; non-reducing operations are revalidated at their accepted parent.
+
+V-004 still proves these rules under crash/partition/equivocation and validates the chosen MLS implementation/runtime behavior. It also freezes the W1 group wire objects before authorization; this section does not claim that evidence is complete.
 
 ## 6. New/revoked devices
 
@@ -115,15 +130,15 @@ A revoked device cannot regain future group secrets merely because an old KeyPac
 
 ADR-0156 makes the encoding item enforceable: V-004 now requires frozen CDDL, registered fields/labels and two-codec vectors for GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition and the pin/poll event bodies before `groups` can be authorized.
 
-Private-group architecture is not frozen until:
+Before `groups` may be authorized, V-004 must still provide the evidence/wire freeze that exercises this already-selected architecture:
 
-- GroupCommitOrdering is selected/formalized;
-- GroupControlTransition encoding and authorization are specified;
-- conflict/rebase tests exist;
-- crash/partial-publication behavior is specified;
-- AccountControlState-device changes are integrated;
-- the selected MLS library is proven to support the required external ordering/profile behavior on all target runtimes;
-- reductions are shown to stay live under coordinator failure or censorship (§3.1).
+- formalize/model GroupCommitOrdering replacement/equivocation and conflict/rebase behavior;
+- freeze GroupControlState/Intent/Binding/Transition and related group event bodies as CDDL + registries + two-codec vectors;
+- exercise ADR-0163 crash/partial-publication/restart semantics under partition;
+- prove AccountControlState-device changes and reduction liveness under coordinator failure/censorship;
+- demonstrate the selected MLS library supports the required external ordering/profile behavior on target runtimes.
+
+These are verification/encoding obligations, not permission for an implementation to choose different crash or authority semantics.
 
 ## 2026-09-24 verification rulings
 

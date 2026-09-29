@@ -7,7 +7,7 @@ until the operator makes it public. Write everything as if a stranger will read 
 **Engineering is NOT authorized.** Research, specification, formal models and bounded feasibility prototypes
 (`verification/`) are allowed. Product code is not. The architecture rules below say exactly what is locked.
 
-**Current phase:** architecture remains pre-engineering and is amended through ADR-0158. A 2026-09-29 OpenAI different-vendor review of Anthropic-authored ADR-0154–0156 found and fixed three residual semantic gaps: future critical-extension downgrade convergence, the mistaken implementation-private treatment of interoperable group history, and scheduled-send precomputation ambiguity (ADR-0157). ADR-0158 resolves A-055 with the concrete W1 `LanDeliveryProfile-v1` while keeping V-024 open for vectors/models/browser evidence and independent review. `design_open=0`; every engineering scope remains unauthorized. The new OpenAI-authored ADR-0157/0158 changes still require a different-vendor reviewer, and the consolidated `core_kernel` brief still needs its non-OpenAI independence review. Engineering remains unauthorized. [`verification/CLAUDE_OPUS_5_5_HANDOFF.md`](verification/CLAUDE_OPUS_5_5_HANDOFF.md) is the stable compatibility entry point. For the future engineering boundary start at [`docs/process/ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). Do not bounce the repository between agents one criterion at a time.
+**Current phase:** architecture remains pre-engineering and is amended through ADR-0166. Two parallel 2026-09-29 OpenAI lines were consolidated by ADR-0166: the independent-review line (a different-vendor review of Anthropic-authored ADR-0154–0156, giving ADR-0157 critical-prefix convergence, the DeviceHistorySnapshot/GroupHistoryBundle split and scheduled-send late binding; ADR-0158 `LanDeliveryProfile-v1`; ADR-0159 UI/UX integration; ADR-0160 V-008 wire freeze) and the Run 2–7 audit line, renumbered as ADR-0161 (terminal DeviceID revocation, mutable-record convergence, GroupHistoryBundle isolation), ADR-0162 (Omnibar/visual/theme hardening on the ADR-0159 shell), ADR-0163 (implementation-readiness and crash/retry transaction contract), ADR-0164 (dangerous algorithms and failure paths) and ADR-0165 (protocol evolution and engineering-agent guardrails). `design_open=0`; every engineering scope remains unauthorized. OpenAI-authored ADR-0157–0165 need a non-OpenAI independent reviewer; Anthropic-authored ADR-0166 needs a non-Anthropic one; the consolidated `core_kernel` brief still needs its independence review. [`verification/CLAUDE_OPUS_5_5_HANDOFF.md`](verification/CLAUDE_OPUS_5_5_HANDOFF.md) is the stable compatibility entry point. For the future engineering boundary start at [`docs/process/ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md) and [`docs/process/IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md`](docs/process/IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md). Do not bounce the repository between agents one criterion at a time.
 
 ## Part 1: Working in this repository
 
@@ -242,3 +242,23 @@ Agents must preserve these invariants:
 - Do not make any single cloud vendor the only zero-signup onboarding path. T0 sponsorship and T1 hosted Homes are first-class.
 - Device linking must never be silent. Do not design hidden "duress"/deniable profiles without a research ADR.
 - There is no remote kill switch. Security response uses signed SecurityAdvisories and peer-local floors.
+
+
+### 2026-09-29 Run 6 dangerous-algorithm rules
+
+- Read [`docs/architecture/IMPLEMENTATION_ALGORITHMS_AND_FAILURE_PATHS.md`](docs/architecture/IMPLEMENTATION_ALGORITHMS_AND_FAILURE_PATHS.md) before implementing any security-sensitive transition it covers.
+- Treat its ordering/state/failure rules as normative supplements; do not replace them with a convenient local transaction model.
+- Exact prepared group Commit bytes are retryable only while their authenticated parent remains canonical; never manufacture equivalent replacement bytes after crash.
+- Unknown network outcomes are reconciled with the same logical/idempotency identity; a timeout is not automatically rejection.
+- GroupHistoryBundle is archive/display input only; claimed EventIDs/authors never enter live reducers or dedupe.
+- LAN presence never grants trust; LAN signalling is seed-encrypted and channel/frame admission follows ADR-0158 `LanFrameV1` rules (ADR-0164 §8).
+
+### 2026-09-29 Run 7 protocol-evolution rules
+
+- Read [`PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md`](docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md) and [`machine/protocol_evolution_policy.json`](machine/protocol_evolution_policy.json) before changing any normative protocol/profile/extension material.
+- Never use highest numeric version or profile ID as a security rule. `security_generation` is the only protocol security ordering axis for a conversation type; profile ID is a tie-break only after equal generation.
+- Never mutate a published CryptoProfile, frozen W0 wire shape, domain-separation label, registry meaning, or `(extension_id, version)` schema/criticality in place. Behavior-changing evolution requires a new immutable lineage/profile/extension or explicit fork.
+- Extension criticality is immutable for an extension ID; IDs under the reserved `om.critical.` prefix (ADR-0157) are permanently critical.
+- Before any normative edit, classify the change using ADR-0165's strongest-applicable change class and update the required ADR/requirements/threats/invariants/conformance/migration/continuity artifacts.
+- Do not treat a local evolution harness as independent, formal, two-codec or real-network evidence.
+- Do not use a live registry, project website, DNS, dominant client or release server as protocol authority.

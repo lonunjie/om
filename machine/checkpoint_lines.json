@@ -1,0 +1,11 @@
+{
+  "format": "om.checkpoint-lines/1",
+  "purpose": "Checkpoint tags that record a design line which was not adopted as canonical. Registry-immutability checks never use them as the baseline; their text stays in git for provenance.",
+  "not_adopted": [
+    {
+      "tag": "checkpoint/20260929-0900",
+      "decision": "ADR-0166",
+      "reason": "Parallel Run line (Runs 1-7). Runs 2-7 were merged with renumbered IDs; Run 1's registry assignments (the '!' critical-ID rules and the OM-LAN-RENDEZVOUS-TOKEN/TLS-EXPORTER/CHANNEL-PROOF labels) were not adopted. The canonical baseline is checkpoint/20260929-0902."
+    }
+  ]
+}

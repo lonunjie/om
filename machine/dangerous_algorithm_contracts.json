@@ -1,0 +1,198 @@
+{
+  "format": "om.dangerous-algorithm-contracts/1",
+  "status": "normative_pre_engineering",
+  "decision": "ADR-0164",
+  "note": "Ordering/failure contracts supplement underlying normative sources; they do not replace formal, runtime, independent-review or interoperability gates.",
+  "algorithms": [
+    {
+      "id": "acs_child_validation_v1",
+      "title": "AccountControlState child validation",
+      "sources": [
+        "docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md",
+        "spec/protocol/account-control-transition-policy.json",
+        "decisions/ADR-0137-security-invariants-and-core-boundary-hardening.md"
+      ],
+      "verification_gates": [
+        "V-002"
+      ],
+      "forbidden_shortcuts": [
+        "generation-only acceptance",
+        "revoked-device resurrection",
+        "quarantined-voter counting",
+        "group-generation ordering of ACS minimum"
+      ],
+      "states": [
+        "trusted_parent",
+        "validated_child",
+        "rejected"
+      ]
+    },
+    {
+      "id": "one_to_one_receive_v1",
+      "title": "1:1 inbound/session acceptance",
+      "sources": [
+        "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md",
+        "docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md"
+      ],
+      "verification_gates": [
+        "V-003"
+      ],
+      "forbidden_shortcuts": [
+        "plaintext before RelationshipContext/ACS validation",
+        "one-time-key consumption before authority checks",
+        "stale-ACS terminal rejection",
+        "ack before durable completion"
+      ],
+      "states": [
+        "ABSENT",
+        "RESERVED",
+        "COMPLETE",
+        "REJECTED"
+      ]
+    },
+    {
+      "id": "group_commit_recovery_v1",
+      "title": "Group Commit journal and recovery",
+      "sources": [
+        "docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
+        "spec/protocol/group-control-transition.logical.schema.json",
+        "decisions/ADR-0163-implementation-readiness-crash-retry-and-scope-contracts.md"
+      ],
+      "verification_gates": [
+        "V-004"
+      ],
+      "forbidden_shortcuts": [
+        "ACK-as-acceptance",
+        "tentative-branch messaging",
+        "synthetic replacement Commit after crash",
+        "promotion without canonical-state reconciliation"
+      ],
+      "states": [
+        "INTENT_DURABLE",
+        "CANDIDATE_PREPARED",
+        "PUBLISHED_UNCONFIRMED",
+        "ACCEPTED",
+        "SUPERSEDED",
+        "ABANDONED"
+      ]
+    },
+    {
+      "id": "mutable_record_convergence_v1",
+      "title": "RelaySet/BlobLocationRecord branch selection",
+      "sources": [
+        "docs/architecture/delivery/REACHABILITY_AND_OBJECT_REPAIR.md",
+        "docs/architecture/delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
+        "decisions/ADR-0161-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md"
+      ],
+      "verification_gates": [
+        "V-003"
+      ],
+      "forbidden_shortcuts": [
+        "arrival-order winner",
+        "version jump acceptance",
+        "cross-lineage parent acceptance",
+        "ineligible signer retaining effective authority"
+      ],
+      "states": [
+        "PENDING_PARENT",
+        "VALID_BRANCH",
+        "EFFECTIVE",
+        "INERT"
+      ]
+    },
+    {
+      "id": "history_bundle_import_v1",
+      "title": "GroupHistoryBundle import isolation",
+      "sources": [
+        "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md",
+        "spec/protocol/group-history-bundle.logical.schema.json",
+        "decisions/ADR-0161-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md"
+      ],
+      "verification_gates": [
+        "V-004"
+      ],
+      "forbidden_shortcuts": [
+        "live EventID dedupe",
+        "Room reducer input",
+        "claimed-author authentication",
+        "cross-membership-incarnation import"
+      ],
+      "states": [
+        "REJECTED",
+        "ARCHIVE_ONLY"
+      ]
+    },
+    {
+      "id": "extension_dispatch_v1",
+      "title": "Protocol extension criticality dispatch",
+      "sources": [
+        "docs/architecture/events/MESSENGER_BASELINE_V1.md",
+        "spec/protocol/protocol-extension.logical.schema.json",
+        "decisions/ADR-0157-independent-review-remediation-extension-convergence-history-boundary-and-scheduled-send.md"
+      ],
+      "verification_gates": [
+        "V-005"
+      ],
+      "forbidden_shortcuts": [
+        "criticality-bit-only future extension semantics",
+        "unknown-critical-as-text",
+        "known-noncritical-schema-error-as-object-rejection",
+        "logical-schema-fields-as-wire-fields"
+      ],
+      "states": [
+        "REJECT_OBJECT",
+        "ACCEPT_BASE_ONLY",
+        "ACCEPT_WITH_EXTENSION"
+      ]
+    },
+    {
+      "id": "lan_frame_admission_v1",
+      "title": "LAN channel and frame admission",
+      "sources": [
+        "docs/architecture/network/LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md",
+        "decisions/ADR-0158-lan-delivery-profile-v1.md",
+        "spec/cddl/lan.cddl"
+      ],
+      "verification_gates": [
+        "V-024"
+      ],
+      "forbidden_shortcuts": [
+        "clear SDP/ICE signalling",
+        "LAN-presence trust",
+        "plaintext fallback",
+        "eager total_bytes allocation or unbounded chunks",
+        "browser-only weaker binding"
+      ],
+      "states": [
+        "NO_RENDEZVOUS",
+        "SIGNAL_AUTHENTICATED",
+        "CHANNEL_OPEN",
+        "FRAME_ACCEPTED",
+        "REJECTED"
+      ]
+    },
+    {
+      "id": "unknown_outcome_reconciliation_v1",
+      "title": "Provider/network unknown-outcome reconciliation",
+      "sources": [
+        "docs/process/IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md",
+        "decisions/ADR-0163-implementation-readiness-crash-retry-and-scope-contracts.md"
+      ],
+      "verification_gates": [
+        "V-017"
+      ],
+      "forbidden_shortcuts": [
+        "timeout-as-rejection",
+        "new-operation-on-lost-ack",
+        "process-local-only-idempotency"
+      ],
+      "states": [
+        "PENDING_NETWORK",
+        "PENDING_RECONCILIATION",
+        "COMMITTED",
+        "REJECTED",
+        "NEEDS_USER_ACTION"
+      ]
+    }
+  ]
+}

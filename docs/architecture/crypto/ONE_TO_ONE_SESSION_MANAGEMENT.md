@@ -116,31 +116,21 @@ Already transmitted ciphertext and plaintext already possessed by the endpoint c
 
 ### Stale sender view
 
-If a send races a device-list change, the exact security/liveness behavior must be defined. The architecture MUST prefer temporary delivery failure/reconciliation over silently authorizing a device not supported by valid current/acceptable control state.
+If a send races a device-list change, ADR-0120 K5/K6 is decisive: eligibility is re-checked against the current validated AccountControlState at every encryption/fan-out/retry. A device no longer supported by that state receives no new envelope. If the view is stale/indeterminate, delivery waits for authenticated reconciliation rather than silently authorizing the device; an authenticated reset may trigger bounded K4 re-encryption on a fresh valid session.
 
 ## 6. Concurrency
 
-The state machine must define crossed initiations, multiple sender devices, multiple recipient devices, session replacement, and delayed messages. It must not rely on a single online homeserver to serialize all state.
+V-003 and ADR-0120 define the per-device session manager for crossed initiation, multiple sender/recipient devices, replacement/reset, delayed messages, dedupe and persistence. No online Home serializes this state. Crossed/duplicate work converges through stable logical-message identity plus durable session/dedupe state; recipient eligibility is always derived from validated AccountControlState.
 
-The design may borrow reviewed concepts from multi-device session-management protocols such as Sesame, but OM's authority source remains its own AccountControlState rather than a centralized server's device record.
+The implementation may borrow reviewed concepts from multi-device session-management protocols such as Sesame, but OM's authority source remains its own AccountControlState rather than a centralized server's device record.
 
 ## 7. Persistence and backup
 
-Ratchet/session persistence belongs to the DeviceVault/local security boundary. Backup/restore cannot roll a session backward in a way that causes nonce/key reuse or resurrects authorization for revoked devices.
+Ratchet/session persistence belongs to the DeviceVault/local security boundary. Backup/restore cannot roll a session backward in a way that causes nonce/key reuse or resurrects authorization for revoked devices. ADR-0120 K8/K11/P1 therefore never restores ratchet/prekey state: a restored installation publishes fresh prekeys and repairs lazily through authenticated reset/re-establishment when a peer next communicates. Peer control heads and security floors survive with the monotonic rules already specified.
 
-Where secure session state cannot be safely restored, the protocol must specify authenticated re-establishment rather than unsafe rollback.
+## 8. Freeze/evidence gate
 
-## 8. Freeze gate
-
-Before 1:1 wire/security freeze:
-
-- write the explicit state machine;
-- prove logical-message deduplication/fanout semantics;
-- define crossed-initiation convergence;
-- define device-add/revoke races;
-- define session-reset UX/security;
-- test offline multi-device combinations;
-- integrate with asynchronous key-material depletion and account-control freshness.
+The design rules for the 1:1 session manager are selected by ADR-0120 and subsequent ADR-0140..0147/0161 amendments. V-003 remains the evidence gate: its executable model/vectors cover crossed initiation, fanout/dedupe, add/revoke races, authenticated reset/re-send, restore/redelivery, async-key freshness, sealed delivery and account-private sync. The remaining open criterion is independent model review; implementation must consume the frozen rules rather than reinterpret this older checklist as open design.
 
 ## 2026-09-24 verification rulings
 

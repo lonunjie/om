@@ -128,7 +128,7 @@
       "constitutional_policy": 1,
       "fork_bridge": 4,
       "lift_quarantine": 7,
-      "link_messaging": 1,
+      "link_messaging": 2,
       "lower_min_profile": 1,
       "promote": 3,
       "quarantine": 3,
@@ -156,6 +156,6 @@
       "rotate_own_key": 1,
       "transparency": 1
     },
-    "total": 56
+    "total": 57
   }
 }

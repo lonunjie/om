@@ -6,6 +6,7 @@
   "method": "architecture_and_constitution_docs lists every file under docs/architecture/ and docs/constitution/. This was derived by taking the transitive closure of markdown links starting from spec/, decisions/ADR-*.md and docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md, then adding the doc directories outright (rather than trusting closure alone) because two normative docs (INTRODUCTION_AND_SERVICE_ACCOUNTS.md, IDENTIFIER_SPOOFING_AND_DISPLAY.md) were reachable only from other architecture docs, not from any ADR -- see 'check-manifest' below, which recomputes this listing from the working tree and fails if it drifts from this file.",
   "members": {
     "architecture_and_constitution_docs": [
+      "docs/architecture/IMPLEMENTATION_ALGORITHMS_AND_FAILURE_PATHS.md",
       "docs/architecture/calls/CALLS_AND_REALTIME_MEDIA.md",
       "docs/architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md",
       "docs/architecture/client/CLIENT_AND_EXTENSION_ARCHITECTURE.md",
@@ -73,11 +74,13 @@
       "docs/architecture/ux/ACCESSIBILITY_AND_INPUT.md",
       "docs/architecture/ux/ACTION_TO_CORE_INTENT_MAP.md",
       "docs/architecture/ux/MOTION_AND_PERFORMANCE.md",
+      "docs/architecture/ux/NAVIGATION_AND_OMNIBAR.md",
       "docs/architecture/ux/RECONCILED_INTERACTION_MODEL.md",
       "docs/architecture/ux/SECURITY_PRIVACY_PROFILES.md",
       "docs/architecture/ux/THEMES_FONTS_AND_PERSONALIZATION.md",
       "docs/architecture/ux/UI_CORE_PLATFORM_CONTRACT.md",
       "docs/architecture/ux/UI_UX_SYSTEM.md",
+      "docs/architecture/ux/VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md",
       "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
       "docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md",
       "docs/constitution/NAMING.md",

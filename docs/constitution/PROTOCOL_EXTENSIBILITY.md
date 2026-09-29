@@ -63,3 +63,14 @@ The 07:18 extension pass adds an anti-fragmentation rule: **shared canonical mea
 Already-assigned registry identifiers are immutable and never reused for incompatible meaning. Published protocol generations/profile bundles snapshot the registry material needed to interpret them so runtime validity never depends on consulting a live OM Project registry server.
 
 If stewardship diverges, successor registries/profiles use an explicit new lineage/identifier namespace. A vendor-private extension may remain private, but market adoption does not grant it canonical status. Graduation into a future baseline requires public independently implementable semantics, canonical encoding/criticality, conformance behavior and acceptable implementation rights.
+
+## 7. Version evolution is not silent reinterpretation (ADR-0165)
+
+A published `(extension_id, version)` registration is immutable. Criticality is immutable for an extension ID, and IDs
+under the reserved `om.critical.` prefix (ADR-0157) are permanently critical. A new version under an existing non-critical ID is permitted only when old
+clients can ignore it safely and the containing object remains valid under its base fallback. Changes to authority,
+authentication, confidentiality, membership, downgrade behavior, owning object or fallback validity require a new extension
+ID and/or CryptoProfile. Extension version numbers never act as security-generation or preference values.
+
+The frozen W0 CDDL and registries cannot be expanded by editing a logical JSON schema. Future wire additions use the
+reserved extension/profile mechanisms or a new protocol lineage as specified by ADR-0165.

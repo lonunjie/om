@@ -168,6 +168,34 @@ def check_registry(contract: dict) -> None:
             fail(f"file_registry entry {ent['path']} has domain 'unassigned'")
 
 
+def check_dangerous_algorithm_contracts() -> None:
+    p = ROOT / "machine/dangerous_algorithm_contracts.json"
+    data = load_json(p)
+    if not isinstance(data, dict):
+        return
+    if data.get("format") != "om.dangerous-algorithm-contracts/1":
+        fail("dangerous_algorithm_contracts.json has unexpected format")
+    algs = data.get("algorithms")
+    if not isinstance(algs, list) or len(algs) != 8:
+        fail("dangerous_algorithm_contracts.json must contain exactly 8 canonical algorithms")
+        return
+    ids = [a.get("id") for a in algs if isinstance(a, dict)]
+    if len(ids) != len(set(ids)):
+        fail("dangerous_algorithm_contracts.json contains duplicate algorithm ids")
+    required = {"id", "title", "sources", "verification_gates", "forbidden_shortcuts", "states"}
+    for a in algs:
+        if not isinstance(a, dict) or required - set(a):
+            fail(f"dangerous algorithm contract missing fields: {a.get('id') if isinstance(a, dict) else a}")
+            continue
+        if not a["forbidden_shortcuts"] or not a["states"]:
+            fail(f"dangerous algorithm {a['id']} lacks failure/state detail")
+        for src in a["sources"]:
+            if not (ROOT / src).exists():
+                fail(f"dangerous algorithm {a['id']} references missing source {src}")
+        if any(g not in {f"V-{i:03d}" for i in range(1,25)} for g in a["verification_gates"]):
+            fail(f"dangerous algorithm {a['id']} references malformed verification gate")
+
+
 def check_machine_records():
     decisions = load_jsonl(ROOT / "machine/decisions.jsonl")
     reqs = load_jsonl(ROOT / "machine/requirements.jsonl")
@@ -1063,7 +1091,168 @@ def validate_0140_async_prekey_guardrails() -> None:
         fail("ADR-0140 guard: current bounded prekey semantics result missing/not passing")
 
 
+
+def validate_0166_consolidation_guardrails() -> None:
+    """ADR-0166: keep the reviewed ADR-0157/0158 semantics after consolidating the parallel Run line.
+
+    The parallel Run-1 ADR-0157 proposed a '!' critical-ID class, an AccountHistorySnapshot name and a TLS-exporter LAN
+    binding. ADR-0166 adopts the independently reviewed alternatives instead; these checks stop the superseded variants
+    from silently returning through a later merge.
+    """
+    numeric = load_json(ROOT / "spec/registries/om-numeric-fields.json") or {}
+    if "om.critical." not in json.dumps(numeric):
+        fail("ADR-0166 guard: numeric-field registry lost the ADR-0157 om.critical. reserved prefix")
+    node = (ROOT / "verification/cbor/node_strict_harness.mjs").read_text(encoding="utf-8")
+    rust = (ROOT / "verification/prototypes/v005-encoding/rust/src/schema.rs").read_text(encoding="utf-8")
+    for label, src in (("Node", node), ("Rust", rust)):
+        if "om.critical." not in src:
+            fail(f"ADR-0166 guard: {label} strict decoder lacks unknown om.critical.* rejection")
+        if "startsWith('!')" in src or "starts_with('!')" in src:
+            fail(f"ADR-0166 guard: {label} strict decoder reintroduced the superseded '!' critical class")
+
+    ds = load_json(ROOT / "spec/registries/om-domain-separation.json") or {}
+    labels = {r.get("label") for r in ds.get("labels", []) if isinstance(r, dict)}
+    for label in ("OM-LAN-TLS-EXPORTER-v1", "OM-LAN-CHANNEL-PROOF-v1", "OM-LAN-RENDEZVOUS-TOKEN-v1"):
+        if label in labels:
+            fail(f"ADR-0166 guard: superseded Run-1 LAN label {label} is registered")
+    for label in ("OM-LAN-PAIR-SEED-v1", "OM-LAN-RENDEZVOUS-TAG-v1"):
+        if label not in labels:
+            fail(f"ADR-0166 guard: ADR-0158 LAN label {label} missing")
+
+    design = {r.get("id"): r for r in load_jsonl(ROOT / "machine/architecture_design_queue.jsonl")}
+    if design.get("A-055", {}).get("status") != "resolved" or "ADR-0158" not in str(design.get("A-055", {}).get("resolution", "")):
+        fail("ADR-0166 guard: A-055 must stay resolved by ADR-0158")
+
+    gates = {r.get("id"): r for r in load_jsonl(ROOT / "machine/architecture_verification_gates.jsonl")}
+    v4 = json.dumps(gates.get("V-004", {}), sort_keys=True)
+    if "GroupHistoryBundle" not in v4 or "R-363" not in v4:
+        fail("ADR-0166 guard: V-004 must freeze GroupHistoryBundle with its ADR-0161 binding criterion (R-347, R-363)")
+
+    group = (ROOT / "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md").read_text(encoding="utf-8")
+    sync = (ROOT / "docs/architecture/crypto/MULTI_DEVICE_SYNC.md").read_text(encoding="utf-8")
+    if "GroupHistoryBundle" not in group or "DeviceHistorySnapshot" not in sync:
+        fail("ADR-0166 guard: DeviceHistorySnapshot/GroupHistoryBundle naming split is missing")
+    for rel in ("docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md", "docs/architecture/crypto/MULTI_DEVICE_SYNC.md",
+                "docs/constitution/PROTOCOL_EXTENSIBILITY.md", "docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md",
+                "docs/architecture/IMPLEMENTATION_ALGORITHMS_AND_FAILURE_PATHS.md"):
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        if "AccountHistorySnapshot" in text or "`!` ID" in text or "`!` namespace" in text:
+            fail(f"ADR-0166 guard: {rel} reintroduces superseded Run-1 terminology")
+
+def validate_0163_implementation_readiness_guardrails() -> None:
+    """ADR-0163: scope contracts + crash/retry handoff stay mechanically aligned."""
+    contract = load_json(ROOT / "machine/repository_contract.json") or {}
+    impl = load_json(ROOT / "machine/engineering_scope_contracts.json")
+    if not isinstance(impl, dict):
+        fail("ADR-0163 guard: engineering_scope_contracts.json unreadable")
+        return
+    repo_scopes = contract.get("engineering_scopes") or {}
+    impl_scopes = impl.get("scopes") or {}
+    if set(impl_scopes) != set(repo_scopes):
+        fail(f"ADR-0163 guard: implementation scope set drift: repo={sorted(repo_scopes)} impl={sorted(impl_scopes)}")
+        return
+
+    # Authorization dependencies in the implementation index are mirrors, never a second policy source.
+    for name, sc in impl_scopes.items():
+        expected = repo_scopes[name].get("depends_on", [])
+        actual = sc.get("authorization_depends_on")
+        if actual != expected:
+            fail(f"ADR-0163 guard: {name} authorization dependencies differ from repository_contract: {actual!r} != {expected!r}")
+        for field in ("normative_sources", "restart_contract", "error_retry_contract", "forbidden_shortcuts"):
+            value = sc.get(field)
+            if not isinstance(value, list) or not value:
+                fail(f"ADR-0163 guard: {name} missing non-empty {field}")
+        for src in sc.get("normative_sources", []):
+            if not (ROOT / src).exists():
+                fail(f"ADR-0163 guard: {name} normative source missing: {src}")
+
+    # Dependency graph must be acyclic.
+    visiting, done = set(), set()
+    def visit(n: str) -> None:
+        if n in done: return
+        if n in visiting:
+            fail(f"ADR-0163 guard: authorization dependency cycle at {n}")
+            return
+        visiting.add(n)
+        for dep in repo_scopes[n].get("depends_on", []):
+            if dep not in repo_scopes:
+                fail(f"ADR-0163 guard: {n} depends on unknown scope {dep}")
+            else:
+                visit(dep)
+        visiting.remove(n); done.add(n)
+    for n in repo_scopes: visit(n)
+
+    # Declared implementation layers must cover every scope once and obey dependencies.
+    layers = impl.get("implementation_layers")
+    if not isinstance(layers, list) or not layers:
+        fail("ADR-0163 guard: implementation_layers missing")
+    else:
+        flat = [x for layer in layers if isinstance(layer, list) for x in layer]
+        if len(flat) != len(set(flat)) or set(flat) != set(repo_scopes):
+            fail("ADR-0163 guard: implementation_layers must cover each engineering scope exactly once")
+        pos = {name: i for i, layer in enumerate(layers) if isinstance(layer, list) for name in layer}
+        for name, sc in repo_scopes.items():
+            for dep in sc.get("depends_on", []):
+                if pos.get(dep, 10**6) >= pos.get(name, -1):
+                    fail(f"ADR-0163 guard: implementation layer puts dependency {dep} no earlier than {name}")
+
+    outcomes = impl.get("operation_outcomes", [])
+    for required in ("Committed", "PendingNetwork", "PendingReconciliation", "Rejected"):
+        if required not in outcomes:
+            fail(f"ADR-0163 guard: operation outcome {required} missing")
+
+    group = (ROOT / "docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md").read_text(encoding="utf-8")
+    for token in ("INTENT_DURABLE", "CANDIDATE_PREPARED", "PUBLISHED_UNCONFIRMED", "No application message", "exact MLS Commit bytes/hash"):
+        if token not in group:
+            fail(f"ADR-0163 guard: group crash contract missing {token!r}")
+    ui = (ROOT / "docs/architecture/ux/UI_CORE_PLATFORM_CONTRACT.md").read_text(encoding="utf-8")
+    for token in ("PendingReconciliation", "timeout after send", "second semantic operation"):
+        if token not in ui:
+            fail(f"ADR-0163 guard: UI/Core outcome contract missing {token!r}")
+    home = (ROOT / "spec/protocol/home-api.md").read_text(encoding="utf-8")
+    for token in ("across provider process restart", "same `request_id`", "outcome as unknown"):
+        if token not in home:
+            fail(f"ADR-0163 guard: Home idempotency contract missing {token!r}")
+    handoff = (ROOT / "docs/process/ENGINEERING_HANDOFF.md").read_text(encoding="utf-8")
+    if "`local_delivery`" not in handoff or "Direct gates" not in handoff or "ADR-0163" not in handoff:
+        fail("ADR-0163 guard: engineering handoff lost 12-scope/direct-gate/readiness clarification")
+
+    reqs = {r.get("id") for r in load_jsonl(ROOT / "machine/requirements.jsonl")}
+    threats = {r.get("id") for r in load_jsonl(ROOT / "machine/threat_register.jsonl")}
+    decisions = {r.get("id") for r in load_jsonl(ROOT / "machine/decisions.jsonl")}
+    for rid in ("R-372", "R-373", "R-374", "R-375"):
+        if rid not in reqs: fail(f"ADR-0163 guard: {rid} missing")
+    for tid in ("T-146", "T-147"):
+        if tid not in threats: fail(f"ADR-0163 guard: {tid} missing")
+    if "D-184" not in decisions:
+        fail("ADR-0163 guard: D-184 missing")
+
+def validate_run4_release_candidate_integration_guardrails() -> None:
+    """Run-4 bookkeeping/integration guards; no new product/protocol semantics."""
+    deferred = {r.get("id"): r for r in load_jsonl(ROOT / "machine/deferred_product_questions.jsonl")}
+    dp7 = deferred.get("DP-007", {})
+    q7 = str(dp7.get("question", ""))
+    for token in ("aggregate/decoded-size", "256-asset", "32 MiB"):
+        if token not in q7:
+            fail(f"Run-4 guard: DP-007 lost clarified frozen/deferred theme-limit boundary {token!r}")
+
+    contract = load_json(ROOT / "machine/repository_contract.json") or {}
+    scopes = list((contract.get("engineering_scopes") or {}).keys())
+    engineer = (ROOT / "docs/process/ENGINEER_START_HERE.md").read_text(encoding="utf-8")
+    if len(scopes) != 12 or "The twelve scopes are" not in engineer:
+        fail("Run-4 guard: engineering handoff scope count must match the 12 machine-owned scopes")
+    for scope in scopes:
+        if f"`{scope}`" not in engineer:
+            fail(f"Run-4 guard: ENGINEER_START_HERE omits engineering scope {scope}")
+
+    license_doc = (ROOT / "LICENSE.md").read_text(encoding="utf-8")
+    if "structured JSON design/reference artifacts under `docs/ux-design/`" not in license_doc:
+        fail("Run-4 guard: LICENSE.md must explicitly cover structured docs/ux-design JSON artifacts")
+
 def main() -> int:
+    validate_0163_implementation_readiness_guardrails()
+    validate_run4_release_candidate_integration_guardrails()
+    validate_0166_consolidation_guardrails()
     validate_0145_bootstrap_retry_closure_guardrails()
     validate_0144_pre_review_sealed_delivery_guardrails()
     validate_0143_crash_safe_sealed_delivery_guardrails()

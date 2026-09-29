@@ -1,0 +1,93 @@
+{
+  "adr": "ADR-0161",
+  "status": "pass",
+  "mutable_record_orders": [
+    {
+      "order": [
+        "a",
+        "b",
+        "a2",
+        "b2",
+        "a3"
+      ],
+      "effective": "d942800dd0c187dd74ea489d2adbabd6fa312f6c1f064f06745c3815c22e359b",
+      "pending": 0
+    },
+    {
+      "order": [
+        "b2",
+        "b",
+        "a3",
+        "a2",
+        "a"
+      ],
+      "effective": "d942800dd0c187dd74ea489d2adbabd6fa312f6c1f064f06745c3815c22e359b",
+      "pending": 0
+    },
+    {
+      "order": [
+        "b",
+        "a",
+        "b2",
+        "a2",
+        "a3"
+      ],
+      "effective": "d942800dd0c187dd74ea489d2adbabd6fa312f6c1f064f06745c3815c22e359b",
+      "pending": 0
+    }
+  ],
+  "device_revocation_cases": [
+    {
+      "name": "normal_active",
+      "expect": true,
+      "got": true
+    },
+    {
+      "name": "revoked_controller_resurrection",
+      "expect": false,
+      "got": false
+    },
+    {
+      "name": "revoked_messaging_relink",
+      "expect": false,
+      "got": false
+    },
+    {
+      "name": "fresh_id_after_revocation",
+      "expect": true,
+      "got": true
+    }
+  ],
+  "history_bundle_cases": [
+    {
+      "name": "bound_bundle",
+      "expect": true,
+      "got": true
+    },
+    {
+      "name": "cross_room",
+      "expect": false,
+      "got": false
+    },
+    {
+      "name": "wrong_recipient_incarnation",
+      "expect": false,
+      "got": false
+    },
+    {
+      "name": "removed_author",
+      "expect": false,
+      "got": false
+    },
+    {
+      "name": "claimed_event_id_does_not_enter_live_dedupe",
+      "expect": true,
+      "got": true
+    }
+  ],
+  "summary": {
+    "orderings": 3,
+    "device_cases": 4,
+    "history_cases": 5
+  }
+}

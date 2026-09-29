@@ -62,6 +62,8 @@ Default ranking is transparent and deterministic enough to remain understandable
 
 `Cmd/Ctrl+K` is the desktop/power-user entry point. Keyboard, voice and assistive technologies resolve into the same semantic actions.
 
+ADR-0162 hardens these rules: [`NAVIGATION_AND_OMNIBAR.md`](NAVIGATION_AND_OMNIBAR.md) fixes the Omnibar privacy and safety boundaries (no network query merely on focus/typing, no durable raw query history by default, exact/pinned-match protection, a stable keyboard-armed result across asynchronous arrivals, per-suggestion removal and clear/disable controls), and [`VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md`](VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md) fixes the semantic color/icon contract.
+
 ## Navigation doctrine
 
 - **Changing place** uses navigation.

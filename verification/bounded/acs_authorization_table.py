@@ -99,7 +99,7 @@ def state(control, quarantined=(), messaging=(), revoked=(), policy="p0", consti
           transparency="t0", gen=1, retired=None, fork_ack=None, parent="h0"):
     return {"control": sorted(control), "quarantined": sorted(quarantined), "messaging": sorted(messaging),
             "revoked": sorted(revoked), "recovery_policy": policy, "constitutional_policy": constitution,
-            "min_security_generation": min_gen, "key_epochs": keys or {d: 1 for d in control},
+            "min_one_to_one_security_generation": min_gen, "key_epochs": keys or {d: 1 for d in control},
             "transparency": transparency, "generation": gen, "retirement": retired, "fork_ack": fork_ack,
             "previous": parent}
 
@@ -133,9 +133,9 @@ def deltas(p: dict, c: dict) -> list[tuple[str, str | None]]:
         out.append(("recovery_policy", None))
     if c["constitutional_policy"] != p["constitutional_policy"]:
         out.append(("constitutional_policy", None))
-    if c["min_security_generation"] > p["min_security_generation"]:
+    if c["min_one_to_one_security_generation"] > p["min_one_to_one_security_generation"]:
         out.append(("raise_min_profile", None))
-    if c["min_security_generation"] < p["min_security_generation"]:
+    if c["min_one_to_one_security_generation"] < p["min_one_to_one_security_generation"]:
         out.append(("lower_min_profile", None))
     for d in set(p["key_epochs"]) & set(c["key_epochs"]):
         if c["key_epochs"][d] != p["key_epochs"][d]:
@@ -176,7 +176,7 @@ def _authorize(p: dict, c: dict, ctx: dict) -> tuple[str, str]:
         return "reject", "delta not listed in §4.1"
     rule = max((RULE[k] for k, _ in ds), key=STRENGTH.get)
     if rule == "forbidden":
-        return "reject", "lowering minimum_crypto_profile is forbidden"
+        return "reject", "lowering/non-raising minimum_crypto_profile on the one_to_one security_generation axis is forbidden"
     control, quarantined = set(p["control"]), set(p["quarantined"])
     voting = control - quarantined
     signers = set(ctx.get("signers", ()))
@@ -257,6 +257,8 @@ def after_invariants(c: dict) -> list[str]:
         bad.append("zero voting controllers")
     if set(c["control"]) & set(c["revoked"]):
         bad.append("revoked device is a controller")
+    if set(c["messaging"]) & set(c["revoked"]):
+        bad.append("revoked device is a messaging device")
     return bad
 
 
@@ -272,7 +274,7 @@ def children(p: dict):
 
     def ch(**kw):
         base = dict(control=p["control"], quarantined=p["quarantined"], messaging=p["messaging"], revoked=p["revoked"],
-                    policy=p["recovery_policy"], constitution=p["constitutional_policy"], min_gen=p["min_security_generation"],
+                    policy=p["recovery_policy"], constitution=p["constitutional_policy"], min_gen=p["min_one_to_one_security_generation"],
                     keys=dict(p["key_epochs"]), transparency=p["transparency"], gen=g)
         base.update(kw)
         return state(**base)
@@ -294,8 +296,8 @@ def children(p: dict):
         yield "rotate_own_key", t, ch(keys={**p["key_epochs"], t: p["key_epochs"][t] + 1})
     yield "recovery_policy", None, ch(policy="p1")
     yield "constitutional_policy", None, ch(constitution=2)
-    yield "raise_min_profile", None, ch(min_gen=p["min_security_generation"] + 1)
-    yield "lower_min_profile", None, ch(min_gen=p["min_security_generation"] - 1)
+    yield "raise_min_profile", None, ch(min_gen=p["min_one_to_one_security_generation"] + 1)
+    yield "lower_min_profile", None, ch(min_gen=p["min_one_to_one_security_generation"] - 1)
     yield "transparency", None, ch(transparency="t1")
     r = ch()
     r["retirement"] = {"reason": "moved", "successor": "acct-2"}
@@ -356,7 +358,7 @@ def explore() -> dict:
                     if rec and not s and (rec["veto"] or rec["elapsed"] < rec["delay"]):
                         violations.append(f"recovery-alone accepted before delay or over a veto: {tag}")
                     if cls == "lower_min_profile":
-                        violations.append(f"minimum profile lowered: {tag}")
+                        violations.append(f"minimum 1:1 profile generation lowered: {tag}")
                     if cls == "retirement" and tgt == "moved" and not s:
                         violations.append(f"R-201 successor pointer accepted without device signers: {tag}")
                     if cls == "fork_bridge" and (rec or not set(ctx.get("trusted_heads", [])) <= set(c["fork_ack"])):
@@ -388,6 +390,9 @@ def vectors() -> list[dict]:
 
     add("link_messaging_by_one_controller", "link_messaging", P3, kids3[("link_messaging", None)], {"signers": ["d1"]}, "accept")
     add("link_messaging_by_messaging_device_rejected", "link_messaging", P3, kids3[("link_messaging", None)], {"signers": ["m1"]}, "reject")
+    Prevoked_msg = state(DEVS, messaging=[], revoked=[MSG], min_gen=2)
+    Crelink = state(DEVS, messaging=[MSG], revoked=[MSG], min_gen=2, gen=2)
+    add("revoked_messaging_device_cannot_be_relinked", "link_messaging", Prevoked_msg, Crelink, {"signers": ["d1"]}, "reject")
     add("promote_majority", "promote", P3, kids3[("promote", SPARE)], {"signers": ["d1", "d2"]}, "accept")
     add("promote_single_signer_N3_rejected", "promote", P3, kids3[("promote", SPARE)], {"signers": ["d1"]}, "reject")
     add("promote_single_signer_N1", "promote", P1, kids1[("promote", SPARE)], {"signers": ["d1"]}, "accept")

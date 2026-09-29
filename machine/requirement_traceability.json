@@ -2345,6 +2345,185 @@
         "V-021",
         "V-022"
       ]
+    },
+    {
+      "requirement": "R-361",
+      "verified_by": [
+        "V-002",
+        "conformance:identity"
+      ]
+    },
+    {
+      "requirement": "R-362",
+      "verified_by": [
+        "V-003",
+        "conformance:network_transport",
+        "conformance:attachments"
+      ]
+    },
+    {
+      "requirement": "R-363",
+      "verified_by": [
+        "V-004",
+        "conformance:group_history"
+      ]
+    },
+    {
+      "requirement": "R-364",
+      "verified_by": [
+        "V-003",
+        "conformance:security_floor"
+      ]
+    },
+    {
+      "requirement": "R-365",
+      "verified_by": [
+        "V-018",
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-366",
+      "verified_by": [
+        "V-021",
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-367",
+      "verified_by": [
+        "conformance:ui_intents",
+        "conformance:identifier_spoofing"
+      ]
+    },
+    {
+      "requirement": "R-368",
+      "verified_by": [
+        "conformance:ui_themes",
+        "conformance:accessibility"
+      ]
+    },
+    {
+      "requirement": "R-369",
+      "verified_by": [
+        "conformance:ui_themes"
+      ]
+    },
+    {
+      "requirement": "R-370",
+      "verified_by": [
+        "conformance:ui_themes",
+        "conformance:accessibility"
+      ]
+    },
+    {
+      "requirement": "R-371",
+      "verified_by": [
+        "V-018",
+        "conformance:accessibility"
+      ]
+    },
+    {
+      "requirement": "R-372",
+      "verified_by": [
+        "V-003",
+        "V-004",
+        "V-020"
+      ]
+    },
+    {
+      "requirement": "R-373",
+      "verified_by": [
+        "V-004"
+      ]
+    },
+    {
+      "requirement": "R-374",
+      "verified_by": [
+        "conformance:ui_intents",
+        "conformance:provider"
+      ]
+    },
+    {
+      "requirement": "R-375",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-376",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-377",
+      "verified_by": [
+        "V-002",
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-378",
+      "verified_by": [
+        "V-003",
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-379",
+      "verified_by": [
+        "V-004",
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-380",
+      "verified_by": [
+        "V-005",
+        "V-024",
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-381",
+      "verified_by": [
+        "validator",
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-382",
+      "verified_by": [
+        "validator",
+        "V-003"
+      ]
+    },
+    {
+      "requirement": "R-383",
+      "verified_by": [
+        "validator",
+        "V-005"
+      ]
+    },
+    {
+      "requirement": "R-384",
+      "verified_by": [
+        "validator"
+      ]
+    },
+    {
+      "requirement": "R-385",
+      "verified_by": [
+        "V-003",
+        "V-017"
+      ]
+    },
+    {
+      "requirement": "R-386",
+      "verified_by": [
+        "validator"
+      ]
     }
   ]
 }

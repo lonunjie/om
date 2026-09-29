@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "status": "frozen_by_ADR-0165",
+  "checkpoint": "2026-09-29 Run 7",
+  "published_meaning_immutable": true,
+  "profile_id_is_security_ordering": false,
+  "extension_version_is_security_ordering": false,
+  "change_classes": [
+    {
+      "id": "editorial",
+      "mutates_published_semantics": false,
+      "required_artifacts": [
+        "changelog"
+      ]
+    },
+    {
+      "id": "clarification",
+      "mutates_published_semantics": false,
+      "required_artifacts": [
+        "ADR_or_erratum",
+        "bounded_equivalence_check"
+      ]
+    },
+    {
+      "id": "additive_noncritical_extension",
+      "mutates_published_semantics": false,
+      "required_artifacts": [
+        "ADR",
+        "registry_entry",
+        "schema",
+        "fallback",
+        "vectors",
+        "requirement_trace",
+        "threat_register"
+      ]
+    },
+    {
+      "id": "compatible_new_profile",
+      "mutates_published_semantics": false,
+      "required_artifacts": [
+        "ADR",
+        "immutable_profile_entry",
+        "migration_vectors",
+        "requirement_trace",
+        "threat_register"
+      ]
+    },
+    {
+      "id": "security_tightening",
+      "mutates_published_semantics": false,
+      "required_artifacts": [
+        "ADR_or_security_advisory",
+        "replacement_or_floor_rule",
+        "negative_downgrade_vectors"
+      ]
+    },
+    {
+      "id": "incompatible_protocol_evolution",
+      "mutates_published_semantics": false,
+      "required_artifacts": [
+        "new_profile_or_object_or_extension_lineage",
+        "ADR",
+        "migration_or_reinit",
+        "independent_conformance_plan",
+        "continuity_snapshot"
+      ]
+    },
+    {
+      "id": "fork_or_lineage_transition",
+      "mutates_published_semantics": false,
+      "required_artifacts": [
+        "new_lineage_identifier_or_root",
+        "continuity_bundle",
+        "historical_meaning_statement",
+        "migration_or_escape_guidance"
+      ]
+    }
+  ],
+  "negotiation": {
+    "candidate_intersection": "authenticated_mutual_support",
+    "filters": [
+      "conversation_type_supported",
+      "local_policy_allows",
+      "production_lifecycle_allowed",
+      "effective_security_floor_met"
+    ],
+    "primary_order": "security_generation_for_conversation_type_descending",
+    "deprecated_rule": "exclude_deprecated_for_new_traffic_when_equal_or_higher_generation_non_deprecated_candidate_exists",
+    "tie_break": "smallest_numeric_profile_id_only_after_equal_security_generation",
+    "profile_id_is_security_ordering": false,
+    "empty_intersection": "migration_reinitialization_or_read_export_only_or_safe_failure_per_underlying_protocol",
+    "no_preference_guessing": true
+  },
+  "extension_evolution": {
+    "registry_key": [
+      "extension_id",
+      "version"
+    ],
+    "criticality_immutable_per_extension_id": true,
+    "reserved_critical_prefix_ids_are_permanently_critical": true,
+    "new_critical_semantics_require_reserved_critical_prefix": true,
+    "same_id_new_version_requires_noncritical_backward_compatible_fallback": true,
+    "authority_or_security_semantic_change_requires_new_id_or_profile": true,
+    "logical_schema_cannot_expand_frozen_w0_wire": true
+  },
+  "agent_forbidden_shortcuts": [
+    "highest_version_as_security_rule",
+    "highest_profile_id_as_security_rule",
+    "in_place_crypto_profile_mutation",
+    "in_place_extension_criticality_change",
+    "logical_schema_expansion_of_frozen_w0_wire",
+    "silent_floor_downgrade",
+    "live_registry_or_project_website_as_protocol_authority",
+    "local_harness_claimed_as_independent_or_formal_evidence"
+  ],
+  "required_change_control_steps": [
+    "identify_affected_surface",
+    "classify_change",
+    "locate_current_lineage",
+    "update_requirements_threats_invariants_conformance",
+    "update_registry_schema_vectors_continuity_when_required",
+    "run_protocol_evolution_validator",
+    "obtain_new_adr_lineage_decision_for_behavior_change",
+    "preserve_old_published_meaning",
+    "record_migration_or_fallback",
+    "do_not_self_close_external_formal_interoperability_gates"
+  ]
+}

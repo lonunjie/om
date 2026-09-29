@@ -1,6 +1,6 @@
 # OM Engineering Handoff — DESIGN-FROZEN, INACTIVE UNTIL NAMED-SCOPE AUTHORIZATION
 
-> **Final design checkpoint: 2026-09-26 / ADR-0139.** Architecture design is closed. Product engineering is **not** authorized by this document. In plain terms: product engineering is not authorized at this checkpoint. [`machine/repository_contract.json`](../../machine/repository_contract.json) is authoritative for scope unlock.
+> **Current design checkpoint: 2026-09-29 / ADR-0165.** Architecture design is closed; ADR-0163 adds implementation-readiness/retry transaction rules without authorizing engineering. Product engineering is **not** authorized by this document. In plain terms: product engineering is not authorized at this checkpoint. [`machine/repository_contract.json`](../../machine/repository_contract.json) is authoritative for scope unlock.
 
 ## 1. What “design-frozen” means
 
@@ -54,7 +54,18 @@ The compact index is [`SECURITY_INVARIANTS.md`](../architecture/safety/SECURITY_
 - `OMA-ENC-1-candidate` is verification-only. It is **not** permission to ship archive encryption. V-014 must freeze the reviewed production archive profile first.
 - Guardian recovery uses only the reviewed method/profile admitted by the current RecoveryPolicy. No bespoke threshold cryptography.
 
-## 5. What engineers may choose without reopening architecture
+## 5. Implementation-readiness and unknown-outcome rule (ADR-0163)
+
+Before implementing a scope, read [`IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md`](IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md) and its machine-readable [`machine/engineering_scope_contracts.json`](../../machine/engineering_scope_contracts.json) entry. Authorization dependencies remain solely in [`repository_contract.json`](../../machine/repository_contract.json); integration test prerequisites do not become hidden protocol dependencies.
+
+For any durable mutation that can cross a crash/network uncertainty boundary, preserve its existing stable logical identity before external effect when required. A lost response is not proof of rejection: exact-retry/reconcile the same operation when safe, or reconcile authenticated state before creating a new operation. Core reports `PendingNetwork`/`PendingReconciliation` rather than inventing failure. Group membership/control changes additionally use the ADR-0163 crash-safe prepared-Commit journal; no application traffic may leave a tentative group branch.
+
+
+## 5A. Protocol evolution and change-control rule (ADR-0165)
+
+Before changing normative protocol/profile/extension material, read [`PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md`](PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md) and [`machine/protocol_evolution_policy.json`](../../machine/protocol_evolution_policy.json). Published meanings are immutable; profile IDs are not security ordering; extension criticality is immutable; and behavior-changing evolution requires a new immutable lineage/profile/extension or explicit fork. Every normative change must use the strongest applicable ADR-0165 change class and update its required ledgers/conformance/migration/continuity artifacts. A local harness never counts as independent/formal/interoperability evidence.
+
+## 6. What engineers may choose without reopening architecture
 
 Inside an authorized scope, normal engineering choices include:
 
@@ -69,45 +80,38 @@ Inside an authorized scope, normal engineering choices include:
 
 An implementation choice becomes an architecture change if it changes who can authorize, what an observer learns, which bytes authenticate, when a downgrade is accepted, how recovery/legacy becomes effective, which principal authored an action, or how independently operated implementations interoperate.
 
-## 6. Scope map and principal evidence gates
+## 7. Scope map and principal evidence gates
 
-The machine ledger is authoritative; this summary is orientation only.
+The machine ledger is authoritative; this summary is orientation only. “Direct gates” means gates whose `unlock_scopes` explicitly names the scope. `core_kernel` additionally requires every `always_required_pre_engineering_gate` and cross-wave `interface_impact` feasibility criterion from the repository contract; those are not misrepresented below as direct unlock gates.
 
-| Scope | Wave | Principal gate families |
-|---|---:|---|
-| `core_kernel` | W0 | V-001/002/003/005/008/009/011/013/014/015/016/019 plus always-required V-017 |
-| `reference_client_ui` | W0 | V-006/018/021/022/023 + dependency on core |
-| `provider_reference` | W0 | V-015/020/022 + provider conformance + dependency on core |
-| `groups` | W1 | V-004/009/019 + core dependency |
-| `portability` | W1 | V-014 + core dependency |
-| `expressive_media` | later wave | V-012 |
-| `calls` | later wave | V-007 |
-| `communities_publications` | later wave | V-008/016 |
-| `services_bots` | later wave | V-011 |
-| `plugins` | later wave | V-010 |
-| `bridges` | later wave | V-013 |
+| Scope | Wave | Direct gates | Authorization dependencies |
+|---|---:|---|---|
+| `core_kernel` | W0 | V-001, V-002, V-003, V-005, V-015, V-016 | — |
+| `reference_client_ui` | W0 | V-006, V-018, V-021, V-022, V-023 | `core_kernel` |
+| `provider_reference` | W0 | V-015, V-020, V-022 | `core_kernel` |
+| `groups` | W1 | V-004, V-009, V-019 | `core_kernel` |
+| `portability` | W1 | V-014 | `core_kernel` |
+| `expressive_media` | W1 | V-012 | `core_kernel` |
+| `local_delivery` | W1 | V-003, V-015, V-024 | `core_kernel` |
+| `calls` | W2 | V-007 | `core_kernel`, `groups` |
+| `communities_publications` | W3 | V-008, V-016 | `groups` |
+| `services_bots` | W4 | V-011 | `groups` |
+| `plugins` | W4 | V-010 | `reference_client_ui` |
+| `bridges` | W4 | V-013 | `groups` |
 
-Do not copy this table into authorization logic; use [`machine/repository_contract.json`](../../machine/repository_contract.json) and current gate records.
+Do not copy this table into authorization logic; use [`machine/repository_contract.json`](../../machine/repository_contract.json) and current gate records. The validator also checks this handoff against [`machine/engineering_scope_contracts.json`](../../machine/engineering_scope_contracts.json).
 
-## 7. Recommended first authorized engineering sequence
+## 8. Recommended implementation layering after authorization
 
-Once the relevant scope is actually authorized, preserve this dependency direction:
+This is dependency order, **not** permission to start:
 
-1. repository/toolchain/reproducibility foundation;
-2. canonical IDs/data model/deterministic encoding/parser limits;
-3. AccountControlState implementation against the frozen transition contract and evidence vectors;
-4. DeviceVault/profile isolation and local encrypted-state foundation;
-5. reference Home/discovery vertical slice using provider-resource capabilities;
-6. relationship/event vertical slice with mandatory relationship context;
-7. hostile content/blob/local lifecycle boundaries;
-8. approved production crypto integration through its dedicated gate;
-9. push/PWA operational behavior;
-10. multi-device and recovery;
-11. later scopes only after their dependencies/gates authorize them.
+1. Layer 0: `core_kernel`. Internally prefer types/codec -> identity/control -> crypto/session -> event/materialization -> delivery/storage/discovery -> private sync/Core bridge.
+2. Layer 1 after Core: `reference_client_ui`, `provider_reference`, `groups`, `portability`, `expressive_media`, and `local_delivery` may proceed independently when each has its own authorization. Reference UI/provider implementations can use interface harnesses; neither becomes a hidden dependency of Core.
+3. Layer 2: `calls`, `communities_publications`, `services_bots`, `plugins`, and `bridges` follow their declared `groups` or `reference_client_ui` authorization dependency.
 
-This sequence is not permission to start now.
+End-to-end integration may of course combine several authorized scopes. That does not retroactively add an authorization dependency or protocol authority edge.
 
-## 8. Product/UX implementation rules
+## 9. Product/UX implementation rules
 
 - Render local state quickly, but never fake irreversible security success.
 - Optimism is allowed only where semantic rollback is safe.
@@ -116,11 +120,11 @@ This sequence is not permission to start now.
 - Profile/account isolation is built into local namespaces even if the first UI exposes one profile.
 - Telegram-like rich text uses OM's safe semantic representation, never arbitrary HTML/Markdown execution on the wire.
 
-## 9. Update/distribution and anti-capture rule
+## 10. Update/distribution and anti-capture rule
 
 A ClientHost, app store, package mirror, provider, directory, transparency log, safety-advisory publisher or catalog may be important operational infrastructure, but it does not acquire constitutional protocol authority merely by being popular or bundled. Verified releases and transparency/monitoring are supply-chain defenses; they are not a kill switch.
 
-## 10. Architecture-change rule
+## 11. Architecture-change rule
 
 When reality contradicts the design:
 
@@ -133,7 +137,7 @@ When reality contradicts the design:
 
 Never ship a quiet implementation-specific exception and document it afterward.
 
-## 11. Current lock
+## 12. Current lock
 
 At this checkpoint:
 
@@ -143,3 +147,13 @@ At this checkpoint:
 - global `engineering_authorized`: false.
 
 The next phase is evidence and named-scope authorization, not additional speculative architecture hardening.
+
+
+## 2026-09-29 Run 6 — algorithm-level handoff
+
+The Run-6 algorithm supplement is now part of the normative implementation handoff. It resolves ordering/failure interpretation for ACS validation, 1:1/sealed delivery, group Commit recovery, mutable route/location convergence, GroupHistoryBundle isolation, extension dispatch, LAN admission and unknown outcomes. It introduces no new wire fields and does not authorize engineering.
+
+
+## 11. Run 6 algorithm-level contract
+
+[`docs/architecture/IMPLEMENTATION_ALGORITHMS_AND_FAILURE_PATHS.md`](../architecture/IMPLEMENTATION_ALGORITHMS_AND_FAILURE_PATHS.md) and [`machine/dangerous_algorithm_contracts.json`](../../machine/dangerous_algorithm_contracts.json) are now part of the normative implementation handoff. They specify ordering/failure semantics for the eight highest-risk algorithm families without introducing new wire fields or authorization. The bounded sanity harness passes 49/49 cases; V-series evidence remains independently authoritative.

@@ -48,7 +48,7 @@ Revoked device:
 
 - stops receiving future envelopes;
 - loses future group epochs after revocation propagates;
-- cannot obtain new history bundles;
+- cannot obtain new `DeviceHistorySnapshot`s;
 - remains potentially able to read plaintext it previously possessed (unavoidable endpoint property).
 
 ## Restore

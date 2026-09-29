@@ -16,11 +16,11 @@ A theme may customize, within safe bounds:
 - typography and bundled/local fonts;
 - message-bubble shape;
 - corner/radius system;
-- spacing/density presets;
+- spacing/radius styling within the user-selected density bounds;
 - wallpapers/backgrounds;
-- icon visual style/accent when compatible with semantic icons;
+- color/accent styling of non-reserved semantic icons; arbitrary theme assets cannot replace semantic action/security glyphs;
 - notification/call sounds;
-- motion intensity/easing preset within safe limits;
+- motion easing/style defaults within safe limits; explicit user motion intensity and reduced-motion preferences take precedence;
 - per-conversation appearance where enabled.
 
 ## Theme format
@@ -40,7 +40,9 @@ my-theme.omtheme/
   integrity.json
 ```
 
-Theme import validates schema, resource hashes, MIME/type expectations, decompression limits, dimensions and total size before activation. Font files in a theme are hostile content and also pass the font sanitizer (§Fonts).
+Theme import validates schema, resource hashes, MIME/type expectations, decompression limits, dimensions and total size before activation. Font files in a theme are hostile content and also pass the font sanitizer (§Fonts). Asset paths are relative-only and normalization-safe: absolute paths, `..` segments, backslash aliases, NULs and duplicate normalized paths reject before extraction. Extraction is bounded/streamed into a dedicated sandbox and activation is atomic.
+
+Theme `icon` assets are **decorative only**. They cannot bind or replace a semantic action/security icon ID. Alternate semantic icon families are reviewed client assets, not untrusted theme content. See [`VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md`](VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md).
 
 ## Hard security boundaries
 
@@ -83,7 +85,7 @@ The following remain under OM semantic control:
 
 The plugin host's chrome list in [`PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md`](../ecosystem/PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md) is the same list (ADR-0129).
 
-A theme may supply stylistic variants only inside enforced semantic and contrast constraints.
+A theme may supply stylistic variants only inside enforced semantic and contrast constraints. Functional color and icon semantics are defined by [`VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md`](VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md): themes may style approved roles, but cannot redefine which role means warning/danger/selection/verification or replace reserved semantic glyphs.
 
 ## Web/PWA hardening
 
@@ -154,7 +156,7 @@ Offer an explicit density preference such as:
 - Comfortable;
 - Compact.
 
-Density is an ergonomic choice and should not be hidden inside decorative themes. Minimum hit-target and readability constraints still apply.
+Density is an ergonomic choice and should not be hidden inside decorative themes. A theme may provide spacing/radius values interpreted within the active density envelope, but it cannot select or switch the user's Comfortable/Compact preference. Minimum hit-target and readability constraints still apply.
 
 ## Per-conversation themes
 
@@ -168,9 +170,9 @@ A future public theme catalog can exist as a replaceable content provider, not a
 
 Every built-in theme MUST ship an authored light and dark semantic palette. The normal appearance choice is **Auto**, following the platform's light/dark preference without changing theme identity.
 
-Custom theme bundles must provide valid light+dark variants, or the importer may derive a candidate counterpart and require validation/preview before activation. Contrast, focus, destructive/security states and high-contrast overrides are validated independently in both modes.
+An activated custom theme bundle must contain valid light+dark variants. An import UI may offer to derive a candidate counterpart as a draft convenience, but it must write and validate both variants before the bundle is accepted or activated. Contrast, focus, destructive/security states and high-contrast overrides are validated independently in both modes.
 
-OM should ship several calm, broadly appealing curated themes rather than one default plus novelty skins. When a user later creates another `IdentityProfile`, the UI MAY offer a distinct curated theme as an optional visual cue. Theme choice remains local/profile presentation state and never becomes public identity/discovery metadata.
+OM ships a small curated family rather than one default plus novelty skins. ADR-0159 names the initial presets **OM Clear** (default), **OM Paper**, **OM Iris** and **OM Graphite** ([`PRESET_THEME_PAIRS.md`](../../ux-design/specs/PRESET_THEME_PAIRS.md)), each as authored light/dark pairs using the same semantic status/accessibility rules in [`VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md`](VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md). When a user later creates another `IdentityProfile`, the UI MAY offer a distinct curated theme as an optional visual cue. Theme choice remains local/profile presentation state and never becomes public identity/discovery metadata.
 
 The V1 profile switcher must not flash/reload the application: preserve per-profile draft, selected conversation and navigation state and switch presentation/state atomically.
 
@@ -185,6 +187,10 @@ The following are normative pass/fail cases for the registered W0 conformance su
 | TH-03 | custom font on reserved surface | built-in trusted font remains in use |
 | TH-04 | light/dark/auto | all required states remain legible and accessible |
 | TH-05 | missing optional theme asset | deterministic safe fallback, no network code execution |
+| TH-06 | traversal/absolute/duplicate-normalized asset path | bundle rejects before extraction; no write escapes the theme sandbox |
+| TH-07 | theme `icon` imitates semantic action/security icon | decorative asset cannot replace or bind the semantic icon |
+| TH-08 | theme density/motion conflicts with explicit user preference | user density, motion intensity and reduced-motion state win |
+| TH-09 | theme sound conflicts with notification/call policy | theme can style a permitted sound but cannot silence/re-enable policy |
 
 ## R15 OwnMessenger / OhMessenger integration
 

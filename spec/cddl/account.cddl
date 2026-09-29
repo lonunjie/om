@@ -14,7 +14,7 @@ AccountControlState = {
   ? 8: [1*1024 device-id],                  ; permanently_revoked_devices (set)
   9: constitutional-policy,
   ? 10: digest,                             ; recovery_policy_commitment (OM-RECOVERY-POLICY-HASH-v1)
-  11: profile-id,                           ; minimum_crypto_profile
+  11: profile-id,                           ; minimum_crypto_profile (account-wide 1:1 floor; ADR-0161)
   ? 12: [1*64 control-key-epoch],           ; control_key_epochs (set)
   ? 13: [1*320 device-credential-ref],      ; device_credentials (set; frozen by ADR-0119/ADR-0135)
   ? 14: digest,                             ; transparency_commitment

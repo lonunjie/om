@@ -182,7 +182,8 @@
         "ADR-0121",
         "ADR-0122",
         "ADR-0128",
-        "ADR-0157"
+        "ADR-0157",
+        "ADR-0163"
       ],
       "resolved_questions": [
         "Q-002",
@@ -521,7 +522,10 @@
         "docs/architecture/ux/THEMES_FONTS_AND_PERSONALIZATION.md",
         "docs/architecture/ux/SECURITY_PRIVACY_PROFILES.md",
         "docs/architecture/ux/RECONCILED_INTERACTION_MODEL.md",
-        "docs/architecture/ux/ACTION_TO_CORE_INTENT_MAP.md"
+        "docs/architecture/ux/ACTION_TO_CORE_INTENT_MAP.md",
+        "docs/architecture/ux/NAVIGATION_AND_OMNIBAR.md",
+        "docs/architecture/ux/VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md",
+        "docs/research/CURRENT_UI_REFERENCES_20260929.md"
       ],
       "schemas": [
         "spec/protocol/security-profile.logical.schema.json",
@@ -541,7 +545,8 @@
         "ADR-0068",
         "ADR-0115",
         "ADR-0129",
-        "ADR-0159"
+        "ADR-0159",
+        "ADR-0162"
       ],
       "resolved_questions": [
         "Q-024",
@@ -555,7 +560,8 @@
       ],
       "verification_gates": [
         "V-018",
-        "V-022"
+        "V-022",
+        "V-021"
       ]
     },
     "architecture_process": {
@@ -575,7 +581,8 @@
         "docs/process/ENGINEERING_REPOSITORY_LAYOUT.md",
         "docs/process/IMPLEMENTATION_ROADMAP.md",
         "docs/reviews/HARDENING_REVIEW_20260924.md",
-        "docs/process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md"
+        "docs/process/RELEASE_WAVES_AND_SCOPED_ENGINEERING_UNLOCK.md",
+        "docs/process/IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md"
       ],
       "schemas": [],
       "adrs": [
@@ -591,7 +598,8 @@
         "ADR-0117",
         "ADR-0130",
         "ADR-0157",
-        "ADR-0158"
+        "ADR-0158",
+        "ADR-0163"
       ],
       "resolved_questions": [],
       "design_queue": [
@@ -804,12 +812,14 @@
         "docs/architecture/providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
         "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
         "docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md",
-        "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md"
+        "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+        "docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md"
       ],
       "schemas": [
         "spec/protocol/protocol-continuity-bundle.logical.schema.json",
         "spec/protocol/crypto-profile.logical.schema.json",
-        "spec/protocol/protocol-extension.logical.schema.json"
+        "spec/protocol/protocol-extension.logical.schema.json",
+        "machine/protocol_evolution_policy.json"
       ],
       "adrs": [
         "ADR-0050",
@@ -817,7 +827,8 @@
         "ADR-0071",
         "ADR-0094",
         "ADR-0100",
-        "ADR-0101"
+        "ADR-0101",
+        "ADR-0165"
       ],
       "design_queue": [
         "A-015"

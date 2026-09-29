@@ -1,11 +1,11 @@
 {
   "kind": "design_closure_set2",
   "design_only": true,
-  "requirements": 351,
-  "threats": 128,
-  "decisions": 181,
+  "requirements": 377,
+  "threats": 145,
+  "decisions": 187,
   "design_queue_items": 44,
-  "security_invariants": 36,
+  "security_invariants": 40,
   "checks": [
     {
       "name": "design_queue_closed_for_w0",
@@ -15,32 +15,32 @@
     },
     {
       "name": "requirement_traceability",
-      "requirements": 351,
-      "rows": 351,
+      "requirements": 377,
+      "rows": 377,
       "missing": 0,
       "duplicates": 0
     },
     {
       "name": "threat_traceability",
-      "threats": 128,
+      "threats": 145,
       "problems": 0
     },
     {
       "name": "decision_adr_index",
-      "decisions": 181,
-      "indexed_adrs": 159,
+      "decisions": 187,
+      "indexed_adrs": 166,
       "problems": 0
     },
     {
       "name": "security_invariant_traceability",
-      "document_invariants": 36,
-      "mapped": 36,
+      "document_invariants": 40,
+      "mapped": 40,
       "problems": 0
     },
     {
       "name": "canonical_ambiguity_markers",
       "selected_stale_problems": 0,
-      "canonical_files_scanned": 171,
+      "canonical_files_scanned": 179,
       "whole_tree_hits": []
     },
     {

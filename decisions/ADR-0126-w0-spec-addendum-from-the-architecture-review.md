@@ -50,7 +50,8 @@ ADR collects every W0 wire addition from the review in one place.
    conversation type in question, never profile ids. The only floor movement that is not an increase: a
    SecurityAdvisory (ADR-0104) marks a profile `forbidden`; the floor then moves to a non-forbidden profile of
    **equal or higher** generation, never lower. If none exists, the conversation stops sending until one does. There
-   is no other exception.
+   is no other exception. ADR-0161 further pins `AccountControlState.minimum_crypto_profile` to the
+   `one_to_one` axis only; group floors remain Room/group state and do not derive from that ACS field.
 7. **`pq_signed_prekey` is mandatory** in AsyncKeyBundle (key 8), as ADR-0118 §6 requires. The CDDL is changed. The
    numeric-fields registry keeps its assigned `req: false` value (immutable) and instead records the rule as
    OM-Crypto-v1's `required_bundle_fields`; validators apply both.

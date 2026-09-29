@@ -3,7 +3,10 @@
   "spacing": {"1": 4, "2": 8, "3": 12, "4": 16, "5": 24, "6": 32},
   "radius": {"small": 6, "medium": 10, "large": 16, "pill": 999},
   "touch_target": {"primary_min_css_px": 44},
+  "focus": {"perimeter_css_px": 2, "minimum_change_contrast": 3.0},
   "motion": {"instant_ms": 80, "quick_ms": 160, "standard_ms": 220, "slow_ms": 340},
   "layout": {"compact_max": 599, "medium_max": 839, "expanded_max": 1199},
-  "notes": "Seed values only. Semantic tokens and accessibility constraints take precedence over user theme values."
+  "navigation": {"default_shell": "conversation_first", "omnibar_shortcut": "Cmd/Ctrl+K"},
+  "semantic_icons": {"grid": 24, "default_stroke": 2, "theme_replaceable": false},
+  "notes": "Seed values only. Semantic roles, accessibility constraints and explicit user density/motion preferences take precedence over user theme values."
 }

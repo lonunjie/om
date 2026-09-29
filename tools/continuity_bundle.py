@@ -287,7 +287,11 @@ def identifier_reuse(obj, path="") -> list[str]:
 
 
 def cmd_check_registries(a) -> int:
-    base = a.base or (git("tag", "-l", "checkpoint/*", "--sort=-creatordate").split() or ["HEAD~1"])[0]
+    # ADR-0166: tags recording a non-adopted design line are provenance only, never the immutability baseline.
+    lines = ROOT / "machine/checkpoint_lines.json"
+    skip = {r["tag"] for r in json.loads(lines.read_text()).get("not_adopted", [])} if lines.exists() else set()
+    tags = [t for t in git("tag", "-l", "checkpoint/*", "--sort=-creatordate").split() if t not in skip]
+    base = a.base or (tags or ["HEAD~1"])[0]
     errors = []
     for f in LEDGERS:
         try:

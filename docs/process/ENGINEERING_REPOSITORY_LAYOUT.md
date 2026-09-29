@@ -57,6 +57,9 @@ om/
 
 ## Dependency direction
 
+The scope-level authorization dependency graph and implementation layers are machine-owned by [`machine/repository_contract.json`](../../machine/repository_contract.json) and [`machine/engineering_scope_contracts.json`](../../machine/engineering_scope_contracts.json). The crate/package arrows below are **code dependency direction**, not permission to start a scope. Integration fixtures/mocks must not turn a reference provider/UI/runtime into a hidden Core dependency.
+
+
 ```text
 om-types
    ↓

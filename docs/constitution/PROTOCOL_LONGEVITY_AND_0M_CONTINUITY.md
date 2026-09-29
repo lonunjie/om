@@ -425,3 +425,22 @@ V-017 must run a protocol-longevity/continuity exercise covering at least:
 - creator-disappearance drill consistent with S0/S2 stewardship claims.
 
 Passing V-017 does not prove OM will live for twenty years. It proves the architecture has no known single required continuity choke point hidden in the current design.
+
+## 15. Evolution change control (ADR-0165)
+
+Published protocol meaning is immutable. Registry/profile identifiers, frozen W0 object shapes, extension `(id, version)`
+registrations, domain-separation labels and historical object meanings are never edited in place. A behavior-changing
+correction becomes a new profile/extension/object lineage or an explicit fork.
+
+Protocol/profile negotiation is not numeric-version negotiation. For a conversation type, implementations first form the
+validated mutual profile intersection, remove locally forbidden/test profiles and candidates below the established security
+floor, then choose the highest applicable `security_generation`. Deprecated profiles are avoided for new traffic when an
+equal-or-higher non-deprecated candidate exists; equal-generation ties use the smallest profile ID only as a deterministic
+tie-break. Profile IDs and extension versions never represent security strength.
+
+Every normative change is classified as editorial, behavior-preserving clarification, additive non-critical extension,
+compatible new profile, security tightening/deprecation, incompatible protocol evolution, or fork/lineage transition.
+The class determines whether an ADR, registry/schema change, conformance vectors, migration/reinitialization guidance and
+a new continuity snapshot are required. Agents must not downgrade a change class because an implementation is easier.
+See [`PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md`](../process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md) and
+[`machine/protocol_evolution_policy.json`](../../machine/protocol_evolution_policy.json).

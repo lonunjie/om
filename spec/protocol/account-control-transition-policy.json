@@ -1,8 +1,8 @@
 {
   "format": "om.account-control-transition-policy/1",
   "status": "normative",
-  "decision": "ADR-0137",
-  "authority_rule": "A verifier derives deltas by diffing child and parent. Signers and thresholds are evaluated against the parent. An unlisted delta is rejected.",
+  "decision": "ADR-0137; ADR-0161",
+  "authority_rule": "A verifier derives deltas by diffing child and parent. Signers and thresholds are evaluated against the parent. An unlisted delta is rejected. A child is also rejected if any permanently revoked DeviceID re-enters messaging/control eligibility.",
   "parent_majority": "floor(N/2)+1 where N is the number of parent active_control_devices; quarantined controllers remain in N",
   "ordinary_signer_set": "parent active_control_devices minus parent quarantined_control_devices",
   "recovery_vote": "one constitutional vote only where the transition row permits it; it never counts for ordinary quarantine lift, safety-freeze resolution or fork bridge",
@@ -11,13 +11,15 @@
       "id": "link_messaging",
       "doc_prefix": "link a messaging device",
       "authorization": "one_active_nonquarantined",
-      "recovery": "forbidden"
+      "recovery": "forbidden",
+      "target_constraint": "target DeviceID is not present in the parent or child permanently_revoked_devices; a returning device uses a fresh DeviceID"
     },
     {
       "id": "promote",
       "doc_prefix": "promote to control device",
       "authorization": "parent_majority_or_recovery_vote",
-      "recovery": "allowed"
+      "recovery": "allowed",
+      "target_constraint": "target DeviceID is not present in the parent or child permanently_revoked_devices; a returning device uses a fresh DeviceID"
     },
     {
       "id": "quarantine",
@@ -59,13 +61,15 @@
       "id": "raise_min_profile",
       "doc_prefix": "raise `minimum_crypto_profile`",
       "authorization": "one_active_nonquarantined",
-      "recovery": "forbidden"
+      "recovery": "forbidden",
+      "target_constraint": "candidate profile defines security_generation.one_to_one and that value is strictly greater than the parent minimum profile one_to_one generation; profile id and group generation are not ordering inputs"
     },
     {
       "id": "lower_min_profile",
-      "doc_prefix": "lower `minimum_crypto_profile`",
+      "doc_prefix": "lower/equal-or-incomparable `minimum_crypto_profile` replacement",
       "authorization": "forbidden",
-      "recovery": "forbidden"
+      "recovery": "forbidden",
+      "target_constraint": "ordinary replacement that is not a strict one_to_one-generation increase is rejected; SecurityAdvisory replacement is handled only by the equal-or-higher advisory rule"
     },
     {
       "id": "rotate_own_key",
@@ -108,5 +112,14 @@
   "fork_resolution": {
     "id": "fork_bridge",
     "rule": "separate from safety-freeze resolution; device-only majority of the common ancestor and fork_ack covering every trusted observed branch; recovery forbidden"
+  },
+  "device_id_lifetime": "permanently_revoked_devices is monotone; an ID in it can never re-enter active_control_devices or messaging_devices. Returning hardware/recovery uses a fresh DeviceID and fresh DeviceCredential.",
+  "minimum_crypto_profile_semantics": {
+    "domain": "one_to_one only",
+    "profile_requirement": "referenced profile defines security_generation.one_to_one and is admissible for 1:1 use",
+    "ordinary_raise": "candidate security_generation.one_to_one is strictly greater than parent",
+    "ordinary_equal_or_lower": "forbidden/no raise; lower is always rejected",
+    "group_generation": "ignored by this ACS field; group floors are Room/group state",
+    "security_advisory": "may replace a forbidden profile only with a non-forbidden profile of equal or higher one_to_one generation"
   }
 }

@@ -901,7 +901,7 @@
       "outcome": "pass",
       "violated": null,
       "distinct_states": 90,
-      "depth": 6,
+      "depth": 7,
       "as_expected": true
     },
     {

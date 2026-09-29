@@ -1,12 +1,12 @@
 # OM design repository tasks. `make help` lists them.
 PY ?= python3
 
-.PHONY: help check verify verify-drop validate docs docs-check evidence evidence-drop tlc export import reuse registries manifest bundle preflight preflight-drop preflight-full
+.PHONY: help check verify verify-drop validate docs docs-check file-registry evidence evidence-drop tlc export import reuse registries manifest bundle preflight preflight-drop preflight-full
 
 help: ## list targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
 
-check: validate docs-check ## fast checks: validator + docs links
+check: validate docs-check file-registry evolution ## fast checks: validator + docs links + current file registry + protocol-evolution policy
 
 verify-drop: preflight-drop evidence-drop check manifest ## fresh design-drop checks; no Git history or heavyweight toolchain required
 
@@ -29,6 +29,12 @@ docs: ## linkify doc mentions and repair moved links
 
 docs-check: ## fail if docs need formatting or a link is broken
 	$(PY) tools/om_docs.py check
+
+file-registry: ## fail if machine/file_registry.json has missing/stale files or license drift
+	$(PY) tools/om_registry.py check
+
+evolution: ## protocol evolution/change-control guardrails
+	$(PY) tools/validate_protocol_evolution.py
 
 evidence: ## run all executable phase-1 evidence, including the Rust-dependent aggregate
 	$(PY) verification/run_phase1.py --profile full

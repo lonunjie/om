@@ -1,0 +1,14 @@
+{
+ "ok": true,
+ "vectors": 17,
+ "negative": [
+  "reject_test_profile_generation_0_below_floor_1",
+  "reject_profile_below_floor_after_upgrade",
+  "reject_group_only_profile_for_1to1",
+  "reject_unknown_profile",
+  "large_group_generation_cannot_bypass_1to1_floor",
+  "reject_forbidden_profile",
+  "advisory_move_to_lower_generation_rejected"
+ ],
+ "failed": []
+}

@@ -10,6 +10,7 @@ These are shared semantic `om-ui` components/primitives. Native/web implementati
 - DestinationTabs / NavigationRail (conditional/user-composable)
 - Omnibar / OmnibarResult / CommandPaletteAdapter
 - Button / IconButton
+- SemanticIcon (reviewed built-in registry; ADR-0162)
 - TextField / RichTextField / SearchField
 - List / ListItem / VirtualizedList
 - Avatar / FallbackAvatar
@@ -122,3 +123,5 @@ These are shared semantic `om-ui` components/primitives. Native/web implementati
 12. Compact targetability follows OM release guidance; visual glyph size and hit target are separate.
 13. User content/names support bidi isolation and large-text/reflow behavior.
 14. Failure belongs to the affected object whenever possible; generic error dialogs are the exception.
+15. Semantic icons come from the reviewed built-in icon registry; untrusted themes cannot replace action/security glyphs (ADR-0162).
+16. Omnibar learned state is IdentityProfile-local; asynchronous result arrival cannot retarget the currently armed keyboard selection (ADR-0162).

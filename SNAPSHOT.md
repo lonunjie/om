@@ -1,17 +1,36 @@
 # OM Architecture Snapshot
 
-Generated: **2026-09-29 09:02 PHT (UTC+08:00)**, after R16C V-008 Space/Publication wire freeze.
+Generated: **2026-09-29 10:21 PHT (UTC+08:00)**, after ADR-0166 consolidated the two parallel 2026-09-29 design lines.
 
 ## State
 
 - **Engineering is not authorized**: `engineering_authorized=false`, 0/12 scopes authorized.
-- **Design:** `design_open=0`. R15 integrates the UI/UX design track without reopening Core/protocol design.
-- **Verification:** V-001..V-024; 24 overall-open, 23 with pre-engineering open. V-018 (security UX comprehension) and V-022 (performance budgets) intentionally remain open; R15 self-approves no gate.
-- **Ledgers:** 351 requirements / 351 trace rows, 128 threats, 181 decisions / 159 ADRs, 36 security invariants.
-- **Tree:** 1,331 validator-counted current files after R16C; docs/registry checks clean; continuity manifest refreshed.
-- **Portable evidence:** all 44 drop-profile phase-1 producers were observed passing. The aggregate wrapper exceeded the orchestration window after producer 15, so producers were completed in bounded chunks and the drop summary records that execution shape rather than claiming one uninterrupted run.
-- **R15:** canonical UX now uses Chats-first progressive navigation, Omnibar, semantic Action Registry → typed Core intents, OwnMessenger/OhMessenger boundaries, architecture-mandated V1 surfaces, T0–T4 onboarding, recovery/Protection/device-suspension semantics, and detailed UI contracts/assets under `docs/ux-design/`.
-- **Next:** the remaining true runtime/formal criteria (V-004/V-013/V-014/V-024), then batched independent reviews; human/device evidence for V-018/V-022 and real-browser V-024 evidence remain separate.
+- **Design:** `design_open=0`. ADR-0166 consolidates the two parallel 2026-09-29 lines; no protocol, cryptographic or authority rule is new.
+- **Verification:** V-001..V-024; 24 overall-open, 23 with pre-engineering open. No gate is passed by the consolidation.
+- **Ledgers:** 377 requirements / 377 trace rows, 145 threats, 187 decisions / 166 indexed ADRs, 40 security invariants.
+- **Tree:** 1,363 validator-counted current files; docs/registry/protocol-evolution checks clean; continuity manifest 84/84.
+- **Evidence:** `make verify` passes locally: 50/50 phase-1 producers (49 portable), pinned TLC, and registry immutability vs `checkpoint/20260929-0902`.
+- **Review routing:** OpenAI-authored ADR-0157–0165 need a non-OpenAI independent reviewer; Anthropic-authored ADR-0166 needs a non-Anthropic one.
+- **Next:** the remaining true runtime/formal criteria (V-004 wire freeze first, then V-013/V-014/V-024 browser feasibility), then batched independent reviews; human/device evidence for V-018/V-022.
+
+## 2026-09-29 10:21 PHT — consolidation of the parallel design lines / ADR-0166
+
+Two OpenAI sessions worked in parallel from the same reviewed export (`76ad8f2`). The independent-review line
+(`checkpoint/20260929-0634` → `checkpoint/20260929-0902`: ADR-0157..0160) and the Run line (`checkpoint/20260929-0900`,
+Runs 1–7) reused the same ADR/ledger IDs for different content. ADR-0166 merges them into one tree.
+
+- **Trunk:** the independent-review line keeps its IDs and semantics.
+- **Renumbered Run line:** ADR-0161 terminal DeviceID revocation / mutable-record convergence / GroupHistoryBundle
+  isolation; ADR-0162 Omnibar, visual and theme hardening on the ADR-0159 shell; ADR-0163 implementation-readiness and
+  crash/retry contract; ADR-0164 dangerous algorithms; ADR-0165 protocol evolution and agent guardrails. Ledger IDs moved
+  to D-182..186, R-361..386 and T-139..155.
+- **Not adopted:** Run 1's `!` critical-ID class, `AccountHistorySnapshot` naming and TLS-exporter LAN binding, because
+  the reviewed ADR-0157/0158 govern them. Run 3's OM Calm/Evergreen/Warm Slate/Violet palettes were also dropped in
+  favour of ADR-0159's OM Clear/Paper/Iris/Graphite. Dependent Run text (ADR-0164 §8 LAN admission, ADR-0165
+  criticality, V-004 GroupHistoryBundle criterion) was rewritten to the trunk's terms.
+- **Guard:** `validate_0166_consolidation_guardrails` stops the superseded variants from returning.
+- **Evidence:** the UI evidence now checks OM Clear contrast (38/38); dangerous-algorithm evidence checks the ADR-0158
+  LAN profile (49/49); `make verify-drop` passes 49/49 producers.
 
 ## 2026-09-29 09:02 PHT — R16C V-008 Space/Publication wire freeze
 
@@ -69,6 +88,68 @@ OpenAI GPT-5.6 Sol reviewed Anthropic-authored ADR-0154–0156 and accepted ADR-
 - **ADR-0158 / A-055:** freezes LanDeliveryProfile v1 at 900-second epochs, K=8 fixed-cardinality tags, purpose-separated pair/invite derivations, seed-encrypted WebRTC signalling that hides SDP/ICE credentials, ordered/reliable DataChannel framing, <=16 KiB chunks, bounded backpressure, ephemeral `om+lan://` RelayEntry reuse of `OM-SEALED-DELIVERY-ROUTE-v1`, ordinary SealedDeliveryEnvelope/MLS payloads, and ordinary IntroGate/MessageRequest first-contact authority.
 - **Verification honesty:** A-055 is design-resolved, but V-024 remains open for two-codec vectors, passive-observer and first-contact mutation models, real-browser feasibility (or an honest unavailable result) and independent review. ADR-0157/0158 are OpenAI-authored and therefore this same review cannot independently approve them.
 - **Portable current-tree evidence:** aggregate producers 1–30 passed before the execution wrapper stopped while producer 31 was starting; producers 31–44 were then run directly and all passed. No producer failed. This is recorded as split execution, not misrepresented as one uninterrupted aggregate run.
+## Parallel Run line (Runs 1–7), consolidated by ADR-0166
+
+The sections below are the historical record of the parallel Run line as delivered in `checkpoint/20260929-0900`, with its IDs already renumbered by ADR-0166 (ADR-0158..0162 → ADR-0161..0165, D-180..184 → D-182..186, R-349..374 → R-361..386, T-138..154 → T-139..155). Run 1's ADR-0157 (`!` critical-ID class, `AccountHistorySnapshot`, TLS-exporter LAN binding) was **not adopted**; the reviewed ADR-0157/0158 above govern those topics. Run 3's OM Calm/Evergreen/Warm Slate/Violet palettes were not adopted either. Counts quoted below are Run-line counts, not current state.
+
+### 2026-09-29 — Run 6 / ADR-0164 dangerous algorithms
+
+Run 6 adds a normative implementation-order supplement for the highest-risk transitions: AccountControlState child validation; 1:1/sealed-delivery receive/replay; group Commit journaling/recovery; RelaySet/BlobLocationRecord branch selection; HistoryBundle import isolation; extension dispatch; LAN channel/frame admission; and provider/network unknown-outcome reconciliation. Each algorithm states its validation order, state transitions, crash/failure behavior and forbidden shortcuts. The machine contract is [`machine/dangerous_algorithm_contracts.json`](machine/dangerous_algorithm_contracts.json); the bounded implementation-readiness harness passes **49/49 cases**. No wire field, cryptographic primitive or authorization gate changed.
+
+Run-6 machine additions are D-185, R-376..R-380 and T-148..T-151. Current ledgers contain **359 requirements / 359 traces, 140 threats, 183 decisions / 161 ADRs**. Architecture validation reports **894 current files**, `design_open=0`, 24 verification gates overall-open, 23 pre-engineering phases open and **0/12 scopes authorized**. The portable phase-1 suite now contains **47/47 producers**, all passing in bounded batches. The continuity normative manifest is **82/82**.
+
+### 2026-09-29 — Run 5 implementation-readiness hardening (ADR-0163)
+
+ADR-0163 converts several previously scattered implementation obligations into one canonical transaction/retry contract without changing frozen W0 wire bytes. Mutations that can cross a crash or network uncertainty boundary must preserve a stable logical operation identity and security context before the first external effect when required; a timeout/disconnect after transmission is an **unknown outcome**, not a rejection, and safe retries reuse the same semantic identity rather than creating a second operation. Durable local commit precedes irreversible local release or success acknowledgement.
+
+For groups, the prior crash/retry checklist is now an explicit local journal: `INTENT_DURABLE -> CANDIDATE_PREPARED -> PUBLISHED_UNCONFIRMED -> ACCEPTED`, with `SUPERSEDED`/`ABANDONED` terminal alternatives. Exact prepared MLS Commit bytes/hash and tentative post-state are persisted before publication; relay acknowledgement is not canonical acceptance; application messages cannot leave a tentative branch; duplicate accepted delivery is idempotent; and a losing branch is inert and must be rebased/revalidated from canonical state. These rules do not close V-004: formal crash/partition analysis, MLS runtime feasibility, wire freeze/two-codec evidence and independent review remain external verification obligations.
+
+The Core/UI contract now distinguishes `PendingNetwork` from `PendingReconciliation`, and provider `request_id` idempotency must survive provider process restart for the advertised retry horizon. A new machine contract covers all 12 scopes, separating authorization dependencies from integration prerequisites and recording normative sources, restart contracts, retry/error semantics and forbidden shortcuts. The derived implementation layers are `core_kernel`; then `reference_client_ui`, `provider_reference`, `groups`, `portability`, `expressive_media`, `local_delivery`; then `calls`, `communities_publications`, `services_bots`, `plugins`, `bridges`. They are dependency guidance only, never engineering authorization.
+
+Run 5 also corrected stale handoff wording around the 12-scope gate graph and the already-selected one-to-one/session/group semantics. Machine additions are D-184, R-372..R-375 and T-146..T-147. `design_open=0` and engineering remains unauthorized. Portable evidence passes **46/46 producers** in bounded execution; continuity remains **81/81**. Current ledgers contain **354 requirements / 354 traces, 136 threats, 182 decisions / 160 ADRs**. Final architecture validation reports **889 current files, 24 gates overall-open, 23 pre-engineering phases open, and 0/12 scopes authorized**.
+
+### 2026-09-29 08:45 PHT — Run 4 integration/adversarial release-candidate pass (no new ADR)
+
+Run 4 re-read the current handoff, machine ledgers, deferred product queue, licensing/registry machinery and the semantic corrections from ADR-0157..0162. No new protocol/product architecture defect requiring an ADR survived the pass. Four integration defects were fixed instead: (1) Q-048/DP-011 still described curated theme names/tokens as future work even though ADR-0162 fixed OM Calm, Evergreen, Warm Slate and Violet; (2) DP-007 still said exact theme resource/count limits were deferred even though the theme schema already freezes 256 assets and a 32 MiB per-asset declared-byte ceiling, so only aggregate/decoded/platform/catalog limits remain deferred; (3) [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md) still listed eleven scopes and omitted `local_delivery`/V-024; and (4) the file registry contained a vanished GitHub workflow and a UX-JSON license drift that ordinary `make check` did not detect.
+
+The fast verification path now runs `tools/om_registry.py check`. [`LICENSE.md`](LICENSE.md), REUSE policy and the file registry consistently classify structured `docs/ux-design/*.json` artifacts under Apache-2.0 while prose/design documentation remains CC-BY-SA-4.0. A Run-4 validator guard keeps the theme-deferral and 12-scope handoff boundary from silently regressing. Engineering remains unauthorized; no V-* independence/runtime obligation is self-approved.
+
+Run-4 validation is clean: architecture/docs/file-registry checks pass at **885 current files**, `design_open=0`, 24 overall-open verification gates, 23 pre-engineering phases open and **0/12 scopes authorized**; continuity is **81/81**; and all **46/46 portable phase-1 producers pass** in bounded execution (1–30, then 31–46 after the wrapper timeout).
+
+### 2026-09-29 08:20 PHT — Run 3 product/UI integration audit (ADR-0162)
+
+ADR-0162 removes a canonical-product contradiction between the older three-destination shell and the newer conversation-first direction. The default shell is now the conversation workspace plus an Omnibar; Calls and People remain first-class contextual/searchable surfaces and may be user-pinned, but are not required persistent destinations. Omnibar learning is local to an IdentityProfile, uses bounded ranking facts rather than durable raw-query history by default, never sends a query merely because the user typed, never becomes trust/identity/authorization evidence, and cannot let asynchronously arriving results replace an already armed keyboard target. Destructive or security-sensitive commands retain ordinary Core intent and confirmation requirements regardless of learned rank.
+
+The visual system now has explicit functional semantic roles, an accessible OM Calm light/dark seed palette, a theme-proof semantic icon contract, and curated preset families. Untrusted theme `icon` assets are decorative only; alternate semantic icon families require reviewed client assets. Activated theme bundles require both light and dark variants and safe relative asset paths, with bounded asset sizes. Density, motion intensity, reduced-motion and alert/accessibility behavior remain explicit user-owned controls. Call UI keeps a user-pinned visual participant stable across active-speaker changes and treats face/hands visibility as an accessibility concern.
+
+Executable ADR-0162 evidence passes **38/38 cases**, covering OM Calm contrast pairs, theme path rejection, profile-local adaptive ranking, exact-match priority, armed-result stability, destructive-command confirmation and the decorative-only theme-icon boundary. The portable drop suite passes **46/46 producers** in two bounded invocations because the execution wrapper ended the first after producers 1–23 passed; producers 24–46 then all passed. The normative continuity manifest now passes **81/81 documents**. Current machine state after this checkpoint: **884 current files; 350 requirements / 350 requirement traces; 134 threats; 181 decisions / 159 ADRs; `design_open=0`; engineering remains unauthorized.**
+
+### 2026-09-29 07:20 PHT — Run 2 protocol/security semantic audit (ADR-0161)
+
+ADR-0161 closes four security-relevant semantic gaps found by a cross-document authority/convergence audit. First, `permanently_revoked_devices` is now a monotone DeviceID tombstone set across both messaging and control roles; returning hardware or restored installations use a fresh DeviceID/credential. Second, frozen W0 RelaySet and BlobLocationRecord now have exact previous-hash/+1-version branch semantics with out-of-order reconsideration and deterministic effective-record selection (highest version, then smallest canonical hash among currently eligible terminal signers), so network arrival order cannot create durable route/location disagreement. Third, Room HistoryBundle is bound to Room, author, recipient membership incarnation and GroupControlState/MLS epoch, while its items live in a bundle-local inert namespace and cannot execute any live ConversationEvent/Room/control reducer. Fourth, ACS `minimum_crypto_profile` is pinned to the `one_to_one` security-generation axis; group-only profiles are invalid for that field and Room/group downgrade floors remain independent.
+
+The ACS model passes **16,200 cases with 0 violations and 57 vectors** after adding an explicit revoked-messaging-relink negative. The ADR-0161 bounded protocol model passes reordered branch-convergence, continuity/signer negatives and HistoryBundle state-isolation cases. The V-003 floor model passes **17/17 vectors**, including mixed one-to-one/group generation cases and rejection of a group-only ACS minimum. The portable drop suite passes **45/45 producers** in bounded execution. V-002 and V-003 gain evidenced repo-local criteria but remain open for independent review; V-004 gains a stronger still-open HistoryBundle wire-freeze criterion. Current machine state: **876 current files; 343 requirements / 343 requirement traces; 131 threats; 180 decisions / 158 ADRs; 79/79 continuity documents**. Engineering remains unauthorized.
+
+### 2026-09-29 06:07 PHT — Run 1 semantic follow-up (ADR-0157)
+
+The follow-up audit found three cross-file semantic issues that ordinary design-closure/link checks did not detect. ADR-0157 closes all three at the design level without authorizing engineering. First, future critical key-23 extensions now use a registry-independent `!` namespace so mixed-version clients fail closed even if a sender clears the wire critical bit. Second, ADR-0156's sync namespacing is narrowed to account-private records: implementation-owned same-account history is `AccountHistorySnapshot`, while Room `HistoryBundle` is an interoperable groups-scope object and joins V-004's wire-freeze obligation. Third, A-055 is resolved with a concrete W1 LAN profile that reuses existing `RelayEntry`, sealed delivery, MessageRequest/IntroGate, AsyncKeyBundle and encrypted-blob semantics rather than creating parallel authority.
+
+The V-005 generator now adds 23 `future-critical-cleared-bit` negative vectors, one for every affected top-level object. The strict Node decoder rejects all 23 as `unknown_critical_extension`; the portable presentation-extension Python/Node pair also agrees 30/30 with a dedicated cleared-bit `!` case. The Rust strict decoder source is updated too, but this environment has no Rust toolchain, so the new V-005 two-codec criterion remains open rather than being self-certified.
+
+The portable phase-1 drop suite is current at **44/44 producers passed**, completed in two bounded invocations because the execution wrapper terminated the first invocation after producers 1–29 passed while producer 30 was starting; producers 30–44 then all passed. No producer failed.
+
+### 2026-09-29 Run 6 — ADR-0164
+
+Dangerous algorithm ordering and failure-path contracts are frozen as a normative pre-engineering supplement. The design remains closed and engineering remains unauthorized.
+
+### 2026-09-29 Run 7 — protocol evolution / agent guardrails
+
+ADR-0165 freezes protocol evolution/change control: published IDs and meanings are immutable; profile negotiation is security_generation-first with deterministic equal-generation tie-break; extension criticality is immutable; incompatible behavior requires a new lineage/profile/extension or explicit fork; and normative changes use a machine-owned strongest-applicable change class. The repository adds a protocol-evolution policy/validator, a 35-case bounded sanity harness, and agent guardrails. Engineering remains unauthorized.
+
+### Run 7 final machine state
+
+The Run 7 release-candidate checkpoint is **901 current files**, **365 requirements**, **144 threats**, **184 decisions / 162 indexed ADRs**, and **40 security invariants**. `design_open=0`, `verification_open=24`, `pre_engineering_open=23`, `engineering_authorized=false`, and **0/12 scopes** are authorized. The continuity manifest is **82/82**; portable phase-1 evidence is **48/48**; ADR-0165 protocol-evolution sanity evidence is **35/35**. Engineering, independent/formal/two-codec/runtime/real-LAN verification and human review remain separate and open where their gates say so.
+
 
 ## 2026-09-28 23:00 PHT — independent architecture review (ADR-0154–0156)
 
