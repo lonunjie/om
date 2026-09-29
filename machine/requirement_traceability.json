@@ -2236,6 +2236,38 @@
       "verified_by": [
         "V-003"
       ]
+    },
+    {
+      "requirement": "R-346",
+      "verified_by": [
+        "V-005"
+      ]
+    },
+    {
+      "requirement": "R-347",
+      "verified_by": [
+        "V-004"
+      ]
+    },
+    {
+      "requirement": "R-348",
+      "verified_by": [
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-349",
+      "verified_by": [
+        "V-024",
+        "V-015"
+      ]
+    },
+    {
+      "requirement": "R-350",
+      "verified_by": [
+        "V-024",
+        "V-016"
+      ]
     }
   ]
 }

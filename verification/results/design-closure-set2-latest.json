@@ -1,36 +1,34 @@
 {
   "kind": "design_closure_set2",
   "design_only": true,
-  "requirements": 336,
-  "threats": 125,
-  "decisions": 178,
+  "requirements": 341,
+  "threats": 128,
+  "decisions": 180,
   "design_queue_items": 44,
   "security_invariants": 36,
   "checks": [
     {
       "name": "design_queue_closed_for_w0",
       "items": 44,
-      "open": 1,
-      "open_tracked_later_wave": [
-        "A-055"
-      ]
+      "open": 0,
+      "open_tracked_later_wave": []
     },
     {
       "name": "requirement_traceability",
-      "requirements": 336,
-      "rows": 336,
+      "requirements": 341,
+      "rows": 341,
       "missing": 0,
       "duplicates": 0
     },
     {
       "name": "threat_traceability",
-      "threats": 125,
+      "threats": 128,
       "problems": 0
     },
     {
       "name": "decision_adr_index",
-      "decisions": 178,
-      "indexed_adrs": 156,
+      "decisions": 180,
+      "indexed_adrs": 158,
       "problems": 0
     },
     {
@@ -42,7 +40,7 @@
     {
       "name": "canonical_ambiguity_markers",
       "selected_stale_problems": 0,
-      "canonical_files_scanned": 168,
+      "canonical_files_scanned": 169,
       "whole_tree_hits": []
     },
     {

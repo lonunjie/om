@@ -45,7 +45,7 @@ Selected direction: ordinary messages do not receive an additional durable Accou
   AccountID. An EvidencePackage may include MLS FramedContent and signatures, which a third party can verify
   independently. The same property means a seized device yields provable transcripts of other members' group
   messages (threat T-060). Deniable groups are not a v1 property; they would need a research ADR.
-- **HistoryBundle** content proves only that the bundle author shared it ([`GROUP_CHAT_ARCHITECTURE.md`](../groups/GROUP_CHAT_ARCHITECTURE.md)).
+- **GroupHistoryBundle** content proves only that the bundle author shared it ([`GROUP_CHAT_ARCHITECTURE.md`](../groups/GROUP_CHAT_ARCHITECTURE.md)).
 
 Durable control/discovery objects remain independently verifiable. EvidencePackage documents exactly which included objects are independently verifiable and which content/timestamps are reporter-held evidence rather than protocol non-repudiation.
 

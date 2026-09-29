@@ -112,7 +112,7 @@
       "scopes": [
         "groups"
       ],
-      "description": "HistoryBundle attribution and exclusion rules."
+      "description": "GroupHistoryBundle attribution and exclusion rules."
     },
     {
       "name": "publication",

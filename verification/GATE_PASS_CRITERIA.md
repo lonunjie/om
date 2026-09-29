@@ -173,7 +173,7 @@ Pre-engineering criteria:
 - [ ] account-control events: no sending after a learned revocation until the Remove is accepted, no adds under CONTROL_CONFLICT/SAFETY_FREEZE, device-add deduplication (R-221)
 - [ ] two disconnected partitions independently create different direct reducing Commits from the same MLS epoch after sequencing_timeout; reconnection converges without silent key/state continuation on the losing branch
 - [ ] stale reduction targets an immutable membership/service incarnation and becomes a no-op after that exact incarnation is gone; it cannot remove a later re-add (R-279)
-- [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition, and the pin.set and poll.create/poll.vote/poll.close event bodies (R-343)
+- [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition, and the pin.set and poll.create/poll.vote/poll.close event bodies (R-343, plus interoperable GroupHistoryBundle with its bundle-author provenance/exclusion semantics (R-343, R-347)
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
@@ -192,7 +192,7 @@ Mechanically unfinished pre-engineering work:
 - account-control events: no sending after a learned revocation until the Remove is accepted, no adds under CONTROL_CONFLICT/SAFETY_FREEZE, device-add deduplication (R-221)
 - two disconnected partitions independently create different direct reducing Commits from the same MLS epoch after sequencing_timeout; reconnection converges without silent key/state continuation on the losing branch
 - stale reduction targets an immutable membership/service incarnation and becomes a no-op after that exact incarnation is gone; it cannot remove a later re-add (R-279)
-- ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition, and the pin.set and poll.create/poll.vote/poll.close event bodies (R-343)
+- ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition, and the pin.set and poll.create/poll.vote/poll.close event bodies (R-343, plus interoperable GroupHistoryBundle with its bundle-author provenance/exclusion semantics (R-343, R-347)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-005 — `canonical_encoding_vectors`
@@ -220,6 +220,7 @@ Pre-engineering criteria:
 - [x] ADR-0149 extension-registry evidence proves om.voice-note.v1 and om.location-card.v1 are registered object-scoped/exact-criticality/schema-checked integer-keyed extensions; a wire-criticality mismatch fails the object, cross-object use makes the extension unusable (ADR-0155), and a nonempty mismatched location fallback causes only the non-critical card interpretation to be ignored while the base W0 event remains valid (R-330)
 - [x] ADR-0150/0151 rich-list evidence proves om.rich-list.v1 registry/object/criticality/schema binding and deterministic-CBOR interoperability; a wire-criticality mismatch rejects the containing object, while registered item/depth/index/ordinal schema-bound violations (ADR-0155) and schema-valid reference/order/nesting/ordinal-presence/fallback mismatches ignore the whole non-critical enhancement and preserve authenticated W0 RichText (R-335)
 - [x] ADR-0155 evidence proves validity independence for non-critical registrations: Python and Node agree on all voice/location/rich-list vectors, schema/object failures are ignore_extension, wire-criticality mismatches reject the object, conflicting second geo tokens are fallback_ambiguous, voice/location on edit events are ignored, a card is suppressed once an edit's materialized text drops its token, create-time list annotations never apply to edit text, and both V-005 strict reference codecs skip payload-schema rejection for non-critical registrations with the V-005 corpus unchanged (R-341, T-133)
+- [ ] ADR-0157 critical-extension convergence: baseline decoder rejects unknown om.critical.* even when wire critical=false, rejects non-critical registrations under the reserved prefix, preserves the two grandfathered om.acs.* IDs, and old/new registry versions converge on containing-object validity (R-346, T-136)
 
 Pre-release criteria:
 
@@ -227,6 +228,7 @@ Pre-release criteria:
 
 Mechanically unfinished pre-engineering work:
 
+- ADR-0157 critical-extension convergence: baseline decoder rejects unknown om.critical.* even when wire critical=false, rejects non-critical registrations under the reserved prefix, preserves the two grandfathered om.acs.* IDs, and old/new registry versions converge on containing-object validity (R-346, T-136)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-006 — `web_device_vault_feasibility`
@@ -818,21 +820,21 @@ Mechanically unfinished pre-engineering work:
 
 ### V-024 — `lan_delivery_binding`
 
-Freeze and verify the A-055 LanDeliveryProfile that carries ADR-0150 offline-local message/file delivery: sealed-equivalent LAN protection with no clear sender, no LAN-visible identifier stable across rendezvous epochs, first contact over LAN only through MessageRequest/IntroGate semantics, registered rendezvous derivation, and interoperable framing on native and browser platforms (ADR-0156).
+Verify ADR-0158 LanDeliveryProfile v1: sealed local routes with no clear sender, rotating/fixed-cardinality rendezvous, ordinary IntroGate first contact, registered derivations, bounded streaming/backpressure and interoperable native/browser framing.
 
 - **Scopes blocked:** local_delivery
 - **Status:** pre-engineering `open`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_model`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0156-engineering-handoff-closure-lan-binding-and-later-wave-wire-freeze.md`
+- **Evidence:** `decisions/ADR-0156-engineering-handoff-closure-lan-binding-and-later-wave-wire-freeze.md`; `decisions/ADR-0158-lan-delivery-profile-v1.md`; `spec/cddl/lan.cddl`
 
 Pre-engineering criteria:
 
-- [ ] A-055 LanDeliveryProfile frozen as CDDL with registered numeric fields and domain-separation labels (including the rendezvous-token KDF/label/epoch), with positive/negative vectors on which two independently written codecs agree (R-342)
-- [ ] passive LAN-observer trace model: no clear sender device key or Double Ratchet header, and no connection/delivery-key/route identifier stable across rendezvous epochs or link-layer address changes; mutations that send the bare inner envelope or reuse an identifier across epochs are caught (R-342, T-134)
-- [ ] offline first-contact model: a QR-linked LAN first contact runs the ordinary MessageRequest/IntroGate/reciprocal-binding path with the LAN endpoint only as reply route; mutations that create a relationship or device eligibility from LAN reachability are caught (R-342)
-- [ ] browser-feasible variant demonstrated or the PWA capability row states LAN delivery unavailable, with no native-only protocol semantics (R-342)
+- [ ] ADR-0158 LanDeliveryProfile frozen as spec/cddl/lan.cddl with registered numeric fields/domain-separation labels and profile constants, plus positive/negative vectors on which two independently written codecs agree (R-342, R-349)
+- [ ] passive LAN-observer trace model: no clear sender device key or Double Ratchet header, exactly K=8 advertised tags, and no connection/delivery-key/route identifier stable across rendezvous epochs or link-layer address changes; mutations sending the bare inner envelope, varying tag cardinality or reusing an identifier are caught (R-342, R-349, T-134)
+- [ ] offline first-contact model: a QR/invite LAN first contact obtains an intro-identity-signed ticket/request key through the local IntroGate adapter and runs ordinary MessageRequest/reciprocal binding; async-key fetch is denied until relationship-scoped authority exists; LAN reachability never creates relationship/device eligibility (R-350)
+- [ ] browser feasibility: real browser establishes host-local ordered/reliable WebRTC DataChannel using seed-encrypted LanSignalEnvelopeV1/manual or QR signalling and passes LanFrameV1/backpressure tests, or the PWA capability row reports local_delivery unavailable on that browser/runtime (R-349)
 
 Pre-release criteria:
 
@@ -840,8 +842,8 @@ Pre-release criteria:
 
 Mechanically unfinished pre-engineering work:
 
-- A-055 LanDeliveryProfile frozen as CDDL with registered numeric fields and domain-separation labels (including the rendezvous-token KDF/label/epoch), with positive/negative vectors on which two independently written codecs agree (R-342)
-- passive LAN-observer trace model: no clear sender device key or Double Ratchet header, and no connection/delivery-key/route identifier stable across rendezvous epochs or link-layer address changes; mutations that send the bare inner envelope or reuse an identifier across epochs are caught (R-342, T-134)
-- offline first-contact model: a QR-linked LAN first contact runs the ordinary MessageRequest/IntroGate/reciprocal-binding path with the LAN endpoint only as reply route; mutations that create a relationship or device eligibility from LAN reachability are caught (R-342)
-- browser-feasible variant demonstrated or the PWA capability row states LAN delivery unavailable, with no native-only protocol semantics (R-342)
+- ADR-0158 LanDeliveryProfile frozen as spec/cddl/lan.cddl with registered numeric fields/domain-separation labels and profile constants, plus positive/negative vectors on which two independently written codecs agree (R-342, R-349)
+- passive LAN-observer trace model: no clear sender device key or Double Ratchet header, exactly K=8 advertised tags, and no connection/delivery-key/route identifier stable across rendezvous epochs or link-layer address changes; mutations sending the bare inner envelope, varying tag cardinality or reusing an identifier are caught (R-342, R-349, T-134)
+- offline first-contact model: a QR/invite LAN first contact obtains an intro-identity-signed ticket/request key through the local IntroGate adapter and runs ordinary MessageRequest/reciprocal binding; async-key fetch is denied until relationship-scoped authority exists; LAN reachability never creates relationship/device eligibility (R-350)
+- browser feasibility: real browser establishes host-local ordered/reliable WebRTC DataChannel using seed-encrypted LanSignalEnvelopeV1/manual or QR signalling and passes LanFrameV1/backpressure tests, or the PWA capability row reports local_delivery unavailable on that browser/runtime (R-349)
 - phase independence evidence is not yet recorded as satisfied

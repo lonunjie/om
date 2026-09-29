@@ -470,6 +470,46 @@
       "object": "SealedDeliveryEnvelope",
       "wave": "W0",
       "status": "frozen"
+    },
+    {
+      "label": "OM-LAN-PAIR-SEED-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from PQXDH SK; salt empty; info = OM-CBOR [this label, crypto_profile, initiator_device_id, responder_device_id]; output 32 bytes",
+      "object": "LanDeliveryProfile existing-relationship rendezvous seed",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-LAN-INVITE-SEED-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from Invite.invite_secret; salt empty; info = OM-CBOR [this label, invite_id]; output 32 bytes",
+      "object": "LanDeliveryProfile invite rendezvous seed",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-LAN-RENDEZVOUS-TAG-v1",
+      "use": "mac",
+      "construction": "Trunc16(HMAC-SHA256(LanSeed, OM-CBOR [this label, floor(posix_seconds/900)]))",
+      "object": "LanDeliveryProfile rendezvous advertisement tag",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-LAN-SIGNAL-KEY-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from LanSeed; salt empty; info = OM-CBOR [this label, session_id, rendezvous_epoch]; output 32 bytes",
+      "object": "LanSignalEnvelopeV1 AES-256-GCM-SIV key",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-LAN-SIGNAL-AAD-v1",
+      "use": "aead_ad",
+      "construction": "AES-256-GCM-SIV associated data = OM-CBOR [this label, version, kind, session_id, rendezvous_epoch]; nonce is 12 fresh random bytes; plaintext is UTF-8 WebRTC SDP",
+      "object": "LanSignalEnvelopeV1",
+      "wave": "W1",
+      "status": "frozen"
     }
   ]
 }
