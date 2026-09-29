@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM UI semantic action to authority path map v1",
+  "revision": "R15",
+  "status": "design_reference_subordinate_to_core",
+  "invariants": [
+    "semantic_action_identity_is_input_independent",
+    "canonical_or_security_state_changes_use_typed_core_intents",
+    "platform_owned_capabilities_use_platform_adapter",
+    "presentation_only_actions_have_no_protocol_authority",
+    "omnibar_voice_models_cannot_lower_risk_or_bypass_confirmation"
+  ],
+  "actions": [
+    {
+      "id": "send-message",
+      "path": "core_intent",
+      "intent": "SendMessage",
+      "risk": "consequential"
+    },
+    {
+      "id": "retry-message",
+      "path": "core_intent",
+      "intent": "RetryDelivery",
+      "risk": "reversible"
+    },
+    {
+      "id": "attach-media",
+      "path": "platform_then_local_or_core",
+      "intent": "PrepareAttachment",
+      "risk": "reversible"
+    },
+    {
+      "id": "schedule-message",
+      "path": "core_intent",
+      "intent": "ScheduleComposeIntent",
+      "risk": "consequential"
+    },
+    {
+      "id": "create-poll",
+      "path": "core_intent",
+      "intent": "CreatePoll",
+      "risk": "consequential"
+    },
+    {
+      "id": "vote-poll",
+      "path": "core_intent",
+      "intent": "VotePoll",
+      "risk": "consequential"
+    },
+    {
+      "id": "set-disappearing-policy",
+      "path": "core_intent",
+      "intent": "ChangeConversationRetentionPolicy",
+      "risk": "consequential"
+    },
+    {
+      "id": "switch-identity-profile",
+      "path": "local_profile_context",
+      "intent": "SwitchIdentityProfile",
+      "risk": "reversible"
+    },
+    {
+      "id": "scan-invite-qr",
+      "path": "platform_then_core",
+      "intent": "ParseInvite",
+      "risk": "reversible"
+    },
+    {
+      "id": "accept-message-request",
+      "path": "core_intent",
+      "intent": "AcceptIntroduction",
+      "risk": "consequential"
+    },
+    {
+      "id": "share-contact",
+      "path": "core_intent",
+      "intent": "CreateContactCapsule",
+      "risk": "consequential"
+    },
+    {
+      "id": "block-person",
+      "path": "core_intent",
+      "intent": "BlockPerson",
+      "risk": "consequential"
+    },
+    {
+      "id": "report-content",
+      "path": "core_intent_or_external_adapter",
+      "intent": "BuildEvidencePackage",
+      "risk": "consequential"
+    },
+    {
+      "id": "create-topic",
+      "path": "core_intent",
+      "intent": "CreateTopic",
+      "risk": "consequential"
+    },
+    {
+      "id": "move-message-to-topic",
+      "path": "core_intent",
+      "intent": "SetMessageTopic",
+      "risk": "consequential"
+    },
+    {
+      "id": "remove-member",
+      "path": "core_intent",
+      "intent": "RemoveRoomMember",
+      "risk": "destructive"
+    },
+    {
+      "id": "follow-publication",
+      "path": "account_private_or_provider_state",
+      "intent": "SetPublicationFollow",
+      "risk": "reversible"
+    },
+    {
+      "id": "publish-post",
+      "path": "core_intent",
+      "intent": "PublishPost",
+      "risk": "consequential"
+    },
+    {
+      "id": "start-audio-call",
+      "path": "core_intent",
+      "intent": "StartCallAudio",
+      "risk": "consequential"
+    },
+    {
+      "id": "start-video-call",
+      "path": "core_plus_platform",
+      "intent": "StartCallVideo",
+      "risk": "consequential"
+    },
+    {
+      "id": "suspend-device",
+      "path": "core_intent",
+      "intent": "SuspendDevice",
+      "risk": "security-critical"
+    },
+    {
+      "id": "finalize-device-revocation",
+      "path": "core_intent",
+      "intent": "FinalizeDeviceRevocation",
+      "risk": "security-critical"
+    },
+    {
+      "id": "start-recovery",
+      "path": "core_intent",
+      "intent": "StartRecovery",
+      "risk": "security-critical"
+    },
+    {
+      "id": "change-protection-profile",
+      "path": "core_intent",
+      "intent": "ChangePrivacyPolicy",
+      "risk": "security-critical"
+    },
+    {
+      "id": "set-theme",
+      "path": "local_presentation",
+      "intent": null,
+      "risk": "reversible"
+    },
+    {
+      "id": "set-experience-profile",
+      "path": "local_presentation",
+      "intent": null,
+      "risk": "reversible"
+    },
+    {
+      "id": "set-tab-visibility",
+      "path": "local_presentation",
+      "intent": null,
+      "risk": "reversible"
+    }
+  ]
+}

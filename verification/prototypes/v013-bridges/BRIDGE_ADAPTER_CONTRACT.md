@@ -16,6 +16,9 @@ The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119 / RFC 8174.
 
 - **Bridge.** A typed `BridgePrincipal` (`BridgeID`, `BridgeControlState`). It runs one or more **adapters**. Each
   adapter connects exactly one foreign network namespace (`foreign_network_namespace`, adapter-defined and opaque to OM).
+  For a private Room, an admitted bridge is always a **full Room/MLS member and plaintext recipient** for every epoch in
+  its membership interval. `allowed_event_classes` and mapping direction constrain what the bridge may **export**; they
+  do not narrow what an admitted bridge can decrypt/read. There is no hidden subset-reading bridge mode (ADR-0129).
 - **Binding.** The Room's authorization of a bridge. It is a Room control transition gated by `room.add_bridge` and by
   quorum where the Room's policy requires it. It records `bridge_id`, the external network(s), `direction`,
   `mapped_foreign_scope`, `allowed_event_classes`, the fidelity summary, approval evidence and revocation state

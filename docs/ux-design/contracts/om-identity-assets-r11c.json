@@ -1,0 +1,847 @@
+{
+  "revision": "11C",
+  "status": "exploratory-not-final",
+  "palette_note": "Candidates share OM Clear presentation colors so mark silhouette can be compared independently of color.",
+  "candidates": [
+    {
+      "id": "open-loop",
+      "name": "Open Loop",
+      "idea": "An open communication loop with a small tail; emphasizes openness, continuity, and chat.",
+      "metrics": [
+        {
+          "size": 16,
+          "coverage": 0.2695,
+          "bbox": [
+            2,
+            2,
+            13,
+            13
+          ],
+          "components": 1
+        },
+        {
+          "size": 20,
+          "coverage": 0.2625,
+          "bbox": [
+            2,
+            2,
+            17,
+            17
+          ],
+          "components": 1
+        },
+        {
+          "size": 24,
+          "coverage": 0.2569,
+          "bbox": [
+            3,
+            3,
+            20,
+            21
+          ],
+          "components": 1
+        },
+        {
+          "size": 32,
+          "coverage": 0.2686,
+          "bbox": [
+            4,
+            3,
+            27,
+            28
+          ],
+          "components": 1
+        },
+        {
+          "size": 48,
+          "coverage": 0.27,
+          "bbox": [
+            6,
+            5,
+            41,
+            42
+          ],
+          "components": 1
+        }
+      ],
+      "files": [
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/android/adaptive-preview-512.png",
+          "sha256": "ee9827f0df2c0ed3862401cca88a45322551d1bb230bb58e91be317b0a6c04e4"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/android/background.svg",
+          "sha256": "12ae761404faa922d42d38372f3bbc921adfdda5ef4d7822a7a2df40e140fe8c"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/android/foreground.svg",
+          "sha256": "728bc1ba67efb2e8cffbe29072b607956799ed24ce331d11629d86ed87a3f84b"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/android/monochrome.svg",
+          "sha256": "acfcf38faa389772a95a98be22d70646e022798230ae2e4bcea64a082f1c836c"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/apple/background.svg",
+          "sha256": "898c7b9c81d001f699c64293a96eae7fa0e1360040cfb83fe5bffacbae8cc71a"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/apple/dark-1024.png",
+          "sha256": "fab73b5ff631aa4b8456317e04c76f94962cd0662f026880793c558b00c5ce16"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/apple/default-1024.png",
+          "sha256": "a7816feedb3c73bea70d1edeb0ad9556d0bbd53e18f4ce6c48e689d3f1f119b3"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/apple/foreground-dark.svg",
+          "sha256": "0040c252a4e617f058563850021ae4b8b9ac4add79ef81242d9c6f5441e20794"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/apple/foreground.svg",
+          "sha256": "7a0e72a4d21cc38129ca79faa4377b9de4f80cf41a6514393ecbdcc1d95599a2"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/apple/tinted-preview-1024.png",
+          "sha256": "25eade5d3e6193436385b05d091948f81c45e7511906ee476848cc37104b4f4a"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/base/app-dark.svg",
+          "sha256": "83a63b1ff06803e93ade43f84b6d0d3aac023617808dc9c5fcfa89456c6f5f6b"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/base/app-default.svg",
+          "sha256": "3939633be69d97494a9d696b96082fb6070eb09379ee970b2cd64f3aac1d05d4"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/base/mark-white.svg",
+          "sha256": "7a0e72a4d21cc38129ca79faa4377b9de4f80cf41a6514393ecbdcc1d95599a2"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/base/mark.svg",
+          "sha256": "4ceb8248f02939ecf5971da0bb788995053f9b9685a3c70558dde23ac997f18b"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/notification/mark-96.png",
+          "sha256": "1b3537a0f2dc6f838757c940ac9088d8e280666f8eeebec1421fbc70ea388538"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/notification/mark.svg",
+          "sha256": "4ceb8248f02939ecf5971da0bb788995053f9b9685a3c70558dde23ac997f18b"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/pwa/icon-192.png",
+          "sha256": "1658b49ef994e5ae6c4439d23c39bb879cee6baa8ba0b94fa28393b2dc8e32ee"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/pwa/icon-512.png",
+          "sha256": "8fcfb6525f3b3ce4d31fc3199731517325d59119860dfaf627e3c023785ad231"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/pwa/icon-any.svg",
+          "sha256": "3939633be69d97494a9d696b96082fb6070eb09379ee970b2cd64f3aac1d05d4"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/pwa/icon-maskable-512.png",
+          "sha256": "2a05e388c26e428f9f290bc6d48271999ffd1976174f30d5d5942b27db234f21"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/pwa/icon-maskable.svg",
+          "sha256": "52daac5b977a21603726eea0a69d2358e758ba82fe87d565cd0fb734a09c869b"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/pwa/icon-monochrome.svg",
+          "sha256": "4ceb8248f02939ecf5971da0bb788995053f9b9685a3c70558dde23ac997f18b"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/web/favicon-16.png",
+          "sha256": "b6d183af279080be68dfe1eead92a7bb6ac07a64b328c5cd54b0dbeb3e0af91a"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/web/favicon-32.png",
+          "sha256": "e7c287b1a19f04cbc1f9e032ea56774e5a523af42a788ab874c58a5c07eea740"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/web/favicon-48.png",
+          "sha256": "e48f174f3adc2c61d34e0889c3230f696e3af9915410cd2069a9ad11916d49f2"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/open-loop/web/favicon.svg",
+          "sha256": "4ceb8248f02939ecf5971da0bb788995053f9b9685a3c70558dde23ac997f18b"
+        }
+      ]
+    },
+    {
+      "id": "dialogue-fold",
+      "name": "Dialogue Fold",
+      "idea": "Two equal conversational halves facing one another; emphasizes reciprocity, OurMessenger, and no central hub.",
+      "metrics": [
+        {
+          "size": 16,
+          "coverage": 0.2617,
+          "bbox": [
+            2,
+            2,
+            13,
+            13
+          ],
+          "components": 1
+        },
+        {
+          "size": 20,
+          "coverage": 0.275,
+          "bbox": [
+            3,
+            3,
+            16,
+            16
+          ],
+          "components": 1
+        },
+        {
+          "size": 24,
+          "coverage": 0.2674,
+          "bbox": [
+            3,
+            3,
+            20,
+            20
+          ],
+          "components": 1
+        },
+        {
+          "size": 32,
+          "coverage": 0.2695,
+          "bbox": [
+            4,
+            4,
+            27,
+            27
+          ],
+          "components": 1
+        },
+        {
+          "size": 48,
+          "coverage": 0.2665,
+          "bbox": [
+            6,
+            6,
+            41,
+            41
+          ],
+          "components": 1
+        }
+      ],
+      "files": [
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/android/adaptive-preview-512.png",
+          "sha256": "183f41a1107a139b40ab16ab3cfad1dcd86f0ebe6f4c73730681947bf348919f"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/android/background.svg",
+          "sha256": "12ae761404faa922d42d38372f3bbc921adfdda5ef4d7822a7a2df40e140fe8c"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/android/foreground.svg",
+          "sha256": "dbba8acbb586fd29c0da8023d3e461aff18fb3525b0325c372789d287ade6559"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/android/monochrome.svg",
+          "sha256": "818fef466527bd2ad9a1fb1d2780885a3910d39704f6eb0b9e4224c518238ac1"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/apple/background.svg",
+          "sha256": "898c7b9c81d001f699c64293a96eae7fa0e1360040cfb83fe5bffacbae8cc71a"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/apple/dark-1024.png",
+          "sha256": "29ab45a6cd33bfbdbd1d52507d4beb8cd1346df49610d0e27b013151351b3150"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/apple/default-1024.png",
+          "sha256": "677959d7a17e60b12ff32741871a6d61387ca3484cf86fee9c7e33582a4e195a"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/apple/foreground-dark.svg",
+          "sha256": "f6f75020e9b2a72f6ee7d47366a3b1c73d2eeb5895a69802da772addcdad9ebd"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/apple/foreground.svg",
+          "sha256": "497af08b3d9c58e40ae3b3e18ec87b5d121a31555bee15b3d63e5de9b383bdf8"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/apple/tinted-preview-1024.png",
+          "sha256": "0ca0c8d1c5247f40500821f4751af5e68f2e1233e995c11cdb9d4a0c18bb82f3"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/base/app-dark.svg",
+          "sha256": "08e32342939965fb270eb9d0f26809f38496ea9782eddd3bbed78f7fff16fabd"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/base/app-default.svg",
+          "sha256": "4ba37692b136390c4382b7ebf100588c0e44de963a23db64c41fdbd15a11a2f5"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/base/mark-white.svg",
+          "sha256": "497af08b3d9c58e40ae3b3e18ec87b5d121a31555bee15b3d63e5de9b383bdf8"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/base/mark.svg",
+          "sha256": "f24eff3a2188dc4a141c27175c0a7ee358db64f550f815a79e90cd7157289fa3"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/notification/mark-96.png",
+          "sha256": "3662e04065c4b9d1f2b4bff50197c52627c0446d6879bb564817da17723fe239"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/notification/mark.svg",
+          "sha256": "f24eff3a2188dc4a141c27175c0a7ee358db64f550f815a79e90cd7157289fa3"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/pwa/icon-192.png",
+          "sha256": "757a4ec937fe880fdb2fe5d603f6963b6902796601b5f7394b268ad730441ab5"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/pwa/icon-512.png",
+          "sha256": "a0a9d8d57a87a765f991363d96f1b7742f0a2cf3b3ad1bdd9491ec38f45566eb"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/pwa/icon-any.svg",
+          "sha256": "4ba37692b136390c4382b7ebf100588c0e44de963a23db64c41fdbd15a11a2f5"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/pwa/icon-maskable-512.png",
+          "sha256": "82e40ffdfe1be76d7594df8745a25de1a1638ee1eec6d779f545a05e8f744369"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/pwa/icon-maskable.svg",
+          "sha256": "369ff5e8bab657bcf3135b723879426b85cad9ad5171be0269cebcda5c4773e0"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/pwa/icon-monochrome.svg",
+          "sha256": "f24eff3a2188dc4a141c27175c0a7ee358db64f550f815a79e90cd7157289fa3"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/web/favicon-16.png",
+          "sha256": "3f55477128a4f6418c375ba14075e728789319888cfbe090e66a4a33cea45297"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/web/favicon-32.png",
+          "sha256": "826af2a89c88a0ff3985533c488e2f651a1e3a556d95226b67c2840365a92da0"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/web/favicon-48.png",
+          "sha256": "da56f4a730dbbb9687e266bdc00e3481d8218779dc81884a1b2322c46e087842"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/dialogue-fold/web/favicon.svg",
+          "sha256": "f24eff3a2188dc4a141c27175c0a7ee358db64f550f815a79e90cd7157289fa3"
+        }
+      ]
+    },
+    {
+      "id": "peer-link",
+      "name": "Peer Link",
+      "idea": "Two interlinked peer loops; emphasizes peer-to-peer connection and operatorless communication.",
+      "metrics": [
+        {
+          "size": 16,
+          "coverage": 0.25,
+          "bbox": [
+            2,
+            4,
+            13,
+            11
+          ],
+          "components": 1
+        },
+        {
+          "size": 20,
+          "coverage": 0.25,
+          "bbox": [
+            3,
+            5,
+            16,
+            14
+          ],
+          "components": 1
+        },
+        {
+          "size": 24,
+          "coverage": 0.2604,
+          "bbox": [
+            3,
+            6,
+            20,
+            17
+          ],
+          "components": 1
+        },
+        {
+          "size": 32,
+          "coverage": 0.2607,
+          "bbox": [
+            4,
+            8,
+            27,
+            23
+          ],
+          "components": 1
+        },
+        {
+          "size": 48,
+          "coverage": 0.2613,
+          "bbox": [
+            6,
+            11,
+            41,
+            36
+          ],
+          "components": 1
+        }
+      ],
+      "files": [
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/android/adaptive-preview-512.png",
+          "sha256": "2f38b0a5bb00ed432bb3f7cdf23f36508cc7f0f254314296fdfcaffd3e4db2b4"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/android/background.svg",
+          "sha256": "12ae761404faa922d42d38372f3bbc921adfdda5ef4d7822a7a2df40e140fe8c"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/android/foreground.svg",
+          "sha256": "3eade55362add87aa50bea42857c5b0c9ef66034dd4b29d3520b2b8744faee99"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/android/monochrome.svg",
+          "sha256": "f4dccd2375678c5fdf72659ba311f88daf1a72bff51d7d5b6c8091f0433a446b"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/apple/background.svg",
+          "sha256": "898c7b9c81d001f699c64293a96eae7fa0e1360040cfb83fe5bffacbae8cc71a"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/apple/dark-1024.png",
+          "sha256": "33e0f0af140fae77f71bb3ad1ec7ffa2889b0f3e8a173dd98e1976fc4977f39c"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/apple/default-1024.png",
+          "sha256": "9eb8ce2d595615094787d827f443a617c1183933d69b6d56db9cee6c2a96b534"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/apple/foreground-dark.svg",
+          "sha256": "766db0c1f10926c9accc348f7285fff5f67c3d6755c5b793c9d0df04e258b7e0"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/apple/foreground.svg",
+          "sha256": "546c6335d02ae0cb7cb74284353326b8d649a106002a6cdfb82b322ebb5210aa"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/apple/tinted-preview-1024.png",
+          "sha256": "bf8b19ec97b36842292718ba5e531ec5beb5c13a2a4f0ae2b33c002060f44bc6"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/base/app-dark.svg",
+          "sha256": "2d2a83fbd30597882db0083cfb44bc5173fd582071beacc2fe63ba3bb8c1ce77"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/base/app-default.svg",
+          "sha256": "b87cf8f1356d9e9266153a50973c4444b05c5176a6f92fd22d7a1fbdab9f39d3"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/base/mark-white.svg",
+          "sha256": "546c6335d02ae0cb7cb74284353326b8d649a106002a6cdfb82b322ebb5210aa"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/base/mark.svg",
+          "sha256": "0fa74ff179ee85a7004fd32d0f17ccb6fa9ffa65fc197904a5ac947619f8fdda"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/notification/mark-96.png",
+          "sha256": "6a49e4c57ed34d1265d01e1ce560a6a0ea6bbc09126d4bf4ef7b07bd805c8142"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/notification/mark.svg",
+          "sha256": "0fa74ff179ee85a7004fd32d0f17ccb6fa9ffa65fc197904a5ac947619f8fdda"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/pwa/icon-192.png",
+          "sha256": "7e974b7acf57cfff18c17c789c65dd2a50972775ab55442da7a99356d6ecc117"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/pwa/icon-512.png",
+          "sha256": "f9f9507fa60ff49ddc730937bad4d67ebf46a7dc772a0abdc266c3c38855f351"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/pwa/icon-any.svg",
+          "sha256": "b87cf8f1356d9e9266153a50973c4444b05c5176a6f92fd22d7a1fbdab9f39d3"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/pwa/icon-maskable-512.png",
+          "sha256": "6b4b7a4892de3ac6928106b49cadd19036ce83e2d508fed77dee2b6461ac6e81"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/pwa/icon-maskable.svg",
+          "sha256": "8e0ad8b067661537ac9e70957b2931b1623db55bbfd0c3bc8ad1279fe9674f2b"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/pwa/icon-monochrome.svg",
+          "sha256": "0fa74ff179ee85a7004fd32d0f17ccb6fa9ffa65fc197904a5ac947619f8fdda"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/web/favicon-16.png",
+          "sha256": "6bc976066357ba8b26498ef3575bc6316f730b993f489e70bcb61fadaadec68e"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/web/favicon-32.png",
+          "sha256": "aca14be7c373fb40fbbbcbec4a0f71bd02ff0644e235a33876a8efc543472516"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/web/favicon-48.png",
+          "sha256": "48e2367ed8958bb2ff3a8dc41f7ead226ff32c75bb49acdc2a55ecbae47d5ae9"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/peer-link/web/favicon.svg",
+          "sha256": "0fa74ff179ee85a7004fd32d0f17ccb6fa9ffa65fc197904a5ac947619f8fdda"
+        }
+      ]
+    },
+    {
+      "id": "om-fold",
+      "name": "OM Fold",
+      "idea": "A direct O + M monogram; emphasizes name recognition and compact identity.",
+      "metrics": [
+        {
+          "size": 16,
+          "coverage": 0.3047,
+          "bbox": [
+            2,
+            2,
+            13,
+            13
+          ],
+          "components": 1
+        },
+        {
+          "size": 20,
+          "coverage": 0.2825,
+          "bbox": [
+            3,
+            3,
+            16,
+            16
+          ],
+          "components": 1
+        },
+        {
+          "size": 24,
+          "coverage": 0.3125,
+          "bbox": [
+            3,
+            3,
+            20,
+            20
+          ],
+          "components": 1
+        },
+        {
+          "size": 32,
+          "coverage": 0.3057,
+          "bbox": [
+            4,
+            4,
+            27,
+            27
+          ],
+          "components": 1
+        },
+        {
+          "size": 48,
+          "coverage": 0.306,
+          "bbox": [
+            6,
+            6,
+            41,
+            41
+          ],
+          "components": 1
+        }
+      ],
+      "files": [
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/android/adaptive-preview-512.png",
+          "sha256": "c925cf824485c37d7dba63d366dc93494ccf5d4e9400aabdf215d40106f222c6"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/android/background.svg",
+          "sha256": "12ae761404faa922d42d38372f3bbc921adfdda5ef4d7822a7a2df40e140fe8c"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/android/foreground.svg",
+          "sha256": "c642e2bb6f66d2346bdfb3d6804f745e21483eb7172db910e948b8c258614123"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/android/monochrome.svg",
+          "sha256": "1856c9bc661939484f38b8ec1654c088f48b12bab971d36da3119d53ce297952"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/apple/background.svg",
+          "sha256": "898c7b9c81d001f699c64293a96eae7fa0e1360040cfb83fe5bffacbae8cc71a"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/apple/dark-1024.png",
+          "sha256": "7bca52cf2fe563e013ecfedb1c194c1931be17c538a5e5a7473434a849692364"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/apple/default-1024.png",
+          "sha256": "18269277955a166a890c6c1457743a77c3c894e666d0da7471ab3ed03be506bb"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/apple/foreground-dark.svg",
+          "sha256": "7d30c4a1718f02d4a5b7c8c3e62cbfdbc814d71aef25ae73a9e380cad4b609e3"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/apple/foreground.svg",
+          "sha256": "32ae1ca4946c40618fae8ae722f2ea787ac366d8bcef586116ab7facad4adfa7"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/apple/tinted-preview-1024.png",
+          "sha256": "a3c2fbf0709308c4c04243cadf69067cd3fcd25385845ba0aefe3a766b20b797"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/base/app-dark.svg",
+          "sha256": "0a09a00026923aa706bf4736dc069ff254ddeb307cc4361811d70dd7e9d3422e"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/base/app-default.svg",
+          "sha256": "8b980b2c4b78cd812c66b2bfe08965484f83dd4694452eee24813471cc82516f"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/base/mark-white.svg",
+          "sha256": "32ae1ca4946c40618fae8ae722f2ea787ac366d8bcef586116ab7facad4adfa7"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/base/mark.svg",
+          "sha256": "e60f7f427d481a0293454d57e64f0935562ed3eb870e37b09c0b17fdc61408a2"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/notification/mark-96.png",
+          "sha256": "8869d09cbd60fb8c5dfc41858529c4d8f1152071aec3953a14df41ae8a214281"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/notification/mark.svg",
+          "sha256": "e60f7f427d481a0293454d57e64f0935562ed3eb870e37b09c0b17fdc61408a2"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/pwa/icon-192.png",
+          "sha256": "ebd899fbcab528c10448d777199804ee4c46fbf946d768761f4b298577dac993"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/pwa/icon-512.png",
+          "sha256": "c247042b5a128d54d64199a9d175581a735af9f4a0ed5361de7e6c4c217ee15b"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/pwa/icon-any.svg",
+          "sha256": "8b980b2c4b78cd812c66b2bfe08965484f83dd4694452eee24813471cc82516f"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/pwa/icon-maskable-512.png",
+          "sha256": "5e62e73ab8d622010b4eac049580a84cb881f50abb1e111fa187c836bb7d6808"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/pwa/icon-maskable.svg",
+          "sha256": "db49b30f4609d5a9e6ebd18a345d0d5e9e47e73515e03114bd115a1ad5fa422a"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/pwa/icon-monochrome.svg",
+          "sha256": "e60f7f427d481a0293454d57e64f0935562ed3eb870e37b09c0b17fdc61408a2"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/web/favicon-16.png",
+          "sha256": "f6e036a4016fc4aea1383ad1ff1cfc2ca139d10e4d48e7e2b76264a0211d0ac9"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/web/favicon-32.png",
+          "sha256": "b4b1547fb0ee447aeeb7797ddc8a9d669ef90402e0fbc60cf9c8378288614297"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/web/favicon-48.png",
+          "sha256": "fb11b995ef3c05ff064b578eed6cca595459dece03323adce8c676f7b07f97c5"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/om-fold/web/favicon.svg",
+          "sha256": "e60f7f427d481a0293454d57e64f0935562ed3eb870e37b09c0b17fdc61408a2"
+        }
+      ]
+    },
+    {
+      "id": "one-thread",
+      "name": "One Thread",
+      "idea": "A rounded one-stroke OM ligature; emphasizes continuity, name recognition, and OneMessenger without enclosing the mark.",
+      "metrics": [
+        {
+          "size": 16,
+          "coverage": 0.1836,
+          "bbox": [
+            3,
+            5,
+            13,
+            10
+          ],
+          "components": 1
+        },
+        {
+          "size": 20,
+          "coverage": 0.1725,
+          "bbox": [
+            4,
+            6,
+            16,
+            13
+          ],
+          "components": 1
+        },
+        {
+          "size": 24,
+          "coverage": 0.1719,
+          "bbox": [
+            4,
+            7,
+            20,
+            16
+          ],
+          "components": 1
+        },
+        {
+          "size": 32,
+          "coverage": 0.1689,
+          "bbox": [
+            6,
+            10,
+            27,
+            21
+          ],
+          "components": 1
+        },
+        {
+          "size": 48,
+          "coverage": 0.168,
+          "bbox": [
+            8,
+            15,
+            40,
+            32
+          ],
+          "components": 1
+        }
+      ],
+      "files": [
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/android/adaptive-preview-512.png",
+          "sha256": "7f0a0e5d23c0b402ed87a03dd948ea9df59450cc4e186b572fe7c51d9c161c77"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/android/background.svg",
+          "sha256": "12ae761404faa922d42d38372f3bbc921adfdda5ef4d7822a7a2df40e140fe8c"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/android/foreground.svg",
+          "sha256": "7d29caa50a8bbddfe6a93f2fbec50e29a4cd81cb6d971633d6ef97671482b1b0"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/android/monochrome.svg",
+          "sha256": "86e5b2f5a1f600d0e20d3ea6ae4cbd19cb92be0e174f580fc713dbab2ed54bfc"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/apple/background.svg",
+          "sha256": "898c7b9c81d001f699c64293a96eae7fa0e1360040cfb83fe5bffacbae8cc71a"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/apple/dark-1024.png",
+          "sha256": "3ea0e29eb006aa7bbedf36c178844adf1765fcb4cb3ce050635d9d72554c5be7"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/apple/default-1024.png",
+          "sha256": "0167783b2af3e608a4a31ad71330d9c84ecaf7177801f55a6e83b1bd656cbe1f"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/apple/foreground-dark.svg",
+          "sha256": "cd2c3f3042eb876e011ef4eb641930e54b891f8448fea9399c299d1315d4e5e6"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/apple/foreground.svg",
+          "sha256": "f56374cb2334cde04aa53f0ec7251693bf39076cc59839dd02d5a79c7558eb3c"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/apple/tinted-preview-1024.png",
+          "sha256": "427a9c4b48cebc9dd68037bbaeb05cf956f75325809a9c6f0a27fdfa25308040"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/base/app-dark.svg",
+          "sha256": "b712ad9fba87f30583966f2f049d3eb1f6d76f956e1e85aa36131dd5d322fa92"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/base/app-default.svg",
+          "sha256": "f2567d1eb74af711f6ef4f22c64e46b6db4fde809c6bbd830f38a5f27c931bf3"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/base/mark-white.svg",
+          "sha256": "f56374cb2334cde04aa53f0ec7251693bf39076cc59839dd02d5a79c7558eb3c"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/base/mark.svg",
+          "sha256": "e904a6e9b8f9b8dd31b4c44e92b1184b0c3bb341dc6fc2fddf93a027e8ea1e9e"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/notification/mark-96.png",
+          "sha256": "f8cdc8e1a6ef045fd89ee4ef2e98191e8e12e4d3bcce82a6963ddc290fd46caa"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/notification/mark.svg",
+          "sha256": "e904a6e9b8f9b8dd31b4c44e92b1184b0c3bb341dc6fc2fddf93a027e8ea1e9e"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/pwa/icon-192.png",
+          "sha256": "ad177508f21fd03a1b7070bf682444838c58fbdd08f025963f4a360a764ad812"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/pwa/icon-512.png",
+          "sha256": "2e46b75117376880fbf4423f7b8fa274c116417f6fe5b20c0eac96269697cdae"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/pwa/icon-any.svg",
+          "sha256": "f2567d1eb74af711f6ef4f22c64e46b6db4fde809c6bbd830f38a5f27c931bf3"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/pwa/icon-maskable-512.png",
+          "sha256": "3693f9fde0fbb46219ff93a710a1fae6fbcbc21fbaaf8e40987679f8273d8bc5"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/pwa/icon-maskable.svg",
+          "sha256": "8d4b8d16bfc52e14bbe53fcaf0a5bc57c7bd3d55de09cab1b9661523d240adf6"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/pwa/icon-monochrome.svg",
+          "sha256": "e904a6e9b8f9b8dd31b4c44e92b1184b0c3bb341dc6fc2fddf93a027e8ea1e9e"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/web/favicon-16.png",
+          "sha256": "9d0df5aa33b3f8af22638dee834ef4809dff0a3d482d45155da969cd2d57c3f7"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/web/favicon-32.png",
+          "sha256": "7b327df74ef557278bfc9988e3a2c3fa280eaa87dd9d51ab9064ebbb0fb719da"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/web/favicon-48.png",
+          "sha256": "040eb5664d27627910eb6323ba4cfbe3178430ad93ba116f276ec25ef2b4eb3e"
+        },
+        {
+          "path": "docs/design/ui-ux/assets/identity/r11c/candidates/one-thread/web/favicon.svg",
+          "sha256": "e904a6e9b8f9b8dd31b4c44e92b1184b0c3bb341dc6fc2fddf93a027e8ea1e9e"
+        }
+      ]
+    }
+  ]
+}

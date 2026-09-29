@@ -510,6 +510,62 @@
       "object": "LanSignalEnvelopeV1",
       "wave": "W1",
       "status": "frozen"
+    },
+    {
+      "label": "OM-SPACE-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "SpaceControlState",
+      "wave": "W3",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SPACE-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "SpaceControlState state hash",
+      "wave": "W3",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-SPACE-DELEGATED-INTENT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "SpaceDelegatedIntent",
+      "wave": "W3",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PUBLICATION-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "PublicationControlState",
+      "wave": "W3",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PUBLICATION-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PublicationControlState state hash",
+      "wave": "W3",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PUBLICATION-EVENT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "PublicationEvent",
+      "wave": "W3",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-PUBLICATION-EVENT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "PublicationEvent chain identity / prev_post_hash",
+      "wave": "W3",
+      "status": "frozen"
     }
   ]
 }

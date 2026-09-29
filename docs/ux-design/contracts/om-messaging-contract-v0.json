@@ -1,0 +1,214 @@
+{
+  "schema": "om.ui.messaging-contract.v0",
+  "status": "design-contract-not-production-api",
+  "principles": [
+    "compose-local-first",
+    "object-identity-survives-transport",
+    "pending-is-neutral",
+    "failure-attaches-to-object",
+    "retry-targets-same-logical-object",
+    "drafts-are-durable-local-user-work",
+    "notifications-represent-attention-not-source-of-truth"
+  ],
+  "objects": {
+    "draft": {
+      "states": [
+        "empty",
+        "composing",
+        "attachment-review",
+        "voice-recording",
+        "voice-review",
+        "save-failed"
+      ],
+      "key_scope": [
+        "account_id",
+        "conversation_id"
+      ],
+      "must_preserve": [
+        "text",
+        "reply_target",
+        "staged_attachments",
+        "voice_note_if_present"
+      ]
+    },
+    "message": {
+      "states": [
+        "local-created",
+        "queued",
+        "accepted-local-transport",
+        "delivered",
+        "read",
+        "failed",
+        "retrying"
+      ],
+      "receipt_states_require_domain_evidence": true,
+      "retry_preserves_logical_id": true
+    },
+    "attachment": {
+      "states": [
+        "staged",
+        "preparing",
+        "queued",
+        "transferring",
+        "available",
+        "failed",
+        "retrying",
+        "unavailable"
+      ],
+      "progress_truthful_only": true,
+      "independent_child_state_supported": true
+    },
+    "voice-note": {
+      "states": [
+        "idle",
+        "requesting-permission",
+        "recording",
+        "paused-if-supported",
+        "review",
+        "sending",
+        "sent",
+        "failed",
+        "discarded"
+      ],
+      "default_send_flow": "record-review-send",
+      "hold_to_record_required": false,
+      "remote_transcription_default": false
+    },
+    "scheduled-message": {
+      "states": [
+        "scheduled",
+        "editing",
+        "cancelled",
+        "release-due",
+        "released-to-send",
+        "release-failed"
+      ],
+      "is_sent_state": false,
+      "execution_dependency_must_be_disclosed": true
+    },
+    "notification": {
+      "classes": [
+        "ambient",
+        "passive",
+        "normal-communication",
+        "high-attention-communication",
+        "urgent-security-account"
+      ],
+      "foreground_duplicate_suppression": true,
+      "marketing_from_core": false
+    }
+  },
+  "actions": [
+    {
+      "id": "send-message",
+      "risk": "consequential",
+      "target": "draft",
+      "network_required_to_compose": false
+    },
+    {
+      "id": "attach-media",
+      "risk": "reversible",
+      "target": "draft"
+    },
+    {
+      "id": "remove-staged-attachment",
+      "risk": "reversible",
+      "target": "attachment"
+    },
+    {
+      "id": "retry-message",
+      "risk": "reversible",
+      "target": "message",
+      "same_logical_object": true
+    },
+    {
+      "id": "cancel-queued-message",
+      "risk": "consequential",
+      "target": "message",
+      "availability": "domain-dependent"
+    },
+    {
+      "id": "retry-attachment",
+      "risk": "reversible",
+      "target": "attachment",
+      "same_logical_object": true
+    },
+    {
+      "id": "download-attachment",
+      "risk": "reversible",
+      "target": "attachment"
+    },
+    {
+      "id": "record-voice-note",
+      "risk": "reversible",
+      "target": "draft",
+      "permission": "microphone-just-in-time"
+    },
+    {
+      "id": "stop-voice-note",
+      "risk": "reversible",
+      "target": "voice-note"
+    },
+    {
+      "id": "discard-voice-note",
+      "risk": "destructive",
+      "target": "voice-note",
+      "recoverability_preferred": true,
+      "scope": "local"
+    },
+    {
+      "id": "send-voice-note",
+      "risk": "consequential",
+      "target": "voice-note"
+    },
+    {
+      "id": "discard-draft",
+      "risk": "destructive",
+      "target": "draft",
+      "recoverability_preferred": true,
+      "scope": "local"
+    },
+    {
+      "id": "schedule-message",
+      "risk": "consequential",
+      "target": "draft",
+      "explicit_verb_required": true
+    },
+    {
+      "id": "edit-scheduled-message",
+      "risk": "reversible",
+      "target": "scheduled-message"
+    },
+    {
+      "id": "cancel-scheduled-message",
+      "risk": "reversible",
+      "target": "scheduled-message"
+    },
+    {
+      "id": "notification-reply",
+      "risk": "consequential",
+      "target": "conversation",
+      "routes_to": "send-message"
+    },
+    {
+      "id": "notification-mark-read",
+      "risk": "reversible",
+      "target": "conversation"
+    },
+    {
+      "id": "notification-mute",
+      "risk": "reversible",
+      "target": "conversation"
+    }
+  ],
+  "invariants": [
+    "scheduled_is_not_sent",
+    "queued_is_not_failed",
+    "accepted_local_transport_is_not_delivered",
+    "delivered_and_read_are_never_fabricated",
+    "transient_transport_failure_does_not_require_modal",
+    "background_sync_is_optional_optimization_not_correctness_dependency",
+    "voice_recording_and_omnibar_voice_are_distinct",
+    "lock_screen_preview_obeys_privacy_policy"
+  ]
+}

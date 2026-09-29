@@ -1,0 +1,260 @@
+{
+  "schema": "om.ui.component-contracts.v0",
+  "status": "design-contract-not-production-api",
+  "principles": [
+    "semantic events are input-independent",
+    "focus and selection are separate",
+    "effects require domain confirmation",
+    "theme cannot change transitions or safety policy",
+    "motion is optional rendering of state change"
+  ],
+  "components": {
+    "chat-row": {
+      "state_dimensions": {
+        "read_state": [
+          "read",
+          "unread",
+          "mentioned"
+        ],
+        "draft_state": [
+          "none",
+          "draft"
+        ],
+        "transport_state": [
+          "idle",
+          "queued",
+          "failed"
+        ],
+        "selection_state": [
+          "unselected",
+          "selected"
+        ],
+        "focus_state": [
+          "unfocused",
+          "focused"
+        ],
+        "press_state": [
+          "rest",
+          "pressed"
+        ]
+      },
+      "events": [
+        "chat.open",
+        "chat.focus",
+        "chat.blur",
+        "chat.select",
+        "chat.mark-read",
+        "chat.retry-pending",
+        "chat.context-actions"
+      ],
+      "actions": [
+        "open-conversation",
+        "mark-read",
+        "retry-send",
+        "open-context-actions"
+      ],
+      "a11y": {
+        "gesture_only_forbidden": true,
+        "unread_color_only_forbidden": true
+      }
+    },
+    "message": {
+      "primary_states": [
+        "local-created",
+        "queued",
+        "accepted-local-transport",
+        "delivered",
+        "read",
+        "failed",
+        "retrying"
+      ],
+      "transitions": [
+        [
+          "local-created",
+          "message.queue",
+          "queued"
+        ],
+        [
+          "queued",
+          "transport.accepted-local",
+          "accepted-local-transport"
+        ],
+        [
+          "accepted-local-transport",
+          "transport.delivered",
+          "delivered"
+        ],
+        [
+          "delivered",
+          "transport.read",
+          "read"
+        ],
+        [
+          "queued",
+          "transport.failed",
+          "failed"
+        ],
+        [
+          "accepted-local-transport",
+          "transport.failed",
+          "failed"
+        ],
+        [
+          "failed",
+          "message.retry",
+          "retrying"
+        ],
+        [
+          "retrying",
+          "message.requeued",
+          "queued"
+        ]
+      ],
+      "optional_flags": [
+        "edited",
+        "reply-linked",
+        "selected",
+        "focused",
+        "locally-hidden",
+        "remote-delete-pending"
+      ],
+      "events": [
+        "message.reply",
+        "message.react",
+        "message.retry",
+        "message.copy",
+        "message.forward",
+        "message.edit",
+        "message.delete-request",
+        "message.context-actions"
+      ],
+      "a11y": {
+        "gesture_only_forbidden": true,
+        "failure_requires_text_or_symbol": true
+      }
+    },
+    "composer": {
+      "modes": [
+        "idle",
+        "composing",
+        "attachment-review",
+        "reply-composing",
+        "voice-note-recording",
+        "omni-suspended",
+        "send-validating"
+      ],
+      "preserve_on_omni_suspend": [
+        "draft_text",
+        "selection_or_cursor_when_practical",
+        "attachments",
+        "reply_target"
+      ],
+      "events": [
+        "composer.input",
+        "composer.attach",
+        "composer.reply-target",
+        "composer.omni-open",
+        "composer.omni-close",
+        "send.requested",
+        "voice-note.start",
+        "voice-note.stop",
+        "draft.discard"
+      ],
+      "a11y": {
+        "voice_note_and_omni_voice_must_be_distinct": true
+      }
+    },
+    "omnibar": {
+      "modes": [
+        "closed",
+        "zero-query",
+        "querying",
+        "result-navigation",
+        "resolving-ambiguity",
+        "confirming-consequence",
+        "executing"
+      ],
+      "events": [
+        "omnibar.open",
+        "omnibar.query-change",
+        "omnibar.move-selection",
+        "omnibar.activate",
+        "omnibar.dismiss",
+        "omnibar.resolve-target",
+        "omnibar.confirm"
+      ],
+      "invariants": [
+        "selected_candidate_is_explicit",
+        "late_results_do_not_replace_active_selection",
+        "bare_entity_semantics_stable",
+        "explicit_verbs_outrank_learning",
+        "prediction_never_executes"
+      ],
+      "a11y": {
+        "candidate_is_single_executable_option": true
+      }
+    },
+    "contextual-surface": {
+      "states": [
+        "closed",
+        "opening",
+        "open",
+        "closing"
+      ],
+      "events": [
+        "surface.open",
+        "surface.dismiss",
+        "surface.confirm",
+        "surface.cancel"
+      ],
+      "required_context": [
+        "invoker_ref"
+      ],
+      "a11y": {
+        "restore_focus_to_invoker_when_possible": true
+      }
+    },
+    "top-level-tabs": {
+      "state": [
+        "enabled_destinations",
+        "active_destination",
+        "overflow_state",
+        "focused_destination"
+      ],
+      "events": [
+        "destination.activate",
+        "destination.focus",
+        "destination.reorder-by-user",
+        "destination.enable-by-user",
+        "destination.disable-by-user"
+      ],
+      "invariants": [
+        "single_destination_hides_visual_tab_strip",
+        "themes_cannot_change_enabled_destinations"
+      ]
+    },
+    "invite-empty-state": {
+      "states": [
+        "empty",
+        "preparing-share-link",
+        "displaying-my-qr",
+        "scanning-qr",
+        "resolving-invite",
+        "accepted",
+        "rejected",
+        "expired",
+        "invalid"
+      ],
+      "events": [
+        "invite.share-link",
+        "invite.show-qr",
+        "invite.scan",
+        "invite.resolve",
+        "invite.cancel"
+      ],
+      "invariants": [
+        "no_address_book_upload_implicit"
+      ]
+    }
+  }
+}

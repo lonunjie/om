@@ -35,5 +35,10 @@
     "resulting_state_hash": "canonical resulting PublicationControlState hash"
   },
   "ControlConflictRule": "Authority/signing-key control forks freeze privileged advancement until resolved under common pre-fork governance; no relay/mirror/provider chooses the canonical authority head.",
-  "AntiRollbackRule": "Subscribers keep the highest validated PublicationControlState head and reject older heads (ADR-0122 rule 6, ADR-0128 rule 13)."
+  "AntiRollbackRule": "Subscribers keep the highest validated PublicationControlState head and reject older heads (ADR-0122 rule 6, ADR-0128 rule 13).",
+  "wire_mapping": {
+    "PublicationControlState": "spec/cddl/space-publication.cddl#PublicationControlState",
+    "PublicationEvent": "spec/cddl/space-publication.cddl#PublicationEvent"
+  },
+  "wire_note": "Logical JSON remains a modeling view. Canonical interoperable bytes are frozen by ADR-0160 in spec/cddl/space-publication.cddl and the registries."
 }

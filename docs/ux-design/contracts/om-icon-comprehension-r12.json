@@ -1,0 +1,280 @@
+{
+  "revision": "R12",
+  "status": "test-plan-not-human-results",
+  "items": [
+    {
+      "id": "omni",
+      "name": "Omnibar",
+      "category": "shell",
+      "semantic_kind": "action",
+      "familiarity_tier": "N",
+      "label_policy": "label-context",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [
+        "active"
+      ],
+      "default_color_role": "inherit",
+      "notes": "Provisional visual metaphor; semantic role exists now."
+    },
+    {
+      "id": "spaces",
+      "name": "Spaces",
+      "category": "shell",
+      "semantic_kind": "destination",
+      "familiarity_tier": "N",
+      "label_policy": "label-preferred",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [
+        "selected"
+      ],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "reply",
+      "name": "Reply",
+      "category": "messaging",
+      "semantic_kind": "action",
+      "familiarity_tier": "U",
+      "label_policy": "label-context",
+      "risk": "normal",
+      "rtl": "mirror",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "forward-message",
+      "name": "Forward message",
+      "category": "messaging",
+      "semantic_kind": "action",
+      "familiarity_tier": "U",
+      "label_policy": "label-preferred",
+      "risk": "normal",
+      "rtl": "mirror",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "archive",
+      "name": "Archive",
+      "category": "messaging",
+      "semantic_kind": "action",
+      "familiarity_tier": "U",
+      "label_policy": "label-preferred",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "mute",
+      "name": "Mute",
+      "category": "messaging",
+      "semantic_kind": "action",
+      "familiarity_tier": "U",
+      "label_policy": "label-preferred",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [
+        "off"
+      ],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "pin",
+      "name": "Pin",
+      "category": "messaging",
+      "semantic_kind": "action",
+      "familiarity_tier": "U",
+      "label_policy": "label-preferred",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [
+        "pinned"
+      ],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "verify",
+      "name": "Verify identity",
+      "category": "security",
+      "semantic_kind": "action",
+      "familiarity_tier": "S",
+      "label_policy": "label-required",
+      "risk": "security-critical",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "action",
+      "notes": ""
+    },
+    {
+      "id": "device",
+      "name": "Device",
+      "category": "security",
+      "semantic_kind": "object",
+      "familiarity_tier": "U",
+      "label_policy": "label-preferred",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "recovery",
+      "name": "Recovery",
+      "category": "security",
+      "semantic_kind": "destination",
+      "familiarity_tier": "S",
+      "label_policy": "label-required",
+      "risk": "security-critical",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "pending",
+      "name": "Pending",
+      "category": "status",
+      "semantic_kind": "state",
+      "familiarity_tier": "O",
+      "label_policy": "label-context",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "delivered",
+      "name": "Delivered",
+      "category": "status",
+      "semantic_kind": "state",
+      "familiarity_tier": "O",
+      "label_policy": "label-context",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "read",
+      "name": "Read",
+      "category": "status",
+      "semantic_kind": "state",
+      "familiarity_tier": "O",
+      "label_policy": "label-context",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "retry",
+      "name": "Retry",
+      "category": "status",
+      "semantic_kind": "action",
+      "familiarity_tier": "U",
+      "label_policy": "label-context",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "qr-scan",
+      "name": "Scan QR code",
+      "category": "people",
+      "semantic_kind": "action",
+      "familiarity_tier": "U",
+      "label_policy": "label-preferred",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "invite",
+      "name": "Invite",
+      "category": "people",
+      "semantic_kind": "action",
+      "familiarity_tier": "O",
+      "label_policy": "label-preferred",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "call",
+      "name": "Voice call",
+      "category": "calling",
+      "semantic_kind": "action",
+      "familiarity_tier": "U",
+      "label_policy": "icon-ok",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "video-call",
+      "name": "Video call",
+      "category": "calling",
+      "semantic_kind": "action",
+      "familiarity_tier": "U",
+      "label_policy": "icon-ok",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "attach",
+      "name": "Attach",
+      "category": "compose",
+      "semantic_kind": "action",
+      "familiarity_tier": "U",
+      "label_policy": "icon-ok",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    },
+    {
+      "id": "search",
+      "name": "Search",
+      "category": "shell",
+      "semantic_kind": "action",
+      "familiarity_tier": "U",
+      "label_policy": "icon-ok",
+      "risk": "normal",
+      "rtl": "no",
+      "variants": [],
+      "default_color_role": "inherit",
+      "notes": ""
+    }
+  ],
+  "scoring": {
+    "exact_or_equivalent": "2",
+    "partial_but_nonhazardous": "1",
+    "wrong_or_dangerous_confusion": "0"
+  },
+  "promotion_rule": "Do not promote a novel/risky symbol to icon-only based on designer judgment. Human comprehension evidence is required; if meaning remains weak, keep supplementary text."
+}

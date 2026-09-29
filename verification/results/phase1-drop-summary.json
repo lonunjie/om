@@ -204,5 +204,6 @@
       "script": "verification/prototypes/v003-sessions/sealed_delivery_state.py",
       "returncode": 0
     }
-  ]
+  ],
+  "execution_note": "R15 wrapper exceeded orchestration timeout after producer 15; all 44 drop-profile producers were then executed/confirmed in bounded chunks before this canonical-equivalent summary was regenerated."
 }

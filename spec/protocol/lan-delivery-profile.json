@@ -1,0 +1,22 @@
+{
+  "$comment": "Machine-readable constants for ADR-0158 LanDeliveryProfile v1. Transport only; no identity/relationship authority.",
+  "profile_version": 1,
+  "rendezvous_epoch_seconds": 900,
+  "advertised_tag_cardinality": 8,
+  "rendezvous_tag_bytes": 16,
+  "session_id_bytes": 16,
+  "signal_nonce_bytes": 12,
+  "transfer_id_bytes": 16,
+  "max_chunk_bytes": 16384,
+  "signal_ciphertext_min_bytes": 17,
+  "signal_ciphertext_max_bytes": 12304,
+  "signal_aead": "AES-256-GCM-SIV",
+  "data_channel": {"ordered": true, "reliable": true},
+  "domain_labels": [
+    "OM-LAN-PAIR-SEED-v1",
+    "OM-LAN-INVITE-SEED-v1",
+    "OM-LAN-RENDEZVOUS-TAG-v1",
+    "OM-LAN-SIGNAL-KEY-v1",
+    "OM-LAN-SIGNAL-AAD-v1"
+  ]
+}

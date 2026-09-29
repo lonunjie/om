@@ -172,3 +172,14 @@ The following are normative pass/fail cases for the registered W0 conformance su
 | PF-03 | send/encrypt fanout | crypto+serialization cost remains within W0 budget on native and wasm32 |
 | PF-04 | background idle | battery/network wake budget is not exceeded |
 | PF-05 | bundle/install size | shipped reference client stays within declared size budget |
+
+## R15 semantic motion and component targets
+
+Motion has two distinct roles:
+
+- **semantic motion** communicates cause, destination, hierarchy or state and has a Reduced Motion equivalent;
+- **expressive motion** is OhMessenger emotional/delight rendering and is independently reducible/disableable by the recipient.
+
+The R13C/R15 design artifacts contain tighter component-level response targets (typing, hot Omnibar suggestions, local feedback and first deep-search batch). These are engineering targets and may guide implementation, but they **do not replace the normative V-022 budgets or evidence plan**. V-022 remains open until the architecture-required reviewed harness and real-device evidence exist.
+
+When performance is constrained, decoration/blur/expressive animation degrades before typing, focus visibility, semantic state feedback or action responsiveness.

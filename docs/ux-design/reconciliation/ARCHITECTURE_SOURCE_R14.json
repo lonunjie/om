@@ -1,0 +1,24 @@
+{
+  "reconciliation_id": "R14",
+  "architecture": {
+    "file": "om-design-20260929-0634-PHT-reviewed-fixed.zip",
+    "sha256": "78ddae29c9ad65972ed6cb346df1cfe16c6316ec30ce3ddb94be4e3d020bbe99",
+    "snapshot": "2026-09-29 06:34 PHT",
+    "internal_state": {
+      "design_open": 0,
+      "engineering_authorized": false,
+      "requirements": 341,
+      "decisions": 180,
+      "adrs": 158,
+      "files": 873
+    },
+    "selection_reason": "newest internal architecture lineage among current Library candidates; includes ADR-0157 and ADR-0158 and supersedes the 06:07 semantic-follow-up branch for reconciliation purposes"
+  },
+  "ui_ux": {
+    "file": "om-ui-ux-design-20260928-r13c.zip",
+    "sha256": "3d225b564ba873093f74ceffdd0ca5265af74549c67d9adc21032959a4612278",
+    "revision": "R13C"
+  },
+  "merge_performed": false,
+  "human_validation_deferred": true
+}

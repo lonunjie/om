@@ -4,6 +4,12 @@
 - **Checkpoint:** 2026-09-23 06:15 PHT
 - **Scope:** Groups/rooms, Spaces/Communities, linking, membership, authority delegation, announcement rooms and public broadcast publication
 
+## Canonical W3 wire freeze (ADR-0160)
+
+The W3 objects required by V-008 have frozen canonical bytes in [`spec/cddl/space-publication.cddl`](../../../spec/cddl/space-publication.cddl) and the protocol registries. `SpaceControlState` (type 24), `SpaceDelegatedIntent` (25), `PublicationControlState` (26), and `PublicationEvent` (27) use the existing SignedEnvelope model; Publication events use signature role `publication_signing_key` (7). Existing ConversationEvent kinds `moderation.redact`, `topic.create`, `topic.update`, `topic.status.set` and `message.topic.set` are typed rather than opaque. Logical JSON schemas remain modeling views only.
+
+The freeze does not authorize engineering or freeze V-004 GroupControlTransition, V-013 bridge wire, V-014 archive crypto, calls, or W4 service/plugin objects.
+
 ## Decision summary
 
 OM uses three distinct object classes rather than stretching one “group” abstraction over incompatible trust models:

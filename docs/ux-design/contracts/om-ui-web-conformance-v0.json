@@ -1,0 +1,43 @@
+{
+  "schema_version": "0.1",
+  "status": "design-validation-contract",
+  "revision": 10,
+  "prototype": "pwa-reference-v2",
+  "requirements": {
+    "omnibar": {
+      "input_role": "combobox",
+      "popup_role": "listbox",
+      "candidate_role": "option",
+      "dom_focus_remains_on_input": true,
+      "uses_aria_activedescendant": true,
+      "candidate_has_nested_focusable_controls": false,
+      "keys": {
+        "ArrowDown": "next candidate",
+        "ArrowUp": "previous candidate",
+        "Enter": "activate explicit candidate",
+        "Escape": "collapse without execution"
+      }
+    },
+    "focus_restoration": [
+      "conversation-omnibar->composer",
+      "settings-surface->invoker"
+    ],
+    "conversation": {
+      "dynamic_container_role": "log",
+      "live": "polite",
+      "relevant": "additions"
+    },
+    "target_floor_css_px": 44,
+    "text_scale_fixture_percent": 200,
+    "reflow_viewport_css_px": 320,
+    "reduced_motion_required": true,
+    "gesture_only_actions_forbidden": true
+  },
+  "evidence_classes": [
+    "static",
+    "browser-automated",
+    "AT-observed",
+    "physical-device",
+    "human-task"
+  ]
+}

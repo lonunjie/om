@@ -1,354 +1,143 @@
-# OM Shared UI/UX System
+# OM UI/UX System
 
-- **Checkpoint:** 2026-09-22 13:42 PHT
-- **Status:** canonical product/client design direction
-- **Scope:** reference client information architecture, responsive shell, user journeys, interaction semantics, settings model, and cross-platform consistency
+- **Status:** canonical reference-client UX architecture
+- **Reconciled:** R15 / ADR-0159
+- **Human evidence:** V-018 remains open
 
-## Product intent
+## Product goal
 
-OM should feel like an ordinary, polished messenger even though its infrastructure, identity and trust architecture are unusual.
+OM should feel like a normal, modern messenger while preserving the project's operatorless/privacy architecture. The user should normally think about **people, conversations and what they want to do**, not relays, cryptographic epochs, provider topology or device-key mechanics.
 
-> **Reveal capability, not complexity.**
+> **Bulletproof underneath; boringly easy on top.**
 
-The default experience is ergonomics and functionality first, aesthetics carefully integrated rather than layered on afterward: simple, uncluttered, peaceful, fast, and immediately legible.
+The detailed interaction doctrine is in [`RECONCILED_INTERACTION_MODEL.md`](RECONCILED_INTERACTION_MODEL.md).
 
-Security should normally be silent. Users should see security UI only when they must understand or act on something.
+## Shared client family
 
-## Shared client stack
+Official PWA, iOS, Android and desktop clients use one conceptual `om-ui` above portable Core with capability-oriented PlatformAdapters.
 
-```text
-OM Protocol
-    ↓
-OM Core
-    ↓
-OM UI
-    ↓
-PlatformAdapter
-    ↓
-PWA / iOS / Android / Desktop
-```
+The shared invariant is not pixel identity. It is:
 
-`om-ui` is one shared implementation of the application experience. Native shells expose OS capabilities and system surfaces; they do not duplicate conversation/settings/product semantics.
+- same object/action vocabulary;
+- same trust/security meaning;
+- same destructive-operation consequences;
+- same information hierarchy;
+- same semantic motion/color roles;
+- same accessibility/action equivalents;
+- platform-native expression where the OS owns the surface.
 
-### What belongs in `om-ui`
+Mobile iOS, Android and PWA should be perceptually and behaviorally near-identical except where platform-owned interaction requires a difference.
 
-- navigation and adaptive shell;
-- chats, calls and people screens;
-- conversation rendering and composer;
-- discovery, invitations and message requests;
-- contact sharing;
-- group UI;
-- in-app call UI;
-- settings, privacy profiles, recovery and devices;
-- OM Home health/settings;
-- theming and design system;
-- accessibility behavior that can be shared;
-- local view state and navigation state.
+## Default compact shell
 
-### What stays native/platform-owned
+The default compact root is **Chats**.
 
-- Keychain/Keystore/Secure Enclave/StrongBox access;
-- APNs/FCM/Web Push transport implementation;
-- CallKit/Telecom lock-screen/system call surfaces;
-- OS share sheet and file picker;
-- permission prompts;
-- biometric prompts;
-- camera/microphone integration where native APIs are required;
-- native background execution;
-- SMS/MMS/RCS adapters later.
+If Chats is the only exposed top-level destination, no redundant one-item tab bar is shown. Users may expose/reorder Calls, People, Spaces, Publications, Files or later destinations through OwnMessenger. Hidden destinations remain available through Omnibar, contextual actions, deep links and accessibility/command surfaces.
 
-## Primary information architecture
+The account/IdentityProfile control defaults to a lower trailing reach zone on compact touch layouts; its placement may be mirrored/configured without inferring handedness through behavioral surveillance.
 
-Only three persistent primary destinations:
+### Conversation surface
 
-1. **Chats** — 1:1 conversations, groups, message requests.
-2. **Calls** — recent/missed calls and call initiation.
-3. **People** — accepted contacts, requests, share/discovery actions.
+Inside a conversation:
 
-Settings opens from the user avatar/profile. Groups are conversations, not a separate social/community product. Files/media remain conversation-scoped.
+- content dominates; chrome is restrained;
+- composer owns the compact lower text-entry zone;
+- the Omnibar trigger transforms the same zone into find/do mode rather than stacking a second persistent field;
+- draft/reply/attachment state survives the transition;
+- tabs normally disappear on compact conversation view to maximize content space;
+- expanded layouts may keep navigation and global Omnibar visible in parallel.
 
-## Adaptive window model
+## Omnibar
 
-Layout responds to available application window, not platform/device labels.
+Omnibar is the universal local-first **find-or-do** surface. It may resolve people, conversations, messages, Rooms/Spaces/Topics/Publications, settings, invites, calls and safe Action Registry entries.
 
-Initial implementation classes:
+Default ranking is transparent and deterministic enough to remain understandable. Optional local learning:
 
-| Class | Width | Default structure |
-|---|---:|---|
-| Compact | `<600 CSS px` | single pane + bottom navigation |
-| Medium | `600–839` | navigation rail/compact shell, usually one main pane |
-| Expanded | `840–1199` | navigation rail + list/detail |
-| Wide | `≥1200` | navigation rail + list + detail + optional inspector |
+- is profile-scoped private local state;
+- is encrypted at rest under local-data rules;
+- can be disabled/reset;
+- is not uploaded merely because personalization is enabled;
+- learns likely **targets**, not hidden verb substitution;
+- cannot promote security-critical actions into bypassed confirmation.
 
-These are prototyping values, not protocol constants. Validate with actual content, localization, text scaling and foldable/split-screen use.
+`Cmd/Ctrl+K` is the desktop/power-user entry point. Keyboard, voice and assistive technologies resolve into the same semantic actions.
 
-Selected conversation, draft, scroll position and modal context survive resize/reorientation whenever possible.
+## Navigation doctrine
 
-## Navigation behavior
+- **Changing place** uses navigation.
+- **Acting within a place** prefers contextual surfaces/sheets/popovers where appropriate.
+- Back returns to the previous interaction context and preserves source location/focus/draft where feasible.
+- Larger windows reveal more simultaneous context rather than adding a different hierarchy.
 
-### Compact
+Responsive capability states are Compact, Split, Expanded and Multi-pane. Window size/capability, not device marketing category, determines the state.
 
-- bottom bar: Chats / Calls / People;
-- app bar contains conversation/person title and the few highest-value actions;
-- system back gesture/button navigates naturally;
-- details/settings open as full-page or sheet based on context.
+## Messaging doctrine
 
-### Expanded / Wide
+Messages/media remain recognizable through queued/sending/transferring/retrying states. Failures attach to the affected object.
 
-- navigation rail at left;
-- list/detail layout for Chats, Calls and People;
-- optional inspector/details pane in Wide;
-- keyboard shortcuts and command palette become first-class.
+Scheduled send is V1 and is explicitly `scheduled`, not `sent`; Core releases compose intent at due time after revalidating current state.
 
-Recommended shortcuts:
+Drafts are locally durable. Architecture-supported same-profile account-private draft sync may be used among eligible linked devices while preserving conflicts; it is convenience state, not conversation authority and not guaranteed cross-implementation V1 interoperability.
 
-- `Cmd/Ctrl+K`: universal search / command palette;
-- `Cmd/Ctrl+N`: new chat;
-- `Esc`: close/back;
-- standard platform conventions for copy/paste/search/navigation.
+Rich text, polls, replies, reactions, stickers/bounded looping media, disappearing/view-once content and link previews are contextual capabilities, not top-level navigation.
 
-## Onboarding
+## Groups, Spaces, Topics and Publication
 
-The onboarding sequence should not expose cryptographic or Cloudflare terminology.
+Ordinary groups remain ordinary conversations.
 
-### 1. Welcome
+Spaces organize independent Rooms and may contain/nest Spaces according to canonical group architecture. The UI progressively reveals hierarchy only when present. It must not impose a one-level protocol limit for visual simplicity.
 
-Primary action: **Create my OM**. Secondary: **Restore an identity**.
+Lightweight threads and persistent Topics remain Room-local organization and appear only when a Room uses them.
 
-### 2. Profile
-
-Friendly name and optional avatar. AccountID and cryptographic material are generated silently.
-
-### 3. Set up your OM home
-
-> **2026-09-24:** when onboarding starts from an invite that carries sponsorship, this step is replaced by "You're in — using Alice's home for now" (T0). Without an invite, the user chooses a community home, sets up their own, or links an existing one. See [`HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`](../providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md) §7. The continuity check (ADR-0106) appears after the first conversation.
-
-Plain-language explanation:
-
-> Your OM home delivers messages when your devices are not online. It belongs to you, and you can move it later.
-
-Provider deployment is automated. Progress language describes outcomes, not vendor products:
-
-- Creating your address
-- Setting up message delivery
-- Preparing notifications
-- Finishing
-
-Provider-specific detail belongs under Advanced/Troubleshooting.
-
-### 4. Ready
-
-Show QR/share link with obvious actions:
-
-- Share my OM
-- Scan someone's OM
-- Done
-
-Recovery is optional and does not block onboarding.
-
-## Discovery UX
-
-The New Chat surface accepts multiple discovery forms without requiring the user to understand them:
-
-- scan QR;
-- tap/paste `om:` invitation;
-- paste an OM contact address/link;
-- enter an organization/FQDN identity;
-- use a shared ContactCapsule.
-
-No uploaded address-book discovery in v1.
-
-## Share Contact
-
-Carol can share Alice to Bob.
-
-- Carol forwards Alice's signed, expiring ContactCapsule.
-- Bob sees Alice plus local provenance such as **Shared by Carol**.
-- Bob verifies Alice's own signature, not Carol's authority.
-- Bob still sends a normal introduction request to Alice.
-- Carol never receives Alice↔Bob pairwise delivery capabilities.
-- Referral provenance remains local context, never a global trust score.
-
-## Message requests
-
-Unknown senders stay outside the normal relationship until accepted.
-
-The request surface supports:
-
-- Accept;
-- Block;
-- optional local/report-export actions;
-- tightly constrained content prior to acceptance.
-
-Calls, arbitrary attachments and normal relationship capabilities are unavailable until acceptance.
-
-## Conversation UI
-
-Use familiar messaging patterns:
-
-- title/avatar + call actions;
-- message bubbles;
-- reply/reaction/edit/delete/copy/share;
-- attachments and voice messages;
-- disappearing and view-once content;
-- composer with Attach / Message / Voice / Send.
-
-Do not show routine padlock/encryption badges. Strong encryption is the baseline.
-
-Exceptions: labels that say **who else can read or author** are not routine badges and are always shown (ADR-0129). They are reserved security UI ([`THEMES_FONTS_AND_PERSONALIZATION.md`](THEMES_FONTS_AND_PERSONALIZATION.md)): service/automation authorship ("Assistant", "Alice · via Assistant"), "Bridge active" and "OM encryption ends at Bridge X", foreign-provenance and `foreign_actor_unverified` labels, and the roster entry of any full-Room service or other plaintext recipient.
-
-## Security events
-
-Security attention is rare, calm and actionable.
-
-Examples:
-
-- **Alice's identity changed** — explain possible recovery/device replacement and offer Review.
-- **One of your devices has been suspended** — explain consequence and open Devices.
-- **Account changes are temporarily frozen** — explain contested control state and resolution path.
-- **A new device was linked to your account** — the non-suppressible device-link notice; offer Suspend and open Devices.
-- **A service or bridge can now read this conversation** — shown to every member when a full-Room service or bridge is added, or when a counterparty's messages start going to a representing service; name it and offer Review.
-- **A connected service was added to your account** — a personal grant with plaintext read plus egress, representation or automation ([`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md) §2); offer Revoke and open Connected services.
-
-Never use alarmist language for routine background rotations/upgrades.
-
-## People
-
-Contains:
-
-- Requests;
-- accepted contacts;
-- Your OM / share QR/link;
-- local-only contact-name mapping when OS Contacts permission is granted.
-
-Local Contacts data never needs to leave the device.
+Public Publication is a distinct public signed object class. Its UI must clearly distinguish it from private Rooms and must not imply E2EE, hidden subscriber membership or guaranteed erasure of copied public posts.
 
 ## Calls
 
-One shared in-app call UI across all official clients. Platform shells may own incoming-call system UI.
+Calls remain conversation/person anchored. Calls/People tabs are optional presentation shortcuts, not capability boundaries. Routing is automatic and route type never changes the security indicator when E2EE semantics are unchanged.
 
-Route selection is automatic and invisible: LAN / P2P / TURN / SFU. Advanced call details may expose route and health, but route never changes E2EE semantics.
+Call signaling remains outside durable ConversationEvents; local history may render a call timeline item/notice.
 
-## Protection presets
+## First run and invitations
 
-User-facing presets:
+No uploaded address book by default. A zero-contact first run is invite-first:
 
-- **Recommended** — strongest crypto with strong privacy and convenience;
-- **Hardened** — less exposed metadata and more conservative routing/push;
-- **Maximum Privacy** — minimize metadata even when immediacy/convenience suffers;
-- **Custom** — user has changed component policies.
+- Share invite/link;
+- Show my QR;
+- Scan QR;
+- accept an invitation from an existing communication channel.
 
-All presets keep the same approved cryptographic floor. They change policy, not cipher strength.
+The simple surface must still expose the canonical Home tier facts when needed, especially T0/T1 sponsor/host observation, migration and independent-client-origin choices.
 
-## Notifications
+## Trust/security surfaces
 
-Vendor push sees only opaque wakeup information. Message text/sender previews are rendered locally after fetch/decrypt.
+Routine encryption is baseline, not a permanent padlock badge.
 
-- Recommended: local sender/message preview allowed by user preference.
-- Hardened: reduced preview by default.
-- Maximum Privacy: generic notification or vendor push disabled with explicit delivery-immediacy tradeoff.
+Security UI appears when a user decision or material trust boundary needs attention. It distinguishes automatic cryptographic checks, user verification, device authorization, service/bridge plaintext boundaries, recovery custody and real-world identity.
 
-## Recovery UX
+Device management distinguishes Suspend/quarantine, pending authorization, contested/Safety Freeze and permanent revocation.
 
-Settings → Identity → Recovery.
+Recovery is on by default under canonical policy; UI separately presents identity recovery, history restore and provider/discovery reconnection.
 
-Default is **On** (ADR-0111). The screen names the custodian in plain words: "Your passkey can restore this identity" (a synced passkey), or "Your recovery key can restore this identity" when no passkey is available and always under Maximum Privacy. It also states the protection: a restore waits (Recommended 72 hours; Hardened and Maximum 7 days) and any of your devices can stop it.
+Protection profiles Recommended / Hardened / Maximum Privacy / Custom are separate from Focus / Balanced / Playful experience profiles.
 
-**Turn off recovery** is an explicit, confirmed flow with the ADR-0111 warning: "If you turn recovery off and lose all your devices, this identity is gone for good. Nobody, including OM, can restore it." Turning it back on is one step.
+## OwnMessenger and OhMessenger
 
-Additional methods may include:
+OwnMessenger changes safe presentation/preferences: themes, light/dark pairs, font/density within validated bounds, tab exposure/order, wallpaper, permitted shortcuts, experience profile, haptic/sound preference.
 
-- recovery key (added alongside a passkey, or instead of it);
-- trusted people/guardians;
-- spare control-capable device;
-- future reviewed methods.
+OhMessenger is the optional emotional/delight layer: expressive media, reactions, celebration and ambient effects. The recipient owns rendering intensity.
 
-Identity recovery and message-history recovery remain separate concepts in the UI.
+Themes/assets are declarative data, never executable code or arbitrary remote tracking resources. Protected security surfaces use reserved built-in semantics/fonts/colors where architecture requires them.
 
-## Device UX
+## Accessibility
 
-Show ordinary linked devices and whether they can approve account-control changes.
+Gestures are accelerators, never exclusive actions. Keyboard/focus operation, named accessibility actions, large text/reflow, Reduced Motion, high contrast and equivalent non-color state cues are release requirements.
 
-Primary emergency action is **Suspend this device**, mapping to immediate quarantine. Permanent revocation/control changes follow AccountControlState authorization underneath.
+The Action Registry is semantic; bindings are platform/input adapters. See [`ACTION_TO_CORE_INTENT_MAP.md`](ACTION_TO_CORE_INTENT_MAP.md).
 
-Normal UI should not use internal terms such as constitutional quorum unless Advanced/diagnostic detail is requested.
+## Performance
 
-## OM Home
+Fast local acknowledgment is a UX invariant. R13C component targets may be used as engineering targets, but V-022 remains authoritative for normative end-to-end budgets and closure evidence. Decoration degrades before typing, focus, semantic feedback or action responsiveness.
 
-User-facing infrastructure abstraction.
+## Evidence boundary
 
-Basic surface:
-
-- status: Online / Needs attention;
-- OM address;
-- message delivery health;
-- storage/backup summary.
-
-Advanced:
-
-- provider;
-- relay set;
-- blob/storage provider;
-- quota/budget status;
-- move/repair/export tools;
-- raw diagnostics.
-
-## Offline and LAN
-
-Existing conversations remain readable/searchable offline.
-
-When WAN is unavailable:
-
-> Internet unavailable — local contacts may still work.
-
-Known LAN peers may show a quiet local availability indicator such as **Nearby**. LAN discovery never exposes stable AccountID/usernames to unrelated devices.
-
-## Search and command palette
-
-Search is a first-class global surface, not a feature hidden inside each section. It may search:
-
-- chats and people;
-- messages/files locally;
-- settings/help;
-- commands/actions;
-- later, organization discovery.
-
-Search results must preserve privacy policy and never silently upload local indexes.
-
-## Reversible actions
-
-Prefer **Undo** to confirmation dialogs when actions are safely reversible. Reserve blocking dialogs for truly irreversible/high-impact changes such as destructive recovery changes or identity deletion.
-
-## State preservation
-
-Drafts, selection, scroll position and transient navigation state should survive:
-
-- resize/orientation change;
-- background/foreground;
-- temporary network loss;
-- navigation to settings/details and back.
-
-The product should feel continuous rather than page-based.
-
-## Default aesthetic
-
-- quiet and content-first;
-- restrained accent;
-- subtle surface hierarchy;
-- no unnecessary cards/borders;
-- no privacy/cybersecurity visual branding;
-- dark/light/high-contrast first-class;
-- generous hit targets and readable typography;
-- aesthetics support comprehension rather than compete with it.
-
-## Multiple identities (architecture now, UI later)
-
-`om-ui` is profile-aware from its first state model, and the V1 reference client exposes switching when two or more profiles exist (ADR-0148). Switching is intentionally simple: avatar/profile chip -> choose Personal/Work/Temporary/etc. -> immediate switch without logout/reload.
-
-Each profile preserves its own drafts, navigation, notification/privacy settings and optional theme. New profiles may be offered a different curated theme, but the user can inherit the global appearance instead.
-
-All themes support Auto light/dark. Appearance transitions should avoid full-screen flashes and respect reduced-motion.
-
-## Rich-text composer
-
-The composer should make Telegram-class formatting effortless: selection toolbar/context commands and keyboard shortcuts for bold, italic, underline, strikethrough, spoiler, inline code, quote/code block and links. It serializes only `RichTextV1`; pasted HTML/Markdown is input to a sanitizer/converter, never rendered/sent as executable markup.
+Current prototypes/static/browser checks are useful candidate evidence only. They do not close V-018, V-022, physical-device, AT or human usability gates.

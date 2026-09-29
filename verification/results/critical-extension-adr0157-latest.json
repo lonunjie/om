@@ -1,0 +1,13 @@
+{
+  "kind": "adr0157_critical_extension_convergence",
+  "gate": "V-005",
+  "python_cases": 8,
+  "node_cases": 8,
+  "source_checks": {
+    "node_strict": true,
+    "rust_strict": true
+  },
+  "mismatches": [],
+  "passed": true,
+  "note": "The honest future-critical case intentionally differs: old baseline rejects unsupported mandatory semantics while the future registry accepts. The security/convergence condition under test is the malicious critical=false downgrade, which both reject."
+}

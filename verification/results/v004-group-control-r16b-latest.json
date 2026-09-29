@@ -1,0 +1,33 @@
+{
+  "kind": "r16b_v004_group_control_bounded",
+  "gates": [
+    "V-004"
+  ],
+  "criteria_evidenced": [
+    "reductions (revoked/quarantined device removal, member removal, self-leave, service/bridge removal, Space-delegated reductions) are live under coordinator failure or censorship; succession replacement is deterministic; a rebased non-reducing intent is re-validated at its new parent (R-220)",
+    "account-control events: no sending after a learned revocation until the Remove is accepted, no adds under CONTROL_CONFLICT/SAFETY_FREEZE, device-add deduplication (R-221)",
+    "stale reduction targets an immutable membership/service incarnation and becomes a no-op after that exact incarnation is gone; it cannot remove a later re-add (R-279)"
+  ],
+  "checks": {
+    "reduction_liveness": {
+      "cases": 516,
+      "passed": true
+    },
+    "account_control": {
+      "cases": 8,
+      "passed": true
+    },
+    "immutable_incarnation": {
+      "cases": 7,
+      "passed": true
+    }
+  },
+  "explicitly_not_claimed": [
+    "formal crash/partition model",
+    "candidate MLS runtime ordering support",
+    "same-epoch disconnected-partition merge",
+    "ADR-0156 groups wire freeze"
+  ],
+  "passed": true,
+  "gate_status_effect": "evidence_for_named_criteria_only"
+}

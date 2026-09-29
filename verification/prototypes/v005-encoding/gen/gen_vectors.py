@@ -531,6 +531,10 @@ def body_mutations(name, base):
     # extensions
     muts.append(("unknown-critical-extension", "unknown_critical_extension",
                  mset(base, 23, M(["org.example.must-understand", M([0, True], [1, 1])])), "valid"))
+    # ADR-0157/R-346/T-136: the reserved critical prefix is mandatory-to-understand even when
+    # a malicious sender lies with critical=false. Old/new V1 registry versions therefore both reject.
+    muts.append(("unknown-critical-prefix-marked-noncritical", "unknown_critical_extension",
+                 mset(base, 23, M(["om.critical.future.example", M([0, False], [1, 1])])), "valid"))
     muts.append(("empty-extensions", "value_range", mset(base, 23, {"$map": []}), "invalid"))
     return muts
 

@@ -48,6 +48,7 @@ RUNS = [
     ([sys.executable, str(ROOT / "verification/bounded/desktop_personrecord_adr0152.py")], "verification/bounded/desktop_personrecord_adr0152.py"),
     ([sys.executable, str(ROOT / "verification/bounded/design_closure_set1_rules.py")], "verification/bounded/design_closure_set1_rules.py"),
     ([sys.executable, str(ROOT / "verification/bounded/design_closure_set2_rules.py")], "verification/bounded/design_closure_set2_rules.py"),
+    ([sys.executable, str(ROOT / "verification/bounded/critical_extension_adr0157.py")], "verification/bounded/critical_extension_adr0157.py"),
     ([sys.executable, str(ROOT / "verification/prototypes/v003-sessions/k12_smoke.py")], "verification/prototypes/v003-sessions/k12_smoke.py"),
     ([sys.executable, str(ROOT / "verification/prototypes/v003-sessions/sealed_delivery_state.py"),
       str(ROOT / "verification/results/v003-sealed-delivery-latest.json")],

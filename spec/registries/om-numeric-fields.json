@@ -53,7 +53,8 @@
       "3": "device",
       "4": "intro_identity",
       "5": "provider",
-      "6": "legacy"
+      "6": "legacy",
+      "7": "publication_signing_key"
     },
     "principal_kind": {
       "1": "account",
@@ -196,6 +197,34 @@
       "6": "signed_async_key_bundle",
       "7": "signed_sealed_delivery_key_record",
       "8": "encrypted_blob_ciphertext"
+    },
+    "publication_event_kind": {
+      "1": "post",
+      "2": "edit",
+      "3": "tombstone"
+    },
+    "space_child_kind": {
+      "1": "room",
+      "2": "publication",
+      "3": "space"
+    },
+    "child_visibility": {
+      "1": "public",
+      "2": "private"
+    },
+    "space_evidence_kind": {
+      "1": "moderation_decision",
+      "2": "role_mirror",
+      "3": "membership_admission"
+    },
+    "publication_key_status": {
+      "1": "current",
+      "2": "retired_or_revoked"
+    },
+    "topic_status": {
+      "1": "open",
+      "2": "resolved",
+      "3": "archived"
     }
   },
   "structs": {
@@ -3970,6 +3999,891 @@
         }
       ],
       "note": "Kind-specific required/forbidden field combinations are normatively frozen in spec/cddl/lan.cddl; frames are transport records only (ADR-0158)."
+    },
+    "SpaceProfile": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "name",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "avatar_ref",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 2,
+          "name": "description",
+          "type": {
+            "tstr": [
+              1,
+              4096
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 3,
+          "name": "style_ref",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "SpaceMembership": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "principal_ref",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "role_ids",
+          "type": {
+            "set": {
+              "bstr": [
+                16,
+                16
+              ]
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "RoleDefinition": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "role_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "display_name",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "grants",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "grantable_scope",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "SpaceChildLink": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "child_kind",
+          "type": {
+            "enum": "space_child_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "child_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "visibility",
+          "type": {
+            "enum": "child_visibility"
+          },
+          "req": false
+        },
+        {
+          "key": 3,
+          "name": "bilateral_link_evidence",
+          "type": {
+            "bstr": [
+              1,
+              65536
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "SpaceGovernance": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "principals",
+          "type": {
+            "set": {
+              "ref": "PrincipalRef"
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "approval_threshold",
+          "type": {
+            "uint": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "delegated_capabilities",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              1,
+              128
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "SpaceControlState": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "space_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "state_version",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "previous_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "profile",
+          "type": {
+            "ref": "SpaceProfile"
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "membership",
+          "type": {
+            "array": {
+              "ref": "SpaceMembership"
+            },
+            "n": [
+              1,
+              1024
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "role_definitions",
+          "type": {
+            "array": {
+              "ref": "RoleDefinition"
+            },
+            "n": [
+              1,
+              128
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 8,
+          "name": "child_links",
+          "type": {
+            "array": {
+              "ref": "SpaceChildLink"
+            },
+            "n": [
+              1,
+              512
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 9,
+          "name": "governance",
+          "type": {
+            "ref": "SpaceGovernance"
+          },
+          "req": true
+        }
+      ]
+    },
+    "SpaceDelegatedIntent": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "space_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "space_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "space_state_version",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "conversation_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "operation",
+          "type": {
+            "tstr": [
+              1,
+              128
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "reducing",
+          "type": {
+            "bool": null
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "evidence_kind",
+          "type": {
+            "enum": "space_evidence_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "space_evidence",
+          "type": {
+            "bstr": [
+              1,
+              65536
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 10,
+          "name": "target_principal",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": false
+        },
+        {
+          "key": 11,
+          "name": "target_incarnation",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 12,
+          "name": "capability_ids",
+          "type": {
+            "set": {
+              "tstr": [
+                1,
+                128
+              ]
+            },
+            "n": [
+              1,
+              128
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "PublicationProfile": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "name",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "avatar_ref",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 2,
+          "name": "description",
+          "type": {
+            "tstr": [
+              1,
+              4096
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "PublicationSigningKeyState": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "signing_key_ref",
+          "type": {
+            "bstr": [
+              16,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "status",
+          "type": {
+            "enum": "publication_key_status"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "last_valid_seq",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "PublicationGovernance": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "principals",
+          "type": {
+            "set": {
+              "ref": "PrincipalRef"
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "approval_threshold",
+          "type": {
+            "uint": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "PublicationControlState": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "publication_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "state_version",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "previous_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "profile",
+          "type": {
+            "ref": "PublicationProfile"
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "publisher_authority",
+          "type": {
+            "set": {
+              "ref": "PrincipalRef"
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "signing_key_state",
+          "type": {
+            "array": {
+              "ref": "PublicationSigningKeyState"
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "optional_discussion_conversation_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 9,
+          "name": "governance",
+          "type": {
+            "ref": "PublicationGovernance"
+          },
+          "req": true
+        }
+      ]
+    },
+    "PublicationPostBody": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "content",
+          "type": {
+            "ref": "RichText"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "attachments",
+          "type": {
+            "array": {
+              "ref": "AttachmentRef"
+            },
+            "n": [
+              0,
+              32
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "PublicationTombstoneBody": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "reason",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "PublicationEvent": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "publication_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "post_id",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "clock",
+          "type": {
+            "ref": "Hlc"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "kind",
+          "type": {
+            "enum": "publication_event_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "body",
+          "type": {
+            "any": null
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "signing_key_ref",
+          "type": {
+            "bstr": [
+              16,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "seq",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "previous_post_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        },
+        {
+          "key": 10,
+          "name": "control_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        }
+      ]
+    },
+    "TopicCreate": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "topic_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "title",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "TopicUpdate": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "topic_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "title",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "TopicStatusSet": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "topic_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "status",
+          "type": {
+            "enum": "topic_status"
+          },
+          "req": true
+        }
+      ]
+    },
+    "MessageTopicSet": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "target_event_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "topic_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "ModerationRedact": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "target_event_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "reason",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": false
+        }
+      ]
     }
   },
   "extensions": [

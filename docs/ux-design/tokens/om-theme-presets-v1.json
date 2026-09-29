@@ -1,0 +1,35 @@
+{
+  "$schema": "om-theme-preset-collection-v1",
+  "status": "prototype-candidates",
+  "note": "All presets inherit protected success/warning/danger semantics and non-color redundancy. Exact values remain subject to prototype testing.",
+  "presets": [
+    {
+      "id": "om.clear",
+      "name": "OM Clear",
+      "personality": "clear, calm, precise",
+      "light": {"base":"#F7F9FC","raised":"#FFFFFF","text":"#172033","secondary":"#566176","accent":"#0067C5","onAccent":"#FFFFFF","focus":"#6536D9","outgoing":"#E7F2FF"},
+      "dark": {"base":"#11151C","raised":"#1D2530","text":"#F2F5F8","secondary":"#B9C2CE","accent":"#66B2FF","onAccent":"#07182B","focus":"#B69CFF","outgoing":"#183A5B"}
+    },
+    {
+      "id": "om.paper",
+      "name": "OM Paper",
+      "personality": "warm, human, quiet",
+      "light": {"base":"#FBF8F3","raised":"#FFFDFC","text":"#241F1A","secondary":"#63594F","accent":"#075FAB","onAccent":"#FFFFFF","focus":"#6536D9","outgoing":"#E6F1FB"},
+      "dark": {"base":"#181512","raised":"#231E1A","text":"#F6F1EA","secondary":"#C5BAB0","accent":"#75B9F3","onAccent":"#0B2030","focus":"#C0A6FF","outgoing":"#18364D"}
+    },
+    {
+      "id": "om.iris",
+      "name": "OM Iris",
+      "personality": "expressive, disciplined",
+      "light": {"base":"#FAF8FC","raised":"#FFFFFF","text":"#241C2B","secondary":"#665A70","accent":"#7041C7","onAccent":"#FFFFFF","focus":"#006A9C","outgoing":"#F0E9FF"},
+      "dark": {"base":"#161219","raised":"#221B27","text":"#F7F1FA","secondary":"#C8BCCC","accent":"#C5A7FF","onAccent":"#21122F","focus":"#6DCBFF","outgoing":"#35254C"}
+    },
+    {
+      "id": "om.graphite",
+      "name": "OM Graphite",
+      "personality": "technical, concentration-first",
+      "light": {"base":"#F8F8F8","raised":"#FFFFFF","text":"#1D1D1F","secondary":"#5F6368","accent":"#005FBD","onAccent":"#FFFFFF","focus":"#6536D9","outgoing":"#E5F0FA"},
+      "dark": {"base":"#121212","raised":"#1D1D1F","text":"#F2F2F3","secondary":"#B9B9BE","accent":"#68B4FF","onAccent":"#081828","focus":"#B69CFF","outgoing":"#17344E"}
+    }
+  ]
+}

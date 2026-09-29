@@ -1,0 +1,330 @@
+{
+  "reconciliation_id": "R14",
+  "architecture_source": "om-design-20260929-0634-PHT-reviewed-fixed.zip",
+  "architecture_sha256": "78ddae29c9ad65972ed6cb346df1cfe16c6316ec30ce3ddb94be4e3d020bbe99",
+  "uiux_source": "om-ui-ux-design-20260928-r13c.zip",
+  "uiux_sha256": "3d225b564ba873093f74ceffdd0ca5265af74549c67d9adc21032959a4612278",
+  "merge_performed": false,
+  "items": [
+    {
+      "id": "shell-defaults",
+      "status": "architecture_requires_update",
+      "severity": "major",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture UI_UX_SYSTEM hard-codes Chats/Calls/People persistent destinations; R13C defaults to Chats-only and user-composable tabs with Calls/People optional.",
+      "recommended_resolution": "Adopt R13C shell via architecture ADR; tabs are presentation only, capabilities remain accessible via Omnibar/context. Supersede old fixed-tab wording."
+    },
+    {
+      "id": "omnibar",
+      "status": "compatible_extension",
+      "severity": "info",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture already requires first-class global search/command palette and Cmd/Ctrl+K; R13C adds bottom Omnibar, local ranking, voice/keyboard grammar and composer morph.",
+      "recommended_resolution": "Merge as detailed UI implementation semantics; keep Core intent boundary and local-index privacy rules."
+    },
+    {
+      "id": "account-profile-terminology",
+      "status": "uiux_correction",
+      "severity": "major",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture distinguishes AccountID from local IdentityProfile and exposes profile switching for 2+ profiles; R13C often says account generically.",
+      "recommended_resolution": "Normalize user-facing wording as appropriate but map state/actions explicitly to IdentityProfile where architecture means profile. Never invent cross-profile heuristics."
+    },
+    {
+      "id": "draft-sync",
+      "status": "uiux_correction",
+      "severity": "major",
+      "architecture_scope": "reference_client_ui",
+      "finding": "R13C says cross-device draft sync is not implied; architecture baseline explicitly permits V1 account-private E2EE draft sync with conflict preservation for eligible linked devices.",
+      "recommended_resolution": "Revise draft spec: local durability required; private cross-device sync is architecture-supported V1 behavior when capability is available, with conflict-safe UX and no conversation authority."
+    },
+    {
+      "id": "scheduled-send",
+      "status": "scope_correction",
+      "severity": "major",
+      "architecture_scope": "reference_client_ui",
+      "finding": "R13C marks scheduled messages v1 optional; architecture first-release baseline includes device-local scheduled send with sent-late/discard-on-ineligibility semantics.",
+      "recommended_resolution": "Promote scheduled-send UX to architecture-required V1 product behavior, while preserving truthful local-device execution and actual-send late binding."
+    },
+    {
+      "id": "spaces",
+      "status": "scope_correction",
+      "severity": "major",
+      "architecture_scope": "communities_publications",
+      "finding": "R13C treats shallow Space\u2192Channel as optional and deeper structures as v2+; architecture defines Spaces/Communities as Standard V1 and allows nested Spaces plus independently linked Rooms.",
+      "recommended_resolution": "Keep default UI simple/progressive, but do not constrain protocol model to one level. UX must render/navigate architecture-valid nested Spaces safely, even if hidden until needed."
+    },
+    {
+      "id": "threads-topics",
+      "status": "missing_or_deferred_ux",
+      "severity": "moderate",
+      "architecture_scope": "communities_publications",
+      "finding": "R13C defers full forum/thread trees and lacks a Topic UX; architecture makes lightweight threads and persistent room-local topics Standard V1 capabilities.",
+      "recommended_resolution": "Add bounded thread/topic UX before merge. Preserve simple reply as default; reveal topics only where a Room uses them."
+    },
+    {
+      "id": "public-publication",
+      "status": "missing_ux",
+      "severity": "moderate",
+      "architecture_scope": "communities_publications",
+      "finding": "R13C has no Publication/broadcast UX; architecture defines signed public Publication as Standard V1 capability distinct from private Rooms.",
+      "recommended_resolution": "Add Publication feed/follow/source/provenance UX with clear distinction from private Rooms and no implied E2EE."
+    },
+    {
+      "id": "polls",
+      "status": "missing_ux",
+      "severity": "moderate",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture includes polls as Standard optional capability included in V1 product; R13C has an icon but no interaction/state design.",
+      "recommended_resolution": "Add create/vote/close/result semantics and unsupported-capability fallback before scope freeze."
+    },
+    {
+      "id": "stickers-looping-media",
+      "status": "partial_coverage",
+      "severity": "info",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture requires first-class stickers and bounded looping animation in the product baseline; R13C defines asset packs/effects but not complete conversation interaction semantics.",
+      "recommended_resolution": "Map content-pack/sticker selection, send, fallback and static/reduced-motion behavior into messaging UX."
+    },
+    {
+      "id": "typing-presence-receipts",
+      "status": "partial_coverage",
+      "severity": "info",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture defines optional typing/presence/receipt semantics with privacy-policy control; R13C touches receipt states but lacks complete policy/presentation contract.",
+      "recommended_resolution": "Add explicit presentation/privacy rules and map them to Recommended/Hardened/Maximum Privacy profiles."
+    },
+    {
+      "id": "disappearing-messages",
+      "status": "missing_ux",
+      "severity": "moderate",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture has canonical disappearing-message/retention semantics; R13C references them but does not design timer/expiry/view-once user flows.",
+      "recommended_resolution": "Add conversation timer, per-message expiry/view-once presentation, backup/search implications, and honest non-erasure wording."
+    },
+    {
+      "id": "contact-capsule-message-requests",
+      "status": "partial_coverage",
+      "severity": "info",
+      "architecture_scope": "discovery_first_contact",
+      "finding": "R13C invite-first UX covers QR/link invites but does not fully cover ContactCapsule forwarding, provenance, constrained MessageRequest preview/accept/block.",
+      "recommended_resolution": "Add Share Contact / Shared by <person> / Message Request flows mapped to architecture."
+    },
+    {
+      "id": "home-onboarding-tiers",
+      "status": "missing_critical_ux",
+      "severity": "major",
+      "architecture_scope": "provider_reference",
+      "finding": "R13C starts after identity/setup and invite CTA; architecture requires T0 sponsored mailbox/T1 hosted Home/T2 own cloud/T3 self-host/T4 local-only semantics and specific disclosures.",
+      "recommended_resolution": "Integrate invite-first empty state with Home tier onboarding. Sponsored invite must disclose observer/closure facts and offer native or multiple independent PWA origins per V-018."
+    },
+    {
+      "id": "recovery-default",
+      "status": "uiux_correction",
+      "severity": "major",
+      "architecture_scope": "reference_client_ui",
+      "finding": "R13C keeps recovery generic; architecture says recovery is on by default with synced passkey when possible, fallback recovery key, pending state when custodian cannot be established, and separate history recovery.",
+      "recommended_resolution": "Revise recovery UX to architecture defaults and exact scope. Preserve user-friendly wording and explicit opt-out consequences."
+    },
+    {
+      "id": "protection-profiles",
+      "status": "missing_ux",
+      "severity": "moderate",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture has Recommended/Hardened/Maximum Privacy operational privacy profiles; R13C has Focus/Balanced/Playful experience profiles but not the security/privacy preset surface.",
+      "recommended_resolution": "Add Protection presets as a separate settings dimension; never conflate emotional/attention profiles with security/privacy policy."
+    },
+    {
+      "id": "device-suspend-vs-revoke",
+      "status": "missing_critical_ux",
+      "severity": "major",
+      "architecture_scope": "reference_client_ui",
+      "finding": "R13C centers Revoke device; architecture requires immediate Suspend/quarantine journey and may require later authorization for permanent removal, including Safety Freeze states.",
+      "recommended_resolution": "Add Suspend device, pending/final control-state, contested/frozen state and permanent revocation as distinct actions."
+    },
+    {
+      "id": "verification-language",
+      "status": "aligned",
+      "severity": "info",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Both tracks separate cryptographic continuity, user verification and real-world identity and avoid route-as-security signaling.",
+      "recommended_resolution": "Merge R13B language into canonical UX docs; retain architecture-specific continuity/safety-number source data."
+    },
+    {
+      "id": "call-routing",
+      "status": "aligned",
+      "severity": "info",
+      "architecture_scope": "calls",
+      "finding": "Both tracks keep calls conversation-anchored and route-independent for E2EE, with direct/LAN/TURN/SFU hidden unless diagnostics matter.",
+      "recommended_resolution": "Merge detailed R13B states into call UI; preserve architecture CallSessionID/key/route semantics."
+    },
+    {
+      "id": "call-timeline-item",
+      "status": "uiux_wording_correction",
+      "severity": "info",
+      "architecture_scope": "calls",
+      "finding": "R13B says a call event should be visible in the conversation; architecture explicitly keeps signaling outside durable ConversationEvents and permits local timeline materialization.",
+      "recommended_resolution": "Rename to call timeline item/notice; do not imply a canonical durable ConversationEvent unless architecture later adds one."
+    },
+    {
+      "id": "group-call-ui",
+      "status": "aligned",
+      "severity": "info",
+      "architecture_scope": "calls",
+      "finding": "Architecture has V1 group-call capability where platform support exists; R13B provides group-call states and participant UX.",
+      "recommended_resolution": "Merge, capability-gated by PlatformAdapter/Core."
+    },
+    {
+      "id": "notifications",
+      "status": "aligned_with_architecture_detail",
+      "severity": "info",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Both tracks use privacy-safe local rendering and platform-owned notification surfaces; architecture has detailed push/wake semantics.",
+      "recommended_resolution": "Keep R13A attention model as presentation layer; architecture remains source for push/wake capability and privacy."
+    },
+    {
+      "id": "local-search",
+      "status": "aligned",
+      "severity": "info",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Both tracks require local/profile-scoped search with no mandatory global search service; architecture encrypts search indexes at rest.",
+      "recommended_resolution": "Merge Omnibar indexing/ranking under profile-scoped LocalDataClass rules."
+    },
+    {
+      "id": "local-adaptation-data",
+      "status": "architecture_mapping_needed",
+      "severity": "moderate",
+      "architecture_scope": "reference_client_ui",
+      "finding": "R13C adds optional local behavior-learning state; architecture forbids analytics/hidden cross-profile fingerprinting but lacks an explicit named adaptation-data class.",
+      "recommended_resolution": "Map learning aggregates to profile-scoped private local state, encrypted at rest, resettable/export policy explicit; add architecture requirement/trace if normative."
+    },
+    {
+      "id": "themes-assets",
+      "status": "aligned",
+      "severity": "info",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Both tracks require declarative data-only themes, protected security surfaces, light/dark pairs, accessibility override and no remote arbitrary code/tracking.",
+      "recommended_resolution": "Merge R11-R13 asset/icon/token details beneath canonical theme boundary."
+    },
+    {
+      "id": "fonts",
+      "status": "architecture_stricter",
+      "severity": "info",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture explicitly treats imported fonts as hostile and reserves built-in fonts for security surfaces; R13C theme contract must retain this stricter rule.",
+      "recommended_resolution": "Architecture rule wins; ensure asset/theme validator rejects unsafe fonts and security surfaces never use theme fonts."
+    },
+    {
+      "id": "motion",
+      "status": "aligned",
+      "severity": "info",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Both tracks define semantic/interruptible motion, direct manipulation and Reduced Motion.",
+      "recommended_resolution": "Merge R13C richer semantic motion/delight taxonomy without weakening architecture performance/reduced-motion gates."
+    },
+    {
+      "id": "performance",
+      "status": "budget_reconciliation",
+      "severity": "moderate",
+      "architecture_scope": "reference_client_ui",
+      "finding": "R13C defines tighter interaction budgets; architecture V-022 owns normative speed/battery/memory/size budgets and requires real-device evidence/ADR for revisions.",
+      "recommended_resolution": "Treat R13C numbers as component targets unless promoted by architecture ADR. Do not overwrite V-022 budgets silently."
+    },
+    {
+      "id": "accessibility-input",
+      "status": "aligned",
+      "severity": "info",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Both tracks require shared semantics, keyboard operation, visible focus, gesture alternatives, reduced motion and native accessibility adapters.",
+      "recommended_resolution": "Merge R9/R10 component mappings and conformance harness as candidate evidence, not closure of human/AT gates."
+    },
+    {
+      "id": "security-ux-human-gate",
+      "status": "open_external_gate",
+      "severity": "blocking_external",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture V-018 requires a multi-language non-technical participant study for onboarding/recovery/device/security flows. Human testing is intentionally deferred by user.",
+      "recommended_resolution": "R14 cannot close V-018. Preserve it as an explicit pre-engineering blocker for reference_client_ui."
+    },
+    {
+      "id": "performance-gate",
+      "status": "open_external_gate",
+      "severity": "blocking_external",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture V-022 still needs reviewed measurement-harness plan and later real-device measurements. R13C has prototype/browser metrics only.",
+      "recommended_resolution": "Use R13C harnesses as inputs; do not claim V-022 passed."
+    },
+    {
+      "id": "invite-client-origin-choice",
+      "status": "missing_critical_ux",
+      "severity": "major",
+      "architecture_scope": "provider_reference",
+      "finding": "Architecture sponsored-invite flow must offer native plus multiple independent PWA origins and explain who serves the app; R13C invite install flow assumes a generic supported-client/PWA path.",
+      "recommended_resolution": "Expand invite-install UX to origin/provider choice without overwhelming user; V-018 comprehension criteria remain authoritative."
+    },
+    {
+      "id": "address-book-default",
+      "status": "aligned",
+      "severity": "info",
+      "architecture_scope": "reference_client_ui",
+      "finding": "R13C no-contact-upload-by-default matches architecture rule that OS address book is convenience, not identity authority.",
+      "recommended_resolution": "Merge as default; optional export/matching must preserve provenance and consent."
+    },
+    {
+      "id": "rich-text-composer",
+      "status": "missing_ux_detail",
+      "severity": "info",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture requires Telegram-class RichText formatting and sanitized conversion; R13C messaging design does not fully specify formatting controls.",
+      "recommended_resolution": "Add formatting UX, keyboard shortcuts, paste sanitization feedback and accessibility."
+    },
+    {
+      "id": "privacy-link-preview",
+      "status": "missing_ux",
+      "severity": "moderate",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture has privacy-preserving optional link preview and Maximum Privacy off behavior; R13C lacks explicit preview policy UX.",
+      "recommended_resolution": "Add per-profile/conversation link-preview controls and failure-neutral rendering."
+    },
+    {
+      "id": "block-report-evidence",
+      "status": "missing_ux",
+      "severity": "moderate",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture baseline includes Block and scoped Report/EvidencePackage flows; R13C does not fully design reporting/evidence export.",
+      "recommended_resolution": "Add block/report/selective evidence UX without implying a universal OM moderator."
+    },
+    {
+      "id": "identity-name",
+      "status": "aligned",
+      "severity": "info",
+      "architecture_scope": "constitution_governance",
+      "finding": "Architecture canonically keeps public name OM with multiple meanings; R12 already warns against prematurely freezing expanded public names.",
+      "recommended_resolution": "Keep OM as public name pending future clearance; identity visual testing remains separate."
+    },
+    {
+      "id": "architecture-ux-seed",
+      "status": "architecture_stale_doc",
+      "severity": "moderate",
+      "architecture_scope": "reference_client_ui",
+      "finding": "Architecture docs/ux-design SCREEN_MAP still fixes three tabs and older first-run OM Home setup, while newer canonical architecture and R13C have moved beyond it.",
+      "recommended_resolution": "At merge, replace/supersede seed screen map and component catalog references rather than preserving contradictory UX docs."
+    },
+    {
+      "id": "action-registry-core-intents",
+      "status": "mapping_required",
+      "severity": "moderate",
+      "architecture_scope": "reference_client_ui",
+      "finding": "R13C Action Registry is UI-semantic; architecture UI_CORE_PLATFORM_CONTRACT requires typed intents and Core validation for authority/state transitions.",
+      "recommended_resolution": "Create explicit action\u2192typed Core intent/view-state mapping; UI actions never become protocol authority or generic string RPC."
+    },
+    {
+      "id": "human-validation-brand",
+      "status": "deferred_evidence",
+      "severity": "info",
+      "architecture_scope": "reference_client_ui",
+      "finding": "R13C deliberately leaves brand/logo/icon comprehension and physical ergonomics open.",
+      "recommended_resolution": "Keep deferred; not a merge blocker for semantic UX, but blocks final brand/accessibility freeze."
+    }
+  ]
+}

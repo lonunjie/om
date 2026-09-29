@@ -103,3 +103,11 @@ The following are normative pass/fail cases for the registered W0 conformance su
 | AX-03 | text scaling/reflow | reference layouts remain operable at required scale without hidden security controls |
 | AX-04 | reduced motion | semantic state changes remain understandable with non-motion alternative |
 | AX-05 | reserved security surface | theme/plugin cannot suppress or relabel required security/accessibility semantics |
+
+## R15 semantic action parity
+
+ADR-0159 makes input modality an adapter over the same semantic Action Registry. A swipe-to-reply gesture, visible Reply button, context menu item, keyboard shortcut, VoiceOver/TalkBack custom action, Omnibar command and permitted voice command must converge on the same `reply-message` semantic action and Core path.
+
+Essential functionality cannot exist only as a gesture, color, animation, sound or haptic. Novel/risky icons retain labels until comprehension evidence justifies otherwise. Large text, 320 CSS-pixel reflow for the PWA, visible focus and Reduced Motion remain release criteria; existing browser fixtures are candidate evidence, not V-018 closure.
+
+User-generated names/messages are direction-unknown content and require bidi isolation/logical layout. Responsive behavior is based on current window/capabilities (Compact/Split/Expanded/Multi-pane), not hard-coded device class.

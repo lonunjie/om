@@ -176,3 +176,27 @@ The following are normative pass/fail cases for the registered W0 conformance su
 | UI-07 | unknown deep link with several profiles | client asks which profile should act; no hidden cross-profile heuristic chooses one |
 | UI-08 | voice-note extension unsupported | ordinary audio attachment remains playable and no required capability is fabricated |
 | UI-09 | location-card extension unsupported | W0-valid textual/`geo:` fallback remains usable; no background location or third-party map fetch is implicitly granted |
+
+## R15 Action Registry reconciliation (ADR-0159)
+
+The shared UI now names semantic actions through an Action Registry, but that registry is **not** a protocol API and has no canonical-state authority.
+
+```text
+input binding
+  -> semantic UI action
+  -> typed Core intent/query OR local presentation operation OR PlatformAdapter capability
+  -> explicit Core/platform state
+  -> render
+```
+
+No generic string RPC such as `execute("revoke-device")` may become an authority bypass. Omnibar/voice/keyboard/accessibility all produce the same typed semantic action and remain subject to the normal Core authorization/confirmation path.
+
+The conceptual mapping for messaging, calls, Rooms/Spaces/Topics/Publication, onboarding, devices, recovery and settings is maintained in [`ACTION_TO_CORE_INTENT_MAP.md`](ACTION_TO_CORE_INTENT_MAP.md).
+
+### IdentityProfile capture
+
+Profile-sensitive actions/search/index/background callbacks capture immutable `ProfileExecutionContext` at dispatch as required by R-332. Omnibar ranking, local adaptation, drafts, pickers, share/deep-link handling and notification actions never consult a later process-global active profile to retarget work.
+
+### Presentation-only actions
+
+Navigation, theme preview, density, tab exposure/order, local experience profile and other safe OwnMessenger presentation changes may remain UI-local/profile-private state. The moment a setting changes privacy, notification routing, retention, provider policy, device/recovery authority, Room capability or canonical messaging state, it must use the appropriate typed domain/Core intent.

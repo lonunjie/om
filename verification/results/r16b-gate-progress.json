@@ -1,0 +1,127 @@
+{
+  "kind": "r16b_repo_local_evidence_progress",
+  "checkpoint": "2026-09-29T08:50:00+08:00",
+  "source": "R16A gate-triage checkpoint",
+  "engineering_authorized": false,
+  "overall_pre_engineering_criteria_met": 128,
+  "overall_pre_engineering_criteria_total": 173,
+  "targets": [
+    {
+      "gate": "V-004",
+      "name": "group_commit_control_model",
+      "before_met": 0,
+      "after_met": 3,
+      "total": 7,
+      "remaining": [
+        "formal model of CommitCoordinator replacement/equivocation and GroupControlIntent<->GroupCommitBinding under crash/partition with no silent authority fork",
+        "candidate MLS library demonstrated to support the required external commit ordering on target runtimes",
+        "two disconnected partitions independently create different direct reducing Commits from the same MLS epoch after sequencing_timeout; reconnection converges without silent key/state continuation on the losing branch",
+        "ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition, and the pin.set and poll.create/poll.vote/poll.close event bodies (R-343, plus interoperable GroupHistoryBundle with its bundle-author provenance/exclusion semantics (R-343, R-347)"
+      ],
+      "independence_status": "open",
+      "pre_engineering_status": "open",
+      "progress": "R16B closes the fixed-semantics repo-local reductions/account-control/incarnation subset: 531 bounded cases pass. Repo-local progress is 3/7; formal crash/partition/equivocation, target-runtime MLS ordering, disconnected same-epoch partition convergence and ADR-0156 wire freeze remain open, followed by required independence."
+    },
+    {
+      "gate": "V-008",
+      "name": "space_room_permission_authority_model",
+      "before_met": 0,
+      "after_met": 5,
+      "total": 6,
+      "remaining": [
+        "ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): SpaceControlState, SpaceDelegatedIntent, topic.create/topic.update/topic.status.set/message.topic.set, moderation.redact and Publication/publication events (R-343)"
+      ],
+      "independence_status": "open",
+      "pre_engineering_status": "open",
+      "progress": "R16B credits the existing independent-tool TLC authority model after ADR-0122 resolved its formerly-open cascade/subdelegation semantics, and adds 24,637 bounded incarnation/ceiling/delegation/invite cases. Repo-local progress is 5/6; ADR-0156 wire freeze remains open, followed by independent reviewer evidence."
+    },
+    {
+      "gate": "V-011",
+      "name": "service_principal_authority_and_automation_model",
+      "before_met": 0,
+      "after_met": 6,
+      "total": 7,
+      "remaining": [
+        "ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): ServicePrincipal, ServiceControlState, RepresentationGrant and ConversationEvent key 13 representation (R-343)"
+      ],
+      "independence_status": "open",
+      "pre_engineering_status": "open",
+      "progress": "R16B credits the existing TLC host-migration/alias model and capability-broker corpus, then adds 68 bounded cases for membership/read scope, RepresentationGrant, endpoint-removal liveness and immutable installation incarnations. Repo-local progress is 6/7; ADR-0156 wire freeze remains open, followed by independent reviewer evidence."
+    },
+    {
+      "gate": "V-013",
+      "name": "bridge_provenance_fidelity_and_loop_model",
+      "before_met": 2,
+      "after_met": 2,
+      "total": 4,
+      "remaining": [
+        "reviewed bridge adapter contract specification",
+        "ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): BridgePrincipal, BridgeControlState and ConversationEvent key 14 foreign_provenance (R-343)"
+      ],
+      "independence_status": "open",
+      "pre_engineering_status": "open",
+      "progress": "R16A makes the bridge candidate contract explicit that an admitted private-Room bridge is a full Room/MLS member/plaintext recipient and allowed_event_classes limits export rather than reading. Repo-local progress is 2/4; independent contract review and ADR-0156 wire freeze remain open."
+    },
+    {
+      "gate": "V-014",
+      "name": "portable_archive_interop_and_import_safety",
+      "before_met": 2,
+      "after_met": 2,
+      "total": 3,
+      "remaining": [
+        "frozen om-archive-v1 specification and vectors"
+      ],
+      "independence_status": "open",
+      "pre_engineering_status": "open",
+      "progress": "Bounded hostile-archive/history-authority checks clean; independent implementations, encrypted archive failure cases and real importers remain."
+    },
+    {
+      "gate": "V-020",
+      "name": "home_onboarding_and_provider_portability",
+      "before_met": 7,
+      "after_met": 9,
+      "total": 9,
+      "remaining": [],
+      "independence_status": "open",
+      "pre_engineering_status": "open",
+      "progress": "R16B completes the two remaining repo-local provider criteria: blocked-vendor/blocked-suffix simulations report established and first-contact fallback fractions, and 724 sponsorship-overlap/non-sponsor-route cases pass. Repo-local progress is 9/9; pre-engineering remains open only because required independent-review evidence is not yet recorded."
+    },
+    {
+      "gate": "V-024",
+      "name": "lan_delivery_binding",
+      "before_met": 0,
+      "after_met": 3,
+      "total": 4,
+      "remaining": [
+        "browser feasibility: real browser establishes host-local ordered/reliable WebRTC DataChannel using seed-encrypted LanSignalEnvelopeV1/manual or QR signalling and passes LanFrameV1/backpressure tests, or the PWA capability row reports local_delivery unavailable on that browser/runtime (R-349)"
+      ],
+      "independence_status": "open",
+      "pre_engineering_status": "open",
+      "progress": "R16B completes the repo-local LAN wire/model work: frozen profile constants, 9 positive and 8 negative vectors agree in independent Python/Node codecs; passive-observer and offline-first-contact mutation models pass. Repo-local progress is 3/4; real-browser WebRTC DataChannel feasibility (or an explicit unavailable capability result) remains open, followed by independent review."
+    }
+  ],
+  "deliberate_nonclosures": {
+    "V-013": "Bridge wire freeze still requires new later-wave numeric/CDDL/domain allocations; that is protocol design, not merely verification. The independent reviewed-contract criterion also remains open.",
+    "V-014": "om-archive-v1 encryption profile remains explicitly candidate/review-bound; freezing it in this verification pass would be an unreviewed cryptographic design decision.",
+    "V-004": "formal crash/partition/equivocation, target-runtime MLS ordering, disconnected same-epoch partition convergence and later-wave wire freeze remain open.",
+    "V-024": "real-browser WebRTC DataChannel feasibility or explicit unsupported capability result remains open."
+  },
+  "new_evidence": [
+    "verification/bounded/v004_group_control_r16b.py",
+    "verification/results/v004-group-control-r16b-latest.json",
+    "verification/bounded/v008_authority_r16b.py",
+    "verification/results/v008-authority-r16b-latest.json",
+    "verification/bounded/v011_service_authority_r16b.py",
+    "verification/results/v011-service-authority-r16b-latest.json",
+    "verification/bounded/v020_provider_resilience_r16b.py",
+    "verification/results/v020-provider-resilience-r16b-latest.json",
+    "spec/protocol/lan-delivery-profile.json",
+    "verification/prototypes/v024-lan-wire/vectors.json",
+    "verification/prototypes/v024-lan-wire/python_lan_codec.py",
+    "verification/prototypes/v024-lan-wire/node_lan_codec.mjs",
+    "verification/prototypes/v024-lan-wire/run.py",
+    "verification/bounded/v024_lan_models_r16b.py",
+    "verification/results/v024-lan-wire-r16b-latest.json",
+    "verification/results/v024-lan-models-r16b-latest.json"
+  ]
+}

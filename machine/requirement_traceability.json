@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-28T20:42:00+08:00",
+  "snapshot": "2026-09-29T07:55:00+08:00",
   "purpose": "Every requirement maps to at least one proof obligation. Target kinds: V-### verification gate, PR-### public release gate, validator (tools/validate_architecture.py), conformance:<suite> (a suite registered in machine/conformance_suites.json with its spec document; ADR-0130), review:<doc> (named document review obligation, discharged by a reviewer other than the document's author with a record in verification/reviews/, ADR-0117).",
   "target_kinds": [
     "V-###",
@@ -2267,6 +2267,83 @@
       "verified_by": [
         "V-024",
         "V-016"
+      ]
+    },
+    {
+      "requirement": "R-351",
+      "verified_by": [
+        "V-018",
+        "V-022"
+      ]
+    },
+    {
+      "requirement": "R-352",
+      "verified_by": [
+        "conformance:ui_intents",
+        "V-021"
+      ]
+    },
+    {
+      "requirement": "R-353",
+      "verified_by": [
+        "V-015",
+        "V-021",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-354",
+      "verified_by": [
+        "V-008",
+        "V-009",
+        "V-012",
+        "V-016",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-355",
+      "verified_by": [
+        "V-018",
+        "V-020",
+        "V-021"
+      ]
+    },
+    {
+      "requirement": "R-356",
+      "verified_by": [
+        "V-002",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-357",
+      "verified_by": [
+        "V-007",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-358",
+      "verified_by": [
+        "V-003",
+        "V-018"
+      ]
+    },
+    {
+      "requirement": "R-359",
+      "verified_by": [
+        "V-012",
+        "V-018",
+        "V-021"
+      ]
+    },
+    {
+      "requirement": "R-360",
+      "verified_by": [
+        "V-018",
+        "V-021",
+        "V-022"
       ]
     }
   ]
