@@ -22,9 +22,25 @@ event-edit = { event-common, 8: 2, 11: MessageEdit }
 event-delete = { event-common, 8: 3, 11: MessageDelete }
 event-reaction = { event-common, 8: 4, 11: ReactionSet }
 event-receipt = { event-common, 8: 5, 11: ReceiptUpdate }
-; later-wave kinds: body opaque to W0 (unsupported-content placeholder)
-event-other = { event-common, 8: 6..14, 11: opaque-body }
+; Later-wave bodies frozen by ADR-0160. Unsupported implementations may still reject these kinds
+; by normal unsupported-version/kind policy; this CDDL defines their interoperable bytes.
+event-other = event-pin / event-redact / event-poll-create / event-poll-vote / event-poll-close / event-topic-create / event-topic-update / event-topic-status / event-message-topic
+event-pin = { event-common, 8: 6, 11: opaque-body }
+event-redact = { event-common, 8: 7, 11: ModerationRedact }
+event-poll-create = { event-common, 8: 8, 11: opaque-body }
+event-poll-vote = { event-common, 8: 9, 11: opaque-body }
+event-poll-close = { event-common, 8: 10, 11: opaque-body }
+event-topic-create = { event-common, 8: 11, 11: TopicCreate }
+event-topic-update = { event-common, 8: 12, 11: TopicUpdate }
+event-topic-status = { event-common, 8: 13, 11: TopicStatusSet }
+event-message-topic = { event-common, 8: 14, 11: MessageTopicSet }
 opaque-body = { * uint => any } / { * tstr => any }   ; one key type per map (OM-CBOR-v1)
+
+TopicCreate = { 0: opaque-id16, 1: tstr .size (1..256) }
+TopicUpdate = { 0: opaque-id16, 1: tstr .size (1..256) }
+TopicStatusSet = { 0: opaque-id16, 1: 1..3 }
+MessageTopicSet = { 0: event-id, ? 1: opaque-id16 }
+ModerationRedact = { 0: event-id, ? 1: tstr .size (1..256) }
 
 hlc = { 0: uint, 1: uint .le 4294967295, 2: bstr .size (1..32) }
 

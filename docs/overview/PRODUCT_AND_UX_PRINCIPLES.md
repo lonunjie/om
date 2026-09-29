@@ -130,3 +130,15 @@ All themes offer Auto light/dark behavior. The default remains ergonomics/functi
 ## 2026-09-23 traction baseline
 
 OM is not successful merely because the protocol is elegant. The first usable product must feel like a current messenger: expected reply/reaction/media/voice/call/group/search/mute/block and expressive-media ergonomics need an explicit baseline before engineering. That baseline is now frozen in [`MESSENGER_BASELINE_V1.md`](../architecture/events/MESSENGER_BASELINE_V1.md); `A-010` is resolved. Stickers and GIF-like looping animation remain product-baseline expectations; A-001/A-002 are now resolved by the bounded WebP expressive profile and portable inert ContentPack architecture in [`EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md`](../architecture/ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md).
+
+## 2026-09-29 R15 reconciled interaction model
+
+ADR-0159 integrates the standalone UI/UX design track into the canonical architecture without changing Core/protocol authority.
+
+The default compact shell is now **chat-first**: Chats is the only exposed top-level destination by default, and a one-item tab strip is omitted. Calls, People, Spaces, Publications, Files and future views are user-exposable presentation destinations, not capability boundaries. The **Omnibar** is the universal local-first find-or-do surface and remains able to reach hidden destinations/actions.
+
+The architecture may be rich while the presentation remains simple: scheduled send, Spaces/Rooms/nested Spaces, threads/Topics, Publication, polls, stickers, rich text, disappearing/view-once content, ContactCapsules/MessageRequests, reporting/evidence and privacy-aware previews remain V1 capabilities but appear contextually rather than occupying permanent navigation.
+
+OwnMessenger presentation customization is separate from security/privacy Protection profiles. Focus/Balanced/Playful changes experience intensity; Recommended/Hardened/Maximum Privacy/Custom changes policy. Neither is allowed to silently weaken the other.
+
+See [`RECONCILED_INTERACTION_MODEL.md`](../architecture/ux/RECONCILED_INTERACTION_MODEL.md) and [`SCREEN_MAP_AND_JOURNEYS.md`](../ux-design/SCREEN_MAP_AND_JOURNEYS.md).

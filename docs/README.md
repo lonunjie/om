@@ -20,7 +20,7 @@ Every earlier design checkpoint is a git commit tagged `checkpoint/YYYYMMDD-HHMM
 | [`reviews/`](reviews/) | Dated independent reviews and resolution records. |
 | [`checkpoints/`](checkpoints/) | Dated checkpoint records (what changed, why, what was verified). |
 | [`research/`](research/) | Dated external references behind decisions. Research informs; it is not normative. |
-| [`ux-design/`](ux-design/) | Screen map, component catalog, motion tokens, static prototype. |
+| [`ux-design/`](ux-design/) | Reconciled UI/UX system: journeys, semantic contracts, tokens, icons/media assets, prototypes, validation and architecture reconciliation records. |
 | [`reports/`](reports/) | Working reports from reviews and operator sessions. |
 
 Normative protocol schemas live in [`spec/`](../spec/), executable evidence in [`verification/`](../verification/README.md), and machine-checked project state in [`machine/`](../machine/).
@@ -151,6 +151,6 @@ Existing detailed documents remain canonical where not superseded. Machine-reada
 - `machine/resolved_questions.jsonl + typed gate ledgers`
 - [`docs/research/CURRENT_REFERENCES_20260921.md`](research/CURRENT_REFERENCES_20260921.md)
 - [`docs/research/CURRENT_UI_REFERENCES_20260922.md`](research/CURRENT_UI_REFERENCES_20260922.md)
-- `docs/ux-design/` — shared design seeds, component catalog, screen journeys and static shell prototype
+- `docs/ux-design/` — canonical detailed UI/UX contracts, component/journey specs, semantic tokens, icons/media, prototypes and validation artifacts under the architecture UX rules
 - [`docs/threat-model/README.md`](threat-model/README.md) + [`machine/threat_register.jsonl`](../machine/threat_register.jsonl) — narrative and structured threat model
 - [`machine/requirement_traceability.json`](../machine/requirement_traceability.json) — every requirement mapped to its proof obligation

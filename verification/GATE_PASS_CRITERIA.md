@@ -163,16 +163,16 @@ Formally exercise CommitCoordinator replacement/equivocation and GroupControlInt
 - **Independence:** pre-engineering independent_tool, independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_formal_and_runtime_feasibility`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `verification/bounded/cross_wave_feasibility.py`; `verification/results/authority-bounded-latest.json`; `verification/results/cross-wave-feasibility-latest.json`
+- **Evidence:** `verification/bounded/cross_wave_feasibility.py`; `verification/bounded/v004_group_control_r16b.py`; `verification/results/authority-bounded-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v004-group-control-r16b-latest.json`
 
 Pre-engineering criteria:
 
 - [ ] formal model of CommitCoordinator replacement/equivocation and GroupControlIntent<->GroupCommitBinding under crash/partition with no silent authority fork
 - [ ] candidate MLS library demonstrated to support the required external commit ordering on target runtimes
-- [ ] reductions (revoked/quarantined device removal, member removal, self-leave, service/bridge removal, Space-delegated reductions) are live under coordinator failure or censorship; succession replacement is deterministic; a rebased non-reducing intent is re-validated at its new parent (R-220)
-- [ ] account-control events: no sending after a learned revocation until the Remove is accepted, no adds under CONTROL_CONFLICT/SAFETY_FREEZE, device-add deduplication (R-221)
+- [x] reductions (revoked/quarantined device removal, member removal, self-leave, service/bridge removal, Space-delegated reductions) are live under coordinator failure or censorship; succession replacement is deterministic; a rebased non-reducing intent is re-validated at its new parent (R-220)
+- [x] account-control events: no sending after a learned revocation until the Remove is accepted, no adds under CONTROL_CONFLICT/SAFETY_FREEZE, device-add deduplication (R-221)
 - [ ] two disconnected partitions independently create different direct reducing Commits from the same MLS epoch after sequencing_timeout; reconnection converges without silent key/state continuation on the losing branch
-- [ ] stale reduction targets an immutable membership/service incarnation and becomes a no-op after that exact incarnation is gone; it cannot remove a later re-add (R-279)
+- [x] stale reduction targets an immutable membership/service incarnation and becomes a no-op after that exact incarnation is gone; it cannot remove a later re-add (R-279)
 - [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition, and the pin.set and poll.create/poll.vote/poll.close event bodies (R-343, plus interoperable GroupHistoryBundle with its bundle-author provenance/exclusion semantics (R-343, R-347)
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
@@ -188,10 +188,7 @@ Mechanically unfinished pre-engineering work:
 
 - formal model of CommitCoordinator replacement/equivocation and GroupControlIntent<->GroupCommitBinding under crash/partition with no silent authority fork
 - candidate MLS library demonstrated to support the required external commit ordering on target runtimes
-- reductions (revoked/quarantined device removal, member removal, self-leave, service/bridge removal, Space-delegated reductions) are live under coordinator failure or censorship; succession replacement is deterministic; a rebased non-reducing intent is re-validated at its new parent (R-220)
-- account-control events: no sending after a learned revocation until the Remove is accepted, no adds under CONTROL_CONFLICT/SAFETY_FREEZE, device-add deduplication (R-221)
 - two disconnected partitions independently create different direct reducing Commits from the same MLS epoch after sequencing_timeout; reconnection converges without silent key/state continuation on the losing branch
-- stale reduction targets an immutable membership/service incarnation and becomes a no-op after that exact incarnation is gone; it cannot remove a later re-add (R-279)
 - ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition, and the pin.set and poll.create/poll.vote/poll.close event bodies (R-343, plus interoperable GroupHistoryBundle with its bundle-author provenance/exclusion semantics (R-343, R-347)
 - phase independence evidence is not yet recorded as satisfied
 
@@ -204,7 +201,7 @@ Publish deterministic-CBOR/CDDL golden vectors produced and consumed correctly b
 - **Independence:** pre-engineering independent_implementation; pre-release independent_implementation
 - **Execution class:** `repo_local_interop`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0119-freeze-w0-cddl-and-registries.md`; `decisions/ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md`; `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `decisions/ADR-0148-v1-product-base-promotion-without-kernel-expansion.md`; `decisions/ADR-0149-promoted-v1-adversarial-hardening.md`; `decisions/ADR-0150-v1-offline-local-rich-lists-and-native-reference-targets.md`; `decisions/ADR-0151-rich-list-validation-layer-closure.md`; `spec/cddl/`; `spec/registries/`; `verification/bounded/async_prekey_adr0140_rules.py`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/bounded/extensions_adr0148.py`; `verification/bounded/extensions_adr0149_hardening.py`; `verification/bounded/rich_list_adr0150.py`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/cbor/node_adr0148_extensions.mjs`; `verification/cbor/node_adr0150_rich_list.mjs`; `verification/cbor/node_intro_binding.mjs`; `verification/prototypes/v005-encoding/README.md`; `verification/prototypes/v005-encoding/gen/assemble.py`; `verification/prototypes/v005-encoding/gen/intro_binding.py`; `verification/prototypes/v005-encoding/run.sh`; `verification/results/async-prekey-adr0140-latest.json`; `verification/results/design-consistency-adr0141-latest.json`; `verification/results/extensions-adr0148-latest.json`; `verification/results/extensions-adr0149-hardening-latest.json`; `verification/results/rich-list-adr0150-latest.json`; `verification/results/sealed-delivery-adr0142-latest.json`; `verification/results/v005-encoding-latest.json`; `verification/results/v005-node-adr0141-latest.json`; `verification/results/v005-node-adr0142-latest.json`; `verification/vectors/adr0148-v1-extension-vectors.json`; `verification/vectors/adr0150-rich-list-vectors.json`; `verification/vectors/v005-w0-object-vectors.json.gz`; `decisions/ADR-0155-non-critical-extension-validity-and-presentation-edit-closure.md`
+- **Evidence:** `decisions/ADR-0119-freeze-w0-cddl-and-registries.md`; `decisions/ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md`; `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `decisions/ADR-0148-v1-product-base-promotion-without-kernel-expansion.md`; `decisions/ADR-0149-promoted-v1-adversarial-hardening.md`; `decisions/ADR-0150-v1-offline-local-rich-lists-and-native-reference-targets.md`; `decisions/ADR-0151-rich-list-validation-layer-closure.md`; `decisions/ADR-0155-non-critical-extension-validity-and-presentation-edit-closure.md`; `decisions/ADR-0157-independent-review-remediation-extension-convergence-history-boundary-and-scheduled-send.md`; `spec/cddl/`; `spec/registries/`; `verification/bounded/async_prekey_adr0140_rules.py`; `verification/bounded/critical_extension_adr0157.py`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/bounded/extensions_adr0148.py`; `verification/bounded/extensions_adr0149_hardening.py`; `verification/bounded/rich_list_adr0150.py`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/cbor/node_adr0148_extensions.mjs`; `verification/cbor/node_adr0150_rich_list.mjs`; `verification/cbor/node_critical_extension_adr0157.mjs`; `verification/cbor/node_intro_binding.mjs`; `verification/prototypes/v005-encoding/README.md`; `verification/prototypes/v005-encoding/gen/assemble.py`; `verification/prototypes/v005-encoding/gen/intro_binding.py`; `verification/prototypes/v005-encoding/run.sh`; `verification/results/async-prekey-adr0140-latest.json`; `verification/results/critical-extension-adr0157-latest.json`; `verification/results/design-consistency-adr0141-latest.json`; `verification/results/extensions-adr0148-latest.json`; `verification/results/extensions-adr0149-hardening-latest.json`; `verification/results/rich-list-adr0150-latest.json`; `verification/results/sealed-delivery-adr0142-latest.json`; `verification/results/v005-encoding-latest.json`; `verification/results/v005-node-adr0141-latest.json`; `verification/results/v005-node-adr0142-latest.json`; `verification/vectors/adr0148-v1-extension-vectors.json`; `verification/vectors/adr0150-rich-list-vectors.json`; `verification/vectors/adr0157-critical-extension-convergence.json`; `verification/vectors/v005-w0-object-vectors.json.gz`
 
 Pre-engineering criteria:
 
@@ -220,7 +217,7 @@ Pre-engineering criteria:
 - [x] ADR-0149 extension-registry evidence proves om.voice-note.v1 and om.location-card.v1 are registered object-scoped/exact-criticality/schema-checked integer-keyed extensions; a wire-criticality mismatch fails the object, cross-object use makes the extension unusable (ADR-0155), and a nonempty mismatched location fallback causes only the non-critical card interpretation to be ignored while the base W0 event remains valid (R-330)
 - [x] ADR-0150/0151 rich-list evidence proves om.rich-list.v1 registry/object/criticality/schema binding and deterministic-CBOR interoperability; a wire-criticality mismatch rejects the containing object, while registered item/depth/index/ordinal schema-bound violations (ADR-0155) and schema-valid reference/order/nesting/ordinal-presence/fallback mismatches ignore the whole non-critical enhancement and preserve authenticated W0 RichText (R-335)
 - [x] ADR-0155 evidence proves validity independence for non-critical registrations: Python and Node agree on all voice/location/rich-list vectors, schema/object failures are ignore_extension, wire-criticality mismatches reject the object, conflicting second geo tokens are fallback_ambiguous, voice/location on edit events are ignored, a card is suppressed once an edit's materialized text drops its token, create-time list annotations never apply to edit text, and both V-005 strict reference codecs skip payload-schema rejection for non-critical registrations with the V-005 corpus unchanged (R-341, T-133)
-- [ ] ADR-0157 critical-extension convergence: baseline decoder rejects unknown om.critical.* even when wire critical=false, rejects non-critical registrations under the reserved prefix, preserves the two grandfathered om.acs.* IDs, and old/new registry versions converge on containing-object validity (R-346, T-136)
+- [x] ADR-0157 critical-extension convergence: baseline decoder rejects unknown om.critical.* even when wire critical=false, rejects non-critical registrations under the reserved prefix, preserves the two grandfathered om.acs.* IDs, and old/new registry versions converge on containing-object validity (R-346, T-136)
 
 Pre-release criteria:
 
@@ -228,7 +225,6 @@ Pre-release criteria:
 
 Mechanically unfinished pre-engineering work:
 
-- ADR-0157 critical-extension convergence: baseline decoder rejects unknown om.critical.* even when wire critical=false, rejects non-critical registrations under the reserved prefix, preserves the two grandfathered om.acs.* IDs, and old/new registry versions converge on containing-object validity (R-346, T-136)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-006 — `web_device_vault_feasibility`
@@ -301,16 +297,16 @@ Model-check Room/Space capability grants, explicit restrictions, delegation ceil
 - **Independence:** pre-engineering independent_tool, independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/bounded/cross_wave_feasibility.py`; `verification/results/authority-bounded-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v008-permissions-latest.json`; `verification/tla/ScopedPermissions.tla`; `verification/tla/models-v008-permissions.json`
+- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `decisions/ADR-0160-v008-space-publication-wire-freeze.md`; `spec/cddl/space-publication.cddl`; `spec/protocol/publication-event.logical.schema.json`; `spec/protocol/space-control-state.logical.schema.json`; `spec/registries/om-domain-separation.json`; `spec/registries/om-numeric-fields.json`; `spec/registries/om-object-types.json`; `verification/bounded/cross_wave_feasibility.py`; `verification/bounded/v008_authority_r16b.py`; `verification/prototypes/v008-space-wire/README.md`; `verification/prototypes/v008-space-wire/node_codec.mjs`; `verification/prototypes/v008-space-wire/python_codec.py`; `verification/prototypes/v008-space-wire/run.py`; `verification/prototypes/v008-space-wire/vectors.json`; `verification/results/authority-bounded-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v008-authority-r16b-latest.json`; `verification/results/v008-permissions-latest.json`; `verification/results/v008-space-publication-wire-r16c-latest.json`; `verification/tla/ScopedPermissions.tla`; `verification/tla/models-v008-permissions.json`
 
 Pre-engineering criteria:
 
-- [ ] formal model of Room/Space grants, restrictions, ceilings, governance quorum, bilateral links and revocation races with no self-escalation or transitive-authority counterexample
-- [ ] grant/restriction reductions target immutable grant/decision incarnation ids; delayed revoke cannot remove a later re-grant with the same semantic capability tuple (R-279)
-- [ ] role-edit and assignment ceilings reject any role/grant whose effective or grantable scope exceeds the grantor's current ceiling (R-229)
-- [ ] SpaceDelegatedIntent committed by a non-privileged member is rejected; stale Space heads fail closed; Space reductions remain live (R-230)
-- [ ] invite links lapse when the issuer loses room.invite, and no governance/binding path can change CryptoProfile (R-225, R-227)
-- [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): SpaceControlState, SpaceDelegatedIntent, topic.create/topic.update/topic.status.set/message.topic.set, moderation.redact and Publication/publication events (R-343)
+- [x] formal model of Room/Space grants, restrictions, ceilings, governance quorum, bilateral links and revocation races with no self-escalation or transitive-authority counterexample
+- [x] grant/restriction reductions target immutable grant/decision incarnation ids; delayed revoke cannot remove a later re-grant with the same semantic capability tuple (R-279)
+- [x] role-edit and assignment ceilings reject any role/grant whose effective or grantable scope exceeds the grantor's current ceiling (R-229)
+- [x] SpaceDelegatedIntent committed by a non-privileged member is rejected; stale Space heads fail closed; Space reductions remain live (R-230)
+- [x] invite links lapse when the issuer loses room.invite, and no governance/binding path can change CryptoProfile (R-225, R-227)
+- [x] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): SpaceControlState, SpaceDelegatedIntent, topic.create/topic.update/topic.status.set/message.topic.set, moderation.redact and Publication/publication events (R-343)
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
@@ -322,12 +318,6 @@ Pre-release criteria:
 
 Mechanically unfinished pre-engineering work:
 
-- formal model of Room/Space grants, restrictions, ceilings, governance quorum, bilateral links and revocation races with no self-escalation or transitive-authority counterexample
-- grant/restriction reductions target immutable grant/decision incarnation ids; delayed revoke cannot remove a later re-grant with the same semantic capability tuple (R-279)
-- role-edit and assignment ceilings reject any role/grant whose effective or grantable scope exceeds the grantor's current ceiling (R-229)
-- SpaceDelegatedIntent committed by a non-privileged member is rejected; stale Space heads fail closed; Space reductions remain live (R-230)
-- invite links lapse when the issuer loses room.invite, and no governance/binding path can change CryptoProfile (R-225, R-227)
-- ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): SpaceControlState, SpaceDelegatedIntent, topic.create/topic.update/topic.status.set/message.topic.set, moderation.redact and Publication/publication events (R-343)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-009 — `baseline_event_materialization_convergence`
@@ -410,16 +400,16 @@ Model/property-test permissionless ServiceGenesis, ServicePrincipal endpoint/con
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/bounded/cross_wave_feasibility.py`; `verification/results/authority-bounded-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v011-services-latest.json`; `verification/tla/ServiceAuthority.tla`; `verification/tla/models-v011.json`
+- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `verification/bounded/cross_wave_feasibility.py`; `verification/bounded/v011_service_authority_r16b.py`; `verification/results/authority-bounded-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v011-service-authority-r16b-latest.json`; `verification/results/v011-services-latest.json`; `verification/tla/ServiceAuthority.tla`; `verification/tla/models-v011.json`
 
 Pre-engineering criteria:
 
-- [ ] formal/bounded model extended to host migration/revocation and alias replacement
-- [ ] tool-capability prototype shows injected prompts cannot exceed granted capabilities or create unbounded automation loops
-- [ ] model covers the two service positions (invocation-only, full member) and shows a trigger filter never narrows what a full member can read (ADR-0129 rule 3)
-- [ ] RepresentationGrant issued by a messaging-only device is rejected; grant whose issuing control device is quarantined stops validating; counterparty-recipient grant without counterparty notice fails (ADR-0129 rules 4-5)
-- [ ] revoked service endpoint is removed from every Room by any member after sequencing_timeout when the coordinator does not; removal rebases over forks (ADR-0129 rule 6)
-- [ ] service endpoint/install removals target immutable endpoint/service-installation incarnations; stale removal cannot remove a later reinstallation (R-279)
+- [x] formal/bounded model extended to host migration/revocation and alias replacement
+- [x] tool-capability prototype shows injected prompts cannot exceed granted capabilities or create unbounded automation loops
+- [x] model covers the two service positions (invocation-only, full member) and shows a trigger filter never narrows what a full member can read (ADR-0129 rule 3)
+- [x] RepresentationGrant issued by a messaging-only device is rejected; grant whose issuing control device is quarantined stops validating; counterparty-recipient grant without counterparty notice fails (ADR-0129 rules 4-5)
+- [x] revoked service endpoint is removed from every Room by any member after sequencing_timeout when the coordinator does not; removal rebases over forks (ADR-0129 rule 6)
+- [x] service endpoint/install removals target immutable endpoint/service-installation incarnations; stale removal cannot remove a later reinstallation (R-279)
 - [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): ServicePrincipal, ServiceControlState, RepresentationGrant and ConversationEvent key 13 representation (R-343)
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
@@ -432,12 +422,6 @@ Pre-release criteria:
 
 Mechanically unfinished pre-engineering work:
 
-- formal/bounded model extended to host migration/revocation and alias replacement
-- tool-capability prototype shows injected prompts cannot exceed granted capabilities or create unbounded automation loops
-- model covers the two service positions (invocation-only, full member) and shows a trigger filter never narrows what a full member can read (ADR-0129 rule 3)
-- RepresentationGrant issued by a messaging-only device is rejected; grant whose issuing control device is quarantined stops validating; counterparty-recipient grant without counterparty notice fails (ADR-0129 rules 4-5)
-- revoked service endpoint is removed from every Room by any member after sequencing_timeout when the coordinator does not; removal rebases over forks (ADR-0129 rule 6)
-- service endpoint/install removals target immutable endpoint/service-installation incarnations; stale removal cannot remove a later reinstallation (R-279)
 - ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): ServicePrincipal, ServiceControlState, RepresentationGrant and ConversationEvent key 13 representation (R-343)
 - phase independence evidence is not yet recorded as satisfied
 
@@ -483,7 +467,7 @@ Pre-engineering criteria:
 
 - [ ] reviewed bridge adapter contract specification
 - [x] loop/reflection-suppression model with at least two simulated bridges and fidelity-loss signaling
-- [ ] bridge adapter contract states bridges are always full Room members and that allowed_event_classes limits export, not reading (ADR-0129 rule 3)
+- [x] bridge adapter contract states bridges are always full Room members and that allowed_event_classes limits export, not reading (ADR-0129 rule 3)
 - [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): BridgePrincipal, BridgeControlState and ConversationEvent key 14 foreign_provenance (R-343)
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
@@ -497,7 +481,6 @@ Pre-release criteria:
 Mechanically unfinished pre-engineering work:
 
 - reviewed bridge adapter contract specification
-- bridge adapter contract states bridges are always full Room members and that allowed_event_classes limits export, not reading (ADR-0129 rule 3)
 - ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): BridgePrincipal, BridgeControlState and ConversationEvent key 14 foreign_provenance (R-343)
 - phase independence evidence is not yet recorded as satisfied
 
@@ -701,7 +684,7 @@ Prove zero-signup sponsored onboarding, bounded sponsorship, migration between H
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_provider_model`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md`; `docs/process/CONTINUITY_TABLETOP_DRILLS.md`; `verification/bounded/home_tiers_model.py`; `verification/results/home-tiers-latest.json`; `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/results/design-consistency-adr0141-latest.json`
+- **Evidence:** `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `docs/architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md`; `docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md`; `docs/architecture/providers/PROVISIONING_AND_BOOTSTRAP.md`; `docs/process/CONTINUITY_TABLETOP_DRILLS.md`; `verification/bounded/clienthost_update_adr0148.py`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/bounded/home_tiers_model.py`; `verification/bounded/v020_provider_resilience_r16b.py`; `verification/results/clienthost-update-adr0148-latest.json`; `verification/results/design-consistency-adr0141-latest.json`; `verification/results/home-tiers-latest.json`; `verification/results/v020-provider-resilience-r16b-latest.json`
 
 Pre-engineering criteria:
 
@@ -711,9 +694,9 @@ Pre-engineering criteria:
 - [x] vendor-wide block tabletop
 - [x] vendor-block model computes the fraction of relationships with a non-Cloudflare fallback route for realistic invite graphs under Cloudflare-first T1 (drill D5, gap G5)
 - [x] Home API frozen in spec/protocol/home-api.md + spec/cddl/home-api.cddl: scoped request authentication, typed om-home-errors registry, versioning, real ProviderCapabilities JSON Schema with durability_class and explicit provider interfaces (ADR-0133, R-275, R-284)
-- [ ] blocked-vendor and blocked-suffix simulation (for example all workers.dev locators and one vendor's IP ranges blocked): fraction of established relationships and of first contacts that still succeed, and which fallbacks carried them (R-021, R-028, R-045)
-- [ ] no provisioning path activates code that is not a verified release: template verifier-first flow and update controller modeled, conformance PC-I01..PC-I03 specified (R-261)
-- [ ] sponsor revocation overlap and non-sponsor second route in the sponsorship model; PC-D06/PC-D07 specified (R-266, R-267, R-260)
+- [x] blocked-vendor and blocked-suffix simulation (for example all workers.dev locators and one vendor's IP ranges blocked): fraction of established relationships and of first contacts that still succeed, and which fallbacks carried them (R-021, R-028, R-045)
+- [x] no provisioning path activates code that is not a verified release: template verifier-first flow and update controller modeled, conformance PC-I01..PC-I03 specified (R-261)
+- [x] sponsor revocation overlap and non-sponsor second route in the sponsorship model; PC-D06/PC-D07 specified (R-266, R-267, R-260)
 
 Pre-release criteria:
 
@@ -723,9 +706,6 @@ Pre-release criteria:
 
 Mechanically unfinished pre-engineering work:
 
-- blocked-vendor and blocked-suffix simulation (for example all workers.dev locators and one vendor's IP ranges blocked): fraction of established relationships and of first contacts that still succeed, and which fallbacks carried them (R-021, R-028, R-045)
-- no provisioning path activates code that is not a verified release: template verifier-first flow and update controller modeled, conformance PC-I01..PC-I03 specified (R-261)
-- sponsor revocation overlap and non-sponsor second route in the sponsorship model; PC-D06/PC-D07 specified (R-266, R-267, R-260)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-021 — `endpoint_coercion_and_platform_leakage`
@@ -827,13 +807,13 @@ Verify ADR-0158 LanDeliveryProfile v1: sealed local routes with no clear sender,
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_model`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0156-engineering-handoff-closure-lan-binding-and-later-wave-wire-freeze.md`; `decisions/ADR-0158-lan-delivery-profile-v1.md`; `spec/cddl/lan.cddl`
+- **Evidence:** `decisions/ADR-0156-engineering-handoff-closure-lan-binding-and-later-wave-wire-freeze.md`; `decisions/ADR-0158-lan-delivery-profile-v1.md`; `spec/cddl/lan.cddl`; `spec/protocol/lan-delivery-profile.json`; `verification/bounded/v024_lan_models_r16b.py`; `verification/prototypes/v024-lan-wire/node_lan_codec.mjs`; `verification/prototypes/v024-lan-wire/python_lan_codec.py`; `verification/prototypes/v024-lan-wire/run.py`; `verification/prototypes/v024-lan-wire/vectors.json`; `verification/results/v024-lan-models-r16b-latest.json`; `verification/results/v024-lan-wire-r16b-latest.json`
 
 Pre-engineering criteria:
 
-- [ ] ADR-0158 LanDeliveryProfile frozen as spec/cddl/lan.cddl with registered numeric fields/domain-separation labels and profile constants, plus positive/negative vectors on which two independently written codecs agree (R-342, R-349)
-- [ ] passive LAN-observer trace model: no clear sender device key or Double Ratchet header, exactly K=8 advertised tags, and no connection/delivery-key/route identifier stable across rendezvous epochs or link-layer address changes; mutations sending the bare inner envelope, varying tag cardinality or reusing an identifier are caught (R-342, R-349, T-134)
-- [ ] offline first-contact model: a QR/invite LAN first contact obtains an intro-identity-signed ticket/request key through the local IntroGate adapter and runs ordinary MessageRequest/reciprocal binding; async-key fetch is denied until relationship-scoped authority exists; LAN reachability never creates relationship/device eligibility (R-350)
+- [x] ADR-0158 LanDeliveryProfile frozen as spec/cddl/lan.cddl with registered numeric fields/domain-separation labels and profile constants, plus positive/negative vectors on which two independently written codecs agree (R-342, R-349)
+- [x] passive LAN-observer trace model: no clear sender device key or Double Ratchet header, exactly K=8 advertised tags, and no connection/delivery-key/route identifier stable across rendezvous epochs or link-layer address changes; mutations sending the bare inner envelope, varying tag cardinality or reusing an identifier are caught (R-342, R-349, T-134)
+- [x] offline first-contact model: a QR/invite LAN first contact obtains an intro-identity-signed ticket/request key through the local IntroGate adapter and runs ordinary MessageRequest/reciprocal binding; async-key fetch is denied until relationship-scoped authority exists; LAN reachability never creates relationship/device eligibility (R-350)
 - [ ] browser feasibility: real browser establishes host-local ordered/reliable WebRTC DataChannel using seed-encrypted LanSignalEnvelopeV1/manual or QR signalling and passes LanFrameV1/backpressure tests, or the PWA capability row reports local_delivery unavailable on that browser/runtime (R-349)
 
 Pre-release criteria:
@@ -842,8 +822,5 @@ Pre-release criteria:
 
 Mechanically unfinished pre-engineering work:
 
-- ADR-0158 LanDeliveryProfile frozen as spec/cddl/lan.cddl with registered numeric fields/domain-separation labels and profile constants, plus positive/negative vectors on which two independently written codecs agree (R-342, R-349)
-- passive LAN-observer trace model: no clear sender device key or Double Ratchet header, exactly K=8 advertised tags, and no connection/delivery-key/route identifier stable across rendezvous epochs or link-layer address changes; mutations sending the bare inner envelope, varying tag cardinality or reusing an identifier are caught (R-342, R-349, T-134)
-- offline first-contact model: a QR/invite LAN first contact obtains an intro-identity-signed ticket/request key through the local IntroGate adapter and runs ordinary MessageRequest/reciprocal binding; async-key fetch is denied until relationship-scoped authority exists; LAN reachability never creates relationship/device eligibility (R-350)
 - browser feasibility: real browser establishes host-local ordered/reliable WebRTC DataChannel using seed-encrypted LanSignalEnvelopeV1/manual or QR signalling and passes LanFrameV1/backpressure tests, or the PWA capability row reports local_delivery unavailable on that browser/runtime (R-349)
 - phase independence evidence is not yet recorded as satisfied

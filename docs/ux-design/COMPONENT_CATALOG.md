@@ -1,19 +1,20 @@
-# OM Shared Component Catalog — seed
+# OM Shared Component Catalog — Reconciled R15
 
-These are shared `om-ui` primitives/components, not native-platform duplicates.
+These are shared semantic `om-ui` components/primitives. Native/web implementations may render differently while preserving state/action/accessibility contracts.
 
 ## Foundations
 
 - AppShell
-- IdentityProfileSwitcher
-- ResponsivePane / SplitView
-- NavigationBar / NavigationRail
+- IdentityProfileSwitcher / AccountControl
+- ResponsivePane / SplitView / MultiPane
+- DestinationTabs / NavigationRail (conditional/user-composable)
+- Omnibar / OmnibarResult / CommandPaletteAdapter
 - Button / IconButton
-- TextField / SearchField
-- List / ListItem
-- Avatar
-- Badge (actionable/status only)
-- Menu
+- TextField / RichTextField / SearchField
+- List / ListItem / VirtualizedList
+- Avatar / FallbackAvatar
+- Badge (status/actionable only)
+- Menu / ContextMenu
 - Dialog / Sheet / Popover
 - Toast / UndoToast
 - InlineNotice / SecurityNotice
@@ -21,7 +22,7 @@ These are shared `om-ui` primitives/components, not native-platform duplicates.
 - EmptyState
 - Tooltip
 - Divider
-- Tabs where truly appropriate
+- FocusIndicator / SelectionIndicator
 
 ## Messaging
 
@@ -32,17 +33,26 @@ These are shared `om-ui` primitives/components, not native-platform duplicates.
 - MessageBubble
 - MessageMeta
 - ReplyPreview
+- ThreadPreview / ThreadSurface
+- TopicChip / TopicNavigator
 - ReactionBar
-- AttachmentTile
+- PollCard / PollComposer / PollResults
+- AttachmentTile / TransferState
 - MediaViewer
-- VoiceMessage (record/lock/cancel, waveform, scrub, speed, pause/resume)
+- Sticker / ExpressiveMedia (static/reduced-motion fallback required)
+- VoiceMessageRecorder / VoiceMessagePlayer
 - LocationCard
+- LinkPreview
 - Composer
+- RichTextFormattingBar / sanitized-paste notice
+- ScheduledMessageIndicator / ScheduledQueueSurface
 - DeliveryState
 - Typing/Presence presentation (policy-controlled)
-- DisappearingTimer presentation
+- ReadReceipt presentation (policy-controlled)
+- DisappearingTimer / ViewOnceState
+- CallTimelineNotice (view/history item; not durable call signaling event)
 
-## People/discovery
+## People/discovery/onboarding
 
 - PersonCard
 - ContactCapsuleCard
@@ -50,7 +60,23 @@ These are shared `om-ui` primitives/components, not native-platform duplicates.
 - ShareMyOMCard
 - QRScannerSurface
 - InviteLinkCard
+- InviteScopeCard
 - IdentityChangeNotice
+- HomeTierChoice
+- SponsorDisclosure
+- ClientOriginChoice
+
+## Spaces/Rooms/Publication
+
+- SpaceNavigator
+- SpaceTreeItem (cycle-safe)
+- RoomCard / RoomNavigator
+- TopicNavigator
+- PublicationFeed
+- PublicationPost
+- PublicationProvenance
+- FollowPublicationAction
+- DiscussionRoomLink
 
 ## Calls
 
@@ -61,25 +87,38 @@ These are shared `om-ui` primitives/components, not native-platform duplicates.
 - CaptionPanel hook
 - NetworkQualityIndicator (only when useful)
 - NativeCallHandoff bridge surface
+- IncomingCallAdapter surface
 
 ## Settings/security
 
-- SettingsList
-- SettingsRow
+- SettingsList / SettingsRow / SettingsSearchResult
 - ProtectionPresetPicker
+- ExperienceProfilePicker
 - DeviceCard
-- RecoveryMethodCard
+- DeviceSuspendState
+- AccountSafetyFreezeNotice
+- RecoveryCustodianCard
+- RecoveryOperationState
 - OMHomeHealthCard
 - ProviderAdvancedPanel
+- ConnectedServiceCard / BridgeBoundaryNotice
 - ThemePreview
 - ThemeImportResult
+- EvidenceSelection / ReportDestination
 
 ## Component rules
 
 1. Semantic HTML/native semantics first; ARIA only where needed.
-2. Keyboard/focus behavior ships with component.
-3. Motion is selected by semantic token, not component-local arbitrary timing.
-4. Theme styles semantic tokens only; no arbitrary selectors/code.
-5. Core-domain identifiers do not become DOM IDs or telemetry labels unnecessarily.
-6. Components do not directly perform provider/crypto/account-control operations.
-7. Every component has light/dark/high-contrast and reduced-motion test states where relevant.
+2. Keyboard/focus behavior ships with the component.
+3. Every gesture has a non-gesture equivalent for essential actions.
+4. Motion is selected by semantic token, not component-local arbitrary timing.
+5. Color/motion/sound/haptic never carry essential meaning alone.
+6. Theme styles semantic tokens only; no arbitrary selectors/code/network fetching.
+7. Protected security surfaces are theme-proof where architecture requires it.
+8. Core-domain identifiers do not become DOM IDs or telemetry labels unnecessarily.
+9. Components do not directly perform provider/crypto/account-control operations.
+10. Actionable components bind through semantic Action Registry entries and then typed Core intents or PlatformAdapter capabilities.
+11. Every component has light/dark/high-contrast and Reduced Motion states where relevant.
+12. Compact targetability follows OM release guidance; visual glyph size and hit target are separate.
+13. User content/names support bidi isolation and large-text/reflow behavior.
+14. Failure belongs to the affected object whenever possible; generic error dialogs are the exception.

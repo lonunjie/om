@@ -127,3 +127,20 @@ Coercion, device-access and platform-leakage controls (app lock, secure surfaces
 For OM-Crypto-v1, user-facing status may say **Post-quantum handshake protection**. It must not imply PQ
 post-compromise healing or per-message PQ security. Group conversations remain explicitly classical until their
 separate migration gate passes.
+
+## R15 security-interaction presentation
+
+The reference UI keeps security meanings separated rather than collapsing them into a generic green shield:
+
+- transport/provider route;
+- cryptographic/session continuity;
+- automatic cryptographic checks;
+- user action **Verified by you**;
+- device authorization;
+- recovery custody/status;
+- service/bridge plaintext boundary;
+- real-world identity.
+
+Device control presents **Suspend/quarantine** separately from pending/final permanent revocation and from contested/Safety Freeze account-control state. Recovery UI follows ADR-0111 defaults and separately identifies identity recovery, history restore and provider/discovery reconnect.
+
+Protection profile selection is available through Settings and Omnibar and is never silently altered by theme, OhMessenger experience mode or learned personalization.

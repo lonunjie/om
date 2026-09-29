@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OM identity validation v1</title><style>
+:root{--bg:#f7f9fc;--text:#172033;--sub:#5b6575;--card:#fff;--line:#d9e0ea;--accent:#0067c5}*{box-sizing:border-box}body{margin:0;font:16px system-ui;background:var(--bg);color:var(--text)}main{max-width:900px;margin:auto;padding:28px}.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px;margin:18px 0}button,input,textarea,select{font:inherit}button{min-height:44px;border:1px solid var(--line);background:white;border-radius:14px;padding:10px 16px}button.primary{background:var(--accent);color:white;border-color:var(--accent)}textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:12px;padding:12px}.mark{width:96px;height:96px;margin:12px auto;display:grid;place-items:center}.mark svg{width:96px;height:96px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;padding:16px}.app{text-align:center}.appbtn{width:88px;height:88px;border-radius:22px;border:0;padding:0;overflow:hidden;background:#ddd}.appbtn svg{width:88px;height:88px;padding:13px;background:#0b70c9;color:white}.generic{width:88px;height:88px;border-radius:22px;display:grid;place-items:center;color:white;font-weight:700;font-size:30px}.small{font-size:13px;color:var(--sub)}.hidden{display:none}label{display:block;margin:12px 0 6px}.rating{display:flex;gap:8px;flex-wrap:wrap}.rating button[aria-pressed=true]{background:#dcecff;border-color:#5a9ad7}@media(max-width:600px){main{padding:14px}.grid{gap:12px}.appbtn,.generic{width:68px;height:68px;border-radius:17px}.appbtn svg{width:68px;height:68px}}
+</style></head><body><main><h1>OM identity validation v1</h1><p>This test stores data only in this browser until you export it. Candidate names and rationales stay hidden until the end.</p><section id="stage" class="card"></section><div><button id="back">Back</button> <button id="next" class="primary">Next</button></div><section class="card"><button id="export">Export JSON</button> <button id="reset">Reset local test</button><div class="small">No network upload is implemented.</div></section></main><script>
+const rawMarks={"one-thread": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\" fill=\"none\"><g  stroke=\"#000000\" stroke-width=\"10\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n        <path d=\"M 36 64 C 18 64 18 36 36 36 C 54 36 54 64 36 64 L 50 64 L 50 48 C 50 38 64 38 64 49 L 64 64 L 64 49 C 64 38 81 38 81 51 L 81 64\"/>\n        </g></svg>", "open-loop": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\" fill=\"none\"><g  stroke=\"#000000\" stroke-width=\"13\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M 75.394 30.219 A 31 31 0 1 1 65.500 21.153\"/><path d=\"M 72 73 L 82 84\"/></g></svg>", "peer-link": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\" fill=\"none\"><g  stroke=\"#000000\" stroke-width=\"11\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n        <rect x=\"18\" y=\"29\" width=\"42\" height=\"42\" rx=\"21\" transform=\"rotate(-24 39 50)\"/>\n        <rect x=\"40\" y=\"29\" width=\"42\" height=\"42\" rx=\"21\" transform=\"rotate(24 61 50)\"/>\n        </g></svg>"};
+const candidates=['one-thread','open-loop','peer-link'];
+const names={'one-thread':'One Thread','open-loop':'Open Loop','peer-link':'Peer Link'};
+const generic=[['Mail','#4b82e5','M'],['Maps','#37a96b','⌖'],['Camera','#37404b','●'],['Music','#d84a7d','♪'],['Notes','#e2b531','≡'],['Files','#558fe0','□'],['Clock','#333943','◷'],['Photos','#ef8b37','✿'],['Browser','#3797cf','◎'],['Calendar','#df554e','29'],['Tasks','#666ed8','✓'],['Weather','#4da1df','☀'],['Wallet','#36a776','▭'],['Reader','#9360c8','A'],['Podcast','#af4dcb','◉'],['Tools','#68727e','⋮']];
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+let data=JSON.parse(localStorage.getItem('om-id-v1')||'null')||{participant:crypto.randomUUID(),started:new Date().toISOString(),order:shuffle([...candidates]),responses:{},stage:0};
+function save(){localStorage.setItem('om-id-v1',JSON.stringify(data))}
+function alias(i){return 'Candidate '+String.fromCharCode(65+i)}
+function mark(id){return rawMarks[id].replace('<svg','<svg aria-hidden="true" focusable="false"')}
+function field(key,val=''){return `<textarea data-key="${key}">${val||''}</textarea>`}
+function rating(key,val){return `<div class="rating" data-rating="${key}">${[1,2,3,4,5].map(n=>`<button aria-pressed="${n===val}" data-n="${n}">${n}</button>`).join('')}</div>`}
+function put(path,val){const parts=path.split('.');if(parts.length>1){const id=parts.shift();const k=parts.join('.');data.responses[id]=data.responses[id]||{};data.responses[id][k]=val}else data.responses[path]=val;save()}
+function wireCommon(){document.querySelectorAll('textarea[data-key]').forEach(el=>el.oninput=()=>put(el.dataset.key,el.value));document.querySelectorAll('[data-rating] button').forEach(b=>b.onclick=()=>{const key=b.parentElement.dataset.rating;put(key,+b.dataset.n);b.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'))})}
+function render(){
+  const s=document.querySelector('#stage');
+  if(data.stage>=9){
+    s.innerHTML=`<h2>Reveal</h2><p>The internal design names are now shown. They were hidden to reduce priming.</p>${data.order.map((id,i)=>`<div class="card"><div class="mark">${mark(id)}</div><b>${alias(i)}</b> — ${names[id]}</div>`).join('')}<label>Anything else you noticed?</label>${field('final',data.responses.final)}`;
+    wireCommon(); return;
+  }
+  const idx=Math.floor(data.stage/3), sub=data.stage%3, id=data.order[idx], a=alias(idx), r=data.responses[id]||{};
+  if(sub===0){
+    s.innerHTML=`<h2>${a} — first impression</h2><div class="mark">${mark(id)}</div><label>Without being told what this is, what does it look like or mean?</label>${field(id+'.association',r.association)}<label>What letters, objects, brands, or symbols does it remind you of?</label>${field(id+'.similarity',r.similarity)}<label>Distinctive at a glance? (1 low, 5 high)</label>${rating(id+'.distinctive',r.distinctive)}`;
+    wireCommon(); return;
+  }
+  if(sub===1){
+    s.innerHTML=`<h2>${a} — app-grid findability</h2><p>You now know this is an OM candidate. Tap the OM symbol in the grid as quickly as you comfortably can.</p><div class="mark">${mark(id)}</div><button id="startGrid" class="primary">Start grid</button><div id="grid" class="grid hidden"></div><div id="gridResult" class="small"></div>`;
+    document.querySelector('#startGrid').onclick=()=>{
+      document.querySelector('#startGrid').classList.add('hidden');
+      const apps=shuffle([...generic]); const pos=Math.floor(Math.random()*17); apps.splice(pos,0,['OM-CAND','#0b70c9','']);
+      const g=document.querySelector('#grid'); g.classList.remove('hidden'); data._gridStart=performance.now();
+      g.innerHTML=apps.map(x=>x[0]==='OM-CAND' ? `<div class="app"><button class="appbtn" id="target">${mark(id)}</button><div>OM</div></div>` : `<div class="app"><button class="appbtn" data-decoy><span class="generic" style="background:${x[1]}">${x[2]}</span></button><div>${x[0]}</div></div>`).join('');
+      let misses=0; g.querySelectorAll('[data-decoy]').forEach(b=>b.onclick=()=>{misses++});
+      g.querySelector('#target').onclick=()=>{const ms=Math.round(performance.now()-data._gridStart);r.findMs=ms;r.findMisses=misses;data.responses[id]=r;save();document.querySelector('#gridResult').textContent=`Found in ${ms} ms; misses: ${misses}`;g.querySelectorAll('button').forEach(b=>b.disabled=true)};
+    };
+    return;
+  }
+  s.innerHTML=`<h2>${a} — fit after context</h2><div class="mark">${mark(id)}</div><p>Imagine this mark identifies a privacy-first messenger called <b>OM</b> / <b>OpenMessenger</b>.</p><label>Fit with the name OM/OpenMessenger (1 low, 5 high)</label>${rating(id+'.nameFit',r.nameFit)}<label>Easy to remember later (1 low, 5 high)</label>${rating(id+'.memorable',r.memorable)}<label>Any unwanted meanings or confusion now that you know the context?</label>${field(id+'.unwanted',r.unwanted)}`;
+  wireCommon();
+}
+document.querySelector('#next').onclick=()=>{data.stage=Math.min(9,data.stage+1);save();render()};
+document.querySelector('#back').onclick=()=>{data.stage=Math.max(0,data.stage-1);save();render()};
+document.querySelector('#export').onclick=()=>{save();const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='om-identity-validation-'+data.participant+'.json';a.click()};
+document.querySelector('#reset').onclick=()=>{localStorage.removeItem('om-id-v1');location.reload()};
+render();
+</script></body></html>

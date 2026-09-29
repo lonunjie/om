@@ -1,0 +1,101 @@
+{
+  "environment": {
+    "note": "Container benchmark: candidate generation and local index only; not browser UI paint or mobile-device evidence.",
+    "python": "3.13.5",
+    "sqlite": "3.46.1"
+  },
+  "ranking_simulation": {
+    "shift": {
+      "baseline": {
+        "post_shift_accuracy": 0.5167,
+        "prediction_switches": 6,
+        "top1_accuracy": 0.5492
+      },
+      "bayesian": {
+        "post_shift_accuracy": 0.51,
+        "prediction_switches": 2,
+        "top1_accuracy": 0.5466
+      }
+    },
+    "sparse-context": {
+      "baseline": {
+        "post_shift_accuracy": null,
+        "prediction_switches": 443,
+        "top1_accuracy": 0.3822
+      },
+      "bayesian": {
+        "post_shift_accuracy": null,
+        "prediction_switches": 313,
+        "top1_accuracy": 0.4
+      }
+    },
+    "stable": {
+      "baseline": {
+        "post_shift_accuracy": null,
+        "prediction_switches": 0,
+        "top1_accuracy": 0.5492
+      },
+      "bayesian": {
+        "post_shift_accuracy": null,
+        "prediction_switches": 0,
+        "top1_accuracy": 0.5492
+      }
+    }
+  },
+  "schema": "om.omnibar-benchmark.v1",
+  "search": [
+    {
+      "bytes_per_message": 140.33,
+      "fts5_build_s": 0.611,
+      "full_text": {
+        "latency": {
+          "max_ms": 30.575,
+          "n": 120,
+          "p50_ms": 6.653,
+          "p95_ms": 19.969,
+          "p99_ms": 24.521
+        },
+        "rows_returned_total": 2400
+      },
+      "hot_candidates": {
+        "latency": {
+          "max_ms": 0.633,
+          "n": 1200,
+          "p50_ms": 0.045,
+          "p95_ms": 0.07,
+          "p99_ms": 0.176
+        },
+        "rows_returned_total": 12600
+      },
+      "messages": 100000,
+      "sqlite_bytes": 14032896
+    },
+    {
+      "bytes_per_message": 143.26,
+      "fts5_build_s": 5.474,
+      "full_text": {
+        "latency": {
+          "max_ms": 195.559,
+          "n": 120,
+          "p50_ms": 62.057,
+          "p95_ms": 182.59,
+          "p99_ms": 189.825
+        },
+        "rows_returned_total": 2400
+      },
+      "hot_candidates": {
+        "latency": {
+          "max_ms": 0.459,
+          "n": 1200,
+          "p50_ms": 0.045,
+          "p95_ms": 0.068,
+          "p99_ms": 0.145
+        },
+        "rows_returned_total": 12600
+      },
+      "messages": 1000000,
+      "sqlite_bytes": 143261696
+    }
+  ],
+  "seed": 28092026
+}

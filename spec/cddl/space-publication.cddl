@@ -1,0 +1,157 @@
+; OM later-wave W3 wire freeze for V-008 (ADR-0160, 2026-09-29).
+; These objects use OM-CBOR-v1 canonical encoding and the frozen registries.
+; They are signed with SignedEnvelope unless explicitly noted.
+; This file freezes Space/Publication state and delegated intent, plus typed W0 event bodies.
+
+space-id = bstr .size 32
+publication-id = bstr .size 32
+post-id = bstr .size (16..32)
+role-id = bstr .size 16
+capability-id = tstr .size (1..128)
+child-id = bstr .size 32
+state-version = uint
+
+space-profile = {
+  0: tstr .size (1..256),                 ; name
+  ? 1: tstr .size (1..2048),              ; avatar_ref
+  ? 2: tstr .size (1..4096),              ; description
+  ? 3: tstr .size (1..2048)               ; style_ref
+}
+
+space-membership = {
+  0: principal-ref,
+  ? 1: [1*64 role-id]                     ; sorted/unique set by OM-CBOR rules
+}
+
+role-definition = {
+  0: role-id,
+  1: tstr .size (1..128),                  ; display_name
+  2: [1*64 capability-id],                 ; grants
+  ? 3: [1*64 capability-id]                ; grantable_scope
+}
+
+space-child-link = {
+  0: 1..3,                                 ; 1 Room, 2 Publication, 3 nested Space
+  1: child-id,
+  ? 2: 1..2,                               ; 1 public, 2 private
+  3: bstr .size (1..65536)                 ; bilateral affiliation evidence
+}
+
+space-governance = {
+  0: [1*64 principal-ref],
+  1: 1..64,                                ; approval threshold
+  ? 2: [1*128 capability-id]              ; delegation policy / allowed delegated capabilities
+}
+
+SpaceControlState = {
+  0: 24,
+  1: 1,
+  2: space-id,
+  3: state-version,
+  ? 4: digest,
+  5: space-profile,
+  6: [1*1024 space-membership],
+  ? 7: [1*128 role-definition],
+  ? 8: [1*512 space-child-link],
+  9: space-governance,
+  ? 23: extensions
+}
+
+SpaceDelegatedIntent = {
+  0: 25,
+  1: 1,
+  2: space-id,
+  3: digest,                                ; validated SpaceControlState hash
+  4: state-version,                         ; validated SpaceControlState version
+  5: conversation-id,
+  6: tstr .size (1..128),                   ; registry control operation key
+  7: bool,                                  ; reducing
+  8: 1..3,                                  ; evidence kind: moderation, role mirror, membership admission
+  9: bstr .size (1..65536),                 ; canonical signed Space evidence
+  ? 10: principal-ref,                      ; target principal when operation has one
+  ? 11: bstr .size (16..32),               ; target grant/decision incarnation when applicable
+  ? 12: [1*128 capability-id],             ; capabilities whose effect is delegated
+  ? 23: extensions
+}
+
+publication-profile = {
+  0: tstr .size (1..256),
+  ? 1: tstr .size (1..2048),               ; avatar_ref
+  ? 2: tstr .size (1..4096)                ; description
+}
+
+publication-signing-key-state = {
+  0: bstr .size (16..64),                  ; signing_key_ref
+  1: 1..2,                                  ; 1 current, 2 retired/revoked
+  ? 2: uint                                 ; last_valid_seq, required when retired/revoked
+}
+
+publication-governance = {
+  0: [1*64 principal-ref],
+  1: 1..64
+}
+
+PublicationControlState = {
+  0: 26,
+  1: 1,
+  2: publication-id,
+  3: state-version,
+  ? 4: digest,
+  5: publication-profile,
+  6: [1*64 principal-ref],                 ; publisher authority
+  7: [1*64 publication-signing-key-state],
+  ? 8: conversation-id,                    ; optional independent discussion Room
+  9: publication-governance,
+  ? 23: extensions
+}
+
+publication-body-post = {
+  0: rich-text,
+  ? 1: [0*32 attachment-ref]
+}
+publication-body-edit = publication-body-post
+publication-body-tombstone = {
+  ? 0: tstr .size (1..256)                 ; public reason
+}
+publication-body = publication-body-post / publication-body-edit / publication-body-tombstone
+
+PublicationEvent = {
+  0: 27,
+  1: 1,
+  2: publication-id,
+  3: post-id,
+  4: hlc,
+  5: 1..3,                                  ; 1 post, 2 edit, 3 tombstone
+  6: publication-body,
+  7: bstr .size (16..64),                   ; signing_key_ref
+  8: uint,                                  ; per-key monotonic seq
+  ? 9: digest,                              ; absent only for seq 0
+  10: digest,                               ; PublicationControlState hash
+  ? 23: extensions
+}
+
+signed-space-control-state = { 1: bstr, 2: [1*16 signature] }
+signed-space-delegated-intent = { 1: bstr, 2: [1*16 signature] }
+signed-publication-control-state = { 1: bstr, 2: [1*16 signature] }
+signed-publication-event = { 1: bstr, 2: [1*16 signature] }
+
+TopicCreate = {
+  0: opaque-id16,
+  1: tstr .size (1..256)
+}
+TopicUpdate = {
+  0: opaque-id16,
+  1: tstr .size (1..256)
+}
+TopicStatusSet = {
+  0: opaque-id16,
+  1: 1..3                                 ; open, resolved, archived
+}
+MessageTopicSet = {
+  0: event-id,
+  ? 1: opaque-id16                          ; absent clears topic
+}
+ModerationRedact = {
+  0: event-id,
+  ? 1: tstr .size (1..256)                  ; reason code/text, not authority
+}

@@ -1,0 +1,21 @@
+{
+  "kind": "r16b_v011_service_authority_criteria",
+  "gates": [
+    "V-011"
+  ],
+  "passed": true,
+  "cases": 68,
+  "checks": {
+    "service_positions": 8,
+    "representation_grants": 32,
+    "endpoint_removal_liveness": 16,
+    "incarnation_safety": 12
+  },
+  "criteria_evidenced": [
+    "model covers the two service positions (invocation-only, full member) and shows a trigger filter never narrows what a full member can read (ADR-0129 rule 3)",
+    "RepresentationGrant issued by a messaging-only device is rejected; grant whose issuing control device is quarantined stops validating; counterparty-recipient grant without counterparty notice fails (ADR-0129 rules 4-5)",
+    "revoked service endpoint is removed from every Room by any member after sequencing_timeout when the coordinator does not; removal rebases over forks (ADR-0129 rule 6)",
+    "service endpoint/install removals target immutable endpoint/service-installation incarnations; stale removal cannot remove a later reinstallation (R-279)"
+  ],
+  "note": "Complements existing ServiceAuthority TLC and Rust broker evidence. ADR-0156 service wire freeze remains open."
+}

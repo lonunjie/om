@@ -185,3 +185,13 @@ The following are normative pass/fail cases for the registered W0 conformance su
 | TH-03 | custom font on reserved surface | built-in trusted font remains in use |
 | TH-04 | light/dark/auto | all required states remain legible and accessible |
 | TH-05 | missing optional theme asset | deterministic safe fallback, no network code execution |
+
+## R15 OwnMessenger / OhMessenger integration
+
+OwnMessenger may customize validated presentation: theme pair, wallpaper, safe typography/density, destination exposure/order, experience profile, sounds/haptics and permitted key bindings. OhMessenger supplies optional expressive media/effects.
+
+Themes/media packs remain inert declarative data. They cannot contain executable code, arbitrary remote tracking resources, action remapping, permissions, security-policy changes or weakened confirmations. Protected security/plaintext-boundary surfaces retain reserved built-in semantics/fonts/colors where this architecture requires them.
+
+The design-track **OM Clear** light/dark pair is a reference candidate, not a protocol value and not a human-validated brand freeze. Alternate preset pairs and imported themes remain subject to contrast, accessibility and protected-role validation.
+
+Focus/Balanced/Playful is an **experience profile only** and must never be confused with Recommended/Hardened/Maximum Privacy/Custom Protection policy.

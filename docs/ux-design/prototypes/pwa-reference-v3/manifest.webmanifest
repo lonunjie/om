@@ -1,0 +1,9 @@
+{
+  "name": "OM UI/UX Reference v3",
+  "short_name": "OM UX v3",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#F7F9FC",
+  "theme_color": "#0067C5",
+  "description": "Fixture-only OM UI/UX validation prototype"
+}

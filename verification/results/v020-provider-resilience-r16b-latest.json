@@ -1,0 +1,881 @@
+{
+  "kind": "r16b_v020_provider_resilience",
+  "gates": [
+    "V-020"
+  ],
+  "passed": true,
+  "criteria_evidenced": [
+    "blocked-vendor and blocked-suffix simulation (for example all workers.dev locators and one vendor's IP ranges blocked): fraction of established relationships and of first contacts that still succeed, and which fallbacks carried them (R-021, R-028, R-045)",
+    "sponsor revocation overlap and non-sponsor second route in the sponsorship model; PC-D06/PC-D07 specified (R-266, R-267, R-260)"
+  ],
+  "blocked_vendor_suffix": {
+    "runs": [
+      {
+        "seed": 0,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5584,
+        "first_contact_fraction": 0.7479,
+        "available_route_counts": {
+          "independent": 333,
+          "cloudflare": 137,
+          "selfhost": 142
+        }
+      },
+      {
+        "seed": 0,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.419,
+        "first_contact_fraction": 0.6327,
+        "available_route_counts": {
+          "independent": 333,
+          "selfhost": 142
+        }
+      },
+      {
+        "seed": 1,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.6018,
+        "first_contact_fraction": 0.778,
+        "available_route_counts": {
+          "independent": 373,
+          "selfhost": 156,
+          "cloudflare": 118
+        }
+      },
+      {
+        "seed": 1,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4841,
+        "first_contact_fraction": 0.6928,
+        "available_route_counts": {
+          "independent": 373,
+          "selfhost": 156
+        }
+      },
+      {
+        "seed": 2,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5113,
+        "first_contact_fraction": 0.7295,
+        "available_route_counts": {
+          "selfhost": 139,
+          "cloudflare": 120,
+          "independent": 354
+        }
+      },
+      {
+        "seed": 2,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.3837,
+        "first_contact_fraction": 0.6311,
+        "available_route_counts": {
+          "selfhost": 139,
+          "independent": 354
+        }
+      },
+      {
+        "seed": 3,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5499,
+        "first_contact_fraction": 0.7613,
+        "available_route_counts": {
+          "cloudflare": 113,
+          "selfhost": 135,
+          "independent": 386
+        }
+      },
+      {
+        "seed": 3,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4337,
+        "first_contact_fraction": 0.6912,
+        "available_route_counts": {
+          "selfhost": 135,
+          "independent": 386
+        }
+      },
+      {
+        "seed": 4,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5585,
+        "first_contact_fraction": 0.7262,
+        "available_route_counts": {
+          "independent": 364,
+          "selfhost": 133,
+          "cloudflare": 115
+        }
+      },
+      {
+        "seed": 4,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4582,
+        "first_contact_fraction": 0.6561,
+        "available_route_counts": {
+          "independent": 364,
+          "selfhost": 133
+        }
+      },
+      {
+        "seed": 5,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5404,
+        "first_contact_fraction": 0.7245,
+        "available_route_counts": {
+          "cloudflare": 127,
+          "selfhost": 139,
+          "independent": 336
+        }
+      },
+      {
+        "seed": 5,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.3872,
+        "first_contact_fraction": 0.6194,
+        "available_route_counts": {
+          "selfhost": 139,
+          "independent": 336
+        }
+      },
+      {
+        "seed": 6,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5943,
+        "first_contact_fraction": 0.7713,
+        "available_route_counts": {
+          "independent": 370,
+          "cloudflare": 128,
+          "selfhost": 161
+        }
+      },
+      {
+        "seed": 6,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4446,
+        "first_contact_fraction": 0.6678,
+        "available_route_counts": {
+          "independent": 370,
+          "selfhost": 161
+        }
+      },
+      {
+        "seed": 7,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.561,
+        "first_contact_fraction": 0.7462,
+        "available_route_counts": {
+          "independent": 376,
+          "cloudflare": 123,
+          "selfhost": 132
+        }
+      },
+      {
+        "seed": 7,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4135,
+        "first_contact_fraction": 0.6528,
+        "available_route_counts": {
+          "independent": 376,
+          "selfhost": 132
+        }
+      },
+      {
+        "seed": 8,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5264,
+        "first_contact_fraction": 0.7329,
+        "available_route_counts": {
+          "selfhost": 155,
+          "cloudflare": 118,
+          "independent": 349
+        }
+      },
+      {
+        "seed": 8,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.3917,
+        "first_contact_fraction": 0.6361,
+        "available_route_counts": {
+          "selfhost": 155,
+          "independent": 349
+        }
+      },
+      {
+        "seed": 9,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5462,
+        "first_contact_fraction": 0.7346,
+        "available_route_counts": {
+          "independent": 367,
+          "selfhost": 136,
+          "cloudflare": 104
+        }
+      },
+      {
+        "seed": 9,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4455,
+        "first_contact_fraction": 0.6661,
+        "available_route_counts": {
+          "independent": 367,
+          "selfhost": 136
+        }
+      },
+      {
+        "seed": 10,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5278,
+        "first_contact_fraction": 0.7279,
+        "available_route_counts": {
+          "independent": 349,
+          "cloudflare": 125,
+          "selfhost": 122
+        }
+      },
+      {
+        "seed": 10,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.3936,
+        "first_contact_fraction": 0.6227,
+        "available_route_counts": {
+          "independent": 349,
+          "selfhost": 122
+        }
+      },
+      {
+        "seed": 11,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5899,
+        "first_contact_fraction": 0.7696,
+        "available_route_counts": {
+          "independent": 368,
+          "selfhost": 130,
+          "cloudflare": 129
+        }
+      },
+      {
+        "seed": 11,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4449,
+        "first_contact_fraction": 0.6711,
+        "available_route_counts": {
+          "independent": 368,
+          "selfhost": 130
+        }
+      },
+      {
+        "seed": 12,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.6099,
+        "first_contact_fraction": 0.773,
+        "available_route_counts": {
+          "independent": 375,
+          "selfhost": 145,
+          "cloudflare": 118
+        }
+      },
+      {
+        "seed": 12,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4829,
+        "first_contact_fraction": 0.6811,
+        "available_route_counts": {
+          "independent": 375,
+          "selfhost": 145
+        }
+      },
+      {
+        "seed": 13,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5502,
+        "first_contact_fraction": 0.7346,
+        "available_route_counts": {
+          "independent": 378,
+          "cloudflare": 116,
+          "selfhost": 142
+        }
+      },
+      {
+        "seed": 13,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4183,
+        "first_contact_fraction": 0.6427,
+        "available_route_counts": {
+          "independent": 378,
+          "selfhost": 142
+        }
+      },
+      {
+        "seed": 14,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5374,
+        "first_contact_fraction": 0.7513,
+        "available_route_counts": {
+          "selfhost": 135,
+          "independent": 383,
+          "cloudflare": 103
+        }
+      },
+      {
+        "seed": 14,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4322,
+        "first_contact_fraction": 0.6745,
+        "available_route_counts": {
+          "selfhost": 135,
+          "independent": 383
+        }
+      },
+      {
+        "seed": 15,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5256,
+        "first_contact_fraction": 0.7362,
+        "available_route_counts": {
+          "selfhost": 143,
+          "independent": 355,
+          "cloudflare": 115
+        }
+      },
+      {
+        "seed": 15,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.3878,
+        "first_contact_fraction": 0.6411,
+        "available_route_counts": {
+          "selfhost": 143,
+          "independent": 355
+        }
+      },
+      {
+        "seed": 16,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5818,
+        "first_contact_fraction": 0.7696,
+        "available_route_counts": {
+          "independent": 383,
+          "cloudflare": 134,
+          "selfhost": 128
+        }
+      },
+      {
+        "seed": 16,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4636,
+        "first_contact_fraction": 0.6694,
+        "available_route_counts": {
+          "independent": 383,
+          "selfhost": 128
+        }
+      },
+      {
+        "seed": 17,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5,
+        "first_contact_fraction": 0.7295,
+        "available_route_counts": {
+          "selfhost": 142,
+          "independent": 349,
+          "cloudflare": 111
+        }
+      },
+      {
+        "seed": 17,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.3839,
+        "first_contact_fraction": 0.6344,
+        "available_route_counts": {
+          "selfhost": 142,
+          "independent": 349
+        }
+      },
+      {
+        "seed": 18,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5228,
+        "first_contact_fraction": 0.7396,
+        "available_route_counts": {
+          "independent": 362,
+          "cloudflare": 111,
+          "selfhost": 148
+        }
+      },
+      {
+        "seed": 18,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4149,
+        "first_contact_fraction": 0.6611,
+        "available_route_counts": {
+          "independent": 362,
+          "selfhost": 148
+        }
+      },
+      {
+        "seed": 19,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5365,
+        "first_contact_fraction": 0.7162,
+        "available_route_counts": {
+          "cloudflare": 105,
+          "independent": 355,
+          "selfhost": 152
+        }
+      },
+      {
+        "seed": 19,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4266,
+        "first_contact_fraction": 0.6411,
+        "available_route_counts": {
+          "independent": 355,
+          "selfhost": 152
+        }
+      },
+      {
+        "seed": 20,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5875,
+        "first_contact_fraction": 0.7629,
+        "available_route_counts": {
+          "selfhost": 147,
+          "independent": 372,
+          "cloudflare": 120
+        }
+      },
+      {
+        "seed": 20,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4421,
+        "first_contact_fraction": 0.6578,
+        "available_route_counts": {
+          "selfhost": 147,
+          "independent": 372
+        }
+      },
+      {
+        "seed": 21,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5218,
+        "first_contact_fraction": 0.7346,
+        "available_route_counts": {
+          "independent": 332,
+          "selfhost": 154,
+          "cloudflare": 123
+        }
+      },
+      {
+        "seed": 21,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.3829,
+        "first_contact_fraction": 0.6294,
+        "available_route_counts": {
+          "independent": 332,
+          "selfhost": 154
+        }
+      },
+      {
+        "seed": 22,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5669,
+        "first_contact_fraction": 0.7529,
+        "available_route_counts": {
+          "selfhost": 140,
+          "independent": 349,
+          "cloudflare": 119
+        }
+      },
+      {
+        "seed": 22,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4264,
+        "first_contact_fraction": 0.6511,
+        "available_route_counts": {
+          "selfhost": 140,
+          "independent": 349
+        }
+      },
+      {
+        "seed": 23,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5151,
+        "first_contact_fraction": 0.7129,
+        "available_route_counts": {
+          "selfhost": 135,
+          "cloudflare": 114,
+          "independent": 374
+        }
+      },
+      {
+        "seed": 23,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4047,
+        "first_contact_fraction": 0.6411,
+        "available_route_counts": {
+          "selfhost": 135,
+          "independent": 374
+        }
+      },
+      {
+        "seed": 24,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5059,
+        "first_contact_fraction": 0.7195,
+        "available_route_counts": {
+          "cloudflare": 113,
+          "selfhost": 142,
+          "independent": 337
+        }
+      },
+      {
+        "seed": 24,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.3659,
+        "first_contact_fraction": 0.6093,
+        "available_route_counts": {
+          "selfhost": 142,
+          "independent": 337
+        }
+      },
+      {
+        "seed": 25,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5695,
+        "first_contact_fraction": 0.7412,
+        "available_route_counts": {
+          "independent": 359,
+          "cloudflare": 116,
+          "selfhost": 151
+        }
+      },
+      {
+        "seed": 25,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4475,
+        "first_contact_fraction": 0.6611,
+        "available_route_counts": {
+          "independent": 359,
+          "selfhost": 151
+        }
+      },
+      {
+        "seed": 26,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.558,
+        "first_contact_fraction": 0.7446,
+        "available_route_counts": {
+          "cloudflare": 134,
+          "independent": 364,
+          "selfhost": 132
+        }
+      },
+      {
+        "seed": 26,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4106,
+        "first_contact_fraction": 0.6427,
+        "available_route_counts": {
+          "independent": 364,
+          "selfhost": 132
+        }
+      },
+      {
+        "seed": 27,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5364,
+        "first_contact_fraction": 0.7212,
+        "available_route_counts": {
+          "cloudflare": 111,
+          "independent": 357,
+          "selfhost": 139
+        }
+      },
+      {
+        "seed": 27,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.3748,
+        "first_contact_fraction": 0.621,
+        "available_route_counts": {
+          "independent": 357,
+          "selfhost": 139
+        }
+      },
+      {
+        "seed": 28,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.515,
+        "first_contact_fraction": 0.7112,
+        "available_route_counts": {
+          "independent": 354,
+          "selfhost": 132,
+          "cloudflare": 116
+        }
+      },
+      {
+        "seed": 28,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4158,
+        "first_contact_fraction": 0.6244,
+        "available_route_counts": {
+          "independent": 354,
+          "selfhost": 132
+        }
+      },
+      {
+        "seed": 29,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5595,
+        "first_contact_fraction": 0.7563,
+        "available_route_counts": {
+          "independent": 354,
+          "selfhost": 147,
+          "cloudflare": 128
+        }
+      },
+      {
+        "seed": 29,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4405,
+        "first_contact_fraction": 0.6494,
+        "available_route_counts": {
+          "independent": 354,
+          "selfhost": 147
+        }
+      },
+      {
+        "seed": 30,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5421,
+        "first_contact_fraction": 0.7529,
+        "available_route_counts": {
+          "independent": 387,
+          "selfhost": 142,
+          "cloudflare": 101
+        }
+      },
+      {
+        "seed": 30,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4417,
+        "first_contact_fraction": 0.6811,
+        "available_route_counts": {
+          "independent": 387,
+          "selfhost": 142
+        }
+      },
+      {
+        "seed": 31,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5679,
+        "first_contact_fraction": 0.7245,
+        "available_route_counts": {
+          "independent": 367,
+          "cloudflare": 119,
+          "selfhost": 134
+        }
+      },
+      {
+        "seed": 31,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4418,
+        "first_contact_fraction": 0.6327,
+        "available_route_counts": {
+          "independent": 367,
+          "selfhost": 134
+        }
+      },
+      {
+        "seed": 32,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5997,
+        "first_contact_fraction": 0.7513,
+        "available_route_counts": {
+          "independent": 347,
+          "selfhost": 154,
+          "cloudflare": 127
+        }
+      },
+      {
+        "seed": 32,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.464,
+        "first_contact_fraction": 0.6427,
+        "available_route_counts": {
+          "independent": 347,
+          "selfhost": 154
+        }
+      },
+      {
+        "seed": 33,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5542,
+        "first_contact_fraction": 0.7563,
+        "available_route_counts": {
+          "selfhost": 130,
+          "cloudflare": 130,
+          "independent": 369
+        }
+      },
+      {
+        "seed": 33,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4131,
+        "first_contact_fraction": 0.6561,
+        "available_route_counts": {
+          "selfhost": 130,
+          "independent": 369
+        }
+      },
+      {
+        "seed": 34,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5288,
+        "first_contact_fraction": 0.7295,
+        "available_route_counts": {
+          "independent": 349,
+          "cloudflare": 124,
+          "selfhost": 146
+        }
+      },
+      {
+        "seed": 34,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.382,
+        "first_contact_fraction": 0.6294,
+        "available_route_counts": {
+          "independent": 349,
+          "selfhost": 146
+        }
+      },
+      {
+        "seed": 35,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5573,
+        "first_contact_fraction": 0.7513,
+        "available_route_counts": {
+          "independent": 362,
+          "selfhost": 157,
+          "cloudflare": 121
+        }
+      },
+      {
+        "seed": 35,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4409,
+        "first_contact_fraction": 0.6694,
+        "available_route_counts": {
+          "independent": 362,
+          "selfhost": 157
+        }
+      },
+      {
+        "seed": 36,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5512,
+        "first_contact_fraction": 0.7346,
+        "available_route_counts": {
+          "selfhost": 146,
+          "independent": 372,
+          "cloudflare": 117
+        }
+      },
+      {
+        "seed": 36,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4437,
+        "first_contact_fraction": 0.6561,
+        "available_route_counts": {
+          "selfhost": 146,
+          "independent": 372
+        }
+      },
+      {
+        "seed": 37,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5556,
+        "first_contact_fraction": 0.7362,
+        "available_route_counts": {
+          "cloudflare": 115,
+          "independent": 355,
+          "selfhost": 158
+        }
+      },
+      {
+        "seed": 37,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4541,
+        "first_contact_fraction": 0.6528,
+        "available_route_counts": {
+          "independent": 355,
+          "selfhost": 158
+        }
+      },
+      {
+        "seed": 38,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5126,
+        "first_contact_fraction": 0.7262,
+        "available_route_counts": {
+          "cloudflare": 121,
+          "independent": 360,
+          "selfhost": 139
+        }
+      },
+      {
+        "seed": 38,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4023,
+        "first_contact_fraction": 0.6411,
+        "available_route_counts": {
+          "independent": 360,
+          "selfhost": 139
+        }
+      },
+      {
+        "seed": 39,
+        "scenario": "suffix",
+        "established_relationship_fraction": 0.5754,
+        "first_contact_fraction": 0.7446,
+        "available_route_counts": {
+          "independent": 364,
+          "selfhost": 150,
+          "cloudflare": 109
+        }
+      },
+      {
+        "seed": 39,
+        "scenario": "vendor",
+        "established_relationship_fraction": 0.4712,
+        "first_contact_fraction": 0.6611,
+        "available_route_counts": {
+          "independent": 364,
+          "selfhost": 150
+        }
+      }
+    ],
+    "mean": {
+      "suffix": {
+        "established_relationship_fraction": 0.5503,
+        "first_contact_fraction": 0.7416
+      },
+      "vendor": {
+        "established_relationship_fraction": 0.4244,
+        "first_contact_fraction": 0.6499
+      }
+    },
+    "fallback_carriers": {
+      "suffix:cloudflare": 4748,
+      "suffix:independent": 14449,
+      "suffix:selfhost": 5690,
+      "vendor:independent": 14449,
+      "vendor:selfhost": 5690
+    }
+  },
+  "sponsor_overlap": {
+    "cases": 724,
+    "violations": [],
+    "passed": true,
+    "minimum_overlap_days": 30,
+    "non_sponsor_second_route_preserved": true,
+    "sponsor_clienthost_requires_explicit_opt_in": true
+  },
+  "gate_status_effect": "repo_local_criteria_only_independent_review_still_required"
+}

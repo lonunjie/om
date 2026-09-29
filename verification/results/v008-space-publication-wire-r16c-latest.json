@@ -1,0 +1,12 @@
+{
+  "kind": "v008_space_publication_wire_r16c",
+  "passed": true,
+  "vector_count": 19,
+  "positive": 9,
+  "negative": 10,
+  "codecs": [
+    "python_codec.py",
+    "node_codec.mjs"
+  ],
+  "agreement": true
+}

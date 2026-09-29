@@ -10,9 +10,7 @@ OM is stewarded by SeedLife ("Protect life. Seed it.") under the [lonunjie](http
 ## Status
 
 **Architecture verification, design-frozen (`design_open=0`). Product engineering is not yet authorized.** The design covers every planned
-delivery wave. ADR-0157 closes independent-review convergence/history/scheduled-send gaps and ADR-0158 resolves A-055 with a concrete W1 LAN delivery profile. The design is now being checked by formal models, prototypes and independent reviews, called verification gates, before any
-product code is written. The current state is always in [`SNAPSHOT.md`](SNAPSHOT.md). The gate list and what each gate
-still needs is in [`verification/GATE_PASS_CRITERIA.md`](verification/GATE_PASS_CRITERIA.md).
+delivery wave. ADR-0157 closes independent-review convergence/history/scheduled-send gaps, ADR-0158 resolves A-055 with a concrete W1 LAN delivery profile, and ADR-0159 reconciles the full OM UI/UX design into the canonical architecture without changing Core/protocol authority. The design is being checked by formal models, prototypes, device/human evidence and independent reviews, called verification gates, before product code is written. The current state is always in [`SNAPSHOT.md`](SNAPSHOT.md). The gate list and what each gate still needs is in [`verification/GATE_PASS_CRITERIA.md`](verification/GATE_PASS_CRITERIA.md).
 
 ## Reading the design
 

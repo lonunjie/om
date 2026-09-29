@@ -1,0 +1,894 @@
+{
+  "positive": [
+    {
+      "id": "space-minimal",
+      "object": "SpaceControlState",
+      "envelope": true,
+      "value": {
+        "0": 24,
+        "1": 1,
+        "2": {
+          "$bytes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "3": 1,
+        "5": {
+          "0": "OM Community",
+          "1": "avatar://space",
+          "2": "A small community",
+          "3": "style://clear"
+        },
+        "6": [
+          {
+            "0": {
+              "0": 1,
+              "1": {
+                "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+              }
+            },
+            "1": {
+              "$set": [
+                {
+                  "$bytes": "22222222222222222222222222222222"
+                }
+              ]
+            }
+          }
+        ],
+        "9": {
+          "0": {
+            "$set": [
+              {
+                "0": 1,
+                "1": {
+                  "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+                }
+              }
+            ]
+          },
+          "1": 1
+        }
+      }
+    },
+    {
+      "id": "space-populated",
+      "object": "SpaceControlState",
+      "envelope": true,
+      "value": {
+        "0": 24,
+        "1": 1,
+        "2": {
+          "$bytes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "3": 7,
+        "5": {
+          "0": "OM Community",
+          "1": "avatar://space",
+          "2": "A small community",
+          "3": "style://clear"
+        },
+        "6": [
+          {
+            "0": {
+              "0": 1,
+              "1": {
+                "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+              }
+            },
+            "1": {
+              "$set": [
+                {
+                  "$bytes": "22222222222222222222222222222222"
+                }
+              ]
+            }
+          }
+        ],
+        "9": {
+          "0": {
+            "$set": [
+              {
+                "0": 1,
+                "1": {
+                  "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+                }
+              },
+              {
+                "0": 1,
+                "1": {
+                  "$bytes": "3333333333333333333333333333333333333333333333333333333333333333"
+                }
+              }
+            ]
+          },
+          "1": 2,
+          "2": {
+            "$set": [
+              "room.manage_links",
+              "room.manage_roles"
+            ]
+          }
+        },
+        "4": {
+          "0": 1,
+          "1": {
+            "$bytes": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        },
+        "7": [
+          {
+            "0": {
+              "$bytes": "22222222222222222222222222222222"
+            },
+            "1": "Moderator",
+            "2": {
+              "$set": [
+                "room.manage_topics",
+                "room.redact_others"
+              ]
+            },
+            "3": {
+              "$set": [
+                "room.manage_topics"
+              ]
+            }
+          }
+        ],
+        "8": [
+          {
+            "0": 1,
+            "1": {
+              "$bytes": "5555555555555555555555555555555555555555555555555555555555555555"
+            },
+            "2": 2,
+            "3": {
+              "$bytes": "cccccccccccccccccccccccccccccccccccccccc"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "delegated-reduction",
+      "object": "SpaceDelegatedIntent",
+      "envelope": true,
+      "value": {
+        "0": 25,
+        "1": 1,
+        "2": {
+          "$bytes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "3": {
+          "0": 1,
+          "1": {
+            "$bytes": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        },
+        "4": 7,
+        "5": {
+          "$bytes": "5555555555555555555555555555555555555555555555555555555555555555"
+        },
+        "6": "control.member.remove",
+        "7": true,
+        "8": 1,
+        "9": {
+          "$bytes": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "10": {
+          "0": 1,
+          "1": {
+            "$bytes": "3333333333333333333333333333333333333333333333333333333333333333"
+          }
+        },
+        "11": {
+          "$bytes": "66666666666666666666666666666666"
+        },
+        "12": {
+          "$set": [
+            "room.remove_member"
+          ]
+        }
+      }
+    },
+    {
+      "id": "topic-create",
+      "object": "ConversationEvent",
+      "envelope": false,
+      "value": {
+        "0": 10,
+        "1": 1,
+        "2": 1,
+        "3": {
+          "$bytes": "77777777777777777777777777777777"
+        },
+        "4": {
+          "$bytes": "5555555555555555555555555555555555555555555555555555555555555555"
+        },
+        "5": {
+          "0": 1,
+          "1": {
+            "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        },
+        "6": {
+          "$bytes": "88888888888888888888888888888888"
+        },
+        "7": {
+          "0": 1,
+          "1": 0,
+          "2": {
+            "$bytes": "01"
+          }
+        },
+        "9": 1,
+        "8": 11,
+        "11": {
+          "0": {
+            "$bytes": "22222222222222222222222222222222"
+          },
+          "1": "Announcements"
+        }
+      }
+    },
+    {
+      "id": "topic-status",
+      "object": "ConversationEvent",
+      "envelope": false,
+      "value": {
+        "0": 10,
+        "1": 1,
+        "2": 1,
+        "3": {
+          "$bytes": "77777777777777777777777777777777"
+        },
+        "4": {
+          "$bytes": "5555555555555555555555555555555555555555555555555555555555555555"
+        },
+        "5": {
+          "0": 1,
+          "1": {
+            "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        },
+        "6": {
+          "$bytes": "88888888888888888888888888888888"
+        },
+        "7": {
+          "0": 1,
+          "1": 0,
+          "2": {
+            "$bytes": "01"
+          }
+        },
+        "9": 1,
+        "8": 13,
+        "11": {
+          "0": {
+            "$bytes": "22222222222222222222222222222222"
+          },
+          "1": 2
+        }
+      }
+    },
+    {
+      "id": "message-topic-clear",
+      "object": "ConversationEvent",
+      "envelope": false,
+      "value": {
+        "0": 10,
+        "1": 1,
+        "2": 1,
+        "3": {
+          "$bytes": "77777777777777777777777777777777"
+        },
+        "4": {
+          "$bytes": "5555555555555555555555555555555555555555555555555555555555555555"
+        },
+        "5": {
+          "0": 1,
+          "1": {
+            "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        },
+        "6": {
+          "$bytes": "88888888888888888888888888888888"
+        },
+        "7": {
+          "0": 1,
+          "1": 0,
+          "2": {
+            "$bytes": "01"
+          }
+        },
+        "9": 1,
+        "8": 14,
+        "11": {
+          "0": {
+            "$bytes": "99999999999999999999999999999999"
+          }
+        }
+      }
+    },
+    {
+      "id": "moderation-redact",
+      "object": "ConversationEvent",
+      "envelope": false,
+      "value": {
+        "0": 10,
+        "1": 1,
+        "2": 1,
+        "3": {
+          "$bytes": "77777777777777777777777777777777"
+        },
+        "4": {
+          "$bytes": "5555555555555555555555555555555555555555555555555555555555555555"
+        },
+        "5": {
+          "0": 1,
+          "1": {
+            "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        },
+        "6": {
+          "$bytes": "88888888888888888888888888888888"
+        },
+        "7": {
+          "0": 1,
+          "1": 0,
+          "2": {
+            "$bytes": "01"
+          }
+        },
+        "9": 1,
+        "8": 7,
+        "11": {
+          "0": {
+            "$bytes": "99999999999999999999999999999999"
+          },
+          "1": "policy"
+        }
+      }
+    },
+    {
+      "id": "publication-control",
+      "object": "PublicationControlState",
+      "envelope": true,
+      "value": {
+        "0": 26,
+        "1": 1,
+        "2": {
+          "$bytes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "3": 1,
+        "5": {
+          "0": "OM Public Feed",
+          "1": "avatar://publication",
+          "2": "Announcements"
+        },
+        "6": {
+          "$set": [
+            {
+              "0": 1,
+              "1": {
+                "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+              }
+            }
+          ]
+        },
+        "7": [
+          {
+            "0": {
+              "$bytes": "1212121212121212121212121212121212121212121212121212121212121212"
+            },
+            "1": 1
+          }
+        ],
+        "9": {
+          "0": {
+            "$set": [
+              {
+                "0": 1,
+                "1": {
+                  "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+                }
+              }
+            ]
+          },
+          "1": 1
+        }
+      }
+    },
+    {
+      "id": "publication-post",
+      "object": "PublicationEvent",
+      "envelope": true,
+      "value": {
+        "0": 27,
+        "1": 1,
+        "2": {
+          "$bytes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "3": {
+          "$bytes": "13131313131313131313131313131313"
+        },
+        "4": {
+          "0": 1,
+          "1": 0,
+          "2": {
+            "$bytes": "01"
+          }
+        },
+        "5": 1,
+        "6": {
+          "0": {
+            "0": 1,
+            "1": [
+              {
+                "0": 1,
+                "1": [
+                  {
+                    "0": 1,
+                    "1": "Hello public world"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "7": {
+          "$bytes": "1212121212121212121212121212121212121212121212121212121212121212"
+        },
+        "8": 0,
+        "10": {
+          "0": 1,
+          "1": {
+            "$bytes": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        }
+      }
+    }
+  ],
+  "negative": [
+    {
+      "id": "space-missing-profile",
+      "object": "SpaceControlState",
+      "value": {
+        "0": 24,
+        "1": 1,
+        "2": {
+          "$bytes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "3": 1,
+        "6": [
+          {
+            "0": {
+              "0": 1,
+              "1": {
+                "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+              }
+            },
+            "1": {
+              "$set": [
+                {
+                  "$bytes": "22222222222222222222222222222222"
+                }
+              ]
+            }
+          }
+        ],
+        "9": {
+          "0": {
+            "$set": [
+              {
+                "0": 1,
+                "1": {
+                  "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+                }
+              }
+            ]
+          },
+          "1": 1
+        }
+      }
+    },
+    {
+      "id": "space-wrong-object-type",
+      "object": "SpaceControlState",
+      "value": {
+        "0": 26,
+        "1": 1,
+        "2": {
+          "$bytes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "3": 1,
+        "5": {
+          "0": "OM Community",
+          "1": "avatar://space",
+          "2": "A small community",
+          "3": "style://clear"
+        },
+        "6": [
+          {
+            "0": {
+              "0": 1,
+              "1": {
+                "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+              }
+            },
+            "1": {
+              "$set": [
+                {
+                  "$bytes": "22222222222222222222222222222222"
+                }
+              ]
+            }
+          }
+        ],
+        "9": {
+          "0": {
+            "$set": [
+              {
+                "0": 1,
+                "1": {
+                  "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+                }
+              }
+            ]
+          },
+          "1": 1
+        }
+      }
+    },
+    {
+      "id": "space-null-version",
+      "object": "SpaceControlState",
+      "value": {
+        "0": 24,
+        "1": null,
+        "2": {
+          "$bytes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "3": 1,
+        "5": {
+          "0": "OM Community",
+          "1": "avatar://space",
+          "2": "A small community",
+          "3": "style://clear"
+        },
+        "6": [
+          {
+            "0": {
+              "0": 1,
+              "1": {
+                "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+              }
+            },
+            "1": {
+              "$set": [
+                {
+                  "$bytes": "22222222222222222222222222222222"
+                }
+              ]
+            }
+          }
+        ],
+        "9": {
+          "0": {
+            "$set": [
+              {
+                "0": 1,
+                "1": {
+                  "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+                }
+              }
+            ]
+          },
+          "1": 1
+        }
+      }
+    },
+    {
+      "id": "intent-missing-evidence",
+      "object": "SpaceDelegatedIntent",
+      "value": {
+        "0": 25,
+        "1": 1,
+        "2": {
+          "$bytes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "3": {
+          "0": 1,
+          "1": {
+            "$bytes": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        },
+        "4": 7,
+        "5": {
+          "$bytes": "5555555555555555555555555555555555555555555555555555555555555555"
+        },
+        "6": "control.member.remove",
+        "7": true,
+        "8": 1,
+        "10": {
+          "0": 1,
+          "1": {
+            "$bytes": "3333333333333333333333333333333333333333333333333333333333333333"
+          }
+        },
+        "11": {
+          "$bytes": "66666666666666666666666666666666"
+        },
+        "12": {
+          "$set": [
+            "room.remove_member"
+          ]
+        }
+      }
+    },
+    {
+      "id": "topic-bad-status",
+      "object": "ConversationEvent",
+      "value": {
+        "0": 10,
+        "1": 1,
+        "2": 1,
+        "3": {
+          "$bytes": "77777777777777777777777777777777"
+        },
+        "4": {
+          "$bytes": "5555555555555555555555555555555555555555555555555555555555555555"
+        },
+        "5": {
+          "0": 1,
+          "1": {
+            "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        },
+        "6": {
+          "$bytes": "88888888888888888888888888888888"
+        },
+        "7": {
+          "0": 1,
+          "1": 0,
+          "2": {
+            "$bytes": "01"
+          }
+        },
+        "9": 1,
+        "8": 13,
+        "11": {
+          "0": {
+            "$bytes": "22222222222222222222222222222222"
+          },
+          "1": 9
+        }
+      }
+    },
+    {
+      "id": "moderation-missing-target",
+      "object": "ConversationEvent",
+      "value": {
+        "0": 10,
+        "1": 1,
+        "2": 1,
+        "3": {
+          "$bytes": "77777777777777777777777777777777"
+        },
+        "4": {
+          "$bytes": "5555555555555555555555555555555555555555555555555555555555555555"
+        },
+        "5": {
+          "0": 1,
+          "1": {
+            "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        },
+        "6": {
+          "$bytes": "88888888888888888888888888888888"
+        },
+        "7": {
+          "0": 1,
+          "1": 0,
+          "2": {
+            "$bytes": "01"
+          }
+        },
+        "9": 1,
+        "8": 7,
+        "11": {
+          "1": "policy"
+        }
+      }
+    },
+    {
+      "id": "publication-empty-authority",
+      "object": "PublicationControlState",
+      "value": {
+        "0": 26,
+        "1": 1,
+        "2": {
+          "$bytes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "3": 1,
+        "5": {
+          "0": "OM Public Feed",
+          "1": "avatar://publication",
+          "2": "Announcements"
+        },
+        "6": {
+          "$set": []
+        },
+        "7": [
+          {
+            "0": {
+              "$bytes": "1212121212121212121212121212121212121212121212121212121212121212"
+            },
+            "1": 1
+          }
+        ],
+        "9": {
+          "0": {
+            "$set": [
+              {
+                "0": 1,
+                "1": {
+                  "$bytes": "1111111111111111111111111111111111111111111111111111111111111111"
+                }
+              }
+            ]
+          },
+          "1": 1
+        }
+      }
+    },
+    {
+      "id": "publication-seq1-missing-prev",
+      "object": "PublicationEvent",
+      "value": {
+        "0": 27,
+        "1": 1,
+        "2": {
+          "$bytes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "3": {
+          "$bytes": "13131313131313131313131313131313"
+        },
+        "4": {
+          "0": 1,
+          "1": 0,
+          "2": {
+            "$bytes": "01"
+          }
+        },
+        "5": 1,
+        "6": {
+          "0": {
+            "0": 1,
+            "1": [
+              {
+                "0": 1,
+                "1": [
+                  {
+                    "0": 1,
+                    "1": "Hello public world"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "7": {
+          "$bytes": "1212121212121212121212121212121212121212121212121212121212121212"
+        },
+        "8": 1,
+        "10": {
+          "0": 1,
+          "1": {
+            "$bytes": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        }
+      }
+    },
+    {
+      "id": "publication-genesis-has-prev",
+      "object": "PublicationEvent",
+      "value": {
+        "0": 27,
+        "1": 1,
+        "2": {
+          "$bytes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "3": {
+          "$bytes": "13131313131313131313131313131313"
+        },
+        "4": {
+          "0": 1,
+          "1": 0,
+          "2": {
+            "$bytes": "01"
+          }
+        },
+        "5": 1,
+        "6": {
+          "0": {
+            "0": 1,
+            "1": [
+              {
+                "0": 1,
+                "1": [
+                  {
+                    "0": 1,
+                    "1": "Hello public world"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "7": {
+          "$bytes": "1212121212121212121212121212121212121212121212121212121212121212"
+        },
+        "8": 0,
+        "10": {
+          "0": 1,
+          "1": {
+            "$bytes": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        },
+        "9": {
+          "0": 1,
+          "1": {
+            "$bytes": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      }
+    },
+    {
+      "id": "publication-bad-kind",
+      "object": "PublicationEvent",
+      "value": {
+        "0": 27,
+        "1": 1,
+        "2": {
+          "$bytes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "3": {
+          "$bytes": "13131313131313131313131313131313"
+        },
+        "4": {
+          "0": 1,
+          "1": 0,
+          "2": {
+            "$bytes": "01"
+          }
+        },
+        "5": 9,
+        "6": {
+          "0": {
+            "0": 1,
+            "1": [
+              {
+                "0": 1,
+                "1": [
+                  {
+                    "0": 1,
+                    "1": "Hello public world"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "7": {
+          "$bytes": "1212121212121212121212121212121212121212121212121212121212121212"
+        },
+        "8": 0,
+        "10": {
+          "0": 1,
+          "1": {
+            "$bytes": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        }
+      }
+    }
+  ]
+}

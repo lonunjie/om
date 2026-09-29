@@ -1,0 +1,56 @@
+# Contrast Audit — Revision 7 candidate palettes
+
+WCAG 2.x relative-luminance contrast calculation. These checks do not replace full component/state testing.
+
+- OM Clear light text.primary / surface.base: **15.42:1** — PASS>=4.5
+- OM Clear light text.secondary / surface.base: **5.91:1** — PASS>=4.5
+- OM Clear light text.tertiary / surface.base: **4.77:1** — PASS>=4.5
+- OM Clear light accent.primary / surface.base: **5.31:1** — PASS>=4.5
+- OM Clear light state.focus / surface.base: **6.46:1** — PASS>=4.5
+- OM Clear light status.success / surface.base: **5.13:1** — PASS>=4.5
+- OM Clear light status.warning / surface.base: **5.62:1** — PASS>=4.5
+- OM Clear light status.danger / surface.base: **5.13:1** — PASS>=4.5
+- OM Clear light accent.onPrimary / accent.primary: **5.61:1** — PASS>=4.5
+- OM Clear light text.primary / outgoing bubble: **14.36:1** — PASS>=4.5
+- OM Clear dark text.primary / surface.base: **16.72:1** — PASS>=4.5
+- OM Clear dark text.secondary / surface.base: **10.17:1** — PASS>=4.5
+- OM Clear dark text.tertiary / surface.base: **6.48:1** — PASS>=4.5
+- OM Clear dark accent.primary / surface.base: **8.17:1** — PASS>=4.5
+- OM Clear dark state.focus / surface.base: **8.00:1** — PASS>=4.5
+- OM Clear dark status.success / surface.base: **10.10:1** — PASS>=4.5
+- OM Clear dark status.warning / surface.base: **11.45:1** — PASS>=4.5
+- OM Clear dark status.danger / surface.base: **7.29:1** — PASS>=4.5
+- OM Clear dark accent.onPrimary / accent.primary: **7.98:1** — PASS>=4.5
+- OM Clear dark text.primary / outgoing bubble: **10.69:1** — PASS>=4.5
+- OM Clear light text/base: **15.42:1** — PASS>=4.5
+- OM Clear light accent/base: **5.31:1** — PASS>=4.5
+- OM Clear light onAccent/accent: **5.61:1** — PASS>=4.5
+- OM Clear light focus/base: **6.46:1** — PASS>=4.5
+- OM Clear dark text/base: **16.72:1** — PASS>=4.5
+- OM Clear dark accent/base: **8.17:1** — PASS>=4.5
+- OM Clear dark onAccent/accent: **7.98:1** — PASS>=4.5
+- OM Clear dark focus/base: **8.00:1** — PASS>=4.5
+- OM Paper light text/base: **15.42:1** — PASS>=4.5
+- OM Paper light accent/base: **6.13:1** — PASS>=4.5
+- OM Paper light onAccent/accent: **6.49:1** — PASS>=4.5
+- OM Paper light focus/base: **6.43:1** — PASS>=4.5
+- OM Paper dark text/base: **16.18:1** — PASS>=4.5
+- OM Paper dark accent/base: **8.65:1** — PASS>=4.5
+- OM Paper dark onAccent/accent: **7.91:1** — PASS>=4.5
+- OM Paper dark focus/base: **8.78:1** — PASS>=4.5
+- OM Iris light text/base: **15.59:1** — PASS>=4.5
+- OM Iris light accent/base: **6.09:1** — PASS>=4.5
+- OM Iris light onAccent/accent: **6.42:1** — PASS>=4.5
+- OM Iris light focus/base: **5.62:1** — PASS>=4.5
+- OM Iris dark text/base: **16.67:1** — PASS>=4.5
+- OM Iris dark accent/base: **9.12:1** — PASS>=4.5
+- OM Iris dark onAccent/accent: **8.68:1** — PASS>=4.5
+- OM Iris dark focus/base: **10.26:1** — PASS>=4.5
+- OM Graphite light text/base: **15.85:1** — PASS>=4.5
+- OM Graphite light accent/base: **5.86:1** — PASS>=4.5
+- OM Graphite light onAccent/accent: **6.23:1** — PASS>=4.5
+- OM Graphite light focus/base: **6.41:1** — PASS>=4.5
+- OM Graphite dark text/base: **16.74:1** — PASS>=4.5
+- OM Graphite dark accent/base: **8.53:1** — PASS>=4.5
+- OM Graphite dark onAccent/accent: **8.16:1** — PASS>=4.5
+- OM Graphite dark focus/base: **8.20:1** — PASS>=4.5

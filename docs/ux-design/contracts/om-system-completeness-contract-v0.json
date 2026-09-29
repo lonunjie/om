@@ -1,0 +1,145 @@
+{
+  "$schema": "om.system-completeness.v0",
+  "revision": "R13C",
+  "settings_groups": [
+    "appearance",
+    "interaction",
+    "notifications",
+    "privacy-security",
+    "devices",
+    "data-storage",
+    "accessibility-language",
+    "advanced"
+  ],
+  "setting_scopes": [
+    "device-global",
+    "app-global",
+    "account",
+    "conversation",
+    "space-channel"
+  ],
+  "layout_capabilities": {
+    "compact": {
+      "major_panes": 1
+    },
+    "split": {
+      "major_panes": 2
+    },
+    "expanded": {
+      "major_panes": 3
+    },
+    "multi-pane": {
+      "major_panes": "3+ task-dependent"
+    }
+  },
+  "localization_invariants": [
+    "externalized-strings",
+    "no-sentence-concatenation",
+    "opaque-user-names",
+    "logical-leading-trailing",
+    "bidi-isolation",
+    "locale-formatters",
+    "pseudo-localization",
+    "search-preserves-original-content"
+  ],
+  "content_voice": [
+    "calm",
+    "direct",
+    "respectful",
+    "concrete",
+    "concise",
+    "technically-honest",
+    "action-oriented"
+  ],
+  "sensory_events": [
+    "selection-step",
+    "commit-light",
+    "success-significant",
+    "warning",
+    "failure-actionable",
+    "call-connected",
+    "call-ended",
+    "record-start-stop"
+  ],
+  "performance_budgets_ms": {
+    "text_echo_p95_app_work": 50,
+    "common_local_feedback_p95": 100,
+    "cached_chat_first_content_p95": 100,
+    "optimistic_send_insert_p95": 100,
+    "omnibar_hot_p95": 50,
+    "omnibar_people_chat_p95": 75,
+    "omnibar_deep_first_batch_p95": 150,
+    "theme_switch_p95": 100,
+    "cached_media_preview_p95": 150,
+    "warm_shell_p75": 500,
+    "cold_shell_p75": 1500,
+    "web_inp_health_p75_ceiling": 200
+  },
+  "token_layers": [
+    "primitive",
+    "semantic",
+    "component-alias",
+    "state-override"
+  ],
+  "protected_roles": [
+    "readable-text",
+    "focus",
+    "danger",
+    "warning",
+    "success",
+    "selected",
+    "target-minimum",
+    "reduced-motion",
+    "security-verification"
+  ],
+  "v1_scope": {
+    "required": [
+      "chat-first-shell",
+      "1to1-messaging",
+      "ordinary-groups",
+      "attachments-media",
+      "voice-notes",
+      "drafts",
+      "offline-retry",
+      "omnibar-search",
+      "qr-link-invites",
+      "notifications",
+      "1to1-calls",
+      "trust-device-recovery-ux",
+      "ownmessenger-essentials",
+      "a11y-i18n-foundation"
+    ],
+    "optional": [
+      "spaces-channels",
+      "scheduled-messages",
+      "extra-theme-presets",
+      "validated-theme-packs",
+      "advanced-keymaps",
+      "app-language-selector",
+      "local-transcripts",
+      "richer-ohmessenger-effects",
+      "explicit-cross-device-draft-sync"
+    ],
+    "experimental": [
+      "bayesian-ranker",
+      "ai-omnibar-interpretation",
+      "remote-speech-translation",
+      "handedness-inference",
+      "novel-label-free-icons",
+      "dynamic-sensory-packs",
+      "asset-marketplace"
+    ],
+    "v2plus": [
+      "deep-space-hierarchy",
+      "forum-thread-trees",
+      "advanced-screen-sharing",
+      "advanced-workspaces",
+      "novel-hid-optimized-adapters",
+      "richer-bot-admin",
+      "automatic-translation-transcription",
+      "cross-account-unified-search",
+      "ai-generated-themes"
+    ]
+  },
+  "identity_human_gate": "paused"
+}

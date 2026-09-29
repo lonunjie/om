@@ -20,5 +20,10 @@
     "resulting_state_hash": "canonical resulting SpaceControlState hash"
   },
   "ControlConflictRule": "Two otherwise valid authority-changing successors of one parent do not resolve by timestamp/provider arrival. Privileged advancement freezes until a resolution referencing competing heads is authorized under the common pre-fork governance.",
-  "PrivacyRule": "Public catalog state may be signed/public. Private membership/role/organization state is E2EE-distributed to authorized recipients; exact exposure, selective-disclosure, and traffic-analysis mitigations are governed by METADATA_THREAT_MODEL.md and verification gate V-015."
+  "PrivacyRule": "Public catalog state may be signed/public. Private membership/role/organization state is E2EE-distributed to authorized recipients; exact exposure, selective-disclosure, and traffic-analysis mitigations are governed by METADATA_THREAT_MODEL.md and verification gate V-015.",
+  "wire_mapping": {
+    "SpaceControlState": "spec/cddl/space-publication.cddl#SpaceControlState",
+    "SpaceControlTransition": "spec/cddl/space-publication.cddl#SpaceDelegatedIntent"
+  },
+  "wire_note": "Logical JSON remains a modeling view. Canonical interoperable bytes are frozen by ADR-0160 in spec/cddl/space-publication.cddl and the registries."
 }

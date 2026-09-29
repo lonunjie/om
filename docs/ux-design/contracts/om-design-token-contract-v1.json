@@ -1,0 +1,67 @@
+{
+  "$schema": "om.design-token-contract.v1",
+  "version": "1.0.0-candidate",
+  "layers": [
+    {
+      "id": "primitive",
+      "consumer": "theme-compiler",
+      "public_component_use": false
+    },
+    {
+      "id": "semantic",
+      "consumer": "platform-adapters/components",
+      "public_component_use": true
+    },
+    {
+      "id": "component-alias",
+      "consumer": "components",
+      "public_component_use": true
+    },
+    {
+      "id": "state-override",
+      "consumer": "components/platform-adapters",
+      "public_component_use": true
+    }
+  ],
+  "protected_semantic_roles": [
+    "text.primary",
+    "text.secondary",
+    "focus.visible",
+    "status.danger",
+    "status.warning",
+    "status.success",
+    "state.selected",
+    "target.minimum",
+    "motion.reduced",
+    "security.verification"
+  ],
+  "forbidden_theme_capabilities": [
+    "action-remap",
+    "permission-request",
+    "network-access",
+    "script-execution",
+    "confirmation-weakening",
+    "accessibility-suppression",
+    "security-truth-override"
+  ],
+  "appearance_pairs": {
+    "required": [
+      "light",
+      "dark"
+    ],
+    "dark_is_independent_pair": true
+  },
+  "versioning": {
+    "scheme": "semver",
+    "patch": "compatible corrections",
+    "minor": "additive roles with fallbacks",
+    "major": "breaking role/meaning changes"
+  },
+  "platform_targets": [
+    "pwa-css",
+    "ios-swiftui-uikit",
+    "android-compose-views",
+    "future-adapter"
+  ],
+  "behavior_preferences_separate_from_theme": true
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": "0.1",
+  "pack_id": "org.om.fixture.invite-cards",
+  "version": "0.1.0",
+  "kind": "mixed",
+  "name": "OM Fixture Invite Cards",
+  "author": "OM design fixture",
+  "license": "CC0-1.0 fixture only",
+  "security": {
+    "scripts": false,
+    "network": false,
+    "external_references": false,
+    "action_remapping": false
+  },
+  "assets": [
+    {
+      "id": "sample-invite-light",
+      "path": "assets/sample-invite-light.svg",
+      "mime": "image/svg+xml",
+      "sha256": "c65a37fc60b569f997fb785bec9b9bba12030d83174a969a35fe32d7e9117bd7",
+      "role": "illustration",
+      "directionality": "none",
+      "accessible_description": "Example invite-card illustration for design testing."
+    },
+    {
+      "id": "sample-invite-dark",
+      "path": "assets/sample-invite-dark.svg",
+      "mime": "image/svg+xml",
+      "sha256": "4cbfdf17290c77d643d3d8501151d2def380bed416e7925d0bae5acd54bd68ac",
+      "role": "illustration",
+      "directionality": "none",
+      "accessible_description": "Example invite-card illustration for design testing."
+    }
+  ]
+}

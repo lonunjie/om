@@ -1,0 +1,145 @@
+{
+  "$schema": "om-uiux-visual-tokens-v0",
+  "status": "provisional",
+  "note": "Semantic reference tokens. Platform adapters may tune rendered values while preserving roles and accessibility constraints.",
+  "spacing": {
+    "unit": 4,
+    "scale": [
+      2,
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      32,
+      40,
+      48,
+      64
+    ]
+  },
+  "targets": {
+    "mobilePreferred": 48,
+    "mobileMinimum": 44,
+    "unit": "logical_px"
+  },
+  "typography": {
+    "display": {
+      "sizeRange": [
+        28,
+        32
+      ],
+      "weightRange": [
+        600,
+        700
+      ]
+    },
+    "title": {
+      "sizeRange": [
+        20,
+        24
+      ],
+      "weightRange": [
+        600,
+        700
+      ]
+    },
+    "headline": {
+      "sizeRange": [
+        17,
+        20
+      ],
+      "weight": 600
+    },
+    "body": {
+      "size": 16,
+      "weight": 400,
+      "lineHeightRange": [
+        1.35,
+        1.5
+      ]
+    },
+    "bodyEmphasis": {
+      "size": 16,
+      "weight": 600
+    },
+    "label": {
+      "size": 14,
+      "weightRange": [
+        500,
+        600
+      ]
+    },
+    "caption": {
+      "sizeRange": [
+        12,
+        13
+      ],
+      "weightRange": [
+        400,
+        500
+      ]
+    }
+  },
+  "motion": {
+    "instantMs": [
+      0,
+      80
+    ],
+    "microMs": [
+      100,
+      140
+    ],
+    "standardMs": [
+      160,
+      220
+    ],
+    "spatialMs": [
+      220,
+      280
+    ],
+    "expressiveMs": [
+      280,
+      500
+    ]
+  },
+  "densityProfiles": [
+    "comfortable",
+    "compact",
+    "large",
+    "custom"
+  ],
+  "colorRoles": [
+    "surface.base",
+    "surface.subtle",
+    "surface.raised",
+    "surface.overlay",
+    "text.primary",
+    "text.secondary",
+    "text.disabled",
+    "border.subtle",
+    "accent.primary",
+    "accent.onPrimary",
+    "state.hover",
+    "state.pressed",
+    "state.focus",
+    "state.selected",
+    "status.info",
+    "status.success",
+    "status.warning",
+    "status.danger",
+    "message.incoming.surface",
+    "message.outgoing.surface",
+    "message.failed",
+    "message.pending"
+  ],
+  "protectedInvariants": [
+    "canonical_action_meaning",
+    "focus_visibility",
+    "critical_status_visibility",
+    "minimum_targetability",
+    "contrast_requirements",
+    "security_confirmation",
+    "reduced_motion_semantics"
+  ]
+}

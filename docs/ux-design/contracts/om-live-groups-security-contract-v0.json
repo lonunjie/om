@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OM Live, Groups/Spaces, and Security UX Contract v0",
+  "revision": "13B",
+  "objects": {
+    "call-session": {
+      "states": ["incoming", "starting", "ringing", "connecting", "active", "reconnecting", "held", "ending", "ended", "failed"],
+      "route_is_security_score": false,
+      "reconnect_preserves_logical_call": true,
+      "camera_may_activate_on_invitation_only": false
+    },
+    "call-participation": {
+      "microphone": ["unknown", "on", "muted", "blocked"],
+      "camera": ["unknown", "on", "off", "blocked"],
+      "media_permissions_just_in_time": true
+    },
+    "group": {
+      "model": "conversation-with-multiple-participants",
+      "requires_space_hierarchy": false,
+      "duplicate_display_names_are_identity": false
+    },
+    "space": {
+      "optional": true,
+      "v1_structure": "space-channel",
+      "nested_hierarchy_required": false,
+      "public_discovery_required": false
+    },
+    "security-relationship": {
+      "states": ["not-manually-verified", "verified-by-user", "verification-changed", "review-required"],
+      "automatic_crypto_check_is_real_world_identity": false,
+      "display_name_is_identity": false
+    },
+    "device-authorization": {
+      "states": ["active", "recently-added", "revoked", "unknown-to-user"],
+      "revoke_is_security_critical": true,
+      "revocation_implies_remote_data_erasure": false
+    },
+    "recovery-operation": {
+      "scopes": ["identity-authority", "history-data", "provider-discovery"],
+      "generic_recover_all_claim_allowed": false,
+      "secret_reveal_requires_explicit_action": true
+    },
+    "provider-route": {
+      "is_account_identity": false,
+      "route_change_requires_security_warning": false,
+      "advanced_diagnostics_allowed": true
+    }
+  },
+  "actions": [
+    {"id": "start-audio-call", "target": "conversation-or-person", "risk": "consequential"},
+    {"id": "start-video-call", "target": "conversation-or-person", "risk": "consequential"},
+    {"id": "answer-call-audio", "target": "call-session", "risk": "consequential"},
+    {"id": "answer-call-video", "target": "call-session", "risk": "consequential", "permission": "camera-just-in-time"},
+    {"id": "decline-call", "target": "call-session", "risk": "consequential"},
+    {"id": "end-call", "target": "call-session", "risk": "consequential"},
+    {"id": "set-call-muted", "target": "call-participation", "risk": "reversible"},
+    {"id": "set-camera-enabled", "target": "call-participation", "risk": "reversible"},
+    {"id": "choose-audio-endpoint", "target": "call-participation", "risk": "reversible"},
+    {"id": "join-group-call", "target": "call-session", "risk": "consequential"},
+    {"id": "leave-group-call", "target": "call-session", "risk": "consequential"},
+    {"id": "open-group-details", "target": "group", "risk": "observational"},
+    {"id": "open-space", "target": "space", "risk": "observational"},
+    {"id": "open-space-channel", "target": "channel", "risk": "observational"},
+    {"id": "invite-to-group", "target": "group", "risk": "consequential"},
+    {"id": "invite-to-space", "target": "space", "risk": "consequential"},
+    {"id": "leave-group", "target": "group", "risk": "consequential"},
+    {"id": "leave-space", "target": "space", "risk": "consequential"},
+    {"id": "remove-member", "target": "group-or-space-member", "risk": "destructive"},
+    {"id": "view-security-details", "target": "person-or-conversation", "risk": "observational"},
+    {"id": "compare-security-code", "target": "security-relationship", "risk": "observational"},
+    {"id": "scan-verification-qr", "target": "security-relationship", "risk": "reversible"},
+    {"id": "mark-verified-by-user", "target": "security-relationship", "risk": "consequential", "explicit_confirmation": true},
+    {"id": "review-verification-change", "target": "security-relationship", "risk": "security-critical"},
+    {"id": "add-device", "target": "device-authorization", "risk": "security-critical"},
+    {"id": "revoke-device", "target": "device-authorization", "risk": "security-critical", "explicit_target": true},
+    {"id": "start-recovery", "target": "recovery-operation", "risk": "security-critical", "explicit_scope": true},
+    {"id": "reveal-recovery-material", "target": "recovery-operation", "risk": "security-critical", "local_reauthentication_preferred": true},
+    {"id": "change-provider", "target": "provider-route", "risk": "consequential", "advanced": true}
+  ],
+  "invariants": [
+    "route_is_not_security_score",
+    "incoming_video_does_not_activate_camera_before_user_action",
+    "call_reconnect_preserves_logical_call",
+    "ordinary_group_does_not_require_space_hierarchy",
+    "space_is_optional",
+    "display_name_is_not_identity",
+    "automatic_crypto_check_is_not_real_world_identity",
+    "manual_verification_change_requires_review",
+    "provider_change_is_not_identity_change",
+    "recovery_scopes_remain_distinct",
+    "device_revocation_does_not_claim_remote_erasure_without_domain_evidence",
+    "security_critical_actions_cannot_be_zero_query_auto_executed"
+  ]
+}

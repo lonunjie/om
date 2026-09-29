@@ -360,3 +360,7 @@ A synced WebAuthn/passkey custodian is convenient but RP-scoped. For a PWA, pass
 **recovery available, distribution-bound**, not portable recovery. The client should continue offering an
 origin-independent method (recovery key, guardian quorum or supported hardware route) without blocking ordinary use.
 V-006 must include loss of the original ClientHost/RP followed by recovery from an unrelated origin/native client.
+
+## R15 reference-client presentation note
+
+ADR-0159 leaves recovery authority/timers/custody unchanged. The reference UX must present the actual default custodian/state, keep identity recovery separate from history restore and provider/discovery reconnect, and distinguish device Suspend/quarantine, pending/final revocation and Safety Freeze states. See [`RECONCILED_INTERACTION_MODEL.md`](../ux/RECONCILED_INTERACTION_MODEL.md) and [`SCREEN_MAP_AND_JOURNEYS.md`](../../ux-design/SCREEN_MAP_AND_JOURNEYS.md).

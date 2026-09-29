@@ -1,0 +1,78 @@
+{
+  "profile": "OM-V1-critical-extension-convergence-ADR0157",
+  "cases": [
+    {
+      "id": "future-critical-downgrade",
+      "extension_id": "om.critical.future.example",
+      "wire_critical": false,
+      "baseline": "reject_unknown_critical_extension",
+      "future_registry": "reject_criticality_mismatch",
+      "validity_converges": true
+    },
+    {
+      "id": "future-critical-honest",
+      "extension_id": "om.critical.future.example",
+      "wire_critical": true,
+      "baseline": "reject_unknown_critical_extension",
+      "future_registry": "accept_registered",
+      "validity_converges": false,
+      "note": "Expected feature-version boundary: baseline does not implement the critical extension."
+    },
+    {
+      "id": "ordinary-unknown-noncritical",
+      "extension_id": "org.example.nice-to-have",
+      "wire_critical": false,
+      "baseline": "accept_ignored",
+      "future_registry": "accept_ignored",
+      "validity_converges": true
+    },
+    {
+      "id": "ordinary-unknown-critical",
+      "extension_id": "org.example.must-understand",
+      "wire_critical": true,
+      "baseline": "reject_unknown_critical_extension",
+      "future_registry": "reject_unknown_critical_extension",
+      "validity_converges": true
+    },
+    {
+      "id": "grandfathered-fork-ack",
+      "extension_id": "om.acs.fork_ack",
+      "wire_critical": true,
+      "baseline": "accept_registered",
+      "future_registry": "accept_registered",
+      "validity_converges": true
+    },
+    {
+      "id": "grandfathered-fork-ack-downgraded",
+      "extension_id": "om.acs.fork_ack",
+      "wire_critical": false,
+      "baseline": "reject_criticality_mismatch",
+      "future_registry": "reject_criticality_mismatch",
+      "validity_converges": true
+    },
+    {
+      "id": "grandfathered-legacy-policy",
+      "extension_id": "om.acs.legacy_policy",
+      "wire_critical": true,
+      "baseline": "accept_registered",
+      "future_registry": "accept_registered",
+      "validity_converges": true
+    },
+    {
+      "id": "grandfathered-legacy-policy-downgraded",
+      "extension_id": "om.acs.legacy_policy",
+      "wire_critical": false,
+      "baseline": "reject_criticality_mismatch",
+      "future_registry": "reject_criticality_mismatch",
+      "validity_converges": true
+    }
+  ],
+  "registry_rules": {
+    "reserved_prefix": "om.critical.",
+    "noncritical_registration_under_reserved_prefix": "reject_registry",
+    "grandfathered_critical_ids": [
+      "om.acs.fork_ack",
+      "om.acs.legacy_policy"
+    ]
+  }
+}

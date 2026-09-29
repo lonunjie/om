@@ -1,3 +1,37 @@
+# 2026-09-29 09:02 PHT — R16C V-008 Space/Publication wire freeze
+
+- Closed the last repo-local V-008 criterion with ADR-0160 and canonical W3 CDDL/registry assignments for SpaceControlState, SpaceDelegatedIntent, PublicationControlState and PublicationEvent.
+- Added typed wire bodies for moderation.redact and Topic operations; no W0 object identity changed.
+- Added 19-vector Python/Node codec agreement evidence (9 positive, 10 negative), including SignedEnvelope framing and Publication sequence-chain rules.
+- V-008 is now 6/6 repo-local; required independent review remains open. Engineering remains unauthorized.
+
+## 2026-09-29 08:50 PHT — R16B repo-local executable/spec/vector evidence
+
+- Added bounded fixed-semantics evidence for V-004: 531 cases close reducing-transition liveness, account-control send/add rules and immutable-incarnation stale reductions; V-004 is 3/7 repo-local.
+- Credited the existing independent-tool ScopedPermissions TLC model after ADR-0122 resolved its formerly-open semantics, plus 24,637 new bounded authority cases; V-008 is 5/6, with only later-wave wire freeze still repo-local.
+- Credited existing ServiceAuthority TLC and capability-broker evidence plus 68 new bounded service-authority cases; V-011 is 6/7, with only later-wave wire freeze still repo-local.
+- Completed V-020 repo-local evidence at 9/9 with blocked-vendor/blocked-suffix survival simulations and 724 sponsor-revocation/non-sponsor-route cases; required independent review remains open.
+- Added LanDeliveryProfile machine constants, 9 positive + 8 negative vectors with independent Python/Node agreement, and passive-observer/offline-first-contact mutation models; V-024 is 3/4, with real-browser WebRTC feasibility still open.
+- Deliberately left V-013 wire freeze and V-014 archive freeze open because each would require a new interoperable protocol/crypto design decision rather than mere verification. Engineering remains unauthorized.
+
+## 2026-09-29 08:22 PHT — R16A verification-gate triage
+
+- Classified every V-001..V-024 pre-engineering blocker by independent-review, repo-local model/spec/vector, browser/runtime, independent-implementation, human-study or measurement-plan dependency.
+- Closed V-005 ADR-0157 critical-prefix convergence with Python+Node evidence and strict-codec source updates; V-005 is now 13/13 repo-local criteria.
+- Closed V-013's explicit full-member/export-only bridge-contract criterion; V-013 is 2/4.
+- Credited existing V-023 verified-release lifecycle evidence and provider PC-I01..PC-I03 to V-020; V-020 is 7/9.
+- Added `verification/results/r16a-gate-triage.json` and the R16A report. No independent, browser/device or human criterion was self-approved; engineering remains unauthorized.
+
+## 2026-09-29 08:05 PHT — R15 UI/UX architecture integration / ADR-0159
+
+- Reconciled the standalone OM UI/UX design track into the authoritative architecture rather than keeping a parallel design tree.
+- Replaced the stale fixed `Chats / Calls / People` UX seed with a Chats-first compact shell, user-composable destinations, bottom-reachable Omnibar and composer↔Omnibar semantic morph.
+- Added the explicit semantic Action Registry → typed Core intent boundary; security-critical UI actions cannot bypass Core policy.
+- Reconciled architecture-mandated V1 UX including scheduled send, eligible-device private draft sync, Spaces/Rooms/nesting, threads/Topics, Publication, polls, rich text, stickers/bounded loops, disappearing/view-once, ContactCapsule/MessageRequest, privacy link previews and selective report/evidence.
+- Integrated T0–T4 sponsored Home/client-origin onboarding, recovery-on-by-default, Protection profiles, device Suspend/quarantine, pending/final revocation and Safety Freeze.
+- Added ADR-0159 / D-181, R-351..R-360, canonical UX docs, action→Core mapping, detailed contracts/tokens/icons/media/prototypes and R15 reconciliation trace under `docs/ux-design/`.
+- Validation: architecture/docs/registry/continuity checks pass; all 44 portable phase-1 evidence producers were observed passing in bounded execution. V-018/V-022 and all other required independent/device/human gates remain open; engineering remains unauthorized.
+
 ## 2026-09-29 06:34 PHT — independent remediation / ADR-0157–0158
 
 - OpenAI GPT-5.6 Sol independently reviewed Anthropic-authored ADR-0154–0156 and recorded the review under `verification/reviews/2026-09-29-gpt-5-6-sol-adr0154-0156-independent-review.md`.

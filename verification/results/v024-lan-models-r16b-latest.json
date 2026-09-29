@@ -1,0 +1,41 @@
+{
+  "kind": "r16b_v024_lan_models",
+  "gates": [
+    "V-024"
+  ],
+  "passed": true,
+  "passive_observer": {
+    "cases": 22,
+    "advertised_cardinality": 8,
+    "mutations": {
+      "bare_inner_envelope_caught": true,
+      "variable_cardinality_caught": true,
+      "stable_connection_id_caught": true,
+      "link_change_rotation_caught": true
+    },
+    "passed": true
+  },
+  "offline_first_contact": {
+    "cases": 32,
+    "mutations": {
+      "lan_reachability_as_relationship_caught": true,
+      "async_key_before_relationship_caught": true,
+      "unsigned_local_ticket_caught": true,
+      "skip_reciprocal_binding_caught": true
+    },
+    "passed": true
+  },
+  "structural": {
+    "cddl_frozen": true,
+    "numeric_structs": true,
+    "domain_labels": true,
+    "constants": true
+  },
+  "criteria_evidenced": [
+    "passive LAN-observer trace model: no clear sender device key or Double Ratchet header, exactly K=8 advertised tags, and no connection/delivery-key/route identifier stable across rendezvous epochs or link-layer address changes; mutations sending the bare inner envelope, varying tag cardinality or reusing an identifier are caught (R-342, R-349, T-134)",
+    "offline first-contact model: a QR/invite LAN first contact obtains an intro-identity-signed ticket/request key through the local IntroGate adapter and runs ordinary MessageRequest/reciprocal binding; async-key fetch is denied until relationship-scoped authority exists; LAN reachability never creates relationship/device eligibility (R-350)"
+  ],
+  "explicitly_not_claimed": [
+    "real-browser WebRTC DataChannel feasibility"
+  ]
+}

@@ -1,5 +1,11 @@
-# OM UI shell prototype
+# OM UI/UX PWA Reference v3
 
-Open `index.html` directly in a modern browser. It is a static, dependency-free visual/interaction prototype only; it is **not** production OM code and contains no OM cryptography/network logic.
+Run 11B fixture integrating the OM functional icon family.
 
-Resize the window to see compact/mobile and expanded/wide layouts. Use Chats/Calls/People and conversation selection to exercise the shell.
+It remains a UX fixture: no production protocol, crypto, identity, resolver, or network implementation.
+
+Changes from v2:
+- OM-authored functional SVG symbols replace Unicode/emoji controls and status glyphs;
+- component accessible names remain on controls, not inside SVG artwork;
+- Omnibar results use semantic icon IDs;
+- invite/QR and failure/retry states exercise the same icon contract.

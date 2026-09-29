@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-28T21:22:00+08:00",
+  "snapshot": "2026-09-29T07:55:00+08:00",
   "scope": "current_non_history",
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
@@ -1229,6 +1229,20 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0159-reconcile-uiux-interaction-model-into-v1-reference-client.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0160-v008-space-publication-wire-freeze.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -1698,7 +1712,21 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "docs/architecture/ux/ACTION_TO_CORE_INTENT_MAP.md",
+      "class": "architecture_doc",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "docs/architecture/ux/MOTION_AND_PERFORMANCE.md",
+      "class": "architecture_doc",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/ux/RECONCILED_INTERACTION_MODEL.md",
       "class": "architecture_doc",
       "domain": "ux_accessibility_personalization",
       "license": "CC-BY-SA-4.0",
@@ -2027,6 +2055,13 @@
       "authority": "historical_checkpoint_record"
     },
     {
+      "path": "docs/checkpoints/CHECKPOINT_20260929_0755.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
       "path": "docs/checkpoints/README.md",
       "class": "checkpoint",
       "domain": "architecture_process",
@@ -2286,6 +2321,34 @@
       "authority": "working_record_non_normative"
     },
     {
+      "path": "docs/reports/2026-09-29-r15-uiux-architecture-integration.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-09-29-r16a-verification-gate-triage.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-09-29-r16b-repo-local-evidence.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-09-29-r16c-v008-space-publication-wire-freeze.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
       "path": "docs/reports/README.md",
       "class": "report",
       "domain": "architecture_process",
@@ -2419,7 +2482,2016 @@
       "authority": "design_reference"
     },
     {
+      "path": "docs/ux-design/README.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
       "path": "docs/ux-design/SCREEN_MAP_AND_JOURNEYS.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/avatar/v0/avatar-fixtures.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/avatar/v0/generate_avatar.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/avatar/v0/samples/acct-a.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/avatar/v0/samples/acct-b.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/avatar/v0/samples/acct-maria.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/avatar/v0/samples/acct-ren.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/avatar/v0/samples/acct-z.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/avatar/v0/samples/group-family.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/README.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/om-icons-sprite.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/om-icons.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/preview/contact-sheet-dark.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/preview/contact-sheet-dark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/preview/contact-sheet-grayscale.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/preview/contact-sheet-high-contrast.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/preview/contact-sheet-high-contrast.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/preview/contact-sheet-light.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/preview/contact-sheet-light.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/preview/contact-sheet.html",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/preview/small-size-20px-upscaled-bilinear.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/preview/small-size-20px.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/preview/small-size-24px.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/preview/small-size-32px.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/account.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/add.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/archive.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/attach.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/audio.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/back.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/call-end.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/call.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/calls.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/camera-off.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/camera.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/chats.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/close.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/contact.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/copy.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/delete.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/delivered.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/device.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/devices.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/download.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/edit.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/emoji.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/failed.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/file.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/filter.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/forward-message.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/forward-nav.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/image.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/info.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/invite.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/link.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/location.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/lock.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/mark-unread.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/mic-off.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/mic.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/more.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/mute.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/omni.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/pending.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/people.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/pin.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/poll.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/qr-scan.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/qr-show.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/react.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/read.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/recovery.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/refresh.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/reply.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/retry.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/search.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/security-warning.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/send.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/sent.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/settings.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/share.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/sort.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/spaces.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/speaker.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/unmute.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/unpin.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/upload.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/verified.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/verify.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/svg/video-call.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/variants/calls-selected.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/variants/chats-selected.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/variants/omni-active.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/variants/people-selected.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/icons/v0/variants/spaces-selected.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/android/adaptive-preview-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/android/background.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/android/foreground.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/android/monochrome.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/apple/background.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/apple/dark-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/apple/default-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/apple/foreground-dark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/apple/foreground.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/apple/tinted-preview-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/base/app-dark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/base/app-default.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/base/mark-white.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/base/mark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/notification/mark-96.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/notification/mark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/pwa/icon-192.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/pwa/icon-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/pwa/icon-any.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/pwa/icon-maskable-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/pwa/icon-maskable.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/pwa/icon-monochrome.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/web/favicon-16.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/web/favicon-32.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/web/favicon-48.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/dialogue-fold/web/favicon.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/android/adaptive-preview-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/android/background.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/android/foreground.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/android/monochrome.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/apple/background.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/apple/dark-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/apple/default-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/apple/foreground-dark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/apple/foreground.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/apple/tinted-preview-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/base/app-dark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/base/app-default.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/base/mark-white.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/base/mark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/notification/mark-96.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/notification/mark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/pwa/icon-192.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/pwa/icon-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/pwa/icon-any.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/pwa/icon-maskable-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/pwa/icon-maskable.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/pwa/icon-monochrome.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/web/favicon-16.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/web/favicon-32.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/web/favicon-48.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/om-fold/web/favicon.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/android/adaptive-preview-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/android/background.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/android/foreground.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/android/monochrome.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/apple/background.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/apple/dark-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/apple/default-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/apple/foreground-dark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/apple/foreground.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/apple/tinted-preview-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/base/app-dark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/base/app-default.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/base/mark-white.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/base/mark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/notification/mark-96.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/notification/mark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/pwa/icon-192.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/pwa/icon-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/pwa/icon-any.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/pwa/icon-maskable-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/pwa/icon-maskable.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/pwa/icon-monochrome.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/web/favicon-16.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/web/favicon-32.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/web/favicon-48.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/one-thread/web/favicon.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/android/adaptive-preview-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/android/background.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/android/foreground.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/android/monochrome.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/apple/background.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/apple/dark-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/apple/default-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/apple/foreground-dark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/apple/foreground.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/apple/tinted-preview-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/base/app-dark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/base/app-default.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/base/mark-white.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/base/mark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/notification/mark-96.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/notification/mark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/pwa/icon-192.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/pwa/icon-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/pwa/icon-any.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/pwa/icon-maskable-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/pwa/icon-maskable.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/pwa/icon-monochrome.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/web/favicon-16.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/web/favicon-32.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/web/favicon-48.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/open-loop/web/favicon.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/android/adaptive-preview-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/android/background.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/android/foreground.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/android/monochrome.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/apple/background.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/apple/dark-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/apple/default-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/apple/foreground-dark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/apple/foreground.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/apple/tinted-preview-1024.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/base/app-dark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/base/app-default.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/base/mark-white.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/base/mark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/notification/mark-96.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/notification/mark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/pwa/icon-192.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/pwa/icon-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/pwa/icon-any.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/pwa/icon-maskable-512.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/pwa/icon-maskable.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/pwa/icon-monochrome.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/web/favicon-16.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/web/favicon-32.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/web/favicon-48.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/candidates/peer-link/web/favicon.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/previews/dialogue-fold-platform-study.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/previews/identity-candidate-contact-sheet.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/previews/identity-lockup-preview.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/previews/om-fold-platform-study.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/previews/one-thread-platform-study.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/previews/open-loop-platform-study.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r11c/previews/peer-link-platform-study.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/one-thread/android-standard-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/one-thread/android-themed-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/one-thread/ios-dark-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/one-thread/ios-light-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/one-thread/ios-tinted-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/one-thread/pwa-browser-context.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/open-loop/android-standard-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/open-loop/android-themed-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/open-loop/ios-dark-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/open-loop/ios-light-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/open-loop/ios-tinted-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/open-loop/pwa-browser-context.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/peer-link/android-standard-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/peer-link/android-themed-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/peer-link/ios-dark-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/peer-link/ios-light-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/peer-link/ios-tinted-grid.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/peer-link/pwa-browser-context.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/identity/r12/previews/platform-context-shortlist-r12.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/invite/v0/fixture-qr.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/invite/v0/sample-invite-dark.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/invite/v0/sample-invite-light.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/assets/media/v0/README.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-accessibility-mapping-v0.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-action-core-intent-map-v1.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-asset-pack-example-v0.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-asset-pack-manifest-v0.schema.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-design-token-contract-v1.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-functional-icon-assets-v0.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-icon-comprehension-r12.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-icon-inventory-v0.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-identity-assets-r11c.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-live-groups-security-contract-v0.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-messaging-contract-v0.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-system-completeness-contract-v0.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-ui-components-v0.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/contracts/om-ui-web-conformance-v0.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0001-separate-design-track.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0002-chat-first-omnibar-shell.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0003-composer-omnibar-state-morph.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0004-single-tab-default-and-compact-shell.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0005-omnibar-resolution-and-local-first-index.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0006-visual-system-and-theme-contract.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0007-research-backed-default-theme.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0008-validation-gates-and-default-protection.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0009-semantic-components-accessibility-and-ranking-evidence.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0010-pwa-conformance-harness.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0011-icon-language-foundation.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0012-functional-icons-and-media-asset-boundary.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0013-identity-exploration-and-platform-adaptation.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0014-identity-validation-preparation-and-name-clearance.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0015-messaging-completeness-and-object-preserving-transport.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0016-live-groups-security-and-contextual-trust.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0017-system-completeness-and-v1-scope-candidate.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/design-decisions/ADR-UIUX-0018-r14-architecture-reconciliation-audit.md",
       "class": "design_artifact",
       "domain": "ux_accessibility_personalization",
       "license": "CC-BY-SA-4.0",
@@ -2440,11 +4512,417 @@
       "authority": "prototype_non_normative"
     },
     {
+      "path": "docs/ux-design/prototype/app.js",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "prototype_non_normative"
+    },
+    {
+      "path": "docs/ux-design/prototype/assets/om-icons-sprite.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "prototype_non_normative"
+    },
+    {
+      "path": "docs/ux-design/prototype/assets/om-icons.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "prototype_non_normative"
+    },
+    {
       "path": "docs/ux-design/prototype/index.html",
       "class": "design_artifact",
       "domain": "ux_accessibility_personalization",
       "license": "Apache-2.0",
       "authority": "prototype_non_normative"
+    },
+    {
+      "path": "docs/ux-design/prototype/manifest.webmanifest",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "prototype_non_normative"
+    },
+    {
+      "path": "docs/ux-design/prototype/preview-conversation.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "prototype_non_normative"
+    },
+    {
+      "path": "docs/ux-design/prototype/preview-omnibar.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "prototype_non_normative"
+    },
+    {
+      "path": "docs/ux-design/prototype/preview-root.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "prototype_non_normative"
+    },
+    {
+      "path": "docs/ux-design/prototype/standalone.html",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "prototype_non_normative"
+    },
+    {
+      "path": "docs/ux-design/prototype/styles.css",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "prototype_non_normative"
+    },
+    {
+      "path": "docs/ux-design/prototype/sw.js",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "prototype_non_normative"
+    },
+    {
+      "path": "docs/ux-design/prototypes/icon-comprehension-v1/README.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/icon-comprehension-v1/index.html",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/identity-validation-v1/README.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/identity-validation-v1/index.html",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/live-groups-security-v0/README.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/live-groups-security-v0/index.html",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/live-groups-security-v0/preview-groups.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/live-groups-security-v0/preview-security.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/live-groups-security-v0/preview.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/messaging-completeness-v0/README.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/messaging-completeness-v0/index.html",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/pwa-reference-v3/README.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/pwa-reference-v3/app.js",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/pwa-reference-v3/assets/om-icons-sprite.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/pwa-reference-v3/assets/om-icons.svg",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/pwa-reference-v3/index.html",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/pwa-reference-v3/manifest.webmanifest",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/pwa-reference-v3/preview-conversation.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/pwa-reference-v3/preview-omnibar.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/pwa-reference-v3/preview-root.png",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/pwa-reference-v3/standalone.html",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/pwa-reference-v3/styles.css",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/pwa-reference-v3/sw.js",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/system-completeness-v0/README.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/prototypes/system-completeness-v0/index.html",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/reconciliation/ARCHITECTURE_SOURCE_R14.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/reconciliation/ARCHITECTURE_VALIDATION_R14.txt",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/reconciliation/R14_ARCHITECTURE_UIUX_RECONCILIATION.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/reconciliation/R14_RECONCILIATION_CHECKS.txt",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/reconciliation/R15_INTEGRATION_RESOLUTION.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/reconciliation/om-r14-reconciliation-v0.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/reconciliation/om-r15-integration-v0.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/research/CALL_GROUP_SECURITY_UX_EVIDENCE_R13B.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/research/CONTRAST_AUDIT_R7.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/research/FOUNDATIONS.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/research/FUNCTIONAL_ICON_COMPREHENSION_PLAN_R12.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/research/ICONOGRAPHY_EVIDENCE.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/research/IDENTITY_PLATFORM_CONTEXT_REVIEW_R12.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/research/MEDIA_ASSET_EVIDENCE.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/research/MESSAGING_UX_EVIDENCE_R13A.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/research/OMNIBAR_BENCHMARK_R9.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/research/OMNIBAR_BENCHMARK_R9.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/research/PRELIMINARY_IDENTITY_NAME_COLLISION_R12.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/research/PWA_CONFORMANCE_R13C.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/research/PWA_CONFORMANCE_R13C.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/research/SYSTEM_COMPLETENESS_EVIDENCE_R13C.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/research/VALIDATION_PROTOCOL.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/research/VISUAL_ERGONOMICS_EVIDENCE.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
     },
     {
       "path": "docs/ux-design/rich-text.logical.schema.json",
@@ -2454,7 +4932,420 @@
       "authority": "logical_design_schema"
     },
     {
+      "path": "docs/ux-design/specs/ACCESSIBILITY_AND_INPUT.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/ACCESSIBILITY_PLATFORM_MAPPING.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/ACTION_REGISTRY.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/ARCHITECTURE_MANDATED_V1_SURFACES.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/ATTACHMENTS_AND_MEDIA_UX.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/AVATAR_AND_FALLBACK_IDENTITY_MEDIA.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/COLOR_CONTRAST_AND_THEMING.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/COMPONENT_BEHAVIOR_AND_STATES.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/COMPONENT_STATE_MACHINES.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/CONTENT_AND_MICROCOPY_VOICE.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/DEFAULT_THEME_AND_COLOR_SEMANTICS.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/DESIGN_TOKEN_ENGINEERING_CONTRACT.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/DISCOVERY_AND_ONBOARDING.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/DRAFTS_SCHEDULED_AND_CONTINUITY.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/GROUPS_AND_SPACES_UX.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/HAPTIC_AND_SOUND_SEMANTICS.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/ICON_COLOR_STATE_AND_MOTION.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/ICON_CONSTRUCTION_AND_OPTICS.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/ICON_SYSTEM_CONSTITUTION.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/ICON_TAXONOMY_AND_INVENTORY.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/IDENTITY_VALIDATION_AND_FREEZE_GATES.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/INTERACTION_STATES_AND_ICONOGRAPHY.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/INVITE_AND_EMPTY_STATE.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/INVITE_QR_MEDIA.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/LIVE_CALLS_UX.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/LOCALIZATION_AND_RTL_READINESS.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/LOCAL_ADAPTATION_AND_PRIVACY.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/MEDIA_ASSET_PACKS.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/MEDIA_PLACEHOLDERS_AND_CONTENT_STATES.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/MESSAGING_COMPLETENESS.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/MOBILE_SHELL_PROTOTYPE.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/MOBILE_SHELL_STATES.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/MOTION_TOKENS_AND_PHYSICS.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/NOTIFICATIONS_AND_ATTENTION.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/OFFLINE_FAILURE_AND_RECOVERY.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/OMNIBAR_AND_NAVIGATION.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/OMNIBAR_BEHAVIOR.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/OMNIBAR_BENCHMARK_AND_LEARNING_EVAL.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/OMNIBAR_INDEXING_AND_PERFORMANCE.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/OMNIBAR_RANKING.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/OMNIBAR_TRIGGER_AND_TRANSITION.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/OMNIBAR_VOICE_AND_KEYBOARD.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/OM_IDENTITY_AND_APP_ICON.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/OWNMESSENGER_THEME_CONTRACT.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/PERFORMANCE_UX_BUDGETS.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/PRESET_THEME_PAIRS.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/PRIVACY_SECURITY_INTERACTION_UX.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/PWA_COMPONENT_CONFORMANCE.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/RESPONSIVE_CAPABILITY_LAYOUTS.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/SEMANTIC_MOTION_AND_DELIGHT.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/SETTINGS_AND_OWNMESSENGER_ARCHITECTURE.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/TABS_REACHABILITY_AND_SHELL_CUSTOMIZATION.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/TYPOGRAPHY_DENSITY_SPACING.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/V1_SCOPE_MAP.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/VALIDATION_GATES.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/specs/VOICE_NOTES_UX.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
       "path": "docs/ux-design/theme-bundle.logical.schema.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/tokens/om-theme-clear-v1.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/tokens/om-theme-presets-v1.json",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/tokens/om-visual-tokens-v0.json",
       "class": "design_artifact",
       "domain": "ux_accessibility_personalization",
       "license": "Apache-2.0",
@@ -2466,6 +5357,118 @@
       "domain": "ux_accessibility_personalization",
       "license": "Apache-2.0",
       "authority": "logical_design_schema"
+    },
+    {
+      "path": "docs/ux-design/validation/README.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/benchmark_omnibar.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/run_pwa_conformance.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/run_static_checks.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/validate_icon_inventory.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/validate_identity_assets.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/validate_messaging_contracts.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/validate_r11b_assets.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/validate_r12_identity.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/validate_r13b_contracts.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/validate_r13b_fixture.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/validate_r13c_fixture.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/validate_r13c_system.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/validate_r14_reconciliation.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/validate_r15_integration.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
+    },
+    {
+      "path": "docs/ux-design/validation/validate_semantic_contracts.py",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
     },
     {
       "path": "machine/architecture_design_queue.jsonl",
@@ -2627,6 +5630,13 @@
       "domain": "network_lan_transport",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/cddl/space-publication.cddl",
+      "class": "spec_artifact",
+      "domain": "crypto_1to1",
+      "license": "Apache-2.0",
+      "authority": "normative_wire_schema"
     },
     {
       "path": "spec/client/device-vault.logical.schema.json",
@@ -2842,6 +5852,13 @@
       "path": "spec/protocol/invite.logical.schema.json",
       "class": "protocol_schema",
       "domain": "discovery_first_contact",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/protocol/lan-delivery-profile.json",
+      "class": "protocol_schema",
+      "domain": "network_lan_transport",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
     },
@@ -3329,6 +6346,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/critical_extension_adr0157.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/cross_wave_feasibility.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -3525,6 +6549,41 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/v004_group_control_r16b.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/v008_authority_r16b.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/v011_service_authority_r16b.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/v020_provider_resilience_r16b.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/v024_lan_models_r16b.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/wire_boundary_models.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -3554,6 +6613,13 @@
     },
     {
       "path": "verification/cbor/node_canonical.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/cbor/node_critical_extension_adr0157.mjs",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -4092,6 +7158,41 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/v008-space-wire/README.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/prototypes/v008-space-wire/node_codec.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v008-space-wire/python_codec.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v008-space-wire/run.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v008-space-wire/vectors.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/v009-materializer/.gitignore",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -4442,6 +7543,34 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/v024-lan-wire/node_lan_codec.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v024-lan-wire/python_lan_codec.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v024-lan-wire/run.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v024-lan-wire/vectors.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/results/abuse-w0-rules-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
@@ -4534,6 +7663,13 @@
     },
     {
       "path": "verification/results/conversation-convergence-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/critical-extension-adr0157-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -4680,6 +7816,20 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/r16a-gate-triage.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/r16b-gate-progress.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/recovery-durable-timer-adr0147-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
@@ -4778,6 +7928,13 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/v004-group-control-r16b-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/v005-encoding-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
@@ -4799,6 +7956,13 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/v008-authority-r16b-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/v008-permissions-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
@@ -4806,7 +7970,21 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/v008-space-publication-wire-r16c-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/v009-materializer-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/v011-service-authority-r16b-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -4835,6 +8013,27 @@
     },
     {
       "path": "verification/results/v016-room-moderation-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/v020-provider-resilience-r16b-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/v024-lan-models-r16b-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/v024-lan-wire-r16b-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -5654,6 +8853,13 @@
     },
     {
       "path": "verification/vectors/adr0150-rich-list-vectors.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/adr0157-critical-extension-convergence.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

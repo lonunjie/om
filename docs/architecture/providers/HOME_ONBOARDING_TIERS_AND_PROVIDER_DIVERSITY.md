@@ -218,3 +218,7 @@ No vendor names or infrastructure vocabulary appear outside Advanced. The contin
    for a T0 sponsor (R-260).
 7. Roles run by one operator are one observer; descriptors and UI never claim non-collusion between them (R-265).
 8. A sponsor cannot cut an invitee off instantly: revocation keeps a 30-day overlap window (R-266).
+
+## R15 reference-client presentation note
+
+ADR-0159 does not change these tier/security semantics. It changes how the reference UI exposes them: first-run remains invite-first and nontechnical, while T0/T1 sponsor/host observation, migration/closure facts and architecture-required independent client-origin choices are disclosed at the decision point rather than hidden in Advanced settings. Detailed reference journeys live in [`SCREEN_MAP_AND_JOURNEYS.md`](../../ux-design/SCREEN_MAP_AND_JOURNEYS.md) and [`ARCHITECTURE_MANDATED_V1_SURFACES.md`](../../ux-design/specs/ARCHITECTURE_MANDATED_V1_SURFACES.md).

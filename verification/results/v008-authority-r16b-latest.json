@@ -1,0 +1,21 @@
+{
+  "kind": "r16b_v008_authority_criteria",
+  "gates": [
+    "V-008"
+  ],
+  "passed": true,
+  "cases": 24637,
+  "checks": {
+    "immutable_incarnations": 36,
+    "role_assignment_ceilings": 24576,
+    "delegated_intent_and_reductions": 16,
+    "invite_and_crypto_profile": 9
+  },
+  "criteria_evidenced": [
+    "grant/restriction reductions target immutable grant/decision incarnation ids; delayed revoke cannot remove a later re-grant with the same semantic capability tuple (R-279)",
+    "role-edit and assignment ceilings reject any role/grant whose effective or grantable scope exceeds the grantor's current ceiling (R-229)",
+    "SpaceDelegatedIntent committed by a non-privileged member is rejected; stale Space heads fail closed; Space reductions remain live (R-230)",
+    "invite links lapse when the issuer loses room.invite, and no governance/binding path can change CryptoProfile (R-225, R-227)"
+  ],
+  "note": "Complements the existing TLC ScopedPermissions model. The ADR-0156 wire-freeze criterion remains open."
+}

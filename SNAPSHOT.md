@@ -1,15 +1,65 @@
 # OM Architecture Snapshot
 
-Generated: **2026-09-29 06:34 PHT (UTC+08:00)**, after the OpenAI independent remediation review and A-055 LAN design closure (ADR-0157–0158).
+Generated: **2026-09-29 09:02 PHT (UTC+08:00)**, after R16C V-008 Space/Publication wire freeze.
 
 ## State
 
 - **Engineering is not authorized**: `engineering_authorized=false`, 0/12 scopes authorized.
-- **Design:** `design_open=0`. A-055 is resolved by ADR-0158; `local_delivery` remains verification-gated by V-024 rather than design-open.
-- **Verification:** V-001..V-024; 24 overall-open, 23 with pre-engineering open. No new gate is self-approved by this review.
-- **Ledgers:** 341 requirements / 341 trace rows, 128 threats, 180 decisions / 158 ADRs, 36 security invariants.
-- **Tree:** 873 current files; docs/registry checks clean; continuity manifest 79/79.
-- **Next:** different-vendor (non-OpenAI) review of the new ADR-0157/0158 amendments, the consolidated `core_kernel` non-OpenAI independence review, and V-024 repo-local two-codec/observer/first-contact/browser evidence.
+- **Design:** `design_open=0`. R15 integrates the UI/UX design track without reopening Core/protocol design.
+- **Verification:** V-001..V-024; 24 overall-open, 23 with pre-engineering open. V-018 (security UX comprehension) and V-022 (performance budgets) intentionally remain open; R15 self-approves no gate.
+- **Ledgers:** 351 requirements / 351 trace rows, 128 threats, 181 decisions / 159 ADRs, 36 security invariants.
+- **Tree:** 1,331 validator-counted current files after R16C; docs/registry checks clean; continuity manifest refreshed.
+- **Portable evidence:** all 44 drop-profile phase-1 producers were observed passing. The aggregate wrapper exceeded the orchestration window after producer 15, so producers were completed in bounded chunks and the drop summary records that execution shape rather than claiming one uninterrupted run.
+- **R15:** canonical UX now uses Chats-first progressive navigation, Omnibar, semantic Action Registry → typed Core intents, OwnMessenger/OhMessenger boundaries, architecture-mandated V1 surfaces, T0–T4 onboarding, recovery/Protection/device-suspension semantics, and detailed UI contracts/assets under `docs/ux-design/`.
+- **Next:** the remaining true runtime/formal criteria (V-004/V-013/V-014/V-024), then batched independent reviews; human/device evidence for V-018/V-022 and real-browser V-024 evidence remain separate.
+
+## 2026-09-29 09:02 PHT — R16C V-008 Space/Publication wire freeze
+
+- Froze the V-008 W3 wire surface in ADR-0160: `SpaceControlState` type 24, `SpaceDelegatedIntent` 25, `PublicationControlState` 26 and `PublicationEvent` 27.
+- Added immutable numeric fields/enums and domain-separation labels; Publication uses dedicated signature role 7 rather than reusing device identity semantics.
+- Typed `moderation.redact`, `topic.create`, `topic.update`, `topic.status.set` and `message.topic.set` bodies in [`events.cddl`](spec/cddl/events.cddl).
+- Two independently written Python/Node codecs agree on 19/19 vectors (9 positive, 10 negative), including canonical body and SignedEnvelope bytes.
+- V-008 is now 6/6 repo-local criteria; independent review remains required, so engineering remains unauthorized.
+
+Detailed report: [`docs/reports/2026-09-29-r16c-v008-space-publication-wire-freeze.md`](docs/reports/2026-09-29-r16c-v008-space-publication-wire-freeze.md).
+
+## 2026-09-29 08:50 PHT — R16B repo-local executable/spec/vector evidence
+
+R16B continues the no-bounce rule: close only evidence whose semantics are already fixed, and do not manufacture protocol, independent-review, browser/device or human evidence.
+
+- **V-004:** 531 fixed-semantics bounded cases close reductions liveness/revalidation, account-control event rules and immutable-incarnation stale reductions; repo-local progress is 3/7. Formal crash/partition/equivocation, target-runtime MLS ordering, disconnected same-epoch partition convergence and wire freeze remain open.
+- **V-008:** existing independent-tool TLC is credited after ADR-0122 resolved its former cascade/subdelegation design gaps; 24,637 new bounded authority cases pass. Repo-local progress is 5/6; wire freeze remains.
+- **V-011:** existing host-migration/alias TLC and tool-capability corpus are credited, with 68 new bounded membership/representation/removal/incarnation cases. Repo-local progress is 6/7; wire freeze remains.
+- **V-020:** both missing provider-resilience criteria are now evidenced; repo-local progress is 9/9. Independent review still blocks pre-engineering passage.
+- **V-024:** independent Python/Node codecs agree on 9 positive + 8 negative LAN vectors; passive-observer and offline-first-contact models pass. Repo-local progress is 3/4; real-browser WebRTC feasibility remains.
+- **Deliberate non-closures:** V-013 wire freeze would allocate new canonical later-wave bytes; V-014 archive freeze still depends on review of its candidate encryption profile. R16B does not disguise either design choice as verification.
+- **Overall:** 128/173 pre-engineering criterion rows now carry repo-local evidence. Gate-level state remains 24 overall-open / 23 pre-engineering-open; `engineering_authorized=false`, 0/12 scopes authorized.
+
+Detailed report: [`docs/reports/2026-09-29-r16b-repo-local-evidence.md`](docs/reports/2026-09-29-r16b-repo-local-evidence.md).
+
+## 2026-09-29 08:22 PHT — R16A verification-gate triage and static closure
+
+R16A inventories all 24 architecture verification gates and closes only unambiguous repo-local/static gaps. Engineering remains unauthorized.
+
+- **V-005:** ADR-0157 critical-prefix convergence now has explicit Python + Node evidence (8/8 cases), the strict Node/Rust reference-codec sources fail closed on unknown `om.critical.*` even with wire `critical=false`, and the vector generator includes the downgrade case. V-005 is now 13/13 repo-local criteria; its required independent review/phase evidence remains open.
+- **V-013:** bridge contract now explicitly says a private-Room bridge is a full Room/MLS plaintext member and `allowed_event_classes` limits export, not reading. V-013 is 2/4; independent contract review and bridge wire freeze remain open.
+- **V-020:** existing V-023 verifier-first/update lifecycle evidence and PC-I01..PC-I03 are credited to the verified-release provisioning criterion. V-020 is 7/9; blocked-vendor/suffix simulation and sponsor-revocation/non-sponsor-route modeling remain open.
+- **Triage result:** `core_kernel` has no remaining repo-local model/vector criteria: V-001 pre-engineering passed; V-002/V-003/V-005/V-015/V-016 plus always-required V-017 are waiting on independent-review/phase evidence rather than more local architecture work.
+- **State unchanged at gate level:** 24 overall-open gates, 23 pre-engineering-open gates, `engineering_authorized=false`, 0/12 scopes authorized. Human/device/runtime obligations are not approximated.
+
+Detailed matrix: [`docs/reports/2026-09-29-r16a-verification-gate-triage.md`](docs/reports/2026-09-29-r16a-verification-gate-triage.md).
+
+## 2026-09-29 08:05 PHT — R15 UI/UX architecture integration / ADR-0159
+
+R15 reconciles the standalone UI/UX design track into the authoritative architecture rather than maintaining a parallel design tree. Architecture authority wins conflicts; presentation complexity remains progressively disclosed.
+
+- **Shell and interaction:** Chats is the default compact root; optional destinations are user-composable; the Omnibar is the universal local-first find/do surface; compact conversation entry morphs between composer and Omnibar rather than stacking competing text-entry surfaces.
+- **Authority boundary:** semantic actions resolve to typed Core intents, local presentation state or explicit PlatformAdapter capability. The Action Registry is not a protocol/RPC authority path.
+- **V1 reconciliation:** scheduled send, eligible-device private draft sync, Spaces/Rooms/nesting, threads/Topics, Publication, polls, stickers/bounded loops, rich text, disappearing/view-once, ContactCapsule/MessageRequest, privacy-aware link previews, and selective report/evidence UX are represented without becoming mandatory default navigation.
+- **Trust/onboarding:** T0–T4 Home/sponsor/client-origin disclosure, recovery-on-by-default, Protection profiles, device Suspend/quarantine, pending/final revocation and Safety Freeze are integrated. Calls use timeline notices rather than pretending live signalling is a durable `ConversationEvent`.
+- **Detailed UX system:** semantic motion/color, OM Clear and preset theme pairs, icon/media contracts, accessibility/input mapping, responsive capability layouts, messaging/call/security state machines, notification attention rules and local adaptation contracts now live under `docs/ux-design/`.
+- **Traceability:** ADR-0159 / D-181 and R-351..R-360 make the merge machine-traceable. No new verification gate was created.
+- **Validation:** architecture validator passes at 1,298 current files; docs/registry and 81-document continuity checks pass; R15 and inherited UI/UX semantic/token validators pass; all 44 portable phase-1 producers were observed passing in bounded execution. PWA reference v3 passes 17/17 automated Chromium checks; Firefox/WebKit and AT/physical-device evidence remain unclaimed.
 
 ## 2026-09-29 06:34 PHT — independent remediation review / ADR-0157–0158
 
@@ -396,3 +446,4 @@ Current validator state: **748 current files; design_open=4; verification_open=2
 Run the two tool-dependent completion commands on a runner with the pinned dependencies (`python3 tools/run_tlc.py` and
 `verification/prototypes/v001-crypto/run.sh`), then send the consolidated F-10..F-13 evidence to a genuinely independent
 ADR-0117 reviewer. Do not begin product engineering or treat this executor's evidence as independent approval.
+

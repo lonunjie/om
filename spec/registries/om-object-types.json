@@ -367,6 +367,73 @@
       "max_bytes": 139264,
       "source": "SEALED_SENDER_DELIVERY_PROFILE.md §5-7; ADR-0142",
       "logical_schema": null
+    },
+    {
+      "type_id": 24,
+      "name": "SpaceControlState",
+      "wave": "W3",
+      "scope": "communities_publications",
+      "signed": {
+        "label": "OM-SPACE-CONTROL-SIG-v1",
+        "roles": [
+          "controller",
+          "device"
+        ]
+      },
+      "hash": "OM-SPACE-CONTROL-HASH-v1",
+      "max_bytes": 131072,
+      "source": "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md; ADR-0160",
+      "logical_schema": "spec/protocol/space-control-state.logical.schema.json"
+    },
+    {
+      "type_id": 25,
+      "name": "SpaceDelegatedIntent",
+      "wave": "W3",
+      "scope": "communities_publications",
+      "signed": {
+        "label": "OM-SPACE-DELEGATED-INTENT-SIG-v1",
+        "roles": [
+          "controller",
+          "device"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 73728,
+      "source": "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md §SpaceDelegatedIntent; ADR-0160",
+      "logical_schema": "spec/protocol/space-control-state.logical.schema.json"
+    },
+    {
+      "type_id": 26,
+      "name": "PublicationControlState",
+      "wave": "W3",
+      "scope": "communities_publications",
+      "signed": {
+        "label": "OM-PUBLICATION-CONTROL-SIG-v1",
+        "roles": [
+          "controller",
+          "device"
+        ]
+      },
+      "hash": "OM-PUBLICATION-CONTROL-HASH-v1",
+      "max_bytes": 65536,
+      "source": "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md; ADR-0160",
+      "logical_schema": "spec/protocol/publication-event.logical.schema.json"
+    },
+    {
+      "type_id": 27,
+      "name": "PublicationEvent",
+      "wave": "W3",
+      "scope": "communities_publications",
+      "signed": {
+        "label": "OM-PUBLICATION-EVENT-SIG-v1",
+        "roles": [
+          "publication_signing_key"
+        ]
+      },
+      "hash": "OM-PUBLICATION-EVENT-HASH-v1",
+      "max_bytes": 65536,
+      "source": "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md; ADR-0160",
+      "logical_schema": "spec/protocol/publication-event.logical.schema.json"
     }
   ]
 }

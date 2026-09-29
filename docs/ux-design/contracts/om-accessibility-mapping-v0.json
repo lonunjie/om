@@ -1,0 +1,68 @@
+{
+  "schema": "om.ui.accessibility-mapping.v0",
+  "status": "design-mapping-not-framework-code",
+  "platforms": {
+    "web": {
+      "principles": [
+        "semantic HTML first",
+        "ARIA for missing semantics",
+        "visible stable focus",
+        "APG keyboard conventions"
+      ],
+      "omnibar": {
+        "pattern": "editable combobox + listbox",
+        "focus_model": "input DOM focus with optional aria-activedescendant",
+        "candidate_rule": "one executable candidate per option"
+      },
+      "conversation": {
+        "pattern": "tested chat log/live-region strategy",
+        "candidate_role": "log",
+        "caveat": "verify AT/browser combinations"
+      },
+      "gesture_actions": "visible/menu/keyboard equivalent required"
+    },
+    "ios": {
+      "principles": [
+        "standard SwiftUI/UIKit semantics first",
+        "VoiceOver actions for gesture accelerators",
+        "respect Dynamic Type/Reduce Motion/contrast"
+      ],
+      "custom_action_api": [
+        "SwiftUI accessibilityAction(s)",
+        "UIKit UIAccessibilityCustomAction"
+      ],
+      "label_rule": "short localized identity; do not include control type redundantly"
+    },
+    "android": {
+      "principles": [
+        "standard Compose semantics first",
+        "clickable/toggleable semantics where appropriate",
+        "logical traversal and focus order"
+      ],
+      "custom_action_api": [
+        "CustomAccessibilityAction"
+      ],
+      "gesture_actions": "complex gesture must have semantic custom action equivalent"
+    }
+  },
+  "examples": [
+    {
+      "semantic": "reply-message",
+      "web": "separate Reply candidate/menu/button",
+      "ios": "accessibility action Reply",
+      "android": "CustomAccessibilityAction Reply"
+    },
+    {
+      "semantic": "retry-message",
+      "web": "Retry control tied to failed message",
+      "ios": "Retry named action/state",
+      "android": "Retry custom action/state"
+    },
+    {
+      "semantic": "omnibar",
+      "web": "combobox/listbox",
+      "ios": "text/search field + accessible result collection",
+      "android": "text field + semantic result collection"
+    }
+  ]
+}

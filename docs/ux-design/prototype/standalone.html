@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en" data-theme="clear" data-mode="light" data-density="comfortable" data-personality="balanced" data-contrast="normal" data-motion="system" data-check="normal">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0067C5">
+  <title>OM UI/UX Reference v3</title>
+  <style>:root {
+  font-family: ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  color-scheme: light dark;
+  --radius-sm:10px;--radius-md:16px;--radius-lg:22px;
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;
+  --target:48px;--row-pad:12px;--body-size:16px;--text-scale:1;
+  --success-light:#18794E;--warning-light:#8A5A00;--danger-light:#C4333B;
+  --success-dark:#5DD6A1;--warning-dark:#F6C65B;--danger-dark:#FF7B7B;
+}
+html[data-density="compact"]{--target:44px;--row-pad:8px;--body-size:15px}
+html[data-density="large"]{--target:56px;--row-pad:16px;--body-size:18px}
+html[data-text-scale="125"]{--text-scale:1.25}
+html[data-text-scale="150"]{--text-scale:1.5}
+html[data-text-scale="200"]{--text-scale:2}
+
+html[data-theme="clear"][data-mode="light"]{--base:#F7F9FC;--subtle:#EFF3F8;--raised:#FFFFFF;--text:#172033;--secondary:#566176;--tertiary:#627085;--border:#D7DEE8;--border-strong:#9BA8B9;--accent:#0067C5;--accent-hover:#0057AA;--accent-pressed:#004A90;--on-accent:#FFFFFF;--accent-soft:#DDEEFF;--focus:#6536D9;--selected:#DCEBFF;--incoming:#FFFFFF;--outgoing:#E7F2FF;--failed-bg:#FFF0F0;--success:var(--success-light);--warning:var(--warning-light);--danger:var(--danger-light)}
+html[data-theme="clear"][data-mode="dark"]{--base:#11151C;--subtle:#171D26;--raised:#1D2530;--text:#F2F5F8;--secondary:#B9C2CE;--tertiary:#8F9BAA;--border:#34404F;--border-strong:#667485;--accent:#66B2FF;--accent-hover:#8AC4FF;--accent-pressed:#4AA4FF;--on-accent:#07182B;--accent-soft:#183A5B;--focus:#B69CFF;--selected:#223D5E;--incoming:#1D2530;--outgoing:#183A5B;--failed-bg:#451D25;--success:var(--success-dark);--warning:var(--warning-dark);--danger:var(--danger-dark)}
+html[data-theme="paper"][data-mode="light"]{--base:#FBF8F3;--subtle:#F3EEE7;--raised:#FFFDFC;--text:#241F1A;--secondary:#63594F;--tertiary:#6C6258;--border:#DED6CC;--border-strong:#AA9E91;--accent:#075FAB;--accent-hover:#084F8C;--accent-pressed:#063F70;--on-accent:#FFFFFF;--accent-soft:#E6F1FB;--focus:#6536D9;--selected:#E5F0FA;--incoming:#FFFDFC;--outgoing:#E6F1FB;--failed-bg:#FFF0F0;--success:var(--success-light);--warning:var(--warning-light);--danger:var(--danger-light)}
+html[data-theme="paper"][data-mode="dark"]{--base:#181512;--subtle:#1D1916;--raised:#231E1A;--text:#F6F1EA;--secondary:#C5BAB0;--tertiary:#A99E95;--border:#403831;--border-strong:#76695F;--accent:#75B9F3;--accent-hover:#91C8F6;--accent-pressed:#5AA6E8;--on-accent:#0B2030;--accent-soft:#18364D;--focus:#C0A6FF;--selected:#263B4D;--incoming:#231E1A;--outgoing:#18364D;--failed-bg:#451D25;--success:var(--success-dark);--warning:var(--warning-dark);--danger:var(--danger-dark)}
+html[data-theme="iris"][data-mode="light"]{--base:#FAF8FC;--subtle:#F3EFF6;--raised:#FFFFFF;--text:#241C2B;--secondary:#665A70;--tertiary:#73677C;--border:#DED7E3;--border-strong:#A79BAE;--accent:#7041C7;--accent-hover:#5C32A8;--accent-pressed:#4C298D;--on-accent:#FFFFFF;--accent-soft:#F0E9FF;--focus:#006A9C;--selected:#EEE6FF;--incoming:#FFFFFF;--outgoing:#F0E9FF;--failed-bg:#FFF0F0;--success:var(--success-light);--warning:var(--warning-light);--danger:var(--danger-light)}
+html[data-theme="iris"][data-mode="dark"]{--base:#161219;--subtle:#1C171F;--raised:#221B27;--text:#F7F1FA;--secondary:#C8BCCC;--tertiary:#A99CAD;--border:#403547;--border-strong:#76687E;--accent:#C5A7FF;--accent-hover:#D4BDFF;--accent-pressed:#B18EF7;--on-accent:#21122F;--accent-soft:#35254C;--focus:#6DCBFF;--selected:#3A2B51;--incoming:#221B27;--outgoing:#35254C;--failed-bg:#451D25;--success:var(--success-dark);--warning:var(--warning-dark);--danger:var(--danger-dark)}
+html[data-theme="graphite"][data-mode="light"]{--base:#F8F8F8;--subtle:#EFEFF0;--raised:#FFFFFF;--text:#1D1D1F;--secondary:#5F6368;--tertiary:#6C7075;--border:#D9D9DC;--border-strong:#A5A5AA;--accent:#005FBD;--accent-hover:#004F9E;--accent-pressed:#004180;--on-accent:#FFFFFF;--accent-soft:#E5F0FA;--focus:#6536D9;--selected:#E1EDF8;--incoming:#FFFFFF;--outgoing:#E5F0FA;--failed-bg:#FFF0F0;--success:var(--success-light);--warning:var(--warning-light);--danger:var(--danger-light)}
+html[data-theme="graphite"][data-mode="dark"]{--base:#121212;--subtle:#181819;--raised:#1D1D1F;--text:#F2F2F3;--secondary:#B9B9BE;--tertiary:#98989F;--border:#363638;--border-strong:#69696F;--accent:#68B4FF;--accent-hover:#88C5FF;--accent-pressed:#4AA4F5;--on-accent:#081828;--accent-soft:#17344E;--focus:#B69CFF;--selected:#21384E;--incoming:#1D1D1F;--outgoing:#17344E;--failed-bg:#451D25;--success:var(--success-dark);--warning:var(--warning-dark);--danger:var(--danger-dark)}
+
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--base);color:var(--text)}
+body{font-size:calc(var(--body-size)*var(--text-scale));line-height:1.4}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button,input,textarea,select{outline:none}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+html[data-contrast="increased"]{--border:var(--border-strong)}
+html[data-contrast="increased"] .chat-row,html[data-contrast="increased"] .message,html[data-contrast="increased"] .omnibar-root,html[data-contrast="increased"] .composer,html[data-contrast="increased"] .conversation-omni{border-width:2px}
+html[data-check="grayscale"] .app-shell{filter:grayscale(1)}
+
+.app-shell{width:min(100%,760px);min-height:100dvh;margin:0 auto;background:var(--base);padding-bottom:116px}
+.topbar{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:10px;min-height:64px;padding:8px 12px;background:color-mix(in srgb,var(--base) 92%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.brand-block{display:flex;align-items:center;gap:10px;min-width:0;flex:1}.brand-mark,.avatar,.avatar-button{display:grid;place-items:center;font-weight:750}.brand-mark{width:40px;height:40px;border-radius:14px;background:var(--accent-soft);color:var(--accent)}
+.screen-title{font-weight:750}.screen-subtitle{color:var(--secondary);font-size:.78em}.avatar-button,.icon-button{min-width:var(--target);min-height:var(--target);border:1px solid var(--border-strong);background:var(--raised);border-radius:14px}.avatar-button{border-radius:50%}
+.view{padding:12px;min-height:calc(100dvh - 180px)}.section-label{margin:4px 4px 8px;color:var(--secondary);font-size:.82em;font-weight:700}
+.chat-row{width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;text-align:left;border:1px solid transparent;background:transparent;border-radius:18px;padding:var(--row-pad);min-height:max(64px,var(--target));color:var(--text)}
+.chat-row:hover{background:var(--subtle)}.chat-row:active{transform:scale(.997)}.unread-row .chat-copy strong{font-weight:800}.unread-row{background:color-mix(in srgb,var(--accent-soft) 42%,transparent)}
+.avatar{width:46px;height:46px;border-radius:16px;background:var(--subtle);border:1px solid var(--border);font-size:.9em}.maria{background:var(--accent-soft);color:var(--accent)}.chat-copy{display:flex;min-width:0;flex-direction:column;gap:3px}.chat-copy span{color:var(--secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.chat-meta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;color:var(--tertiary);font-size:.75em}.unread{min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-weight:800}.status-text{font-weight:700;color:var(--secondary)}
+.semantic-demo{display:flex;gap:8px;flex-wrap:wrap;padding:16px 4px}.state-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid currentColor;border-radius:999px;padding:5px 9px;font-size:.78em;font-weight:700}.success{color:var(--success)}.warning{color:var(--warning)}.danger{color:var(--danger)}
+.messages{display:flex;flex-direction:column;gap:10px;padding-top:10px}.message{max-width:min(80%,42rem);padding:10px 13px;border-radius:18px;line-height:1.4;border:1px solid color-mix(in srgb,var(--border) 75%,transparent);overflow-wrap:anywhere}.message.incoming{align-self:flex-start;background:var(--incoming);border-bottom-left-radius:7px}.message.outgoing{align-self:flex-end;background:var(--outgoing);border-bottom-right-radius:7px}.message.pending{border-style:dashed}.message.failed{background:var(--failed-bg);border-color:color-mix(in srgb,var(--danger) 60%,var(--border));}.message-state{display:flex;justify-content:flex-end;align-items:center;gap:4px;margin-top:5px;color:var(--secondary);font-size:.7em;font-weight:650}.message.failed .message-state{color:var(--danger)}.retry-button{border:0;background:transparent;color:inherit;padding:8px 6px;text-decoration:underline;font-weight:800;min-height:44px;min-width:44px}
+.lower-shell{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(100%,760px);padding:8px max(10px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));z-index:10;background:linear-gradient(transparent,var(--base) 26%)}
+.tabs{display:flex;gap:4px;padding:4px;margin-bottom:5px;background:var(--raised);border:1px solid var(--border);border-radius:18px;overflow-x:auto}.tab{flex:1 0 80px;min-height:44px;border:0;border-radius:14px;background:transparent;color:var(--secondary);display:flex;align-items:center;justify-content:center;gap:6px}.tab.active{background:var(--selected);color:var(--text);font-weight:750}
+.omnibar-root,.composer,.conversation-omni{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:end;background:var(--raised);border:1px solid var(--border-strong);border-radius:22px;padding:4px;box-shadow:0 8px 28px color-mix(in srgb,#000 12%,transparent)}.composer{grid-template-columns:auto minmax(0,1fr) auto auto}.omni-trigger{background:var(--accent);color:var(--on-accent);font-weight:800;border:0;border-radius:18px}.omni-trigger.compact{min-width:44px;min-height:44px}.voice-button,.attach-button,.close-omni{color:var(--secondary);border:0;background:transparent;min-width:var(--target);min-height:var(--target);border-radius:16px}.send-button{background:var(--accent);color:var(--on-accent);border:0;border-radius:18px;min-width:var(--target);min-height:var(--target)}.omnibar-root input,.conversation-omni input,.composer textarea{width:100%;border:0;background:transparent;padding:13px 8px;min-height:var(--target);resize:none;line-height:1.35}.omni-trigger{min-width:var(--target);min-height:var(--target)}
+.omni-results{margin:8px 2px 0;background:var(--raised);border:1px solid var(--border);border-radius:18px;overflow:hidden;box-shadow:0 12px 36px color-mix(in srgb,#000 15%,transparent);max-height:min(52dvh,430px);overflow-y:auto}.omni-result{width:100%;border:0;background:transparent;cursor:pointer;display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;padding:10px 12px;min-height:56px}.omni-result:hover,.omni-result[aria-selected="true"]{background:var(--selected)}.result-icon{width:36px;height:36px;border-radius:11px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:800}.result-copy{display:flex;flex-direction:column;gap:2px;min-width:0}.result-copy small,.result-kind{color:var(--secondary);font-size:.72em}.result-kind{font-weight:700}
+.settings-panel{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);z-index:30;width:min(calc(100% - 24px),720px);max-height:min(72dvh,620px);overflow:auto;padding:12px;background:var(--raised);border:1px solid var(--border);border-radius:18px;box-shadow:0 16px 48px color-mix(in srgb,#000 18%,transparent);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.settings-panel label{display:flex;flex-direction:column;gap:5px;font-size:.75em;color:var(--secondary)}.settings-panel select{min-height:44px;border:1px solid var(--border-strong);border-radius:12px;background:var(--base);padding:0 10px}.check-row{grid-column:1/-1;flex-direction:row!important;align-items:center;min-height:44px}.check-row input{width:22px;height:22px}.settings-note{grid-column:1/-1;margin:0;color:var(--secondary);font-size:.72em}
+.primary-button,.secondary-button{min-height:var(--target);border-radius:14px;padding:0 16px;font-weight:650}.primary-button{border:0;background:var(--accent);color:var(--on-accent)}.secondary-button{border:1px solid var(--border-strong);background:var(--raised)}.empty-view{text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}.empty-view h1{margin:0;font-size:1.6em}.empty-view p{margin:0;color:var(--secondary);max-width:36ch}.empty-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.empty-art{display:flex;align-items:center;gap:8px;font-size:1.5em;color:var(--accent)}.empty-art span{display:grid;place-items:center;width:52px;height:52px;background:var(--accent-soft);border-radius:18px}.privacy-note{font-size:.75em}.toast{position:fixed;left:50%;bottom:128px;transform:translateX(-50%);z-index:20;background:var(--text);color:var(--base);padding:10px 14px;border-radius:999px;max-width:min(90vw,480px);text-align:center;font-weight:700}
+.hidden{display:none!important}
+html[data-personality="focus"] .semantic-demo{opacity:.86}html[data-personality="playful"] .brand-mark,html[data-personality="playful"] .omni-trigger,html[data-personality="playful"] .send-button{box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 28%,transparent)}html[data-personality="playful"] .message.outgoing{transform-origin:bottom right;animation:soft-pop .32s ease-out 1}@keyframes soft-pop{from{transform:scale(.975);opacity:.8}to{transform:scale(1);opacity:1}}
+html[data-motion="reduce"] *,html[data-motion="reduce"] *::before,html[data-motion="reduce"] *::after{animation-duration:1ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:1ms!important}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:1ms!important}}
+@media(max-width:520px){.settings-panel{grid-template-columns:1fr}.settings-note,.check-row{grid-column:1}.message{max-width:88%}}
+@media(min-width:700px){.app-shell{border-left:1px solid var(--border);border-right:1px solid var(--border)}.view{padding-left:22px;padding-right:22px}}
+
+@media(max-width:360px){html[data-text-scale="200"] .brand-mark{display:none}html[data-text-scale="200"] .screen-subtitle{display:none}html[data-text-scale="200"] .composer{grid-template-columns:auto minmax(0,1fr) auto}html[data-text-scale="200"] .composer .attach-button{display:none}html[data-text-scale="200"] .omni-trigger.compact{min-width:44px}html[data-text-scale="200"] .message{max-width:100%}}
+
+.root-shell-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}.lower-account{width:var(--target);height:var(--target);min-width:var(--target);min-height:var(--target);background:var(--raised);box-shadow:0 8px 28px color-mix(in srgb,#000 10%,transparent)}
+
+/* Run 11B OM functional icon integration */
+.ui-icon{width:24px;height:24px;display:block;flex:none;color:currentColor;overflow:visible}
+.icon-button,.voice-button,.attach-button,.close-omni,.send-button,.omni-trigger{display:inline-grid;place-items:center}
+.state-chip .ui-icon,.message-state .ui-icon{width:16px;height:16px}
+.message-state{display:flex;align-items:center;gap:4px}
+.retry-button{display:inline-flex;align-items:center;gap:4px}
+.retry-button .ui-icon{width:15px;height:15px}
+.tab .ui-icon{width:21px;height:21px}
+.result-icon .ui-icon{width:22px;height:22px}
+.primary-button,.secondary-button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.primary-button .ui-icon,.secondary-button .ui-icon{width:20px;height:20px}
+.empty-art{display:flex;align-items:center;justify-content:center;gap:18px}
+.empty-art .empty-icon{width:38px;height:38px;color:var(--accent)}
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+<symbol id="om-icon-omni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/></symbol>
+<symbol id="om-icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="5.5"/><line x1="15" y1="15" x2="20" y2="20"/></symbol>
+<symbol id="om-icon-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="14,5 7,12 14,19"/><line x1="7" y1="12" x2="20" y2="12"/></symbol>
+<symbol id="om-icon-forward-nav" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,5 17,12 10,19"/><line x1="4" y1="12" x2="17" y2="12"/></symbol>
+<symbol id="om-icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></symbol>
+<symbol id="om-icon-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/></symbol>
+<symbol id="om-icon-account" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3"/><path d="M5 20c.8-4.2 3.3-6.2 7-6.2s6.2 2 7 6.2"/></symbol>
+<symbol id="om-icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="11" cy="17" r="2"/></symbol>
+<symbol id="om-icon-chats" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5h9a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H12l-4 3v-3H7a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3z"/><path d="M7 9h8M7 12h6"/></symbol>
+<symbol id="om-icon-calls" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 4.8 6.8 6.2c-.8.8-.8 2.1-.2 3.1 2 3.4 4.7 6.1 8.1 8.1 1 .6 2.3.6 3.1-.2l1.4-1.4-3.8-3.1-1.4 1.4c-2-1-3.9-2.9-4.9-4.9l1.4-1.4z"/></symbol>
+<symbol id="om-icon-people" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="2.7"/><circle cx="16.5" cy="9" r="2.2"/><path d="M3.5 20c.5-4 2.6-6 5.5-6s5 2 5.5 6"/><path d="M14 15c2.8 0 4.8 1.7 5.5 5"/></symbol>
+<symbol id="om-icon-spaces" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="om-icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="3,11 21,3 15,21 11,13"/><line x1="11" y1="13" x2="21" y2="3"/></symbol>
+<symbol id="om-icon-reply" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8 4 12l5 4"/><path d="M5 12h7c4 0 7 2 8 6"/></symbol>
+<symbol id="om-icon-react" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="11" r="6"/><circle cx="8" cy="10" r="0.7" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="0.7" fill="currentColor" stroke="none"/><path d="M7.5 13c1.4 1.6 3.6 1.6 5 0"/><circle cx="18" cy="7" r="3"/><line x1="18" y1="5.7" x2="18" y2="8.3"/><line x1="16.7" y1="7" x2="19.3" y2="7"/></symbol>
+<symbol id="om-icon-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17.5V20h2.5L18.5 8 16 5.5z"/><path d="M14.5 7 17 9.5"/></symbol>
+<symbol id="om-icon-forward-message" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7l5 5-5 5"/><path d="M20 12h-7c-4 0-7 2-8 6"/></symbol>
+<symbol id="om-icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="11" height="12" rx="2"/><rect x="5" y="4" width="11" height="12" rx="2"/></symbol>
+<symbol id="om-icon-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 5 3 3H7l3-3z"/><line x1="12" y1="12" x2="12" y2="21"/></symbol>
+<symbol id="om-icon-unpin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 5 3 3H7l3-3z"/><line x1="12" y1="12" x2="12" y2="21"/><line x1="4" y1="4" x2="20" y2="20"/></symbol>
+<symbol id="om-icon-archive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="2"/><rect x="3" y="4" width="18" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/></symbol>
+<symbol id="om-icon-delete" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M9 7V5h6v2M7 7l1 14h8l1-14M10 11v6M14 11v6"/></symbol>
+<symbol id="om-icon-mark-unread" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M4 8l8 6 8-6"/><circle cx="18.5" cy="5.5" r="2.3" fill="currentColor" stroke="none"/></symbol>
+<symbol id="om-icon-mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16h12l-2-2v-4a4 4 0 0 0-8 0v4z"/><path d="M10 19a2 2 0 0 0 4 0"/><line x1="4" y1="4" x2="20" y2="20"/></symbol>
+<symbol id="om-icon-unmute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16h12l-2-2v-4a4 4 0 0 0-8 0v4z"/><path d="M10 19a2 2 0 0 0 4 0"/></symbol>
+<symbol id="om-icon-call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 4.8 6.8 6.2c-.8.8-.8 2.1-.2 3.1 2 3.4 4.7 6.1 8.1 8.1 1 .6 2.3.6 3.1-.2l1.4-1.4-3.8-3.1-1.4 1.4c-2-1-3.9-2.9-4.9-4.9l1.4-1.4z"/></symbol>
+<symbol id="om-icon-video-call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="11" height="10" rx="2"/><polygon points="15,10 20,7.5 20,16.5 15,14"/></symbol>
+<symbol id="om-icon-call-end" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15c4-4 10-4 14 0l-2.5 3-3-2v-2c-1-.4-2-.4-3 0v2l-3 2z"/></symbol>
+<symbol id="om-icon-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="4" width="6" height="10" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="9" y1="21" x2="15" y2="21"/></symbol>
+<symbol id="om-icon-mic-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="4" width="6" height="10" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="9" y1="21" x2="15" y2="21"/><line x1="4" y1="4" x2="20" y2="20"/></symbol>
+<symbol id="om-icon-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M8 6l1.5-2h5L16 6"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="om-icon-camera-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M8 6l1.5-2h5L16 6"/><circle cx="12" cy="12" r="3"/><line x1="4" y1="4" x2="20" y2="20"/></symbol>
+<symbol id="om-icon-speaker" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="4,10 8,10 12,6 12,18 8,14 4,14"/><path d="M15 9c1 1 1 5 0 6"/><path d="M17.5 7c2 2 2 8 0 10"/></symbol>
+<symbol id="om-icon-attach" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12.5l5.8-5.8a3.5 3.5 0 0 1 5 5L11 19.5a5 5 0 0 1-7-7L12.2 4.3"/><path d="M7 15l7.5-7.5a2 2 0 0 1 2.8 2.8L10 17.5a3 3 0 0 1-4.2-4.2"/></symbol>
+<symbol id="om-icon-add" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+<symbol id="om-icon-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><polyline points="5,17 10,12 13,15 16,12 20,17"/></symbol>
+<symbol id="om-icon-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5"/></symbol>
+<symbol id="om-icon-audio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 18V6l8-2v12"/><circle cx="7.5" cy="18" r="2.5"/><circle cx="15.5" cy="16" r="2.5"/></symbol>
+<symbol id="om-icon-location" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s6-6.2 6-11a6 6 0 1 0-12 0c0 4.8 6 11 6 11z"/><circle cx="12" cy="10" r="2"/></symbol>
+<symbol id="om-icon-contact" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M6 16c.5-2.5 1.7-3.8 3-3.8s2.5 1.3 3 3.8"/><line x1="14" y1="8" x2="18" y2="8"/><line x1="14" y1="12" x2="18" y2="12"/><line x1="14" y1="16" x2="17" y2="16"/></symbol>
+<symbol id="om-icon-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5 7 17a3.5 3.5 0 0 1-5-5l3-3a3.5 3.5 0 0 1 5 0"/><path d="M14.5 9.5 17 7a3.5 3.5 0 0 1 5 5l-3 3a3.5 3.5 0 0 1-5 0"/><line x1="8.5" y1="15.5" x2="15.5" y2="8.5"/></symbol>
+<symbol id="om-icon-poll" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="18" x2="5" y2="13"/><line x1="10" y1="18" x2="10" y2="9"/><line x1="15" y1="18" x2="15" y2="5"/><line x1="20" y1="18" x2="20" y2="11"/><line x1="3" y1="20" x2="22" y2="20"/></symbol>
+<symbol id="om-icon-emoji" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="9" cy="10" r="0.8" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="0.8" fill="currentColor" stroke="none"/><path d="M8 14c1.8 2.2 6.2 2.2 8 0"/></symbol>
+<symbol id="om-icon-pending" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><line x1="12" y1="7" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="14"/></symbol>
+<symbol id="om-icon-sent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="5,12 9,16 16,8"/></symbol>
+<symbol id="om-icon-delivered" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,12 7,16 14,8"/><polyline points="9,12 13,16 20,8"/></symbol>
+<symbol id="om-icon-read" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12s3-5 9-5 9 5 9 5-3 5-9 5-9-5-9-5z"/><polyline points="8,12 12,16 19,8"/></symbol>
+<symbol id="om-icon-failed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><line x1="12" y1="7" x2="12" y2="13"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></symbol>
+<symbol id="om-icon-retry" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 8a8 8 0 1 0 1 7"/><polyline points="15,4 20,4 20,9"/></symbol>
+<symbol id="om-icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="8,12 12,16 16,12"/><line x1="12" y1="6" x2="12" y2="16"/><path d="M5 18h14"/></symbol>
+<symbol id="om-icon-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="8,10 12,6 16,10"/><line x1="12" y1="6" x2="12" y2="16"/><path d="M5 18h14"/></symbol>
+<symbol id="om-icon-invite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3"/><path d="M4 20c.7-4 3-6 6-6s5.3 2 6 6"/><line x1="18" y1="9" x2="18" y2="15"/><line x1="15" y1="12" x2="21" y2="12"/></symbol>
+<symbol id="om-icon-qr-scan" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><rect x="9" y="9" width="3" height="3" rx="0"/><rect x="14" y="9" width="2" height="2" rx="0"/><rect x="10" y="14" width="2" height="2" rx="0"/><rect x="15" y="15" width="3" height="3" rx="0"/></symbol>
+<symbol id="om-icon-qr-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="5" height="5" rx="0"/><rect x="15" y="4" width="5" height="5" rx="0"/><rect x="4" y="15" width="5" height="5" rx="0"/><rect x="14" y="14" width="2" height="2" rx="0"/><rect x="18" y="14" width="2" height="2" rx="0"/><rect x="14" y="18" width="2" height="2" rx="0"/><rect x="18" y="18" width="2" height="2" rx="0"/></symbol>
+<symbol id="om-icon-verify" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-2.8 7.8-7 10-4.2-2.2-7-5.5-7-10V6z"/><circle cx="12" cy="10" r="2.2"/><path d="M10.5 9.5c.2-1.2 1-2 2.2-2 1.4 0 2.3.9 2.3 2.1 0 1.1-.6 1.7-1.7 2.4-.8.5-1.1 1-1.1 1.8"/><circle cx="12" cy="16.5" r="0.8" fill="currentColor" stroke="none"/></symbol>
+<symbol id="om-icon-verified" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-2.8 7.8-7 10-4.2-2.2-7-5.5-7-10V6z"/><polyline points="8,12 12,16 19,8"/></symbol>
+<symbol id="om-icon-device" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2"/><line x1="10" y1="18" x2="14" y2="18"/></symbol>
+<symbol id="om-icon-devices" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="10" height="16" rx="2"/><rect x="11" y="3" width="9" height="14" rx="2"/><line x1="14" y1="14" x2="17" y2="14"/></symbol>
+<symbol id="om-icon-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><line x1="12" y1="14" x2="12" y2="17"/></symbol>
+<symbol id="om-icon-security-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-2.8 7.8-7 10-4.2-2.2-7-5.5-7-10V6z"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16.5" r="0.8" fill="currentColor" stroke="none"/></symbol>
+<symbol id="om-icon-recovery" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 8a8 8 0 1 0 1 7"/><polyline points="15,4 20,4 20,9"/><circle cx="10" cy="12" r="2"/><line x1="12" y1="12" x2="16" y2="12"/><line x1="15" y1="12" x2="15" y2="14"/></symbol>
+<symbol id="om-icon-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7v5l-4 2v-7z"/></symbol>
+<symbol id="om-icon-sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="5" x2="8" y2="19"/><polyline points="5,8 8,5 11,8"/><line x1="16" y1="19" x2="16" y2="5"/><polyline points="13,16 16,19 19,16"/></symbol>
+<symbol id="om-icon-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2"/><circle cx="17" cy="6" r="2"/><circle cx="17" cy="18" r="2"/><line x1="8" y1="11" x2="15" y2="7"/><line x1="8" y1="13" x2="15" y2="17"/></symbol>
+<symbol id="om-icon-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 1-2-5"/></symbol>
+<symbol id="om-icon-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/><line x1="12" y1="11" x2="12" y2="17"/></symbol>
+</svg>
+
+  <main class="app-shell" aria-label="OM UI/UX reference prototype">
+    <header class="topbar">
+      <button class="icon-button back hidden" id="backBtn" aria-label="Back to chats"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-back"></use></svg></button>
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true">O</div>
+        <div>
+          <div class="screen-title" id="screenTitle">Chats</div>
+          <div class="screen-subtitle" id="screenSubtitle">Validation fixture</div>
+        </div>
+      </div>
+    </header>
+
+    <section class="settings-panel hidden" id="settingsPanel" aria-label="OwnMessenger and validation controls">
+      <label>Theme
+        <select id="themeSelect">
+          <option value="clear">OM Clear</option>
+          <option value="paper">OM Paper</option>
+          <option value="iris">OM Iris</option>
+          <option value="graphite">OM Graphite</option>
+        </select>
+      </label>
+      <label>Appearance
+        <select id="modeSelect"><option value="light">Light</option><option value="dark">Dark</option></select>
+      </label>
+      <label>Density
+        <select id="densitySelect"><option value="comfortable">Comfortable</option><option value="compact">Compact</option><option value="large">Large</option></select>
+      </label>
+      <label>Personality
+        <select id="personalitySelect"><option value="focus">Focus</option><option value="balanced">Balanced</option><option value="playful">Playful</option></select>
+      </label>
+      <label>Text scale
+        <select id="textScaleSelect"><option value="100">100%</option><option value="125">125%</option><option value="150">150%</option><option value="200">200%</option></select>
+      </label>
+      <label>Contrast
+        <select id="contrastSelect"><option value="normal">Normal</option><option value="increased">Increased</option></select>
+      </label>
+      <label>Motion
+        <select id="motionSelect"><option value="system">System</option><option value="reduce">Reduce</option></select>
+      </label>
+      <label>Visual check
+        <select id="visualCheckSelect"><option value="normal">Normal</option><option value="grayscale">Grayscale redundancy</option></select>
+      </label>
+      <label class="check-row"><input id="tabsToggle" type="checkbox"> Show sample extra tabs</label>
+      <button class="secondary-button" id="emptyBtn">Show first-install state</button>
+      <p class="settings-note">Grayscale is a redundancy check, not a color-vision-deficiency simulation.</p>
+    </section>
+
+    <section class="view chats-view" id="chatsView">
+      <div class="section-label">Recent</div>
+      <button class="chat-row unread-row" data-person="Maria Santos">
+        <span class="avatar maria" aria-hidden="true">MS</span>
+        <span class="chat-copy"><strong>Maria Santos</strong><span>Can you send that photo?</span></span>
+        <span class="chat-meta"><time>8:31 PM</time><span class="unread" aria-label="2 unread messages">2</span></span>
+      </button>
+      <button class="chat-row" data-person="Family">
+        <span class="avatar family" aria-hidden="true">F</span>
+        <span class="chat-copy"><strong>Family</strong><span>Anna: See you tomorrow 👋</span></span>
+        <span class="chat-meta"><time>7:10 PM</time><span class="status-text">Draft</span></span>
+      </button>
+      <button class="chat-row" data-person="Ren">
+        <span class="avatar ren" aria-hidden="true">R</span>
+        <span class="chat-copy"><strong>Ren</strong><span>Voice message · 0:24</span></span>
+        <span class="chat-meta"><time>Mon</time></span>
+      </button>
+      <div class="semantic-demo" aria-label="Semantic state examples">
+        <span class="state-chip success"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-verified"></use></svg> Verified</span>
+        <span class="state-chip warning"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-security-warning"></use></svg> Attention</span>
+        <span class="state-chip danger"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-failed"></use></svg> Failed</span>
+      </div>
+    </section>
+
+    <section class="view conversation-view hidden" id="conversationView">
+      <div class="messages" id="messages" role="log" aria-live="polite" aria-relevant="additions" aria-atomic="false" aria-label="Conversation messages">
+        <div class="message incoming">Hey, are you free later?</div>
+        <div class="message outgoing">Yes — after dinner.<span class="message-state">✓ Sent</span></div>
+        <div class="message incoming">Great. Can you send that photo?</div>
+        <div class="message outgoing pending">Uploading the photo…<span class="message-state"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-pending"></use></svg> Queued</span></div>
+        <div class="message outgoing failed">Hotel address: 15 River Street<span class="message-state"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-failed"></use></svg> Failed · <button class="retry-button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-retry"></use></svg><span>Retry</span></button></span></div>
+      </div>
+    </section>
+
+    <section class="view empty-view hidden" id="emptyView">
+      <div class="empty-art" aria-hidden="true"><svg class="empty-icon" aria-hidden="true" focusable="false"><use href="#om-icon-invite"></use></svg> <svg class="empty-icon" aria-hidden="true" focusable="false"><use href="#om-icon-share"></use></svg> <svg class="empty-icon" aria-hidden="true" focusable="false"><use href="#om-icon-qr-show"></use></svg></div>
+      <h1>Invite someone to chat</h1>
+      <p>OM starts private. No contact upload is required.</p>
+      <button class="primary-button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-share"></use></svg><span>Share invite link</span></button>
+      <div class="empty-actions">
+        <button class="secondary-button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-qr-scan"></use></svg><span>Scan QR</span></button>
+        <button class="secondary-button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-qr-show"></use></svg><span>Show my QR</span></button>
+      </div>
+      <p class="privacy-note">One-time and bounded invites are progressively disclosed when supported.</p>
+    </section>
+
+    <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+
+    <footer class="lower-shell" id="lowerShell">
+      <nav class="tabs hidden" id="tabs" aria-label="Top-level views">
+        <button class="tab active" data-tab="chats" aria-current="page"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-chats"></use></svg><span>Chats</span></button>
+        <button class="tab" data-tab="calls"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-calls"></use></svg><span>Calls</span></button>
+        <button class="tab" data-tab="people"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-people"></use></svg><span>People</span></button>
+      </nav>
+
+      <div class="root-shell-row" id="rootShellRow">
+        <div class="omnibar-root" id="omnibarRoot">
+          <button class="omni-trigger" id="rootOmniTrigger" aria-label="Open Omnibar"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-omni"></use></svg></button>
+          <input id="rootOmniInput" role="combobox" autocomplete="off" placeholder="Find or do…" aria-label="Omnibar" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="omniResults" aria-expanded="false">
+          <button class="voice-button" aria-label="Voice command demonstration"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-mic"></use></svg></button>
+        </div>
+        <button class="avatar-button lower-account" id="settingsBtn" aria-label="Open account and OwnMessenger controls" aria-expanded="false">M</button>
+      </div>
+
+      <div class="composer hidden" id="composer">
+        <button class="attach-button" aria-label="Attach"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-attach"></use></svg></button>
+        <textarea id="composerInput" rows="1" placeholder="Message Maria…" aria-label="Message composer"></textarea>
+        <button class="omni-trigger compact" id="conversationOmniTrigger" aria-label="Switch composer to Omnibar"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-omni"></use></svg></button>
+        <button class="send-button" id="sendBtn" aria-label="Send message"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-send"></use></svg></button>
+      </div>
+
+      <div class="conversation-omni hidden" id="conversationOmni">
+        <button class="close-omni" id="closeOmniBtn" aria-label="Return to message composer"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-close"></use></svg></button>
+        <input id="conversationOmniInput" role="combobox" autocomplete="off" placeholder="Find or do…" aria-label="Omnibar in conversation" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="omniResults" aria-expanded="false">
+        <button class="voice-button" aria-label="Voice command demonstration"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-mic"></use></svg></button>
+      </div>
+
+      <div class="omni-results hidden" id="omniResults" role="listbox" aria-label="Omnibar suggestions"></div>
+    </footer>
+  </main>
+  <script>const $ = s => document.querySelector(s);
+const iconMarkup = id => `<svg class="ui-icon" aria-hidden="true" focusable="false"><use href="#om-icon-${id}"></use></svg>`;
+const root = document.documentElement;
+const chatsView = $('#chatsView');
+const conversationView = $('#conversationView');
+const emptyView = $('#emptyView');
+const composer = $('#composer');
+const rootOmni = $('#omnibarRoot');
+const rootShellRow = $('#rootShellRow');
+const convOmni = $('#conversationOmni');
+const results = $('#omniResults');
+const tabs = $('#tabs');
+const backBtn = $('#backBtn');
+const title = $('#screenTitle');
+const subtitle = $('#screenSubtitle');
+const toast = $('#toast');
+let currentPerson = 'Maria Santos';
+let preservedDraft = '';
+let activeResult = 0;
+let currentItems = [];
+let activeOmniInput = null;
+let settingsInvoker = null;
+
+const candidates = [
+  {icon:'account',title:'Maria Santos',detail:'Open conversation',kind:'Person',q:'maria santos message chat person',action:'open',target:'Maria Santos'},
+  {icon:'call',title:'Call Maria Santos',detail:'Explicit call action',kind:'Action',q:'call maria santos',action:'demo',target:'Call Maria Santos'},
+  {icon:'search',title:'Search messages with Maria',detail:'Search this conversation',kind:'Action',q:'search maria messages',action:'demo',target:'Search messages with Maria'},
+  {icon:'invite',title:'Invite someone',detail:'Link or QR',kind:'Action',q:'invite add person qr link',action:'empty'},
+  {icon:'qr-scan',title:'Scan QR code',detail:'Add or open an invite',kind:'Action',q:'scan qr code',action:'demo',target:'Scan QR'},
+  {icon:'settings',title:'Appearance',detail:'OwnMessenger settings',kind:'Setting',q:'settings appearance theme dark light',action:'settings'},
+  {icon:'settings',title:'Dark appearance',detail:'Switch this prototype',kind:'Setting',q:'dark mode appearance',action:'dark'},
+  {icon:'chats',title:'Family',detail:'Open group conversation',kind:'Conversation',q:'family group chat',action:'open',target:'Family'},
+  {icon:'account',title:'Ren',detail:'Open conversation',kind:'Person',q:'ren message chat person',action:'open',target:'Ren'}
+];
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.remove('hidden');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(()=>toast.classList.add('hidden'),1800);
+}
+
+function clearOmniState({hide=true}={}) {
+  [$('#rootOmniInput'), $('#conversationOmniInput')].forEach(input => {
+    input.setAttribute('aria-expanded','false');
+    input.removeAttribute('aria-activedescendant');
+  });
+  if (hide) results.classList.add('hidden');
+  activeOmniInput = null;
+}
+
+function setView(view, person) {
+  chatsView.classList.toggle('hidden', view !== 'chats');
+  conversationView.classList.toggle('hidden', view !== 'conversation');
+  emptyView.classList.toggle('hidden', view !== 'empty');
+  composer.classList.toggle('hidden', view !== 'conversation');
+  rootShellRow.classList.toggle('hidden', view === 'conversation');
+  convOmni.classList.add('hidden');
+  clearOmniState();
+  backBtn.classList.toggle('hidden', view === 'chats');
+  if (view === 'conversation') {
+    currentPerson = person || currentPerson;
+    title.textContent = currentPerson;
+    subtitle.textContent = 'Private conversation · fixture';
+    $('#composerInput').placeholder = `Message ${currentPerson.split(' ')[0]}…`;
+  } else if (view === 'empty') {
+    title.textContent = 'OM'; subtitle.textContent = 'Private by default';
+  } else {
+    title.textContent = 'Chats'; subtitle.textContent = 'Validation fixture';
+  }
+}
+
+function queryItems(query='') {
+  const q = query.trim().toLowerCase();
+  // Stable fixture ordering: explicit text filters candidates; no stochastic reordering.
+  return candidates.filter(x => !q || x.q.includes(q) || x.title.toLowerCase().includes(q)).slice(0,6);
+}
+
+function syncActiveDescendant() {
+  if (!activeOmniInput || results.classList.contains('hidden') || !currentItems.length) {
+    activeOmniInput?.removeAttribute('aria-activedescendant');
+    return;
+  }
+  activeOmniInput.setAttribute('aria-activedescendant', `omni-option-${activeResult}`);
+}
+
+function renderResults(input, query='') {
+  activeOmniInput = input;
+  currentItems = queryItems(query);
+  activeResult = 0;
+  results.innerHTML = currentItems.map((x,i)=>`<div id="omni-option-${i}" class="omni-result" role="option" aria-selected="${i===0}" data-index="${i}"><span class="result-icon" aria-hidden="true">${iconMarkup(x.icon)}</span><span class="result-copy"><strong>${x.title}</strong><small>${x.detail}</small></span><span class="result-kind">${x.kind}</span></div>`).join('');
+  results.classList.toggle('hidden', currentItems.length===0);
+  [$('#rootOmniInput'), $('#conversationOmniInput')].forEach(other => {
+    const isActive = other === input && currentItems.length > 0;
+    other.setAttribute('aria-expanded', String(isActive));
+    if (!isActive) other.removeAttribute('aria-activedescendant');
+  });
+  syncActiveDescendant();
+  results.querySelectorAll('.omni-result').forEach(option => {
+    option.addEventListener('pointerdown', e => e.preventDefault()); // keep DOM focus in combobox
+    option.addEventListener('click',()=>activateResult(Number(option.dataset.index)));
+  });
+}
+
+function paintSelection() {
+  results.querySelectorAll('.omni-result').forEach((el,i)=>el.setAttribute('aria-selected',String(i===activeResult)));
+  syncActiveDescendant();
+  const selected=results.querySelector(`[data-index="${activeResult}"]`);
+  selected?.scrollIntoView({block:'nearest'});
+}
+
+function moveSelection(delta) {
+  if (!currentItems.length) return;
+  activeResult = (activeResult + delta + currentItems.length) % currentItems.length;
+  paintSelection();
+}
+
+function activateResult(index=activeResult) {
+  const item=currentItems[index]; if(!item) return;
+  clearOmniState();
+  if(item.action==='open') setView('conversation',item.target);
+  else if(item.action==='empty') setView('empty');
+  else if(item.action==='settings') {
+    settingsInvoker = activeOmniInput || document.activeElement;
+    $('#settingsPanel').classList.remove('hidden');
+    $('#settingsBtn').setAttribute('aria-expanded','true');
+    $('#themeSelect').focus();
+  }
+  else if(item.action==='dark') { root.dataset.mode='dark'; $('#modeSelect').value='dark'; showToast('Dark appearance selected'); }
+  else { showToast(`${item.target} — fixture action`); }
+}
+
+function openConversationOmni() {
+  preservedDraft = $('#composerInput').value;
+  composer.classList.add('hidden');
+  convOmni.classList.remove('hidden');
+  $('#conversationOmniInput').value = '';
+  $('#conversationOmniInput').focus();
+  renderResults($('#conversationOmniInput'), '');
+}
+function closeConversationOmni() {
+  convOmni.classList.add('hidden');
+  clearOmniState();
+  composer.classList.remove('hidden');
+  $('#composerInput').value = preservedDraft;
+  $('#composerInput').focus();
+}
+
+function bindOmniInput(input) {
+  input.addEventListener('focus',e=>renderResults(input,e.target.value));
+  input.addEventListener('input',e=>renderResults(input,e.target.value));
+  input.addEventListener('keydown',e=>{
+    if(e.key==='ArrowDown'){e.preventDefault();moveSelection(1)}
+    else if(e.key==='ArrowUp'){e.preventDefault();moveSelection(-1)}
+    else if(e.key==='Enter' && !results.classList.contains('hidden')){e.preventDefault();activateResult()}
+    else if(e.key==='Escape' && !results.classList.contains('hidden')){e.preventDefault();clearOmniState()}
+  });
+}
+
+document.querySelectorAll('.chat-row').forEach(btn=>btn.addEventListener('click',()=>setView('conversation',btn.dataset.person)));
+backBtn.addEventListener('click',()=>setView('chats'));
+$('#conversationOmniTrigger').addEventListener('click',openConversationOmni);
+$('#closeOmniBtn').addEventListener('click',closeConversationOmni);
+bindOmniInput($('#rootOmniInput'));
+bindOmniInput($('#conversationOmniInput'));
+$('#rootOmniTrigger').addEventListener('click',()=>{$('#rootOmniInput').focus();renderResults($('#rootOmniInput'),$('#rootOmniInput').value)});
+$('#sendBtn').addEventListener('click',()=>{
+  const input=$('#composerInput'); const text=input.value.trim(); if(!text) return;
+  const bubble=document.createElement('div'); bubble.className='message outgoing'; bubble.textContent=text;
+  const state=document.createElement('span'); state.className='message-state'; state.innerHTML=iconMarkup('sent')+'<span>Sent</span>'; bubble.appendChild(state);
+  $('#messages').appendChild(bubble); input.value=''; preservedDraft='';
+  bubble.scrollIntoView({behavior:root.dataset.motion==='reduce'?'auto':'smooth',block:'nearest'});
+  input.focus();
+});
+document.querySelectorAll('.retry-button').forEach(btn=>btn.addEventListener('click',()=>showToast('Retry queued — fixture')));
+
+$('#settingsBtn').addEventListener('click',()=>{
+  const panel=$('#settingsPanel'); const opening=panel.classList.contains('hidden');
+  settingsInvoker = $('#settingsBtn');
+  panel.classList.toggle('hidden'); $('#settingsBtn').setAttribute('aria-expanded',String(opening));
+  if(opening) $('#themeSelect').focus();
+});
+$('#emptyBtn').addEventListener('click',()=>setView('empty'));
+$('#themeSelect').addEventListener('change',e=>root.dataset.theme=e.target.value);
+$('#modeSelect').addEventListener('change',e=>root.dataset.mode=e.target.value);
+$('#densitySelect').addEventListener('change',e=>root.dataset.density=e.target.value);
+$('#personalitySelect').addEventListener('change',e=>root.dataset.personality=e.target.value);
+$('#textScaleSelect').addEventListener('change',e=>root.dataset.textScale=e.target.value);
+$('#contrastSelect').addEventListener('change',e=>root.dataset.contrast=e.target.value);
+$('#motionSelect').addEventListener('change',e=>root.dataset.motion=e.target.value);
+$('#visualCheckSelect').addEventListener('change',e=>root.dataset.check=e.target.value);
+$('#tabsToggle').addEventListener('change',e=>tabs.classList.toggle('hidden',!e.target.checked));
+
+document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>{x.classList.toggle('active',x===btn);x.toggleAttribute('aria-current',x===btn)});
+  if(btn.dataset.tab==='chats') setView('chats'); else showToast(`${btn.textContent.trim()} view — fixture only`);
+}));
+
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){
+    e.preventDefault();
+    if(!composer.classList.contains('hidden')) openConversationOmni();
+    else{$('#rootOmniInput').focus();renderResults($('#rootOmniInput'),$('#rootOmniInput').value)}
+  }
+  if(e.key==='Escape'){
+    if(!convOmni.classList.contains('hidden')) closeConversationOmni();
+    else if(!results.classList.contains('hidden')) clearOmniState();
+    else if(!$('#settingsPanel').classList.contains('hidden')){
+      $('#settingsPanel').classList.add('hidden');
+      $('#settingsBtn').setAttribute('aria-expanded','false');
+      const target=settingsInvoker;
+      if(target && target.isConnected && target.getClientRects().length) target.focus();
+      else if(!composer.classList.contains('hidden')) $('#composerInput').focus();
+      else $('#rootOmniInput').focus();
+    }
+  }
+});
+
+if('serviceWorker' in navigator && location.protocol!=='file:') navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>

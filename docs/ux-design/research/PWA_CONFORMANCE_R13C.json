@@ -1,0 +1,106 @@
+{
+  "generated_at": "2026-09-28T23:25:56.966501+00:00",
+  "prototype": "pwa-reference-v3",
+  "engine_versions": {
+    "chromium": "Chromium 144.0.7559.96 built on Debian GNU/Linux 13 (trixie)",
+    "firefox": null,
+    "webkit": null
+  },
+  "engines": {
+    "chromium": [
+      {
+        "name": "default_single_tab_strip_hidden",
+        "status": "pass"
+      },
+      {
+        "name": "omnibar_combobox_listbox_semantics",
+        "status": "pass"
+      },
+      {
+        "name": "omnibar_keyboard_active_descendant",
+        "status": "pass"
+      },
+      {
+        "name": "omnibar_options_have_no_nested_controls",
+        "status": "pass"
+      },
+      {
+        "name": "omnibar_enter_activation_stable_entity",
+        "status": "pass"
+      },
+      {
+        "name": "conversation_omnibar_preserves_draft_and_focus",
+        "status": "pass"
+      },
+      {
+        "name": "surface_focus_restoration",
+        "status": "pass"
+      },
+      {
+        "name": "chat_log_dynamic_addition_and_send_focus",
+        "status": "pass"
+      },
+      {
+        "name": "visible_keyboard_focus",
+        "status": "pass"
+      },
+      {
+        "name": "high_frequency_targets_at_least_44px",
+        "status": "pass"
+      },
+      {
+        "name": "default_account_control_in_lower_trailing_reach_zone",
+        "status": "pass"
+      },
+      {
+        "name": "text_200_percent_no_page_horizontal_scroll_320px",
+        "status": "pass"
+      },
+      {
+        "name": "reduced_motion_suppresses_expressive_animation",
+        "status": "pass"
+      },
+      {
+        "name": "pointer_path_reaches_open_conversation",
+        "status": "pass"
+      },
+      {
+        "name": "no_uncaught_page_errors",
+        "status": "pass"
+      },
+      {
+        "name": "touch_single_pointer_path_reaches_open_conversation",
+        "status": "pass"
+      },
+      {
+        "name": "touch_context_no_uncaught_page_errors",
+        "status": "pass"
+      }
+    ],
+    "firefox": [
+      {
+        "name": "engine_availability",
+        "status": "not_run",
+        "detail": "No runnable firefox binary in this environment"
+      }
+    ],
+    "webkit": [
+      {
+        "name": "engine_availability",
+        "status": "not_run",
+        "detail": "No runnable webkit binary in this environment"
+      }
+    ]
+  },
+  "scope_notes": [
+    "Browser automation verifies DOM behavior and layout only; it is not VoiceOver/TalkBack/NVDA interoperability evidence.",
+    "Touch test uses browser touch emulation and a single-pointer tap; physical-device ergonomics remain a separate gate.",
+    "200% fixture uses OM's explicit text-scale control at a 320 CSS-pixel viewport; browser zoom must also be checked manually on supported targets."
+  ],
+  "summary": {
+    "passed": 17,
+    "total_run": 17,
+    "failed": 0,
+    "not_run": 2
+  }
+}

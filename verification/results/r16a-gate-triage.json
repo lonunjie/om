@@ -1,0 +1,476 @@
+{
+  "checkpoint": "R16A",
+  "source": "om-design-20260929-0807-PHT-r15-uiux-integrated.zip",
+  "source_sha256": "cb13162f7f36c7af890ebb1ee27e0691a533f9a516b0bd64b038aa909aa729da",
+  "gate_count": 24,
+  "pre_engineering_passed": 1,
+  "pre_engineering_open": 23,
+  "criteria_total": 173,
+  "criteria_met": 109,
+  "criteria_missing": 64,
+  "r16a_criteria_closed": [
+    {
+      "gate": "V-005",
+      "criterion": "ADR-0157 critical-extension convergence"
+    },
+    {
+      "gate": "V-013",
+      "criterion": "bridge full-member/export-only contract statement"
+    },
+    {
+      "gate": "V-020",
+      "criterion": "verified-release provisioning path / PC-I01..PC-I03"
+    }
+  ],
+  "engineering_authorized": false,
+  "gates": [
+    {
+      "id": "V-001",
+      "gate": "production_crypto_path",
+      "unlock_scopes": [
+        "core_kernel"
+      ],
+      "category": "pre_engineering_passed",
+      "pre_engineering_status": "passed",
+      "independence_status": "satisfied",
+      "criteria_met": 13,
+      "criteria_total": 13,
+      "criteria_missing": 0,
+      "blockers": [
+        "pre-engineering already passed; only pre-release crypto review/build-exclusion remain"
+      ],
+      "next_executor": "none"
+    },
+    {
+      "id": "V-002",
+      "gate": "account_control_formal_model",
+      "unlock_scopes": [
+        "core_kernel"
+      ],
+      "category": "independent_review_only",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 10,
+      "criteria_total": 11,
+      "criteria_missing": 1,
+      "blockers": [
+        "all 10 repo-local criteria met; model review by non-author remains",
+        "phase independence open"
+      ],
+      "next_executor": "independent reviewer"
+    },
+    {
+      "id": "V-003",
+      "gate": "one_to_one_session_model",
+      "unlock_scopes": [
+        "core_kernel",
+        "local_delivery"
+      ],
+      "category": "independent_review_only",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 13,
+      "criteria_total": 14,
+      "criteria_missing": 1,
+      "blockers": [
+        "all 13 repo-local criteria met; model review by non-author remains",
+        "phase independence open"
+      ],
+      "next_executor": "independent reviewer"
+    },
+    {
+      "id": "V-004",
+      "gate": "group_commit_control_model",
+      "unlock_scopes": [
+        "groups"
+      ],
+      "category": "repo_local_substantial",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 0,
+      "criteria_total": 7,
+      "criteria_missing": 7,
+      "blockers": [
+        "formal group-control model",
+        "candidate MLS runtime ordering feasibility",
+        "reduction/liveness and partition convergence evidence",
+        "ADR-0156 wire freeze/two-codec vectors"
+      ],
+      "next_executor": "R16B executable/model+wire work"
+    },
+    {
+      "id": "V-005",
+      "gate": "canonical_encoding_vectors",
+      "unlock_scopes": [
+        "core_kernel"
+      ],
+      "category": "independent_review_only",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 13,
+      "criteria_total": 13,
+      "criteria_missing": 0,
+      "blockers": [
+        "all 13 repo-local criteria now met",
+        "ADR-0157 normative amendment still requires different-vendor independent review/phase evidence"
+      ],
+      "next_executor": "independent reviewer"
+    },
+    {
+      "id": "V-006",
+      "gate": "web_device_vault_feasibility",
+      "unlock_scopes": [
+        "reference_client_ui"
+      ],
+      "category": "browser_platform_feasibility",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 0,
+      "criteria_total": 5,
+      "criteria_missing": 5,
+      "blockers": [
+        "WebAuthn PRF/WebCrypto/passphrase browser matrix",
+        "device-bound vs synced passkey behavior",
+        "origin-loss recovery on real target platforms"
+      ],
+      "next_executor": "browser/platform environment"
+    },
+    {
+      "id": "V-007",
+      "gate": "sframe_interop",
+      "unlock_scopes": [
+        "calls"
+      ],
+      "category": "runtime_interop_and_wire",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 0,
+      "criteria_total": 4,
+      "criteria_missing": 4,
+      "blockers": [
+        "two browser engines + native SFrame interop",
+        "call authorization/rekey runtime evidence",
+        "ADR-0156 wire freeze"
+      ],
+      "next_executor": "multi-runtime/browser environment + R16B wire work"
+    },
+    {
+      "id": "V-008",
+      "gate": "space_room_permission_authority_model",
+      "unlock_scopes": [
+        "communities_publications"
+      ],
+      "category": "repo_local_substantial",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 0,
+      "criteria_total": 6,
+      "criteria_missing": 6,
+      "blockers": [
+        "formal Room/Space authority model and revocation races",
+        "role/grant ceilings and delegated-intent cases",
+        "ADR-0156 wire freeze"
+      ],
+      "next_executor": "R16B formal model+wire work"
+    },
+    {
+      "id": "V-009",
+      "gate": "baseline_event_materialization_convergence",
+      "unlock_scopes": [
+        "groups"
+      ],
+      "category": "independent_implementation",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 0,
+      "criteria_total": 5,
+      "criteria_missing": 5,
+      "blockers": [
+        "second materializer with independent authorization logic",
+        "reaction/vote/expiry/forwarding convergence"
+      ],
+      "next_executor": "independent implementation/reviewer"
+    },
+    {
+      "id": "V-010",
+      "gate": "plugin_sandbox_capability_model",
+      "unlock_scopes": [
+        "plugins"
+      ],
+      "category": "sandbox_runtime_feasibility",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 0,
+      "criteria_total": 7,
+      "criteria_missing": 7,
+      "blockers": [
+        "native Wasm + PWA sandbox prototypes",
+        "adversarial capability/egress/site-isolation cases",
+        "ADR-0156 wire freeze"
+      ],
+      "next_executor": "runtime environment + substantial prototype"
+    },
+    {
+      "id": "V-011",
+      "gate": "service_principal_authority_and_automation_model",
+      "unlock_scopes": [
+        "services_bots"
+      ],
+      "category": "repo_local_substantial",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 0,
+      "criteria_total": 7,
+      "criteria_missing": 7,
+      "blockers": [
+        "service authority/automation model",
+        "tool-capability adversarial prototype",
+        "removal/incarnation rules",
+        "ADR-0156 wire freeze"
+      ],
+      "next_executor": "R16B model+wire work"
+    },
+    {
+      "id": "V-012",
+      "gate": "expressive_media_and_pack_parser_safety",
+      "unlock_scopes": [
+        "expressive_media"
+      ],
+      "category": "fuzz_interop_and_wire",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 0,
+      "criteria_total": 3,
+      "criteria_missing": 3,
+      "blockers": [
+        "agreed CPU-hour parser fuzzing",
+        "second ContentPack manifest implementation",
+        "ADR-0156 wire freeze"
+      ],
+      "next_executor": "tool/runtime + independent implementation"
+    },
+    {
+      "id": "V-013",
+      "gate": "bridge_provenance_fidelity_and_loop_model",
+      "unlock_scopes": [
+        "bridges"
+      ],
+      "category": "review_plus_wire",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 2,
+      "criteria_total": 4,
+      "criteria_missing": 2,
+      "blockers": [
+        "2/4 repo-local criteria met after R16A",
+        "independent review of bridge adapter contract",
+        "ADR-0156 Bridge wire freeze/two-codec vectors"
+      ],
+      "next_executor": "R16B wire work then independent review"
+    },
+    {
+      "id": "V-014",
+      "gate": "portable_archive_interop_and_import_safety",
+      "unlock_scopes": [
+        "portability"
+      ],
+      "category": "spec_freeze_and_review",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 2,
+      "criteria_total": 3,
+      "criteria_missing": 1,
+      "blockers": [
+        "archive spec remains frozen-candidate, not frozen",
+        "needs ADR/crypto-profile review/V-005 object coverage before criterion can close"
+      ],
+      "next_executor": "R16B spec closure then independent review"
+    },
+    {
+      "id": "V-015",
+      "gate": "metadata_exposure_and_privacy_path_model",
+      "unlock_scopes": [
+        "core_kernel",
+        "provider_reference",
+        "local_delivery"
+      ],
+      "category": "independent_review_only",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 16,
+      "criteria_total": 16,
+      "criteria_missing": 0,
+      "blockers": [
+        "all 16/16 repo-local criteria met",
+        "phase independence/independent review remains"
+      ],
+      "next_executor": "independent reviewer"
+    },
+    {
+      "id": "V-016",
+      "gate": "decentralized_abuse_moderation_authority_model",
+      "unlock_scopes": [
+        "core_kernel",
+        "communities_publications"
+      ],
+      "category": "independent_review_only",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 9,
+      "criteria_total": 9,
+      "criteria_missing": 0,
+      "blockers": [
+        "all 9/9 repo-local criteria met",
+        "phase independence/independent review remains"
+      ],
+      "next_executor": "independent reviewer"
+    },
+    {
+      "id": "V-017",
+      "gate": "protocol_longevity_and_0m_continuity_drill",
+      "unlock_scopes": [],
+      "category": "independent_review_only",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 3,
+      "criteria_total": 3,
+      "criteria_missing": 0,
+      "blockers": [
+        "all 3/3 repo-local continuity criteria met",
+        "always-required pre-engineering gate; independent review remains"
+      ],
+      "next_executor": "independent reviewer"
+    },
+    {
+      "id": "V-018",
+      "gate": "security_ux_comprehension",
+      "unlock_scopes": [
+        "reference_client_ui"
+      ],
+      "category": "human_study",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 0,
+      "criteria_total": 7,
+      "criteria_missing": 7,
+      "blockers": [
+        "security UX participant study is intentionally postponed",
+        "theme compiler test is repo-local but does not substitute for participant evidence"
+      ],
+      "next_executor": "human participants + later repo-local theme test"
+    },
+    {
+      "id": "V-019",
+      "gate": "pq_group_reinit_migration",
+      "unlock_scopes": [
+        "groups"
+      ],
+      "category": "crypto_runtime_prototype",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 0,
+      "criteria_total": 1,
+      "criteria_missing": 1,
+      "blockers": [
+        "authenticated MLS ReInit to hybrid-PQ suite prototype/vectors"
+      ],
+      "next_executor": "crypto/MLS runtime prototype"
+    },
+    {
+      "id": "V-020",
+      "gate": "home_onboarding_and_provider_portability",
+      "unlock_scopes": [
+        "provider_reference"
+      ],
+      "category": "repo_local_model_remaining",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 7,
+      "criteria_total": 9,
+      "criteria_missing": 2,
+      "blockers": [
+        "7/9 criteria met after R16A",
+        "blocked-vendor/suffix simulation still missing",
+        "sponsor-revocation overlap + non-sponsor second-route model still missing",
+        "independent review after repo-local closure"
+      ],
+      "next_executor": "R16B bounded models then independent review"
+    },
+    {
+      "id": "V-021",
+      "gate": "endpoint_coercion_and_platform_leakage",
+      "unlock_scopes": [
+        "reference_client_ui"
+      ],
+      "category": "independent_review_only",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 10,
+      "criteria_total": 10,
+      "criteria_missing": 0,
+      "blockers": [
+        "all 10/10 repo-local criteria met",
+        "phase independence/independent review remains"
+      ],
+      "next_executor": "independent reviewer"
+    },
+    {
+      "id": "V-022",
+      "gate": "performance_budgets",
+      "unlock_scopes": [
+        "reference_client_ui",
+        "provider_reference"
+      ],
+      "category": "reviewed_plan",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 2,
+      "criteria_total": 3,
+      "criteria_missing": 1,
+      "blockers": [
+        "2/3 pre-engineering criteria met",
+        "measurement harness plan exists but independent review is not recorded",
+        "real device/client measurements are pre-release/implementation evidence"
+      ],
+      "next_executor": "independent plan review; later physical devices"
+    },
+    {
+      "id": "V-023",
+      "gate": "clienthost_update_lifecycle",
+      "unlock_scopes": [
+        "reference_client_ui"
+      ],
+      "category": "independent_review_only",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 9,
+      "criteria_total": 9,
+      "criteria_missing": 0,
+      "blockers": [
+        "all 9/9 repo-local criteria met",
+        "phase independence/independent review remains"
+      ],
+      "next_executor": "independent reviewer"
+    },
+    {
+      "id": "V-024",
+      "gate": "lan_delivery_binding",
+      "unlock_scopes": [
+        "local_delivery"
+      ],
+      "category": "mixed_wire_model_browser",
+      "pre_engineering_status": "open",
+      "independence_status": "open",
+      "criteria_met": 0,
+      "criteria_total": 4,
+      "criteria_missing": 4,
+      "blockers": [
+        "LAN profile CDDL/registry/two-codec vectors",
+        "passive-observer privacy trace model",
+        "offline first-contact model",
+        "real browser DataChannel feasibility or explicit unavailable capability"
+      ],
+      "next_executor": "R16B repo-local wire/models + browser environment"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "kind": "r16b_v024_lan_two_codec_vectors",
+  "gates": [
+    "V-024"
+  ],
+  "passed": true,
+  "python": {
+    "implementation": "python",
+    "positive": 9,
+    "negative": 8,
+    "mismatches": []
+  },
+  "node": {
+    "implementation": "node",
+    "positive": 9,
+    "negative": 8,
+    "mismatches": []
+  },
+  "positive_vectors": 9,
+  "negative_vectors": 8,
+  "criterion_evidenced": "ADR-0158 LanDeliveryProfile frozen as spec/cddl/lan.cddl with registered numeric fields/domain-separation labels and profile constants, plus positive/negative vectors on which two independently written codecs agree (R-342, R-349)",
+  "note": "The codecs are independently written schema-specific validators/encoders. Browser WebRTC feasibility is separate."
+}

@@ -165,3 +165,5 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0156 — Engineering-handoff closure: LAN wire binding, later-wave wire freeze, scheduled send and sync namespacing](ADR-0156-engineering-handoff-closure-lan-binding-and-later-wave-wire-freeze.md)
 - [ADR-0157 — Independent-review remediation: extension convergence, history-bundle boundary and scheduled-send late binding](ADR-0157-independent-review-remediation-extension-convergence-history-boundary-and-scheduled-send.md)
 - [ADR-0158 — LanDeliveryProfile v1: private rendezvous, sealed local routes, browser-capable framing](ADR-0158-lan-delivery-profile-v1.md)
+- [ADR-0160 — V-008 Space/Publication wire freeze](ADR-0160-v008-space-publication-wire-freeze.md)
+- [ADR-0159 — Reconcile the UI/UX interaction model into the V1 reference client](ADR-0159-reconcile-uiux-interaction-model-into-v1-reference-client.md)
