@@ -183,29 +183,42 @@ def _authorize(p: dict, c: dict, ctx: dict) -> tuple[str, str]:
     maj = majority(len(control))
     safety_frozen = bool(quarantined) and len(voting) < maj
     if safety_frozen:
-        # §5 / ADR-0137: SAFETY_FREEZE is derived from the parent state, never from
-        # caller-supplied provenance. Selective restoration is the sole exception
-        # that can count quarantined challenge signatures.
+        # §5 / ADR-0137 as amended by ADR-0168 (F-14): SAFETY_FREEZE is derived from the parent state, never from
+        # caller-supplied provenance. Freeze resolution is the sole transition that counts quarantined challenge
+        # signatures. It has exactly the authority of a normal-mode majority: parent-majority signers, at most one
+        # co-signed recovery vote (R-185), and only restore/revoke deltas.
         if rule == "bridge":
             return "reject", "a quarantine-induced safety freeze is not a fork freeze; fork bridge is a separate transition"
-        if any(k != "lift_quarantine" for k, _ in ds):
-            return "reject", "parent is under quarantine-induced SAFETY_FREEZE; only threshold-restoring quarantine lifts may resolve it"
-        if ctx.get("recovery"):
-            return "reject", "a recovery vote never resolves a freeze"
+        if any(k not in ("lift_quarantine", "revoke_control", "remove_messaging") for k, _ in ds):
+            return "reject", "parent is under quarantine-induced SAFETY_FREEZE; only restore/revoke freeze resolutions may resolve it"
         if signers - control:
             return "reject", "a freeze-resolution signer is not a controller of the parent"
-        if len(signers) < maj:
-            return "reject", "freeze resolution needs a device-only parent majority"
-        restored = set(p["quarantined"]) - set(c["quarantined"])
-        if not restored:
-            return "reject", "freeze resolution must restore at least one quarantined controller"
+        rec = ctx.get("recovery")
+        if rec and rec.get("veto"):
+            return "reject", "RecoveryVeto observed"
+        if rec and not signers:
+            return "reject", "a recovery vote resolves a freeze only co-signed by at least one parent controller"
+        rv = 1 if rec else 0
+        if len(signers) + rv < maj:
+            return "reject", "freeze resolution needs a parent majority (device signatures plus at most one co-signed recovery vote)"
+        restored = set(p["quarantined"]) - set(c["quarantined"]) - (control - set(c["control"]))
+        revoked = control - set(c["control"])
+        removed_msg = set(p["messaging"]) - set(c["messaging"])
+        if not restored and not revoked:
+            return "reject", "freeze resolution must restore or revoke at least one controller"
         if not restored <= signers:
             return "reject", "every restored controller must contribute its freeze-challenge signature"
+        if revoked & signers:
+            return "reject", "a freeze-resolution signer cannot revoke itself"
+        if not removed_msg <= revoked:
+            return "reject", "freeze resolution may remove messaging devices only for revoked controllers"
         if set(c["quarantined"]) - set(p["quarantined"]):
             return "reject", "freeze resolution may not add new quarantines"
-        if len(control - set(c["quarantined"])) < maj:
-            return "reject", "selective restoration must exit SAFETY_FREEZE by restoring a voting majority"
-        return "accept", "device-only parent majority resolves the freeze; selected challenge-signed controllers restored"
+        child_control = set(c["control"])
+        if len(child_control - set(c["quarantined"])) < majority(len(child_control)):
+            return "reject", "freeze resolution must leave an active, non-quarantined majority of the child controllers"
+        how = "with a co-signed recovery vote" if rv else "device-only"
+        return "accept", f"parent majority ({how}) resolves the freeze by restoring/revoking controllers"
     if ctx.get("frozen") and rule != "bridge":
         return "reject", "a non-quarantine freeze is resolved only by the fork-bridge path"
     if signers - voting:
@@ -346,10 +359,17 @@ def explore() -> dict:
                 rec = ctx.get("recovery")
                 tag = f"{cls}/{tgt} N={n} q={p['quarantined']} ctx={ctx}"
                 if v == "accept":
-                    safety_resolution = len(voting) < maj and cls == "lift_quarantine"
+                    safety_resolution = len(voting) < maj and bool(p["quarantined"]) and cls in ("lift_quarantine", "revoke_control")
                     if s - voting and not safety_resolution:
                         violations.append(f"accepted with a non-voting signer: {tag}")
-                    if RULE[cls] in ("majority", "bridge") and len(s) < maj:
+                    if safety_resolution:
+                        # ADR-0168 F-14: parent majority of device signatures plus at most one co-signed recovery vote
+                        if len(s) + (1 if rec else 0) < maj or (rec and (not s or rec["veto"])):
+                            violations.append(f"freeze resolution accepted below the co-signed parent majority: {tag}")
+                        restored = set(p["quarantined"]) - set(c["quarantined"]) - (set(p["control"]) - set(c["control"]))
+                        if not restored <= s:
+                            violations.append(f"freeze resolution restored a controller that did not sign: {tag}")
+                    elif RULE[cls] in ("majority", "bridge") and len(s) < maj:
                         violations.append(f"majority-only delta accepted below majority: {tag}")
                     if RULE[cls] == "majority_rv" and len(s) + (1 if rec else 0) < maj and not (rec and not s):
                         violations.append(f"majority_rv delta accepted below majority: {tag}")
@@ -409,7 +429,18 @@ def vectors() -> list[dict]:
     add("frozen_lift_with_challenge_signature_resolves", "lift_quarantine", P2q1, k2q1[("lift_quarantine", "d2")], {"signers": ["d1", "d2"], "frozen": True}, "accept")
     add("frozen_lift_without_challenge_signature_rejected", "lift_quarantine", P2q1, k2q1[("lift_quarantine", "d2")], {"signers": ["d1"], "frozen": True}, "reject")
     add("frozen_lift_with_recovery_vote_rejected", "lift_quarantine", P2q1, k2q1[("lift_quarantine", "d2")], {"signers": ["d1"], "recovery": rec(2), "frozen": True}, "reject")
-    add("frozen_other_delta_rejected", "revoke_control", P2q1, k2q1[("revoke_control", "d2")], {"signers": ["d1", "d2"], "frozen": True}, "reject")
+    add("frozen_signer_cannot_revoke_itself_rejected", "revoke_control", P2q1, k2q1[("revoke_control", "d2")], {"signers": ["d1", "d2"], "frozen": True}, "reject")
+    # ADR-0168 F-14: a two-controller owner who suspended a stolen device (d2) is not locked out; the thief is not empowered.
+    add("frozen_owner_cosigned_recovery_revokes_suspended_thief", "revoke_control", P2q1, k2q1[("revoke_control", "d2")], {"signers": ["d1"], "recovery": rec(0), "frozen": True}, "accept")
+    add("frozen_recovery_alone_cannot_resolve", "revoke_control", P2q1, k2q1[("revoke_control", "d2")], {"signers": [], "recovery": rec(2), "frozen": True}, "reject")
+    add("frozen_cosigned_recovery_over_veto_rejected", "revoke_control", P2q1, k2q1[("revoke_control", "d2")], {"signers": ["d1"], "recovery": rec(0, True), "frozen": True}, "reject")
+    # the thief (d2) quarantined the owner (d1): the owner's challenge signature + recovery restores d1 and revokes d2
+    P2thief = state(["d1", "d2"], quarantined=["d1"], messaging=[MSG], min_gen=2)
+    Cowner = state(["d1"], messaging=[MSG], revoked=["d2"], min_gen=2, gen=2)
+    add("frozen_owner_challenge_plus_recovery_restores_self_and_revokes_thief", "revoke_control", P2thief, Cowner, {"signers": ["d1"], "recovery": rec(0), "frozen": True}, "accept")
+    Cthief = state(["d2"], messaging=[MSG], revoked=["d1"], min_gen=2, gen=2)
+    add("frozen_thief_alone_cannot_revoke_owner", "revoke_control", P2thief, Cthief, {"signers": ["d2"], "frozen": True}, "reject")
+    add("frozen_thief_cannot_restore_owner_without_owner_challenge", "lift_quarantine", P2thief, state(["d1", "d2"], messaging=[MSG], min_gen=2, gen=2), {"signers": ["d2"], "recovery": rec(0), "frozen": True}, "reject")
     # ADR-0137: selective restoration is allowed only when the child actually exits
     # SAFETY_FREEZE. A known-bad controller may remain quarantined.
     P3q2 = state(["d1", "d2", "d3"], quarantined=["d2", "d3"], messaging=[MSG], min_gen=2)

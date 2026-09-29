@@ -2524,6 +2524,18 @@
       "verified_by": [
         "validator"
       ]
+    },
+    {
+      "requirement": "R-387",
+      "verified_by": [
+        "V-002"
+      ]
+    },
+    {
+      "requirement": "R-388",
+      "verified_by": [
+        "V-005"
+      ]
     }
   ]
 }

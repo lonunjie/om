@@ -134,8 +134,9 @@ def cmd_build(a) -> int:
                                or r["path"].startswith("spec/registries/")],
         "crypto_profile_snapshot": next(({"path": r["path"], "sha256": r["sha256"]} for r in rows
                                          if r["path"].endswith("crypto-profile.logical.schema.json")), None),
-        "security_status_at_publication": {"snapshot": snap, "engineering_authorized": False,
-                                           "note": "pre-engineering design bundle; no production release"},
+        "security_status_at_publication": {"snapshot": snap,
+                                           "engineering_authorized": bool(json.loads((ROOT / "machine/repository_contract.json").read_text())["engineering_authorized"]),
+                                           "note": "design continuity bundle; engineering authorization is scope-granular and no production release is implied"},
         "license_inventory": [r for r in rows if kind(r["path"]) == "license"],
         "reference_source_revision": {"vcs": "git", "commit": sha},
         "migration_guidance": {"path": "CHANGELOG.md"},

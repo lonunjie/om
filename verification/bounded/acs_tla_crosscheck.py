@@ -102,9 +102,13 @@ def check_trace(path: Path) -> tuple[dict, list[str]]:
         if last["signers"] and len(last["signers"]) + last["rv"] == need and not (n == 1 and kind != "quarantine"):
             v2, why2 = authorize(p, c, dict(ctx, signers=sorted(last["signers"])[1:])); stats["negative"] += 1
             if v2 == "accept": bad.append(f"one signer fewer still accepted ({why2}): {tag}")
-        if kind in ("lift", "resolve"):
+        if kind == "lift":
             v3, why3 = authorize(p, c, dict(ctx, recovery={"elapsed": DELAY, "delay": DELAY, "veto": False})); stats["negative"] += 1
-            if v3 != "reject": bad.append(f"lift/resolution with recovery not rejected ({v3}: {why3}): {tag}")
+            if v3 != "reject": bad.append(f"lift with recovery not rejected ({v3}: {why3}): {tag}")
+        if kind == "resolve":
+            # ADR-0168: a recovery vote never resolves a freeze alone
+            v3, why3 = authorize(p, c, dict(ctx, signers=[], recovery={"elapsed": DELAY, "delay": DELAY, "veto": False})); stats["negative"] += 1
+            if v3 != "reject": bad.append(f"recovery-alone freeze resolution not rejected ({v3}: {why3}): {tag}")
         if kind == "recovery_delayed":
             v4, _ = authorize(p, c, dict(ctx, recovery={"elapsed": DELAY - 1, "delay": DELAY, "veto": False})); stats["negative"] += 1
             if v4 != "pending": bad.append(f"recovery one tick early is {v4}, not pending: {tag}")
@@ -115,43 +119,53 @@ def check_trace(path: Path) -> tuple[dict, list[str]]:
 
 # ResolveFreeze guard clauses that make selective restoration the TLA rule, not a Python-only convention.
 TLA_REQUIRED = [
-    "R \\subseteq quarantined /\\ R # {}",
+    "R \\subseteq quarantined",
     "R \\subseteq V",
+    "K \\subseteq controllers \\ V",
+    "R \\cup K # {}",
     "V \\subseteq Signable(p)",
-    "Cardinality(V) >= Majority(controllers)",
-    "Cardinality(controllers \\ (quarantined \\ R)) >= Majority(controllers)",
-    "quarantined' = quarantined \\ R",
-    'last\' = [kind |-> "resolve", signers |-> V, rv |-> 0, challenge |-> V \\cap quarantined]',
+    "(rv = 1) => (Methods(p) >= 1 /\\ V # {})",
+    "Cardinality(V) + rv >= Majority(controllers)",
+    "Cardinality((controllers \\ K) \\ ((quarantined \\ R) \\ K)) >= Majority(controllers \\ K)",
+    "quarantined' = (quarantined \\ R) \\ K",
+    "revoked' = revoked \\cup K",
 ]
 
 
 def tla_source_guard() -> list[str]:
     src = TLA.read_text()
-    block = src.split("ResolveFreeze(p, V, R) ==", 1)[1].split("\n\n", 1)[0]
+    block = src.split("ResolveFreeze(p, V, R, K, rv) ==", 1)[1].split("\n\n", 1)[0]
     return [f"ResolveFreeze source missing clause: {x}" for x in TLA_REQUIRED if x not in block]
 
 
-def tla_freeze_accept(parent_q: set[str], child_q: set[str], controllers: set[str], signers: set[str], recovery: bool,
-                      extra: str) -> bool:
-    """Constitutional portion of ResolveFreeze, with all controllers owner-signable.
+def tla_freeze_accept(parent_q: set[str], child_q: set[str], controllers: set[str], revoked: set[str],
+                      signers: set[str], recovery: bool, extra: str) -> bool:
+    """Constitutional portion of ResolveFreeze(p, V, R, K, rv) (ADR-0137 as amended by ADR-0168), all controllers
+    owner-signable and the owner holding a recovery method.
 
     TLA party/liveness availability dimensions are deliberately normalized here: no controller is lost/offline and
     all are owner devices, so Signable(owner)=controllers. This compares the authorization transition relation,
     while TLC remains responsible for environment/reachability behavior.
     """
     maj = majority(len(controllers))
-    restored = parent_q - child_q
+    K = revoked
+    R = (parent_q - child_q) - K
+    rv = 1 if recovery else 0
+    kept = controllers - K
     return (
-        bool(parent_q) and len(controllers - parent_q) < maj and
-        extra == "none" and not recovery and
-        child_q <= parent_q and bool(restored) and restored <= signers and
-        signers <= controllers and len(signers) >= maj and
-        len(controllers - child_q) >= maj
+        bool(parent_q) and len(controllers - parent_q) < maj and extra == "none" and
+        K <= controllers - signers and child_q == (parent_q - R) - K and
+        R <= parent_q and R <= signers and bool(R | K) and
+        signers <= controllers and (rv == 0 or bool(signers)) and len(signers) + rv >= maj and
+        len(kept - child_q) >= majority(len(kept))
     )
 
 
-def child_for(parent: dict, child_q: set[str], extra: str) -> dict:
-    c = deepcopy(parent); c["generation"] += 1; c["quarantined"] = sorted(child_q)
+def child_for(parent: dict, child_q: set[str], extra: str, revoke: set[str] = frozenset()) -> dict:
+    c = deepcopy(parent); c["generation"] += 1; c["quarantined"] = sorted(child_q - revoke)
+    if revoke:
+        c["control"] = sorted(set(c["control"]) - revoke); c["revoked"] = sorted(set(c["revoked"]) | revoke)
+        for d in revoke: c["key_epochs"].pop(d, None)
     if extra == "promote":
         c["control"] = sorted(set(c["control"]) | {"new"}); c["key_epochs"]["new"] = 1
     elif extra == "revoke":
@@ -167,7 +181,7 @@ def child_for(parent: dict, child_q: set[str], extra: str) -> dict:
 def bounded_freeze_equivalence() -> dict:
     mismatches, table_only, tla_only = [], 0, 0
     checked = accepted_tla = accepted_table = 0
-    extras = ("none", "promote", "revoke", "recovery_policy", "constitutional_policy", "raise_min_profile")
+    extras = ("none", "promote", "recovery_policy", "constitutional_policy", "raise_min_profile")  # revocations: K enumeration (ADR-0168)
     for n in (2, 3, 4):
         ctl = {f"d{i}" for i in range(1, n + 1)}; maj = majority(n)
         for qn in range(1, n):
@@ -176,24 +190,27 @@ def bounded_freeze_equivalence() -> dict:
                 if not (0 < len(ctl - q) < maj): continue
                 p = state(sorted(ctl), quarantined=sorted(q), policy="p0", constitution=1, min_gen=1, gen=1)
                 universe = sorted(ctl | {"outsider"})
-                for child_bits in range(1 << n):
+                for child_bits, k_bits in itertools.product(range(1 << n), range(1 << n)):
                     cq = {d for i, d in enumerate(sorted(ctl)) if child_bits & (1 << i)}
+                    K = {d for i, d in enumerate(sorted(ctl)) if k_bits & (1 << i)}
+                    if K == ctl or cq & K: continue
                     for sn in range(len(universe) + 1):
                         for st in itertools.combinations(universe, sn):
                             signers = set(st)
                             for recovery, extra in itertools.product((False, True), extras):
+                                if K and extra != "none": continue
                                 checked += 1
-                                tv = tla_freeze_accept(q, cq, ctl, signers, recovery, extra)
+                                tv = tla_freeze_accept(q, cq, ctl, K, signers, recovery, extra)
                                 ctx = {"signers": sorted(signers), "frozen": True}
                                 if recovery: ctx["recovery"] = {"elapsed": 2, "delay": 2, "veto": False}
-                                ev, _ = authorize(p, child_for(p, cq, extra), ctx)
+                                ev, _ = authorize(p, child_for(p, cq, extra, K), ctx)
                                 av = ev == "accept"
                                 accepted_tla += int(tv); accepted_table += int(av)
                                 if tv != av:
                                     if av: table_only += 1
                                     else: tla_only += 1
                                     if len(mismatches) < 20:
-                                        mismatches.append({"N": n, "parent_q": sorted(q), "child_q": sorted(cq),
+                                        mismatches.append({"N": n, "parent_q": sorted(q), "child_q": sorted(cq), "revoke": sorted(K),
                                                            "signers": sorted(signers), "recovery": recovery,
                                                            "extra": extra, "tla": tv, "table": av})
     return {"checked": checked, "accepted_tla": accepted_tla, "accepted_table": accepted_table,
@@ -209,8 +226,14 @@ def explicit_negatives() -> dict[str, bool]:
         state(["d1", "d2", "d3", "d4"], quarantined=["d2", "d3", "d4"], gen=1),
         state(["d1", "d2", "d3", "d4"], quarantined=["d3", "d4"], gen=2),
         {"signers": ["d1", "d2", "d3"], "frozen": True})[0] == "reject"
-    cases["recovery_vote_in_freeze"] = authorize(p, good, {"signers": ["d1", "d2"], "frozen": True,
-        "recovery": {"elapsed": 2, "delay": 2, "veto": False}})[0] == "reject"
+    rec = {"elapsed": 2, "delay": 2, "veto": False}
+    cases["recovery_alone_in_freeze"] = authorize(p, good, {"signers": [], "frozen": True, "recovery": rec})[0] == "reject"
+    cases["recovery_vote_cannot_restore_nonsigner"] = authorize(p, good, {"signers": ["d1"], "frozen": True, "recovery": rec})[0] == "reject"
+    cases["vetoed_recovery_in_freeze"] = authorize(p, good, {"signers": ["d1", "d2"], "frozen": True,
+        "recovery": dict(rec, veto=True)})[0] == "reject"
+    thief = state(["d1", "d2"], quarantined=["d1"], gen=1)
+    cases["thief_alone_cannot_revoke_owner"] = authorize(thief, child_for(thief, set(), "none", {"d1"}), {"signers": ["d2"], "frozen": True})[0] == "reject"
+    cases["owner_challenge_plus_recovery_revokes_thief"] = authorize(thief, child_for(thief, set(), "none", {"d2"}), {"signers": ["d1"], "frozen": True, "recovery": rec})[0] == "accept"
     cases["outsider_challenge_signer"] = authorize(p, good, {"signers": ["d1", "d2", "outsider"], "frozen": True})[0] == "reject"
     ordinary_p = state(["d1", "d2", "d3"], quarantined=["d3"], gen=1)
     ordinary_c = deepcopy(ordinary_p); ordinary_c["generation"] = 2; ordinary_c["quarantined"] = []

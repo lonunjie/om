@@ -118,7 +118,7 @@ A device-management surface should identify each authorized device using user-co
 - recent activity/last-seen only if architecture can measure it accurately and privacy policy permits;
 - capability/status such as active or revoked.
 
-`Suspend device` and permanent revocation are distinct security-critical actions. Suspension/quarantine is the immediate emergency action when canonical state permits; stronger permanent removal may require a later/pending authorization transition. Contested control uses a calm Safety Freeze state rather than last-writer-wins.
+`Suspend device` and permanent revocation are distinct security-critical actions. Suspension/quarantine is the immediate emergency action when canonical state permits; stronger permanent removal may require a later/pending authorization transition. Contested control uses a calm Safety Freeze state rather than last-writer-wins. When suspending a device would freeze the account (for example, one of two controllers), the UI explains that and offers permanent removal with the recovery method instead; if a freeze already exists, it offers the ADR-0168 resolution (this device plus the recovery method) to restore control and remove the suspect device.
 
 Before confirmation OM must identify the exact device and explain what the selected action actually does. The UI must not promise deletion of history or secrets already stored on that remote device unless the architecture guarantees it.
 

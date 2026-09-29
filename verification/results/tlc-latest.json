@@ -774,7 +774,7 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 1881657,
+      "distinct_states": 1952289,
       "depth": 22,
       "as_expected": true
     },
@@ -785,7 +785,7 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 3221,
+      "distinct_states": 3913,
       "depth": 11,
       "as_expected": true
     },
@@ -796,7 +796,7 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 15076,
+      "distinct_states": 16820,
       "depth": 11,
       "as_expected": true
     },
@@ -807,7 +807,7 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 16149,
+      "distinct_states": 17681,
       "depth": 11,
       "as_expected": true
     },
@@ -818,7 +818,7 @@
       "expect": "pass",
       "outcome": "pass",
       "violated": null,
-      "distinct_states": 2084,
+      "distinct_states": 2272,
       "depth": 9,
       "as_expected": true
     },
@@ -901,7 +901,7 @@
       "outcome": "pass",
       "violated": null,
       "distinct_states": 90,
-      "depth": 7,
+      "depth": 6,
       "as_expected": true
     },
     {
@@ -971,6 +971,29 @@
       "expect": "violation",
       "outcome": "violation",
       "violated": "TrapDelayedRecovery",
+      "distinct_states": null,
+      "depth": null,
+      "as_expected": true,
+      "trace_length": 5
+    },
+    {
+      "config": "AccountControl_thief_freeze.cfg",
+      "gate": "V-002",
+      "claim": "ADR-0168 F-14: a thief holding one of two devices and no recovery method never owns the account, even though freeze resolution may revoke and count a co-signed recovery vote",
+      "expect": "pass",
+      "outcome": "pass",
+      "violated": null,
+      "distinct_states": 340,
+      "depth": 10,
+      "as_expected": true
+    },
+    {
+      "config": "AccountControl_trap_thief_freeze.cfg",
+      "gate": "V-002",
+      "claim": "golden F-14: a two-device owner escapes a thief-induced freeze with a challenge signature plus a co-signed recovery vote and revokes the stolen device",
+      "expect": "violation",
+      "outcome": "violation",
+      "violated": "TrapOwnerEscapesThiefFreeze",
       "distinct_states": null,
       "depth": null,
       "as_expected": true,

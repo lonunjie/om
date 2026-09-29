@@ -18,6 +18,8 @@
     {"module": "AccountControl", "config": "AccountControl_trap_quarantine_freeze.cfg", "expect": "violation", "invariant": "TrapQuarantineFreeze", "gate": "V-002", "claim": "golden F-2: threshold-disabling quarantine enters SAFETY_FREEZE"},
     {"module": "AccountControl", "config": "AccountControl_trap_challenge_resolve.cfg", "expect": "violation", "invariant": "TrapChallengeResolves", "gate": "V-002", "claim": "golden F-2: freeze resolved by a device-only majority counting the quarantined device's challenge signature"},
     {"module": "AccountControl", "config": "AccountControl_trap_cosigned_recovery.cfg", "expect": "violation", "invariant": "TrapCosignedRecovery", "gate": "V-002", "claim": "golden: co-signed recovery vote reconstitutes immediately"},
-    {"module": "AccountControl", "config": "AccountControl_trap_delayed_recovery.cfg", "expect": "violation", "invariant": "TrapDelayedRecovery", "gate": "V-002", "claim": "golden: recovery alone completes after the full delay"}
+    {"module": "AccountControl", "config": "AccountControl_trap_delayed_recovery.cfg", "expect": "violation", "invariant": "TrapDelayedRecovery", "gate": "V-002", "claim": "golden: recovery alone completes after the full delay"},
+    {"module": "AccountControl", "config": "AccountControl_thief_freeze.cfg", "expect": "pass", "gate": "V-002", "claim": "ADR-0168 F-14: a thief holding one of two devices and no recovery method never owns the account, even though freeze resolution may revoke and count a co-signed recovery vote"},
+    {"module": "AccountControl", "config": "AccountControl_trap_thief_freeze.cfg", "expect": "violation", "invariant": "TrapOwnerEscapesThiefFreeze", "gate": "V-002", "claim": "golden F-14: a two-device owner escapes a thief-induced freeze with a challenge signature plus a co-signed recovery vote and revokes the stolen device"}
   ]
 }

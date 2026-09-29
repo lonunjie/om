@@ -5,7 +5,7 @@
   "authority_rule": "A verifier derives deltas by diffing child and parent. Signers and thresholds are evaluated against the parent. An unlisted delta is rejected. A child is also rejected if any permanently revoked DeviceID re-enters messaging/control eligibility.",
   "parent_majority": "floor(N/2)+1 where N is the number of parent active_control_devices; quarantined controllers remain in N",
   "ordinary_signer_set": "parent active_control_devices minus parent quarantined_control_devices",
-  "recovery_vote": "one constitutional vote only where the transition row permits it; it never counts for ordinary quarantine lift, safety-freeze resolution or fork bridge",
+  "recovery_vote": "one constitutional vote only where the transition row permits it; it never counts for ordinary quarantine lift or fork bridge, and counts for safety-freeze resolution only co-signed by at least one parent controller (ADR-0168)",
   "transitions": [
     {
       "id": "link_messaging",
@@ -100,14 +100,19 @@
     "id": "resolve_safety_freeze",
     "applies_when": "the parent is in a quarantine-induced SAFETY_FREEZE because active non-quarantined parent controllers are fewer than the parent majority",
     "allowed_delta_classes": [
-      "lift_quarantine"
+      "lift_quarantine",
+      "revoke_control",
+      "remove_messaging (only for controllers revoked by this resolution)"
     ],
-    "restored_set": "a non-empty subset of parent quarantined_control_devices; every restored controller must contribute its own freeze-challenge signature",
+    "restored_set": "a subset of parent quarantined_control_devices; every restored controller must contribute its own freeze-challenge signature",
     "signer_universe": "all parent controllers; quarantined controllers may sign only with the freeze-challenge capability",
-    "threshold": "parent majority",
-    "recovery": "forbidden",
-    "postcondition": "the child has at least the parent majority active and non-quarantined controllers",
-    "other_changes": "forbidden except normal generation/previous-state/authorization material"
+    "threshold": "parent majority counting device signatures plus at most one recovery vote",
+    "recovery": "at most one vote, only co-signed by at least one parent controller (R-185); a RecoveryVeto rejects it; recovery alone never resolves a freeze",
+    "postcondition": "the child's active non-quarantined controllers reach the child's majority",
+    "other_changes": "forbidden except normal generation/previous-state/authorization material",
+    "revoked_set": "a subset of parent controllers that did not sign the resolution; each is moved to permanently_revoked_devices (ADR-0168)",
+    "non_empty": "restored_set and revoked_set together are non-empty",
+    "amended_by": "ADR-0168 (review finding F-14: without revocation and a co-signed recovery vote, one stolen device could permanently lock a two-controller account)"
   },
   "fork_resolution": {
     "id": "fork_bridge",

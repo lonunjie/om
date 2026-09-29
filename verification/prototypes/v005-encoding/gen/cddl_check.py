@@ -88,7 +88,7 @@ def main(vec_path, build, v005):
     if build.exists():
         subprocess.run(["rm", "-rf", str(build)], check=True)
     build.mkdir(parents=True)
-    types = {t["name"]: t for t in json.loads((PROTO.parents[2] / "spec/registries/om-object-types.json").read_text())["types"]}
+    types = {t["name"]: t for t in json.loads((PROTO.parents[2] / "spec/registries/om-object-types.json").read_text())["types"] if t.get("wave") == "W0"}  # V-005 scope: frozen W0 wire
     vectors = json.load(open(vec_path))["vectors"]
     cases = defaultdict(list)  # root -> [(vector id, expected valid?, bytes)]
     for v in vectors:

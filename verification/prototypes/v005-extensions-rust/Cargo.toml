@@ -1,0 +1,15 @@
+# Feasibility prototype for V-005 (ADR-0168 review). Not product code. Not for production.
+[package]
+name = "om-v005-extensions"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "MPL-2.0"
+description = "Clean-room Rust implementation of the V1 presentation-extension semantics (voice note, location card, rich list) written from MESSENGER_BASELINE_V1 and the registries"
+
+[dependencies]
+serde_json = "=1.0.145"
+
+[[bin]]
+name = "v005-extensions"
+path = "src/main.rs"

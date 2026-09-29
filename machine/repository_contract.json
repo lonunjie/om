@@ -1,7 +1,7 @@
 {
   "snapshot": "2026-09-29T09:02:00+08:00",
-  "phase": "architecture_hardening_pre_engineering",
-  "engineering_authorized": false,
+  "phase": "scoped_engineering_w0",
+  "engineering_authorized": true,
   "engineering_unlock_requires": [
     "accepted ADR explicitly authorizing a named engineering scope",
     "every gate listing that scope in unlock_scopes, and every always_required_pre_engineering_gates entry, has pre_engineering_status passed or waived_by_adr",
@@ -156,9 +156,10 @@
   "engineering_scopes": {
     "core_kernel": {
       "wave": "W0",
-      "authorized": false,
+      "authorized": true,
       "depends_on": [],
-      "description": "canonical encoding, AccountControlState, 1:1 sessions/crypto, async key material, relay delivery, blobs, multi-device plus bounded account-private draft/preference sync, IntroGate/block, V1 optional presentation extensions"
+      "description": "canonical encoding, AccountControlState, 1:1 sessions/crypto, async key material, relay delivery, blobs, multi-device plus bounded account-private draft/preference sync, IntroGate/block, V1 optional presentation extensions",
+      "authorizing_adr": "ADR-0169"
     },
     "reference_client_ui": {
       "wave": "W0",

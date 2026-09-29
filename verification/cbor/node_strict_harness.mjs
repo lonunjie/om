@@ -19,6 +19,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REG = process.env.OM_REG || path.join(HERE, '..', '..', 'spec', 'registries');  // OM_REG: additive later-wave overlay (feasibility checks)
 const readJson = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
 const FIELDS = readJson(path.join(REG, 'om-numeric-fields.json'));
+// ADR-0168 F-16: this is a W0 decoder, so enum values introduced in a later wave (enum_value_waves) are not W0-valid.
+for (const [e, vals] of Object.entries(FIELDS.enum_value_waves || {})) for (const [v, w] of Object.entries(vals)) if (w !== 'W0') delete FIELDS.enums[e][v];
 const TYPES = Object.fromEntries(readJson(path.join(REG, 'om-object-types.json')).types.map((t) => [t.name, t]));
 const PROFILE = readJson(path.join(REG, 'om-cbor-profile.json'));
 const LIM = PROFILE.limits;

@@ -9,7 +9,7 @@
     "verification/prototypes/v003-sessions/fuzzer.py"
    ],
    "gate": "V-003",
-   "note": "TLA+ model (TLC, bounded: 3 real devices, 2-3 messages, <=4 sessions) plus an independently written Python reference machine driven by hypothesis on a larger topology (5 devices, 5 messages). Rules K1..K11 all on: every pass config exhausts its state space and the all-rules fuzz finds nothing.",
+   "note": "TLA+ model (TLC, bounded: 3 real devices, 2-3 messages, <=4 sessions) plus an independently written Python reference machine driven by hypothesis on a larger topology (5 devices, 5 messages). Rules K1..K12 all on: every pass config exhausts its state space and the all-rules fuzz finds nothing.",
    "status": "met"
   },
   {
@@ -47,7 +47,7 @@
     "verification/vectors/one-to-one-floor-vectors.json"
    ],
    "gate": "V-003",
-   "note": "14 vectors driven by spec/registries/om-crypto-profiles.json (+ vector-only experimental profiles); negatives: reject_test_profile_generation_0_below_floor_1, reject_profile_below_floor_after_upgrade, reject_group_only_profile_for_1to1, reject_unknown_profile, reject_forbidden_profile, advisory_move_to_lower_generation_rejected.",
+   "note": "17 vectors driven by spec/registries/om-crypto-profiles.json (+ vector-only experimental profiles); negatives: reject_test_profile_generation_0_below_floor_1, reject_profile_below_floor_after_upgrade, reject_group_only_profile_for_1to1, reject_unknown_profile, large_group_generation_cannot_bypass_1to1_floor, reject_forbidden_profile, advisory_move_to_lower_generation_rejected.",
    "status": "met"
   }
  ],
@@ -58,52 +58,59 @@
    "reject_profile_below_floor_after_upgrade",
    "reject_group_only_profile_for_1to1",
    "reject_unknown_profile",
+   "large_group_generation_cannot_bypass_1to1_floor",
    "reject_forbidden_profile",
    "advisory_move_to_lower_generation_rejected"
   ],
   "ok": true,
-  "vectors": 14
+  "vectors": 17
  },
  "fuzz": {
   "fuzz": {
-   "DedupeDurable": {
-    "schedules": 547,
+   "BindInitiator": {
+    "schedules": 25,
     "violation": [
-     "NoDoubleAccept"
+     "NoMisattributedSession"
+    ]
+   },
+   "DedupeDurable": {
+    "schedules": 471,
+    "violation": [
+     "DeliveredAtQuiescence"
     ]
    },
    "FloorFromACS": {
-    "schedules": 109,
+    "schedules": 384,
     "violation": [
      "DeliveredAtQuiescence"
     ]
    },
    "PersistBeforeSend": {
-    "schedules": 148,
+    "schedules": 234,
     "violation": [
      "DeliveredAtQuiescence"
     ]
    },
    "PrekeyUntilConfirmed": {
-    "schedules": 685,
+    "schedules": 726,
     "violation": [
      "SamePreferredAtQuiescence"
     ]
    },
    "RecheckOnEncrypt": {
-    "schedules": 202,
+    "schedules": 200,
     "violation": [
      "NoSendToIneligible"
     ]
    },
    "ReconcileControlHead": {
-    "schedules": 1274,
+    "schedules": 710,
     "violation": [
-     "NoSendToIneligible"
+     "DeliveredAtQuiescence"
     ]
    },
    "RejectFromRevoked": {
-    "schedules": 225,
+    "schedules": 287,
     "violation": [
      "NoAcceptFromKnownRevoked"
     ]
@@ -117,13 +124,13 @@
     "violation": null
    },
    "RetryOnReset": {
-    "schedules": 441,
+    "schedules": 823,
     "violation": [
      "DeliveredAtQuiescence"
     ]
    },
    "ValidateAgainstACS": {
-    "schedules": 107,
+    "schedules": 313,
     "violation": [
      "NoSendToIneligible"
     ]
@@ -299,6 +306,19 @@
     "with_all_rules": "infeasible at step 9"
    },
    {
+    "id": "V003-TLC-K12",
+    "kind": "reproduce",
+    "mismatch": null,
+    "ok": true,
+    "python_violations": [
+     "NoMisattributedSession",
+     "NoBlackHoleAtQuiescence"
+    ],
+    "steps": 3,
+    "steps_matched": 3,
+    "with_all_rules": "infeasible at step 2"
+   },
+   {
     "id": "V003-TLC-P1-black-hole",
     "kind": "probe",
     "mismatch": null,
@@ -339,6 +359,7 @@
    "K1",
    "K10",
    "K11",
+   "K12",
    "K2",
    "K3",
    "K4",
@@ -349,11 +370,11 @@
    "K9",
    "P1-black-hole"
   ],
-  "gap_configs": 11,
+  "gap_configs": 12,
   "ok": true,
-  "pass_configs": 3,
+  "pass_configs": 4,
   "probe_configs": 1,
-  "replays": 15
+  "replays": 16
  },
  "tlc": {
   "gaps": {
@@ -380,6 +401,14 @@
     "reproduced": true,
     "trace_length": 11,
     "violated": "NoKeyReuse"
+   },
+   "K12": {
+    "config": "OneToOneSessions_K12.cfg",
+    "expected": "NoMisattributedSession",
+    "knob_disabled": "BindInitiator",
+    "reproduced": true,
+    "trace_length": 3,
+    "violated": "NoMisattributedSession"
    },
    "K2": {
     "config": "OneToOneSessions_K2.cfg",
@@ -447,6 +476,13 @@
    }
   },
   "pass": {
+   "pass-forged-initiator": {
+    "complete": true,
+    "config": "OneToOneSessions_pass_forged_initiator.cfg",
+    "depth": 19,
+    "distinct_states": 9693268,
+    "violated": null
+   },
    "pass-main": {
     "complete": true,
     "config": "OneToOneSessions.cfg",

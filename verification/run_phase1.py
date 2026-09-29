@@ -57,9 +57,13 @@ RUNS = [
     ([sys.executable, str(ROOT / "verification/bounded/ui_integration_adr0162.py")], "verification/bounded/ui_integration_adr0162.py"),
     ([sys.executable, str(ROOT / "verification/bounded/dangerous_algorithms_adr0164.py")], "verification/bounded/dangerous_algorithms_adr0164.py"),
     ([sys.executable, str(ROOT / "verification/bounded/protocol_evolution_adr0165.py")], "verification/bounded/protocol_evolution_adr0165.py"),
-    # Keep the Rust-dependent aggregate last so all cheap deterministic evidence is refreshed first.
+    # Keep the Rust-dependent producers last so all cheap deterministic evidence is refreshed first.
+    ([sys.executable, str(ROOT / "verification/bounded/extensions_independent_rust_adr0168.py")], "verification/bounded/extensions_independent_rust_adr0168.py"),
     ([sys.executable, str(ROOT / "verification/bounded/cross_wave_feasibility.py")], "verification/bounded/cross_wave_feasibility.py"),
 ]
+# The drop profile skips producers that need cargo/Rust so a fresh exported checkpoint can be checked portably.
+RUST_DEPENDENT = {"verification/bounded/extensions_independent_rust_adr0168.py", "verification/bounded/cross_wave_feasibility.py"}
+DROP_RUNS = [r for r in RUNS if r[1] not in RUST_DEPENDENT]
 
 
 
@@ -70,7 +74,7 @@ def main() -> int:
     ap.add_argument("--start", type=int, default=1, help="1-based first producer to run")
     ap.add_argument("--end", type=int, default=0, help="1-based last producer to run; 0 means through the selected profile end")
     a = ap.parse_args()
-    runs = RUNS if a.profile == "full" else RUNS[:-1]
+    runs = RUNS if a.profile == "full" else DROP_RUNS
     if a.start < 1 or a.start > len(runs):
         ap.error("--start is outside the selected producer range")
     end = len(runs) if a.end == 0 else a.end
@@ -80,7 +84,7 @@ def main() -> int:
     summary_path = ROOT / ("verification/results/phase1-summary.json" if a.profile == "full" else "verification/results/phase1-drop-summary.json")
     rows=[]
     for idx, (argv, label) in enumerate(runs, a.start):
-        print(f"[{idx:02d}/{len(RUNS if a.profile == 'full' else RUNS[:-1]):02d}] {label} ...", flush=True)
+        print(f"[{idx:02d}/{len(RUNS if a.profile == 'full' else DROP_RUNS):02d}] {label} ...", flush=True)
         started = time.monotonic()
         cp=subprocess.run(argv, cwd=ROOT, text=True, capture_output=True)
         elapsed = round(time.monotonic() - started, 3)

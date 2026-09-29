@@ -21,11 +21,18 @@ ext-entry = { 0: bool, 1: any }
 digest = { 0: hash-alg, 1: bstr .size 32 }
 hash-alg = 1                      ; sha-256
 
-sig-role = 1..7                   ; controller, recovery, device, intro_identity, provider, legacy, publication_signing_key (W3 only)
+sig-role = 1..6                   ; frozen W0 roles: controller, recovery, device, intro_identity, provider, legacy
+w3-sig-role = sig-role / 7       ; W3 adds publication_signing_key (7), valid only on Publication objects (ADR-0168 F-16)
 signature = {
   0: bstr .size (16..32),         ; signer key/device id
   1: profile-id,                  ; crypto_profile
   2: sig-role,                    ; role
+  3: bstr .size (1..8192),        ; signature over DS-SIG(label, profile, role, signer, body)
+}
+w3-signature = {
+  0: bstr .size (16..32),         ; signer key/device id
+  1: profile-id,                  ; crypto_profile
+  2: w3-sig-role,                    ; role
   3: bstr .size (1..8192),        ; signature over DS-SIG(label, profile, role, signer, body)
 }
 

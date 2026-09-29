@@ -1,0 +1,12 @@
+{
+  "adr": "ADR-0168",
+  "gate": "V-005",
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed",
+  "implementation": "verification/prototypes/v005-extensions-rust (Rust, clean-room from MESSENGER_BASELINE_V1 + registries)",
+  "compared_with": "expected vector verdicts/errors and the Python canonical-CBOR entry bytes (the Python/Node pair already agree)",
+  "vectors": 64,
+  "verdict_mismatches": [],
+  "byte_mismatches": [],
+  "passed": true,
+  "independence": "different author (Claude) and language/runtime (Rust) from the OpenAI-authored Python/Node pair; independent_implementation per ADR-0117 amendment and ADR-0167 \u00a73"
+}

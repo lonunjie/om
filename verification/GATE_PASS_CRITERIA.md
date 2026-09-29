@@ -24,10 +24,10 @@
 | Gate | Name | Scopes | Pre-engineering | Overall | Feasibility | W0 interface impact |
 |---|---|---|---|---|---|---|
 | V-001 | `production_crypto_path` | core_kernel | passed | open | open | — |
-| V-002 | `account_control_formal_model` | core_kernel | open | open | open | — |
-| V-003 | `one_to_one_session_model` | core_kernel, local_delivery | open | open | open | — |
+| V-002 | `account_control_formal_model` | core_kernel | passed | open | open | — |
+| V-003 | `one_to_one_session_model` | core_kernel, local_delivery | passed | open | open | — |
 | V-004 | `group_commit_control_model` | groups | open | open | evidenced | core_kernel |
-| V-005 | `canonical_encoding_vectors` | core_kernel | open | open | open | — |
+| V-005 | `canonical_encoding_vectors` | core_kernel | passed | open | open | — |
 | V-006 | `web_device_vault_feasibility` | reference_client_ui | open | open | open | — |
 | V-007 | `sframe_interop` | calls | open | open | open | — |
 | V-008 | `space_room_permission_authority_model` | communities_publications | open | open | evidenced | core_kernel |
@@ -37,9 +37,9 @@
 | V-012 | `expressive_media_and_pack_parser_safety` | expressive_media | open | open | open | — |
 | V-013 | `bridge_provenance_fidelity_and_loop_model` | bridges | open | open | evidenced | core_kernel |
 | V-014 | `portable_archive_interop_and_import_safety` | portability | open | open | evidenced | core_kernel |
-| V-015 | `metadata_exposure_and_privacy_path_model` | core_kernel, provider_reference, local_delivery | open | open | open | — |
-| V-016 | `decentralized_abuse_moderation_authority_model` | core_kernel, communities_publications | open | open | open | — |
-| V-017 | `protocol_longevity_and_0m_continuity_drill` | none | open | open | open | — |
+| V-015 | `metadata_exposure_and_privacy_path_model` | core_kernel, provider_reference, local_delivery | passed | open | open | — |
+| V-016 | `decentralized_abuse_moderation_authority_model` | core_kernel, communities_publications | passed | open | open | — |
+| V-017 | `protocol_longevity_and_0m_continuity_drill` | none | passed | open | open | — |
 | V-018 | `security_ux_comprehension` | reference_client_ui | open | open | open | — |
 | V-019 | `pq_group_reinit_migration` | groups | open | open | evidenced | core_kernel |
 | V-020 | `home_onboarding_and_provider_portability` | provider_reference | open | open | open | — |
@@ -87,18 +87,18 @@ Pre-release criteria:
 Model-check AccountControlState majority authorization, quarantine denominator, recovery, fork/freeze and rollback invariants; derive regression scenarios and golden vectors. Includes terminal AccountRetirement, LegacyPolicy contest/cancel and the non-silent device-link invariant (2026-09-24).
 
 - **Scopes blocked:** core_kernel
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_tool, independent_reviewer; pre-release external_review
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0136-core-kernel-review-remediation.md`; `verification/bounded/acs_authorization_table.py`; `verification/bounded/acs_tla_crosscheck.py`; `verification/bounded/continuity_assessment.py`; `verification/results/acs-authorization-table-latest.json`; `verification/results/acs-tla-crosscheck-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/tlc-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/tla/AccountControl.tla`; `verification/tla/AccountControl.cfg`; `verification/tla/RecoveryObservation.tla`; `verification/tla/models-v002-recovery-observation.json`; `verification/tla/models.json`; `verification/vectors/account-control-regression-vectors.json`; `verification/vectors/acs-authorization-table-vectors.json`; `verification/vectors/tla-AccountControl_mut_method_count.json`; `verification/vectors/tla-AccountControl_trap_challenge_resolve.json`; `verification/vectors/tla-AccountControl_trap_lift.json`; `verification/vectors/tla-AccountControl_trap_quarantine_freeze.json`; `verification/vectors/tla-AccountControl_trap_recover.json`; `verification/vectors/tla-RecoveryObservation_mut_trust_timestamp.json`; `verification/vectors/tla-RecoveryObservation_residual_withheld.json`; `verification/vectors/tla-RecoveryObservation_trap_late.json`; `docs/reports/2026-09-26-security-equivalence-evidence-report.md`; `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/results/design-consistency-adr0141-latest.json`; `decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md`; `verification/bounded/recovery_durable_timer_adr0147.py`; `verification/results/recovery-durable-timer-adr0147-latest.json`; `decisions/ADR-0154-verifier-timer-runtime-segments-and-web-verifier-liveness.md`; `verification/bounded/recovery_timer_adr0154.py`; `verification/results/recovery-timer-adr0154-latest.json`; `decisions/ADR-0161-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md`; `verification/bounded/protocol_semantics_adr0161.py`; `verification/results/protocol-semantics-adr0161-latest.json`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0136-core-kernel-review-remediation.md`; `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md`; `decisions/ADR-0154-verifier-timer-runtime-segments-and-web-verifier-liveness.md`; `decisions/ADR-0161-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md`; `decisions/ADR-0167-operator-single-vendor-review-model.md`; `decisions/ADR-0168-core-kernel-review-findings-f14-f16.md`; `docs/reports/2026-09-26-security-equivalence-evidence-report.md`; `verification/bounded/acs_authorization_table.py`; `verification/bounded/acs_tla_crosscheck.py`; `verification/bounded/continuity_assessment.py`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/bounded/protocol_semantics_adr0161.py`; `verification/bounded/recovery_durable_timer_adr0147.py`; `verification/bounded/recovery_timer_adr0154.py`; `verification/results/acs-authorization-table-latest.json`; `verification/results/acs-tla-crosscheck-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/design-consistency-adr0141-latest.json`; `verification/results/protocol-semantics-adr0161-latest.json`; `verification/results/recovery-durable-timer-adr0147-latest.json`; `verification/results/recovery-timer-adr0154-latest.json`; `verification/results/tlc-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/reviews/2026-09-29-claude-opus-5-5-core-kernel-review.md`; `verification/tla/AccountControl.cfg`; `verification/tla/AccountControl.tla`; `verification/tla/AccountControl_thief_freeze.cfg`; `verification/tla/AccountControl_trap_thief_freeze.cfg`; `verification/tla/RecoveryObservation.tla`; `verification/tla/models-v002-recovery-observation.json`; `verification/tla/models.json`; `verification/vectors/account-control-regression-vectors.json`; `verification/vectors/acs-authorization-table-vectors.json`; `verification/vectors/tla-AccountControl_mut_method_count.json`; `verification/vectors/tla-AccountControl_trap_challenge_resolve.json`; `verification/vectors/tla-AccountControl_trap_lift.json`; `verification/vectors/tla-AccountControl_trap_quarantine_freeze.json`; `verification/vectors/tla-AccountControl_trap_recover.json`; `verification/vectors/tla-RecoveryObservation_mut_trust_timestamp.json`; `verification/vectors/tla-RecoveryObservation_residual_withheld.json`; `verification/vectors/tla-RecoveryObservation_trap_late.json`
 
 Pre-engineering criteria:
 
 - [x] TLC (pinned tool) run of AccountControl.tla (formerly AccountControlState.tla) with recorded state counts and no counterexample
 - [x] model covers recovery, fork/freeze, rollback, AccountRetirement terminality, LegacyPolicy contest/cancel and the device-link notice invariant
 - [x] regression/golden vectors derived from the model
-- [ ] model reviewed by someone other than its author
+- [x] model reviewed by someone other than its author
 - [x] model covers ADR-0111 default recovery: delayed activation, veto by any live controller, immediate completion only with controller co-sign, RecoveryRoot as exactly one vote, revocation of all earlier controllers on completion
 - [x] withheld RecoveryRequest trace: a verifier that first sees a recovery-alone transition late waits its own full policy interval; Home/custodian timestamps cannot accelerate acceptance (R-278, ADR-0131 rule 6)
 - [x] model mirrors the ACCOUNT_CONTINUITY_AND_CONTROL §4.1 authorization table and vectors cover every transition class
@@ -107,33 +107,29 @@ Pre-engineering criteria:
 - [x] ADR-0147 crash/reboot timer evidence proves recovery-alone activation resumes only from a durable monotonic elapsed lower bound: wall-clock jumps and unmeasured downtime do not count, lost/rolled-back/restored timer state cannot accelerate acceptance, and a negative mutation that credits reboot downtime is rejected (R-322)
 - [x] ADR-0154 runtime-segment evidence proves a boot_session verifier keeps credit across app-process death and never credits reboot time, while a process_only (web) verifier credits wall-clock gaps only under Recommended, only beyond a durable high-water mark and only with a final authenticated veto sweep in the current segment; mutations for process-death-as-reboot, reboot-as-same-session, backward/forward double credit, sweepless acceptance, Hardened wall credit and boot_session wall credit across reboot are caught (R-340, T-132)
 - [x] ADR-0161 terminal-DeviceID evidence proves permanently_revoked_devices is monotone and neither messaging nor control eligibility can resurrect a revoked DeviceID; returning hardware uses a fresh DeviceID (R-361, T-139)
+- [x] ADR-0168 freeze-resolution evidence: a quarantine-induced freeze is resolved only by a parent majority of controller signatures plus at most one co-signed recovery vote, restoring challenge-signing and/or revoking non-signing controllers; an owner with one device and the recovery method escapes a thief-induced freeze, while a thief without it never gains a majority (R-387, T-156)
 
 Pre-release criteria:
 
 - [ ] implementation CI replays every vector (R-070)
 - [ ] independent security review of the AccountControlState implementation
 
-Mechanically unfinished pre-engineering work:
-
-- model reviewed by someone other than its author
-- phase independence evidence is not yet recorded as satisfied
-
 ### V-003 — `one_to_one_session_model`
 
 Model/fuzz the per-device 1:1 session manager across crossed initiation, add/revoke races, stale/reset sessions, dedupe and persistence.
 
 - **Scopes blocked:** core_kernel, local_delivery
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0120-one-to-one-session-manager-rules.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `decisions/ADR-0143-crash-safe-sealed-delivery-replay-and-retry.md`; `decisions/ADR-0144-pre-review-sealed-delivery-bootstrap-and-stale-head-closure.md`; `decisions/ADR-0145-bootstrap-single-response-and-complete-retry-closure.md`; `decisions/ADR-0146-bootstrap-candidate-terminalization-bounded-reply-transport-and-expiry.md`; `decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md`; `decisions/ADR-0148-v1-product-base-promotion-without-kernel-expansion.md`; `decisions/ADR-0149-promoted-v1-adversarial-hardening.md`; `decisions/ADR-0150-v1-offline-local-rich-lists-and-native-reference-targets.md`; `spec/protocol/one-to-one-session-state.logical.schema.json`; `verification/bounded/account_private_sync_adr0148.py`; `verification/bounded/account_private_sync_adr0149_hardening.py`; `verification/bounded/async_prekey_adr0140_rules.py`; `verification/bounded/lan_route_adr0150.py`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/bounded/sealed_delivery_adr0144_composition.py`; `verification/bounded/sealed_delivery_adr0145_closure.py`; `verification/bounded/sealed_delivery_adr0146_final_closure.py`; `verification/bounded/sealed_delivery_adr0147_lifecycle_restore.py`; `verification/prototypes/v003-sessions/README.md`; `verification/prototypes/v003-sessions/floor.py`; `verification/prototypes/v003-sessions/k12_smoke.py`; `verification/prototypes/v003-sessions/restore_redelivery.py`; `verification/prototypes/v003-sessions/sealed_delivery_state.py`; `verification/results/account-private-sync-adr0148-latest.json`; `verification/results/account-private-sync-adr0149-hardening-latest.json`; `verification/results/async-prekey-adr0140-latest.json`; `verification/results/lan-route-adr0150-latest.json`; `verification/results/sealed-delivery-adr0142-latest.json`; `verification/results/sealed-delivery-adr0144-composition-latest.json`; `verification/results/sealed-delivery-adr0145-closure-latest.json`; `verification/results/sealed-delivery-adr0146-final-closure-latest.json`; `verification/results/sealed-delivery-adr0147-lifecycle-restore-latest.json`; `verification/results/v003-k12-python-smoke-latest.json`; `verification/results/v003-sealed-delivery-latest.json`; `verification/results/v003-sessions-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/tla/OneToOneSessions.tla`; `verification/tla/models-v003.json`; `verification/vectors/one-to-one-floor-vectors.json`; `verification/vectors/one-to-one-session-regression-vectors.json`; `verification/vectors/sealed-delivery-session-vectors.json`; `verification/vectors/tla-OneToOneSessions_K12.json`; `decisions/ADR-0161-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md`; `verification/bounded/protocol_semantics_adr0161.py`; `verification/results/protocol-semantics-adr0161-latest.json`; `verification/results/v003-floor-adr0161-latest.json`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0120-one-to-one-session-manager-rules.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `decisions/ADR-0143-crash-safe-sealed-delivery-replay-and-retry.md`; `decisions/ADR-0144-pre-review-sealed-delivery-bootstrap-and-stale-head-closure.md`; `decisions/ADR-0145-bootstrap-single-response-and-complete-retry-closure.md`; `decisions/ADR-0146-bootstrap-candidate-terminalization-bounded-reply-transport-and-expiry.md`; `decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md`; `decisions/ADR-0148-v1-product-base-promotion-without-kernel-expansion.md`; `decisions/ADR-0149-promoted-v1-adversarial-hardening.md`; `decisions/ADR-0150-v1-offline-local-rich-lists-and-native-reference-targets.md`; `decisions/ADR-0161-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md`; `spec/protocol/one-to-one-session-state.logical.schema.json`; `verification/bounded/account_private_sync_adr0148.py`; `verification/bounded/account_private_sync_adr0149_hardening.py`; `verification/bounded/async_prekey_adr0140_rules.py`; `verification/bounded/lan_route_adr0150.py`; `verification/bounded/protocol_semantics_adr0161.py`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/bounded/sealed_delivery_adr0144_composition.py`; `verification/bounded/sealed_delivery_adr0145_closure.py`; `verification/bounded/sealed_delivery_adr0146_final_closure.py`; `verification/bounded/sealed_delivery_adr0147_lifecycle_restore.py`; `verification/prototypes/v003-sessions/README.md`; `verification/prototypes/v003-sessions/floor.py`; `verification/prototypes/v003-sessions/k12_smoke.py`; `verification/prototypes/v003-sessions/restore_redelivery.py`; `verification/prototypes/v003-sessions/sealed_delivery_state.py`; `verification/results/account-private-sync-adr0148-latest.json`; `verification/results/account-private-sync-adr0149-hardening-latest.json`; `verification/results/async-prekey-adr0140-latest.json`; `verification/results/lan-route-adr0150-latest.json`; `verification/results/protocol-semantics-adr0161-latest.json`; `verification/results/sealed-delivery-adr0142-latest.json`; `verification/results/sealed-delivery-adr0144-composition-latest.json`; `verification/results/sealed-delivery-adr0145-closure-latest.json`; `verification/results/sealed-delivery-adr0146-final-closure-latest.json`; `verification/results/sealed-delivery-adr0147-lifecycle-restore-latest.json`; `verification/results/v003-floor-adr0161-latest.json`; `verification/results/v003-k12-python-smoke-latest.json`; `verification/results/v003-sealed-delivery-latest.json`; `verification/results/v003-sessions-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/reviews/2026-09-29-claude-opus-5-5-core-kernel-review.md`; `verification/tla/OneToOneSessions.tla`; `verification/tla/models-v003.json`; `verification/vectors/one-to-one-floor-vectors.json`; `verification/vectors/one-to-one-session-regression-vectors.json`; `verification/vectors/sealed-delivery-session-vectors.json`; `verification/vectors/tla-OneToOneSessions_K12.json`
 
 Pre-engineering criteria:
 
 - [x] executable model/fuzzer of the per-device 1:1 session manager covering crossed initiation, add/revoke races, stale/reset sessions, dedupe and persistence
 - [x] every discovered failing trace captured as a vector
-- [ ] model reviewed by someone other than its author
+- [x] model reviewed by someone other than its author
 - [x] restore+redelivery is covered by a dedicated executable scenario or an explicitly equivalent bounded trace, not only an informal argument
 - [x] negative vector rejects a peer profile below the current security_generation and rejects a floor move to a lower generation after a SecurityAdvisory (R-206)
 - [x] ADR-0140 recipient prekey freshness state merges monotonically across private multi-device state/restore: higher generation wins, equal generation with a different generation-core hash is a security conflict, and provider migration never resets the floor (R-298, R-299)
@@ -151,11 +147,6 @@ Pre-engineering criteria:
 Pre-release criteria:
 
 - [ ] implementation fuzzing for an agreed CPU-hour budget with no unresolved crash or invariant violation
-
-Mechanically unfinished pre-engineering work:
-
-- model reviewed by someone other than its author
-- phase independence evidence is not yet recorded as satisfied
 
 ### V-004 — `group_commit_control_model`
 
@@ -202,11 +193,11 @@ Mechanically unfinished pre-engineering work:
 Publish deterministic-CBOR/CDDL golden vectors produced and consumed correctly by at least two independent implementations/encoders for every signed/hashed v1 object.
 
 - **Scopes blocked:** core_kernel
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_implementation; pre-release independent_implementation
 - **Execution class:** `repo_local_interop`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0119-freeze-w0-cddl-and-registries.md`; `decisions/ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md`; `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `decisions/ADR-0148-v1-product-base-promotion-without-kernel-expansion.md`; `decisions/ADR-0149-promoted-v1-adversarial-hardening.md`; `decisions/ADR-0150-v1-offline-local-rich-lists-and-native-reference-targets.md`; `decisions/ADR-0151-rich-list-validation-layer-closure.md`; `decisions/ADR-0155-non-critical-extension-validity-and-presentation-edit-closure.md`; `decisions/ADR-0157-independent-review-remediation-extension-convergence-history-boundary-and-scheduled-send.md`; `spec/cddl/`; `spec/registries/`; `verification/bounded/async_prekey_adr0140_rules.py`; `verification/bounded/critical_extension_adr0157.py`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/bounded/extensions_adr0148.py`; `verification/bounded/extensions_adr0149_hardening.py`; `verification/bounded/rich_list_adr0150.py`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/cbor/node_adr0148_extensions.mjs`; `verification/cbor/node_adr0150_rich_list.mjs`; `verification/cbor/node_critical_extension_adr0157.mjs`; `verification/cbor/node_intro_binding.mjs`; `verification/prototypes/v005-encoding/README.md`; `verification/prototypes/v005-encoding/gen/assemble.py`; `verification/prototypes/v005-encoding/gen/intro_binding.py`; `verification/prototypes/v005-encoding/run.sh`; `verification/results/async-prekey-adr0140-latest.json`; `verification/results/critical-extension-adr0157-latest.json`; `verification/results/design-consistency-adr0141-latest.json`; `verification/results/extensions-adr0148-latest.json`; `verification/results/extensions-adr0149-hardening-latest.json`; `verification/results/rich-list-adr0150-latest.json`; `verification/results/sealed-delivery-adr0142-latest.json`; `verification/results/v005-encoding-latest.json`; `verification/results/v005-node-adr0141-latest.json`; `verification/results/v005-node-adr0142-latest.json`; `verification/vectors/adr0148-v1-extension-vectors.json`; `verification/vectors/adr0150-rich-list-vectors.json`; `verification/vectors/adr0157-critical-extension-convergence.json`; `verification/vectors/v005-w0-object-vectors.json.gz`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0119-freeze-w0-cddl-and-registries.md`; `decisions/ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md`; `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `decisions/ADR-0148-v1-product-base-promotion-without-kernel-expansion.md`; `decisions/ADR-0149-promoted-v1-adversarial-hardening.md`; `decisions/ADR-0150-v1-offline-local-rich-lists-and-native-reference-targets.md`; `decisions/ADR-0151-rich-list-validation-layer-closure.md`; `decisions/ADR-0155-non-critical-extension-validity-and-presentation-edit-closure.md`; `decisions/ADR-0157-independent-review-remediation-extension-convergence-history-boundary-and-scheduled-send.md`; `decisions/ADR-0168-core-kernel-review-findings-f14-f16.md`; `spec/cddl/`; `spec/registries/`; `verification/bounded/async_prekey_adr0140_rules.py`; `verification/bounded/critical_extension_adr0157.py`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/bounded/extensions_adr0148.py`; `verification/bounded/extensions_adr0149_hardening.py`; `verification/bounded/extensions_independent_rust_adr0168.py`; `verification/bounded/rich_list_adr0150.py`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/cbor/node_adr0148_extensions.mjs`; `verification/cbor/node_adr0150_rich_list.mjs`; `verification/cbor/node_critical_extension_adr0157.mjs`; `verification/cbor/node_intro_binding.mjs`; `verification/prototypes/v005-encoding/README.md`; `verification/prototypes/v005-encoding/gen/assemble.py`; `verification/prototypes/v005-encoding/gen/intro_binding.py`; `verification/prototypes/v005-encoding/run.sh`; `verification/prototypes/v005-extensions-rust/src/main.rs`; `verification/results/async-prekey-adr0140-latest.json`; `verification/results/critical-extension-adr0157-latest.json`; `verification/results/design-consistency-adr0141-latest.json`; `verification/results/extensions-adr0148-latest.json`; `verification/results/extensions-adr0149-hardening-latest.json`; `verification/results/extensions-independent-rust-latest.json`; `verification/results/rich-list-adr0150-latest.json`; `verification/results/sealed-delivery-adr0142-latest.json`; `verification/results/v005-encoding-latest.json`; `verification/results/v005-node-adr0141-latest.json`; `verification/results/v005-node-adr0142-latest.json`; `verification/reviews/2026-09-29-claude-opus-5-5-core-kernel-review.md`; `verification/vectors/adr0148-v1-extension-vectors.json`; `verification/vectors/adr0150-rich-list-vectors.json`; `verification/vectors/adr0157-critical-extension-convergence.json`; `verification/vectors/v005-w0-object-vectors.json.gz`
 
 Pre-engineering criteria:
 
@@ -223,14 +214,11 @@ Pre-engineering criteria:
 - [x] ADR-0150/0151 rich-list evidence proves om.rich-list.v1 registry/object/criticality/schema binding and deterministic-CBOR interoperability; a wire-criticality mismatch rejects the containing object, while registered item/depth/index/ordinal schema-bound violations (ADR-0155) and schema-valid reference/order/nesting/ordinal-presence/fallback mismatches ignore the whole non-critical enhancement and preserve authenticated W0 RichText (R-335)
 - [x] ADR-0155 evidence proves validity independence for non-critical registrations: Python and Node agree on all voice/location/rich-list vectors, schema/object failures are ignore_extension, wire-criticality mismatches reject the object, conflicting second geo tokens are fallback_ambiguous, voice/location on edit events are ignored, a card is suppressed once an edit's materialized text drops its token, create-time list annotations never apply to edit text, and both V-005 strict reference codecs skip payload-schema rejection for non-critical registrations with the V-005 corpus unchanged (R-341, T-133)
 - [x] ADR-0157 critical-extension convergence: baseline decoder rejects unknown om.critical.* even when wire critical=false, rejects non-critical registrations under the reserved prefix, preserves the two grandfathered om.acs.* IDs, and old/new registry versions converge on containing-object validity (R-346, T-136)
+- [x] ADR-0168 wave-scoped enum evidence: later-wave enum values (sig_role 7) are rejected on W0 objects by both strict codecs and the W0 CDDL, and a clean-room implementation by a different author agrees with the voice/location/rich-list extension corpora on verdicts and canonical bytes (R-388, T-157)
 
 Pre-release criteria:
 
 - [ ] every conforming implementation in the release passes the complete vector suite
-
-Mechanically unfinished pre-engineering work:
-
-- phase independence evidence is not yet recorded as satisfied
 
 ### V-006 — `web_device_vault_feasibility`
 
@@ -525,11 +513,11 @@ Mechanically unfinished pre-engineering work:
 Instrument/model normal and privacy-enhanced paths across relay, MLS/group control, KeyMaterialProvider, discovery/OHTTP split, IntroGate, push, blob, calls, services, bridges and archive migration; prove no accidental canonical AccountID/ConversationID/group-identifier exposure in normal routing, verify per-provider capability/randomized wrapping, validate MetadataExposureDescriptor claims against traces, and document remaining timing/size/IP/collusion leakage.
 
 - **Scopes blocked:** core_kernel, provider_reference, local_delivery
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_privacy_model`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0136-core-kernel-review-remediation.md`; `decisions/ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md`; `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `decisions/ADR-0146-bootstrap-candidate-terminalization-bounded-reply-transport-and-expiry.md`; `decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md`; `decisions/ADR-0150-v1-offline-local-rich-lists-and-native-reference-targets.md`; `docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md`; `docs/architecture/providers/METADATA_OBSERVER_MATRIX.md`; `docs/process/METADATA_TRACE_TEST_PLAN.md`; `docs/reports/2026-09-26-security-equivalence-evidence-report.md`; `spec/metadata/w0-metadata-exposure-descriptors.json`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/bounded/lan_privacy_adr0150.py`; `verification/bounded/metadata_trace_model.py`; `verification/bounded/metadata_w0_rules.py`; `verification/bounded/provider_resource_admin_trace.py`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/bounded/sealed_delivery_adr0146_final_closure.py`; `verification/bounded/sealed_delivery_adr0147_lifecycle_restore.py`; `verification/results/async-prekey-adr0140-latest.json`; `verification/results/design-consistency-adr0141-latest.json`; `verification/results/lan-privacy-adr0150-latest.json`; `verification/results/metadata-trace-latest.json`; `verification/results/metadata-w0-rules-latest.json`; `verification/results/provider-resource-admin-trace-latest.json`; `verification/results/sealed-delivery-adr0142-latest.json`; `verification/results/sealed-delivery-adr0146-final-closure-latest.json`; `verification/results/sealed-delivery-adr0147-lifecycle-restore-latest.json`; `verification/results/wire-boundary-bounded-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `decisions/ADR-0152-v1-desktop-replaceable-android-wake-and-contact-cleanup.md`; `decisions/ADR-0153-wake-registration-retirement-and-residual-leakage-closure.md`; `verification/bounded/android_wake_adr0152.py`; `verification/results/android-wake-adr0152-latest.json`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0136-core-kernel-review-remediation.md`; `decisions/ADR-0140-async-key-bundle-v1-privacy-freshness-and-context-binding.md`; `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `decisions/ADR-0142-sealed-delivery-v1-for-established-one-to-one.md`; `decisions/ADR-0146-bootstrap-candidate-terminalization-bounded-reply-transport-and-expiry.md`; `decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md`; `decisions/ADR-0150-v1-offline-local-rich-lists-and-native-reference-targets.md`; `decisions/ADR-0152-v1-desktop-replaceable-android-wake-and-contact-cleanup.md`; `decisions/ADR-0153-wake-registration-retirement-and-residual-leakage-closure.md`; `docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md`; `docs/architecture/providers/METADATA_OBSERVER_MATRIX.md`; `docs/process/METADATA_TRACE_TEST_PLAN.md`; `docs/reports/2026-09-26-security-equivalence-evidence-report.md`; `spec/metadata/w0-metadata-exposure-descriptors.json`; `verification/bounded/android_wake_adr0152.py`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/bounded/lan_privacy_adr0150.py`; `verification/bounded/metadata_trace_model.py`; `verification/bounded/metadata_w0_rules.py`; `verification/bounded/provider_resource_admin_trace.py`; `verification/bounded/sealed_delivery_adr0142_rules.py`; `verification/bounded/sealed_delivery_adr0146_final_closure.py`; `verification/bounded/sealed_delivery_adr0147_lifecycle_restore.py`; `verification/results/android-wake-adr0152-latest.json`; `verification/results/async-prekey-adr0140-latest.json`; `verification/results/design-consistency-adr0141-latest.json`; `verification/results/lan-privacy-adr0150-latest.json`; `verification/results/metadata-trace-latest.json`; `verification/results/metadata-w0-rules-latest.json`; `verification/results/provider-resource-admin-trace-latest.json`; `verification/results/sealed-delivery-adr0142-latest.json`; `verification/results/sealed-delivery-adr0146-final-closure-latest.json`; `verification/results/sealed-delivery-adr0147-lifecycle-restore-latest.json`; `verification/results/wire-boundary-bounded-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/reviews/2026-09-29-claude-opus-5-5-core-kernel-review.md`
 
 Pre-engineering criteria:
 
@@ -554,20 +542,16 @@ Pre-release criteria:
 
 - [ ] real packet/provider/browser traces for normal and privacy-enhanced paths match every descriptor
 
-Mechanically unfinished pre-engineering work:
-
-- phase independence evidence is not yet recorded as satisfied
-
 ### V-016 — `decentralized_abuse_moderation_authority_model`
 
 Model/property-test block/revocation/Sybil behavior, IntroGate resource abuse, Room/Space timeout-remove-ban authorization and delegation revocation, malicious moderators, selective report evidence, SafetyAdvisory signature/supersession/expiry and scoped subject references, conflicting labelers, provider denial boundaries, service/bridge abuse and fork/escape so no safety mechanism creates hidden universal authority or global identity tracking.
 
 - **Scopes blocked:** core_kernel, communities_publications
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `repo_local_formal`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `verification/bounded/abuse_w0_rules.py`; `verification/bounded/introgate_sybil_model.py`; `verification/bounded/privacy_pass_issuance.py`; `verification/results/abuse-w0-rules-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/introgate-sybil-latest.json`; `verification/results/v016-room-moderation-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/tla/RoomModeration.tla`; `verification/tla/models-v016-room-moderation.json`; `verification/vectors/privacy-pass-blind-rsa-vectors.json`; `docs/reports/2026-09-26-security-equivalence-evidence-report.md`; `verification/bounded/provider_negative_capabilities.py`; `verification/results/provider-negative-capabilities-latest.json`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0122-authority-reductions-grant-cascade-and-governance-protection.md`; `decisions/ADR-0136-core-kernel-review-remediation.md`; `docs/reports/2026-09-26-security-equivalence-evidence-report.md`; `verification/bounded/abuse_w0_rules.py`; `verification/bounded/introgate_sybil_model.py`; `verification/bounded/privacy_pass_issuance.py`; `verification/bounded/provider_negative_capabilities.py`; `verification/results/abuse-w0-rules-latest.json`; `verification/results/authority-bounded-latest.json`; `verification/results/introgate-sybil-latest.json`; `verification/results/provider-negative-capabilities-latest.json`; `verification/results/v016-room-moderation-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/reviews/2026-09-29-claude-opus-5-5-core-kernel-review.md`; `verification/tla/RoomModeration.tla`; `verification/tla/models-v016-room-moderation.json`; `verification/vectors/privacy-pass-blind-rsa-vectors.json`
 
 Pre-engineering criteria:
 
@@ -585,20 +569,16 @@ Pre-release criteria:
 
 - [ ] adversarial load and abuse tests against reference providers
 
-Mechanically unfinished pre-engineering work:
-
-- phase independence evidence is not yet recorded as satisfied
-
 ### V-017 — `protocol_longevity_and_0m_continuity_drill`
 
 Run the 20-year continuity exercise with founder/forge/domain/provider unavailable, independent Protocol Continuity Bundle recovery, immutable registry snapshots, two protocol generations/fork lineages, crypto-profile deprecation and catastrophic-authentication-break tabletop cases, release-root loss/rotation, dominant proprietary extension attempt, provider migrations and independent build/conformance paths; demonstrate no hidden single universal continuity choke point.
 
 - **Scopes blocked:** none (always required pre-engineering; blocks public production claims)
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation, external_review
 - **Execution class:** `repo_local_continuity`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0136-core-kernel-review-remediation.md`; `docs/process/CONTINUITY_TABLETOP_DRILLS.md`; `spec/continuity/om-crypto-v1-bundle-manifest.json`; `tools/continuity_bundle.py`; `verification/results/continuity-dry-run-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0136-core-kernel-review-remediation.md`; `docs/process/CONTINUITY_TABLETOP_DRILLS.md`; `spec/continuity/om-crypto-v1-bundle-manifest.json`; `tools/continuity_bundle.py`; `verification/results/continuity-dry-run-latest.json`; `verification/reviews/2026-09-26-gpt-5-6-sol-core-kernel.md`; `verification/reviews/2026-09-29-claude-opus-5-5-core-kernel-review.md`
 
 Pre-engineering criteria:
 
@@ -611,10 +591,6 @@ Pre-release criteria:
 - [ ] independent rebuild of a compatible implementation from a mirror
 - [ ] two coexisting protocol generations/fork lineages
 - [ ] live disaster drill with no hidden universal choke point
-
-Mechanically unfinished pre-engineering work:
-
-- phase independence evidence is not yet recorded as satisfied
 
 ### V-018 — `security_ux_comprehension`
 

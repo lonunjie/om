@@ -2,10 +2,10 @@
   "all_ok": true,
   "exhaustive": {
     "counts": {
-      "accept": 918,
+      "accept": 978,
       "cases": 16200,
       "pending": 32,
-      "reject": 15250
+      "reject": 15190
     },
     "per_class": {
       "constitutional_policy": {
@@ -19,9 +19,9 @@
         "reject": 822
       },
       "lift_quarantine": {
-        "accept": 69,
+        "accept": 125,
         "pending": 0,
-        "reject": 891
+        "reject": 835
       },
       "link_messaging": {
         "accept": 60,
@@ -64,9 +64,9 @@
         "reject": 1534
       },
       "revoke_control": {
-        "accept": 191,
+        "accept": 195,
         "pending": 14,
-        "reject": 2099
+        "reject": 2095
       },
       "rotate_own_key": {
         "accept": 36,
@@ -127,7 +127,7 @@
     "negative_per_class": {
       "constitutional_policy": 1,
       "fork_bridge": 4,
-      "lift_quarantine": 7,
+      "lift_quarantine": 8,
       "link_messaging": 2,
       "lower_min_profile": 1,
       "promote": 3,
@@ -136,7 +136,7 @@
       "recovery_policy": 1,
       "remove_messaging": 1,
       "retirement": 4,
-      "revoke_control": 4,
+      "revoke_control": 7,
       "rotate_own_key": 1,
       "transparency": 1
     },
@@ -152,10 +152,10 @@
       "recovery_policy": 1,
       "remove_messaging": 1,
       "retirement": 4,
-      "revoke_control": 3,
+      "revoke_control": 5,
       "rotate_own_key": 1,
       "transparency": 1
     },
-    "total": 57
+    "total": 63
   }
 }

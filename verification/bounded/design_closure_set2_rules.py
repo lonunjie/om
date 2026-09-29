@@ -156,15 +156,17 @@ def main():
         fail(problems,'README lacks frozen W0 CDDL/registry canonical authority statement')
     checks.append({'name':'closure_semantics','advisory_floor_rule':True,'archive_candidate_nonproduction':True,'wire_authority':True})
 
-    # Handoff/contract must say design closed but engineering locked.
+    # Handoff/contract must say the design is closed and engineering is authorized only per scope ADR (ADR-0169).
     st=(ROOT/'docs/process/ENGINEER_START_HERE.md').read_text().lower()
     ho=(ROOT/'docs/process/ENGINEERING_HANDOFF.md').read_text().lower()
     rc=json.load(open(ROOT/'machine/repository_contract.json'))
-    if 'design-frozen' not in st or ('not authorized' not in st and 'not currently authorized' not in st): fail(problems,'ENGINEER_START_HERE missing final locked state')
-    if 'design-frozen' not in ho or ('not authorized' not in ho and 'not currently authorized' not in ho): fail(problems,'ENGINEERING_HANDOFF missing final locked state')
-    if rc.get('engineering_authorized') is not False: fail(problems,'repository_contract engineering_authorized not false')
+    if 'design-frozen' not in st or 'not authorized' not in st: fail(problems,'ENGINEER_START_HERE missing scoped lock statement')
+    if 'not authorized' not in ho: fail(problems,'ENGINEERING_HANDOFF missing scoped lock statement')
     auth=[k for k,v in rc.get('engineering_scopes',{}).items() if v.get('authorized')]
-    if auth: fail(problems,f'engineering scopes unexpectedly authorized: {auth}')
+    if bool(rc.get('engineering_authorized')) != bool(auth): fail(problems,'engineering_authorized disagrees with the authorized scope set')
+    for k in auth:
+        adr=rc['engineering_scopes'][k].get('authorizing_adr')
+        if not adr or not list((ROOT/'decisions').glob(f'{adr}-*.md')): fail(problems,f'scope {k} authorized without an existing authorizing ADR')
     checks.append({'name':'engineering_lock','global_authorized':rc.get('engineering_authorized'),'authorized_scopes':auth})
 
     # Final report must cover every declared scope and the requested attack classes.

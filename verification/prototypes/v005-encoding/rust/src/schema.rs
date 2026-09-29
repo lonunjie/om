@@ -147,7 +147,9 @@ impl Registry {
                 structs.insert(name.clone(), Struct::Fields { top, fields });
             }
         }
-        let enums = f["enums"].as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.as_object().unwrap().keys().map(|x| x.parse().unwrap()).collect())).collect();
+        // ADR-0168 F-16: this is a W0 decoder, so enum values introduced in a later wave (enum_value_waves) are not W0-valid.
+        let later_wave = |e: &str, v: &str| f["enum_value_waves"][e][v].as_str().map_or(false, |w| w != "W0");
+        let enums = f["enums"].as_object().unwrap().iter().map(|(k, v)| (k.clone(), v.as_object().unwrap().keys().filter(|x| !later_wave(k, x)).map(|x| x.parse().unwrap()).collect())).collect();
         let types = t["types"]
             .as_array()
             .unwrap()

@@ -25,7 +25,8 @@ from python_canonical import enc as py_enc  # noqa: E402  (existing independent 
 TEST_PROFILE = 65535  # insecure-test-profile (om-crypto-profiles.json)
 TEST_SIG = b"insecure_test_signature"  # placeholder, never a real signature
 
-TYPES = {t["name"]: t for t in json.loads((REPO / "spec/registries/om-object-types.json").read_text())["types"]}
+# V-005 covers the frozen W0 wire; later-wave types (e.g. R16C W3 types 24-27) carry their own codec evidence.
+TYPES = {t["name"]: t for t in json.loads((REPO / "spec/registries/om-object-types.json").read_text())["types"] if t.get("wave") == "W0"}
 ROLE = {"controller": 1, "recovery": 2, "device": 3, "intro_identity": 4, "provider": 5, "legacy": 6}
 
 # ---------------------------------------------------------------- value helpers (JSON diagnostic form)

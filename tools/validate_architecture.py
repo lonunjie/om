@@ -520,9 +520,12 @@ def validate_0920_verification_evidence_guardrails() -> None:
     for gid in expected:
         if not gates.get(gid, {}).get("evidence"):
             fail(f"09:20 guard: {gid} lost its recorded evidence links")
+    # Evidence never authorizes engineering by itself (ADR-0109); only a scope ADR does (ADR-0169). check_phase and the
+    # 09:24 scope guard verify that every authorized scope has its authorizing ADR, passed gates and feasibility.
     contract = load_json(ROOT / "machine/repository_contract.json")
-    if isinstance(contract, dict) and contract.get("engineering_authorized") is not False:
-        fail("09:20 guard: phase1 evidence does not authorize engineering")
+    if isinstance(contract, dict) and contract.get("engineering_authorized") and not any(
+            s.get("authorized") and s.get("authorizing_adr") for s in contract.get("engineering_scopes", {}).values()):
+        fail("09:20 guard: engineering_authorized without an ADR-authorized scope")
 
 
 def validate_0924_scope_and_gate_guardrails() -> None:

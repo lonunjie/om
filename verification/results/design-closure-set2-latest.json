@@ -1,9 +1,9 @@
 {
   "kind": "design_closure_set2",
   "design_only": true,
-  "requirements": 377,
-  "threats": 145,
-  "decisions": 187,
+  "requirements": 379,
+  "threats": 147,
+  "decisions": 190,
   "design_queue_items": 44,
   "security_invariants": 40,
   "checks": [
@@ -15,20 +15,20 @@
     },
     {
       "name": "requirement_traceability",
-      "requirements": 377,
-      "rows": 377,
+      "requirements": 379,
+      "rows": 379,
       "missing": 0,
       "duplicates": 0
     },
     {
       "name": "threat_traceability",
-      "threats": 145,
+      "threats": 147,
       "problems": 0
     },
     {
       "name": "decision_adr_index",
-      "decisions": 187,
-      "indexed_adrs": 166,
+      "decisions": 190,
+      "indexed_adrs": 169,
       "problems": 0
     },
     {
@@ -51,8 +51,10 @@
     },
     {
       "name": "engineering_lock",
-      "global_authorized": false,
-      "authorized_scopes": []
+      "global_authorized": true,
+      "authorized_scopes": [
+        "core_kernel"
+      ]
     },
     {
       "name": "eleven_scope_adversarial_coverage",

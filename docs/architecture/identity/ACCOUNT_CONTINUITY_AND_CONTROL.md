@@ -120,10 +120,10 @@ OM therefore uses these rules:
 2. only active, non-quarantined controllers' signatures count toward a quorum, so quarantining other controllers
    never helps the quarantining controller reach one. This rule is derived from the committed parent state alone:
    no verifier needs, or may use, a record of who initiated a quarantine (ADR-0136 rule 3). The one exception is §5:
-   a quarantined controller's challenge signature counts toward resolving a safety freeze;
+   a quarantined controller's challenge signature counts toward resolving a safety freeze (ADR-0137, ADR-0168);
 3. promotion of a new control device uses the parent state's controller set/recovery authority;
 4. a quarantine that would leave fewer non-quarantined controllers than the parent state's majority (that is, one
-   that "disables the safety threshold") triggers a **safety freeze**, which only a device-only majority resolves (§5);
+   that "disables the safety threshold") triggers a **safety freeze**, which only a parent-majority freeze resolution resolves (§5; at most one co-signed recovery vote, ADR-0168);
 5. contested quarantine cannot be resolved by last-write-wins.
 
 Implementations may choose a bounded challenge window for UX, but an uncontested quarantine without quorum may remain quarantined indefinitely rather than becoming permanent solely because time passed.
@@ -145,7 +145,7 @@ larger accepted set.
 | link a messaging device (add to `messaging_devices`, add its credential) | 1 active, non-quarantined controller, after the linking ceremony and enrollment notice (§12) | yes |
 | promote to control device (add to `active_control_devices`) | majority, or majority reached with a recovery vote | only when N = 1 |
 | quarantine a control device (add to `quarantined_control_devices`) | 1 active, non-quarantined controller other than the target; never the last voting controller (§13) | yes |
-| lift a quarantine (remove from `quarantined_control_devices`) | majority of active, non-quarantined controllers (quarantined controllers stay in N, §4 rules 1–2); no recovery vote. Under a safety freeze, §5 applies instead | only when N = 1 |
+| lift a quarantine (remove from `quarantined_control_devices`) | majority of active, non-quarantined controllers (quarantined controllers stay in N, §4 rules 1–2); no recovery vote. Under a safety freeze, the §5 freeze resolution applies instead (it may also revoke and may count one co-signed recovery vote, ADR-0168) | only when N = 1 |
 | remove a messaging device (drop from `messaging_devices`, add to `permanently_revoked_devices`) | 1 active, non-quarantined controller | yes |
 | permanently revoke a control device | majority, or majority reached with a recovery vote | only when N = 1 |
 | change the recovery policy (`recovery_policy_commitment`) | majority, or majority reached with a recovery vote | only when N = 1 |
@@ -180,15 +180,23 @@ While frozen:
 - no contested controller promotion/removal becomes final;
 - no recovery-policy replacement becomes final;
 - no security floor is lowered;
-- a quarantine-induced freeze is resolved only by a **device-only** majority of the parent state's controllers; a
-  recovery vote never resolves it. Quarantined parent controllers may contribute only a narrow freeze-challenge
-  signature. The child may restore a **non-empty subset** of the quarantined controllers, and every restored controller
-  must itself contribute that freeze-challenge signature. The child may change no other constitutional field and is
-  valid only when the resulting active, non-quarantined controller set again reaches the parent majority. Suspected compromised controllers therefore need not be restored merely to exit the freeze
-  (ADR-0137 rule 2);
-- challenge capability does not guarantee availability against a withholding threshold member. In a two-controller
-  account the parent majority is two, so either controller can still deny freeze resolution by refusing to sign; OM
-  does not lower the threshold or give recovery a freeze vote to hide that limitation; and
+- a quarantine-induced freeze is resolved by a **freeze resolution** with exactly the authority of a normal-mode
+  majority (ADR-0137 rule 2 as amended by ADR-0168):
+  - signers are parent controllers; quarantined parent controllers may sign only with their narrow freeze-challenge
+    capability;
+  - the threshold is the parent majority, counting device signatures plus **at most one recovery vote, and only
+    co-signed** by at least one parent controller (R-185). A RecoveryVeto rejects it, and recovery alone never resolves a
+    freeze;
+  - the child may **restore** quarantined controllers (each restored controller must itself contribute its
+    freeze-challenge signature) and/or **revoke** controllers that did not sign, moving them to
+    `permanently_revoked_devices`; at least one controller is restored or revoked;
+  - the child may change no other constitutional field and is valid only when its active, non-quarantined controllers
+    reach the child's majority. Suspected compromised controllers therefore need not be restored merely to exit the freeze;
+- a thief holding one device of a two-controller account cannot lock the owner out. If the thief quarantines the
+  owner's device, or the owner suspends the stolen device, the owner's device (challenge or ordinary signature) plus a
+  co-signed recovery vote resolves the freeze and revokes the stolen device in one transition. The thief, lacking the
+  recovery method, reaches only one vote. Without a recovery method a withholding controller can still deny resolution in
+  a two-controller account; that is the explicit consequence of turning recovery off; and
 - a fork is resolved separately by the §8 `fork_ack` bridge. Fork resolution and quarantine-freeze resolution are
   never interchangeable transition classes.
 
@@ -252,6 +260,13 @@ Recovery is on by default ([`RECOVERY_AND_BACKUP_POLICY.md`](RECOVERY_AND_BACKUP
 ### Two controllers, one lost
 
 With default recovery, the survivor plus the RecoveryRoot form a majority and reconstitute the controller set immediately ([`RECOVERY_AND_BACKUP_POLICY.md`](RECOVERY_AND_BACKUP_POLICY.md) §10.4). Without recovery: the survivor can quarantine the lost controller. If the constitutional rule requires two controllers and no RecoveryPolicy exists, the lost controller may remain quarantined indefinitely and constitutional changes may remain unavailable. The product can warn before users choose such a policy.
+
+### Two controllers, one stolen
+
+With default recovery, the owner's remaining device plus the RecoveryRoot form a majority. In normal mode they revoke the
+stolen device immediately. If the thief first quarantines the owner's device, or the owner suspends the stolen device and
+thereby enters a SAFETY_FREEZE, the same majority resolves the freeze and revokes the stolen device (§5, ADR-0168). The UI
+should offer "Remove this device" (revocation) rather than "Suspend" when suspension would freeze a two-controller account.
 
 ### Offline controller returns after months
 

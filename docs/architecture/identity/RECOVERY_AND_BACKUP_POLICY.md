@@ -126,7 +126,7 @@ Whenever recovery is on, every identity recovery **must** include (ADR-0111, ADR
 
 No profile can turn these off. The same rules apply to every other transition a RecoveryPolicy takes part in
 (permanent revocation, retirement, promotion, recovery-policy change): there it is one vote, and alone it acts only
-after the delay with no veto ([`ACCOUNT_CONTINUITY_AND_CONTROL.md`](ACCOUNT_CONTINUITY_AND_CONTROL.md) §3, §4.1). It never resolves a freeze or fork.
+after the delay with no veto ([`ACCOUNT_CONTINUITY_AND_CONTROL.md`](ACCOUNT_CONTINUITY_AND_CONTROL.md) §3, §4.1). It never resolves a fork, and it counts toward a safety-freeze resolution only as one co-signed vote, never alone (ADR-0168).
 
 Methods may add defenses on top: a guardian quorum, recovery-code proof, or optional out-of-band confirmation.
 

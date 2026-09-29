@@ -8,7 +8,8 @@
   "max_restore": 1,
   "max_dup": 3,
   "max_weak": 1,
-  "max_inject": 1
+  "max_inject": 1,
+  "max_forge": 1
  },
  "vectors": [
   {
@@ -18,19 +19,16 @@
    "violates": [
     "DeliveredAtQuiescence"
    ],
-   "steps": 6,
+   "steps": 12,
    "actions": [
     [
      "Init"
     ],
     [
-     "ControlStep",
+     "ForgeInitiation",
+     "a1",
+     "a2",
      1
-    ],
-    [
-     "Learn",
-     "b1",
-     "A"
     ],
     [
      "NewMessage",
@@ -38,12 +36,46 @@
      1
     ],
     [
-     "ServeWeakBundle",
-     "a1"
+     "ControlStep",
+     1
+    ],
+    [
+     "ControlStep",
+     1
+    ],
+    [
+     "ControlStep",
+     2
+    ],
+    [
+     "Learn",
+     "a1",
+     "B"
     ],
     [
      "Crash",
      "a1"
+    ],
+    [
+     "Learn",
+     "a2",
+     "B"
+    ],
+    [
+     "Learn",
+     "b1",
+     "A"
+    ],
+    [
+     "Learn",
+     "b2",
+     "A"
+    ],
+    [
+     "RecvRejectedUnboundInitiator",
+     "a2",
+     "a1",
+     1
     ]
    ]
   },
@@ -52,31 +84,38 @@
    "source": "hypothesis (shrunk), FUZZ_TOPOLOGY",
    "rule_disabled": "DedupeDurable",
    "violates": [
-    "NoDoubleAccept"
+    "DeliveredAtQuiescence"
    ],
-   "steps": 14,
+   "steps": 13,
    "actions": [
     [
      "Init"
     ],
     [
-     "NewMessage",
-     "b1",
+     "InjectRogueDevice"
+    ],
+    [
+     "ForgeInitiation",
+     "a1",
+     "a2",
      1
     ],
     [
-     "Initiate",
-     "b1",
-     1,
+     "RecvRejectedRevoked",
+     "a2",
      "a1",
-     1,
-     2
+     1
     ],
     [
      "ServeWeakBundle",
      "a1"
     ],
     [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
      "ControlStep",
      1
     ],
@@ -85,52 +124,38 @@
      2
     ],
     [
-     "Learn",
+     "Initiate",
      "a1",
-     "B"
+     1,
+     "b2",
+     2,
+     2
     ],
     [
      "Recv",
+     "b2",
      "a1",
-     "b1",
-     1,
+     2,
      1,
      "created"
     ],
     [
      "Crash",
-     "a1"
-    ],
-    [
-     "ControlStep",
-     1
-    ],
-    [
-     "Learn",
-     "a2",
-     "B"
+     "b2"
     ],
     [
      "Initiate",
-     "b1",
+     "a1",
      1,
-     "b2",
-     2,
+     "b1",
+     3,
      2
     ],
     [
      "Recv",
+     "b1",
      "a1",
-     "b1",
-     1,
-     1,
-     "created"
-    ],
-    [
-     "Recv",
-     "b2",
-     "b1",
-     2,
+     3,
      1,
      "created"
     ]
@@ -153,14 +178,22 @@
      1
     ],
     [
-     "Learn",
-     "b1",
-     "A"
+     "ControlStep",
+     1
     ],
     [
-     "NewMessage",
+     "ControlStep",
+     2
+    ],
+    [
+     "Learn",
      "a1",
-     1
+     "B"
+    ],
+    [
+     "Learn",
+     "a2",
+     "B"
     ],
     [
      "ServeWeakBundle",
@@ -168,26 +201,18 @@
     ],
     [
      "NewMessage",
-     "a2",
-     2
-    ],
-    [
-     "ControlStep",
+     "a1",
      1
     ],
     [
-     "ControlStep",
+     "NewMessage",
+     "a2",
      2
     ],
     [
      "Learn",
-     "a1",
-     "B"
-    ],
-    [
-     "Learn",
-     "a2",
-     "B"
+     "b1",
+     "A"
     ],
     [
      "Learn",
@@ -297,139 +322,126 @@
    "violates": [
     "DeliveredAtQuiescence"
    ],
-   "steps": 22,
+   "steps": 20,
    "actions": [
     [
      "Init"
     ],
     [
-     "NewMessage",
-     "b2",
-     1
-    ],
-    [
      "ControlStep",
      1
     ],
     [
-     "TakeBackup",
+     "Learn",
+     "a2",
+     "B"
+    ],
+    [
+     "ServeWeakBundle",
      "a1"
     ],
     [
-     "Learn",
-     "b1",
-     "A"
+     "ForgeInitiation",
+     "a1",
+     "a2",
+     1
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
     ],
     [
      "TakeBackup",
-     "a2"
+     "b1"
     ],
     [
      "Initiate",
-     "b2",
-     1,
      "a1",
      1,
+     "b1",
+     2,
      2
+    ],
+    [
+     "RecvRejectedRevoked",
+     "a2",
+     "a1",
+     1
     ],
     [
      "Restore",
-     "a1"
-    ],
-    [
-     "Learn",
-     "b2",
-     "A"
+     "b1"
     ],
     [
      "NewMessage",
-     "b2",
-     2
-    ],
-    [
-     "ControlStep",
-     1
-    ],
-    [
-     "Initiate",
-     "b2",
-     1,
-     "b1",
-     2,
-     2
-    ],
-    [
-     "Encrypt",
-     "b2",
-     2,
      "a1",
-     1
+     2
     ],
     [
      "Initiate",
+     "a1",
+     1,
      "b2",
-     2,
-     "a2",
      3,
      2
     ],
     [
      "Encrypt",
-     "b2",
+     "a1",
      2,
      "b1",
      2
     ],
     [
-     "RecvUndecryptable",
+     "Encrypt",
      "a1",
+     2,
      "b2",
-     1,
+     3
+    ],
+    [
+     "RecvUndecryptable",
+     "b1",
+     "a1",
+     2,
      1
     ],
     [
      "RecvUndecryptable",
+     "b1",
      "a1",
-     "b2",
-     1,
+     2,
      2
     ],
     [
      "Recv",
-     "a2",
      "b2",
+     "a1",
      3,
-     2,
-     "created"
-    ],
-    [
-     "Recv",
-     "b1",
-     "b2",
-     2,
      1,
      "created"
     ],
     [
      "Recv",
-     "b1",
      "b2",
-     2,
+     "a1",
+     3,
      2,
      "existing"
     ],
     [
      "RecvReset",
-     "b2",
      "a1",
-     1,
+     "b1",
+     2,
      1
     ],
     [
      "RecvReset",
-     "b2",
      "a1",
-     1,
+     "b1",
+     2,
      2
     ]
    ]
@@ -441,22 +453,10 @@
    "violates": [
     "NoSendToIneligible"
    ],
-   "steps": 16,
+   "steps": 17,
    "actions": [
     [
      "Init"
-    ],
-    [
-     "ServeWeakBundle",
-     "a1"
-    ],
-    [
-     "ControlStep",
-     1
-    ],
-    [
-     "TakeBackup",
-     "a1"
     ],
     [
      "ControlStep",
@@ -465,6 +465,10 @@
     [
      "NewMessage",
      "b1",
+     1
+    ],
+    [
+     "ControlStep",
      1
     ],
     [
@@ -492,17 +496,29 @@
      "A"
     ],
     [
-     "EncryptRefusedFloor",
+     "Learn",
+     "b2",
+     "B"
+    ],
+    [
+     "Learn",
+     "b3",
+     "A"
+    ],
+    [
+     "Initiate",
      "b1",
      1,
-     "a1"
+     "a1",
+     1,
+     2
     ],
     [
      "Initiate",
      "b1",
      1,
      "b2",
-     1,
+     2,
      2
     ],
     [
@@ -510,14 +526,22 @@
      "b1",
      1,
      "b3",
-     2,
+     3,
      2
+    ],
+    [
+     "Recv",
+     "a1",
+     "b1",
+     1,
+     1,
+     "created"
     ],
     [
      "Recv",
      "b2",
      "b1",
-     1,
+     2,
      1,
      "created"
     ],
@@ -542,13 +566,6 @@
      "Init"
     ],
     [
-     "ServeWeakBundle",
-     "a1"
-    ],
-    [
-     "InjectRogueDevice"
-    ],
-    [
      "ControlStep",
      1
     ],
@@ -558,9 +575,12 @@
      "A"
     ],
     [
-     "NewMessage",
-     "a1",
-     1
+     "Learn",
+     "b2",
+     "A"
+    ],
+    [
+     "InjectRogueDevice"
     ],
     [
      "ControlStep",
@@ -576,6 +596,11 @@
      "B"
     ],
     [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
      "Learn",
      "a2",
      "B"
@@ -583,7 +608,7 @@
     [
      "Learn",
      "b2",
-     "A"
+     "B"
     ],
     [
      "Initiate",
@@ -648,114 +673,67 @@
    "source": "hypothesis (shrunk), FUZZ_TOPOLOGY",
    "rule_disabled": "ReconcileControlHead",
    "violates": [
-    "NoSendToIneligible"
+    "DeliveredAtQuiescence"
    ],
-   "steps": 40,
+   "steps": 22,
    "actions": [
     [
      "Init"
-    ],
-    [
-     "ControlStep",
-     1
     ],
     [
      "ServeWeakBundle",
      "a1"
     ],
     [
-     "Persist",
-     "a2"
-    ],
-    [
-     "ControlStep",
-     1
-    ],
-    [
-     "Learn",
-     "a1",
-     "B"
-    ],
-    [
      "InjectRogueDevice"
     ],
     [
-     "NewMessage",
+     "ForgeInitiation",
      "a1",
+     "a2",
+     1
+    ],
+    [
+     "ControlStep",
      1
     ],
     [
      "Learn",
      "b2",
-     "B"
+     "A"
     ],
     [
      "ControlStep",
-     2
+     1
+    ],
+    [
+     "NewMessage",
+     "a2",
+     1
     ],
     [
      "NewMessage",
      "a2",
      2
-    ],
-    [
-     "Persist",
-     "b3"
-    ],
-    [
-     "Learn",
-     "b3",
-     "B"
-    ],
-    [
-     "Learn",
-     "b2",
-     "A"
-    ],
-    [
-     "Persist",
-     "b2"
     ],
     [
      "Learn",
      "a1",
-     "B"
-    ],
-    [
-     "Learn",
-     "a2",
-     "B"
-    ],
-    [
-     "Learn",
-     "b1",
-     "A"
-    ],
-    [
-     "NewMessage",
-     "b2",
-     3
-    ],
-    [
-     "Learn",
-     "b2",
      "B"
     ],
     [
      "Crash",
-     "b2"
+     "a2"
     ],
     [
-     "Initiate",
-     "a1",
-     1,
+     "EncryptRefusedFloor",
      "a2",
      1,
-     2
+     "a1"
     ],
     [
      "Initiate",
-     "a1",
+     "a2",
      1,
      "b1",
      2,
@@ -763,17 +741,11 @@
     ],
     [
      "Initiate",
-     "a1",
+     "a2",
      1,
      "b2",
      3,
      2
-    ],
-    [
-     "EncryptRefusedIneligible",
-     "a1",
-     1,
-     "b3"
     ],
     [
      "EncryptRefusedFloor",
@@ -782,112 +754,52 @@
      "a1"
     ],
     [
-     "Initiate",
+     "Encrypt",
      "a2",
      2,
      "b1",
-     4,
      2
     ],
     [
-     "Initiate",
+     "Encrypt",
      "a2",
      2,
      "b2",
-     5,
-     2
-    ],
-    [
-     "EncryptRefusedFloor",
-     "b2",
-     3,
-     "a1"
-    ],
-    [
-     "Initiate",
-     "b2",
-     3,
-     "a2",
-     6,
-     2
-    ],
-    [
-     "Initiate",
-     "b2",
-     3,
-     "b1",
-     7,
-     2
-    ],
-    [
-     "Initiate",
-     "b2",
-     3,
-     "b3",
-     8,
-     2
-    ],
-    [
-     "Recv",
-     "a2",
-     "a1",
-     1,
-     1,
-     "created"
-    ],
-    [
-     "Recv",
-     "b1",
-     "a1",
-     2,
-     1,
-     "created"
-    ],
-    [
-     "Recv",
-     "b2",
-     "a1",
-     3,
-     1,
-     "created"
-    ],
-    [
-     "Recv",
-     "b1",
-     "a2",
-     4,
-     2,
-     "created"
-    ],
-    [
-     "Recv",
-     "b2",
-     "a2",
-     5,
-     2,
-     "created"
-    ],
-    [
-     "Recv",
-     "a2",
-     "b2",
-     6,
-     3,
-     "created"
-    ],
-    [
-     "Recv",
-     "b1",
-     "b2",
-     7,
-     3,
-     "created"
+     3
     ],
     [
      "RecvRejectedRevoked",
-     "b3",
+     "a2",
+     "a1",
+     1
+    ],
+    [
+     "RecvRejectedRevoked",
+     "b1",
+     "a2",
+     1
+    ],
+    [
+     "RecvRejectedRevoked",
+     "b1",
+     "a2",
+     2
+    ],
+    [
+     "Recv",
      "b2",
-     3
+     "a2",
+     3,
+     1,
+     "created"
+    ],
+    [
+     "Recv",
+     "b2",
+     "a2",
+     3,
+     2,
+     "existing"
     ]
    ]
   },
@@ -898,27 +810,48 @@
    "violates": [
     "NoAcceptFromKnownRevoked"
    ],
-   "steps": 17,
+   "steps": 20,
    "actions": [
     [
      "Init"
     ],
     [
-     "ControlStep",
-     1
+     "ServeWeakBundle",
+     "a1"
     ],
     [
-     "ControlStep",
-     1
-    ],
-    [
-     "Learn",
+     "ForgeInitiation",
      "a1",
-     "B"
+     "a2",
+     1
+    ],
+    [
+     "RecvRejectedRevoked",
+     "a2",
+     "a1",
+     1
+    ],
+    [
+     "NewMessage",
+     "a1",
+     1
+    ],
+    [
+     "ControlStep",
+     1
     ],
     [
      "ControlStep",
      2
+    ],
+    [
+     "NewMessage",
+     "b3",
+     2
+    ],
+    [
+     "ControlStep",
+     1
     ],
     [
      "Learn",
@@ -931,36 +864,8 @@
      "B"
     ],
     [
-     "Learn",
-     "b1",
-     "A"
-    ],
-    [
-     "NewMessage",
-     "b3",
-     1
-    ],
-    [
-     "Learn",
-     "b2",
-     "A"
-    ],
-    [
-     "Learn",
-     "b2",
-     "B"
-    ],
-    [
      "Initiate",
-     "b3",
-     1,
      "a1",
-     1,
-     2
-    ],
-    [
-     "Initiate",
-     "b3",
      1,
      "b1",
      2,
@@ -968,24 +873,38 @@
     ],
     [
      "Initiate",
-     "b3",
+     "a1",
      1,
      "b2",
      3,
      2
     ],
     [
-     "Recv",
-     "a1",
+     "EncryptRefusedFloor",
      "b3",
-     1,
-     1,
-     "created"
+     2,
+     "a1"
+    ],
+    [
+     "Initiate",
+     "b3",
+     2,
+     "b1",
+     4,
+     2
+    ],
+    [
+     "Initiate",
+     "b3",
+     2,
+     "b2",
+     5,
+     2
     ],
     [
      "Recv",
      "b1",
-     "b3",
+     "a1",
      2,
      1,
      "created"
@@ -993,9 +912,25 @@
     [
      "Recv",
      "b2",
-     "b3",
+     "a1",
      3,
      1,
+     "created"
+    ],
+    [
+     "Recv",
+     "b1",
+     "b3",
+     4,
+     2,
+     "created"
+    ],
+    [
+     "Recv",
+     "b2",
+     "b3",
+     5,
+     2,
      "created"
     ]
    ]
@@ -1007,58 +942,14 @@
    "violates": [
     "SamePreferredAtQuiescence"
    ],
-   "steps": 25,
+   "steps": 21,
    "actions": [
     [
      "Init"
     ],
     [
-     "TakeBackup",
-     "a1"
-    ],
-    [
-     "TakeBackup",
-     "b2"
-    ],
-    [
-     "ServeWeakBundle",
-     "a1"
-    ],
-    [
      "NewMessage",
-     "a1",
-     1
-    ],
-    [
-     "NewMessage",
-     "a1",
-     2
-    ],
-    [
-     "Restore",
-     "b2"
-    ],
-    [
-     "NewMessage",
-     "a1",
-     3
-    ],
-    [
-     "Initiate",
-     "a1",
-     1,
-     "b1",
-     1,
-     2
-    ],
-    [
-     "InjectRogueDevice"
-    ],
-    [
-     "Encrypt",
-     "a1",
-     2,
-     "b1",
+     "b2",
      1
     ],
     [
@@ -1066,45 +957,80 @@
      1
     ],
     [
-     "RecvUndecryptable",
-     "b1",
+     "ControlStep",
+     1
+    ],
+    [
+     "ControlStep",
+     2
+    ],
+    [
+     "Initiate",
+     "b2",
+     1,
      "a1",
+     1,
+     2
+    ],
+    [
+     "Learn",
+     "a1",
+     "B"
+    ],
+    [
+     "ForgeInitiation",
+     "a1",
+     "a2",
+     2
+    ],
+    [
+     "ServeWeakBundle",
+     "a2"
+    ],
+    [
+     "NewMessage",
+     "b2",
+     2
+    ],
+    [
+     "Encrypt",
+     "b2",
+     2,
+     "a1",
+     1
+    ],
+    [
+     "RecvUndecryptable",
+     "a1",
+     "b2",
      1,
      2
     ],
     [
      "Initiate",
-     "a1",
+     "b2",
      1,
-     "b2",
-     2,
-     2
-    ],
-    [
-     "Encrypt",
-     "a1",
-     2,
-     "b2",
-     2
-    ],
-    [
-     "Encrypt",
-     "a1",
-     3,
      "b1",
-     1
+     3,
+     2
     ],
     [
      "Encrypt",
-     "a1",
-     3,
      "b2",
+     2,
+     "b1",
+     3
+    ],
+    [
+     "RecvRejectedUnboundInitiator",
+     "a2",
+     "a1",
      2
     ],
     [
      "Recv",
-     "b1",
      "a1",
+     "b2",
      1,
      1,
      "created"
@@ -1112,56 +1038,110 @@
     [
      "Recv",
      "b1",
-     "a1",
-     1,
-     3,
-     "existing"
-    ],
-    [
-     "Recv",
      "b2",
-     "a1",
-     2,
+     3,
      1,
      "created"
     ],
     [
      "Recv",
+     "b1",
      "b2",
-     "a1",
-     2,
-     2,
-     "existing"
-    ],
-    [
-     "Recv",
-     "b2",
-     "a1",
-     2,
      3,
+     2,
      "existing"
     ],
     [
      "RecvReset",
+     "b2",
      "a1",
-     "b1",
      1,
      2
     ],
     [
      "Initiate",
-     "a1",
+     "b2",
      2,
-     "b1",
-     3,
+     "a1",
+     4,
      2
     ],
     [
      "Recv",
-     "b1",
      "a1",
-     3,
+     "b2",
+     4,
      2,
+     "created"
+    ]
+   ]
+  },
+  {
+   "id": "V003-FUZZ-BindInitiator",
+   "source": "hypothesis (shrunk), FUZZ_TOPOLOGY",
+   "rule_disabled": "BindInitiator",
+   "violates": [
+    "NoMisattributedSession"
+   ],
+   "steps": 12,
+   "actions": [
+    [
+     "Init"
+    ],
+    [
+     "ForgeInitiation",
+     "a1",
+     "a2",
+     1
+    ],
+    [
+     "ControlStep",
+     1
+    ],
+    [
+     "ControlStep",
+     1
+    ],
+    [
+     "ControlStep",
+     2
+    ],
+    [
+     "Learn",
+     "a1",
+     "B"
+    ],
+    [
+     "Learn",
+     "a2",
+     "B"
+    ],
+    [
+     "Learn",
+     "b1",
+     "A"
+    ],
+    [
+     "Learn",
+     "b2",
+     "A"
+    ],
+    [
+     "Learn",
+     "b2",
+     "B"
+    ],
+    [
+     "Learn",
+     "b3",
+     "A"
+    ],
+    [
+     "Recv",
+     "a2",
+     "a1",
+     1,
+     1,
      "created"
     ]
    ]

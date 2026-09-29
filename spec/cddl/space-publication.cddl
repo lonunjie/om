@@ -132,8 +132,8 @@ PublicationEvent = {
 
 signed-space-control-state = { 1: bstr, 2: [1*16 signature] }
 signed-space-delegated-intent = { 1: bstr, 2: [1*16 signature] }
-signed-publication-control-state = { 1: bstr, 2: [1*16 signature] }
-signed-publication-event = { 1: bstr, 2: [1*16 signature] }
+signed-publication-control-state = { 1: bstr, 2: [1*16 w3-signature] }
+signed-publication-event = { 1: bstr, 2: [1*16 w3-signature] }
 
 TopicCreate = {
   0: opaque-id16,

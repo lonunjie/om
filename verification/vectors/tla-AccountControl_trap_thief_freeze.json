@@ -1,0 +1,119 @@
+{
+ "gate": "V-002",
+ "source": "verification/tla/AccountControl_trap_thief_freeze.cfg",
+ "kind": "golden",
+ "claim": "golden F-14: a two-device owner escapes a thief-induced freeze with a challenge signature plus a co-signed recovery vote and revokes the stolen device",
+ "violated": "TrapOwnerEscapesThiefFreeze",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h1\", \"h2\"}",
+    "last": "[rv |-> 0, kind |-> \"none\", signers |-> {}, challenge |-> {}]",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "0",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 2,
+   "action": "Next",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{\"h1\"}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "TRUE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h1\", \"h2\"}",
+    "last": "[rv |-> 0, kind |-> \"quarantine\", signers |-> {\"h2\"}, challenge |-> {}]",
+    "revoked": "{}",
+    "lost": "{}",
+    "gen": "1",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 3,
+   "action": "Next",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h2\"}",
+    "last": "[rv |-> 1, kind |-> \"resolve\", signers |-> {\"h2\"}, challenge |-> {}]",
+    "revoked": "{\"h1\"}",
+    "lost": "{}",
+    "gen": "2",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 4,
+   "action": "Compromise",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{\"h1\"}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h2\"}",
+    "last": "[rv |-> 1, kind |-> \"resolve\", signers |-> {\"h2\"}, challenge |-> {}]",
+    "revoked": "{\"h1\"}",
+    "lost": "{}",
+    "gen": "2",
+    "retired": "FALSE"
+   }
+  },
+  {
+   "step": 5,
+   "action": "Lose",
+   "vars": {
+    "epoch": "0",
+    "quarantined": "{}",
+    "compromised": "{\"h1\"}",
+    "legacy": "[elapsed |-> 0, armed |-> FALSE, claim |-> FALSE]",
+    "idle": "0",
+    "atkMethods": "0",
+    "linkLog": "{}",
+    "offline": "{}",
+    "frozen": "FALSE",
+    "pending": "[ epoch |-> 0, active |-> FALSE, party |-> \"owner\", dev |-> \"none\", methods |-> 0, elapsed |-> 0 ]",
+    "controllers": "{\"h2\"}",
+    "last": "[rv |-> 1, kind |-> \"resolve\", signers |-> {\"h2\"}, challenge |-> {}]",
+    "revoked": "{\"h1\"}",
+    "lost": "{\"h1\"}",
+    "gen": "2",
+    "retired": "FALSE"
+   }
+  }
+ ]
+}

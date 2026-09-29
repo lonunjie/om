@@ -225,6 +225,10 @@
       "returncode": 0
     },
     {
+      "script": "verification/bounded/extensions_independent_rust_adr0168.py",
+      "returncode": 0
+    },
+    {
       "script": "verification/bounded/cross_wave_feasibility.py",
       "returncode": 0
     }

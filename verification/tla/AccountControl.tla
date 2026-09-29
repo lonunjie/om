@@ -297,20 +297,31 @@ Fork ==
 \* controllers retain only a challenge-signing capability for this action.
 \* The restored set R may be selective so a controller suspected of compromise
 \* can remain quarantined, but the child MUST exit the freeze.
-ResolveFreeze(p, V, R) ==
+ResolveFreeze(p, V, R, K, rv) ==
+  \* ADR-0137 as amended by ADR-0168 (F-14): the resolution has exactly normal-mode majority
+  \* authority. Signers are parent controllers (quarantined ones via their challenge capability);
+  \* at most one recovery vote counts, and only co-signed (R-185). The child restores challenge-
+  \* signing quarantined controllers (R) and/or revokes non-signing controllers (K).
   /\ frozen /\ ~retired
   /\ quarantined # {}
   /\ Cardinality(controllers \ quarantined) < Majority(controllers)
-  /\ R \subseteq quarantined /\ R # {}
+  /\ R \subseteq quarantined
   /\ R \subseteq V
+  /\ K \subseteq controllers \ V
+  /\ R \cup K # {}
+  /\ (K # {}) => (p = "attacker" \/ OwnerStructural)   \* revocation is a structural change
   /\ V \subseteq Signable(p)
-  /\ Cardinality(V) >= Majority(controllers)
-  /\ Cardinality(controllers \ (quarantined \ R)) >= Majority(controllers)
+  /\ rv \in 0..1
+  /\ (rv = 1) => (Methods(p) >= 1 /\ V # {})
+  /\ Cardinality(V) + rv >= Majority(controllers)
+  /\ Cardinality((controllers \ K) \ ((quarantined \ R) \ K)) >= Majority(controllers \ K)
   /\ frozen' = FALSE
-  /\ quarantined' = quarantined \ R
+  /\ controllers' = controllers \ K
+  /\ quarantined' = (quarantined \ R) \ K
+  /\ revoked' = revoked \cup K
   /\ gen' = gen + 1
-  /\ last' = [kind |-> "resolve", signers |-> V, rv |-> 0, challenge |-> V \cap quarantined]
-  /\ UNCHANGED <<controllers, revoked, compromised, offline, lost, atkMethods,
+  /\ last' = [kind |-> "resolve", signers |-> V, rv |-> rv, challenge |-> V \cap quarantined]
+  /\ UNCHANGED <<compromised, offline, lost, atkMethods,
                  epoch, pending, retired, legacy, idle, linkLog>>
 
 \* Fork resolution is deliberately separate. It uses only ordinary usable
@@ -424,7 +435,8 @@ Next ==
   \/ \E p \in Parties, d \in HonestSpare \cup AttackerDevs, m \in 1..2 : RequestRecovery(p, d, m)
   \/ \E p \in Parties : Veto(p) \/ DelayedComplete(p)
   \/ \E p \in Parties, V \in SUBSET controllers : CosignComplete(p, V) \/ ResolveFork(p, V)
-  \/ \E p \in Parties, V \in SUBSET controllers, R \in SUBSET controllers : ResolveFreeze(p, V, R)
+  \/ \E p \in Parties, V \in SUBSET controllers, R \in SUBSET controllers,
+        K \in SUBSET controllers, rv \in 0..1 : ResolveFreeze(p, V, R, K, rv)
   \/ Fork
   \/ \E V \in SUBSET controllers, rv \in 0..1 : ArmLegacy(V, rv)
   \/ ClaimLegacy \/ ContestLegacy \/ ActivateLegacy
@@ -467,11 +479,17 @@ PendingEpochSane == pending.active => pending.epoch <= epoch
 \* F-2 / ADR-0137: lifts, quarantine-freeze resolution and fork bridges are
 \* device-only majorities of N. Only quarantine-freeze resolution may carry
 \* challenge signatures from quarantined controllers.
+\* Ordinary lifts and fork bridges are device-only. A freeze resolution (ADR-0168 F-14) may carry at most one
+\* recovery vote and only co-signed; its parent-majority guard is in ResolveFreeze (post-state N can only shrink).
 LiftIsDeviceOnlyMajority ==
-  last.kind \in {"lift", "resolve", "fork_bridge"} =>
-    /\ last.rv = 0
-    /\ Cardinality(last.signers) >= Majority(controllers)
-    /\ (last.kind \in {"lift", "fork_bridge"}) => last.challenge = {}
+  /\ last.kind \in {"lift", "fork_bridge"} =>
+       /\ last.rv = 0
+       /\ Cardinality(last.signers) >= Majority(controllers)
+       /\ last.challenge = {}
+  /\ last.kind = "resolve" =>
+       /\ last.rv \in 0..1
+       /\ (last.rv = 1) => last.signers # {}
+       /\ Cardinality(last.signers) + last.rv >= Majority(controllers)
 
 \* F-2: a quarantine below the safety threshold is always frozen or resolved.
 QuarantineBelowThresholdFreezes ==
@@ -500,8 +518,13 @@ NoRollback == [][gen' >= gen /\ epoch' >= epoch]_vars
 RetiredIsTerminal ==
   [][retired => UNCHANGED <<controllers, revoked, epoch, retired>>]_vars
 
+\* ADR-0168: the only controller change while frozen is the resolving step itself, which exits the freeze and
+\* may only revoke (never add) controllers.
 FrozenBlocksControllerChanges ==
-  [][frozen => UNCHANGED <<controllers, revoked, epoch>>]_vars
+  [][frozen => \/ UNCHANGED <<controllers, revoked, epoch>>
+               \/ /\ last'.kind = "resolve" /\ ~frozen'
+                  /\ controllers' \subseteq controllers /\ revoked' = revoked \cup (controllers \ controllers')
+                  /\ UNCHANGED epoch]_vars
 
 LegacyNeverAddsControllers ==
   [][(legacy.claim /\ retired' /\ ~retired) => controllers' = controllers]_vars
@@ -510,7 +533,8 @@ LegacyNeverAddsControllers ==
 \* resolution path: quarantine challenge resolution or a separate fork bridge.
 FreezeExitOnlyByResolve ==
   [][(frozen /\ ~frozen') =>
-       (last'.kind \in {"resolve", "fork_bridge"} /\ last'.rv = 0)]_vars
+       (\/ last'.kind = "fork_bridge" /\ last'.rv = 0
+        \/ last'.kind = "resolve" /\ (last'.rv = 1 => last'.signers # {}))]_vars   \* ADR-0168: co-signed vote only
 
 -----------------------------------------------------------------------------
 (* Trap invariants: expected to be VIOLATED. Each counterexample is a      *)
@@ -530,6 +554,10 @@ TrapForkFreezes == ~frozen
 TrapLift == last.kind # "lift"
 TrapQuarantineFreeze == ~(last.kind = "quarantine" /\ frozen)
 TrapChallengeResolves == ~(last.kind = "resolve" /\ last.challenge # {})
+\* ADR-0168 F-14: a two-device owner whose other device was stolen and used to quarantine it
+\* escapes the freeze with its challenge signature plus the co-signed recovery vote, revoking the thief.
+TrapOwnerEscapesThiefFreeze ==
+  ~(last.kind = "resolve" /\ last.rv = 1 /\ compromised \cap lost # {} /\ compromised \cap lost \subseteq revoked)
 TrapCosignedRecovery == last.kind # "recovery_cosigned"
 TrapDelayedRecovery == last.kind # "recovery_delayed"
 

@@ -1,3 +1,13 @@
+# 2026-09-29 11:50 PHT — core_kernel review, ADR-0167..0169, engineering unlock
+
+- ADR-0167: operator-directed single-vendor (Claude) review model, labelled in the gate ledger.
+- ADR-0168: review findings F-14 (freeze lockout; freeze resolution may count a co-signed recovery vote and revoke
+  non-signers), F-15 (V-005 harness scoped to W0, corpus regenerated to 758), F-16 (`enum_value_waves`; W0 `sig-role =
+  1..6`), F-17 (normative `geo:` token grammar). New R-387/R-388, T-156/T-157, D-188..D-190.
+- New evidence: `AccountControl_thief_freeze` pass config, `trap_thief_freeze` golden trace, 6 new ACS vectors, amended
+  TLA/table cross-check, clean-room Rust extension implementation (`v005-extensions-rust`, Rust-dependent producer).
+- Gates V-002, V-003, V-005, V-015, V-016 and V-017 pass pre-engineering. ADR-0169 authorizes `core_kernel`.
+
 # 2026-09-29 10:21 PHT — ADR-0166 consolidation of the parallel design lines
 
 - Imported `om-design-20260929-0634-PHT-reviewed-fixed.zip` (`checkpoint/20260929-0634`) and the R16C drop on top of it

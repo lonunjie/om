@@ -1,6 +1,6 @@
 # OM Engineering Repository Layout
 
-> **FUTURE LAYOUT:** architecture is design-frozen by ADR-0139, but this planned repository structure is not authorization to begin product implementation. A named scope must first satisfy [`machine/repository_contract.json`](../../machine/repository_contract.json) and its gate/dependency rules.
+> **LAYOUT:** `core_kernel` is authorized (ADR-0169), so its crates below may now be created. The layout itself authorizes nothing for any other scope. A named scope must first satisfy [`machine/repository_contract.json`](../../machine/repository_contract.json) and its gate/dependency rules.
 
 ## Goal
 

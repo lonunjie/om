@@ -1,9 +1,9 @@
 {
   "all_ok": true,
   "bounded_freeze_accepted_set_equivalence": {
-    "accepted_table": 136,
-    "accepted_tla": 136,
-    "checked": 66816,
+    "accepted_table": 847,
+    "accepted_tla": 847,
+    "checked": 98496,
     "equal": true,
     "mismatch_examples": [],
     "table_only": 0,
@@ -16,10 +16,14 @@
     "freeze_plus_recovery_policy": true,
     "freeze_plus_revoke": true,
     "outsider_challenge_signer": true,
+    "owner_challenge_plus_recovery_revokes_thief": true,
     "partial_restore_below_majority": true,
     "quarantine_freeze_not_fork_bridge": true,
     "quarantined_challenge_on_ordinary_lift": true,
-    "recovery_vote_in_freeze": true
+    "recovery_alone_in_freeze": true,
+    "recovery_vote_cannot_restore_nonsigner": true,
+    "thief_alone_cannot_revoke_owner": true,
+    "vetoed_recovery_in_freeze": true
   },
   "fresh_tlc_note": "This script compares the committed TLA source/trace corpus. TLC itself is run by tools/run_tlc.py when tla2tools is available.",
   "gate": "V-002",
@@ -91,6 +95,12 @@
         "skipped": 0,
         "steps": 1
       },
+      "tla-AccountControl_trap_thief_freeze.json": {
+        "negative": 3,
+        "positive": 2,
+        "skipped": 0,
+        "steps": 2
+      },
       "tla-AccountControl_trap_two_device.json": {
         "negative": 0,
         "positive": 0,
@@ -109,11 +119,11 @@
       "retire"
     ],
     "totals": {
-      "negative": 17,
-      "positive": 12,
+      "negative": 20,
+      "positive": 14,
       "skipped": 1,
-      "steps": 13
+      "steps": 15
     }
   },
-  "traces": 11
+  "traces": 12
 }

@@ -9,7 +9,8 @@
     "A key that is not listed in 'fields' (including a 'reserved' key) is an unknown critical field: the object is rejected (error unknown_field). Forward-compatible optional data goes into key 23 extensions.",
     "'set' arrays are sorted by the bytewise order of each element's canonical encoding and contain no duplicates (error set_order).",
     "Type grammar: {uint:[min,max|null]}, {bool:null|true|false} (true/false = constant), {bstr:[min,max]}, {tstr:[min,max]} (byte length), {enum:name}, {ref:Struct}, {array:T,n:[min,max]}, {set:T,n:[min,max]}, {union:{on:key,variants:{value:Struct}}}, {dispatch:{on:field_name,table:{value:Struct},default:'opaque_map'}}, {signed:TypeName} (bstr holding a canonical SignedEnvelope whose body is that type), {any:null}, {ext:null}.",
-    "The ASCII prefix 'om.critical.' is reserved by ADR-0157 for mandatory-to-understand extension IDs. Any unknown extension whose ID begins with that prefix is treated as critical and rejects the containing object even if ExtEntry.critical is false; non-critical registrations MUST NOT use the prefix. Existing critical om.acs.fork_ack and om.acs.legacy_policy are grandfathered because V1 already knows them."
+    "The ASCII prefix 'om.critical.' is reserved by ADR-0157 for mandatory-to-understand extension IDs. Any unknown extension whose ID begins with that prefix is treated as critical and rejects the containing object even if ExtEntry.critical is false; non-critical registrations MUST NOT use the prefix. Existing critical om.acs.fork_ack and om.acs.legacy_policy are grandfathered because V1 already knows them.",
+    "Enum values listed in 'enum_value_waves' were added after W0 and are valid only in objects of that wave or later. A decoder validating a W0 object accepts only the enum values without a later-wave entry; in particular W0 SignedEnvelopes accept sig_role 1..6 only and publication_signing_key (7) is valid only on the W3 Publication objects whose object-type 'signed.roles' list it (ADR-0168 finding F-16)."
   ],
   "common_top_level_fields": [
     {
@@ -43,6 +44,11 @@
       "req": false
     }
   ],
+  "enum_value_waves": {
+    "sig_role": {
+      "7": "W3"
+    }
+  },
   "enums": {
     "hash_alg": {
       "1": "sha-256"

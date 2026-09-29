@@ -1,6 +1,6 @@
 # Claude Opus 5.5 — current OM handoff
 
-**Current status:** **ACTIVE after ADR-0166 consolidated the two parallel 2026-09-29 lines (independent-review/R15–R16C and Runs 2–7); latest architecture ADR is ADR-0166.** Architecture remains pre-engineering with `design_open=0`, `engineering_authorized=false` and 0/12 scopes authorized. Runs 5–7 added implementation-readiness, dangerous-algorithm and protocol-evolution guardrails without changing frozen W0 wire shape. They make crash/restart, lost-response retry identity, group Commit local journaling, dangerous-transition ordering, compatibility evolution and scope dependency/handoff contracts explicit. V-004 must verify the ADR-0163 group crash/retry model in addition to its existing formal/runtime/wire/independent obligations; no gate is self-closed by this checkpoint.
+**Current status:** **ACTIVE after ADR-0169 authorized engineering scope `core_kernel`.** ADR-0167 makes Claude the sole reviewer at the operator's direction; ADR-0168 fixed review findings F-14..F-17. Every other scope remains unauthorized; see [`SNAPSHOT.md`](../SNAPSHOT.md) for gate status and next work.
 
 The bounded different-vendor `independent_reviewer` handoff under ADR-0117 remains:
 

@@ -1,17 +1,23 @@
 # OM Architecture Snapshot
 
-Generated: **2026-09-29 10:21 PHT (UTC+08:00)**, after ADR-0166 consolidated the two parallel 2026-09-29 design lines.
+Generated: **2026-09-29 11:50 PHT (UTC+08:00)**, after ADR-0169 authorized `core_kernel`.
 
 ## State
 
-- **Engineering is not authorized**: `engineering_authorized=false`, 0/12 scopes authorized.
-- **Design:** `design_open=0`. ADR-0166 consolidates the two parallel 2026-09-29 lines; no protocol, cryptographic or authority rule is new.
-- **Verification:** V-001..V-024; 24 overall-open, 23 with pre-engineering open. No gate is passed by the consolidation.
-- **Ledgers:** 377 requirements / 377 trace rows, 145 threats, 187 decisions / 166 indexed ADRs, 40 security invariants.
-- **Tree:** 1,363 validator-counted current files; docs/registry/protocol-evolution checks clean; continuity manifest 84/84.
-- **Evidence:** `make verify` passes locally: 50/50 phase-1 producers (49 portable), pinned TLC, and registry immutability vs `checkpoint/20260929-0902`.
-- **Review routing:** OpenAI-authored ADR-0157–0165 need a non-OpenAI independent reviewer; Anthropic-authored ADR-0166 needs a non-Anthropic one.
-- **Next:** the remaining true runtime/formal criteria (V-004 wire freeze first, then V-013/V-014/V-024 browser feasibility), then batched independent reviews; human/device evidence for V-018/V-022.
+- **Engineering is authorized for `core_kernel` only** (ADR-0169): `engineering_authorized=true`, 1/12 scopes authorized. Every other scope is not authorized.
+- **Review model:** at the operator's direction Claude performs all reviews (ADR-0167). Gates passed this way carry `pre_engineering_review_basis=operator_single_vendor_ADR-0167`, which is not vendor-independent review.
+- **Design:** `design_open=0`. ADR-0168 fixed four review findings (F-14 freeze lockout, F-15 stale V-005 harness, F-16 W3 role widening W0, F-17 geo-token grammar).
+- **Verification:** V-001, V-002, V-003, V-005, V-015, V-016 and V-017 have passed pre-engineering phases; 24 gates remain overall-open (pre-release obligations) and 17 still have pre-engineering open.
+- **Ledgers:** 379 requirements / 379 trace rows, 147 threats, 190 decisions / 169 indexed ADRs, 40 security invariants.
+- **Next:** start `core_kernel` crates per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md); in parallel, close the remaining W0 scopes (`provider_reference`: V-020, V-022; `reference_client_ui`: V-006, V-018, V-021, V-022, V-023), then later waves.
+
+## 2026-09-29 11:50 PHT — core_kernel review and engineering unlock / ADR-0167..0169
+
+- **ADR-0167:** the operator made Claude the sole reviewer. A recorded review pass (brief, re-executed evidence, adversarial checks, findings) now satisfies pre-engineering `independent_reviewer`, labelled honestly in the ledger. Pre-release and external review still need humans.
+- **Review:** [`2026-09-29-claude-opus-5-5-core-kernel-review.md`](verification/reviews/2026-09-29-claude-opus-5-5-core-kernel-review.md) re-ran `make verify`, the V-001/V-003/V-005 toolchains and the provider traces.
+- **ADR-0168 F-14 (blocker):** one stolen device could permanently lock a two-controller account through a quarantine-induced freeze. A freeze resolution now has normal-mode majority authority: a co-signed recovery vote counts once, and non-signing controllers may be revoked. Table (63 vectors), TLA/table equivalence (98,496 cases) and TLC (new pass config plus golden trap) agree.
+- **ADR-0168 F-15/F-16/F-17:** the V-005 harness is scoped to W0 and its corpus regenerated (758 vectors, Rust = Node); W3 `sig_role` 7 no longer widens W0 validity (`enum_value_waves`); the `geo:` token grammar is normative. A clean-room Rust implementation agrees with the extension corpora (64/64 verdicts and bytes).
+- **ADR-0169:** `core_kernel` is authorized. All its gates and V-017 passed, feasibility is evidenced, and its conformance suites are specified.
 
 ## 2026-09-29 10:21 PHT — consolidation of the parallel design lines / ADR-0166
 

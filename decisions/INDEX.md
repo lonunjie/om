@@ -173,3 +173,6 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0164 — Dangerous algorithms and explicit failure paths](ADR-0164-dangerous-algorithms-and-failure-paths.md)
 - [ADR-0165 — Protocol evolution, compatibility classes and engineering-agent guardrails](ADR-0165-protocol-evolution-compatibility-and-engineering-guardrails.md)
 - [ADR-0166 — Consolidate the parallel 2026-09-29 design lines](ADR-0166-consolidate-parallel-2026-09-29-design-lines.md)
+- [ADR-0167 — Operator-directed single-vendor review model](ADR-0167-operator-single-vendor-review-model.md)
+- [ADR-0168 — core_kernel review findings F-14..F-16](ADR-0168-core-kernel-review-findings-f14-f16.md)
+- [ADR-0169 — Authorize engineering scope `core_kernel` (W0)](ADR-0169-authorize-core-kernel-engineering.md)
