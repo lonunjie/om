@@ -46,6 +46,21 @@ Exact schema may differ, but continuity/version/overlap semantics are mandatory.
 | `optional_recovery_rendezvous` | the separate ReachabilityRecoveryDescriptor ([`reachability-recovery.logical.schema.json`](../../../spec/protocol/reachability-recovery.logical.schema.json)) |
 | `authorization` | a signature by a device active and not quarantined in the recipient's current AccountControlState ([`MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`](MULTI_RELAY_AND_DELIVERY_RESILIENCE.md) §2.1) |
 
+### Hash-chain and concurrent-writer convergence (ADR-0158)
+
+The previous-hash fields are not advisory. For both RelaySet and BlobLocationRecord lineages, genesis is version 1
+with no previous hash; every successor is exactly parent version + 1 and names the canonical domain-separated hash of
+a previously accepted parent in the same lineage. Concurrent children are valid branches. A record received before
+its parent is pending rather than permanently rejected, and can be reconsidered when that parent arrives.
+
+The effective record among structurally valid records with at least one authenticating signer **currently eligible** is selected
+independently of arrival order: highest version, then lexicographically smallest canonical record hash. If that signer
+later becomes ineligible, recompute from retained eligible candidates. An ineligible historical parent may remain as
+continuity metadata; that never restores its authority. Implementations may compact payloads but retain enough
+`(record_hash, version, lineage)` metadata while the relationship/BlobID is live to validate descendants and avoid
+order-dependent branch loss. Resource limits may throttle/refuse excess updates but must not silently convert arrival
+order into protocol state.
+
 ### Normal migration
 
 1. publish/add new relay capabilities;
@@ -80,7 +95,8 @@ Normal relocation:
 1. copy the same verified ciphertext (never re-encrypted) to new BlobStore(s);
 2. publish/authenticate a newer BlobLocationRecord, signed (role `device`) by a device that is active and not
    quarantined in the current AccountControlState of the original sender or of a current conversation member.
-   Peers reject any other signer;
+   Peers reject any other signer. If none of its authenticating signers remains eligible, its record no longer wins the
+   effective-record selection, though its accepted hash/version may remain as inert continuity ancestry;
 3. keep old/new locations concurrently for policy-defined overlap where feasible;
 4. verify recipient/self-device repair propagation;
 5. retire old location.

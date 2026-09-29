@@ -1,0 +1,207 @@
+{
+  "adr": "ADR-0159",
+  "passed": true,
+  "cases": 38,
+  "results": [
+    {
+      "case": "contrast-light-text_primary",
+      "passed": true,
+      "detail": "17.76:1 >= 4.5:1"
+    },
+    {
+      "case": "contrast-light-text_secondary",
+      "passed": true,
+      "detail": "5.96:1 >= 4.5:1"
+    },
+    {
+      "case": "contrast-light-accent",
+      "passed": true,
+      "detail": "6.10:1 >= 3.0:1"
+    },
+    {
+      "case": "contrast-light-info",
+      "passed": true,
+      "detail": "6.10:1 >= 3.0:1"
+    },
+    {
+      "case": "contrast-light-success",
+      "passed": true,
+      "detail": "6.29:1 >= 3.0:1"
+    },
+    {
+      "case": "contrast-light-warning",
+      "passed": true,
+      "detail": "5.93:1 >= 3.0:1"
+    },
+    {
+      "case": "contrast-light-danger",
+      "passed": true,
+      "detail": "6.57:1 >= 3.0:1"
+    },
+    {
+      "case": "contrast-light-message_own",
+      "passed": true,
+      "detail": "14.33:1 >= 4.5:1"
+    },
+    {
+      "case": "contrast-light-message_other",
+      "passed": true,
+      "detail": "15.55:1 >= 4.5:1"
+    },
+    {
+      "case": "contrast-dark-text_primary",
+      "passed": true,
+      "detail": "16.07:1 >= 4.5:1"
+    },
+    {
+      "case": "contrast-dark-text_secondary",
+      "passed": true,
+      "detail": "9.42:1 >= 4.5:1"
+    },
+    {
+      "case": "contrast-dark-accent",
+      "passed": true,
+      "detail": "6.98:1 >= 3.0:1"
+    },
+    {
+      "case": "contrast-dark-info",
+      "passed": true,
+      "detail": "6.98:1 >= 3.0:1"
+    },
+    {
+      "case": "contrast-dark-success",
+      "passed": true,
+      "detail": "9.96:1 >= 3.0:1"
+    },
+    {
+      "case": "contrast-dark-warning",
+      "passed": true,
+      "detail": "10.45:1 >= 3.0:1"
+    },
+    {
+      "case": "contrast-dark-danger",
+      "passed": true,
+      "detail": "7.57:1 >= 3.0:1"
+    },
+    {
+      "case": "contrast-dark-message_own",
+      "passed": true,
+      "detail": "10.23:1 >= 4.5:1"
+    },
+    {
+      "case": "contrast-dark-message_other",
+      "passed": true,
+      "detail": "13.77:1 >= 4.5:1"
+    },
+    {
+      "case": "path-accept-fonts/Inter.woff2",
+      "passed": true,
+      "detail": "fonts/Inter.woff2"
+    },
+    {
+      "case": "path-accept-wallpapers/calm-01.webp",
+      "passed": true,
+      "detail": "wallpapers/calm-01.webp"
+    },
+    {
+      "case": "path-accept-sounds/ping.ogg",
+      "passed": true,
+      "detail": "sounds/ping.ogg"
+    },
+    {
+      "case": "path-accept-icons/dot.svg",
+      "passed": true,
+      "detail": "icons/dot.svg"
+    },
+    {
+      "case": "path-accept-root-file.png",
+      "passed": true,
+      "detail": "root-file.png"
+    },
+    {
+      "case": "path-reject-../escape",
+      "passed": true,
+      "detail": "../escape"
+    },
+    {
+      "case": "path-reject-a/../escape",
+      "passed": true,
+      "detail": "a/../escape"
+    },
+    {
+      "case": "path-reject-/absolute",
+      "passed": true,
+      "detail": "/absolute"
+    },
+    {
+      "case": "path-reject-a\\b.png",
+      "passed": true,
+      "detail": "a\\b.png"
+    },
+    {
+      "case": "path-reject-.",
+      "passed": true,
+      "detail": "."
+    },
+    {
+      "case": "path-reject-..",
+      "passed": true,
+      "detail": ".."
+    },
+    {
+      "case": "path-reject-a//b",
+      "passed": true,
+      "detail": "a//b"
+    },
+    {
+      "case": "path-reject-a/./b",
+      "passed": true,
+      "detail": "a/./b"
+    },
+    {
+      "case": "ranking-profile-isolation-A",
+      "passed": true,
+      "detail": "['alice', 'bob']"
+    },
+    {
+      "case": "ranking-profile-isolation-B",
+      "passed": true,
+      "detail": "['bob', 'alice']"
+    },
+    {
+      "case": "exact-match-beats-frecency",
+      "passed": true,
+      "detail": "['bob', 'alice']"
+    },
+    {
+      "case": "armed-selection-stable",
+      "passed": true,
+      "detail": "['external:bo', 'alice', 'bob', 'settings']"
+    },
+    {
+      "case": "destructive-learning-no-bypass",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "case": "theme-icon-no-semantic-binding",
+      "passed": true,
+      "detail": [
+        "bytes",
+        "kind",
+        "media_type",
+        "path",
+        "sha256"
+      ]
+    },
+    {
+      "case": "theme-icon-description-decorative",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "notes": [
+    "Evidence is bounded design-level checking, not product implementation authorization.",
+    "Exact curated accent values beyond OM Calm remain prototype/user-study work behind fixed semantic roles."
+  ]
+}

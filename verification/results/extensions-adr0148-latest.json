@@ -1,7 +1,7 @@
 {
-  "kind": "adr0148_v1_extension_vectors_amended_adr0149",
-  "vector_count": 29,
-  "python_node_agreement": 29,
+  "kind": "adr0148_v1_extension_vectors_amended_adr0149_0155_0157",
+  "vector_count": 30,
+  "python_node_agreement": 30,
   "semantics": {
     "integer_key_payloads": true,
     "mismatched_nonempty_location_fallback_ignored": true,
@@ -12,9 +12,10 @@
     "create_only_extensions_ignored_on_edit": true,
     "card_suppressed_after_edit_removes_token": true,
     "wrong_criticality_rejected": true,
-    "unknown_noncritical_ignored": true
+    "unknown_noncritical_ignored": true,
+    "future_critical_prefix_rejects_with_cleared_bit": true
   },
   "mismatches": [],
   "passed": true,
-  "note": "ADR-0148 vectors amended by ADR-0149 and ADR-0155: registered payloads are integer-keyed; a wire-criticality mismatch rejects the object, while object/schema/semantic/fallback failures of these non-critical extensions ignore the extension and leave the W0 event valid."
+  "note": "ADR-0148 vectors amended by ADR-0149, ADR-0155 and ADR-0157: registered payloads are integer-keyed; a wire-criticality mismatch rejects the object, while object/schema/semantic/fallback failures of these non-critical extensions ignore the extension and leave the W0 event valid."
 }

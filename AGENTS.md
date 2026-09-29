@@ -7,7 +7,7 @@ until the operator makes it public. Write everything as if a stranger will read 
 **Engineering is NOT authorized.** Research, specification, formal models and bounded feasibility prototypes
 (`verification/`) are allowed. Product code is not. The architecture rules below say exactly what is locked.
 
-**Current phase:** architecture remains pre-engineering and is amended through ADR-0156. The 2026-09-28 independent architecture review ([`2026-09-28-independent-architecture-review-run10a.md`](docs/reports/2026-09-28-independent-architecture-review-run10a.md)) found no blocker. ADR-0154 fixes recovery-timer liveness for web verifiers, ADR-0155 stops non-critical extensions from ever invalidating an event, and ADR-0156 moves the unspecified LAN wire binding to design item A-055 (blocking only the W1 scope `local_delivery`, gate V-024), requires every later-wave scope to freeze its wire objects as CDDL with two-codec vectors, and specifies scheduled send and sync namespacing. `design_open=1` (A-055); the design is closed for every W0 scope. ADR-0154–0156 need a non-Anthropic reviewer, and the consolidated `core_kernel` brief still needs its non-OpenAI independence review. Engineering remains unauthorized. [`verification/CLAUDE_OPUS_5_5_HANDOFF.md`](verification/CLAUDE_OPUS_5_5_HANDOFF.md) is the stable compatibility entry point. For the future engineering boundary start at [`docs/process/ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). Do not bounce the repository between agents one criterion at a time.
+**Current phase:** architecture remains pre-engineering and is amended through ADR-0162. `design_open=0`. Run 7 hardens protocol evolution/change control and engineering-agent guardrails after the Run 5/6 implementation-readiness and algorithm passes. without authorizing product code: it derives machine-owned scope contracts and implementation layers, makes crash/restart and unknown-outcome retry semantics explicit, fixes group Commit publication/recovery around a durable staged journal, and requires provider `request_id` idempotency to survive provider restart for the advertised retry horizon. V-021 retains 11/11 repo-local criteria evidenced; independent/formal/runtime/two-codec obligations in V-002/V-003/V-004/V-005/V-024 remain open. Engineering remains unauthorized. [`verification/CLAUDE_OPUS_5_5_HANDOFF.md`](verification/CLAUDE_OPUS_5_5_HANDOFF.md) is the stable compatibility entry point. For the future engineering boundary start at [`docs/process/ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md) and [`docs/process/IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md`](docs/process/IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md). Do not bounce the repository between agents one criterion at a time.
 
 ## Part 1: Working in this repository
 
@@ -83,7 +83,7 @@ Build OM as a fast, simple, reliable secure messenger whose identity and canonic
 2. [`ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`](docs/process/ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md) — executable process/phase lock.
 3. [`machine/repository_contract.json`](machine/repository_contract.json) — machine authority for checkpoint state.
 
-**Current rule:** product engineering is not authorized. Architecture is design-frozen for every W0 scope (A-055 remains open for `local_delivery` only); research, formal modeling and bounded feasibility experiments may verify/challenge it, but reopen canonical design only for a demonstrated contradiction, new requirement/standard or accepted ADR. Do not begin product implementation or let a prototype silently change/freeze a wire/security choice.
+**Current rule:** product engineering is not authorized. Architecture is design-frozen (`design_open=0`); `local_delivery` has a concrete ADR-0157 design but remains blocked on V-024 verification. Research, formal modeling and bounded feasibility experiments may verify/challenge it, but reopen canonical design only for a demonstrated contradiction, new requirement/standard or accepted ADR. Do not begin product implementation or let a prototype silently change/freeze a wire/security choice.
 
 SeedLife/lonunjie is the initial steward, not protocol authority. Businesses may participate commercially but receive no hidden/mandatory protocol privilege.
 
@@ -242,3 +242,23 @@ Agents must preserve these invariants:
 - Do not make any single cloud vendor the only zero-signup onboarding path. T0 sponsorship and T1 hosted Homes are first-class.
 - Device linking must never be silent. Do not design hidden "duress"/deniable profiles without a research ADR.
 - There is no remote kill switch. Security response uses signed SecurityAdvisories and peer-local floors.
+
+
+### 2026-09-29 Run 6 dangerous-algorithm rules
+
+- Read [`docs/architecture/IMPLEMENTATION_ALGORITHMS_AND_FAILURE_PATHS.md`](docs/architecture/IMPLEMENTATION_ALGORITHMS_AND_FAILURE_PATHS.md) before implementing any security-sensitive transition it covers.
+- Treat its ordering/state/failure rules as normative supplements; do not replace them with a convenient local transaction model.
+- Exact prepared group Commit bytes are retryable only while their authenticated parent remains canonical; never manufacture equivalent replacement bytes after crash.
+- Unknown network outcomes are reconciled with the same logical/idempotency identity; a timeout is not automatically rejection.
+- HistoryBundle is archive/display input only; claimed EventIDs/authors never enter live reducers or dedupe.
+- LAN presence never grants trust; no identity-bearing object precedes the exporter-bound channel proof.
+
+### 2026-09-29 Run 7 protocol-evolution rules
+
+- Read [`PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md`](docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md) and [`machine/protocol_evolution_policy.json`](machine/protocol_evolution_policy.json) before changing any normative protocol/profile/extension material.
+- Never use highest numeric version or profile ID as a security rule. `security_generation` is the only protocol security ordering axis for a conversation type; profile ID is a tie-break only after equal generation.
+- Never mutate a published CryptoProfile, frozen W0 wire shape, domain-separation label, registry meaning, or `(extension_id, version)` schema/criticality in place. Behavior-changing evolution requires a new immutable lineage/profile/extension or explicit fork.
+- Extension criticality is immutable for an extension ID; `!` IDs are permanently critical.
+- Before any normative edit, classify the change using ADR-0162's strongest-applicable change class and update the required ADR/requirements/threats/invariants/conformance/migration/continuity artifacts.
+- Do not treat a local evolution harness as independent, formal, two-codec or real-network evidence.
+- Do not use a live registry, project website, DNS, dominant client or release server as protocol authority.

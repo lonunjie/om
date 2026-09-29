@@ -62,7 +62,8 @@
       ]
     },
     "minimum_crypto_profile": {
-      "type": "string"
+      "type": "string",
+      "description": "Profile id for the account-wide 1:1 minimum only; the referenced profile must define security_generation.one_to_one. ACS ordering ignores group generation (ADR-0158)."
     },
     "control_key_epochs": {
       "type": "object"

@@ -1,5 +1,7 @@
 # Final architecture closure and adversarial cross-boundary review
 
+> **2026-09-29 supersession note:** ADR-0157 closes A-055 at the design level with `LanDeliveryProfile-v1`; V-024 remains open for its wire/model/runtime/interoperability evidence. This report remains a historical closure/adversarial-review record; current state is in [`SNAPSHOT.md`](../../SNAPSHOT.md).
+
 **Date:** 2026-09-26  
 **Scope:** all eleven declared engineering scopes; architecture/specification only  
 **Decision:** ADR-0139  

@@ -36,12 +36,12 @@ The client should automatically:
 
 ## Default UX
 
-The default app should mainly expose:
+The default app should mainly expose a **conversation-first workspace**:
 
-- people and groups;
+- conversations/groups and message requests;
 - messages/media;
-- voice/video call buttons;
-- search;
+- voice/video call actions in conversation/person context;
+- an Omnibar for people, local search, settings and actions;
 - privacy/safety controls in understandable language;
 - device management;
 - account recovery.
@@ -126,6 +126,8 @@ Security UI remains exceptional and actionable. Routine E2EE/PQ state is not adv
 Multiple identities are a legitimate V1 product need. The reference client lets users switch configured IdentityProfiles instantly and optionally distinguish them with curated themes, while preserving the strict isolation/linkage rules in [`MULTI_IDENTITY_AND_PROFILE_ISOLATION.md`](../architecture/client/MULTI_IDENTITY_AND_PROFILE_ISOLATION.md). Do not infer or police the user's motive for creating identities; enforce abuse at relationship/IntroGate/provider boundaries rather than through hidden cross-profile fingerprinting (ADR-0148).
 
 All themes offer Auto light/dark behavior. The default remains ergonomics/functionality first: immediate clarity, calm hierarchy, fast local response, then aesthetics/personalization.
+
+ADR-0159 makes that product shape concrete: the default shell is conversation-first rather than a mandatory Chats/Calls/People tab taxonomy; a per-profile local Omnibar combines recognition-oriented suggestions, search and commands; and the visual system uses stable semantic color/icon roles whose meaning cannot be reassigned by themes.
 
 ## 2026-09-23 traction baseline
 

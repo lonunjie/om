@@ -52,6 +52,10 @@ RUNS = [
     ([sys.executable, str(ROOT / "verification/prototypes/v003-sessions/sealed_delivery_state.py"),
       str(ROOT / "verification/results/v003-sealed-delivery-latest.json")],
      "verification/prototypes/v003-sessions/sealed_delivery_state.py"),
+    ([sys.executable, str(ROOT / "verification/bounded/protocol_semantics_adr0158.py")], "verification/bounded/protocol_semantics_adr0158.py"),
+    ([sys.executable, str(ROOT / "verification/bounded/ui_integration_adr0159.py")], "verification/bounded/ui_integration_adr0159.py"),
+    ([sys.executable, str(ROOT / "verification/bounded/dangerous_algorithms_adr0161.py")], "verification/bounded/dangerous_algorithms_adr0161.py"),
+    ([sys.executable, str(ROOT / "verification/bounded/protocol_evolution_adr0162.py")], "verification/bounded/protocol_evolution_adr0162.py"),
     # Keep the Rust-dependent aggregate last so all cheap deterministic evidence is refreshed first.
     ([sys.executable, str(ROOT / "verification/bounded/cross_wave_feasibility.py")], "verification/bounded/cross_wave_feasibility.py"),
 ]
@@ -62,12 +66,20 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--profile", choices=("full", "drop"), default="full",
                     help="drop skips the Rust-dependent aggregate so a fresh exported checkpoint can be checked portably")
+    ap.add_argument("--start", type=int, default=1, help="1-based first producer to run")
+    ap.add_argument("--end", type=int, default=0, help="1-based last producer to run; 0 means through the selected profile end")
     a = ap.parse_args()
     runs = RUNS if a.profile == "full" else RUNS[:-1]
+    if a.start < 1 or a.start > len(runs):
+        ap.error("--start is outside the selected producer range")
+    end = len(runs) if a.end == 0 else a.end
+    if end < a.start or end > len(runs):
+        ap.error("--end is outside the selected producer range")
+    runs = runs[a.start-1:end]
     summary_path = ROOT / ("verification/results/phase1-summary.json" if a.profile == "full" else "verification/results/phase1-drop-summary.json")
     rows=[]
-    for idx, (argv, label) in enumerate(runs, 1):
-        print(f"[{idx:02d}/{len(runs):02d}] {label} ...", flush=True)
+    for idx, (argv, label) in enumerate(runs, a.start):
+        print(f"[{idx:02d}/{len(RUNS if a.profile == 'full' else RUNS[:-1]):02d}] {label} ...", flush=True)
         started = time.monotonic()
         cp=subprocess.run(argv, cwd=ROOT, text=True, capture_output=True)
         elapsed = round(time.monotonic() - started, 3)

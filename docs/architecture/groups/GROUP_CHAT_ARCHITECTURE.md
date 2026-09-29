@@ -235,20 +235,33 @@ recent_window
 full_shared_history
 ```
 
-Prior history is shared through an independently encrypted `HistoryBundle` created for the newcomer.
+Prior history is shared through an independently encrypted `HistoryBundle` created for the newcomer. `HistoryBundle` is an **interoperable Room protocol object**, not an implementation-private sync record; its wire form is frozen with the `groups` scope under V-004 before authorization (ADR-0157).
 
 OM does not grant history by exporting old MLS epoch secrets.
 
 This keeps live group cryptography separate from archive/history sharing.
 
-Rules (ADR-0128 rule 4):
+Rules (ADR-0128 rule 4; hardened by ADR-0158):
 
+- The bundle is recipient-specific and binds the exact Room ConversationID, bundle author AccountID/DeviceID, target
+  AccountID plus immutable membership incarnation, and the GroupControlState hash / MLS epoch under which author and
+  target are admitted current members. A cross-Room bundle, a bundle for a different/re-added membership incarnation,
+  or a new bundle from a removed/non-eligible author is rejected.
 - The newcomer cannot verify the original authorship of events in a bundle: their MLS authentication was bound to
-  epochs the newcomer never held, and the bundle's author could invent them. Bundle events therefore render as
+  epochs the newcomer never held, and the bundle's author could invent them. Bundle items therefore render as
   **"shared by <bundle author>"**, never as authenticated authorship by their claimed senders.
+- Bundle items have bundle-local `history_item_id`s. Any claimed original EventID/author/time is inert provenance only:
+  it never enters live ConversationEvent deduplication, cannot suppress/replace a live event and cannot authenticate
+  the claimed sender.
+- HistoryBundle is an **archive/display import**, not a Room reducer input. Its contents cannot execute or mutate
+  GroupControlState/membership/roles/grants, MLS state, pins, polls/votes, reactions, edits/deletes/redactions,
+  read/unread state, scheduled-send state or any other live Room state. References inside the bundle are confined to
+  the bundle's inert presentation namespace.
 - A bundle excludes expired disappearing content, deleted events and redacted events.
 - `history_policy` is cooperative policy, not a cryptographic control: it cannot stop a member who already holds
   plaintext from sharing it.
+- The pre-freeze logical field contract is [`spec/protocol/history-bundle.logical.schema.json`](../../../spec/protocol/history-bundle.logical.schema.json); V-004 must still freeze
+  CDDL/field numbers/domain labels and two-codec positive/negative vectors before groups authorization.
 
 ## Invites
 
@@ -413,7 +426,9 @@ Reference clients can begin with a conservative product cap while performance is
 14. malicious member attempts state fragmentation;
 15. the CommitCoordinator is offline or refuses to sequence its own removal;
 16. a member attempts to add a person who has not accepted an invitation;
-17. a newcomer receives a HistoryBundle containing forged events.
+17. a newcomer receives a HistoryBundle containing forged events;
+18. a HistoryBundle is replayed into another Room or a re-added recipient membership incarnation;
+19. a bundle claims an EventID equal to a live authenticated event or contains control/pin/poll/reaction-like material; the claim remains inert history and cannot enter any live reducer (ADR-0158).
 
 ## UX
 
@@ -459,12 +474,12 @@ Independent clients can create a group, add/remove accounts and devices, exchang
 - MLS remains the selected group architecture.
 - Exact ciphersuite is selected through OM CryptoProfiles; current PQ/hybrid MLS suites are still evolving and must remain replaceable.
 - Do not permanently encode transient Internet-Draft identifiers as irreversible OM semantics.
-- Group profile migration/reinitialization must be authenticated and downgrade-safe.
+- Group profile migration/reinitialization must be authenticated and downgrade-safe. The Room/group floor compares `security_generation.group`; ACS `minimum_crypto_profile` is a 1:1-only account floor and does not set a group floor (ADR-0158).
 - Per-recipient relay delivery MUST use fresh randomized outer transport wrappers around group application ciphertext to reduce cross-relay correlation (ADR-0128 rule 7).
 - Group voice/video uses SFrame media E2EE with participant/key state authenticated from the OM/MLS group context; an SFU is routing infrastructure, not a plaintext endpoint.
 ## 2026-09-22 hardening — Commit ordering and state binding
 
-[`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](GROUP_COMMIT_AND_STATE_CONVERGENCE.md) is canonical. MLS alone does not decide which of two valid Commits from the same epoch becomes canonical; OM must select an application-level ordering/conflict profile.
+[`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](GROUP_COMMIT_AND_STATE_CONVERGENCE.md) is canonical. MLS alone does not decide which of two valid Commits from the same epoch becomes canonical; OM uses the selected application-level CommitCoordinator/ordering/conflict profile there, including ADR-0160 crash-safe prepared-Commit semantics.
 
 Membership/role-affecting `GroupControlState` changes must be bound to the corresponding MLS Commit/resulting epoch so application membership and cryptographic membership cannot silently diverge. Group architecture remains blocked from wire freeze until that state machine is specified and adversarially tested.
 

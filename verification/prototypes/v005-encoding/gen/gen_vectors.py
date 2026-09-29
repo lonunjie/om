@@ -531,6 +531,10 @@ def body_mutations(name, base):
     # extensions
     muts.append(("unknown-critical-extension", "unknown_critical_extension",
                  mset(base, 23, M(["org.example.must-understand", M([0, True], [1, 1])])), "valid"))
+    # ADR-0157: future critical IDs have a wire-visible ! namespace, so clearing the boolean
+    # cannot make an old decoder accept/ignore semantics that a newer registry rejects.
+    muts.append(("future-critical-cleared-bit", "unknown_critical_extension",
+                 mset(base, 23, M(["!org.example.future", M([0, False], [1, 1])])), "valid"))
     muts.append(("empty-extensions", "value_range", mset(base, 23, {"$map": []}), "invalid"))
     return muts
 

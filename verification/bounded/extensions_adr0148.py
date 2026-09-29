@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ADR-0148 presentation-extension vectors, amended by ADR-0149 and ADR-0155.
+"""ADR-0148 presentation-extension vectors, amended by ADR-0149, ADR-0155 and ADR-0157.
 
 Independent Python/Node agreement is preserved while current canonical semantics use
 integer-key payloads, registry-bound object/criticality, and deterministic geo fallback.
@@ -59,7 +59,7 @@ def canonical_tokens(text:str)->set:
 def validate(raw):
     v=expand(raw); eid=v['extension_id']; critical=v['critical']; owner=v.get('owning_object'); c=v.get('context',{})
     if eid not in REG:
-        return ('reject_object','unknown_critical_extension') if critical else ('accept_ignored',None)
+        return ('reject_object','unknown_critical_extension') if (critical or eid.startswith('!')) else ('accept_ignored',None)
     expected_owner,expected_critical=REG[eid]
     # ADR-0155: wire criticality is checked first; for a non-critical registration every other
     # schema-layer failure makes the extension unusable instead of rejecting the containing object.
@@ -120,11 +120,12 @@ def main():
       'card_suppressed_after_edit_removes_token': py['location-after-edit-token-removed']['error']=='fallback_mismatch',
       'wrong_criticality_rejected': py['voice-critical-forbidden']['verdict']=='reject_object' and py['location-critical-forbidden']['verdict']=='reject_object',
       'unknown_noncritical_ignored': py['unknown-noncritical']['verdict']=='accept_ignored',
+      'future_critical_prefix_rejects_with_cleared_bit': py['future-critical-cleared-bit']['verdict']=='reject_object' and py['future-critical-cleared-bit']['error']=='unknown_critical_extension',
     }
     passed=not mismatches and all(semantics.values())
-    out={'kind':'adr0148_v1_extension_vectors_amended_adr0149','vector_count':len(vectors),
+    out={'kind':'adr0148_v1_extension_vectors_amended_adr0149_0155_0157','vector_count':len(vectors),
          'python_node_agreement':len(vectors)-sum(x.endswith(':python_node') for x in mismatches),
          'semantics':semantics,'mismatches':mismatches,'passed':passed,
-         'note':'ADR-0148 vectors amended by ADR-0149 and ADR-0155: registered payloads are integer-keyed; a wire-criticality mismatch rejects the object, while object/schema/semantic/fallback failures of these non-critical extensions ignore the extension and leave the W0 event valid.'}
+         'note':'ADR-0148 vectors amended by ADR-0149, ADR-0155 and ADR-0157: registered payloads are integer-keyed; a wire-criticality mismatch rejects the object, while object/schema/semantic/fallback failures of these non-critical extensions ignore the extension and leave the W0 event valid.'}
     OUT.write_text(json.dumps(out,indent=2)+'\n');print(json.dumps(out,indent=2));return 0 if passed else 1
 if __name__=='__main__':raise SystemExit(main())

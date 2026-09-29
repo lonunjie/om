@@ -49,10 +49,18 @@ A public discovery descriptor may contain only safe introduction relay hints. Ac
 - **Signer.** It is signed (role `device`) by a device that the recipient's **current** AccountControlState lists as
   active and not quarantined (control or messaging). Peers MUST validate the signer against the newest ACS they hold
   and reject any other signer: quarantined, removed, revoked or unknown devices cannot publish a RelaySet.
-- **Version conflicts.** When two RelaySets claim the same or competing versions, peers prefer the one whose signer is
-  still valid in the current ACS. When a signer is later quarantined or revoked, peers stop accepting new RelaySets
-  from it and keep the last set signed by a still-valid device.
-- **Semantics on the frozen fields** (ADR-0126): a set is valid from the moment a peer accepts its higher `version`;
+- **Version/branch convergence (ADR-0158).** Version 1 omits `previous_set_hash`; every later record is exactly
+  `parent.version + 1` and names the canonical `OM-RELAYSET-HASH-v1` hash of a previously accepted parent in this
+  relationship's RelaySet lineage. Concurrent valid devices may extend the same parent. Peers retain those branches
+  as authenticated availability history and choose the effective set deterministically: highest version, then
+  lexicographically smallest canonical record hash. A child received before its exact parent is pending and is
+  reconsidered when the parent arrives; arrival order MUST NOT choose a permanent winner. Version jumps, cross-lineage
+  previous hashes and malformed genesis/successor continuity are rejected.
+- **Signer changes.** New records require a signer still valid in the current ACS. If no authenticating signer remains eligible after later
+  quarantine/revocation/removal, the record stops being an effective candidate; its hash/version may remain as a
+  historical continuity node so an otherwise-valid descendant signed by a currently eligible device stays
+  structurally verifiable. Old signing authority is not thereby kept live.
+- **Semantics on the frozen fields** (ADR-0126/0158): the effective set changes under the deterministic rule above;
   an old entry's overlap ends at its own `expires_at`; emergency revocation is a new version without the entry plus
   revoking its drain capability at the relay; the catastrophic-loss rendezvous is the separate
   ReachabilityRecoveryDescriptor ([`REACHABILITY_AND_OBJECT_REPAIR.md`](REACHABILITY_AND_OBJECT_REPAIR.md)).

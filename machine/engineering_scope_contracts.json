@@ -1,0 +1,352 @@
+{
+  "snapshot": "2026-09-29 Run 5 ADR-0160 implementation-readiness hardening",
+  "status": "pre_engineering_contract_only",
+  "purpose": "Machine-readable implementation ordering/index. It does not authorize engineering; repository_contract.json remains authoritative for scope authorization.",
+  "operation_outcomes": [
+    "Committed",
+    "PendingAuthorization",
+    "PendingNetwork",
+    "PendingReconciliation",
+    "NeedsUserAction",
+    "Rejected"
+  ],
+  "implementation_layers": [
+    [
+      "core_kernel"
+    ],
+    [
+      "reference_client_ui",
+      "provider_reference",
+      "groups",
+      "portability",
+      "expressive_media",
+      "local_delivery"
+    ],
+    [
+      "calls",
+      "communities_publications",
+      "services_bots",
+      "plugins",
+      "bridges"
+    ]
+  ],
+  "scopes": {
+    "core_kernel": {
+      "authorization_depends_on": [],
+      "integration_prerequisites": [
+        "provider/transport harness for end-to-end tests; never a reference-provider authority dependency"
+      ],
+      "normative_sources": [
+        "docs/architecture/crypto/CANONICAL_ENCODING.md",
+        "docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md",
+        "docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md",
+        "docs/architecture/crypto/ASYNC_KEY_MATERIAL.md",
+        "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md",
+        "docs/architecture/events/EVENT_MODEL.md",
+        "docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md",
+        "docs/architecture/delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
+        "docs/architecture/storage/STORAGE_AND_BLOB_ARCHITECTURE.md",
+        "docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md",
+        "spec/protocol/home-api.md"
+      ],
+      "restart_contract": [
+        "durable replay/dedupe/security floors survive process restart; historical backup never rolls live authority/ratchet/prekey state backward",
+        "mutating logical operation identity is persisted before externally visible effect where its protocol requires retry/reconciliation",
+        "unknown network outcome remains pending/reconciling rather than becoming a new semantic operation"
+      ],
+      "error_retry_contract": [
+        "map transport/provider detail to stable semantic outcome+reason classes",
+        "stale/conflict requires authenticated refresh before a new semantic mutation",
+        "exact retry reuses the operation's existing EventID/request_id/replay identity where defined"
+      ],
+      "forbidden_shortcuts": [
+        "reference Home/provider becomes required Core runtime authority",
+        "wall clock/HLC chooses authority or security freshness",
+        "restore reactivates ratchet, bootstrap, revoked-device or stale provider authority",
+        "timeout is treated as definitive rejection after bytes may have been sent"
+      ]
+    },
+    "reference_client_ui": {
+      "authorization_depends_on": [
+        "core_kernel"
+      ],
+      "integration_prerequisites": [
+        "Core command/view harness; live provider is optional for UI implementation and required only for integrated scenarios"
+      ],
+      "normative_sources": [
+        "docs/architecture/ux/UI_CORE_PLATFORM_CONTRACT.md",
+        "docs/architecture/ux/UI_UX_SYSTEM.md",
+        "docs/architecture/ux/NAVIGATION_AND_OMNIBAR.md",
+        "docs/architecture/ux/THEMES_FONTS_AND_PERSONALIZATION.md",
+        "docs/architecture/ux/ACCESSIBILITY_AND_INPUT.md",
+        "docs/architecture/client/MULTI_IDENTITY_AND_PROFILE_ISOLATION.md",
+        "docs/architecture/client/PWA_REFERENCE_CLIENT.md"
+      ],
+      "restart_contract": [
+        "UI restart reconstructs pending/committed/rejected operations from Core; shell does not infer failure from process death",
+        "IdentityProfile view/cache/draft/adaptive-navigation state remains namespaced across restart"
+      ],
+      "error_retry_contract": [
+        "render Core outcome classes without promoting provider-specific text to semantics",
+        "PendingNetwork/PendingReconciliation never auto-originate a second semantic command"
+      ],
+      "forbidden_shortcuts": [
+        "UI writes protocol/key/provider authority state directly",
+        "theme/platform capability changes protocol/security meaning",
+        "adaptive navigation or optimistic UI asserts success/authority before Core commits"
+      ]
+    },
+    "provider_reference": {
+      "authorization_depends_on": [
+        "core_kernel"
+      ],
+      "integration_prerequisites": [
+        "Core/provider conformance client for end-to-end scenarios; provider remains replaceable"
+      ],
+      "normative_sources": [
+        "spec/protocol/home-api.md",
+        "spec/cddl/home-api.cddl",
+        "spec/registries/om-home-errors.json",
+        "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md",
+        "docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md"
+      ],
+      "restart_contract": [
+        "request_id idempotency state survives provider process restart for the advertised retry horizon",
+        "durable enqueue precedes success response/push wake where the operation promises storage"
+      ],
+      "error_retry_contract": [
+        "emit only registered HomeError codes with retryability matching the registry",
+        "moved is followed only after continuity proof verifies; unknown error behavior cannot be vendor-specific wire semantics"
+      ],
+      "forbidden_shortcuts": [
+        "provider acceptance becomes account/object authority",
+        "bearer capabilities appear in URL/cookie/log/analytics surfaces",
+        "provider-local generation checks replace client rollback floors"
+      ]
+    },
+    "groups": {
+      "authorization_depends_on": [
+        "core_kernel"
+      ],
+      "integration_prerequisites": [
+        "frozen W1 group CDDL/registries/two-codec vectors and selected MLS runtime as required by V-004 before authorization"
+      ],
+      "normative_sources": [
+        "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md",
+        "docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
+        "docs/architecture/events/EVENT_MODEL.md",
+        "spec/protocol/history-bundle.logical.schema.json"
+      ],
+      "restart_contract": [
+        "GroupControlIntent is durable before Commit publication; exact prepared Commit/Binding state survives retry",
+        "accepted MLS state, GroupControlState, canonical head and dedupe promote atomically or through an equivalent recovery journal",
+        "tentative/losing branches never release application/control effects; long-offline restart reconciles canonical state first"
+      ],
+      "error_retry_contract": [
+        "relay ack is transport progress, not group acceptance",
+        "uncertain publication exact-retries the prepared candidate only while its parent remains canonical",
+        "same-epoch loser is superseded; reductions rebase, non-reductions revalidate"
+      ],
+      "forbidden_shortcuts": [
+        "send application messages under an unaccepted tentative membership branch",
+        "reconstruct guessed equivalent MLS Commit bytes after prepared state is lost",
+        "timestamp/relay arrival/provider preference chooses the canonical same-epoch authority branch"
+      ]
+    },
+    "portability": {
+      "authorization_depends_on": [
+        "core_kernel"
+      ],
+      "integration_prerequisites": [
+        "reviewed archive-encryption profile and vectors required by V-014 before authorization"
+      ],
+      "normative_sources": [
+        "docs/architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md",
+        "docs/architecture/identity/RECOVERY_AND_BACKUP_POLICY.md"
+      ],
+      "restart_contract": [
+        "partial export/import is staged and never publishes a manifest claiming objects that were not durably written/validated",
+        "restart resumes or discards staging without making archived authority/routing/security state live"
+      ],
+      "error_retry_contract": [
+        "import validation failure is terminal for the offending archive/object; repair requires changed input",
+        "interrupted copy may retry content-addressed/object-stable work without duplicating canonical events"
+      ],
+      "forbidden_shortcuts": [
+        "OMA-ENC-1-candidate ships as production crypto",
+        "archive restore overwrites newer live authority/security floors/provider capabilities"
+      ]
+    },
+    "expressive_media": {
+      "authorization_depends_on": [
+        "core_kernel"
+      ],
+      "integration_prerequisites": [
+        "content-pack/media conformance and parser/resource-limit evidence required by its gate"
+      ],
+      "normative_sources": [
+        "docs/architecture/ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md",
+        "docs/architecture/events/EVENT_MODEL.md"
+      ],
+      "restart_contract": [
+        "asset/content-pack activation is atomic; interrupted install leaves prior valid state active",
+        "content-addressed media cache retry never changes authenticated rendering identity"
+      ],
+      "error_retry_contract": [
+        "invalid/untrusted pack or asset is rejected/ignored according to its content contract rather than executed",
+        "network fetch retry does not invent a different expressive asset identity"
+      ],
+      "forbidden_shortcuts": [
+        "expressive/theme content becomes executable code or authority",
+        "live catalog/provider locator becomes rendering authority instead of immutable digest/BlobID"
+      ]
+    },
+    "calls": {
+      "authorization_depends_on": [
+        "core_kernel",
+        "groups"
+      ],
+      "integration_prerequisites": [
+        "MediaProvider/SFrame/WebRTC runtime evidence required by V-007"
+      ],
+      "normative_sources": [
+        "docs/architecture/calls/CALLS_AND_REALTIME_MEDIA.md",
+        "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md"
+      ],
+      "restart_contract": [
+        "ephemeral media sessions may be re-established after restart; restart never resurrects stale call membership/key authority",
+        "durable call history/signaling events follow ordinary EventID/dedupe semantics where defined"
+      ],
+      "error_retry_contract": [
+        "route/media failure may re-negotiate through allowed routes without lowering E2EE/privacy policy",
+        "media transport success/failure never changes conversation membership authority"
+      ],
+      "forbidden_shortcuts": [
+        "SFU/TURN/provider becomes call membership or key authority",
+        "fallback disables required E2EE to regain reachability"
+      ]
+    },
+    "communities_publications": {
+      "authorization_depends_on": [
+        "groups"
+      ],
+      "integration_prerequisites": [
+        "group authority/materialization core available; publication conformance remains separate"
+      ],
+      "normative_sources": [
+        "docs/architecture/groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
+        "docs/architecture/events/EVENT_MODEL.md"
+      ],
+      "restart_contract": [
+        "publication/control sequence high-water and conflict state survive restart",
+        "partially observed authority forks remain frozen until authenticated resolution rather than LWW recovery"
+      ],
+      "error_retry_contract": [
+        "stale/conflicting publication/control state requires reconciliation before new privileged mutation",
+        "duplicate publication/event IDs are idempotent; equivocation is a conflict"
+      ],
+      "forbidden_shortcuts": [
+        "timestamp/provider arrival order resolves authority forks",
+        "Space/Publication authority silently becomes account or Room universal owner authority"
+      ]
+    },
+    "services_bots": {
+      "authorization_depends_on": [
+        "groups"
+      ],
+      "integration_prerequisites": [
+        "service principal capability and information-flow conformance required by V-011"
+      ],
+      "normative_sources": [
+        "docs/architecture/ecosystem/SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md",
+        "docs/architecture/ecosystem/SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md"
+      ],
+      "restart_contract": [
+        "service jobs use stable scoped operation/event identities when retries can create external effects",
+        "restart does not widen service grants or recreate revoked installation credentials"
+      ],
+      "error_retry_contract": [
+        "external side-effect uncertainty remains pending/reconciling unless the remote operation has an idempotency contract",
+        "permission/egress denial is not auto-retried under a broader capability"
+      ],
+      "forbidden_shortcuts": [
+        "service principal masquerades as AccountPrincipal",
+        "plaintext-read capability implies network-egress or arbitrary room authority"
+      ]
+    },
+    "plugins": {
+      "authorization_depends_on": [
+        "reference_client_ui"
+      ],
+      "integration_prerequisites": [
+        "Wasm sandbox/capability feasibility required by V-010"
+      ],
+      "normative_sources": [
+        "docs/architecture/ecosystem/PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md",
+        "docs/architecture/client/CLIENT_AND_EXTENSION_ARCHITECTURE.md"
+      ],
+      "restart_contract": [
+        "plugin state/capability grants are versioned and restart does not silently restore revoked grants",
+        "host records pending side-effect identity before delegating an idempotent/retriable plugin action"
+      ],
+      "error_retry_contract": [
+        "trap/crash is not permission to retry non-idempotent external effects blindly",
+        "capability denial remains terminal until the user/authority changes the grant"
+      ],
+      "forbidden_shortcuts": [
+        "plugin executes outside declared sandbox/capability set",
+        "plugin/theme/content extension obtains raw protocol/key state by convenience"
+      ]
+    },
+    "bridges": {
+      "authorization_depends_on": [
+        "groups"
+      ],
+      "integration_prerequisites": [
+        "real adapter/provenance evidence required by V-013"
+      ],
+      "normative_sources": [
+        "docs/architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md",
+        "docs/architecture/events/EVENT_MODEL.md"
+      ],
+      "restart_contract": [
+        "bridge loop-suppression/provenance and outbound operation identity survive restart for the supported retry horizon",
+        "restart never converts foreign state into native Account authorship"
+      ],
+      "error_retry_contract": [
+        "foreign-network unknown outcome is reconciled or retried only with that network's safe idempotency mechanism",
+        "bridge failure does not weaken native E2EE or provenance labeling"
+      ],
+      "forbidden_shortcuts": [
+        "bridge endpoint is represented as native AccountPrincipal",
+        "unknown external-send outcome causes duplicate forwarding with a fresh logical identity without reconciliation"
+      ]
+    },
+    "local_delivery": {
+      "authorization_depends_on": [
+        "core_kernel"
+      ],
+      "integration_prerequisites": [
+        "ADR-0157 LanDeliveryProfile-v1 runtime/two-client evidence required by V-024"
+      ],
+      "normative_sources": [
+        "docs/architecture/network/LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md",
+        "docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md",
+        "docs/architecture/delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md"
+      ],
+      "restart_contract": [
+        "LAN route/session/replay state follows ordinary sealed-delivery crash semantics; local receipt does not falsely become configured storage durability",
+        "ephemeral rendezvous/link state is regenerated rather than restored as durable authority"
+      ],
+      "error_retry_contract": [
+        "LAN failure/failover preserves the higher-level EventID while route reseal uses the fresh route-bound delivery id required by sealed delivery",
+        "unavailable local channel binding reports local_delivery unavailable rather than falling back to weaker browser semantics"
+      ],
+      "forbidden_shortcuts": [
+        "LAN presence/rendezvous establishes identity or relationship authority",
+        "clear-sender or weaker browser-only delivery path",
+        "local transfer changes BlobID/ciphertext_digest identity"
+      ]
+    }
+  }
+}

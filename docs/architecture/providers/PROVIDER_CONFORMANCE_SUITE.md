@@ -94,6 +94,7 @@ tap on the Home's own logs and network egress. Each case lists the requirements 
 |---|---|---|
 | PC-H01 | storage outage | writes fail with a typed retryable error; nothing is silently accepted and then lost |
 | PC-H02 | restart | queued envelopes survive a restart (durability class stated in capabilities) |
+| PC-H03 | provider commits a mutating request but the response is lost, then provider/client restart and the same `request_id` is retried | the semantic mutation occurs once; the exact retry returns/resumes the same outcome, while reusing that `request_id` with different operation bytes/context is rejected |
 
 ## PC-I Release integrity (R-261)
 

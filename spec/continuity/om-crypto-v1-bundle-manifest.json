@@ -1,132 +1,135 @@
 {
- "manifest_version": "om-continuity-bundle-manifest/1",
- "profile_id": "om/v1-draft",
- "profile_name": "OM-Crypto-v1 / W0",
- "purpose": "Every normative artifact an independent implementer needs to interpret the frozen W0/OM-Crypto-v1 wire objects and provider-observation semantics, offline, from the bundle alone. Replaces the seven-basename NORMATIVE_DOCS allowlist (finding F-8).",
- "method": "architecture_and_constitution_docs lists every file under docs/architecture/ and docs/constitution/. This was derived by taking the transitive closure of markdown links starting from spec/, decisions/ADR-*.md and docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md, then adding the doc directories outright (rather than trusting closure alone) because two normative docs (INTRODUCTION_AND_SERVICE_ACCOUNTS.md, IDENTIFIER_SPOOFING_AND_DISPLAY.md) were reachable only from other architecture docs, not from any ADR -- see 'check-manifest' below, which recomputes this listing from the working tree and fails if it drifts from this file.",
- "members": {
-  "architecture_and_constitution_docs": [
-   "docs/architecture/calls/CALLS_AND_REALTIME_MEDIA.md",
-   "docs/architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md",
-   "docs/architecture/client/CLIENT_AND_EXTENSION_ARCHITECTURE.md",
-   "docs/architecture/client/DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md",
-   "docs/architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md",
-   "docs/architecture/client/MULTI_IDENTITY_AND_PROFILE_ISOLATION.md",
-   "docs/architecture/client/NOTIFICATIONS_AND_PUSH.md",
-   "docs/architecture/client/PLATFORM_CAPABILITY_MATRIX.md",
-   "docs/architecture/client/PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md",
-   "docs/architecture/client/PWA_REFERENCE_CLIENT.md",
-   "docs/architecture/crypto/ASYNC_KEY_MATERIAL.md",
-   "docs/architecture/crypto/CANONICAL_ENCODING.md",
-   "docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md",
-   "docs/architecture/crypto/MULTI_DEVICE_SYNC.md",
-   "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md",
-   "docs/architecture/crypto/PRODUCTION_CRYPTO_INTEGRATION_GATE.md",
-   "docs/architecture/delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
-   "docs/architecture/delivery/REACHABILITY_AND_OBJECT_REPAIR.md",
-   "docs/architecture/delivery/RELAY_AND_DELIVERY_ARCHITECTURE.md",
-   "docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md",
-   "docs/architecture/discovery/CONTACT_SHARING.md",
-   "docs/architecture/discovery/DISCOVERY_FABRIC.md",
-   "docs/architecture/discovery/INTRODUCTION_AND_SERVICE_ACCOUNTS.md",
-   "docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md",
-   "docs/architecture/discovery/KEY_TRANSPARENCY_AND_DIRECTORY.md",
-   "docs/architecture/ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md",
-   "docs/architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md",
-   "docs/architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md",
-   "docs/architecture/ecosystem/PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md",
-   "docs/architecture/ecosystem/SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
-   "docs/architecture/ecosystem/SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md",
-   "docs/architecture/events/EVENT_MODEL.md",
-   "docs/architecture/events/MESSENGER_BASELINE_V1.md",
-   "docs/architecture/events/TIME_AND_EXPIRY_SEMANTICS.md",
-   "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md",
-   "docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
-   "docs/architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md",
-   "docs/architecture/groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
-   "docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md",
-   "docs/architecture/identity/ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md",
-   "docs/architecture/identity/IDENTIFIER_SPOOFING_AND_DISPLAY.md",
-   "docs/architecture/identity/IDENTITY_CONTINUITY.md",
-   "docs/architecture/identity/IDENTITY_DISCOVERY_VERIFICATION.md",
-   "docs/architecture/identity/IDENTITY_PROTOCOL.md",
-   "docs/architecture/identity/RECOVERY_AND_BACKUP_POLICY.md",
-   "docs/architecture/network/CENSORSHIP_AND_NETWORK_RESILIENCE.md",
-   "docs/architecture/network/LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md",
-   "docs/architecture/network/TRANSPORT_ADAPTERS_AND_INTEROP.md",
-   "docs/architecture/providers/CLOUDFLARE_REFERENCE_DEPLOYMENT.md",
-   "docs/architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
-   "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md",
-   "docs/architecture/providers/METADATA_OBSERVER_MATRIX.md",
-   "docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md",
-   "docs/architecture/providers/PROVISIONING_AND_BOOTSTRAP.md",
-   "docs/architecture/providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
-   "docs/architecture/providers/VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md",
-   "docs/architecture/safety/ABUSE_SAFETY_AND_REPORTING.md",
-   "docs/architecture/safety/DECENTRALIZED_ABUSE_MODERATION.md",
-   "docs/architecture/safety/EVIDENCE_AND_EXTERNAL_REPORTING.md",
-   "docs/architecture/safety/RICH_TEXT_AND_CONTENT_SECURITY.md",
-   "docs/architecture/safety/SECURITY_INVARIANTS.md",
-   "docs/architecture/storage/DISAPPEARING_MESSAGES_AND_RETENTION.md",
-   "docs/architecture/storage/LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md",
-   "docs/architecture/storage/STORAGE_AND_BLOB_ARCHITECTURE.md",
-   "docs/architecture/ux/ACCESSIBILITY_AND_INPUT.md",
-   "docs/architecture/ux/MOTION_AND_PERFORMANCE.md",
-   "docs/architecture/ux/SECURITY_PRIVACY_PROFILES.md",
-   "docs/architecture/ux/THEMES_FONTS_AND_PERSONALIZATION.md",
-   "docs/architecture/ux/UI_CORE_PLATFORM_CONTRACT.md",
-   "docs/architecture/ux/UI_UX_SYSTEM.md",
-   "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
-   "docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md",
-   "docs/constitution/NAMING.md",
-   "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
-   "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
-   "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
-   "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
-   "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
-   "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md"
+  "manifest_version": "om-continuity-bundle-manifest/1",
+  "profile_id": "om/v1-draft",
+  "profile_name": "OM-Crypto-v1 / W0",
+  "purpose": "Every normative artifact an independent implementer needs to interpret the frozen W0/OM-Crypto-v1 wire objects and provider-observation semantics, offline, from the bundle alone. Replaces the seven-basename NORMATIVE_DOCS allowlist (finding F-8).",
+  "method": "architecture_and_constitution_docs lists every file under docs/architecture/ and docs/constitution/. This was derived by taking the transitive closure of markdown links starting from spec/, decisions/ADR-*.md and docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md, then adding the doc directories outright (rather than trusting closure alone) because two normative docs (INTRODUCTION_AND_SERVICE_ACCOUNTS.md, IDENTIFIER_SPOOFING_AND_DISPLAY.md) were reachable only from other architecture docs, not from any ADR -- see 'check-manifest' below, which recomputes this listing from the working tree and fails if it drifts from this file.",
+  "members": {
+    "architecture_and_constitution_docs": [
+      "docs/architecture/IMPLEMENTATION_ALGORITHMS_AND_FAILURE_PATHS.md",
+      "docs/architecture/calls/CALLS_AND_REALTIME_MEDIA.md",
+      "docs/architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md",
+      "docs/architecture/client/CLIENT_AND_EXTENSION_ARCHITECTURE.md",
+      "docs/architecture/client/DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md",
+      "docs/architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md",
+      "docs/architecture/client/MULTI_IDENTITY_AND_PROFILE_ISOLATION.md",
+      "docs/architecture/client/NOTIFICATIONS_AND_PUSH.md",
+      "docs/architecture/client/PLATFORM_CAPABILITY_MATRIX.md",
+      "docs/architecture/client/PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md",
+      "docs/architecture/client/PWA_REFERENCE_CLIENT.md",
+      "docs/architecture/crypto/ASYNC_KEY_MATERIAL.md",
+      "docs/architecture/crypto/CANONICAL_ENCODING.md",
+      "docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md",
+      "docs/architecture/crypto/MULTI_DEVICE_SYNC.md",
+      "docs/architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md",
+      "docs/architecture/crypto/PRODUCTION_CRYPTO_INTEGRATION_GATE.md",
+      "docs/architecture/delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
+      "docs/architecture/delivery/REACHABILITY_AND_OBJECT_REPAIR.md",
+      "docs/architecture/delivery/RELAY_AND_DELIVERY_ARCHITECTURE.md",
+      "docs/architecture/delivery/SEALED_SENDER_DELIVERY_PROFILE.md",
+      "docs/architecture/discovery/CONTACT_SHARING.md",
+      "docs/architecture/discovery/DISCOVERY_FABRIC.md",
+      "docs/architecture/discovery/INTRODUCTION_AND_SERVICE_ACCOUNTS.md",
+      "docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md",
+      "docs/architecture/discovery/KEY_TRANSPARENCY_AND_DIRECTORY.md",
+      "docs/architecture/ecosystem/EXPRESSIVE_MEDIA_CONTENT_PACKS_AND_ENTITLEMENTS.md",
+      "docs/architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md",
+      "docs/architecture/ecosystem/INTEROPERABILITY_BRIDGES_AND_FOREIGN_PROVENANCE.md",
+      "docs/architecture/ecosystem/PLUGIN_AND_APP_EXTENSION_ARCHITECTURE.md",
+      "docs/architecture/ecosystem/SERVICE_CREATION_DISCOVERY_AND_DELEGATED_AGENCY.md",
+      "docs/architecture/ecosystem/SERVICE_PRINCIPALS_BOTS_AGENTS_AND_LLMS.md",
+      "docs/architecture/events/EVENT_MODEL.md",
+      "docs/architecture/events/MESSENGER_BASELINE_V1.md",
+      "docs/architecture/events/TIME_AND_EXPIRY_SEMANTICS.md",
+      "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md",
+      "docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
+      "docs/architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md",
+      "docs/architecture/groups/SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md",
+      "docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md",
+      "docs/architecture/identity/ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md",
+      "docs/architecture/identity/IDENTIFIER_SPOOFING_AND_DISPLAY.md",
+      "docs/architecture/identity/IDENTITY_CONTINUITY.md",
+      "docs/architecture/identity/IDENTITY_DISCOVERY_VERIFICATION.md",
+      "docs/architecture/identity/IDENTITY_PROTOCOL.md",
+      "docs/architecture/identity/RECOVERY_AND_BACKUP_POLICY.md",
+      "docs/architecture/network/CENSORSHIP_AND_NETWORK_RESILIENCE.md",
+      "docs/architecture/network/LAN_RENDEZVOUS_AND_OFFLINE_LOCAL_MODE.md",
+      "docs/architecture/network/TRANSPORT_ADAPTERS_AND_INTEROP.md",
+      "docs/architecture/providers/CLOUDFLARE_REFERENCE_DEPLOYMENT.md",
+      "docs/architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
+      "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md",
+      "docs/architecture/providers/METADATA_OBSERVER_MATRIX.md",
+      "docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md",
+      "docs/architecture/providers/PROVISIONING_AND_BOOTSTRAP.md",
+      "docs/architecture/providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
+      "docs/architecture/providers/VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md",
+      "docs/architecture/safety/ABUSE_SAFETY_AND_REPORTING.md",
+      "docs/architecture/safety/DECENTRALIZED_ABUSE_MODERATION.md",
+      "docs/architecture/safety/EVIDENCE_AND_EXTERNAL_REPORTING.md",
+      "docs/architecture/safety/RICH_TEXT_AND_CONTENT_SECURITY.md",
+      "docs/architecture/safety/SECURITY_INVARIANTS.md",
+      "docs/architecture/storage/DISAPPEARING_MESSAGES_AND_RETENTION.md",
+      "docs/architecture/storage/LOCAL_DATA_LIFECYCLE_AND_DIAGNOSTICS.md",
+      "docs/architecture/storage/STORAGE_AND_BLOB_ARCHITECTURE.md",
+      "docs/architecture/ux/ACCESSIBILITY_AND_INPUT.md",
+      "docs/architecture/ux/MOTION_AND_PERFORMANCE.md",
+      "docs/architecture/ux/NAVIGATION_AND_OMNIBAR.md",
+      "docs/architecture/ux/SECURITY_PRIVACY_PROFILES.md",
+      "docs/architecture/ux/THEMES_FONTS_AND_PERSONALIZATION.md",
+      "docs/architecture/ux/UI_CORE_PLATFORM_CONTRACT.md",
+      "docs/architecture/ux/UI_UX_SYSTEM.md",
+      "docs/architecture/ux/VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md",
+      "docs/constitution/LEGAL_AND_OPERATIONAL_BOUNDARIES.md",
+      "docs/constitution/LICENSING_AND_CONTRIBUTION_POLICY.md",
+      "docs/constitution/NAMING.md",
+      "docs/constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md",
+      "docs/constitution/PRIVACY_GOVERNANCE_AUTHORITY.md",
+      "docs/constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md",
+      "docs/constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md",
+      "docs/constitution/PROTOCOL_EXTENSIBILITY.md",
+      "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md"
+    ]
+  },
+  "exceptions": [
+    {
+      "target": "README.md",
+      "reason": "top-level repo README; project navigation, not protocol-normative"
+    },
+    {
+      "target": "SECURITY.md",
+      "reason": "vulnerability-reporting process document, not protocol wire/authorization semantics"
+    },
+    {
+      "target": "docs/research/SECURITY_CRYPTO_REAUDIT_20260922.md",
+      "reason": "dated research reference cited for context; not itself a normative definition"
+    },
+    {
+      "target": "docs/threat-model/METADATA_THREAT_MODEL.md",
+      "reason": "threat-model analysis; informs design but is not required to interpret wire/protocol semantics"
+    },
+    {
+      "target": "machine/conformance_suites.json",
+      "reason": "machine ledger of conformance-suite bookkeeping, not a normative protocol definition"
+    },
+    {
+      "target": "verification/bounded/continuity_assessment.py",
+      "reason": "verification evidence script, not a normative artifact"
+    },
+    {
+      "target": "verification/bounded/home_tiers_model.py",
+      "reason": "verification evidence script, not a normative artifact"
+    },
+    {
+      "target": "verification/bounded/introgate_sybil_model.py",
+      "reason": "verification evidence script, not a normative artifact"
+    },
+    {
+      "target": "verification/reviews/BRIEF-2026-09-26-security-equivalence-pass.md",
+      "reason": "verification handoff/evidence plan; not a normative protocol definition"
+    },
+    {
+      "target": "verification/tla/AccountControl.tla",
+      "reason": "formal-model evidence, not a normative artifact (spec/protocol/account-control-*.json is normative)"
+    }
   ]
- },
- "exceptions": [
-  {
-   "target": "README.md",
-   "reason": "top-level repo README; project navigation, not protocol-normative"
-  },
-  {
-   "target": "SECURITY.md",
-   "reason": "vulnerability-reporting process document, not protocol wire/authorization semantics"
-  },
-  {
-   "target": "docs/research/SECURITY_CRYPTO_REAUDIT_20260922.md",
-   "reason": "dated research reference cited for context; not itself a normative definition"
-  },
-  {
-   "target": "docs/threat-model/METADATA_THREAT_MODEL.md",
-   "reason": "threat-model analysis; informs design but is not required to interpret wire/protocol semantics"
-  },
-  {
-   "target": "machine/conformance_suites.json",
-   "reason": "machine ledger of conformance-suite bookkeeping, not a normative protocol definition"
-  },
-  {
-   "target": "verification/bounded/continuity_assessment.py",
-   "reason": "verification evidence script, not a normative artifact"
-  },
-  {
-   "target": "verification/bounded/home_tiers_model.py",
-   "reason": "verification evidence script, not a normative artifact"
-  },
-  {
-   "target": "verification/bounded/introgate_sybil_model.py",
-   "reason": "verification evidence script, not a normative artifact"
-  },
-  {
-   "target": "verification/reviews/BRIEF-2026-09-26-security-equivalence-pass.md",
-   "reason": "verification handoff/evidence plan; not a normative protocol definition"
-  },
-  {
-   "target": "verification/tla/AccountControl.tla",
-   "reason": "formal-model evidence, not a normative artifact (spec/protocol/account-control-*.json is normative)"
-  }
- ]
 }

@@ -3,16 +3,16 @@
   "registry": "om-cbor-profile",
   "registry_version": 1,
   "profile": "OM-CBOR-v1",
-  "source": "CANONICAL_ENCODING.md; ADR-0065; RFC 8949 §4.2.1",
+  "source": "CANONICAL_ENCODING.md; ADR-0065; RFC 8949 \u00a74.2.1",
   "decoder_rules": [
     "exactly one top-level data item; trailing bytes -> trailing_bytes; truncated input -> truncated; reserved additional-info values 28..30 -> malformed; a break code (0xff) outside an indefinite item -> indefinite_length",
-    "integers and all length/count arguments use the shortest form (RFC 8949 §4.2.1) -> noncanonical_int / noncanonical_length",
+    "integers and all length/count arguments use the shortest form (RFC 8949 \u00a74.2.1) -> noncanonical_int / noncanonical_length",
     "definite lengths only; additional info 31 anywhere -> indefinite_length",
     "no floating point (major 7, ai 25/26/27) -> float_forbidden",
     "no tags (major 6) -> tag_forbidden (no tag is registered for W0)",
     "simple values: only false (0xf4), true (0xf5) and null (0xf6); anything else, including undefined -> invalid_simple",
     "text strings must be valid UTF-8 -> invalid_utf8 (no Unicode normalization is applied)",
-    "map keys are unsigned integers or text strings, and all keys of one map have the same major type -> key_type. This makes RFC 8949 §4.2.1 bytewise order and RFC 7049 §3.9 length-first order coincide.",
+    "map keys are unsigned integers or text strings, and all keys of one map have the same major type -> key_type. This makes RFC 8949 \u00a74.2.1 bytewise order and RFC 7049 \u00a73.9 length-first order coincide.",
     "map keys strictly increase in bytewise lexicographic order of their encodings; an equal key -> duplicate_key; a smaller key -> unsorted_keys",
     "limits are checked before allocation: nesting depth, container item count, string byte length, and per-object max_bytes -> depth_limit / count_limit / size_limit"
   ],
@@ -60,6 +60,6 @@
       "om.location-card.v1",
       "om.rich-list.v1"
     ],
-    "rule": "Key 23 of a top-level object is a map of extension-id (tstr, 1..128 bytes) to ExtEntry {0: critical bool, 1: value any}. Registered IDs are mirrored in known_extensions and normatively defined by om-numeric-fields.json: owning object, exact criticality and registered payload schema are enforced. A registered extension with the wrong criticality is rejected. For a critical registration, a wrong owning object or an invalid payload also rejects the containing object; for a non-critical registration (critical=false on the wire and in the registry) a wrong owning object or an invalid payload makes the extension unusable and it is ignored semantically, so object validity never depends on the registry version a client ships (ADR-0155). An unknown extension with critical=true rejects the object (unknown_critical_extension). An unknown non-critical extension is ignored semantically and its bytes are preserved (it remains inside the signed/hashed body)."
+    "rule": "Key 23 of a top-level object is a map of extension-id (tstr, 1..128 bytes) to ExtEntry {0: critical bool, 1: value any}. Registered IDs are mirrored in known_extensions and normatively defined by om-numeric-fields.json: owning object, exact criticality and registered payload schema are enforced. A registered extension with the wrong criticality is rejected. For a critical registration, a wrong owning object or an invalid payload also rejects the containing object; for a non-critical registration (critical=false on the wire and in the registry) a wrong owning object or an invalid payload makes the extension unusable and it is ignored semantically, so object validity never depends on the registry version a client ships (ADR-0155). An unknown extension with critical=true rejects the object (unknown_critical_extension). An unknown non-critical extension is normally ignored semantically and its bytes are preserved. ADR-0157 reserves extension IDs beginning with '!' as the registry-independent future-critical class: any unknown '!' ID rejects even when the wire critical bit is false; a registered '!' ID must be critical; and every new critical registration after the W0 freeze must use '!'. The only grandfathered critical IDs outside that class are om.acs.fork_ack and om.acs.legacy_policy, both already known to W0 decoders."
   }
 }

@@ -4,7 +4,7 @@
 - **Date:** 2026-09-28
 - **Scope:** independent architecture review (Claude Opus 5.5) of drop `20260928-2200`, findings F-04–F-07; no W0 wire change and no engineering authorization
 - **Amends:** ADR-0150 §1 (offline-local delivery), ADR-0148 §2 / ADR-0139 (account-private sync boundary), MESSENGER_BASELINE_V1 scheduled send, RELEASE_WAVES scope table
-- **Opens:** design item A-055 (scope `local_delivery`)
+- **Opened:** design item A-055 (scope `local_delivery`); **closed by ADR-0157**
 
 ## Context
 
@@ -39,10 +39,12 @@ Each later-wave gate gains a pre-engineering criterion: every wire object, event
 3. If the device was not running at the due time, the item is sent at the next opportunity after it, and the sender's UI marks it "sent late". Recipients see an ordinary message.
 4. If the sending device or profile loses eligibility before sending (device revoked, profile removed, member left or removed from the room, relationship ended or blocked), the item is discarded with a local notice. It is never migrated to another device automatically.
 
-### 4. Implementation-namespaced account-private sync and HistoryBundles
+### 4. Implementation-namespaced account-private sync (HistoryBundle clause superseded by ADR-0157)
 
-Every account-private sync record and HistoryBundle carries an implementation/codec identifier bound inside its authenticated E2EE framing. A receiving device that does not recognize the identifier ignores the record entirely and never interprets part of it. Cross-implementation sync of drafts, preferences and history is **not** a V1 interoperability promise. When another linked device cannot share them, the Devices screen SHOULD say so rather than letting state silently diverge. Conversation delivery, ACS and device-link notices remain fully interoperable.
+Every account-private sync record carries an implementation/codec identifier bound inside its authenticated E2EE framing. A receiving device that does not recognize the identifier ignores the record entirely and never interprets part of it. Cross-implementation sync of drafts, preferences and same-account history snapshots is **not** a V1 interoperability promise. When another linked device cannot share them, the Devices screen SHOULD say so rather than letting state silently diverge. Conversation delivery, ACS and device-link notices remain fully interoperable.
+
+**ADR-0157 amendment:** the Room/group `HistoryBundle` is not implementation-private sync. It is an interoperable group protocol object and is included in the `groups` scope wire-freeze criterion. Implementation-owned same-account history transfer is named `AccountHistorySnapshot` to avoid conflation.
 
 ## Consequences
 
-`design_open` becomes 1 (A-055), and that item blocks only `local_delivery`. No `core_kernel` gate, criterion or W0 wire object changes because of it. Later-wave scopes can no longer be authorized with engineers inventing their wire formats. Scheduled-send and cross-implementation sync behavior become deterministic. This ADR is Anthropic-authored, so ADR-0117 requires a non-Anthropic reviewer.
+At this checkpoint `design_open` became 1 (A-055), and that item blocked only `local_delivery`; ADR-0157 later closes A-055 without closing V-024. No `core_kernel` gate, criterion or W0 wire object changes because of it. Later-wave scopes can no longer be authorized with engineers inventing their wire formats. Scheduled-send and cross-implementation sync behavior become deterministic. This ADR is Anthropic-authored, so ADR-0117 requires a non-Anthropic reviewer.

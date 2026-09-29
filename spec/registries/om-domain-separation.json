@@ -4,7 +4,7 @@
   "registry_version": 1,
   "rules": [
     "Every label is printable ASCII, unique across the whole registry and never reused, including after retirement. A label names exactly one use (signature, hash, KDF, MAC or AEAD associated data) of exactly one object or construction.",
-    "New labels follow the pattern OM-<NAME>-<USE>-v<N>. The two 'documented' labels in lower-case style are copied verbatim from RECOVERY_AND_BACKUP_POLICY.md §10.2 and keep their spelling unless an ADR changes that document.",
+    "New labels follow the pattern OM-<NAME>-<USE>-v<N>. The two 'documented' labels in lower-case style are copied verbatim from RECOVERY_AND_BACKUP_POLICY.md \u00a710.2 and keep their spelling unless an ADR changes that document.",
     "DS-SIG(label, crypto_profile, role, signer, body) = the canonical OM-CBOR encoding of the 5-element array [label: tstr, crypto_profile: uint, role: uint, signer: bstr, body: bstr]. The signature algorithm signs these bytes.",
     "DS-HASH(label, body) = the canonical OM-CBOR encoding of the 2-element array [label: tstr, body: bstr]. Digest = {0: hash_alg, 1: H(DS-HASH(...))}. For hash_alg 1, H = SHA-256.",
     "Both constructions carry the label as a CBOR text string whose header encodes its length, so no label is a prefix-collision of another input.",
@@ -250,7 +250,7 @@
     {
       "label": "om/recovery-root/v1",
       "use": "kdf",
-      "construction": "WebAuthn PRF salt input: label || epoch (RECOVERY_AND_BACKUP_POLICY.md §10.2)",
+      "construction": "WebAuthn PRF salt input: label || epoch (RECOVERY_AND_BACKUP_POLICY.md \u00a710.2)",
       "object": "RecoveryRoot (synced passkey custodian)",
       "wave": "W0",
       "status": "documented"
@@ -258,7 +258,7 @@
     {
       "label": "om recovery root",
       "use": "kdf",
-      "construction": "HKDF info: label || RecoveryHandle (RECOVERY_AND_BACKUP_POLICY.md §10.2)",
+      "construction": "HKDF info: label || RecoveryHandle (RECOVERY_AND_BACKUP_POLICY.md \u00a710.2)",
       "object": "RecoveryRoot (synced passkey custodian)",
       "wave": "W0",
       "status": "documented"
@@ -290,7 +290,7 @@
     {
       "label": "OM-Crypto-v1_PQXDH_X25519_SHA-256_ML-KEM-768",
       "use": "kdf",
-      "construction": "PQXDH 'info' parameter (Signal PQXDH rev 3 §2.1/§2.2) for OM-Crypto-v1; KDF(KM) = HKDF-SHA256(salt 0^32, IKM 0xFF^32 || KM, info = this label) (ADR-0135 §4)",
+      "construction": "PQXDH 'info' parameter (Signal PQXDH rev 3 \u00a72.1/\u00a72.2) for OM-Crypto-v1; KDF(KM) = HKDF-SHA256(salt 0^32, IKM 0xFF^32 || KM, info = this label) (ADR-0135 \u00a74)",
       "object": "1:1 session establishment",
       "wave": "W0",
       "status": "frozen"
@@ -298,7 +298,7 @@
     {
       "label": "OM-1TO1-RATCHET-KDF-v1",
       "use": "kdf",
-      "construction": "Double Ratchet KDF_RK info: HKDF-SHA256(salt = rk, ikm = DH output, info = this label, 64 bytes); KDF_CK uses DR §5.2 HMAC constants and no label (ADR-0135 §4)",
+      "construction": "Double Ratchet KDF_RK info: HKDF-SHA256(salt = rk, ikm = DH output, info = this label, 64 bytes); KDF_CK uses DR \u00a75.2 HMAC constants and no label (ADR-0135 \u00a74)",
       "object": "1:1 ratchet",
       "wave": "W0",
       "status": "frozen"
@@ -306,7 +306,7 @@
     {
       "label": "OM-1TO1-EVENT-AEAD-AD-v1",
       "use": "aead_ad",
-      "construction": "AES-256-GCM-SIV associated data = OM-CBOR [this label, crypto_profile, session_AD, header_hash, envelope_context] (ADR-0135 §4)",
+      "construction": "AES-256-GCM-SIV associated data = OM-CBOR [this label, crypto_profile, session_AD, header_hash, envelope_context] (ADR-0135 \u00a74)",
       "object": "ConversationEvent in a 1:1 session",
       "wave": "W0",
       "status": "frozen"
@@ -330,7 +330,7 @@
     {
       "label": "OM-SAFETY-REF-v1",
       "use": "hash",
-      "construction": "documented: 'OM-SAFETY-REF-v1' || issuer_scope_id || canonical_principal_id (DECENTRALIZED_ABUSE_MODERATION.md §14)",
+      "construction": "documented: 'OM-SAFETY-REF-v1' || issuer_scope_id || canonical_principal_id (DECENTRALIZED_ABUSE_MODERATION.md \u00a714)",
       "object": "labeler-scoped subject reference",
       "wave": "W3",
       "status": "superseded: unused; raw concatenation is ambiguous (ADR-0128 rule 19)"
@@ -362,7 +362,7 @@
     {
       "label": "OM-MESSAGE-REQUEST-HPKE-INFO-v1",
       "use": "kdf",
-      "construction": "HPKE base-mode info = OM-CBOR [this label, crypto_profile, ticket_id, request_key_digest]; suite draft-ietf-hpke-pq-05 MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305; aad empty (ADR-0131 rule 9, ADR-0135 §5)",
+      "construction": "HPKE base-mode info = OM-CBOR [this label, crypto_profile, ticket_id, request_key_digest]; suite draft-ietf-hpke-pq-05 MLKEM768-X25519/HKDF-SHA256/ChaCha20Poly1305; aad empty (ADR-0131 rule 9, ADR-0135 \u00a75)",
       "object": "MessageRequest",
       "wave": "W0",
       "status": "frozen"
@@ -402,7 +402,7 @@
     {
       "label": "OM-DR-HEADER-HASH-v1",
       "use": "hash",
-      "construction": "DS-HASH over the canonical OM-CBOR ratchet header [crypto_profile, dh_pub, pn, n] (ADR-0135 §4)",
+      "construction": "DS-HASH over the canonical OM-CBOR ratchet header [crypto_profile, dh_pub, pn, n] (ADR-0135 \u00a74)",
       "object": "Double Ratchet header (input to OM-DR-AEAD-NONCE-v1 and the AEAD associated data)",
       "wave": "W0",
       "status": "frozen"
@@ -469,6 +469,30 @@
       "construction": "HPKE aad = OM-CBOR [this label, 23, 1, crypto_profile, delivery_key_id, delivery_id, expires_at, plaintext_bucket_bytes] (ADR-0142)",
       "object": "SealedDeliveryEnvelope",
       "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-LAN-RENDEZVOUS-TOKEN-v1",
+      "use": "mac",
+      "construction": "Trunc128(HMAC-SHA-256(LAN-Rendezvous-Secret, OM-CBOR [this label, epoch, link_nonce])); epoch=floor(unix_time/900), link_nonce=16 fresh random bytes per epoch/link-address instance (ADR-0157)",
+      "object": "LanDeliveryProfile-v1 discovery tag",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-LAN-TLS-EXPORTER-v1",
+      "use": "tls_exporter",
+      "construction": "RFC 8446 TLS 1.3 exporter label; 32-byte exporter output; context empty (ADR-0157)",
+      "object": "LanDeliveryProfile-v1 secret-bound TLS channel",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-LAN-CHANNEL-PROOF-v1",
+      "use": "mac",
+      "construction": "HMAC-SHA-256(LAN-Rendezvous-Secret, OM-CBOR [this label, role, epoch, link_nonce, tls_exporter]); role is client or server and tls_exporter is 32 bytes from OM-LAN-TLS-EXPORTER-v1 (ADR-0157)",
+      "object": "LanDeliveryProfile-v1 channel proof",
+      "wave": "W1",
       "status": "frozen"
     }
   ]

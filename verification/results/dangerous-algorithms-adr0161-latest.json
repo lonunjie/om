@@ -1,0 +1,254 @@
+{
+  "checker": "dangerous_algorithms_adr0161",
+  "passed": true,
+  "cases": 49,
+  "failures": [],
+  "rows": [
+    {
+      "id": "contract_has_8_algorithms",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "algorithm_ids_unique",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "doc_contains:acs_child_validation_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "sources_exist:acs_child_validation_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "forbidden_shortcuts_present:acs_child_validation_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "doc_contains:one_to_one_receive_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "sources_exist:one_to_one_receive_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "forbidden_shortcuts_present:one_to_one_receive_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "doc_contains:group_commit_recovery_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "sources_exist:group_commit_recovery_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "forbidden_shortcuts_present:group_commit_recovery_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "doc_contains:mutable_record_convergence_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "sources_exist:mutable_record_convergence_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "forbidden_shortcuts_present:mutable_record_convergence_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "doc_contains:history_bundle_import_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "sources_exist:history_bundle_import_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "forbidden_shortcuts_present:history_bundle_import_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "doc_contains:extension_dispatch_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "sources_exist:extension_dispatch_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "forbidden_shortcuts_present:extension_dispatch_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "doc_contains:lan_frame_admission_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "sources_exist:lan_frame_admission_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "forbidden_shortcuts_present:lan_frame_admission_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "doc_contains:unknown_outcome_reconciliation_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "sources_exist:unknown_outcome_reconciliation_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "forbidden_shortcuts_present:unknown_outcome_reconciliation_v1",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "acs_combo_promote_link_rejects_single",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "acs_combo_promote_link_accepts_majority",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "acs_lower_floor_rejected",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "acs_revoked_device_never_repromoted",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "group_journal_happy_path",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "group_journal_no_direct_accept",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "group_journal_no_skip",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "mutable_branch_highest_then_lexicographic",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "mutable_branch_no_alias_assumption",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "history_isolation_named",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "history_local_id_rule",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "extension_unknown_critical_rejects",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "extension_unknown_noncritical_ignored",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "extension_known_noncritical_bad_schema_ignored",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "extension_known_critical_bad_schema_rejects",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "extension_criticality_mismatch_rejects",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "lan_identity_after_proof",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "lan_frame_bound_present",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "lan_blob_range_bound_present",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "lan_blob_inflight_bound_present",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "unknown_outcome_state_present",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "unknown_outcome_no_duplicate",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "id": "unknown_outcome_five_terminal_semantics",
+      "ok": true,
+      "details": ""
+    }
+  ],
+  "gate_status_effect": "evidence_only_no_gate_automatically_passed"
+}

@@ -1,0 +1,10 @@
+{
+  "suite": "protocol_evolution_adr0162",
+  "adr": "ADR-0162",
+  "checkpoint": "2026-09-29 Run 7",
+  "status": "passed",
+  "cases": 35,
+  "passed": 35,
+  "failed": 0,
+  "claim_boundary": "bounded policy-mechanics sanity only; not independent/formal/interoperability evidence"
+}

@@ -1,0 +1,28 @@
+{
+  "schema": "om.ui.curated-themes.example.v1",
+  "default_theme_id": "om.calm",
+  "themes": [
+    {
+      "theme_id": "om.calm",
+      "name": "OM Calm",
+      "light": {
+        "canvas": "#F7F8FA", "surface": "#FFFFFF", "surface_subtle": "#EEF0F3",
+        "text_primary": "#16181D", "text_secondary": "#5D6470",
+        "accent": "#2459D3", "info": "#2459D3", "success": "#1B6E3A", "warning": "#8A5A00", "danger": "#B42318",
+        "message_own_surface": "#DDE7FF", "message_own_text": "#16181D",
+        "message_other_surface": "#EEF0F3", "message_other_text": "#16181D"
+      },
+      "dark": {
+        "canvas": "#111318", "surface": "#181B21", "surface_subtle": "#242830",
+        "text_primary": "#F5F7FA", "text_secondary": "#B9C0CC",
+        "accent": "#7EA2FF", "info": "#7EA2FF", "success": "#7BD89A", "warning": "#F0C36A", "danger": "#FF8A84",
+        "message_own_surface": "#243B6B", "message_own_text": "#F5F7FA",
+        "message_other_surface": "#242830", "message_other_text": "#F5F7FA"
+      }
+    },
+    {"theme_id": "om.evergreen", "name": "Evergreen", "inherits_neutral_and_status_roles_from": "om.calm", "accent_family": "green-teal"},
+    {"theme_id": "om.warm-slate", "name": "Warm Slate", "inherits_neutral_and_status_roles_from": "om.calm", "accent_family": "copper-amber-distinct-from-warning"},
+    {"theme_id": "om.violet", "name": "Violet", "inherits_neutral_and_status_roles_from": "om.calm", "accent_family": "violet"}
+  ],
+  "note": "OM Calm values are prototype seeds. Other curated families are intentionally role-level until visual prototype/user testing tunes their exact values. All families preserve status semantics and contrast constraints."
+}

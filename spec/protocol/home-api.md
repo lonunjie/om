@@ -125,9 +125,15 @@ Unknown error codes are treated as non-retryable protocol failure.
 ## 5. Idempotency and replay
 
 Mutating requests carry a random 128-bit `request_id`. Providers retain enough recent operation ids to make duplicate
-requests idempotent for the operation's advertised retry horizon. Idempotency never converts an invalid authorization
-into a valid one. Deposit/message/blob payload ids are content- or sender-defined opaque ids and do not expose
-AccountID.
+requests idempotent for the operation's advertised retry horizon **across provider process restart**. A duplicate with
+the same `request_id` and same authenticated operation fingerprint returns the already-determined semantic outcome or
+resumes the same operation; the same `request_id` with different operation bytes/context is `invalid_request`. A client
+that times out after transmitting a mutation treats the outcome as unknown and exact-retries/reconciles with the same
+`request_id`; it does not mint a second semantic mutation merely because the response was lost.
+
+Idempotency never converts an invalid authorization into a valid one. Deposit/message/blob payload ids are content- or
+sender-defined opaque ids and do not expose AccountID. Operation-specific rules may require stronger replay identities
+(for example sealed-delivery tuples); those stronger rules remain authoritative.
 
 ## 6. Provider portability
 

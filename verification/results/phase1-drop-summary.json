@@ -9,7 +9,7 @@
   },
   "continuity_assessment_cases": 2808,
   "cross_impl_cbor_vectors": 14,
-  "offline_continuity_artifacts": 65,
+  "offline_continuity_artifacts": 66,
   "gates_with_new_evidence": [
     "V-002",
     "V-003",
@@ -203,6 +203,26 @@
     {
       "script": "verification/prototypes/v003-sessions/sealed_delivery_state.py",
       "returncode": 0
+    },
+    {
+      "script": "verification/bounded/protocol_semantics_adr0158.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/ui_integration_adr0159.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/dangerous_algorithms_adr0161.py",
+      "returncode": 0
+    },
+    {
+      "script": "verification/bounded/protocol_evolution_adr0162.py",
+      "returncode": 0
     }
-  ]
+  ],
+  "producer_count": 48,
+  "producer_passed": 48,
+  "producer_failed": 0,
+  "run_count": 48
 }

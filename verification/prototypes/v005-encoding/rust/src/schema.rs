@@ -479,7 +479,8 @@ impl<'a> Cx<'a> {
                         return Err("value_range");
                     }
                     self.strukt(e, "ExtEntry", None)?;
-                    if e.get(0) == Some(&Value::Bool(true)) && !self.r.known_ext.iter().any(|x| x == id) {
+                    if !self.r.known_ext.iter().any(|x| x == id)
+                        && (e.get(0) == Some(&Value::Bool(true)) || id.starts_with('!')) {
                         return Err("unknown_critical_extension");
                     }
                     // a registered extension carries its registered criticality and a value of its registered struct

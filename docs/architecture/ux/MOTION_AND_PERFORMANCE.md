@@ -137,14 +137,15 @@ Do not falsely present irreversible security/control actions as finalized before
 
 ## Reduced motion
 
-Respect platform/browser reduced-motion preference by default. User may additionally choose motion intensity in OM theme/preferences.
+Respect platform/browser reduced-motion preference by default. User may additionally choose motion intensity as an explicit OM accessibility/appearance preference. Theme motion values are defaults only and cannot override that user choice.
 
 Reduced mode should:
 
 - replace large slides/zooms with fades or immediate state changes;
 - remove parallax/background animation;
 - retain focus/state acknowledgement;
-- retain progress indication when needed.
+- retain progress indication when needed;
+- avoid animated Omnibar/result reordering; preserve the currently armed keyboard target while results update.
 
 ## Instrumentation
 

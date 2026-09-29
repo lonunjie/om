@@ -267,3 +267,4 @@ The following are normative pass/fail cases for the registered W0 conformance su
 | ID-03 | recovery request withheld from a verifier | verifier waits its own full activation interval before accepting recovery-alone successor |
 | ID-04 | conflicting ACS branches | client enters conflict/freeze behavior and never silently chooses provider ordering |
 | ID-05 | account moved | only valid AccountRetirement continuity proof produces `moved` identity UX |
+| ID-06 | previously revoked DeviceID is re-linked/re-promoted or restored from backup | reject even with otherwise-sufficient transition signatures; same hardware must enroll under a fresh DeviceID/credential (ADR-0158) |

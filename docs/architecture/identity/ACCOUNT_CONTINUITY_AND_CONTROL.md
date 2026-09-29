@@ -51,9 +51,12 @@ A client MUST NOT accept a state that:
 - neither descends from the latest trusted head it knows nor is a valid fork bridge state whose `om.acs.fork_ack`
   covers that head (§8);
 - violates the authorization rule of the **parent** state (§4.1);
-- lowers the crypto/security floor. The floor compares the `security_generation` of CryptoProfiles, not profile ids.
-  The only non-increase is a SecurityAdvisory marking a profile `forbidden`, after which the floor moves to a
-  non-forbidden profile of equal or higher generation, never lower ([`CRYPTOGRAPHY_AND_AGILITY.md`](../crypto/CRYPTOGRAPHY_AND_AGILITY.md), ADR-0126);
+- lowers the ACS 1:1 crypto/security floor. `minimum_crypto_profile` must name a profile with
+  `security_generation.one_to_one`, and this ACS transition compares only that generation, never profile ids or the
+  profile's `group` generation. Group downgrade floors are Room/group state and are not derived from this field. The
+  only non-increase is a SecurityAdvisory marking a profile `forbidden`, after which the ACS minimum moves to a
+  non-forbidden profile of equal or higher `one_to_one` generation, never lower
+  ([`CRYPTOGRAPHY_AND_AGILITY.md`](../crypto/CRYPTOGRAPHY_AND_AGILITY.md), ADR-0126/0158);
 - silently removes enough controllers to make a previously unauthorized coalition authoritative.
 
 ## 3. Device classes
@@ -147,16 +150,20 @@ larger accepted set.
 | permanently revoke a control device | majority, or majority reached with a recovery vote | only when N = 1 |
 | change the recovery policy (`recovery_policy_commitment`) | majority, or majority reached with a recovery vote | only when N = 1 |
 | change `constitutional_policy` | majority | only when N = 1 |
-| raise `minimum_crypto_profile` (higher `security_generation`) | 1 active, non-quarantined controller | yes |
-| lower `minimum_crypto_profile` | forbidden (the SecurityAdvisory case in §2 moves to an equal or higher generation) | — |
+| raise `minimum_crypto_profile` (strictly higher `security_generation.one_to_one`; profile must define that axis) | 1 active, non-quarantined controller | yes |
+| lower/equal-or-incomparable `minimum_crypto_profile` replacement | forbidden as an ordinary transition (the SecurityAdvisory case in §2 may replace with equal or higher `one_to_one` generation) | — |
 | rotate the signer's own `control_key_epochs` / `device_credentials` entry (same device id) | that device, not quarantined, signing with its current key | yes |
 | change `transparency_commitment` | 1 active, non-quarantined controller | yes |
 | fork bridge (§8) | device-only majority of the common ancestor's controllers; no recovery vote | only when N = 1 |
 | `AccountRetirement` | majority, or majority reached with a recovery vote (delay and veto apply when recovery acts alone) | only when N = 1 |
 
-Messaging devices are removed, never quarantined; the ACS has no field for it. Removal is reversible only by linking
-the device again. A device's revocation is recorded only in the ACS (`permanently_revoked_devices`), never as a
-timestamp on the device record. V-002 mirrors this table.
+Messaging devices are removed, never quarantined; the ACS has no field for it. **Removal is terminal for that
+DeviceID.** `permanently_revoked_devices` is a monotone tombstone set: a descendant ACS MUST NOT put an ID from that
+set back into `messaging_devices` or `active_control_devices`, and MUST NOT remove the tombstone. Returning hardware,
+a reinstall or a restored backup enrolls with a fresh DeviceID and fresh DeviceCredential through the ordinary
+link/recovery path (ADR-0131, ADR-0158). Historical credential material may remain for verification of old signatures;
+it is not active eligibility. A device's revocation is recorded only in the ACS, never as a timestamp on the device
+record. V-002 mirrors this table and the no-resurrection postcondition.
 ## 5. Contest and safety freeze
 
 A quarantined control device retains a narrow, control-only **challenge capability** for the dispute window/state. It does not continue receiving ordinary conversation secrets.

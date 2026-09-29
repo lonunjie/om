@@ -34,13 +34,13 @@ For one stable item key, a tombstone wins against a causally concurrent stale va
 
 HLC is presentation/convergence assistance, not authority. A remote physical component more than the frozen default skew (300 s) ahead of local wall time is quarantined/not merged until it falls within the window or is superseded; it never advances a durable preference floor merely by being far in the future. Causal order and authenticated ACS generation precede HLC/device-id tie-breaking.
 
-**ADR-0156 implementation namespacing.** Every sync record and HistoryBundle carries an implementation/codec identifier inside its authenticated E2EE framing. A device ignores whole records whose identifier it does not recognize and never interprets part of one. Cross-implementation draft/preference/history sync is not a V1 interoperability promise; the Devices screen should say when a linked device cannot share them. Conversation delivery, AccountControlState and device-link notices remain fully interoperable.
+**ADR-0156/0157 implementation namespacing.** Every account-private sync record carries an implementation/codec identifier inside its authenticated E2EE framing. A device ignores whole records whose identifier it does not recognize and never interprets part of one. Cross-implementation draft/preference/**same-account history snapshot** sync is not a V1 interoperability promise; the Devices screen should say when a linked device cannot share them. Conversation delivery, AccountControlState and device-link notices remain fully interoperable. The implementation-private same-account history object is called `AccountHistorySnapshot`; `HistoryBundle` is reserved for the interoperable Room/group history object in [`GROUP_CHAT_ARCHITECTURE.md`](../groups/GROUP_CHAT_ARCHITECTURE.md).
 
 Historical backup restore uses the existing fresh-DeviceID rule. Imported draft/preference material is tentative local state until current ACS and reachable sync state are reconciled and is never automatically republished under the fresh DeviceID. Explicit user recreation after reconciliation emits a fresh current-generation causal descendant.
 
 ## History transfer
 
-New device history access is distinct from permission to receive future messages. Existing device(s) may produce encrypted HistoryBundles/snapshots for the new device after explicit account authorization. Servers do not receive plaintext history.
+New device history access is distinct from permission to receive future messages. Existing device(s) may produce encrypted `AccountHistorySnapshot`s for the new device after explicit account authorization. Servers do not receive plaintext history.
 
 ## Revocation
 
@@ -48,7 +48,7 @@ Revoked device:
 
 - stops receiving future envelopes;
 - loses future group epochs after revocation propagates;
-- cannot obtain new history bundles;
+- cannot obtain new account-history snapshots;
 - remains potentially able to read plaintext it previously possessed (unavoidable endpoint property).
 
 ## Restore
@@ -63,7 +63,7 @@ No architecture choice remains open in this section. The following details are d
 - the one-to-one per-device session-manager state machine is canonical in [`ONE_TO_ONE_SESSION_MANAGEMENT.md`](ONE_TO_ONE_SESSION_MANAGEMENT.md) and verified by `V-003`;
 - ordinary account-private preference conflicts may use typed record-specific convergence, but authority/security state may never use LWW/ordinary CRDT merge;
 - new-device bootstrap requires the explicit account-authorized enrollment ceremony and non-suppressible device-link notice;
-- HistoryBundle chunking/resume is a transport/storage detail and never changes history provenance or grants authority;
+- `AccountHistorySnapshot` chunking/resume is a transport/storage detail and never changes history provenance or grants authority;
 - offline revocation propagation is fail-closed for new governance/secret distribution until a current authenticated control head is reconciled.
 
 ## Authority convergence

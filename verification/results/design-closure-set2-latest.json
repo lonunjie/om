@@ -1,48 +1,46 @@
 {
   "kind": "design_closure_set2",
   "design_only": true,
-  "requirements": 336,
-  "threats": 125,
-  "decisions": 178,
+  "requirements": 365,
+  "threats": 144,
+  "decisions": 184,
   "design_queue_items": 44,
-  "security_invariants": 36,
+  "security_invariants": 40,
   "checks": [
     {
       "name": "design_queue_closed_for_w0",
       "items": 44,
-      "open": 1,
-      "open_tracked_later_wave": [
-        "A-055"
-      ]
+      "open": 0,
+      "open_tracked_later_wave": []
     },
     {
       "name": "requirement_traceability",
-      "requirements": 336,
-      "rows": 336,
+      "requirements": 365,
+      "rows": 365,
       "missing": 0,
       "duplicates": 0
     },
     {
       "name": "threat_traceability",
-      "threats": 125,
+      "threats": 144,
       "problems": 0
     },
     {
       "name": "decision_adr_index",
-      "decisions": 178,
-      "indexed_adrs": 156,
+      "decisions": 184,
+      "indexed_adrs": 162,
       "problems": 0
     },
     {
       "name": "security_invariant_traceability",
-      "document_invariants": 36,
-      "mapped": 36,
+      "document_invariants": 40,
+      "mapped": 40,
       "problems": 0
     },
     {
       "name": "canonical_ambiguity_markers",
       "selected_stale_problems": 0,
-      "canonical_files_scanned": 168,
+      "canonical_files_scanned": 174,
       "whole_tree_hits": []
     },
     {

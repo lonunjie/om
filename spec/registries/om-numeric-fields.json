@@ -8,7 +8,8 @@
     "Optional fields are ABSENT when unused. CBOR null is never a valid value of a typed field (error null_forbidden).",
     "A key that is not listed in 'fields' (including a 'reserved' key) is an unknown critical field: the object is rejected (error unknown_field). Forward-compatible optional data goes into key 23 extensions.",
     "'set' arrays are sorted by the bytewise order of each element's canonical encoding and contain no duplicates (error set_order).",
-    "Type grammar: {uint:[min,max|null]}, {bool:null|true|false} (true/false = constant), {bstr:[min,max]}, {tstr:[min,max]} (byte length), {enum:name}, {ref:Struct}, {array:T,n:[min,max]}, {set:T,n:[min,max]}, {union:{on:key,variants:{value:Struct}}}, {dispatch:{on:field_name,table:{value:Struct},default:'opaque_map'}}, {signed:TypeName} (bstr holding a canonical SignedEnvelope whose body is that type), {any:null}, {ext:null}."
+    "Type grammar: {uint:[min,max|null]}, {bool:null|true|false} (true/false = constant), {bstr:[min,max]}, {tstr:[min,max]} (byte length), {enum:name}, {ref:Struct}, {array:T,n:[min,max]}, {set:T,n:[min,max]}, {union:{on:key,variants:{value:Struct}}}, {dispatch:{on:field_name,table:{value:Struct},default:'opaque_map'}}, {signed:TypeName} (bstr holding a canonical SignedEnvelope whose body is that type), {any:null}, {ext:null}.",
+    "Extension IDs beginning with '!' are reserved by ADR-0157 as the future-critical wire class: unknown '!' IDs reject regardless of ExtEntry.critical; such IDs can never be registered non-critical; every new critical registration after the W0 freeze uses '!'. om.acs.fork_ack and om.acs.legacy_policy are the only grandfathered critical IDs outside this class."
   ],
   "common_top_level_fields": [
     {

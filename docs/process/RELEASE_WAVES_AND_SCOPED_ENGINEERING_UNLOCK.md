@@ -53,7 +53,7 @@ Every verification gate now carries:
 | `services_bots` | W4 | ServicePrincipals, LLM agents | V-011 | — |
 | `plugins` | W4 | Wasm Component-Model plugin host | V-010 | — |
 | `bridges` | W4 | external-network bridges | V-013 | — |
-| `local_delivery` | W1 | offline-local LAN message/file delivery binding (ADR-0150 invariants in core_kernel; concrete LanDeliveryProfile under A-055, ADR-0156) | V-003, V-015, V-024 | A-055 |
+| `local_delivery` | W1 | offline-local LAN message/file delivery binding (ADR-0150 invariants in core_kernel; concrete LanDeliveryProfile-v1 resolved by ADR-0157; verification remains V-003/V-015/V-024) | V-003, V-015, V-024 | — |
 <!-- scope-table:end -->
 
 V-017 (0M continuity drill) blocks **every public production claim**, not any engineering scope. Its pre-engineering criteria (continuity bundle assembly, registry immutability checks, tabletop drills) still have to be done before `core_kernel` is authorized, because it is also listed in the contract's `always_required_pre_engineering_gates`.

@@ -5,20 +5,17 @@
 ```text
 AppShell
 ├── IdentityProfile switcher (shown when 2+ profiles are configured)
-├── Chats
+├── Omnibar (conversations / people / local content / settings / actions)
+├── New conversation
+├── Conversation workspace
 │   ├── Conversation list
 │   ├── Message requests
 │   ├── Conversation
 │   └── Conversation details / media
-├── Calls
-│   ├── Recent/missed calls
-│   ├── Start call
-│   └── Active call
-├── People
-│   ├── Requests
-│   ├── Contacts
-│   ├── Share my OM
-│   └── Add/find person
+├── Secondary surfaces (Omnibar/context/optional user pin)
+│   ├── Call history / active call
+│   ├── Contacts / people / requests
+│   └── Files / other local views
 └── Profile → Settings
     ├── Profile / identity
     ├── Privacy & protection
@@ -29,6 +26,18 @@ AppShell
     ├── OM Home
     └── Advanced / diagnostics
 ```
+
+The default shell has no required Chats / Calls / People destination tabs. Calls and people remain directly reachable from conversation/person context, the Omnibar, and optional user pins.
+
+
+## Journey: use the Omnibar
+
+1. User taps the Omnibar or presses `Cmd/Ctrl+K`.
+2. Without typing, OM shows a small recognition-oriented set of recent/pinned conversations and common actions.
+3. Typing filters local conversations/people/messages/settings first; external discovery is a visibly separate result class.
+4. Repeated successful local selections may adjust ordering inside the current IdentityProfile using bounded recency/frequency state.
+5. User can remove one learned suggestion, clear/disable learning, or pin an item.
+6. Destructive/security actions never auto-run from autocomplete and keep their normal Core authorization/confirmation.
 
 ## Journey: first-run ordinary user
 

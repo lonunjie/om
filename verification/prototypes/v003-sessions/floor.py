@@ -10,7 +10,7 @@ Rules implemented (independently of sessions.py, which abstracts profiles as 1 =
   * a peer bundle / initial message whose profile has no one_to_one generation, is not usable in this build, or has a
     generation below the floor is refused (the sender) or rejected with an authenticated reject (the receiver);
   * accepting a profile raises the floor to its generation (never lowers it);
-  * after a restore the floor is max(backed-up record, ACS minimum_crypto_profile generation) (ADR-0120 K3);
+  * ADR-0158 pins ACS minimum_crypto_profile to security_generation.one_to_one; group-only ACS minima are invalid; after restore the floor is max(backed-up one_to_one generation, ACS one_to_one minimum) (ADR-0120 K3);
   * a signed SecurityAdvisory that forbids a profile moves the floor only to a non-forbidden profile of EQUAL or HIGHER
     generation; if none exists the relationship stops sending; a move to a lower generation is rejected.
 
@@ -35,6 +35,8 @@ TEST_PROFILES = [
     {"id": 65280, "name": "test-1to1-gen2", "status": "experimental", "security_generation": {"one_to_one": 2}},
     {"id": 65281, "name": "test-1to1-gen2-alt", "status": "experimental", "security_generation": {"one_to_one": 2}},
     {"id": 65282, "name": "test-group-only", "status": "experimental", "security_generation": {"group": 1}},
+    {"id": 65283, "name": "test-mixed-1to1-gen2-group0", "status": "experimental", "security_generation": {"one_to_one": 2, "group": 0}},
+    {"id": 65284, "name": "test-mixed-1to1-gen1-group99", "status": "experimental", "security_generation": {"one_to_one": 1, "group": 99}},
 ]
 USABLE = {"experimental", "allowed", "preferred", "deprecated"}   # 'test_only', 'forbidden', 'reserved' are not
 
@@ -73,8 +75,16 @@ def accept(reg, state: dict, pid: int) -> tuple[bool, str, dict]:
     return ok, why if ok else "authenticated reject naming the message; sender retries at the floor (ADR-0120)", s
 
 
+def acs_min_generation(reg, acs_min_profile: int) -> int:
+    """ADR-0158: ACS minimum_crypto_profile is valid only on the one_to_one axis."""
+    g = gen(reg, acs_min_profile)
+    if g is None:
+        raise ValueError("ACS minimum_crypto_profile lacks security_generation.one_to_one")
+    return g
+
+
 def restore_floor(reg, backed_up: int, acs_min_profile: int) -> int:
-    return max(backed_up, gen(reg, acs_min_profile) or 0)
+    return max(backed_up, acs_min_generation(reg, acs_min_profile))
 
 
 def advisory(reg, state: dict, forbid: int, new_profile: int | None) -> tuple[bool, str, dict]:
@@ -117,6 +127,8 @@ def vectors(reg) -> list[dict]:
     a("reject_group_only_profile_for_1to1", base, 65282, False)
     a("reject_unknown_profile", base, 4242, False)
     a("accept_higher_generation_raises_floor", base, 65280, True)
+    a("acs_1to1_axis_ignores_lower_group_generation", base, 65283, True)
+    a("large_group_generation_cannot_bypass_1to1_floor", high, 65284, False)
     a("accept_equal_generation_alternative", high, 65281, True)
     a("reject_forbidden_profile", dict(high, forbidden=[65281]), 65281, False)
     adv("advisory_move_to_equal_generation", high, 65280, 65281, True, 2)
@@ -128,7 +140,14 @@ def vectors(reg) -> list[dict]:
               "acs_minimum_crypto_profile": 1, "expect_floor": restore_floor(reg, 2, 1)})
     V.append({"name": "restore_floor_lifted_by_acs_minimum", "op": "restore_floor", "backed_up": 0,
               "acs_minimum_crypto_profile": 1, "expect_floor": restore_floor(reg, 0, 1)})
-    assert V[-2]["expect_floor"] == 2 and V[-1]["expect_floor"] == 1
+    try:
+        restore_floor(reg, 1, 65282)
+    except ValueError as e:
+        V.append({"name": "restore_rejects_group_only_acs_minimum", "op": "restore_invalid_acs_minimum",
+                  "backed_up": 1, "acs_minimum_crypto_profile": 65282, "expect_error": str(e)})
+    else:
+        raise AssertionError("group-only profile accepted as ACS minimum")
+    assert V[-3]["expect_floor"] == 2 and V[-2]["expect_floor"] == 1
     return V
 
 
@@ -143,10 +162,19 @@ def replay(reg, V) -> list[str]:
             ok, _, after = advisory(reg, v["state"], v["forbid"], v["new_profile"])
             if ok != v["expect_accept"] or after != v["after"]:
                 bad.append(v["name"])
-        elif restore_floor(reg, v["backed_up"], v["acs_minimum_crypto_profile"]) != v["expect_floor"]:
-            bad.append(v["name"])
+        elif v["op"] == "restore_floor":
+            if restore_floor(reg, v["backed_up"], v["acs_minimum_crypto_profile"]) != v["expect_floor"]:
+                bad.append(v["name"])
+        elif v["op"] == "restore_invalid_acs_minimum":
+            try:
+                restore_floor(reg, v["backed_up"], v["acs_minimum_crypto_profile"])
+            except ValueError as e:
+                if str(e) != v["expect_error"]:
+                    bad.append(v["name"] + ":wrong_error")
+            else:
+                bad.append(v["name"] + ":accepted")
         # generic safety: no vector ever lowers a floor
-        if v["op"] != "restore_floor" and v["after"]["floor"] < v["state"]["floor"]:
+        if v["op"] not in ("restore_floor", "restore_invalid_acs_minimum") and v["after"]["floor"] < v["state"]["floor"]:
             bad.append(v["name"] + ":floor_lowered")
     return bad
 

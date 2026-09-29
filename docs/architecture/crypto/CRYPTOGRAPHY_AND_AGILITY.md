@@ -96,7 +96,10 @@ OpenMLS is a leading Rust implementation candidate, not a protocol dependency.
 ## Downgrade floor
 
 Each relationship/device/group records the highest `security_generation` it has accepted for its conversation type
-(ADR-0126). Restored records and the ACS `minimum_crypto_profile` combine by taking the maximum (ADR-0120).
+(ADR-0126). For **1:1** state, restored records and the ACS `minimum_crypto_profile` combine by taking the maximum
+(ADR-0120/0158). The ACS field is specifically an account-wide 1:1 floor: it must name a profile with
+`security_generation.one_to_one`, and ACS raises/lowers compare only that generation. Group floors are Room/group
+state and compare `security_generation.group`; they do not derive from ACS `minimum_crypto_profile`.
 
 ```text
 security_floor(conversation) = G   // security_generation[conversation_type] of the strongest accepted profile
@@ -236,3 +239,15 @@ Normative, from the V-series models. The ADR is authoritative where this summary
 - `MessageRequest` HPKE pins `draft-ietf-hpke-pq-05` MLKEM768-X25519 + HKDF-SHA256 + ChaCha20Poly1305 in base mode.
   Later incompatible standardization creates a new profile/version rather than silently changing v1.
 - v1 claims **post-quantum handshake / harvest-now-decrypt-later protection**, not PQ post-compromise healing.
+
+## 2026-09-29 protocol-evolution selection (ADR-0162)
+
+Profile IDs are allocation identifiers, not a security ranking. Deterministic selection uses the mutual validated profile
+intersection, local policy/lifecycle eligibility and the applicable conversation-type security floor, then selects the highest
+`security_generation` for that conversation type. Deprecated candidates are excluded for new traffic when an equal-or-higher
+generation non-deprecated candidate exists. Equal-generation ties use the smallest profile ID only as a deterministic
+tie-break. An empty intersection triggers the profile's migration/reinitialization, read/export-only or safe-failure path;
+there is no generic fallback profile.
+
+A new profile or protocol behavior is never installed by mutating an existing profile ID. See
+[`PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md`](../../process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md).

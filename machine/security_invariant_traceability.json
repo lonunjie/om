@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-28T14:43:00+08:00 Run 5A ADR-0147 normative lifecycle/restore closure",
+  "snapshot": "2026-09-29T07:35:00+08:00 Run 2 ADR-0158 protocol/security semantic audit",
   "purpose": "Final design-closure mapping from each named security invariant to current requirements, threats, decisions, evidence obligations and normative sources. Mapping does not mark gates passed or authorize engineering.",
   "invariants": [
     {
@@ -810,6 +810,106 @@
         "docs/architecture/safety/SECURITY_INVARIANTS.md",
         "decisions/ADR-0146-bootstrap-candidate-terminalization-bounded-reply-transport-and-expiry.md",
         "decisions/ADR-0147-bootstrap-lifetime-restore-and-durable-timer-closure.md"
+      ]
+    },
+    {
+      "id": "A9",
+      "requirements": [
+        "R-349"
+      ],
+      "threats": [
+        "T-138"
+      ],
+      "decisions": [
+        "D-180"
+      ],
+      "evidence": [
+        "V-002"
+      ],
+      "sources": [
+        "docs/architecture/safety/SECURITY_INVARIANTS.md",
+        "docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md",
+        "decisions/ADR-0158-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md"
+      ]
+    },
+    {
+      "id": "G2",
+      "requirements": [
+        "R-351",
+        "R-223",
+        "R-347"
+      ],
+      "threats": [
+        "T-065",
+        "T-137",
+        "T-140"
+      ],
+      "decisions": [
+        "D-180"
+      ],
+      "evidence": [
+        "V-004",
+        "conformance:group_history"
+      ],
+      "sources": [
+        "docs/architecture/safety/SECURITY_INVARIANTS.md",
+        "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md",
+        "decisions/ADR-0158-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md"
+      ]
+    },
+    {
+      "id": "D2",
+      "requirements": [
+        "R-352",
+        "R-206"
+      ],
+      "threats": [
+        "T-141"
+      ],
+      "decisions": [
+        "D-148",
+        "D-180"
+      ],
+      "evidence": [
+        "V-003",
+        "conformance:security_floor"
+      ],
+      "sources": [
+        "docs/architecture/safety/SECURITY_INVARIANTS.md",
+        "docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md",
+        "docs/architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md",
+        "decisions/ADR-0158-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md"
+      ]
+    },
+    {
+      "id": "E2",
+      "requirements": [
+        "R-369",
+        "R-370",
+        "R-371",
+        "R-372",
+        "R-373",
+        "R-374"
+      ],
+      "threats": [
+        "T-151",
+        "T-152",
+        "T-153",
+        "T-154"
+      ],
+      "decisions": [
+        "D-184"
+      ],
+      "evidence": [
+        "validator",
+        "V-003",
+        "V-005",
+        "V-017"
+      ],
+      "sources": [
+        "docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md",
+        "docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md",
+        "docs/constitution/PROTOCOL_EXTENSIBILITY.md"
       ]
     }
   ]

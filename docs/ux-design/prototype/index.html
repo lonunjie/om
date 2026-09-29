@@ -3,32 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>OM shared UI shell prototype</title>
+<title>OM conversation-first shell prototype</title>
 <style>
-:root{color-scheme:light dark;--bg:#f6f7f8;--surface:#fff;--surface2:#f0f2f4;--text:#17191c;--muted:#6b7178;--line:#e3e6e9;--accent:#3569d4;--accent-soft:#e8efff;--incoming:#eceff2;--outgoing:#dfe9ff;--danger:#b42318;--radius:14px;--shadow:0 10px 30px rgba(0,0,0,.08)}
-@media(prefers-color-scheme:dark){:root{--bg:#111315;--surface:#181b1f;--surface2:#20242a;--text:#f2f4f5;--muted:#a0a7ae;--line:#2c3137;--accent:#8bb1ff;--accent-soft:#1e3156;--incoming:#252a30;--outgoing:#223b68;--danger:#ff8b81;--shadow:0 12px 32px rgba(0,0,0,.3)}}
-*{box-sizing:border-box}html,body{height:100%;margin:0}body{font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);overflow:hidden}button,input{font:inherit}button{color:inherit}.app{height:100dvh;display:grid;grid-template-columns:76px minmax(260px,330px) minmax(0,1fr) 300px;background:var(--surface)}
-.nav{border-right:1px solid var(--line);padding:12px 8px;display:flex;flex-direction:column;gap:7px;background:var(--surface)}.brand{font-weight:800;font-size:21px;display:grid;place-items:center;height:48px;color:var(--accent)}.nav button,.bottom button{border:0;background:transparent;border-radius:12px;min-height:48px;cursor:pointer}.nav button[aria-current=true],.bottom button[aria-current=true]{background:var(--accent-soft);color:var(--accent);font-weight:700}.spacer{flex:1}.listpane{border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0}.panehead{height:64px;padding:0 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}.panehead h1{font-size:20px;margin:0}.search{margin:12px 14px 8px;border:1px solid var(--line);background:var(--surface2);border-radius:12px;padding:10px 12px;width:calc(100% - 28px);color:var(--text);outline:none}.search:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}.items{overflow:auto;padding:4px 8px 16px}.item{width:100%;border:0;background:transparent;border-radius:12px;padding:10px;display:grid;grid-template-columns:42px 1fr auto;gap:10px;text-align:left;cursor:pointer}.item:hover{background:var(--surface2)}.item.selected{background:var(--accent-soft)}.avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--surface2);font-weight:700}.name{font-weight:650}.preview,.time,.sub{color:var(--muted);font-size:13px}.detail{display:flex;flex-direction:column;min-width:0;background:var(--surface)}.chathead{height:64px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px;gap:10px}.chathead .grow{flex:1}.icon{min-width:44px;min-height:44px;border:0;border-radius:12px;background:transparent;cursor:pointer}.icon:hover{background:var(--surface2)}.messages{flex:1;overflow:auto;padding:24px max(18px,6vw);display:flex;flex-direction:column;gap:7px;background:linear-gradient(var(--surface),var(--surface))}.bubble{max-width:min(70%,620px);padding:9px 12px;border-radius:15px;background:var(--incoming);box-shadow:0 1px 0 rgba(0,0,0,.03)}.mine{align-self:flex-end;background:var(--outgoing)}.other{align-self:flex-start}.meta{font-size:11px;color:var(--muted);margin-left:7px;white-space:nowrap}.composewrap{padding:10px 14px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);display:flex;gap:7px;align-items:end}.composer{flex:1;min-height:44px;max-height:130px;border:1px solid var(--line);border-radius:17px;padding:11px 13px;background:var(--surface2);color:var(--text);resize:none;outline:none}.send{min-width:44px;height:44px;border:0;border-radius:50%;background:var(--accent);color:white;font-weight:800;cursor:pointer}.inspector{border-left:1px solid var(--line);padding:24px 18px;background:var(--surface);overflow:auto}.profile{text-align:center}.profile .avatar{width:72px;height:72px;margin:0 auto 10px;font-size:22px}.section{margin-top:24px}.row{padding:11px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:14px}.bottom{display:none}.mobileback{display:none}.notice{margin:12px 18px 0;padding:10px 12px;border-radius:12px;background:var(--accent-soft);font-size:13px}.hidden{display:none!important}
-@media(max-width:1199px){.app{grid-template-columns:76px minmax(260px,330px) minmax(0,1fr)}.inspector{display:none}}
-@media(max-width:839px){.app{grid-template-columns:68px minmax(0,1fr)}.listpane{display:none}.detail{grid-column:2}.nav{grid-column:1}.mobileback{display:inline-grid}}
-@media(max-width:599px){body{background:var(--surface)}.app{display:block;padding-bottom:62px}.nav{display:none}.detail,.listpane{height:calc(100dvh - 62px);border:0}.detail{display:none}.detail.active{display:flex}.listpane{display:flex}.listpane.hidden-mobile{display:none}.bottom{position:fixed;left:0;right:0;bottom:0;height:calc(62px + env(safe-area-inset-bottom));padding:6px 10px env(safe-area-inset-bottom);border-top:1px solid var(--line);background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(16px);display:grid;grid-template-columns:repeat(3,1fr);z-index:5}.bottom button{min-height:48px}.panehead{height:58px}.chathead{height:58px}.messages{padding:18px 12px}.bubble{max-width:82%}.mobileback{display:inline-grid}}
-@media(prefers-reduced-motion:no-preference){.item,.icon,.bottom button,.nav button,.send{transition:background-color 140ms ease,transform 100ms ease}.send:active,.icon:active,.bottom button:active,.nav button:active{transform:scale(.96)}.bubble{animation:appear 160ms ease-out}@keyframes appear{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}}
+:root{color-scheme:light dark;--canvas:#f7f8fa;--surface:#fff;--subtle:#eef0f3;--text:#16181d;--muted:#5d6470;--line:#dde1e6;--accent:#2459d3;--accent-on:#fff;--own:#dde7ff;--danger:#b42318;--radius:14px}
+@media(prefers-color-scheme:dark){:root{--canvas:#111318;--surface:#181b21;--subtle:#242830;--text:#f5f7fa;--muted:#b9c0cc;--line:#303640;--accent:#7ea2ff;--accent-on:#111318;--own:#243b6b;--danger:#ff8a84}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}body{font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--canvas);color:var(--text);overflow:hidden}button,input,textarea{font:inherit;color:inherit}.app{height:100dvh;display:grid;grid-template-columns:minmax(290px,350px) minmax(0,1fr) 300px;background:var(--surface)}
+.listpane{border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0;background:var(--surface)}.top{padding:12px 14px 8px;display:flex;align-items:center;gap:9px}.brand{font-weight:850;font-size:22px;color:var(--accent)}.grow{flex:1}.avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--subtle);font-weight:700;border:0}.new{width:40px;height:40px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-on);font-weight:800;cursor:pointer}.omnibox{margin:0 14px 8px;position:relative}.omnibox input{width:100%;height:44px;border:1px solid var(--line);border-radius:14px;background:var(--subtle);padding:0 13px;outline:none}.omnibox input:focus-visible,button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.suggestions{margin-top:7px;border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden}.suggestion{width:100%;border:0;background:transparent;display:flex;align-items:center;gap:10px;text-align:left;padding:9px 11px;cursor:pointer}.suggestion:hover,.suggestion:focus-visible{background:var(--subtle)}.tag{font-size:11px;color:var(--muted);margin-left:auto}.sectionlabel{padding:8px 16px 4px;color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}.items{overflow:auto;padding:3px 8px 16px}.item{width:100%;border:0;background:transparent;border-radius:12px;padding:10px;display:grid;grid-template-columns:42px 1fr auto;gap:10px;text-align:left;cursor:pointer}.item:hover{background:var(--subtle)}.item.selected{background:color-mix(in srgb,var(--accent) 12%,var(--surface))}.item .avatar{width:42px;height:42px}.name{font-weight:680}.preview,.time,.sub{color:var(--muted);font-size:13px}
+.detail{display:flex;flex-direction:column;min-width:0;background:var(--surface)}.chathead{height:64px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px;gap:10px}.icon{min-width:44px;min-height:44px;border:0;border-radius:12px;background:transparent;cursor:pointer}.icon:hover{background:var(--subtle)}.messages{flex:1;overflow:auto;padding:24px max(18px,6vw);display:flex;flex-direction:column;gap:7px}.bubble{max-width:min(70%,620px);padding:9px 12px;border-radius:15px;background:var(--subtle)}.mine{align-self:flex-end;background:var(--own)}.other{align-self:flex-start}.composewrap{padding:10px 14px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);display:flex;gap:7px;align-items:end}.composer{flex:1;min-height:44px;max-height:130px;border:1px solid var(--line);border-radius:17px;padding:11px 13px;background:var(--subtle);resize:none;outline:none}.send{min-width:44px;height:44px;border:0;border-radius:50%;background:var(--accent);color:var(--accent-on);font-weight:800;cursor:pointer}.inspector{border-left:1px solid var(--line);padding:24px 18px;background:var(--surface);overflow:auto}.profile{text-align:center}.profile .avatar{width:72px;height:72px;margin:0 auto 10px;font-size:22px}.row{padding:11px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:14px}.mobileback{display:none}
+@media(max-width:1199px){.app{grid-template-columns:minmax(290px,350px) minmax(0,1fr)}.inspector{display:none}}
+@media(max-width:699px){.app{display:block}.listpane,.detail{height:100dvh;border:0}.detail{display:none}.detail.active{display:flex}.listpane.hidden-mobile{display:none}.mobileback{display:inline-grid}.messages{padding:18px 12px}.bubble{max-width:84%}.chathead{height:58px}}
+@media(prefers-reduced-motion:no-preference){.item,.icon,.send,.suggestion{transition:background-color 140ms ease,transform 100ms ease}.send:active,.icon:active{transform:scale(.96)}.bubble{animation:appear 160ms ease-out}@keyframes appear{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}}
 </style>
 </head>
 <body>
 <div class="app">
-  <nav class="nav" aria-label="Primary">
-    <div class="brand" aria-label="OM">OM</div>
-    <button data-section="chats" aria-current="true">Chats</button>
-    <button data-section="calls">Calls</button>
-    <button data-section="people">People</button>
-    <div class="spacer"></div>
-    <button title="Settings">Me</button>
-  </nav>
-
   <section class="listpane" id="listpane">
-    <header class="panehead"><h1 id="sectionTitle">Chats</h1></header>
-    <input class="search" id="search" type="search" placeholder="Search" aria-label="Search">
+    <header class="top"><div class="brand" aria-label="OM">OM</div><div class="grow"></div><button class="new" aria-label="New conversation">＋</button><button class="avatar" aria-label="Profile and settings">M</button></header>
+    <div class="omnibox">
+      <input id="omnibox" type="search" placeholder="People, chats, messages, actions…" aria-label="OM Omnibar" autocomplete="off">
+      <div class="suggestions" id="suggestions" role="listbox" aria-label="Omnibar suggestions"></div>
+    </div>
+    <div class="sectionlabel">Conversations</div>
     <div class="items" id="items"></div>
   </section>
 
@@ -36,46 +31,34 @@
     <header class="chathead">
       <button class="icon mobileback" id="back" aria-label="Back">←</button>
       <div class="avatar" id="headAvatar">A</div>
-      <div class="grow"><div class="name" id="headName">Alice</div><div class="sub" id="headSub">Online</div></div>
-      <button class="icon" aria-label="Audio call">Call</button>
-      <button class="icon" aria-label="Video call">Video</button>
+      <div class="grow"><div class="name" id="headName">Alice</div><div class="sub">Online</div></div>
+      <button class="icon" aria-label="Audio call">☎</button>
+      <button class="icon" aria-label="Video call">▣</button>
     </header>
-    <div class="notice" id="notice">Everything is working normally.</div>
     <div class="messages" id="messages" aria-live="polite"></div>
-    <div class="composewrap">
-      <button class="icon" aria-label="Attach">＋</button>
-      <textarea class="composer" id="composer" rows="1" placeholder="Message Alice" aria-label="Message"></textarea>
-      <button class="send" id="send" aria-label="Send">↑</button>
-    </div>
+    <div class="composewrap"><button class="icon" aria-label="Attach">＋</button><textarea class="composer" id="composer" rows="1" placeholder="Message Alice" aria-label="Message"></textarea><button class="send" id="send" aria-label="Send">↑</button></div>
   </main>
 
   <aside class="inspector" aria-label="Conversation details">
     <div class="profile"><div class="avatar">A</div><strong>Alice</strong><div class="sub">OM contact</div></div>
-    <div class="section"><div class="row"><span>Media</span><span>24</span></div><div class="row"><span>Files</span><span>8</span></div><div class="row"><span>Notifications</span><span>On</span></div><div class="row"><span>Protection</span><span>Recommended</span></div></div>
+    <div class="row"><span>Media</span><span>24</span></div><div class="row"><span>Files</span><span>8</span></div><div class="row"><span>Notifications</span><span>On</span></div><div class="row"><span>Protection</span><span>Recommended</span></div>
   </aside>
 </div>
-<nav class="bottom" aria-label="Primary mobile">
-  <button data-section="chats" aria-current="true">Chats</button><button data-section="calls">Calls</button><button data-section="people">People</button>
-</nav>
 <script>
-const people=[
+const conversations=[
 {name:'Alice',preview:'Are you free later?',time:'12:41',initial:'A'},
 {name:'Family',preview:'Maj: Photo',time:'11:08',initial:'F'},
 {name:'Bob',preview:'Sounds good.',time:'Tue',initial:'B'},
 {name:'Carol',preview:'Shared Alice with you',time:'Mon',initial:'C'}];
 const messages={Alice:[['other','The design feels really calm.'],['mine','That is exactly what I want.'],['other','Are you free later?']],Family:[['other','Dinner at 7?'],['mine','Works for me.']],Bob:[['mine','I sent the OM invite.'],['other','Sounds good.']],Carol:[['other','I shared Alice with you.']]};
-let current='Alice', section='chats';
-const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-function renderList(){const box=$('#items');box.innerHTML=''; const data=section==='chats'?people:section==='calls'?[{name:'Alice',preview:'Outgoing call · 8 min',time:'12:10',initial:'A'},{name:'Bob',preview:'Missed call',time:'Yesterday',initial:'B'}]:[{name:'Requests',preview:'2 new',time:'',initial:'?'},{name:'Alice',preview:'OM contact',time:'',initial:'A'},{name:'Bob',preview:'OM contact',time:'',initial:'B'},{name:'Share your OM',preview:'QR or link',time:'',initial:'+'}];
- data.forEach(p=>{const b=document.createElement('button');b.className='item'+(p.name===current&&section==='chats'?' selected':'');b.innerHTML=`<span class="avatar">${p.initial}</span><span><span class="name">${p.name}</span><br><span class="preview">${p.preview}</span></span><span class="time">${p.time}</span>`;b.onclick=()=>{if(section==='chats'){current=p.name;showChat()}};box.append(b)})}
-function renderMessages(){const box=$('#messages');box.innerHTML='';(messages[current]||[['other','This is a static UI prototype.']]).forEach(([who,text])=>{const d=document.createElement('div');d.className='bubble '+who;d.textContent=text;box.append(d)});box.scrollTop=box.scrollHeight}
-function showChat(){section='chats';$('#headName').textContent=current;$('#headAvatar').textContent=current[0];$('#composer').placeholder='Message '+current;renderMessages();renderList();$('#detail').classList.add('active');$('#listpane').classList.add('hidden-mobile')}
-function setSection(s){section=s;$('#sectionTitle').textContent=s[0].toUpperCase()+s.slice(1);$$('[data-section]').forEach(b=>b.setAttribute('aria-current',b.dataset.section===s?'true':'false'));$('#detail').classList.remove('active');$('#listpane').classList.remove('hidden-mobile');renderList(); if(innerWidth>=600 && s==='chats')showChat()}
-$$('[data-section]').forEach(b=>b.onclick=()=>setSection(b.dataset.section));
-$('#back').onclick=()=>{$('#detail').classList.remove('active');$('#listpane').classList.remove('hidden-mobile')};
-$('#send').onclick=()=>{const t=$('#composer').value.trim();if(!t)return;(messages[current]??=[]).push(['mine',t]);$('#composer').value='';renderMessages()};
-$('#composer').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#send').click()}});
-renderList();renderMessages(); if(innerWidth>=600)$('#detail').classList.add('active');
+const baseSuggestions=[['New message','Action'],['Missed calls','Local'],['People & requests','Local'],['Scan QR','Action'],['Appearance','Setting']];
+let current='Alice'; const $=s=>document.querySelector(s);
+function renderList(){const box=$('#items');box.innerHTML='';conversations.forEach(p=>{const b=document.createElement('button');b.className='item'+(p.name===current?' selected':'');b.innerHTML=`<span class="avatar">${p.initial}</span><span><span class="name">${p.name}</span><br><span class="preview">${p.preview}</span></span><span class="time">${p.time}</span>`;b.onclick=()=>{current=p.name;showChat()};box.append(b)})}
+function renderMessages(){const box=$('#messages');box.innerHTML='';(messages[current]||[]).forEach(([who,text])=>{const d=document.createElement('div');d.className='bubble '+who;d.textContent=text;box.append(d)});box.scrollTop=box.scrollHeight}
+function showChat(){ $('#headName').textContent=current;$('#headAvatar').textContent=current[0];$('#composer').placeholder='Message '+current;renderMessages();renderList();$('#detail').classList.add('active');$('#listpane').classList.add('hidden-mobile') }
+function renderSuggestions(){const q=$('#omnibox').value.trim().toLowerCase();const rows=[];conversations.filter(x=>!q||x.name.toLowerCase().includes(q)).slice(0,3).forEach(x=>rows.push([x.name,'Conversation']));baseSuggestions.filter(x=>!q||x[0].toLowerCase().includes(q)).forEach(x=>rows.push(x));const box=$('#suggestions');box.innerHTML='';rows.slice(0,6).forEach(([label,kind])=>{const b=document.createElement('button');b.className='suggestion';b.setAttribute('role','option');b.innerHTML=`<span>${label}</span><span class="tag">${kind}</span>`; if(kind==='Conversation')b.onclick=()=>{current=label;showChat()}; box.append(b)})}
+$('#omnibox').addEventListener('input',renderSuggestions);$('#back').onclick=()=>{$('#detail').classList.remove('active');$('#listpane').classList.remove('hidden-mobile')};$('#send').onclick=()=>{const t=$('#composer').value.trim();if(!t)return;(messages[current]??=[]).push(['mine',t]);$('#composer').value='';renderMessages()};$('#composer').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#send').click()}});document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#omnibox').focus()}});
+renderList();renderMessages();renderSuggestions();if(innerWidth>=700)$('#detail').classList.add('active');
 </script>
 </body>
 </html>

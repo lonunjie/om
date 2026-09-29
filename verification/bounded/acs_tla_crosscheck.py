@@ -160,7 +160,7 @@ def child_for(parent: dict, child_q: set[str], extra: str) -> dict:
         c["revoked"] = sorted(set(c["revoked"]) | {victim}); c["key_epochs"].pop(victim, None)
     elif extra == "recovery_policy": c["recovery_policy"] = "p1"
     elif extra == "constitutional_policy": c["constitutional_policy"] += 1
-    elif extra == "raise_min_profile": c["min_security_generation"] += 1
+    elif extra == "raise_min_profile": c["min_one_to_one_security_generation"] += 1
     return c
 
 

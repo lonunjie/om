@@ -13,6 +13,65 @@
     "tokens",
     "palettes"
   ],
+  "$defs": {
+    "color": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$"
+    },
+    "palette": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canvas",
+        "surface",
+        "surface_subtle",
+        "text_primary",
+        "text_secondary",
+        "accent",
+        "accent_on",
+        "selection",
+        "focus",
+        "link",
+        "message_own_surface",
+        "message_own_text",
+        "message_other_surface",
+        "message_other_text",
+        "info",
+        "success",
+        "warning",
+        "danger"
+      ],
+      "properties": {
+        "canvas": {"$ref": "#/$defs/color"},
+        "surface": {"$ref": "#/$defs/color"},
+        "surface_subtle": {"$ref": "#/$defs/color"},
+        "surface_elevated": {"$ref": "#/$defs/color"},
+        "text_primary": {"$ref": "#/$defs/color"},
+        "text_secondary": {"$ref": "#/$defs/color"},
+        "text_disabled": {"$ref": "#/$defs/color"},
+        "border_subtle": {"$ref": "#/$defs/color"},
+        "divider": {"$ref": "#/$defs/color"},
+        "accent": {"$ref": "#/$defs/color"},
+        "accent_on": {"$ref": "#/$defs/color"},
+        "selection": {"$ref": "#/$defs/color"},
+        "focus": {"$ref": "#/$defs/color"},
+        "link": {"$ref": "#/$defs/color"},
+        "pressed": {"$ref": "#/$defs/color"},
+        "hover": {"$ref": "#/$defs/color"},
+        "message_own_surface": {"$ref": "#/$defs/color"},
+        "message_own_text": {"$ref": "#/$defs/color"},
+        "message_other_surface": {"$ref": "#/$defs/color"},
+        "message_other_text": {"$ref": "#/$defs/color"},
+        "reply_context": {"$ref": "#/$defs/color"},
+        "mention": {"$ref": "#/$defs/color"},
+        "unread_marker": {"$ref": "#/$defs/color"},
+        "info": {"$ref": "#/$defs/color"},
+        "success": {"$ref": "#/$defs/color"},
+        "warning": {"$ref": "#/$defs/color"},
+        "danger": {"$ref": "#/$defs/color"}
+      }
+    }
+  },
   "properties": {
     "schema": {
       "const": "om.theme.v1"
@@ -38,7 +97,11 @@
     },
     "tokens": {
       "type": "object",
-      "description": "Declarative semantic design tokens. Implementations validate values against safe ranges and reserved semantic constraints."
+      "maxProperties": 128,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
+      },
+      "description": "Declarative non-color design tokens only. Density and reduced-motion/user motion preference are not theme-owned. Implementations validate values against safe ranges and reserved semantic constraints."
     },
     "assets": {
       "type": "array",
@@ -49,16 +112,24 @@
         "required": [
           "path",
           "sha256",
+          "bytes",
           "kind"
         ],
         "properties": {
           "path": {
             "type": "string",
-            "pattern": "^[A-Za-z0-9._/-]+$"
+            "maxLength": 240,
+            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+            "description": "Relative ASCII path with no absolute prefix, dot/dot-dot segment or backslash alias. Import additionally rejects duplicate normalized paths."
           },
           "sha256": {
             "type": "string",
             "pattern": "^[0-9a-f]{64}$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 33554432
           },
           "kind": {
             "enum": [
@@ -66,7 +137,8 @@
               "wallpaper",
               "sound",
               "icon"
-            ]
+            ],
+            "description": "icon assets are decorative only and cannot bind/replace semantic action or security icon IDs"
           },
           "media_type": {
             "type": "string",
@@ -91,13 +163,13 @@
       ],
       "properties": {
         "light": {
-          "type": "object"
+          "$ref": "#/$defs/palette"
         },
         "dark": {
-          "type": "object"
+          "$ref": "#/$defs/palette"
         }
       },
-      "description": "Both modes are mandatory for accepted theme bundles; Auto selects between them."
+      "description": "Both authored modes are mandatory. Auto selects between them. The importer validates contrast and reserved semantic constraints in each mode."
     }
   }
 }

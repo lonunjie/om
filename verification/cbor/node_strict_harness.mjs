@@ -207,7 +207,7 @@ function checkType(x, ty, parent, pfields) {
       if (len < 1 || len > 128) fail('value_range');
       checkStruct(e, 'ExtEntry', null);
       const crit = get(e, 0);
-      if (crit.v === true && !KNOWN_EXT.has(k.v)) fail('unknown_critical_extension');
+      if (!KNOWN_EXT.has(k.v) && (crit.v === true || k.v.startsWith('!'))) fail('unknown_critical_extension');
       const reg = EXT_SCHEMA.get(k.v);
       if (reg) {
         if (crit.v !== reg.critical) fail('value_range');

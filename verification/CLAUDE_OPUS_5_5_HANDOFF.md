@@ -1,20 +1,23 @@
 # Claude Opus 5.5 — current OM handoff
 
-**Current status:** **ACTIVE after Run 9B / ADR-0153.** Run 9B completes the two repo-local criteria opened by ADR-0152: V-015 is now 16/16 repo-local with replaceable Android wake/privacy evidence, and V-021 is 10/10 repo-local with desktop semantic-parity/ProfileExecutionContext and PersonRecord export-safety evidence. ADR-0153 removes the unsupported claim that an unconfirmable third-party push registration has a universal finite retirement bound; stale wake state remains metadata-only and never fetch/message/account authority. Required independent-review/pre-release obligations remain open. Engineering remains unauthorized.
+**Current status:** **ACTIVE after Run 7 protocol-evolution hardening; latest architecture ADR is ADR-0162.** Architecture remains pre-engineering with `design_open=0`, `engineering_authorized=false` and 0/12 scopes authorized. Runs 5–7 added implementation-readiness, dangerous-algorithm and protocol-evolution guardrails without changing frozen W0 wire shape. They make crash/restart, lost-response retry identity, group Commit local journaling, dangerous-transition ordering, compatibility evolution and scope dependency/handoff contracts explicit. V-004 must verify the ADR-0160 group crash/retry model in addition to its existing formal/runtime/wire/independent obligations; no gate is self-closed by this checkpoint.
 
-The bounded different-vendor `independent_reviewer` handoff under ADR-0117 is:
+The bounded different-vendor `independent_reviewer` handoff under ADR-0117 remains:
 
 [`reviews/BRIEF-2026-09-27-final-core-kernel-independent-review.md`](reviews/BRIEF-2026-09-27-final-core-kernel-independent-review.md)
 
-Run 9A is **not** review-ready. After Run 9B reactivates the handoff, read the brief plus the machine ledger before reviewing. The review procedure will remain:
+Use the machine ledgers as truth. In particular:
 
-- use `make verify-drop` for a raw exported ZIP;
-- use `make verify` only after importing into a Git worktree with the full required toolchain;
-- review V-002, V-003, V-015, V-016 and V-017 as one consolidated batch;
-- include ADR-0150/0151 evidence in [`lan-route-adr0150-latest.json`](results/lan-route-adr0150-latest.json), [`lan-privacy-adr0150-latest.json`](results/lan-privacy-adr0150-latest.json), [`rich-list-adr0150-latest.json`](results/rich-list-adr0150-latest.json) and [`platform-reference-adr0150-latest.json`](results/platform-reference-adr0150-latest.json);
-- include the ADR-0147 evidence in [`recovery-durable-timer-adr0147-latest.json`](results/recovery-durable-timer-adr0147-latest.json) and [`sealed-delivery-adr0147-lifecycle-restore-latest.json`](results/sealed-delivery-adr0147-lifecycle-restore-latest.json), plus ADR-0148/0149 account-private-sync evidence in [`account-private-sync-adr0148-latest.json`](results/account-private-sync-adr0148-latest.json) and [`account-private-sync-adr0149-hardening-latest.json`](results/account-private-sync-adr0149-hardening-latest.json);
+- use `make verify-drop` for a raw exported ZIP; use `make verify` only after importing into a Git worktree with the full required toolchain;
+- V-021 now has 11/11 repo-local criteria evidenced, including [`ui-integration-adr0159-latest.json`](results/ui-integration-adr0159-latest.json), but required independent/pre-release obligations remain open;
 - do not redo already-complete repo-local work merely because an independent-review field is still open;
+- retain the earlier ADR-0157 V-005 strict two-codec obligation until the Rust-side decoder is actually run;
+- retain V-024 until the LAN CDDL/vectors/models/runtime and independent real-LAN interoperability work is actually completed;
 - do not broadly redesign OM without a concrete contradiction/counterexample;
-- do not set `engineering_authorized=true`; if all review prerequisites pass, report only that `core_kernel` is eligible for an explicit scoped unlock ADR.
+- do not set `engineering_authorized=true`; if all review prerequisites pass, report only eligibility for the explicitly scoped unlock process.
 
 The machine truth remains [`machine/architecture_verification_gates.jsonl`](../machine/architecture_verification_gates.jsonl); this file is only a stable operational entry point retained because the repository contract names it.
+
+## 2026-09-29 Run 7 — protocol-evolution and agent guardrails
+
+Before changing normative protocol/profile/extension material, read [`PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md`](../docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md) and [`machine/protocol_evolution_policy.json`](../machine/protocol_evolution_policy.json). Published meanings are immutable; negotiation is `security_generation`-first; extension criticality is immutable; and incompatible changes require new immutable lineage/profile/extension or an explicit fork. ADR-0162 change classes determine the required ledgers and continuity artifacts. Engineering remains unauthorized.

@@ -1,15 +1,8 @@
 {
-  "snapshot": "2026-09-28T21:22:00+08:00",
+  "snapshot": "2026-09-29 Run 5 ADR-0160 implementation-readiness hardening",
   "scope": "current_non_history",
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
-    {
-      "path": ".github/workflows/verify.yml",
-      "class": "repo_plumbing",
-      "domain": "architecture_process",
-      "license": "Apache-2.0",
-      "authority": "executable_guardrail"
-    },
     {
       "path": ".gitignore",
       "class": "repo_plumbing",
@@ -1215,6 +1208,48 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0157-cross-version-critical-extensions-interoperable-group-history-and-lan-delivery-binding.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0158-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0159-conversation-first-omnibar-and-theme-visual-system-hardening.md",
+      "class": "decision_record",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "accepted_architecture_decision"
+    },
+    {
+      "path": "decisions/ADR-0160-implementation-readiness-crash-retry-and-scope-contracts.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0161-dangerous-algorithms-and-failure-paths.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0162-protocol-evolution-compatibility-and-engineering-guardrails.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -1223,6 +1258,13 @@
     },
     {
       "path": "docs/README.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/IMPLEMENTATION_ALGORITHMS_AND_FAILURE_PATHS.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -1691,6 +1733,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "docs/architecture/ux/NAVIGATION_AND_OMNIBAR.md",
+      "class": "architecture_doc",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_architecture"
+    },
+    {
       "path": "docs/architecture/ux/SECURITY_PRIVACY_PROFILES.md",
       "class": "architecture_doc",
       "domain": "ux_accessibility_personalization",
@@ -1717,6 +1766,13 @@
       "domain": "ux_accessibility_personalization",
       "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/ux/VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md",
+      "class": "architecture_doc",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_architecture"
     },
     {
       "path": "docs/checkpoints/CHECKPOINT_20260921_2132.md",
@@ -2006,6 +2062,48 @@
       "authority": "historical_checkpoint_record"
     },
     {
+      "path": "docs/checkpoints/CHECKPOINT_20260929_0607.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260929_0720.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260929_0820.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260929_0845.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260929_0900.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
+      "path": "docs/checkpoints/CHECKPOINT_20260929_0901.md",
+      "class": "checkpoint",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "historical_checkpoint_record"
+    },
+    {
       "path": "docs/checkpoints/README.md",
       "class": "checkpoint",
       "domain": "architecture_process",
@@ -2160,6 +2258,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "docs/process/IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "docs/process/IMPLEMENTATION_ROADMAP.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
@@ -2182,6 +2287,13 @@
     },
     {
       "path": "docs/process/PERFORMANCE_MEASUREMENT_PLAN.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -2300,6 +2412,13 @@
       "authority": "evidence_non_normative"
     },
     {
+      "path": "docs/research/CURRENT_UI_REFERENCES_20260929.md",
+      "class": "research_note",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "supporting_research"
+    },
+    {
       "path": "docs/research/DISCOVERY_RESILIENCE_REFERENCES_20260921.md",
       "class": "research",
       "domain": "research",
@@ -2405,6 +2524,13 @@
       "authority": "design_reference"
     },
     {
+      "path": "docs/ux-design/curated-theme-presets.example.json",
+      "class": "ux_design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "Apache-2.0",
+      "authority": "non_normative_design_example"
+    },
+    {
       "path": "docs/ux-design/metadata-exposure.logical.schema.json",
       "class": "design_artifact",
       "domain": "metadata_privacy",
@@ -2475,6 +2601,13 @@
       "authority": "machine_truth"
     },
     {
+      "path": "machine/dangerous_algorithm_contracts.json",
+      "class": "machine_truth",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "machine_truth"
+    },
+    {
       "path": "machine/decisions.jsonl",
       "class": "machine_contract",
       "domain": "architecture_process",
@@ -2489,8 +2622,22 @@
       "authority": "machine_normative"
     },
     {
+      "path": "machine/engineering_scope_contracts.json",
+      "class": "machine_truth",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "machine_truth"
+    },
+    {
       "path": "machine/file_registry.json",
       "class": "machine_contract",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "machine_truth"
+    },
+    {
+      "path": "machine/protocol_evolution_policy.json",
+      "class": "machine_truth",
       "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "machine_truth"
@@ -2784,6 +2931,13 @@
     },
     {
       "path": "spec/protocol/group-control-transition.logical.schema.json",
+      "class": "protocol_schema",
+      "domain": "groups",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/protocol/history-bundle.logical.schema.json",
       "class": "protocol_schema",
       "domain": "groups",
       "license": "Apache-2.0",
@@ -3168,6 +3322,13 @@
       "authority": "executable_guardrail"
     },
     {
+      "path": "tools/validate_protocol_evolution.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
       "path": "tools/verify_preflight.py",
       "class": "architecture_tool",
       "domain": "architecture_process",
@@ -3308,6 +3469,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/dangerous_algorithms_adr0161.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/design_closure_set1_rules.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -3420,6 +3588,20 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/bounded/protocol_evolution_adr0162.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/protocol_semantics_adr0158.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/bounded/provider_negative_capabilities.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -3491,6 +3673,13 @@
     },
     {
       "path": "verification/bounded/sealed_delivery_adr0147_lifecycle_restore.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/ui_integration_adr0159.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -4519,6 +4708,13 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/dangerous-algorithms-adr0161-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/design-closure-set1-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
@@ -4638,6 +4834,20 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/protocol-evolution-adr0162-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/protocol-semantics-adr0158-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/provider-negative-capabilities-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
@@ -4722,7 +4932,21 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/ui-integration-adr0159-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/v001-crypto-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/v003-floor-adr0158-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

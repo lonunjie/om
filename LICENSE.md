@@ -7,7 +7,7 @@ OM uses multiple standard licenses because protocol specifications, shared clien
 Unless a file contains a more specific SPDX/license notice:
 
 - prose documentation, architecture, ADRs, research notes, design documentation and diagrams: **CC-BY-SA-4.0**;
-- `spec/protocol/**`, `machine/**`, logical JSON schemas, conformance/test-vector artifacts and architecture validation tooling: **Apache-2.0**;
+- `spec/protocol/**`, `machine/**`, logical JSON schemas, structured JSON design/reference artifacts under `docs/ux-design/`, conformance/test-vector artifacts and architecture validation tooling: **Apache-2.0**;
 - `docs/ux-design/prototype/index.html`: **Apache-2.0** as executable/reference prototype code;
 - generated `MANIFEST.json`: **Apache-2.0**;
 - standardized license texts in `LICENSES/` are provided under their own terms.

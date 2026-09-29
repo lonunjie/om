@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-28T23:00:00+08:00",
+  "snapshot": "2026-09-29 Run 7 ADR-0162 protocol evolution and engineering guardrails",
   "phase": "architecture_hardening_pre_engineering",
   "engineering_authorized": false,
   "engineering_unlock_requires": [
@@ -34,7 +34,9 @@
     "machine/requirement_traceability.json",
     "machine/threat_register.jsonl",
     "machine/conformance_suites.json",
-    "machine/security_invariant_traceability.json"
+    "machine/security_invariant_traceability.json",
+    "machine/engineering_scope_contracts.json",
+    "machine/protocol_evolution_policy.json"
   ],
   "canonical_identity": {
     "account_id": "cryptographically random 256-bit stable identifier independent of keys/providers/aliases",
@@ -75,7 +77,11 @@
     "docs/architecture/identity/ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md",
     "verification/GATE_PASS_CRITERIA.md",
     "decisions/ADR-0134-verification-execution-lifecycle-and-no-bounce-handoff.md",
-    "verification/CLAUDE_OPUS_5_5_HANDOFF.md"
+    "verification/CLAUDE_OPUS_5_5_HANDOFF.md",
+    "docs/process/IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md",
+    "decisions/ADR-0160-implementation-readiness-crash-retry-and-scope-contracts.md",
+    "docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md",
+    "decisions/ADR-0162-protocol-evolution-compatibility-and-engineering-guardrails.md"
   ],
   "current_file_registry": "machine/file_registry.json",
   "architecture_map": "machine/architecture_map.json",
@@ -241,7 +247,7 @@
       "depends_on": [
         "core_kernel"
       ],
-      "description": "offline-local LAN message/file delivery binding (ADR-0150 invariants in core_kernel; concrete LanDeliveryProfile under A-055, ADR-0156)"
+      "description": "offline-local LAN message/file delivery binding (ADR-0150 invariants in core_kernel; concrete LanDeliveryProfile-v1 resolved by ADR-0157; verification remains V-003/V-015/V-024)"
     }
   },
   "public_release_vocabulary": {

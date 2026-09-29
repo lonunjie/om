@@ -7,9 +7,11 @@ These are shared `om-ui` primitives/components, not native-platform duplicates.
 - AppShell
 - IdentityProfileSwitcher
 - ResponsivePane / SplitView
-- NavigationBar / NavigationRail
-- Button / IconButton
+- Omnibar / OmnibarResults
+- OptionalPinnedUtilityRail
+- Button
 - TextField / SearchField
+- SemanticIcon / IconButton
 - List / ListItem
 - Avatar
 - Badge (actionable/status only)
@@ -83,3 +85,6 @@ These are shared `om-ui` primitives/components, not native-platform duplicates.
 5. Core-domain identifiers do not become DOM IDs or telemetry labels unnecessarily.
 6. Components do not directly perform provider/crypto/account-control operations.
 7. Every component has light/dark/high-contrast and reduced-motion test states where relevant.
+8. Semantic icons come from the reviewed built-in icon registry; untrusted themes cannot replace action/security glyphs.
+9. Omnibar learned state is IdentityProfile-local; asynchronous result arrival cannot retarget the currently armed keyboard selection.
+10. Color is always paired with text/icon/shape/position semantics for actionable or security-relevant state.

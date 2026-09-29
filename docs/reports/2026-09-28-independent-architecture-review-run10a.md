@@ -1,5 +1,7 @@
 # Independent architecture review of drop `run10A-v1-boundary-closed`
 
+> **2026-09-29 follow-up:** ADR-0157 supersedes the F-07 treatment of Room `HistoryBundle`, closes A-055 with a concrete `LanDeliveryProfile-v1`, and adds a registry-independent future-critical-extension rule discovered in the follow-up semantic audit. This report remains the historical 2026-09-28 review record; use [`SNAPSHOT.md`](../../SNAPSHOT.md) and ADR-0157 for current state.
+
 - **Date:** 2026-09-28 23:00 PHT
 - **Reviewer:** Claude Opus 5.5 (Anthropic), acting as the external architecture reviewer
 - **Input:** `om-design-20260928-2200-PHT-run10A-v1-boundary-closed.zip`, SHA-256 `904cb78bbf44e8c0493aac873605c1ed1c745040009ad4dd195bd815f321893c`, imported as `checkpoint/20260928-2200` (base `0351ca2`)

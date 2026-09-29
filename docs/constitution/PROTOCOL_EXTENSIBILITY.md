@@ -32,7 +32,9 @@ Maintain versioned public registries for:
 Reserve experimental/private ranges. Registry governance must be public and cannot make one implementation mandatory.
 
 Registered key-23 extension ids (critical and non-critical object extensions) live in the `extensions` list of
-[`spec/registries/om-numeric-fields.json`](../../spec/registries/om-numeric-fields.json) and are mirrored by [`om-cbor-profile.json`](../../spec/registries/om-cbor-profile.json) for decoder-visible consistency. A registered ID binds its owning top-level object, exact criticality and payload schema; it is never open to vendor-defined reinterpretation. A wire criticality different from the registry's is malformed and rejects the containing object. For a **critical** registration, a wrong owning object or invalid payload also rejects the object. For a **non-critical** registration, a wrong owning object or invalid payload makes the extension unusable: it is ignored and its bytes are preserved, so the validity of the containing object never depends on which registry version a client ships (ADR-0155). Current registered entries include `om.acs.fork_ack`, `om.acs.legacy_policy`, `om.voice-note.v1`, `om.location-card.v1` and `om.rich-list.v1` (ADR-0126, ADR-0141, ADR-0149, ADR-0150, ADR-0151).
+[`spec/registries/om-numeric-fields.json`](../../spec/registries/om-numeric-fields.json) and are mirrored by [`om-cbor-profile.json`](../../spec/registries/om-cbor-profile.json) for decoder-visible consistency. A registered ID binds its owning top-level object, exact criticality and payload schema; it is never open to vendor-defined reinterpretation. A wire criticality different from the registry's is malformed and rejects the containing object. For a **critical** registration, a wrong owning object or invalid payload also rejects the object. For a **non-critical** registration, a wrong owning object or invalid payload makes the extension unusable: it is ignored and its bytes are preserved, so the validity of the containing object never depends on which registry version a client ships (ADR-0155).
+
+**Future critical-name rule (ADR-0157).** Every new critical extension registered after the W0 registry freeze uses an ID beginning with `!`. An OM-CBOR-v1 decoder rejects an unknown `!` ID even when its wire `critical` bit is false, so a hostile sender cannot create old-client/new-client validity disagreement merely by clearing that bit. IDs beginning with `!` can never be registered non-critical. `om.acs.fork_ack` and `om.acs.legacy_policy` are the only grandfathered critical IDs outside that class because both are already present in the W0 registry snapshot. Current registered entries include those two plus `om.voice-note.v1`, `om.location-card.v1` and `om.rich-list.v1` (ADR-0126, ADR-0141, ADR-0149, ADR-0150, ADR-0151, ADR-0157).
 
 ## 5. Canonical encoding
 
@@ -61,3 +63,14 @@ The 07:18 extension pass adds an anti-fragmentation rule: **shared canonical mea
 Already-assigned registry identifiers are immutable and never reused for incompatible meaning. Published protocol generations/profile bundles snapshot the registry material needed to interpret them so runtime validity never depends on consulting a live OM Project registry server.
 
 If stewardship diverges, successor registries/profiles use an explicit new lineage/identifier namespace. A vendor-private extension may remain private, but market adoption does not grant it canonical status. Graduation into a future baseline requires public independently implementable semantics, canonical encoding/criticality, conformance behavior and acceptable implementation rights.
+
+## 7. Version evolution is not silent reinterpretation (ADR-0162)
+
+A published `(extension_id, version)` registration is immutable. Criticality is immutable for an extension ID, and IDs
+beginning with `!` are permanently critical. A new version under an existing non-critical ID is permitted only when old
+clients can ignore it safely and the containing object remains valid under its base fallback. Changes to authority,
+authentication, confidentiality, membership, downgrade behavior, owning object or fallback validity require a new extension
+ID and/or CryptoProfile. Extension version numbers never act as security-generation or preference values.
+
+The frozen W0 CDDL and registries cannot be expanded by editing a logical JSON schema. Future wire additions use the
+reserved extension/profile mechanisms or a new protocol lineage as specified by ADR-0162.

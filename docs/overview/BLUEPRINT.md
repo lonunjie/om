@@ -214,13 +214,13 @@ The architectural survival test is: **if the original OM author/project/business
 
 ## Shared UI/UX architecture — 2026-09-22 13:42
 
-OM's reference product is one adaptive UI, not independent platform designs. `om-ui` sits above the portable Core and below thin platform shells. The primary destinations are Chats, Calls and People; Settings is profile-scoped. Layout adapts to actual window size from one pane to list/detail/inspector arrangements.
+OM's reference product is one adaptive UI, not independent platform designs. `om-ui` sits above the portable Core and below thin platform shells. **ADR-0159 supersedes the earlier three-destination default:** the reference shell is conversation-first, with an Omnibar for people/search/settings/actions and optional user-pinned secondary surfaces such as Calls or People. Settings remains profile-scoped. Layout adapts to actual window size from one pane to list/detail/inspector arrangements.
 
 The default experience is calm, ergonomic, fast and content-first. Telegram-class perceived fluidity is pursued through immediate local response, stable layout, semantic/interruptible motion and local-first rendering rather than ornamental animation.
 
-OwnMessenger personalization is first-class: users can install declarative themes, fonts, wallpapers, sounds and density preferences. Theme content is sandboxed data-only presentation and cannot execute code, fetch arbitrary remote tracking assets, override security semantics or suppress accessibility constraints.
+OwnMessenger personalization is first-class: users can install declarative themes, fonts, wallpapers and validated sounds, while density and motion intensity remain explicit user ergonomic/accessibility preferences. Theme content is sandboxed data-only presentation and cannot execute code, fetch arbitrary remote tracking assets, replace semantic security/action icons, override security semantics or suppress accessibility constraints.
 
-See [`UI_UX_SYSTEM.md`](../architecture/ux/UI_UX_SYSTEM.md), [`MOTION_AND_PERFORMANCE.md`](../architecture/ux/MOTION_AND_PERFORMANCE.md), [`THEMES_FONTS_AND_PERSONALIZATION.md`](../architecture/ux/THEMES_FONTS_AND_PERSONALIZATION.md), [`ACCESSIBILITY_AND_INPUT.md`](../architecture/ux/ACCESSIBILITY_AND_INPUT.md), and [`UI_CORE_PLATFORM_CONTRACT.md`](../architecture/ux/UI_CORE_PLATFORM_CONTRACT.md).
+See [`UI_UX_SYSTEM.md`](../architecture/ux/UI_UX_SYSTEM.md), [`MOTION_AND_PERFORMANCE.md`](../architecture/ux/MOTION_AND_PERFORMANCE.md), [`THEMES_FONTS_AND_PERSONALIZATION.md`](../architecture/ux/THEMES_FONTS_AND_PERSONALIZATION.md), [`ACCESSIBILITY_AND_INPUT.md`](../architecture/ux/ACCESSIBILITY_AND_INPUT.md), and [`UI_CORE_PLATFORM_CONTRACT.md`](../architecture/ux/UI_CORE_PLATFORM_CONTRACT.md), [`NAVIGATION_AND_OMNIBAR.md`](../architecture/ux/NAVIGATION_AND_OMNIBAR.md), and [`VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md`](../architecture/ux/VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md).
 
 ## 2026-09-22 23:02 architecture hardening
 

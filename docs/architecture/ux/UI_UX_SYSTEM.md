@@ -59,13 +59,11 @@ PWA / iOS / Android / Desktop
 
 ## Primary information architecture
 
-Only three persistent primary destinations:
+The default reference shell is **conversation-first**, not tab-first. The persistent workspace is the user's conversation list/current conversation plus the Omnibar, new-conversation action and profile entry. Calls and People remain first-class capabilities but are reached contextually (conversation/person actions), through the Omnibar/search, and through optional user-pinned shortcuts rather than mandatory permanent tabs.
 
-1. **Chats** — 1:1 conversations, groups, message requests.
-2. **Calls** — recent/missed calls and call initiation.
-3. **People** — accepted contacts, requests, share/discovery actions.
+This replaces the earlier Chats / Calls / People three-destination default. See [`NAVIGATION_AND_OMNIBAR.md`](NAVIGATION_AND_OMNIBAR.md) (ADR-0159).
 
-Settings opens from the user avatar/profile. Groups are conversations, not a separate social/community product. Files/media remain conversation-scoped.
+Settings opens from the user avatar/profile. Groups are conversations, not a separate social/community product. Files/media remain conversation-scoped. Call events/history remain reachable from conversations and the Omnibar.
 
 ## Adaptive window model
 
@@ -75,10 +73,10 @@ Initial implementation classes:
 
 | Class | Width | Default structure |
 |---|---:|---|
-| Compact | `<600 CSS px` | single pane + bottom navigation |
-| Medium | `600–839` | navigation rail/compact shell, usually one main pane |
-| Expanded | `840–1199` | navigation rail + list/detail |
-| Wide | `≥1200` | navigation rail + list + detail + optional inspector |
+| Compact | `<600 CSS px` | single pane conversation workspace + Omnibar/new-message entry |
+| Medium | `600–839` | conversation list/detail as space permits; compact utility chrome |
+| Expanded | `840–1199` | conversation list + detail; optional user-pinned utility rail |
+| Wide | `≥1200` | conversation list + detail + optional inspector/pinned utility rail |
 
 These are prototyping values, not protocol constants. Validate with actual content, localization, text scaling and foldable/split-screen use.
 
@@ -88,22 +86,23 @@ Selected conversation, draft, scroll position and modal context survive resize/r
 
 ### Compact
 
-- bottom bar: Chats / Calls / People;
-- app bar contains conversation/person title and the few highest-value actions;
+- no required three-tab bottom bar;
+- the conversation workspace is primary, with a visible Omnibar/search entry and new-conversation action;
+- app bar contains conversation/person title and the few highest-value contextual actions, including call actions where applicable;
 - system back gesture/button navigates naturally;
-- details/settings open as full-page or sheet based on context.
+- Calls, People, Requests and other secondary surfaces remain reachable from the Omnibar/new-conversation flow and may be explicitly pinned by the user.
 
 ### Expanded / Wide
 
-- navigation rail at left;
-- list/detail layout for Chats, Calls and People;
+- conversation list/detail is the default shell;
 - optional inspector/details pane in Wide;
-- keyboard shortcuts and command palette become first-class.
+- an optional utility rail contains only user-pinned or contextually necessary secondary surfaces rather than a mandatory destination taxonomy;
+- keyboard shortcuts and the Omnibar become first-class.
 
 Recommended shortcuts:
 
-- `Cmd/Ctrl+K`: universal search / command palette;
-- `Cmd/Ctrl+N`: new chat;
+- `Cmd/Ctrl+K`: focus the universal Omnibar;
+- `Cmd/Ctrl+N`: new conversation;
 - `Esc`: close/back;
 - standard platform conventions for copy/paste/search/navigation.
 
@@ -303,17 +302,18 @@ When WAN is unavailable:
 
 Known LAN peers may show a quiet local availability indicator such as **Nearby**. LAN discovery never exposes stable AccountID/usernames to unrelated devices.
 
-## Search and command palette
+## Omnibar: search + navigation + commands
 
-Search is a first-class global surface, not a feature hidden inside each section. It may search:
+The **Omnibar** is the first-class global cross-app surface, combining recognition-oriented navigation, local search and typed commands without becoming an expert-only command line. It may search/match:
 
-- chats and people;
+- conversations and accepted people;
 - messages/files locally;
 - settings/help;
 - commands/actions;
+- explicit invite/FQDN/organization discovery inputs;
 - later, organization discovery.
 
-Search results must preserve privacy policy and never silently upload local indexes.
+It may adapt ranking from local successful selections using per-IdentityProfile recency/frequency/pins, but never mixes ranking with identity confidence or cryptographic verification. By default it need not retain raw query history. Network discovery is visually separated from local results and is not contacted merely because the user focuses or types in the Omnibar. See [`NAVIGATION_AND_OMNIBAR.md`](NAVIGATION_AND_OMNIBAR.md).
 
 ## Reversible actions
 

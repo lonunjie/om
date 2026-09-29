@@ -20,6 +20,7 @@ The invariant identifier is stable. Detailed wording may be clarified only by an
 | `A6` | A safety-freeze resolution restores a non-empty subset of quarantined controllers; every restored controller must contribute its own freeze-challenge signature, and the child is valid only if it again has at least the parent majority active and non-quarantined. It need not restore a suspected compromised controller. | ADR-0137 | V-002 |
 | `A7` | Fork resolution and quarantine-freeze resolution are distinct transition classes. Neither can be interpreted as the other. | [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../identity/ACCOUNT_CONTINUITY_AND_CONTROL.md) §§5,8 | V-002 |
 | `A8` | Legacy guardians are a separate terminally narrow authority: a legacy retirement matures only after verifier-local inactivity + contest intervals, provider/guardian time cannot shorten them, eligible controllers may veto, and legacy credentials never become ordinary ACS/recovery authority. | ADR-0138; [`ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md`](../identity/ACCOUNT_LIFECYCLE_RETIREMENT_AND_LEGACY.md) | V-002 |
+| `A9` | `permanently_revoked_devices` is a monotone DeviceID tombstone set. A revoked DeviceID can never re-enter messaging/control eligibility; returning hardware or restore enrolls with a fresh DeviceID/credential. | ADR-0131/0158; [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../identity/ACCOUNT_CONTINUITY_AND_CONTROL.md) | V-002 |
 
 ## 1:1 authentication and session establishment
 
@@ -50,6 +51,7 @@ The invariant identifier is stable. Detailed wording may be clarified only by an
 | Invariant | Normative property | Primary source | Evidence surface |
 |---|---|---|---|
 | `G1` | OM v1 MLS Rooms are transferably authenticated and make no cryptographic-deniability claim. A future deniable-group mode must be a separate reviewed research profile and cannot weaken ordinary MLS semantics. | ADR-0138; [`GROUP_CHAT_ARCHITECTURE.md`](../groups/GROUP_CHAT_ARCHITECTURE.md) | V-004/V-016 |
+| `G2` | HistoryBundle is recipient/Room/membership-bound inert archive material. Claimed historical EventIDs/authors never enter the live event namespace or execute any Room/control reducer. | ADR-0158; [`GROUP_CHAT_ARCHITECTURE.md`](../groups/GROUP_CHAT_ARCHITECTURE.md) | V-004 / conformance:group_history |
 
 ## Referral-token privacy
 
@@ -77,7 +79,9 @@ The invariant identifier is stable. Detailed wording may be clarified only by an
 | ID | Invariant | Normative source | Verification/evidence owner |
 |---|---|---|---|
 | `D1` | SecurityAdvisory expiry, supersession or override may remove only an advisory-added floor; it never lowers the relationship's stored security floor or revives a forbidden profile. | ADR-0139; [`VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md`](../providers/VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md) | V-017 / PR-012 / `conformance:security_floor` |
+| `D2` | ACS `minimum_crypto_profile` is an account-wide **1:1-only** floor. It must define `security_generation.one_to_one`; ACS ordering ignores `group`, while Room/group floors independently compare `security_generation.group`. | ADR-0126/0158; [`CRYPTOGRAPHY_AND_AGILITY.md`](../crypto/CRYPTOGRAPHY_AND_AGILITY.md) | V-003 / `conformance:security_floor` |
 | `E1` | For frozen W0 wire objects, canonical CDDL + frozen registries/domain-separation rules define accepted signed/hashed bytes. Logical schemas cannot add fields or semantics; assigned W0 labels and the registry default 300-second skew are frozen. | ADR-0139; [`CANONICAL_ENCODING.md`](../crypto/CANONICAL_ENCODING.md) | V-005 / validator |
+| `E2` | Published protocol/profile/extension meanings are immutable; negotiation never orders security by numeric version/ID, and incompatible semantics require a new immutable lineage/profile/extension rather than rewriting old meaning. | ADR-0162; [`PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md`](../../process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md) | validator / V-017 |
 
 ## Interpretation rule
 
