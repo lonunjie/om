@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-29 Run 7 ADR-0162 protocol evolution and engineering guardrails",
+  "snapshot": "2026-09-29 Run 7 ADR-0165 protocol evolution and engineering guardrails",
   "phase": "architecture_hardening_pre_engineering",
   "engineering_authorized": false,
   "engineering_unlock_requires": [
@@ -79,9 +79,9 @@
     "decisions/ADR-0134-verification-execution-lifecycle-and-no-bounce-handoff.md",
     "verification/CLAUDE_OPUS_5_5_HANDOFF.md",
     "docs/process/IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md",
-    "decisions/ADR-0160-implementation-readiness-crash-retry-and-scope-contracts.md",
+    "decisions/ADR-0163-implementation-readiness-crash-retry-and-scope-contracts.md",
     "docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md",
-    "decisions/ADR-0162-protocol-evolution-compatibility-and-engineering-guardrails.md"
+    "decisions/ADR-0165-protocol-evolution-compatibility-and-engineering-guardrails.md"
   ],
   "current_file_registry": "machine/file_registry.json",
   "architecture_map": "machine/architecture_map.json",

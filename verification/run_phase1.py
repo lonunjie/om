@@ -52,10 +52,10 @@ RUNS = [
     ([sys.executable, str(ROOT / "verification/prototypes/v003-sessions/sealed_delivery_state.py"),
       str(ROOT / "verification/results/v003-sealed-delivery-latest.json")],
      "verification/prototypes/v003-sessions/sealed_delivery_state.py"),
-    ([sys.executable, str(ROOT / "verification/bounded/protocol_semantics_adr0158.py")], "verification/bounded/protocol_semantics_adr0158.py"),
-    ([sys.executable, str(ROOT / "verification/bounded/ui_integration_adr0159.py")], "verification/bounded/ui_integration_adr0159.py"),
-    ([sys.executable, str(ROOT / "verification/bounded/dangerous_algorithms_adr0161.py")], "verification/bounded/dangerous_algorithms_adr0161.py"),
-    ([sys.executable, str(ROOT / "verification/bounded/protocol_evolution_adr0162.py")], "verification/bounded/protocol_evolution_adr0162.py"),
+    ([sys.executable, str(ROOT / "verification/bounded/protocol_semantics_adr0161.py")], "verification/bounded/protocol_semantics_adr0161.py"),
+    ([sys.executable, str(ROOT / "verification/bounded/ui_integration_adr0162.py")], "verification/bounded/ui_integration_adr0162.py"),
+    ([sys.executable, str(ROOT / "verification/bounded/dangerous_algorithms_adr0164.py")], "verification/bounded/dangerous_algorithms_adr0164.py"),
+    ([sys.executable, str(ROOT / "verification/bounded/protocol_evolution_adr0165.py")], "verification/bounded/protocol_evolution_adr0165.py"),
     # Keep the Rust-dependent aggregate last so all cheap deterministic evidence is refreshed first.
     ([sys.executable, str(ROOT / "verification/bounded/cross_wave_feasibility.py")], "verification/bounded/cross_wave_feasibility.py"),
 ]

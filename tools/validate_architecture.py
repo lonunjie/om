@@ -1190,16 +1190,16 @@ def validate_0157_followup_guardrails() -> None:
         fail(f"ADR-0157 guard: cannot inspect portable extension vectors: {e}")
 
 def validate_0160_implementation_readiness_guardrails() -> None:
-    """ADR-0160: scope contracts + crash/retry handoff stay mechanically aligned."""
+    """ADR-0163: scope contracts + crash/retry handoff stay mechanically aligned."""
     contract = load_json(ROOT / "machine/repository_contract.json") or {}
     impl = load_json(ROOT / "machine/engineering_scope_contracts.json")
     if not isinstance(impl, dict):
-        fail("ADR-0160 guard: engineering_scope_contracts.json unreadable")
+        fail("ADR-0163 guard: engineering_scope_contracts.json unreadable")
         return
     repo_scopes = contract.get("engineering_scopes") or {}
     impl_scopes = impl.get("scopes") or {}
     if set(impl_scopes) != set(repo_scopes):
-        fail(f"ADR-0160 guard: implementation scope set drift: repo={sorted(repo_scopes)} impl={sorted(impl_scopes)}")
+        fail(f"ADR-0163 guard: implementation scope set drift: repo={sorted(repo_scopes)} impl={sorted(impl_scopes)}")
         return
 
     # Authorization dependencies in the implementation index are mirrors, never a second policy source.
@@ -1207,26 +1207,26 @@ def validate_0160_implementation_readiness_guardrails() -> None:
         expected = repo_scopes[name].get("depends_on", [])
         actual = sc.get("authorization_depends_on")
         if actual != expected:
-            fail(f"ADR-0160 guard: {name} authorization dependencies differ from repository_contract: {actual!r} != {expected!r}")
+            fail(f"ADR-0163 guard: {name} authorization dependencies differ from repository_contract: {actual!r} != {expected!r}")
         for field in ("normative_sources", "restart_contract", "error_retry_contract", "forbidden_shortcuts"):
             value = sc.get(field)
             if not isinstance(value, list) or not value:
-                fail(f"ADR-0160 guard: {name} missing non-empty {field}")
+                fail(f"ADR-0163 guard: {name} missing non-empty {field}")
         for src in sc.get("normative_sources", []):
             if not (ROOT / src).exists():
-                fail(f"ADR-0160 guard: {name} normative source missing: {src}")
+                fail(f"ADR-0163 guard: {name} normative source missing: {src}")
 
     # Dependency graph must be acyclic.
     visiting, done = set(), set()
     def visit(n: str) -> None:
         if n in done: return
         if n in visiting:
-            fail(f"ADR-0160 guard: authorization dependency cycle at {n}")
+            fail(f"ADR-0163 guard: authorization dependency cycle at {n}")
             return
         visiting.add(n)
         for dep in repo_scopes[n].get("depends_on", []):
             if dep not in repo_scopes:
-                fail(f"ADR-0160 guard: {n} depends on unknown scope {dep}")
+                fail(f"ADR-0163 guard: {n} depends on unknown scope {dep}")
             else:
                 visit(dep)
         visiting.remove(n); done.add(n)
@@ -1235,53 +1235,53 @@ def validate_0160_implementation_readiness_guardrails() -> None:
     # Declared implementation layers must cover every scope once and obey dependencies.
     layers = impl.get("implementation_layers")
     if not isinstance(layers, list) or not layers:
-        fail("ADR-0160 guard: implementation_layers missing")
+        fail("ADR-0163 guard: implementation_layers missing")
     else:
         flat = [x for layer in layers if isinstance(layer, list) for x in layer]
         if len(flat) != len(set(flat)) or set(flat) != set(repo_scopes):
-            fail("ADR-0160 guard: implementation_layers must cover each engineering scope exactly once")
+            fail("ADR-0163 guard: implementation_layers must cover each engineering scope exactly once")
         pos = {name: i for i, layer in enumerate(layers) if isinstance(layer, list) for name in layer}
         for name, sc in repo_scopes.items():
             for dep in sc.get("depends_on", []):
                 if pos.get(dep, 10**6) >= pos.get(name, -1):
-                    fail(f"ADR-0160 guard: implementation layer puts dependency {dep} no earlier than {name}")
+                    fail(f"ADR-0163 guard: implementation layer puts dependency {dep} no earlier than {name}")
 
     outcomes = impl.get("operation_outcomes", [])
     for required in ("Committed", "PendingNetwork", "PendingReconciliation", "Rejected"):
         if required not in outcomes:
-            fail(f"ADR-0160 guard: operation outcome {required} missing")
+            fail(f"ADR-0163 guard: operation outcome {required} missing")
 
     group = (ROOT / "docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md").read_text(encoding="utf-8")
     for token in ("INTENT_DURABLE", "CANDIDATE_PREPARED", "PUBLISHED_UNCONFIRMED", "No application message", "exact MLS Commit bytes/hash"):
         if token not in group:
-            fail(f"ADR-0160 guard: group crash contract missing {token!r}")
+            fail(f"ADR-0163 guard: group crash contract missing {token!r}")
     ui = (ROOT / "docs/architecture/ux/UI_CORE_PLATFORM_CONTRACT.md").read_text(encoding="utf-8")
     for token in ("PendingReconciliation", "timeout after send", "second semantic operation"):
         if token not in ui:
-            fail(f"ADR-0160 guard: UI/Core outcome contract missing {token!r}")
+            fail(f"ADR-0163 guard: UI/Core outcome contract missing {token!r}")
     home = (ROOT / "spec/protocol/home-api.md").read_text(encoding="utf-8")
     for token in ("across provider process restart", "same `request_id`", "outcome as unknown"):
         if token not in home:
-            fail(f"ADR-0160 guard: Home idempotency contract missing {token!r}")
+            fail(f"ADR-0163 guard: Home idempotency contract missing {token!r}")
     handoff = (ROOT / "docs/process/ENGINEERING_HANDOFF.md").read_text(encoding="utf-8")
-    if "`local_delivery`" not in handoff or "Direct gates" not in handoff or "ADR-0160" not in handoff:
-        fail("ADR-0160 guard: engineering handoff lost 12-scope/direct-gate/readiness clarification")
+    if "`local_delivery`" not in handoff or "Direct gates" not in handoff or "ADR-0163" not in handoff:
+        fail("ADR-0163 guard: engineering handoff lost 12-scope/direct-gate/readiness clarification")
 
     reqs = {r.get("id") for r in load_jsonl(ROOT / "machine/requirements.jsonl")}
     threats = {r.get("id") for r in load_jsonl(ROOT / "machine/threat_register.jsonl")}
     decisions = {r.get("id") for r in load_jsonl(ROOT / "machine/decisions.jsonl")}
-    for rid in ("R-360", "R-361", "R-362", "R-363"):
-        if rid not in reqs: fail(f"ADR-0160 guard: {rid} missing")
-    for tid in ("T-145", "T-146"):
-        if tid not in threats: fail(f"ADR-0160 guard: {tid} missing")
-    if "D-182" not in decisions:
-        fail("ADR-0160 guard: D-182 missing")
+    for rid in ("R-372", "R-373", "R-374", "R-375"):
+        if rid not in reqs: fail(f"ADR-0163 guard: {rid} missing")
+    for tid in ("T-146", "T-147"):
+        if tid not in threats: fail(f"ADR-0163 guard: {tid} missing")
+    if "D-184" not in decisions:
+        fail("ADR-0163 guard: D-184 missing")
 
 def validate_run4_release_candidate_integration_guardrails() -> None:
     """Run-4 bookkeeping/integration guards; no new product/protocol semantics."""
     deferred = {r.get("id"): r for r in load_jsonl(ROOT / "machine/deferred_product_questions.jsonl")}
     if "DP-011" in deferred:
-        fail("Run-4 guard: DP-011 is stale after ADR-0159 fixed the initial curated theme families")
+        fail("Run-4 guard: DP-011 is stale after ADR-0162 fixed the initial curated theme families")
     dp7 = deferred.get("DP-007", {})
     q7 = str(dp7.get("question", ""))
     for token in ("aggregate/decoded-size", "256-asset", "32 MiB"):
@@ -1290,8 +1290,8 @@ def validate_run4_release_candidate_integration_guardrails() -> None:
 
     resolved = {r.get("id"): r for r in load_jsonl(ROOT / "machine/resolved_questions.jsonl")}
     q48 = resolved.get("Q-048", {})
-    if q48.get("disposition") != "resolved_by_later_adr" or "ADR-0159" not in str(q48.get("resolution", "")):
-        fail("Run-4 guard: Q-048 must reflect ADR-0159 rather than remain a future theme-name choice")
+    if q48.get("disposition") != "resolved_by_later_adr" or "ADR-0162" not in str(q48.get("resolution", "")):
+        fail("Run-4 guard: Q-048 must reflect ADR-0162 rather than remain a future theme-name choice")
 
     contract = load_json(ROOT / "machine/repository_contract.json") or {}
     scopes = list((contract.get("engineering_scopes") or {}).keys())

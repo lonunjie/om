@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-29 Run 5 ADR-0160 implementation-readiness hardening",
+  "snapshot": "2026-09-29 Run 5 ADR-0163 implementation-readiness hardening",
   "status": "pre_engineering_contract_only",
   "purpose": "Machine-readable implementation ordering/index. It does not authorize engineering; repository_contract.json remains authoritative for scope authorization.",
   "operation_outcomes": [

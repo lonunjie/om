@@ -1,4 +1,4 @@
-# ADR-0159 — Conversation-first shell, private adaptive Omnibar and hardened visual/theme semantics
+# ADR-0162 — Conversation-first shell, private adaptive Omnibar and hardened visual/theme semantics
 
 - **Status:** Accepted
 - **Date:** 2026-09-29
@@ -140,7 +140,7 @@ This is a UI/accessibility rule only; it does not change call membership or SFra
 - `conformance:ui_themes` gains traversal, semantic-icon, density/motion and alert-policy cases.
 - `conformance:accessibility` gains pinned visual participant and stronger authored-focus cases.
 - New bounded evidence validates the reference OM Calm contrast pairs, path rejection, profile-local ranking, stable armed selection and no destructive auto-execution semantics.
-- V-021 remains open for its existing independent-review/pre-release obligations; ADR-0159 does not claim to satisfy platform implementation audits.
+- V-021 remains open for its existing independent-review/pre-release obligations; ADR-0162 does not claim to satisfy platform implementation audits.
 - V-022 remains the performance gate; Omnibar ranking/search must fit its interaction/search budgets when implemented.
 
 ## Consequences

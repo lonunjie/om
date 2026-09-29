@@ -1,7 +1,7 @@
 # Dangerous Algorithms and Failure Paths
 
 - **Status:** Canonical normative implementation-order supplement
-- **Checkpoint:** 2026-09-29 Run 6 / ADR-0161
+- **Checkpoint:** 2026-09-29 Run 6 / ADR-0164
 - **Engineering:** not authorized
 
 This document specifies *ordering and state-transition semantics*, not cryptographic primitives or implementation technology. Names in pseudocode refer to existing OM objects and state defined by the linked normative sources.
@@ -29,7 +29,7 @@ Never reorder a later check ahead of an earlier one merely for performance if th
 
 ## 2. AccountControlState child validation
 
-**Sources:** [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](identity/ACCOUNT_CONTINUITY_AND_CONTROL.md) §§2–8; [`account-control-transition-policy.json`](../../spec/protocol/account-control-transition-policy.json); ADR-0137/0158.
+**Sources:** [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](identity/ACCOUNT_CONTINUITY_AND_CONTROL.md) §§2–8; [`account-control-transition-policy.json`](../../spec/protocol/account-control-transition-policy.json); ADR-0137/0161.
 
 ### Algorithm
 
@@ -121,7 +121,7 @@ For first-contact MessageRequest bootstrap, the request-scoped candidate/respons
 
 ## 4. Group Commit preparation/publication/recovery
 
-**Sources:** [`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md); [`group-control-transition.logical.schema.json`](../../spec/protocol/group-control-transition.logical.schema.json); ADR-0160; V-004.
+**Sources:** [`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md); [`group-control-transition.logical.schema.json`](../../spec/protocol/group-control-transition.logical.schema.json); ADR-0163; V-004.
 
 ### Journal states
 
@@ -169,7 +169,7 @@ prepare_group_transition(intent, canonical_parent):
 
 ## 5. Mutable RelaySet / BlobLocationRecord branch selection
 
-**Sources:** [`REACHABILITY_AND_OBJECT_REPAIR.md`](delivery/REACHABILITY_AND_OBJECT_REPAIR.md); [`MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`](delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md); ADR-0158.
+**Sources:** [`REACHABILITY_AND_OBJECT_REPAIR.md`](delivery/REACHABILITY_AND_OBJECT_REPAIR.md); [`MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`](delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md); ADR-0161.
 
 ### Algorithm
 
@@ -193,7 +193,7 @@ The selected record is availability/location state only. It never becomes identi
 
 ## 6. HistoryBundle import isolation
 
-**Sources:** [`GROUP_CHAT_ARCHITECTURE.md`](groups/GROUP_CHAT_ARCHITECTURE.md) history rules; [`history-bundle.logical.schema.json`](../../spec/protocol/history-bundle.logical.schema.json); ADR-0158.
+**Sources:** [`GROUP_CHAT_ARCHITECTURE.md`](groups/GROUP_CHAT_ARCHITECTURE.md) history rules; [`history-bundle.logical.schema.json`](../../spec/protocol/history-bundle.logical.schema.json); ADR-0161.
 
 ### Algorithm
 
@@ -267,7 +267,7 @@ A PWA that cannot expose equivalent channel binding reports `local_delivery=unav
 
 ## 9. Unknown provider/network outcome
 
-**Sources:** ADR-0160; Home API; implementation-readiness transaction contract.
+**Sources:** ADR-0163; Home API; implementation-readiness transaction contract.
 
 ```text
 send_mutation(op):

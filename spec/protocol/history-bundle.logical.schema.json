@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "OM Room HistoryBundle logical contract (pre-freeze)",
-  "description": "Pre-freeze groups-scope logical contract from ADR-0158. This is not a frozen wire schema and does not satisfy V-004.",
+  "description": "Pre-freeze groups-scope logical contract from ADR-0161. This is not a frozen wire schema and does not satisfy V-004.",
   "type": "object",
   "additionalProperties": false,
   "required": [

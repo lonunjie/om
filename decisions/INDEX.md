@@ -164,10 +164,10 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0155 — Non-critical extension validity independence and presentation-extension edit closure](ADR-0155-non-critical-extension-validity-and-presentation-edit-closure.md)
 - [ADR-0156 — Engineering-handoff closure: LAN wire binding, later-wave wire freeze, scheduled send and sync namespacing](ADR-0156-engineering-handoff-closure-lan-binding-and-later-wave-wire-freeze.md)
 - [ADR-0157 — Cross-version critical extensions, interoperable group history and concrete LAN delivery binding](ADR-0157-cross-version-critical-extensions-interoperable-group-history-and-lan-delivery-binding.md)
-- [ADR-0158 — Terminal DeviceID revocation, mutable-record convergence and HistoryBundle state isolation](ADR-0158-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md)
+- [ADR-0161 — Terminal DeviceID revocation, mutable-record convergence and HistoryBundle state isolation](ADR-0161-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md)
 
-- [ADR-0159 — Conversation-first shell, private adaptive Omnibar and hardened visual/theme semantics](ADR-0159-conversation-first-omnibar-and-theme-visual-system-hardening.md)
-- [ADR-0160 — Implementation-readiness contracts, crash-safe group transitions and outcome/retry semantics](ADR-0160-implementation-readiness-crash-retry-and-scope-contracts.md)
+- [ADR-0162 — Conversation-first shell, private adaptive Omnibar and hardened visual/theme semantics](ADR-0162-conversation-first-omnibar-and-theme-visual-system-hardening.md)
+- [ADR-0163 — Implementation-readiness contracts, crash-safe group transitions and outcome/retry semantics](ADR-0163-implementation-readiness-crash-retry-and-scope-contracts.md)
 
-- [ADR-0161 — Dangerous algorithms and explicit failure paths](ADR-0161-dangerous-algorithms-and-failure-paths.md)
-- [ADR-0162 — Protocol evolution, compatibility classes and engineering-agent guardrails](ADR-0162-protocol-evolution-compatibility-and-engineering-guardrails.md)
+- [ADR-0164 — Dangerous algorithms and explicit failure paths](ADR-0164-dangerous-algorithms-and-failure-paths.md)
+- [ADR-0165 — Protocol evolution, compatibility classes and engineering-agent guardrails](ADR-0165-protocol-evolution-compatibility-and-engineering-guardrails.md)

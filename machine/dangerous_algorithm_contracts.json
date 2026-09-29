@@ -1,7 +1,7 @@
 {
   "format": "om.dangerous-algorithm-contracts/1",
   "status": "normative_pre_engineering",
-  "decision": "ADR-0161",
+  "decision": "ADR-0164",
   "note": "Ordering/failure contracts supplement underlying normative sources; they do not replace formal, runtime, independent-review or interoperability gates.",
   "algorithms": [
     {
@@ -56,7 +56,7 @@
       "sources": [
         "docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md",
         "spec/protocol/group-control-transition.logical.schema.json",
-        "decisions/ADR-0160-implementation-readiness-crash-retry-and-scope-contracts.md"
+        "decisions/ADR-0163-implementation-readiness-crash-retry-and-scope-contracts.md"
       ],
       "verification_gates": [
         "V-004"
@@ -82,7 +82,7 @@
       "sources": [
         "docs/architecture/delivery/REACHABILITY_AND_OBJECT_REPAIR.md",
         "docs/architecture/delivery/MULTI_RELAY_AND_DELIVERY_RESILIENCE.md",
-        "decisions/ADR-0158-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md"
+        "decisions/ADR-0161-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md"
       ],
       "verification_gates": [
         "V-003"
@@ -106,7 +106,7 @@
       "sources": [
         "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md",
         "spec/protocol/history-bundle.logical.schema.json",
-        "decisions/ADR-0158-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md"
+        "decisions/ADR-0161-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md"
       ],
       "verification_gates": [
         "V-004"
@@ -174,7 +174,7 @@
       "title": "Provider/network unknown-outcome reconciliation",
       "sources": [
         "docs/process/IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md",
-        "decisions/ADR-0160-implementation-readiness-crash-retry-and-scope-contracts.md"
+        "decisions/ADR-0163-implementation-readiness-crash-retry-and-scope-contracts.md"
       ],
       "verification_gates": [
         "V-017"

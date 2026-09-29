@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ADR-0161 bounded sanity checks for dangerous implementation algorithms.
+"""ADR-0164 bounded sanity checks for dangerous implementation algorithms.
 
 This is implementation-readiness evidence only. It does not mark any V-series gate passed.
 """
@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 CONTRACT=ROOT/'machine/dangerous_algorithm_contracts.json'
 DOC=ROOT/'docs/architecture/IMPLEMENTATION_ALGORITHMS_AND_FAILURE_PATHS.md'
-RES=ROOT/'verification/results/dangerous-algorithms-adr0161-latest.json'
+RES=ROOT/'verification/results/dangerous-algorithms-adr0164-latest.json'
 
 def check(cond, ident, details=''):
     return {'id':ident,'ok':bool(cond),'details':details}
@@ -101,7 +101,7 @@ def main():
     rows.append(check(len(outcomes)==5,'unknown_outcome_five_terminal_semantics'))
 
     failures=[r for r in rows if not r['ok']]
-    payload={'checker':'dangerous_algorithms_adr0161','passed':not failures,'cases':len(rows),'failures':failures,'rows':rows,'gate_status_effect':'evidence_only_no_gate_automatically_passed'}
+    payload={'checker':'dangerous_algorithms_adr0164','passed':not failures,'cases':len(rows),'failures':failures,'rows':rows,'gate_status_effect':'evidence_only_no_gate_automatically_passed'}
     RES.write_text(json.dumps(payload,indent=2)+'\n')
     print(json.dumps(payload,indent=2))
     return 1 if failures else 0

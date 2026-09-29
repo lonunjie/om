@@ -1,4 +1,4 @@
-# ADR-0161 — Dangerous algorithms and explicit failure paths
+# ADR-0164 — Dangerous algorithms and explicit failure paths
 
 - **Status:** accepted normative implementation-readiness supplement
 - **Checkpoint:** 2026-09-29 Run 6

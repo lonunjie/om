@@ -214,7 +214,7 @@ The architectural survival test is: **if the original OM author/project/business
 
 ## Shared UI/UX architecture — 2026-09-22 13:42
 
-OM's reference product is one adaptive UI, not independent platform designs. `om-ui` sits above the portable Core and below thin platform shells. **ADR-0159 supersedes the earlier three-destination default:** the reference shell is conversation-first, with an Omnibar for people/search/settings/actions and optional user-pinned secondary surfaces such as Calls or People. Settings remains profile-scoped. Layout adapts to actual window size from one pane to list/detail/inspector arrangements.
+OM's reference product is one adaptive UI, not independent platform designs. `om-ui` sits above the portable Core and below thin platform shells. **ADR-0162 supersedes the earlier three-destination default:** the reference shell is conversation-first, with an Omnibar for people/search/settings/actions and optional user-pinned secondary surfaces such as Calls or People. Settings remains profile-scoped. Layout adapts to actual window size from one pane to list/detail/inspector arrangements.
 
 The default experience is calm, ergonomic, fast and content-first. Telegram-class perceived fluidity is pursued through immediate local response, stable layout, semantic/interruptible motion and local-first rendering rather than ornamental animation.
 

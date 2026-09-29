@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-29 Run 7 ADR-0162 protocol evolution and engineering guardrails",
+  "snapshot": "2026-09-29 Run 7 ADR-0165 protocol evolution and engineering guardrails",
   "purpose": "Registry of conformance suites that traceability and threat entries may name as conformance:<name> (ADR-0130 rule 10). 'specified' = the spec document holds a pass/fail case list; 'planned' = the spec document states the rules a future case list must test. A scope listed here cannot be authorized while the suite is still planned; the validator enforces both.",
   "statuses": [
     "specified",
@@ -13,7 +13,7 @@
       "scopes": [
         "provider_reference"
       ],
-      "description": "Home provider cases PC-A..PC-I including capability/isolation/quota/sponsorship/migration/recovery/failure/release integrity and ADR-0160 lost-response request_id idempotency across restart."
+      "description": "Home provider cases PC-A..PC-I including capability/isolation/quota/sponsorship/migration/recovery/failure/release integrity and ADR-0163 lost-response request_id idempotency across restart."
     },
     {
       "name": "network_transport",
@@ -22,7 +22,7 @@
       "scopes": [
         "core_kernel"
       ],
-      "description": "NetworkTransport cases NT-01..NT-06 plus ADR-0158 mutable RelaySet branch/order convergence: untrusted byte carrier, failover/local-route equivalence, deterministic availability state and no semantic or authority change."
+      "description": "NetworkTransport cases NT-01..NT-06 plus ADR-0161 mutable RelaySet branch/order convergence: untrusted byte carrier, failover/local-route equivalence, deterministic availability state and no semantic or authority change."
     },
     {
       "name": "identity",
@@ -31,7 +31,7 @@
       "scopes": [
         "core_kernel"
       ],
-      "description": "AccountID stability and continuity behavior across provider changes, including terminal DeviceID revocation/no resurrection (ADR-0158)."
+      "description": "AccountID stability and continuity behavior across provider changes, including terminal DeviceID revocation/no resurrection (ADR-0161)."
     },
     {
       "name": "discovery",
@@ -49,7 +49,7 @@
       "scopes": [
         "core_kernel"
       ],
-      "description": "Attachment cases AT-01..AT-06 plus ADR-0158 BlobLocationRecord branch/order convergence: blob integrity/location repair, lifecycle, expressive refs and direct-LAN receipt followed by provider backfill without identity rewrite."
+      "description": "Attachment cases AT-01..AT-06 plus ADR-0161 BlobLocationRecord branch/order convergence: blob integrity/location repair, lifecycle, expressive refs and direct-LAN receipt followed by provider backfill without identity rewrite."
     },
     {
       "name": "security_floor",
@@ -67,7 +67,7 @@
       "scopes": [
         "reference_client_ui"
       ],
-      "description": "Shared om-ui accessibility primitives, including ADR-0159 focus visibility and pinned visual-participant behavior."
+      "description": "Shared om-ui accessibility primitives, including ADR-0162 focus visibility and pinned visual-participant behavior."
     },
     {
       "name": "identifier_spoofing",
@@ -94,7 +94,7 @@
       "scopes": [
         "reference_client_ui"
       ],
-      "description": "Typed UI intents, PlatformAdapter capability families, ADR-0159 conversation-first/Omnibar safety, and ADR-0160 pending-network/reconciliation + restart behavior for uncertain mutations."
+      "description": "Typed UI intents, PlatformAdapter capability families, ADR-0162 conversation-first/Omnibar safety, and ADR-0163 pending-network/reconciliation + restart behavior for uncertain mutations."
     },
     {
       "name": "ui_themes",
@@ -103,7 +103,7 @@
       "scopes": [
         "reference_client_ui"
       ],
-      "description": "Theme compiler, reserved surfaces, font sanitization, semantic icon/color boundaries and ADR-0159 path/extraction + user-preference precedence."
+      "description": "Theme compiler, reserved surfaces, font sanitization, semantic icon/color boundaries and ADR-0162 path/extraction + user-preference precedence."
     },
     {
       "name": "group_history",
@@ -112,7 +112,7 @@
       "scopes": [
         "groups"
       ],
-      "description": "HistoryBundle Room/recipient/membership binding, author eligibility, attribution/exclusion rules, bundle-local identity and strict isolation from live Room event/control reducers (ADR-0158)."
+      "description": "HistoryBundle Room/recipient/membership binding, author eligibility, attribution/exclusion rules, bundle-local identity and strict isolation from live Room event/control reducers (ADR-0161)."
     },
     {
       "name": "publication",
@@ -130,7 +130,7 @@
       "scopes": [
         "core_kernel"
       ],
-      "description": "ADR-0162 profile negotiation, immutable registry/extension meaning, change-class selection, migration/fork semantics and agent forbidden-shortcut cases."
+      "description": "ADR-0165 profile negotiation, immutable registry/extension meaning, change-class selection, migration/fork semantics and agent forbidden-shortcut cases."
     }
   ]
 }

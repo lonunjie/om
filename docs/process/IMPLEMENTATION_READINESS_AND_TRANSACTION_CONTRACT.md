@@ -1,7 +1,7 @@
 # OM Implementation Readiness and Transaction Contract
 
 - **Status:** Canonical pre-engineering handoff contract
-- **Checkpoint:** 2026-09-29 Run 5 / ADR-0160
+- **Checkpoint:** 2026-09-29 Run 5 / ADR-0163
 - **Engineering:** not authorized; this document orders and constrains later implementation only
 
 ## 1. Purpose

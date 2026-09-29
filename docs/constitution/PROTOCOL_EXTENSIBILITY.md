@@ -64,7 +64,7 @@ Already-assigned registry identifiers are immutable and never reused for incompa
 
 If stewardship diverges, successor registries/profiles use an explicit new lineage/identifier namespace. A vendor-private extension may remain private, but market adoption does not grant it canonical status. Graduation into a future baseline requires public independently implementable semantics, canonical encoding/criticality, conformance behavior and acceptable implementation rights.
 
-## 7. Version evolution is not silent reinterpretation (ADR-0162)
+## 7. Version evolution is not silent reinterpretation (ADR-0165)
 
 A published `(extension_id, version)` registration is immutable. Criticality is immutable for an extension ID, and IDs
 beginning with `!` are permanently critical. A new version under an existing non-critical ID is permitted only when old
@@ -73,4 +73,4 @@ authentication, confidentiality, membership, downgrade behavior, owning object o
 ID and/or CryptoProfile. Extension version numbers never act as security-generation or preference values.
 
 The frozen W0 CDDL and registries cannot be expanded by editing a logical JSON schema. Future wire additions use the
-reserved extension/profile mechanisms or a new protocol lineage as specified by ADR-0162.
+reserved extension/profile mechanisms or a new protocol lineage as specified by ADR-0165.

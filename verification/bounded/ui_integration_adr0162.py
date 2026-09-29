@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Bounded design evidence for ADR-0159 UI integration semantics."""
+"""Bounded design evidence for ADR-0162 UI integration semantics."""
 from __future__ import annotations
 import json, re
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[2]
-OUT=ROOT/'verification/results/ui-integration-adr0159-latest.json'
+OUT=ROOT/'verification/results/ui-integration-adr0162-latest.json'
 THEMES=json.loads((ROOT/'docs/ux-design/curated-theme-presets.example.json').read_text())
 SCHEMA=json.loads((ROOT/'docs/ux-design/theme-bundle.logical.schema.json').read_text())
 
@@ -82,7 +82,7 @@ check('theme-icon-no-semantic-binding', 'semantic_icon_id' not in asset_props, s
 check('theme-icon-description-decorative', 'decorative only' in asset_props['kind']['description'])
 
 payload={
-    'adr':'ADR-0159',
+    'adr':'ADR-0162',
     'passed':all(c['passed'] for c in cases),
     'cases':len(cases),
     'results':cases,

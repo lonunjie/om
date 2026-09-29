@@ -426,7 +426,7 @@ V-017 must run a protocol-longevity/continuity exercise covering at least:
 
 Passing V-017 does not prove OM will live for twenty years. It proves the architecture has no known single required continuity choke point hidden in the current design.
 
-## 15. Evolution change control (ADR-0162)
+## 15. Evolution change control (ADR-0165)
 
 Published protocol meaning is immutable. Registry/profile identifiers, frozen W0 object shapes, extension `(id, version)`
 registrations, domain-separation labels and historical object meanings are never edited in place. A behavior-changing

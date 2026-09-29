@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded sanity checks for ADR-0162 protocol evolution policy; not independent/formal evidence."""
+"""Bounded sanity checks for ADR-0165 protocol evolution policy; not independent/formal evidence."""
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -64,7 +64,7 @@ for x in ["identify_affected_surface","classify_change","locate_current_lineage"
     case(f"change_control_{x}", x in required)
 
 failed=[n for n,ok in CASES if not ok]
-print(f"ADR-0162 protocol-evolution sanity: {len(CASES)} cases; {len(failed)} failed")
+print(f"ADR-0165 protocol-evolution sanity: {len(CASES)} cases; {len(failed)} failed")
 if failed:
     print("FAILED:")
     for n in failed: print(f"- {n}")

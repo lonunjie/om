@@ -1,4 +1,4 @@
-# ADR-0162 — Protocol evolution, compatibility classes and engineering-agent guardrails
+# ADR-0165 — Protocol evolution, compatibility classes and engineering-agent guardrails
 
 - **Status:** accepted normative evolution/change-control supplement
 - **Checkpoint:** 2026-09-29 Run 7

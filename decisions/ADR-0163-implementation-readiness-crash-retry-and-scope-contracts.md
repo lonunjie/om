@@ -1,4 +1,4 @@
-# ADR-0160 — Implementation-readiness contracts, crash-safe group transitions and outcome/retry semantics
+# ADR-0163 — Implementation-readiness contracts, crash-safe group transitions and outcome/retry semantics
 
 - **Status:** Accepted
 - **Date:** 2026-09-29
@@ -45,7 +45,7 @@ This ordering is guidance derived from the existing dependency graph, not author
 
 For a mutating operation that can survive/retry across a process crash or network uncertainty, Core persists the operation's stable logical identity and security-relevant parent/context **before the first externally visible effect**.
 
-The stable identity is the operation's already-defined protocol identity where one exists: for example EventID, request_id, delivery tuple/fingerprint, GroupControlIntent identity/commit hash, record generation/parent, or another scope-frozen idempotency key. ADR-0160 does **not** add a new W0 wire field.
+The stable identity is the operation's already-defined protocol identity where one exists: for example EventID, request_id, delivery tuple/fingerprint, GroupControlIntent identity/commit hash, record generation/parent, or another scope-frozen idempotency key. ADR-0163 does **not** add a new W0 wire field.
 
 Rules:
 

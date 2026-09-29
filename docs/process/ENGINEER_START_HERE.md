@@ -1,6 +1,6 @@
 # ENGINEER START HERE — design-frozen, engineering still locked
 
-**Current architecture checkpoint:** 2026-09-29 (through ADR-0162; Run 7 protocol-evolution and agent-guardrail hardening)  
+**Current architecture checkpoint:** 2026-09-29 (through ADR-0165; Run 7 protocol-evolution and agent-guardrail hardening)  
 **Architecture design:** closed (`design_open=0`); A-055 is resolved by ADR-0157, while `local_delivery` remains verification-blocked by V-024  
 **Engineering authorization:** **NO** — use [`machine/repository_contract.json`](../../machine/repository_contract.json); a closed design is not an authorized scope. Engineering is not authorized.
 
@@ -47,7 +47,7 @@ Do not silently simplify a security, authority, privacy, downgrade, recovery, pr
 5. only then change the canonical architecture.
 
 
-## Crash/retry implementation rule (ADR-0160)
+## Crash/retry implementation rule (ADR-0163)
 
 Do not turn an uncertain network outcome into a new semantic user action. Persist the operation's existing stable identity/security context before the first external effect where required; exact retry reuses that identity, and timeout-after-send becomes `PendingNetwork`/`PendingReconciliation` until authenticated state says otherwise. For group control/MLS mutations, follow the durable `INTENT_DURABLE -> CANDIDATE_PREPARED -> PUBLISHED_UNCONFIRMED -> ACCEPTED|SUPERSEDED|ABANDONED` journal in [`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](../architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md).
 

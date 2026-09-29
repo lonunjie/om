@@ -1,7 +1,7 @@
 {
   "format": "om.account-control-transition-policy/1",
   "status": "normative",
-  "decision": "ADR-0137; ADR-0158",
+  "decision": "ADR-0137; ADR-0161",
   "authority_rule": "A verifier derives deltas by diffing child and parent. Signers and thresholds are evaluated against the parent. An unlisted delta is rejected. A child is also rejected if any permanently revoked DeviceID re-enters messaging/control eligibility.",
   "parent_majority": "floor(N/2)+1 where N is the number of parent active_control_devices; quarantined controllers remain in N",
   "ordinary_signer_set": "parent active_control_devices minus parent quarantined_control_devices",

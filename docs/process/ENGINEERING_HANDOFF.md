@@ -1,6 +1,6 @@
 # OM Engineering Handoff — DESIGN-FROZEN, INACTIVE UNTIL NAMED-SCOPE AUTHORIZATION
 
-> **Current design checkpoint: 2026-09-29 / ADR-0162.** Architecture design is closed; ADR-0160 adds implementation-readiness/retry transaction rules without authorizing engineering. Product engineering is **not** authorized by this document. In plain terms: product engineering is not authorized at this checkpoint. [`machine/repository_contract.json`](../../machine/repository_contract.json) is authoritative for scope unlock.
+> **Current design checkpoint: 2026-09-29 / ADR-0165.** Architecture design is closed; ADR-0163 adds implementation-readiness/retry transaction rules without authorizing engineering. Product engineering is **not** authorized by this document. In plain terms: product engineering is not authorized at this checkpoint. [`machine/repository_contract.json`](../../machine/repository_contract.json) is authoritative for scope unlock.
 
 ## 1. What “design-frozen” means
 
@@ -54,16 +54,16 @@ The compact index is [`SECURITY_INVARIANTS.md`](../architecture/safety/SECURITY_
 - `OMA-ENC-1-candidate` is verification-only. It is **not** permission to ship archive encryption. V-014 must freeze the reviewed production archive profile first.
 - Guardian recovery uses only the reviewed method/profile admitted by the current RecoveryPolicy. No bespoke threshold cryptography.
 
-## 5. Implementation-readiness and unknown-outcome rule (ADR-0160)
+## 5. Implementation-readiness and unknown-outcome rule (ADR-0163)
 
 Before implementing a scope, read [`IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md`](IMPLEMENTATION_READINESS_AND_TRANSACTION_CONTRACT.md) and its machine-readable [`machine/engineering_scope_contracts.json`](../../machine/engineering_scope_contracts.json) entry. Authorization dependencies remain solely in [`repository_contract.json`](../../machine/repository_contract.json); integration test prerequisites do not become hidden protocol dependencies.
 
-For any durable mutation that can cross a crash/network uncertainty boundary, preserve its existing stable logical identity before external effect when required. A lost response is not proof of rejection: exact-retry/reconcile the same operation when safe, or reconcile authenticated state before creating a new operation. Core reports `PendingNetwork`/`PendingReconciliation` rather than inventing failure. Group membership/control changes additionally use the ADR-0160 crash-safe prepared-Commit journal; no application traffic may leave a tentative group branch.
+For any durable mutation that can cross a crash/network uncertainty boundary, preserve its existing stable logical identity before external effect when required. A lost response is not proof of rejection: exact-retry/reconcile the same operation when safe, or reconcile authenticated state before creating a new operation. Core reports `PendingNetwork`/`PendingReconciliation` rather than inventing failure. Group membership/control changes additionally use the ADR-0163 crash-safe prepared-Commit journal; no application traffic may leave a tentative group branch.
 
 
-## 5A. Protocol evolution and change-control rule (ADR-0162)
+## 5A. Protocol evolution and change-control rule (ADR-0165)
 
-Before changing normative protocol/profile/extension material, read [`PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md`](PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md) and [`machine/protocol_evolution_policy.json`](../../machine/protocol_evolution_policy.json). Published meanings are immutable; profile IDs are not security ordering; extension criticality is immutable; and behavior-changing evolution requires a new immutable lineage/profile/extension or explicit fork. Every normative change must use the strongest applicable ADR-0162 change class and update its required ledgers/conformance/migration/continuity artifacts. A local harness never counts as independent/formal/interoperability evidence.
+Before changing normative protocol/profile/extension material, read [`PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md`](PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md) and [`machine/protocol_evolution_policy.json`](../../machine/protocol_evolution_policy.json). Published meanings are immutable; profile IDs are not security ordering; extension criticality is immutable; and behavior-changing evolution requires a new immutable lineage/profile/extension or explicit fork. Every normative change must use the strongest applicable ADR-0165 change class and update its required ledgers/conformance/migration/continuity artifacts. A local harness never counts as independent/formal/interoperability evidence.
 
 ## 6. What engineers may choose without reopening architecture
 

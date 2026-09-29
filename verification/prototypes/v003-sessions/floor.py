@@ -10,7 +10,7 @@ Rules implemented (independently of sessions.py, which abstracts profiles as 1 =
   * a peer bundle / initial message whose profile has no one_to_one generation, is not usable in this build, or has a
     generation below the floor is refused (the sender) or rejected with an authenticated reject (the receiver);
   * accepting a profile raises the floor to its generation (never lowers it);
-  * ADR-0158 pins ACS minimum_crypto_profile to security_generation.one_to_one; group-only ACS minima are invalid; after restore the floor is max(backed-up one_to_one generation, ACS one_to_one minimum) (ADR-0120 K3);
+  * ADR-0161 pins ACS minimum_crypto_profile to security_generation.one_to_one; group-only ACS minima are invalid; after restore the floor is max(backed-up one_to_one generation, ACS one_to_one minimum) (ADR-0120 K3);
   * a signed SecurityAdvisory that forbids a profile moves the floor only to a non-forbidden profile of EQUAL or HIGHER
     generation; if none exists the relationship stops sending; a move to a lower generation is rejected.
 
@@ -76,7 +76,7 @@ def accept(reg, state: dict, pid: int) -> tuple[bool, str, dict]:
 
 
 def acs_min_generation(reg, acs_min_profile: int) -> int:
-    """ADR-0158: ACS minimum_crypto_profile is valid only on the one_to_one axis."""
+    """ADR-0161: ACS minimum_crypto_profile is valid only on the one_to_one axis."""
     g = gen(reg, acs_min_profile)
     if g is None:
         raise ValueError("ACS minimum_crypto_profile lacks security_generation.one_to_one")

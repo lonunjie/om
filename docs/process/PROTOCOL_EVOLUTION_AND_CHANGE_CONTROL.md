@@ -1,6 +1,6 @@
 # Protocol Evolution and Change Control
 
-**Checkpoint:** 2026-09-29 Run 7 / ADR-0162  
+**Checkpoint:** 2026-09-29 Run 7 / ADR-0165  
 **Status:** normative pre-engineering change-control contract  
 **Engineering:** not authorized
 
@@ -137,6 +137,6 @@ An implementation agent MUST NOT:
 ## 9. Machine contract
 
 The machine-readable source for this policy is [`machine/protocol_evolution_policy.json`](../../machine/protocol_evolution_policy.json).
-The bounded sanity harness is [`verification/bounded/protocol_evolution_adr0162.py`](../../verification/bounded/protocol_evolution_adr0162.py).
+The bounded sanity harness is [`verification/bounded/protocol_evolution_adr0165.py`](../../verification/bounded/protocol_evolution_adr0165.py).
 The harness checks policy mechanics only; V-002/V-003/V-004/V-005/V-017 and other gates remain the authority for
 formal, independent, runtime, interoperability and continuity evidence.

@@ -191,7 +191,7 @@ StorageAdapter abstraction is frozen: native defaults to SQLite; web starts with
 
 ## Q-048
 
-Originally deferred as a product choice. **Amended by ADR-0159:** the initial curated reference families and visual seeds are now fixed as OM Calm (default), Evergreen, Warm Slate and Violet, each with authored light/dark palettes. Additional future themes/catalog behavior remain product choices.
+Originally deferred as a product choice. **Amended by ADR-0162:** the initial curated reference families and visual seeds are now fixed as OM Calm (default), Evergreen, Warm Slate and Violet, each with authored light/dark palettes. Additional future themes/catalog behavior remain product choices.
 
 ## Q-049
 

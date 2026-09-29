@@ -127,7 +127,7 @@ Multiple identities are a legitimate V1 product need. The reference client lets 
 
 All themes offer Auto light/dark behavior. The default remains ergonomics/functionality first: immediate clarity, calm hierarchy, fast local response, then aesthetics/personalization.
 
-ADR-0159 makes that product shape concrete: the default shell is conversation-first rather than a mandatory Chats/Calls/People tab taxonomy; a per-profile local Omnibar combines recognition-oriented suggestions, search and commands; and the visual system uses stable semantic color/icon roles whose meaning cannot be reassigned by themes.
+ADR-0162 makes that product shape concrete: the default shell is conversation-first rather than a mandatory Chats/Calls/People tab taxonomy; a per-profile local Omnibar combines recognition-oriented suggestions, search and commands; and the visual system uses stable semantic color/icon roles whose meaning cannot be reassigned by themes.
 
 ## 2026-09-23 traction baseline
 

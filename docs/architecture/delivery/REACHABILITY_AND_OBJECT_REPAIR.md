@@ -46,7 +46,7 @@ Exact schema may differ, but continuity/version/overlap semantics are mandatory.
 | `optional_recovery_rendezvous` | the separate ReachabilityRecoveryDescriptor ([`reachability-recovery.logical.schema.json`](../../../spec/protocol/reachability-recovery.logical.schema.json)) |
 | `authorization` | a signature by a device active and not quarantined in the recipient's current AccountControlState ([`MULTI_RELAY_AND_DELIVERY_RESILIENCE.md`](MULTI_RELAY_AND_DELIVERY_RESILIENCE.md) §2.1) |
 
-### Hash-chain and concurrent-writer convergence (ADR-0158)
+### Hash-chain and concurrent-writer convergence (ADR-0161)
 
 The previous-hash fields are not advisory. For both RelaySet and BlobLocationRecord lineages, genesis is version 1
 with no previous hash; every successor is exactly parent version + 1 and names the canonical domain-separated hash of

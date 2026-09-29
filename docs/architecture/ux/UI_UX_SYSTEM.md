@@ -61,7 +61,7 @@ PWA / iOS / Android / Desktop
 
 The default reference shell is **conversation-first**, not tab-first. The persistent workspace is the user's conversation list/current conversation plus the Omnibar, new-conversation action and profile entry. Calls and People remain first-class capabilities but are reached contextually (conversation/person actions), through the Omnibar/search, and through optional user-pinned shortcuts rather than mandatory permanent tabs.
 
-This replaces the earlier Chats / Calls / People three-destination default. See [`NAVIGATION_AND_OMNIBAR.md`](NAVIGATION_AND_OMNIBAR.md) (ADR-0159).
+This replaces the earlier Chats / Calls / People three-destination default. See [`NAVIGATION_AND_OMNIBAR.md`](NAVIGATION_AND_OMNIBAR.md) (ADR-0162).
 
 Settings opens from the user avatar/profile. Groups are conversations, not a separate social/community product. Files/media remain conversation-scoped. Call events/history remain reachable from conversations and the Omnibar.
 

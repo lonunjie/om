@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-29 Run 7 ADR-0162 protocol evolution and engineering guardrails",
+  "snapshot": "2026-09-29 Run 7 ADR-0165 protocol evolution and engineering guardrails",
   "purpose": "Every requirement maps to at least one proof obligation. Target kinds: V-### verification gate, PR-### public release gate, validator (tools/validate_architecture.py), conformance:<suite> (a suite registered in machine/conformance_suites.json with its spec document; ADR-0130), review:<doc> (named document review obligation, discharged by a reviewer other than the document's author with a record in verification/reviews/, ADR-0117).",
   "target_kinds": [
     "V-###",
@@ -2258,14 +2258,14 @@
       ]
     },
     {
-      "requirement": "R-349",
+      "requirement": "R-361",
       "verified_by": [
         "V-002",
         "conformance:identity"
       ]
     },
     {
-      "requirement": "R-350",
+      "requirement": "R-362",
       "verified_by": [
         "V-003",
         "conformance:network_transport",
@@ -2273,69 +2273,69 @@
       ]
     },
     {
-      "requirement": "R-351",
+      "requirement": "R-363",
       "verified_by": [
         "V-004",
         "conformance:group_history"
       ]
     },
     {
-      "requirement": "R-352",
+      "requirement": "R-364",
       "verified_by": [
         "V-003",
         "conformance:security_floor"
       ]
     },
     {
-      "requirement": "R-353",
+      "requirement": "R-365",
       "verified_by": [
         "V-018",
         "conformance:ui_intents"
       ]
     },
     {
-      "requirement": "R-354",
+      "requirement": "R-366",
       "verified_by": [
         "V-021",
         "conformance:ui_intents"
       ]
     },
     {
-      "requirement": "R-355",
+      "requirement": "R-367",
       "verified_by": [
         "conformance:ui_intents",
         "conformance:identifier_spoofing"
       ]
     },
     {
-      "requirement": "R-356",
+      "requirement": "R-368",
       "verified_by": [
         "conformance:ui_themes",
         "conformance:accessibility"
       ]
     },
     {
-      "requirement": "R-357",
+      "requirement": "R-369",
       "verified_by": [
         "conformance:ui_themes"
       ]
     },
     {
-      "requirement": "R-358",
+      "requirement": "R-370",
       "verified_by": [
         "conformance:ui_themes",
         "conformance:accessibility"
       ]
     },
     {
-      "requirement": "R-359",
+      "requirement": "R-371",
       "verified_by": [
         "V-018",
         "conformance:accessibility"
       ]
     },
     {
-      "requirement": "R-360",
+      "requirement": "R-372",
       "verified_by": [
         "V-003",
         "V-004",
@@ -2343,53 +2343,53 @@
       ]
     },
     {
-      "requirement": "R-361",
+      "requirement": "R-373",
       "verified_by": [
         "V-004"
       ]
     },
     {
-      "requirement": "R-362",
+      "requirement": "R-374",
       "verified_by": [
         "conformance:ui_intents",
         "conformance:provider"
       ]
     },
     {
-      "requirement": "R-363",
+      "requirement": "R-375",
       "verified_by": [
         "validator"
       ]
     },
     {
-      "requirement": "R-364",
+      "requirement": "R-376",
       "verified_by": [
         "validator"
       ]
     },
     {
-      "requirement": "R-365",
+      "requirement": "R-377",
       "verified_by": [
         "V-002",
         "validator"
       ]
     },
     {
-      "requirement": "R-366",
+      "requirement": "R-378",
       "verified_by": [
         "V-003",
         "validator"
       ]
     },
     {
-      "requirement": "R-367",
+      "requirement": "R-379",
       "verified_by": [
         "V-004",
         "validator"
       ]
     },
     {
-      "requirement": "R-368",
+      "requirement": "R-380",
       "verified_by": [
         "V-005",
         "V-024",
@@ -2397,41 +2397,41 @@
       ]
     },
     {
-      "requirement": "R-369",
+      "requirement": "R-381",
       "verified_by": [
         "validator",
         "V-017"
       ]
     },
     {
-      "requirement": "R-370",
+      "requirement": "R-382",
       "verified_by": [
         "validator",
         "V-003"
       ]
     },
     {
-      "requirement": "R-371",
+      "requirement": "R-383",
       "verified_by": [
         "validator",
         "V-005"
       ]
     },
     {
-      "requirement": "R-372",
+      "requirement": "R-384",
       "verified_by": [
         "validator"
       ]
     },
     {
-      "requirement": "R-373",
+      "requirement": "R-385",
       "verified_by": [
         "V-003",
         "V-017"
       ]
     },
     {
-      "requirement": "R-374",
+      "requirement": "R-386",
       "verified_by": [
         "validator"
       ]

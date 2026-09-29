@@ -97,7 +97,7 @@ OpenMLS is a leading Rust implementation candidate, not a protocol dependency.
 
 Each relationship/device/group records the highest `security_generation` it has accepted for its conversation type
 (ADR-0126). For **1:1** state, restored records and the ACS `minimum_crypto_profile` combine by taking the maximum
-(ADR-0120/0158). The ACS field is specifically an account-wide 1:1 floor: it must name a profile with
+(ADR-0120/0161). The ACS field is specifically an account-wide 1:1 floor: it must name a profile with
 `security_generation.one_to_one`, and ACS raises/lowers compare only that generation. Group floors are Room/group
 state and compare `security_generation.group`; they do not derive from ACS `minimum_crypto_profile`.
 
@@ -240,7 +240,7 @@ Normative, from the V-series models. The ADR is authoritative where this summary
   Later incompatible standardization creates a new profile/version rather than silently changing v1.
 - v1 claims **post-quantum handshake / harvest-now-decrypt-later protection**, not PQ post-compromise healing.
 
-## 2026-09-29 protocol-evolution selection (ADR-0162)
+## 2026-09-29 protocol-evolution selection (ADR-0165)
 
 Profile IDs are allocation identifiers, not a security ranking. Deterministic selection uses the mutual validated profile
 intersection, local policy/lifecycle eligibility and the applicable conversation-type security floor, then selects the highest

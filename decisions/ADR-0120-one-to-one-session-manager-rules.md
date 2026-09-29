@@ -33,7 +33,7 @@ lost, or a revoked device authorized again).
      authenticated reset.
    Each rule's V-003 vector is its conformance test.
 2. **Downgrade floor survives restore (K3).** Per-peer floor records are not secret, so they are included in backups.
-   After a restore, the 1:1 floor is the maximum of the restored `one_to_one` generation and the `security_generation.one_to_one` of the AccountControlState `minimum_crypto_profile` (ADR-0158). A
+   After a restore, the 1:1 floor is the maximum of the restored `one_to_one` generation and the `security_generation.one_to_one` of the AccountControlState `minimum_crypto_profile` (ADR-0161). A
    receiver that rejects a session below the floor MUST send an authenticated reject naming the message. The sender
    treats it as a reset (K4) and retries at the floor profile, so the rejection is never silent.
 3. **Lazy repair is accepted (P1).** A device that lost sessions does not broadcast to its contacts. Doing so would

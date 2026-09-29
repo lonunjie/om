@@ -83,7 +83,7 @@ This is a later-wave group object rather than a frozen W0 wire object. Its exact
 
 ## 5. Crash/retry/idempotency
 
-ADR-0160 closes the local transaction semantics for membership/role-affecting transitions without freezing the later-wave wire encoding. A conforming implementation keeps a durable local transition journal:
+ADR-0163 closes the local transaction semantics for membership/role-affecting transitions without freezing the later-wave wire encoding. A conforming implementation keeps a durable local transition journal:
 
 ```text
 INTENT_DURABLE
@@ -134,7 +134,7 @@ Before `groups` may be authorized, V-004 must still provide the evidence/wire fr
 
 - formalize/model GroupCommitOrdering replacement/equivocation and conflict/rebase behavior;
 - freeze GroupControlState/Intent/Binding/Transition and related group event bodies as CDDL + registries + two-codec vectors;
-- exercise ADR-0160 crash/partial-publication/restart semantics under partition;
+- exercise ADR-0163 crash/partial-publication/restart semantics under partition;
 - prove AccountControlState-device changes and reduction liveness under coordinator failure/censorship;
 - demonstrate the selected MLS library supports the required external ordering/profile behavior on target runtimes.
 

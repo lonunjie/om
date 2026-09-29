@@ -56,7 +56,7 @@ A client MUST NOT accept a state that:
   profile's `group` generation. Group downgrade floors are Room/group state and are not derived from this field. The
   only non-increase is a SecurityAdvisory marking a profile `forbidden`, after which the ACS minimum moves to a
   non-forbidden profile of equal or higher `one_to_one` generation, never lower
-  ([`CRYPTOGRAPHY_AND_AGILITY.md`](../crypto/CRYPTOGRAPHY_AND_AGILITY.md), ADR-0126/0158);
+  ([`CRYPTOGRAPHY_AND_AGILITY.md`](../crypto/CRYPTOGRAPHY_AND_AGILITY.md), ADR-0126/0161);
 - silently removes enough controllers to make a previously unauthorized coalition authoritative.
 
 ## 3. Device classes
@@ -161,7 +161,7 @@ Messaging devices are removed, never quarantined; the ACS has no field for it. *
 DeviceID.** `permanently_revoked_devices` is a monotone tombstone set: a descendant ACS MUST NOT put an ID from that
 set back into `messaging_devices` or `active_control_devices`, and MUST NOT remove the tombstone. Returning hardware,
 a reinstall or a restored backup enrolls with a fresh DeviceID and fresh DeviceCredential through the ordinary
-link/recovery path (ADR-0131, ADR-0158). Historical credential material may remain for verification of old signatures;
+link/recovery path (ADR-0131, ADR-0161). Historical credential material may remain for verification of old signatures;
 it is not active eligibility. A device's revocation is recorded only in the ACS, never as a timestamp on the device
 record. V-002 mirrors this table and the no-resurrection postcondition.
 ## 5. Contest and safety freeze

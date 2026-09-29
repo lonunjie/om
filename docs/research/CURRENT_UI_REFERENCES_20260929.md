@@ -1,6 +1,6 @@
 # UI/UX references — Run 3, 2026-09-29
 
-Supporting research for ADR-0159. These references guide the reference product design; they are not protocol dependencies.
+Supporting research for ADR-0162. These references guide the reference product design; they are not protocol dependencies.
 
 ## Recognition, adaptive search and navigation
 

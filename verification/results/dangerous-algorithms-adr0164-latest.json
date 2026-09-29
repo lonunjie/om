@@ -1,5 +1,5 @@
 {
-  "checker": "dangerous_algorithms_adr0161",
+  "checker": "dangerous_algorithms_adr0164",
   "passed": true,
   "cases": 49,
   "failures": [],

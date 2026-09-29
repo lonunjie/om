@@ -1,4 +1,4 @@
-# ADR-0158 — Terminal DeviceID revocation, mutable-record convergence and HistoryBundle state isolation
+# ADR-0161 — Terminal DeviceID revocation, mutable-record convergence and HistoryBundle state isolation
 
 - **Status:** Accepted
 - **Date:** 2026-09-29

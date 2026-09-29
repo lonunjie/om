@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded semantic regressions for ADR-0158.
+"""Bounded semantic regressions for ADR-0161.
 
 This is design evidence, not product code. It checks:
 - terminal DeviceID revocation semantics;
@@ -11,7 +11,7 @@ import hashlib, json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / "verification/results/protocol-semantics-adr0158-latest.json"
+OUT = ROOT / "verification/results/protocol-semantics-adr0161-latest.json"
 
 
 def h(rec: dict) -> str:
@@ -151,7 +151,7 @@ def main() -> int:
     device = device_revocation_tests()
     history = history_tests()
     result = {
-        "adr":"ADR-0158", "status":"pass",
+        "adr":"ADR-0161", "status":"pass",
         "mutable_record_orders": mutable,
         "device_revocation_cases": device,
         "history_bundle_cases": history,

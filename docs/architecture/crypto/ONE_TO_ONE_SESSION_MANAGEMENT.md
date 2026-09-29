@@ -130,7 +130,7 @@ Ratchet/session persistence belongs to the DeviceVault/local security boundary. 
 
 ## 8. Freeze/evidence gate
 
-The design rules for the 1:1 session manager are selected by ADR-0120 and subsequent ADR-0140..0147/0158 amendments. V-003 remains the evidence gate: its executable model/vectors cover crossed initiation, fanout/dedupe, add/revoke races, authenticated reset/re-send, restore/redelivery, async-key freshness, sealed delivery and account-private sync. The remaining open criterion is independent model review; implementation must consume the frozen rules rather than reinterpret this older checklist as open design.
+The design rules for the 1:1 session manager are selected by ADR-0120 and subsequent ADR-0140..0147/0161 amendments. V-003 remains the evidence gate: its executable model/vectors cover crossed initiation, fanout/dedupe, add/revoke races, authenticated reset/re-send, restore/redelivery, async-key freshness, sealed delivery and account-private sync. The remaining open criterion is independent model review; implementation must consume the frozen rules rather than reinterpret this older checklist as open design.
 
 ## 2026-09-24 verification rulings
 

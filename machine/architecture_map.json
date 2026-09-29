@@ -1,5 +1,5 @@
 {
-  "snapshot": "2026-09-29 Run 5 ADR-0160 implementation-readiness hardening",
+  "snapshot": "2026-09-29 Run 5 ADR-0163 implementation-readiness hardening",
   "domains": {
     "constitution_governance": {
       "docs": [
@@ -181,7 +181,7 @@
         "ADR-0121",
         "ADR-0122",
         "ADR-0128",
-        "ADR-0160"
+        "ADR-0163"
       ],
       "resolved_questions": [
         "Q-002",
@@ -537,7 +537,7 @@
         "ADR-0068",
         "ADR-0115",
         "ADR-0129",
-        "ADR-0159"
+        "ADR-0162"
       ],
       "resolved_questions": [
         "Q-024",
@@ -588,7 +588,7 @@
         "ADR-0116",
         "ADR-0117",
         "ADR-0130",
-        "ADR-0160"
+        "ADR-0163"
       ],
       "resolved_questions": [],
       "design_queue": [
@@ -817,7 +817,7 @@
         "ADR-0094",
         "ADR-0100",
         "ADR-0101",
-        "ADR-0162"
+        "ADR-0165"
       ],
       "design_queue": [
         "A-015"

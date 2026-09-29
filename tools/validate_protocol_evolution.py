@@ -23,13 +23,13 @@ for e in reg.get('extensions',[]):
     if name.startswith('!') and not critical: fail('! extension is non-critical: '+name)
     if critical and not name.startswith('!') and name not in grandfather: fail('critical extension lacks ! class: '+name)
 # Required canonical documents and guardrail pointers.
-for rel in ['decisions/ADR-0162-protocol-evolution-compatibility-and-engineering-guardrails.md','docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md','machine/protocol_evolution_policy.json','verification/bounded/protocol_evolution_adr0162.py']:
+for rel in ['decisions/ADR-0165-protocol-evolution-compatibility-and-engineering-guardrails.md','docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md','machine/protocol_evolution_policy.json','verification/bounded/protocol_evolution_adr0165.py']:
     if not (ROOT/rel).exists(): fail('missing '+rel)
 for rel, needle in [
     ('AGENTS.md','Run 7 protocol-evolution rules'),
-    ('docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md','ADR-0162'),
-    ('docs/constitution/PROTOCOL_EXTENSIBILITY.md','ADR-0162'),
-    ('docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md','ADR-0162'),
+    ('docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md','ADR-0165'),
+    ('docs/constitution/PROTOCOL_EXTENSIBILITY.md','ADR-0165'),
+    ('docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md','ADR-0165'),
 ]:
     if needle not in (ROOT/rel).read_text(): fail('missing '+needle+' in '+rel)
 print('protocol-evolution check: PASS')
