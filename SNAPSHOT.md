@@ -1,15 +1,24 @@
 # OM Architecture Snapshot
 
-Generated: **2026-09-29 11:50 PHT (UTC+08:00)**, after ADR-0169 authorized `core_kernel`.
+Generated: **2026-09-29 12:18 PHT (UTC+08:00)**, after ADR-0171 authorized `provider_reference`.
 
 ## State
 
-- **Engineering is authorized for `core_kernel` only** (ADR-0169): `engineering_authorized=true`, 1/12 scopes authorized. Every other scope is not authorized.
-- **Review model:** at the operator's direction Claude performs all reviews (ADR-0167). Gates passed this way carry `pre_engineering_review_basis=operator_single_vendor_ADR-0167`, which is not vendor-independent review.
-- **Design:** `design_open=0`. ADR-0168 fixed four review findings (F-14 freeze lockout, F-15 stale V-005 harness, F-16 W3 role widening W0, F-17 geo-token grammar).
-- **Verification:** V-001, V-002, V-003, V-005, V-015, V-016 and V-017 have passed pre-engineering phases; 24 gates remain overall-open (pre-release obligations) and 17 still have pre-engineering open.
-- **Ledgers:** 379 requirements / 379 trace rows, 147 threats, 190 decisions / 169 indexed ADRs, 40 security invariants.
-- **Next:** start `core_kernel` crates per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md); in parallel, close the remaining W0 scopes (`provider_reference`: V-020, V-022; `reference_client_ui`: V-006, V-018, V-021, V-022, V-023), then later waves.
+- **Engineering is authorized for `core_kernel` (ADR-0169) and `provider_reference` (ADR-0171) only**: `engineering_authorized=true`, 2/12 scopes. Every other scope is not authorized.
+- **Review model:** Claude performs all reviews at the operator's direction (ADR-0167). Gates passed this way carry `pre_engineering_review_basis=operator_single_vendor_ADR-0167`, which is not vendor-independent review.
+- **Design:** `design_open=0`. Review findings F-14..F-19 are fixed (ADR-0168, ADR-0170).
+- **Verification:** 12 gates still have pre-engineering open. `reference_client_ui` is blocked only by V-006 (WebDeviceVault browser matrix, which needs real passkey runs: see [`verification/prototypes/v006-web-vault/README.md`](verification/prototypes/v006-web-vault/README.md)); V-018 moved to pre-release by ADR-0170. Later-wave scopes keep their own open criteria (for example the V-004 wire freeze for `groups`).
+- **Ledgers:** 381 requirements / 381 trace rows, 147 threats, 192 decisions / 171 indexed ADRs, 40 security invariants.
+- **Next:** build `core_kernel` and `provider_reference` crates per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md); run the V-006 probe on the target browsers and record results to unlock `reference_client_ui`; then later-wave gate work (V-004 first).
+
+## 2026-09-29 12:18 PHT — W0 provider/client review and `provider_reference` unlock / ADR-0170..0171
+
+- **Review:** [`2026-09-29-claude-opus-5-5-w0-provider-client-review.md`](verification/reviews/2026-09-29-claude-opus-5-5-w0-provider-client-review.md) passes V-020, V-021, V-022 and V-023.
+- **F-18:** a single-vendor block leaves about 42–48% of relationships alive even with the modeled fallback. PR-013 now needs at least 90% survivability before any resilience claim.
+- **F-19:** the performance measurement plan gains sample-size, device-state, clock, fixture, CI-regression and no-release-telemetry controls.
+- **V-018:** the participant study moves to pre-release (ADR-0170) because it needs the running client; it blocks any public or beta reference-client release.
+- **V-006:** browser probe built (`verification/prototypes/v006-web-vault/`); the automatic parts pass in Chromium, and the PRF ceremonies await real devices.
+- **ADR-0171:** `provider_reference` is authorized.
 
 ## 2026-09-29 11:50 PHT — core_kernel review and engineering unlock / ADR-0167..0169
 

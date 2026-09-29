@@ -42,3 +42,25 @@ verdict. A release note lists every budget with its measured value. A miss needs
 
 Crypto and codec costs come from the V-001 and V-005 prototypes (see their result files). The other budgets need
 the real client, so this plan is the pre-engineering deliverable for them.
+
+## Measurement controls (ADR-0170 review of this plan)
+
+These controls make runs reproducible and comparable. A run that violates one is recorded as invalid, not as a pass or
+a miss.
+
+1. **Sample sizes.** Cold start: at least 30 launches per device after one discarded warm-up launch. Warm start and
+   input-to-next-paint: at least 200 interactions. Send-to-delivered/visible: 500 sends. Local search: 100 queries over a
+   fixed query set. A reported p95 needs at least 100 samples; below that, only p50/p75 are reported.
+2. **Device state.** Battery at or above 50% and not charging (except CI), screen brightness fixed, OS power saving off
+   unless the scenario is a power-saving variant, and a 10-minute cool-down between cold-start series. Runs where the
+   device reports thermal throttling are discarded.
+3. **Clock alignment.** For two-device timings, each device records its offset to one local reference clock before and
+   after the series; a run with any offset above 20 ms, or drift above 10 ms, is invalid. Offsets are stored with the raw
+   samples.
+4. **Realistic state.** Local search runs over the encrypted-at-rest index in the platform DeviceVault configuration the
+   release ships, never a plaintext test index. Conversation fixtures use the same size distribution each run (checked in
+   under `conformance/perf-fixtures/`).
+5. **CI regression rule.** CI compares each emulated scenario's median with the previous `main` baseline and fails when
+   it regresses by more than 10% or the bundle grows by more than 2%. Baselines move only in a commit that states why.
+6. **No production telemetry.** Performance instrumentation is compiled only into measurement builds; release builds
+   carry no performance telemetry, and lab result files never contain message content, identifiers or keys.

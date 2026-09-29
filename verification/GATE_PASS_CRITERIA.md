@@ -40,12 +40,12 @@
 | V-015 | `metadata_exposure_and_privacy_path_model` | core_kernel, provider_reference, local_delivery | passed | open | open | — |
 | V-016 | `decentralized_abuse_moderation_authority_model` | core_kernel, communities_publications | passed | open | open | — |
 | V-017 | `protocol_longevity_and_0m_continuity_drill` | none | passed | open | open | — |
-| V-018 | `security_ux_comprehension` | reference_client_ui | open | open | open | — |
+| V-018 | `security_ux_comprehension` | reference_client_ui | waived_by_adr | open | open | — |
 | V-019 | `pq_group_reinit_migration` | groups | open | open | evidenced | core_kernel |
-| V-020 | `home_onboarding_and_provider_portability` | provider_reference | open | open | open | — |
-| V-021 | `endpoint_coercion_and_platform_leakage` | reference_client_ui | open | open | open | — |
-| V-022 | `performance_budgets` | reference_client_ui, provider_reference | open | open | open | — |
-| V-023 | `clienthost_update_lifecycle` | reference_client_ui | open | open | open | — |
+| V-020 | `home_onboarding_and_provider_portability` | provider_reference | passed | open | open | — |
+| V-021 | `endpoint_coercion_and_platform_leakage` | reference_client_ui | passed | open | open | — |
+| V-022 | `performance_budgets` | reference_client_ui, provider_reference | passed | open | open | — |
+| V-023 | `clienthost_update_lifecycle` | reference_client_ui | passed | open | open | — |
 | V-024 | `lan_delivery_binding` | local_delivery | open | open | open | — |
 
 ## Gates
@@ -597,11 +597,11 @@ Pre-release criteria:
 Demonstrate that non-technical users complete and correctly understand OM's security-critical flows without infrastructure or cryptographic vocabulary.
 
 - **Scopes blocked:** reference_client_ui
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `waived_by_adr`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering participant_study, independent_facilitator; pre-release participant_study
 - **Execution class:** `human_participant_study`; next executor role `human_study_team`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `docs/process/SECURITY_UX_STUDY_PROTOCOL.md`
+- **Pre-engineering independence status:** `waived_by_adr`
+- **Evidence:** `docs/process/SECURITY_UX_STUDY_PROTOCOL.md`; `decisions/ADR-0170-w0-provider-and-client-review.md`
 
 Pre-engineering criteria:
 
@@ -616,6 +616,13 @@ Pre-engineering criteria:
 Pre-release criteria:
 
 - [ ] repeat on the real client, plus assistive-technology users for accessibility
+- [ ] moderated sessions with at least 12 non-technical participants (including at least 3 aged 60+ and 3 with low digital literacy, in at least 2 languages) on non-production prototypes
+- [ ] flows: onboarding tier (T0/T1), recovery on (where it lives) and turning recovery off, recovery veto notice, continuity check, device-link notice, suspend device, contact continuity change, bridge E2EE boundary, full-Room service disclosure
+- [ ] per flow at least 80% task success and correct answer to the flow's security-comprehension question; failures redesigned and retested
+- [ ] flows add: counterparty notice for a representing service, Connected services review and revoke, and 'this service can read all Room content' for a full-member service with a trigger filter (ADR-0129)
+- [ ] theme-compiler test: a glyph-remapping theme font does not change any reserved surface (ADR-0129 rule 17)
+- [ ] onboarding from a sponsored invite: the user chooses native or one of several independent app origins and can say who serves their app (R-260)
+- [ ] comprehension: 'your inviter can see when you get messages and who else on their home you talk to, and can close this mailbox after 30 days' notice' is understood; the co-located-home disclosure is understood (R-265, R-267)
 
 Mechanically unfinished pre-engineering work:
 
@@ -661,11 +668,11 @@ Mechanically unfinished pre-engineering work:
 Prove zero-signup sponsored onboarding, bounded sponsorship, migration between Home tiers without AccountID change, and survival of a vendor-wide provider block with a second non-cloud reference provider.
 
 - **Scopes blocked:** provider_reference
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_provider_model`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `docs/architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md`; `docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md`; `docs/architecture/providers/PROVISIONING_AND_BOOTSTRAP.md`; `docs/process/CONTINUITY_TABLETOP_DRILLS.md`; `verification/bounded/clienthost_update_adr0148.py`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/bounded/home_tiers_model.py`; `verification/bounded/v020_provider_resilience_r16b.py`; `verification/results/clienthost-update-adr0148-latest.json`; `verification/results/design-consistency-adr0141-latest.json`; `verification/results/home-tiers-latest.json`; `verification/results/v020-provider-resilience-r16b-latest.json`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `docs/architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md`; `docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md`; `docs/architecture/providers/PROVISIONING_AND_BOOTSTRAP.md`; `docs/process/CONTINUITY_TABLETOP_DRILLS.md`; `verification/bounded/clienthost_update_adr0148.py`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/bounded/home_tiers_model.py`; `verification/bounded/v020_provider_resilience_r16b.py`; `verification/results/clienthost-update-adr0148-latest.json`; `verification/results/design-consistency-adr0141-latest.json`; `verification/results/home-tiers-latest.json`; `verification/results/v020-provider-resilience-r16b-latest.json`; `verification/reviews/2026-09-29-claude-opus-5-5-w0-provider-client-review.md`
 
 Pre-engineering criteria:
 
@@ -685,20 +692,16 @@ Pre-release criteria:
 - [ ] live vendor-wide block drill
 - [ ] zero-billing enforcement tests on the reference cloud tier
 
-Mechanically unfinished pre-engineering work:
-
-- phase independence evidence is not yet recorded as satisfied
-
 ### V-021 — `endpoint_coercion_and_platform_leakage`
 
 Prove non-silent device linking and per-platform leakage controls for every LocalDataClass on each shipped platform.
 
 - **Scopes blocked:** reference_client_ui
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release external_review
 - **Execution class:** `documented_platform_capability_review`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0148-v1-product-base-promotion-without-kernel-expansion.md`; `decisions/ADR-0149-promoted-v1-adversarial-hardening.md`; `decisions/ADR-0150-v1-offline-local-rich-lists-and-native-reference-targets.md`; `docs/architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md`; `docs/architecture/client/PLATFORM_CAPABILITY_MATRIX.md`; `docs/architecture/ux/UI_CORE_PLATFORM_CONTRACT.md`; `verification/bounded/endpoint_profile_adr0148.py`; `verification/bounded/platform_reference_adr0150.py`; `verification/bounded/profile_context_adr0149_hardening.py`; `verification/results/endpoint-profile-adr0148-latest.json`; `verification/results/platform-reference-adr0150-latest.json`; `verification/results/profile-context-adr0149-hardening-latest.json`; `verification/tla/AccountControl.tla`; `decisions/ADR-0152-v1-desktop-replaceable-android-wake-and-contact-cleanup.md`; `verification/bounded/desktop_personrecord_adr0152.py`; `verification/results/desktop-personrecord-adr0152-latest.json`; `decisions/ADR-0162-conversation-first-omnibar-and-theme-visual-system-hardening.md`; `verification/bounded/ui_integration_adr0162.py`; `verification/results/ui-integration-adr0162-latest.json`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0148-v1-product-base-promotion-without-kernel-expansion.md`; `decisions/ADR-0149-promoted-v1-adversarial-hardening.md`; `decisions/ADR-0150-v1-offline-local-rich-lists-and-native-reference-targets.md`; `decisions/ADR-0152-v1-desktop-replaceable-android-wake-and-contact-cleanup.md`; `decisions/ADR-0162-conversation-first-omnibar-and-theme-visual-system-hardening.md`; `docs/architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md`; `docs/architecture/client/PLATFORM_CAPABILITY_MATRIX.md`; `docs/architecture/ux/UI_CORE_PLATFORM_CONTRACT.md`; `verification/bounded/desktop_personrecord_adr0152.py`; `verification/bounded/endpoint_profile_adr0148.py`; `verification/bounded/platform_reference_adr0150.py`; `verification/bounded/profile_context_adr0149_hardening.py`; `verification/bounded/ui_integration_adr0162.py`; `verification/results/desktop-personrecord-adr0152-latest.json`; `verification/results/endpoint-profile-adr0148-latest.json`; `verification/results/platform-reference-adr0150-latest.json`; `verification/results/profile-context-adr0149-hardening-latest.json`; `verification/results/ui-integration-adr0162-latest.json`; `verification/reviews/2026-09-29-claude-opus-5-5-w0-provider-client-review.md`; `verification/tla/AccountControl.tla`
 
 Pre-engineering criteria:
 
@@ -718,47 +721,38 @@ Pre-release criteria:
 
 - [ ] forensic-style audit on each shipped platform: backup exclusion, snapshot suppression, plaintext residue after quick lock and disappearing expiry
 
-Mechanically unfinished pre-engineering work:
-
-- phase independence evidence is not yet recorded as satisfied
-
 ### V-022 — `performance_budgets`
 
 Show OM meets the measurable speed, battery, memory and size budgets in MOTION_AND_PERFORMANCE.md on reference device classes.
 
 - **Scopes blocked:** reference_client_ui, provider_reference
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `measurement_plan_and_prototype_metrics`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `docs/architecture/ux/MOTION_AND_PERFORMANCE.md`; `docs/process/PERFORMANCE_MEASUREMENT_PLAN.md`; `verification/results/v001-crypto-latest.json`; `verification/results/v005-encoding-latest.json`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0170-w0-provider-and-client-review.md`; `docs/architecture/ux/MOTION_AND_PERFORMANCE.md`; `docs/process/PERFORMANCE_MEASUREMENT_PLAN.md`; `verification/results/v001-crypto-latest.json`; `verification/results/v005-encoding-latest.json`; `verification/reviews/2026-09-29-claude-opus-5-5-w0-provider-client-review.md`
 
 Pre-engineering criteria:
 
 - [x] budgets and reference device classes recorded in MOTION_AND_PERFORMANCE.md
 - [x] V-001 and V-005 prototypes record crypto and codec costs on native and wasm32 against the budgets; unattainable budgets revised by ADR
-- [ ] measurement harness plan (lab devices + CI emulation) reviewed
+- [x] measurement harness plan (lab devices + CI emulation) reviewed
 
 Pre-release criteria:
 
 - [ ] every budget measured on real reference devices for the release, results published
 - [ ] CI regression checks on emulated low-end profiles
 
-Mechanically unfinished pre-engineering work:
-
-- measurement harness plan (lab devices + CI emulation) reviewed
-- phase independence evidence is not yet recorded as satisfied
-
 ### V-023 — `clienthost_update_lifecycle`
 
 Specify and test the ClientHost update lifecycle that is the W0 PWA endpoint trust root: release discovery and mirrors, signed-metadata verification, the verifier-first provider-template update flow, service-worker lifecycle, rollback/freeze protection, the owner-local minimum-version floor, broken/compromised-origin migration, credential scoping, long-neglected host upgrade, and the release-transparency log/monitor roles.
 
 - **Scopes blocked:** reference_client_ui
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool, external_review
 - **Execution class:** `repo_local_update_lifecycle_design`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0148-v1-product-base-promotion-without-kernel-expansion.md`; `docs/architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md`; `docs/architecture/providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md`; `verification/bounded/clienthost_update_adr0148.py`; `verification/results/clienthost-update-adr0148-latest.json`; `decisions/ADR-0149-promoted-v1-adversarial-hardening.md`; `verification/bounded/clienthost_update_adr0149_authority.py`; `verification/results/clienthost-update-adr0149-authority-latest.json`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0148-v1-product-base-promotion-without-kernel-expansion.md`; `decisions/ADR-0149-promoted-v1-adversarial-hardening.md`; `docs/architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md`; `docs/architecture/providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md`; `verification/bounded/clienthost_update_adr0148.py`; `verification/bounded/clienthost_update_adr0149_authority.py`; `verification/results/clienthost-update-adr0148-latest.json`; `verification/results/clienthost-update-adr0149-authority-latest.json`; `verification/reviews/2026-09-29-claude-opus-5-5-w0-provider-client-review.md`
 
 Pre-engineering criteria:
 
@@ -775,10 +769,6 @@ Pre-engineering criteria:
 Pre-release criteria:
 
 - [ ] live update and rollback drill on the reference PWA across the supported browser matrix, including a withheld-transparency case and a compromised-origin migration
-
-Mechanically unfinished pre-engineering work:
-
-- phase independence evidence is not yet recorded as satisfied
 
 ### V-024 — `lan_delivery_binding`
 

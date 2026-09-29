@@ -1,3 +1,11 @@
+# 2026-09-29 12:18 PHT — W0 provider/client review, ADR-0170..0171
+
+- ADR-0170: F-18 (PR-013 90% single-vendor-block survivability target, R-389), F-19 (measurement controls in
+  PERFORMANCE_MEASUREMENT_PLAN.md, R-390), V-018 participant study moved to pre-release. D-191.
+- Gates V-020, V-021, V-022 and V-023 pass pre-engineering (ADR-0167 review model).
+- ADR-0171 authorizes `provider_reference` (D-192). Authorized scopes: `core_kernel`, `provider_reference`.
+- New V-006 browser-matrix probe at `verification/prototypes/v006-web-vault/`.
+
 # 2026-09-29 11:50 PHT — core_kernel review, ADR-0167..0169, engineering unlock
 
 - ADR-0167: operator-directed single-vendor (Claude) review model, labelled in the gate ledger.

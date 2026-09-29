@@ -171,11 +171,12 @@
     },
     "provider_reference": {
       "wave": "W0",
-      "authorized": false,
+      "authorized": true,
       "depends_on": [
         "core_kernel"
       ],
-      "description": "reference Home/relay deployments, sponsored starter mailbox, provisioning"
+      "description": "reference Home/relay deployments, sponsored starter mailbox, provisioning",
+      "authorizing_adr": "ADR-0171"
     },
     "groups": {
       "wave": "W1",

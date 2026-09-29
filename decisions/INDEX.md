@@ -176,3 +176,5 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0167 — Operator-directed single-vendor review model](ADR-0167-operator-single-vendor-review-model.md)
 - [ADR-0168 — core_kernel review findings F-14..F-16](ADR-0168-core-kernel-review-findings-f14-f16.md)
 - [ADR-0169 — Authorize engineering scope `core_kernel` (W0)](ADR-0169-authorize-core-kernel-engineering.md)
+- [ADR-0170 — W0 provider and reference-client review findings](ADR-0170-w0-provider-and-client-review.md)
+- [ADR-0171 — Authorize engineering scope `provider_reference` (W0)](ADR-0171-authorize-provider-reference-engineering.md)

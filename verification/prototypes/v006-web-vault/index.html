@@ -1,0 +1,247 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MPL-2.0 -->
+<!-- V-006 feasibility prototype (ADR-0170). Not product code. Not for production. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V-006 WebDeviceVault probe</title>
+<style>
+  :root { --bg:#fff; --fg:#172033; --muted:#566176; --line:#d7dee8; --ok:#18794e; --bad:#c4333b; --warn:#8a5a00; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#11151c; --fg:#f2f5f8; --muted:#b9c2ce; --line:#34404f; --ok:#5dd6a1; --bad:#ff7b7b; --warn:#f6c65b; } }
+  body { background:var(--bg); color:var(--fg); font:16px/1.45 system-ui, sans-serif; margin:0; padding:16px; max-width:900px; }
+  h1 { font-size:1.3rem; } h2 { font-size:1.05rem; margin-top:1.6rem; }
+  button { font:inherit; padding:.5rem .9rem; margin:.2rem .3rem .2rem 0; border-radius:8px; border:1px solid var(--line); background:transparent; color:inherit; cursor:pointer; }
+  input { font:inherit; padding:.4rem; border-radius:6px; border:1px solid var(--line); background:transparent; color:inherit; }
+  pre { white-space:pre-wrap; word-break:break-word; border:1px solid var(--line); border-radius:8px; padding:.6rem; font-size:.85rem; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); } .warn { color:var(--warn); } .muted { color:var(--muted); }
+  li { margin:.2rem 0; }
+</style>
+</head>
+<body>
+<h1>V-006 WebDeviceVault probe</h1>
+<p class="muted">Tests the OM WebDeviceVault wrapping hierarchy on this browser. It creates throwaway test credentials
+named “OM V-006 probe”; delete them afterwards in your passkey manager. Nothing leaves this page except the report you
+choose to copy or download.</p>
+
+<h2>1. Capabilities (automatic)</h2>
+<ul id="caps"></ul>
+
+<h2>2. Non-extractable WebCrypto wrapping key</h2>
+<p class="muted">Generates a non-extractable AES-KW key, stores it in IndexedDB, wraps a profile vault key, then checks
+it again after you reload the page.</p>
+<button id="kw">Run WebCrypto test</button> <button id="kwReload">Check after reload</button>
+<ul id="kwOut"></ul>
+
+<h2>3. WebAuthn PRF vault wrapping (needs your fingerprint, face or PIN)</h2>
+<button id="create">Create vault test credential</button>
+<button id="unlock">Unlock vault with PRF</button>
+<button id="recovery">Create separate RecoveryRoot test credential</button>
+<ul id="prfOut"></ul>
+
+<h2>4. Passphrase as an additional wrapping factor</h2>
+<input id="pass" type="password" placeholder="any test passphrase" autocomplete="off">
+<button id="passBtn">Layer passphrase over the vault key</button>
+<ul id="passOut"></ul>
+
+<h2>5. Origin binding (run on a second origin)</h2>
+<p class="muted">Open this page on a different origin (for example <code>127.0.0.1</code> instead of <code>localhost</code>, or another
+host), paste the credential ID from the first origin's report, and try it. OM expects this to fail: passkey-only recovery
+is bound to its distribution origin.</p>
+<input id="foreignId" placeholder="credential id (base64url) from another origin" size="50">
+<button id="foreign">Try credential from another origin</button>
+<ul id="foreignOut"></ul>
+
+<h2>Report</h2>
+<button id="copy">Copy report</button> <button id="dl">Download report</button>
+<pre id="report"></pre>
+
+<script>
+"use strict";
+const R = { probe: "om-v006-webdevicevault/1", ts: new Date().toISOString(), origin: location.origin,
+  rpId: location.hostname, userAgent: navigator.userAgent, results: {} };
+const enc = new TextEncoder();
+const b64u = b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+const rand = n => crypto.getRandomValues(new Uint8Array(n));
+// Implementation-private local labels (DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION §4-5); never on the wire.
+const SALT_VAULT = enc.encode("om:v1:vault-wrap:prf-salt");
+const SALT_RECOVERY = enc.encode("om:v1:recovery-root:prf-salt");
+function show(listId, key, ok, detail) {
+  R.results[key] = { ok, detail };
+  const li = document.createElement("li");
+  li.innerHTML = `<span class="${ok === true ? "ok" : ok === false ? "bad" : "warn"}">${ok === true ? "yes" : ok === false ? "no" : "n/a"}</span> — <b>${key}</b>${detail !== undefined ? ": " + String(detail).replace(/</g, "&lt;") : ""}`;
+  document.getElementById(listId).appendChild(li);
+  render();
+}
+function render() { document.getElementById("report").textContent = JSON.stringify(R, null, 2); }
+
+// ---- IndexedDB helper
+function idb() {
+  return new Promise((res, rej) => { const o = indexedDB.open("om-v006-probe", 1);
+    o.onupgradeneeded = () => o.result.createObjectStore("kv"); o.onsuccess = () => res(o.result); o.onerror = () => rej(o.error); });
+}
+async function put(k, v) { const db = await idb(); return new Promise((res, rej) => { const t = db.transaction("kv", "readwrite"); t.objectStore("kv").put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); }
+async function get(k) { const db = await idb(); return new Promise((res, rej) => { const t = db.transaction("kv"); const q = t.objectStore("kv").get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }
+
+// ---- key helpers: PVK is an AES-GCM key; wrapping keys are AES-KW
+async function kekFromSecret(secret, info) {
+  const base = await crypto.subtle.importKey("raw", secret, "HKDF", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "HKDF", hash: "SHA-256", salt: new Uint8Array(32), info: enc.encode(info) },
+    base, { name: "AES-KW", length: 256 }, false, ["wrapKey", "unwrapKey"]);
+}
+async function newPVK() { return crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]); }
+async function roundTrip(pvk) {
+  const iv = rand(12), msg = enc.encode("om v006 probe plaintext");
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, pvk, msg);
+  return { iv, ct };
+}
+async function checks(pvk, rt) {
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: rt.iv }, pvk, rt.ct);
+  return new TextDecoder().decode(pt) === "om v006 probe plaintext";
+}
+
+// ---- 1. capabilities
+(async () => {
+  show("caps", "secure_context", window.isSecureContext);
+  show("caps", "webauthn_api", !!window.PublicKeyCredential);
+  if (window.PublicKeyCredential) {
+    try { show("caps", "platform_uv_authenticator", await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }
+    catch (e) { show("caps", "platform_uv_authenticator", false, e.name); }
+    if (PublicKeyCredential.getClientCapabilities) {
+      try { const c = await PublicKeyCredential.getClientCapabilities(); R.results.client_capabilities = c;
+        show("caps", "prf_extension_advertised", c["extension:prf"] === true, JSON.stringify(c["extension:prf"]));
+        show("caps", "signalCurrentUserDetails_advertised", c.signalCurrentUserDetails === true); }
+      catch (e) { show("caps", "getClientCapabilities", false, e.name); }
+    } else show("caps", "getClientCapabilities", false, "not implemented");
+    show("caps", "signalCurrentUserDetails_method", typeof PublicKeyCredential.signalCurrentUserDetails === "function");
+  }
+  show("caps", "indexeddb", !!window.indexedDB);
+  if (navigator.storage && navigator.storage.persisted) {
+    show("caps", "storage_persisted", await navigator.storage.persisted());
+    try { const est = await navigator.storage.estimate(); show("caps", "storage_quota_mb", null, Math.round((est.quota || 0) / 1e6)); } catch (e) {}
+  } else show("caps", "storage_persisted", false, "StorageManager missing");
+})();
+
+// ---- 2. non-extractable WebCrypto wrapping key (method 2)
+document.getElementById("kw").onclick = async () => {
+  try {
+    if (navigator.storage && navigator.storage.persist) show("kwOut", "storage_persist_granted", await navigator.storage.persist());
+    const kek = await crypto.subtle.generateKey({ name: "AES-KW", length: 256 }, false, ["wrapKey", "unwrapKey"]);
+    let extractable = true; try { await crypto.subtle.exportKey("raw", kek); } catch (e) { extractable = false; }
+    show("kwOut", "kek_non_extractable", !extractable);
+    const pvk = await newPVK(); const rt = await roundTrip(pvk);
+    const wrapped = await crypto.subtle.wrapKey("raw", pvk, kek, "AES-KW");
+    await put("kek", kek); await put("wrappedPVK", wrapped); await put("rt", rt);
+    show("kwOut", "kek_stored_in_indexeddb", true, "reload the page, then press “Check after reload”");
+  } catch (e) { show("kwOut", "webcrypto_kek", false, `${e.name}: ${e.message}`); }
+};
+document.getElementById("kwReload").onclick = async () => {
+  try {
+    const kek = await get("kek"), wrapped = await get("wrappedPVK"), rt = await get("rt");
+    if (!kek) return show("kwOut", "kek_survives_reload", false, "no stored key: run the test first");
+    const pvk = await crypto.subtle.unwrapKey("raw", wrapped, kek, "AES-KW", { name: "AES-GCM" }, false, ["decrypt"]);
+    show("kwOut", "kek_survives_reload", await checks(pvk, rt));
+  } catch (e) { show("kwOut", "kek_survives_reload", false, `${e.name}: ${e.message}`); }
+};
+
+// ---- 3. WebAuthn PRF (method 1) and separate RecoveryRoot salt/credential
+function flags(authData) {
+  const f = new Uint8Array(authData)[32];
+  return { uv: !!(f & 0x04), backup_eligible: !!(f & 0x08), backup_state: !!(f & 0x10) };
+}
+async function createCred(label, salt) {
+  const cred = await navigator.credentials.create({ publicKey: {
+    rp: { name: "OM V-006 probe", id: location.hostname },
+    user: { id: rand(16), name: `om-v006-${label}`, displayName: `OM V-006 probe (${label})` },
+    challenge: rand(32), pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+    authenticatorSelection: { residentKey: "preferred", userVerification: "required" },
+    extensions: { prf: { eval: { first: salt } } } } });
+  const ext = cred.getClientExtensionResults();
+  const ad = cred.response.getAuthenticatorData ? cred.response.getAuthenticatorData() : null;
+  return { cred, ext, flags: ad ? flags(ad) : null };
+}
+async function prfEval(credId, salts) {
+  const a = await navigator.credentials.get({ publicKey: { challenge: rand(32), rpId: location.hostname, userVerification: "required",
+    allowCredentials: [{ type: "public-key", id: credId }], extensions: { prf: { eval: salts } } } });
+  return { res: a.getClientExtensionResults().prf, flags: flags(a.response.authenticatorData) };
+}
+document.getElementById("create").onclick = async () => {
+  try {
+    const { cred, ext, flags: fl } = await createCred("vault", SALT_VAULT);
+    R.results.vault_credential_id = b64u(cred.rawId); await put("vaultCred", cred.rawId);
+    show("prfOut", "prf_enabled_at_create", !!(ext.prf && ext.prf.enabled), JSON.stringify(ext.prf || null));
+    show("prfOut", "prf_output_at_create", !!(ext.prf && ext.prf.results && ext.prf.results.first));
+    if (fl) { show("prfOut", "vault_credential_device_bound", !fl.backup_eligible, `BE=${fl.backup_eligible} BS=${fl.backup_state}`); }
+    if (typeof PublicKeyCredential.signalCurrentUserDetails === "function") {
+      try { await PublicKeyCredential.signalCurrentUserDetails({ rpId: location.hostname, userId: b64u(rand(16)), name: "om-v006-vault", displayName: "OM V-006 probe (vault)" });
+        show("prfOut", "signalCurrentUserDetails_call", true); } catch (e) { show("prfOut", "signalCurrentUserDetails_call", false, e.name); }
+    }
+  } catch (e) { show("prfOut", "vault_credential_create", false, `${e.name}: ${e.message}`); }
+};
+document.getElementById("unlock").onclick = async () => {
+  try {
+    const id = await get("vaultCred"); if (!id) return show("prfOut", "prf_unlock", false, "create the vault credential first");
+    const { res, flags: fl } = await prfEval(id, { first: SALT_VAULT, second: SALT_RECOVERY });
+    if (!res || !res.results || !res.results.first) return show("prfOut", "prf_unlock", false, "no PRF output on get()");
+    const kek = await kekFromSecret(res.results.first, "om:v1:vault-kek");
+    const pvk = await newPVK(); const rt = await roundTrip(pvk);
+    const wrapped = await crypto.subtle.wrapKey("raw", pvk, kek, "AES-KW");
+    const kek2 = await kekFromSecret((await prfEval(id, { first: SALT_VAULT })).res.results.first, "om:v1:vault-kek");
+    const pvk2 = await crypto.subtle.unwrapKey("raw", wrapped, kek2, "AES-KW", { name: "AES-GCM" }, false, ["decrypt"]);
+    show("prfOut", "prf_wrap_unwrap_across_ceremonies", await checks(pvk2, rt));
+    const same = res.results.second && b64u(res.results.first) === b64u(res.results.second);
+    show("prfOut", "vault_and_recovery_salts_distinct_outputs", res.results.second ? !same : null, res.results.second ? "" : "authenticator returned one output only");
+    show("prfOut", "unlock_uv_flag", fl.uv);
+    await put("prfWrappedPVK", wrapped);
+  } catch (e) { show("prfOut", "prf_unlock", false, `${e.name}: ${e.message}`); }
+};
+document.getElementById("recovery").onclick = async () => {
+  try {
+    const { cred, ext, flags: fl } = await createCred("recovery-root", SALT_RECOVERY);
+    R.results.recovery_credential_id = b64u(cred.rawId);
+    show("prfOut", "separate_recovery_credential_prf", !!(ext.prf && ext.prf.enabled));
+    if (fl) show("prfOut", "recovery_credential_synced", fl.backup_eligible, `BE=${fl.backup_eligible} BS=${fl.backup_state}`);
+  } catch (e) { show("prfOut", "separate_recovery_credential", false, `${e.name}: ${e.message}`); }
+};
+
+// ---- 4. passphrase as an additional factor (layered over the WebCrypto-wrapped key)
+document.getElementById("passBtn").onclick = async () => {
+  try {
+    const p = document.getElementById("pass").value; if (!p) return show("passOut", "passphrase_layer", false, "enter a test passphrase");
+    // Stand-in KDF: PBKDF2-SHA256. Production uses a reviewed memory-hard KDF (Argon2id) per §5; this measures the web path only.
+    const t0 = performance.now();
+    const base = await crypto.subtle.importKey("raw", enc.encode(p), "PBKDF2", false, ["deriveKey"]);
+    const pkek = await crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: rand(16), iterations: 600000 },
+      base, { name: "AES-KW", length: 256 }, false, ["wrapKey", "unwrapKey"]);
+    const ms = Math.round(performance.now() - t0);
+    const inner = await crypto.subtle.generateKey({ name: "AES-KW", length: 256 }, true, ["wrapKey", "unwrapKey"]);
+    const pvk = await newPVK(); const rt = await roundTrip(pvk);
+    const w1 = await crypto.subtle.wrapKey("raw", pvk, inner, "AES-KW");     // device wrapper (method 1/2 stand-in)
+    const w2 = await crypto.subtle.wrapKey("raw", inner, pkek, "AES-KW");   // passphrase layer over it
+    const inner2 = await crypto.subtle.unwrapKey("raw", w2, pkek, "AES-KW", "AES-KW", false, ["unwrapKey"]);
+    const pvk2 = await crypto.subtle.unwrapKey("raw", w1, inner2, "AES-KW", { name: "AES-GCM" }, false, ["decrypt"]);
+    show("passOut", "passphrase_layer_round_trip", await checks(pvk2, rt), `PBKDF2 600k: ${ms} ms`);
+  } catch (e) { show("passOut", "passphrase_layer", false, `${e.name}: ${e.message}`); }
+};
+
+// ---- 5. origin binding
+document.getElementById("foreign").onclick = async () => {
+  const s = document.getElementById("foreignId").value.trim(); if (!s) return;
+  try {
+    await navigator.credentials.get({ publicKey: { challenge: rand(32), rpId: location.hostname, userVerification: "required",
+      allowCredentials: [{ type: "public-key", id: unb64u(s) }] } });
+    show("foreignOut", "foreign_origin_credential_rejected", false, "the other origin's credential worked here: record this");
+  } catch (e) { show("foreignOut", "foreign_origin_credential_rejected", true, e.name); }
+};
+
+// ---- report
+document.getElementById("copy").onclick = () => navigator.clipboard.writeText(JSON.stringify(R, null, 2));
+document.getElementById("dl").onclick = () => {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(R, null, 2)], { type: "application/json" }));
+  a.download = `om-v006-${location.hostname}-${Date.now()}.json`; a.click();
+};
+render();
+</script>
+</body>
+</html>
