@@ -1,9 +1,9 @@
 {
   "kind": "design_closure_set2",
   "design_only": true,
-  "requirements": 387,
-  "threats": 150,
-  "decisions": 194,
+  "requirements": 397,
+  "threats": 151,
+  "decisions": 197,
   "design_queue_items": 44,
   "security_invariants": 40,
   "checks": [
@@ -15,20 +15,20 @@
     },
     {
       "name": "requirement_traceability",
-      "requirements": 387,
-      "rows": 387,
+      "requirements": 397,
+      "rows": 397,
       "missing": 0,
       "duplicates": 0
     },
     {
       "name": "threat_traceability",
-      "threats": 150,
+      "threats": 151,
       "problems": 0
     },
     {
       "name": "decision_adr_index",
-      "decisions": 194,
-      "indexed_adrs": 173,
+      "decisions": 197,
+      "indexed_adrs": 176,
       "problems": 0
     },
     {
@@ -40,7 +40,7 @@
     {
       "name": "canonical_ambiguity_markers",
       "selected_stale_problems": 0,
-      "canonical_files_scanned": 179,
+      "canonical_files_scanned": 181,
       "whole_tree_hits": []
     },
     {

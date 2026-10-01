@@ -1355,6 +1355,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0177-authorize-groups-engineering-proposed.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -2545,13 +2552,6 @@
       "authority": "working_record_non_normative"
     },
     {
-      "path": "docs/reports/2026-10-01-groups-verification-handoff.md",
-      "class": "report",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "working_record_non_normative"
-    },
-    {
       "path": "docs/reports/README.md",
       "class": "report",
       "domain": "architecture_process",
@@ -2560,6 +2560,13 @@
     },
     {
       "path": "docs/reports/completed/.gitkeep",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/completed/2026-10-01-groups-verification-handoff.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -8804,6 +8811,13 @@
     },
     {
       "path": "verification/reviews/2026-09-29-gpt-5-6-sol-adr0154-0156-independent-review.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/reviews/2026-10-01-claude-sonnet-5-5-groups-review.md",
       "class": "verification_doc",
       "domain": "architecture_verification",
       "license": "CC-BY-SA-4.0",

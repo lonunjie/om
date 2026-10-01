@@ -1,3 +1,10 @@
+# 2026-10-01 23:30 PHT — Groups verification: V-009, V-004 wire freeze, V-019; ADR-0174..0176, ADR-0177 proposed
+
+- **V-009:** the Rust materializer derives authority from the raw control chain; the Python reference covers every baseline kind; registers are epoch-major, plus expiry (R-235), mentions and forwarding (R-239). 266 cases agree; REF-4 and MAT-1 fixed; ADR-0174, R-397..R-399.
+- **V-004:** W1 wire freeze (types 28-31, `spec/cddl/group.cddl`, additive registries, W1 event-body overlay) with 383 vectors on two strict codecs, 105 semantic cases on two checkers (19 GroupHistoryBundle admission scenarios), two CDDL tools; ADR-0176, R-400..R-403, T-161, F-27..F-30. The Rust codec reads `OM_REG`.
+- **V-019:** OM-level authenticated migration on OpenMLS `reboot` (no RFC 9420 ReInit in 0.9.0); 20 vectors, native and wasm32 byte-identical; ADR-0175, R-404..R-406.
+- **Gates:** V-004, V-009 and V-019 pass pre-engineering under ADR-0167 ([`review`](verification/reviews/2026-10-01-claude-sonnet-5-5-groups-review.md)). `group_history` conformance suite specified. ADR-0177 proposes the `groups` unlock and awaits the operator.
+
 # 2026-10-01 21:35 PHT — V-004 model and MLS probe, ADR-0173
 
 - `GroupCommit.tla` (+ 7 configs, `models-v004.json`) and the OpenMLS 0.9.0 probe `verification/prototypes/v004-mls-ordering/` give V-004 its formal-model, MLS-library and partition-convergence evidence (6/8 pre-engineering criteria). `tools/run_tlc.py` now records a failed temporal property as `<temporal>`.

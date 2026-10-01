@@ -108,7 +108,7 @@
     {
       "name": "group_history",
       "spec_doc": "docs/architecture/groups/GROUP_CHAT_ARCHITECTURE.md",
-      "status": "planned",
+      "status": "specified",
       "scopes": [
         "groups"
       ],

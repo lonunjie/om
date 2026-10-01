@@ -26,12 +26,12 @@
 | V-001 | `production_crypto_path` | core_kernel | passed | open | open | — |
 | V-002 | `account_control_formal_model` | core_kernel | passed | open | open | — |
 | V-003 | `one_to_one_session_model` | core_kernel, local_delivery | passed | open | open | — |
-| V-004 | `group_commit_control_model` | groups | open | open | evidenced | core_kernel |
+| V-004 | `group_commit_control_model` | groups | passed | open | evidenced | core_kernel |
 | V-005 | `canonical_encoding_vectors` | core_kernel | passed | open | open | — |
 | V-006 | `web_device_vault_feasibility` | reference_client_ui | passed | open | open | — |
 | V-007 | `sframe_interop` | calls | open | open | open | — |
 | V-008 | `space_room_permission_authority_model` | communities_publications | open | open | evidenced | core_kernel |
-| V-009 | `baseline_event_materialization_convergence` | groups | open | open | evidenced | core_kernel |
+| V-009 | `baseline_event_materialization_convergence` | groups | passed | open | evidenced | core_kernel |
 | V-010 | `plugin_sandbox_capability_model` | plugins | open | open | open | — |
 | V-011 | `service_principal_authority_and_automation_model` | services_bots | open | open | evidenced | core_kernel |
 | V-012 | `expressive_media_and_pack_parser_safety` | expressive_media | open | open | open | — |
@@ -41,7 +41,7 @@
 | V-016 | `decentralized_abuse_moderation_authority_model` | core_kernel, communities_publications | passed | open | open | — |
 | V-017 | `protocol_longevity_and_0m_continuity_drill` | none | passed | open | open | — |
 | V-018 | `security_ux_comprehension` | reference_client_ui | waived_by_adr | open | open | — |
-| V-019 | `pq_group_reinit_migration` | groups | open | open | evidenced | core_kernel |
+| V-019 | `pq_group_reinit_migration` | groups | passed | open | evidenced | core_kernel |
 | V-020 | `home_onboarding_and_provider_portability` | provider_reference | passed | open | open | — |
 | V-021 | `endpoint_coercion_and_platform_leakage` | reference_client_ui | passed | open | open | — |
 | V-022 | `performance_budgets` | reference_client_ui, provider_reference | passed | open | open | — |
@@ -153,11 +153,11 @@ Pre-release criteria:
 Formally exercise CommitCoordinator replacement/equivocation and GroupControlIntent <-> GroupCommitBinding crash/partition semantics so same-epoch races cannot silently fork authority.
 
 - **Scopes blocked:** groups
-- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_tool, independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_formal_and_runtime_feasibility`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0161-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md`; `decisions/ADR-0163-implementation-readiness-crash-retry-and-scope-contracts.md`; `decisions/ADR-0173-group-commit-ordering-fork-detection-and-recovery.md`; `docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md`; `spec/protocol/group-history-bundle.logical.schema.json`; `verification/bounded/cross_wave_feasibility.py`; `verification/bounded/protocol_semantics_adr0161.py`; `verification/bounded/v004_group_control_r16b.py`; `verification/prototypes/v004-mls-ordering/README.md`; `verification/prototypes/v004-mls-ordering/rust/src/lib.rs`; `verification/results/authority-bounded-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/protocol-semantics-adr0161-latest.json`; `verification/results/v004-group-control-r16b-latest.json`; `verification/results/v004-mls-ordering-latest.json`; `verification/tla/GroupCommit.tla`; `verification/tla/models-v004.json`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0161-terminal-device-revocation-mutable-record-convergence-and-history-isolation.md`; `decisions/ADR-0163-implementation-readiness-crash-retry-and-scope-contracts.md`; `decisions/ADR-0173-group-commit-ordering-fork-detection-and-recovery.md`; `decisions/ADR-0176-v004-groups-wire-freeze.md`; `docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md`; `spec/cddl/group.cddl`; `spec/protocol/group-history-bundle.logical.schema.json`; `spec/registries/om-w1-event-bodies.json`; `verification/bounded/cross_wave_feasibility.py`; `verification/bounded/protocol_semantics_adr0161.py`; `verification/bounded/v004_group_control_r16b.py`; `verification/prototypes/v004-group-wire/README.md`; `verification/prototypes/v004-mls-ordering/README.md`; `verification/prototypes/v004-mls-ordering/rust/src/lib.rs`; `verification/results/authority-bounded-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/protocol-semantics-adr0161-latest.json`; `verification/results/v004-group-control-r16b-latest.json`; `verification/results/v004-group-wire-latest.json`; `verification/results/v004-mls-ordering-latest.json`; `verification/reviews/2026-10-01-claude-sonnet-5-5-groups-review.md`; `verification/tla/GroupCommit.tla`; `verification/tla/models-v004.json`
 
 Pre-engineering criteria:
 
@@ -167,8 +167,8 @@ Pre-engineering criteria:
 - [x] account-control events: no sending after a learned revocation until the Remove is accepted, no adds under CONTROL_CONFLICT/SAFETY_FREEZE, device-add deduplication (R-221)
 - [x] two disconnected partitions independently create different direct reducing Commits from the same MLS epoch after sequencing_timeout; reconnection converges without silent key/state continuation on the losing branch
 - [x] stale reduction targets an immutable membership/service incarnation and becomes a no-op after that exact incarnation is gone; it cannot remove a later re-add (R-279)
-- [ ] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition, and the pin.set and poll.create/poll.vote/poll.close event bodies (R-343, plus interoperable GroupHistoryBundle with its bundle-author provenance/exclusion semantics (R-343, R-347)
-- [ ] ADR-0161 GroupHistoryBundle freeze/negative vectors bind Room, bundle author, recipient membership incarnation and GroupControlState/MLS epoch and prove bundle-local items/claimed EventIDs cannot enter live ConversationEvent dedupe or any Room/control reducer (R-363, T-141)
+- [x] ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition, and the pin.set and poll.create/poll.vote/poll.close event bodies (R-343, plus interoperable GroupHistoryBundle with its bundle-author provenance/exclusion semantics (R-343, R-347)
+- [x] ADR-0161 GroupHistoryBundle freeze/negative vectors bind Room, bundle author, recipient membership incarnation and GroupControlState/MLS epoch and prove bundle-local items/claimed EventIDs cannot enter live ConversationEvent dedupe or any Room/control reducer (R-363, T-141)
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
@@ -178,12 +178,6 @@ Cross-wave feasibility criteria (only these are required for `feasibility_status
 Pre-release criteria:
 
 - [ ] multi-client partition/crash integration harness passes on two implementations or two runtimes
-
-Mechanically unfinished pre-engineering work:
-
-- ADR-0156 wire freeze: before authorization, every wire object/event body/extension this scope introduces has frozen CDDL, registered numeric fields and domain-separation labels, and positive/negative vectors on which two independently written codecs agree (V-005 method): GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition, and the pin.set and poll.create/poll.vote/poll.close event bodies (R-343, plus interoperable GroupHistoryBundle with its bundle-author provenance/exclusion semantics (R-343, R-347)
-- ADR-0161 GroupHistoryBundle freeze/negative vectors bind Room, bundle author, recipient membership incarnation and GroupControlState/MLS epoch and prove bundle-local items/claimed EventIDs cannot enter live ConversationEvent dedupe or any Room/control reducer (R-363, T-141)
-- phase independence evidence is not yet recorded as satisfied
 
 ### V-005 — `canonical_encoding_vectors`
 
@@ -306,11 +300,11 @@ Mechanically unfinished pre-engineering work:
 Property-test/model the expanded baseline ConversationEvent materialization under duplicate, delayed, reordered and concurrent delivery for shared pins, moderator redaction, polls, threads/topics and message-topic moves, proving deterministic views and authorization handling without treating wall-clock time as security authority.
 
 - **Scopes blocked:** groups
-- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_implementation; pre-release independent_implementation
 - **Execution class:** `repo_local_interop`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md`; `decisions/ADR-0174-materialization-rulings-from-the-second-materializer.md`; `verification/bounded/conversation_convergence.py`; `verification/bounded/cross_wave_feasibility.py`; `verification/prototypes/v009-materializer/README.md`; `verification/results/conversation-convergence-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v009-materializer-latest.json`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md`; `decisions/ADR-0174-materialization-rulings-from-the-second-materializer.md`; `verification/bounded/conversation_convergence.py`; `verification/bounded/cross_wave_feasibility.py`; `verification/prototypes/v009-materializer/README.md`; `verification/results/conversation-convergence-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v009-materializer-latest.json`; `verification/reviews/2026-10-01-claude-sonnet-5-5-groups-review.md`
 
 Pre-engineering criteria:
 
@@ -327,10 +321,6 @@ Cross-wave feasibility criteria (only these are required for `feasibility_status
 Pre-release criteria:
 
 - [ ] every conforming implementation passes the corpus
-
-Mechanically unfinished pre-engineering work:
-
-- phase independence evidence is not yet recorded as satisfied
 
 ### V-010 — `plugin_sandbox_capability_model`
 
@@ -623,15 +613,15 @@ Mechanically unfinished pre-engineering work:
 Prove the v1 group wire can migrate by authenticated ReInit to a hybrid-PQ MLS profile without changing ConversationID or group authority and without downgrade.
 
 - **Scopes blocked:** groups
-- **Status:** pre-engineering `open`, overall `open`, feasibility `evidenced`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `evidenced`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_implementation
 - **Execution class:** `repo_local_feasibility`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `verification/bounded/cross_wave_feasibility.py`; `verification/results/cross-wave-feasibility-latest.json`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0175-v019-group-migration-is-an-om-level-authenticated-transition.md`; `verification/bounded/cross_wave_feasibility.py`; `verification/prototypes/v019-hybrid-pq-migration/README.md`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v019-hybrid-pq-migration-latest.json`; `verification/reviews/2026-10-01-claude-sonnet-5-5-groups-review.md`
 
 Pre-engineering criteria:
 
-- [ ] prototype authenticated ReInit from the v1 MLS suite to an experimental hybrid-PQ suite preserving ConversationID and GroupControlState, rejecting downgrade, with vectors
+- [x] prototype authenticated ReInit from the v1 MLS suite to an experimental hybrid-PQ suite preserving ConversationID and GroupControlState, rejecting downgrade, with vectors
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
@@ -640,11 +630,6 @@ Cross-wave feasibility criteria (only these are required for `feasibility_status
 Pre-release criteria:
 
 - [ ] interoperable migration across two implementations once ADR-0107 triggers are met
-
-Mechanically unfinished pre-engineering work:
-
-- prototype authenticated ReInit from the v1 MLS suite to an experimental hybrid-PQ suite preserving ConversationID and GroupControlState, rejecting downgrade, with vectors
-- phase independence evidence is not yet recorded as satisfied
 
 ### V-020 — `home_onboarding_and_provider_portability`
 

@@ -2,7 +2,7 @@
   "phase1_passed": true,
   "profile": "full",
   "gate_status_effect": "evidence_only_no_gate_automatically_passed",
-  "bounded_cases": 347316,
+  "bounded_cases": 352476,
   "vendor_block_surviving_fraction": {
     "no_fallback": 0.0163,
     "with_second_family_fallback": 0.4349

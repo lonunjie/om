@@ -1,15 +1,22 @@
 # OM Architecture Snapshot
 
-Generated: **2026-10-01 21:35 PHT (UTC+08:00)**, after ADR-0173 (GroupCommitOrdering) and the first V-004 evidence.
+Generated: **2026-10-01 23:30 PHT (UTC+08:00)**, after the groups verification (V-004 wire freeze, V-009, V-019; ADR-0174..0176) and the proposed `groups` unlock (ADR-0177).
 
 ## State
 
 - **Engineering is authorized for `core_kernel` (ADR-0169), `provider_reference` (ADR-0171) and `reference_client_ui` (ADR-0172) only**: `engineering_authorized=true`, 3/12 scopes. Every other scope is not authorized.
 - **Review model:** Claude performs all reviews at the operator's direction (ADR-0167). Gates passed this way carry `pre_engineering_review_basis=operator_single_vendor_ADR-0167`, which is not vendor-independent review.
 - **Design:** `design_open=0`. Review findings F-14..F-19 are fixed (ADR-0168, ADR-0170); F-20..F-23 are resolved by ADR-0172.
-- **Verification:** 11 gates still have pre-engineering open. V-004 (groups) is at 6/8 pre-engineering criteria: the formal model, the MLS library check and partition convergence are done (ADR-0173); the W1 wire freeze and the GroupHistoryBundle freeze are not. V-006 passed pre-engineering on 2026-10-01 for the first-release web matrix (macOS Chrome/Safari/Firefox, iOS Safari, Android Chrome); Windows Chrome/Edge is untested and carried pre-release (ADR-0172). V-018 is pre-release (ADR-0170). Later-wave scopes keep their own open criteria (for example the V-004 wire freeze).
-- **Ledgers:** 387 requirements / 387 trace rows, 150 threats, 194 decisions / 173 indexed ADRs, 40 security invariants.
-- **Next:** build the `core_kernel`, `provider_reference` and `reference_client_ui` crates/packages per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md); then groups gate work: the V-004 wire freeze and GroupHistoryBundle freeze, V-009's second materializer and V-019's ReInit prototype (handoff: [`2026-10-01-groups-verification-handoff.md`](docs/reports/2026-10-01-groups-verification-handoff.md)). V-006 pre-release: run the probe on Windows or drop Windows, publish the support matrix with regression tests.
+- **Verification:** 8 gates still have pre-engineering open. V-004, V-009 and V-019 passed pre-engineering on 2026-10-01 under the ADR-0167 model, which completes the evidence for `groups`; ADR-0177 proposes its unlock and is **not in force**. V-006 passed pre-engineering the same day for the first-release web matrix; Windows Chrome/Edge is untested and carried pre-release (ADR-0172). V-018 is pre-release (ADR-0170). Pre-release items for groups stay open: the V-004 multi-client partition harness on two implementations, the V-009 corpus run by every implementation, the V-019 interoperable migration.
+- **Ledgers:** 397 requirements / 397 trace rows, 151 threats, 197 decisions / 177 indexed ADRs, 40 security invariants.
+- **Next:** operator decision on [`ADR-0177`](decisions/ADR-0177-authorize-groups-engineering-proposed.md) (accept it, or ask for a fresh-session or cross-vendor re-check of V-004/V-009/V-019 first); meanwhile build the `core_kernel`, `provider_reference` and `reference_client_ui` crates/packages per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). V-006 pre-release: run the probe on Windows or drop Windows, publish the support matrix with regression tests.
+
+## 2026-10-01 23:30 PHT — groups verification complete; ADR-0174..0176; ADR-0177 proposed
+
+- **V-009:** [`v009-materializer`](verification/prototypes/v009-materializer/README.md): the Rust materializer reads the raw control chain and derives authority itself; the Python reference now covers every baseline kind; registers are epoch-major; expiry (R-235), mentions and forwarding (R-239) have expectations checked on both sides. 266 cases agree, 47 expectations and 3 forwarding vectors hold. Two bugs found by the random2 family (REF-4, MAT-1) are fixed (ADR-0174, R-397..R-399).
+- **V-004 wire freeze:** [`v004-group-wire`](verification/prototypes/v004-group-wire/README.md) and [`group.cddl`](spec/cddl/group.cddl): GroupControlState 28, GroupControlIntent 29, GroupCommitBinding 30, GroupHistoryBundle 31, typed pin/poll bodies through an additive W1 event-body overlay. 383 vectors agree on the Rust and Node strict codecs, the frozen W0 corpus is unchanged, 105 semantic cases (19 bundle admission scenarios) agree on two checkers, two CDDL tools agree (ADR-0176, R-400..R-403, T-161). The signed-body limit of the W0 envelope (64 KiB) caps rooms at 512 members and bundles at 1024 items (F-27).
+- **V-019:** [`v019-hybrid-pq-migration`](verification/prototypes/v019-hybrid-pq-migration/README.md): OpenMLS 0.9.0 has no ReInit, so the migration is an OM-level authenticated transition on `reboot`; 20 vectors, native and wasm32 byte-identical (ADR-0175, R-404..R-406).
+- **Gates and unlock:** the three gates pass pre-engineering ([`review`](verification/reviews/2026-10-01-claude-sonnet-5-5-groups-review.md)); the `group_history` suite is specified. ADR-0177 proposes the `groups` unlock and waits for the operator.
 
 ## 2026-10-01 21:35 PHT — V-004 formal model and MLS ordering probe / ADR-0173
 

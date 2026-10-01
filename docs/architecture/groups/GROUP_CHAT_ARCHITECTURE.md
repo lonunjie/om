@@ -263,6 +263,33 @@ Rules (ADR-0128 rule 4; hardened by ADR-0161):
 - The frozen wire is `GroupHistoryBundle` (object type 31) in [`spec/cddl/group.cddl`](../../../spec/cddl/group.cddl) (ADR-0176): signed by the author device, 1..1024 items, text and attachments only, delivered as the plaintext of an encrypted blob over the recipient's 1:1 channel. Its admission gates and isolation rules are ADR-0176 §3. The logical contract [`spec/protocol/group-history-bundle.logical.schema.json`](../../../spec/protocol/group-history-bundle.logical.schema.json) remains as the field-level description.
   CDDL/field numbers/domain labels and two-codec positive/negative vectors before groups authorization.
 
+## Conformance suite `group_history`
+
+Status: specified (ADR-0176). A conforming implementation passes every case below. The machine-readable cases are
+[`v004-group-wire-semantic.json.gz`](../../../verification/vectors/v004-group-wire-semantic.json.gz) (the 19 `scenario/*` entries and the 8 `GroupHistoryBundle/semantic-*` entries) and
+[`v004-group-wire-object-vectors.json.gz`](../../../verification/vectors/v004-group-wire-object-vectors.json.gz) (the 75 `GroupHistoryBundle/*` wire vectors); the checkers are
+[`verification/prototypes/v004-group-wire/semantic.py`](../../../verification/prototypes/v004-group-wire/semantic.py) and [`semantic.mjs`](../../../verification/prototypes/v004-group-wire/semantic.mjs). Verdicts follow the admission gates of ADR-0176 §3, in order.
+
+| Case | Input | Pass |
+|---|---|---|
+| GH-01 | bundle bound to the Room, the local recipient and incarnation, a known state and its epoch, with an eligible author device | accepted; items stored under `(bundle, bundle_id, history_item_id)` labelled "shared by <author>" |
+| GH-02 | a bundle item claims the EventID of a live event | the live dedupe set and every reducer (pins, polls) are unchanged |
+| GH-03 | a bundle claims an EventID, then a live event with that EventID arrives (and the reverse order) | the live event is processed normally in both orders |
+| GH-04 | bundle for another Room | `wrong_conversation`, nothing stored |
+| GH-05 | bundle for another recipient account | `wrong_recipient` |
+| GH-06 | bundle for a re-added recipient incarnation | `wrong_recipient_incarnation` |
+| GH-07 | `group_control_state_hash` unknown, or `mls_epoch_ref` not that state's epoch | `unknown_state`, `epoch_mismatch` |
+| GH-08 | author not a member of the bound state | `author_not_member` |
+| GH-09 | recipient removed in the latest canonical state | `recipient_removed` |
+| GH-10 | author removed, or re-added under a new incarnation, in the latest canonical state | `author_removed` |
+| GH-11 | author device quarantined or revoked under the author's current ACS | `author_device_ineligible` |
+| GH-12 | envelope signer is not `author_device` | `signer_not_author_device` |
+| GH-13 | the same bundle twice, or the same `creation_nonce` under a new `bundle_id` | the second is a no-op (`duplicate`) |
+| GH-14 | duplicate `history_item_id`, an item with neither text nor attachments, `reply_to_item` naming a later item, itself or a live EventID, author or recipient not an account, bundle to self | the structure verdict of ADR-0176 §3; nothing stored |
+| GH-15 | the 75 wire vectors for type 31 | verdict, error class and re-encoding agree between two strict codecs |
+
+The producer rules (excluding expired, deleted and redacted content, stripping mentions, carrying no source metadata) are reviewed, not machine-checked.
+
 ## Invites
 
 Invite links/QR codes are capabilities, not identity (ADR-0128 rule 6).
