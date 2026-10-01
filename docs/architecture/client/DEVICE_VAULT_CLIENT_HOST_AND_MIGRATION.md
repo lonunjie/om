@@ -116,3 +116,24 @@ ClientHost software update integrity and DeviceVault identity continuity are sep
 ## 2026-09-23 WebDeviceVault resolution
 
 Production PWA identity storage uses WebAuthn PRF-derived wrapping where supported, otherwise non-extractable WebCrypto root material. A browser that cannot provide either durable cryptographic boundary is not silently treated as equivalent for long-lived production DeviceIdentity. Passwords may augment locking but are not the identity-key storage primitive. Feasibility matrix is `V-006`.
+
+## 2026-10-01 V-006 browser-matrix resolution (ADR-0172)
+
+Measured on macOS (Chrome, Safari, Firefox), iOS Safari and Android Chrome ([`PLATFORM_CAPABILITY_MATRIX.md`](PLATFORM_CAPABILITY_MATRIX.md) §3):
+
+1. **Wrapper selection is tested, never assumed.** At enrollment the client creates the credential with a PRF salt, accepts method 1
+   only if the authenticator reports `prf.enabled` and a later `get()` returns a PRF output for the vault salt, and otherwise uses
+   method 2 (non-extractable WebCrypto key). Browser capability flags (`extension:prf`) are hints, not evidence: third-party
+   providers advertise PRF yet return none.
+2. **Chained prompts.** A ceremony started right after another prompt closes can fail with "The document is not focused" (Safari,
+   about 1.4 s). Enrollment and unlock wait for document focus (bounded) before each ceremony and never depend on one user gesture
+   covering two prompts.
+3. **The reduced at-rest property is the normal PRF case, not an edge case.** No first-release platform offered a device-bound
+   credential that can evaluate PRF. When the vault is wrapped with a synced passkey's PRF, the UI says the ADR-0129 rule 15
+   property: someone who controls the passkey provider account and obtains a copy of the browser profile can open local state.
+   Where a device-bound credential exists but cannot evaluate PRF (Android non-discoverable), it is not used for vault wrapping.
+4. **Migration works as an origin-independent device add.** A recovery key (the RecoveryRoot custodian, not a passkey) at an
+   unrelated origin restores account state, enrolls a fresh DeviceID and a fresh non-extractable device key, and wraps a new vault
+   there; passkeys from the old origin are rejected at the new RP ID, so passkey-only recovery is distribution-bound.
+5. **Windows Chrome/Edge is untested.** It is not in the first-release matrix until the probe is run there (pre-release).
+

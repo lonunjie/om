@@ -1,3 +1,9 @@
+# 2026-10-01 20:50 PHT — V-006 passes pre-engineering, ADR-0172
+
+- V-006 (WebDeviceVault browser matrix) passes pre-engineering for macOS Chrome/Safari/Firefox, iOS Safari and Android Chrome; Windows Chrome/Edge untested and pre-release. Review F-20..F-23; R-391, R-392, D-193.
+- ADR-0172 authorizes `reference_client_ui`. Authorized scopes: `core_kernel`, `provider_reference`, `reference_client_ui`.
+- `PLATFORM_CAPABILITY_MATRIX.md` §3 (measured WebDeviceVault matrix) and a DeviceVault resolution section added.
+
 # 2026-10-01 — V-006 device-bound, migration and phone results
 
 - Probe sections 6 (device-bound credential availability) and 7 (new-origin migration via a recovery key) plus `collector.py`. Recorded on macOS Chrome/Safari/Firefox, iPhone Safari 26.6.1 and Android 16 Chrome 154. New-origin migration passes everywhere; PRF depends on the passkey provider (Bitwarden returns none, Google Password Manager and iCloud Keychain on macOS do); no device-bound credential from platform authenticators on macOS/iOS; Android's non-discoverable request gives a device-bound credential without PRF. V-006 stays open (see the prototype README).

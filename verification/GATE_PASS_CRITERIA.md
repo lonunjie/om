@@ -28,7 +28,7 @@
 | V-003 | `one_to_one_session_model` | core_kernel, local_delivery | passed | open | open | — |
 | V-004 | `group_commit_control_model` | groups | open | open | evidenced | core_kernel |
 | V-005 | `canonical_encoding_vectors` | core_kernel | passed | open | open | — |
-| V-006 | `web_device_vault_feasibility` | reference_client_ui | open | open | open | — |
+| V-006 | `web_device_vault_feasibility` | reference_client_ui | passed | open | open | — |
 | V-007 | `sframe_interop` | calls | open | open | open | — |
 | V-008 | `space_room_permission_authority_model` | communities_publications | open | open | evidenced | core_kernel |
 | V-009 | `baseline_event_materialization_convergence` | groups | open | open | evidenced | core_kernel |
@@ -225,32 +225,23 @@ Pre-release criteria:
 Prove the WebAuthn-PRF/non-extractable-WebCrypto DeviceVault hierarchy and migration behavior on the browser support matrix intended for the first reference PWA.
 
 - **Scopes blocked:** reference_client_ui
-- **Status:** pre-engineering `open`, overall `open`, feasibility `open`
+- **Status:** pre-engineering `passed`, overall `open`, feasibility `open`
 - **Independence:** pre-engineering independent_reviewer; pre-release independent_tool
 - **Execution class:** `platform_empirical_feasibility`; next executor role `verification_executor`
-- **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/results/design-consistency-adr0141-latest.json`
+- **Pre-engineering independence status:** `satisfied`
+- **Evidence:** `decisions/ADR-0141-recovery-freshness-capability-hygiene-and-spec-consistency.md`; `decisions/ADR-0172-authorize-reference-client-ui-engineering.md`; `docs/architecture/client/DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md`; `docs/architecture/client/PLATFORM_CAPABILITY_MATRIX.md`; `verification/bounded/design_consistency_adr0141_rules.py`; `verification/prototypes/v006-web-vault/README.md`; `verification/results/design-consistency-adr0141-latest.json`; `verification/reviews/2026-10-01-claude-sonnet-5-5-v006-review.md`
 
 Pre-engineering criteria:
 
-- [ ] browser-matrix prototype of the WebDeviceVault wrapping hierarchy (WebAuthn PRF, non-extractable WebCrypto, passphrase fallback) with new-origin enrollment migration
-- [ ] documented behavior for every unsupported/failed capability on the intended first-release browser matrix
-- [ ] PRF on synced (platform/password-manager) passkeys and signalCurrentUserDetails support recorded per browser/platform for the ADR-0111 recovery custodian, with the recovery-key fallback exercised where unsupported
-- [ ] per browser/platform: availability of a device-bound (non-synced) WebAuthn credential for vault wrapping, and the separate-credential/separate-PRF-salt path from the RecoveryRoot exercised; reduced at-rest property shown where only a synced passkey exists (ADR-0129 rule 15)
-- [ ] loss of the original PWA RP/ClientHost: passkey-only recovery is shown distribution-bound, and an origin-independent recovery path can enroll a fresh DeviceID at an unrelated origin/native client
+- [x] browser-matrix prototype of the WebDeviceVault wrapping hierarchy (WebAuthn PRF, non-extractable WebCrypto, passphrase fallback) with new-origin enrollment migration
+- [x] documented behavior for every unsupported/failed capability on the intended first-release browser matrix
+- [x] PRF on synced (platform/password-manager) passkeys and signalCurrentUserDetails support recorded per browser/platform for the ADR-0111 recovery custodian, with the recovery-key fallback exercised where unsupported
+- [x] per browser/platform: availability of a device-bound (non-synced) WebAuthn credential for vault wrapping, and the separate-credential/separate-PRF-salt path from the RecoveryRoot exercised; reduced at-rest property shown where only a synced passkey exists (ADR-0129 rule 15)
+- [x] loss of the original PWA RP/ClientHost: passkey-only recovery is shown distribution-bound, and an origin-independent recovery path can enroll a fresh DeviceID at an unrelated origin/native client
 
 Pre-release criteria:
 
 - [ ] published support matrix with regression tests on each supported browser
-
-Mechanically unfinished pre-engineering work:
-
-- browser-matrix prototype of the WebDeviceVault wrapping hierarchy (WebAuthn PRF, non-extractable WebCrypto, passphrase fallback) with new-origin enrollment migration
-- documented behavior for every unsupported/failed capability on the intended first-release browser matrix
-- PRF on synced (platform/password-manager) passkeys and signalCurrentUserDetails support recorded per browser/platform for the ADR-0111 recovery custodian, with the recovery-key fallback exercised where unsupported
-- per browser/platform: availability of a device-bound (non-synced) WebAuthn credential for vault wrapping, and the separate-credential/separate-PRF-salt path from the RecoveryRoot exercised; reduced at-rest property shown where only a synced passkey exists (ADR-0129 rule 15)
-- loss of the original PWA RP/ClientHost: passkey-only recovery is shown distribution-bound, and an origin-independent recovery path can enroll a fresh DeviceID at an unrelated origin/native client
-- phase independence evidence is not yet recorded as satisfied
 
 ### V-007 — `sframe_interop`
 

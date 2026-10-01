@@ -93,3 +93,32 @@ verifies it per platform.
 | 14 | Push payloads | opaque by design, so there is nothing to do | none |
 | 15 | Exported archives (om-archive-v1) | outside OM's control once exported; export UI says so | inherent |
 | 16 | Recipient screenshots and cameras | cannot be closed; ViewOnce UI says so | inherent |
+
+## 3. WebDeviceVault capability matrix (V-006)
+
+- **Evidence class:** *measured* on real devices on 2026-10-01 with the probe in
+  [`verification/prototypes/v006-web-vault/`](../../../verification/prototypes/v006-web-vault/README.md) (raw reports under `results/`).
+  Unlike §1 this table is not documentation-derived. It is the **first-release PWA matrix** fixed by ADR-0172: macOS Chrome, Safari and
+  Firefox; iOS Safari; Android Chrome. Windows Chrome/Edge is **untested**; the same non-extractable-WebCrypto fallback is expected
+  there but is not claimed (see ADR-0172, pre-release).
+- **Rule:** the client never assumes a column from this table. It tests each capability at enrollment (§3 of
+  [`DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md`](DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md), R-391).
+
+| Platform / browser | PRF with the platform passkey provider | PRF with a third-party provider (Bitwarden) | `signalCurrentUserDetails` | Device-bound credential from the platform authenticator | Non-extractable WebCrypto key survives reload | `storage.persist()` | New-origin migration with a recovery key |
+|---|---|---|---|---|---|---|---|
+| macOS Chrome 154 | ✅ (iCloud Keychain, synced) | not tested | ✅ | ✗ synced only | ✅ | ✗ denied | ✅ |
+| macOS Safari 27.0.1 | ✅ (iCloud Keychain, synced) | not tested | ✅ | ✗ synced only | ✅ | ✗ denied | ✅ |
+| macOS Firefox 157 | ✅ (iCloud Keychain, synced) | not tested | ✗ | ✗ synced only | ✅ | ✅ granted | ✅ |
+| iOS Safari 26.6.1 (iPhone) | ✅ (a non-Bitwarden provider; the sheet's name was not confirmed) | ✗ no PRF returned | ✅ | ✗ synced only | ✅ | ✗ denied | ✅ (ran with the WebCrypto wrapper) |
+| Android 16, Chrome 154 | ✅ (Google Password Manager, synced) | ✗ no PRF returned | ✅ | ◐ only a non-discoverable request is device-bound (`BE=0`), and it returns **no PRF** at create or `get()` | ✅ | ◐ granted in one run, denied in another | ✅ |
+| Windows, Chrome / Edge | untested | untested | untested | untested | untested | untested | untested |
+
+Consequences, each decided in ADR-0172:
+
+1. **PRF depends on the passkey provider the user has selected, not only on the browser.** `getClientCapabilities()['extension:prf']`
+   was `true` on every platform, including where Bitwarden then returned no PRF result. An advertised capability is not proof.
+2. **No platform offered a device-bound credential that can wrap the vault.** macOS and iOS platform passkeys were always synced
+   (`BE=1 BS=1`); Android's only device-bound credential cannot evaluate PRF. Every first-release platform therefore runs in the
+   reduced at-rest case of ADR-0129 rule 15 whenever PRF is used, and the UI states it.
+3. **The non-extractable WebCrypto wrapper worked everywhere tested** and is the guaranteed fallback.
+

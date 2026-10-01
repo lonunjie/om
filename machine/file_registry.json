@@ -1320,6 +1320,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0172-authorize-reference-client-ui-engineering.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -8524,6 +8531,13 @@
     },
     {
       "path": "verification/reviews/2026-09-29-gpt-5-6-sol-adr0154-0156-independent-review.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/reviews/2026-10-01-claude-sonnet-5-5-v006-review.md",
       "class": "verification_doc",
       "domain": "architecture_verification",
       "license": "CC-BY-SA-4.0",

@@ -1,15 +1,22 @@
 # OM Architecture Snapshot
 
-Generated: **2026-09-29 12:18 PHT (UTC+08:00)**, after ADR-0171 authorized `provider_reference`.
+Generated: **2026-10-01 20:50 PHT (UTC+08:00)**, after ADR-0172 authorized `reference_client_ui`.
 
 ## State
 
-- **Engineering is authorized for `core_kernel` (ADR-0169) and `provider_reference` (ADR-0171) only**: `engineering_authorized=true`, 2/12 scopes. Every other scope is not authorized.
+- **Engineering is authorized for `core_kernel` (ADR-0169), `provider_reference` (ADR-0171) and `reference_client_ui` (ADR-0172) only**: `engineering_authorized=true`, 3/12 scopes. Every other scope is not authorized.
 - **Review model:** Claude performs all reviews at the operator's direction (ADR-0167). Gates passed this way carry `pre_engineering_review_basis=operator_single_vendor_ADR-0167`, which is not vendor-independent review.
-- **Design:** `design_open=0`. Review findings F-14..F-19 are fixed (ADR-0168, ADR-0170).
-- **Verification:** 12 gates still have pre-engineering open. `reference_client_ui` is blocked only by V-006 (WebDeviceVault browser matrix; macOS Chrome/Safari/Firefox, iPhone Safari and Android Chrome recorded 2026-10-01; Windows, a physical security key, native-client recovery enrollment and review still open: see [`verification/prototypes/v006-web-vault/README.md`](verification/prototypes/v006-web-vault/README.md)); V-018 moved to pre-release by ADR-0170. Later-wave scopes keep their own open criteria (for example the V-004 wire freeze for `groups`).
-- **Ledgers:** 381 requirements / 381 trace rows, 147 threats, 192 decisions / 171 indexed ADRs, 40 security invariants.
-- **Next:** build `core_kernel` and `provider_reference` crates per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md); finish V-006 (Windows/iOS/Android runs need HTTPS, device-bound path, new-origin migration, review) to unlock `reference_client_ui`; then later-wave gate work (V-004 first).
+- **Design:** `design_open=0`. Review findings F-14..F-19 are fixed (ADR-0168, ADR-0170); F-20..F-23 are resolved by ADR-0172.
+- **Verification:** 11 gates still have pre-engineering open. V-006 passed pre-engineering on 2026-10-01 for the first-release web matrix (macOS Chrome/Safari/Firefox, iOS Safari, Android Chrome); Windows Chrome/Edge is untested and carried pre-release (ADR-0172). V-018 is pre-release (ADR-0170). Later-wave scopes keep their own open criteria (for example the V-004 wire freeze).
+- **Ledgers:** 383 requirements / 383 trace rows, 147 threats, 193 decisions / 172 indexed ADRs, 40 security invariants.
+- **Next:** build the `core_kernel`, `provider_reference` and `reference_client_ui` crates/packages per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md); then later-wave gate work (V-004 first). V-006 pre-release: run the probe on Windows or drop Windows, publish the support matrix with regression tests.
+
+## 2026-10-01 20:50 PHT — V-006 passes pre-engineering; `reference_client_ui` unlock / ADR-0172
+
+- **Review:** [`2026-10-01-claude-sonnet-5-5-v006-review.md`](verification/reviews/2026-10-01-claude-sonnet-5-5-v006-review.md) passes V-006 for the first-release matrix (single-vendor model; the same session ran the probes, disclosed in the review).
+- **Findings:** PRF is advertised but not returned by third-party providers (F-20), no first-release platform has a device-bound credential that can wrap the vault (F-21), Safari needs a focus wait between prompts (F-22). R-391 and R-392 added.
+- **Matrix:** macOS Chrome/Safari/Firefox, iOS Safari, Android Chrome. Windows is untested and pre-release.
+- **ADR-0172:** `reference_client_ui` is authorized.
 
 ## 2026-09-29 12:18 PHT — W0 provider/client review and `provider_reference` unlock / ADR-0170..0171
 

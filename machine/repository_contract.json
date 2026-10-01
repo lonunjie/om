@@ -163,11 +163,12 @@
     },
     "reference_client_ui": {
       "wave": "W0",
-      "authorized": false,
+      "authorized": true,
       "depends_on": [
         "core_kernel"
       ],
-      "description": "om-ui shell, onboarding, DeviceVault, PWA ClientHost, V1 IdentityProfile switcher, voice-note and one-shot location-card UX"
+      "description": "om-ui shell, onboarding, DeviceVault, PWA ClientHost, V1 IdentityProfile switcher, voice-note and one-shot location-card UX",
+      "authorizing_adr": "ADR-0172"
     },
     "provider_reference": {
       "wave": "W0",

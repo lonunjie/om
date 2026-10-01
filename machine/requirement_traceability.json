@@ -2549,6 +2549,18 @@
       "verified_by": [
         "V-022"
       ]
+    },
+    {
+      "requirement": "R-391",
+      "verified_by": [
+        "V-006"
+      ]
+    },
+    {
+      "requirement": "R-392",
+      "verified_by": [
+        "V-006"
+      ]
     }
   ]
 }
