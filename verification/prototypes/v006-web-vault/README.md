@@ -86,4 +86,4 @@ the one retry (the operator could not confirm which provider showed in the sheet
 **V-006 stays open.** Not yet covered: Windows (Chrome/Edge: no device available); iOS Safari with iCloud Keychain as the only
 provider (PRF unconfirmed); the Android device-bound credential's PRF behavior at get(); a physical security key; the origin-independent
 recovery path enrolling a fresh DeviceID at a *native* client; and independent review. Results persist across the section 2 reload;
-**Reset saved results** starts a fresh run. `collector.py` serves the page and receives reports from phones (token-gated).
+**Reset saved results** starts a fresh run. [`collector.py`](collector.py) serves the page and receives reports from phones (token-gated).
