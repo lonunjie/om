@@ -61,7 +61,7 @@ Earlier history (2026-09-24): the first run left 25 attributed disagreements (RE
 
 **Limits.** The reference is still the author's own Python, extended by the same agent that wrote the Rust side, and the corpus generator is shared;
 independence is language and runtime, not author (stated in the results file). Receiver-local state (`now`, receipt times) is fixed per case.
-`expires_after` and mentions are modeled on `message.create` only. The 64 KiB limit is measured on JSON, not canonical CBOR.
+`expires_after` and mentions are modeled on `message.create` only, and a mention is a diagnostic `runs` node rather than RichText `InlineMention` plus the `mentions` set (the wire carries both; their agreement is a codec-level rule). The 64 KiB limit is measured on JSON, not canonical CBOR.
 
 ## Criterion status
 
@@ -99,7 +99,7 @@ independence is language and runtime, not author (stated in the results file). R
 | D-18 | Pins or reactions on deleted/redacted content | Register state is kept but hidden from the view |
 | D-19 | Which roster decides whether a mention of a principal is live | The latest known roster (latest control epoch). A mention is presentation, not authorization. A removed member's mention renders as text. An edited message carries no mentions. |
 | D-20 | Duplicate `topic.create` ordering (ADR-0121 rule 8 says EventClock; rule 3 says registers are epoch-major) | Earliest by `(sending epoch, EventClock)`, so a later-epoch create cannot win by backdating its HLC. The create is the initial write of title and status `open`, and any topic op ordered before the winning create is ignored. |
-| D-21 | Type of the envelope `expiry` and of `expires_after` | Unsigned integers (ms). Anything else makes the event malformed. |
+| D-21 | Type of the envelope `expiry` and of `expires_after` | Integers in one clock unit (seconds on the wire; this prototype counts ms); `expires_after` at least 1 (MessageCreate key 4). Anything else makes the event malformed. |
 | D-22 | `expires_after` with no recorded receipt time | Counts from the receiver's current time, so it can never fire early. |
 | DA-1 | State operations on missing or wrong-kind targets | Wrong kind: reject. Missing: buffer; never displayed; reported as `dangling`. |
 

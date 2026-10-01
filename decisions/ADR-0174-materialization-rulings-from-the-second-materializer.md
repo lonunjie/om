@@ -25,8 +25,9 @@ four points the accepted text leaves open. A fifth finding was a bug on each sid
    principal is in the latest known roster, and as plain text with its display label otherwise (ADR-0128 rule 20). This is
    presentation, not authorization, so the sending epoch's roster is not used: a member removed after the message was sent
    is rendered as text. An edit replaces the content with plain text, so an edited message carries no mention.
-3. **Expiry carriers are unsigned integers.** The envelope `expiry` and `MessageCreate.expires_after` are unsigned integer
-   milliseconds; any other type makes the event malformed. The deadline is `min(expiry, receipt + expires_after)`, so it is
+3. **Expiry carriers are integers on one clock unit.** The envelope `expiry` (unsigned) and `MessageCreate.expires_after`
+   (at least 1) are integers in the same unit (seconds on the wire; the prototype counts in milliseconds, which changes
+   nothing); any other type or a zero `expires_after` makes the event malformed. The deadline is `min(expiry, receipt + expires_after)`, so it is
    never after `expiry` even when the message is received after it (it is then deleted on arrival). If a receiver has no
    recorded receipt time for an event, `expires_after` counts from the receiver's current time and cannot fire early.
 4. **Targets are resolved from the whole event set.** A `poll.close`, `poll.vote` or topic operation whose `(epoch, clock)`

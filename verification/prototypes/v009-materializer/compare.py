@@ -84,7 +84,7 @@ def schema_ok(e):
             if b.get(f) is not None and not is_str(b[f]):
                 return False
         ea = b.get("expires_after")
-        if ea is not None and not (isinstance(ea, int) and not isinstance(ea, bool) and ea >= 0):
+        if ea is not None and not (isinstance(ea, int) and not isinstance(ea, bool) and ea >= 1):
             return False
     if k == "message.edit" and not is_str(b.get("replacement")):
         return False

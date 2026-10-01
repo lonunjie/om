@@ -402,7 +402,7 @@ impl<'c> Materializer<'c> {
                 // `expires_after`: optional local bound in ms from receipt (EM "Expiry").
                 match b.get("expires_after") {
                     None | Some(Value::Null) => {}
-                    Some(v) if v.as_u64().is_some() => {}
+                    Some(v) if v.as_u64().is_some_and(|d| d >= 1) => {} // wire type is uint >= 1 (MessageCreate key 4)
                     _ => return Err("malformed:expires_after".into()),
                 }
                 opt_str(b, "reply_to")?;

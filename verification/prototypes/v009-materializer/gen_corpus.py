@@ -457,9 +457,10 @@ def build_wave1():
               poll("poll", "A", 3, expiry=T0 + 380)], 420, {"m1": 10, "m2": 200, "m3": 30, "poll": 40},
              {"deadlines": [["m1", T0 + 400], ["m2", T0 + 300], ["m3", T0 + 450], ["poll", T0 + 380]],
               "expired": ["m1", "m2", "poll"]})
-    exp_case("expiry-malformed", "a non-integer envelope expiry and a negative expires_after make the event malformed",
-             [{**msg("m1", "B", 0), "expiry": "tomorrow"}, msg("m2", "B", 1, expires_after=-5), msg("m3", "B", 2, expires_after=5.5)],
-             1_000, {"m1": 1, "m2": 1, "m3": 1},
+    exp_case("expiry-malformed", "a non-integer envelope expiry, and a zero, negative or fractional expires_after, make the event malformed",
+             [{**msg("m1", "B", 0), "expiry": "tomorrow"}, msg("m2", "B", 1, expires_after=-5), msg("m3", "B", 2, expires_after=5.5),
+              msg("m4", "B", 3, expires_after=0)],
+             1_000, {"m1": 1, "m2": 1, "m3": 1, "m4": 1},
              {"deadlines": [], "expired": []})
 
     # ---- R-239 / ADR-0128 rule 20: mentions ---------------------------------------------------------
@@ -576,7 +577,7 @@ def build_random2(n_cases: int, seed: int):
             if rng.random() < 0.6:
                 runs = [tx("hey ")] + [mn(p, f"@{p.lower()}") for p in rng.sample(actors + ["Z"], rng.randint(1, 2))]
             x = msg(mid, rng.choice(["A", "B", "M"]), j, None if runs else f"text{j}", runs=runs, epoch=rng.randrange(ne),
-                    **({"expires_after": rng.randint(0, 40)} if rng.random() < 0.4 else {}),
+                    **({"expires_after": rng.randint(1, 40)} if rng.random() < 0.4 else {}),
                     **({"expiry": T0 + rng.randint(0, 60)} if rng.random() < 0.4 else {}))
             events.append(x)
             ids.append(mid)

@@ -106,8 +106,8 @@
     "forward_failures": 0,
     "forward_vectors": 3,
     "materializer_all_converged": true,
-    "materializer_delivery_orders": 188531,
-    "reference_delivery_orders": 124800,
+    "materializer_delivery_orders": 188561,
+    "reference_delivery_orders": 124836,
     "reference_nonconvergent_cases": [],
     "unresolved_disagreements": 0
   },

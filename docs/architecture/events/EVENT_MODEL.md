@@ -382,7 +382,7 @@ Disappearing content has one canonical rule (ADR-0126 rule 9, ADR-0128 rule 16, 
   first display (monotonic local duration).
 - A receiver deletes the content at whichever comes first: `min(expiry, receipt + expires_after)`. It never keeps
   content past `expiry` (content received after `expiry` is deleted on arrival), and nothing extends `expiry`. Both
-  carriers are unsigned integer milliseconds, and `expires_after` with no recorded receipt time counts from the
+  carriers are integers in the same unit (`expires_after` at least 1), and `expires_after` with no recorded receipt time counts from the
   receiver's current time (ADR-0174 rule 3).
 - **1:1 (W0):** the per-message `expiry` is the only carrier. There is no shared 1:1 timer state; each sender's
   client sets `expiry` on its own messages from its local setting, and a client may show the peer's current timer as
