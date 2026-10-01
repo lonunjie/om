@@ -71,8 +71,9 @@ vault wrapper), then reopen the new vault. Passkeys from A cannot be used at B (
 <button id="migA">A1. Create state, recovery key and bundle</button>
 <button id="migLose">A2. Simulate loss of this origin</button>
 <div><label>Recovery key <input id="rkOut" size="40"></label> <button id="rkCopy">Copy</button></div>
-<div><label>Bundle <input id="bundleOut" size="40"></label> <button id="bundleCopy">Copy</button></div>
+<div><label>Bundle <input id="bundleOut" size="40"></label> <button id="bundleCopy">Copy</button> <button id="bothCopy">Copy all (key + bundle + credential id)</button></div>
 <hr>
+<div><label>Paste all here <input id="allIn" size="40" autocomplete="off"></label> <button id="allFill">Split</button></div>
 <div><label>Recovery key <input id="rkIn" size="40" autocomplete="off"></label></div>
 <div><label>Bundle <input id="bundleIn" size="40" autocomplete="off"></label></div>
 <button id="migB">B1. Enroll fresh device from recovery key</button>
@@ -334,6 +335,12 @@ document.getElementById("migLose").onclick = async () => {
 };
 document.getElementById("rkCopy").onclick = () => navigator.clipboard.writeText(document.getElementById("rkOut").value).catch(() => {});
 document.getElementById("bundleCopy").onclick = () => navigator.clipboard.writeText(document.getElementById("bundleOut").value).catch(() => {});
+document.getElementById("bothCopy").onclick = () => navigator.clipboard.writeText([document.getElementById("rkOut").value, document.getElementById("bundleOut").value, R.results.vault_credential_id || "-"].join(" ")).catch(() => {});
+document.getElementById("allFill").onclick = () => {
+  const [rk, bun, cid] = document.getElementById("allIn").value.trim().split(/\s+/);
+  document.getElementById("rkIn").value = rk || ""; document.getElementById("bundleIn").value = bun || "";
+  if (cid && cid !== "-") document.getElementById("foreignId").value = cid;
+};
 document.getElementById("migB").onclick = async () => {
   let stage = "parse";
   try {
@@ -383,7 +390,7 @@ document.getElementById("migOpen").onclick = async () => {
 document.getElementById("send").onclick = async () => {
   try {
     const t = new URLSearchParams(location.search).get("t") || "";
-    const label = document.getElementById("label").value.trim() || "unlabeled";
+    const ua = navigator.userAgent, label = document.getElementById("label").value.trim() || (/iPhone|iPad/.test(ua) ? "ios-safari" : /Android/.test(ua) ? "android-chrome" : "unlabeled");
     const r = await fetch(`/report?t=${encodeURIComponent(t)}&label=${encodeURIComponent(label)}`, { method: "POST", body: JSON.stringify(R) });
     show("migOut", "report_sent_to_collector", r.ok, r.status);
   } catch (e) { show("migOut", "report_sent_to_collector", false, e.name); }
