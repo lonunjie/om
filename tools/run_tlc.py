@@ -52,7 +52,7 @@ def run(entry: dict) -> dict:
     res = {
         "config": entry["config"], "gate": entry.get("gate"), "claim": entry["claim"], "expect": entry["expect"],
         "outcome": "violation" if viol else ("pass" if "No error has been found" in out else "error"),
-        "violated": viol.group(1) if viol and viol.lastindex else None,
+        "violated": viol.group(1) if viol and viol.lastindex else ("<temporal>" if viol else None),
         "distinct_states": int(counts[-1].replace(",", "")) if counts and not viol else None,
         "depth": int(depth.group(1)) if depth and not viol else None,
     }

@@ -1327,6 +1327,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0173-group-commit-ordering-fork-detection-and-recovery.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -2511,6 +2518,13 @@
     },
     {
       "path": "docs/reports/2026-09-29-r16c-v008-space-publication-wire-freeze.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-10-01-groups-verification-handoff.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -7270,6 +7284,62 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/v004-mls-ordering/README.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/prototypes/v004-mls-ordering/run.sh",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-mls-ordering/rust/.gitignore",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-mls-ordering/rust/Cargo.lock",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-mls-ordering/rust/Cargo.toml",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-mls-ordering/rust/rust-toolchain.toml",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-mls-ordering/rust/src/lib.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-mls-ordering/rust/src/main.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/v005-encoding/.gitignore",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -8355,6 +8425,13 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/v004-mls-ordering-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/v005-encoding-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
@@ -8741,6 +8818,69 @@
     },
     {
       "path": "verification/tla/AccountControl_veto_any.cfg",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/tla/GroupCommit.cfg",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/tla/GroupCommit.tla",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/tla/GroupCommit_coord_gone.cfg",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/tla/GroupCommit_honest.cfg",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/tla/GroupCommit_mut_coord_self.cfg",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/tla/GroupCommit_mut_hash_only.cfg",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/tla/GroupCommit_mut_journal_loss.cfg",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/tla/GroupCommit_mut_no_detect.cfg",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/tla/GroupCommit_mut_readd_removed.cfg",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -9258,6 +9398,13 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/tla/models-v004.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/tla/models-v008-permissions.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
@@ -9427,6 +9574,41 @@
     },
     {
       "path": "verification/vectors/tla-AccountControl_trap_two_device.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/tla-GroupCommit_mut_coord_self.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/tla-GroupCommit_mut_hash_only.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/tla-GroupCommit_mut_journal_loss.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/tla-GroupCommit_mut_no_detect.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/tla-GroupCommit_mut_readd_removed.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

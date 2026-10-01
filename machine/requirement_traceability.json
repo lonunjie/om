@@ -2561,6 +2561,30 @@
       "verified_by": [
         "V-006"
       ]
+    },
+    {
+      "requirement": "R-393",
+      "verified_by": [
+        "V-004"
+      ]
+    },
+    {
+      "requirement": "R-394",
+      "verified_by": [
+        "V-004"
+      ]
+    },
+    {
+      "requirement": "R-395",
+      "verified_by": [
+        "V-004"
+      ]
+    },
+    {
+      "requirement": "R-396",
+      "verified_by": [
+        "V-004"
+      ]
     }
   ]
 }

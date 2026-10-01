@@ -1,0 +1,45 @@
+{
+ "gate": "V-004",
+ "source": "verification/tla/GroupCommit_mut_hash_only.cfg",
+ "kind": "residual-risk",
+ "claim": "mutation: an order key without the reducing-first class lets a coordinator's non-reducing commit outrank a reduction at the same parent",
+ "violated": "ReductionOutranksNonReduction",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{}",
+    "chain": "[a |-> <<>>, b |-> <<>>, c |-> <<>>]",
+    "pub": "{}",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[a |-> {}, b |-> {}, c |-> {}]"
+   }
+  },
+  {
+   "step": 2,
+   "action": "PublishOther",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"b\", <<>>>>}",
+    "chain": "[a |-> <<>>, b |-> <<<<\"b\", \"direct\", \"replace\", \"none\">>>>, c |-> <<>>]",
+    "pub": "{[a |-> \"b\", k |-> \"direct\", o |-> \"replace\", r |-> \"none\", p |-> <<>>]}",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {}, b |-> {[a |-> \"b\", k |-> \"direct\", o |-> \"replace\", r |-> \"none\", p |-> <<>>]}, c |-> {} ]"
+   }
+  },
+  {
+   "step": 3,
+   "action": "PublishIntent",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"b\", <<>>>>, <<\"c\", <<>>>>}",
+    "chain": "[ a |-> <<>>, b |-> <<<<\"b\", \"direct\", \"replace\", \"none\">>>>, c |-> <<<<\"c\", \"direct\", \"remove\", \"a\">>>> ]",
+    "pub": "{ [a |-> \"b\", k |-> \"direct\", o |-> \"replace\", r |-> \"none\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] }",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {}, b |-> {[a |-> \"b\", k |-> \"direct\", o |-> \"replace\", r |-> \"none\", p |-> <<>>]}, c |-> {[a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>]} ]"
+   }
+  }
+ ]
+}

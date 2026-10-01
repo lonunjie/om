@@ -1,0 +1,69 @@
+{
+ "gate": "V-004",
+ "source": "verification/tla/GroupCommit_mut_no_detect.cfg",
+ "kind": "residual-risk",
+ "claim": "mutation: a member that does not detect that its merged commit lost stays active on a non-canonical chain (silent key/state continuation)",
+ "violated": "<temporal>",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{}",
+    "chain": "[a |-> <<>>, b |-> <<>>, c |-> <<>>]",
+    "pub": "{}",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[a |-> {}, b |-> {}, c |-> {}]"
+   }
+  },
+  {
+   "step": 2,
+   "action": "PublishIntent",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"b\", <<>>>>}",
+    "chain": "[a |-> <<>>, b |-> <<<<\"b\", \"direct\", \"remove\", \"c\">>>>, c |-> <<>>]",
+    "pub": "{[a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>]}",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {}, b |-> {[a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>]}, c |-> {} ]"
+   }
+  },
+  {
+   "step": 3,
+   "action": "PublishIntent",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"b\", <<>>>>, <<\"c\", <<>>>>}",
+    "chain": "[ a |-> <<>>, b |-> <<<<\"b\", \"direct\", \"remove\", \"c\">>>>, c |-> <<<<\"c\", \"direct\", \"remove\", \"a\">>>> ]",
+    "pub": "{ [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] }",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {}, b |-> {[a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>]}, c |-> {[a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>]} ]"
+   }
+  },
+  {
+   "step": 4,
+   "action": "Protocol",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"b\", <<>>>>, <<\"c\", <<>>>>}",
+    "chain": "[ a |-> <<>>, b |-> <<<<\"b\", \"direct\", \"remove\", \"c\">>>>, c |-> <<<<\"c\", \"direct\", \"remove\", \"a\">>>> ]",
+    "pub": "{ [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] }",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {}, b |-> {[a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>]}, c |-> { [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] } ]"
+   }
+  },
+  {
+   "step": 5,
+   "action": "Protocol",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"b\", <<>>>>, <<\"c\", <<>>>>}",
+    "chain": "[ a |-> <<>>, b |-> <<<<\"b\", \"direct\", \"remove\", \"c\">>>>, c |-> <<<<\"c\", \"direct\", \"remove\", \"a\">>>> ]",
+    "pub": "{ [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] }",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {}, b |-> { [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] }, c |-> { [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] } ]"
+   }
+  }
+ ]
+}

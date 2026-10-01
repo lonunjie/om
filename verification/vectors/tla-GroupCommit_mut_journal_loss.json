@@ -1,0 +1,57 @@
+{
+ "gate": "V-004",
+ "source": "verification/tla/GroupCommit_mut_journal_loss.cfg",
+ "kind": "residual-risk",
+ "claim": "mutation: a restart that forgets the prepared commit lets an honest author publish a second, different commit at the same parent (ADR-0163 rules 2, 3, 9)",
+ "violated": "NoHonestSelfEquivocation",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{}",
+    "chain": "[a |-> <<>>, b |-> <<>>, c |-> <<>>]",
+    "pub": "{}",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[a |-> {}, b |-> {}, c |-> {}]"
+   }
+  },
+  {
+   "step": 2,
+   "action": "PublishOther",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"b\", <<>>>>}",
+    "chain": "[a |-> <<>>, b |-> <<<<\"b\", \"direct\", \"replace\", \"none\">>>>, c |-> <<>>]",
+    "pub": "{[a |-> \"b\", k |-> \"direct\", o |-> \"replace\", r |-> \"none\", p |-> <<>>]}",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {}, b |-> {[a |-> \"b\", k |-> \"direct\", o |-> \"replace\", r |-> \"none\", p |-> <<>>]}, c |-> {} ]"
+   }
+  },
+  {
+   "step": 3,
+   "action": "JournalLoss",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{}",
+    "chain": "[a |-> <<>>, b |-> <<>>, c |-> <<>>]",
+    "pub": "{[a |-> \"b\", k |-> \"direct\", o |-> \"replace\", r |-> \"none\", p |-> <<>>]}",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {}, b |-> {[a |-> \"b\", k |-> \"direct\", o |-> \"replace\", r |-> \"none\", p |-> <<>>]}, c |-> {} ]"
+   }
+  },
+  {
+   "step": 4,
+   "action": "PublishIntent",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"b\", <<>>>>}",
+    "chain": "[a |-> <<>>, b |-> <<<<\"b\", \"direct\", \"remove\", \"c\">>>>, c |-> <<>>]",
+    "pub": "{ [a |-> \"b\", k |-> \"direct\", o |-> \"replace\", r |-> \"none\", p |-> <<>>], [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>] }",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {}, b |-> { [a |-> \"b\", k |-> \"direct\", o |-> \"replace\", r |-> \"none\", p |-> <<>>], [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>] }, c |-> {} ]"
+   }
+  }
+ ]
+}

@@ -1,0 +1,13 @@
+{
+  "purpose": "V-004 GroupCommitOrdering model (GroupCommit.tla): every config and its expected TLC outcome. A violation expecting '<temporal>' is a failed liveness/convergence property; its counterexample is a mutation regression vector.",
+  "models": [
+    {"module": "GroupCommit", "config": "GroupCommit.cfg", "expect": "pass", "gate": "V-004", "claim": "ADR-0173: with a faulty (offline, censoring or equivocating) coordinator, racing direct reductions, non-reducing coordinator commits and replacements, every honest member converges on one canonical chain, forked members rejoin or stay out, and every reducing intent is applied or moot; no honest author equivocates; the coordinator never sequences its own removal or replacement"},
+    {"module": "GroupCommit", "config": "GroupCommit_honest.cfg", "expect": "pass", "gate": "V-004", "claim": "ADR-0173: the same races with no faulty member converge"},
+    {"module": "GroupCommit", "config": "GroupCommit_coord_gone.cfg", "expect": "pass", "gate": "V-004", "claim": "ADR-0128 rule 1: a member removes an offline coordinator directly and the succession replaces it deterministically"},
+    {"module": "GroupCommit", "config": "GroupCommit_mut_hash_only.cfg", "expect": "violation", "invariant": "ReductionOutranksNonReduction", "gate": "V-004", "claim": "mutation: an order key without the reducing-first class lets a coordinator's non-reducing commit outrank a reduction at the same parent"},
+    {"module": "GroupCommit", "config": "GroupCommit_mut_no_detect.cfg", "expect": "violation", "invariant": "<temporal>", "gate": "V-004", "claim": "mutation: a member that does not detect that its merged commit lost stays active on a non-canonical chain (silent key/state continuation)"},
+    {"module": "GroupCommit", "config": "GroupCommit_mut_readd_removed.cfg", "expect": "violation", "invariant": "ActiveInRoster", "gate": "V-004", "claim": "mutation: fork recovery without the roster check re-adds a device that the canonical chain removed"},
+    {"module": "GroupCommit", "config": "GroupCommit_mut_journal_loss.cfg", "expect": "violation", "invariant": "NoHonestSelfEquivocation", "gate": "V-004", "claim": "mutation: a restart that forgets the prepared commit lets an honest author publish a second, different commit at the same parent (ADR-0163 rules 2, 3, 9)"},
+    {"module": "GroupCommit", "config": "GroupCommit_mut_coord_self.cfg", "expect": "violation", "invariant": "CoordinatorNeverSequencesSelf", "gate": "V-004", "claim": "mutation: the coordinator may sequence its own removal"}
+  ]
+}

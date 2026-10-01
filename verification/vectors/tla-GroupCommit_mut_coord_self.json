@@ -1,0 +1,33 @@
+{
+ "gate": "V-004",
+ "source": "verification/tla/GroupCommit_mut_coord_self.cfg",
+ "kind": "residual-risk",
+ "claim": "mutation: the coordinator may sequence its own removal",
+ "violated": "CoordinatorNeverSequencesSelf",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "alive": "[a |-> TRUE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{}",
+    "chain": "[a |-> <<>>, b |-> <<>>, c |-> <<>>]",
+    "pub": "{}",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[a |-> {}, b |-> {}, c |-> {}]"
+   }
+  },
+  {
+   "step": 2,
+   "action": "PublishOther",
+   "vars": {
+    "alive": "[a |-> TRUE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"a\", <<>>>>}",
+    "chain": "[a |-> <<<<\"a\", \"coord\", \"remove\", \"a\">>>>, b |-> <<>>, c |-> <<>>]",
+    "pub": "{[a |-> \"a\", k |-> \"coord\", o |-> \"remove\", r |-> \"a\", p |-> <<>>]}",
+    "status": "[a |-> \"out\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {[a |-> \"a\", k |-> \"coord\", o |-> \"remove\", r |-> \"a\", p |-> <<>>]}, b |-> {}, c |-> {} ]"
+   }
+  }
+ ]
+}

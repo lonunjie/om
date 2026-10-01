@@ -61,6 +61,26 @@ delay a security reduction indefinitely, so the following rules are normative:
 If every member able to authorize a reduction is gone, a self-leave and the removal of revoked or quarantined devices
 still proceed, because they need no capability beyond membership.
 
+### 3.2 Same-parent ordering, fork detection and recovery (ADR-0173)
+
+ADR-0173 is normative; this is its summary. V-004 verified it with [`GroupCommit.tla`](../../../verification/tla/GroupCommit.tla) and an OpenMLS probe.
+
+1. A Commit's **parent** is `(GroupControlState hash, MLS epoch)`. It is *valid* if it is authorized at that parent; a direct
+   Commit must be a reduction or a recovery. Receivers never check the author's `sequencing_timeout`.
+2. Among valid Commits sharing a parent, the canonical successor is the minimum of `(non-reducing?, direct?, committer
+   DeviceID, GroupCommitBinding hash)`. A reduction beats a non-reduction, a coordinator-sequenced Commit beats a direct one,
+   and recovery sorts last. No receipt order, relay order or clock is involved.
+3. A member merges the best valid Commit it has seen at once. A merged epoch cannot be rolled back, so a better Commit that
+   arrives later leaves the member on a **losing branch**: it marks the branch `SUPERSEDED`, sends nothing on it, re-queues
+   the ConversationEvents it sent there that the winning branch does not hold (idempotent by EventID), and rebases or
+   revalidates its own intent (§3.1 rules 6-7).
+4. **Recovery** is a roster-neutral Commit (`GroupCommitBinding` kind `recovery`, same GroupControlState hash) by any active
+   member of the winning chain: an MLS re-add (fork-resolution) or the device's external commit. It re-adds only devices
+   in the canonical roster. A receiver refuses an external commit whose joiner credential is not in the canonical roster
+   before merging it.
+5. A removal merged only on a losing branch is not a removal; the device stays `forked` and recovers by rule 4.
+6. `sequencing_timeout` has a minimum of 30 seconds (default 5 minutes, maximum 1 hour).
+
 ## 4. Atomic binding to OM group policy
 
 Membership/role-affecting changes use a `GroupControlIntent` (what is requested, and its authorization) and a
@@ -99,7 +119,7 @@ Rules:
 2. Before network publication, persist the **exact MLS Commit bytes/hash**, `GroupCommitBinding`, parent identifiers and enough tentative post-commit MLS/application state to resume or safely discard the candidate after restart. Tentative state is isolated from canonical Room state.
 3. A relay/storage acknowledgement is transport progress only; it is never canonical group acceptance. If publication outcome is uncertain and the recorded parent is still canonical, retry the exact prepared commit/binding rather than generating a second same-parent semantic mutation merely because an acknowledgement was lost.
 4. Acceptance under the GroupCommitOrdering profile atomically promotes MLS state, GroupControlState/application authority state, the canonical group head and the accepted-commit/dedupe marker. If one local transaction cannot span those stores, a durable recovery journal must complete the same promotion before application release/ack or further application-message sending.
-5. No application message is sent under a tentative membership/control branch before that branch's Commit is accepted as canonical.
+5. No application message is sent under a tentative membership/control branch before that branch's Commit is accepted as canonical. "Tentative" means prepared but not yet merged (ADR-0173 rule 2): a merged Commit can still lose a same-parent race, and §3.2 governs what the member then does.
 6. Duplicate observation of an accepted Commit/Binding is idempotent and never repeats application/control effects.
 7. A losing same-epoch candidate becomes `SUPERSEDED`; its tentative state is never materialized. A still-applicable reducing intent is rebased per §3.1. A non-reducing intent is re-validated against the new parent and may be dropped.
 8. After a long offline period or restart with a stale/unknown parent, reconcile the authenticated canonical group/control chain first. A prepared candidate whose parent is no longer canonical is superseded/abandoned before any new candidate is built.

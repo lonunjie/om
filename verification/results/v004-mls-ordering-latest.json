@@ -1,0 +1,119 @@
+{
+  "criteria": [
+    {
+      "criterion": "candidate MLS library demonstrated to support the required external commit ordering on target runtimes",
+      "evidence": "verification/prototypes/v004-mls-ordering/rust/src/lib.rs; verification/results/v004-mls-ordering-latest.json",
+      "gate": "V-004",
+      "note": "OpenMLS 0.9.0 holds a prepared commit un-merged until the application orders it, discards the losing candidate (clear_pending_commit) and accepts the winner, on macOS arm64 native and wasm32-unknown-unknown under Node/V8 with byte-identical results; the same crate type-checks for aarch64-apple-ios and aarch64-linux-android (compiled, not run). A prepared commit survives a restart. External commits from a device outside the roster are staged and can be refused before merge.",
+      "status": "met"
+    },
+    {
+      "criterion": "two disconnected partitions independently create different direct reducing Commits from the same MLS epoch after sequencing_timeout; reconnection converges without silent key/state continuation on the losing branch",
+      "evidence": "verification/prototypes/v004-mls-ordering/rust/src/lib.rs (s2_partition_fork_and_readd); verification/tla/GroupCommit.tla",
+      "gate": "V-004",
+      "note": "Library level: after both partitions merge their own commit the branches cannot cross-process, the winning branch cannot read a message sent on the losing branch, the fork-resolution re-add (OpenMLS fork-resolution feature) re-joins the in-roster loser to the winning chain, a removed device cannot, and a rebased reduction converges. Protocol level: TLC checks the same in GroupCommit.tla under crash and equivocation.",
+      "status": "met"
+    }
+  ],
+  "gates": [
+    "V-004"
+  ],
+  "independence": "Written by a Claude agent from RFC 9420 and the OpenMLS 0.9.0 public API, and from GROUP_COMMIT_AND_STATE_CONVERGENCE.md and ADR-0163. Single-vendor review (ADR-0167); not an independent implementation.",
+  "summary": {
+    "probe": {
+      "ciphersuite": "MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519",
+      "library": "openmls 0.9.0 (rust_crypto provider, memory storage, fork-resolution feature)",
+      "s1_ordered_same_epoch_race": {
+        "winner_A": {
+          "both_candidates_held_pending_unmerged": true,
+          "final_roster_is_A_C": true,
+          "loser_commit_rejected_at_new_epoch": true,
+          "rebased_reduction_converged_epoch_plus_2": true,
+          "removed_device_inactive_after_winner": true,
+          "winner_converged_epoch_plus_1": true
+        },
+        "winner_C": {
+          "both_candidates_held_pending_unmerged": true,
+          "final_roster_is_A_C": true,
+          "loser_commit_rejected_at_new_epoch": true,
+          "rebased_reduction_converged_epoch_plus_2": true,
+          "removed_device_inactive_after_winner": true,
+          "winner_converged_epoch_plus_1": true
+        }
+      },
+      "s1b_mutual_removal": {
+        "winner_A": {
+          "loser_author_inactive": true,
+          "loser_author_learns_it_was_removed": true,
+          "survivor_roster_size": 2,
+          "survivors_converged": true
+        },
+        "winner_C": {
+          "loser_author_inactive": true,
+          "loser_author_learns_it_was_removed": true,
+          "survivor_roster_size": 2,
+          "survivors_converged": true
+        }
+      },
+      "s2_partition_fork_and_readd": {
+        "branches_have_different_state": true,
+        "branches_same_epoch_number": true,
+        "control_converged_check_is_false_on_diverged_branches": true,
+        "converged_after_readd": true,
+        "converged_after_rebased_reduction": true,
+        "final_roster_is_A_C": true,
+        "partition1_rejects_partition2_commit": true,
+        "partition2_rejects_partition1_commit": true,
+        "readd_complement_is_exactly_C": true,
+        "removed_device_cannot_process_winner_commit": true,
+        "winner_branch_cannot_read_loser_branch_message": true
+      },
+      "s3_external_commit_policy": {
+        "discarded_staged_commit_leaves_group_unchanged": true,
+        "group_still_advances_after_discard": true,
+        "library_stages_external_commit_from_removed_device": true,
+        "roster_check_would_block_it": true,
+        "staged_commit_exposes_joiner_credential_for_roster_check": true
+      },
+      "s4_crash_restart": {
+        "duplicate_delivery_rejected_by_mls_at_new_epoch": true,
+        "pending_commit_can_be_discarded_after_restore": true,
+        "prepared_commit_persisted_and_restored": true,
+        "restored_node_promotes_same_commit_and_converges": true
+      },
+      "s5_past_epoch_window": {
+        "decrypts_by_lag_1_to_4": [
+          true,
+          true,
+          false,
+          false
+        ],
+        "inside_window_decrypts": true,
+        "outside_window_fails": true,
+        "window": 2
+      }
+    },
+    "runtimes_identical": [
+      "native aarch64-apple-darwin",
+      "wasm32-unknown-unknown (Node/V8)"
+    ],
+    "scenarios": [
+      "s1_ordered_same_epoch_race",
+      "s1b_mutual_removal",
+      "s2_partition_fork_and_readd",
+      "s3_external_commit_policy",
+      "s4_crash_restart",
+      "s5_past_epoch_window"
+    ],
+    "type_checked_only": [
+      "aarch64-apple-ios",
+      "aarch64-linux-android"
+    ]
+  },
+  "tool_versions": {
+    "node": "v24.14.0",
+    "openmls": "0.9.0 (rust_crypto 0.6.0, basic_credential 0.6.0, memory storage 0.6.0, feature fork-resolution)",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "wasm-bindgen": "0.2.129"
+  }
+}

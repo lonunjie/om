@@ -1,3 +1,8 @@
+# 2026-10-01 21:35 PHT — V-004 model and MLS probe, ADR-0173
+
+- `GroupCommit.tla` (+ 7 configs, `models-v004.json`) and the OpenMLS 0.9.0 probe `verification/prototypes/v004-mls-ordering/` give V-004 its formal-model, MLS-library and partition-convergence evidence (6/8 pre-engineering criteria). `tools/run_tlc.py` now records a failed temporal property as `<temporal>`.
+- ADR-0173: same-parent order key, immediate acceptance, losing-branch obligations, roster-gated recovery, `sequencing_timeout` minimum 30 s. GROUP_COMMIT §3.2 added. R-393..R-396, T-158..T-160, D-194.
+
 # 2026-10-01 20:50 PHT — V-006 passes pre-engineering, ADR-0172
 
 - V-006 (WebDeviceVault browser matrix) passes pre-engineering for macOS Chrome/Safari/Firefox, iOS Safari and Android Chrome; Windows Chrome/Edge untested and pre-release. Review F-20..F-23; R-391, R-392, D-193.

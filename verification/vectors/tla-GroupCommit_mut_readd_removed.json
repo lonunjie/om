@@ -1,0 +1,81 @@
+{
+ "gate": "V-004",
+ "source": "verification/tla/GroupCommit_mut_readd_removed.cfg",
+ "kind": "residual-risk",
+ "claim": "mutation: fork recovery without the roster check re-adds a device that the canonical chain removed",
+ "violated": "ActiveInRoster",
+ "trace": [
+  {
+   "step": 1,
+   "action": "Initial",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{}",
+    "chain": "[a |-> <<>>, b |-> <<>>, c |-> <<>>]",
+    "pub": "{}",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[a |-> {}, b |-> {}, c |-> {}]"
+   }
+  },
+  {
+   "step": 2,
+   "action": "PublishIntent",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"b\", <<>>>>}",
+    "chain": "[a |-> <<>>, b |-> <<<<\"b\", \"direct\", \"remove\", \"c\">>>>, c |-> <<>>]",
+    "pub": "{[a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>]}",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {}, b |-> {[a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>]}, c |-> {} ]"
+   }
+  },
+  {
+   "step": 3,
+   "action": "PublishIntent",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"b\", <<>>>>, <<\"c\", <<>>>>}",
+    "chain": "[ a |-> <<>>, b |-> <<<<\"b\", \"direct\", \"remove\", \"c\">>>>, c |-> <<<<\"c\", \"direct\", \"remove\", \"a\">>>> ]",
+    "pub": "{ [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] }",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {}, b |-> {[a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>]}, c |-> {[a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>]} ]"
+   }
+  },
+  {
+   "step": 4,
+   "action": "Protocol",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"b\", <<>>>>, <<\"c\", <<>>>>}",
+    "chain": "[ a |-> <<>>, b |-> <<<<\"b\", \"direct\", \"remove\", \"c\">>>>, c |-> <<<<\"c\", \"direct\", \"remove\", \"a\">>>> ]",
+    "pub": "{ [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] }",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {}, b |-> {[a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>]}, c |-> { [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] } ]"
+   }
+  },
+  {
+   "step": 5,
+   "action": "DetectFork",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"b\", <<>>>>, <<\"c\", <<>>>>}",
+    "chain": "[ a |-> <<>>, b |-> <<<<\"b\", \"direct\", \"remove\", \"c\">>>>, c |-> <<<<\"c\", \"direct\", \"remove\", \"a\">>>> ]",
+    "pub": "{ [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] }",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"forked\"]",
+    "seen": "[ a |-> {}, b |-> {[a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>]}, c |-> { [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] } ]"
+   }
+  },
+  {
+   "step": 6,
+   "action": "Rejoin",
+   "vars": {
+    "alive": "[a |-> FALSE, b |-> TRUE, c |-> TRUE]",
+    "journal": "{<<\"b\", <<>>>>, <<\"c\", <<>>>>}",
+    "chain": "[ a |-> <<>>, b |-> <<<<\"b\", \"direct\", \"remove\", \"c\">>>>, c |-> <<<<\"b\", \"direct\", \"remove\", \"c\">>>> ]",
+    "pub": "{ [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] }",
+    "status": "[a |-> \"active\", b |-> \"active\", c |-> \"active\"]",
+    "seen": "[ a |-> {}, b |-> {[a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>]}, c |-> { [a |-> \"b\", k |-> \"direct\", o |-> \"remove\", r |-> \"c\", p |-> <<>>], [a |-> \"c\", k |-> \"direct\", o |-> \"remove\", r |-> \"a\", p |-> <<>>] } ]"
+   }
+  }
+ ]
+}

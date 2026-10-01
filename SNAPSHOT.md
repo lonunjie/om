@@ -1,15 +1,23 @@
 # OM Architecture Snapshot
 
-Generated: **2026-10-01 20:50 PHT (UTC+08:00)**, after ADR-0172 authorized `reference_client_ui`.
+Generated: **2026-10-01 21:35 PHT (UTC+08:00)**, after ADR-0173 (GroupCommitOrdering) and the first V-004 evidence.
 
 ## State
 
 - **Engineering is authorized for `core_kernel` (ADR-0169), `provider_reference` (ADR-0171) and `reference_client_ui` (ADR-0172) only**: `engineering_authorized=true`, 3/12 scopes. Every other scope is not authorized.
 - **Review model:** Claude performs all reviews at the operator's direction (ADR-0167). Gates passed this way carry `pre_engineering_review_basis=operator_single_vendor_ADR-0167`, which is not vendor-independent review.
 - **Design:** `design_open=0`. Review findings F-14..F-19 are fixed (ADR-0168, ADR-0170); F-20..F-23 are resolved by ADR-0172.
-- **Verification:** 11 gates still have pre-engineering open. V-006 passed pre-engineering on 2026-10-01 for the first-release web matrix (macOS Chrome/Safari/Firefox, iOS Safari, Android Chrome); Windows Chrome/Edge is untested and carried pre-release (ADR-0172). V-018 is pre-release (ADR-0170). Later-wave scopes keep their own open criteria (for example the V-004 wire freeze).
-- **Ledgers:** 383 requirements / 383 trace rows, 147 threats, 193 decisions / 172 indexed ADRs, 40 security invariants.
-- **Next:** build the `core_kernel`, `provider_reference` and `reference_client_ui` crates/packages per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md); then later-wave gate work (V-004 first). V-006 pre-release: run the probe on Windows or drop Windows, publish the support matrix with regression tests.
+- **Verification:** 11 gates still have pre-engineering open. V-004 (groups) is at 6/8 pre-engineering criteria: the formal model, the MLS library check and partition convergence are done (ADR-0173); the W1 wire freeze and the GroupHistoryBundle freeze are not. V-006 passed pre-engineering on 2026-10-01 for the first-release web matrix (macOS Chrome/Safari/Firefox, iOS Safari, Android Chrome); Windows Chrome/Edge is untested and carried pre-release (ADR-0172). V-018 is pre-release (ADR-0170). Later-wave scopes keep their own open criteria (for example the V-004 wire freeze).
+- **Ledgers:** 387 requirements / 387 trace rows, 150 threats, 194 decisions / 173 indexed ADRs, 40 security invariants.
+- **Next:** build the `core_kernel`, `provider_reference` and `reference_client_ui` crates/packages per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md); then groups gate work: the V-004 wire freeze and GroupHistoryBundle freeze, V-009's second materializer and V-019's ReInit prototype (handoff: [`2026-10-01-groups-verification-handoff.md`](docs/reports/2026-10-01-groups-verification-handoff.md)). V-006 pre-release: run the probe on Windows or drop Windows, publish the support matrix with regression tests.
+
+## 2026-10-01 21:35 PHT — V-004 formal model and MLS ordering probe / ADR-0173
+
+- **Model:** [`GroupCommit.tla`](verification/tla/GroupCommit.tla) (3 devices, a coordinator that may go offline or equivocate, racing reductions, bounded extra commits). The main config explores 676,654 states and passes safety and convergence under weak fairness; five mutations each give a counterexample ([`models-v004.json`](verification/tla/models-v004.json)).
+- **Probe:** [`v004-mls-ordering`](verification/prototypes/v004-mls-ordering/README.md) runs OpenMLS 0.9.0 through ordered races, mutual removal, a partition fork with fork-resolution re-add, an external-commit roster gate, crash/restart and the past-epoch window. Native and wasm32-unknown-unknown (Node) agree byte for byte; iOS and Android are type-checked only.
+- **Findings:** the design never named a winner among same-parent Commits (F-24); a merged MLS epoch cannot be rolled back, so a direct reduction in a partition forks (F-25); a removal on a losing branch is not a removal (F-26).
+- **ADR-0173:** order key `(non-reducing, direct, DeviceID, binding hash)`, immediate acceptance, losing-branch obligations, roster-gated roster-neutral recovery, `sequencing_timeout` minimum 30 s. R-393..R-396, T-158..T-160, D-194.
+- **Gate:** V-004 criteria 0, 1 and 4 are met (6/8). Open: the W1 wire freeze, the GroupHistoryBundle freeze, independent review.
 
 ## 2026-10-01 20:50 PHT — V-006 passes pre-engineering; `reference_client_ui` unlock / ADR-0172
 
