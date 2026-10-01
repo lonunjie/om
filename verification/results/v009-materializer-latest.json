@@ -6,35 +6,94 @@
         "verification/prototypes/v009-materializer/README.md",
         "verification/prototypes/v009-materializer/materializer/src/materialize.rs",
         "verification/prototypes/v009-materializer/gen_corpus.py",
-        "verification/prototypes/v009-materializer/compare.py"
+        "verification/prototypes/v009-materializer/compare.py",
+        "verification/bounded/conversation_convergence.py"
       ],
       "gate": "V-009",
-      "note": "Rust materializer (different language; written from docs before the reference logic was read) converges on every delivery order and agrees with the reference on 115/115 cases; all 0 disagreeing cases are attributed (reference bugs REF-1/REF-3, doc ambiguities DA-1..DA-3). Partial because the reference covers only pins/redaction/polls/topics and needs an adapter-supplied authorization oracle, the doc ambiguities need rulings, and author independence is AI-to-AI (ADR-0117 proposed).",
-      "status": "partial"
+      "note": "Rust materializer (different language and runtime) converges on every delivery order and agrees with the Python reference on 266/266 cases, including the malformed, extension and authorization-race categories; no disagreement needs a ruling any more (ADR-0121 settled DA-1..DA-3).",
+      "status": "met"
+    },
+    {
+      "criterion": "the independent materializer derives authorization from the control chain rather than sharing the reference authorization adapter (G-V9-5)",
+      "evidence": [
+        "verification/prototypes/v009-materializer/README.md",
+        "verification/prototypes/v009-materializer/materializer/src/materialize.rs",
+        "verification/prototypes/v009-materializer/gen_corpus.py",
+        "verification/prototypes/v009-materializer/compare.py",
+        "verification/bounded/conversation_convergence.py"
+      ],
+      "gate": "V-009",
+      "note": "The Rust materializer reads only the raw chain of control operations (role.define, role.assign, restriction.set, member.remove) and derives effective authority per epoch itself; the Python side derives it separately (gen_corpus.derive). The two derivations agree on 266/266 cases' per-epoch authority tables, and every event's authorization then agrees.",
+      "status": "met"
+    },
+    {
+      "criterion": "reaction and vote registers are authorization-epoch-major and a vote ordered after poll.close is ignored (R-236)",
+      "evidence": [
+        "verification/prototypes/v009-materializer/README.md",
+        "verification/prototypes/v009-materializer/materializer/src/materialize.rs",
+        "verification/prototypes/v009-materializer/gen_corpus.py",
+        "verification/prototypes/v009-materializer/compare.py",
+        "verification/bounded/conversation_convergence.py"
+      ],
+      "gate": "V-009",
+      "note": "11 epoch_major cases with spec-derived expectations hold on both implementations: vote/reaction/edit/pin/topic registers order by (sending epoch, EventClock), a vote ordered after the earliest close is ignored, backdating inside one epoch remains the documented residual risk.",
+      "status": "met"
+    },
+    {
+      "criterion": "expiry deletes at min(expiry, receipt + expires_after) and never after the absolute expiry bound (R-235)",
+      "evidence": [
+        "verification/prototypes/v009-materializer/README.md",
+        "verification/prototypes/v009-materializer/materializer/src/materialize.rs",
+        "verification/prototypes/v009-materializer/gen_corpus.py",
+        "verification/prototypes/v009-materializer/compare.py",
+        "verification/bounded/conversation_convergence.py"
+      ],
+      "gate": "V-009",
+      "note": "12 expiry cases with hand-written expectations hold on both implementations (boundary, local bound earlier, absolute earlier, receipt after expiry, no receipt time, malformed carriers); the deadline is never after the absolute expiry.",
+      "status": "met"
+    },
+    {
+      "criterion": "forwarding strips mentions and a mention of a non-member renders as inert text (R-239)",
+      "evidence": [
+        "verification/prototypes/v009-materializer/README.md",
+        "verification/prototypes/v009-materializer/materializer/src/materialize.rs",
+        "verification/prototypes/v009-materializer/gen_corpus.py",
+        "verification/prototypes/v009-materializer/compare.py",
+        "verification/bounded/conversation_convergence.py"
+      ],
+      "gate": "V-009",
+      "note": "6 mention cases and 3 forwarding vectors agree across Rust, the Python reference and hand-written expectations: Mention nodes become text runs with their label, the mention set and source ids are dropped, a mention of a non-member (latest roster) renders inert.",
+      "status": "met"
     }
   ],
   "gates": [
     "V-009"
   ],
-  "independence": "Materializer written by a Claude agent in Rust from the public docs; its commit precedes reading the Python reference's logic. The design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer/implementer counts as independent.",
+  "independence": "Second implementation in a different language and runtime (Rust vs Python), as ADR-0167 section 3 defines independent_implementation. It is NOT a different author: the Rust materializer, the corpus generator, the Python adapter and the later extensions to the Python reference were all written by Claude agents, and the design package by ChatGPT and Claude agents. The Rust side was first written from the docs before the reference logic was read; the control-chain derivation, epoch-major registers, expiry and mention handling were added in this session with both sides in view, which is why every new behavior also has hand-written expectations checked on both.",
   "prototype": "verification/prototypes/v009-materializer",
   "summary": {
     "all_checks_passed": true,
-    "cases_agree": 115,
+    "authority_disagreements": 0,
+    "authority_tables_checked": 266,
+    "cases_agree": 266,
     "cases_disagree_attributed": 0,
-    "corpus_cases": 115,
+    "corpus_cases": 266,
     "corpus_categories": {
       "authorization": 1,
-      "authorization_race": 6,
+      "authorization_race": 8,
       "deletes": 2,
       "duplication": 1,
       "edits": 4,
+      "epoch_major": 11,
       "eventclock": 7,
+      "expiry": 12,
       "extensions": 4,
       "malformed": 13,
+      "mentions": 6,
       "pins": 2,
       "polls": 5,
       "random": 60,
+      "random2": 120,
       "reactions": 2,
       "receipts": 1,
       "redaction": 1,
@@ -42,9 +101,13 @@
       "topics": 5
     },
     "disagreement_causes": {},
+    "expectation_failures": 0,
+    "expectations_checked": 47,
+    "forward_failures": 0,
+    "forward_vectors": 3,
     "materializer_all_converged": true,
-    "materializer_delivery_orders": 64280,
-    "reference_delivery_orders": 41122,
+    "materializer_delivery_orders": 188531,
+    "reference_delivery_orders": 124800,
     "reference_nonconvergent_cases": [],
     "unresolved_disagreements": 0
   },

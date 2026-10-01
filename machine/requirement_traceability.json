@@ -2585,6 +2585,24 @@
       "verified_by": [
         "V-004"
       ]
+    },
+    {
+      "requirement": "R-397",
+      "verified_by": [
+        "V-009"
+      ]
+    },
+    {
+      "requirement": "R-398",
+      "verified_by": [
+        "V-009"
+      ]
+    },
+    {
+      "requirement": "R-399",
+      "verified_by": [
+        "V-009"
+      ]
     }
   ]
 }

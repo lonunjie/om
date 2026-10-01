@@ -180,3 +180,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0171 — Authorize engineering scope `provider_reference` (W0)](ADR-0171-authorize-provider-reference-engineering.md)
 - [ADR-0172 — V-006 result, first-release web matrix and `reference_client_ui` authorization (W0)](ADR-0172-authorize-reference-client-ui-engineering.md)
 - [ADR-0173 — GroupCommitOrdering: same-parent order, fork detection and fork recovery (W1)](ADR-0173-group-commit-ordering-fork-detection-and-recovery.md)
+- [ADR-0174 — Materialization rulings from the second materializer (V-009)](ADR-0174-materialization-rulings-from-the-second-materializer.md)

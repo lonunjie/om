@@ -23,42 +23,98 @@ T0 = 1_790_000_000_000  # physical_ms base (2026-09); value irrelevant, only ord
 BASE_CAPS = ["om.baseline.v1", "om.poll.v1", "om.topic.v1"]
 ALL = ["room.post", "room.reply", "room.react", "room.pin", "room.redact_others",
        "room.create_topic", "room.manage_topics"]
-GRANTS = {
-    "A": ALL,  # admin
-    "M": ["room.post", "room.react", "room.pin", "room.redact_others", "room.create_topic", "room.manage_topics"],
-    "B": ["room.post", "room.reply", "room.react"],
-    "C": ["room.reply", "room.react"],  # announcement-room member: may reply/react, not post
-    "X": [],  # present in roster, no capabilities
+ROLES = {  # role -> capabilities (control chain epoch 0 defines these)
+    "admin": ALL,
+    "moderator": ["room.post", "room.react", "room.pin", "room.redact_others", "room.create_topic", "room.manage_topics"],
+    "member": ["room.post", "room.reply", "room.react"],
+    "replier": ["room.reply", "room.react"],  # announcement-room member: may reply/react, not post
+    "none": [],  # present in roster, no capabilities
 }
+BASE_ASSIGN = {"A": ["admin"], "M": ["moderator"], "B": ["member"], "C": ["replier"], "X": ["none"]}
 REQ = {"poll.create": ["om.poll.v1"], "poll.vote": ["om.poll.v1"], "poll.close": ["om.poll.v1"],
        "topic.create": ["om.topic.v1"], "topic.update": ["om.topic.v1"],
        "topic.status.set": ["om.topic.v1"], "message.topic.set": ["om.topic.v1"]}
 
 
+def derive(chain):
+    """Python-side derivation of effective authority from a control chain (compare.py's source of truth;
+    the Rust materializer derives the same thing independently from `chain` and the two are compared)."""
+    roles, assign, restr, out = {}, {}, {}, []
+    for n, ops in enumerate(chain):
+        for o in ops:
+            k = o["op"]
+            if k == "role.define":
+                roles[o["role"]] = set(o["caps"])
+            elif k == "role.assign":
+                assign[o["principal"]] = list(o["roles"])
+            elif k == "member.remove":
+                assign.pop(o["principal"], None)
+            elif k == "restriction.set":
+                if o["caps"]:
+                    restr[o["principal"]] = set(o["caps"])
+                else:
+                    restr.pop(o["principal"], None)
+        out.append({"epoch": n, "members": {
+            p: sorted(set().union(*[roles.get(r, set()) for r in rs]) - restr.get(p, set()))
+            for p, rs in sorted(assign.items())}})
+    return out
+
+
 def control(*epochs):
-    """epochs: list of (grants_override, restrictions) applied cumulatively from GRANTS."""
-    out, g = [], {k: list(v) for k, v in GRANTS.items()}
+    """epochs: list of (assign_override, restrictions) as cumulative role assignments and the full set of
+    active restrictions at that epoch. Compiled to a chain of control operations (role.define, role.assign,
+    restriction.set, member.remove); `effective` is the Python derivation of the same chain."""
     if not epochs:
         epochs = [({}, {})]
+    chain, roles, active = [], {k: list(v) for k, v in ROLES.items()}, {}
     for n, (over, restr) in enumerate(epochs):
-        g = {**g, **over}
-        out.append({"epoch": n, "grants": {k: sorted(v) for k, v in g.items()}, "restrictions": restr})
-    return {"epochs": out}
+        ops = []
+        if n == 0:
+            ops += [{"op": "role.define", "role": r, "caps": sorted(c)} for r, c in ROLES.items()]
+            ops += [{"op": "role.assign", "principal": p, "roles": r} for p, r in BASE_ASSIGN.items()]
+        for who, caps in over.items():
+            if caps is None:
+                ops.append({"op": "member.remove", "principal": who})
+                continue
+            name = next((r for r, c in roles.items() if sorted(c) == sorted(caps)), None)
+            if name is None:
+                name = f"custom-{len(roles)}"
+                roles[name] = list(caps)
+                ops.append({"op": "role.define", "role": name, "caps": sorted(caps)})
+            ops.append({"op": "role.assign", "principal": who, "roles": [name]})
+        for who in sorted(set(active) - set(restr)):
+            ops.append({"op": "restriction.set", "principal": who, "caps": []})
+        for who, caps in sorted(restr.items()):
+            ops.append({"op": "restriction.set", "principal": who, "caps": sorted(caps)})
+        active = {k: list(v) for k, v in restr.items()}
+        chain.append(ops)
+    return {"chain": chain, "effective": derive(chain)}
 
 
-def ev(eid, kind, author, t, body, *, ctr=0, epoch=0, dev=1, req=None, conv=CONV, endpoint=None):
+def ev(eid, kind, author, t, body, *, ctr=0, epoch=0, dev=1, req=None, conv=CONV, endpoint=None, expiry=None):
     ep = endpoint or f"{author}-d{dev}"
-    return {"event_id": eid, "conversation_id": conv, "author": author, "endpoint": ep,
-            "clock": [T0 + t, ctr, ep], "epoch": epoch, "kind": kind,
-            "required_capabilities": REQ.get(kind, []) if req is None else req, "body": body}
+    e = {"event_id": eid, "conversation_id": conv, "author": author, "endpoint": ep,
+         "clock": [T0 + t, ctr, ep], "epoch": epoch, "kind": kind,
+         "required_capabilities": REQ.get(kind, []) if req is None else req, "body": body}
+    if expiry is not None:
+        e["expiry"] = expiry  # envelope key 12: absolute wall-clock ms
+    return e
 
 
 def msg(eid, a, t, text="hi", **kw):
-    body = {"text": text}
-    for k in ("reply_to", "thread_root_event_id", "topic_id"):
+    body = {} if text is None else {"text": text}
+    for k in ("reply_to", "thread_root_event_id", "topic_id", "runs", "expires_after"):
         if k in kw:
             body[k] = kw.pop(k)
     return ev(eid, "message.create", a, t, body, **kw)
+
+
+def tx(s):
+    return {"t": "text", "s": s}
+
+
+def mn(principal, label):
+    return {"t": "mention", "principal": principal, "label": label}
 
 
 def op(kind, eid, a, t, body, **kw):
@@ -68,9 +124,14 @@ def op(kind, eid, a, t, body, **kw):
 CASES = []
 
 
-def case(cid, category, desc, events, ctl=None, caps=None):
-    CASES.append({"id": cid, "category": category, "description": desc, "conversation_id": CONV,
-                  "known_capabilities": caps or BASE_CAPS, "control": ctl or control(), "events": events})
+def case(cid, category, desc, events, ctl=None, caps=None, expect=None, local=None):
+    c = {"id": cid, "category": category, "description": desc, "conversation_id": CONV,
+         "known_capabilities": caps or BASE_CAPS, "control": ctl or control(), "events": events}
+    if expect:
+        c["expect"] = expect  # spec-derived expectations, checked on both implementations
+    if local:
+        c["local"] = local    # receiver-local state: {"now": ms, "received_at": {event_id: ms}}
+    CASES.append(c)
 
 
 def pin(eid, a, t, target, present, **kw):
@@ -280,6 +341,165 @@ def build_fixed():
           vote("v2", "C", 7, "poll", ["y"]), close("cl-a", "A", 9, "poll", epoch=1)], close_demote)
 
 
+def reaction(eid, a, t, target, key, present, **kw):
+    return op("reaction.set", eid, a, t, {"target_event_id": target, "reaction_key": key, "present": present}, **kw)
+
+
+def edit(eid, a, t, target, text, **kw):
+    return op("message.edit", eid, a, t, {"target_event_id": target, "replacement": text}, **kw)
+
+
+FORWARDS = []
+
+
+def build_wave1():
+    two = control(({}, {}), ({}, {}))  # two epochs, no authority change: isolates ordering from authorization
+
+    # ---- R-236 / ADR-0121 rule 3 / ADR-0128 rule 17: registers are epoch-major ----------------------
+    case("epochmajor-vote-after-close", "epoch_major",
+         "R-236: a vote sent in epoch 1 with an early HLC is ordered after a close sent in epoch 0 with a late HLC, so it is ignored",
+         [poll("poll", "A", 0), close("cl", "A", 100, "poll", epoch=0), vote("v-early-clock", "B", 5, "poll", ["x"], epoch=1),
+          vote("v-before", "C", 50, "poll", ["y"], epoch=0)], two,
+         expect={"poll_votes": [["C", "poll", ["y"]]], "poll_closed": ["poll"]})
+    case("epochmajor-vote-backdated-same-epoch", "epoch_major",
+         "R-236 residual risk: within one epoch a backdated vote is ordered before the close and counts",
+         [poll("poll", "A", 0), close("cl", "A", 100, "poll", epoch=0), vote("v-backdated", "B", 5, "poll", ["x"], epoch=0)], two,
+         expect={"poll_votes": [["B", "poll", ["x"]]], "poll_closed": ["poll"]})
+    case("epochmajor-vote-register", "epoch_major",
+         "R-236: B's epoch-1 vote supersedes an epoch-0 vote with a later HLC",
+         [poll("poll", "A", 0), vote("v0", "B", 100, "poll", ["y"], epoch=0), vote("v1", "B", 5, "poll", ["x"], epoch=1)], two,
+         expect={"poll_votes": [["B", "poll", ["x"]]]})
+    case("epochmajor-vote-retraction-later-epoch", "epoch_major",
+         "R-236: an epoch-1 empty selection retracts an epoch-0 vote even with an earlier HLC",
+         [poll("poll", "A", 0), vote("v0", "B", 100, "poll", ["y"], epoch=0), vote("v1", "B", 5, "poll", [], epoch=1)], two,
+         expect={"poll_votes": []})
+    case("epochmajor-reaction-register", "epoch_major",
+         "R-236: an epoch-1 removal supersedes an epoch-0 add with a later HLC",
+         [msg("m1", "A", 0), reaction("x0", "B", 100, "m1", "👍", True, epoch=0), reaction("x1", "B", 5, "m1", "👍", False, epoch=1)], two,
+         expect={"reactions": [["B", "m1", "👍", False]]})
+    case("epochmajor-close-earliest", "epoch_major",
+         "R-236: of two valid closes the earliest by (epoch, clock) is effective; a vote ordered after it is ignored",
+         [poll("poll", "A", 0), close("cl-late-epoch", "A", 1, "poll", epoch=1), close("cl-early-epoch", "A", 100, "poll", epoch=0),
+          vote("v-after", "B", 150, "poll", ["x"], epoch=0), vote("v-before", "C", 90, "poll", ["y"], epoch=0)], two,
+         expect={"poll_votes": [["C", "poll", ["y"]]], "poll_closed": ["poll"]})
+    case("epochmajor-pin-future-dated", "epoch_major",
+         "ADR-0121 rule 3 (resolves G-V9-1): a future-dated epoch-0 pin cannot dominate an epoch-1 unpin",
+         [msg("m1", "A", 0), pin("p-future", "M", 2_000_000_000_000, "m1", True, epoch=0), pin("p-unpin", "A", 50, "m1", False, epoch=1)], two,
+         expect={"pins": [["m1", False]]})
+    case("epochmajor-edit-register", "epoch_major",
+         "ADR-0121 rule 3: an epoch-1 edit supersedes an epoch-0 edit with a later HLC",
+         [msg("m1", "B", 0, "orig"), edit("e0", "B", 100, "m1", "old", epoch=0), edit("e1", "B", 5, "m1", "new", epoch=1)], two,
+         expect={"edits": [["m1", "new"]]})
+    case("epochmajor-topic-title-status", "epoch_major",
+         "ADR-0121 rule 3: topic title and status registers are epoch-major",
+         [tcreate("tc", "A", 0, "t1", "First"), tupdate("tu0", "A", 100, "t1", "Epoch0", epoch=0),
+          tupdate("tu1", "A", 5, "t1", "Epoch1", epoch=1), tstatus("ts0", "M", 90, "t1", "archived", epoch=0),
+          tstatus("ts1", "M", 6, "t1", "resolved", epoch=1)], two,
+         expect={"topics": [["t1", "Epoch1", "resolved"]]})
+    case("epochmajor-topic-placement", "epoch_major",
+         "ADR-0121 rule 3: message.topic.set is epoch-major",
+         [msg("m1", "B", 0), tcreate("tc1", "A", 0, "t1", "T1"), tcreate("tc2", "A", 1, "t2", "T2"),
+          mtopic("mt0", "M", 100, "m1", "t1", epoch=0), mtopic("mt1", "M", 5, "m1", "t2", epoch=1)], two,
+         expect={"message_topics": [["m1", "t2"]]})
+    case("epochmajor-duplicate-topic-create", "epoch_major",
+         "D-20: duplicate topic.create is decided epoch-major too, so a later-epoch create cannot win by backdating its HLC",
+         [tcreate("tc-e1", "A", 1, "t1", "Backdated", epoch=1), tcreate("tc-e0", "M", 100, "t1", "Original", epoch=0)], two,
+         expect={"topics": [["t1", "Original", "open"]]})
+
+    # ---- authority derivation from the control chain (G-V9-5) --------------------------------------
+    gone = control(({}, {}), ({"M": None}, {}))
+    case("authority-removed-member", "authorization_race",
+         "M is removed in epoch 1 (member.remove): a pin sent in epoch 0 counts, an epoch-1 pin does not",
+         [msg("m1", "A", 0), pin("p-old", "M", 100, "m1", True, epoch=0), pin("p-new", "M", 200, "m1", False, epoch=1)], gone,
+         expect={"pins": [["m1", True]]})
+    cust = control(({}, {}), ({"C": ["room.post", "room.pin"]}, {}), ({}, {"C": ["room.pin"]}), ({"C": ["room.reply"]}, {}))
+    case("authority-custom-role-and-restriction", "authorization_race",
+         "C is given a custom role (post+pin) in epoch 1, restricted from pinning in epoch 2, and re-roled (reply only) in epoch 3",
+         [msg("m1", "A", 0), pin("p1", "C", 10, "m1", True, epoch=0), pin("p2", "C", 20, "m1", True, epoch=1),
+          pin("p3", "C", 30, "m1", False, epoch=2), msg("c-top", "C", 40, epoch=3), msg("c-reply", "C", 50, reply_to="m1", epoch=3)], cust)
+
+    # ---- R-235 / ADR-0128 rule 16: expiry --------------------------------------------------------
+    def exp_case(cid, desc, events, now, received, expect):
+        case(cid, "expiry", desc, events, expect=expect, local={"now": T0 + now, "received_at": {k: T0 + v for k, v in received.items()}})
+
+    exp_case("expiry-absolute-not-yet", "R-235: envelope expiry only; one ms before the deadline the message is live",
+             [msg("m1", "B", 0, expiry=T0 + 500)], 499, {"m1": 10},
+             {"deadlines": [["m1", T0 + 500]], "expired": []})
+    exp_case("expiry-absolute-boundary", "R-235: at the deadline the message is deleted",
+             [msg("m1", "B", 0, expiry=T0 + 500)], 500, {"m1": 10},
+             {"deadlines": [["m1", T0 + 500]], "expired": ["m1"]})
+    exp_case("expiry-local-bound-wins", "R-235: expires_after (receipt 100 + 300) fires before a distant envelope expiry",
+             [msg("m1", "B", 0, expires_after=300, expiry=T0 + 10_000)], 399, {"m1": 100},
+             {"deadlines": [["m1", T0 + 400]], "expired": []})
+    exp_case("expiry-local-bound-fires", "R-235: the local bound deletes at receipt + expires_after although expiry is far away",
+             [msg("m1", "B", 0, expires_after=300, expiry=T0 + 10_000)], 400, {"m1": 100},
+             {"deadlines": [["m1", T0 + 400]], "expired": ["m1"]})
+    exp_case("expiry-never-after-absolute", "R-235: a huge expires_after can never push the deadline past the absolute expiry",
+             [msg("m1", "B", 0, expires_after=1_000_000_000, expiry=T0 + 500)], 500, {"m1": 100},
+             {"deadlines": [["m1", T0 + 500]], "expired": ["m1"]})
+    exp_case("expiry-received-after-expiry", "R-235: a message received after its absolute expiry is deleted on arrival, whatever expires_after says",
+             [msg("m1", "B", 0, expires_after=100, expiry=T0 + 500)], 900, {"m1": 900},
+             {"deadlines": [["m1", T0 + 500]], "expired": ["m1"]})
+    exp_case("expiry-local-only", "R-235: no envelope expiry, only the local bound",
+             [msg("m1", "B", 0, expires_after=200)], 250, {"m1": 100},
+             {"deadlines": [["m1", T0 + 300]], "expired": []})
+    exp_case("expiry-local-only-fires", "R-235: no envelope expiry, only the local bound, after the deadline",
+             [msg("m1", "B", 0, expires_after=200)], 300, {"m1": 100},
+             {"deadlines": [["m1", T0 + 300]], "expired": ["m1"]})
+    exp_case("expiry-no-receipt-time", "D-22: expires_after with no recorded receipt time counts from now and cannot fire early",
+             [msg("m1", "B", 0, expires_after=200)], 250, {},
+             {"deadlines": [["m1", T0 + 450]], "expired": []})
+    exp_case("expiry-none", "no expiry and no local bound: never deleted",
+             [msg("m1", "B", 0)], 10_000_000, {"m1": 100},
+             {"deadlines": [], "expired": []})
+    exp_case("expiry-mixed", "four messages with different carriers evaluated at one local time",
+             [msg("m1", "B", 0, expiry=T0 + 400), msg("m2", "B", 1, expires_after=100), msg("m3", "A", 2, expires_after=500, expiry=T0 + 450),
+              poll("poll", "A", 3, expiry=T0 + 380)], 420, {"m1": 10, "m2": 200, "m3": 30, "poll": 40},
+             {"deadlines": [["m1", T0 + 400], ["m2", T0 + 300], ["m3", T0 + 450], ["poll", T0 + 380]],
+              "expired": ["m1", "m2", "poll"]})
+    exp_case("expiry-malformed", "a non-integer envelope expiry and a negative expires_after make the event malformed",
+             [{**msg("m1", "B", 0), "expiry": "tomorrow"}, msg("m2", "B", 1, expires_after=-5), msg("m3", "B", 2, expires_after=5.5)],
+             1_000, {"m1": 1, "m2": 1, "m3": 1},
+             {"deadlines": [], "expired": []})
+
+    # ---- R-239 / ADR-0128 rule 20: mentions ---------------------------------------------------------
+    roster = control(({"Z": ["room.react"]}, {}))
+    case("mention-member-vs-nonmember", "mentions",
+         "R-239: a mention of a current member is live; a mention of a non-member renders as plain text",
+         [msg("m1", "A", 0, None, runs=[tx("hi "), mn("B", "@bee"), tx(" and "), mn("W", "@whoever")])], roster,
+         expect={"mentions": [["m1", [["B"], ["@whoever"]]]]})
+    gone_c = control(({}, {}), ({"C": None}, {}))
+    case("mention-removed-member", "mentions",
+         "R-239: C was a member when the message was sent but is removed in the latest epoch, so the mention renders as text",
+         [msg("m1", "A", 0, None, runs=[mn("C", "@cee"), tx(" welcome")], epoch=0)], gone_c,
+         expect={"mentions": [["m1", [[], ["@cee"]]]]})
+    case("mention-edited-away", "mentions",
+         "an edit replaces the content with plain text, so the edited message carries no mention",
+         [msg("m1", "B", 0, None, runs=[mn("A", "@ay")]), edit("e1", "B", 5, "m1", "no mention now")],
+         expect={"mentions": [], "edits": [["m1", "no mention now"]]})
+    case("mention-deleted", "mentions", "a deleted message shows no mention",
+         [msg("m1", "B", 0, None, runs=[mn("A", "@ay")]), op("message.delete", "d1", "B", 5, {"target_event_id": "m1"})],
+         expect={"mentions": [], "deleted": ["m1"]})
+    case("mention-malformed-runs", "mentions", "malformed runs (unknown node, empty label, text and runs together) are rejected",
+         [msg("bad1", "A", 0, None, runs=[{"t": "emoji", "s": "x"}]), msg("bad2", "A", 1, None, runs=[mn("B", "")]),
+          msg("bad3", "A", 2, "plain", runs=[tx("also")]), msg("ok", "A", 3, None, runs=[mn("B", "@bee")])],
+         expect={"mentions": [["ok", [["B"], []]]]})
+    case("mention-forwarded-message", "mentions",
+         "the forwarding transform's output (mention nodes turned into text runs) carries no mention",
+         [msg("fw1", "B", 0, None, runs=[tx("hi "), tx("@bee")])],
+         expect={"mentions": []})
+    FORWARDS.extend([
+        {"id": "forward-mention-to-text", "source": {"runs": [tx("hi "), mn("B", "@bee")], "attachments": [{"blob": "b1"}],
+                                                       "reply_to": "src-event", "thread_root_event_id": "src-root",
+                                                       "topic_id": "src-topic", "mentions": ["B"], "expires_after": 60},
+         "expected": {"runs": [tx("hi "), tx("@bee")], "attachments": [{"blob": "b1"}]}},
+        {"id": "forward-plain-text", "source": {"text": "hello", "reply_to": "src-event", "mentions": []},
+         "expected": {"text": "hello"}},
+        {"id": "forward-only-mentions", "source": {"runs": [mn("A", "@ay"), mn("B", "@bee")]},
+         "expected": {"runs": [tx("@ay"), tx("@bee")]}},
+    ])
+
+
 KINDS = ["pin", "redact", "vote", "close", "tcreate", "tupdate", "tstatus", "mtopic", "edit", "react", "delete"]
 
 
@@ -330,11 +550,85 @@ def build_random(n_cases: int, seed: int):
         case(f"random-{i:03d}", "random", f"seeded random mix (seed {seed}, #{i})", events, ctl)
 
 
+def build_random2(n_cases: int, seed: int):
+    """Second random family: 3-4 control epochs with removals/restrictions/custom roles, every event kind
+    incl. receipts and replies, mention runs, envelope expiry and expires_after, receiver-local clock."""
+    rng = random.Random(seed)
+    actors = ["A", "M", "B", "C", "X"]
+    caps_pool = ["room.post", "room.reply", "room.react", "room.pin", "room.redact_others", "room.create_topic", "room.manage_topics"]
+    for i in range(n_cases):
+        epochs = [({}, {})]
+        restr = {}
+        for _ in range(rng.randint(2, 3)):
+            over = {}
+            if rng.random() < 0.5:
+                who = rng.choice(actors)
+                over[who] = None if rng.random() < 0.25 else sorted(rng.sample(caps_pool, rng.randint(0, 4)))
+            if rng.random() < 0.5:
+                restr = {rng.choice(actors): [rng.choice(caps_pool)]} if rng.random() < 0.7 else {}
+            epochs.append((over, dict(restr)))
+        ctl = control(*epochs)
+        ne = len(epochs)
+        events, ids = [], []
+        for j in range(rng.randint(2, 3)):
+            mid = f"m{j}"
+            runs = None
+            if rng.random() < 0.6:
+                runs = [tx("hey ")] + [mn(p, f"@{p.lower()}") for p in rng.sample(actors + ["Z"], rng.randint(1, 2))]
+            x = msg(mid, rng.choice(["A", "B", "M"]), j, None if runs else f"text{j}", runs=runs, epoch=rng.randrange(ne),
+                    **({"expires_after": rng.randint(0, 40)} if rng.random() < 0.4 else {}),
+                    **({"expiry": T0 + rng.randint(0, 60)} if rng.random() < 0.4 else {}))
+            events.append(x)
+            ids.append(mid)
+        events.append(poll("poll", "A", 3, mode=rng.choice(["single", "multiple"]), epoch=rng.randrange(ne),
+                           **({"expiry": T0 + rng.randint(0, 60)} if rng.random() < 0.3 else {})))
+        ids.append("poll")
+        for j in range(rng.randint(3, 5)):
+            a, t, e = rng.choice(actors), rng.randint(4, 14), rng.randrange(ne)
+            eid, k = f"r{j}", rng.choice(["pin", "redact", "vote", "close", "edit", "react", "delete", "receipt", "reply", "mtopic", "tstatus"])
+            tgt = rng.choice(ids + ["ghost"])
+            if k == "pin":
+                x = pin(eid, a, t, tgt, rng.random() < 0.6, epoch=e)
+            elif k == "redact":
+                x = redact(eid, a, t, tgt, epoch=e)
+            elif k == "vote":
+                x = vote(eid, a, t, rng.choice(["poll", "m0"]), rng.sample(["x", "y", "z", "w"], rng.randint(0, 2)), epoch=e)
+            elif k == "close":
+                x = close(eid, a, t, "poll", epoch=e)
+            elif k == "edit":
+                x = edit(eid, a, t, tgt, f"ed{j}", epoch=e)
+            elif k == "react":
+                x = reaction(eid, a, t, tgt, rng.choice(["+1", "ok"]), rng.random() < 0.7, epoch=e)
+            elif k == "delete":
+                x = op("message.delete", eid, a, t, {"target_event_id": tgt}, epoch=e)
+            elif k == "receipt":
+                x = op("receipt.update", eid, a, t, {"receipt_type": rng.choice(["delivered", "read"]),
+                                                      "event_ids": rng.sample(ids + ["ghost"], rng.randint(1, 3))}, epoch=e)
+            elif k == "reply":
+                x = msg(eid, a, t, "re", reply_to=rng.choice(ids + ["ghost"]), epoch=e)
+            elif k == "mtopic":
+                x = mtopic(eid, a, t, rng.choice(["m0", "m1"]), rng.choice(["t1", None]), epoch=e)
+            else:
+                x = tstatus(eid, a, t, "t1", rng.choice(["open", "resolved", "archived"]), epoch=e)
+            r = rng.random()
+            if r < 0.05:
+                x["body"] = {**x["body"], "target_event_id": 42}
+            elif r < 0.08:
+                x["required_capabilities"] = ["org.example.unknown"]
+            events.append(x)
+        if rng.random() < 0.5:
+            events.append(tcreate("tc-base", "A", 2, "t1", "base", epoch=rng.randrange(ne)))
+        local = {"now": T0 + rng.randint(0, 120), "received_at": {k: T0 + rng.randint(0, 80) for k in ids if rng.random() < 0.7}}
+        case(f"random2-{i:03d}", "random2", f"seeded multi-epoch mix with expiry and mentions (seed {seed}, #{i})", events, ctl, local=local)
+
+
 def main():
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "corpus.json")
     build_fixed()
+    build_wave1()
     build_random(60, 20260924)
-    out.write_text(json.dumps({"corpus": "om-v009-convergence", "version": 1, "cases": CASES}, indent=1, ensure_ascii=False) + "\n")
+    build_random2(120, 20261001)
+    out.write_text(json.dumps({"corpus": "om-v009-convergence", "version": 2, "cases": CASES, "forwards": FORWARDS}, indent=1, ensure_ascii=False) + "\n")
     print(f"wrote {len(CASES)} cases to {out}")
 
 

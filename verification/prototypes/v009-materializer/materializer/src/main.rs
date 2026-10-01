@@ -113,7 +113,12 @@ fn main() -> ExitCode {
                 all_ok &= divergent.is_empty();
                 results.push(json!({"id": id, "orders_checked": orders.len(), "converged": divergent.is_empty(), "divergent_orders": divergent, "view": base}));
             }
-            let out = json!({"materializer": "om-v009-materializer (Rust)", "total_orders": total_orders, "all_converged": all_ok, "cases": results});
+            // R-239: forwarding transform vectors (source body -> new body).
+            let forwards: Vec<Value> = corpus["forwards"].as_array().map(Vec::as_slice).unwrap_or_default().iter().map(|f| {
+                let out = materialize::forward_body(f["source"].as_object().expect("source"));
+                json!({"id": f["id"], "output": out})
+            }).collect();
+            let out = json!({"materializer": "om-v009-materializer (Rust)", "total_orders": total_orders, "all_converged": all_ok, "cases": results, "forwards": forwards});
             std::fs::write(&args[3], serde_json::to_string_pretty(&out).unwrap() + "\n").expect("write");
             eprintln!("rust materializer: {} cases, {} delivery orders, all_converged={}", cases.len(), total_orders, all_ok);
             if all_ok { ExitCode::SUCCESS } else { ExitCode::FAILURE }

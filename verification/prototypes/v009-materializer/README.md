@@ -2,60 +2,78 @@
 
 Feasibility prototype for V-009 (`baseline_event_materialization_convergence`). Not product code. Not for production.
 
-This is **evidence, not gate passage**. The criterion status is `partial`, with details below.
+This is **evidence for the pre-engineering criteria**; gate status is recorded in the ledger, not here.
 
 ## What is here
 
 | File | Role |
 |---|---|
-| `materializer/` | Independent **Rust** ConversationEvent materializer (`src/materialize.rs`), written from the public docs. It is incremental: events apply in arrival order, and events whose target has not arrived are buffered. |
-| [`gen_corpus.py`](gen_corpus.py) | Deterministic corpus generator (stdlib only): 55 hand-written cases plus 60 seeded random cases. Output goes to `work/corpus.json` (gitignored and regenerated on every run). |
-| `compare.py` | Imports the reference [`verification/bounded/conversation_convergence.py`](../../bounded/conversation_convergence.py) **unmodified**, adapts the corpus to it, checks that the reference converges across delivery orders, diffs it against the Rust views, and attributes every disagreement. |
-| `run.sh` | Builds and runs everything, then writes [`verification/results/v009-materializer-latest.json`](../../results/v009-materializer-latest.json). It exits non-zero on any non-convergence or unattributed disagreement. |
+| `materializer/` | Independent **Rust** ConversationEvent materializer (`src/materialize.rs`). It is incremental: events apply in arrival order, and events whose target has not arrived are buffered. It reads only the **raw control chain** (`role.define`, `role.assign`, `restriction.set`, `member.remove` per epoch) and derives authority itself. |
+| [`gen_corpus.py`](gen_corpus.py) | Deterministic corpus generator (stdlib only): hand-written cases (with spec-derived `expect` fields), 60 + 120 seeded random cases in two families, and forwarding vectors. It also holds the **Python derivation** of effective authority from the chain. Output goes to `work/corpus.json` (gitignored, regenerated on every run). |
+| `compare.py` | Imports the reference [`verification/bounded/conversation_convergence.py`](../../bounded/conversation_convergence.py), adapts the corpus to it, checks that the reference converges across delivery orders, diffs it against the Rust views, compares the two authority derivations, checks every `expect` on both implementations and the forwarding vectors, and attributes every disagreement. |
+| `run.sh` | Builds and runs everything, then writes [`verification/results/v009-materializer-latest.json`](../../results/v009-materializer-latest.json). It exits non-zero on any non-convergence, unattributed disagreement, authority mismatch, failed expectation or failed forwarding vector. |
 
 ```sh
-verification/prototypes/v009-materializer/run.sh     # ~10 s warm, ~30 s cold build
+verification/prototypes/v009-materializer/run.sh     # ~15 s warm, ~40 s cold build
 ```
 
 Dependencies: Rust 1.98.1 (pinned in `materializer/rust-toolchain.toml`), `serde_json =1.0.145` (Cargo.lock), and Python 3 (stdlib).
 
-## Corpus coverage (115 cases)
+## How the two sides stay independent
 
-`eventclock` (physical/counter/endpoint tiebreak, identical HLC tuple, backward clock, future-dated pin and close), `edits`, `deletes`, `reactions`, `receipts`, `replies`/threads, `pins`, `redaction`, `polls` (single/multiple, two closes, unauthorized close, retraction), `topics` (lifecycle, duplicate create, unauthorized update, create-time placement, move/clear), `malformed` (bad refs, wrong target kinds, wrong JSON types, wrong clock arity, clock-endpoint mismatch, unknown epoch, wrong conversation, >64 KiB, missing EventID, equivocating EventID), `extensions` (unknown critical capability on content, on a state operation, on an unknown kind, and unknown optional kind), `authorization_race` (pin vs. revocation, redaction vs. demotion, grant vs. action, vote vs. restriction, topic management vs. demotion, close vs. demotion), `duplication`, and 60 `random` cases.
+* **Authority.** The corpus carries a chain of control operations per epoch. Rust derives role grants minus restrictions and the roster from
+  that chain; `gen_corpus.derive` does the same in Python for `compare.py`'s authorization oracle. `compare.py` requires the two per-epoch
+  authority tables to be equal in every case (`authority_agree`), so authorization semantics are no longer a shared adapter (G-V9-5).
+* **Reference coverage.** The reference now also models edits, deletes, reactions, receipts, replies, expiry and mentions (it covered pins,
+  redaction, polls and topics before), and orders every register by `(sending epoch, EventClock)`.
+* **Spec expectations.** Cases for R-235, R-236 and R-239 carry hand-written expected values taken from the ADR text, and both
+  implementations must match them. That guards against the two sides agreeing on the same mistake.
+* **Mutation check.** Making the Rust order key ignore the epoch, or letting `expires_after` override the absolute expiry, makes 15 expectations
+  and 14 comparison cases fail (run once, 2026-10-01).
 
-Authority is modeled as an externally ordered chain of control epochs (grants and restrictions per principal). Each event names the epoch it was sent under. This follows [`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](../../../docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md) §1/§4 and [`TIME_AND_EXPIRY_SEMANTICS.md`](../../../docs/architecture/events/TIME_AND_EXPIRY_SEMANTICS.md) §1: authority never comes from the HLC.
+## Corpus coverage (266 cases)
 
-## Results (run 2026-09-24)
+`eventclock`, `edits`, `deletes`, `reactions`, `receipts`, `replies`/threads, `pins`, `redaction`, `polls`, `topics`, `malformed`, `extensions`,
+`authorization_race` (now including member removal, a custom role and a restriction across four epochs), `duplication`, 60 `random`,
+**`epoch_major`** (R-236 and ADR-0121 rule 3: a vote after `poll.close`, vote/reaction/edit/pin/topic/placement registers, two closes, duplicate
+topic creates, a future-dated pin), **`expiry`** (R-235: boundary, local bound earlier, absolute earlier, received after expiry, no receipt time,
+malformed carriers), **`mentions`** (R-239: member vs non-member, removed member, edited, deleted, malformed runs) with 3 forwarding vectors, and
+120 **`random2`** (3-4 control epochs with removals and restrictions, every event kind, mention runs, expiry, receiver-local clock).
 
-**Update after ADR-0121 (same day).** The reference was corrected for REF-1 and REF-3, and it now implements the
-accepted rulings DA-1..DA-3. Re-run: **115 of 115 cases agree, 0 disagreements**, and the reference converges on every
-case. The criterion stays `partial` for the other reasons below: the shared authorization adapter (G-V9-5), the
-reference covering only part of the kinds, and the missing non-author review.
+Authority is an externally ordered chain of control epochs. Each event names the epoch it was sent under. This follows
+[`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](../../../docs/architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md) §1/§4 and
+[`TIME_AND_EXPIRY_SEMANTICS.md`](../../../docs/architecture/events/TIME_AND_EXPIRY_SEMANTICS.md) §1: authority never comes from the HLC.
 
-The original run, before the fixes:
+## Results (run 2026-10-01)
 
+**266 of 266 cases agree, 0 disagreements. Rust: 188,531 delivery orders, all converge. Reference: 124,800 orders, all converge. 266 of 266
+authority tables agree. 47 expectations hold on both implementations; 3 of 3 forwarding vectors agree across Rust, Python and the hand-written
+expectation.**
 
-- **Rust materializer:** 115 cases and 64,280 delivery orders. The orders are every permutation for n≤6, otherwise 600 seeded permutations, plus two duplication variants for every third order. **All converge**.
-- **Python reference on the extended corpus:** 41,113 orders. It is **non-convergent on 1 case** (`equivocation-duplicate-eventid`; see REF-1).
-- **Diff:** 90 cases agree. The other 25 disagree, and **every one is attributed**: 0 materializer bugs, 2 reference bugs, 3 doc ambiguities.
+The random2 family found two real bugs that the earlier corpus could not (both fixed):
 
-| Cause | Class | Cases | Description |
-|---|---|---|---|
-| REF-1 | reference bug | 1 | `by_id = {e.eid: e}` keeps the last-arrived payload of an EventID seen with two different payloads, so the view depends on arrival order. The materializer rejects every version (D-03). |
-| REF-3 | reference bug | 4 | `poll.vote` options are not validated. An unknown option, or multi-select on a single-choice poll, is counted and can displace an earlier valid vote. |
-| DA-1 | doc ambiguity | 16 | A state operation whose target is missing or of the wrong kind: a pin, redaction, vote or close on a non-message or a never-arriving event, or a topic move to a non-existent topic or of a poll. The reference applies it as register state. The materializer buffers it (`dangling`) or rejects it (`invalid_target`). |
-| DA-2 | doc ambiguity | 2 | Duplicate `topic.create` for one TopicID. In the reference the latest create resets title and status; in the materializer the earliest create wins and later ones are rejected. |
-| DA-3 | doc ambiguity | 2 | Empty `poll.vote` selection. The reference stores an empty vote; the materializer treats it as retraction. |
+| ID | Side | Bug |
+|---|---|---|
+| REF-4 | reference | `poll.close` and `poll.vote` looked up the poll in the prefix of the sort order, so an event ordered before its poll's create (reachable once ordering is epoch-major: a close sent in epoch 0 naming a poll created in epoch 2) was dropped. It now resolves polls from the whole set, like pins and redactions already did. |
+| MAT-1 | materializer | `topic.status.set` ordered before the winning `topic.create` was applied, while `topic.update` was not. The create is now the initial write of both registers (title, and status `open`). |
 
-**Adapter caveat (limits the comparison).** The reference has no validation layer and takes `authorized` as input. `compare.py` therefore computes that flag from the control chain: schema validity, conversation, size, unknown critical capability, unknown epoch, capability at the sending epoch, close by creator or `room.redact_others`, and topic update by creator or `room.manage_topics`. For malformed and authorization-race cases the two implementations therefore share the adapter's authorization semantics. They are compared only on target handling and conflict resolution. The reference covers only pins, redaction, polls and topics. Edits, deletes, reactions, receipts, replies and placeholders are checked only for Rust self-convergence, not against a second implementation.
+Earlier history (2026-09-24): the first run left 25 attributed disagreements (REF-1, REF-3, DA-1..DA-3), all settled by ADR-0121; they no longer occur.
+
+**Limits.** The reference is still the author's own Python, extended by the same agent that wrote the Rust side, and the corpus generator is shared;
+independence is language and runtime, not author (stated in the results file). Receiver-local state (`now`, receipt times) is fixed per case.
+`expires_after` and mentions are modeled on `message.create` only. The 64 KiB limit is measured on JSON, not canonical CBOR.
 
 ## Criterion status
 
-| Gate | Criterion | Status | Evidence | Reason |
-|---|---|---|---|---|
-| V-009 | second independently written materializer agrees with the reference on the full corpus incl. malformed and authorization-race cases | **partial** | this directory; [`verification/results/v009-materializer-latest.json`](../../results/v009-materializer-latest.json) | Different language, and written before the reference logic was read (commit `93fe923` precedes the adapter). It converges everywhere, and every disagreement is attributed. It is not "agrees": 2 reference bugs and 3 ambiguities need fixes or rulings. The reference covers 4 of the 10+ baseline features, and authorization is adapter-supplied. |
+| Criterion | Status | Evidence |
+|---|---|---|
+| second materializer agrees with the reference on the full corpus incl. malformed and authorization-race cases | **met** | 266/266 |
+| derives authorization from the control chain rather than a shared adapter (G-V9-5) | **met** | Rust derives from the raw chain; 266/266 authority tables agree with the Python derivation |
+| reaction and vote registers epoch-major; a vote after `poll.close` ignored (R-236) | **met** | 11 `epoch_major` cases with expectations, both sides |
+| expiry at `min(expiry, receipt + expires_after)`, never after the absolute bound (R-235) | **met** | 12 `expiry` cases with expectations, both sides |
+| forwarding strips mentions; a mention of a non-member is inert (R-239) | **met** | 6 `mentions` cases, 3 forwarding vectors |
 
-**Independence (honest statement):** written by a Claude agent; the design package was authored by a ChatGPT design agent and Claude agents; ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The Rust materializer was written from the docs only. Before its commit, the only part of the reference viewed was the `E` record's field list (lines 1–21). The corpus generator and adapter were written by the same agent as the materializer.
+**Independence (honest statement):** different language and runtime (ADR-0167 section 3), **not a different author**. A Claude agent wrote the Rust materializer, the corpus generator, the Python adapter and the reference extensions. The design package was authored by a ChatGPT design agent and Claude agents. The Rust side was first written from the docs before the reference logic was read; the control-chain derivation, epoch-major registers, expiry and mentions were added later with both sides in view.
 
 ## Doc ambiguities and proposed rulings (implemented in `materialize.rs`)
 
@@ -79,21 +97,18 @@ The original run, before the fixes:
 | D-16 | Who may `topic.update`/`topic.status.set` | The topic creator, or `room.manage_topics` |
 | D-17 (DA-3) | Empty vote | Retraction |
 | D-18 | Pins or reactions on deleted/redacted content | Register state is kept but hidden from the view |
+| D-19 | Which roster decides whether a mention of a principal is live | The latest known roster (latest control epoch). A mention is presentation, not authorization. A removed member's mention renders as text. An edited message carries no mentions. |
+| D-20 | Duplicate `topic.create` ordering (ADR-0121 rule 8 says EventClock; rule 3 says registers are epoch-major) | Earliest by `(sending epoch, EventClock)`, so a later-epoch create cannot win by backdating its HLC. The create is the initial write of title and status `open`, and any topic op ordered before the winning create is ignored. |
+| D-21 | Type of the envelope `expiry` and of `expires_after` | Unsigned integers (ms). Anything else makes the event malformed. |
+| D-22 | `expires_after` with no recorded receipt time | Counts from the receiver's current time, so it can never fire early. |
 | DA-1 | State operations on missing or wrong-kind targets | Wrong kind: reject. Missing: buffer; never displayed; reported as `dangling`. |
 
-## Design gaps found
+## Design gaps found (status after ADR-0174)
 
-1. **G-V9-1 — HLC last-writer-wins lets a skewed or hostile clock dominate shared state** (`clock-future-dated-pin`). An authorized pinner who stamps `physical_ms` in 2090 wins every later honest unpin until 2090. [`EVENT_MODEL.md`](../../../docs/architecture/events/EVENT_MODEL.md) says a misleading clock "does not grant identity or authorization", but in LWW registers it grants precedence. The same applies to topic title/status, `message.topic.set` and edits. *Proposed:* order shared-state LWW by `(sending control epoch, HLC)`, so a later epoch always supersedes, and/or clamp a received HLC to at most the receiver's local time plus a declared skew. The clamp must not use arrival time as a tiebreak.
-2. **G-V9-2 — The stale-epoch acceptance window is local policy, so views can diverge.** Under D-02, a demoted moderator's redaction sent under the old epoch is valid (`race-redact-vs-demotion`). Whether a receiver can still decrypt an old-epoch event depends on its local MLS past-epoch secret retention. Two receivers with different retention materialize different views. *Proposed:* make past-epoch retention a normative GroupProfile parameter. Views are then required to converge only over events every member can decrypt, and undecryptable events render as an explicit gap.
-3. **G-V9-3 — EventID equivocation is unspecified** (REF-1). *Proposed:* adopt D-03 normatively, and add an equivocation vector to the conformance corpus.
-4. **G-V9-4 — Several capability bindings are not stated:** poll vote, poll close, topic update/status, edit after demotion, and author delete (D-08..D-12, D-16). *Proposed:* add a kind→capability table to [`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](../../../docs/architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md).
-5. **G-V9-5 — The reference model's authorization input is an oracle.** The existing 864-case result therefore cannot show authorization-race behavior. The reference should consume the control-epoch chain itself.
+1. **G-V9-1 (HLC last-writer-wins lets a skewed clock dominate shared state): resolved** by ADR-0121 rule 3 and ADR-0128 rule 17 (epoch-major registers); the materializer and the reference now implement them. The residual risk inside one epoch stays documented (`epochmajor-vote-backdated-same-epoch`).
+2. **G-V9-2 (stale-epoch acceptance window is local policy): resolved** by ADR-0121 rule 4 (`past_epoch_window`, 0..8).
+3. **G-V9-3 (EventID equivocation unspecified): resolved** by ADR-0121 rule 5; the conformance corpus has the equivocation vector.
+4. **G-V9-4 (capability bindings unstated): resolved** by ADR-0121 rule 7.
+5. **G-V9-5 (reference authorization is an oracle): resolved for the comparison**: authority is derived from the raw control chain independently on both sides and the two derivations are compared. The Python reference itself still takes an `authorized` flag, supplied by `compare.py` from its own derivation.
 
-## Proposed design updates
-
-- [`EVENT_MODEL.md`](../../../docs/architecture/events/EVENT_MODEL.md) "EventClock": add the D-01 total-order key and the G-V9-1 epoch-major LWW or clamp rule.
-- [`EVENT_MODEL.md`](../../../docs/architecture/events/EVENT_MODEL.md) "Materialized views": add rules for dangling and wrong-kind targets (DA-1) and for equivocation (D-03).
-- [`MESSENGER_BASELINE_V1.md`](../../../docs/architecture/events/MESSENGER_BASELINE_V1.md) polls: validate options (REF-3), close authority (D-12), empty-vote retraction (D-17).
-- [`SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`](../../../docs/architecture/groups/SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md): kind→capability table (G-V9-4) and the duplicate-topic rule (D-15).
-- [`verification/bounded/conversation_convergence.py`](../../bounded/conversation_convergence.py): fix REF-1 and REF-3, and derive `authorized` from a control chain (G-V9-5). Not edited here, per the task rules.
-- [`machine/file_registry.json`](../../../machine/file_registry.json): register this directory's files and [`verification/results/v009-materializer-latest.json`](../../results/v009-materializer-latest.json) (not edited here).
+New in this session, recorded in [ADR-0174](../../../decisions/ADR-0174-materialization-rulings-from-the-second-materializer.md): D-19..D-22 and the clarification of ADR-0121 rule 8 (D-20).

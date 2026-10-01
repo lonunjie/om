@@ -18,6 +18,9 @@ use std::collections::{BTreeMap, BTreeSet};
 /// reuses an identical HLC tuple.
 pub type Key = (u64, u64, String, String);
 
+/// ADR-0121 rule 3 / ADR-0128 rule 17: shared-state registers order by `(sending epoch, EventClock)`.
+pub type OKey = (u64, Key);
+
 /// EM "Size/resource limits": maximum baseline event envelope 64 KiB. We measure the JSON
 /// diagnostic form as a proxy for the CBOR size (D-13).
 pub const MAX_EVENT_BYTES: usize = 64 * 1024;
@@ -30,56 +33,119 @@ pub struct Ev {
     pub epoch: u64,
     pub kind: String,
     pub body: Map<String, Value>,
+    /// Envelope `expiry` (key 12): absolute wall-clock ms; the canonical v1 timer (ADR-0128 rule 16).
+    pub expiry: Option<u64>,
+}
+
+impl Ev {
+    fn okey(&self) -> OKey {
+        (self.epoch, self.key.clone())
+    }
 }
 
 /// Group-control authority as an externally ordered chain of epochs (GROUP_COMMIT_AND_STATE_CONVERGENCE.md
-/// §1/§4: OM GroupControlState advances with MLS epochs, never by chat HLC). Grants and explicit
-/// restrictions per principal (SP "Capability model", "No ordinary-role deny maze").
+/// §1/§4: OM GroupControlState advances with MLS epochs, never by chat HLC). The corpus supplies the raw
+/// chain of control operations per epoch (`role.define`, `role.assign`, `restriction.set`, `member.remove`);
+/// the materializer derives the effective authority itself (SP "Capability model", "No ordinary-role deny
+/// maze"). It never reads a precomputed capability table (G-V9-5).
 #[derive(Clone, Debug, Default)]
-pub struct Control {
-    epochs: BTreeMap<u64, (BTreeMap<String, BTreeSet<String>>, BTreeMap<String, BTreeSet<String>>)>,
+struct EpochState {
+    roles: BTreeMap<String, BTreeSet<String>>,
+    assign: BTreeMap<String, Vec<String>>,
+    restr: BTreeMap<String, BTreeSet<String>>,
 }
 
-fn str_set_map(v: Option<&Value>) -> BTreeMap<String, BTreeSet<String>> {
-    let mut out = BTreeMap::new();
-    if let Some(Value::Object(m)) = v {
-        for (p, caps) in m {
-            let set = caps
-                .as_array()
-                .map(|a| a.iter().filter_map(|c| c.as_str().map(str::to_owned)).collect())
-                .unwrap_or_default();
-            out.insert(p.clone(), set);
+#[derive(Clone, Debug, Default)]
+pub struct Control {
+    epochs: Vec<EpochState>, // index = epoch number
+}
+
+fn str_list(v: Option<&Value>) -> Vec<String> {
+    v.and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(|c| c.as_str().map(str::to_owned)).collect())
+        .unwrap_or_default()
+}
+
+impl EpochState {
+    fn caps_of(&self, principal: &str) -> BTreeSet<String> {
+        let Some(rs) = self.assign.get(principal) else { return BTreeSet::new() };
+        let mut caps = BTreeSet::new();
+        for r in rs {
+            if let Some(c) = self.roles.get(r) {
+                caps.extend(c.iter().cloned());
+            }
         }
+        if let Some(r) = self.restr.get(principal) {
+            caps.retain(|c| !r.contains(c)); // restrictions win
+        }
+        caps
     }
-    out
 }
 
 impl Control {
     pub fn from_json(v: &Value) -> Control {
         let mut c = Control::default();
-        if let Some(eps) = v.get("epochs").and_then(Value::as_array) {
-            for e in eps {
-                if let Some(n) = e.get("epoch").and_then(Value::as_u64) {
-                    c.epochs.insert(n, (str_set_map(e.get("grants")), str_set_map(e.get("restrictions"))));
+        let mut cur = EpochState::default();
+        if let Some(chain) = v.get("chain").and_then(Value::as_array) {
+            for ops in chain {
+                for op in ops.as_array().map(Vec::as_slice).unwrap_or_default() {
+                    let who = op.get("principal").and_then(Value::as_str).unwrap_or_default().to_owned();
+                    match op.get("op").and_then(Value::as_str) {
+                        Some("role.define") => {
+                            let r = op.get("role").and_then(Value::as_str).unwrap_or_default().to_owned();
+                            cur.roles.insert(r, str_list(op.get("caps")).into_iter().collect());
+                        }
+                        Some("role.assign") => {
+                            cur.assign.insert(who, str_list(op.get("roles")));
+                        }
+                        Some("member.remove") => {
+                            cur.assign.remove(&who);
+                        }
+                        Some("restriction.set") => {
+                            let caps: BTreeSet<String> = str_list(op.get("caps")).into_iter().collect();
+                            if caps.is_empty() {
+                                cur.restr.remove(&who);
+                            } else {
+                                cur.restr.insert(who, caps);
+                            }
+                        }
+                        _ => {} // unknown control operation: no effect on authority
+                    }
                 }
+                c.epochs.push(cur.clone());
             }
         }
         c
     }
     pub fn has_epoch(&self, epoch: u64) -> bool {
-        self.epochs.contains_key(&epoch)
+        (epoch as usize) < self.epochs.len()
     }
-    /// SP "effective capabilities": grants minus active explicit restrictions; restrictions win.
+    /// SP "effective capabilities": role grants minus active explicit restrictions; restrictions win.
     /// D-02: authorization is evaluated against the control state of the epoch the event was sent
     /// under (its authenticated MLS epoch), never against "latest known" state and never by HLC.
     pub fn can(&self, principal: &str, epoch: u64, cap: &str) -> bool {
-        match self.epochs.get(&epoch) {
-            None => false,
-            Some((g, r)) => {
-                g.get(principal).is_some_and(|s| s.contains(cap))
-                    && !r.get(principal).is_some_and(|s| s.contains(cap))
-            }
-        }
+        self.epochs.get(epoch as usize).is_some_and(|e| e.caps_of(principal).contains(cap))
+    }
+    /// Membership at an epoch: a principal with a role assignment that has not been removed.
+    pub fn is_member(&self, principal: &str, epoch: u64) -> bool {
+        self.epochs.get(epoch as usize).is_some_and(|e| e.assign.contains_key(principal))
+    }
+    pub fn latest_epoch(&self) -> Option<u64> {
+        self.epochs.len().checked_sub(1).map(|n| n as u64)
+    }
+    /// Derived authority per epoch, emitted so the comparison can check it against the Python derivation.
+    pub fn authority(&self) -> Value {
+        Value::Array(
+            self.epochs
+                .iter()
+                .enumerate()
+                .map(|(n, e)| {
+                    let members: Map<String, Value> =
+                        e.assign.keys().map(|p| (p.clone(), json!(e.caps_of(p).into_iter().collect::<Vec<_>>()))).collect();
+                    json!({"epoch": n, "members": members})
+                })
+                .collect(),
+        )
     }
 }
 
@@ -87,6 +153,11 @@ pub struct CaseInput {
     pub conversation_id: String,
     pub known_capabilities: BTreeSet<String>,
     pub control: Control,
+    /// Local receiver clock for expiry evaluation (ms), and local receipt time per EventID. Both are local
+    /// state, not event content (TE §4: disappearing execution uses local time); they are fixed per case so
+    /// delivery order cannot change them.
+    pub now: Option<u64>,
+    pub received_at: BTreeMap<String, u64>,
 }
 
 const CONTENT_KINDS: [&str; 2] = ["message.create", "poll.create"];
@@ -121,6 +192,65 @@ fn get_str_list(m: &Map<String, Value>, k: &str) -> R<Vec<String>> {
         .collect()
 }
 
+/// A RichText run of a message body: plain text, or a Mention node carrying the mentioned principal and
+/// its display label (ADR-0128 rule 20).
+#[derive(Clone, Debug, PartialEq)]
+pub enum Run {
+    Text(String),
+    Mention { principal: String, label: String },
+}
+
+fn parse_runs(b: &Map<String, Value>) -> R<Option<Vec<Run>>> {
+    let a = match b.get("runs") {
+        None | Some(Value::Null) => return Ok(None),
+        Some(Value::Array(a)) if !a.is_empty() => a,
+        _ => return Err("malformed:runs".into()),
+    };
+    let mut out = vec![];
+    for r in a {
+        let m = r.as_object().ok_or("malformed:runs")?;
+        match m.get("t").and_then(Value::as_str) {
+            Some("text") => out.push(Run::Text(get_str(m, "s").map_err(|_| "malformed:runs".to_string())?.to_owned())),
+            Some("mention") => out.push(Run::Mention {
+                principal: get_str(m, "principal").map_err(|_| "malformed:runs".to_string())?.to_owned(),
+                label: get_str(m, "label").map_err(|_| "malformed:runs".to_string())?.to_owned(),
+            }),
+            _ => return Err("malformed:runs".into()),
+        }
+    }
+    Ok(Some(out))
+}
+
+/// Forwarding is new authorship (EM "Forwarding is new authorship", ADR-0128 rule 20): Mention nodes become
+/// plain Text carrying the display label, the mention set is dropped, and everything else a private forward
+/// must not carry (source ids, locators) is simply not part of the new body.
+pub fn forward_body(b: &Map<String, Value>) -> Map<String, Value> {
+    let mut out = Map::new();
+    if let Some(t) = b.get("text") {
+        out.insert("text".into(), t.clone());
+    }
+    if let Ok(Some(runs)) = parse_runs(b) {
+        let plain = runs.into_iter().map(|r| match r {
+            Run::Text(s) => s,
+            Run::Mention { label, .. } => label,
+        });
+        out.insert("runs".into(), Value::Array(plain.map(|s| json!({"t": "text", "s": s})).collect()));
+    }
+    if let Some(a) = b.get("attachments") {
+        out.insert("attachments".into(), a.clone());
+    }
+    out
+}
+
+fn run_text(runs: &[Run]) -> String {
+    runs.iter()
+        .map(|r| match r {
+            Run::Text(s) => s.as_str(),
+            Run::Mention { label, .. } => label.as_str(),
+        })
+        .collect()
+}
+
 #[derive(Default)]
 struct State {
     content: BTreeMap<String, Ev>,              // accepted message.create / poll.create
@@ -128,14 +258,14 @@ struct State {
     unsupported: BTreeMap<String, (Key, String, String)>, // placeholder: key, author, kind
     pending: BTreeMap<String, Vec<Ev>>,          // waiting on target event id
     pending_topic: BTreeMap<String, Vec<Ev>>,    // waiting on topic id
-    edits: BTreeMap<String, (Key, String)>,      // target -> LWW (key, replacement text)
+    edits: BTreeMap<String, (OKey, String)>,     // target -> epoch-major LWW (key, replacement text)
     deleted: BTreeSet<String>,
     redacted: BTreeSet<String>,
-    reactions: BTreeMap<(String, String, String), (Key, bool)>, // (actor,target,reaction_key)
-    pins: BTreeMap<String, (Key, bool)>,
+    reactions: BTreeMap<(String, String, String), (OKey, bool)>, // (actor,target,reaction_key)
+    pins: BTreeMap<String, (OKey, bool)>,
     receipts: BTreeMap<(String, String), u8>,    // (event, actor) -> 1 delivered | 2 read
-    votes: Vec<(String, String, Key, Vec<String>)>, // actor, poll, key, options
-    closes: BTreeMap<String, Key>,               // poll -> earliest valid close
+    votes: Vec<(String, String, OKey, Vec<String>)>, // actor, poll, key, options
+    closes: BTreeMap<String, OKey>,              // poll -> earliest valid close (epoch-major)
     topic_creates: BTreeMap<String, Vec<Ev>>,
     topic_ops: Vec<Ev>,                          // topic.update / topic.status.set
     msg_topic: Vec<Ev>,                          // message.topic.set
@@ -240,7 +370,12 @@ impl<'c> Materializer<'c> {
             // EM extension rule 1: unknown optional content is ignored semantically.
             return Err("ignored_unknown_optional".into());
         }
-        let ev = Ev { id, author, key: (phys, ctr, endpoint, String::new()), epoch, kind, body };
+        // Envelope `expiry` is optional; when present it must be an unsigned integer (D-21).
+        let expiry = match top.get("expiry") {
+            None | Some(Value::Null) => None,
+            Some(v) => Some(v.as_u64().ok_or("malformed:expiry")?),
+        };
+        let ev = Ev { id, author, key: (phys, ctr, endpoint, String::new()), epoch, kind, body, expiry };
         let ev = Ev { key: (ev.key.0, ev.key.1, ev.key.2.clone(), ev.id.clone()), ..ev };
         self.validate_body(&ev)?;
         self.authorize_standalone(&ev)?;
@@ -252,13 +387,23 @@ impl<'c> Materializer<'c> {
         match ev.kind.as_str() {
             "message.create" => {
                 let text = opt_str(b, "text")?;
+                let runs = parse_runs(b)?;
                 let atts = match b.get("attachments") {
                     None => 0,
                     Some(Value::Array(a)) => a.len(),
                     _ => return Err("malformed:attachments".into()),
                 };
-                if text.is_none() && atts == 0 {
+                if text.is_some() && runs.is_some() {
+                    return Err("malformed:text_and_runs".into());
+                }
+                if text.is_none() && runs.is_none() && atts == 0 {
                     return Err("malformed:empty_message".into());
+                }
+                // `expires_after`: optional local bound in ms from receipt (EM "Expiry").
+                match b.get("expires_after") {
+                    None | Some(Value::Null) => {}
+                    Some(v) if v.as_u64().is_some() => {}
+                    _ => return Err("malformed:expires_after".into()),
                 }
                 opt_str(b, "reply_to")?;
                 opt_str(b, "thread_root_event_id")?;
@@ -448,7 +593,7 @@ impl<'c> Materializer<'c> {
                     return self.reject(&ev, "not_author");
                 }
                 let text = ev.body["replacement"].as_str().unwrap().to_owned();
-                lww(&mut self.st.edits, t.id.clone(), (ev.key.clone(), text));
+                lww(&mut self.st.edits, t.id.clone(), (ev.okey(), text));
             }
             "message.delete" => {
                 let t = target.unwrap();
@@ -466,12 +611,12 @@ impl<'c> Materializer<'c> {
                 let t = target.unwrap();
                 let k = (ev.author.clone(), t.id.clone(), ev.body["reaction_key"].as_str().unwrap().to_owned());
                 let present = ev.body["present"].as_bool().unwrap();
-                lww(&mut self.st.reactions, k, (ev.key.clone(), present));
+                lww(&mut self.st.reactions, k, (ev.okey(), present));
             }
             "pin.set" => {
                 let t = target.unwrap();
                 let present = ev.body["present"].as_bool().unwrap();
-                lww(&mut self.st.pins, t.id.clone(), (ev.key.clone(), present));
+                lww(&mut self.st.pins, t.id.clone(), (ev.okey(), present));
             }
             "receipt.update" => {
                 let level = if ev.body["receipt_type"] == "read" { 2 } else { 1 };
@@ -493,7 +638,7 @@ impl<'c> Materializer<'c> {
                 if t.body["selection_mode"] == "single" && sel.len() > 1 {
                     return self.reject(&ev, "invalid_option");
                 }
-                self.st.votes.push((ev.author.clone(), t.id.clone(), ev.key.clone(), sel));
+                self.st.votes.push((ev.author.clone(), t.id.clone(), ev.okey(), sel));
             }
             "poll.close" => {
                 let t = target.unwrap();
@@ -506,9 +651,9 @@ impl<'c> Materializer<'c> {
                     return self.reject(&ev, "unauthorized");
                 }
                 // MB: poll.close is monotonic -> the earliest valid close in EventClock order wins.
-                let slot = self.st.closes.entry(t.id.clone()).or_insert_with(|| ev.key.clone());
-                if ev.key < *slot {
-                    *slot = ev.key.clone();
+                let slot = self.st.closes.entry(t.id.clone()).or_insert_with(|| ev.okey());
+                if ev.okey() < *slot {
+                    *slot = ev.okey();
                 }
             }
             "message.topic.set" => {
@@ -544,26 +689,27 @@ impl<'c> Materializer<'c> {
         let mut topics = Map::new();
         let mut topic_creator: BTreeMap<String, String> = BTreeMap::new();
         for (tid, creates) in &st.topic_creates {
-            let win = creates.iter().min_by(|a, b| a.key.cmp(&b.key)).unwrap();
+            let win = creates.iter().min_by(|a, b| a.okey().cmp(&b.okey())).unwrap();
             topic_creator.insert(tid.clone(), win.author.clone());
-            let mut title = (win.key.clone(), win.body["title"].as_str().unwrap().to_owned());
-            let mut status: Option<(Key, String)> = None;
+            let mut title = (win.okey(), win.body["title"].as_str().unwrap().to_owned());
+            // The create is the initial write of both registers: title and status "open" (V-009 REF-5).
+            let mut status: (OKey, String) = (win.okey(), "open".to_owned());
             for op in st.topic_ops.iter().filter(|o| o.body["topic_id"] == tid.as_str()) {
                 // D-16: topic.update/status.set by the topic creator or a room.manage_topics holder.
                 if op.author != win.author && !c.can(&op.author, op.epoch, "room.manage_topics") {
                     continue;
                 }
                 if op.kind == "topic.update" {
-                    if op.key > title.0 {
-                        title = (op.key.clone(), op.body["title"].as_str().unwrap().to_owned());
+                    if op.okey() > title.0 {
+                        title = (op.okey(), op.body["title"].as_str().unwrap().to_owned());
                     }
-                } else if status.as_ref().is_none_or(|s| op.key > s.0) {
-                    status = Some((op.key.clone(), op.body["status"].as_str().unwrap().to_owned()));
+                } else if op.okey() > status.0 {
+                    status = (op.okey(), op.body["status"].as_str().unwrap().to_owned());
                 }
             }
             topics.insert(tid.clone(), json!({
                 "creator": win.author, "create_event": win.id, "title": title.1,
-                "status": status.map(|s| s.1).unwrap_or_else(|| "open".into()),
+                "status": status.1,
             }));
         }
         let rejected_topic_ops: BTreeSet<String> = st
@@ -579,23 +725,43 @@ impl<'c> Materializer<'c> {
             .topic_creates
             .values()
             .flat_map(|v| {
-                let win = v.iter().min_by(|a, b| a.key.cmp(&b.key)).unwrap().id.clone();
+                let win = v.iter().min_by(|a, b| a.okey().cmp(&b.okey())).unwrap().id.clone();
                 v.iter().filter(move |e| e.id != win).map(|e| e.id.clone())
             })
             .collect();
 
         // Message topic placement: LWW over valid message.topic.set, else create-time topic_id.
-        let mut mt: BTreeMap<String, (Key, Option<String>)> = BTreeMap::new();
+        let mut mt: BTreeMap<String, (OKey, Option<String>)> = BTreeMap::new();
         for ev in &st.msg_topic {
             let t = ev.body["target_event_id"].as_str().unwrap().to_owned();
             let tid = ev.body["topic_id"].as_str().map(str::to_owned);
-            lww(&mut mt, t, (ev.key.clone(), tid));
+            lww(&mut mt, t, (ev.okey(), tid));
         }
 
-        let visible = |id: &str| !st.deleted.contains(id) && !st.redacted.contains(id);
+        // R-235 / ADR-0128 rule 16: content is deleted at min(envelope expiry, receipt + expires_after), so
+        // never after the absolute `expiry`. `expires_after` counts from the local receipt time; if no
+        // receipt time is recorded for the event it counts from `now` (D-22), so it cannot fire early.
+        let mut deadlines: BTreeMap<String, u64> = BTreeMap::new();
+        for (id, ev) in &st.content {
+            let local = ev.body.get("expires_after").and_then(Value::as_u64).and_then(|d| {
+                self.case.received_at.get(id).copied().or(self.case.now).map(|r| r.saturating_add(d))
+            });
+            if let Some(t) = [ev.expiry, local].into_iter().flatten().min() {
+                deadlines.insert(id.clone(), t);
+            }
+        }
+        let expired: BTreeSet<String> = deadlines
+            .iter()
+            .filter(|(_, t)| self.case.now.is_some_and(|n| **t <= n))
+            .map(|(i, _)| i.clone())
+            .collect();
+        let visible = |id: &str| !st.deleted.contains(id) && !st.redacted.contains(id) && !expired.contains(id);
+        let latest = self.case.control.latest_epoch();
         let mut timeline: Vec<(Key, Value)> = vec![];
         for (id, ev) in &st.content {
-            let state = if st.redacted.contains(id) {
+            let state = if expired.contains(id) {
+                "expired" // R-235: content gone at its deadline
+            } else if st.redacted.contains(id) {
                 "redacted" // MB: moderation shown as moderation, not as author delete
             } else if st.deleted.contains(id) {
                 "deleted"
@@ -610,11 +776,32 @@ impl<'c> Materializer<'c> {
             if ev.kind == "message.create" {
                 let edited = st.edits.get(id);
                 if state == "visible" {
+                    let runs = parse_runs(&ev.body).ok().flatten();
                     let text = edited
                         .map(|x| x.1.clone())
-                        .or_else(|| ev.body.get("text").and_then(Value::as_str).map(str::to_owned));
+                        .or_else(|| ev.body.get("text").and_then(Value::as_str).map(str::to_owned))
+                        .or_else(|| runs.as_ref().map(|r| run_text(r)));
                     e.insert("text".into(), json!(text));
                     e.insert("attachments".into(), json!(ev.body.get("attachments").and_then(Value::as_array).map_or(0, Vec::len)));
+                    // R-239 / ADR-0128 rule 20: a Mention of a current member renders live; a mention of a
+                    // non-member renders as plain text (inert). Membership is the latest known roster
+                    // (D-19): a mention is presentation, not authorization. An edit replaces the content
+                    // with plain text, so an edited message carries no mentions.
+                    let (mut live, mut inert) = (vec![], vec![]);
+                    if edited.is_none() {
+                        for r in runs.iter().flatten() {
+                            if let Run::Mention { principal, label } = r {
+                                if latest.is_some_and(|l| self.case.control.is_member(principal, l)) {
+                                    live.push(principal.clone());
+                                } else {
+                                    inert.push(label.clone());
+                                }
+                            }
+                        }
+                    }
+                    live.sort();
+                    inert.sort();
+                    e.insert("mentions".into(), json!({"live": live, "inert": inert}));
                 }
                 e.insert("edited".into(), json!(edited.is_some()));
                 // D-05: a reference that does not resolve inside this conversation is shown as
@@ -653,7 +840,7 @@ impl<'c> Materializer<'c> {
         let mut polls = Map::new();
         for (id, ev) in st.content.iter().filter(|(_, e)| e.kind == "poll.create") {
             let close = st.closes.get(id);
-            let mut latest: BTreeMap<String, (Key, Vec<String>)> = BTreeMap::new();
+            let mut latest: BTreeMap<String, (OKey, Vec<String>)> = BTreeMap::new();
             for (actor, poll, key, sel) in &st.votes {
                 if poll != id || close.is_some_and(|ck| key > ck) {
                     continue;
@@ -704,6 +891,16 @@ impl<'c> Materializer<'c> {
             "timeline": timeline.into_iter().map(|x| x.1).collect::<Vec<_>>(),
             "pins": pinned,
             "pin_registers": pin_registers,
+            "edit_registers": st.edits.iter().map(|(t, (_, x))| (t.clone(), x.clone())).collect::<BTreeMap<_, _>>(),
+            "reaction_registers": st.reactions.iter().filter(|((_, t, _), _)| st.content.contains_key(t))
+                .map(|((a, t, k), (_, p))| json!([a, t, k, p])).collect::<Vec<_>>(),
+            "reply_refs": st.content.iter().filter(|(_, e)| e.kind == "message.create").map(|(id, e)| {
+                let r = |f: &str| e.body.get(f).and_then(Value::as_str).map(|x| st.content.contains_key(x));
+                (id.clone(), json!({"reply_to": r("reply_to"), "thread_root": r("thread_root_event_id")}))
+            }).collect::<BTreeMap<_, _>>(),
+            "deadlines": deadlines,
+            "expired": expired,
+            "authority": self.case.control.authority(),
             "deleted": st.deleted,
             "redacted": st.redacted,
             "polls": polls,
@@ -725,7 +922,7 @@ fn placeholder_key(raw: &Value) -> Key {
 }
 
 /// Last-writer-wins by EventClock key (EM reaction/pin/edit: "latest authorized state wins").
-fn lww<K: Ord, V>(m: &mut BTreeMap<K, (Key, V)>, k: K, v: (Key, V)) {
+fn lww<K: Ord, V>(m: &mut BTreeMap<K, (OKey, V)>, k: K, v: (OKey, V)) {
     match m.get(&k) {
         Some(cur) if cur.0 >= v.0 => {}
         _ => {
@@ -742,6 +939,11 @@ pub fn case_input(case: &Value) -> CaseInput {
             .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_owned)).collect())
             .unwrap_or_default(),
         control: Control::from_json(&case["control"]),
+        now: case["local"]["now"].as_u64(),
+        received_at: case["local"]["received_at"]
+            .as_object()
+            .map(|m| m.iter().filter_map(|(k, v)| v.as_u64().map(|t| (k.clone(), t))).collect())
+            .unwrap_or_default(),
     }
 }
 

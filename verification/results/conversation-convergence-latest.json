@@ -2,14 +2,16 @@
   "gate": "V-009",
   "gate_status_effect": "evidence_only_gate_remains_open",
   "all_bounded_checks_passed": true,
-  "cases": 1728,
+  "cases": 6888,
   "properties": [
     "EventID duplicate delivery is idempotent",
     "delivery order does not change materialized semantic state",
     "unauthorized state-changing events do not affect the view",
     "pin/topic conflicts use authenticated EventClock ordering, not arrival/wall time",
     "moderation redaction is monotonic",
-    "poll close is monotonic and later-clock votes do not alter the closed tally"
+    "poll close is monotonic and later-clock votes do not alter the closed tally",
+    "reaction, vote, edit, pin and topic registers are epoch-major; a vote ordered after poll.close is ignored",
+    "expiry deletes at min(expiry, receipt + expires_after); a mention of a non-member is inert"
   ],
   "fixtures": {
     "pin": {
@@ -23,7 +25,28 @@
       "poll_votes": [],
       "poll_closed": [],
       "topics": [],
-      "message_topics": []
+      "message_topics": [],
+      "edits": [],
+      "deleted": [],
+      "reactions": [],
+      "receipts": [],
+      "replies": [
+        [
+          "m1",
+          []
+        ]
+      ],
+      "deadlines": [],
+      "expired": [],
+      "mentions": [
+        [
+          "m1",
+          [
+            [],
+            []
+          ]
+        ]
+      ]
     },
     "redaction": {
       "pins": [],
@@ -33,7 +56,32 @@
       "poll_votes": [],
       "poll_closed": [],
       "topics": [],
-      "message_topics": []
+      "message_topics": [],
+      "edits": [],
+      "deleted": [],
+      "reactions": [],
+      "receipts": [],
+      "replies": [
+        [
+          "m2",
+          []
+        ],
+        [
+          "m3",
+          []
+        ]
+      ],
+      "deadlines": [],
+      "expired": [],
+      "mentions": [
+        [
+          "m3",
+          [
+            [],
+            []
+          ]
+        ]
+      ]
     },
     "poll": {
       "pins": [],
@@ -58,7 +106,15 @@
         "poll"
       ],
       "topics": [],
-      "message_topics": []
+      "message_topics": [],
+      "edits": [],
+      "deleted": [],
+      "reactions": [],
+      "receipts": [],
+      "replies": [],
+      "deadlines": [],
+      "expired": [],
+      "mentions": []
     },
     "topic": {
       "pins": [],
@@ -87,7 +143,133 @@
             "mt"
           ]
         ]
+      ],
+      "edits": [],
+      "deleted": [],
+      "reactions": [],
+      "receipts": [],
+      "replies": [
+        [
+          "m4",
+          []
+        ]
+      ],
+      "deadlines": [],
+      "expired": [],
+      "mentions": [
+        [
+          "m4",
+          [
+            [],
+            []
+          ]
+        ]
       ]
+    },
+    "epoch_major_reactions_edits_expiry_mentions": {
+      "pins": [],
+      "redacted": [],
+      "poll_votes": [],
+      "poll_closed": [],
+      "topics": [],
+      "message_topics": [],
+      "edits": [
+        [
+          "m6",
+          "new"
+        ]
+      ],
+      "deleted": [],
+      "reactions": [
+        [
+          "C",
+          "m5",
+          "+1",
+          false
+        ]
+      ],
+      "receipts": [
+        [
+          "m5",
+          "C",
+          2
+        ],
+        [
+          "m6",
+          "C",
+          2
+        ]
+      ],
+      "replies": [
+        [
+          "m5",
+          []
+        ],
+        [
+          "m6",
+          [
+            [
+              "reply_to",
+              true
+            ],
+            [
+              "thread_root",
+              false
+            ]
+          ]
+        ]
+      ],
+      "deadlines": [
+        [
+          "m5",
+          350
+        ]
+      ],
+      "expired": [
+        "m5"
+      ],
+      "mentions": [
+        [
+          "m6",
+          [
+            [],
+            []
+          ]
+        ]
+      ]
+    },
+    "epoch_major_poll_close": {
+      "pins": [],
+      "redacted": [],
+      "poll_votes": [
+        [
+          "C",
+          "pl",
+          [
+            "y"
+          ]
+        ],
+        [
+          "D",
+          "pl",
+          [
+            "y"
+          ]
+        ]
+      ],
+      "poll_closed": [
+        "pl"
+      ],
+      "topics": [],
+      "message_topics": [],
+      "edits": [],
+      "deleted": [],
+      "reactions": [],
+      "receipts": [],
+      "replies": [],
+      "deadlines": [],
+      "expired": [],
+      "mentions": []
     }
   },
   "remaining": [

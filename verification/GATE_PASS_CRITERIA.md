@@ -310,15 +310,15 @@ Property-test/model the expanded baseline ConversationEvent materialization unde
 - **Independence:** pre-engineering independent_implementation; pre-release independent_implementation
 - **Execution class:** `repo_local_interop`; next executor role `verification_executor`
 - **Pre-engineering independence status:** `open`
-- **Evidence:** `decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md`; `verification/bounded/cross_wave_feasibility.py`; `verification/prototypes/v009-materializer/README.md`; `verification/results/conversation-convergence-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v009-materializer-latest.json`
+- **Evidence:** `decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md`; `decisions/ADR-0174-materialization-rulings-from-the-second-materializer.md`; `verification/bounded/conversation_convergence.py`; `verification/bounded/cross_wave_feasibility.py`; `verification/prototypes/v009-materializer/README.md`; `verification/results/conversation-convergence-latest.json`; `verification/results/cross-wave-feasibility-latest.json`; `verification/results/v009-materializer-latest.json`
 
 Pre-engineering criteria:
 
-- [ ] a second, independently written materializer (different author or language) agrees with the reference model on the full convergence corpus including malformed and authorization-race cases
-- [ ] the independent materializer derives authorization from the control chain rather than sharing the reference authorization adapter (G-V9-5)
-- [ ] reaction and vote registers are authorization-epoch-major and a vote ordered after poll.close is ignored (R-236)
-- [ ] expiry deletes at min(expiry, receipt + expires_after) and never after the absolute expiry bound (R-235)
-- [ ] forwarding strips mentions and a mention of a non-member renders as inert text (R-239)
+- [x] a second, independently written materializer (different author or language) agrees with the reference model on the full convergence corpus including malformed and authorization-race cases
+- [x] the independent materializer derives authorization from the control chain rather than sharing the reference authorization adapter (G-V9-5)
+- [x] reaction and vote registers are authorization-epoch-major and a vote ordered after poll.close is ignored (R-236)
+- [x] expiry deletes at min(expiry, receipt + expires_after) and never after the absolute expiry bound (R-235)
+- [x] forwarding strips mentions and a mention of a non-member renders as inert text (R-239)
 
 Cross-wave feasibility criteria (only these are required for `feasibility_status=evidenced`):
 
@@ -330,11 +330,6 @@ Pre-release criteria:
 
 Mechanically unfinished pre-engineering work:
 
-- a second, independently written materializer (different author or language) agrees with the reference model on the full convergence corpus including malformed and authorization-race cases
-- the independent materializer derives authorization from the control chain rather than sharing the reference authorization adapter (G-V9-5)
-- reaction and vote registers are authorization-epoch-major and a vote ordered after poll.close is ignored (R-236)
-- expiry deletes at min(expiry, receipt + expires_after) and never after the absolute expiry bound (R-235)
-- forwarding strips mentions and a mention of a non-member renders as inert text (R-239)
 - phase independence evidence is not yet recorded as satisfied
 
 ### V-010 — `plugin_sandbox_capability_model`

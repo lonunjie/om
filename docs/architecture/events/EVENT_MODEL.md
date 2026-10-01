@@ -278,6 +278,8 @@ Topics organize a Room but do not create another membership/MLS object. Lightwei
 
 A private forward/resend is a new `message.create` authored by the forwarding account. Private source ConversationIDs/EventIDs/AccountIDs are not carried across conversation boundaries by default: forwarding converts Mention nodes to plain Text with their display label and drops the `mentions` set (ADR-0128 rule 20). Public signed Publication posts may carry public source provenance.
 
+A receiver renders a `Mention` as live only when the mentioned principal is in the latest known roster, and as plain text with its display label otherwise. This is presentation, not authorization, so the sending epoch's roster is not used; an edited message carries no mention (ADR-0174 rule 2).
+
 ## Control state is not ordinary chat content
 
 Do not duplicate authoritative identity or group policy inside arbitrary chat events.
@@ -378,8 +380,10 @@ Disappearing content has one canonical rule (ADR-0126 rule 9, ADR-0128 rule 16, 
   ([`om-time-fields.json`](../../../spec/registries/om-time-fields.json)). The sender sets it.
 - **`expires_after`** (MessageCreate key 4) is an optional additional local bound, running from local receipt or
   first display (monotonic local duration).
-- A receiver deletes the content at whichever comes first. It never keeps content past `expiry`, and nothing extends
-  `expiry`.
+- A receiver deletes the content at whichever comes first: `min(expiry, receipt + expires_after)`. It never keeps
+  content past `expiry` (content received after `expiry` is deleted on arrival), and nothing extends `expiry`. Both
+  carriers are unsigned integer milliseconds, and `expires_after` with no recorded receipt time counts from the
+  receiver's current time (ADR-0174 rule 3).
 - **1:1 (W0):** the per-message `expiry` is the only carrier. There is no shared 1:1 timer state; each sender's
   client sets `expiry` on its own messages from its local setting, and a client may show the peer's current timer as
   inferred from the events it receives.
