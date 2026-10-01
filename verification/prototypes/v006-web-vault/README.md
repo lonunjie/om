@@ -35,8 +35,28 @@ browsers and each criterion has a recorded outcome.
 
 ## Status
 
-The automatic parts (capabilities, WebCrypto key persistence, passphrase layer) were exercised in Chromium 152 on
-2026-09-29. On 2026-10-01 Chrome 154 with a CDP virtual authenticator (CTAP2.1, internal, UV, `hasPrf`) also ran sections
-1-4 end to end, so the PRF code path is logic-checked. That is not V-006 evidence: a virtual authenticator is not a
-platform authenticator, so every real browser/platform run in `results/` is still required. Results now persist across the
-section 2 reload (use **Reset saved results** to start a fresh run).
+Recorded 2026-10-01 on macOS (iCloud Keychain, Touch ID), run through a driver (CDP / AppleScript / Marionette) with the operator
+touching the sensor. Chrome and Firefox ran in fresh temporary profiles; Safari in the default profile. Sections 1-5 per browser:
+
+| Capability | Chrome 154 | Safari 27.0.1 | Firefox 157 |
+|---|---|---|---|
+| WebAuthn PRF at create and get | yes | yes | yes |
+| Vault and RecoveryRoot salts give different outputs | yes | yes | yes |
+| Separate RecoveryRoot credential with its own PRF | yes | yes | yes |
+| Passkey is device-bound | **no**: synced (BE=1 BS=1) | **no**: synced | **no**: synced |
+| `signalCurrentUserDetails` | yes | yes | **no** |
+| Non-extractable WebCrypto key survives reload | yes | yes | yes |
+| `storage.persist()` granted | no | no | yes |
+| Passphrase layer over the device wrapper | yes | yes | yes |
+| Credential rejected at a different RP ID (`om-probe.localhost`) | yes | yes | yes |
+
+Findings the design must absorb (ADR-0129 rule 15 reduced-at-rest case): on macOS all three browsers store the platform passkey
+in iCloud Keychain, so a device-bound vault credential is not available from the platform authenticator on this setup; the
+vault credential is synced. Safari rejects a ceremony that starts right after a previous prompt closes ("The document is not
+focused") for about 1.4 s, so chained prompts need a focus wait or a fresh user gesture (the probe now waits).
+
+A CDP virtual authenticator run on 2026-10-01 only logic-checked the page and is not evidence.
+
+**V-006 stays open.** Not yet covered: Windows (Chrome/Edge), iOS Safari, Android Chrome (need HTTPS); a device-bound credential
+path (security key or non-synced profile); new-origin enrollment migration; the origin-independent recovery path enrolling a fresh
+DeviceID; and independent review. Results persist across the section 2 reload; **Reset saved results** starts a fresh run.

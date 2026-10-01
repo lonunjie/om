@@ -1,3 +1,9 @@
+# 2026-10-01 — V-006 macOS browser results
+
+- Recorded Chrome 154, Safari 27.0.1 and Firefox 157 runs (`verification/prototypes/v006-web-vault/results/`). PRF works in all three; platform passkeys are iCloud-synced (not device-bound); Firefox lacks `signalCurrentUserDetails`; Safari needs a focus wait between chained prompts.
+- Probe fixes: report survives the section 2 reload; section 5 uses `om-probe.localhost` (IP addresses are invalid RP IDs); focus wait between ceremonies.
+- V-006 stays open: other platforms, device-bound path, new-origin migration and review are not done.
+
 # 2026-09-29 12:18 PHT — W0 provider/client review, ADR-0170..0171
 
 - ADR-0170: F-18 (PR-013 90% single-vendor-block survivability target, R-389), F-19 (measurement controls in
