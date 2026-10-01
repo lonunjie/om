@@ -81,7 +81,7 @@ Findings: PRF availability depends on the passkey provider the user has selected
 works. On Android a device-bound credential exists only for the non-discoverable request, and it did not enable PRF at create, so
 it cannot yet serve as a PRF vault wrapper. The first Android pass over plain-HTTP localhost gave intermittent `NotReadableError`
 from the credential manager; the HTTPS runs did not. Safari on iPhone with the iCloud provider alone did not demonstrate PRF in
-the one retry (the operator could not confirm which provider showed in the sheet), so iOS + iCloud Keychain PRF is still open.
+the one retry (the operator could not confirm which provider showed in the sheet), so iOS + iCloud Keychain PRF is still open. The iPhone and an iPad listed only Bitwarden and Chrome/Google as passkey providers (no iCloud Passwords entry, although iCloud Passwords & Keychain sync was on), so that combination could not be tested on iOS. macOS Safari 27 with iCloud Keychain does return PRF.
 
 **V-006 stays open.** Not yet covered: Windows (Chrome/Edge: no device available); iOS Safari with iCloud Keychain as the only
 provider (PRF unconfirmed); the Android device-bound credential's PRF behavior at get(); a physical security key; the origin-independent
