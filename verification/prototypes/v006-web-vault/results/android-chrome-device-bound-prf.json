@@ -1,0 +1,80 @@
+{
+  "probe": "om-v006-webdevicevault/1",
+  "ts": "2026-10-01T12:20:14.319Z",
+  "origin": "https://portsmouth-lance-cult-represents.trycloudflare.com",
+  "rpId": "portsmouth-lance-cult-represents.trycloudflare.com",
+  "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Mobile Safari/537.36",
+  "results": {
+    "secure_context": {
+      "ok": true
+    },
+    "webauthn_api": {
+      "ok": true
+    },
+    "platform_uv_authenticator": {
+      "ok": true
+    },
+    "client_capabilities": {
+      "conditionalCreate": true,
+      "conditionalGet": true,
+      "extension:appid": true,
+      "extension:appidExclude": true,
+      "extension:cmtgKey": false,
+      "extension:credBlob": true,
+      "extension:credProps": true,
+      "extension:credentialProtectionPolicy": true,
+      "extension:crossDeviceFallbackUrl": false,
+      "extension:enforceCredentialProtectionPolicy": true,
+      "extension:getCredBlob": true,
+      "extension:hmacCreateSecret": true,
+      "extension:largeBlob": true,
+      "extension:minPinLength": true,
+      "extension:payment": true,
+      "extension:prf": true,
+      "hybridTransport": true,
+      "immediateGet": true,
+      "passkeyPlatformAuthenticator": true,
+      "relatedOrigins": true,
+      "signalAllAcceptedCredentials": true,
+      "signalCurrentUserDetails": true,
+      "signalUnknownCredential": true,
+      "userVerifyingPlatformAuthenticator": true
+    },
+    "prf_extension_advertised": {
+      "ok": true,
+      "detail": "true"
+    },
+    "signalCurrentUserDetails_advertised": {
+      "ok": true
+    },
+    "signalCurrentUserDetails_method": {
+      "ok": true
+    },
+    "indexeddb": {
+      "ok": true
+    },
+    "storage_persisted": {
+      "ok": false
+    },
+    "storage_quota_mb": {
+      "ok": null,
+      "detail": 10737
+    },
+    "device_bound_prf_create": {
+      "ok": true,
+      "detail": "BE=false BS=false prf_enabled_at_create=false (prf:{} without eval)"
+    },
+    "focus_wait_before_ceremony_ms": {
+      "ok": null,
+      "detail": "101 (document was not focused after the previous prompt closed)"
+    },
+    "device_bound_prf_at_get": {
+      "ok": false,
+      "detail": "assertion BE=false UV=true; first=false second=false"
+    }
+  },
+  "harness": {
+    "driver": "CDP over adb, Chrome 154 Android 16 OPPO CPH2645, HTTPS tunnel",
+    "passkey_provider": "see operator note in README (credential_service setting at run time: com.google.android.gms/com.google.android.gms.auth.api.credentials.credman.service.PasswordAndPasskeyService)"
+  }
+}

@@ -62,6 +62,7 @@ recorded result. Cancel any prompt you do not want to answer.</p>
 <button class="variant" data-v="hint_security_key">Hint: security key</button>
 <button class="variant" data-v="hint_client_device">Hint: client device</button>
 <button class="variant" data-v="hint_hybrid">Hint: hybrid (phone)</button>
+<button id="dbPrf">Device-bound credential: PRF at unlock</button>
 <ul id="dbOut"></ul>
 
 <h2>7. New-origin migration with an origin-independent recovery key</h2>
@@ -305,6 +306,33 @@ document.querySelectorAll(".variant").forEach(b => b.onclick = async () => {
       `${ad ? `BE=${ad.backup_eligible} BS=${ad.backup_state}` : "flags unavailable"} attachment=${cred.authenticatorAttachment} transports=${tr} prf=${!!(prf && prf.enabled)}`);
   } catch (e) { show("dbOut", key, null, `${e.name}: ${e.message}`); }
 });
+
+
+// A device-bound (non-discoverable) credential may not return PRF at create() but still evaluate it at get().
+document.getElementById("dbPrf").onclick = async () => {
+  try {
+    await whenFocused();
+    const cred = await navigator.credentials.create({ publicKey: {
+      rp: { name: "OM V-006 probe", id: location.hostname },
+      user: { id: rand(16), name: "om-v006-dbprf", displayName: "OM V-006 probe (device-bound PRF)" },
+      challenge: rand(32), pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }], timeout: 60000,
+      authenticatorSelection: { authenticatorAttachment: "platform", residentKey: "discouraged", userVerification: "required" },
+      extensions: { prf: {} } } });
+    const ad = cred.response.getAuthenticatorData ? flags(cred.response.getAuthenticatorData()) : null;
+    const prf = cred.getClientExtensionResults().prf;
+    show("dbOut", "device_bound_prf_create", ad ? !ad.backup_eligible : null,
+      `${ad ? `BE=${ad.backup_eligible} BS=${ad.backup_state}` : "flags unavailable"} prf_enabled_at_create=${!!(prf && prf.enabled)} (prf:{} without eval)`);
+    const g1 = await prfEval(cred.rawId, { first: SALT_VAULT, second: SALT_RECOVERY });
+    const r1 = g1.res && g1.res.results;
+    show("dbOut", "device_bound_prf_at_get", !!(r1 && r1.first), `assertion BE=${g1.flags.backup_eligible} UV=${g1.flags.uv}; first=${!!(r1 && r1.first)} second=${!!(r1 && r1.second)}`);
+    if (r1 && r1.first) {
+      const g2 = await prfEval(cred.rawId, { first: SALT_VAULT });
+      const r2 = g2.res && g2.res.results;
+      show("dbOut", "device_bound_prf_deterministic", !!(r2 && r2.first) && b64u(r2.first) === b64u(r1.first));
+      if (r1.second) show("dbOut", "device_bound_prf_salts_distinct", b64u(r1.first) !== b64u(r1.second));
+    }
+  } catch (e) { show("dbOut", "device_bound_prf_at_get", null, `${e.name}: ${e.message}`); }
+};
 
 // ---- 7. new-origin migration through an origin-independent recovery key (ADR-0111/0129; DEVICE_VAULT... §6)
 const B32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
