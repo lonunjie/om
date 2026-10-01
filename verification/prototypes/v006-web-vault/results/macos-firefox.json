@@ -1,0 +1,112 @@
+{
+  "probe": "om-v006-webdevicevault/1",
+  "ts": "2026-10-01T10:10:05.999Z",
+  "origin": "http://localhost:8806",
+  "rpId": "localhost",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0",
+  "results": {
+    "secure_context": {
+      "ok": true
+    },
+    "webauthn_api": {
+      "ok": true
+    },
+    "platform_uv_authenticator": {
+      "ok": true
+    },
+    "client_capabilities": {
+      "conditionalCreate": false,
+      "conditionalGet": true,
+      "extension:appid": true,
+      "extension:credProps": true,
+      "extension:credentialProtectionPolicy": false,
+      "extension:enforceCredentialProtectionPolicy": false,
+      "extension:hmacCreateSecret": true,
+      "extension:largeBlob": true,
+      "extension:minPinLength": true,
+      "extension:prf": true,
+      "hybridTransport": true,
+      "passkeyPlatformAuthenticator": true,
+      "relatedOrigins": true,
+      "signalAllAcceptedCredentials": false,
+      "signalCurrentUserDetails": false,
+      "signalUnknownCredential": false,
+      "userVerifyingPlatformAuthenticator": true
+    },
+    "prf_extension_advertised": {
+      "ok": true,
+      "detail": "true"
+    },
+    "signalCurrentUserDetails_advertised": {
+      "ok": false
+    },
+    "signalCurrentUserDetails_method": {
+      "ok": false
+    },
+    "indexeddb": {
+      "ok": true
+    },
+    "storage_persisted": {
+      "ok": true
+    },
+    "storage_quota_mb": {
+      "ok": null,
+      "detail": 247192
+    },
+    "storage_persist_granted": {
+      "ok": true
+    },
+    "kek_non_extractable": {
+      "ok": true
+    },
+    "kek_stored_in_indexeddb": {
+      "ok": true,
+      "detail": "reload the page, then press “Check after reload”"
+    },
+    "kek_survives_reload": {
+      "ok": true
+    },
+    "vault_credential_id": "vXxGKZOyxEb7SUSLqO94_7q9FCs",
+    "prf_enabled_at_create": {
+      "ok": true,
+      "detail": "{\"enabled\":true,\"results\":{\"first\":{}}}"
+    },
+    "prf_output_at_create": {
+      "ok": true
+    },
+    "vault_credential_device_bound": {
+      "ok": false,
+      "detail": "BE=true BS=true"
+    },
+    "prf_wrap_unwrap_across_ceremonies": {
+      "ok": true
+    },
+    "vault_and_recovery_salts_distinct_outputs": {
+      "ok": true,
+      "detail": ""
+    },
+    "unlock_uv_flag": {
+      "ok": true
+    },
+    "recovery_credential_id": "P9HXuq52LfNmY2i_bb3b6RgAduo",
+    "separate_recovery_credential_prf": {
+      "ok": true
+    },
+    "recovery_credential_synced": {
+      "ok": true,
+      "detail": "BE=true BS=true"
+    },
+    "passphrase_layer_round_trip": {
+      "ok": true,
+      "detail": "PBKDF2 600k: 77 ms"
+    },
+    "foreign_origin_credential_rejected": {
+      "ok": true,
+      "detail": "NotAllowedError"
+    }
+  },
+  "harness": {
+    "driver": "Marionette-automated Firefox, fresh temp profile, localhost + om-probe.localhost tabs; any prompt answered by operator",
+    "section5_origin": "http://om-probe.localhost:8806"
+  }
+}
