@@ -23,8 +23,8 @@ On a Mac, from the `om` repository root:
 python3 -m http.server 8806 -d verification/prototypes/v006-web-vault
 ```
 
-Then open `http://localhost:8806` in each desktop browser. For origin binding, also open `http://127.0.0.1:8806` (a
-different RP ID) and paste the vault credential ID from the first report.
+Then open `http://localhost:8806` in each desktop browser. For origin binding, also open `http://om-probe.localhost:8806` (a
+different RP ID; an IP address such as 127.0.0.1 is rejected outright as an RP ID, so it cannot test this) and paste the vault credential ID from the first report.
 
 ## Recording results
 

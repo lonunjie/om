@@ -1,0 +1,123 @@
+{
+  "probe": "om-v006-webdevicevault/1",
+  "ts": "2026-10-01T09:53:07.633Z",
+  "origin": "http://localhost:8806",
+  "rpId": "localhost",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+  "results": {
+    "secure_context": {
+      "ok": true
+    },
+    "webauthn_api": {
+      "ok": true
+    },
+    "platform_uv_authenticator": {
+      "ok": true
+    },
+    "client_capabilities": {
+      "conditionalCreate": true,
+      "conditionalGet": true,
+      "extension:appid": true,
+      "extension:appidExclude": true,
+      "extension:cmtgKey": false,
+      "extension:credBlob": true,
+      "extension:credProps": true,
+      "extension:credentialProtectionPolicy": true,
+      "extension:crossDeviceFallbackUrl": false,
+      "extension:enforceCredentialProtectionPolicy": true,
+      "extension:getCredBlob": true,
+      "extension:hmacCreateSecret": true,
+      "extension:largeBlob": true,
+      "extension:minPinLength": true,
+      "extension:payment": true,
+      "extension:prf": true,
+      "hybridTransport": true,
+      "immediateGet": true,
+      "passkeyPlatformAuthenticator": true,
+      "relatedOrigins": true,
+      "signalAllAcceptedCredentials": true,
+      "signalCurrentUserDetails": true,
+      "signalUnknownCredential": true,
+      "userVerifyingPlatformAuthenticator": true
+    },
+    "prf_extension_advertised": {
+      "ok": true,
+      "detail": "true"
+    },
+    "signalCurrentUserDetails_advertised": {
+      "ok": true
+    },
+    "signalCurrentUserDetails_method": {
+      "ok": true
+    },
+    "indexeddb": {
+      "ok": true
+    },
+    "storage_persisted": {
+      "ok": false
+    },
+    "storage_quota_mb": {
+      "ok": null,
+      "detail": 10737
+    },
+    "storage_persist_granted": {
+      "ok": false
+    },
+    "kek_non_extractable": {
+      "ok": true
+    },
+    "kek_stored_in_indexeddb": {
+      "ok": true,
+      "detail": "reload the page, then press “Check after reload”"
+    },
+    "kek_survives_reload": {
+      "ok": true
+    },
+    "vault_credential_id": "O7fXCWJL02xF1Rs4Sujz2kwPRck",
+    "prf_enabled_at_create": {
+      "ok": true,
+      "detail": "{\"enabled\":true,\"results\":{\"first\":{}}}"
+    },
+    "prf_output_at_create": {
+      "ok": true
+    },
+    "vault_credential_device_bound": {
+      "ok": false,
+      "detail": "BE=true BS=true"
+    },
+    "signalCurrentUserDetails_call": {
+      "ok": true
+    },
+    "prf_wrap_unwrap_across_ceremonies": {
+      "ok": true
+    },
+    "vault_and_recovery_salts_distinct_outputs": {
+      "ok": true,
+      "detail": ""
+    },
+    "unlock_uv_flag": {
+      "ok": true
+    },
+    "recovery_credential_id": "cShm3WL4bJ7FMMvEQKHacKr5uGw",
+    "separate_recovery_credential_prf": {
+      "ok": true
+    },
+    "recovery_credential_synced": {
+      "ok": true,
+      "detail": "BE=true BS=true"
+    },
+    "passphrase_layer_round_trip": {
+      "ok": true,
+      "detail": "PBKDF2 600k: 45 ms"
+    },
+    "foreign_origin_credential_rejected": {
+      "ok": true,
+      "detail": "NotAllowedError"
+    }
+  },
+  "harness": {
+    "driver": "CDP-automated real Chrome, fresh temp profile, localhost + 127.0.0.1 tabs; Touch ID touched by operator",
+    "chrome": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+    "section5_origin": "http://om-probe.localhost:8806"
+  }
+}

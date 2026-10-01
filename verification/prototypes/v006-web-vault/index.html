@@ -45,7 +45,7 @@ it again after you reload the page.</p>
 <ul id="passOut"></ul>
 
 <h2>5. Origin binding (run on a second origin)</h2>
-<p class="muted">Open this page on a different origin (for example <code>127.0.0.1</code> instead of <code>localhost</code>, or another
+<p class="muted">Open this page on a different origin (for example <code>om-probe.localhost</code> instead of <code>localhost</code> (IP addresses are invalid RP IDs and would only prove that), or another
 host), paste the credential ID from the first origin's report, and try it. OM expects this to fail: passkey-only recovery
 is bound to its distribution origin.</p>
 <input id="foreignId" placeholder="credential id (base64url) from another origin" size="50">
@@ -61,7 +61,7 @@ is bound to its distribution origin.</p>
 const R = { probe: "om-v006-webdevicevault/1", ts: new Date().toISOString(), origin: location.origin,
   rpId: location.hostname, userAgent: navigator.userAgent, results: {} };
 // Section 2 requires a page reload, which would wipe the report: keep results across reloads of this origin (per-origin, so
-// the 127.0.0.1 run in section 5 starts clean). Capability rows are re-measured on every load and overwrite the saved ones.
+// the second-hostname run in section 5 starts clean). Capability rows are re-measured on every load and overwrite the saved ones.
 try { const saved = JSON.parse(localStorage.getItem("om-v006-results") || "null"); if (saved) R.results = saved; } catch (e) {}
 const enc = new TextEncoder();
 const b64u = b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
