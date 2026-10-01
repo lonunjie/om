@@ -105,11 +105,66 @@
     "foreign_origin_credential_rejected": {
       "ok": true,
       "detail": "NotAllowedError"
+    },
+    "device_bound_platform": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=internal,hybrid prf=true"
+    },
+    "device_bound_non_discoverable_platform": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=internal,hybrid prf=true"
+    },
+    "device_bound_cross_platform": {
+      "ok": null,
+      "detail": "NotAllowedError: The request is not allowed by the user agent or the platform in the current context, possibly because the user denied permission."
+    },
+    "device_bound_hint_security_key": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=internal,hybrid prf=true"
+    },
+    "device_bound_hint_client_device": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=internal,hybrid prf=true"
+    },
+    "device_bound_hint_hybrid": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=internal,hybrid prf=true"
+    },
+    "migration_old_device_id": "jn_ffJL3Qup-8nzqs45EBA",
+    "migration_old_origin_bundle_created": {
+      "ok": true,
+      "detail": "origin http://localhost:8806, recovery key 64 chars, bundle 474 chars"
+    },
+    "migration_old_origin_state_destroyed": {
+      "ok": true
+    },
+    "migration_recovery_key_restores_state_at_new_origin": {
+      "ok": true,
+      "detail": "at http://om-probe.localhost:8806"
+    },
+    "migration_fresh_deviceid": {
+      "ok": true,
+      "detail": "new DeviceID differs from the old origin's"
+    },
+    "migration_fresh_device_key_non_extractable": {
+      "ok": true
+    },
+    "migration_new_vault_wrapper": {
+      "ok": true,
+      "detail": "prf"
+    },
+    "migration_new_vault_reopens": {
+      "ok": true,
+      "detail": "wrapper=prf, state restored"
     }
   },
   "harness": {
     "driver": "AppleScript-automated Safari (default profile), localhost + om-probe.localhost tabs; Touch ID by operator",
     "section5_origin": "http://om-probe.localhost:8806",
-    "note": "unlock step re-run separately (X"
+    "note": "unlock step re-run separately (X",
+    "migration_origins": {
+      "old": "http://localhost:8806/",
+      "new": "http://om-probe.localhost:8806/"
+    }
   }
 }

@@ -7410,6 +7410,13 @@
       "authority": "verification_evidence_non_normative"
     },
     {
+      "path": "verification/prototypes/v006-web-vault/collector.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/v006-web-vault/index.html",
       "class": "verification_tool",
       "domain": "architecture_verification",

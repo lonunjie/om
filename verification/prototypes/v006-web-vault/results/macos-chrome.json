@@ -113,11 +113,66 @@
     "foreign_origin_credential_rejected": {
       "ok": true,
       "detail": "NotAllowedError"
+    },
+    "device_bound_platform": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=hybrid,internal prf=true"
+    },
+    "device_bound_non_discoverable_platform": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=hybrid,internal prf=true"
+    },
+    "device_bound_cross_platform": {
+      "ok": null,
+      "detail": "NotAllowedError: The operation either timed out or was not allowed. See: https://www.w3.org/TR/webauthn-2/#sctn-privacy-considerations-client."
+    },
+    "device_bound_hint_security_key": {
+      "ok": null,
+      "detail": "NotAllowedError: The operation either timed out or was not allowed. See: https://www.w3.org/TR/webauthn-2/#sctn-privacy-considerations-client."
+    },
+    "device_bound_hint_client_device": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=hybrid,internal prf=true"
+    },
+    "device_bound_hint_hybrid": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=hybrid,internal prf=true"
+    },
+    "migration_old_device_id": "ubHOagIV1RuH2KxhQXN9ig",
+    "migration_old_origin_bundle_created": {
+      "ok": true,
+      "detail": "origin http://localhost:8806, recovery key 64 chars, bundle 474 chars"
+    },
+    "migration_old_origin_state_destroyed": {
+      "ok": true
+    },
+    "migration_recovery_key_restores_state_at_new_origin": {
+      "ok": true,
+      "detail": "at http://om-probe.localhost:8806"
+    },
+    "migration_fresh_deviceid": {
+      "ok": true,
+      "detail": "new DeviceID differs from the old origin's"
+    },
+    "migration_fresh_device_key_non_extractable": {
+      "ok": true
+    },
+    "migration_new_vault_wrapper": {
+      "ok": true,
+      "detail": "prf"
+    },
+    "migration_new_vault_reopens": {
+      "ok": true,
+      "detail": "wrapper=prf, state restored"
     }
   },
   "harness": {
     "driver": "CDP-automated real Chrome, fresh temp profile, localhost + 127.0.0.1 tabs; Touch ID touched by operator",
     "chrome": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
-    "section5_origin": "http://om-probe.localhost:8806"
+    "section5_origin": "http://om-probe.localhost:8806",
+    "migration_origins": {
+      "old": "http://localhost:8806/",
+      "new": "http://om-probe.localhost:8806/"
+    }
   }
 }
