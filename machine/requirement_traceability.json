@@ -2603,6 +2603,48 @@
       "verified_by": [
         "V-009"
       ]
+    },
+    {
+      "requirement": "R-404",
+      "verified_by": [
+        "V-019"
+      ]
+    },
+    {
+      "requirement": "R-405",
+      "verified_by": [
+        "V-019"
+      ]
+    },
+    {
+      "requirement": "R-406",
+      "verified_by": [
+        "V-019"
+      ]
+    },
+    {
+      "requirement": "R-400",
+      "verified_by": [
+        "V-004"
+      ]
+    },
+    {
+      "requirement": "R-401",
+      "verified_by": [
+        "V-004"
+      ]
+    },
+    {
+      "requirement": "R-402",
+      "verified_by": [
+        "V-004"
+      ]
+    },
+    {
+      "requirement": "R-403",
+      "verified_by": [
+        "V-004"
+      ]
     }
   ]
 }

@@ -99,7 +99,7 @@ GroupControlTransition {
 }
 ```
 
-This is a later-wave group object rather than a frozen W0 wire object. Its exact encoding is owned by the groups freeze/conformance work before that scope can authorize; the architecture property is already fixed: a client must not commit the application membership change while failing to bind/complete the corresponding MLS transition, or vice versa.
+These are W1 group objects, not W0 wire objects. Their encoding is frozen by ADR-0176 (`GroupControlState` 28, `GroupControlIntent` 29, `GroupCommitBinding` 30, `GroupHistoryBundle` 31 in [`spec/cddl/group.cddl`](../../../spec/cddl/group.cddl)); the architecture property is: a client must not commit the application membership change while failing to bind/complete the corresponding MLS transition, or vice versa.
 
 ## 5. Crash/retry/idempotency
 
@@ -126,7 +126,7 @@ Rules:
 9. If the exact prepared state required for safe retry is missing/corrupt after crash, fail closed: reconcile the canonical head and create a fresh authorized candidate only if the underlying intent remains valid. Do not reconstruct supposedly equivalent Commit bytes from partial state.
 10. Device-removal/admin-role races are resolved by the existing parent-state authorization rule: reductions remain live/rebaseable; non-reducing operations are revalidated at their accepted parent.
 
-V-004 still proves these rules under crash/partition/equivocation and validates the chosen MLS implementation/runtime behavior. It also freezes the W1 group wire objects before authorization; this section does not claim that evidence is complete.
+V-004 still proves these rules under crash/partition/equivocation and validates the chosen MLS implementation/runtime behavior. The W1 group wire objects are frozen by ADR-0176 (two codecs and two semantic checkers agree on the vectors); the crash/partition evidence for these rules stays with V-004 and its pre-release harness.
 
 ## 6. New/revoked devices
 
@@ -150,7 +150,7 @@ A revoked device cannot regain future group secrets merely because an old KeyPac
 
 ADR-0156 makes the encoding item enforceable: V-004 now requires frozen CDDL, registered fields/labels and two-codec vectors for GroupControlState, GroupControlIntent, GroupCommitBinding/GroupControlTransition and the pin/poll event bodies before `groups` can be authorized.
 
-Before `groups` may be authorized, V-004 must still provide the evidence/wire freeze that exercises this already-selected architecture:
+Before `groups` may be authorized, V-004 provides the evidence/wire freeze that exercises this already-selected architecture (status: formal model, MLS ordering probe and the wire freeze are done; ADR-0173, ADR-0176):
 
 - formalize/model GroupCommitOrdering replacement/equivocation and conflict/rebase behavior;
 - freeze GroupControlState/Intent/Binding/Transition and related group event bodies as CDDL + registries + two-codec vectors;
@@ -165,3 +165,12 @@ These are verification/encoding obligations, not permission for an implementatio
 Normative, from the V-series models. The ADR is authoritative where this summary is shorter.
 
 - [ADR-0121](../../../decisions/ADR-0121-event-ordering-authorization-epoch-and-materialization.md) rule 4: `past_epoch_window` is a GroupProfile parameter (a count of epochs, default 2, maximum 8). Epoch secrets are deleted when the window moves. An undecryptable late event renders as an explicit gap. Divergence bounded by the window is a documented residual risk.
+
+## 2026-10-01 wire freeze (ADR-0176)
+
+Normative; the ADR is authoritative where this summary is shorter.
+
+- The four objects are signed with the `device` role and carry the labels in ADR-0176. `GroupCommitBinding` carries the `binding_kind` (coordinator-sequenced, direct reduction, recovery) and `reducing` flag that §3.2 needs; a recovery binding has no `intent_hash` and keeps the state hash.
+- The cross-field rules of ADR-0176 §3 (reducing classification, authorization kinds per operation, binding consistency, bundle structure) are part of validity; the registries and CDDL cannot express them.
+- A bundle is admitted only through the ordered gates of ADR-0176 §3, writes the archive namespace only, and never touches the live dedupe set or a reducer.
+- The signed body of every W1 object is at most 64 KiB (the W0 envelope limit): membership is capped at 512 and a bundle at 1024 items.

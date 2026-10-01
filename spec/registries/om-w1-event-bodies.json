@@ -1,0 +1,24 @@
+{
+  "status": "Status: frozen for W1 (ADR-0176). Additive overlay; it changes no W0 registry value.",
+  "registry": "om-w1-event-bodies",
+  "registry_version": 1,
+  "wave": "W1",
+  "rules": [
+    "A W1 (groups) decoder validates the ConversationEvent body of the kinds below against the listed struct. A W0 decoder ignores this file and keeps treating those bodies as an opaque map, so the frozen W0 corpus and the W0 dispatch table are unchanged (ADR-0165, T-157).",
+    "Merge rule: for each entry of 'dispatch', the table of the named field in om-numeric-fields.json is extended with the listed kind-to-struct pairs. An entry that names an existing kind with a different struct is an error. The merge is performed by tools (verification/prototypes/v004-group-wire/overlay.py), never by hand.",
+    "Kinds 7 and 11-14 were typed by ADR-0160 in CDDL only; this file makes the same typing machine-applicable."
+  ],
+  "dispatch": {
+    "ConversationEvent.body": {
+      "6": "PinSet",
+      "7": "ModerationRedact",
+      "8": "PollCreate",
+      "9": "PollVote",
+      "10": "PollClose",
+      "11": "TopicCreate",
+      "12": "TopicUpdate",
+      "13": "TopicStatusSet",
+      "14": "MessageTopicSet"
+    }
+  }
+}

@@ -1,0 +1,184 @@
+{
+ "gate": "V-004",
+ "criteria": [
+  6,
+  7
+ ],
+ "adr": "ADR-0176",
+ "prototype": "verification/prototypes/v004-group-wire (feasibility prototype, not product code)",
+ "reproduce": "verification/prototypes/v004-group-wire/run.sh",
+ "wire": {
+  "cddl": "spec/cddl/group.cddl",
+  "event_overlay": "spec/registries/om-w1-event-bodies.json",
+  "object_types": {
+   "28": "GroupControlState",
+   "29": "GroupControlIntent",
+   "30": "GroupCommitBinding",
+   "31": "GroupHistoryBundle"
+  }
+ },
+ "vectors": {
+  "total": 383,
+  "positive": 158,
+  "negative": 225,
+  "by_object": {
+   "ConversationEvent": 41,
+   "GroupCommitBinding": 57,
+   "GroupControlIntent": 120,
+   "GroupControlState": 90,
+   "GroupHistoryBundle": 75
+  },
+  "canonical_bytes": 2686073,
+  "canonical_sha256": "2ffae579c46ff5d194c3db5c3f29aa18ed9a62ee0884f24aed8da42da2d214cc",
+  "file": "verification/vectors/v004-group-wire-object-vectors.json.gz"
+ },
+ "codec_agreement_w1_overlay": {
+  "rust": {
+   "vectors": 383,
+   "mismatches": 0,
+   "first_mismatches": []
+  },
+  "node": {
+   "vectors": 383,
+   "mismatches": 0,
+   "first_mismatches": []
+  }
+ },
+ "w0_decoders_on_w1_event_vectors": {
+  "rust": {
+   "w1_event_positives_accepted": 16,
+   "w1_event_negatives_accepted_as_opaque": 25
+  },
+  "node": {
+   "w1_event_positives_accepted": 16,
+   "w1_event_negatives_accepted_as_opaque": 25
+  }
+ },
+ "frozen_w0_corpus_unchanged": {
+  "rust": {
+   "vectors": 758,
+   "mismatches": 0,
+   "first_mismatches": []
+  },
+  "node": {
+   "vectors": 758,
+   "mismatches": 0,
+   "first_mismatches": []
+  }
+ },
+ "registry_additivity": {
+  "base": "31e35af",
+  "files": {
+   "om-numeric-fields": {
+    "additions": 42,
+    "problems": []
+   },
+   "om-object-types": {
+    "additions": 4,
+    "problems": []
+   },
+   "om-domain-separation": {
+    "additions": 8,
+    "problems": []
+   },
+   "om-room-capabilities": {
+    "additions": 3,
+    "problems": []
+   }
+  },
+  "space_delegated_intent_copy_identical": true
+ },
+ "semantic": {
+  "cases": 105,
+  "by_kind": {
+   "state": 19,
+   "intent": 46,
+   "binding": 13,
+   "bundle": 8,
+   "scenario": 19
+  },
+  "agreement": {
+   "python": {
+    "cases": 105,
+    "mismatches": 0,
+    "first": []
+   },
+   "node": {
+    "cases": 105,
+    "mismatches": 0,
+    "first": []
+   },
+   "pairwise_differences": []
+  },
+  "file": "verification/vectors/v004-group-wire-semantic.json.gz"
+ },
+ "cddl_check": {
+  "disagreements": [],
+  "generated_examples": {
+   "ConversationEventW1": {
+    "accepted": 9,
+    "generated": 12,
+    "rejected_classes": [
+     "size_limit",
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-GroupCommitBinding": {
+    "accepted": 4,
+    "generated": 12,
+    "rejected_classes": [
+     "size_limit",
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-GroupControlIntent": {
+    "accepted": 3,
+    "generated": 12,
+    "rejected_classes": [
+     "size_limit",
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-GroupControlState": {
+    "accepted": 3,
+    "generated": 12,
+    "rejected_classes": [
+     "unknown_critical_extension"
+    ]
+   },
+   "signed-GroupHistoryBundle": {
+    "accepted": 5,
+    "generated": 12,
+    "rejected_classes": [
+     "unknown_critical_extension"
+    ]
+   }
+  },
+  "generated_unexpected_rejection_count": 0,
+  "generated_unexpected_rejections": [],
+  "rust_tool_spec_workarounds": [
+   {
+    "from": "{ 1* ext-id => ext-entry }",
+    "to": "{ 1* tstr => ext-entry }"
+   }
+  ],
+  "tools": [
+   "cddl (Rust crate) 0.10.7",
+   "cddl (Ruby gem) 0.12.14"
+  ],
+  "vector_checks": 456
+ },
+ "toolchain": {
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01) (Homebrew)",
+  "node": "v24.14.0",
+  "ruby": "ruby 2.6.10p210 (2022-04-12 revision 67958) [universal.arm64e-darwin26]",
+  "python": "3.14.8"
+ },
+ "all_checks_pass": true,
+ "limits": [
+  "Rust and Node strict codecs, the Python and Node semantic checkers and the generator were all written by the same agent family in one session; the codecs share no code but read the same registries (ADR-0134 section 5 independent_implementation, not independent review).",
+  "Signatures are the V-005 insecure test profile (65535); no signature verification or MLS is exercised here.",
+  "The semantic checkers operate on diagnostic object values; GroupHistoryBundle admission is a model of the receiver (Room view, live dedupe set, one pin reducer), not an implementation.",
+  "The W0 SignedEnvelope body limit (64 KiB) bounds every signed W1 object; see ADR-0176 finding F-27."
+ ]
+}

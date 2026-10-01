@@ -1,0 +1,225 @@
+; OM later-wave W1 `groups` wire freeze for V-004 (ADR-0176, 2026-10-01).
+; These objects use OM-CBOR-v1 canonical encoding and the frozen registries
+; (om-numeric-fields.json, om-object-types.json, om-domain-separation.json, om-room-capabilities.json,
+; om-w1-event-bodies.json). The four top-level objects are signed with SignedEnvelope (signature role device).
+; CDDL cannot express: sorted/unique 'set' arrays (every array marked "set" below), deterministic encoding,
+; and the cross-field rules of ADR-0176 §3, which the semantic validators enforce.
+; Names that also exist in space-publication.cddl are prefixed 'group-' so the two files never collide.
+
+group-role-id = bstr .size 16
+group-capability-id = tstr .size (1..128)
+group-incarnation = bstr .size (16..32)      ; immutable membership / invite instance id (R-279)
+group-device-id = bstr .size (16..32)
+group-state-version = 1..18446744073709551615
+group-epoch = uint
+group-op-id = 1..16                           ; enum group_operation (key == om-room-capabilities 'control.<name>')
+
+group-profile = {
+  0: tstr .size (1..256),                     ; name
+  ? 1: tstr .size (1..2048),                  ; avatar_ref
+  ? 2: tstr .size (1..4096),                  ; description
+}
+
+group-membership = {
+  0: principal-ref,
+  1: group-incarnation,                       ; membership_incarnation
+  ? 2: [1*64 group-role-id],                  ; role_ids (set)
+  3: 1..2,                                    ; endpoint_policy: 1 account_devices, 2 service_endpoints
+}
+
+group-role-definition = {
+  0: group-role-id,
+  1: tstr .size (1..128),                     ; display_name
+  2: [1*64 group-capability-id],              ; grants (set)
+  ? 3: [1*64 group-capability-id],            ; grantable_scope (set)
+}
+
+group-governance = {
+  0: [1*64 principal-ref],                    ; principals (set)
+  1: 1..64,                                   ; approval_threshold
+  ? 2: [1*16 group-op-id],                    ; protected_operations (set)
+}
+
+group-policy = {
+  0: 1..3,                                    ; join_rule: invite_only, admin_approval, open
+  1: 1..2,                                    ; new_device_policy: automatic, admin_approval
+  2: 1..3,                                    ; history_policy: since_join, recent_window, full_shared_history
+  ? 3: 1..18446744073709551615,               ; history_window_seconds (recent_window only)
+  ? 4: 1..18446744073709551615,               ; disappearing_timer (seconds; absent = off)
+  5: 1..65535,                                ; security_profile
+  6: 30..3600,                                ; sequencing_timeout (seconds, ADR-0173)
+  7: 0..8,                                    ; past_epoch_window (ADR-0121 rule 4)
+  ; 8 service_policy (W4) and 9 space_authority_binding (W3) are reserved
+}
+
+group-invite = {
+  0: group-incarnation,                       ; join_ref (opaque, rotatable, never the ConversationID)
+  1: principal-ref,                           ; issuer
+  2: group-incarnation,                       ; issuer_incarnation
+  3: 1..2,                                    ; authorization_basis: capability, space_delegated
+  4: posix-seconds,                           ; expiry (wall clock)
+  ? 5: 1..18446744073709551615,               ; max_uses
+  6: uint,                                    ; uses
+}
+
+GroupControlState = {
+  0: 28,
+  1: 1,
+  2: conversation-id,
+  3: group-state-version,
+  ? 4: digest,                                ; previous_state_hash; absent only at genesis
+  5: group-profile,
+  6: [1*512 group-membership],                ; set
+  ? 7: [1*128 group-role-definition],         ; set
+  8: group-governance,
+  9: group-policy,
+  10: [1*64 group-device-id],                 ; coordinator_succession (ordered array, not a set)
+  ? 11: [1*256 group-invite],                 ; set
+  12: group-epoch,                            ; mls_epoch_ref: MLS epoch of the Commit that installed this version
+  ? 23: extensions,
+}
+
+group-authorization = {
+  0: 1..5,                                    ; capability_at_parent, space_delegated, membership_basis, account_control_evidence, invite_link
+  ? 1: digest,                                ; acs_head_hash
+  ? 2: bstr .cbor group-signed-space-intent,  ; canonical SignedEnvelope of a SpaceDelegatedIntent
+  ? 3: group-incarnation,                     ; join_ref
+}
+group-signed-space-intent = { 1: bstr .cbor group-space-delegated-intent, 2: [1*16 signature] }
+; Identical to SpaceDelegatedIntent in space-publication.cddl (ADR-0160, object type 25); repeated under a 'group-' name
+; because the two files define other rules with equal names and are never bundled together. run.sh checks the two agree.
+group-space-delegated-intent = {
+  0: 25,
+  1: 1,
+  2: bstr .size 32,                           ; space_id
+  3: digest,                                  ; validated SpaceControlState hash
+  4: group-state-version,                     ; validated SpaceControlState version
+  5: conversation-id,
+  6: tstr .size (1..128),                     ; registry control operation key
+  7: bool,                                    ; reducing
+  8: 1..3,                                    ; evidence kind
+  9: bstr .size (1..65536),                   ; canonical signed Space evidence
+  ? 10: principal-ref,
+  ? 11: bstr .size (16..32),
+  ? 12: [1*128 group-capability-id],
+  ? 23: extensions,
+}
+
+args-member-admit = { 0: principal-ref, 1: group-incarnation, ? 2: [1*64 group-role-id], 3: 1..2, ? 4: group-incarnation }
+args-member-remove = { 0: principal-ref, 1: group-incarnation }
+args-member-leave = { 0: principal-ref, 1: group-incarnation }
+args-device-add = { 0: principal-ref, 1: group-incarnation, 2: group-device-id, 3: uint }
+args-device-remove-revoked = { 0: principal-ref, 1: group-incarnation, 2: group-device-id, 3: uint }
+args-profile-set = { 0: group-profile }
+args-disappearing-timer-set = { 0: uint }
+args-role-define = { 0: group-role-definition }
+args-role-assign = { 0: principal-ref, 1: group-incarnation, 2: [0*64 group-role-id] }
+args-invite-link-issue = { 0: group-invite }
+args-invite-link-revoke = { 0: group-incarnation }
+args-invite-link-redeem = { 0: group-incarnation, 1: principal-ref, 2: group-incarnation, 3: 1..2 }
+args-admission-set = { 0: 1..3 }
+args-security-policy-set = { ? 0: 1..2, ? 1: 1..3, ? 2: 1..18446744073709551615, ? 3: 1..65535 }
+args-governance-set = { ? 0: group-governance, ? 1: [1*64 group-device-id] }
+args-coordinator-replace = { 0: group-device-id, 1: group-device-id }
+
+intent-common = (
+  0: 29, 1: 1,
+  2: conversation-id,
+  3: digest,                                  ; previous_state_hash
+  4: group-state-version,                     ; previous_state_version
+  5: opaque-id16,                             ; intent_id
+  7: bool,                                    ; reducing
+  9: group-authorization,
+  ? 23: extensions,
+)
+GroupControlIntent = intent-member-admit / intent-member-remove / intent-member-leave / intent-device-add /
+  intent-device-remove-revoked / intent-profile-set / intent-disappearing-timer-set / intent-role-define /
+  intent-role-assign / intent-invite-link-issue / intent-invite-link-revoke / intent-invite-link-redeem /
+  intent-admission-set / intent-security-policy-set / intent-governance-set / intent-coordinator-replace
+intent-member-admit = { intent-common, 6: 1, 8: args-member-admit }
+intent-member-remove = { intent-common, 6: 2, 8: args-member-remove }
+intent-member-leave = { intent-common, 6: 3, 8: args-member-leave }
+intent-device-add = { intent-common, 6: 4, 8: args-device-add }
+intent-device-remove-revoked = { intent-common, 6: 5, 8: args-device-remove-revoked }
+intent-profile-set = { intent-common, 6: 6, 8: args-profile-set }
+intent-disappearing-timer-set = { intent-common, 6: 7, 8: args-disappearing-timer-set }
+intent-role-define = { intent-common, 6: 8, 8: args-role-define }
+intent-role-assign = { intent-common, 6: 9, 8: args-role-assign }
+intent-invite-link-issue = { intent-common, 6: 10, 8: args-invite-link-issue }
+intent-invite-link-revoke = { intent-common, 6: 11, 8: args-invite-link-revoke }
+intent-invite-link-redeem = { intent-common, 6: 12, 8: args-invite-link-redeem }
+intent-admission-set = { intent-common, 6: 13, 8: args-admission-set }
+intent-security-policy-set = { intent-common, 6: 14, 8: args-security-policy-set }
+intent-governance-set = { intent-common, 6: 15, 8: args-governance-set }
+intent-coordinator-replace = { intent-common, 6: 16, 8: args-coordinator-replace }
+
+GroupCommitBinding = {
+  0: 30,
+  1: 1,
+  2: conversation-id,
+  3: 1..3,                                    ; binding_kind: coordinator_sequenced, direct_reduction, recovery
+  4: bool,                                    ; reducing
+  5: digest,                                  ; previous_state_hash
+  6: group-state-version,                     ; previous_state_version
+  7: group-epoch,                             ; previous_mls_epoch
+  8: 1..18446744073709551615,                 ; resulting_mls_epoch
+  ? 9: digest,                                ; intent_hash (absent only for recovery)
+  10: digest,                                 ; mls_commit_hash
+  11: digest,                                 ; resulting_state_hash
+  12: group-device-id,                        ; committer_device
+  ? 13: [1*256 group-device-id],              ; readded_devices (recovery only; set)
+  ? 23: extensions,
+}
+
+group-history-item = {
+  0: opaque-id16,                             ; history_item_id (bundle-local)
+  ? 1: event-id,                              ; claimed original EventID (inert provenance)
+  ? 2: principal-ref,                         ; claimed original author (inert provenance)
+  ? 3: uint,                                  ; claimed original time (inert provenance)
+  ? 4: tstr .size (1..4096),                  ; text
+  ? 5: [1*32 attachment-ref],                 ; attachments
+  ? 6: opaque-id16,                           ; reply_to_item (an earlier history_item_id of the same bundle)
+}
+
+GroupHistoryBundle = {
+  0: 31,
+  1: 1,
+  2: opaque-id16,                             ; bundle_id
+  3: conversation-id,
+  4: principal-ref,                           ; author_account
+  5: group-device-id,                         ; author_device
+  6: principal-ref,                           ; recipient_account
+  7: group-incarnation,                       ; recipient_membership_incarnation
+  8: digest,                                  ; group_control_state_hash
+  9: group-epoch,                             ; mls_epoch_ref
+  10: bstr .size (16..32),                    ; creation_nonce
+  11: [1*1024 group-history-item],            ; items (ordered array)
+  ? 23: extensions,
+}
+
+signed-GroupControlState = { 1: bstr .cbor GroupControlState, 2: [1*16 signature] }
+signed-GroupControlIntent = { 1: bstr .cbor GroupControlIntent, 2: [1*16 signature] }
+signed-GroupCommitBinding = { 1: bstr .cbor GroupCommitBinding, 2: [1*16 signature] }
+signed-GroupHistoryBundle = { 1: bstr .cbor GroupHistoryBundle, 2: [1*16 signature] }
+
+; ---- W1 typed ConversationEvent bodies (kinds 6, 8, 9, 10; kinds 7 and 11-14 reuse the rules in events.cddl) ----
+; The frozen W0 rules in events.cddl keep pin/poll bodies opaque; a W1 decoder uses ConversationEventW1.
+ConversationEventW1 = event-create / event-edit / event-delete / event-reaction / event-receipt /
+  event-pin-w1 / event-redact / event-poll-create-w1 / event-poll-vote-w1 / event-poll-close-w1 /
+  event-topic-create / event-topic-update / event-topic-status / event-message-topic
+event-pin-w1 = { event-common, 8: 6, 11: PinSet }
+event-poll-create-w1 = { event-common, 8: 8, 11: PollCreate }
+event-poll-vote-w1 = { event-common, 8: 9, 11: PollVote }
+event-poll-close-w1 = { event-common, 8: 10, 11: PollClose }
+
+PinSet = { 0: event-id, 1: bool }                   ; target_event_id, present
+poll-option = { 0: 0..255, 1: tstr .size (1..256) } ; option_id, label
+PollCreate = {
+  0: RichText,                                       ; question
+  1: [2*32 poll-option],                             ; options (ordered; option_id unique)
+  2: 1..2,                                           ; selection_mode: single, multiple
+  ? 3: 2..32,                                        ; max_selections (multiple only)
+  4: 1..3,                                           ; results_visibility: immediate, after_vote, after_close
+}
+PollVote = { 0: event-id, 1: [0*32 0..255] }         ; target_poll_event_id, selected_option_ids (set; empty retracts)
+PollClose = { 0: event-id }                          ; target_poll_event_id

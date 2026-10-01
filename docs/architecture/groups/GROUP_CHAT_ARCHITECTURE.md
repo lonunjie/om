@@ -75,7 +75,7 @@ Application state is distinct from raw MLS cryptographic state. (Older text call
 name is `GroupControlState`.)
 
 ```text
-GroupControlState
+GroupControlState                # frozen wire: object type 28, spec/cddl/group.cddl (ADR-0176)
   conversation_id
   state_version
   previous_state_hash
@@ -260,7 +260,7 @@ Rules (ADR-0128 rule 4; hardened by ADR-0161):
 - A bundle excludes expired disappearing content, deleted events and redacted events.
 - `history_policy` is cooperative policy, not a cryptographic control: it cannot stop a member who already holds
   plaintext from sharing it.
-- The pre-freeze logical field contract is [`spec/protocol/group-history-bundle.logical.schema.json`](../../../spec/protocol/group-history-bundle.logical.schema.json); V-004 must still freeze
+- The frozen wire is `GroupHistoryBundle` (object type 31) in [`spec/cddl/group.cddl`](../../../spec/cddl/group.cddl) (ADR-0176): signed by the author device, 1..1024 items, text and attachments only, delivered as the plaintext of an encrypted blob over the recipient's 1:1 channel. Its admission gates and isolation rules are ADR-0176 §3. The logical contract [`spec/protocol/group-history-bundle.logical.schema.json`](../../../spec/protocol/group-history-bundle.logical.schema.json) remains as the field-level description.
   CDDL/field numbers/domain labels and two-codec positive/negative vectors before groups authorization.
 
 ## Invites
@@ -491,4 +491,4 @@ The 2026-09-23 06:15 hardening pass resolved A-005..A-008 and A-010: Spaces link
 
 ## 2026-09-24 PQ status of groups (ADR-0107)
 
-v1 groups are classically confidential (RFC 9420 X25519 suite). The group wire must carry a tested ReInit path to a hybrid-PQ MLS profile, and migration happens automatically once the objective adoption triggers in [`CRYPTOGRAPHY_AND_AGILITY.md`](../crypto/CRYPTOGRAPHY_AND_AGILITY.md) are met (V-019). No surface may claim PQ confidentiality for v1 groups.
+v1 groups are classically confidential (RFC 9420 X25519 suite). The group wire must carry a tested authenticated migration path to a hybrid-PQ MLS profile (an OM-level transition today, because OpenMLS 0.9.0 has no RFC 9420 ReInit; ADR-0175), and migration happens automatically once the objective adoption triggers in [`CRYPTOGRAPHY_AND_AGILITY.md`](../crypto/CRYPTOGRAPHY_AND_AGILITY.md) are met (V-019). No surface may claim PQ confidentiality for v1 groups.

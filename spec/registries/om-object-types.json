@@ -434,6 +434,70 @@
       "max_bytes": 65536,
       "source": "SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION.md; ADR-0160",
       "logical_schema": "spec/protocol/publication-event.logical.schema.json"
+    },
+    {
+      "type_id": 28,
+      "name": "GroupControlState",
+      "wave": "W1",
+      "scope": "groups",
+      "signed": {
+        "label": "OM-GROUP-CONTROL-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": "OM-GROUP-CONTROL-HASH-v1",
+      "max_bytes": 131072,
+      "source": "GROUP_CHAT_ARCHITECTURE.md; GROUP_COMMIT_AND_STATE_CONVERGENCE.md; ADR-0176",
+      "logical_schema": "spec/protocol/group-control-transition.logical.schema.json"
+    },
+    {
+      "type_id": 29,
+      "name": "GroupControlIntent",
+      "wave": "W1",
+      "scope": "groups",
+      "signed": {
+        "label": "OM-GROUP-INTENT-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": "OM-GROUP-INTENT-HASH-v1",
+      "max_bytes": 73728,
+      "source": "GROUP_COMMIT_AND_STATE_CONVERGENCE.md §4; ADR-0163; ADR-0176",
+      "logical_schema": "spec/protocol/group-control-transition.logical.schema.json"
+    },
+    {
+      "type_id": 30,
+      "name": "GroupCommitBinding",
+      "wave": "W1",
+      "scope": "groups",
+      "signed": {
+        "label": "OM-GROUP-COMMIT-BINDING-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": "OM-GROUP-COMMIT-BINDING-HASH-v1",
+      "max_bytes": 16384,
+      "source": "GROUP_COMMIT_AND_STATE_CONVERGENCE.md §3.2, §4; ADR-0173; ADR-0176",
+      "logical_schema": "spec/protocol/group-control-transition.logical.schema.json"
+    },
+    {
+      "type_id": 31,
+      "name": "GroupHistoryBundle",
+      "wave": "W1",
+      "scope": "groups",
+      "signed": {
+        "label": "OM-GROUP-HISTORY-BUNDLE-SIG-v1",
+        "roles": [
+          "device"
+        ]
+      },
+      "hash": null,
+      "max_bytes": 131072,
+      "source": "GROUP_CHAT_ARCHITECTURE.md (Group history); ADR-0161; ADR-0176",
+      "logical_schema": "spec/protocol/group-history-bundle.logical.schema.json"
     }
   ]
 }

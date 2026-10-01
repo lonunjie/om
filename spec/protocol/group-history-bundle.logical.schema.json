@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OM GroupHistoryBundle logical contract (pre-freeze)",
-  "description": "Pre-freeze groups-scope logical contract for the interoperable GroupHistoryBundle (ADR-0157 naming, ADR-0161 binding/isolation rules). This is not a frozen wire schema and does not satisfy V-004.",
+  "title": "OM GroupHistoryBundle logical contract (frozen wire: spec/cddl/group.cddl, ADR-0176)",
+  "description": "Pre-freeze groups-scope logical contract for the interoperable GroupHistoryBundle (ADR-0157 naming, ADR-0161 binding/isolation rules). The frozen wire form is GroupHistoryBundle (object type 31) in spec/cddl/group.cddl (ADR-0176); this file stays as the field-level description and is not the wire schema.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -21,7 +21,7 @@
     "creation_nonce": {"type": "string", "minLength": 1},
     "items": {
       "type": "array",
-      "maxItems": 10000,
+      "maxItems": 1024,
       "items": {
         "type": "object",
         "additionalProperties": false,

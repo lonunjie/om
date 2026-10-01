@@ -566,6 +566,70 @@
       "object": "PublicationEvent chain identity / prev_post_hash",
       "wave": "W3",
       "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-CONTROL-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "GroupControlState",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-CONTROL-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "GroupControlState state hash (previous_state_hash chain, bundle binding)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-INTENT-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "GroupControlIntent",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-INTENT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "GroupControlIntent hash (GroupCommitBinding.intent_hash)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-COMMIT-BINDING-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "GroupCommitBinding",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-COMMIT-BINDING-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH",
+      "object": "GroupCommitBinding hash (ADR-0173 same-parent tie-break)",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-MLS-COMMIT-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH over the exact MLS Commit message bytes",
+      "object": "GroupCommitBinding.mls_commit_hash",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-HISTORY-BUNDLE-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "GroupHistoryBundle",
+      "wave": "W1",
+      "status": "frozen"
     }
   ]
 }

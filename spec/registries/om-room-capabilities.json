@@ -8,7 +8,8 @@
     "'protected': true marks a governance-root or high-risk capability. It is never minted by room.manage_roles or space.manage_roles alone, is not included in a SpaceAuthorityBinding unless the Room grants it under its own governance, and may require quorum (ADR-0122, ADR-0128 rule 8).",
     "'reducing': true marks actions that are authority reductions under ADR-0122 rule 1 and ADR-0128 rule 1 (live after sequencing_timeout, never forks).",
     "Authorization is evaluated at the sending epoch of the event or intent (ADR-0121 rule 1), after the grant cascade (ADR-0122 rule 2) and after active restrictions.",
-    "'basis: authorship' means the author of the target may act without a capability; 'basis: membership' means any current member may act."
+    "'basis: authorship' means the author of the target may act without a capability; 'basis: membership' means any current member may act.",
+    "'basis: invite' means the actor presents an invite (join_ref) that is in the GroupControlState at the parent, is unexpired at the commit, has uses below max_uses, and whose issuer, by its recorded incarnation, still holds room.invite at the redeeming epoch (ADR-0128 rule 6, ADR-0176)."
   ],
   "capabilities": [
     {"id": "room.post", "scope": "room", "wave": "W1", "protected": false, "description": "send a top-level message or create a poll"},
@@ -88,6 +89,8 @@
     {"key": "control.coordinator.replace", "requires": ["basis: membership"], "note": "only to the next live device in the recorded succession order, after sequencing_timeout (ADR-0128 rule 1)"},
     {"key": "call.start", "requires": ["room.start_call"]},
     {"key": "control.service.remove_revoked_endpoint", "requires": ["basis: membership"], "note": "any member, for a service endpoint revoked at a validated ServiceControlState head (ADR-0129 rule 6, ADR-0128 rule 1)"},
-    {"key": "control.policy.set_plaintext_egress", "requires": ["room.set_plaintext_egress"]}
+    {"key": "control.policy.set_plaintext_egress", "requires": ["room.set_plaintext_egress"]},
+    {"key": "control.invite_link.redeem", "requires": ["basis: invite"], "note": "only when join_rule is open; under admin_approval the join request is admitted by control.member.admit carrying the join_ref (ADR-0128 rule 6, ADR-0176)"},
+    {"key": "control.admission.set", "requires": ["room.manage_admission"], "note": "sets GroupPolicy.join_rule (invite_only, admin_approval, open); ADR-0128 rule 6, ADR-0176"}
   ]
 }

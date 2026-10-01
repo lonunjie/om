@@ -1,0 +1,448 @@
+{
+  "ciphersuites": {
+    "hybrid_alt_equal_generation": {
+      "id": "0x004e",
+      "name": "MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519",
+      "security_generation": 2
+    },
+    "hybrid_primary": {
+      "id": "0x004f",
+      "name": "MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519",
+      "note": "X-Wing (ML-KEM-768 + X25519) hybrid KEM; signatures are classical Ed25519",
+      "security_generation": 2
+    },
+    "v1": {
+      "id": "0x0001",
+      "name": "MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519",
+      "security_generation": 1
+    }
+  },
+  "criteria": [
+    {
+      "criterion": "prototype authenticated ReInit from the v1 MLS suite to an experimental hybrid-PQ suite preserving ConversationID and GroupControlState, rejecting downgrade, with vectors",
+      "evidence": "verification/prototypes/v019-hybrid-pq-migration/rust/src/lib.rs; verification/prototypes/v019-hybrid-pq-migration/README.md; verification/results/v019-hybrid-pq-migration-latest.json",
+      "gate": "V-019",
+      "note": "Met as an OM-level authenticated migration built on OpenMLS 0.9.0 MlsGroup::reboot, NOT as RFC 9420 ReInit: OpenMLS 0.9.0 does not implement ReInit (quoted below). A signed diagnostic GroupControlTransition moves a 3-member group from 0x0001 to the hybrid X-Wing suite 0x004F with a new MLS group id, unchanged ConversationID and GroupControlState hash, and a monotone security_generation floor that rejects downgrade, equal-generation, replay, stale-parent, unauthorised and tampered transitions. If the gate must be read as the literal RFC 9420 ReInit proposal, record this as partial.",
+      "status": "met"
+    }
+  ],
+  "gates": [
+    "V-019"
+  ],
+  "independence": "Written by a Claude agent from RFC 9420, ADR-0165/0173 and the public OpenMLS 0.9.0 API. Single-vendor evidence (ADR-0167); not an independent implementation or review.",
+  "limitations": [
+    "Test-provider keys only: OpenMlsRustCrypto with in-memory storage and freshly generated Ed25519 keys. No durable storage, no OM credential type, no key management.",
+    "No real network, relay, KeyPackage publication/consumption or Welcome delivery: key packages are handed over in-process and each joiner holds its own provider.",
+    "The migration is an OM-level construction on MlsGroup::reboot. It is not an interoperable RFC 9420 ReInit: the new group has no ReInit/resumption PSK link to the old group, and another MLS implementation would see two unrelated groups plus an OM-private GroupContext extension (type 0xFF51).",
+    "GroupControlTransition here is a diagnostic stand-in (JSON struct, length-prefixed canonical bytes, Ed25519 signature). It is not CDDL, not deterministic CBOR and not a frozen wire format; ADR-0156 owns the real encoding.",
+    "GroupControlState is a stand-in hash over (ConversationID, roster with device keys and roles). The security floor is held beside it, not inside the hash; whether security_generation.group is hashed state is a design decision this prototype does not make (G-V19-4).",
+    "The experimental hybrid suite 0x004F is a draft-ietf-mls-pq-ciphersuites provisional code point (X-Wing draft-06 KEM). Its hybrid KEM is PQ-hybrid but its signatures and credentials are classical Ed25519, so authentication is not post-quantum.",
+    "Same-author caveat: author, verifier and test harness are one agent and one codebase; every negative vector was designed by the author of the check it exercises. The Authority set is a plain input, not derived from real GroupControlState policy.",
+    "Concurrent competing migrations are shown to be order-dependent; no canonical-successor ordering (ADR-0173) is implemented for migration transitions.",
+    "past_epoch_window is exercised by advancing the OLD group with extra commits. A real migration stops advancing the old group, so the epoch-count window would never close (G-V19-1).",
+    "No performance, size or battery numbers, and no iOS/Android execution; the cross-runtime comparison is macOS arm64 native versus wasm32 under Node/V8 only.",
+    "Pre-release criterion (interoperable migration across two implementations) is untouched; no second implementation implements ReInit or reboot-based migration."
+  ],
+  "native_vs_wasm": {
+    "byte_identical": true,
+    "native": "aarch64-apple-darwin release binary",
+    "pq_dependencies_built_on_wasm32": true,
+    "sha256": "d62ff10d1353b5de8486e6eb2ae01921fb8c967e1ff72878209c877901c4fca1",
+    "sha256_wasm": "d62ff10d1353b5de8486e6eb2ae01921fb8c967e1ff72878209c877901c4fca1",
+    "wasm": "wasm32-unknown-unknown under Node/V8 via wasm-bindgen --target nodejs"
+  },
+  "past_epoch_window": 2,
+  "provider_supported_ciphersuites": [
+    "0x0001",
+    "0x0003",
+    "0x0002",
+    "0x0042",
+    "0x0906",
+    "0x004e",
+    "0x004f",
+    "0x0050",
+    "0x0052",
+    "0x0051",
+    "0x0907",
+    "0xf042"
+  ],
+  "reinit_not_implemented": {
+    "meaning": "RFC 9420 ReInit proposal, ReInit resumption PSK binding and branch PSK are unimplemented; reboot creates a fresh group with the same member list and no cryptographic link to the old epoch secrets.",
+    "quote": {
+      "file": "openmls-0.9.0/src/messages/external_proposals.rs",
+      "line": 5,
+      "text": "//! `ReInit` is not yet implemented"
+    },
+    "reboot_module_declaration": {
+      "file": "openmls-0.9.0/src/group/fork_resolution/mod.rs",
+      "line": 15,
+      "text": "mod reboot;"
+    },
+    "related_todo_resumption_psk": {
+      "file": "openmls-0.9.0/src/group/mls_group/creation.rs",
+      "line": 224,
+      "text": "// TODO #751: Implement PSK"
+    }
+  },
+  "suite_matrix": [
+    {
+      "id": "0x0001",
+      "migrates_and_messages": true,
+      "name": "MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519",
+      "roster_ed25519_key_is_new_leaf_key": true,
+      "signature_scheme": "ED25519"
+    },
+    {
+      "id": "0x0003",
+      "migrates_and_messages": true,
+      "name": "MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519",
+      "roster_ed25519_key_is_new_leaf_key": true,
+      "signature_scheme": "ED25519"
+    },
+    {
+      "id": "0x0002",
+      "migrates_and_messages": true,
+      "name": "MLS_128_DHKEMP256_AES128GCM_SHA256_P256",
+      "roster_ed25519_key_is_new_leaf_key": false,
+      "signature_scheme": "ECDSA_SECP256R1_SHA256"
+    },
+    {
+      "id": "0x0042",
+      "migrates_and_messages": true,
+      "name": "MLS_192_MLKEM1024_AES256GCM_SHA384_P384",
+      "roster_ed25519_key_is_new_leaf_key": false,
+      "signature_scheme": "ECDSA_SECP384R1_SHA384"
+    },
+    {
+      "id": "0x0906",
+      "migrates_and_messages": true,
+      "name": "MLS_256_MLKEM1024_AES256GCM_SHA512_MLDSA87",
+      "roster_ed25519_key_is_new_leaf_key": false,
+      "signature_scheme": "MLDSA87"
+    },
+    {
+      "id": "0x004e",
+      "migrates_and_messages": true,
+      "name": "MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519",
+      "roster_ed25519_key_is_new_leaf_key": true,
+      "signature_scheme": "ED25519"
+    },
+    {
+      "id": "0x004f",
+      "migrates_and_messages": true,
+      "name": "MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519",
+      "roster_ed25519_key_is_new_leaf_key": true,
+      "signature_scheme": "ED25519"
+    },
+    {
+      "id": "0x0050",
+      "migrates_and_messages": true,
+      "name": "MLS_128_MLKEM768_AES256GCM_SHA384_P256",
+      "roster_ed25519_key_is_new_leaf_key": false,
+      "signature_scheme": "ECDSA_SECP256R1_SHA256"
+    },
+    {
+      "id": "0x0052",
+      "migrates_and_messages": true,
+      "name": "MLS_128_MLKEM768X25519_CHACHA20POLY1305_SHA384_MLDSA44",
+      "roster_ed25519_key_is_new_leaf_key": false,
+      "signature_scheme": "MLDSA44"
+    },
+    {
+      "id": "0x0051",
+      "migrates_and_messages": true,
+      "name": "MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65",
+      "roster_ed25519_key_is_new_leaf_key": false,
+      "signature_scheme": "MLDSA65"
+    },
+    {
+      "id": "0x0907",
+      "migrates_and_messages": true,
+      "name": "MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87",
+      "roster_ed25519_key_is_new_leaf_key": false,
+      "signature_scheme": "MLDSA87"
+    },
+    {
+      "id": "0xf042",
+      "migrates_and_messages": true,
+      "name": "MLS_128_MLKEM768_AES256GCM_SHA384_Ed25519",
+      "roster_ed25519_key_is_new_leaf_key": true,
+      "signature_scheme": "ED25519"
+    }
+  ],
+  "summary": {
+    "vectors": [
+      "v1_group_three_members_exchange_messages",
+      "migrate_to_hybrid_all_members_join_exporters_match",
+      "conversation_id_and_state_hash_unchanged_across_migration",
+      "valid_transition_accepted_and_serialises",
+      "downgrade_hybrid_to_classical_rejected",
+      "equal_generation_lower_profile_rejected",
+      "unauthorized_author_rejected",
+      "tampered_fields_fail_signature",
+      "authorised_author_changing_state_hash_rejected",
+      "non_roster_member_cannot_join_new_group",
+      "joiner_rejects_welcome_not_matching_transition",
+      "old_group_tail_message_after_0_old_epoch_advances",
+      "old_group_tail_message_after_1_old_epoch_advances",
+      "old_group_tail_message_after_2_old_epoch_advances",
+      "old_group_tail_message_after_3_old_epoch_advances",
+      "old_group_tail_message_after_4_old_epoch_advances",
+      "old_group_stays_live_in_mls_after_migration",
+      "replay_of_applied_transition_rejected_idempotent",
+      "stale_parent_rejected",
+      "concurrent_competing_migrations_are_order_dependent"
+    ]
+  },
+  "tool_versions": {
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+    "locked_dependencies": {
+      "ed25519-dalek": "2.2.0",
+      "hpke-rs": "0.7.0",
+      "hpke-rs-rust-crypto": "0.7.0",
+      "ml-dsa": "0.1.1",
+      "ml-kem": "0.3.2",
+      "openmls": "0.9.0",
+      "openmls_basic_credential": "0.6.0",
+      "openmls_memory_storage": "0.6.0",
+      "openmls_rust_crypto": "0.6.0",
+      "openmls_traits": "0.6.0",
+      "serde": "1.0.229",
+      "serde_json": "1.0.151",
+      "wasm-bindgen": "0.2.129",
+      "x-wing": "0.1.0",
+      "x25519-dalek": "2.0.1"
+    },
+    "node": "v24.14.0",
+    "openmls": "0.9.0 (features fork-resolution, draft-ietf-mls-pq-ciphersuites; js on wasm32)",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "wasm-bindgen-cli": "0.2.129"
+  },
+  "vectors": [
+    {
+      "expectation": "classical v1 group with alice, bob, carol: every member reads every other member's message",
+      "name": "v1_group_three_members_exchange_messages",
+      "observed": {
+        "ciphersuite": 1,
+        "epoch": 1,
+        "members": 3
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "reboot into the hybrid suite: new MLS group id, all 3 members join, equal exporter secret, mesh messaging works, exporter differs from the old group",
+      "name": "migrate_to_hybrid_all_members_join_exporters_match",
+      "observed": {
+        "exporters_equal": true,
+        "group_id_changed": true,
+        "members": 3,
+        "mesh_messages": true,
+        "new_ciphersuite": 79,
+        "new_epoch": 1
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "ConversationID and the GroupControlState hash are identical before and after; the new MLS group carries them in its GroupContext binding",
+      "name": "conversation_id_and_state_hash_unchanged_across_migration",
+      "observed": {
+        "binding_in_new_group_context_all_members": true,
+        "conversation_id_unchanged": true,
+        "floor_generation_after": 2,
+        "state_hash_unchanged": true
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "a correctly signed authorised upgrade passes verify_transition on every member; the diagnostic JSON round-trips",
+      "name": "valid_transition_accepted_and_serialises",
+      "observed": {
+        "accepted": true,
+        "roundtrip": true,
+        "signed_bytes_start_with_label": true
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "after migrating to hybrid (generation 2), an authorised, correctly signed transition back to the classical suite is rejected: Downgrade at its true generation, ProfileGenerationMismatch if it claims a higher generation",
+      "name": "downgrade_hybrid_to_classical_rejected",
+      "observed": {
+        "classical_at_gen1": "Downgrade",
+        "classical_claiming_gen3": "ProfileGenerationMismatch",
+        "floor_unchanged": true
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "at generation 2 on 0x004F, a transition to another generation-2 profile (0x004E, smaller profile id) is rejected as NotAboveFloor; the unregistered ciphersuite 0x0007 is rejected as UnregisteredProfile",
+      "name": "equal_generation_lower_profile_rejected",
+      "observed": {
+        "equal_generation_other_profile": "NotAboveFloor",
+        "unregistered_profile": "UnregisteredProfile"
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "a roster member that is not in the migration authority set (bob, plain member) is rejected as Unauthorized even with a valid signature; a signer outside the roster is UnknownAuthor; the author-side API refuses before building anything",
+      "name": "unauthorized_author_rejected",
+      "observed": {
+        "author_side_api_refuses": "Unauthorized",
+        "member_author": "Unauthorized",
+        "no_group_created": true,
+        "non_roster_author": "UnknownAuthor"
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "changing new group id, ciphersuite, generation, state hash, old group id or author after signing yields BadSignature; a signature by another roster key is BadSignature",
+      "name": "tampered_fields_fail_signature",
+      "observed": {
+        "baseline_untampered": "Accepted",
+        "signature_by_other_roster_key": "BadSignature",
+        "signature_without_domain_label": "BadSignature",
+        "tampered": {
+          "author_swapped_to_bob": "BadSignature",
+          "new_ciphersuite": "BadSignature",
+          "new_generation": "BadSignature",
+          "new_group_id": "BadSignature",
+          "old_group_id": "BadSignature",
+          "state_hash": "BadSignature"
+        }
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "an admin that correctly signs a transition carrying a different GroupControlState hash is rejected as StateHashMismatch (the migration may not change group authority)",
+      "name": "authorised_author_changing_state_hash_rejected",
+      "observed": {
+        "result": "StateHashMismatch"
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "(a) a device outside the welcome cannot process it; (b) the author-side filter refuses a non-roster key package; (c) a rogue authorised author that includes a non-roster key package is caught by every honest joiner's staged-welcome roster check and nobody joins",
+      "name": "non_roster_member_cannot_join_new_group",
+      "observed": {
+        "a_outsider_cannot_process_welcome": true,
+        "b_author_filter": "KeyPackageNotInRoster",
+        "b_no_group_created": true,
+        "c_nobody_joined": true,
+        "c_rogue_author_bob": "UnexpectedMember",
+        "c_rogue_author_carol": "UnexpectedMember"
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "a joiner refuses a welcome whose MLS group id or ciphersuite differs from the signed transition it was paired with; the matching pairing is accepted; a joiner whose staged welcome was rejected cannot retry with the same key package",
+      "name": "joiner_rejects_welcome_not_matching_transition",
+      "observed": {
+        "ciphersuite_differs": "WelcomeCiphersuiteMismatch",
+        "group_id_differs": "WelcomeGroupIdMismatch",
+        "matching_transition": "Accepted",
+        "retry_after_rejected_staging_with_same_key_package": "MlsError",
+        "retry_error": "No matching key package was found in the key store."
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "tail message from the last pre-migration epoch, delivered after migration and 0 old-group commit(s), is decryptable (past_epoch_window = 2)",
+      "name": "old_group_tail_message_after_0_old_epoch_advances",
+      "observed": {
+        "alice_decrypts": true,
+        "carol_decrypts": true,
+        "lag": 0,
+        "old_epoch_unchanged_by_migration": true
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "tail message from the last pre-migration epoch, delivered after migration and 1 old-group commit(s), is decryptable (past_epoch_window = 2)",
+      "name": "old_group_tail_message_after_1_old_epoch_advances",
+      "observed": {
+        "alice_decrypts": true,
+        "carol_decrypts": true,
+        "lag": 1,
+        "old_epoch_unchanged_by_migration": true
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "tail message from the last pre-migration epoch, delivered after migration and 2 old-group commit(s), is decryptable (past_epoch_window = 2)",
+      "name": "old_group_tail_message_after_2_old_epoch_advances",
+      "observed": {
+        "alice_decrypts": true,
+        "carol_decrypts": true,
+        "lag": 2,
+        "old_epoch_unchanged_by_migration": true
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "the same tail message after 3 old-group commits (window 2 exceeded) is NOT decryptable",
+      "name": "old_group_tail_message_after_3_old_epoch_advances",
+      "observed": {
+        "alice_decrypts": false,
+        "carol_decrypts": false,
+        "lag": 3,
+        "old_epoch_unchanged_by_migration": true
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "the same tail message after 4 old-group commits (window 2 exceeded) is NOT decryptable",
+      "name": "old_group_tail_message_after_4_old_epoch_advances",
+      "observed": {
+        "alice_decrypts": false,
+        "carol_decrypts": false,
+        "lag": 4,
+        "old_epoch_unchanged_by_migration": true
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "INFORMATIONAL: migration does not retire the old MLS group; after migration the old group still sends, receives and commits (an OM-level seal is required, not provided by reboot)",
+      "name": "old_group_stays_live_in_mls_after_migration",
+      "observed": {
+        "old_group_commit_accepted_after_migration": true,
+        "old_group_message_read_after_migration": true
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "after applying the migration, the same transition is rejected as AlreadyApplied and applying the floor twice changes nothing",
+      "name": "replay_of_applied_transition_rejected_idempotent",
+      "observed": {
+        "floor_idempotent": true,
+        "replay": "AlreadyApplied",
+        "resigned_replay": "AlreadyApplied"
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "a validly signed upgrade whose old group/generation is not the current floor (made against a stale view) is rejected as StaleParent",
+      "name": "stale_parent_rejected",
+      "observed": {
+        "result": "StaleParent"
+      },
+      "result": "pass"
+    },
+    {
+      "expectation": "INFORMATIONAL: two admins sign different valid migrations from the same parent; each verifier accepts the one it sees first and rejects the other, so two verifiers with opposite arrival order diverge (verify_transition alone does not converge; ADR-0173 canonical-successor ordering is required)",
+      "name": "concurrent_competing_migrations_are_order_dependent",
+      "observed": {
+        "verifier_1_order_alice_then_bob": [
+          "Accepted",
+          "NotAboveFloor"
+        ],
+        "verifier_2_order_bob_then_alice": [
+          "Accepted",
+          "NotAboveFloor"
+        ],
+        "verifiers_end_on_different_groups": true
+      },
+      "result": "pass"
+    }
+  ],
+  "vectors_passed": 20,
+  "vectors_total": 20
+}

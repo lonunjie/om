@@ -26,7 +26,7 @@ group structs to the registry makes them validate the group vectors with no per-
 corpus is untouched. The Node harness already reads `OM_REG`; the Rust codec embeds the registries with `include_str!` and needs a
 runtime override added ([`verification/bounded/cross_wave_feasibility.py`](../../verification/bounded/cross_wave_feasibility.py) builds such an overlay and is the pattern). Then:
 
-1. Write `spec/cddl/group.cddl`; add structs to [`om-numeric-fields.json`](../../spec/registries/om-numeric-fields.json), types 28-31 to [`om-object-types.json`](../../spec/registries/om-object-types.json), labels to
+1. Write [`spec/cddl/group.cddl`](../../spec/cddl/group.cddl); add structs to [`om-numeric-fields.json`](../../spec/registries/om-numeric-fields.json), types 28-31 to [`om-object-types.json`](../../spec/registries/om-object-types.json), labels to
    [`om-domain-separation.json`](../../spec/registries/om-domain-separation.json). Keep the three registry files byte-stable apart from additions (`json.dumps(indent=2,
    ensure_ascii=False)` round-trips them). New enums need `enum_value_waves` entries.
 2. Generate vectors by importing [`gen_vectors.py`](../../verification/prototypes/v005-encoding/gen/gen_vectors.py) as a module and patching its `TYPES`

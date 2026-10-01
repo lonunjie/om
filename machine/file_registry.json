@@ -1341,6 +1341,20 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0175-v019-group-migration-is-an-om-level-authenticated-transition.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0176-v004-groups-wire-freeze.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -5835,6 +5849,13 @@
       "authority": "normative_logical_schema"
     },
     {
+      "path": "spec/cddl/group.cddl",
+      "class": "spec_artifact",
+      "domain": "groups",
+      "license": "Apache-2.0",
+      "authority": "normative_wire_schema"
+    },
+    {
       "path": "spec/cddl/home-api.cddl",
       "class": "spec_artifact",
       "domain": "provider_deployment_supply_chain",
@@ -6344,6 +6365,13 @@
       "domain": "crypto_1to1",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/registries/om-w1-event-bodies.json",
+      "class": "spec_artifact",
+      "domain": "groups",
+      "license": "Apache-2.0",
+      "authority": "normative_wire_schema"
     },
     {
       "path": "tools/build_manifest.py",
@@ -7291,6 +7319,97 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/v004-group-wire/.gitignore",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-group-wire/README.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/prototypes/v004-group-wire/additive.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-group-wire/assemble.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-group-wire/build_semantic.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-group-wire/cddl_check_group.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-group-wire/check_semantic.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-group-wire/gen_group_vectors.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-group-wire/gen_semantic.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-group-wire/overlay.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-group-wire/run.sh",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-group-wire/semantic.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v004-group-wire/semantic.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/v004-mls-ordering/README.md",
       "class": "verification_doc",
       "domain": "architecture_verification",
@@ -7998,6 +8117,62 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/v019-hybrid-pq-migration/README.md",
+      "class": "verification_doc",
+      "domain": "architecture_verification",
+      "license": "CC-BY-SA-4.0",
+      "authority": "verification_evidence_non_normative"
+    },
+    {
+      "path": "verification/prototypes/v019-hybrid-pq-migration/run.sh",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v019-hybrid-pq-migration/rust/.gitignore",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v019-hybrid-pq-migration/rust/Cargo.lock",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v019-hybrid-pq-migration/rust/Cargo.toml",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v019-hybrid-pq-migration/rust/rust-toolchain.toml",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v019-hybrid-pq-migration/rust/src/lib.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v019-hybrid-pq-migration/rust/src/main.rs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/v024-lan-wire/node_lan_codec.mjs",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -8432,6 +8607,13 @@
       "authority": "machine_verification_evidence"
     },
     {
+      "path": "verification/results/v004-group-wire-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
       "path": "verification/results/v004-mls-ordering-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
@@ -8517,6 +8699,13 @@
     },
     {
       "path": "verification/results/v016-room-moderation-latest.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/results/v019-hybrid-pq-migration-latest.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
@@ -9959,6 +10148,20 @@
     },
     {
       "path": "verification/vectors/tla-ServiceAuthority_trap_stale_window.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/v004-group-wire-object-vectors.json.gz",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/v004-group-wire-semantic.json.gz",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

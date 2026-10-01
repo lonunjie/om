@@ -1,5 +1,5 @@
 {
-  "$comment": "Logical binding between OM group policy state (GroupControlState) and MLS epoch transitions. GroupControlTransition is the logical union of GroupControlIntent and GroupCommitBinding (ADR-0128 rule 21).",
+  "$comment": "Logical binding between OM group policy state (GroupControlState) and MLS epoch transitions. GroupControlTransition is the logical union of GroupControlIntent and GroupCommitBinding (ADR-0128 rule 21). Frozen wire forms (ADR-0176): GroupControlState 28, GroupControlIntent 29, GroupCommitBinding 30 in spec/cddl/group.cddl; this file is the logical description.",
   "GroupControlTransition": {
     "previous_group_state_hash": "canonical OM group-policy state hash",
     "previous_mls_epoch": "MLS epoch expected by the transition",

@@ -209,7 +209,7 @@ OM-Crypto-v1 provides different confidentiality properties to different conversa
 Rules:
 
 1. No UI, profile, marketing or documentation may claim PQ confidentiality for v1 groups or group calls (R-173). Security details may show a per-conversation "Post-quantum protection: on/off" fact derived from the active profile.
-2. The v1 group wire MUST carry an authenticated, downgrade-safe **ReInit/migration** path from the v1 suite to a hybrid-PQ MLS profile. The path preserves `ConversationID`, GroupControlState authority and roster, and it must be exercised against an experimental hybrid suite before group wire freeze (R-174, V-019).
+2. The v1 group wire MUST carry an authenticated, downgrade-safe **migration** path from the v1 suite to a hybrid-PQ MLS profile. The path preserves `ConversationID`, GroupControlState authority and roster. It is an OM-level authenticated transition built on a library "new group, same members" primitive until a library implements RFC 9420 ReInit (OpenMLS 0.9.0 does not); it was exercised against an experimental hybrid suite (R-174, R-404..R-406, ADR-0175, V-019).
 3. **Adoption triggers** for a hybrid-PQ MLS CryptoProfile. All are required:
    - an IETF-published (RFC or WG-last-call-stable) ciphersuite/combiner definition with assigned codepoints;
    - ≥2 independent interoperable implementations passing that suite's vectors;

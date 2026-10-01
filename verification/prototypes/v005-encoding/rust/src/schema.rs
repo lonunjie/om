@@ -128,9 +128,17 @@ fn parse_fields(a: &J) -> Vec<Field> {
 
 impl Registry {
     pub fn load() -> Registry {
-        let f: J = serde_json::from_str(FIELDS_JSON).unwrap();
-        let t: J = serde_json::from_str(TYPES_JSON).unwrap();
-        let p: J = serde_json::from_str(PROFILE_JSON).unwrap();
+        // OM_REG (native only): read the registries from this directory instead of the embedded copies. Used to
+        // check an additive later-wave overlay (V-004 W1 groups) without rebuilding the codec. Unset = embedded.
+        let src = |file: &str, embedded: &str| -> String {
+            match std::env::var("OM_REG") {
+                Ok(dir) => std::fs::read_to_string(std::path::Path::new(&dir).join(file)).unwrap_or_else(|e| panic!("OM_REG {dir}/{file}: {e}")),
+                Err(_) => embedded.to_string(),
+            }
+        };
+        let f: J = serde_json::from_str(&src("om-numeric-fields.json", FIELDS_JSON)).unwrap();
+        let t: J = serde_json::from_str(&src("om-object-types.json", TYPES_JSON)).unwrap();
+        let p: J = serde_json::from_str(&src("om-cbor-profile.json", PROFILE_JSON)).unwrap();
         let common = parse_fields(&f["common_top_level_fields"]);
         let mut structs = HashMap::new();
         for (name, s) in f["structs"].as_object().unwrap() {
@@ -180,7 +188,7 @@ impl Registry {
         if let Some(ex) = f.get("extensions").and_then(|x| x.as_array()) {
             known_ext.extend(ex.iter().map(|e| e["name"].as_str().unwrap().to_string()));
         }
-        let c: J = serde_json::from_str(CRYPTO_JSON).unwrap();
+        let c: J = serde_json::from_str(&src("om-crypto-profiles.json", CRYPTO_JSON)).unwrap();
         let akb = f["structs"]["AsyncKeyBundle"]["fields"].as_array().unwrap();
         let mut bundle_required = HashMap::new();
         for prof in c["profiles"].as_array().unwrap() {

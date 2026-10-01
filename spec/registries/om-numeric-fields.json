@@ -231,6 +231,67 @@
       "1": "open",
       "2": "resolved",
       "3": "archived"
+    },
+    "group_operation": {
+      "1": "member.admit",
+      "2": "member.remove",
+      "3": "member.leave",
+      "4": "device.add",
+      "5": "device.remove_revoked",
+      "6": "profile.set",
+      "7": "disappearing_timer.set",
+      "8": "role.define",
+      "9": "role.assign",
+      "10": "invite_link.issue",
+      "11": "invite_link.revoke",
+      "12": "invite_link.redeem",
+      "13": "admission.set",
+      "14": "security_policy.set",
+      "15": "governance.set",
+      "16": "coordinator.replace"
+    },
+    "group_binding_kind": {
+      "1": "coordinator_sequenced",
+      "2": "direct_reduction",
+      "3": "recovery"
+    },
+    "group_authorization_kind": {
+      "1": "capability_at_parent",
+      "2": "space_delegated",
+      "3": "membership_basis",
+      "4": "account_control_evidence",
+      "5": "invite_link"
+    },
+    "group_join_rule": {
+      "1": "invite_only",
+      "2": "admin_approval",
+      "3": "open"
+    },
+    "group_new_device_policy": {
+      "1": "automatic",
+      "2": "admin_approval"
+    },
+    "group_history_policy": {
+      "1": "since_join",
+      "2": "recent_window",
+      "3": "full_shared_history"
+    },
+    "group_endpoint_policy": {
+      "1": "account_devices",
+      "2": "service_endpoints"
+    },
+    "group_invite_basis": {
+      "1": "capability",
+      "2": "space_delegated"
+    },
+    "poll_selection_mode": {
+      "1": "single",
+      "2": "multiple"
+    },
+    "poll_results_visibility": {
+      "1": "immediate",
+      "2": "after_vote",
+      "3": "after_close"
     }
   },
   "structs": {
@@ -4888,6 +4949,1506 @@
             ]
           },
           "req": false
+        }
+      ]
+    },
+    "GroupProfile": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "name",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "avatar_ref",
+          "type": {
+            "tstr": [
+              1,
+              2048
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 2,
+          "name": "description",
+          "type": {
+            "tstr": [
+              1,
+              4096
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "GroupMembership": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "principal_ref",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "membership_incarnation",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "role_ids",
+          "type": {
+            "set": {
+              "bstr": [
+                16,
+                16
+              ]
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 3,
+          "name": "endpoint_policy",
+          "type": {
+            "enum": "group_endpoint_policy"
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupGovernance": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "principals",
+          "type": {
+            "set": {
+              "ref": "PrincipalRef"
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "approval_threshold",
+          "type": {
+            "uint": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "protected_operations",
+          "type": {
+            "set": {
+              "enum": "group_operation"
+            },
+            "n": [
+              1,
+              16
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "GroupPolicy": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "join_rule",
+          "type": {
+            "enum": "group_join_rule"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "new_device_policy",
+          "type": {
+            "enum": "group_new_device_policy"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "history_policy",
+          "type": {
+            "enum": "group_history_policy"
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "history_window_seconds",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": false,
+          "note": "required when history_policy is recent_window, otherwise absent"
+        },
+        {
+          "key": 4,
+          "name": "disappearing_timer",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": false,
+          "note": "seconds; absent = off (ADR-0128 rule 16)"
+        },
+        {
+          "key": 5,
+          "name": "security_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "sequencing_timeout",
+          "type": {
+            "uint": [
+              30,
+              3600
+            ]
+          },
+          "req": true,
+          "note": "seconds (ADR-0173 rule 6)"
+        },
+        {
+          "key": 7,
+          "name": "past_epoch_window",
+          "type": {
+            "uint": [
+              0,
+              8
+            ]
+          },
+          "req": true
+        }
+      ],
+      "reserved": [
+        {
+          "key": 8,
+          "name": "service_policy",
+          "note": "W4 services_bots"
+        },
+        {
+          "key": 9,
+          "name": "space_authority_binding",
+          "note": "W3 communities_publications"
+        }
+      ]
+    },
+    "GroupInvite": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "join_ref",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "issuer",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "issuer_incarnation",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "authorization_basis",
+          "type": {
+            "enum": "group_invite_basis"
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "expiry",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "max_uses",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 6,
+          "name": "uses",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupControlState": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "conversation_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "state_version",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "previous_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "profile",
+          "type": {
+            "ref": "GroupProfile"
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "membership",
+          "type": {
+            "set": {
+              "ref": "GroupMembership"
+            },
+            "n": [
+              1,
+              512
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "role_definitions",
+          "type": {
+            "set": {
+              "ref": "RoleDefinition"
+            },
+            "n": [
+              1,
+              128
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 8,
+          "name": "governance",
+          "type": {
+            "ref": "GroupGovernance"
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "policy",
+          "type": {
+            "ref": "GroupPolicy"
+          },
+          "req": true
+        },
+        {
+          "key": 10,
+          "name": "coordinator_succession",
+          "type": {
+            "array": {
+              "bstr": [
+                16,
+                32
+              ]
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 11,
+          "name": "invites",
+          "type": {
+            "set": {
+              "ref": "GroupInvite"
+            },
+            "n": [
+              1,
+              256
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 12,
+          "name": "mls_epoch_ref",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true,
+          "note": "MLS epoch of the Commit that installed this state version"
+        }
+      ]
+    },
+    "GroupAuthorization": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "kind",
+          "type": {
+            "enum": "group_authorization_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "acs_head_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false,
+          "note": "kind account_control_evidence: validated AccountControlState head naming the revoked or quarantined device"
+        },
+        {
+          "key": 2,
+          "name": "space_intent",
+          "type": {
+            "signed": "SpaceDelegatedIntent"
+          },
+          "req": false,
+          "note": "kind space_delegated"
+        },
+        {
+          "key": 3,
+          "name": "join_ref",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": false,
+          "note": "kind invite_link"
+        }
+      ]
+    },
+    "GroupArgsMemberAdmit": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "principal_ref",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "membership_incarnation",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "role_ids",
+          "type": {
+            "set": {
+              "bstr": [
+                16,
+                16
+              ]
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 3,
+          "name": "endpoint_policy",
+          "type": {
+            "enum": "group_endpoint_policy"
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "join_ref",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": false,
+          "note": "admin approval of a link join request: counts one use of that invite"
+        }
+      ]
+    },
+    "GroupArgsMemberRemove": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "principal_ref",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "target_incarnation",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupArgsMemberLeave": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "principal_ref",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "target_incarnation",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupArgsDeviceAdd": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "principal_ref",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "target_incarnation",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "device_id",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "acs_generation",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupArgsDeviceRemoveRevoked": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "principal_ref",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "target_incarnation",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "device_id",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "acs_generation",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupArgsProfileSet": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "profile",
+          "type": {
+            "ref": "GroupProfile"
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupArgsDisappearingTimerSet": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "seconds",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true,
+          "note": "0 turns the timer off; the resulting policy then omits disappearing_timer"
+        }
+      ]
+    },
+    "GroupArgsRoleDefine": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "role",
+          "type": {
+            "ref": "RoleDefinition"
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupArgsRoleAssign": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "principal_ref",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "target_incarnation",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "role_ids",
+          "type": {
+            "set": {
+              "bstr": [
+                16,
+                16
+              ]
+            },
+            "n": [
+              0,
+              64
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupArgsInviteLinkIssue": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "invite",
+          "type": {
+            "ref": "GroupInvite"
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupArgsInviteLinkRevoke": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "join_ref",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupArgsInviteLinkRedeem": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "join_ref",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "principal_ref",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "membership_incarnation",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "endpoint_policy",
+          "type": {
+            "enum": "group_endpoint_policy"
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupArgsAdmissionSet": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "join_rule",
+          "type": {
+            "enum": "group_join_rule"
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupArgsSecurityPolicySet": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "new_device_policy",
+          "type": {
+            "enum": "group_new_device_policy"
+          },
+          "req": false
+        },
+        {
+          "key": 1,
+          "name": "history_policy",
+          "type": {
+            "enum": "group_history_policy"
+          },
+          "req": false
+        },
+        {
+          "key": 2,
+          "name": "history_window_seconds",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 3,
+          "name": "security_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "GroupArgsGovernanceSet": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "governance",
+          "type": {
+            "ref": "GroupGovernance"
+          },
+          "req": false
+        },
+        {
+          "key": 1,
+          "name": "coordinator_succession",
+          "type": {
+            "array": {
+              "bstr": [
+                16,
+                32
+              ]
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "GroupArgsCoordinatorReplace": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "replaced_device",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "new_coordinator",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupControlIntent": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "conversation_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "previous_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "previous_state_version",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "intent_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true,
+          "note": "exact-retry identity (ADR-0163)"
+        },
+        {
+          "key": 6,
+          "name": "operation",
+          "type": {
+            "enum": "group_operation"
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "reducing",
+          "type": {
+            "bool": null
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "args",
+          "type": {
+            "dispatch": {
+              "on": "operation",
+              "table": {
+                "1": "GroupArgsMemberAdmit",
+                "2": "GroupArgsMemberRemove",
+                "3": "GroupArgsMemberLeave",
+                "4": "GroupArgsDeviceAdd",
+                "5": "GroupArgsDeviceRemoveRevoked",
+                "6": "GroupArgsProfileSet",
+                "7": "GroupArgsDisappearingTimerSet",
+                "8": "GroupArgsRoleDefine",
+                "9": "GroupArgsRoleAssign",
+                "10": "GroupArgsInviteLinkIssue",
+                "11": "GroupArgsInviteLinkRevoke",
+                "12": "GroupArgsInviteLinkRedeem",
+                "13": "GroupArgsAdmissionSet",
+                "14": "GroupArgsSecurityPolicySet",
+                "15": "GroupArgsGovernanceSet",
+                "16": "GroupArgsCoordinatorReplace"
+              },
+              "default": "opaque_map"
+            }
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "authorization",
+          "type": {
+            "ref": "GroupAuthorization"
+          },
+          "req": true
+        }
+      ]
+    },
+    "GroupCommitBinding": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "conversation_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "binding_kind",
+          "type": {
+            "enum": "group_binding_kind"
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "reducing",
+          "type": {
+            "bool": null
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "previous_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "previous_state_version",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "previous_mls_epoch",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "resulting_mls_epoch",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "intent_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": false,
+          "note": "absent only for binding_kind recovery"
+        },
+        {
+          "key": 10,
+          "name": "mls_commit_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true,
+          "note": "H(DS-HASH(OM-GROUP-MLS-COMMIT-HASH-v1, MLS Commit bytes))"
+        },
+        {
+          "key": 11,
+          "name": "resulting_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 12,
+          "name": "committer_device",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 13,
+          "name": "readded_devices",
+          "type": {
+            "set": {
+              "bstr": [
+                16,
+                32
+              ]
+            },
+            "n": [
+              1,
+              256
+            ]
+          },
+          "req": false,
+          "note": "recovery only"
+        }
+      ]
+    },
+    "GroupHistoryItem": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "history_item_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "claimed_event_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": false,
+          "note": "inert provenance label"
+        },
+        {
+          "key": 2,
+          "name": "claimed_author",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": false,
+          "note": "inert provenance label"
+        },
+        {
+          "key": 3,
+          "name": "claimed_time",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": false,
+          "note": "inert provenance label"
+        },
+        {
+          "key": 4,
+          "name": "text",
+          "type": {
+            "tstr": [
+              1,
+              4096
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "attachments",
+          "type": {
+            "array": {
+              "ref": "AttachmentRef"
+            },
+            "n": [
+              1,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 6,
+          "name": "reply_to_item",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": false,
+          "note": "bundle-local history_item_id of an earlier item"
+        }
+      ]
+    },
+    "GroupHistoryBundle": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "bundle_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "conversation_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "author_account",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "author_device",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "recipient_account",
+          "type": {
+            "ref": "PrincipalRef"
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "recipient_membership_incarnation",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "group_control_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true
+        },
+        {
+          "key": 9,
+          "name": "mls_epoch_ref",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 10,
+          "name": "creation_nonce",
+          "type": {
+            "bstr": [
+              16,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 11,
+          "name": "items",
+          "type": {
+            "array": {
+              "ref": "GroupHistoryItem"
+            },
+            "n": [
+              1,
+              1024
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "PinSet": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "target_event_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "present",
+          "type": {
+            "bool": null
+          },
+          "req": true
+        }
+      ]
+    },
+    "PollOption": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "option_id",
+          "type": {
+            "uint": [
+              0,
+              255
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "label",
+          "type": {
+            "tstr": [
+              1,
+              256
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "PollCreate": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "question",
+          "type": {
+            "ref": "RichText"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "options",
+          "type": {
+            "array": {
+              "ref": "PollOption"
+            },
+            "n": [
+              2,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "selection_mode",
+          "type": {
+            "enum": "poll_selection_mode"
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "max_selections",
+          "type": {
+            "uint": [
+              2,
+              32
+            ]
+          },
+          "req": false,
+          "note": "multiple only"
+        },
+        {
+          "key": 4,
+          "name": "results_visibility",
+          "type": {
+            "enum": "poll_results_visibility"
+          },
+          "req": true
+        }
+      ]
+    },
+    "PollVote": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "target_poll_event_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "selected_option_ids",
+          "type": {
+            "set": {
+              "uint": [
+                0,
+                255
+              ]
+            },
+            "n": [
+              0,
+              32
+            ]
+          },
+          "req": true,
+          "note": "empty retracts the vote"
+        }
+      ]
+    },
+    "PollClose": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "target_poll_event_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
         }
       ]
     }

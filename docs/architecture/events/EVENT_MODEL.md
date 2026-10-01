@@ -251,6 +251,8 @@ This is an authorized moderator action against another principal's content. It i
 
 ### Polls
 
+W1 types the `pin.set`, `poll.create`, `poll.vote` and `poll.close` bodies (`PinSet`, `PollCreate`, `PollVote`, `PollClose` in [`group.cddl`](../../../spec/cddl/group.cddl); kinds 6, 8, 9, 10) through the W1 event-body overlay [`om-w1-event-bodies.json`](../../../spec/registries/om-w1-event-bodies.json) (ADR-0176). A W0 decoder keeps them opaque.
+
 V1 standardizes convergent poll semantics using:
 
 ```text
