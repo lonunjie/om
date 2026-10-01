@@ -36,4 +36,7 @@ browsers and each criterion has a recorded outcome.
 ## Status
 
 The automatic parts (capabilities, WebCrypto key persistence, passphrase layer) were exercised in Chromium 152 on
-2026-09-29. The PRF ceremonies need a real user-verifying authenticator and have not been run yet.
+2026-09-29. On 2026-10-01 Chrome 154 with a CDP virtual authenticator (CTAP2.1, internal, UV, `hasPrf`) also ran sections
+1-4 end to end, so the PRF code path is logic-checked. That is not V-006 evidence: a virtual authenticator is not a
+platform authenticator, so every real browser/platform run in `results/` is still required. Results now persist across the
+section 2 reload (use **Reset saved results** to start a fresh run).

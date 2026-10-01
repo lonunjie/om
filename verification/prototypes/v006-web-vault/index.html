@@ -53,13 +53,16 @@ is bound to its distribution origin.</p>
 <ul id="foreignOut"></ul>
 
 <h2>Report</h2>
-<button id="copy">Copy report</button> <button id="dl">Download report</button>
+<button id="copy">Copy report</button> <button id="dl">Download report</button> <button id="reset">Reset saved results</button>
 <pre id="report"></pre>
 
 <script>
 "use strict";
 const R = { probe: "om-v006-webdevicevault/1", ts: new Date().toISOString(), origin: location.origin,
   rpId: location.hostname, userAgent: navigator.userAgent, results: {} };
+// Section 2 requires a page reload, which would wipe the report: keep results across reloads of this origin (per-origin, so
+// the 127.0.0.1 run in section 5 starts clean). Capability rows are re-measured on every load and overwrite the saved ones.
+try { const saved = JSON.parse(localStorage.getItem("om-v006-results") || "null"); if (saved) R.results = saved; } catch (e) {}
 const enc = new TextEncoder();
 const b64u = b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
@@ -74,7 +77,10 @@ function show(listId, key, ok, detail) {
   document.getElementById(listId).appendChild(li);
   render();
 }
-function render() { document.getElementById("report").textContent = JSON.stringify(R, null, 2); }
+function render() {
+  try { localStorage.setItem("om-v006-results", JSON.stringify(R.results)); } catch (e) {}
+  document.getElementById("report").textContent = JSON.stringify(R, null, 2);
+}
 
 // ---- IndexedDB helper
 function idb() {
@@ -236,6 +242,7 @@ document.getElementById("foreign").onclick = async () => {
 };
 
 // ---- report
+document.getElementById("reset").onclick = () => { try { localStorage.removeItem("om-v006-results"); } catch (e) {} location.reload(); };
 document.getElementById("copy").onclick = () => navigator.clipboard.writeText(JSON.stringify(R, null, 2));
 document.getElementById("dl").onclick = () => {
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(R, null, 2)], { type: "application/json" }));
