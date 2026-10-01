@@ -68,7 +68,7 @@ enrolls a fresh DeviceID and non-extractable device key, wraps a new vault with 
 
 | Capability | iPhone, Safari 26.6.1 | Android 16, Chrome 154 + Google Password Manager | Android + Bitwarden |
 |---|---|---|---|
-| PRF at create / get | **not returned** (Bitwarden on; iCloud-only retry inconclusive, see below) | yes | **not returned** |
+| PRF at create / get | yes with the non-Bitwarden provider (2026-10-01 20:26 run); **not returned** with Bitwarden | yes | **not returned** |
 | Passkey device-bound (default request) | no: synced | no: synced | no: synced |
 | Non-discoverable platform request | synced | **device-bound (`BE=0`)**, but PRF not enabled at create | device-bound (`BE=0`) |
 | Non-extractable WebCrypto key survives reload | yes | yes | yes |
@@ -80,10 +80,8 @@ Findings: PRF availability depends on the passkey provider the user has selected
 (Bitwarden on both phones) returned no PRF, so the capability-ranked fallback (non-extractable WebCrypto wrapper) is required and
 works. On Android a device-bound credential exists only for the non-discoverable request, and it did not enable PRF at create, so
 it cannot serve as a PRF vault wrapper. Follow-up (Google Password Manager, HTTPS): a non-discoverable platform credential created with `prf: {}` is device-bound (`BE=0`) but reports no PRF at create and returns no PRF output at `get()` (`device_bound_prf_at_get` false), so on this Android a device-bound credential cannot wrap the vault: the vault must use the synced PRF credential or the non-extractable WebCrypto key. The first Android pass over plain-HTTP localhost gave intermittent `NotReadableError`
-from the credential manager; the HTTPS runs did not. Safari on iPhone with the iCloud provider alone did not demonstrate PRF in
-the one retry (the operator could not confirm which provider showed in the sheet), so iOS + iCloud Keychain PRF is still open. The iPhone and an iPad listed only Bitwarden and Chrome/Google as passkey providers (no iCloud Passwords entry, although iCloud Passwords & Keychain sync was on), so that combination could not be tested on iOS. macOS Safari 27 with iCloud Keychain does return PRF.
+from the credential manager; the HTTPS runs did not. A later iPhone Safari run, with Bitwarden not selected, returned PRF at create and get (`prf_wrap_unwrap_across_ceremonies` true, vault and recovery salts distinct, separate RecoveryRoot credential PRF true), all with synced (`BE=1 BS=1`) credentials, matching macOS Safari with iCloud Keychain. The operator could not confirm which provider the sheet named.
 
-**V-006 stays open.** Not yet covered: Windows (Chrome/Edge: no device available); iOS Safari with iCloud Keychain as the only
-provider (PRF unconfirmed); a physical security key; the origin-independent
+**V-006 stays open.** Not yet covered: Windows (Chrome/Edge: no device available); a physical security key; the origin-independent
 recovery path enrolling a fresh DeviceID at a *native* client; and independent review. Results persist across the section 2 reload;
 **Reset saved results** starts a fresh run. [`collector.py`](collector.py) serves the page and receives reports from phones (token-gated).

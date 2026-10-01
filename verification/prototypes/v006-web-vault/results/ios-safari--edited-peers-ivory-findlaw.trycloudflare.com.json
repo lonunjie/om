@@ -1,0 +1,110 @@
+{
+  "probe": "om-v006-webdevicevault/1",
+  "ts": "2026-10-01T12:26:44.379Z",
+  "origin": "https://edited-peers-ivory-findlaw.trycloudflare.com",
+  "rpId": "edited-peers-ivory-findlaw.trycloudflare.com",
+  "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6.1 Mobile/15E148 Safari/604.1",
+  "results": {
+    "secure_context": {
+      "ok": true
+    },
+    "webauthn_api": {
+      "ok": true
+    },
+    "platform_uv_authenticator": {
+      "ok": true
+    },
+    "client_capabilities": {
+      "conditionalCreate": true,
+      "conditionalGet": true,
+      "conditionalMediation": true,
+      "extension:largeBlob": false,
+      "extension:prf": true,
+      "hybridTransport": true,
+      "passkeyPlatformAuthenticator": true,
+      "relatedOrigins": true,
+      "signalAllAcceptedCredentials": true,
+      "signalCurrentUserDetails": true,
+      "signalUnknownCredential": true,
+      "userVerifyingPlatformAuthenticator": true
+    },
+    "prf_extension_advertised": {
+      "ok": true,
+      "detail": "true"
+    },
+    "signalCurrentUserDetails_advertised": {
+      "ok": true
+    },
+    "signalCurrentUserDetails_method": {
+      "ok": true
+    },
+    "indexeddb": {
+      "ok": true
+    },
+    "storage_persisted": {
+      "ok": false
+    },
+    "storage_quota_mb": {
+      "ok": null,
+      "detail": 41232
+    },
+    "storage_persist_granted": {
+      "ok": false
+    },
+    "kek_non_extractable": {
+      "ok": true
+    },
+    "kek_stored_in_indexeddb": {
+      "ok": true,
+      "detail": "reload the page, then press \u201cCheck after reload\u201d"
+    },
+    "kek_survives_reload": {
+      "ok": true
+    },
+    "vault_credential_id": "MWTCaCt_Z03j5hYRbzlEIjnhUwQ",
+    "prf_enabled_at_create": {
+      "ok": true,
+      "detail": "{\"enabled\":true,\"results\":{\"first\":{}}}"
+    },
+    "prf_output_at_create": {
+      "ok": true
+    },
+    "vault_credential_device_bound": {
+      "ok": false,
+      "detail": "BE=true BS=true"
+    },
+    "signalCurrentUserDetails_call": {
+      "ok": true
+    },
+    "prf_wrap_unwrap_across_ceremonies": {
+      "ok": true
+    },
+    "vault_and_recovery_salts_distinct_outputs": {
+      "ok": true,
+      "detail": ""
+    },
+    "unlock_uv_flag": {
+      "ok": true
+    },
+    "recovery_credential_id": "wDwFHtE0KnE6uIUmjlpi1bU3ICs",
+    "separate_recovery_credential_prf": {
+      "ok": true
+    },
+    "recovery_credential_synced": {
+      "ok": true,
+      "detail": "BE=true BS=true"
+    },
+    "device_bound_platform": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=internal,hybrid prf=true"
+    },
+    "device_bound_non_discoverable_platform": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=internal,hybrid prf=true"
+    }
+  },
+  "harness": {
+    "passkey_provider": "iPhone, Safari 26.6.1; Bitwarden not selected (PRF returned), operator reports the Passwords app was reinstalled; provider shown in the sheet not confirmed by the operator",
+    "sections": "1-4 and 6 only (no migration on this run)"
+  }
+}

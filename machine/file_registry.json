@@ -7466,6 +7466,13 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/v006-web-vault/results/ios-safari--edited-peers-ivory-findlaw.trycloudflare.com.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/v006-web-vault/results/ios-safari--photographer-cheese-zshops-cure.trycloudflare.com.json",
       "class": "verification_tool",
       "domain": "architecture_verification",
