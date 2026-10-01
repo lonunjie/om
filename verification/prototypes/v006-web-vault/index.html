@@ -167,7 +167,16 @@ async function createCred(label, salt) {
   const ad = cred.response.getAuthenticatorData ? cred.response.getAuthenticatorData() : null;
   return { cred, ext, flags: ad ? flags(ad) : null };
 }
+// Safari rejects a ceremony with "The document is not focused" if it starts right after a previous sheet closed; focus returns on
+// its own after ~1-3 s. Wait for it (bounded) and record how long, so the product unlock flow knows chained prompts need this.
+async function whenFocused() {
+  const t0 = performance.now();
+  while (!document.hasFocus() && performance.now() - t0 < 10000) await new Promise(r => setTimeout(r, 100));
+  const ms = Math.round(performance.now() - t0);
+  if (ms > 0) show("prfOut", "focus_wait_before_ceremony_ms", null, `${ms} (document was not focused after the previous prompt closed)`);
+}
 async function prfEval(credId, salts) {
+  await whenFocused();
   const a = await navigator.credentials.get({ publicKey: { challenge: rand(32), rpId: location.hostname, userVerification: "required",
     allowCredentials: [{ type: "public-key", id: credId }], extensions: { prf: { eval: salts } } } });
   return { res: a.getClientExtensionResults().prf, flags: flags(a.response.authenticatorData) };
