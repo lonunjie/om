@@ -1,3 +1,7 @@
+# 2026-10-01 — V-006 device-bound, migration and phone results
+
+- Probe sections 6 (device-bound credential availability) and 7 (new-origin migration via a recovery key) plus `collector.py`. Recorded on macOS Chrome/Safari/Firefox, iPhone Safari 26.6.1 and Android 16 Chrome 154. New-origin migration passes everywhere; PRF depends on the passkey provider (Bitwarden returns none, Google Password Manager and iCloud Keychain on macOS do); no device-bound credential from platform authenticators on macOS/iOS; Android's non-discoverable request gives a device-bound credential without PRF. V-006 stays open (see the prototype README).
+
 # 2026-10-01 — V-006 macOS browser results
 
 - Recorded Chrome 154, Safari 27.0.1 and Firefox 157 runs (`verification/prototypes/v006-web-vault/results/`). PRF works in all three; platform passkeys are iCloud-synced (not device-bound); Firefox lacks `signalCurrentUserDetails`; Safari needs a focus wait between chained prompts.

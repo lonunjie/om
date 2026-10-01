@@ -1,6 +1,6 @@
 {
   "probe": "om-v006-webdevicevault/1",
-  "ts": "2026-10-01T11:40:05.719Z",
+  "ts": "2026-10-01T11:49:49.503Z",
   "origin": "https://depending-intranet-johnson-kids.trycloudflare.com",
   "rpId": "depending-intranet-johnson-kids.trycloudflare.com",
   "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6.1 Mobile/15E148 Safari/604.1",
@@ -52,7 +52,7 @@
       "ok": false,
       "detail": "NotAllowedError: The request is not allowed by the user agent or the platform in the current context, possibly because the user denied permission."
     },
-    "vault_credential_id": "eYiLgmQna6D7NpGaSmxzEg",
+    "vault_credential_id": "ZlK91uuQVPxnyfjtOOrD8A",
     "prf_enabled_at_create": {
       "ok": false,
       "detail": "null"
@@ -71,21 +71,16 @@
       "ok": false,
       "detail": "no PRF output on get()"
     },
-    "recovery_credential_id": "J7ms0ekfbUUQWHF8Z52qwg",
+    "recovery_credential_id": "Y62jmSWUooYidxYqsorsHQ",
     "separate_recovery_credential_prf": {
       "ok": false
     },
     "recovery_credential_synced": {
       "ok": true,
       "detail": "BE=true BS=true"
-    },
-    "migration_old_device_id": "Fs2tXNd39Jt7FbyASpTf4w",
-    "migration_old_origin_bundle_created": {
-      "ok": true,
-      "detail": "origin https://depending-intranet-johnson-kids.trycloudflare.com, recovery key 64 chars, bundle 474 chars"
-    },
-    "migration_old_origin_state_destroyed": {
-      "ok": true
     }
+  },
+  "harness": {
+    "passkey_provider": "uncertain: operator had enabled iCloud Passwords and disabled Bitwarden, PRF still absent; inconclusive. Earlier (Bitwarden on) version of this file is in git history"
   }
 }

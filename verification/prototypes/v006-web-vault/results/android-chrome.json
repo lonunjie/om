@@ -68,7 +68,7 @@
     },
     "kek_stored_in_indexeddb": {
       "ok": true,
-      "detail": "reload the page, then press “Check after reload”"
+      "detail": "reload the page, then press \u201cCheck after reload\u201d"
     },
     "kek_survives_reload": {
       "ok": true
@@ -165,6 +165,7 @@
     "origins": {
       "old": "https://depending-intranet-johnson-kids.trycloudflare.com/",
       "new": "https://photographer-cheese-zshops-cure.trycloudflare.com/"
-    }
+    },
+    "passkey_provider": "Bitwarden (operator-chosen in the sheet; Google Password Manager errored on plain-HTTP localhost earlier)"
   }
 }

@@ -57,6 +57,33 @@ focused") for about 1.4 s, so chained prompts need a focus wait or a fresh user 
 
 A CDP virtual authenticator run on 2026-10-01 only logic-checked the page and is not evidence.
 
-**V-006 stays open.** Not yet covered: Windows (Chrome/Edge), iOS Safari, Android Chrome (need HTTPS); a device-bound credential
-path (security key or non-synced profile); new-origin enrollment migration; the origin-independent recovery path enrolling a fresh
-DeviceID; and independent review. Results persist across the section 2 reload; **Reset saved results** starts a fresh run.
+### Device-bound credential and new-origin migration (sections 6-7)
+
+macOS (Chrome, Safari, Firefox): every platform-authenticator request variant returned a synced credential (`BE=1 BS=1`); the
+security-key and phone variants only time out without a key present (Safari's security-key hint and Firefox/Chrome's hybrid hint
+fall back to a synced platform passkey). Migration passes everywhere: a recovery key at an unrelated origin restores the state,
+enrolls a fresh DeviceID and non-extractable device key, wraps a new vault with a new PRF credential, and the vault reopens.
+
+### Phones (2026-10-01; HTTPS via temporary trycloudflare tunnels, two hostnames as old/new origin)
+
+| Capability | iPhone, Safari 26.6.1 | Android 16, Chrome 154 + Google Password Manager | Android + Bitwarden |
+|---|---|---|---|
+| PRF at create / get | **not returned** (Bitwarden on; iCloud-only retry inconclusive, see below) | yes | **not returned** |
+| Passkey device-bound (default request) | no: synced | no: synced | no: synced |
+| Non-discoverable platform request | synced | **device-bound (`BE=0`)**, but PRF not enabled at create | device-bound (`BE=0`) |
+| Non-extractable WebCrypto key survives reload | yes | yes | yes |
+| `signalCurrentUserDetails` | yes | yes | yes |
+| New-origin migration (recovery key at second hostname) | yes (fell back to WebCrypto wrapper, no PRF) | yes (fell back; run with Bitwarden) | yes |
+| Credential rejected at a different RP ID | yes | not re-run | not re-run |
+
+Findings: PRF availability depends on the passkey provider the user has selected, not only on the browser. Third-party providers
+(Bitwarden on both phones) returned no PRF, so the capability-ranked fallback (non-extractable WebCrypto wrapper) is required and
+works. On Android a device-bound credential exists only for the non-discoverable request, and it did not enable PRF at create, so
+it cannot yet serve as a PRF vault wrapper. The first Android pass over plain-HTTP localhost gave intermittent `NotReadableError`
+from the credential manager; the HTTPS runs did not. Safari on iPhone with the iCloud provider alone did not demonstrate PRF in
+the one retry (the operator could not confirm which provider showed in the sheet), so iOS + iCloud Keychain PRF is still open.
+
+**V-006 stays open.** Not yet covered: Windows (Chrome/Edge: no device available); iOS Safari with iCloud Keychain as the only
+provider (PRF unconfirmed); the Android device-bound credential's PRF behavior at get(); a physical security key; the origin-independent
+recovery path enrolling a fresh DeviceID at a *native* client; and independent review. Results persist across the section 2 reload;
+**Reset saved results** starts a fresh run. `collector.py` serves the page and receives reports from phones (token-gated).

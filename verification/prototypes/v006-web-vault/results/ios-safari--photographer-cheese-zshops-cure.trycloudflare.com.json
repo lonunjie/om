@@ -75,5 +75,8 @@
       "ok": true,
       "detail": "NotAllowedError"
     }
+  },
+  "harness": {
+    "passkey_provider": "Bitwarden enabled as passkey provider; report B-origin migration step (old origin: depending-intranet-johnson-kids)"
   }
 }

@@ -68,7 +68,7 @@
     },
     "kek_stored_in_indexeddb": {
       "ok": true,
-      "detail": "reload the page, then press “Check after reload”"
+      "detail": "reload the page, then press \u201cCheck after reload\u201d"
     },
     "kek_survives_reload": {
       "ok": true
@@ -150,6 +150,7 @@
     "origins": {
       "old": "http://localhost:8806/",
       "new": "http://om-probe.localhost:8806/"
-    }
+    },
+    "passkey_provider": "mixed (operator switched between Bitwarden and Google Password Manager mid-run after errors); plain-HTTP localhost over adb reverse; treat as exploratory"
   }
 }

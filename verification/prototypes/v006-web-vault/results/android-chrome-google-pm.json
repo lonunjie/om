@@ -1,0 +1,131 @@
+{
+  "probe": "om-v006-webdevicevault/1",
+  "ts": "2026-10-01T11:56:56.198Z",
+  "origin": "https://depending-intranet-johnson-kids.trycloudflare.com",
+  "rpId": "depending-intranet-johnson-kids.trycloudflare.com",
+  "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Mobile Safari/537.36",
+  "results": {
+    "secure_context": {
+      "ok": true
+    },
+    "webauthn_api": {
+      "ok": true
+    },
+    "platform_uv_authenticator": {
+      "ok": true
+    },
+    "client_capabilities": {
+      "conditionalCreate": true,
+      "conditionalGet": true,
+      "extension:appid": true,
+      "extension:appidExclude": true,
+      "extension:cmtgKey": false,
+      "extension:credBlob": true,
+      "extension:credProps": true,
+      "extension:credentialProtectionPolicy": true,
+      "extension:crossDeviceFallbackUrl": false,
+      "extension:enforceCredentialProtectionPolicy": true,
+      "extension:getCredBlob": true,
+      "extension:hmacCreateSecret": true,
+      "extension:largeBlob": true,
+      "extension:minPinLength": true,
+      "extension:payment": true,
+      "extension:prf": true,
+      "hybridTransport": true,
+      "immediateGet": true,
+      "passkeyPlatformAuthenticator": true,
+      "relatedOrigins": true,
+      "signalAllAcceptedCredentials": true,
+      "signalCurrentUserDetails": true,
+      "signalUnknownCredential": true,
+      "userVerifyingPlatformAuthenticator": true
+    },
+    "prf_extension_advertised": {
+      "ok": true,
+      "detail": "true"
+    },
+    "signalCurrentUserDetails_advertised": {
+      "ok": true
+    },
+    "signalCurrentUserDetails_method": {
+      "ok": true
+    },
+    "indexeddb": {
+      "ok": true
+    },
+    "storage_persisted": {
+      "ok": true
+    },
+    "storage_quota_mb": {
+      "ok": null,
+      "detail": 10737
+    },
+    "storage_persist_granted": {
+      "ok": true
+    },
+    "kek_non_extractable": {
+      "ok": true
+    },
+    "kek_stored_in_indexeddb": {
+      "ok": true,
+      "detail": "reload the page, then press \u201cCheck after reload\u201d"
+    },
+    "kek_survives_reload": {
+      "ok": true
+    },
+    "vault_credential_id": "bQzB0QvZxHD3CaSJsuRaFw",
+    "prf_enabled_at_create": {
+      "ok": true,
+      "detail": "{\"enabled\":true,\"results\":{\"first\":{}}}"
+    },
+    "prf_output_at_create": {
+      "ok": true
+    },
+    "vault_credential_device_bound": {
+      "ok": false,
+      "detail": "BE=true BS=true"
+    },
+    "signalCurrentUserDetails_call": {
+      "ok": true
+    },
+    "focus_wait_before_ceremony_ms": {
+      "ok": null,
+      "detail": "100 (document was not focused after the previous prompt closed)"
+    },
+    "prf_wrap_unwrap_across_ceremonies": {
+      "ok": true
+    },
+    "vault_and_recovery_salts_distinct_outputs": {
+      "ok": true,
+      "detail": ""
+    },
+    "unlock_uv_flag": {
+      "ok": true
+    },
+    "recovery_credential_id": "xEiIyYajP-p1m7RCzfFS2g",
+    "separate_recovery_credential_prf": {
+      "ok": true
+    },
+    "recovery_credential_synced": {
+      "ok": true,
+      "detail": "BE=true BS=true"
+    },
+    "passphrase_layer_round_trip": {
+      "ok": true,
+      "detail": "PBKDF2 600k: 95 ms"
+    },
+    "device_bound_platform": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=hybrid,internal prf=true"
+    },
+    "device_bound_non_discoverable_platform": {
+      "ok": true,
+      "detail": "BE=false BS=false attachment=platform transports=hybrid,internal prf=false"
+    }
+  },
+  "harness": {
+    "driver": "CDP over adb, Chrome 154 Android 16 OPPO CPH2645, HTTPS tunnel; preferred passkey provider = Google Password Manager (set by operator); sections 1-3, 4 and 6 only",
+    "origin": "https://depending-intranet-johnson-kids.trycloudflare.com/",
+    "passkey_provider": "Google Password Manager only (Bitwarden not preferred)"
+  }
+}
