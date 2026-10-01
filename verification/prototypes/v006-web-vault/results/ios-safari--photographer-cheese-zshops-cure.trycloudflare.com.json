@@ -1,0 +1,79 @@
+{
+  "probe": "om-v006-webdevicevault/1",
+  "ts": "2026-10-01T11:43:19.186Z",
+  "origin": "https://photographer-cheese-zshops-cure.trycloudflare.com",
+  "rpId": "photographer-cheese-zshops-cure.trycloudflare.com",
+  "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.6.1 Mobile/15E148 Safari/604.1",
+  "results": {
+    "secure_context": {
+      "ok": true
+    },
+    "webauthn_api": {
+      "ok": true
+    },
+    "platform_uv_authenticator": {
+      "ok": true
+    },
+    "client_capabilities": {
+      "conditionalCreate": true,
+      "conditionalGet": true,
+      "conditionalMediation": true,
+      "extension:largeBlob": false,
+      "extension:prf": true,
+      "hybridTransport": true,
+      "passkeyPlatformAuthenticator": true,
+      "relatedOrigins": true,
+      "signalAllAcceptedCredentials": true,
+      "signalCurrentUserDetails": true,
+      "signalUnknownCredential": true,
+      "userVerifyingPlatformAuthenticator": true
+    },
+    "prf_extension_advertised": {
+      "ok": true,
+      "detail": "true"
+    },
+    "signalCurrentUserDetails_advertised": {
+      "ok": true
+    },
+    "signalCurrentUserDetails_method": {
+      "ok": true
+    },
+    "indexeddb": {
+      "ok": true
+    },
+    "storage_persisted": {
+      "ok": false
+    },
+    "storage_quota_mb": {
+      "ok": null,
+      "detail": 41232
+    },
+    "migration_recovery_key_restores_state_at_new_origin": {
+      "ok": true,
+      "detail": "at https://photographer-cheese-zshops-cure.trycloudflare.com"
+    },
+    "migration_fresh_deviceid": {
+      "ok": true,
+      "detail": "new DeviceID differs from the old origin's"
+    },
+    "migration_fresh_device_key_non_extractable": {
+      "ok": true
+    },
+    "migration_prf_wrapper_at_new_origin": {
+      "ok": false,
+      "detail": "Error: PRF not enabled; falling back to non-extractable WebCrypto key"
+    },
+    "migration_new_vault_wrapper": {
+      "ok": true,
+      "detail": "webcrypto_kek"
+    },
+    "migration_new_vault_reopens": {
+      "ok": true,
+      "detail": "wrapper=webcrypto_kek, state restored"
+    },
+    "foreign_origin_credential_rejected": {
+      "ok": true,
+      "detail": "NotAllowedError"
+    }
+  }
+}

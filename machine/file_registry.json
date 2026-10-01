@@ -7431,6 +7431,34 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/v006-web-vault/results/android-chrome-localhost-adb.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v006-web-vault/results/android-chrome.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v006-web-vault/results/ios-safari--depending-intranet-johnson-kids.trycloudflare.com.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/v006-web-vault/results/ios-safari--photographer-cheese-zshops-cure.trycloudflare.com.json",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/v006-web-vault/results/macos-chrome.json",
       "class": "verification_tool",
       "domain": "architecture_verification",

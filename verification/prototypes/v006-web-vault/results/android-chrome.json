@@ -1,0 +1,170 @@
+{
+  "probe": "om-v006-webdevicevault/1",
+  "ts": "2026-10-01T11:36:03.945Z",
+  "origin": "https://depending-intranet-johnson-kids.trycloudflare.com",
+  "rpId": "depending-intranet-johnson-kids.trycloudflare.com",
+  "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Mobile Safari/537.36",
+  "results": {
+    "secure_context": {
+      "ok": true
+    },
+    "webauthn_api": {
+      "ok": true
+    },
+    "platform_uv_authenticator": {
+      "ok": true
+    },
+    "client_capabilities": {
+      "conditionalCreate": true,
+      "conditionalGet": true,
+      "extension:appid": true,
+      "extension:appidExclude": true,
+      "extension:cmtgKey": false,
+      "extension:credBlob": true,
+      "extension:credProps": true,
+      "extension:credentialProtectionPolicy": true,
+      "extension:crossDeviceFallbackUrl": false,
+      "extension:enforceCredentialProtectionPolicy": true,
+      "extension:getCredBlob": true,
+      "extension:hmacCreateSecret": true,
+      "extension:largeBlob": true,
+      "extension:minPinLength": true,
+      "extension:payment": true,
+      "extension:prf": true,
+      "hybridTransport": true,
+      "immediateGet": true,
+      "passkeyPlatformAuthenticator": true,
+      "relatedOrigins": true,
+      "signalAllAcceptedCredentials": true,
+      "signalCurrentUserDetails": true,
+      "signalUnknownCredential": true,
+      "userVerifyingPlatformAuthenticator": true
+    },
+    "prf_extension_advertised": {
+      "ok": true,
+      "detail": "true"
+    },
+    "signalCurrentUserDetails_advertised": {
+      "ok": true
+    },
+    "signalCurrentUserDetails_method": {
+      "ok": true
+    },
+    "indexeddb": {
+      "ok": true
+    },
+    "storage_persisted": {
+      "ok": false
+    },
+    "storage_quota_mb": {
+      "ok": null,
+      "detail": 10737
+    },
+    "storage_persist_granted": {
+      "ok": false
+    },
+    "kek_non_extractable": {
+      "ok": true
+    },
+    "kek_stored_in_indexeddb": {
+      "ok": true,
+      "detail": "reload the page, then press “Check after reload”"
+    },
+    "kek_survives_reload": {
+      "ok": true
+    },
+    "vault_credential_id": "5OYrbCecVKsaBKOka4Zz1A",
+    "prf_enabled_at_create": {
+      "ok": false,
+      "detail": "null"
+    },
+    "prf_output_at_create": {
+      "ok": false
+    },
+    "vault_credential_device_bound": {
+      "ok": false,
+      "detail": "BE=true BS=true"
+    },
+    "signalCurrentUserDetails_call": {
+      "ok": true
+    },
+    "prf_unlock": {
+      "ok": false,
+      "detail": "no PRF output on get()"
+    },
+    "recovery_credential_id": "zNllrZe8Pk9lu09MP6d-Yw",
+    "separate_recovery_credential_prf": {
+      "ok": false
+    },
+    "recovery_credential_synced": {
+      "ok": true,
+      "detail": "BE=true BS=true"
+    },
+    "passphrase_layer_round_trip": {
+      "ok": true,
+      "detail": "PBKDF2 600k: 96 ms"
+    },
+    "device_bound_platform": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=internal prf=false"
+    },
+    "device_bound_non_discoverable_platform": {
+      "ok": true,
+      "detail": "BE=false BS=false attachment=platform transports=hybrid,internal prf=false"
+    },
+    "device_bound_cross_platform": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=internal prf=false"
+    },
+    "device_bound_hint_security_key": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=internal prf=false"
+    },
+    "device_bound_hint_client_device": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=internal prf=false"
+    },
+    "device_bound_hint_hybrid": {
+      "ok": false,
+      "detail": "BE=true BS=true attachment=platform transports=internal prf=false"
+    },
+    "migration_old_device_id": "GTVDmkfQ31yavH4LXuuupA",
+    "migration_old_origin_bundle_created": {
+      "ok": true,
+      "detail": "origin https://depending-intranet-johnson-kids.trycloudflare.com, recovery key 64 chars, bundle 474 chars"
+    },
+    "migration_old_origin_state_destroyed": {
+      "ok": true
+    },
+    "migration_recovery_key_restores_state_at_new_origin": {
+      "ok": true,
+      "detail": "at https://photographer-cheese-zshops-cure.trycloudflare.com"
+    },
+    "migration_fresh_deviceid": {
+      "ok": true,
+      "detail": "new DeviceID differs from the old origin's"
+    },
+    "migration_fresh_device_key_non_extractable": {
+      "ok": true
+    },
+    "migration_prf_wrapper_at_new_origin": {
+      "ok": false,
+      "detail": "Error: PRF not enabled; falling back to non-extractable WebCrypto key"
+    },
+    "migration_new_vault_wrapper": {
+      "ok": true,
+      "detail": "webcrypto_kek"
+    },
+    "migration_new_vault_reopens": {
+      "ok": true,
+      "detail": "wrapper=webcrypto_kek, state restored"
+    }
+  },
+  "harness": {
+    "driver": "CDP over adb (Chrome 154 on Android 16, OPPO CPH2645, USB), HTTPS trycloudflare tunnels; operator supplied fingerprint",
+    "origins": {
+      "old": "https://depending-intranet-johnson-kids.trycloudflare.com/",
+      "new": "https://photographer-cheese-zshops-cure.trycloudflare.com/"
+    }
+  }
+}
