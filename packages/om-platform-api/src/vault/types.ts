@@ -33,9 +33,16 @@ export interface VaultWrappingInfo {
   readonly credentialBackup?: CredentialBackup;
   /** ADR-0129 rule 15: true when a synced passkey's PRF wraps the vault. The UI must state the property. */
   readonly reducedAtRestProperty: boolean;
+  /** Method 3 is layered over the method above: unlock needs the passphrase as well. */
+  readonly passphraseProtected: boolean;
 }
 
-/** Method 3 slot. No reviewed memory-hard KDF (Argon2id) is available yet, so every request is refused. */
+/**
+ * Method 3: a user-selected passphrase, layered over method 1 or 2 (never a sole wrapper). `secret` is the UTF-8
+ * encoding of what the user typed; the vault applies Unicode NFKC itself. The vault zeroes `secret` once it has
+ * read it (best effort; the caller's own string copy cannot be erased), so callers must not reuse the buffer.
+ * The passphrase slows an attacker who copies the browser profile; it is not rate limited (offline guessing works).
+ */
 export interface PassphraseFactor {
   readonly kind: "passphrase";
   readonly secret: Uint8Array;
@@ -44,11 +51,22 @@ export interface PassphraseFactor {
 export interface CreateVaultOptions {
   readonly wrapping?: WrappingPreference;
   readonly additionalFactor?: PassphraseFactor;
+  /**
+   * Optional time budget for one passphrase derivation on this device. The vault may raise the KDF cost above its
+   * default to meet it, bounded by a hard maximum; it never lowers the cost below the default.
+   */
+  readonly passphraseTargetMs?: number;
   /** Shown by the passkey provider; supplied by the caller (copy stays out of the vault). */
   readonly passkeyUser?: { readonly name: string; readonly displayName: string };
 }
 
-export type RotateOptions = Omit<CreateVaultOptions, "additionalFactor">;
+/** Rotation replaces the method 1/2 wrapper and keeps an existing passphrase layer unchanged (no passphrase needed). */
+export type RotateOptions = Omit<CreateVaultOptions, "additionalFactor" | "passphraseTargetMs">;
+
+export interface UnlockOptions {
+  /** Required when `VaultWrappingInfo.passphraseProtected`; ignored (and zeroed) otherwise. */
+  readonly passphrase?: PassphraseFactor;
+}
 
 /** Which step needed the user, so the UI can ask for a fresh gesture for exactly that prompt. */
 export type VaultStage = "enroll_create" | "enroll_verify" | "unlock" | "rotate_unwrap";
@@ -67,6 +85,8 @@ export type VaultErrorReason =
   | "prf_unavailable"
   | "unwrap_failed"
   | "unsupported_factor"
+  | "passphrase_required"
+  | "wrong_passphrase"
   | "unsupported_platform"
   | "malformed"
   | "unsupported_version"
@@ -86,13 +106,13 @@ type Ceremony = "needs_user_gesture" | "ceremony_failed" | "prf_unavailable";
 
 export type CreateVaultResult =
   | { readonly ok: true; readonly wrapping: VaultWrappingInfo }
-  | VaultError<"invalid_profile_id" | "already_exists" | "corrupt" | "unsupported_factor" | "unsupported_platform"
-      | "needs_user_gesture" | "crypto_failed" | "storage_failed">;
+  | VaultError<"invalid_profile_id" | "already_exists" | "corrupt" | "unsupported_factor" | "passphrase_required"
+      | "unsupported_platform" | "needs_user_gesture" | "crypto_failed" | "storage_failed">;
 
 export type UnlockResult =
   | { readonly ok: true }
-  | VaultError<"invalid_profile_id" | "not_found" | "corrupt" | "conflict" | "unwrap_failed" | "crypto_failed" | "storage_failed"
-      | Ceremony>;
+  | VaultError<"invalid_profile_id" | "not_found" | "corrupt" | "conflict" | "unwrap_failed" | "passphrase_required"
+      | "wrong_passphrase" | "crypto_failed" | "storage_failed" | Ceremony>;
 
 export type SealResult =
   | { readonly ok: true; readonly sealed: Uint8Array }
@@ -120,7 +140,8 @@ export type WrappingInfoResult =
 export interface VaultCapabilities {
   readonly webauthnPresent: boolean;
   readonly deviceKeyPresent: boolean;
-  readonly passphraseFactor: "unavailable_no_reviewed_kdf";
+  /** Argon2id (RFC 9106) layered over method 1 or 2. */
+  readonly passphraseFactor: "available";
   /** The vault never relies on `storage.persist()` (ADR-0172). */
   readonly reliesOnPersistentStorage: false;
 }
@@ -131,7 +152,8 @@ export interface DeviceVault {
   wrapping(profileId: ProfileId): Promise<WrappingInfoResult>;
   /** Fresh random PVK and fresh wrapper; never depends on another origin's credentials (R-392). Refuses existing data. */
   createProfileVault(profileId: ProfileId, opts?: CreateVaultOptions): Promise<CreateVaultResult>;
-  unlock(profileId: ProfileId): Promise<UnlockResult>;
+  /** Concurrent calls share one in-flight unlock; a joining call's passphrase is zeroed and not used. */
+  unlock(profileId: ProfileId, opts?: UnlockOptions): Promise<UnlockResult>;
   lock(profileId: ProfileId): void;
   seal(profileId: ProfileId, purpose: VaultPurpose, bytes: Uint8Array): Promise<SealResult>;
   open(profileId: ProfileId, purpose: VaultPurpose, sealed: Uint8Array): Promise<OpenResult>;

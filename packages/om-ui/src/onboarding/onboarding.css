@@ -9,3 +9,4 @@
 .om-onb__field { display: flex; flex-direction: column; gap: var(--om-space-1); }
 .om-onb__input { box-sizing: border-box; min-block-size: var(--om-target-min); font: inherit; font-family: monospace; }
 .om-onb__link { overflow-wrap: anywhere; }
+.om-onb__check { display: flex; align-items: center; min-block-size: var(--om-target-min); }

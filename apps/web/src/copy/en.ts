@@ -1,7 +1,7 @@
 // The only place user-visible English lives. Components take these as props; keys are machine reason codes, so a
 // missing code is a compile error. Wording rules: plain language, no provider names, honest about limits.
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
-import type { ConversationCopy, OnboardingCopy, ProfileSwitcherLabels, ShellLabels } from "@om/ui";
+import type { ConversationCopy, DevicesCopy, LinkThisDeviceCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, RecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
 
 const REJECT: Readonly<Record<RejectReason, string>> = {
   invalid: "That was not valid.",
@@ -143,6 +143,8 @@ const VAULT_ERROR: Readonly<Record<VaultErrorReason, string>> = {
   prf_unavailable: "Your passkey could not lock data.",
   unwrap_failed: "Your data could not be unlocked.",
   unsupported_factor: "That unlock method is not supported.",
+  passphrase_required: "Enter your passphrase to unlock your data.",
+  wrong_passphrase: "That passphrase is not right. Try again.",
   unsupported_platform: "This browser cannot protect your data safely enough for OM.",
   malformed: "The locked data could not be read.",
   unsupported_version: "The locked data was made by a newer version of OM.",
@@ -197,6 +199,16 @@ export const onboardingCopy: OnboardingCopy = {
     profileFailed: "Your identity could not be created.",
     retryProfile: "Try again",
     next: "Continue",
+    passphrase: {
+      toggle: "Also protect with a passphrase",
+      hint: "A passphrase adds a second lock on top of your passkey or this browser. You will type it each time you open OM.",
+      warning: "If you forget this passphrase, the data on this device cannot be opened and nobody can reset it. You can still restore your account with your recovery key.",
+      label: "Passphrase",
+      confirmLabel: "Type it again",
+      tooShort: (min) => `Use at least ${String(min)} characters. A few unrelated words work well.`,
+      mismatch: "The two passphrases do not match.",
+      slowNote: "Opening OM will take a few extra seconds, and longer on an older phone. This slowness protects you if someone copies this browser's data.",
+    },
   },
   recovery: {
     heading: "Your recovery key",
@@ -288,6 +300,12 @@ export interface AppStrings {
   readonly notConnected: { readonly heading: string; readonly body: string };
   readonly vaultUnavailable: { readonly heading: string; readonly body: string };
   readonly requests: (n: number) => string;
+  readonly settings: string;
+  readonly settingsHeading: string;
+  readonly settingsDevices: string;
+  readonly settingsRecovery: string;
+  readonly backToChats: string;
+  readonly backToSettings: string;
 }
 
 export const appStrings: AppStrings = {
@@ -309,4 +327,252 @@ export const appStrings: AppStrings = {
     body: "OM needs secure storage and encryption support that this browser does not provide, so it will not start. Try an up-to-date browser, and not a private window.",
   },
   requests: (n) => plural(n, "request", "requests"),
+  settings: "Settings",
+  settingsHeading: "Settings",
+  settingsDevices: "Devices",
+  settingsRecovery: "Recovery",
+  backToChats: "Back to chats",
+  backToSettings: "Back to settings",
 };
+
+export const scannerCopy = {
+  heading: "Scan a QR code",
+  hint: "Hold your camera steady in front of the other person's OM QR code. Nothing is recorded or saved.",
+  cancel: "Cancel",
+  cameraFailed: "The camera could not start. You can paste the invite link instead.",
+  videoLabel: "Camera view",
+} as const;
+
+export const unlockCopy: UnlockCopy = {
+  heading: "Unlock OM",
+  body: "Your data on this device is locked.",
+  passphraseLabel: "Passphrase",
+  unlock: "Unlock",
+  working: "Unlocking",
+  workingSlow: "Unlocking. This takes a few seconds.",
+  continueCeremony: "Continue",
+  needsGesture: STAGE,
+  errors: VAULT_ERROR,
+  openRecovery: "Use my recovery key",
+};
+
+const dayFormat = new Intl.DateTimeFormat("en", { year: "numeric", month: "short", day: "numeric" });
+const durationText = (ms: number): string => {
+  const hours = Math.round(ms / 3_600_000);
+  return hours >= 48 && hours % 24 === 0 ? plural(hours / 24, "day", "days") : plural(hours, "hour", "hours");
+};
+
+const outcomeCopy = (prefix: string): OutcomeCopy => ({
+  working: "Working on it",
+  pendingAuthorization: "Waiting for approval from your other devices. Nothing changes until then.",
+  pendingNetwork: "Waiting for a connection. OM will keep trying.",
+  pendingReconciliation: "Checking whether this went through. Do not repeat it; OM will tell you.",
+  needsAction: NEEDS_ACTION,
+  rejected: withPrefix(prefix),
+  failed: "This could not be started, so nothing changed. Try again.",
+});
+
+export const devicesCopy: DevicesCopy = {
+  heading: "Devices",
+  loading: "Loading your devices",
+  loadFailed: "Your devices could not be loaded. Try again in a moment.",
+  controlState: {
+    control_conflict: "Two of your devices made conflicting changes. OM is holding device and recovery changes until this is settled.",
+    safety_freeze: "Safety Freeze is on. Your devices disagree about who is in control, so OM has paused device and recovery changes until enough of your devices agree. Messaging continues.",
+    fork_detected: "Your account's security history split in two. OM has paused device and recovery changes until your devices settle it together.",
+  },
+  deviceLinkedNotice: (label, ms) => `A new device was added to your account: ${label}, ${timeFormat.format(ms)}. If this was not you, open it and remove it.`,
+  linkRequestsHeading: "Devices asking to join",
+  linkRequestRow: (label) => `${label} is asking to join your account`,
+  currentHeading: "This device",
+  otherHeading: "Your other devices",
+  noOtherDevices: "No other devices are linked.",
+  removedHeading: "Removed devices",
+  role: { control: "Can manage your account", messaging: "Can send and read messages" },
+  state: { active: "Active", quarantined: "Suspended", revocation_pending: "Removal waiting for approval", revoked: "Removed for good" },
+  lastSeen: {
+    now: "In use now", recent: "Used recently", this_week: "Used this week", this_month: "Used this month",
+    long_ago: "Not used for a long time", never: "Never used",
+  },
+  cautions: {
+    suspend_would_freeze: "Suspending this device would pause changes to your whole account, so OM offers to remove it instead.",
+    last_voting_controller: "This is the only other device that can manage your account, so it cannot be suspended or removed from here.",
+    history_sync_unavailable: "This device runs a different OM app and cannot share your message history with this one.",
+    long_idle: "This device has not been used for a long time. Remove it if you no longer have it.",
+  },
+  enrolled: (ms) => `Added ${dayFormat.format(ms)}`,
+  thisDevice: "You are using this device now",
+  back: "Back to devices",
+  detailsHeading: (label) => label,
+  noActions: "There is nothing you can change for this device from here.",
+  frozenNoActions: "Device changes are paused while Safety Freeze is on.",
+  suspend: {
+    action: "Suspend this device",
+    heading: (label) => `Suspend ${label}?`,
+    consequences: [
+      "It stops getting new messages and new keys right away.",
+      "It is not removed. It stays on your list as suspended.",
+      "Anything already on it stays on it. OM cannot erase it from a distance.",
+    ],
+    confirm: "Suspend it now",
+    cancel: "Keep it",
+    done: "Suspended. It no longer gets new messages.",
+  },
+  revoke: {
+    action: "Remove permanently",
+    heading: (label) => `Remove ${label} for good?`,
+    consequences: [
+      "It can never be used with your account again. To use it again you would link it as a new device.",
+      "It stops getting new messages and keys once the removal is final.",
+      "Anything already on it stays on it. OM cannot erase it from a distance.",
+      "Your other devices may need to approve this first.",
+    ],
+    confirm: "Remove it for good",
+    cancel: "Keep it",
+    done: "Removed for good.",
+  },
+  pendingHeading: "Still in progress",
+  pendingKind: {
+    RequestDeviceLink: "Opening a device link",
+    ApproveDeviceLink: "Approving a new device",
+    RejectDeviceLink: "Turning down a new device",
+    SuspendDevice: "Suspending a device",
+    RevokeDevice: "Removing a device",
+  },
+  link: {
+    start: "Link a new device",
+    heading: "Link a new device",
+    body: "On the new device, choose to link it to an existing account. It will show a QR code and a link. Scan the code, or paste the link here.",
+    scan: "Scan its QR code",
+    scanNothing: "No code was found. Try again or paste the link.",
+    pasteLabel: "Link from the new device",
+    pasteHint: "It starts with om:link/",
+    open: "Continue",
+    parseError: {
+      empty: "Paste the link first.",
+      too_long: "That is too long to be a device link.",
+      malformed: "That does not look like an OM device link.",
+    },
+    cancel: "Cancel",
+    reviewHeading: "Check the new device",
+    who: (label) => `${label} is asking to join your account.`,
+    codeLabel: "Security code",
+    codeHint: "The new device shows a code too. Link it only if both codes are exactly the same.",
+    warning: "Only link a device you are holding yourself. A linked device can read your new messages.",
+    announce: "All your other devices will be told about this new device. That cannot be turned off.",
+    approve: "The codes match. Link it",
+    reject: "This is not my device",
+    expires: (ms) => `This request ends ${timeFormat.format(ms)}`,
+    requestState: {
+      awaiting_approval: "Waiting for your decision",
+      pending_authorization: "Waiting for approval from your other devices",
+      approved: "Linked",
+      rejected: "Turned down",
+      expired: "This request ran out of time. Start again on the new device.",
+    },
+    linked: "The new device is linked.",
+    rejectedDone: "Turned down. The device was not linked.",
+    done: "Back to devices",
+  },
+  outcome: outcomeCopy("Not done."),
+};
+
+export const linkThisDeviceCopy: LinkThisDeviceCopy = {
+  heading: "Link to your account",
+  body: "Use OM on a device you already have to scan this code or open this link. You will both see the same security code.",
+  start: "Show my link code",
+  linkLabel: "Link for your other device",
+  qrLabel: "QR code to link this device",
+  expires: (ms) => `Works until ${timeFormat.format(ms)}`,
+  codeLabel: "Security code",
+  codeHint: "Check that your other device shows exactly the same code before you approve there.",
+  state: {
+    waiting_for_scan: "Waiting for your other device",
+    awaiting_approval: "Approve this on your other device",
+    linked: "This device is linked.",
+    rejected: "Your other device turned this down.",
+    expired: "This ran out of time. Start again.",
+  },
+  outcome: outcomeCopy("Not done."),
+};
+
+export const recoveryCopy: RecoveryCopy = {
+  heading: "Recovery",
+  loading: "Loading recovery",
+  loadFailed: "Recovery details could not be loaded. Try again in a moment.",
+  back: "Back to recovery",
+  policy: {
+    on: "Recovery is on. If you lose your devices, you can get your account back.",
+    pending: "Recovery is not set up yet. Until it is, losing this device could mean losing this account.",
+    off_explicit: "Recovery is off. If you lose all your devices, this account is gone.",
+  },
+  custodiansHeading: "Where your recovery is kept",
+  custodian: {
+    synced_passkey: "Your passkeys",
+    recovery_key: "Your recovery key",
+    trusted_contacts: "People you trust",
+    spare_device: "A spare device or security key",
+  },
+  distributionBound: "(works only with this version of OM)",
+  scopesHeading: "What recovery can bring back",
+  scope: {
+    identity: { title: "Your account", body: "Who you are on OM and control of your devices." },
+    history: { title: "Your messages", body: "Past messages from an encrypted backup." },
+    provider: { title: "Your Home connection", body: "How OM reaches your Home and contacts." },
+  },
+  delay: (ms) => `To keep a thief out, getting your account back on a new device takes ${durationText(ms)} unless one of your devices approves it sooner. Any of your devices can stop it.`,
+  recoveryKeySaved: "You have a recovery key.",
+  recoveryKeyNone: "You do not have a recovery key.",
+  recoveryKeyOnce: "OM showed your recovery key once, when you made it. For your safety it cannot be shown again.",
+  incomingAlert: "Someone is trying to get into your account on a new device. If it was not you, stop it.",
+  review: "Review it",
+  requestsHeading: "Recoveries",
+  direction: { incoming: "On another device", outgoing: "Started on this device" },
+  requestState: { waiting: "Waiting", completed: "Finished", vetoed: "Stopped", cancelled: "Cancelled" },
+  started: (ms) => `Started ${timeFormat.format(ms)}`,
+  activatesAt: (ms) => `Can finish ${timeFormat.format(ms)} unless it is stopped`,
+  activatesUnknown: "OM cannot say yet when this can finish.",
+  stopIncoming: "Stop this recovery",
+  cancelOutgoing: "Cancel my recovery",
+  pendingHeading: "Still in progress",
+  pendingKind: { StartRecovery: "Starting a recovery", VetoRecovery: "Stopping a recovery" },
+  start: {
+    action: "Start a recovery",
+    heading: "Start a recovery",
+    body: "Choose what you want back. Each kind of recovery is separate.",
+    scopeLegend: "What do you want back?",
+    custodianLegend: "Use",
+    consequences: {
+      identity: [
+        "Your other devices will be told and any of them can stop it.",
+        "It finishes after the waiting time, or sooner if one of your devices approves it.",
+        "When it finishes, devices that were not part of it lose control of your account.",
+      ],
+      history: ["This brings back past messages only. It does not change who controls your account."],
+      provider: ["This reconnects your Home only. It does not change who controls your account."],
+    },
+    confirm: "Start recovery",
+    cancel: "Cancel",
+    done: "Recovery finished.",
+  },
+  veto: {
+    heading: { incoming: "Stop this recovery?", outgoing: "Cancel your recovery?" },
+    consequences: {
+      incoming: [
+        "The recovery will not finish.",
+        "Whoever started it may have your recovery key or passkey. OM will help you replace it.",
+      ],
+      outgoing: ["The recovery stops. You can start a new one later."],
+    },
+    confirm: { incoming: "Stop it", outgoing: "Cancel it" },
+    cancel: "Go back",
+    done: "Stopped.",
+  },
+  outcome: outcomeCopy("Not done."),
+};
+
+export const deviceScannerCopy = {
+  ...scannerCopy,
+  hint: "Hold your camera steady in front of the QR code on your new device. Nothing is recorded or saved.",
+  cameraFailed: "The camera could not start. You can paste the link from the new device instead.",
+} as const;

@@ -41,6 +41,18 @@ export function mountDev(root: HTMLElement): void {
       },
     ],
     introductions: [{ id: "req-1", from: asPersonId("p-sam"), displayName: "Sam Okafor", personId: asPersonId("p-sam") }],
+    account: {
+      devices: [
+        { id: "dev-this", label: "This browser", role: "control", current: true },
+        { id: "dev-phone", label: "Phone", role: "control", lastSeen: "recent" },
+        { id: "dev-office", label: "Office desktop", role: "control", lastSeen: "this_week" },
+        { id: "dev-tablet", label: "Old tablet", role: "messaging", lastSeen: "long_ago", historySync: false },
+      ],
+      recovery: {
+        custodians: ["synced_passkey", "recovery_key"],
+        incoming: [{ requestId: "rr-demo", scope: "identity", custodian: "recovery_key" }],
+      },
+    },
   });
   r.render(
     <StrictMode>

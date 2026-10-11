@@ -3,11 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import type { ConversationId, DeviceVault, IntroductionRequest, ProfileExecutionContext, ProfileId } from "@om/platform-api";
 import { HARNESS_MARKER, type Harness } from "@om/core-harness";
 import {
-  AppShell, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, LiveRegion, MessageRequest, OnboardingFlow,
+  AppShell, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, LiveRegion, MessageRequest, OnboardingFlow, RecoveryScreen,
   ProfileProvider, Text, ThemeProvider, createActionRegistry, createMemoryKeyValue, createProfileScopedState, useActiveProfile, useCaptureContext, useConversationList,
   type ActionRegistry, type ConversationServices, type OnboardingPlatform,
 } from "@om/ui";
-import { appStrings as t, conversationCopy, onboardingCopy, shellLabels, switcherLabels } from "../copy/en";
+import { appStrings as t, conversationCopy, deviceScannerCopy, devicesCopy, onboardingCopy, recoveryCopy, scannerCopy, shellLabels, switcherLabels } from "../copy/en";
+import { QrCode } from "../qr/QrCode";
+import { useQrScanner } from "../qr/Scanner";
 import "./dev.css";
 
 export interface DevAppProps {
@@ -41,23 +43,66 @@ function Gate({ harness, registry, vault, platform, initiallyOnboarded }: GatePr
   const activeId = active?.id ?? null;
   // One frozen context per selection: a new object each render would re-run every query effect.
   const ctx = useMemo<ProfileExecutionContext | null>(() => (activeId === null ? null : capture()), [activeId, capture]);
+  const { scanQr, dialog } = useQrScanner(scannerCopy);
   if (activeId === null || ctx === null) return <Text>{t.loading}</Text>;
   if (!done.has(activeId)) {
     return (
-      <OnboardingFlow
-        key={activeId} client={harness} registry={registry} ctx={ctx} vault={vault} platform={platform} copy={onboardingCopy}
-        onDone={() => { setDone((d) => new Set(d).add(activeId)); }}
-      />
+      <>
+        <OnboardingFlow
+          key={activeId} client={harness} registry={registry} ctx={ctx} vault={vault} platform={platform} copy={onboardingCopy}
+          renderQr={(payload) => <QrCode payload={payload} />} scanQr={scanQr}
+          onDone={() => { setDone((d) => new Set(d).add(activeId)); }}
+        />
+        {dialog}
+      </>
     );
   }
-  return <Shell key={activeId} services={{ client: harness, registry, ctx }} />;
+  return <Shell key={activeId} harness={harness} services={{ client: harness, registry, ctx }} />;
 }
 
-function Shell({ services }: { readonly services: ConversationServices }) {
+type SettingsView = "menu" | "devices" | "recovery";
+
+function Shell({ services, harness }: { readonly services: ConversationServices; readonly harness: Harness }) {
   const [selected, setSelected] = useState<ConversationId | null>(null);
+  const [settings, setSettings] = useState<SettingsView | null>(null);
+  const deviceScan = useQrScanner(deviceScannerCopy);
   const [drafts, setDrafts] = useState<ReadonlyMap<ConversationId, string>>(() => new Map());
   const list = useConversationList(services);
   const select = (id: ConversationId): void => { setSelected(id); };
+  const profileControl = (
+    <>
+      <ConnectedProfileSwitcher labels={switcherLabels} />
+      <Button variant="quiet" aria-pressed={settings !== null} onClick={() => { setSettings(settings === null ? "menu" : null); }}>{t.settings}</Button>
+    </>
+  );
+  if (settings !== null) {
+    return (
+      <>
+        <AppShell
+          destinations={[{ id: "chats", label: t.chats }]}
+          activeDestination="chats"
+          onDestinationChange={() => undefined}
+          conversationOpen={settings !== "menu"}
+          labels={shellLabels}
+          list={<SettingsMenu onOpen={setSettings} onClose={() => { setSettings(null); }} />}
+          detail={settings === "menu" ? <Text>{t.settingsHeading}</Text> : (
+            <>
+              <Button variant="quiet" onClick={() => { setSettings("menu"); }}>{t.backToSettings}</Button>
+              {settings === "devices" ? (
+                <>
+                  <DevicesScreen services={services} copy={devicesCopy} scanQr={deviceScan.scanQr} />
+                  <DevNewDevice harness={harness} />
+                </>
+              ) : <RecoveryScreen services={services} copy={recoveryCopy} />}
+            </>
+          )}
+          omnibarTrigger={<Button disabled>{t.omnibar}</Button>}
+          profileControl={profileControl}
+        />
+        {deviceScan.dialog}
+      </>
+    );
+  }
   return (
     <>
       <AppShell
@@ -89,7 +134,7 @@ function Shell({ services }: { readonly services: ConversationServices }) {
           />
         )}
         omnibarTrigger={<Button disabled>{t.omnibar}</Button>}
-        profileControl={<ConnectedProfileSwitcher labels={switcherLabels} />}
+        profileControl={profileControl}
       />
       <LiveRegion>{selected === null ? "" : t.conversationOpened}</LiveRegion>
     </>
@@ -113,5 +158,37 @@ function Requests({ services }: { readonly services: ConversationServices }) {
         <MessageRequest key={r.id} services={services} request={r} copy={conversationCopy} onIgnore={hide} />
       ))}
     </section>
+  );
+}
+
+/** Settings is reached from the profile area (Profile -> Settings), not a tab: Chats stays the compact root. */
+function SettingsMenu({ onOpen, onClose }: { readonly onOpen: (v: SettingsView) => void; readonly onClose: () => void }) {
+  return (
+    <nav aria-label={t.settingsHeading} className="om-dev-settings">
+      <Text as="h1" size="xl" weight="bold">{t.settingsHeading}</Text>
+      <ul className="om-dev-settings__list">
+        <li><Button className="om-dev-settings__row" onClick={() => { onOpen("devices"); }}>{t.settingsDevices}</Button></li>
+        <li><Button className="om-dev-settings__row" onClick={() => { onOpen("recovery"); }}>{t.settingsRecovery}</Button></li>
+      </ul>
+      <Button variant="quiet" onClick={onClose}>{t.backToChats}</Button>
+    </nav>
+  );
+}
+
+/** DEV ONLY: stands in for the screen of a second, new device so the link flow can be tried in one browser. */
+function DevNewDevice({ harness }: { readonly harness: Harness }) {
+  const [offer, setOffer] = useState<{ readonly link: string; readonly verificationCode: string } | null>(null);
+  return (
+    <aside className="om-dev-newdevice" aria-label="Dev harness: simulated new device">
+      <p className="om-dev-newdevice__tag">DEV HARNESS ONLY: simulated new device</p>
+      <Button onClick={() => { setOffer(harness.simulateNewDeviceOffer("Simulated laptop")); }}>Simulate a new device asking to link</Button>
+      {offer ? (
+        <>
+          <QrCode payload={offer.link} />
+          <code translate="no">{offer.link}</code>
+          <p>New device shows code: <strong translate="no">{offer.verificationCode}</strong></p>
+        </>
+      ) : null}
+    </aside>
   );
 }

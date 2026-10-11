@@ -31,7 +31,7 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   "Referrer-Policy": "no-referrer",
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Resource-Policy": "same-origin",
-  "Permissions-Policy": "geolocation=(), microphone=(), camera=(), payment=(), usb=()",
+  "Permissions-Policy": "geolocation=(), microphone=(), camera=(self), payment=(), usb=()",
 };
 
 /** Cloudflare Pages `_headers` file body. */

@@ -35,6 +35,17 @@ export interface OnboardingCopy {
     readonly profileFailed: string;
     readonly retryProfile: string;
     readonly next: string;
+    /** Optional passphrase layer (Argon2id). Off by default; a forgotten passphrase cannot be recovered. */
+    readonly passphrase: {
+      readonly toggle: string;
+      readonly hint: string;
+      readonly warning: string;
+      readonly label: string;
+      readonly confirmLabel: string;
+      readonly tooShort: (min: number) => string;
+      readonly mismatch: string;
+      readonly slowNote: string;
+    };
   };
   readonly recovery: {
     readonly heading: string;
@@ -93,4 +104,18 @@ export interface OnboardingCopy {
     readonly origin: Readonly<Record<ClientOriginChoiceCode, string>>;
   };
   readonly ready: { readonly heading: string; readonly body: string; readonly done: string };
+}
+
+/** Strings for unlocking an existing vault. Separate from first-run copy: it is used on every later start. */
+export interface UnlockCopy {
+  readonly heading: string;
+  readonly body: string;
+  readonly passphraseLabel: string;
+  readonly unlock: string;
+  readonly working: string;
+  readonly workingSlow: string;
+  readonly continueCeremony: string;
+  readonly needsGesture: Readonly<Record<VaultStage, string>>;
+  readonly errors: Readonly<Record<VaultErrorReason, string>>;
+  readonly openRecovery: string;
 }

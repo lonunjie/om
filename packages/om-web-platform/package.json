@@ -1,1 +1,1 @@
-{ "name": "@om/web-platform", "version": "0.0.0", "private": true, "type": "module", "exports": { ".": "./src/index.ts" }, "dependencies": { "@om/platform-api": "workspace:*" } }
+{"name":"@om/web-platform","version":"0.0.0","private":true,"type":"module","exports":{".":"./src/index.ts"},"dependencies":{"@noble/hashes":"2.4.0","@om/platform-api":"workspace:*","@paulmillr/qr":"0.3.0"}}

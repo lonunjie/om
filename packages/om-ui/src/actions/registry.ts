@@ -1,15 +1,16 @@
 // Action Registry (ADR-0159): semantic UI action id -> typed CoreIntent | query | presentation op | platform capability.
 // It has no canonical-state authority and no generic execute(name, args) path: unknown ids are rejected.
 import {
-  asConversationId, asMessageId, parseInviteLink, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
+  asConversationId, asDeviceId, asMessageId, parseDeviceLink, parseInviteLink, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
 } from "@om/platform-api";
 import type {
-  ConfirmationToken, CoreIntent, CoreQuery, OperationId, PrivacyPolicyLevel, ProfileExecutionContext,
+  ConfirmationToken, CoreIntent, CoreQuery, OperationId, PrivacyPolicyLevel, ProfileExecutionContext, RecoveryCustodianCode, RecoveryScope,
 } from "@om/platform-api";
 
 export type PresentationOp =
   | { readonly op: "navigate"; readonly conversationId: string }
-  | { readonly op: "set-theme"; readonly themeId: string };
+  | { readonly op: "set-theme"; readonly themeId: string }
+  | { readonly op: "open-settings"; readonly section: "devices" | "recovery" };
 export type PlatformRequest =
   | { readonly capability: "Files"; readonly purpose: "attach-media" }
   | { readonly capability: "Clipboard"; readonly purpose: "write"; readonly sensitive: boolean };
@@ -56,6 +57,10 @@ const MAX_TEXT = 65536;
 const id = (v: unknown): string | null => (typeof v === "string" && ID.test(v) ? v : null);
 const oneOf = <T extends string>(v: unknown, set: readonly T[]): T | null => set.find((s) => s === v) ?? null;
 const policies: readonly PrivacyPolicyLevel[] = ["recommended", "hardened", "maximum", "custom"];
+const scopes: readonly RecoveryScope[] = ["identity", "history", "provider"];
+const custodians: readonly RecoveryCustodianCode[] = ["synced_passkey", "recovery_key", "trusted_contacts", "spare_device"];
+/** Strict shape for security-critical actions: any key outside `allowed` (e.g. a "silent" or "skip notice" flag) rejects the request. */
+const exactly = (p: Rec, allowed: readonly string[]): boolean => Object.keys(p).every((k) => allowed.includes(k));
 
 const SPECS: Readonly<Record<string, Spec>> = {
   "open-conversation": { destructive: false, parse: (p, ctx) => {
@@ -101,8 +106,41 @@ const SPECS: Readonly<Record<string, Spec>> = {
   } },
   "suspend-device": { destructive: true, parse: (p) => {
     const d = id(p["deviceId"]);
-    if (d === null) return null;
-    return { intent: (ctx, op, confirmation) => ({ kind: "SuspendDevice", ctx, operationId: op, deviceId: d, confirmation }) };
+    if (!exactly(p, ["deviceId"]) || d === null) return null;
+    return { intent: (ctx, op, confirmation) => ({ kind: "SuspendDevice", ctx, operationId: op, deviceId: asDeviceId(d), confirmation }) };
+  } },
+  "offer-device-link": { destructive: false, parse: (p) => (exactly(p, []) ? { intent: (ctx, op) => ({ kind: "OfferDeviceLink", ctx, operationId: op }) } : null) },
+  "request-device-link": { destructive: false, parse: (p) => {
+    const link = p["link"];
+    if (!exactly(p, ["link"]) || typeof link !== "string" || !parseDeviceLink(link).ok) return null;
+    return { intent: (ctx, op) => ({ kind: "RequestDeviceLink", ctx, operationId: op, link: link.trim() }) };
+  } },
+  "approve-device-link": { destructive: true, parse: (p) => {
+    const r = id(p["requestId"]);
+    if (!exactly(p, ["requestId"]) || r === null) return null;
+    return { intent: (ctx, op, confirmation) => ({ kind: "ApproveDeviceLink", ctx, operationId: op, requestId: r, confirmation }) };
+  } },
+  "reject-device-link": { destructive: false, parse: (p) => {
+    const r = id(p["requestId"]);
+    if (!exactly(p, ["requestId"]) || r === null) return null;
+    return { intent: (ctx, op) => ({ kind: "RejectDeviceLink", ctx, operationId: op, requestId: r }) };
+  } },
+  "finalize-device-revocation": { destructive: true, parse: (p) => {
+    const d = id(p["deviceId"]);
+    if (!exactly(p, ["deviceId"]) || d === null) return null;
+    return { intent: (ctx, op, confirmation) => ({ kind: "RevokeDevice", ctx, operationId: op, deviceId: asDeviceId(d), confirmation }) };
+  } },
+  "view-devices": { destructive: false, parse: (p, ctx) => (exactly(p, []) ? { presentation: { op: "open-settings", section: "devices" }, query: { kind: "GetDevices", ctx } } : null) },
+  "view-recovery": { destructive: false, parse: (p, ctx) => (exactly(p, []) ? { presentation: { op: "open-settings", section: "recovery" }, query: { kind: "GetRecoveryStatus", ctx } } : null) },
+  "start-recovery": { destructive: true, parse: (p) => {
+    const scope = oneOf(p["scope"], scopes); const custodian = oneOf(p["custodian"], custodians);
+    if (!exactly(p, ["scope", "custodian"]) || scope === null || custodian === null) return null;
+    return { intent: (ctx, op, confirmation) => ({ kind: "StartRecovery", ctx, operationId: op, scope, custodian, confirmation }) };
+  } },
+  "veto-recovery": { destructive: true, parse: (p) => {
+    const r = id(p["requestId"]);
+    if (!exactly(p, ["requestId"]) || r === null) return null;
+    return { intent: (ctx, op, confirmation) => ({ kind: "VetoRecovery", ctx, operationId: op, requestId: r, confirmation }) };
   } },
   "change-privacy-policy": { destructive: true, parse: (p) => {
     const policy = oneOf(p["policy"], policies);

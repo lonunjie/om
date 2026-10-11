@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { IDBFactory } from "fake-indexeddb";
-import type { DeviceVault, ProfileId } from "@om/platform-api";
+import type { DeviceVault, PassphraseFactor, ProfileId } from "@om/platform-api";
 import { VAULT_PURPOSES, asProfileId } from "@om/platform-api";
 import { createEncryptedKv, createWebDeviceVault } from "./index";
 import { sealBytes, openBytes, parseSealed, deriveSubkey, importPvk } from "./crypto";
@@ -105,7 +105,7 @@ describe("wrapper selection by test (R-391)", () => {
     const auth = new FakeAuthenticator({ prf: "enabled_no_output" });
     const { vault } = setup({ auth });
     const r = await vault.createProfileVault(A);
-    expect(r).toEqual({ ok: true, wrapping: { method: "device-key", reason: "prf_no_output", reducedAtRestProperty: false } });
+    expect(r).toEqual({ ok: true, wrapping: { method: "device-key", reason: "prf_no_output", reducedAtRestProperty: false, passphraseProtected: false } });
     expect([auth.createCalls, auth.getCalls]).toEqual([1, 1]);
   });
 
@@ -113,7 +113,7 @@ describe("wrapper selection by test (R-391)", () => {
     const auth = new FakeAuthenticator({ prf: "ok", backupEligible: true });
     const { vault } = setup({ auth });
     const r = await vault.createProfileVault(A);
-    const info = { method: "webauthn-prf", reason: "prf_verified", credentialBackup: "synced", reducedAtRestProperty: true };
+    const info = { method: "webauthn-prf", reason: "prf_verified", credentialBackup: "synced", reducedAtRestProperty: true, passphraseProtected: false };
     expect(r).toEqual({ ok: true, wrapping: info });
     expect(await vault.wrapping(A)).toEqual({ ok: true, wrapping: info });
     const sealed = await sealOk(vault, A, "via prf");
@@ -127,7 +127,7 @@ describe("wrapper selection by test (R-391)", () => {
   it("PRF with a device-bound credential: no reduced property", async () => {
     const { vault } = setup({ auth: new FakeAuthenticator({ prf: "ok", backupEligible: false }) });
     const r = await vault.createProfileVault(A);
-    expect(r.ok && r.wrapping).toEqual({ method: "webauthn-prf", reason: "prf_verified", credentialBackup: "device_bound", reducedAtRestProperty: false });
+    expect(r.ok && r.wrapping).toEqual({ method: "webauthn-prf", reason: "prf_verified", credentialBackup: "device_bound", reducedAtRestProperty: false, passphraseProtected: false });
   });
 
   it("missing authenticator data is treated as synced", async () => {
@@ -143,7 +143,7 @@ describe("wrapper selection by test (R-391)", () => {
     const auth = new FakeAuthenticator({ prf: "not_enabled", backupEligible: false });
     const { vault } = setup({ auth });
     const r = await vault.createProfileVault(A);
-    expect(r.ok && r.wrapping).toEqual({ method: "device-key", reason: "prf_not_enabled", reducedAtRestProperty: false });
+    expect(r.ok && r.wrapping).toEqual({ method: "device-key", reason: "prf_not_enabled", reducedAtRestProperty: false, passphraseProtected: false });
     expect(auth.getCalls).toBe(0);
   });
 
@@ -158,11 +158,15 @@ describe("wrapper selection by test (R-391)", () => {
     expect(auth2.createCalls).toBe(0);
   });
 
-  it("refuses the passphrase factor (no reviewed memory-hard KDF)", async () => {
+  it("reports the passphrase factor as available; refuses an unknown factor kind or an empty passphrase", async () => {
     const { vault } = setup();
-    expect(await vault.createProfileVault(A, { additionalFactor: { kind: "passphrase", secret: bytes("pw") } }))
+    expect(vault.capabilities()).toEqual({ webauthnPresent: true, deviceKeyPresent: true, passphraseFactor: "available", reliesOnPersistentStorage: false });
+    expect(await vault.createProfileVault(A, { additionalFactor: { kind: "pin", secret: bytes("1") } as unknown as PassphraseFactor }))
       .toEqual({ ok: false, reason: "unsupported_factor" });
-    expect(vault.capabilities()).toEqual({ webauthnPresent: true, deviceKeyPresent: true, passphraseFactor: "unavailable_no_reviewed_kdf", reliesOnPersistentStorage: false });
+    expect(await vault.createProfileVault(A, { additionalFactor: { kind: "passphrase", secret: bytes("") } }))
+      .toEqual({ ok: false, reason: "passphrase_required" });
+    expect(await vault.createProfileVault(A, { additionalFactor: { kind: "passphrase", secret: new Uint8Array([0xff, 0xfe]) } }))
+      .toEqual({ ok: false, reason: "passphrase_required" });
     expect(await vault.status(A)).toBe("absent");
   });
 });
@@ -387,7 +391,7 @@ describe("rotation", () => {
     await kv.put("k", bytes("survives"));
     const sealedBefore = await rawStore(env, A, STORE_KV, (s) => s.get("k"));
     const before = await rawStore(env, A, STORE_WRAPPED, (s) => s.get(WRAPPED_ID)) as { nonce: Uint8Array; generation: number };
-    expect(await vault.rotateWrapping(A)).toEqual({ ok: true, wrapping: { method: "device-key", reason: "webauthn_absent", reducedAtRestProperty: false } });
+    expect(await vault.rotateWrapping(A)).toEqual({ ok: true, wrapping: { method: "device-key", reason: "webauthn_absent", reducedAtRestProperty: false, passphraseProtected: false } });
     const after = await rawStore(env, A, STORE_WRAPPED, (s) => s.get(WRAPPED_ID)) as { nonce: Uint8Array; generation: number };
     expect(after.generation).toBe(before.generation + 1);
     expect(after.nonce).not.toEqual(before.nonce);

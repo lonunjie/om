@@ -7,6 +7,7 @@ import { Button } from "../shell/primitives/Button";
 import { LiveRegion } from "../shell/primitives/LiveRegion";
 import { Text } from "../shell/primitives/Text";
 import type { OnboardingCopy } from "./copy";
+import { checkNewPassphrase, passphraseBytes, PASSPHRASE_MIN_CODE_POINTS } from "./passphrase";
 import type { OnboardingPlatform } from "./platform";
 import { StepHeading } from "./StepHeading";
 
@@ -32,6 +33,10 @@ type Phase =
 
 export function ProtectDevice({ services, vault, platform, copy, onProtected, onExistingVault }: ProtectDeviceProps) {
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
+  const [usePassphrase, setUsePassphrase] = useState(false);
+  const [pass, setPass] = useState("");
+  const [passConfirm, setPassConfirm] = useState("");
+  const [passShown, setPassShown] = useState(false); // validation message appears only after a first attempt
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const set = (p: Phase): void => { if (mounted.current) setPhase(p); };
@@ -50,15 +55,21 @@ export function ProtectDevice({ services, vault, platform, copy, onProtected, on
 
   // Runs only from a click: every ceremony needs its own user gesture, so nothing here retries on its own.
   async function protect(): Promise<void> {
+    if (usePassphrase && checkNewPassphrase(pass, passConfirm) !== null) { setPassShown(true); return; }
     set({ k: "working" });
+    // A fresh buffer per attempt: the vault zeroes it. The typed text leaves component state once it is encoded.
+    const secret = usePassphrase ? passphraseBytes(pass) : null;
     let result;
     try {
-      result = await vault.createProfileVault(services.ctx.profileId, { wrapping: "auto", passkeyUser: copy.passkeyUser });
+      result = await vault.createProfileVault(services.ctx.profileId, {
+        wrapping: "auto", passkeyUser: copy.passkeyUser,
+        ...(secret ? { additionalFactor: { kind: "passphrase" as const, secret } } : {}),
+      });
     } catch {
       set({ k: "error", reason: "crypto_failed" });
       return;
     }
-    if (result.ok) { await createProfile(result.wrapping); return; }
+    if (result.ok) { setPass(""); setPassConfirm(""); await createProfile(result.wrapping); return; }
     switch (result.reason) {
       case "needs_user_gesture": set({ k: "gesture", stage: result.stage ?? "enroll_create" }); break;
       case "already_exists":
@@ -69,6 +80,8 @@ export function ProtectDevice({ services, vault, platform, copy, onProtected, on
   const run = (fn: () => Promise<void>) => (): void => { void fn(); };
 
   const busy = phase.k === "working";
+  const choosing = phase.k === "idle" || phase.k === "gesture" || phase.k === "error";
+  const passProblem = usePassphrase && passShown ? checkNewPassphrase(pass, passConfirm) : null;
   const wrapping = phase.k === "done" || phase.k === "profile_failed" ? phase.wrapping : null;
   return (
     <section className="om-onb__step" aria-labelledby="om-onb-protect-h">
@@ -87,6 +100,33 @@ export function ProtectDevice({ services, vault, platform, copy, onProtected, on
               <Text as="h4" size="sm" weight="bold">{copy.limitsHeading}</Text>
               <ul>{describeLimits(platform.capabilities()).map((c) => <li key={c}>{copy.limits[c]}</li>)}</ul>
             </div>
+          ) : null}
+        </div>
+      ) : null}
+      {choosing || busy ? (
+        <div className="om-onb__result">
+          <label className="om-onb__check">
+            <input type="checkbox" checked={usePassphrase} disabled={busy} onChange={(e) => { setUsePassphrase(e.target.checked); setPassShown(false); }} />
+            {" "}{copy.passphrase.toggle}
+          </label>
+          {usePassphrase ? (
+            <>
+              <Text as="p" tone="secondary">{copy.passphrase.hint}</Text>
+              <p role="note" className="om-onb__notice" data-code="passphrase_unrecoverable">{copy.passphrase.warning}</p>
+              <div className="om-onb__field">
+                <label htmlFor="om-pass-new">{copy.passphrase.label}</label>
+                <input id="om-pass-new" className="om-onb__input" type="password" autoComplete="new-password" spellCheck={false} autoCapitalize="none"
+                  value={pass} disabled={busy} onChange={(e) => { setPass(e.target.value); }} />
+              </div>
+              <div className="om-onb__field">
+                <label htmlFor="om-pass-confirm">{copy.passphrase.confirmLabel}</label>
+                <input id="om-pass-confirm" className="om-onb__input" type="password" autoComplete="new-password" spellCheck={false} autoCapitalize="none"
+                  value={passConfirm} disabled={busy} onChange={(e) => { setPassConfirm(e.target.value); }} />
+              </div>
+              <Text as="p" tone="secondary">{copy.passphrase.slowNote}</Text>
+              {passProblem === "mismatch" ? <p role="alert" data-code="passphrase_mismatch">{copy.passphrase.mismatch}</p> : null}
+              {passProblem === "too_short" || passProblem === "too_long" ? <p role="alert" data-code={`passphrase_${passProblem}`}>{copy.passphrase.tooShort(PASSPHRASE_MIN_CODE_POINTS)}</p> : null}
+            </>
           ) : null}
         </div>
       ) : null}

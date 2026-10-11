@@ -1,6 +1,7 @@
 import type { ConversationId, OperationId, ProfileExecutionContext, ProfileId } from "./ids";
 import type { CoreIntent } from "./intents";
 import type { OutcomeClass } from "./outcome";
+import type { DevicesView, LinkOfferView, LinkRequestView, RecoveryStatusView } from "./devices";
 import type { ConversationSummary, ConversationView, HomeSummary, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, RecoveryKeyView } from "./views";
 
 export interface GetConversationView { readonly kind: "GetConversationView"; readonly ctx: ProfileExecutionContext; readonly conversationId: ConversationId }
@@ -10,7 +11,15 @@ export interface GetIntroductions { readonly kind: "GetIntroductions"; readonly 
 export interface GetRecoveryKey { readonly kind: "GetRecoveryKey"; readonly ctx: ProfileExecutionContext; readonly keyOperationId: OperationId }
 export interface GetInvite { readonly kind: "GetInvite"; readonly ctx: ProfileExecutionContext; readonly operationId: OperationId }
 export interface GetHomeSummary { readonly kind: "GetHomeSummary"; readonly ctx: ProfileExecutionContext }
-export type CoreQuery = GetConversationView | GetConversationList | GetProfileList | GetIntroductions | GetRecoveryKey | GetInvite | GetHomeSummary;
+export interface GetDevices { readonly kind: "GetDevices"; readonly ctx: ProfileExecutionContext }
+/** The request produced by a RequestDeviceLink operation (`null` until Core has one). */
+export interface GetLinkRequest { readonly kind: "GetLinkRequest"; readonly ctx: ProfileExecutionContext; readonly operationId: OperationId }
+/** The offer produced by an OfferDeviceLink operation. */
+export interface GetLinkOffer { readonly kind: "GetLinkOffer"; readonly ctx: ProfileExecutionContext; readonly operationId: OperationId }
+export interface GetRecoveryStatus { readonly kind: "GetRecoveryStatus"; readonly ctx: ProfileExecutionContext }
+export type CoreQuery =
+  | GetConversationView | GetConversationList | GetProfileList | GetIntroductions | GetRecoveryKey | GetInvite | GetHomeSummary
+  | GetDevices | GetLinkRequest | GetLinkOffer | GetRecoveryStatus;
 
 export interface QueryResultMap {
   GetConversationView: ConversationView;
@@ -21,6 +30,10 @@ export interface QueryResultMap {
   GetRecoveryKey: RecoveryKeyView | null;
   GetInvite: InviteView | null;
   GetHomeSummary: HomeSummary;
+  GetDevices: DevicesView;
+  GetLinkRequest: LinkRequestView | null;
+  GetLinkOffer: LinkOfferView | null;
+  GetRecoveryStatus: RecoveryStatusView;
 }
 export type QueryResult<Q extends CoreQuery> = QueryResultMap[Q["kind"]];
 

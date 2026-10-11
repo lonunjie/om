@@ -27,6 +27,7 @@ describe("Action Registry", () => {
       "accept-introduction": { requestId: "r1" }, "share-contact": { personId: "u1", scope: "full" }, "clear-adaptive-navigation": {},
       "open-omnibar-result": { resultId: "x1" }, "create-profile": { label: "Me" }, "confirm-recovery-key-stored": { keyOperationId: "op-9" },
       "create-invite": {}, "accept-invitation": { link: "om:invite/AAAAAAAAAAAAAAAAAAAAAA" },
+      "offer-device-link": {}, "request-device-link": { link: "om:link/AAAAAAAAAAAAAAAAAAAAAA" }, "reject-device-link": { requestId: "lr-1" },
     };
     for (const [actionId, params] of Object.entries(samples)) {
       expect(INTENT_KINDS).toContain(intentOf(registry.resolve({ actionId, params, ctx, origin: "direct" })).kind);
@@ -62,8 +63,12 @@ describe("Action Registry", () => {
   });
 
   it("destructive actions need a registry-issued confirmation bound to action, params and context (UI-11)", () => {
-    expect(DESTRUCTIVE_INTENT_KINDS).toEqual(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy"]);
-    const actions: [string, unknown][] = [["block-person", block], ["suspend-device", { deviceId: "d1" }], ["change-privacy-policy", { policy: "maximum" }]];
+    expect(DESTRUCTIVE_INTENT_KINDS).toEqual(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery"]);
+    const actions: [string, unknown][] = [
+      ["block-person", block], ["suspend-device", { deviceId: "d1" }], ["change-privacy-policy", { policy: "maximum" }],
+      ["approve-device-link", { requestId: "lr-1" }], ["finalize-device-revocation", { deviceId: "d1" }],
+      ["start-recovery", { scope: "identity", custodian: "recovery_key" }], ["veto-recovery", { requestId: "rr-1" }],
+    ];
     for (const [actionId, params] of actions) {
       expect(registry.resolve({ actionId, params, ctx, origin: "direct" })).toEqual({ status: "needs_confirmation", actionId });
       const issue = registry.issueConfirmation({ actionId, params, ctx, origin: "direct" });
@@ -92,6 +97,37 @@ describe("Action Registry", () => {
     if (issue.status !== "issued") throw new Error("not issued");
     expect(registry.resolve({ actionId: "block-person", params: block, ctx, origin: "suggestion", confirmation: issue.token })).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
     expect(registry.resolve({ actionId: "block-person", params: block, ctx, origin: "suggestion" })).toEqual({ status: "needs_confirmation", actionId: "block-person" });
+  });
+
+  it("NoSilentLink: link actions accept no extra flags, and approval cannot come from a suggestion", () => {
+    for (const params of [{ requestId: "lr-1", notify: false }, { requestId: "lr-1", silent: true }, { requestId: "../x" }, {}]) {
+      expect(registry.resolve({ actionId: "approve-device-link", params, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    }
+    for (const link of ["om:invite/AAAAAAAAAAAAAAAAAAAAAA", "https://x.example/om:link/AAAAAAAAAAAAAAAAAAAAAA", "om:link/short", ""]) {
+      expect(registry.resolve({ actionId: "request-device-link", params: { link }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    }
+    expect(registry.resolve({ actionId: "request-device-link", params: { link: "om:link/AAAAAAAAAAAAAAAAAAAAAA", autoApprove: true }, ctx, origin: "direct" }))
+      .toEqual({ status: "rejected", code: "invalid_params" });
+    expect(registry.issueConfirmation({ actionId: "approve-device-link", params: { requestId: "lr-1" }, ctx, origin: "suggestion" }))
+      .toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
+  });
+
+  it("suspend and permanent revoke are distinct actions; a suspend token cannot revoke", () => {
+    const params = { deviceId: "d1" };
+    const issue = registry.issueConfirmation({ actionId: "suspend-device", params, ctx, origin: "direct" });
+    if (issue.status !== "issued") throw new Error("not issued");
+    expect(registry.resolve({ actionId: "finalize-device-revocation", params, ctx, origin: "direct", confirmation: issue.token })).toEqual({ status: "rejected", code: "invalid_confirmation" });
+    expect(intentOf(registry.resolve({ actionId: "suspend-device", params, ctx, origin: "direct", confirmation: issue.token })).kind).toBe("SuspendDevice");
+  });
+
+  it("recovery scopes and custodians are closed sets; settings search only opens the dedicated screens", () => {
+    for (const params of [{ scope: "everything", custodian: "recovery_key" }, { scope: "identity", custodian: "email" }, { scope: "identity" }]) {
+      expect(registry.resolve({ actionId: "start-recovery", params, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    }
+    expect(registry.resolve({ actionId: "view-recovery", params: {}, ctx, origin: "suggestion" }))
+      .toMatchObject({ status: "presentation", op: { op: "open-settings", section: "recovery" }, query: { kind: "GetRecoveryStatus" } });
+    expect(registry.resolve({ actionId: "start-recovery", params: { scope: "identity", custodian: "recovery_key" }, ctx, origin: "suggestion" }))
+      .toEqual({ status: "needs_confirmation", actionId: "start-recovery" });
   });
 
   it("platform actions map to capabilities, not intents", () => {

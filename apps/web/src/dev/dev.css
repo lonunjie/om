@@ -1,3 +1,11 @@
 .om-dev-banner { position: sticky; top: 0; z-index: 100; padding: 4px 12px; background: #5a1a00; color: #fff; font: 600 12px/1.4 system-ui, sans-serif; text-align: center; }
 .om-dev-requests { display: grid; gap: 8px; padding: 8px 0; }
 .om-dev-fail { max-width: 36rem; margin: 10vh auto; padding: 0 16px; }
+.om-qr { display: block; width: min(100%, 18rem); height: auto; background: #fff; border-radius: 8px; }
+.om-scan { position: fixed; inset: 0; z-index: 200; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 16px; background: var(--om-color-bg-canvas, #fff); }
+.om-scan__video { width: min(100%, 28rem); max-height: 60vh; background: #000; border-radius: 8px; object-fit: cover; }
+.om-dev-settings { display: grid; gap: 8px; }
+.om-dev-settings__list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.om-dev-settings__row { inline-size: 100%; text-align: start; }
+.om-dev-newdevice { display: grid; gap: 8px; margin-block-start: 24px; padding: 12px; border: 2px dashed #5a1a00; border-radius: 8px; overflow-wrap: anywhere; }
+.om-dev-newdevice__tag { margin: 0; font: 600 12px/1.4 system-ui, sans-serif; color: #5a1a00; }

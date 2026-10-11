@@ -1,6 +1,7 @@
+import type { AccountControlStateCode, DeviceCautionCode, DeviceRole, DeviceStateCode, LastSeenClass, LinkOfferState, LinkRequestState, RecoveryCustodianCode, RecoveryPolicyState, RecoveryRequestState, RecoveryScope } from "@om/platform-api";
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
 import { describe, expect, it } from "vitest";
-import { appStrings, conversationCopy, onboardingCopy, shellLabels, switcherLabels } from "./en";
+import { appStrings, conversationCopy, deviceScannerCopy, devicesCopy, linkThisDeviceCopy, onboardingCopy, recoveryCopy, scannerCopy, shellLabels, switcherLabels, unlockCopy } from "./en";
 
 /** Every leaf must be a non-empty string; functions are called with sample arguments. */
 function leaves(v: unknown, path: string, out: [string, string][]): void {
@@ -18,7 +19,7 @@ const NOTICES = keys<SecurityNoticeCode>({ safety_number_changed: true, device_a
 const ACTIONS = keys<UserActionCode>({ authorize_with_device: true, confirm_security_change: true, reauthenticate: true, update_client: true });
 const VAULT = keys<VaultErrorReason>({
   invalid_profile_id: true, invalid_purpose: true, invalid_key: true, not_found: true, corrupt: true, locked: true, already_exists: true, conflict: true, needs_user_gesture: true,
-  ceremony_failed: true, prf_unavailable: true, unwrap_failed: true, unsupported_factor: true, unsupported_platform: true, malformed: true, unsupported_version: true,
+  ceremony_failed: true, prf_unavailable: true, unwrap_failed: true, unsupported_factor: true, passphrase_required: true, wrong_passphrase: true, unsupported_platform: true, malformed: true, unsupported_version: true,
   wrong_purpose: true, integrity_failure: true, crypto_failed: true, storage_failed: true, delete_unverified: true,
 });
 const WRAP = keys<WrappingReason>({ prf_verified: true, device_key_requested: true, webauthn_absent: true, prf_not_enabled: true, prf_no_output: true, webauthn_create_failed: true, webauthn_get_failed: true });
@@ -31,10 +32,22 @@ const LIMITS = keys<LimitCode>({
 });
 const OBSERVERS = keys<HomeObserverCode>({ sponsor_sees_metadata: true, host_sees_metadata: true, host_sees_ciphertext: true, no_third_party: true });
 const ORIGINS = keys<ClientOriginChoiceCode>({ default_origin: true, independent_origin_available: true, independent_origin_active: true });
+const FROZEN = keys<Exclude<AccountControlStateCode, "normal">>({ control_conflict: true, safety_freeze: true, fork_detected: true });
+const ROLES = keys<DeviceRole>({ control: true, messaging: true });
+const DEVICE_STATES = keys<DeviceStateCode>({ active: true, quarantined: true, revocation_pending: true, revoked: true });
+const LAST_SEEN = keys<LastSeenClass>({ now: true, recent: true, this_week: true, this_month: true, long_ago: true, never: true });
+const CAUTIONS = keys<DeviceCautionCode>({ suspend_would_freeze: true, last_voting_controller: true, history_sync_unavailable: true, long_idle: true });
+const LINK_STATES = keys<LinkRequestState>({ awaiting_approval: true, pending_authorization: true, approved: true, rejected: true, expired: true });
+const OFFER_STATES = keys<LinkOfferState>({ waiting_for_scan: true, awaiting_approval: true, linked: true, rejected: true, expired: true });
+const POLICIES = keys<RecoveryPolicyState>({ on: true, pending: true, off_explicit: true });
+const CUSTODIANS = keys<RecoveryCustodianCode>({ synced_passkey: true, recovery_key: true, trusted_contacts: true, spare_device: true });
+const RECOVERY_STATES = keys<RecoveryRequestState>({ waiting: true, completed: true, vetoed: true, cancelled: true });
+const SCOPES = keys<RecoveryScope>({ identity: true, history: true, provider: true });
 
 describe("English copy catalog", () => {
   it("has a non-empty string for every key of every copy type", () => {
-    const entries = [...all("conversation", conversationCopy), ...all("onboarding", onboardingCopy), ...all("shell", shellLabels), ...all("switcher", switcherLabels), ...all("app", appStrings)];
+    const entries = [...all("conversation", conversationCopy), ...all("onboarding", onboardingCopy), ...all("shell", shellLabels), ...all("switcher", switcherLabels), ...all("app", appStrings), ...all("scanner", scannerCopy), ...all("unlock", unlockCopy),
+      ...all("deviceScanner", deviceScannerCopy), ...all("devices", devicesCopy), ...all("linkThisDevice", linkThisDeviceCopy), ...all("recovery", recoveryCopy)];
     expect(entries.length).toBeGreaterThan(200);
     expect(entries.filter(([, s]) => s.trim() === "").map(([p]) => p)).toEqual([]);
   });
@@ -52,8 +65,28 @@ describe("English copy catalog", () => {
     expect(has(onboardingCopy.home.observers, OBSERVERS)).toEqual([]);
     expect(has(onboardingCopy.home.origin, ORIGINS)).toEqual([]);
   });
+  it("words every device, link and recovery code", () => {
+    const d = devicesCopy;
+    for (const o of [d.outcome, linkThisDeviceCopy.outcome, recoveryCopy.outcome]) { expect(has(o.rejected, REASONS)).toEqual([]); expect(has(o.needsAction, ACTIONS)).toEqual([]); }
+    expect(has(d.controlState, FROZEN)).toEqual([]);
+    expect(has(d.role, ROLES)).toEqual([]);
+    expect(has(d.state, DEVICE_STATES)).toEqual([]);
+    expect(has(d.lastSeen, LAST_SEEN)).toEqual([]);
+    expect(has(d.cautions, CAUTIONS)).toEqual([]);
+    expect(has(d.link.requestState, LINK_STATES)).toEqual([]);
+    expect(has(linkThisDeviceCopy.state, OFFER_STATES)).toEqual([]);
+    expect(has(recoveryCopy.policy, POLICIES)).toEqual([]);
+    expect(has(recoveryCopy.custodian, CUSTODIANS)).toEqual([]);
+    expect(has(recoveryCopy.requestState, RECOVERY_STATES)).toEqual([]);
+    expect(SCOPES.filter((s) => recoveryCopy.scope[s].title === "" || recoveryCopy.start.consequences[s].length === 0)).toEqual([]);
+  });
+  it("suspend and permanent removal never share wording", () => {
+    expect(devicesCopy.suspend.action).not.toBe(devicesCopy.revoke.action);
+    expect(devicesCopy.suspend.confirm).not.toBe(devicesCopy.revoke.confirm);
+    expect(devicesCopy.suspend.consequences.filter((c) => devicesCopy.revoke.consequences.includes(c) && !/already on it/.test(c))).toEqual([]);
+  });
   it("shows no provider names or raw machine codes to people", () => {
-    const text = [...all("c", conversationCopy), ...all("o", onboardingCopy), ...all("a", appStrings)].map(([, s]) => s).join("\n");
+    const text = [...all("c", conversationCopy), ...all("o", onboardingCopy), ...all("a", appStrings), ...all("d", devicesCopy), ...all("l", linkThisDeviceCopy), ...all("r", recoveryCopy)].map(([, s]) => s).join("\n");
     expect(text).not.toMatch(/\b(?:Google|Apple|Microsoft|Cloudflare|WebAuthn|PRF|IndexedDB|[a-z]+_[a-z_]+)\b/);
   });
 });

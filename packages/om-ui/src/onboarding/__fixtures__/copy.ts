@@ -1,13 +1,13 @@
 import type {
   ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason,
 } from "@om/platform-api";
-import type { OnboardingCopy } from "../copy";
+import type { OnboardingCopy, UnlockCopy } from "../copy";
 
 const rec = <K extends string>(keys: readonly K[], f: (k: K) => string): Readonly<Record<K, string>> => Object.fromEntries(keys.map((k) => [k, f(k)])) as Record<K, string>;
 const REASONS: readonly RejectReason[] = ["invalid", "unsupported", "unauthorized", "revoked", "expired", "stale_state", "conflict", "policy_denied", "quota", "rate_limited", "integrity_failure", "unavailable", "not_found"];
 const VAULT_ERRORS: readonly VaultErrorReason[] = [
   "invalid_profile_id", "invalid_purpose", "invalid_key", "not_found", "corrupt", "locked", "already_exists", "conflict", "needs_user_gesture", "ceremony_failed",
-  "prf_unavailable", "unwrap_failed", "unsupported_factor", "unsupported_platform", "malformed", "unsupported_version", "wrong_purpose", "integrity_failure",
+  "prf_unavailable", "unwrap_failed", "unsupported_factor", "passphrase_required", "wrong_passphrase", "unsupported_platform", "malformed", "unsupported_version", "wrong_purpose", "integrity_failure",
   "crypto_failed", "storage_failed", "delete_unverified",
 ];
 const WRAPPING_REASONS: readonly WrappingReason[] = ["prf_verified", "device_key_requested", "webauthn_absent", "prf_not_enabled", "prf_no_output", "webauthn_create_failed", "webauthn_get_failed"];
@@ -21,6 +21,11 @@ const LIMITS: readonly LimitCode[] = [
 const OBSERVERS: readonly HomeObserverCode[] = ["sponsor_sees_metadata", "host_sees_metadata", "host_sees_ciphertext", "no_third_party"];
 const ORIGINS: readonly ClientOriginChoiceCode[] = ["default_origin", "independent_origin_available", "independent_origin_active"];
 
+export const testUnlockCopy: UnlockCopy = {
+  heading: "Unlock OM", body: "Unlock your data on this device.", passphraseLabel: "Passphrase", unlock: "Unlock", working: "Unlocking", workingSlow: "Unlocking, this takes a few seconds",
+  continueCeremony: "Continue", needsGesture: rec(STAGES, (s) => `Another confirmation is needed (${s})`), errors: rec(VAULT_ERRORS, (e) => `Error: ${e}`), openRecovery: "Open recovery",
+};
+
 export const testCopy: OnboardingCopy = {
   welcome: { heading: "Welcome", body: "Set up this device.", start: "Get started" },
   protect: {
@@ -33,6 +38,10 @@ export const testCopy: OnboardingCopy = {
     errors: rec(VAULT_ERRORS, (e) => `Error: ${e}`), retry: "Try again",
     existing: { already_exists: "This browser already has an OM vault.", corrupt: "The OM vault here is damaged." }, openRecovery: "Open recovery",
     profileFailed: "Could not create your identity.", retryProfile: "Retry identity", next: "Continue",
+    passphrase: {
+      toggle: "Also use a passphrase", hint: "Adds a second lock.", warning: "If you forget it, this data cannot be recovered.", label: "Passphrase",
+      confirmLabel: "Repeat passphrase", tooShort: (n) => `Use at least ${String(n)} characters.`, mismatch: "The passphrases do not match.", slowNote: "Unlocking takes a few seconds.",
+    },
   },
   recovery: {
     heading: "Your recovery key", body: "Write this key down. It is shown once.", shownAnnouncement: "Recovery key shown on screen.", keyLabel: "Recovery key",

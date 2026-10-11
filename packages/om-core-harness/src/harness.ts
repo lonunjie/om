@@ -5,8 +5,11 @@ import {
 import type {
   ConversationId, ConversationSummary, ConversationTimelineItem, ConversationView, CoreClient, CoreIntent, CoreQuery,
   DeliveryState, HomeSummary, IntroductionRequest, InviteView, MessageId, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
-  PersonId, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, TerminalOutcome, Unsubscribe,
+  PersonId, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, TerminalOutcome, Unsubscribe, UserActionCode,
 } from "@om/platform-api";
+import { createDeviceSim, type SeedDevices } from "./devices";
+
+export type { SeedDevice, SeedDevices, SeedIncomingRecovery, SeedRecovery } from "./devices";
 
 export const HARNESS_MARKER = "OM-DEV-HARNESS-NOT-FOR-PRODUCTION";
 
@@ -35,6 +38,8 @@ export interface SeedProfile {
   readonly conversations?: readonly SeedConversation[];
   readonly introductions?: readonly (IntroductionRequest & { readonly personId: PersonId })[];
   readonly home?: HomeSummary;
+  /** Devices, link and recovery state (default: one current control device, recovery on with a recovery key). */
+  readonly account?: SeedDevices;
 }
 
 export interface Harness extends CoreClient {
@@ -48,6 +53,12 @@ export interface Harness extends CoreClient {
   /** Drops all in-memory observers/subscribers; the durable operation log is kept. */
   simulateRestart(): void;
   resolveReconciliation(operationId: OperationId, outcome: TerminalOutcome): void;
+  /** Arms a fault for a device/recovery intent: Core answers NeedsUserAction and changes nothing. Arm before dispatch. */
+  injectUserActionRequired(operationId: OperationId, action: UserActionCode): void;
+  /** Finishes an operation that is PendingAuthorization (other devices approved, or the recovery delay ran out). */
+  resolveAuthorization(operationId: OperationId, outcome: TerminalOutcome): void;
+  /** A new device outside this harness shows a link offer; returns the link and the code its screen would show. */
+  simulateNewDeviceOffer(label: string): { readonly link: string; readonly verificationCode: string };
 }
 
 export interface HarnessOptions { readonly clock?: () => number; readonly env?: HarnessEnv | undefined }
@@ -74,7 +85,11 @@ interface ProfileState {
   acceptedInvites: Set<string>;
   home: HomeSummary;
 }
-interface OpRecord { operationId: OperationId; profileId: ProfileId; intent: CoreIntent; outcome: OutcomeClass; messageId: MessageId | null }
+interface OpRecord {
+  operationId: OperationId; profileId: ProfileId; intent: CoreIntent; outcome: OutcomeClass; messageId: MessageId | null;
+  onReconcile?: (o: TerminalOutcome) => void;
+  onAuthorize?: (o: TerminalOutcome) => void;
+}
 
 const DEFAULT_HOME: HomeSummary = {
   tier: "T1", observers: ["host_sees_metadata", "host_sees_ciphertext"], migrationAvailable: true, clientOriginChoice: ["default_origin", "independent_origin_available"],
@@ -98,6 +113,8 @@ export function createHarness(options: HarnessOptions = {}): Harness {
   const messageOwner = new Map<MessageId, ProfileId>();
   const opLog = new Map<OperationId, OpRecord>(); // durable: survives simulateRestart
   const armedTimeouts = new Set<OperationId>();
+  const armedUserActions = new Map<OperationId, UserActionCode>();
+  const sim = createDeviceSim(clock);
   let observers = new Map<OperationId, Set<(o: OutcomeClass) => void>>();
   let subscribers = new Set<{ readonly selector: CoreQuery; readonly listener: (r: never) => void }>();
   let messageSeq = 0;
@@ -149,6 +166,18 @@ export function createHarness(options: HarnessOptions = {}): Harness {
           return stateFor(q.ctx).invites.get(q.operationId) ?? null;
         case "GetHomeSummary":
           return stateFor(q.ctx).home;
+        case "GetDevices":
+          stateFor(q.ctx);
+          return sim.queries.devices(q.ctx.profileId);
+        case "GetLinkRequest":
+          stateFor(q.ctx);
+          return sim.queries.linkRequest(q.ctx.profileId, q.operationId);
+        case "GetLinkOffer":
+          stateFor(q.ctx);
+          return sim.queries.linkOffer(q.ctx.profileId, q.operationId);
+        case "GetRecoveryStatus":
+          stateFor(q.ctx);
+          return sim.queries.recovery(q.ctx.profileId);
         case "GetConversationView": {
           const st = stateFor(q.ctx);
           const conv = conversationFor(q.ctx, st, q.conversationId);
@@ -177,7 +206,44 @@ export function createHarness(options: HarnessOptions = {}): Harness {
     return rec;
   }
 
+  /** Device/recovery intents: the simulated effect runs now, later (reconciliation/authorization) or never (faults). */
+  function applyStaged(intent: CoreIntent): OpRecord | null {
+    const staged = sim.stage(intent.ctx.profileId, intent);
+    if (staged === null) return null;
+    const timeout = armedTimeouts.delete(intent.operationId);
+    const action = armedUserActions.get(intent.operationId);
+    armedUserActions.delete(intent.operationId);
+    if (staged.kind === "rejected") return record(intent, { kind: "Rejected", reason: staged.reason });
+    if (action !== undefined) return record(intent, { kind: "NeedsUserAction", action });
+    if (timeout) {
+      const rec = record(intent, { kind: "PendingReconciliation" });
+      rec.onReconcile = (o) => {
+        if (o.kind !== "Committed") return;
+        staged.commit();
+        staged.onAuthorize?.(o); // reconciled as fully committed
+      };
+      return rec;
+    }
+    staged.commit();
+    const rec = record(intent, staged.outcome);
+    if (staged.onAuthorize) rec.onAuthorize = staged.onAuthorize;
+    if (intent.kind === "VetoRecovery") { // cancelling our own recovery ends its StartRecovery operation
+      const startOp = sim.recoveryOperation(intent.ctx.profileId, intent.requestId);
+      const start = startOp === null ? undefined : opLog.get(startOp);
+      if (start && !isTerminalOutcome(start.outcome)) { start.outcome = { kind: "Rejected", reason: "revoked" }; delete start.onAuthorize; notify(start.profileId, start.operationId); }
+    }
+    return rec;
+  }
+
+  function flushTouched(except: ProfileId): void {
+    const others = [...sim.touched].filter((p) => p !== except);
+    sim.touched.clear();
+    for (const p of others) notify(p);
+  }
+
   function apply(intent: CoreIntent, st: ProfileState): OpRecord {
+    const staged = applyStaged(intent);
+    if (staged) return staged;
     const rejected = (reason: RejectReason): OpRecord => record(intent, { kind: "Rejected", reason });
     switch (intent.kind) {
       case "SendMessage": {
@@ -275,6 +341,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         st.conversations.set(c.id, { id: c.id, personId: c.personId, displayName: c.displayName, messages });
       }
       for (const i of seed.introductions ?? []) st.introductions.set(i.id, i);
+      sim.seed(seed.profileId, seed.account);
       profiles.set(seed.profileId, st);
       return captureProfileContext(seed.profileId, st.generation);
     },
@@ -290,6 +357,23 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       armedTimeouts.add(operationId);
     },
 
+    injectUserActionRequired(operationId, action) {
+      if (opLog.has(operationId)) throw new HarnessError("fault must be armed before the operation is dispatched");
+      armedUserActions.set(operationId, action);
+    },
+
+    resolveAuthorization(operationId, outcome) {
+      const rec = opLog.get(operationId);
+      if (rec?.outcome.kind !== "PendingAuthorization") throw new HarnessError("operation is not pending authorization");
+      rec.outcome = outcome;
+      rec.onAuthorize?.(outcome);
+      delete rec.onAuthorize;
+      notify(rec.profileId, operationId);
+      flushTouched(rec.profileId);
+    },
+
+    simulateNewDeviceOffer: (label) => sim.simulateNewDeviceOffer(label),
+
     simulateRestart() {
       observers = new Map();
       subscribers = new Set();
@@ -303,7 +387,10 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         const msg = [...(profiles.get(rec.profileId)?.conversations.values() ?? [])].flatMap((c) => c.messages).find((m) => m.messageId === rec.messageId);
         if (msg) msg.delivery = outcome.kind === "Committed" ? { state: "sent" } : { state: "rejected", reason: outcome.reason };
       }
+      rec.onReconcile?.(outcome);
+      delete rec.onReconcile;
       notify(rec.profileId, operationId);
+      flushTouched(rec.profileId);
     },
 
     dispatch(intent) {
@@ -317,6 +404,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         const before = opLog.size;
         const rec = apply(intent, st);
         if (opLog.size !== before) notify(rec.profileId, rec.operationId);
+        flushTouched(rec.profileId);
         return handleOf(rec);
       });
     },

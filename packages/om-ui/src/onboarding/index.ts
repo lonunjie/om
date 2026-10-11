@@ -7,3 +7,5 @@ export * from "./ProtectDevice";
 export * from "./RecoveryKeyStep";
 export * from "./InviteFirst";
 export * from "./OnboardingFlow";
+export * from "./UnlockVault";
+export * from "./passphrase";

@@ -7,6 +7,7 @@ export type ProfileGeneration = Brand<string, "ProfileGeneration">;
 export type ConversationId = Brand<string, "ConversationId">;
 export type PersonId = Brand<string, "PersonId">;
 export type MessageId = Brand<string, "MessageId">;
+export type DeviceId = Brand<string, "DeviceId">;
 
 export const asOperationId = (v: string): OperationId => v as OperationId;
 export const asProfileId = (v: string): ProfileId => v as ProfileId;
@@ -14,6 +15,7 @@ export const asProfileGeneration = (v: string): ProfileGeneration => v as Profil
 export const asConversationId = (v: string): ConversationId => v as ConversationId;
 export const asPersonId = (v: string): PersonId => v as PersonId;
 export const asMessageId = (v: string): MessageId => v as MessageId;
+export const asDeviceId = (v: string): DeviceId => v as DeviceId;
 
 /** Captured at dispatch; never re-derived from a process-global active profile. */
 export interface ProfileExecutionContext {
