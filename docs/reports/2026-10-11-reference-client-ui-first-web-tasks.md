@@ -145,3 +145,12 @@ Open items for the next session:
 3. ~~Reconcile the theme name~~ done 2026-10-11: ADR-0179 names the default theme OM Calm and the docs were updated.
 4. Release keys and the real trust root for the signed bundle (production builds are unsigned and the service worker refuses them by design).
 5. Next tasks: C2, Devices and Recovery settings screens, groups screens, voice-note and location-card UX.
+
+## Status update (2026-10-11, second session)
+
+Commits `8228773` (ADR-0179) and `507a128`. Typecheck, lint, 273 tests, `make check`, production build, no-harness check and the reproducible-bundle check pass; QR, onboarding, Settings and Devices were run in the in-app browser.
+
+- **Done:** Argon2id passphrase factor (`@noble/hashes` 2.4.0; nested wrap, floor m=19 MiB/t=2, default m=64 MiB/t=3, NFKC), opt-in in `ProtectDevice`, `UnlockVault` screen; QR show/scan (`@paulmillr/qr` 0.3.0), Permissions-Policy now `camera=(self)`; Settings > Devices and Recovery on typed Core queries/intents, with harness support.
+- **Not built:** change/add/remove passphrase after setup; `UnlockVault` and `LinkThisDevice` are not wired into the app flow (no production Core yet); replace recovery key, "that was me" recovery approval, lift suspension, promote device (no intents yet).
+- **Needs a real browser/device:** camera scan, PRF passkey path and service worker (the in-app pane has no authenticator or camera); Argon2id timing on a low-end phone.
+- **Open:** whether the nested passphrase wrap needs an ADR/traceability entry (labels are implementation-private); spec says "Suspend is one tap" but the UI adds a confirmation (kept); release keys and trust root; C1 and C2 still open.
