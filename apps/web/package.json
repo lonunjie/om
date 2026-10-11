@@ -1,3 +1,6 @@
 { "name": "@om/web", "version": "0.0.0", "private": true, "type": "module", "scripts": { "dev": "vite", "build": "tsc -b && vite build", "build:dev": "OM_BUNDLE_DEV=1 tsc -b && OM_BUNDLE_DEV=1 vite build",
+    "build:harness": "tsc -b && VITE_OM_DEV_HARNESS=1 vite build --outDir dist-harness --emptyOutDir",
+    "check:no-harness": "node build/check-no-harness.mjs",
     "repro": "node build/check-reproducible.mjs",
-    "preview": "vite preview" }, "dependencies": { "@om/ui": "workspace:*", "@om/web-platform": "workspace:*", "react": "19.3.0", "react-dom": "19.3.0" } }
+    "preview": "vite preview",
+    "preview:harness": "vite preview --outDir dist-harness --port 4173 --strictPort" }, "dependencies": { "@om/platform-api": "workspace:*", "@om/ui": "workspace:*", "@om/web-platform": "workspace:*", "react": "19.3.0", "react-dom": "19.3.0" }, "devDependencies": { "@om/core-harness": "workspace:*" } }

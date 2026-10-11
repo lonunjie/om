@@ -214,6 +214,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@om/platform-api':
+        specifier: workspace:*
+        version: link:../../packages/om-platform-api
       '@om/ui':
         specifier: workspace:*
         version: link:../../packages/om-ui
@@ -226,6 +229,10 @@ importers:
       react-dom:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@om/core-harness':
+        specifier: workspace:*
+        version: link:../../packages/om-core-harness
 
   packages/om-core-harness:
     dependencies:

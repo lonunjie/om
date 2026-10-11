@@ -127,3 +127,21 @@ After UW-0: run UW-1, UW-2, UW-4 and UW-5 in parallel; UW-3 starts once UW-2's i
 ## Pre-release items this plan does not close
 
 V-006 (published support matrix with regression tests per browser; Windows decision), V-018 participant study, V-021 forensic audit on real devices.
+
+## Status (2026-10-11, end of session)
+
+UW-0 through UW-9 are built and verified: 209 tests, `make check`, `pnpm web:check`, reproducible bundle, harness excluded from production. Commits `8336101`, `dcd88df`, `90bcab8` and the UW-9 commit that follows them. The full flow (onboarding with the real WebDeviceVault, shell, profile switch, send) was run in a real browser against the dev-only Core.
+
+| Task | State |
+|---|---|
+| UW-0 workspace, UW-1 Core boundary + harness, UW-2 PlatformAdapter, UW-4 service worker + signed bundle, UW-5 design/shell, UW-6 profiles, UW-7 onboarding, UW-8 conversations, UW-9 composition + English copy | done |
+| UW-3 DeviceVault | done and lead-reviewed; passphrase factor blocked on a reviewed Argon2id dependency |
+| C1 swap harness for real Core | blocked on `core_kernel` `om-wasm` |
+| C2 shell-readiness (bundle in Android web view / `WKWebView`) | not started |
+
+Open items for the next session:
+1. Service worker and PRF passkey paths need a real-browser check (Chrome, Safari, Firefox, iOS, Android); the in-app pane supports neither. Playwright is not installed.
+2. Decide on QR encode/decode and Argon2id dependencies (onboarding hides QR/scan without them).
+3. Reconcile the theme name: code uses OM Calm (operator choice), ADR-0159/0166 say OM Clear.
+4. Release keys and the real trust root for the signed bundle (production builds are unsigned and the service worker refuses them by design).
+5. Next tasks: C2, Devices and Recovery settings screens, groups screens, voice-note and location-card UX.
