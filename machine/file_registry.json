@@ -1649,6 +1649,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0180-web-vault-passphrase-layer-and-device-suspend-confirmation.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",

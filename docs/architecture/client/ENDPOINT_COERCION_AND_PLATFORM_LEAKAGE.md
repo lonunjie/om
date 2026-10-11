@@ -23,7 +23,7 @@ The classic messenger stalking attack is to link an attacker's device (a web/des
 Rules:
 
 1. Every new messaging or control device enrollment produces an **authenticated, non-suppressible notice** on every other active device of the account. The notice comes from AccountControlState, not from provider UI.
-2. **Devices** (Settings) lists every messaging/control device with enrollment time and last-seen class. Suspend (quarantine) is one tap.
+2. **Devices** (Settings) lists every messaging/control device with enrollment time and last-seen class. Suspend (quarantine) is a single deliberate action from the device's details: no multi-step flow and no authorization from another device, but still one explicit confirmation (UI-11, ADR-0180). Permanent revocation is a separate action.
 3. Linking requires an unlock of the enrolling device's DeviceVault and a short-lived ceremony (already required). Hardened adds a second confirmation on another existing device when one exists.
 4. The client periodically reminds the user of long-idle linked devices ("You have a device linked 3 months ago that hasn't been used"). This follows NotificationPolicy and never blocks messaging.
 5. Themes, plugins, bots and bridges cannot hide or restyle these notices (existing R-057).

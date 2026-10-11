@@ -1,3 +1,7 @@
+# 2026-10-11 PHT — ADR-0180: web vault passphrase layer; Suspend keeps its confirmation
+
+- **ADR-0180:** records the Argon2id passphrase layer built in `reference_client_ui` (nested wrap under the PRF/device-key wrapper, versioned and floored parameters authenticated in the header, never a sole wrapper, no rate-limiting claim) and clarifies that "Suspend is one tap" still carries the UI-11 confirmation. D-201, R-409, R-410, T-163. V-006 pre-release criteria gain the low-end-phone unlock timing, a cross-vendor read of the nested wrap, and real-browser checks of camera scan, PRF and the service worker.
+
 # 2026-10-11 PHT — ADR-0179: default theme is named OM Calm
 
 - **ADR-0179:** the default reference theme is named OM Calm (was OM Clear in ADR-0159/0166). Display name only; ids `om.clear` / `data-theme="clear"` and palette values unchanged. Normative docs, specs, token display names and prototype labels updated; accepted ADR text and evidence left as history. D-200.

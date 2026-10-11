@@ -2659,6 +2659,20 @@
         "V-006",
         "review:PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md"
       ]
+    },
+    {
+      "requirement": "R-409",
+      "verified_by": [
+        "V-006",
+        "review:DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md"
+      ]
+    },
+    {
+      "requirement": "R-410",
+      "verified_by": [
+        "conformance:ui_intents",
+        "review:ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md"
+      ]
     }
   ]
 }

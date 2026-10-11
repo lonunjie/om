@@ -68,7 +68,7 @@ Long-lived protocol private keys are stored/sealed behind the vault and are not 
 
 1. WebAuthn PRF-derived wrapping secret when supported and explicitly enrolled;
 2. persisted non-extractable WebCrypto wrapping key where support/behavior passes platform tests;
-3. passphrase-derived KEK only as an **additional** wrapping factor that the user explicitly selects, layered over method 1, 2 or 4; use a reviewed memory-hard KDF such as Argon2id with versioned calibrated parameters. A passphrase is never the sole wrapper of a production DeviceIdentity (matching the 2026-09-23 resolution below);
+3. passphrase-derived KEK only as an **additional** wrapping factor that the user explicitly selects, layered over method 1, 2 or 4; use a reviewed memory-hard KDF such as Argon2id with versioned calibrated parameters. A passphrase is never the sole wrapper of a production DeviceIdentity (matching the 2026-09-23 resolution below). The web construction, parameters, floor and honest limits are fixed by ADR-0180 (R-409);
 4. platform/native keystore when hosted in a native shell.
 
 WebAuthn PRF/WebCrypto are vault wrappers, not OM identity roots.

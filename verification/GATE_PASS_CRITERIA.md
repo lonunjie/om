@@ -233,6 +233,8 @@ Pre-engineering criteria:
 Pre-release criteria:
 
 - [ ] published support matrix with regression tests on each supported browser
+- [ ] web vault passphrase layer (ADR-0180): unlock time measured with the default Argon2id cost on a low-end Android phone and an older iPhone, calibrated parameters recorded, and the nested wrap read by a cross-vendor or human reviewer
+- [ ] camera QR scan, the PRF passkey path and the service worker verified on macOS Chrome/Safari/Firefox, iOS Safari and Android Chrome (the in-app browser has no camera or authenticator)
 
 ### V-007 — `sframe_interop`
 
