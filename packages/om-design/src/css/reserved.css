@@ -1,0 +1,43 @@
+/* Generated from src/tokens.ts by src/css.ts. Reserved security tokens (UI-04): themes cannot override. */
+:root,
+:root[data-appearance="light"] {
+  --om-color-security-notice-bg: #FFF3D6;
+  --om-color-security-notice-fg: #4A2E00;
+  --om-color-security-notice-border: #7A4B00;
+  --om-color-security-danger-bg: #FDECEC;
+  --om-color-security-danger-fg: #7A0E12;
+  --om-color-security-danger-border: #A4161A;
+  --om-color-security-verified-bg: #E6F5EC;
+  --om-color-security-verified-fg: #0A4A28;
+  --om-color-security-verified-border: #0F6B3A;
+  --om-color-focus-ring: #0B57D0;
+  --om-color-focus-halo: #FFFFFF;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance="light"]) {
+    --om-color-security-notice-bg: #3A2A08;
+    --om-color-security-notice-fg: #FFE9B5;
+    --om-color-security-notice-border: #F5CF84;
+    --om-color-security-danger-bg: #3A1416;
+    --om-color-security-danger-fg: #FFD6D3;
+    --om-color-security-danger-border: #FFB4B0;
+    --om-color-security-verified-bg: #10301E;
+    --om-color-security-verified-fg: #C4F0D6;
+    --om-color-security-verified-border: #8FDDB0;
+    --om-color-focus-ring: #9CC2FF;
+    --om-color-focus-halo: #0F1217;
+  }
+}
+:root[data-appearance="dark"] {
+  --om-color-security-notice-bg: #3A2A08;
+  --om-color-security-notice-fg: #FFE9B5;
+  --om-color-security-notice-border: #F5CF84;
+  --om-color-security-danger-bg: #3A1416;
+  --om-color-security-danger-fg: #FFD6D3;
+  --om-color-security-danger-border: #FFB4B0;
+  --om-color-security-verified-bg: #10301E;
+  --om-color-security-verified-fg: #C4F0D6;
+  --om-color-security-verified-border: #8FDDB0;
+  --om-color-focus-ring: #9CC2FF;
+  --om-color-focus-halo: #0F1217;
+}

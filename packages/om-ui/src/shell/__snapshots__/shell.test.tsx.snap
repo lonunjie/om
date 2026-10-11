@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`primitives > Button: stable DOM structure and no axe violations 1`] = `"<button type="button" data-variant="primary" class="om-button">Go</button>"`;
+
+exports[`primitives > IconButton: stable DOM structure and no axe violations 1`] = `"<button type="button" aria-label="Close" class="om-icon-button"><span aria-hidden="true">x</span></button>"`;
+
+exports[`primitives > LiveRegion: stable DOM structure and no axe violations 1`] = `"<span role="status" aria-live="polite" aria-atomic="true" class="om-visually-hidden">Saved</span>"`;
+
+exports[`primitives > SecurityNoticeBanner: stable DOM structure and no axe violations 1`] = `"<div class="om-security-notice" data-tone="danger" data-reason-code="identity_changed" role="alert"><span class="om-security-notice__mark" aria-hidden="true"></span><span class="om-security-notice__label">Changed</span></div>"`;
+
+exports[`primitives > SkipLink: stable DOM structure and no axe violations 1`] = `"<a class="om-skip-link" href="#t">Skip</a><main id="t">x</main>"`;
+
+exports[`primitives > Text: stable DOM structure and no axe violations 1`] = `"<h2 data-size="lg" data-tone="muted" data-weight="regular" class="om-text">Hello</h2>"`;
+
+exports[`primitives > VisuallyHidden: stable DOM structure and no axe violations 1`] = `"<span class="om-visually-hidden">hidden</span>"`;

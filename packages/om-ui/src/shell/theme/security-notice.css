@@ -1,0 +1,49 @@
+/* Reserved surface: only --om-color-security-* tokens and fixed geometry. Do not use themable color/radius tokens here. */
+.om-security-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-sizing: border-box;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--om-color-security-notice-border);
+  border-inline-start-width: 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--om-color-security-notice-bg);
+  color: var(--om-color-security-notice-fg);
+  font-family: system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+
+.om-security-notice[data-tone="danger"] {
+  border-color: var(--om-color-security-danger-border);
+  background: var(--om-color-security-danger-bg);
+  color: var(--om-color-security-danger-fg);
+}
+
+.om-security-notice[data-tone="verified"] {
+  border-color: var(--om-color-security-verified-border);
+  background: var(--om-color-security-verified-bg);
+  color: var(--om-color-security-verified-fg);
+}
+
+.om-security-notice__mark::before {
+  content: "!";
+  display: inline-block;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border: 2px solid currentcolor;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 1.25rem;
+  box-sizing: border-box;
+}
+
+.om-security-notice[data-tone="verified"] .om-security-notice__mark::before {
+  content: "\2713";
+}
+
+.om-security-notice__label {
+  flex: 1 1 auto;
+}

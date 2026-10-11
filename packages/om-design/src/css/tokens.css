@@ -1,0 +1,64 @@
+/* Generated from src/tokens.ts by src/css.ts. Do not edit by hand. */
+:root {
+  --om-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --om-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --om-weight-regular: 400;
+  --om-weight-medium: 500;
+  --om-weight-bold: 700;
+  --om-text-xs-size: 0.75rem;
+  --om-text-xs-line: 1.0rem;
+  --om-text-sm-size: 0.875rem;
+  --om-text-sm-line: 1.25rem;
+  --om-text-md-size: 1rem;
+  --om-text-md-line: 1.5rem;
+  --om-text-lg-size: 1.125rem;
+  --om-text-lg-line: 1.625rem;
+  --om-text-xl-size: 1.375rem;
+  --om-text-xl-line: 1.875rem;
+  --om-text-2xl-size: 1.75rem;
+  --om-text-2xl-line: 2.25rem;
+  --om-space-0: 0;
+  --om-space-1: 0.25rem;
+  --om-space-2: 0.5rem;
+  --om-space-3: 0.75rem;
+  --om-space-4: 1rem;
+  --om-space-5: 1.5rem;
+  --om-space-6: 2rem;
+  --om-space-7: 3rem;
+  --om-radius-sm: 0.25rem;
+  --om-radius-md: 0.5rem;
+  --om-radius-lg: 1rem;
+  --om-radius-pill: 999px;
+  --om-elevation-0: none;
+  --om-elevation-1: 0 1px 2px rgb(0 0 0 / 0.12);
+  --om-elevation-2: 0 2px 8px rgb(0 0 0 / 0.16);
+  --om-elevation-3: 0 8px 24px rgb(0 0 0 / 0.22);
+  --om-motion-instant: 80ms;
+  --om-motion-quick: 150ms;
+  --om-motion-standard: 220ms;
+  --om-motion-slow: 350ms;
+  --om-ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --om-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --om-ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+  --om-z-base: 0;
+  --om-z-raised: 10;
+  --om-z-nav: 20;
+  --om-z-sticky: 30;
+  --om-z-overlay: 40;
+  --om-z-modal: 50;
+  --om-z-toast: 60;
+  --om-z-security: 70;
+  --om-target-min: 44px;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) {
+    --om-motion-quick: 0.01ms;
+    --om-motion-standard: 0.01ms;
+    --om-motion-slow: 0.01ms;
+  }
+}
+:root[data-motion="reduced"] {
+  --om-motion-quick: 0.01ms;
+  --om-motion-standard: 0.01ms;
+  --om-motion-slow: 0.01ms;
+}

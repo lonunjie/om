@@ -1,0 +1,70 @@
+/* Generated from src/tokens.ts by src/css.ts (theme: OM Calm). Do not edit by hand. */
+:root,
+:root[data-appearance="light"] {
+  --om-color-bg-canvas: #F7F8FA;
+  --om-color-bg-surface: #FFFFFF;
+  --om-color-bg-raised: #FFFFFF;
+  --om-color-bg-sunken: #EEF0F4;
+  --om-color-text-primary: #14181F;
+  --om-color-text-secondary: #4A5361;
+  --om-color-text-muted: #5B6472;
+  --om-color-accent: #1F5FBF;
+  --om-color-accent-text: #FFFFFF;
+  --om-color-border: #7C8696;
+  --om-color-selection-bg: #CFE0FB;
+  --om-color-selection-text: #14181F;
+  --om-color-success-fg: #0F6B3A;
+  --om-color-success-bg: #E6F5EC;
+  --om-color-warning-fg: #7A4B00;
+  --om-color-warning-bg: #FFF3D6;
+  --om-color-danger-fg: #A4161A;
+  --om-color-danger-bg: #FDECEC;
+  --om-color-info-fg: #0F4C8A;
+  --om-color-info-bg: #E7F0FB;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance="light"]) {
+    --om-color-bg-canvas: #0F1217;
+    --om-color-bg-surface: #171B22;
+    --om-color-bg-raised: #1E232C;
+    --om-color-bg-sunken: #0B0D11;
+    --om-color-text-primary: #EEF1F5;
+    --om-color-text-secondary: #B6BECB;
+    --om-color-text-muted: #9AA3B2;
+    --om-color-accent: #7FB0FF;
+    --om-color-accent-text: #0B1320;
+    --om-color-border: #6B7587;
+    --om-color-selection-bg: #24406E;
+    --om-color-selection-text: #EEF1F5;
+    --om-color-success-fg: #8FDDB0;
+    --om-color-success-bg: #10301E;
+    --om-color-warning-fg: #F5CF84;
+    --om-color-warning-bg: #3A2A08;
+    --om-color-danger-fg: #FFB4B0;
+    --om-color-danger-bg: #3A1416;
+    --om-color-info-fg: #A9CCFF;
+    --om-color-info-bg: #11284A;
+  }
+}
+:root[data-appearance="dark"] {
+  --om-color-bg-canvas: #0F1217;
+  --om-color-bg-surface: #171B22;
+  --om-color-bg-raised: #1E232C;
+  --om-color-bg-sunken: #0B0D11;
+  --om-color-text-primary: #EEF1F5;
+  --om-color-text-secondary: #B6BECB;
+  --om-color-text-muted: #9AA3B2;
+  --om-color-accent: #7FB0FF;
+  --om-color-accent-text: #0B1320;
+  --om-color-border: #6B7587;
+  --om-color-selection-bg: #24406E;
+  --om-color-selection-text: #EEF1F5;
+  --om-color-success-fg: #8FDDB0;
+  --om-color-success-bg: #10301E;
+  --om-color-warning-fg: #F5CF84;
+  --om-color-warning-bg: #3A2A08;
+  --om-color-danger-fg: #FFB4B0;
+  --om-color-danger-bg: #3A1416;
+  --om-color-info-fg: #A9CCFF;
+  --om-color-info-bg: #11284A;
+}

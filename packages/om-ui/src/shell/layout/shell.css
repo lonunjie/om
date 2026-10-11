@@ -1,0 +1,169 @@
+/* Breakpoints repeat packages/om-design/src/breakpoints.ts (split 600px, expanded 900px); a test asserts they match. */
+.om-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-areas: "panes" "reach" "tabs";
+  block-size: 100dvh;
+  background: var(--om-color-bg-canvas);
+  color: var(--om-color-text-primary);
+}
+
+.om-shell__panes {
+  grid-area: panes;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-block-size: 0;
+  outline: none;
+}
+
+.om-shell__list,
+.om-shell__detail {
+  min-block-size: 0;
+  overflow: auto;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.om-shell__composer {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--om-space-2);
+  padding: var(--om-space-2) var(--om-space-3);
+  border-block-start: 1px solid var(--om-color-border);
+  background: var(--om-color-bg-surface);
+}
+
+.om-shell__reach {
+  grid-area: reach;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* trailing reach zone */
+  gap: var(--om-space-2);
+  padding: var(--om-space-2) var(--om-space-3);
+}
+
+.om-shell[data-mirrored="true"] .om-shell__reach {
+  justify-content: flex-start;
+}
+
+.om-shell__tabbar {
+  grid-area: tabs;
+  display: flex;
+  border-block-start: 1px solid var(--om-color-border);
+  background: var(--om-color-bg-surface);
+  padding-block-end: env(safe-area-inset-bottom, 0);
+}
+
+.om-shell__tabbar .om-shell__dest {
+  flex: 1 1 0;
+  flex-direction: column;
+}
+
+.om-shell__dest {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--om-space-1);
+  box-sizing: border-box;
+  min-block-size: var(--om-target-min);
+  min-inline-size: var(--om-target-min);
+  padding: var(--om-space-2) var(--om-space-3);
+  border: 0;
+  border-radius: var(--om-radius-md);
+  background: transparent;
+  color: var(--om-color-text-secondary);
+  font: inherit;
+  font-size: var(--om-text-sm-size);
+  cursor: pointer;
+  transition: background-color var(--om-motion-instant) var(--om-ease-enter);
+}
+
+.om-shell__dest:hover {
+  background: var(--om-color-bg-sunken);
+}
+
+/* Selected state is never color-only: weight + underline-style bar. */
+.om-shell__dest[aria-selected="true"],
+.om-shell__dest[aria-current="page"] {
+  color: var(--om-color-accent);
+  font-weight: var(--om-weight-bold);
+  box-shadow: inset 0 -3px 0 var(--om-color-accent);
+}
+
+.om-shell__topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--om-space-3);
+  padding: var(--om-space-2) var(--om-space-3);
+}
+
+@media (min-width: 600px) {
+  .om-shell {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "topbar" "panes" "tabs";
+  }
+
+  .om-shell__topbar {
+    grid-area: topbar;
+    justify-content: space-between;
+  }
+
+  .om-shell__panes {
+    grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .om-shell__list {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    border-inline-end: 1px solid var(--om-color-border);
+  }
+
+  .om-shell__detail {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .om-shell__composer {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+@media (min-width: 900px) {
+  .om-shell {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "rail topbar" "rail panes";
+  }
+
+  .om-shell__rail {
+    grid-area: rail;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: var(--om-space-3) var(--om-space-2);
+    border-inline-end: 1px solid var(--om-color-border);
+    background: var(--om-color-bg-surface);
+  }
+
+  .om-shell__rail nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--om-space-1);
+  }
+
+  .om-shell__rail .om-shell__dest {
+    flex-direction: column;
+  }
+
+  .om-shell__rail-footer {
+    display: flex;
+    justify-content: center;
+    padding-block-start: var(--om-space-3);
+  }
+}

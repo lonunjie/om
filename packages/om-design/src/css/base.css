@@ -1,0 +1,34 @@
+/* Hand-written base: reduced motion removes non-essential animation/transition and smooth scrolling. */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) *,
+  :root:not([data-motion="full"]) *::before,
+  :root:not([data-motion="full"]) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+body {
+  margin: 0;
+  background: var(--om-color-bg-canvas);
+  color: var(--om-color-text-primary);
+  font-family: var(--om-font-sans);
+  font-size: var(--om-text-md-size);
+  line-height: var(--om-text-md-line);
+}
+
+::selection {
+  background: var(--om-color-selection-bg);
+  color: var(--om-color-selection-text);
+}
