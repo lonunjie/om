@@ -29,3 +29,4 @@ design-drops/
 
 # Local agent tooling (worktrees, settings)
 .claude/
+dist-e2e/

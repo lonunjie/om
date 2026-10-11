@@ -26,7 +26,7 @@ export default tseslint.config(
   },
   {
     // Tests may build fixtures with URLs and poke at deliberately bad code.
-    files: ["**/*.test.ts", "**/*.test.tsx"],
+    files: ["**/*.test.ts", "**/*.test.tsx", "apps/web/e2e/**/*.ts"],
     rules: { "no-restricted-syntax": "off" },
   },
 );

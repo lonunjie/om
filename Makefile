@@ -1,7 +1,7 @@
 # OM design repository tasks. `make help` lists them.
 PY ?= python3
 
-.PHONY: help web-guard web-check check verify verify-drop validate docs docs-check file-registry evidence evidence-drop tlc export import reuse registries manifest bundle preflight preflight-drop preflight-full
+.PHONY: help web-guard web-check web-e2e check verify verify-drop validate docs docs-check file-registry evidence evidence-drop tlc export import reuse registries manifest bundle preflight preflight-drop preflight-full
 
 help: ## list targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -23,6 +23,9 @@ preflight-full: ## require Git history + Rust/Java/bootstrap tools used by full 
 
 web-guard: ## web workspace guard: no remote subresources, inline scripts, or harness import in app code (no Node needed)
 	$(PY) tools/web_guard.py
+
+web-e2e: ## web workspace: real-browser e2e (Chromium/Firefox/WebKit from the shared Playwright cache; no downloads)
+	pnpm e2e
 
 web-check: ## web workspace: typecheck, lint, tests, production build (needs pnpm install)
 	pnpm install --frozen-lockfile && pnpm web:check

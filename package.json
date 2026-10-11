@@ -8,14 +8,16 @@
     "node": ">=24"
   },
   "scripts": {
-    "typecheck": "tsc -b",
+    "typecheck": "tsc -b && tsc -p apps/web/e2e",
     "lint": "eslint .",
     "test": "vitest run",
     "build": "pnpm --filter @om/web build",
+    "e2e": "pnpm --filter @om/web e2e",
     "web:check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm --filter @om/web check:no-harness"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.63.0",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
     "@types/node": "^26.6.5",

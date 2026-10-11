@@ -154,3 +154,13 @@ Commits `8228773` (ADR-0179) and `507a128`. Typecheck, lint, 273 tests, `make ch
 - **Not built:** change/add/remove passphrase after setup; `UnlockVault` and `LinkThisDevice` are not wired into the app flow (no production Core yet); replace recovery key, "that was me" recovery approval, lift suspension, promote device (no intents yet).
 - **Needs a real browser/device:** camera scan, PRF passkey path and service worker (the in-app pane has no authenticator or camera); Argon2id timing on a low-end phone.
 - **Open:** whether the nested passphrase wrap needs an ADR/traceability entry (labels are implementation-private); spec says "Suspend is one tap" but the UI adds a confirmation (kept); release keys and trust root; C1 and C2 still open.
+
+### Real-browser e2e (added 2026-10-11, third pass)
+
+`make web-e2e` (or `pnpm e2e`) runs Playwright against the dev harness (port 4174) and a dev-signed production bundle with the service worker (port 4175). `@playwright/test` is pinned to 1.63.0 because that version matches the browsers already in the shared cache (`~/Library/Caches/ms-playwright`: Chromium 1243, Firefox 1543, WebKit 2359), so nothing is downloaded; builds go to gitignored `dist-e2e/` and `dist-harness/`. Specs are in `apps/web/e2e/`. 11 checks pass:
+
+- **Chromium (7):** CDP virtual authenticators prove a device-bound PRF passkey, a synced passkey (reduced at-rest notice shown) and a no-PRF authenticator (browser-key fallback); passphrase over a PRF passkey; the camera scanner decodes a QR code from a fake video stream and accepts the invitation; service worker installs, controls the page and serves the shell offline; CSP, Trusted Types and `camera=(self)` headers.
+- **Firefox and WebKit (4):** onboarding with a passphrase, QR display, Settings > Devices and Recovery; service worker (offline reload on Firefox; on WebKit the worker's cache is checked instead, because Playwright's WebKit cannot reload offline with a worker).
+- **Finding:** WebAuthn needs a real RP ID, so the app must be opened on `localhost` or a domain; on a bare IP address passkey creation fails and the vault falls back to the device key.
+- **Argon2id at the default cost** (desktop): about 0.9 s on Firefox and 1.4 s on WebKit for the whole lock step. These are not phone figures.
+- **Still real-device only:** Safari/Chrome on a real iPhone and Android phone (genuine camera, platform passkey UI, Argon2id timing on low-end phones), and Windows.

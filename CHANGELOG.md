@@ -1,3 +1,7 @@
+# 2026-10-11 PHT — web client: real-browser e2e (Playwright)
+
+- `make web-e2e`: 11 Playwright checks on Chromium, Firefox and WebKit from the shared browser cache (no downloads): PRF/synced/no-PRF passkeys via virtual authenticators, passphrase layer, fake-camera QR scan, service worker offline, headers. Real phones remain a V-006 pre-release item.
+
 # 2026-10-11 PHT — ADR-0180: web vault passphrase layer; Suspend keeps its confirmation
 
 - **ADR-0180:** records the Argon2id passphrase layer built in `reference_client_ui` (nested wrap under the PRF/device-key wrapper, versioned and floored parameters authenticated in the header, never a sole wrapper, no rate-limiting claim) and clarifies that "Suspend is one tap" still carries the UI-11 confirmation. D-201, R-409, R-410, T-163. V-006 pre-release criteria gain the low-end-phone unlock timing, a cross-vendor read of the nested wrap, and real-browser checks of camera scan, PRF and the service worker.
