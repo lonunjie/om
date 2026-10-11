@@ -131,3 +131,49 @@ describe("Core boundary via harness", () => {
     expect(hitsA).toBe(1);
   });
 });
+
+describe("onboarding intents", () => {
+  const op = (s: string): OperationId => asOperationId(s);
+
+  it("recovery key is shown until confirmed, then never again", async () => {
+    const { h, a } = setup();
+    await h.dispatch({ kind: "CreateIdentityProfile", ctx: a, operationId: op("create-1"), label: "Me" });
+    const key = await h.query({ kind: "GetRecoveryKey", ctx: a, keyOperationId: op("create-1") });
+    expect(key?.groups.join("-")).toMatch(/^OM-DEV-FAKE-/);
+    await h.dispatch({ kind: "ConfirmRecoveryKeyStored", ctx: a, operationId: op("confirm-1"), keyOperationId: op("create-1") });
+    expect(await h.query({ kind: "GetRecoveryKey", ctx: a, keyOperationId: op("create-1") })).toBeNull();
+    const again = await h.dispatch({ kind: "ConfirmRecoveryKeyStored", ctx: a, operationId: op("confirm-2"), keyOperationId: op("create-1") });
+    const ops = await h.pendingOperations(a);
+    expect(ops.find((o) => o.operationId === again.operationId)?.outcome).toEqual({ kind: "Rejected", reason: "not_found" });
+  });
+
+  it("a second identity creation is rejected and the key of another profile is not readable", async () => {
+    const { h, a, b } = setup();
+    await h.dispatch({ kind: "CreateIdentityProfile", ctx: a, operationId: op("c1"), label: "Me" });
+    const second = await h.dispatch({ kind: "CreateIdentityProfile", ctx: a, operationId: op("c2"), label: "Me" });
+    expect((await h.pendingOperations(a)).find((o) => o.operationId === second.operationId)?.outcome).toEqual({ kind: "Rejected", reason: "conflict" });
+    expect(await h.query({ kind: "GetRecoveryKey", ctx: b, keyOperationId: op("c1") })).toBeNull();
+  });
+
+  it("invites carry an om: link and expiry; acceptance validates strictly and rejects own invites", async () => {
+    const { h, a } = setup();
+    await h.dispatch({ kind: "CreateInvite", ctx: a, operationId: op("inv-1") });
+    const inv = await h.query({ kind: "GetInvite", ctx: a, operationId: op("inv-1") });
+    expect(inv?.link).toMatch(/^om:invite\/[A-Za-z0-9_-]{22}$/);
+    expect(inv?.expiresAt).toBeGreaterThan(1000);
+    const outcome = async (link: string, id: string): Promise<OutcomeClass | undefined> => {
+      await h.dispatch({ kind: "AcceptInvitation", ctx: a, operationId: op(id), link });
+      return (await h.pendingOperations(a)).find((o) => o.operationId === op(id))?.outcome;
+    };
+    expect(await outcome("https://evil.example/x", "acc-1")).toEqual({ kind: "Rejected", reason: "invalid" });
+    expect(await outcome(inv?.link ?? "", "acc-2")).toEqual({ kind: "Rejected", reason: "invalid" });
+    expect(await outcome("om:invite/AAAAAAAAAAAAAAAAAAAAAA", "acc-3")).toEqual({ kind: "Committed" });
+  });
+
+  it("home summary is a machine-code view model", async () => {
+    const { h, a } = setup();
+    const home = await h.query({ kind: "GetHomeSummary", ctx: a });
+    expect(home.tier).toMatch(/^T\d$/);
+    for (const c of [...home.observers, ...home.clientOriginChoice]) expect(c).toMatch(/^[a-z_]+$/);
+  });
+});

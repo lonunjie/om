@@ -1,0 +1,11 @@
+.om-onb__step { display: flex; flex-direction: column; gap: var(--om-space-3); max-inline-size: 40rem; margin-inline: auto; padding: var(--om-space-4); }
+.om-onb__heading { margin: 0; font-size: 1.5em; font-weight: var(--om-weight-bold); }
+.om-onb__heading:focus-visible { outline: 3px solid var(--om-color-focus-ring); outline-offset: 2px; }
+.om-onb__actions { display: flex; flex-wrap: wrap; gap: var(--om-space-2); }
+.om-onb__result, .om-onb__invite, .om-onb__accept, .om-onb__home { display: flex; flex-direction: column; gap: var(--om-space-2); }
+.om-onb__notice { margin: 0; padding: var(--om-space-3); border: 2px solid var(--om-color-text-secondary); border-radius: var(--om-radius-md, 0.5rem); }
+.om-onb__key { display: flex; flex-wrap: wrap; gap: var(--om-space-2); margin: 0; padding: 0; list-style: none; font-family: monospace; font-size: 1.25em; user-select: all; }
+.om-onb__key li { padding: var(--om-space-1) var(--om-space-2); border: 1px solid var(--om-color-text-secondary); border-radius: var(--om-radius-sm, 0.25rem); }
+.om-onb__field { display: flex; flex-direction: column; gap: var(--om-space-1); }
+.om-onb__input { box-sizing: border-box; min-block-size: var(--om-target-min); font: inherit; font-family: monospace; }
+.om-onb__link { overflow-wrap: anywhere; }

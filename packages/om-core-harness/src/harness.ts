@@ -1,10 +1,10 @@
 // DEV/TEST ONLY in-memory CoreClient. No real crypto, no persistence beyond the process. See README.md.
 import {
-  asMessageId, asProfileGeneration, captureProfileContext, isProfileExecutionContext, isTerminalOutcome,
+  asMessageId, parseInviteLink, asProfileGeneration, captureProfileContext, isProfileExecutionContext, isTerminalOutcome,
 } from "@om/platform-api";
 import type {
   ConversationId, ConversationSummary, ConversationTimelineItem, ConversationView, CoreClient, CoreIntent, CoreQuery,
-  DeliveryState, IntroductionRequest, MessageId, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
+  DeliveryState, HomeSummary, IntroductionRequest, InviteView, MessageId, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   PersonId, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, TerminalOutcome, Unsubscribe,
 } from "@om/platform-api";
 
@@ -34,6 +34,7 @@ export interface SeedProfile {
   readonly label: string;
   readonly conversations?: readonly SeedConversation[];
   readonly introductions?: readonly (IntroductionRequest & { readonly personId: PersonId })[];
+  readonly home?: HomeSummary;
 }
 
 export interface Harness extends CoreClient {
@@ -66,8 +67,25 @@ interface ProfileState {
   conversations: Map<ConversationId, ConversationState>;
   persons: Map<PersonId, { id: PersonId; displayName: string; blocked: boolean }>;
   introductions: Map<string, IntroductionRequest & { personId: PersonId }>;
+  identityCreated: boolean;
+  /** Display-once fake recovery keys by creating operation; entries are deleted when confirmed. */
+  recoveryKeys: Map<OperationId, readonly string[]>;
+  invites: Map<OperationId, InviteView>;
+  acceptedInvites: Set<string>;
+  home: HomeSummary;
 }
 interface OpRecord { operationId: OperationId; profileId: ProfileId; intent: CoreIntent; outcome: OutcomeClass; messageId: MessageId | null }
+
+const DEFAULT_HOME: HomeSummary = {
+  tier: "T1", observers: ["host_sees_metadata", "host_sees_ciphertext"], migrationAvailable: true, clientOriginChoice: ["default_origin", "independent_origin_available"],
+};
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const B32 = "ABCDEFGHIJKLMNPQRSTUVWXYZ23456789";
+const B64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
+const randomChars = (alphabet: string, n: number): string =>
+  Array.from(globalThis.crypto.getRandomValues(new Uint8Array(n)), (b) => alphabet.charAt(b % alphabet.length)).join("");
+/** Obviously fake: the first groups spell OM-DEV-FAKE so it can never be mistaken for a real key. */
+const fakeRecoveryGroups = (): readonly string[] => ["OM", "DEV", "FAKE", ...Array.from({ length: 6 }, () => randomChars(B32, 4))];
 
 const RETRYABLE: ReadonlySet<RejectReason> = new Set<RejectReason>(["unavailable", "rate_limited", "quota"]);
 
@@ -123,6 +141,14 @@ export function createHarness(options: HarnessOptions = {}): Harness {
           return [...stateFor(q.ctx).conversations.values()].map(summary);
         case "GetIntroductions":
           return [...stateFor(q.ctx).introductions.values()].map(({ id, from, displayName }) => ({ id, from, displayName }));
+        case "GetRecoveryKey": {
+          const groups = stateFor(q.ctx).recoveryKeys.get(q.keyOperationId);
+          return groups ? { keyOperationId: q.keyOperationId, groups: [...groups] } : null;
+        }
+        case "GetInvite":
+          return stateFor(q.ctx).invites.get(q.operationId) ?? null;
+        case "GetHomeSummary":
+          return stateFor(q.ctx).home;
         case "GetConversationView": {
           const st = stateFor(q.ctx);
           const conv = conversationFor(q.ctx, st, q.conversationId);
@@ -189,6 +215,33 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         st.persons.set(intro.personId, { id: intro.personId, displayName: intro.displayName, blocked: false });
         return record(intent, { kind: "Committed" });
       }
+      case "CreateIdentityProfile": {
+        const label = intent.label.trim();
+        if (label === "" || label.length > 64) return rejected("invalid");
+        if (st.identityCreated) return rejected("conflict");
+        st.identityCreated = true;
+        st.label = label;
+        st.recoveryKeys.set(intent.operationId, fakeRecoveryGroups());
+        return record(intent, { kind: "Committed" });
+      }
+      case "ConfirmRecoveryKeyStored": {
+        if (!st.recoveryKeys.delete(intent.keyOperationId)) return rejected("not_found");
+        return record(intent, { kind: "Committed" });
+      }
+      case "CreateInvite": {
+        st.invites.set(intent.operationId, {
+          operationId: intent.operationId, link: `om:invite/${randomChars(B64URL, 22)}`, expiresAt: clock() + INVITE_TTL_MS,
+        });
+        return record(intent, { kind: "Committed" });
+      }
+      case "AcceptInvitation": {
+        const parsed = parseInviteLink(intent.link);
+        if (!parsed.ok) return rejected("invalid");
+        if ([...st.invites.values()].some((i) => i.link === intent.link.trim())) return rejected("invalid"); // own invite
+        if (st.acceptedInvites.has(parsed.token)) return rejected("conflict");
+        st.acceptedInvites.add(parsed.token);
+        return record(intent, { kind: "Committed" });
+      }
       case "BlockPerson": {
         const p = st.persons.get(intent.personId);
         if (!p) return rejected("not_found");
@@ -208,6 +261,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       const st: ProfileState = {
         label: seed.label, generation: asProfileGeneration(`gen-${String(profiles.size + 1)}`),
         conversations: new Map(), persons: new Map(), introductions: new Map(),
+        identityCreated: false, recoveryKeys: new Map(), invites: new Map(), acceptedInvites: new Set(), home: seed.home ?? DEFAULT_HOME,
       };
       for (const c of seed.conversations ?? []) {
         if (conversationOwner.has(c.id)) throw new HarnessError("conversation id already seeded");

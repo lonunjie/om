@@ -1,1 +1,19 @@
-{ "name": "@om/ui", "version": "0.0.0", "private": true, "type": "module", "exports": { ".": "./src/index.ts" }, "dependencies": { "@om/platform-api": "workspace:*", "@om/design": "workspace:*", "react": "19.3.0", "react-dom": "19.3.0" } }
+{
+  "name": "@om/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@om/platform-api": "workspace:*",
+    "@om/design": "workspace:*",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@om/core-harness": "workspace:*",
+    "@om/web-platform": "workspace:*"
+  }
+}

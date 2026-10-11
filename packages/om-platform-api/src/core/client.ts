@@ -1,19 +1,26 @@
 import type { ConversationId, OperationId, ProfileExecutionContext, ProfileId } from "./ids";
 import type { CoreIntent } from "./intents";
 import type { OutcomeClass } from "./outcome";
-import type { ConversationSummary, ConversationView, IntroductionRequest, PendingOperationView, ProfileSummary } from "./views";
+import type { ConversationSummary, ConversationView, HomeSummary, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, RecoveryKeyView } from "./views";
 
 export interface GetConversationView { readonly kind: "GetConversationView"; readonly ctx: ProfileExecutionContext; readonly conversationId: ConversationId }
 export interface GetConversationList { readonly kind: "GetConversationList"; readonly ctx: ProfileExecutionContext }
 export interface GetProfileList { readonly kind: "GetProfileList" }
 export interface GetIntroductions { readonly kind: "GetIntroductions"; readonly ctx: ProfileExecutionContext }
-export type CoreQuery = GetConversationView | GetConversationList | GetProfileList | GetIntroductions;
+export interface GetRecoveryKey { readonly kind: "GetRecoveryKey"; readonly ctx: ProfileExecutionContext; readonly keyOperationId: OperationId }
+export interface GetInvite { readonly kind: "GetInvite"; readonly ctx: ProfileExecutionContext; readonly operationId: OperationId }
+export interface GetHomeSummary { readonly kind: "GetHomeSummary"; readonly ctx: ProfileExecutionContext }
+export type CoreQuery = GetConversationView | GetConversationList | GetProfileList | GetIntroductions | GetRecoveryKey | GetInvite | GetHomeSummary;
 
 export interface QueryResultMap {
   GetConversationView: ConversationView;
   GetConversationList: readonly ConversationSummary[];
   GetProfileList: readonly ProfileSummary[];
   GetIntroductions: readonly IntroductionRequest[];
+  /** `null` once the key was confirmed stored (or never existed): Core never shows it again. */
+  GetRecoveryKey: RecoveryKeyView | null;
+  GetInvite: InviteView | null;
+  GetHomeSummary: HomeSummary;
 }
 export type QueryResult<Q extends CoreQuery> = QueryResultMap[Q["kind"]];
 

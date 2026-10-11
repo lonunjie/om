@@ -25,11 +25,20 @@ describe("Action Registry", () => {
     const samples: Record<string, unknown> = {
       "send-message": { conversationId: "c1", text: "x" }, "retry-message": { messageId: "m1" }, "switch-profile": { profileId: "p2" },
       "accept-introduction": { requestId: "r1" }, "share-contact": { personId: "u1", scope: "full" }, "clear-adaptive-navigation": {},
-      "open-omnibar-result": { resultId: "x1" },
+      "open-omnibar-result": { resultId: "x1" }, "create-profile": { label: "Me" }, "confirm-recovery-key-stored": { keyOperationId: "op-9" },
+      "create-invite": {}, "accept-invitation": { link: "om:invite/AAAAAAAAAAAAAAAAAAAAAA" },
     };
     for (const [actionId, params] of Object.entries(samples)) {
       expect(INTENT_KINDS).toContain(intentOf(registry.resolve({ actionId, params, ctx, origin: "direct" })).kind);
     }
+  });
+
+  it("onboarding actions validate params; accept-invitation rejects anything but a strict om: link", () => {
+    for (const link of ["https://x.example/a", "om:invite/short", "om:other/AAAAAAAAAAAAAAAAAAAAAA", "", 5]) {
+      expect(registry.resolve({ actionId: "accept-invitation", params: { link }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    }
+    expect(registry.resolve({ actionId: "create-profile", params: { label: " " }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    expect(registry.resolve({ actionId: "confirm-recovery-key-stored", params: {}, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
   });
 
   it("open-conversation is presentation plus a read-only query, no intent", () => {

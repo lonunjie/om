@@ -1,7 +1,7 @@
 // Action Registry (ADR-0159): semantic UI action id -> typed CoreIntent | query | presentation op | platform capability.
 // It has no canonical-state authority and no generic execute(name, args) path: unknown ids are rejected.
 import {
-  asConversationId, asMessageId, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
+  asConversationId, asMessageId, parseInviteLink, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
 } from "@om/platform-api";
 import type {
   ConfirmationToken, CoreIntent, CoreQuery, OperationId, PrivacyPolicyLevel, ProfileExecutionContext,
@@ -113,6 +113,22 @@ const SPECS: Readonly<Record<string, Spec>> = {
     const t = id(p["themeId"]);
     if (t === null) return null;
     return { presentation: { op: "set-theme", themeId: t } };
+  } },
+  "create-profile": { destructive: false, parse: (p) => {
+    const label = p["label"];
+    if (typeof label !== "string" || label.trim() === "" || label.length > 64) return null;
+    return { intent: (ctx, op) => ({ kind: "CreateIdentityProfile", ctx, operationId: op, label }) };
+  } },
+  "confirm-recovery-key-stored": { destructive: false, parse: (p) => {
+    const k = id(p["keyOperationId"]);
+    if (k === null) return null;
+    return { intent: (ctx, op) => ({ kind: "ConfirmRecoveryKeyStored", ctx, operationId: op, keyOperationId: asOperationId(k) }) };
+  } },
+  "create-invite": { destructive: false, parse: () => ({ intent: (ctx, op) => ({ kind: "CreateInvite", ctx, operationId: op }) }) },
+  "accept-invitation": { destructive: false, parse: (p) => {
+    const link = p["link"];
+    if (typeof link !== "string" || !parseInviteLink(link).ok) return null;
+    return { intent: (ctx, op) => ({ kind: "AcceptInvitation", ctx, operationId: op, link: link.trim() }) };
   } },
   "attach-media": { destructive: false, parse: () => ({ platform: { capability: "Files", purpose: "attach-media" } }) },
   "copy-text": { destructive: false, parse: (p) => {

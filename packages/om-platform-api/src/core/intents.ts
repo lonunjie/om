@@ -27,10 +27,17 @@ export interface StartCall extends IntentBase { readonly kind: "StartCall"; read
 export interface PinNavigationTarget extends IntentBase { readonly kind: "PinNavigationTarget"; readonly targetId: string }
 export interface RestoreHistory extends IntentBase { readonly kind: "RestoreHistory"; readonly source: "linked_device" | "encrypted_backup" }
 
+export interface CreateIdentityProfile extends IntentBase { readonly kind: "CreateIdentityProfile"; readonly label: string }
+/** `keyOperationId` is the CreateIdentityProfile operation whose RecoveryKeyView the user confirmed. */
+export interface ConfirmRecoveryKeyStored extends IntentBase { readonly kind: "ConfirmRecoveryKeyStored"; readonly keyOperationId: OperationId }
+export interface CreateInvite extends IntentBase { readonly kind: "CreateInvite" }
+export interface AcceptInvitation extends IntentBase { readonly kind: "AcceptInvitation"; readonly link: string }
+
 export type CoreIntent =
   | SendMessage | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
-  | RevokeInvite | StartCall | PinNavigationTarget | RestoreHistory;
+  | RevokeInvite | StartCall | PinNavigationTarget | RestoreHistory
+  | CreateIdentityProfile | ConfirmRecoveryKeyStored | CreateInvite | AcceptInvitation;
 
 export type CoreIntentKind = CoreIntent["kind"];
 
@@ -38,6 +45,7 @@ export const INTENT_KINDS: readonly CoreIntentKind[] = [
   "SendMessage", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
   "RevokeInvite", "StartCall", "PinNavigationTarget", "RestoreHistory",
+  "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "CreateInvite", "AcceptInvitation",
 ];
 
 /** Intents that require an explicit confirmation token; learned/ranked suggestions can never supply one (UI-11). */

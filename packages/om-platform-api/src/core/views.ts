@@ -32,3 +32,18 @@ export type ConversationTimelineItem =
 export interface ConversationView { readonly summary: ConversationSummary; readonly timeline: readonly ConversationTimelineItem[] }
 
 export interface PendingOperationView { readonly operationId: OperationId; readonly intentKind: CoreIntentKind; readonly outcome: OutcomeClass }
+
+/** Display-once secret. Core returns it only until ConfirmRecoveryKeyStored; UI must never persist or log it. */
+export interface RecoveryKeyView { readonly keyOperationId: OperationId; readonly groups: readonly string[] }
+export interface InviteView { readonly operationId: OperationId; readonly link: string; readonly expiresAt: number }
+
+/** Machine codes only (who can see what at this Home tier); the UI owns the wording. */
+export type HomeObserverCode = "sponsor_sees_metadata" | "host_sees_metadata" | "host_sees_ciphertext" | "no_third_party";
+export type ClientOriginChoiceCode = "default_origin" | "independent_origin_available" | "independent_origin_active";
+export interface HomeSummary {
+  /** `T0`, `T1`, `T2`, ... */
+  readonly tier: string;
+  readonly observers: readonly HomeObserverCode[];
+  readonly migrationAvailable: boolean;
+  readonly clientOriginChoice: readonly ClientOriginChoiceCode[];
+}
