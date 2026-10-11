@@ -1,15 +1,20 @@
 # OM Architecture Snapshot
 
-Generated: **2026-10-01 23:30 PHT (UTC+08:00)**, after the groups verification (V-004 wire freeze, V-009, V-019; ADR-0174..0176) and the proposed `groups` unlock (ADR-0177).
+Generated: **2026-10-11 PHT (UTC+08:00)**, after the operator accepted the `groups` unlock (ADR-0177) and set the PWA-canonical distribution direction (ADR-0178).
 
 ## State
 
-- **Engineering is authorized for `core_kernel` (ADR-0169), `provider_reference` (ADR-0171) and `reference_client_ui` (ADR-0172) only**: `engineering_authorized=true`, 3/12 scopes. Every other scope is not authorized.
+- **Engineering is authorized for `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172) and `groups` (ADR-0177) only**: `engineering_authorized=true`, 4/12 scopes. Every other scope is not authorized.
 - **Review model:** Claude performs all reviews at the operator's direction (ADR-0167). Gates passed this way carry `pre_engineering_review_basis=operator_single_vendor_ADR-0167`, which is not vendor-independent review.
 - **Design:** `design_open=0`. Review findings F-14..F-19 are fixed (ADR-0168, ADR-0170); F-20..F-23 are resolved by ADR-0172.
-- **Verification:** 8 gates still have pre-engineering open. V-004, V-009 and V-019 passed pre-engineering on 2026-10-01 under the ADR-0167 model, which completes the evidence for `groups`; ADR-0177 proposes its unlock and is **not in force**. V-006 passed pre-engineering the same day for the first-release web matrix; Windows Chrome/Edge is untested and carried pre-release (ADR-0172). V-018 is pre-release (ADR-0170). Pre-release items for groups stay open: the V-004 multi-client partition harness on two implementations, the V-009 corpus run by every implementation, the V-019 interoperable migration.
+- **Verification:** 8 gates still have pre-engineering open. V-004, V-009 and V-019 passed pre-engineering on 2026-10-01 under the ADR-0167 model, which completes the evidence for `groups`; ADR-0177 (accepted 2026-10-11) unlocks it. V-006 passed pre-engineering the same day for the first-release web matrix; Windows Chrome/Edge is untested and carried pre-release (ADR-0172). V-018 is pre-release (ADR-0170). Pre-release items for groups stay open: the V-004 multi-client partition harness on two implementations, the V-009 corpus run by every implementation, the V-019 interoperable migration.
 - **Ledgers:** 397 requirements / 397 trace rows, 151 threats, 197 decisions / 177 indexed ADRs, 40 security invariants.
-- **Next:** operator decision on [`ADR-0177`](decisions/ADR-0177-authorize-groups-engineering-proposed.md) (accept it, or ask for a fresh-session or cross-vendor re-check of V-004/V-009/V-019 first); meanwhile build the `core_kernel`, `provider_reference` and `reference_client_ui` crates/packages per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). V-006 pre-release: run the probe on Windows or drop Windows, publish the support matrix with regression tests.
+- **Next:** build the `core_kernel`, `provider_reference`, `reference_client_ui` and `groups` crates/packages (web first, per [`ADR-0178`](decisions/ADR-0178-pwa-canonical-store-independent-distribution.md)) per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). V-006 pre-release: run the probe on Windows or drop Windows, publish the support matrix with regression tests.
+
+## 2026-10-11 PHT — ADR-0177 accepted; ADR-0178 PWA canonical
+
+- **ADR-0177 accepted:** `groups` authorized (D-198). Cross-vendor re-check of V-004/V-009/V-019 stays a pre-release item.
+- **ADR-0178:** the PWA is the canonical client; native shells are thin hosts of the same signed bundle; no store required (D-199, R-407, R-408, T-162). Motivated by the 2026-10-03 Bitchat India App Store removal and Android developer verification (volatile; re-verify before release).
 
 ## 2026-10-01 23:30 PHT — groups verification complete; ADR-0174..0176; ADR-0177 proposed
 

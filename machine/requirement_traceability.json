@@ -2645,6 +2645,20 @@
       "verified_by": [
         "V-004"
       ]
+    },
+    {
+      "requirement": "R-407",
+      "verified_by": [
+        "V-006",
+        "conformance:ui_intents"
+      ]
+    },
+    {
+      "requirement": "R-408",
+      "verified_by": [
+        "V-006",
+        "review:PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY.md"
+      ]
     }
   ]
 }

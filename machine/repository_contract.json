@@ -181,11 +181,12 @@
     },
     "groups": {
       "wave": "W1",
-      "authorized": false,
+      "authorized": true,
       "depends_on": [
         "core_kernel"
       ],
-      "description": "MLS rooms, GroupControlState, convergence, PQ-group ReInit path"
+      "description": "MLS rooms, GroupControlState, convergence, PQ-group ReInit path",
+      "authorizing_adr": "ADR-0177"
     },
     "portability": {
       "wave": "W1",

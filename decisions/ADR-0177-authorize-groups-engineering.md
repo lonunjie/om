@@ -1,6 +1,6 @@
-# ADR-0177 — Authorize engineering scope `groups` (W1) — PROPOSED
+# ADR-0177 — Authorize engineering scope `groups` (W1)
 
-- **Status:** **Proposed.** Not in force until the operator accepts it. Accepting it is the only change needed to unlock the scope (see "If accepted").
+- **Status:** **Accepted** (operator, 2026-10-11). The operator accepted the ADR-0167 single-vendor review basis as is; the cross-vendor re-check stays a pre-release item.
 - **Date:** 2026-10-01
 - **Proposed by:** design agent (Claude, sole design agent, ADR-0167)
 - **Would authorize:** engineering scope `groups` only
@@ -14,7 +14,7 @@ The `group_history` conformance suite is specified (ADR-0176), no design-queue i
 (frozen W1 CDDL, registries, two-codec vectors and a selected MLS runtime) is met: OpenMLS 0.9.0 passes the V-004 probe on native and
 wasm32-unknown-unknown.
 
-## Proposed decision
+## Decision
 
 1. `groups` is authorized: MLS rooms, GroupControlState, group commit ordering and convergence, GroupHistoryBundle, and the OM-level hybrid-PQ migration path.
    Engineers follow [`ENGINEER_START_HERE.md`](../docs/process/ENGINEER_START_HERE.md), the `groups` entry of
@@ -26,7 +26,7 @@ wasm32-unknown-unknown.
    beyond about 500 members or histories beyond one bundle (ADR-0176 F-27), and the recomputation of `reducing` for the state-dependent operations (T-161).
 4. No surface claims post-quantum confidentiality for v1 groups, and the PQ suite remains a draft code point (ADR-0175).
 
-## If accepted
+## Applied on acceptance
 
 - [`machine/repository_contract.json`](../machine/repository_contract.json): `engineering_scopes.groups.authorized = true` and `authorizing_adr = "ADR-0177"`.
 - V-004, V-009 and V-019 must show `pre_engineering_status = passed` (the validator refuses otherwise), and the status line of this ADR becomes Accepted.

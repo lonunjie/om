@@ -1355,7 +1355,14 @@
       "authority": "decision_record"
     },
     {
-      "path": "decisions/ADR-0177-authorize-groups-engineering-proposed.md",
+      "path": "decisions/ADR-0177-authorize-groups-engineering.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0178-pwa-canonical-store-independent-distribution.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",

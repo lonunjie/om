@@ -4,7 +4,7 @@ OM is SeedLife's open-source, operatorless, end-to-end-encrypted messenger. This
 truth** for its design: documents, decisions, machine ledgers, specs and verification evidence. It is private on GitHub
 until the operator makes it public. Write everything as if a stranger will read it, because they will.
 
-**Engineering is authorized for scopes `core_kernel` (ADR-0169), `provider_reference` (ADR-0171) and `reference_client_ui` (ADR-0172) only.** Product code for that scope follows
+**Engineering is authorized for scopes `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172) and `groups` (ADR-0177) only.** Product code for that scope follows
 [`docs/process/ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). Every other scope is still locked:
 research, specification, formal models and bounded feasibility prototypes (`verification/`) are allowed for them, and
 product code is not. [`machine/repository_contract.json`](machine/repository_contract.json) is the authority.
@@ -85,7 +85,7 @@ Build OM as a fast, simple, reliable secure messenger whose identity and canonic
 2. [`ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md`](docs/process/ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md) — executable process/phase lock.
 3. [`machine/repository_contract.json`](machine/repository_contract.json) — machine authority for checkpoint state.
 
-**Current rule:** product engineering is authorized only for `core_kernel` (ADR-0169), `provider_reference` (ADR-0171) and `reference_client_ui` (ADR-0172); every other scope is not authorized. Architecture is design-frozen (`design_open=0`; A-055 is resolved by ADR-0158). Research, formal modeling and bounded feasibility experiments may verify/challenge it, but reopen canonical design only for a demonstrated contradiction, new requirement/standard or accepted ADR. `local_delivery` remains verification-gated by V-024 rather than design-open. Do not begin product implementation or let a prototype silently change/freeze a wire/security choice.
+**Current rule:** product engineering is authorized only for `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172) and `groups` (ADR-0177); every other scope is not authorized. Architecture is design-frozen (`design_open=0`; A-055 is resolved by ADR-0158). Research, formal modeling and bounded feasibility experiments may verify/challenge it, but reopen canonical design only for a demonstrated contradiction, new requirement/standard or accepted ADR. `local_delivery` remains verification-gated by V-024 rather than design-open. Do not begin product implementation or let a prototype silently change/freeze a wire/security choice.
 
 SeedLife/lonunjie is the initial steward, not protocol authority. Businesses may participate commercially but receive no hidden/mandatory protocol privilege.
 
@@ -226,7 +226,7 @@ Agents must preserve these invariants:
 ### 2026-09-23 architecture-resolution rules
 
 - The former Q-001..Q-061 choices are resolved in [`ARCHITECTURE_RESOLUTIONS_20260923.md`](docs/reviews/ARCHITECTURE_RESOLUTIONS_20260923.md); do not reopen them casually because an implementation is easier.
-- Product engineering is authorized only for scopes whose ADR says so (currently `core_kernel`, ADR-0169; `provider_reference`, ADR-0171; and `reference_client_ui`, ADR-0172).
+- Product engineering is authorized only for scopes whose ADR says so (currently `core_kernel`, ADR-0169; `provider_reference`, ADR-0171; `reference_client_ui`, ADR-0172; and `groups`, ADR-0177).
 - Before proposing engineering, clear every open blocking item in [`machine/architecture_design_queue.jsonl`](machine/architecture_design_queue.jsonl) and pass every blocking gate in [`machine/architecture_verification_gates.jsonl`](machine/architecture_verification_gates.jsonl).
 - [`machine/public_release_gates.jsonl`](machine/public_release_gates.jsonl) applies to the affected public service/distribution/claim; do not silently turn one of those roles into mandatory protocol infrastructure.
 - Preserve all six OM meanings plus 0M in [`NAMING.md`](docs/constitution/NAMING.md) and the rule that capability support does not imply SeedLife operation.

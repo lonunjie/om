@@ -1,6 +1,6 @@
 # OM Engineering Handoff — DESIGN-FROZEN, INACTIVE UNTIL NAMED-SCOPE AUTHORIZATION
 
-> **Current design checkpoint: 2026-09-29 / ADR-0169.** Architecture design is closed. Product engineering is authorized for scopes `core_kernel` (ADR-0169), `provider_reference` (ADR-0171) and `reference_client_ui` (ADR-0172) only; this document authorizes nothing by itself, and every other scope is not authorized. [`machine/repository_contract.json`](../../machine/repository_contract.json) is authoritative for scope unlock.
+> **Current design checkpoint: 2026-09-29 / ADR-0169.** Architecture design is closed. Product engineering is authorized for scopes `core_kernel` (ADR-0169), `provider_reference` (ADR-0171), `reference_client_ui` (ADR-0172) and `groups` (ADR-0177) only; this document authorizes nothing by itself, and every other scope is not authorized. [`machine/repository_contract.json`](../../machine/repository_contract.json) is authoritative for scope unlock.
 
 ## 1. What “design-frozen” means
 

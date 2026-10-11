@@ -2,6 +2,8 @@
 
 ## 1. Decision
 
+> **ADR-0178 (2026-10-11) supersedes the framing below:** the PWA is the *canonical* client and behavioral reference, native shells are thin hosts of the same signed `om-web` bundle that add only `PlatformAdapter` capabilities and never load application code from a live remote origin, and no store listing is required for any feature, onboarding path or update. Where this document says "PWA-first" or "convenience/assurance shells", read it with that amendment.
+
 OM is **PWA-first, not PWA-only**.
 
 The first operatorless reference client should be an installable PWA because it can be distributed directly, can use standards-based Web Push, and does not require an app-store publisher merely to prove the protocol and product.

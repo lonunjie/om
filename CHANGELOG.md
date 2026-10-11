@@ -1,3 +1,8 @@
+# 2026-10-11 PHT — ADR-0177 accepted (groups authorized); ADR-0178 PWA canonical, store-independent
+
+- **ADR-0177:** accepted by the operator; `engineering_scopes.groups.authorized=true`, D-198. 4/12 scopes authorized.
+- **ADR-0178:** PWA is the canonical client; native shells embed the same signed bundle and add only `PlatformAdapter` capabilities; no store dependency. D-199, R-407, R-408, T-162; amends ADR-0007/0044 framing.
+
 # 2026-10-01 23:30 PHT — Groups verification: V-009, V-004 wire freeze, V-019; ADR-0174..0176, ADR-0177 proposed
 
 - **V-009:** the Rust materializer derives authority from the raw control chain; the Python reference covers every baseline kind; registers are epoch-major, plus expiry (R-235), mentions and forwarding (R-239). 266 cases agree; REF-4 and MAT-1 fixed; ADR-0174, R-397..R-399.
