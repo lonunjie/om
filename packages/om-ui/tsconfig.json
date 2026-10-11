@@ -1,0 +1,1 @@
+{ "extends": "../../tsconfig.base.json", "compilerOptions": { "outDir": "dist", "rootDir": "src", "tsBuildInfoFile": "dist/.tsbuildinfo", "types": ["react", "react-dom"] }, "include": ["src"], "references": [{ "path": "../om-platform-api" }, { "path": "../om-design" }] }

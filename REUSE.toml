@@ -12,6 +12,18 @@ SPDX-FileCopyrightText = "OM contributors"
 SPDX-License-Identifier = "CC-BY-SA-4.0"
 
 [[annotations]]
+path = ["packages/**", "apps/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "OM contributors"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = ["package.json", "pnpm-workspace.yaml", "pnpm-lock.yaml", "tsconfig.json", "tsconfig.base.json", "eslint.config.js", "eslint.policy.js", "eslint.policy.d.ts", "vitest.config.ts"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "OM contributors"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
 path = ["spec/**", "machine/**", "verification/**", "tools/**", "Makefile", ".github/**", "REUSE.toml", ".gitignore", "docs/ux-design/**/*.json", "docs/ux-design/prototype/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "OM contributors"

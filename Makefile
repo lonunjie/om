@@ -1,16 +1,16 @@
 # OM design repository tasks. `make help` lists them.
 PY ?= python3
 
-.PHONY: help check verify verify-drop validate docs docs-check file-registry evidence evidence-drop tlc export import reuse registries manifest bundle preflight preflight-drop preflight-full
+.PHONY: help web-guard web-check check verify verify-drop validate docs docs-check file-registry evidence evidence-drop tlc export import reuse registries manifest bundle preflight preflight-drop preflight-full
 
 help: ## list targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
 
-check: validate docs-check file-registry evolution ## fast checks: validator + docs links + current file registry + protocol-evolution policy
+check: validate docs-check file-registry evolution web-guard ## fast checks: validator + docs links + current file registry + protocol-evolution policy
 
 verify-drop: preflight-drop evidence-drop check manifest ## fresh design-drop checks; no Git history or heavyweight toolchain required
 
-verify: preflight-full evidence tlc check manifest registries ## full Git-repo verification including Rust/TLC and history immutability
+verify: preflight-full evidence tlc check web-check manifest registries ## full Git-repo verification including Rust/TLC and history immutability
 
 preflight: ## report verification-tool availability without changing evidence
 	$(PY) tools/verify_preflight.py --profile report
@@ -20,6 +20,12 @@ preflight-drop: ## require the portable tools used by verify-drop
 
 preflight-full: ## require Git history + Rust/Java/bootstrap tools used by full verify
 	$(PY) tools/verify_preflight.py --profile full
+
+web-guard: ## web workspace guard: no remote subresources, inline scripts, or harness import in app code (no Node needed)
+	$(PY) tools/web_guard.py
+
+web-check: ## web workspace: typecheck, lint, tests, production build (needs pnpm install)
+	pnpm install --frozen-lockfile && pnpm web:check
 
 validate: ## architecture contract validator
 	$(PY) tools/validate_architecture.py
