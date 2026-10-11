@@ -11,7 +11,7 @@ OM now has enough shell, Omnibar, motion, personalization, and visual-system def
 1. Treat the UI/UX constitution as **testable contracts**, not aspirational prose.
 2. Adopt [`VALIDATION_GATES.md`](../specs/VALIDATION_GATES.md) as the pre-freeze acceptance criteria for the default experience and built-in preset themes.
 3. Harden core components through a common state contract ([`COMPONENT_BEHAVIOR_AND_STATES.md`](../specs/COMPONENT_BEHAVIOR_AND_STATES.md)).
-4. Keep **OM Clear** as the reference default candidate while validation runs; do not churn the base palette without evidence.
+4. Keep **OM Calm** as the reference default candidate while validation runs; do not churn the base palette without evidence.
 5. Permit OwnMessenger themes to vary presentation only inside the protected Theme Contract.
 6. Prefer ergonomic margins above minimum accessibility conformance for high-frequency messaging controls.
 7. Do not claim real-user or real-device validation until it has actually been performed and recorded.

@@ -115,7 +115,7 @@ Disabled controls must not be the only way to explain why an action cannot happe
 
 **Selection** answers: "Which object is currently chosen?"
 
-They may coexist. OM Clear reserves a violet focus geometry to keep focus distinct from cobalt action/selection color.
+They may coexist. OM Calm reserves a violet focus geometry to keep focus distinct from cobalt action/selection color.
 
 Reference target for custom focus indicators: at least the visual area of a 2 CSS-pixel perimeter and >=3:1 contrast for the focus change/adjacent boundary, consistent with WCAG 2.2 Focus Appearance guidance.
 
@@ -148,7 +148,7 @@ No contact upload is requested by default. One-time/bounded invite options are p
 Protected semantic families:
 
 - cobalt/azure — ordinary action/information;
-- violet — keyboard focus location in OM Clear;
+- violet — keyboard focus location in OM Calm;
 - green — success/verified;
 - amber — caution/warning;
 - red — failure/destructive consequence;

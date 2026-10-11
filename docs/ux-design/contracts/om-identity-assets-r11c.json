@@ -1,7 +1,7 @@
 {
   "revision": "11C",
   "status": "exploratory-not-final",
-  "palette_note": "Candidates share OM Clear presentation colors so mark silhouette can be compared independently of color.",
+  "palette_note": "Candidates share OM Calm presentation colors so mark silhouette can be compared independently of color.",
   "candidates": [
     {
       "id": "open-loop",

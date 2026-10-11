@@ -36,7 +36,7 @@ required={
   "status.success","status.warning","status.danger","message.incoming.surface",
   "message.outgoing.surface","message.failed.surface"
 }
-print("OM Clear semantic token checks")
+print("OM Calm semantic token checks")
 for mode in ("light","dark"):
     t=clear[mode]
     missing=sorted(required-set(t))

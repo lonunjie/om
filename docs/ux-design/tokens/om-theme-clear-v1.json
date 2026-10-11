@@ -1,7 +1,7 @@
 {
   "$schema": "om-theme-v1",
   "id": "om.clear",
-  "name": "OM Clear",
+  "name": "OM Calm",
   "status": "prototype-default-candidate",
   "semanticRules": {
     "actionFamily": "cobalt-azure",

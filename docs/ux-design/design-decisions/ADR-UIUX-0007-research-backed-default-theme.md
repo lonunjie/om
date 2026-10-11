@@ -4,9 +4,9 @@
 
 ## Decision
 
-OM will use **OM Clear** as the default reference theme for prototype validation.
+OM will use **OM Calm** as the default reference theme for prototype validation.
 
-OM Clear uses:
+OM Calm uses:
 
 - high-luminance positive-polarity light mode as the default reference reading palette;
 - independently tuned dark mode;
@@ -35,7 +35,7 @@ The evidence does not identify one universally optimal brand hue, so the exact p
 
 ## Consequences
 
-- final brand color is no longer completely unconstrained: OM Clear is now the leading v1 candidate;
+- final brand color is no longer completely unconstrained: OM Calm is now the leading v1 candidate;
 - the palette is represented through semantic tokens, not component literals;
 - theme packages cannot overwrite protected semantics;
 - prototype/usability results may still adjust exact hue, chroma, lightness, or surface values without invalidating this ADR's semantic model.

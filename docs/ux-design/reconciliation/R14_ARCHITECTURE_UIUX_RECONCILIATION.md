@@ -144,7 +144,7 @@ Subject to normal UX ADR/requirement updates, these are compatible presentation/
 - bottom Omnibar and composer↔Omnibar semantic morph;
 - Omnibar local indexing/ranking/voice/keyboard grammar;
 - explicit local-learning opt-in/reset and “learn targets, not hidden verbs” rule;
-- semantic color system and OM Clear theme candidate;
+- semantic color system and OM Calm theme candidate;
 - Focus/Balanced/Playful expression profiles;
 - semantic motion + recipient-controlled delight rendering;
 - expanded icon/media-asset system;

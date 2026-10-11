@@ -22,7 +22,7 @@ OwnMessenger should make OM deeply personal without turning Settings into a ware
 ### Appearance
 
 - theme pair: System / Light / Dark where appropriate;
-- preset theme family, including OM Clear;
+- preset theme family, including OM Calm;
 - text size and readable width preferences where platform permits;
 - density: Compact / Comfortable / Large / Custom safe range;
 - conversation background/wallpaper;

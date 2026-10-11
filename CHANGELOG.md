@@ -1,3 +1,7 @@
+# 2026-10-11 PHT — ADR-0179: default theme is named OM Calm
+
+- **ADR-0179:** the default reference theme is named OM Calm (was OM Clear in ADR-0159/0166). Display name only; ids `om.clear` / `data-theme="clear"` and palette values unchanged. Normative docs, specs, token display names and prototype labels updated; accepted ADR text and evidence left as history. D-200.
+
 # 2026-10-11 PHT — ADR-0177 accepted (groups authorized); ADR-0178 PWA canonical, store-independent
 
 - **ADR-0177:** accepted by the operator; `engineering_scopes.groups.authorized=true`, D-198. 4/12 scopes authorized.

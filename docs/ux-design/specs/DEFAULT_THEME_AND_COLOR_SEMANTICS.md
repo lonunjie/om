@@ -1,4 +1,4 @@
-# OM Clear — Default Theme and Functional Color Grammar
+# OM Calm — Default Theme and Functional Color Grammar
 
 **Status:** selected reference theme for prototype validation; palette values are v1 candidates, not immutable brand law.
 
@@ -16,11 +16,11 @@ The default OM theme must be simultaneously:
 - usable in both light and dark appearance;
 - compatible with OwnMessenger customization.
 
-The default theme is named **OM Clear** because its first job is to make meaning clear.
+The default theme is named **OM Calm** because it should feel quiet and settled while keeping every meaning unmistakable. (Named OM Clear until ADR-0179; the stable ids `om.clear` and `data-theme="clear"` are unchanged.)
 
 ## 2. Functional color grammar
 
-OM Clear reserves color families for stable meanings.
+OM Calm reserves color families for stable meanings.
 
 ### Neutral family — rest and structure
 
@@ -48,7 +48,7 @@ Do not use the action hue on static decorative text. Color should retain informa
 
 ### Violet — keyboard/focus location
 
-A separate violet family is reserved for strong keyboard focus indication in OM Clear. It helps distinguish **where keyboard input will go** from blue action/selection emphasis.
+A separate violet family is reserved for strong keyboard focus indication in OM Calm. It helps distinguish **where keyboard input will go** from blue action/selection emphasis.
 
 Focus also has geometry; color is never the only cue.
 
@@ -64,7 +64,7 @@ Amber means attention is warranted but the system is not necessarily failing. Or
 
 Red is protected for failure and destructive risk. Themes cannot casually reuse the danger color for ordinary decorative highlights.
 
-## 3. OM Clear Light candidate palette
+## 3. OM Calm Light candidate palette
 
 | Semantic role | Value | Intent |
 |---|---:|---|
@@ -103,7 +103,7 @@ Selected WCAG 2.x contrast checks against `surface.base`:
 
 White on `accent.primary`: ~5.6:1.
 
-## 4. OM Clear Dark candidate palette
+## 4. OM Calm Dark candidate palette
 
 | Semantic role | Value | Intent |
 |---|---:|---|
@@ -189,7 +189,7 @@ Color must pair with another cue:
 
 ## 8. High-contrast variant
 
-OM Clear must generate or ship an increased-contrast pair. The high-contrast variant may:
+OM Calm must generate or ship an increased-contrast pair. The high-contrast variant may:
 
 - darken light-mode secondary foregrounds;
 - brighten dark-mode foregrounds;
@@ -212,7 +212,7 @@ Dynamic/OhMessenger backgrounds may add interest, but:
 
 ## 10. Validation before brand freeze
 
-OM Clear is the **strong default candidate**, not a claim of universal color preference.
+OM Calm is the **strong default candidate**, not a claim of universal color preference.
 
 Before freezing brand v1, test:
 
@@ -228,7 +228,7 @@ Before freezing brand v1, test:
 
 ## 11. Revision 8 stability rule
 
-OM Clear now enters **validation stability**. Do not repeatedly adjust its hues merely to make the package feel newer. Change candidate values only when one of the following produces evidence of a problem:
+OM Calm now enters **validation stability**. Do not repeatedly adjust its hues merely to make the package feel newer. Change candidate values only when one of the following produces evidence of a problem:
 
 - contrast/static checks;
 - real-device rendering;

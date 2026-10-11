@@ -97,7 +97,7 @@ Repeat common actions with each hand. Record reach failures/mis-taps; do not inf
 
 ### T10 — theme semantic parity
 
-Repeat failure/warning/verified/focus identification in OM Clear Light and Dark plus at least one alternate preset. Meaning must transfer.
+Repeat failure/warning/verified/focus identification in OM Calm Light and Dark plus at least one alternate preset. Meaning must transfer.
 
 ## D. Suggested measurements
 

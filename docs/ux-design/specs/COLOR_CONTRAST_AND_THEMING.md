@@ -32,7 +32,7 @@ Core roles include:
 
 ## 1A. Default functional color grammar
 
-The selected reference theme is **OM Clear**. It uses neutral surfaces for most UI area, cobalt/azure for ordinary action/information, violet for keyboard focus, green for success, amber for warning, and red for danger/failure.
+The selected reference theme is **OM Calm**. It uses neutral surfaces for most UI area, cobalt/azure for ordinary action/information, violet for keyboard focus, green for success, amber for warning, and red for danger/failure.
 
 This assignment is intentionally conservative: action color should be familiar, while status colors remain protected and visually scarce. Exact values and measured contrast ratios are in [`DEFAULT_THEME_AND_COLOR_SEMANTICS.md`](DEFAULT_THEME_AND_COLOR_SEMANTICS.md) and `research/CONTRAST_AUDIT_R7.md`.
 
@@ -42,7 +42,7 @@ The palette is an engineered prototype candidate, not a claim that research prov
 
 Themes must preserve accessible text and control contrast. Where formal platform/web standards impose stricter requirements, the stricter requirement wins.
 
-OM targets at least WCAG 2.x AA-equivalent contrast for normal content and controls. OM Clear generally exceeds 4.5:1 even for secondary/tertiary meaningful text and key semantic colors. State indicators also require additional non-color cues.
+OM targets at least WCAG 2.x AA-equivalent contrast for normal content and controls. OM Calm generally exceeds 4.5:1 even for secondary/tertiary meaningful text and key semantic colors. State indicators also require additional non-color cues.
 
 ## 3. Color never stands alone
 

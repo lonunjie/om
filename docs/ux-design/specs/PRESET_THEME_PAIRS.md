@@ -16,7 +16,7 @@ Every preset inherits the same functional contracts:
 
 The research supports these constraints. It does **not** establish that any exact decorative hue is universally best. Presets therefore remain testable design hypotheses.
 
-## 2. Preset A — OM Clear (default)
+## 2. Preset A — OM Calm (default)
 
 Personality: **clear, calm, precise, quietly friendly**.
 
@@ -34,7 +34,7 @@ See [`DEFAULT_THEME_AND_COLOR_SEMANTICS.md`](DEFAULT_THEME_AND_COLOR_SEMANTICS.m
 
 Personality: **warm, human, low-glare without becoming low-contrast**.
 
-Changes from Clear:
+Changes from Calm:
 
 - light surface shifts toward warm paper neutrals;
 - dark surface shifts toward warm charcoal;

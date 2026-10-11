@@ -142,6 +142,6 @@ UW-0 through UW-9 are built and verified: 209 tests, `make check`, `pnpm web:che
 Open items for the next session:
 1. Service worker and PRF passkey paths need a real-browser check (Chrome, Safari, Firefox, iOS, Android); the in-app pane supports neither. Playwright is not installed.
 2. Decide on QR encode/decode and Argon2id dependencies (onboarding hides QR/scan without them).
-3. Reconcile the theme name: code uses OM Calm (operator choice), ADR-0159/0166 say OM Clear.
+3. ~~Reconcile the theme name~~ done 2026-10-11: ADR-0179 names the default theme OM Calm and the docs were updated.
 4. Release keys and the real trust root for the signed bundle (production builds are unsigned and the service worker refuses them by design).
 5. Next tasks: C2, Devices and Recovery settings screens, groups screens, voice-note and location-card UX.

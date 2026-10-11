@@ -1,6 +1,6 @@
 # UI/UX validation helpers
 
-[`run_static_checks.py`](run_static_checks.py) performs deterministic checks against OM Clear theme tokens. It is intentionally narrow: it verifies token completeness and selected WCAG-style contrast relationships. It does **not** replace browser accessibility tests, rendering inspection, color-vision testing, usability studies, or performance benchmarks.
+[`run_static_checks.py`](run_static_checks.py) performs deterministic checks against OM Calm theme tokens. It is intentionally narrow: it verifies token completeness and selected WCAG-style contrast relationships. It does **not** replace browser accessibility tests, rendering inspection, color-vision testing, usability studies, or performance benchmarks.
 
 Run from the package root:
 

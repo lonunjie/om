@@ -60,7 +60,7 @@ Security-reserved surfaces remain controlled by OM and can override theme color 
 
 ## Default theme and curated presets
 
-The reference default is **OM Clear** and the curated built-in presets are **OM Clear, OM Paper, OM Iris and OM Graphite**,
+The reference default is **OM Calm** and the curated built-in presets are **OM Calm, OM Paper, OM Iris and OM Graphite**,
 as defined by [`PRESET_THEME_PAIRS.md`](../../ux-design/specs/PRESET_THEME_PAIRS.md) and
 [`DEFAULT_THEME_AND_COLOR_SEMANTICS.md`](../../ux-design/specs/DEFAULT_THEME_AND_COLOR_SEMANTICS.md) (ADR-0159). Their values
 are authored prototype seeds, not wire/protocol constants; the role semantics above and the contrast constraints below are

@@ -185,3 +185,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0176 — V-004 groups wire freeze: GroupControlState, GroupControlIntent, GroupCommitBinding, GroupHistoryBundle and typed pin/poll bodies (W1)](ADR-0176-v004-groups-wire-freeze.md)
 - [ADR-0177 — Authorize engineering scope `groups` (W1)](ADR-0177-authorize-groups-engineering.md)
 - [ADR-0178 — PWA is the canonical client; native shells are thin hosts; store-independent distribution](ADR-0178-pwa-canonical-store-independent-distribution.md)
+- [ADR-0179 — The default reference theme is named OM Calm](ADR-0179-default-theme-is-named-om-calm.md)

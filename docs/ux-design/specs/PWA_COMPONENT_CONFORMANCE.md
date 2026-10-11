@@ -61,7 +61,7 @@ When Reduce Motion is active, expressive/OhMessenger animation is removed or red
 
 ## 9. Focus visibility
 
-Keyboard focus must have a visually obvious treatment independent from selection. The current OM Clear fixture requires at least a 3 CSS-pixel outline for tested primary controls; production focus tokens remain governed by the visual token contract and contrast validation.
+Keyboard focus must have a visually obvious treatment independent from selection. The current OM Calm fixture requires at least a 3 CSS-pixel outline for tested primary controls; production focus tokens remain governed by the visual token contract and contrast validation.
 
 ## 10. Test evidence classes
 

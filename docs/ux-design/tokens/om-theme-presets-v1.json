@@ -5,7 +5,7 @@
   "presets": [
     {
       "id": "om.clear",
-      "name": "OM Clear",
+      "name": "OM Calm",
       "personality": "clear, calm, precise",
       "light": {"base":"#F7F9FC","raised":"#FFFFFF","text":"#172033","secondary":"#566176","accent":"#0067C5","onAccent":"#FFFFFF","focus":"#6536D9","outgoing":"#E7F2FF"},
       "dark": {"base":"#11151C","raised":"#1D2530","text":"#F2F5F8","secondary":"#B9C2CE","accent":"#66B2FF","onAccent":"#07182B","focus":"#B69CFF","outgoing":"#183A5B"}

@@ -91,7 +91,7 @@ Test at actual 16, 20, 24, and 32 px raster sizes. A favicon is not evidence tha
 
 ## 4. Revision 11C candidate directions
 
-All candidate app-icon previews intentionally use the same OM Clear comparison colors so color preference does not decide the silhouette test.
+All candidate app-icon previews intentionally use the same OM Calm comparison colors so color preference does not decide the silhouette test.
 
 ### Open Loop
 
@@ -162,7 +162,7 @@ A final mark must pass all of the following:
 
 ## 7. Brand color relationship
 
-OM Clear cobalt is used for Revision 11C comparison previews, but the identity mark is not permanently tied to one hue yet. If OM Clear remains the default product theme, brand and action color may intentionally share a family, but functional UI semantics still take priority: a decorative brand accent must never make ordinary static content look actionable.
+OM Calm cobalt is used for Revision 11C comparison previews, but the identity mark is not permanently tied to one hue yet. If OM Calm remains the default product theme, brand and action color may intentionally share a family, but functional UI semantics still take priority: a decorative brand accent must never make ordinary static content look actionable.
 
 ## 8. Wordmark
 

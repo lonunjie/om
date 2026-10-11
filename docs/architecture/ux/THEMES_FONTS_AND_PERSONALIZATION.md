@@ -172,7 +172,7 @@ Every built-in theme MUST ship an authored light and dark semantic palette. The 
 
 An activated custom theme bundle must contain valid light+dark variants. An import UI may offer to derive a candidate counterpart as a draft convenience, but it must write and validate both variants before the bundle is accepted or activated. Contrast, focus, destructive/security states and high-contrast overrides are validated independently in both modes.
 
-OM ships a small curated family rather than one default plus novelty skins. ADR-0159 names the initial presets **OM Clear** (default), **OM Paper**, **OM Iris** and **OM Graphite** ([`PRESET_THEME_PAIRS.md`](../../ux-design/specs/PRESET_THEME_PAIRS.md)), each as authored light/dark pairs using the same semantic status/accessibility rules in [`VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md`](VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md). When a user later creates another `IdentityProfile`, the UI MAY offer a distinct curated theme as an optional visual cue. Theme choice remains local/profile presentation state and never becomes public identity/discovery metadata.
+OM ships a small curated family rather than one default plus novelty skins. ADR-0159 names the initial presets **OM Calm** (default), **OM Paper**, **OM Iris** and **OM Graphite** ([`PRESET_THEME_PAIRS.md`](../../ux-design/specs/PRESET_THEME_PAIRS.md)), each as authored light/dark pairs using the same semantic status/accessibility rules in [`VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md`](VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md). When a user later creates another `IdentityProfile`, the UI MAY offer a distinct curated theme as an optional visual cue. Theme choice remains local/profile presentation state and never becomes public identity/discovery metadata.
 
 The V1 profile switcher must not flash/reload the application: preserve per-profile draft, selected conversation and navigation state and switch presentation/state atomically.
 
@@ -198,6 +198,6 @@ OwnMessenger may customize validated presentation: theme pair, wallpaper, safe t
 
 Themes/media packs remain inert declarative data. They cannot contain executable code, arbitrary remote tracking resources, action remapping, permissions, security-policy changes or weakened confirmations. Protected security/plaintext-boundary surfaces retain reserved built-in semantics/fonts/colors where this architecture requires them.
 
-The design-track **OM Clear** light/dark pair is a reference candidate, not a protocol value and not a human-validated brand freeze. Alternate preset pairs and imported themes remain subject to contrast, accessibility and protected-role validation.
+The design-track **OM Calm** light/dark pair is a reference candidate, not a protocol value and not a human-validated brand freeze. Alternate preset pairs and imported themes remain subject to contrast, accessibility and protected-role validation.
 
 Focus/Balanced/Playful is an **experience profile only** and must never be confused with Recommended/Hardened/Maximum Privacy/Custom Protection policy.

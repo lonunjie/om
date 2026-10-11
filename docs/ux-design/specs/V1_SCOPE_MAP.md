@@ -39,7 +39,7 @@ These are required for a coherent OM v1 experience, subject to architecture supp
 
 ### OwnMessenger essentials
 
-- OM Clear light/dark reference pair;
+- OM Calm light/dark reference pair;
 - system appearance support;
 - safe text-size/density preferences;
 - tab visibility/reordering;
@@ -82,7 +82,7 @@ These are V1 even when hidden from the default shell until context requires them
 
 These may ship in v1 without changing the core mental model:
 
-- additional preset themes beyond OM Clear;
+- additional preset themes beyond OM Calm;
 - user-created/imported theme packs after asset validation is production-ready;
 - advanced keyboard profiles (e.g. Vim-like) beyond standard shortcuts;
 - app-specific language selector in addition to OS language;
@@ -118,7 +118,7 @@ The following are intentionally unresolved and must not be interpreted as missin
 - final OM logo/wordmark;
 - public long-form product-name clearance;
 - promotion of risky/novel icons to label-free use;
-- final brand-palette freeze beyond OM Clear as reference candidate;
+- final brand-palette freeze beyond OM Calm as reference candidate;
 - physical iOS/Android ergonomics and assistive-technology closure;
 - blinded usability validation.
 
