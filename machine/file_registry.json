@@ -2559,6 +2559,13 @@
       "authority": "working_record_non_normative"
     },
     {
+      "path": "docs/reports/2026-10-11-reference-client-ui-first-web-tasks.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
       "path": "docs/reports/README.md",
       "class": "report",
       "domain": "architecture_process",
