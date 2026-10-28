@@ -2,6 +2,8 @@
 [workspace]
 resolver = "3"
 members = ["crates/om-codec", "crates/om-core", "crates/om-wasm"]
+# Verification prototypes are standalone evidence crates with their own manifests and lockfiles.
+exclude = ["verification"]
 
 [workspace.package]
 edition = "2024"
