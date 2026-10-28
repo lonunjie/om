@@ -112,6 +112,9 @@ pub struct Device {
     pub bundle_freshness: BundleFreshness,
     /// Derived from `peers` (not persisted): every committed peer device, for IK_A lookup.
     pub peer_devices: Vec<PeerDevice>,
+    /// `expires_at` (POSIX seconds) stamped into the AsyncKeyBundles this device signs. Persisted at key 18;
+    /// absent in older state, which means `BUNDLE_EXPIRES`.
+    pub bundle_expires_at: u64,
 }
 
 impl core::fmt::Debug for Device {
@@ -197,6 +200,7 @@ impl Device {
             peers: BTreeMap::new(),
             bundle_freshness: BundleFreshness::default(),
             peer_devices: vec![],
+            bundle_expires_at: BUNDLE_EXPIRES,
         }
     }
 
@@ -276,7 +280,7 @@ impl Device {
             pqspk: pqxdh::mlkem_pub(&self.last_resort.seed),
             epoch: self.epoch,
             pool_id,
-            expires_at: BUNDLE_EXPIRES,
+            expires_at: self.bundle_expires_at,
         }
     }
 
@@ -580,6 +584,16 @@ impl Device {
     // ---- persistence --------------------------------------------------------------------
 
     pub fn to_cbor(&self) -> V {
+        let mut v = self.to_cbor_base();
+        if self.bundle_expires_at != BUNDLE_EXPIRES
+            && let V::M(m) = &mut v
+        {
+            m.push((18, V::U(self.bundle_expires_at)));
+        }
+        v
+    }
+
+    fn to_cbor_base(&self) -> V {
         let ec = |k: &SignedEc| {
             V::A(vec![
                 V::U(k.id as u64),
@@ -807,6 +821,11 @@ impl Device {
             peers,
             bundle_freshness,
             peer_devices: vec![],
+            bundle_expires_at: v
+                .opt(18)
+                .map(|x| x.u())
+                .transpose()?
+                .unwrap_or(BUNDLE_EXPIRES),
         }
         .reindexed()
     }

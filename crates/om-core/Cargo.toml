@@ -15,7 +15,7 @@ default = []
 # Seeded ChaCha20 RNG, selftests and vector generation. NEVER in a production build.
 insecure-test-rng = ["dep:rand_chacha"]
 # In-memory loopback transport/store for tests only. NEVER in a production build.
-test-loopback = []
+test-loopback = ["insecure-test-rng"]
 # Marker a production build sets; combining it with a test-only feature is a compile error (R-072).
 production = []
 
@@ -36,9 +36,9 @@ rand_core = { version = "0.9", features = ["os_rng"] }
 rand_chacha = { version = "0.9", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+om-codec = { path = "../om-codec" }
 
 [dev-dependencies]
 # Test builds enable the test-only providers (never reachable from a normal or wasm build).
 om-core = { path = ".", features = ["insecure-test-rng", "test-loopback"] }
-om-codec = { path = "../om-codec" }
 proptest = { version = "1", default-features = false, features = ["std"] }
