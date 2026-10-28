@@ -221,6 +221,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/build/sign.d.mts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/sign.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/verify-release.d.mts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -530,6 +544,13 @@
     },
     {
       "path": "apps/web/src/update/manifest.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/update/release-key.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

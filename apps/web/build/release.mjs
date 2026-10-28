@@ -3,13 +3,16 @@
 // Usage: node build/release.mjs [--dev] [--signature <file.json>] [--out <dir>] [--no-zip]
 //   --dev        build with OM_BUNDLE_DEV=1: unsigned dev bundle, folder/zip are named "-dev". Never for production.
 //   --signature  JSON {alg,keyId,sig} produced externally over signingPayload(manifest); injected into the manifest.
-// Without --dev the release REFUSES to be produced unless a signature is supplied (production keys do not exist yet).
+//   --sign-from-vault     sign with the production key read in-memory from the agent vault (key id om-release-2026-10-28).
+//   --sign-with-key-file  sign with a PKCS8 PEM file (tests only: pass a throwaway key; also --key-id <id>, default the production id).
+// Without --dev the release REFUSES to be produced unless it is signed (--signature, --sign-from-vault or --sign-with-key-file).
 import { spawnSync } from "node:child_process";
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { RELEASE_KEY_ID, pemFromVault, signManifest } from "./sign.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = resolve(webRoot, "../..");
@@ -20,13 +23,17 @@ const fail = (m) => { console.error(`release: ${m}`); process.exit(1); };
 
 const dev = flag("--dev");
 const sigFile = opt("--signature");
+const fromVault = flag("--sign-from-vault");
+const keyFile = opt("--sign-with-key-file");
+const signing = fromVault || keyFile !== undefined;
 const outBase = resolve(opt("--out") ?? join(webRoot, "release"));
-if (!dev && !sigFile) {
-  fail("refusing to produce a production release: the bundle would be UNSIGNED. Production signing keys do not exist yet.\n" +
-    "  Pass --signature <file.json> ({alg,keyId,sig} over the manifest signing payload) once keys exist,\n" +
+if (!dev && !sigFile && !signing) {
+  fail("refusing to produce a production release: the bundle would be UNSIGNED.\n" +
+    "  Pass --sign-from-vault, or --signature <file.json> ({alg,keyId,sig} over the manifest signing payload),\n" +
     "  or pass --dev for an explicitly unsigned DEV release (never deploy a dev release to real users).");
 }
-if (dev && sigFile) fail("--dev and --signature are mutually exclusive");
+if (dev && (sigFile || signing)) fail("--dev and signing flags are mutually exclusive");
+if ([sigFile !== undefined, fromVault, keyFile !== undefined].filter(Boolean).length > 1) fail("pick exactly one of --signature, --sign-from-vault, --sign-with-key-file");
 
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const sha = (b) => createHash("sha256").update(b).digest("hex");
@@ -40,8 +47,13 @@ try {
 
   const manifestPath = join(site, "bundle-manifest.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  if (sigFile) {
-    const s = JSON.parse(readFileSync(sigFile, "utf8"));
+  if (sigFile || signing) {
+    let s;
+    if (sigFile) s = JSON.parse(readFileSync(sigFile, "utf8"));
+    else {
+      try { s = signManifest(manifest, fromVault ? pemFromVault() : readFileSync(keyFile, "utf8"), opt("--key-id") ?? RELEASE_KEY_ID); }
+      catch (e) { fail(`signing failed: ${e.message}`); }
+    }
     if (typeof s.alg !== "string" || typeof s.keyId !== "string" || typeof s.sig !== "string") fail("bad signature file");
     manifest.signature = { alg: s.alg, keyId: s.keyId, sig: s.sig };
     writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");

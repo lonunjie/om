@@ -2,18 +2,39 @@
 // Standalone, dependency-free verifier for an OM web release folder. Shipped inside every release as verify.mjs.
 // Usage: node verify.mjs [releaseDir] [--require-signed]
 // Checks: SHA256SUMS against every file, every bundle-manifest.json entry (hash + size), no unlisted files in site/.
-// It does NOT verify the manifest signature (that needs the pinned trust root inside the client); it reports whether one exists.
-import { createHash } from "node:crypto";
+// With a signature present it verifies Ed25519 over the canonical manifest payload against the pinned release key(s).
+// --require-signed additionally fails on unsigned/dev bundles. Pins must equal src/sw/trust-root.ts (release.test.ts checks).
+import { createHash, createPublicKey, verify } from "node:crypto";
 import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const sha = (b) => createHash("sha256").update(b).digest("hex");
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
+export const PINNED_KEYS = { "om-release-2026-10-28": "fad8cae9155ea0b7943c0b3f141a20f85b35c88ca5eacfe576a9bf578f28ebeb" };
+const isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+const canonicalJson = (v) => {
+  if (Array.isArray(v)) return `[${v.map(canonicalJson).join(",")}]`;
+  if (isRecord(v)) return `{${Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${canonicalJson(v[k])}`).join(",")}}`;
+  return JSON.stringify(v);
+};
+const SPKI_ED25519 = Buffer.from("302a300506032b6570032100", "hex");
+const checkSignature = (manifest, keys) => {
+  const s = manifest.signature;
+  if (!isRecord(s) || typeof s.alg !== "string" || typeof s.keyId !== "string" || typeof s.sig !== "string") return "malformed signature";
+  const hex = Object.hasOwn(keys, s.keyId) ? keys[s.keyId] : undefined;
+  if (!hex) return `unknown signing key ${s.keyId}`;
+  if (s.alg !== "ed25519") return `algorithm mismatch (${s.alg})`;
+  try {
+    const key = createPublicKey({ key: Buffer.concat([SPKI_ED25519, Buffer.from(hex, "hex")]), format: "der", type: "spki" });
+    const payload = Buffer.from(canonicalJson({ ...manifest, signature: null }), "utf8");
+    return verify(null, payload, key, Buffer.from(s.sig, "base64")) ? null : "bad signature";
+  } catch { return "bad signature"; }
+};
 const UNSERVED = new Set(["_headers"]);
 
 /** Returns { ok, errors, info }. Pure over the filesystem; exported for tests. */
-export const verifyRelease = (dir, { requireSigned = false } = {}) => {
+export const verifyRelease = (dir, { requireSigned = false, trustedKeys = PINNED_KEYS } = {}) => {
   const errors = [];
   const info = {};
   const site = join(dir, "site");
@@ -49,6 +70,11 @@ export const verifyRelease = (dir, { requireSigned = false } = {}) => {
     info.dev = manifest.dev === true;
     info.signed = manifest.signature !== null && manifest.signature !== undefined;
     info.keyId = manifest.signature?.keyId;
+    if (info.signed) {
+      const bad = checkSignature(manifest, trustedKeys);
+      info.signatureValid = bad === null;
+      if (bad !== null) errors.push(`signature: ${bad}`);
+    }
     if (requireSigned && (!info.signed || info.dev)) errors.push("--require-signed: bundle is " + (info.dev ? "a dev build" : "unsigned"));
   }
   return { ok: errors.length === 0, errors, info };
@@ -61,6 +87,6 @@ if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToP
   const r = verifyRelease(dir, { requireSigned: args.includes("--require-signed") });
   for (const e of r.errors) console.error("FAIL:", e);
   const i = r.info;
-  console.log(`${r.ok ? "OK" : "FAILED"}: version ${i.version ?? "?"}, ${i.dev ? "DEV build (unsigned, not for production)" : i.signed ? `signed (key ${i.keyId}; signature is verified by the client's pinned trust root, not here)` : "UNSIGNED"}`);
+  console.log(`${r.ok ? "OK" : "FAILED"}: version ${i.version ?? "?"}, ${i.dev ? "DEV build (unsigned, not for production)" : i.signed ? `signed (key ${i.keyId}; Ed25519 signature verified against the pinned key)` : "UNSIGNED"}`);
   process.exit(r.ok ? 0 : 1);
 }
