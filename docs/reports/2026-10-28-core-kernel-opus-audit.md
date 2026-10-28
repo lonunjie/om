@@ -139,3 +139,31 @@ The "impossible to ship in a production configuration" rule (R-072) therefore ho
 - **ACS signer checks.** Signers must be active, non-quarantined parent controllers, apart from the B1 credential source. Duplicate signers fail. The signature count is capped at 16 and the chain at 64 links.
 - **Wasm ABI.** `unsafe` code is confined to `abi.rs`. A missing or failing `random_fill` throws through wasm and traps. It never yields zero entropy.
 - **Service worker update path.** It fails closed: an unsigned manifest is accepted only for `dev` under a dev trust root, and the version floor refuses unsigned rollback (`update/signature.ts:26-41`, `update/floor.ts`).
+
+## Applied (2026-10-28, Sonnet 5.5 follow-up)
+
+Each fix has a regression test that failed before the change (checked by running the test against the unfixed source). B2 was deliberately not touched (offline root and TUF key custody is an operator decision).
+
+| Finding | Commit | Test (fails before the fix) | Notes |
+|---|---|---|---|
+| B1 | `83eac94` | `crates/om-core/tests/acs_authorization.rs`: `a_forged_credential_swap_is_not_a_valid_successor`, `credential_changes_are_rotate_own_key_only_and_need_an_epoch_bump`, `credentials_may_only_be_added_with_their_device_and_removed_with_its_revocation`; `crates/om-core/tests/acs_forgery.rs` drives the `flows.rs` inviter path with a forged successor of a published chain (honest chain listed, forged one refused) | Signers are verified against the PARENT's credentials. A changed `device_credentials` entry is `rotate_own_key` (device itself, strictly higher `control_key_epochs`), a removed one is unlisted unless the device is revoked, an added one is unlisted unless the device is added in the same step. The 63 golden vectors pass and the 16,200-case differential still agrees with the V-002 reference (`OM_ACS_EXHAUSTIVE`). The Python enumeration was not extended to credentials (the abstract model has none): coverage is the Rust tests above. |
+| H1 | `d8c7e3e` | `apps/web/build/release.test.ts` ("production build hygiene"): polluted environment refused for four variables, vite refuses a production build with a test flag, pre-signing site checks, allowlisted environment | [`release.mjs`](../../apps/web/build/release.mjs) refuses to run when any `VITE_*` or `OM_*` variable is set, builds with an allowlisted environment, rebuilds the wasm with `om-core/production`, and runs `check-no-harness` and `tools/core_guard.py --wasm` on the site before signing. `vite.config.ts` throws on a production-mode build with `VITE_OM_DEV_HARNESS` or `VITE_OM_E2E_CORE` unless `OM_BUNDLE_DEV=1` (so `build:harness` now sets it). `debug_inject`, `debug_app_state`, `debug_device_digest`, `debug_link_messaging_device` and `LoopbackNetwork` joined the marker list. |
+| M4 | `dc2efca` | `crates/om-core/tests/first_contact_limits.rs` | Requester bootstrap key capped at `BOOTSTRAP_TTL_S` plus 1 hour of wall-clock skew (`BOOTSTRAP_CLOCK_SKEW_S`). |
+| M6 | `2f16ab4` | `sealed_delivery.rs`: `a_rejected_payload_on_an_established_session_does_not_advance_the_ratchet` (uses the test-only `debug_device_digest`) | Decision: a payload that is not accepted never changes cryptographic state, on every path. The device is snapshotted before decrypt and restored on rejection. |
+| M3 | `43bd2a9` | `crates/om-core/tests/secrets.rs` | Delivery and request seeds are `SecretHex` (redacted `Debug`, wiped on drop, same JSON shape); working copies are `Zeroizing`. Not done: the profile record handed to the host still contains the seeds as hex (needs a vault-held record key inside Core). |
+| M5 | `fc1d32a` | `packages/om-ui/src/conversations/services.test.ts`; `onboarding.test.tsx` ("invite_first without a provider") | `settledOutcome` takes a timeout (default 15 s) and an abort signal, resolves with the latest pending outcome, and unsubscribes. `InviteFirst` shows a "queued, nothing sent yet" status and aborts on unmount. |
+| M2 (partial) | `0850762` | `crates/om-core/tests/devices.rs` | A confirmation token must be a JSON object; `false`, `0`, `""`, `[]` and strings are `Rejected(unauthorized)`. Core-issued single-use nonces bound to intent, target and profile are not done (see below). |
+| L3 | `3346bdb` | `release.test.ts` ("externally supplied signature") | [`release.mjs`](../../apps/web/build/release.mjs) verifies the signature against the pinned key (or the throwaway key's own public key) before reporting "signed"; deploy docs use `node verify.mjs --require-signed`. |
+| L6 | `d8c7e3e` | `release.test.ts` (marker cases) | Marker list extended, see H1. |
+
+### Not changed, with reasons
+
+- **B2:** operator decision (offline root and key custody). Untouched.
+- **H2:** `blocked-item`. The specification does not fully define the intro-identity lifecycle, the ticket issuer, the rate-limit numbers or the pre-acceptance disclosure rule. Open questions: [`2026-10-28-h2-first-contact-open-questions.md`](2026-10-28-h2-first-contact-open-questions.md).
+- **M1 (route binding):** documented, not changed. The spec defines `route_binding = SHA-256(["OM-SEALED-DELIVERY-ROUTE-v1", relay_uri, deposit_capability])` from a `RelayEntry`, but Core has no `RelayEntry`/`RelaySet` and the provider contract exposes no relay URI, so the real value cannot be computed yet. It must land with `RelaySet` and before the first provider adapter; the stand-in `om-core:mailbox/v0` must be versioned if it ever reaches users.
+- **M2 (rest):** needs a contract decision. `ConfirmationToken` is documented as minted only by the Action Registry (an opaque object, tracked UI-side). Core-issued nonces change that contract (new query and intent plumbing in `om-platform-api`, the harness and the UI).
+- **L1:** intended v1 strictness, recorded here: the ACS parser rejects keys outside 0..=14, so a future non-critical ACS field needs a spec-defined skip rule before it is added.
+- **L2:** no change needed today (Core sends no receipts). Condition stays: an unknown inner kind must not yield a `Delivered` receipt once receipts ship.
+- **L7:** already covered by `scenarios.rs::a_failed_host_commit_releases_nothing`.
+- **L4, L5:** accepted as written (L4 is replaced by TUF metadata under PR-005 with B2).
+

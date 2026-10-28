@@ -79,3 +79,8 @@
 5. A real provider adapter (reference Home is `provider_reference` scope) so production is connected; until then production says it is not.
 6. Consolidate the two CBOR codecs; fuzz targets under `fuzz/`; `conformance/` runner; wasm size and startup measurements against the V-022 budgets (the wasm is about 2.6 MB); a second CryptoProfile-agility test.
 7. Independent review of the crypto adaptations (ADR-0167): the code is adapted from prototypes written by a Claude agent and reviewed by Claude only. The new `control.rs` verifier and the sealed-delivery acceptance path are also Claude-only.
+
+## Audit follow-up (2026-10-28)
+
+The Opus audit findings B1, H1, M2 (partly), M3, M4, M5, M6 and L3 are fixed; see the "Applied" section of [`2026-10-28-core-kernel-opus-audit.md`](2026-10-28-core-kernel-opus-audit.md). Still open: B2 (operator decision), H2 (blocked on spec questions, [`2026-10-28-h2-first-contact-open-questions.md`](2026-10-28-h2-first-contact-open-questions.md)), M1 (waits for `RelaySet`) and the Core-issued confirmation nonces of M2.
+
