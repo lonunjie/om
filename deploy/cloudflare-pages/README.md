@@ -6,7 +6,7 @@ Use your own Cloudflare account. Nothing here touches the reference deployment.
 
 ```sh
 unzip om-web-X.zip && cd om-web-X
-node verify.mjs
+node verify.mjs --require-signed
 npx wrangler pages deploy ./site --project-name <your-project>   # reads ./wrangler.toml
 ```
 

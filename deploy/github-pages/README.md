@@ -1,6 +1,6 @@
 # GitHub Pages
 
-1. Unzip a release, run `node verify.mjs`, push the **contents of `site/`** to a branch (e.g. `gh-pages`) or `docs/`.
+1. Unzip a release, run `node verify.mjs --require-signed`, push the **contents of `site/`** to a branch (e.g. `gh-pages`) or `docs/`.
 2. Add an empty `.nojekyll` file at the root (the bundle has no Jekyll content; this keeps `_`-prefixed paths intact).
 3. Use a user/org site (`user.github.io`) or a custom domain so the app sits at the **origin root**. A project site at
    `user.github.io/repo/` breaks the `/` service-worker scope and manifest `start_url`; do not use it.

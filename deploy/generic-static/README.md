@@ -1,6 +1,6 @@
 # Generic static hosting
 
-Upload `site/` from a verified release (`node verify.mjs`) to the **root** of an HTTPS origin. Required behaviour:
+Upload `site/` from a verified release (`node verify.mjs --require-signed`) to the **root** of an HTTPS origin. Required behaviour:
 
 - Send the headers in `site/_headers` on every response (`/*`). Values come from `apps/web/csp.ts`; copy them from the file, do not retype:
   `Content-Security-Policy` (incl. `require-trusted-types-for 'script'; trusted-types om-bundle`), `Permissions-Policy`,

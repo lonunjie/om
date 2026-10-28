@@ -8,13 +8,14 @@
 // Without --dev the release REFUSES to be produced unless it is signed (--signature, --sign-from-vault or --sign-with-key-file).
 import { spawnSync } from "node:child_process";
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, createPrivateKey, createPublicKey } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { RELEASE_KEY_ID, pemFromVault, signManifest } from "./sign.mjs";
 import { cleanBuildEnv, pollutedKeys } from "./clean-env.mjs";
 import { siteProblems } from "./release-guards.mjs";
+import { PINNED_KEYS, verifyRelease } from "./verify-release.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = resolve(webRoot, "../..");
@@ -87,12 +88,23 @@ try {
   }
   writeFileSync(join(dir, "README.txt"),
     `OM web release ${manifest.version}${dev ? " (DEV BUILD: UNSIGNED, NOT FOR PRODUCTION)" : ""}\n\n` +
-    "1. node verify.mjs            # checks SHA256SUMS and every file in site/bundle-manifest.json\n" +
+    `1. node verify.mjs${dev ? "           " : " --require-signed"}   # checks SHA256SUMS, every file in site/bundle-manifest.json${dev ? "" : " and the release signature"}\n` +
     "2. Upload site/ to any static host (see deploy/ in https://github.com/lonunjie/om).\n" +
     "Serve site/ at the ORIGIN ROOT; site/_headers carries the required CSP (translate it for non-Cloudflare hosts).\n");
   const sums = walk(dir).map((p) => relative(dir, p).split(sep).join("/")).filter((p) => p !== "SHA256SUMS").sort()
     .map((p) => `${sha(readFileSync(join(dir, p)))}  ${p}`);
   writeFileSync(join(dir, "SHA256SUMS"), sums.join("\n") + "\n");
+
+  // L3: a "signed" release is only reported once its signature verifies against the pinned key (an externally
+  // supplied --signature is not trusted on sight). A throwaway test key is checked against its own public key.
+  if (!dev) {
+    const keyId = manifest.signature.keyId;
+    const trustedKeys = keyFile !== undefined
+      ? { [keyId]: createPublicKey(createPrivateKey(readFileSync(keyFile, "utf8"))).export({ format: "der", type: "spki" }).subarray(-32).toString("hex") }
+      : PINNED_KEYS;
+    const v = verifyRelease(dir, { requireSigned: true, trustedKeys });
+    if (!v.ok) fail(`the release does not verify (--require-signed):\n  ${v.errors.join("\n  ")}`);
+  }
 
   const out = { dir, zip: null };
   if (!flag("--no-zip")) {

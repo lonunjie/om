@@ -108,6 +108,17 @@ describe("release script", () => {
     expect(extractPem("nothing")).toBeNull();
   });
 
+  it("does not report an externally supplied signature as signed unless it verifies against the pinned key", { timeout: 120_000 }, () => {
+    const sigFile = join(tmp, "bad-sig.json");
+    writeFileSync(sigFile, JSON.stringify({ alg: "ed25519", keyId: RELEASE_KEY_ID, sig: Buffer.alloc(64, 7).toString("base64") }));
+    const out = join(tmp, "bad-sig-out");
+    const r = run("--no-zip", "--out", out, "--signature", sigFile);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/does not verify/);
+    expect(r.stderr).toMatch(/signature: bad signature/);
+    expect(r.stdout).not.toMatch(/signed om-web/);
+  });
+
   describe("signed release (throwaway key)", () => {
     const { privateKey, publicKey } = generateKeyPairSync("ed25519");
     const pubHex = publicKey.export({ format: "der", type: "spki" }).subarray(-32).toString("hex");
