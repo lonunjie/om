@@ -37,7 +37,7 @@ def license_for(path: str) -> str:
     """LICENSE.md: prose is CC-BY-SA-4.0; spec/machine/verification/tools and schemas are Apache-2.0."""
     if path.startswith("LICENSES/"):
         return "upstream-license-text"
-    if path.startswith(("spec/", "machine/", "tools/", ".github/")) or path in {"Makefile", "REUSE.toml", ".gitignore"}:
+    if path.startswith(("spec/", "machine/", "tools/", ".github/", "deploy/ledger/")) or path in {"Makefile", "REUSE.toml", ".gitignore"}:
         return AP
     if path.startswith(("packages/", "apps/", "crates/", "infra/")):
         return "MPL-2.0"  # shared client libraries and the reference web client (LICENSING_AND_CONTRIBUTION_POLICY.md)

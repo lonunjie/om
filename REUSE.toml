@@ -24,7 +24,7 @@ SPDX-FileCopyrightText = "OM contributors"
 SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
-path = ["spec/**", "machine/**", "verification/**", "tools/**", "Makefile", ".github/**", "REUSE.toml", ".gitignore", "docs/ux-design/**/*.json", "docs/ux-design/prototype/**"]
+path = ["spec/**", "machine/**", "verification/**", "tools/**", "deploy/ledger/**", "Makefile", ".github/**", "REUSE.toml", ".gitignore", "docs/ux-design/**/*.json", "docs/ux-design/prototype/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "OM contributors"
 SPDX-License-Identifier = "Apache-2.0"

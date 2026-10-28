@@ -1,6 +1,7 @@
 // Shared-fixture test (audit B2): the TS verifier (service worker) and verify-release.mjs (operators) must give the
 // SAME verdict, with the same reason string, for every case below; plus the ceremony tool's behaviour and safety.
 import { spawnSync } from "node:child_process";
+import { createPrivateKey, createHash, sign as edSign } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,6 +18,7 @@ afterAll(() => {
   rmSync(tmp, { recursive: true, force: true });
 });
 const ceremony = (...a: string[]) => spawnSync("node", [join(import.meta.dirname, "root-ceremony.mjs"), ...a], { encoding: "utf8" });
+const ceremonyIn = (input: string, ...a: string[]) => spawnSync("node", [join(import.meta.dirname, "root-ceremony.mjs"), ...a], { encoding: "utf8", input });
 
 const R1 = mkRoot();
 const R2 = mkRoot();
@@ -263,5 +265,111 @@ describe("root-ceremony CLI", () => {
     expect(JSON.parse(readFileSync(rev, "utf8"))).toMatchObject({ version: 2, revoked: ["online-1"], keys: [] });
     expect(ceremony("inspect", "--in", rev).stdout).toMatch(/revoked: online-1/);
     expect(ceremony("sign-delegation", "--root-key", k1, "--expires", "+10d").stderr).toMatch(/--online-pub is required/);
+  });
+});
+
+describe("root-ceremony: vault generation and external (hardware) signers", () => {
+  const ONLINE_PUB = "fad8cae9155ea0b7943c0b3f141a20f85b35c88ca5eacfe576a9bf578f28ebeb";
+  /** Stand-in for a Ledger: signs exactly the bytes in the payload file with a software key. NOT a device. */
+  const emulatedLedgerSign = (payloadFile: string, r: Root) => edSign(null, readFileSync(payloadFile), createPrivateKey(r.pem)).toString("base64");
+
+  it("gen-root --to-stdin-for-vault puts the PEM only in a Bitwarden item on stdout; no file; public data on stderr", () => {
+    const r = ceremony("gen-root", "--to-stdin-for-vault", "--name", "OM test root");
+    expect(r.status, r.stderr).toBe(0);
+    const item = JSON.parse(r.stdout) as { type: number; name: string; notes: string; secureNote: { type: number } };
+    expect(item).toMatchObject({ type: 2, name: "OM test root", secureNote: { type: 0 } });
+    expect(item.notes).toMatch(/^-----BEGIN PRIVATE KEY-----/);
+    const body = item.notes.replace(/-----[A-Z ]+-----|\s/g, "");
+    expect(r.stderr).not.toContain(body);
+    expect(r.stderr).not.toMatch(/PRIVATE KEY/);
+    const pub = /public key:\s+([0-9a-f]{64})/.exec(r.stderr)?.[1] ?? "";
+    expect(r.stderr).toMatch(/root key id:\s+root-[0-9a-f]{16}/);
+    expect(r.stderr).toMatch(/fingerprint:\s+sha256 [0-9a-f ]+/);
+    // the vault copy is the key: show-root --root-key-stdin on the note body yields the same public key
+    expect(ceremonyIn(item.notes, "show-root", "--root-key-stdin").stdout).toContain(pub);
+    expect(ceremony("gen-root", "--to-stdin-for-vault", "--out", join(tmp, "x.pem")).stderr).toMatch(/never writes a file/);
+    expect(existsSync(join(tmp, "x.pem"))).toBe(false);
+  });
+
+  it("show-root and cosign reject garbage on stdin without echoing it", () => {
+    const r = ceremonyIn("SECRET-LOOKING-TEXT", "show-root", "--root-key-stdin");
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/not a PKCS8/);
+    expect(r.stderr + r.stdout).not.toContain("SECRET-LOOKING-TEXT");
+  });
+
+  it("full 2-of-3 flow: draft, two Ledger-framed signatures via external-payload/attach, software cosign over stdin, verify", () => {
+    const LA2 = mkRoot("solana-offchain-v0");
+    const LB2 = mkRoot("solana-offchain-v0");
+    const vaultKey = ceremony("gen-root", "--to-stdin-for-vault");
+    const vaultPem = (JSON.parse(vaultKey.stdout) as { notes: string }).notes;
+    const swPub = /public key:\s+([0-9a-f]{64})/.exec(vaultKey.stderr)?.[1] ?? "";
+    const d = join(tmp, "flow-delegation.json");
+    expect(ceremony("draft", "--online-pub", ONLINE_PUB, "--key-id", "om-release-2026-10-28", "--expires", "+90d", "--out", d).status).toBe(0);
+    expect(JSON.parse(readFileSync(d, "utf8"))).toMatchObject({ version: 1, signatures: [] });
+    const pinSnippet = ceremony("pin-snippet", "--root", `${LA2.pub}=solana-offchain-v0`, "--root", `${LB2.pub}=solana-offchain-v0`, "--root", `${swPub}=raw`);
+    expect(pinSnippet.status, pinSnippet.stderr).toBe(0);
+    const rootsFile = join(tmp, "roots.json");
+    writeFileSync(rootsFile, pinSnippet.stdout.trim().split("\n").pop() ?? "");
+    const verifyNow = () => ceremony("verify", "--in", d, "--roots-file", rootsFile);
+    expect(verifyNow().stdout).toMatch(/FAILED: root_threshold/);
+
+    // Ledger A
+    const payloadA = join(tmp, "payload-a.bin");
+    const rep = ceremony("external-payload", "--in", d, "--signer-pub", LA2.pub, "--out", payloadA);
+    expect(rep.status, rep.stderr).toBe(0);
+    const parsed = JSON.parse(readFileSync(d, "utf8")) as Delegation;
+    const framed = Buffer.from(readFileSync(payloadA));
+    expect(framed.toString("hex")).toBe(Buffer.from(frameMjs("solana-offchain-v0", parsed as never, LA2.pub) ?? []).toString("hex"));
+    const text = framed.subarray(85).toString("ascii");
+    expect(rep.stdout).toContain(text); // the operator can compare this line with the device screen
+    expect(rep.stdout).toContain(`sha256 ${createHash("sha256").update(framed).digest("hex")}`);
+    expect(text).toMatch(/^OM release delegation \| version 1 \| expires \d{4}-\d\d-\d\dT[\d:]+Z \| sha256 [0-9a-f]{64}$/);
+    expect(rep.stdout).toContain(`delegation payload sha256:  ${text.slice(-64)}`);
+    const sigA = emulatedLedgerSign(payloadA, LA2);
+    const helperJson = join(tmp, "sig-a.json");
+    writeFileSync(helperJson, JSON.stringify({ path: "44'/501'/0'", pub: LA2.pub, sigBase64: sigA, sigHex: Buffer.from(sigA, "base64").toString("hex") }));
+    expect(ceremony("external-attach", "--in", d, "--from-helper", helperJson, "--pub", LB2.pub).stderr).toMatch(/does not match/);
+    const att = ceremony("external-attach", "--in", d, "--from-helper", helperJson);
+    expect(att.status, att.stderr).toBe(0);
+    expect(verifyNow().stdout).toMatch(/FAILED: root_threshold/); // 1 of 3
+    // hex signatures are accepted too; a wrong-device or wrong-frame signature is refused and nothing changes
+    const before = readFileSync(d, "utf8");
+    const rawSig = edSign(null, Buffer.from(JSON.stringify(parsed)), createPrivateKey(LB2.pem)).toString("hex");
+    const bad = ceremony("external-attach", "--in", d, "--pub", LB2.pub, "--sig", rawSig);
+    expect(bad.status).toBe(1);
+    expect(bad.stderr).toMatch(/does not verify/);
+    const otherDevice = ceremony("external-attach", "--in", d, "--pub", LB2.pub, "--sig", sigA);
+    expect(otherDevice.status).toBe(1);
+    expect(readFileSync(d, "utf8")).toBe(before);
+
+    // Ledger B, then 2-of-3 holds with two Ledgers
+    const payloadB = join(tmp, "payload-b.bin");
+    expect(ceremony("external-payload", "--in", d, "--signer-pub", LB2.pub, "--out", payloadB).status).toBe(0);
+    expect(ceremony("external-attach", "--in", d, "--pub", LB2.pub, "--sig", Buffer.from(emulatedLedgerSign(payloadB, LB2), "base64").toString("hex")).status).toBe(0);
+    expect(verifyNow().stdout).toMatch(/OK: 2-of-3/);
+
+    // mixed frames: Ledger A + the vault software key (stdin), with Ledger B left out
+    const d2 = join(tmp, "flow-delegation-2.json");
+    expect(ceremony("draft", "--online-pub", ONLINE_PUB, "--key-id", "om-release-2026-10-28", "--expires", "+90d", "--out", d2).status).toBe(0);
+    const payloadA2 = join(tmp, "payload-a2.bin");
+    expect(ceremony("external-payload", "--in", d2, "--signer-pub", LA2.pub, "--out", payloadA2).status).toBe(0);
+    expect(ceremony("external-attach", "--in", d2, "--pub", LA2.pub, "--sig", emulatedLedgerSign(payloadA2, LA2)).status).toBe(0);
+    const co = ceremonyIn(vaultPem, "cosign", "--root-key-stdin", "--in", d2);
+    expect(co.status, co.stderr).toBe(0);
+    expect(co.stdout + co.stderr).not.toMatch(/PRIVATE KEY/);
+    expect(ceremony("verify", "--in", d2, "--roots-file", rootsFile).stdout).toMatch(/OK: 2-of-3/);
+    const signed = JSON.parse(readFileSync(d2, "utf8")) as Delegation;
+    expect(signed.signatures.map((x) => x.frame)).toEqual(expect.arrayContaining(["solana-offchain-v0", undefined]));
+  });
+
+  it("pin-snippet insists on three distinct roots and known frames; external-payload refuses unknown frames", () => {
+    const k = (n: string) => n.repeat(64);
+    expect(ceremony("pin-snippet", "--root", `${k("a")}=raw`, "--root", `${k("b")}=raw`).stderr).toMatch(/exactly 3/);
+    expect(ceremony("pin-snippet", "--root", `${k("a")}=raw`, "--root", `${k("a")}=raw`, "--root", `${k("b")}=raw`).stderr).toMatch(/twice/);
+    expect(ceremony("pin-snippet", "--root", `${k("a")}=bogus`, "--root", `${k("b")}=raw`, "--root", `${k("c")}=raw`).stderr).toMatch(/unknown frame/);
+    const d = join(tmp, "draft-for-frame.json");
+    expect(ceremony("draft", "--online-pub", ONLINE_PUB, "--key-id", "k", "--expires", "+30d", "--out", d).status).toBe(0);
+    expect(ceremony("external-payload", "--in", d, "--signer-pub", k("a"), "--frame", "bogus", "--out", join(tmp, "p.bin")).stderr).toMatch(/unknown frame/);
   });
 });

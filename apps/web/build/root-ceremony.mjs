@@ -2,24 +2,36 @@
 // OM release root-key ceremony tool (audit B2, PR-005). Pure node, no dependencies. RUN ON AN OFFLINE MACHINE.
 // The OFFLINE ROOT key signs a small "delegation" that authorises the online release key (see deploy/KEY-CEREMONY.md).
 //
-//   gen-root         --out <abs path on removable media>                      new root key; prints ONLY id, public key, fingerprint
-//   show-root        --root-key <file>                                        prints id, public key, fingerprint of a key file (to check a backup)
-//   sign-delegation  --root-key <file>... --out <file> --expires <t>
+//   gen-root         --out <abs path on removable media>                      new software root key file; prints ONLY id, public key, fingerprint
+//   gen-root         --to-stdin-for-vault [--name <item name>]                new software root key, NEVER on disk: stdout is a Bitwarden secure-note item
+//                                                                             (JSON) holding the PEM, to pipe into `bw encode | bw create item` of the
+//                                                                             operator's PERSONAL vault; stderr gets only id, public key, fingerprint
+//   show-root        --root-key <file> | --root-key-stdin                     prints id, public key, fingerprint of a key (to check a backup)
+//   draft            --expires <t> [--online-pub <hex> --key-id <id> [--not-before <t>] [--not-after <t>]]
+//                    [--prev <delegation.json>] [--version <n>] [--revoke-key-id <id>] [--out <file>]   UNSIGNED delegation (for external signers)
+//   sign-delegation  (--root-key <file> | --root-key-stdin)... --out <file> --expires <t>
 //                    [--online-pub <hex> --key-id <id> [--not-before <t>] [--not-after <t>]]
 //                    [--prev <delegation.json>] [--version <n>]               new delegation (with --prev: version+1, keys/revoked carried over)
-//   revoke           --root-key <file>... --prev <delegation.json> --key-id <id> [--expires <t>] --out <file>
-//   cosign           --root-key <file> --in <delegation.json> [--out <file>]  add one more root signature (2-of-N)
+//   revoke           (--root-key <file> | --root-key-stdin)... --prev <delegation.json> --key-id <id> [--expires <t>] --out <file>
+//   cosign           (--root-key <file> | --root-key-stdin) --in <delegation.json> [--out <file>]  add one more software root signature
+//   external-payload --in <delegation.json> --signer-pub <hex> [--frame solana-offchain-v0|raw] --out <file>
+//                                                                             writes the EXACT bytes a hardware signer must sign + a human-checkable digest
+//   external-attach  --in <delegation.json> (--pub <hex> --sig <base64|hex> | --from-helper <ledger-sign.mjs --out file>) [--frame ...] [--out <file>]
+//                                                                             ingests a hardware signer's public key + signature; verified before accepted
+//   pin-snippet      --root <pub>=<frame> --root <pub>=<frame> --root <pub>=<frame> [--threshold 2]   paste-ready ROOT_KEYS / PINNED_ROOTS / roots file
+//   verify           --in <delegation.json> --roots-file <file>               check the signatures against a roots file ({roots:{id:desc},threshold})
 //   inspect          --in <delegation.json>                                   human summary (public data)
 //
 // <t> is YYYY-MM-DD, a full UTC time YYYY-MM-DDTHH:MM:SSZ, or +Nd (N days from now).
-// Private key material is never printed, logged, put in argv or in an error message. The key file is read only
-// from the path given, must be mode 0600, and is written only by gen-root (mode 0600, never overwritten).
-import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, sign } from "node:crypto";
+// Private key material is never printed, logged, put in argv or in an error message. A key file is read only from
+// the path given, must be mode 0600, and is written only by `gen-root --out` (mode 0600, never overwritten).
+// `--root-key-stdin` reads one PEM from stdin (for a key that lives only in a password vault); nothing touches disk.
+import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, sign, verify } from "node:crypto";
 import { chmodSync, existsSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { DELEGATION_FORMAT, FRAME_RAW, KNOWN_FRAMES, frameDelegationPayload, parseDelegation } from "./verify-release.mjs";
+import { DELEGATION_FORMAT, FRAME_RAW, FRAME_SOLANA_OFFCHAIN_V0, KNOWN_FRAMES, describeRoot, frameDelegationPayload, ledgerText, delegationPayload, parseDelegation, verifyDelegation } from "./verify-release.mjs";
 
 const TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const ID = /^[A-Za-z0-9._-]{1,64}$/;
@@ -50,17 +62,49 @@ export const generateRoot = () => {
   return { pem: privateKey.export({ format: "pem", type: "pkcs8" }), ...describeKey(pubHex) };
 };
 
+/** Parses a PKCS8 PEM Ed25519 private key. Errors never include the content. */
+export const loadRootPem = (pem) => {
+  let key;
+  try { key = createPrivateKey(pem); } catch { throw new Error("input is not a PKCS8 PEM private key"); }
+  if (key.asymmetricKeyType !== "ed25519") throw new Error("input is not an ed25519 key");
+  const pubHex = rawPub(createPublicKey(key)).toString("hex");
+  return { key, frame: FRAME_RAW, ...describeKey(pubHex) };
+};
+
 /** Loads a root key file (must be mode 0600). Errors never include file content. */
 export const loadRoot = (file) => {
   let st;
   try { st = statSync(file); } catch { throw new Error(`cannot read root key file ${file}`); }
   if (!st.isFile()) throw new Error(`${file} is not a file`);
   if ((st.mode & 0o077) !== 0) throw new Error(`${file} has permissions ${(st.mode & 0o777).toString(8)}; it must be 600 (chmod 600 on the offline media)`);
-  let key;
-  try { key = createPrivateKey(readFileSync(file, "utf8")); } catch { throw new Error(`${file} is not a PKCS8 PEM private key`); }
-  if (key.asymmetricKeyType !== "ed25519") throw new Error(`${file} is not an ed25519 key`);
-  const pubHex = rawPub(createPublicKey(key)).toString("hex");
-  return { key, frame: FRAME_RAW, ...describeKey(pubHex) };
+  let pem;
+  try { pem = readFileSync(file, "utf8"); } catch { throw new Error(`cannot read root key file ${file}`); }
+  try { return loadRootPem(pem); } catch (e) { throw new Error(e.message.replace("input", file)); }
+};
+
+/** Verifies one externally produced signature (hardware signer) for `frame`; returns the signature entry or throws. */
+export const externalEntry = (delegation, { pub, sig, frame = FRAME_SOLANA_OFFCHAIN_V0 }) => {
+  const d = parseDelegation(delegation);
+  if (!d) throw new Error("not a valid delegation document");
+  if (!HEX64.test(pub ?? "")) throw new Error("--pub must be 64 lowercase hex chars (raw Ed25519 public key)");
+  if (!KNOWN_FRAMES.includes(frame)) throw new Error(`unknown frame ${JSON.stringify(frame)} (known: ${KNOWN_FRAMES.join(", ")})`);
+  const bytes = parseSig(sig);
+  const framed = frameDelegationPayload(frame, d, pub);
+  const ok = (() => {
+    try {
+      const k = createPublicKey({ key: Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), Buffer.from(pub, "hex")]), format: "der", type: "spki" });
+      return verify(null, framed, k, bytes);
+    } catch { return false; }
+  })();
+  if (!ok) throw new Error(`the signature does not verify for this delegation, public key ${pub} and frame ${frame}; nothing was written (wrong device/path/app, edited delegation, or a different payload was signed)`);
+  return { keyId: rootKeyId(pub), alg: "ed25519", sig: bytes.toString("base64"), ...(frame === FRAME_RAW ? {} : { frame }) };
+};
+/** 64-byte signature as 128 hex chars or base64. */
+const parseSig = (t) => {
+  if (typeof t !== "string") throw new Error("--sig is required");
+  const b = /^[0-9a-fA-F]{128}$/.test(t) ? Buffer.from(t, "hex") : Buffer.from(t, "base64");
+  if (b.length !== 64) throw new Error("--sig must be a 64-byte Ed25519 signature (128 hex chars or base64)");
+  return b;
 };
 
 /**
@@ -122,13 +166,14 @@ export const summary = (d) =>
 
 // ---------- CLI ----------
 const MEDIA = [/^\/Volumes\/[^/]+\//, /^\/media\//, /^\/mnt\//, /^\/run\/media\//];
+const FLAGS = new Set(["allow-long", "to-stdin-for-vault", "root-key-stdin"]);
 const parseArgs = (argv) => {
   const o = {};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (!a.startsWith("--")) throw new Error(`unexpected argument ${a}`);
     const k = a.slice(2);
-    if (k === "allow-long") { o[k] = true; continue; }
+    if (FLAGS.has(k)) { o[k] = true; continue; }
     const v = argv[++i];
     if (v === undefined || v.startsWith("--")) throw new Error(`--${k} needs a value`);
     (o[k] ??= []).push(v);
@@ -148,9 +193,63 @@ const emit = (d, out) => {
   else process.stdout.write(text);
 };
 const insideGit = (dir) => spawnSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], { encoding: "utf8" }).status === 0;
+/** Software roots named on the command line: key files plus at most one PEM on stdin (never echoed). */
+const loadRoots = (o) => {
+  const roots = (o["root-key"] ?? []).map(loadRoot);
+  if (o["root-key-stdin"]) {
+    let pem;
+    try { pem = readFileSync(0, "utf8"); } catch { throw new Error("cannot read a PEM from stdin"); }
+    try { roots.push(loadRootPem(pem)); } catch (e) { throw new Error(`stdin: ${e.message}`); }
+  }
+  return roots;
+};
+const readDelegation = (o, k = "in") => {
+  const d = parseDelegation(readJson(one(o, k, true)));
+  if (!d) throw new Error(`--${k} is not a valid delegation document`);
+  return d;
+};
+const frameOf = (o) => one(o, "frame") ?? FRAME_SOLANA_OFFCHAIN_V0;
+const draftOf = (o, now = Date.now()) => {
+  const pub = one(o, "online-pub");
+  const prevFile = one(o, "prev");
+  const revokeId = one(o, "revoke-key-id");
+  if (!pub && !prevFile) throw new Error("--online-pub is required (or pass --prev to renew an existing delegation)");
+  const version = one(o, "version") === undefined ? undefined : Number(one(o, "version"));
+  return buildDelegation({
+    prev: prevFile ? readJson(prevFile) : undefined, version, expires: one(o, "expires", true), allowLong: o["allow-long"] === true, now, revokeId,
+    addKey: pub ? { keyId: one(o, "key-id", true), pub, notBefore: one(o, "not-before"), notAfter: one(o, "not-after") } : undefined,
+  });
+};
+/** What the operator checks on the computer before approving on the device. */
+export const payloadReport = (d, signerPub, frame) => {
+  const payloadSha = createHash("sha256").update(delegationPayload(d)).digest("hex");
+  const framed = frameDelegationPayload(frame, d, signerPub);
+  return {
+    framed,
+    lines: [
+      `frame:                      ${frame}`,
+      `signer public key:          ${signerPub}`,
+      `signer root key id:         ${rootKeyId(signerPub)}`,
+      summary(d),
+      `delegation payload sha256:  ${payloadSha}`,
+      ...(frame === FRAME_SOLANA_OFFCHAIN_V0 ? [`text the Ledger will show:    ${ledgerText(d, payloadSha)}`] : []),
+      `bytes to sign:              ${framed.length} bytes, sha256 ${createHash("sha256").update(framed).digest("hex")}`,
+    ],
+  };
+};
 
 const cmds = {
   "gen-root"(o) {
+    if (o["to-stdin-for-vault"]) {
+      if (o["out"]) throw new Error("--to-stdin-for-vault never writes a file; drop --out");
+      if (process.stdout.isTTY) throw new Error("refusing to print a private key to a terminal; pipe stdout straight into `bw encode | bw create item` (see deploy/KEY-CEREMONY.md)");
+      const r = generateRoot();
+      const name = one(o, "name") ?? `OM release root (software signer) ${r.id}`;
+      // Bitwarden CLI item JSON: type 2 = secure note. The note body is exactly the PEM, so `bw get notes <id>` is the key.
+      process.stdout.write(JSON.stringify({ type: 2, name, notes: r.pem, secureNote: { type: 0 }, favorite: false, organizationId: null, folderId: null }));
+      console.error(`root key id:  ${r.id}\npublic key:   ${r.pub}\nfingerprint:  sha256 ${r.fingerprint}\npin as:       "${r.id}": "${r.pub}"   (frame raw)\nThe private key went to stdout only (no file, no log). Confirm the vault item exists before closing this terminal.`);
+      return;
+    }
     const out = one(o, "out", true);
     if (!isAbsolute(out)) throw new Error("--out must be an absolute path on the offline/removable media");
     const dir = dirname(out);
@@ -167,27 +266,26 @@ const cmds = {
     console.log(`root key id:  ${r.id}\npublic key:   ${r.pub}\nfingerprint:  sha256 ${r.fingerprint}\nprivate key written to ${out} (mode 600); it is not shown anywhere. Back it up per deploy/KEY-CEREMONY.md.`);
   },
   "show-root"(o) {
-    const r = loadRoot(one(o, "root-key", true));
+    const roots = o["root-key-stdin"] ? loadRoots({ "root-key-stdin": true }) : [loadRoot(one(o, "root-key", true))];
+    const r = roots[0];
     console.log(`root key id:  ${r.id}\npublic key:   ${r.pub}\nfingerprint:  sha256 ${r.fingerprint}`);
   },
+  draft(o) {
+    const d = draftOf(o);
+    console.error(summary(d));
+    emit(d, one(o, "out"));
+  },
   "sign-delegation"(o) {
-    const roots = (o["root-key"] ?? []).map(loadRoot);
-    if (roots.length === 0) throw new Error("--root-key is required");
-    const pub = one(o, "online-pub");
-    const prevFile = one(o, "prev");
-    if (!pub && !prevFile) throw new Error("--online-pub is required (or pass --prev to renew an existing delegation)");
-    const version = one(o, "version") === undefined ? undefined : Number(one(o, "version"));
-    let d = buildDelegation({
-      prev: prevFile ? readJson(prevFile) : undefined, version, expires: one(o, "expires", true), allowLong: o["allow-long"] === true,
-      addKey: pub ? { keyId: one(o, "key-id", true), pub, notBefore: one(o, "not-before"), notAfter: one(o, "not-after") } : undefined,
-    });
+    const roots = loadRoots(o);
+    if (roots.length === 0) throw new Error("--root-key or --root-key-stdin is required");
+    let d = draftOf(o);
     for (const r of roots) d = addRootSignature(d, r);
     console.error(summary(d));
     emit(d, one(o, "out"));
   },
   revoke(o) {
-    const roots = (o["root-key"] ?? []).map(loadRoot);
-    if (roots.length === 0) throw new Error("--root-key is required");
+    const roots = loadRoots(o);
+    if (roots.length === 0) throw new Error("--root-key or --root-key-stdin is required");
     const prev = readJson(one(o, "prev", true));
     const p = parseDelegation(prev);
     if (!p) throw new Error("--prev is not a valid delegation document");
@@ -197,17 +295,71 @@ const cmds = {
     emit(d, one(o, "out"));
   },
   cosign(o) {
-    const root = loadRoot(one(o, "root-key", true));
+    const roots = loadRoots(o);
+    if (roots.length !== 1) throw new Error("cosign takes exactly one of --root-key / --root-key-stdin");
     const inFile = one(o, "in", true);
-    const d = parseDelegation(readJson(inFile));
-    if (!d) throw new Error("--in is not a valid delegation document");
-    console.error(`Signing as ${root.id}. Check this is what you intend to authorise:\n${summary(d)}`);
-    emit(addRootSignature(d, root), one(o, "out") ?? inFile);
+    const d = readDelegation(o);
+    console.error(`Signing as ${roots[0].id}. Check this is what you intend to authorise:\n${summary(d)}`);
+    emit(addRootSignature(d, roots[0]), one(o, "out") ?? inFile);
+  },
+  "external-payload"(o) {
+    const d = readDelegation(o);
+    const pub = one(o, "signer-pub", true);
+    if (!HEX64.test(pub)) throw new Error("--signer-pub must be 64 lowercase hex chars (raw Ed25519 public key)");
+    const frame = frameOf(o);
+    if (!KNOWN_FRAMES.includes(frame)) throw new Error(`unknown frame ${JSON.stringify(frame)} (known: ${KNOWN_FRAMES.join(", ")})`);
+    if (d.signatures.length > 0) console.error(`note: the delegation already carries signatures from ${d.signatures.map((s) => s.keyId).join(", ")}; they are not part of the signed bytes`);
+    const out = one(o, "out", true);
+    const r = payloadReport(d, pub, frame);
+    writeFileSync(out, r.framed, { flag: "w" });
+    console.log(`${r.lines.join("\n")}\nwritten to:                 ${out}\nCompare the delegation summary and the sha256 on the Ledger screen with the lines above before approving.`);
+  },
+  "external-attach"(o) {
+    const d = readDelegation(o);
+    let pub = one(o, "pub");
+    let sig = one(o, "sig");
+    const helperFile = one(o, "from-helper");
+    if (helperFile) {
+      // the JSON ledger-sign.mjs wrote (--out): { pub, sigBase64, ... }; --pub, if also given, must agree
+      const j = readJson(helperFile);
+      if (pub !== undefined && pub !== j.pub) throw new Error(`--pub does not match the public key in ${helperFile}`);
+      if (sig !== undefined) throw new Error("give --sig or --from-helper, not both");
+      pub = j.pub;
+      sig = j.sigBase64;
+    }
+    if (pub === undefined || sig === undefined) throw new Error("--pub and --sig (or --from-helper <file>) are required");
+    const entry = externalEntry(d, { pub, sig, frame: frameOf(o) });
+    const next = attachSignature(d, entry);
+    console.error(`verified: ${entry.keyId} (${entry.frame ?? FRAME_RAW}) signed this delegation. Signatures now: ${next.signatures.map((s) => s.keyId).join(", ")}`);
+    emit(next, one(o, "out") ?? one(o, "in"));
+  },
+  "pin-snippet"(o) {
+    const specs = o["root"] ?? [];
+    const keys = {};
+    for (const spec of specs) {
+      const m = /^([0-9a-f]{64})=([A-Za-z0-9._/-]{1,64})$/.exec(spec);
+      if (!m) throw new Error(`--root must look like <64 hex public key>=<frame> (got ${JSON.stringify(spec)})`);
+      if (!KNOWN_FRAMES.includes(m[2])) throw new Error(`unknown frame ${JSON.stringify(m[2])} (known: ${KNOWN_FRAMES.join(", ")})`);
+      const id = rootKeyId(m[1]);
+      if (keys[id]) throw new Error(`public key ${m[1]} given twice`);
+      keys[id] = m[2] === FRAME_RAW ? m[1] : { pub: m[1], frame: m[2] };
+    }
+    const threshold = one(o, "threshold") === undefined ? 2 : Number(one(o, "threshold"));
+    if (Object.keys(keys).length !== 3 || threshold !== 2) throw new Error("the operator policy is exactly 3 distinct roots with threshold 2 (pass three --root values)");
+    const lit = JSON.stringify(keys, null, 2);
+    console.log(`// apps/web/src/update/release-key.ts\nexport const ROOT_KEYS: Readonly<Record<string, RootKeyDescriptor>> = ${lit};\n\n// apps/web/build/verify-release.mjs\nexport const PINNED_ROOTS = ${lit};\n\n// roots file for \`verify --roots-file\`\n${JSON.stringify({ roots: keys, threshold })}`);
+  },
+  verify(o) {
+    const d = readDelegation(o);
+    const f = readJson(one(o, "roots-file", true));
+    if (!f || typeof f !== "object" || !f.roots || typeof f.roots !== "object") throw new Error("--roots-file must be {\"roots\":{id:descriptor},\"threshold\":n}");
+    for (const [id, v] of Object.entries(f.roots)) if (!describeRoot(v)) throw new Error(`roots file: bad descriptor for ${id}`);
+    const r = verifyDelegation(d, { keys: f.roots, threshold: f.threshold }, { now: Date.now() });
+    console.log(r.ok ? `OK: ${f.threshold}-of-${Object.keys(f.roots).length} root signatures verify (delegation v${d.version}, expires ${d.expires})` : `FAILED: ${r.reason}`);
+    if (!r.ok) process.exitCode = 1;
   },
   inspect(o) {
-    const d = parseDelegation(readJson(one(o, "in", true)));
-    if (!d) throw new Error("not a valid delegation document");
-    console.log(summary(d));
+    console.log(summary(readDelegation(o)));
   },
 };
 

@@ -48,7 +48,8 @@ web-check: ## web workspace: typecheck, lint, tests, production build (needs pnp
 	pnpm install --frozen-lockfile && pnpm web:check
 
 web-release-check: ## deploy kit: refuse-unsigned + dev release build + verify.mjs + tamper detection (needs pnpm install)
-	pnpm exec vitest run apps/web/build/release.test.ts
+	pnpm exec vitest run apps/web/build/release.test.ts apps/web/build/delegation.test.ts
+	node --test deploy/ledger/lib.test.mjs
 
 validate: ## architecture contract validator
 	$(PY) tools/validate_architecture.py

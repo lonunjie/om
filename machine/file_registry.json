@@ -2447,6 +2447,48 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "deploy/ledger/ledger-sign.mjs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "deploy/ledger/lib.mjs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "deploy/ledger/lib.test.mjs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "deploy/ledger/package.json",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "deploy/ledger/pnpm-lock.yaml",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "deploy/ledger/pnpm-workspace.yaml",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "docs/README.md",
       "class": "architecture_doc",
       "domain": "architecture_process",

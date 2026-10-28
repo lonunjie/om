@@ -12,3 +12,6 @@ export declare function buildDelegation(o: {
   prev?: unknown; version?: number | undefined; expires: string; addKey?: { keyId: string; pub: string; notBefore?: string; notAfter?: string }; revokeId?: string | undefined; now?: number; allowLong?: boolean;
 }): Delegation;
 export declare function summary(d: Delegation): string;
+export declare function loadRootPem(pem: string): RootKey;
+export declare function externalEntry(delegation: unknown, o: { pub: string; sig: string; frame?: string }): { keyId: string; alg: string; sig: string; frame?: string };
+export declare function payloadReport(d: Delegation, signerPub: string, frame: string): { framed: Buffer; lines: string[] };

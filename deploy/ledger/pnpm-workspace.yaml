@@ -1,0 +1,7 @@
+# Makes this folder its own pnpm root: it is deliberately NOT a member of the repository workspace (../../pnpm-workspace.yaml),
+# so `pnpm install` at the repo root never fetches Ledger packages or native USB code, and apps/web can never import them.
+packages: []
+# Native build scripts stay OFF until the operator has approved the dependency set (deploy/KEY-CEREMONY.md, "Ledger helper").
+# After approval: `pnpm approve-builds` in this folder (node-hid) flips the line below.
+allowBuilds:
+  node-hid: false
