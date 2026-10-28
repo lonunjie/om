@@ -722,6 +722,12 @@ dependencies = [
 [[package]]
 name = "om-wasm"
 version = "0.0.0"
+dependencies = [
+ "getrandom 0.3.4",
+ "om-core",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "once_cell"

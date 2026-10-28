@@ -2,5 +2,26 @@
 name = "om-wasm"
 version = "0.0.0"
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
+description = "Narrow WASM bridge for om-core: one JSON-in/JSON-out entry point, host entropy and clock imports, no wasm-bindgen."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[lints.rust]
+# The ABI module below is the only place with unsafe code (three small, documented blocks).
+unsafe_code = "deny"
+unused_must_use = "deny"
+
+[dependencies]
+om-core = { path = "../om-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# getrandom 0.3 reaches rand_core's OsRng; on wasm32-unknown-unknown the host supplies entropy through its
+# documented "custom" backend (selected in .cargo/config.toml).
+getrandom = "0.3"
+
+[dev-dependencies]
+om-core = { path = "../om-core", features = ["insecure-test-rng", "test-loopback"] }

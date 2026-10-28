@@ -816,7 +816,28 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-wasm/src/abi.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-wasm/src/bridge.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-wasm/src/lib.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-wasm/tests/bridge.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",

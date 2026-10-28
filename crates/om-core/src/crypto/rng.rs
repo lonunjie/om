@@ -11,7 +11,9 @@ pub use rand_core::{CryptoRng, RngCore};
 compile_error!("R-072: the `production` build must not include the `insecure-test-rng` provider");
 
 /// OS/host CSPRNG (getrandom). On wasm32-unknown-unknown the embedder supplies it.
-pub fn system_rng() -> rand_core::UnwrapErr<rand_core::OsRng> {
+pub type SystemRng = rand_core::UnwrapErr<rand_core::OsRng>;
+
+pub fn system_rng() -> SystemRng {
     rand_core::UnwrapErr(rand_core::OsRng)
 }
 

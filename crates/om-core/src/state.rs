@@ -5,13 +5,15 @@
 //! between profiles, and there is no identifier linking two profiles (ADR-0148).
 
 use crate::api::{DeliveryState, OperationId, OutcomeClass};
+use crate::crypto::cbor::{self, V};
 use crate::crypto::store::Device;
 use crate::host::{CoreError, NetCall, Record, Write};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-pub const REC_DEVICE: &str = "device";
-pub const REC_APP: &str = "app";
+/// A profile persists as ONE record, so a single key/value put makes a whole transition atomic: the ratchet,
+/// ledger and conversation state can never be stored out of step (the host store has no multi-key transaction).
+pub const REC_STATE: &str = "state";
 pub const APP_VERSION: u32 = 1;
 
 pub type Hex = String;
@@ -195,15 +197,16 @@ impl ProfileState {
     }
 
     pub fn encode(&self) -> Result<BTreeMap<String, Vec<u8>>, CoreError> {
-        let mut out = BTreeMap::new();
-        if let Some(d) = &self.device {
-            out.insert(REC_DEVICE.to_string(), d.to_bytes());
-        }
-        out.insert(
-            REC_APP.to_string(),
-            serde_json::to_vec(&self.app).map_err(|_| CoreError::CorruptState("encode app"))?,
-        );
-        Ok(out)
+        // Deterministic CBOR {0: device state or null, 1: app state JSON}.
+        let device = self
+            .device
+            .as_ref()
+            .map(|d| V::B(d.to_bytes()))
+            .unwrap_or(V::Null);
+        let app =
+            serde_json::to_vec(&self.app).map_err(|_| CoreError::CorruptState("encode app"))?;
+        let bytes = cbor::encode(&V::M(vec![(0, device), (1, V::B(app))]));
+        Ok(BTreeMap::from([(REC_STATE.to_string(), bytes)]))
     }
 
     pub fn decode(generation: String, records: &[Record]) -> Result<Self, CoreError> {
@@ -213,21 +216,20 @@ impl ProfileState {
             if !seen.insert(r.key.as_str()) {
                 return Err(CoreError::CorruptState("duplicate record"));
             }
-            match r.key.as_str() {
-                REC_DEVICE => {
-                    st.device = Some(
-                        Device::from_bytes(&r.value)
-                            .map_err(|_| CoreError::CorruptState("device record"))?,
-                    )
-                }
-                REC_APP => {
-                    st.app = serde_json::from_slice(&r.value)
-                        .map_err(|_| CoreError::CorruptState("app record"))?;
-                    if st.app.version != APP_VERSION {
-                        return Err(CoreError::CorruptState("unsupported app record version"));
-                    }
-                }
-                _ => {} // unknown records belong to a newer client; preserved by the host, ignored here
+            if r.key != REC_STATE {
+                continue; // unknown records belong to a newer client; preserved by the host, ignored here
+            }
+            let corrupt = |_| CoreError::CorruptState("state record");
+            let v = cbor::decode(&r.value).map_err(corrupt)?;
+            let device = v.get(0).map_err(corrupt)?;
+            if !device.is_null() {
+                st.device =
+                    Some(Device::from_bytes(device.b().map_err(corrupt)?).map_err(corrupt)?);
+            }
+            st.app = serde_json::from_slice(v.get(1).and_then(|x| x.b()).map_err(corrupt)?)
+                .map_err(|_| CoreError::CorruptState("app state"))?;
+            if st.app.version != APP_VERSION {
+                return Err(CoreError::CorruptState("unsupported app state version"));
             }
         }
         Ok(st)
