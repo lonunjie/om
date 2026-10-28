@@ -40,7 +40,10 @@ RestoreHistory(source)
 OpenOmnibarResult(profile_context, result_id)
 PinNavigationTarget(profile_context, target_id)
 ClearAdaptiveNavigation(profile_id)
+IssueConfirmation(intent_kind, target)
 ```
+
+**Confirmation (UI-11, ADR-0181).** Destructive intents (BlockPerson, SuspendDevice, RevokeDevice, ApproveDeviceLink, ChangePrivacyPolicy, StartRecovery, VetoRecovery) carry a confirmation that only Core can mint: `IssueConfirmation(intent_kind, target)` stores a single-use nonce bound to the intent kind, the target and the profile, and `GetConfirmation(operation_id)` returns it with an expiry (5 minutes). Core spends the nonce when the destructive intent arrives, matching or not, and answers `Rejected(unauthorized)` unless it exists, is unexpired and matches. The Action Registry requests a nonce only for a direct user action; a suggestion, learned rank or Omnibar completion can never obtain one.
 
 Core returns a stable **outcome class** separately from the provider/protocol-specific reason:
 
@@ -66,7 +69,8 @@ Core should expose presentation-neutral domain/view state:
 - ConversationSummary;
 - ConversationTimeline items;
 - PersonSummary;
-- IntroductionRequest;
+- IntroductionRequest (with `verification`: `unverified` until an IntroIdentityBinding verifies; the UI shows "Unverified" and treats the label as self-chosen, ADR-0181);
+- IntroductionLoad (a machine flag that unknown-sender requests are being dropped; the UI shows the stranger-pressure notice, ADR-0181);
 - DeviceSummary;
 - AccountControlStatus;
 - RecoveryStatus;

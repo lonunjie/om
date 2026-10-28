@@ -2673,6 +2673,54 @@
         "conformance:ui_intents",
         "review:ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md"
       ]
+    },
+    {
+      "requirement": "R-411",
+      "verified_by": [
+        "conformance:discovery",
+        "review:INVITES_INTROGATE_AND_SPAM.md"
+      ]
+    },
+    {
+      "requirement": "R-412",
+      "verified_by": [
+        "conformance:discovery",
+        "review:INVITES_INTROGATE_AND_SPAM.md"
+      ]
+    },
+    {
+      "requirement": "R-413",
+      "verified_by": [
+        "conformance:discovery",
+        "review:INVITES_INTROGATE_AND_SPAM.md"
+      ]
+    },
+    {
+      "requirement": "R-414",
+      "verified_by": [
+        "conformance:discovery",
+        "review:INVITES_INTROGATE_AND_SPAM.md"
+      ]
+    },
+    {
+      "requirement": "R-415",
+      "verified_by": [
+        "conformance:discovery"
+      ]
+    },
+    {
+      "requirement": "R-416",
+      "verified_by": [
+        "conformance:ui_intents",
+        "review:UI_CORE_PLATFORM_CONTRACT.md"
+      ]
+    },
+    {
+      "requirement": "R-417",
+      "verified_by": [
+        "conformance:ui_intents",
+        "review:UI_CORE_PLATFORM_CONTRACT.md"
+      ]
     }
   ]
 }

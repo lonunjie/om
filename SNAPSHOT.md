@@ -8,8 +8,12 @@ Generated: **2026-10-11 PHT (UTC+08:00)**, after the operator accepted the `grou
 - **Review model:** Claude performs all reviews at the operator's direction (ADR-0167). Gates passed this way carry `pre_engineering_review_basis=operator_single_vendor_ADR-0167`, which is not vendor-independent review.
 - **Design:** `design_open=0`. Review findings F-14..F-19 are fixed (ADR-0168, ADR-0170); F-20..F-23 are resolved by ADR-0172.
 - **Verification:** 8 gates still have pre-engineering open. V-004, V-009 and V-019 passed pre-engineering on 2026-10-01 under the ADR-0167 model, which completes the evidence for `groups`; ADR-0177 (accepted 2026-10-11) unlocks it. V-006 passed pre-engineering the same day for the first-release web matrix; Windows Chrome/Edge is untested and carried pre-release (ADR-0172). V-018 is pre-release (ADR-0170). Pre-release items for groups stay open: the V-004 multi-client partition harness on two implementations, the V-009 corpus run by every implementation, the V-019 interoperable migration.
-- **Ledgers:** 397 requirements / 397 trace rows, 151 threats, 201 decisions / 180 indexed ADRs, 40 security invariants.
+- **Ledgers:** 408 requirements / 408 trace rows, 156 threats, 202 decisions / 181 indexed ADRs, 40 security invariants.
 - **Next:** build the `core_kernel`, `provider_reference`, `reference_client_ui` and `groups` crates/packages (web first, per [`ADR-0178`](decisions/ADR-0178-pwa-canonical-store-independent-distribution.md)) per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). V-006 pre-release: run the probe on Windows or drop Windows, publish the support matrix with regression tests.
+
+## 2026-10-28 PHT — ADR-0181: first contact and confirmation nonces
+
+- ADR-0181 settles audit H2 (per-invite intro identity, link-committed intro key digest, hidden requester account with `ACCEPTED_UNBOUND`, Core-issued ticket, persisted first-contact limiter, 16-entry chain cap, `verification` field) and M2 (Core-issued single-use confirmation nonces). D-202, R-411..R-417, T-164..T-166. Implementation status: [`2026-10-28-core-kernel-m1-status.md`](docs/reports/2026-10-28-core-kernel-m1-status.md).
 
 ## 2026-10-11 PHT — ADR-0180: passphrase layer and Suspend confirmation
 

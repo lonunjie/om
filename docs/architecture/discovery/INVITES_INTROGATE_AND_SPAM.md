@@ -275,3 +275,14 @@ class under an OM domain-separation label. The IntroGate treats tokens as single
 the issuer epoch. Revocation is issuer-epoch rotation with bounded overlap; individual unlinkable tokens are not
 individually revocable. `admission_proof` remains opaque framing on the W0 wire. ReferralAttestation is separate
 client-side provenance and never admission authority or global reputation.
+
+## 2026-10-28 `core_kernel` first-contact profile (ADR-0181)
+
+The reference Core builds sections 5.1 and 11 as follows (the frozen W0 objects, signature role 4 and labels are unchanged):
+
+- **Intro identity.** A per-invite composite (Ed25519 AND ML-DSA-65) key derived in Core from a profile secret and the invite id; it signs one descriptor and one ticket (inviter) or one payload and one descriptor (requester) and expires with the invite.
+- **Link and descriptor.** The link is `invite_id || SHA-256(intro public key)`. The introduction service stores `{signed ContactDescriptor, signed IntroductionTicket}`; the descriptor carries the request key and no account material. A request key is trusted only from a descriptor signed by the key the link names.
+- **Ticket.** Issued and signed by the recipient's Core (`max_uses` 1, payload limit 32768 bytes, no attachments or calls). `admission_proof` is empty until an IntroGate adapter exists; blind-RSA referral tokens (ADR-0132) are not built.
+- **Hidden requester.** The sealed payload has the requester's intro key and a self-chosen, **unverified** label, and no AccountID, ACS or credentials. Acceptance yields `ACCEPTED_UNBOUND`; the Accept, Bind and Hello then follow the symmetric-binding order of section 11, and the relationship is `ACTIVE` only after both `IntroIdentityBinding`s verify.
+- **Local limits.** Order: invite state, size, W0 shape, ticket and request-key digest, then a persisted per-profile limiter (20 per hour, 100 per day), all before any decapsulation or signature verification. Refused requests are silently dropped and counted into one "requests from strangers" notice. A peer's ACS chain is refused above 16 entries until the peer is bound (local resource policy).
+

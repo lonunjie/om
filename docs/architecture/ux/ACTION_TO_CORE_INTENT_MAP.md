@@ -47,8 +47,8 @@ The names below are conceptual typed intents. Implementation APIs may use differ
 | `accept-invite` | typed Invite/IntroGate/MessageRequest flow | Core enforces uses/expiry/revocation |
 | `share-contact` | `CreateContactCapsule(person_id, scope)` | provenance is preserved |
 | `send-message-request` | typed MessageRequest intent | request constraints stay canonical |
-| `accept-message-request` | `AcceptIntroduction(request_id)` | relationship transition is Core-owned |
-| `block-person` | `BlockPerson(person_id, scope)` | local/provider/capability effects explicit |
+| `accept-message-request` | `AcceptIntroduction(request_id)` | relationship transition is Core-owned; the requester is `unverified` and the relationship `ACCEPTED_UNBOUND` until both bindings verify (ADR-0181) |
+| `block-person` | `BlockPerson(person_id, scope, confirmation)` | local/provider/capability effects explicit; `confirmation` is a Core-issued single-use nonce from `IssueConfirmation("BlockPerson", person_id)` (ADR-0181) |
 | `report-content` | `BuildEvidencePackage(selection, disclosure_scope)` + chosen external/provider report adapter | no mandatory global OM moderator implied |
 | `switch-identity-profile` | `SwitchIdentityProfile(profile_id)` presentation namespace switch | no logout/rekey/cross-profile heuristic |
 | `choose-home-tier` | provisioning/Home typed workflow | T0–T4 semantics are provider architecture-owned |

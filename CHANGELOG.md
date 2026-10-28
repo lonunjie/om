@@ -1,3 +1,7 @@
+# 2026-10-28 PHT — ADR-0181: first contact in core_kernel and Core-issued confirmation nonces
+
+- **ADR-0181** (accepted by operator delegation): per-invite composite intro identity derived in Core; invite link commits to its key digest and the request key is trusted only from a descriptor it signs; requester AccountID hidden until acceptance (`ACCEPTED_UNBOUND`, then `ACTIVE` after both IntroIdentityBindings verify); Core issues the IntroductionTicket (empty `admission_proof`); cheap checks and a persisted 20/hour 100/day limiter before any decapsulation; local 16-entry first-contact chain cap; `IntroductionRequest.verification`; destructive confirmations become Core-issued single-use nonces (audit H2, M2). D-202, R-411..R-417, T-164..T-166.
+
 # 2026-10-11 PHT — web client: real-browser e2e (Playwright)
 
 - `make web-e2e`: 11 Playwright checks on Chromium, Firefox and WebKit from the shared browser cache (no downloads): PRF/synced/no-PRF passkeys via virtual authenticators, passphrase layer, fake-camera QR scan, service worker offline, headers. Real phones remain a V-006 pre-release item.
