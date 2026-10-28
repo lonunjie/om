@@ -9,7 +9,7 @@ import type { CoreClient, PendingOperationView } from "@om/platform-api";
 import { createHarness } from "@om/core-harness";
 import { createActionRegistry } from "../actions/registry";
 import { testCopy } from "./__fixtures__/copy";
-import { Composer, ConversationList, ConversationView, MessageRequest, RichText, useConversationList, type ConversationServices } from "./index";
+import { Composer, ConversationList, ConversationView, MessageRequest, RichText, StrangerPressure, useConversationList, type ConversationServices } from "./index";
 
 afterEach(cleanup);
 const axeViolations = async (el: Element): Promise<string[]> => {
@@ -114,7 +114,7 @@ describe("conversation slice end to end", () => {
 
 describe("ConversationList", () => {
   it("is keyboard navigable and stays under the 200-row smoke budget", async () => {
-    const rows = Array.from({ length: 200 }, (_, i) => ({ id: asConversationId(`c${String(i)}`), personId: asPersonId(`p${String(i)}`), displayName: `Person ${String(i)}`, lastMessageAt: i, notices: i === 1 ? [{ code: "device_added" as const }] : [] }));
+    const rows = Array.from({ length: 200 }, (_, i) => ({ id: asConversationId(`c${String(i)}`), personId: asPersonId(`p${String(i)}`), displayName: `Person ${String(i)}`, lastMessageAt: i, notices: i === 1 ? [{ code: "device_added" as const }] : [], relationship: "active" as const }));
     const picked: string[] = [];
     const t0 = performance.now();
     const { container } = render(<ConversationList conversations={rows} selectedId={null} onSelect={(id) => picked.push(id)} copy={testCopy} unread={new Map([[rows[2]?.id ?? asConversationId("x"), 3]])} />);
@@ -187,8 +187,8 @@ describe("RichTextV1 hostile input", () => {
 
 describe("MessageRequest", () => {
   it("block requires an explicit confirmation step before any intent is dispatched", async () => {
-    const { h, services } = setup(["op-block"]);
-    const { container } = render(<MessageRequest services={services} request={{ id: "req-1", from: asPersonId("stranger"), displayName: "Stranger" }} copy={testCopy} onIgnore={() => undefined} />);
+    const { h, services } = setup(["op-ic", "op-block"]);
+    const { container } = render(<MessageRequest services={services} request={{ id: "req-1", from: asPersonId("stranger"), displayName: "Stranger", verification: "unverified" as const }} copy={testCopy} onIgnore={() => undefined} />);
     expect(await axeViolations(container)).toEqual([]);
     await userEvent.click(screen.getByRole("button", { name: "Block" }));
     expect((await h.pendingOperations(services.ctx)).length).toBe(0);
@@ -197,13 +197,13 @@ describe("MessageRequest", () => {
     expect((await h.pendingOperations(services.ctx)).length).toBe(0);
     await userEvent.click(screen.getByRole("button", { name: "Block" }));
     await userEvent.click(screen.getByRole("button", { name: "Yes, block" }));
-    await waitFor(async () => { expect((await h.pendingOperations(services.ctx)).map((o: PendingOperationView) => o.intentKind)).toEqual(["BlockPerson"]); });
+    await waitFor(async () => { expect((await h.pendingOperations(services.ctx)).map((o: PendingOperationView) => o.intentKind)).toEqual(["IssueConfirmation", "BlockPerson"]); });
   });
 
   it("accept dispatches AcceptIntroduction; ignore is local", async () => {
     const { h, services } = setup(["op-acc"]);
     const ignored: string[] = [];
-    render(<MessageRequest services={services} request={{ id: "req-1", from: asPersonId("stranger"), displayName: "Stranger" }} copy={testCopy} onIgnore={(id) => ignored.push(id)} />);
+    render(<MessageRequest services={services} request={{ id: "req-1", from: asPersonId("stranger"), displayName: "Stranger", verification: "unverified" as const }} copy={testCopy} onIgnore={(id) => ignored.push(id)} />);
     await userEvent.click(screen.getByRole("button", { name: "Ignore" }));
     expect(ignored).toEqual(["req-1"]);
     expect(await h.pendingOperations(services.ctx)).toHaveLength(0);
@@ -223,5 +223,50 @@ describe("security notices", () => {
     expect(await screen.findByText("Notice: safety_number_changed")).toBeTruthy();
     expect(container.querySelector("[data-reason-code='safety_number_changed']")).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+});
+
+describe("first contact states (ADR-0181)", () => {
+  it("a pending request is marked Unverified: the name is the requester's own", async () => {
+    const { services } = setup();
+    const [req] = await services.client.query({ kind: "GetIntroductions", ctx: services.ctx });
+    expect(req?.verification).toBe("unverified");
+    const { container } = render(<MessageRequest services={services} request={req ?? { id: "x", from: asPersonId("x"), displayName: "x", verification: "unverified" }} copy={testCopy} onIgnore={() => undefined} />);
+    expect(container.querySelector("[data-verification='unverified']")?.textContent).toBe("Unverified");
+    cleanup();
+    render(<MessageRequest services={services} request={{ id: "r", from: asPersonId("s"), displayName: "Known", verification: "bound" }} copy={testCopy} onIgnore={() => undefined} />);
+    expect(document.querySelector("[data-verification]")).toBeNull();
+  });
+
+  it("a relationship that is not active shows its status; an active one shows none", async () => {
+    const { services } = setup();
+    const withState = (relationship: "accepted_unbound" | "active"): ConversationServices => ({ ...services, client: { ...services.client, query: (async (q: Parameters<CoreClient["query"]>[0]) => {
+      const r = await services.client.query(q);
+      return q.kind === "GetConversationView" ? { ...(r as object), summary: { ...(r as { summary: object }).summary, relationship } } : r;
+    }) as CoreClient["query"] } });
+    const { container } = render(<ConversationView services={withState("accepted_unbound")} conversationId={CONV_A} copy={testCopy} />);
+    expect((await screen.findByRole("status")).textContent).toBe("Not verified yet");
+    expect(container.querySelector("[data-relationship='accepted_unbound']")).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+    cleanup();
+    render(<ConversationView services={withState("active")} conversationId={CONV_A} copy={testCopy} />);
+    await screen.findByText("hello alice");
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("the stranger-pressure notice is one aggregated line, shown only while requests are being dropped", async () => {
+    const quiet = setup();
+    const { container } = render(<StrangerPressure services={quiet.services} copy={testCopy.pressure} />);
+    await Promise.resolve();
+    expect(container.textContent).toBe("");
+    cleanup();
+    const h = createHarness({ env: {}, clock: () => 1000 });
+    h.seedProfile({ profileId: ALICE, label: "Alice", introductionLoad: { throttled: true, dropped: 41 } });
+    const registry = createActionRegistry();
+    const services: ConversationServices = { client: h, registry, ctx: h.contextFor(ALICE) };
+    const view = render(<StrangerPressure services={services} copy={testCopy.pressure} />);
+    expect((await screen.findByRole("status")).textContent).toBe("Many requests from strangers");
+    expect(view.container.querySelectorAll("[role='status']")).toHaveLength(1);
+    expect(await axeViolations(view.container)).toEqual([]);
   });
 });

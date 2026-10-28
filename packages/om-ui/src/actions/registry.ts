@@ -1,7 +1,7 @@
 // Action Registry (ADR-0159): semantic UI action id -> typed CoreIntent | query | presentation op | platform capability.
 // It has no canonical-state authority and no generic execute(name, args) path: unknown ids are rejected.
 import {
-  asConversationId, asDeviceId, asMessageId, parseDeviceLink, parseInviteLink, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
+  asConversationId, asDeviceId, asMessageId, confirmationTarget, parseDeviceLink, parseInviteLink, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
 } from "@om/platform-api";
 import type {
   ConfirmationToken, CoreIntent, CoreQuery, OperationId, PrivacyPolicyLevel, ProfileExecutionContext, RecoveryCustodianCode, RecoveryScope,
@@ -37,11 +37,23 @@ export type ConfirmationIssue =
   | { readonly status: "issued"; readonly token: ConfirmationToken }
   | { readonly status: "rejected"; readonly code: RejectCode };
 
+export type ConfirmationPrep =
+  | { readonly status: "intent"; readonly intent: CoreIntent }
+  | { readonly status: "rejected"; readonly code: RejectCode };
+
 export interface ActionRegistry {
   readonly actionIds: readonly string[];
   resolve(req: ActionRequest): ActionResult;
-  /** Mint a single-use token bound to this exact action, params and profile context. Direct (user-gesture) origin only. */
-  issueConfirmation(req: Omit<ActionRequest, "confirmation">): ConfirmationIssue;
+  /**
+   * Step 1 of a destructive action (UI-11, ADR-0181): the typed `IssueConfirmation` intent that asks Core for a
+   * single-use nonce bound to this action's intent kind and target. Direct (user-gesture) origin only.
+   */
+  prepareConfirmation(req: Omit<ActionRequest, "confirmation">): ConfirmationPrep;
+  /**
+   * Step 2: wrap the nonce Core issued (read with `GetConfirmation`) in a single-use token bound to this exact
+   * action, params and profile context. Core still checks the nonce itself; this binding is the UI-side guard.
+   */
+  issueConfirmation(req: Omit<ActionRequest, "confirmation"> & { readonly nonce: string }): ConfirmationIssue;
 }
 
 export interface RegistryOptions { readonly newOperationId?: () => OperationId }
@@ -213,15 +225,26 @@ export function createActionRegistry(options: RegistryOptions = {}): ActionRegis
       } else if (req.confirmation) {
         return { status: "rejected", code: "invalid_confirmation" };
       }
-      return { status: "intent", intent: built.intent(req.ctx, newOperationId(), token ?? (Object.freeze({}) as ConfirmationToken)) };
+      return { status: "intent", intent: built.intent(req.ctx, newOperationId(), token ?? (Object.freeze({ nonce: "" }) as ConfirmationToken)) };
+    },
+
+    prepareConfirmation(req) {
+      if (req.origin !== "direct") return { status: "rejected", code: "suggestion_cannot_confirm" };
+      const p = prepare(req);
+      if (typeof p === "string") return { status: "rejected", code: p };
+      if (!p.spec.destructive || !("intent" in p.built)) return { status: "rejected", code: "invalid_params" };
+      // Build the destructive intent with a placeholder token only to learn its kind and target.
+      const probe = p.built.intent(req.ctx, asOperationId("probe"), Object.freeze({ nonce: "" }) as ConfirmationToken);
+      if (!("confirmation" in probe)) return { status: "rejected", code: "invalid_params" };
+      return { status: "intent", intent: { kind: "IssueConfirmation", ctx: req.ctx, operationId: newOperationId(), intentKind: probe.kind, target: confirmationTarget(probe) } };
     },
 
     issueConfirmation(req) {
       if (req.origin !== "direct") return { status: "rejected", code: "suggestion_cannot_confirm" };
       const p = prepare(req);
       if (typeof p === "string") return { status: "rejected", code: p };
-      if (!p.spec.destructive) return { status: "rejected", code: "invalid_params" };
-      const token = Object.freeze({}) as ConfirmationToken;
+      if (!p.spec.destructive || req.nonce === "") return { status: "rejected", code: "invalid_params" };
+      const token = Object.freeze({ nonce: req.nonce }) as ConfirmationToken;
       issued.set(token, bindingOf(req.actionId, p.params, req.ctx));
       return { status: "issued", token };
     },

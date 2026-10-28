@@ -144,8 +144,8 @@ describe("UI-11 ranked suggestions", () => {
     expect(bound.execute()).toEqual({ status: "needs_confirmation", actionId: "block-person" });
     expect(bound.execute.length).toBe(0); // no argument through which a confirmation could be passed
     // A confirmation cannot be minted for a suggestion origin, and smuggling a direct token into a suggestion request is rejected.
-    expect(registry.issueConfirmation({ actionId: "block-person", params: { personId: "u1", scope: "local" }, ctx, origin: "suggestion" })).toMatchObject({ status: "rejected" });
-    const issued = registry.issueConfirmation({ actionId: "block-person", params: { personId: "u1", scope: "local" }, ctx, origin: "direct" });
+    expect(registry.issueConfirmation({ actionId: "block-person", params: { personId: "u1", scope: "local" }, ctx, origin: "suggestion", nonce: "n-1" })).toMatchObject({ status: "rejected" });
+    const issued = registry.issueConfirmation({ actionId: "block-person", params: { personId: "u1", scope: "local" }, ctx, origin: "direct", nonce: "n-1" });
     if (issued.status !== "issued") throw new Error("expected token");
     expect(registry.resolve({ actionId: "block-person", params: { personId: "u1", scope: "local" }, ctx, origin: "suggestion", confirmation: issued.token })).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
   });

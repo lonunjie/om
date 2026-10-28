@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { ConversationId, IntroductionRequest } from "@om/platform-api";
 import {
-  AppShell, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, LiveRegion, MessageRequest, RecoveryScreen, Text,
+  AppShell, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, LiveRegion, MessageRequest, RecoveryScreen, StrangerPressure, Text,
   useConversationList, type ConversationServices,
 } from "@om/ui";
 import { appStrings as t, conversationCopy, deviceScannerCopy, devicesCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
@@ -72,6 +72,7 @@ export function Shell({ services, devicesExtra, onAddProfile }: ShellProps) {
         labels={shellLabels}
         list={
           <>
+            <StrangerPressure services={services} copy={conversationCopy.pressure} />
             <Requests services={services} />
             {list.status === "loading" ? <Text>{t.loading}</Text> : null}
             {list.status === "failed" ? <Text>{t.loadFailed}</Text> : null}

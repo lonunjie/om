@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { asConversationId, asOperationId, asProfileId } from "@om/platform-api";
-import type { ConversationSummary, ConversationTimelineItem, HomeSummary, OutcomeClass, ProfileExecutionContext, ProfileId } from "@om/platform-api";
+import type { ConfirmationToken, ConversationSummary, ConversationTimelineItem, HomeSummary, OutcomeClass, ProfileExecutionContext, ProfileId } from "@om/platform-api";
 import { createCoreRuntime, CoreStorageError, instantiateCore } from "./index";
 import type { WasmCoreClient } from "./index";
 import { createMemoryKv, createMemoryProvider, type MemoryKv, type MemoryProvider } from "./test-support";
@@ -110,6 +110,60 @@ describe.skipIf(!present)("real Core through the CoreClient interface", () => {
     // The relay saw only ciphertext.
     const needles = ["hello bob", "hi alice", "second", "Alice", "Bob"].map((s) => Buffer.from(s).toString("hex"));
     for (const bytes of provider.deposited()) for (const n of needles) expect(bytes).not.toContain(n);
+  });
+
+  it("first contact on the real Core: the request is unverified, the relationship is unbound until both bindings verify", async () => {
+    const provider = createMemoryProvider();
+    const alice = await boot(createMemoryKv(), provider, asProfileId("alice"));
+    const bob = await boot(createMemoryKv(), provider, asProfileId("bob"));
+    await alice.rt.dispatch({ kind: "CreateIdentityProfile", ctx: alice.ctx, operationId: op("a-create"), label: "Alice" });
+    await bob.rt.dispatch({ kind: "CreateIdentityProfile", ctx: bob.ctx, operationId: op("b-create"), label: "Bob" });
+    await settle(alice, bob);
+    await alice.rt.dispatch({ kind: "CreateInvite", ctx: alice.ctx, operationId: op("a-invite") });
+    await settle(alice, bob);
+    const invite = await alice.rt.query({ kind: "GetInvite", ctx: alice.ctx, operationId: op("a-invite") });
+    if (!invite) throw new Error("no invite");
+    await bob.rt.dispatch({ kind: "AcceptInvitation", ctx: bob.ctx, operationId: op("b-accept"), link: invite.link });
+    await settle(alice, bob);
+    const intros = await alice.rt.query({ kind: "GetIntroductions", ctx: alice.ctx });
+    expect(intros.map((i) => [i.displayName, i.verification])).toEqual([["Bob", "unverified"]]);
+    expect(await alice.rt.query({ kind: "GetIntroductionLoad", ctx: alice.ctx })).toEqual({ throttled: false, dropped: 0 });
+    await alice.rt.dispatch({ kind: "AcceptIntroduction", ctx: alice.ctx, operationId: op("a-intro"), requestId: intros[0]?.id ?? "" });
+    // Before the symmetric bindings verify (no flush yet), Alice's contact is unbound and unverified.
+    const [pending] = await alice.rt.query({ kind: "GetConversationList", ctx: alice.ctx });
+    expect(pending?.relationship).toBe("accepted_unbound");
+    expect(pending?.notices.map((n) => n.code)).toContain("unverified_contact");
+    await settle(alice, bob);
+    for (const p of [alice, bob]) {
+      const [c] = await p.rt.query({ kind: "GetConversationList", ctx: p.ctx });
+      expect(c?.relationship).toBe("active");
+      expect(c?.notices).toEqual([]);
+    }
+  });
+
+  it("destructive intents need a Core-issued nonce for exactly that kind and target (M2)", async () => {
+    const provider = createMemoryProvider();
+    const { alice, aConv } = await connect(provider);
+    const [conv] = await alice.rt.query({ kind: "GetConversationList", ctx: alice.ctx });
+    if (!conv) throw new Error("no conversation");
+    const person = conv.personId;
+    const nonce = async (id: string, target: string): Promise<ConfirmationToken> => {
+      await alice.rt.dispatch({ kind: "IssueConfirmation", ctx: alice.ctx, operationId: op(id), intentKind: "BlockPerson", target });
+      const v = await alice.rt.query({ kind: "GetConfirmation", ctx: alice.ctx, operationId: op(id) });
+      return { nonce: v?.nonce ?? "" } as ConfirmationToken;
+    };
+    const block = async (id: string, confirmation: unknown): Promise<OutcomeClass | undefined> => {
+      await alice.rt.dispatch({ kind: "BlockPerson", ctx: alice.ctx, operationId: op(id), personId: person, scope: "local", confirmation: confirmation as ConfirmationToken });
+      return outcome(alice, id);
+    };
+    expect(await block("b0", Object.freeze({}))).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    expect(await block("b1", { nonce: "ab".repeat(16) })).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    const other = await nonce("n-other", "someone-else");
+    expect(await block("b2", other)).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    const good = await nonce("n-good", person);
+    expect(await block("b3", good)).toEqual({ kind: "Committed" });
+    expect(await block("b4", good)).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    expect(aConv).not.toBe("");
   });
 
   it("a refused store write releases nothing, and the same operation id can be dispatched again", async () => {

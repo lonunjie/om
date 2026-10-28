@@ -52,7 +52,7 @@ describe("Devices screen", () => {
   });
 
   it("with two controllers, suspending is not offered (Core: it would freeze); removal is distinct and stays pending until authorized", async () => {
-    const { h, services } = setup(TWO, ["op-revoke"]);
+    const { h, services } = setup(TWO, ["op-ic", "op-revoke"]);
     render(<DevicesScreen services={services} copy={testDevicesCopy} />);
     await userEvent.click(await screen.findByRole("button", { name: /Phone/ }));
     expect(await screen.findByText("Suspending would freeze the account")).toBeTruthy();
@@ -80,7 +80,7 @@ describe("Devices screen", () => {
     expect(await axeViolations(container)).toEqual([]);
     await userEvent.click(within(group).getByRole("button", { name: "Yes, suspend" }));
     expect(await screen.findByText("Suspended", { selector: "p" })).toBeTruthy();
-    expect(await kinds(h, services)).toEqual(["SuspendDevice"]);
+    expect(await kinds(h, services)).toEqual(["IssueConfirmation", "SuspendDevice"]);
     expect(screen.getByText("Suspended", { selector: "li" })).toBeTruthy();
   });
 
@@ -122,13 +122,13 @@ describe("device linking (NoSilentLink)", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "The codes match, link it" }));
     expect(await screen.findByText("Device linked")).toBeTruthy();
-    expect(await kinds(h, services)).toEqual(["RequestDeviceLink", "ApproveDeviceLink"]);
+    expect(await kinds(h, services)).toEqual(["RequestDeviceLink", "IssueConfirmation", "ApproveDeviceLink"]);
     const notice = screen.getByText("New device linked: Work laptop").closest(".om-security-notice");
     expect(notice?.getAttribute("data-reason-code")).toBe("device_linked");
   });
 
   it("reject links nothing; Hardened approval renders PendingAuthorization, never success", async () => {
-    const { h, services } = setup({ ...TWO, linkNeedsAuthorization: true }, ["op-open", "op-approve"]);
+    const { h, services } = setup({ ...TWO, linkNeedsAuthorization: true }, ["op-open", "op-ic", "op-approve"]);
     const offer = h.simulateNewDeviceOffer("Laptop");
     render(<DevicesScreen services={services} copy={testDevicesCopy} />);
     await userEvent.click(await screen.findByRole("button", { name: "Link a new device" }));
@@ -153,7 +153,7 @@ describe("device linking (NoSilentLink)", () => {
   });
 
   it("UI-12/13: a timed-out approval stays pending across restart and is never offered twice", async () => {
-    const { h, services } = setup(TWO, ["op-open", "op-approve"]);
+    const { h, services } = setup(TWO, ["op-open", "op-ic", "op-approve"]);
     const offer = h.simulateNewDeviceOffer("Laptop");
     h.injectNetworkTimeoutAfterSend(asOperationId("op-approve"));
     render(<DevicesScreen services={services} copy={testDevicesCopy} />);
@@ -177,7 +177,7 @@ describe("device linking (NoSilentLink)", () => {
   });
 
   it("NeedsUserAction is shown as an action for the person, not as success", async () => {
-    const { h, services } = setup(TWO, ["op-open", "op-approve"]);
+    const { h, services } = setup(TWO, ["op-open", "op-ic", "op-approve"]);
     const offer = h.simulateNewDeviceOffer("Laptop");
     h.injectUserActionRequired(asOperationId("op-approve"), "reauthenticate");
     render(<DevicesScreen services={services} copy={testDevicesCopy} />);

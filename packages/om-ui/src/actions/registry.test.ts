@@ -71,7 +71,7 @@ describe("Action Registry", () => {
     ];
     for (const [actionId, params] of actions) {
       expect(registry.resolve({ actionId, params, ctx, origin: "direct" })).toEqual({ status: "needs_confirmation", actionId });
-      const issue = registry.issueConfirmation({ actionId, params, ctx, origin: "direct" });
+      const issue = registry.issueConfirmation({ actionId, params, ctx, origin: "direct", nonce: "n-1" });
       if (issue.status !== "issued") throw new Error("not issued");
       const intent = intentOf(registry.resolve({ actionId, params, ctx, origin: "direct", confirmation: issue.token }));
       expect(DESTRUCTIVE_INTENT_KINDS).toContain(intent.kind);
@@ -83,7 +83,7 @@ describe("Action Registry", () => {
   it("UI-03/11: forged, replayed-for-other-params and cross-context tokens are rejected", () => {
     const forged = Object.freeze({}) as ConfirmationToken;
     expect(registry.resolve({ actionId: "block-person", params: block, ctx, origin: "direct", confirmation: forged })).toEqual({ status: "rejected", code: "invalid_confirmation" });
-    const issue = registry.issueConfirmation({ actionId: "block-person", params: block, ctx, origin: "direct" });
+    const issue = registry.issueConfirmation({ actionId: "block-person", params: block, ctx, origin: "direct", nonce: "n-1" });
     if (issue.status !== "issued") throw new Error("not issued");
     expect(registry.resolve({ actionId: "block-person", params: { ...block, personId: "person-2" }, ctx, origin: "direct", confirmation: issue.token })).toMatchObject({ status: "rejected" });
     const other = captureProfileContext(asProfileId("p2"), asProfileGeneration("g1"));
@@ -92,8 +92,8 @@ describe("Action Registry", () => {
   });
 
   it("UI-11: a suggestion origin can neither obtain nor use a confirmation", () => {
-    expect(registry.issueConfirmation({ actionId: "block-person", params: block, ctx, origin: "suggestion" })).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
-    const issue = registry.issueConfirmation({ actionId: "block-person", params: block, ctx, origin: "direct" });
+    expect(registry.issueConfirmation({ actionId: "block-person", params: block, ctx, origin: "suggestion", nonce: "n-1" })).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
+    const issue = registry.issueConfirmation({ actionId: "block-person", params: block, ctx, origin: "direct", nonce: "n-1" });
     if (issue.status !== "issued") throw new Error("not issued");
     expect(registry.resolve({ actionId: "block-person", params: block, ctx, origin: "suggestion", confirmation: issue.token })).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
     expect(registry.resolve({ actionId: "block-person", params: block, ctx, origin: "suggestion" })).toEqual({ status: "needs_confirmation", actionId: "block-person" });
@@ -108,13 +108,13 @@ describe("Action Registry", () => {
     }
     expect(registry.resolve({ actionId: "request-device-link", params: { link: "om:link/AAAAAAAAAAAAAAAAAAAAAA", autoApprove: true }, ctx, origin: "direct" }))
       .toEqual({ status: "rejected", code: "invalid_params" });
-    expect(registry.issueConfirmation({ actionId: "approve-device-link", params: { requestId: "lr-1" }, ctx, origin: "suggestion" }))
+    expect(registry.issueConfirmation({ actionId: "approve-device-link", params: { requestId: "lr-1" }, ctx, origin: "suggestion", nonce: "n-1" }))
       .toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
   });
 
   it("suspend and permanent revoke are distinct actions; a suspend token cannot revoke", () => {
     const params = { deviceId: "d1" };
-    const issue = registry.issueConfirmation({ actionId: "suspend-device", params, ctx, origin: "direct" });
+    const issue = registry.issueConfirmation({ actionId: "suspend-device", params, ctx, origin: "direct", nonce: "n-1" });
     if (issue.status !== "issued") throw new Error("not issued");
     expect(registry.resolve({ actionId: "finalize-device-revocation", params, ctx, origin: "direct", confirmation: issue.token })).toEqual({ status: "rejected", code: "invalid_confirmation" });
     expect(intentOf(registry.resolve({ actionId: "suspend-device", params, ctx, origin: "direct", confirmation: issue.token })).kind).toBe("SuspendDevice");
@@ -135,3 +135,33 @@ describe("Action Registry", () => {
       .toEqual({ status: "platform", request: { capability: "Clipboard", purpose: "write", sensitive: true } });
   });
 });
+
+describe("Core-issued confirmation, step 1 (UI-11, ADR-0181 section 8)", () => {
+  const ids = ["op-ic"];
+  const reg = () => { let n = 0; return createActionRegistry({ newOperationId: () => asOperationId(ids[n++] ?? `op-${String(n)}`) }); };
+
+  it("asks Core for a nonce bound to the intent kind and the documented target", () => {
+    const r = reg();
+    const cases: [string, unknown, string, string][] = [
+      ["block-person", block, "BlockPerson", "person-1"], ["suspend-device", { deviceId: "d1" }, "SuspendDevice", "d1"],
+      ["finalize-device-revocation", { deviceId: "d1" }, "RevokeDevice", "d1"], ["approve-device-link", { requestId: "lr-1" }, "ApproveDeviceLink", "lr-1"],
+      ["veto-recovery", { requestId: "rr-1" }, "VetoRecovery", "rr-1"], ["change-privacy-policy", { policy: "maximum" }, "ChangePrivacyPolicy", "maximum"],
+      ["start-recovery", { scope: "history", custodian: "recovery_key" }, "StartRecovery", "history:recovery_key"],
+    ];
+    for (const [actionId, params, intentKind, target] of cases) {
+      const prep = r.prepareConfirmation({ actionId, params, ctx, origin: "direct" });
+      expect(prep).toMatchObject({ status: "intent", intent: { kind: "IssueConfirmation", intentKind, target } });
+    }
+  });
+
+  it("a suggestion, an unknown action or a non-destructive action never reaches Core for a nonce", () => {
+    const r = reg();
+    expect(r.prepareConfirmation({ actionId: "block-person", params: block, ctx, origin: "suggestion" })).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
+    expect(r.prepareConfirmation({ actionId: "nope", params: {}, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "unknown_action" });
+    expect(r.prepareConfirmation({ actionId: "send-message", params: { conversationId: "c1", text: "a" }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    expect(r.prepareConfirmation({ actionId: "block-person", params: { personId: "../x" }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    // An empty nonce is not a confirmation.
+    expect(r.issueConfirmation({ actionId: "block-person", params: block, ctx, origin: "direct", nonce: "" })).toEqual({ status: "rejected", code: "invalid_params" });
+  });
+});
+

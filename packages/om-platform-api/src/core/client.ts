@@ -2,7 +2,7 @@ import type { ConversationId, OperationId, ProfileExecutionContext, ProfileId } 
 import type { CoreIntent } from "./intents";
 import type { OutcomeClass } from "./outcome";
 import type { DevicesView, LinkOfferView, LinkRequestView, RecoveryStatusView } from "./devices";
-import type { ConversationSummary, ConversationView, HomeSummary, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, RecoveryKeyView } from "./views";
+import type { ConfirmationView, ConversationSummary, ConversationView, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, RecoveryKeyView } from "./views";
 
 export interface GetConversationView { readonly kind: "GetConversationView"; readonly ctx: ProfileExecutionContext; readonly conversationId: ConversationId }
 export interface GetConversationList { readonly kind: "GetConversationList"; readonly ctx: ProfileExecutionContext }
@@ -17,9 +17,13 @@ export interface GetLinkRequest { readonly kind: "GetLinkRequest"; readonly ctx:
 /** The offer produced by an OfferDeviceLink operation. */
 export interface GetLinkOffer { readonly kind: "GetLinkOffer"; readonly ctx: ProfileExecutionContext; readonly operationId: OperationId }
 export interface GetRecoveryStatus { readonly kind: "GetRecoveryStatus"; readonly ctx: ProfileExecutionContext }
+/** The nonce an `IssueConfirmation` operation produced (`null` once expired or unknown). */
+export interface GetConfirmation { readonly kind: "GetConfirmation"; readonly ctx: ProfileExecutionContext; readonly operationId: OperationId }
+/** Whether first-contact requests from strangers are currently being dropped. */
+export interface GetIntroductionLoad { readonly kind: "GetIntroductionLoad"; readonly ctx: ProfileExecutionContext }
 export type CoreQuery =
   | GetConversationView | GetConversationList | GetProfileList | GetIntroductions | GetRecoveryKey | GetInvite | GetHomeSummary
-  | GetDevices | GetLinkRequest | GetLinkOffer | GetRecoveryStatus;
+  | GetDevices | GetLinkRequest | GetLinkOffer | GetRecoveryStatus | GetConfirmation | GetIntroductionLoad;
 
 export interface QueryResultMap {
   GetConversationView: ConversationView;
@@ -34,6 +38,8 @@ export interface QueryResultMap {
   GetLinkRequest: LinkRequestView | null;
   GetLinkOffer: LinkOfferView | null;
   GetRecoveryStatus: RecoveryStatusView;
+  GetConfirmation: ConfirmationView | null;
+  GetIntroductionLoad: IntroductionLoad;
 }
 export type QueryResult<Q extends CoreQuery> = QueryResultMap[Q["kind"]];
 

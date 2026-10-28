@@ -8,3 +8,4 @@ export * from "./ConversationList";
 export * from "./ConversationView";
 export * from "./Composer";
 export * from "./MessageRequest";
+export * from "./StrangerPressure";

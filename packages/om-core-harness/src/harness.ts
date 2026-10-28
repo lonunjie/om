@@ -1,10 +1,10 @@
 // DEV/TEST ONLY in-memory CoreClient. No real crypto, no persistence beyond the process. See README.md.
 import {
-  asMessageId, parseInviteLink, asProfileGeneration, captureProfileContext, isProfileExecutionContext, isTerminalOutcome,
+  asMessageId, confirmationTarget, parseInviteLink, asProfileGeneration, captureProfileContext, isProfileExecutionContext, isTerminalOutcome,
 } from "@om/platform-api";
 import type {
   ConversationId, ConversationSummary, ConversationTimelineItem, ConversationView, CoreClient, CoreIntent, CoreQuery,
-  DeliveryState, HomeSummary, IntroductionRequest, InviteView, MessageId, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
+  DeliveryState, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, MessageId, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   PersonId, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, TerminalOutcome, Unsubscribe, UserActionCode,
 } from "@om/platform-api";
 import { createDeviceSim, type SeedDevices } from "./devices";
@@ -36,7 +36,9 @@ export interface SeedProfile {
   readonly profileId: ProfileId;
   readonly label: string;
   readonly conversations?: readonly SeedConversation[];
-  readonly introductions?: readonly (IntroductionRequest & { readonly personId: PersonId })[];
+  readonly introductions?: readonly (Omit<IntroductionRequest, "verification"> & { readonly personId: PersonId; readonly verification?: IntroductionRequest["verification"] })[];
+  /** Seed the "stranger requests are being dropped" flag (default: not throttled). */
+  readonly introductionLoad?: IntroductionLoad;
   readonly home?: HomeSummary;
   /** Devices, link and recovery state (default: one current control device, recovery on with a recovery key). */
   readonly account?: SeedDevices;
@@ -78,6 +80,9 @@ interface ProfileState {
   conversations: Map<ConversationId, ConversationState>;
   persons: Map<PersonId, { id: PersonId; displayName: string; blocked: boolean }>;
   introductions: Map<string, IntroductionRequest & { personId: PersonId }>;
+  introductionLoad: IntroductionLoad;
+  /** Core-issued confirmation nonces (UI-11): single use, bound to intent kind and target, expiring. */
+  confirmations: Map<OperationId, { readonly nonce: string; readonly kind: string; readonly target: string; readonly expiresAt: number }>;
   identityCreated: boolean;
   /** Display-once fake recovery keys by creating operation; entries are deleted when confirmed. */
   recoveryKeys: Map<OperationId, readonly string[]>;
@@ -95,6 +100,10 @@ const DEFAULT_HOME: HomeSummary = {
   tier: "T1", observers: ["host_sees_metadata", "host_sees_ciphertext"], migrationAvailable: true, clientOriginChoice: ["default_origin", "independent_origin_available"],
 };
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/** Same lifetime and capacity as Core (`CONFIRMATION_TTL_MS`, `MAX_CONFIRMATIONS`). */
+const CONFIRMATION_TTL_MS = 5 * 60 * 1000;
+const MAX_CONFIRMATIONS = 16;
+const DESTRUCTIVE_KINDS: ReadonlySet<string> = new Set(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery"]);
 const B32 = "ABCDEFGHIJKLMNPQRSTUVWXYZ23456789";
 const B64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
 const randomChars = (alphabet: string, n: number): string =>
@@ -146,7 +155,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       : { direction: "incoming", messageId: m.messageId, text: m.text, sentAt: m.sentAt };
   }
   function summary(c: ConversationState): ConversationSummary {
-    return { id: c.id, personId: c.personId, displayName: c.displayName, lastMessageAt: c.messages.at(-1)?.sentAt ?? null, notices: [] };
+    return { id: c.id, personId: c.personId, displayName: c.displayName, lastMessageAt: c.messages.at(-1)?.sentAt ?? null, notices: [], relationship: "active" };
   }
 
   function runQuery<Q extends CoreQuery>(q: Q): QueryResult<Q> {
@@ -157,7 +166,14 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         case "GetConversationList":
           return [...stateFor(q.ctx).conversations.values()].map(summary);
         case "GetIntroductions":
-          return [...stateFor(q.ctx).introductions.values()].map(({ id, from, displayName }) => ({ id, from, displayName }));
+          return [...stateFor(q.ctx).introductions.values()].map(({ id, from, displayName, verification }) => ({ id, from, displayName, verification }));
+        case "GetIntroductionLoad":
+          return stateFor(q.ctx).introductionLoad;
+        case "GetConfirmation": {
+          const st = stateFor(q.ctx);
+          const c = st.confirmations.get(q.operationId);
+          return c !== undefined && c.expiresAt > clock() ? { nonce: c.nonce, expiresAt: c.expiresAt } : null;
+        }
         case "GetRecoveryKey": {
           const groups = stateFor(q.ctx).recoveryKeys.get(q.keyOperationId);
           return groups ? { keyOperationId: q.keyOperationId, groups: [...groups] } : null;
@@ -241,11 +257,32 @@ export function createHarness(options: HarnessOptions = {}): Harness {
     for (const p of others) notify(p);
   }
 
+  /** UI-11: spend the nonce the token names; it must be this intent kind and target, unexpired (Core's rule, mirrored). */
+  function consumeConfirmation(st: ProfileState, intent: Extract<CoreIntent, { readonly confirmation: unknown }>): boolean {
+    const now = clock();
+    for (const [op, c] of st.confirmations) if (c.expiresAt <= now) st.confirmations.delete(op);
+    const token: unknown = intent.confirmation;
+    const nonce = typeof token === "object" && token !== null ? (token as { readonly nonce?: unknown }).nonce : undefined;
+    if (typeof nonce !== "string") return false;
+    const entry = [...st.confirmations].find(([, c]) => c.nonce === nonce);
+    if (entry === undefined) return false;
+    st.confirmations.delete(entry[0]);
+    return entry[1].kind === intent.kind && entry[1].target === confirmationTarget(intent);
+  }
+
   function apply(intent: CoreIntent, st: ProfileState): OpRecord {
+    const rejected = (reason: RejectReason): OpRecord => record(intent, { kind: "Rejected", reason });
+    if ("confirmation" in intent && !consumeConfirmation(st, intent)) return rejected("unauthorized");
     const staged = applyStaged(intent);
     if (staged) return staged;
-    const rejected = (reason: RejectReason): OpRecord => record(intent, { kind: "Rejected", reason });
     switch (intent.kind) {
+      case "IssueConfirmation": {
+        if (!DESTRUCTIVE_KINDS.has(intent.intentKind) || intent.target === "" || intent.target.length > 256) return rejected("invalid");
+        const nonce = Array.from(globalThis.crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+        st.confirmations.set(intent.operationId, { nonce, kind: intent.intentKind, target: intent.target, expiresAt: clock() + CONFIRMATION_TTL_MS });
+        while (st.confirmations.size > MAX_CONFIRMATIONS) st.confirmations.delete(st.confirmations.keys().next().value as OperationId);
+        return record(intent, { kind: "Committed" });
+      }
       case "SendMessage": {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
         if (!conv) return rejected("not_found");
@@ -326,7 +363,8 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       if (profiles.has(seed.profileId)) throw new HarnessError("profile already seeded");
       const st: ProfileState = {
         label: seed.label, generation: asProfileGeneration(`gen-${String(profiles.size + 1)}`),
-        conversations: new Map(), persons: new Map(), introductions: new Map(),
+        conversations: new Map(), persons: new Map(), introductions: new Map(), confirmations: new Map(),
+        introductionLoad: seed.introductionLoad ?? { throttled: false, dropped: 0 },
         identityCreated: false, recoveryKeys: new Map(), invites: new Map(), acceptedInvites: new Set(), home: seed.home ?? DEFAULT_HOME,
       };
       for (const c of seed.conversations ?? []) {
@@ -340,7 +378,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         });
         st.conversations.set(c.id, { id: c.id, personId: c.personId, displayName: c.displayName, messages });
       }
-      for (const i of seed.introductions ?? []) st.introductions.set(i.id, i);
+      for (const i of seed.introductions ?? []) st.introductions.set(i.id, { ...i, verification: i.verification ?? "unverified" });
       sim.seed(seed.profileId, seed.account);
       profiles.set(seed.profileId, st);
       return captureProfileContext(seed.profileId, st.generation);

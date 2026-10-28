@@ -7697,6 +7697,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/actions/confirm.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/actions/confirm.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/actions/index.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -7740,6 +7754,13 @@
     },
     {
       "path": "packages/om-ui/src/conversations/MessageRequest.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/conversations/StrangerPressure.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

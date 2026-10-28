@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { IntroductionRequest, OutcomeClass } from "@om/platform-api";
+import { confirmWithCore } from "../actions/confirm";
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
 import type { ConversationCopy } from "./copy";
@@ -34,7 +35,7 @@ export function MessageRequest({ services, request, copy, onIgnore, onResolved }
         r = resolveIntent(services, "accept-introduction", { requestId: request.id });
       } else {
         const params = { personId: request.from, scope: "local" } as const;
-        const issued = services.registry.issueConfirmation({ actionId: "block-person", params, ctx: services.ctx, origin: "direct" });
+        const issued = await confirmWithCore(services, "block-person", params);
         if (issued.status !== "issued") { setPhase("idle"); setStatus(c.failed); return; }
         r = resolveIntent(services, "block-person", params, issued.token);
       }
@@ -58,7 +59,7 @@ export function MessageRequest({ services, request, copy, onIgnore, onResolved }
   return (
     <section className="om-request" aria-label={c.heading}>
       <Text as="h3" size="md" weight="bold">{c.heading}</Text>
-      <Text as="p" className="om-request__sender"><bdi>{request.displayName}</bdi> <span className="om-request__unknown">{c.unknownSender}</span></Text>
+      <Text as="p" className="om-request__sender"><bdi>{request.displayName}</bdi> <span className="om-request__unknown">{c.unknownSender}</span>{request.verification === "unverified" ? <> <span className="om-request__unverified" data-verification="unverified">{c.unverified}</span></> : null}</Text>
       {phase === "confirm_block" ? (
         <div role="group" aria-label={c.blockPrompt} className="om-request__confirm">
           <Text as="p">{c.blockPrompt}</Text>

@@ -47,6 +47,7 @@ export function ConversationView({ services, conversationId, copy, richTextFor, 
       <header className="om-conv-view__header">
         <Text as="h2" size="lg" weight="bold">{view.summary.displayName}</Text>
         <SecurityNotices notices={view.summary.notices} copy={copy.notices} />
+        {view.summary.relationship === "active" ? null : <p className="om-conv-view__relationship" role="status" data-relationship={view.summary.relationship}>{copy.relationship[view.summary.relationship]}</p>}
       </header>
       <div role="log" aria-label={copy.view.label} className="om-conv-view__log">
         {view.timeline.length === 0 ? <p className="om-conv-view__empty">{copy.view.empty}</p> : (

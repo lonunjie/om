@@ -933,12 +933,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.record(op, kind, rejected(RejectReason::Invalid), None);
             return Ok(());
         }
-        // Active: seal and send now. Establishing (we accepted; the peer's signed delivery key has not arrived yet):
-        // queue the finished event and send it, sealed, the moment the key arrives. There is never a clear fallback.
+        // Active: seal and send now. Not yet bound or still establishing (ADR-0181): queue the finished event and send
+        // it, sealed, the moment the relationship is ACTIVE. Nothing is encrypted or deposited before then, and there
+        // is never a clear fallback. The conversation id is fixed once the Accept exists, so a queued event is final.
         let (state, has_mailbox, blocked) = (rel.state, rel.peer_mailbox.is_some(), rel.blocked);
         let queue = match (state, has_mailbox, blocked) {
             (RelState::Active, true, false) => false,
-            (RelState::Establishing, true, false) => true,
+            (RelState::Establishing | RelState::AcceptedUnbound, true, false) => true,
             _ => {
                 self.record(op, kind, rejected(RejectReason::Unavailable), None);
                 return Ok(());
@@ -2387,6 +2388,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             r.state = RelState::Active;
             r.pending_bind = None;
         }
+        // Anything composed while unbound goes out now, sealed (a failure leaves it queued).
+        let _ = self.release_queued(conv);
         true
     }
 

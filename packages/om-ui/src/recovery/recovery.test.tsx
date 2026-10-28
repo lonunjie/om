@@ -57,12 +57,12 @@ describe("Recovery screen", () => {
     expect(await axeViolations(container)).toEqual([]);
     await userEvent.click(screen.getByRole("button", { name: "Yes, stop it" }));
     expect(await screen.findByText("Stopped", { selector: ".om-settings__status" })).toBeTruthy();
-    expect(await kinds(h, services)).toEqual(["VetoRecovery"]);
+    expect(await kinds(h, services)).toEqual(["IssueConfirmation", "VetoRecovery"]);
     expect(screen.queryByText("Someone is recovering your account")).toBeNull();
   });
 
   it("start: scopes stay distinct, consequences shown before confirming, identity recovery stays pending (never shown as done)", async () => {
-    const { h, services } = setup(ACCOUNT, ["op-start"]);
+    const { h, services } = setup(ACCOUNT, ["op-ic", "op-start"]);
     const { container } = render(<RecoveryScreen services={services} copy={testRecoveryCopy} />);
     await userEvent.click(await screen.findByRole("button", { name: "Start a recovery" }));
     const confirm = screen.getByRole("button", { name: "Start recovery" });
@@ -80,13 +80,15 @@ describe("Recovery screen", () => {
     expect(screen.queryByText("Recovery done")).toBeNull();
     expect(screen.queryByRole("button", { name: "Start recovery" })).toBeNull();
     const ops = await h.pendingOperations(services.ctx);
-    expect(ops.map((o) => [o.intentKind, o.outcome.kind])).toEqual([["StartRecovery", "PendingAuthorization"]]);
-    expect(ops[0]?.operationId).toBe("op-start");
+    expect(ops.map((o) => [o.intentKind, o.outcome.kind])).toEqual([["IssueConfirmation", "Committed"], ["StartRecovery", "PendingAuthorization"]]);
+    expect(ops[1]?.operationId).toBe("op-start");
   });
 
   it("cancelling our own pending recovery ends it; restart shows pending operations from the durable log", async () => {
     const { h, services } = setup(ACCOUNT, ["op-start"]);
-    await h.dispatch({ kind: "StartRecovery", ctx: services.ctx, operationId: asOperationId("op-pre"), scope: "identity", custodian: "recovery_key", confirmation: Object.freeze({}) as ConfirmationToken });
+    await h.dispatch({ kind: "IssueConfirmation", ctx: services.ctx, operationId: asOperationId("op-nonce"), intentKind: "StartRecovery", target: "identity:recovery_key" });
+    const issued = await h.query({ kind: "GetConfirmation", ctx: services.ctx, operationId: asOperationId("op-nonce") });
+    await h.dispatch({ kind: "StartRecovery", ctx: services.ctx, operationId: asOperationId("op-pre"), scope: "identity", custodian: "recovery_key", confirmation: Object.freeze({ nonce: issued?.nonce ?? "" }) as ConfirmationToken });
     h.simulateRestart();
     render(<RecoveryScreen services={{ ...services, ctx: h.contextFor(ME) }} copy={testRecoveryCopy} />);
     expect(await screen.findByText("Starting recovery: Waiting for approval")).toBeTruthy();

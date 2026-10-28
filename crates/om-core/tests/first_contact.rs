@@ -179,32 +179,32 @@ fn hello_follows_both_bindings_and_each_side_activates_only_then() {
     assert_eq!(rel_state(&d.alice, &d.a), "accepted_unbound");
     d.alice.poll(&d.a); // Bind verified: both bindings are known to Alice
     assert_eq!(rel_state(&d.alice, &d.a), "establishing");
-    // No ordinary message goes out yet on either side.
-    for (rt, ctx, conv_of) in [(&mut d.bob, d.b.clone(), 0), (&mut d.alice, d.a.clone(), 1)] {
+    // A message composed now is held, not sent: nothing is encrypted or deposited before the relationship is ACTIVE.
+    let deposits = d.net.deposit_count();
+    for (rt, ctx, n) in [(&mut d.bob, d.b.clone(), 0), (&mut d.alice, d.a.clone(), 1)] {
         let conv = rt
             .query::<Vec<ConversationSummary>>(Query::GetConversationList { ctx: ctx.clone() })[0]
             .id
             .clone();
         rt.dispatch(
             &ctx,
-            &format!("m{conv_of}"),
+            &format!("m{n}"),
             IntentBody::SendMessage {
                 conversation_id: conv,
-                draft: Draft { text: "hi".into() },
+                draft: Draft {
+                    text: format!("early {n}"),
+                },
             },
+        );
+        assert_eq!(
+            rt.outcome(&ctx, &format!("m{n}")),
+            Some(OutcomeClass::PendingNetwork)
         );
     }
     assert_eq!(
-        d.bob.outcome(&d.b, "m0"),
-        Some(OutcomeClass::Rejected {
-            reason: RejectReason::Unavailable
-        }),
-        "the requester cannot send while unbound"
-    );
-    assert_eq!(
-        d.alice.outcome(&d.a, "m1"),
-        Some(OutcomeClass::PendingNetwork),
-        "the inviter's message queues behind the Hello while establishing"
+        d.net.deposit_count(),
+        deposits,
+        "queued while unbound, nothing deposited"
     );
     settle_all(&mut [(&mut d.alice, &d.a), (&mut d.bob, &d.b)]);
     assert_eq!(rel_state(&d.alice, &d.a), "active");
@@ -218,10 +218,20 @@ fn hello_follows_both_bindings_and_each_side_activates_only_then() {
         ctx: d.b.clone(),
         conversation_id: conv,
     });
+    let mut texts: Vec<String> = v
+        .timeline
+        .iter()
+        .map(|i| match i {
+            TimelineItem::Outgoing { text, .. } | TimelineItem::Incoming { text, .. } => {
+                text.clone()
+            }
+        })
+        .collect();
+    texts.sort();
     assert_eq!(
-        v.timeline.len(),
-        1,
-        "the queued message arrived after the Hello"
+        texts,
+        vec!["early 0", "early 1"],
+        "his own and Alice's queued messages both went out after the Hello"
     );
 }
 

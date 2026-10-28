@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isTerminalOutcome } from "@om/platform-api";
 import type { CoreQuery, OperationId, OutcomeClass, PendingOperationView, QueryResult } from "@om/platform-api";
+import { confirmWithCore } from "../actions/confirm";
 import type { ConversationServices } from "../conversations/services";
 import type { Loadable } from "../conversations/hooks";
 import type { OutcomeCopy } from "./copy";
@@ -80,7 +81,7 @@ export function useOperation(s: SettingsServices): Operation {
     try {
       let r = s.registry.resolve({ actionId, params, ctx: s.ctx, origin: "direct" });
       if (r.status === "needs_confirmation") {
-        const issued = s.registry.issueConfirmation({ actionId, params, ctx: s.ctx, origin: "direct" });
+        const issued = await confirmWithCore(s, actionId, params);
         if (issued.status !== "issued") throw new Error("confirmation refused");
         r = s.registry.resolve({ actionId, params, ctx: s.ctx, origin: "direct", confirmation: issued.token });
       }

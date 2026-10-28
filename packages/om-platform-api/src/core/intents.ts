@@ -1,8 +1,12 @@
 import type { RecoveryCustodianCode, RecoveryScope } from "./devices";
 import type { ConversationId, DeviceId, MessageId, OperationId, PersonId, ProfileExecutionContext, ProfileId, Brand } from "./ids";
 
-/** Proof of an explicit user confirmation. Minted only by the Action Registry's confirmation flow. */
-export type ConfirmationToken = Brand<object, "ConfirmationToken">;
+/**
+ * Proof of an explicit user confirmation: a single-use nonce that Core issued (`IssueConfirmation`) for exactly one
+ * destructive intent kind and target in this profile, and that expires. The Action Registry only requests one for a
+ * direct user action. Core answers `Rejected(unauthorized)` for anything else (UI-11, ADR-0181).
+ */
+export type ConfirmationToken = Brand<{ readonly nonce: string }, "ConfirmationToken">;
 
 export type PrivacyPolicyLevel = "recommended" | "hardened" | "maximum" | "custom";
 
@@ -31,6 +35,8 @@ export interface RestoreHistory extends IntentBase { readonly kind: "RestoreHist
 export interface CreateIdentityProfile extends IntentBase { readonly kind: "CreateIdentityProfile"; readonly label: string }
 /** `keyOperationId` is the CreateIdentityProfile operation whose RecoveryKeyView the user confirmed. */
 export interface ConfirmRecoveryKeyStored extends IntentBase { readonly kind: "ConfirmRecoveryKeyStored"; readonly keyOperationId: OperationId }
+/** Asks Core for a confirmation nonce bound to a destructive intent `intentKind` and its `target` (see `confirmationTarget`). */
+export interface IssueConfirmation extends IntentBase { readonly kind: "IssueConfirmation"; readonly intentKind: DestructiveIntentKind; readonly target: string }
 export interface CreateInvite extends IntentBase { readonly kind: "CreateInvite" }
 export interface AcceptInvitation extends IntentBase { readonly kind: "AcceptInvitation"; readonly link: string }
 
@@ -53,7 +59,7 @@ export type CoreIntent =
   | SendMessage | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
   | RevokeInvite | StartCall | PinNavigationTarget | RestoreHistory
-  | CreateIdentityProfile | ConfirmRecoveryKeyStored | CreateInvite | AcceptInvitation
+  | CreateIdentityProfile | ConfirmRecoveryKeyStored | IssueConfirmation | CreateInvite | AcceptInvitation
   | OfferDeviceLink | RequestDeviceLink | ApproveDeviceLink | RejectDeviceLink | RevokeDevice | StartRecovery | VetoRecovery;
 
 export type CoreIntentKind = CoreIntent["kind"];
@@ -62,7 +68,7 @@ export const INTENT_KINDS: readonly CoreIntentKind[] = [
   "SendMessage", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
   "RevokeInvite", "StartCall", "PinNavigationTarget", "RestoreHistory",
-  "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "CreateInvite", "AcceptInvitation",
+  "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "IssueConfirmation", "CreateInvite", "AcceptInvitation",
   "OfferDeviceLink", "RequestDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery",
 ];
 
@@ -71,3 +77,17 @@ export const DESTRUCTIVE_INTENT_KINDS = [
   "BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery",
 ] as const;
 export type DestructiveIntentKind = (typeof DESTRUCTIVE_INTENT_KINDS)[number];
+
+/**
+ * The target a confirmation nonce is bound to, per destructive intent: the same string Core derives from the intent
+ * (`confirmation_target` in `api.rs`). A mismatch is `Rejected(unauthorized)`.
+ */
+export function confirmationTarget(intent: Extract<CoreIntent, { readonly confirmation: ConfirmationToken }>): string {
+  switch (intent.kind) {
+    case "BlockPerson": return intent.personId;
+    case "SuspendDevice": case "RevokeDevice": return intent.deviceId;
+    case "ApproveDeviceLink": case "VetoRecovery": return intent.requestId;
+    case "ChangePrivacyPolicy": return intent.policy;
+    case "StartRecovery": return `${intent.scope}:${intent.custodian}`;
+  }
+}

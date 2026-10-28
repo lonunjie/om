@@ -72,9 +72,18 @@ export const conversationCopy: ConversationCopy = {
     rejected: withPrefix("Not sent."),
     needsAction: NEEDS_ACTION,
   },
+  relationship: {
+    awaiting_acceptance: "Waiting for them to accept your request.",
+    accepted_unbound: "Setting up. This person is not verified yet, and you can't send messages until it is done.",
+    establishing: "Almost ready. Finishing the secure connection.",
+  },
+  pressure: {
+    notice: "You are receiving a lot of requests from strangers. People you invited can still reach you.",
+  },
   request: {
     heading: "Message request",
     unknownSender: "Not in your contacts",
+    unverified: "Unverified",
     accept: "Accept",
     ignore: "Ignore for now",
     block: "Block",

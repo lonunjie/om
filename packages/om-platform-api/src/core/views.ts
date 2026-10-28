@@ -14,8 +14,23 @@ export type SecurityNoticeCode = "safety_number_changed" | "device_added" | "unv
 export interface SecurityNotice { readonly code: SecurityNoticeCode; readonly subject?: PersonId }
 
 export interface PersonSummary { readonly id: PersonId; readonly displayName: string; readonly blocked: boolean }
-export interface IntroductionRequest { readonly id: string; readonly from: PersonId; readonly displayName: string }
+/**
+ * `unverified`: the requester's intro key is not bound to any account yet, so `displayName` is a label the requester
+ * chose for itself. `bound`: an IntroIdentityBinding verified. A pending request is always `unverified` (ADR-0181).
+ */
+export type VerificationCode = "unverified" | "bound";
+export interface IntroductionRequest { readonly id: string; readonly from: PersonId; readonly displayName: string; readonly verification: VerificationCode }
+/** Whether first-contact requests from strangers are being dropped (a machine flag; the UI owns the notice copy). */
+export interface IntroductionLoad { readonly throttled: boolean; readonly dropped: number }
+/** A Core-issued, single-use confirmation nonce (UI-11); read once after `IssueConfirmation`. */
+export interface ConfirmationView { readonly nonce: string; readonly expiresAt: number }
 export interface ProfileSummary { readonly id: ProfileId; readonly label: string }
+
+/**
+ * Where a relationship is in first contact. `accepted_unbound`: accepted, but both IntroIdentityBindings have not
+ * verified, so the contact is unverified and nothing can be sent. `establishing`: both verified, session being set up.
+ */
+export type RelationshipStateCode = "awaiting_acceptance" | "accepted_unbound" | "establishing" | "active";
 
 export interface ConversationSummary {
   readonly id: ConversationId;
@@ -23,6 +38,7 @@ export interface ConversationSummary {
   readonly displayName: string;
   readonly lastMessageAt: number | null;
   readonly notices: readonly SecurityNotice[];
+  readonly relationship: RelationshipStateCode;
 }
 
 export type ConversationTimelineItem =

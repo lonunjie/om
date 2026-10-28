@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { asDeviceId, asOperationId, asProfileId } from "@om/platform-api";
+import { asDeviceId, asOperationId, asProfileId, confirmationTarget } from "@om/platform-api";
 import type { ConfirmationToken, CoreIntent, OperationId, OutcomeClass, ProfileExecutionContext } from "@om/platform-api";
 import { createHarness, type Harness, type SeedDevices } from "./harness";
 
 const OLD = asProfileId("existing");
 const NEW = asProfileId("new-device");
-const token = Object.freeze({}) as ConfirmationToken; // the harness is not the confirmation authority; the registry is
+// A placeholder: `run` swaps in a nonce the harness (standing in for Core) issues for exactly this intent kind and target.
+const token = Object.freeze({ nonce: "placeholder" }) as ConfirmationToken;
 let n = 0;
 const op = (): OperationId => asOperationId(`dop-${String(++n)}`);
 
@@ -24,7 +25,16 @@ function setup(account: SeedDevices = ACCOUNT, clock = (): number => 5000) {
   const fresh = h.seedProfile({ profileId: NEW, label: "New" });
   return { h, old, fresh };
 }
-async function run(h: Harness, intent: CoreIntent): Promise<OutcomeClass> {
+/** Core-issued confirmation (UI-11): IssueConfirmation, then GetConfirmation. */
+async function confirmed(h: Harness, intent: Extract<CoreIntent, { readonly confirmation: ConfirmationToken }>): Promise<CoreIntent> {
+  const issue = op();
+  await h.dispatch({ kind: "IssueConfirmation", ctx: intent.ctx, operationId: issue, intentKind: intent.kind, target: confirmationTarget(intent) });
+  const view = await h.query({ kind: "GetConfirmation", ctx: intent.ctx, operationId: issue });
+  if (view === null) throw new Error("no nonce issued");
+  return { ...intent, confirmation: Object.freeze({ nonce: view.nonce }) as ConfirmationToken };
+}
+async function run(h: Harness, placeholder: CoreIntent): Promise<OutcomeClass> {
+  const intent = "confirmation" in placeholder && placeholder.confirmation === token ? await confirmed(h, placeholder) : placeholder;
   const handle = await h.dispatch(intent);
   const seen: OutcomeClass[] = [];
   h.observe(intent.ctx, handle.operationId, (o) => { seen.push(o); })();
@@ -192,5 +202,44 @@ describe("recovery via harness (DEV ONLY)", () => {
   it("an explicitly-off policy cannot start recovery", async () => {
     const { h, old } = setup({ recovery: { policy: "off_explicit" } });
     expect(await run(h, { kind: "StartRecovery", ctx: old, operationId: op(), scope: "identity", custodian: "recovery_key", confirmation: token })).toEqual({ kind: "Rejected", reason: "unsupported" });
+  });
+});
+
+describe("Core-issued confirmations via harness (DEV ONLY, mirrors Core)", () => {
+  const revoke = (ctx: ProfileExecutionContext, confirmation: unknown): CoreIntent =>
+    ({ kind: "RevokeDevice", ctx, operationId: op(), deviceId: asDeviceId("d-tablet"), confirmation: confirmation as ConfirmationToken });
+  const nonce = async (h: Harness, ctx: ProfileExecutionContext, intentKind: "RevokeDevice" | "SuspendDevice", target: string): Promise<ConfirmationToken> => {
+    const issue = op();
+    await h.dispatch({ kind: "IssueConfirmation", ctx, operationId: issue, intentKind, target });
+    const view = await h.query({ kind: "GetConfirmation", ctx, operationId: issue });
+    return Object.freeze({ nonce: view?.nonce ?? "" }) as ConfirmationToken;
+  };
+  it("anything but a Core-issued nonce for this kind and target is Rejected(unauthorized)", async () => {
+    const { h, old } = setup();
+    for (const bad of [{}, { confirmed: true }, { nonce: 7 }, { nonce: "" }, { nonce: "ab".repeat(16) }, null, "x"]) {
+      expect(await run(h, revoke(old, bad))).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    }
+    expect(await run(h, revoke(old, await nonce(h, old, "SuspendDevice", "d-tablet")))).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    expect(await run(h, revoke(old, await nonce(h, old, "RevokeDevice", "d-phone")))).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    expect((await device(h, old, "d-tablet"))?.state).not.toBe("revoked");
+  });
+  it("is single use, spent even by a mismatch, bound to its profile and expiring", async () => {
+    let now = 5000;
+    const { h, old, fresh } = setup(ACCOUNT, () => now);
+    const good = await nonce(h, old, "RevokeDevice", "d-tablet");
+    expect(await run(h, revoke(old, good))).toEqual({ kind: "Committed" });
+    expect(await run(h, revoke(old, good))).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    const wrongTarget = await nonce(h, old, "RevokeDevice", "d-phone");
+    expect(await run(h, revoke(old, wrongTarget))).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    expect(await run(h, { ...revoke(old, wrongTarget), deviceId: asDeviceId("d-phone"), operationId: op() } as CoreIntent)).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    const foreign = await nonce(h, old, "RevokeDevice", "d-phone");
+    expect(await run(h, revoke(fresh, foreign))).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    const stale = await nonce(h, old, "RevokeDevice", "d-phone");
+    now += 5 * 60 * 1000 + 1;
+    expect(await run(h, { ...revoke(old, stale), deviceId: asDeviceId("d-phone"), operationId: op() } as CoreIntent)).toEqual({ kind: "Rejected", reason: "unauthorized" });
+  });
+  it("issues only for destructive kinds", async () => {
+    const { h, old } = setup();
+    expect(await run(h, { kind: "IssueConfirmation", ctx: old, operationId: op(), intentKind: "SendMessage" as never, target: "x" })).toEqual({ kind: "Rejected", reason: "invalid" });
   });
 });

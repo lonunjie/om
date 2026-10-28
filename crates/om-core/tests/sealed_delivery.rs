@@ -122,7 +122,7 @@ fn contains(hay: &[u8], needle: &[u8]) -> bool {
 #[test]
 fn relay_never_sees_sender_identity_key_or_ratchet_header_on_established_traffic() {
     let mut p = half_open();
-    // Before both bindings have verified, Alice has no established key: the message is refused, never sent in the
+    // Before both bindings have verified, Alice has no established key: the message is queued, never sent in the
     // clear (ADR-0181: nothing but binding material moves while the relationship is ACCEPTED_UNBOUND).
     let deposits = p.net.deposit_count();
     assert_eq!(
@@ -131,11 +131,9 @@ fn relay_never_sees_sender_identity_key_or_ratchet_header_on_established_traffic
             &p.a,
             "early",
             &p.a_conv,
-            "refused while unbound"
+            "queued while unbound"
         ),
-        Some(OutcomeClass::Rejected {
-            reason: RejectReason::Unavailable
-        })
+        Some(OutcomeClass::PendingNetwork)
     );
     p.alice.flush_net(&p.a);
     assert_eq!(
