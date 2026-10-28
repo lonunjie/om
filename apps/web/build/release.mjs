@@ -5,17 +5,20 @@
 //   --signature  JSON {alg,keyId,sig} produced externally over signingPayload(manifest); injected into the manifest.
 //   --sign-from-vault     sign with the production key read in-memory from the agent vault (key id om-release-2026-10-28).
 //   --sign-with-key-file  sign with a PKCS8 PEM file (tests only: pass a throwaway key; also --key-id <id>, default the production id).
+//   --delegation <file>   root-signed release-key delegation to embed in the manifest (default apps/web/release-delegation.json).
+//                         Signing REFUSES unless it is signed by the pinned offline root, unexpired, and lists the signing key (audit B2).
+//   --test-roots-file <file>  tests only (with --sign-with-key-file or --signature): JSON {roots:{id:hex},threshold} replacing the pinned root.
 // Without --dev the release REFUSES to be produced unless it is signed (--signature, --sign-from-vault or --sign-with-key-file).
 import { spawnSync } from "node:child_process";
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { createHash, createPrivateKey, createPublicKey } from "node:crypto";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { RELEASE_KEY_ID, pemFromVault, signManifest } from "./sign.mjs";
 import { cleanBuildEnv, pollutedKeys } from "./clean-env.mjs";
 import { siteProblems } from "./release-guards.mjs";
-import { PINNED_KEYS, verifyRelease } from "./verify-release.mjs";
+import { PINNED_ROOTS, PINNED_ROOT_THRESHOLD, verifyRelease } from "./verify-release.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = resolve(webRoot, "../..");
@@ -35,6 +38,17 @@ if (!dev && !sigFile && !signing) {
     "  Pass --sign-from-vault, or --signature <file.json> ({alg,keyId,sig} over the manifest signing payload),\n" +
     "  or pass --dev for an explicitly unsigned DEV release (never deploy a dev release to real users).");
 }
+const testRootsFile = opt("--test-roots-file");
+if (testRootsFile !== undefined && keyFile === undefined && sigFile === undefined) fail("--test-roots-file is only valid together with --sign-with-key-file or --signature (tests)");
+// B2: the client pins only the offline ROOT key. Until the operator has run the key ceremony and set it, no production
+// release can be built (dev bundles are unaffected). A throwaway-key test release brings its own root.
+const testRoots = testRootsFile === undefined ? undefined : JSON.parse(readFileSync(testRootsFile, "utf8"));
+const trust = testRoots ?? { roots: PINNED_ROOTS, threshold: PINNED_ROOT_THRESHOLD };
+if (!dev && Object.keys(trust.roots).length === 0) {
+  fail("refusing to produce a production release: no offline ROOT key is pinned yet (key ceremony pending).\n" +
+    "  Follow deploy/KEY-CEREMONY.md, then set ROOT_KEYS in apps/web/src/update/release-key.ts and PINNED_ROOTS in apps/web/build/verify-release.mjs.");
+}
+const delegationFile = resolve(opt("--delegation") ?? join(webRoot, "release-delegation.json"));
 if (dev && (sigFile || signing)) fail("--dev and signing flags are mutually exclusive");
 if ([sigFile !== undefined, fromVault, keyFile !== undefined].filter(Boolean).length > 1) fail("pick exactly one of --signature, --sign-from-vault, --sign-with-key-file");
 
@@ -45,7 +59,8 @@ if (polluted.length > 0) {
   fail(`refusing to build: bundle-selecting environment variable(s) set: ${polluted.join(", ")}.\n` +
     "  They can turn a harness or test-loopback build into a signed release. Unset them (use --dev for a dev bundle).");
 }
-const buildEnv = cleanBuildEnv(process.env, { dev });
+// OM_RELEASE_BUILD makes vite itself refuse to build while the root key is unset (a throwaway-root test release is exempt).
+const buildEnv = cleanBuildEnv(process.env, { dev, release: !dev && testRoots === undefined });
 
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const sha = (b) => createHash("sha256").update(b).digest("hex");
@@ -64,10 +79,15 @@ try {
   const manifestPath = join(site, "bundle-manifest.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   if (sigFile || signing) {
+    // The delegation is part of the signed payload: embed it first, and refuse early if the chain cannot verify.
+    let delegation;
+    try { delegation = JSON.parse(readFileSync(delegationFile, "utf8")); }
+    catch { fail(`delegation missing or unreadable: ${delegationFile}\n  Run the key ceremony (deploy/KEY-CEREMONY.md) and commit the root-signed delegation there, or pass --delegation <file>.`); }
+    manifest.delegation = delegation;
     let s;
     if (sigFile) s = JSON.parse(readFileSync(sigFile, "utf8"));
     else {
-      try { s = signManifest(manifest, fromVault ? pemFromVault() : readFileSync(keyFile, "utf8"), opt("--key-id") ?? RELEASE_KEY_ID); }
+      try { s = signManifest(manifest, fromVault ? pemFromVault() : readFileSync(keyFile, "utf8"), opt("--key-id") ?? RELEASE_KEY_ID, { roots: trust.roots, threshold: trust.threshold }); }
       catch (e) { fail(`signing failed: ${e.message}`); }
     }
     if (typeof s.alg !== "string" || typeof s.keyId !== "string" || typeof s.sig !== "string") fail("bad signature file");
@@ -95,14 +115,10 @@ try {
     .map((p) => `${sha(readFileSync(join(dir, p)))}  ${p}`);
   writeFileSync(join(dir, "SHA256SUMS"), sums.join("\n") + "\n");
 
-  // L3: a "signed" release is only reported once its signature verifies against the pinned key (an externally
-  // supplied --signature is not trusted on sight). A throwaway test key is checked against its own public key.
+  // L3: a "signed" release is only reported once its whole chain verifies (pinned root -> delegation -> release key ->
+  // manifest signature); an externally supplied --signature is not trusted on sight.
   if (!dev) {
-    const keyId = manifest.signature.keyId;
-    const trustedKeys = keyFile !== undefined
-      ? { [keyId]: createPublicKey(createPrivateKey(readFileSync(keyFile, "utf8"))).export({ format: "der", type: "spki" }).subarray(-32).toString("hex") }
-      : PINNED_KEYS;
-    const v = verifyRelease(dir, { requireSigned: true, trustedKeys });
+    const v = verifyRelease(dir, { requireSigned: true, roots: trust.roots, threshold: trust.threshold });
     if (!v.ok) fail(`the release does not verify (--require-signed):\n  ${v.errors.join("\n  ")}`);
   }
 

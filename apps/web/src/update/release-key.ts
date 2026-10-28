@@ -1,13 +1,23 @@
-import { ed25519Verifier, type TrustRoot } from "./signature";
+import type { TrustRoot } from "./signature";
+import type { RootPin } from "./delegation";
 
-/** Pinned production release key (public part; lonunjie hq registry/signing.toml). build/verify-release.mjs pins the same value. */
-export const RELEASE_KEY_ID = "om-release-2026-10-28";
-export const RELEASE_PUBLIC_KEY_HEX = "fad8cae9155ea0b7943c0b3f141a20f85b35c88ca5eacfe576a9bf578f28ebeb";
+// ============================================================================================================
+// TEMPORARY PLACEHOLDER (audit B2). The OFFLINE ROOT public key has not been generated yet (operator key
+// ceremony pending: deploy/KEY-CEREMONY.md). Until ROOT_KEYS is filled in:
+//   - production release builds FAIL (vite.config.ts under OM_RELEASE_BUILD, build/release.mjs, verify.mjs),
+//   - any signed bundle is refused by the client (fail closed: "root_unset"),
+//   - dev bundles (OM_BUNDLE_DEV=1, unsigned) are unaffected.
+// After the ceremony set exactly the public output of `root-ceremony.mjs gen-root`, e.g.
+//   { "root-0123456789abcdef": "<64 hex chars>" }
+// and set the SAME value in build/verify-release.mjs (PINNED_ROOTS); release.test.ts checks both agree.
+// The client pins ONLY root keys. The online release key arrives in a root-signed delegation inside every manifest.
+// ============================================================================================================
+export const ROOT_KEYS: Readonly<Record<string, string>> = {};
+/** Distinct root signatures required on a delegation. Single root today: 1. A 2-of-N upgrade is a pin change (see KEY-CEREMONY.md). */
+export const ROOT_THRESHOLD = 1;
 
-const fromHex = (h: string): Uint8Array => Uint8Array.from(h.match(/../g) ?? [], (b) => parseInt(b, 16));
+export const rootPin = (keys: Readonly<Record<string, string>> = ROOT_KEYS, threshold = ROOT_THRESHOLD): RootPin => ({ keys, threshold });
+export const isRootPinned = (): boolean => Object.keys(ROOT_KEYS).length > 0;
 
-/** Only the production key is pinned (no dev signing key exists); `allowUnsignedDev` is true solely for dev bundles. */
-export const makeTrustRoot = (allowUnsignedDev: boolean): TrustRoot => ({
-  verifiers: { [RELEASE_KEY_ID]: ed25519Verifier(fromHex(RELEASE_PUBLIC_KEY_HEX)) },
-  allowUnsignedDev,
-});
+/** Production trust root; `allowUnsignedDev` is true solely for dev bundles. */
+export const makeTrustRoot = (allowUnsignedDev: boolean): TrustRoot => ({ roots: rootPin(), allowUnsignedDev });

@@ -1,51 +1,46 @@
+import { verifyChain, type DelegationFailure, type KeyFailure, type RootPin } from "./delegation";
+import { ed25519Verifier, fromBase64, fromHex, type SignatureVerifier } from "./ed25519";
 import { signingPayload, type BundleManifest } from "./manifest";
 
-/** One pinned verification key. `alg` is part of the pin: an algorithm tag alone never grants authority (ADR-0149). */
-export interface SignatureVerifier {
-  readonly alg: string;
-  verify(payload: Uint8Array, sig: Uint8Array): Promise<boolean>;
-}
-/** Caller-injected trust root. No key management lives here. */
+export { ed25519Verifier, type SignatureVerifier };
+
+/** Caller-injected trust root: ONLY the offline root key(s). Release keys are never pinned, they arrive in the signed delegation. */
 export interface TrustRoot {
-  readonly verifiers: Readonly<Record<string, SignatureVerifier>>;
+  readonly roots: RootPin;
   /** Only dev builds of the shell set this; production trust roots leave it false. */
   readonly allowUnsignedDev?: boolean;
+  /** Clock, epoch ms (injectable for tests). */
+  readonly now?: () => number;
 }
+export type SignatureFailure = "unsigned" | "no_delegation" | DelegationFailure | KeyFailure | "bad_signature";
 export type SignatureResult =
-  | { readonly ok: true; readonly unsignedDev: boolean }
-  | { readonly ok: false; readonly reason: "unsigned" | "unknown_key" | "alg_mismatch" | "bad_signature" };
+  | { readonly ok: true; readonly unsignedDev: boolean; /** The accepted delegation version to persist as the new floor (null for unsigned dev). */ readonly delegationVersion: number | null }
+  | { readonly ok: false; readonly reason: SignatureFailure };
 
-const fromBase64 = (s: string): Uint8Array | null => {
-  try {
-    return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-  } catch {
-    return null;
-  }
-};
-
-/** Fails closed: an empty signature slot is accepted only for a `dev` manifest under a trust root that allows it. */
-export const verifyBundleSignature = async (manifest: BundleManifest, trustRoot: TrustRoot): Promise<SignatureResult> => {
+/**
+ * Fails closed. Chain: pinned root -> signed delegation (unexpired, not rolled back below `delegationFloor`) ->
+ * release key (listed, unrevoked, in window) -> manifest signature. An empty signature slot is accepted only for a
+ * `dev` manifest under a trust root that allows it.
+ */
+export const verifyBundleSignature = async (
+  manifest: BundleManifest,
+  trustRoot: TrustRoot,
+  delegationFloor: number | null = null,
+): Promise<SignatureResult> => {
   const s = manifest.signature;
   if (s === null) {
-    return manifest.dev === true && trustRoot.allowUnsignedDev === true ? { ok: true, unsignedDev: true } : { ok: false, reason: "unsigned" };
+    return manifest.dev === true && trustRoot.allowUnsignedDev === true ? { ok: true, unsignedDev: true, delegationVersion: null } : { ok: false, reason: "unsigned" };
   }
-  const v = Object.hasOwn(trustRoot.verifiers, s.keyId) ? trustRoot.verifiers[s.keyId] : undefined;
-  if (!v) return { ok: false, reason: "unknown_key" };
-  if (v.alg !== s.alg) return { ok: false, reason: "alg_mismatch" };
+  if (manifest.delegation === undefined) return { ok: false, reason: "no_delegation" };
+  const now = (trustRoot.now ?? Date.now)();
+  const key = await verifyChain(manifest.delegation, trustRoot.roots, { now, floor: delegationFloor }, s.keyId, s.alg);
+  if (!key.ok) return { ok: false, reason: key.reason };
   const sig = fromBase64(s.sig);
   if (!sig) return { ok: false, reason: "bad_signature" };
   try {
-    return (await v.verify(signingPayload(manifest), sig)) ? { ok: true, unsignedDev: false } : { ok: false, reason: "bad_signature" };
+    const v: SignatureVerifier = ed25519Verifier(fromHex(key.pub));
+    return (await v.verify(signingPayload(manifest), sig)) ? { ok: true, unsignedDev: false, delegationVersion: key.delegationVersion } : { ok: false, reason: "bad_signature" };
   } catch {
     return { ok: false, reason: "bad_signature" };
   }
 };
-
-/** WebCrypto Ed25519 verifier for a raw 32-byte public key (available in Node 24 and current browsers). */
-export const ed25519Verifier = (rawPublicKey: Uint8Array): SignatureVerifier => ({
-  alg: "ed25519",
-  verify: async (payload, sig) => {
-    const key = await crypto.subtle.importKey("raw", rawPublicKey as BufferSource, { name: "Ed25519" }, false, ["verify"]);
-    return crypto.subtle.verify({ name: "Ed25519" }, key, sig as BufferSource, payload as BufferSource);
-  },
-});

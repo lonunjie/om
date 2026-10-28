@@ -4,6 +4,7 @@ import { defineConfig, loadEnv, type Plugin, type UserConfig } from "vite";
 import { landingPlugin } from "./build/landing.ts";
 import { bundleManifestPlugin } from "./build/plugin.ts";
 import { SECURITY_HEADERS, headersFile } from "./csp.ts";
+import { isRootPinned } from "./src/update/release-key.ts";
 
 const emitHeaders = (): Plugin => ({
   name: "om-emit-headers",
@@ -44,6 +45,11 @@ export default defineConfig(({ mode }) => {
     throw new Error(
       `refusing a production build with ${set.join(", ")} set and OM_BUNDLE_DEV unset: that would ship a test build as the product (R-072)`,
     );
+  }
+  // Audit B2: a release build (build/release.mjs sets OM_RELEASE_BUILD) cannot exist until the offline root key is pinned
+  // (src/update/release-key.ts). Plain production builds (`pnpm build`, checks) and dev bundles are unaffected.
+  if (process.env["OM_RELEASE_BUILD"] === "1" && !dev && !isRootPinned()) {
+    throw new Error("refusing a release build: the offline ROOT public key is not pinned yet (key ceremony pending, see deploy/KEY-CEREMONY.md; set ROOT_KEYS in src/update/release-key.ts)");
   }
   return config;
 });

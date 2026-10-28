@@ -36,10 +36,21 @@ export interface StageResult {
 
 export const CACHE_PREFIX = "om-shell-";
 const FLOOR_KEY = "floor";
+const DELEGATION_FLOOR_KEY = "delegation-floor";
 
 export const createShell = (deps: ShellDeps) => {
   const { storage, kv, fetchFn, trustRoot } = deps;
-  const floor: FloorStore = { get: () => kv.get(FLOOR_KEY), set: (v) => kv.set(FLOOR_KEY, v) };
+  const floor: FloorStore = {
+    get: () => kv.get(FLOOR_KEY),
+    set: (v) => kv.set(FLOOR_KEY, v),
+    getDelegation: async () => {
+      const v = await kv.get(DELEGATION_FLOOR_KEY);
+      const n = v === null ? Number.NaN : Number(v);
+      // A stored value that is not a positive integer is treated as corrupt: refuse everything rather than reset the floor.
+      return v === null ? null : Number.isSafeInteger(n) && n >= 1 ? n : Number.MAX_SAFE_INTEGER;
+    },
+    setDelegation: (v) => kv.set(DELEGATION_FLOOR_KEY, String(v)),
+  };
   let activeName: string | null | undefined;
 
   /** Download, verify and stage a new bundle into its own cache. Throws (leaving the live shell untouched) on any failure. */

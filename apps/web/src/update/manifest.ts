@@ -28,6 +28,8 @@ export interface BundleManifest {
   /** Present only on explicit dev builds; honoured only when the trust root allows unsigned dev bundles. */
   readonly dev?: true;
   readonly rollback?: RollbackMarker;
+  /** Root-signed release-key delegation (`delegation.ts`), shipped inside every signed manifest and covered by the release signature. Untrusted until verified. */
+  readonly delegation?: unknown;
   readonly signature: BundleSignature | null;
 }
 
@@ -54,7 +56,7 @@ const safePath = (p: unknown): p is string =>
 export const parseManifest = (text: string): BundleManifest => {
   const m: unknown = JSON.parse(text);
   if (!isRecord(m) || m["format"] !== MANIFEST_FORMAT) throw new Error("manifest: bad format");
-  const { version, files, entry, serviceWorker, createdFrom, signature, dev, rollback } = m;
+  const { version, files, entry, serviceWorker, createdFrom, signature, dev, rollback, delegation } = m;
   if (typeof version !== "string" || !SEMVER.test(version)) throw new Error("manifest: bad version");
   if (!Array.isArray(files)) throw new Error("manifest: bad files");
   const seen = new Set<string>();
@@ -68,6 +70,7 @@ export const parseManifest = (text: string): BundleManifest => {
   if (!isRecord(createdFrom)) throw new Error("manifest: bad createdFrom");
   if (dev !== undefined && dev !== true) throw new Error("manifest: bad dev flag");
   if (rollback !== undefined && (!isRecord(rollback) || typeof rollback["from"] !== "string" || typeof rollback["to"] !== "string")) throw new Error("manifest: bad rollback marker");
+  if (delegation !== undefined && !isRecord(delegation)) throw new Error("manifest: bad delegation");
   if (signature !== null && (!isRecord(signature) || typeof signature["alg"] !== "string" || typeof signature["keyId"] !== "string" || typeof signature["sig"] !== "string")) throw new Error("manifest: bad signature");
   return m as unknown as BundleManifest;
 };

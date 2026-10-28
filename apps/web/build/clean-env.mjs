@@ -25,14 +25,16 @@ export function pollutedKeys(env) {
 
 /**
  * The allowlisted environment for build children. `dev` adds `OM_BUNDLE_DEV=1` (an explicitly unsigned dev bundle);
+ * `release` adds `OM_RELEASE_BUILD=1`: vite then refuses to build while the offline root key is unset (audit B2).
  * `NODE_ENV` is fixed to production so an inherited value cannot change what is built.
  */
-export function cleanBuildEnv(env, { dev = false } = {}) {
+export function cleanBuildEnv(env, { dev = false, release = false } = {}) {
   const out = {};
   for (const [k, v] of Object.entries(env)) {
     if (v !== undefined && ALLOW.some((re) => re.test(k)) && !POLLUTION.test(k)) out[k] = v;
   }
   out.NODE_ENV = "production";
   if (dev) out.OM_BUNDLE_DEV = "1";
+  if (release) out.OM_RELEASE_BUILD = "1";
   return out;
 }

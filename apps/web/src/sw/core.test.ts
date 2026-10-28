@@ -34,7 +34,7 @@ const rig = () => {
     const d = net.get(p);
     return Promise.resolve(d === undefined ? new Response("", { status: 404 }) : new Response(d));
   };
-  const shell = createShell({ storage, kv, trustRoot: { verifiers: {}, allowUnsignedDev: true }, fetchFn });
+  const shell = createShell({ storage, kv, trustRoot: { roots: { keys: {}, threshold: 1 }, allowUnsignedDev: true }, fetchFn });
   return { shell, caches, kvm, publish, fetched, storage, kv, fetchFn };
 };
 const V1 = { "index.html": "<html>1", "sw.js": "sw1", "assets/a.js": "a1" };
@@ -81,7 +81,7 @@ describe("service worker shell", () => {
   it("fails closed on an unsigned manifest when the trust root does not allow dev", async () => {
     const r = rig();
     await r.publish("1.0.0", V1);
-    const strict = createShell({ storage: r.storage, kv: r.kv, trustRoot: { verifiers: {} }, fetchFn: r.fetchFn });
+    const strict = createShell({ storage: r.storage, kv: r.kv, trustRoot: { roots: { keys: {}, threshold: 1 } }, fetchFn: r.fetchFn });
     await expect(strict.stage()).rejects.toThrow(/unsigned/);
     expect(r.caches.size).toBe(0);
   });
