@@ -32,6 +32,10 @@ pub const DELIVERY_KEY_TTL_S: u64 = 90 * 24 * 60 * 60;
 pub const WRAPPER_TTL_S: u64 = 7 * 24 * 60 * 60;
 /// Request-scoped bootstrap key lifetime (the bootstrap acceptance deadline is the earlier of route and key expiry).
 pub const BOOTSTRAP_TTL_S: u64 = 7 * 24 * 60 * 60;
+/// Clock class: wall clock on both sides (display and expiry hints only, never authority). A requester whose clock
+/// runs ahead of ours by up to this much is still accepted; anything longer than `BOOTSTRAP_TTL_S` plus this is not
+/// (SEALED_SENDER_DELIVERY_PROFILE.md section 7: the request deadline is min(route, key)).
+pub const BOOTSTRAP_CLOCK_SKEW_S: u64 = 60 * 60;
 /// ADR-0146: at most this many distinct bootstrap wrappers are ever admitted for one request.
 pub const MAX_BOOTSTRAP_CANDIDATES: usize = 8;
 const LBL_REQUEST_KEY: &str = "OM-REQUEST-KEY-HASH-v1";
@@ -1635,7 +1639,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if mb.len() != 16
             || reply_key.route_binding != delivery::mailbox_route_binding(&mb)
             || reply_key.expires_at <= now_s
-            || reply_key.expires_at > now_s + DELIVERY_KEY_TTL_S
+            || reply_key.expires_at > now_s + BOOTSTRAP_TTL_S + BOOTSTRAP_CLOCK_SKEW_S
         {
             return;
         }
