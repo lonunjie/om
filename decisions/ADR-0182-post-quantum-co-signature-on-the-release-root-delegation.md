@@ -3,7 +3,7 @@
 - **Status:** Accepted by operator delegation 2026-10-28
 - **Date:** 2026-10-28
 - **Amends (release trust only, no wire change):** [`ADR-0149`](ADR-0149-promoted-v1-adversarial-hardening.md) and public release gate PR-005 as built in `apps/web` (the root-signed `delegation` of audit finding B2, [`2026-10-28-core-kernel-opus-audit.md`](../docs/reports/2026-10-28-core-kernel-opus-audit.md)), and the 2-of-3 root custody decision of 2026-10-28 (the Ed25519 roots are unchanged)
-- **Does not amend:** OM wire formats, OM-Crypto-v1, any CryptoProfile, the Ed25519 verification of a chain that carries no PQ material, [`KEY-CEREMONY.md`](../deploy/KEY-CEREMONY.md) (this ADR is an addendum to it, [`KEY-CEREMONY-PQ.md`](../deploy/KEY-CEREMONY-PQ.md)), the `ROOT_KEYS` / `PINNED_ROOTS` pins, or `apps/web/release-delegation.json`
+- **Does not amend:** OM wire formats, OM-Crypto-v1, any CryptoProfile, the Ed25519 verification of a chain that carries no PQ material, [`KEY-CEREMONY.md`](../deploy/KEY-CEREMONY.md) (this ADR is an addendum to it, [`KEY-CEREMONY-PQ.md`](../deploy/KEY-CEREMONY-PQ.md)), the `ROOT_KEYS` / `PINNED_ROOTS` pins, or [`apps/web/release-delegation.json`](../apps/web/release-delegation.json)
 
 ## Context
 

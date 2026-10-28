@@ -72,7 +72,7 @@ signatures, the order does not matter because the PQ entry is outside the Ed2551
 
 ### B1. PQ-sign the delegation
 
-Works on `~/om-root-work/release-delegation.json` (or `apps/web/release-delegation.json`). `roots.json` is the Ed25519 roots file from
+Works on `~/om-root-work/release-delegation.json` (or [`apps/web/release-delegation.json`](../apps/web/release-delegation.json)). `roots.json` is the Ed25519 roots file from
 [`KEY-CEREMONY.md`](KEY-CEREMONY.md) step 3; add the PQ descriptor to it so `verify` checks everything:
 
 ```sh
@@ -119,7 +119,7 @@ cd ~/dig/lonunjie/om && node apps/web/build/root-ceremony.mjs draft \
 ```
 
 Then [`KEY-CEREMONY.md`](KEY-CEREMONY.md) step 5 (payload, device, attach for two signers), then B1 (PQ sign + verify), then copy to
-`apps/web/release-delegation.json`, commit, release. A browser that accepts this delegation stores the PQ floor and from then on refuses any
+[`apps/web/release-delegation.json`](../apps/web/release-delegation.json), commit, release. A browser that accepts this delegation stores the PQ floor and from then on refuses any
 chain without a valid PQ signature. The marker is carried by every later `draft --prev`.
 
 Optional hardening in the next client release: set `PQ_REQUIRED_BY_BUILD = true` in `pq-root.ts` and `PINNED_PQ_REQUIRED = true` in
