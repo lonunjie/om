@@ -26,6 +26,7 @@ TEST_MARKERS = [
     # Items compiled only under `test-loopback` (audit 2026-10-28, H1): their names make a leaked test build auditable.
     b"debug_inject",
     b"debug_app_state",
+    b"debug_device_digest",
     b"debug_link_messaging_device",
     b"LoopbackNetwork",
 ]

@@ -677,6 +677,48 @@ mod events {
     }
 
     #[test]
+    fn a_rejected_payload_on_an_established_session_does_not_advance_the_ratchet() {
+        // Decision (audit M6): an authenticated inner payload that fails validation leaves the cryptographic state
+        // exactly as it was, on every path (bootstrap and established), so the sender's message key is not burned by
+        // a payload that was never accepted.
+        let (mut p, b_conv, canon, dev, acct) = pair();
+        let before = p.bob.core.debug_device_digest(&p.b).unwrap();
+        inject(
+            &mut p,
+            ev(
+                [0xee; 32],
+                acct,
+                dev,
+                1,
+                1_790_000_100_000,
+                K_CREATE,
+                message_create_body("wrong conversation"),
+            ),
+        );
+        assert!(view(&p, &b_conv).timeline.is_empty());
+        assert_eq!(
+            p.bob.core.debug_device_digest(&p.b).unwrap(),
+            before,
+            "a rejected payload must not change the ratchet"
+        );
+        // A good message afterwards still arrives (the chain stayed usable).
+        inject(
+            &mut p,
+            ev(
+                canon,
+                acct,
+                dev,
+                2,
+                1_790_000_100_001,
+                K_CREATE,
+                message_create_body("fine"),
+            ),
+        );
+        assert_eq!(texts_of(&view(&p, &b_conv)), vec!["fine".to_string()]);
+        assert_ne!(p.bob.core.debug_device_digest(&p.b).unwrap(), before);
+    }
+
+    #[test]
     fn a_receipt_settles_an_outgoing_message_as_delivered() {
         let (mut p, b_conv, canon, _, _) = pair();
         text(&mut p.alice, &p.a, "m", &p.a_conv, "ping");

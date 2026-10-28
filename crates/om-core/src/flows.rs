@@ -1823,7 +1823,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(dev) = self.st.device.as_mut() else {
             return false;
         };
-        let snapshot = via_bootstrap.then(|| dev.clone());
+        // A payload that is not accepted must leave the cryptographic state untouched on every path, bootstrap or
+        // established (audit M6): decrypting advances the ratchet, so snapshot first and restore on rejection.
+        let snapshot = Some(dev.clone());
         // ADR-0137: the relationship context is mandatory and is checked before any session lookup or secret operation.
         let res = dev.decrypt(&RelationshipContext::new(account), env, self.rng);
         let pt = match res {

@@ -350,6 +350,20 @@ impl<R: RngCore + CryptoRng> Core<R> {
         serde_json::to_value(&self.slot(ctx)?.state.app).map_err(|_| CoreError::Invalid("state"))
     }
 
+    /// TEST ONLY: SHA-256 (hex) of the profile's device/session state (ratchets, prekeys, ledger). Lets a test prove
+    /// that a rejected payload left the cryptographic state untouched. Compiled only with `test-loopback`.
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_device_digest(&self, ctx: &ProfileExecutionContext) -> Result<String, CoreError> {
+        let dev = self
+            .slot(ctx)?
+            .state
+            .device
+            .as_ref()
+            .ok_or(CoreError::Invalid("no device"))?;
+        let bytes = crate::crypto::cbor::encode(&dev.to_cbor());
+        Ok(crate::crypto::hex(&crate::crypto::sha256(&[&bytes])))
+    }
+
     /// TEST ONLY: see `Tx::debug_link_messaging_device`.
     #[cfg(feature = "test-loopback")]
     pub fn debug_link_messaging_device(
