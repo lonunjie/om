@@ -893,6 +893,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/tests/acs_forgery.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/tests/devices.rs",
       "class": "product_code",
       "domain": "crypto_1to1",

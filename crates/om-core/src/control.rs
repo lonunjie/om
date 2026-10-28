@@ -44,6 +44,10 @@ pub struct Model {
     pub constitutional_policy: u64,
     pub min_one_to_one_security_generation: u64,
     pub key_epochs: BTreeMap<String, u64>,
+    /// `device_credentials` (ACS key 13) as device -> credential digest. Absent in the V-002 abstract vectors, which
+    /// do not model credentials: both sides are then empty and no credential delta exists.
+    #[serde(default)]
+    pub credentials: BTreeMap<String, String>,
     pub transparency: String,
     pub generation: u64,
     #[serde(default)]
@@ -209,6 +213,7 @@ pub fn deltas(p: &Model, c: &Model) -> Vec<(&'static str, Option<String>)> {
             out.push(("rotate_own_key", d(dev)));
         }
     }
+    credential_deltas(p, c, &mut out);
     if c.transparency != p.transparency {
         out.push(("transparency", None));
     }
@@ -219,6 +224,36 @@ pub fn deltas(p: &Model, c: &Model) -> Vec<(&'static str, Option<String>)> {
         out.push(("fork_bridge", None));
     }
     out
+}
+
+/// Every change of a `device_credentials` entry is a listed delta (B1, audit 2026-10-28):
+/// * an existing entry replaced by a different digest is `rotate_own_key` and needs a strictly higher
+///   `control_key_epochs` value for that device (an absent epoch counts as 0), else it is unlisted;
+/// * an entry removed is unlisted unless the device is revoked in the child (that removal is part of the revoke);
+/// * an entry added is unlisted unless its device is added to the messaging or control set in the same step.
+fn credential_deltas(p: &Model, c: &Model, out: &mut Vec<(&'static str, Option<String>)>) {
+    let epoch = |m: &Model, dev: &String| m.key_epochs.get(dev).copied().unwrap_or(0);
+    for (dev, digest) in &c.credentials {
+        match p.credentials.get(dev) {
+            Some(old) if old == digest => {}
+            Some(_) if epoch(c, dev) > epoch(p, dev) => {
+                out.push(("rotate_own_key", Some(dev.clone())))
+            }
+            Some(_) => out.push(("unlisted", Some(dev.clone()))),
+            None => {
+                let added = (c.messaging.contains(dev) && !p.messaging.contains(dev))
+                    || (c.control.contains(dev) && !p.control.contains(dev));
+                if !added {
+                    out.push(("unlisted", Some(dev.clone())));
+                }
+            }
+        }
+    }
+    for dev in p.credentials.keys() {
+        if !c.credentials.contains_key(dev) && !c.revoked.contains(dev) {
+            out.push(("unlisted", Some(dev.clone())));
+        }
+    }
 }
 
 fn after_invariants(c: &Model) -> Vec<&'static str> {
@@ -482,6 +517,11 @@ pub fn model_of(a: &Acs) -> Option<Model> {
         constitutional_policy: (a.constitutional.0 << 32) | a.constitutional.1.unwrap_or(0),
         min_one_to_one_security_generation: sec_gen,
         key_epochs: a.key_epochs.iter().map(|(d, e)| (hex16(d), *e)).collect(),
+        credentials: a
+            .credentials
+            .iter()
+            .map(|(d, h)| (hex16(d), crate::crypto::hex(h)))
+            .collect(),
         transparency: a
             .transparency
             .map(|r| crate::crypto::hex(&r))
@@ -515,10 +555,18 @@ pub fn sign_acs<R: RngCore + CryptoRng>(
     sig::envelope(body.to_vec(), entries)
 }
 
-/// Open a `SignedAccountControlState`: returns the parsed state and the devices whose controller signature verified
-/// against the credential the state itself commits to. Duplicate, unknown or invalid signatures fail the whole
-/// object. Which signers are *sufficient* is [`authorize`]'s job, evaluated against the parent.
-pub fn open_signed(signed: &[u8], credentials: &[Vec<u8>]) -> Result<OpenedAcs, Error> {
+/// Open a `SignedAccountControlState`: returns the parsed state and the devices whose controller signature verified.
+/// Duplicate, unknown or invalid signatures fail the whole object. Which signers are *sufficient* is [`authorize`]'s
+/// job, evaluated against the parent.
+///
+/// `authority` names the state whose committed credentials the signers must hold: the PARENT for a successor
+/// (a state can never vouch for the keys that sign it; ACCOUNT_CONTINUITY_AND_CONTROL.md section 4.1, B1), and
+/// `None` only for a genesis, which has no parent and so is bound by its own commitments.
+pub fn open_signed(
+    signed: &[u8],
+    credentials: &[Vec<u8>],
+    authority: Option<&Acs>,
+) -> Result<OpenedAcs, Error> {
     let v = cbor::decode(signed)?;
     let body = v.get(1)?.b()?.to_vec();
     let acs = Acs::from_body(&body)?;
@@ -540,14 +588,17 @@ pub fn open_signed(signed: &[u8], credentials: &[Vec<u8>]) -> Result<OpenedAcs, 
         if e.get(1)?.u()? != PROFILE_V1 || e.get(2)?.u()? != ROLE_CONTROLLER {
             return Err(Error::Binding("acs signature profile/role"));
         }
-        // The signer's key must be the credential this very state commits to (digest check), for this account.
+        // The signer's key must be the credential the authority state commits to (digest check), for this account.
+        let committed = authority.unwrap_or(&acs);
         let cred = creds
             .iter()
-            .find(|c| c.device_id == id && c.account_id == acs.account_id)
-            .filter(|c| {
-                acs.credentials
-                    .iter()
-                    .any(|(d, h)| *d == id && *h == c.hash())
+            .find(|c| {
+                c.device_id == id
+                    && c.account_id == acs.account_id
+                    && committed
+                        .credentials
+                        .iter()
+                        .any(|(d, h)| *d == id && *h == c.hash())
             })
             .ok_or(Error::Binding("acs signer has no committed credential"))?;
         sig::verify(
@@ -564,7 +615,7 @@ pub fn open_signed(signed: &[u8], credentials: &[Vec<u8>]) -> Result<OpenedAcs, 
 
 /// Verify a genesis state: generation 1, no parent, signed by every control device it names.
 pub fn verify_genesis(signed: &[u8], credentials: &[Vec<u8>]) -> Result<Acs, Error> {
-    let (acs, _, who) = open_signed(signed, credentials)?;
+    let (acs, _, who) = open_signed(signed, credentials, None)?;
     if acs.generation != 1 || acs.previous.is_some() {
         return Err(Error::Binding("acs genesis: generation 1 without a parent"));
     }
@@ -588,7 +639,8 @@ pub fn verify_successor(
     signed: &[u8],
     credentials: &[Vec<u8>],
 ) -> Result<Acs, Error> {
-    let (child, _, who) = open_signed(signed, credentials)?;
+    // Signers are checked against the PARENT's credentials, never the child's own.
+    let (child, _, who) = open_signed(signed, credentials, Some(parent))?;
     if child.account_id != parent.account_id || child.previous != Some(parent.hash()) {
         return Err(Error::Binding("acs: not a descendant of the trusted head"));
     }

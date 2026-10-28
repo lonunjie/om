@@ -242,3 +242,162 @@ fn a_single_controller_account_can_neither_quarantine_nor_revoke_itself() {
 fn crate_hex(d: &[u8; 16]) -> String {
     om_core::crypto::hex(d)
 }
+
+// ---------------------------------------------------------------------------------------------- B1 (audit 2026-10-28)
+// A successor's signers are verified against the credentials the PARENT commits to, and every change of a
+// `device_credentials` entry is a listed delta (ACCOUNT_CONTINUITY_AND_CONTROL.md section 4.1, `rotate_own_key`).
+
+/// A credential for `victim`'s DeviceID and AccountID whose signing key is the attacker's.
+fn forged_for(victim: &Device, rng: &mut InsecureTestRng) -> Device {
+    let mut f = Device::new(rng);
+    f.device_id = victim.device_id;
+    f.account_id = victim.account_id;
+    f
+}
+
+fn child_of(g: &Acs) -> Acs {
+    let mut c = g.clone();
+    c.generation = g.generation + 1;
+    c.previous = Some(g.hash());
+    c
+}
+
+fn set_cred(acs: &mut Acs, dev: &Device) {
+    let h = dev.credential().hash();
+    match acs
+        .credentials
+        .iter_mut()
+        .find(|(d, _)| *d == dev.device_id)
+    {
+        Some(e) => e.1 = h,
+        None => acs.credentials.push((dev.device_id, h)),
+    }
+}
+
+#[test]
+fn a_forged_credential_swap_is_not_a_valid_successor() {
+    let mut rng = InsecureTestRng::from_label(b"acs-forge-swap");
+    let (devs, g) = account(&mut rng, 1);
+    let forged = forged_for(&devs[0], &mut rng);
+    // The attacker swaps D's credential for one it holds and adds its own messaging device (rule One).
+    let mut attacker_msg = Device::new(&mut rng);
+    attacker_msg.account_id = g.account_id;
+    let mut child = child_of(&g);
+    set_cred(&mut child, &forged);
+    child.messaging.insert(attacker_msg.device_id);
+    set_cred(&mut child, &attacker_msg);
+    // The attacker controls the credential list it presents, so the forged credential comes first.
+    let mut all = vec![forged.credential().body(), attacker_msg.credential().body()];
+    all.extend(creds(&devs));
+    let signed = sign(&[&forged], &child, &mut rng);
+    assert!(
+        control::verify_successor(&g, &signed, &all).is_err(),
+        "a signature under a key the parent never committed must not authorize a successor"
+    );
+    // The same forgery without adding a device, and as a bare swap, fails too.
+    let mut bare = child_of(&g);
+    set_cred(&mut bare, &forged);
+    let signed = sign(&[&forged], &bare, &mut rng);
+    assert!(control::verify_successor(&g, &signed, &all).is_err());
+    // And a whole chain carrying the forged link does not verify.
+    let genesis = sign(&[&devs[0]], &g, &mut rng);
+    let forged_link = sign(&[&forged], &child, &mut rng);
+    assert!(control::verify_chain(&[genesis, forged_link], &all).is_err());
+}
+
+#[test]
+fn credential_changes_are_rotate_own_key_only_and_need_an_epoch_bump() {
+    let mut rng = InsecureTestRng::from_label(b"acs-rotate");
+    let (devs, g) = account(&mut rng, 2);
+    let new_key = forged_for(&devs[0], &mut rng); // the legitimate new key of devs[0]
+    let mut all = creds(&devs);
+    all.push(new_key.credential().body());
+
+    // devs[0] rotates its own key: signed with its CURRENT key, new credential committed, epoch bumped.
+    let mut rot = child_of(&g);
+    set_cred(&mut rot, &new_key);
+    rot.key_epochs = vec![(devs[0].device_id, 1)];
+    let signed = sign(&[&devs[0]], &rot, &mut rng);
+    let g2 =
+        control::verify_successor(&g, &signed, &all).expect("rotate_own_key by the device itself");
+
+    // The new key signs the next link; the retired key no longer does.
+    let msg = {
+        let mut m = Device::new(&mut rng);
+        m.account_id = g.account_id;
+        m
+    };
+    let mut link = child_of(&g2);
+    link.messaging.insert(msg.device_id);
+    set_cred(&mut link, &msg);
+    all.push(msg.credential().body());
+    assert!(control::verify_successor(&g2, &sign(&[&new_key], &link, &mut rng), &all).is_ok());
+    assert!(control::verify_successor(&g2, &sign(&[&devs[0]], &link, &mut rng), &all).is_err());
+
+    // A rotation without an epoch bump is not a listed delta.
+    let mut no_bump = child_of(&g);
+    set_cred(&mut no_bump, &new_key);
+    let signed = sign(&[&devs[0]], &no_bump, &mut rng);
+    assert!(control::verify_successor(&g, &signed, &all).is_err());
+    // A rotation that does not raise the epoch (equal) is not a bump either.
+    let mut same = child_of(&g2);
+    set_cred(&mut same, &devs[0]);
+    same.key_epochs = vec![(devs[0].device_id, 1)];
+    assert!(control::verify_successor(&g2, &sign(&[&new_key], &same, &mut rng), &all).is_err());
+    // Another controller cannot rotate devs[0]'s credential.
+    let mut other = child_of(&g);
+    set_cred(&mut other, &new_key);
+    other.key_epochs = vec![(devs[0].device_id, 1)];
+    assert!(control::verify_successor(&g, &sign(&[&devs[1]], &other, &mut rng), &all).is_err());
+    // Rotation together with another delta (here a link) is still only the device's own: the strongest row
+    // applies and the structural check demands the device as the sole signer.
+    let mut both = rot.clone();
+    both.messaging.insert(msg.device_id);
+    set_cred(&mut both, &msg);
+    assert!(
+        control::verify_successor(&g, &sign(&[&devs[0], &devs[1]], &both, &mut rng), &all).is_err()
+    );
+}
+
+#[test]
+fn credentials_may_only_be_added_with_their_device_and_removed_with_its_revocation() {
+    let mut rng = InsecureTestRng::from_label(b"acs-cred-delta");
+    let (devs, g) = account(&mut rng, 2);
+    let mut stranger = Device::new(&mut rng);
+    stranger.account_id = g.account_id;
+    let mut all = creds(&devs);
+    all.push(stranger.credential().body());
+    // Adding a credential for a device that is not being added is unlisted.
+    let mut stray = child_of(&g);
+    set_cred(&mut stray, &stranger);
+    assert!(control::verify_successor(&g, &sign(&[&devs[0]], &stray, &mut rng), &all).is_err());
+    // Dropping a controller's credential while it stays a controller is unlisted.
+    let mut drop = child_of(&g);
+    drop.credentials.retain(|(d, _)| *d != devs[1].device_id);
+    assert!(control::verify_successor(&g, &sign(&[&devs[0]], &drop, &mut rng), &all).is_err());
+    // Smuggling a stray credential in, or a controller's credential out, alongside a legitimate link is unlisted.
+    let mut linked = Device::new(&mut rng);
+    linked.account_id = g.account_id;
+    all.push(linked.credential().body());
+    let mut smuggle_in = child_of(&g);
+    smuggle_in.messaging.insert(linked.device_id);
+    set_cred(&mut smuggle_in, &linked);
+    set_cred(&mut smuggle_in, &stranger);
+    assert!(
+        control::verify_successor(&g, &sign(&[&devs[0]], &smuggle_in, &mut rng), &all).is_err()
+    );
+    let mut smuggle_out = child_of(&g);
+    smuggle_out.messaging.insert(linked.device_id);
+    set_cred(&mut smuggle_out, &linked);
+    smuggle_out
+        .credentials
+        .retain(|(d, _)| *d != devs[1].device_id);
+    assert!(
+        control::verify_successor(&g, &sign(&[&devs[0]], &smuggle_out, &mut rng), &all).is_err()
+    );
+    // Linking a messaging device with its credential is the listed way.
+    let mut ok = child_of(&g);
+    ok.messaging.insert(stranger.device_id);
+    set_cred(&mut ok, &stranger);
+    assert!(control::verify_successor(&g, &sign(&[&devs[0]], &ok, &mut rng), &all).is_ok());
+}
