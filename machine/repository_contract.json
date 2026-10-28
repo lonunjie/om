@@ -281,5 +281,18 @@
     ],
     "note": "ADR-0130 rule 7: PR gates declare applies_to from this vocabulary; a release in public_releases with status authorized or published requires every applicable PR gate passed or waived_by_adr."
   },
-  "public_releases": []
+  "public_releases": [
+    {
+      "id": "om-open-beta-1",
+      "status": "planned",
+      "scopes": [
+        "core_kernel",
+        "provider_reference",
+        "reference_client_ui"
+      ],
+      "distribution_kind": "project_pwa_origin",
+      "claims": [],
+      "waiver_adr": "ADR-0183"
+    }
+  ]
 }

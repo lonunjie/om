@@ -189,3 +189,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0180 — Web vault passphrase layer; device suspend keeps its confirmation](ADR-0180-web-vault-passphrase-layer-and-device-suspend-confirmation.md)
 - [ADR-0181 — First contact in `core_kernel`: per-invite intro identity, hidden requester account, first-contact limits, Core-issued confirmation nonces](ADR-0181-first-contact-intro-identity-and-confirmation-nonces.md)
 - [ADR-0182 — Post-quantum (ML-DSA-65) co-signature on the release-root delegation](ADR-0182-post-quantum-co-signature-on-the-release-root-delegation.md)
+- [ADR-0183 — Open beta: which release gates are waived, which are not, and when each comes back](ADR-0183-open-beta-release-waivers.md)
