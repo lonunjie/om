@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 /// A profile persists as ONE record, so a single key/value put makes a whole transition atomic: the ratchet,
 /// ledger and conversation state can never be stored out of step (the host store has no multi-key transaction).
 pub const REC_STATE: &str = "state";
-pub const APP_VERSION: u32 = 1;
+pub const APP_VERSION: u32 = 2;
 
 pub type Hex = String;
 
@@ -50,6 +50,74 @@ pub struct IntroRec {
     pub peer_acs_body: Hex,
     pub peer_credentials: Vec<Hex>,
     pub peer_mailbox: Hex,
+    /// The requester's request-scoped bootstrap delivery key (MessageRequestPayload `reply_delivery_key`).
+    pub reply_key: PubKey,
+}
+
+/// Public half of a sealed-delivery key (`DeliveryKeyMaterial`), as hex.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PubKey {
+    pub key_id: Hex,
+    pub public_key: Hex,
+    pub route_binding: Hex,
+    pub expires_at: u64,
+}
+
+/// A key we receive on: the private seed lives only in this profile's encrypted state.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeliveryKeyRec {
+    pub public: PubKey,
+    pub seed: Hex,
+}
+
+impl core::fmt::Debug for DeliveryKeyRec {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "DeliveryKeyRec({}, <redacted>)", self.public.key_id)
+    }
+}
+
+/// The key we seal to for this peer. `bootstrap` keys are request-scoped (usable for the one Hello only).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeerDelivery {
+    pub public: PubKey,
+    pub bootstrap: bool,
+}
+
+/// Request-scoped bootstrap key we generated for a MessageRequest (ADR-0144/0146/0147).
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BootstrapRec {
+    pub key: DeliveryKeyRec,
+    /// Fingerprints of distinct wrappers ever admitted for this request (at most `MAX_BOOTSTRAP_CANDIDATES`).
+    pub candidates: Vec<Hex>,
+}
+
+impl core::fmt::Debug for BootstrapRec {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "BootstrapRec({:?})", self.key)
+    }
+}
+
+/// ADR-0143 replay states. `RESERVED` is only ever visible inside one staged transaction: acceptance of the inner
+/// envelope and `COMPLETE` are committed together, so a durable record is always `Complete` or `Rejected`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReplayState {
+    Reserved,
+    Complete,
+    Rejected,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReplayRec {
+    pub fingerprint: Hex,
+    pub state: ReplayState,
+    /// Wrapper `expires_at` (seconds); the record is collected after this plus the skew.
+    pub expires_at: u64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -98,6 +166,17 @@ pub struct Relationship {
     /// anything else that fails to decrypt is counted as an integrity failure.
     #[serde(default)]
     pub seen_envelopes: Vec<Hex>,
+    /// Keys we receive on for this relationship (current first; older ones kept for bounded queued overlap).
+    #[serde(default)]
+    pub my_delivery: Vec<DeliveryKeyRec>,
+    /// The established delivery key of the peer (or its bootstrap key until the peer's signed record arrives).
+    #[serde(default)]
+    pub peer_delivery: Option<PeerDelivery>,
+    #[serde(default)]
+    pub bootstrap: Option<BootstrapRec>,
+    /// `"<delivery_key_id>:<delivery_id>"` -> replay record.
+    #[serde(default)]
+    pub replay: BTreeMap<String, ReplayRec>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -140,6 +219,10 @@ pub enum Purpose {
     },
     DepositHello {
         operation_id: OperationId,
+        conversation_id: String,
+    },
+    /// Our signed delivery-key record, sent after the peer's Hello (no user operation owns it).
+    DepositKeys {
         conversation_id: String,
     },
     DepositMessage {

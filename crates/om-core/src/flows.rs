@@ -7,6 +7,7 @@
 use crate::api::*;
 use crate::crypto::binding::{self, Acs, PeerView, RelationshipContext, TrustedPeer};
 use crate::crypto::cbor::{self, V};
+use crate::crypto::delivery::{self, KeyMaterial};
 use crate::crypto::rng::{CryptoRng, RngCore, arr32};
 use crate::crypto::sig::{digest, ds_hash};
 use crate::crypto::{self, PROFILE_V1, hex, hpke, unhex};
@@ -21,6 +22,15 @@ pub const MAX_LABEL_CHARS: usize = 64;
 const ONE_TIME_KEYS: usize = 10;
 const KIND_TEXT: u64 = 1;
 const KIND_HELLO: u64 = 2;
+/// Post-acceptance control message carrying the sender's signed `SealedDeliveryKeyRecord` (ADR-0142 section 9).
+const KIND_KEYS: u64 = 3;
+/// Delivery keys live as long as a signed prekey bundle; a sealed wrapper lives a week (never past its key).
+pub const DELIVERY_KEY_TTL_S: u64 = 90 * 24 * 60 * 60;
+pub const WRAPPER_TTL_S: u64 = 7 * 24 * 60 * 60;
+/// Request-scoped bootstrap key lifetime (the bootstrap acceptance deadline is the earlier of route and key expiry).
+pub const BOOTSTRAP_TTL_S: u64 = 7 * 24 * 60 * 60;
+/// ADR-0146: at most this many distinct bootstrap wrappers are ever admitted for one request.
+pub const MAX_BOOTSTRAP_CANDIDATES: usize = 8;
 const LBL_REQUEST_KEY: &str = "OM-REQUEST-KEY-HASH-v1";
 
 pub fn registry() -> &'static om_codec::Registry {
@@ -197,6 +207,63 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .device
             .as_mut()
             .ok_or(CoreError::Invalid("no identity"))
+    }
+
+    // ------------------------------------------------------------------------------------------ sealed delivery
+
+    /// A fresh receive key for `mailbox` (the private seed stays in this profile's encrypted state).
+    fn new_delivery_key(&mut self, mailbox: &[u8], ttl_s: u64) -> DeliveryKeyRec {
+        let (seed, km) = delivery::new_key(mailbox, self.now_s() + ttl_s, self.rng);
+        DeliveryKeyRec {
+            public: pub_key(&km),
+            seed: hex(&seed),
+        }
+    }
+
+    /// The signed `SealedDeliveryKeyRecord` for one of our keys, signed by this device.
+    fn signed_key_record(&mut self, k: &DeliveryKeyRec) -> Result<Vec<u8>, CoreError> {
+        let km = key_material(&k.public)?;
+        let rnd = arr32(self.rng);
+        let dev = self.device()?;
+        Ok(delivery::sign_key_record(
+            &dev.signer,
+            &dev.device_id,
+            &km,
+            rnd,
+        ))
+    }
+
+    /// Can we seal to this peer right now? There is never a clear-sender fallback (profile section 12).
+    fn peer_key_for_send(&self, rel: &Relationship) -> Result<PeerDelivery, RejectReason> {
+        let (Some(pd), Some(mb)) = (&rel.peer_delivery, &rel.peer_mailbox) else {
+            return Err(RejectReason::Unavailable); // sealed_delivery_required / delivery_key_unknown_or_stale
+        };
+        let bound = hb(mb)
+            .map(|m| hex(&delivery::mailbox_route_binding(&m)) == pd.public.route_binding)
+            .unwrap_or(false);
+        if pd.bootstrap || !bound || pd.public.expires_at <= self.now_s() {
+            return Err(RejectReason::Unavailable);
+        }
+        Ok(pd.clone())
+    }
+
+    /// Wrap a complete inner envelope for `peer`'s mailbox in the unsigned `SealedDeliveryEnvelope`.
+    fn seal_to(&mut self, pd: &PeerDelivery, mailbox: &[u8], inner: &[u8]) -> Result<Vec<u8>, ()> {
+        let (kid, pk) = (
+            h16(&pd.public.key_id).map_err(|_| ())?,
+            hb(&pd.public.public_key).map_err(|_| ())?,
+        );
+        let expires = (self.now_s() + WRAPPER_TTL_S).min(pd.public.expires_at);
+        delivery::seal(
+            &pk,
+            &kid,
+            delivery::CORE_ROUTE_URI,
+            mailbox,
+            expires,
+            inner,
+            self.rng,
+        )
+        .map_err(|_| ())
     }
 
     // ------------------------------------------------------------------------------------------ intents
@@ -483,6 +550,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 created_at: self.now_ms,
                 messages: vec![],
                 seen_envelopes: vec![],
+                my_delivery: vec![],
+                // Until the invitee's signed record arrives, only the request-scoped bootstrap key is usable, and
+                // only for the Hello (send_message refuses a bootstrap key).
+                peer_delivery: Some(PeerDelivery {
+                    public: intro.reply_key.clone(),
+                    bootstrap: true,
+                }),
+                bootstrap: None,
+                replay: Default::default(),
             };
             Ok((rel, hex(&device_id)))
         })();
@@ -508,6 +584,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let conv = self.rand_id("conv");
         rel.id = conv.clone();
         rel.my_mailbox = hex(&mb);
+        rel.my_delivery = vec![self.new_delivery_key(&mb, DELIVERY_KEY_TTL_S)];
         self.st.app.relationships.insert(conv.clone(), rel);
         self.st.app.intros.remove(request_id);
         let Ok(did) = hb(&device_hex) else {
@@ -541,6 +618,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return Ok(());
         };
         let peer_ik = h32(&rel.peer_ik)?;
+        // Seal or fail: no usable established delivery key means the message is not created at all.
+        let Ok(pd) = self.peer_key_for_send(rel) else {
+            self.record(op, kind, rejected(RejectReason::Unavailable), None);
+            return Ok(());
+        };
         let mut mid = [0u8; 16];
         self.rng.fill_bytes(&mut mid);
         let message_id = format!("msg-{}", hex(&mid));
@@ -574,10 +656,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             delivery: DeliveryState::PendingNetwork,
             envelope: Some(hex(&env)),
         });
+        let Ok(wrapper) = self.seal_to(&pd, &hb(&peer_mailbox)?, &env) else {
+            return Err(CoreError::Invalid("seal")); // aborts the whole staged transaction: the ratchet is not advanced
+        };
         self.enqueue(
             NetCall::Deposit {
                 mailbox: hb(&peer_mailbox)?,
-                bytes: env,
+                bytes: wrapper,
             },
             Purpose::DepositMessage {
                 operation_id: op.clone(),
@@ -625,7 +710,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         match (&msg.delivery, &msg.envelope) {
             (DeliveryState::Rejected { reason }, Some(env)) if reason.retryable() => {
-                // Resend the very same envelope: re-running the ratchet would create a second semantic send.
+                // Resend the very same inner envelope: re-running the ratchet would create a second semantic send.
+                // It is re-sealed under a fresh delivery_id; the recipient dedupes the inner envelope.
                 let (peer_mailbox, env) = (
                     self.st
                         .app
@@ -634,7 +720,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                         .and_then(|r| r.peer_mailbox.clone()),
                     hb(env)?,
                 );
-                let Some(peer_mailbox) = peer_mailbox else {
+                let pd = self
+                    .st
+                    .app
+                    .relationships
+                    .get(&conv)
+                    .and_then(|r| self.peer_key_for_send(r).ok());
+                let (Some(peer_mailbox), Some(pd)) = (peer_mailbox, pd) else {
                     self.record(
                         op,
                         kind,
@@ -645,11 +737,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     );
                     return Ok(());
                 };
+                let mailbox = hb(&peer_mailbox)?;
+                let Ok(wrapper) = self.seal_to(&pd, &mailbox, &env) else {
+                    return Err(CoreError::Invalid("seal"));
+                };
                 self.set_delivery(&conv, &msg.id, DeliveryState::PendingNetwork);
                 self.enqueue(
                     NetCall::Deposit {
-                        mailbox: hb(&peer_mailbox)?,
-                        bytes: env,
+                        mailbox,
+                        bytes: wrapper,
                     },
                     Purpose::DepositMessage {
                         operation_id: op.clone(),
@@ -741,7 +837,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     Some(conversation_id.clone()),
                     Some(message_id.clone()),
                 )),
-                Purpose::PublishKeys | Purpose::Ack => None,
+                Purpose::PublishKeys | Purpose::Ack | Purpose::DepositKeys { .. } => None,
             }
         };
         let info = op_of(&entry.purpose);
@@ -814,15 +910,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             Purpose::DepositRequest { operation_id, .. } => {
                 self.set_outcome(&operation_id, OutcomeClass::Committed)
             }
-            Purpose::DepositHello {
-                operation_id,
-                conversation_id,
-            } => {
-                if let Some(r) = self.st.app.relationships.get_mut(&conversation_id) {
-                    r.state = RelState::Active;
-                }
+            Purpose::DepositHello { operation_id, .. } => {
+                // The relationship becomes Active only when the peer's signed delivery-key record arrives:
+                // until then there is no key we may seal an ordinary message to.
                 self.set_outcome(&operation_id, OutcomeClass::Committed);
             }
+            Purpose::DepositKeys { .. } => {}
             Purpose::DepositMessage {
                 operation_id,
                 conversation_id,
@@ -954,12 +1047,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         let my_mailbox = self.rand16();
         let label_me = self.st.app.label.clone();
+        // ADR-0144: a fresh request-scoped bootstrap key, bound to the reply route; never reused or promoted.
+        let bootstrap_key = self.new_delivery_key(&my_mailbox, BOOTSTRAP_TTL_S);
+        let Ok(bootstrap_km) = key_material(&bootstrap_key.public) else {
+            return rej(IntegrityFailure);
+        };
         let payload = cbor::encode(&V::M(vec![
             (1, V::B(my_acs)),
             (2, V::A(vec![V::B(my_cred)])),
             (3, V::B(my_mailbox.to_vec())),
             (4, V::T(label_me)),
             (5, V::U(self.now_ms)),
+            (6, bootstrap_km.to_v()),
         ]));
         let mut rnd = [0u8; 64];
         self.rng.fill_bytes(&mut rnd);
@@ -981,6 +1080,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ]));
         let conv = self.rand_id("conv");
         let person = self.rand_id("person");
+        let my_key = self.new_delivery_key(&my_mailbox, DELIVERY_KEY_TTL_S);
         self.st.app.accepted_invites.insert(invite_id.to_string());
         self.st.app.relationships.insert(
             conv.clone(),
@@ -1005,6 +1105,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 created_at: self.now_ms,
                 messages: vec![],
                 seen_envelopes: vec![],
+                my_delivery: vec![my_key],
+                peer_delivery: None,
+                bootstrap: Some(BootstrapRec {
+                    key: bootstrap_key,
+                    candidates: vec![],
+                }),
+                replay: Default::default(),
             },
         );
         self.enqueue(
@@ -1073,19 +1180,36 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             });
         }
         let my_mailbox = h16(&rel.my_mailbox).unwrap_or_default();
+        // The bootstrap key is request-scoped and valid for this one Hello only; its expiry is the request deadline.
+        let Some(boot) = rel.peer_delivery.clone().filter(|p| p.bootstrap) else {
+            return rej(IntegrityFailure);
+        };
+        if boot.public.expires_at <= self.now_s() {
+            return rej(Expired);
+        }
+        let Some(my_key) = rel.my_delivery.first().cloned() else {
+            return rej(IntegrityFailure);
+        };
+        let Ok(record) = self.signed_key_record(&my_key) else {
+            return rej(IntegrityFailure);
+        };
         let hello = cbor::encode(&V::M(vec![
             (0, V::U(KIND_HELLO)),
             (1, V::B(my_mailbox.to_vec())),
             (2, V::T(label)),
+            (3, V::B(record)),
         ]));
         let env = match self.st.device.as_mut().map(|d| d.encrypt(&peer_ik, &hello)) {
             Some(Ok((env, _))) => env,
             _ => return rej(IntegrityFailure),
         };
+        let Ok(wrapper) = self.seal_to(&boot, &peer_mailbox, &env) else {
+            return rej(IntegrityFailure);
+        };
         self.enqueue(
             NetCall::Deposit {
                 mailbox: peer_mailbox,
-                bytes: env,
+                bytes: wrapper,
             },
             Purpose::DepositHello {
                 operation_id: op.clone(),
@@ -1199,12 +1323,19 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .collect::<Result<_, _>>()?;
             let mb = p.get(3)?.b()?.to_vec();
             let label = sanitize_label(p.get(4)?.t()?);
-            Ok((acs_body, creds, mb, label))
+            let reply_key = KeyMaterial::from_v(p.get(6)?)?;
+            Ok((acs_body, creds, mb, label, reply_key))
         })();
-        let Ok((acs_body, creds, mb, label)) = parsed else {
+        let Ok((acs_body, creds, mb, label, reply_key)) = parsed else {
             return;
         };
-        if mb.len() != 16 {
+        // The bootstrap key must be bound to exactly the reply route in the same request, and fresh.
+        let now_s = self.now_s();
+        if mb.len() != 16
+            || reply_key.route_binding != delivery::mailbox_route_binding(&mb)
+            || reply_key.expires_at <= now_s
+            || reply_key.expires_at > now_s + DELIVERY_KEY_TTL_S
+        {
             return;
         }
         // Structural check only: the sender is NOT pinned until the user accepts (AcceptIntroduction).
@@ -1246,85 +1377,359 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 peer_acs_body: hex(&acs_body),
                 peer_credentials: creds.iter().map(|c| hex(c)).collect(),
                 peer_mailbox: hex(&mb),
+                reply_key: pub_key(&reply_key),
             },
         );
     }
 
-    fn on_session_envelope(&mut self, conv: &str, env: &[u8]) {
-        let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
+    fn count_failure(&mut self, conv: &str) {
+        if let Some(r) = self.st.app.relationships.get_mut(conv) {
+            r.integrity_failures = r.integrity_failures.saturating_add(1);
+        }
+    }
+
+    /// Sealed-delivery acceptance (SEALED_SENDER_DELIVERY_PROFILE.md section 8, IMPLEMENTATION_ALGORITHMS section 3).
+    /// Everything below runs in one staged transaction, so the replay record, the inner session acceptance and any
+    /// application effect become durable together or not at all (a refused host commit releases nothing, and the
+    /// exact wrapper simply arrives again). Outer HPKE success never authenticates the sender.
+    fn on_session_envelope(&mut self, conv: &str, wrapper: &[u8]) {
+        let now_s = self.now_s();
+        // 1. bounded canonical parse. A clear-sender envelope, a stripped wrapper or junk is `sealed_delivery_required`.
+        if wrapper.len() > 140_000
+            || registry()
+                .check("SealedDeliveryEnvelope", wrapper, false)
+                .is_err()
+        {
+            return self.count_failure(conv);
+        }
+        let Ok(v) = cbor::decode(wrapper) else {
+            return self.count_failure(conv);
+        };
+        let (Ok(Ok(key_id)), Ok(Ok(delivery_id)), Ok(wrapper_exp)) = (
+            v.get(3).and_then(|x| x.b()).map(<[u8; 16]>::try_from),
+            v.get(4).and_then(|x| x.b()).map(<[u8; 16]>::try_from),
+            v.get(7).and_then(|x| x.u()),
+        ) else {
+            return self.count_failure(conv);
+        };
+        let Some(rel) = self.st.app.relationships.get(conv) else {
             return;
         };
-        let Ok(account) = h32(&rel.peer_account_id) else {
+        let fp = hex(&crypto::sha256(&[wrapper]));
+        let rkey = format!("{}:{}", hex(&key_id), hex(&delivery_id));
+        // 2. durable replay state before live key material is needed: an exact COMPLETE/REJECTED retry is idempotent.
+        if let Some(old) = rel.replay.get(&rkey) {
+            if old.fingerprint != fp {
+                return self.count_failure(conv); // same (key, id), different wrapper: collision, never a new branch
+            }
             return;
+        }
+        // 3. relationship-local delivery key by opaque id (ordinary keys, or the request-scoped bootstrap key).
+        let found = rel
+            .my_delivery
+            .iter()
+            .find(|k| hb(&k.public.key_id).is_ok_and(|b| b == key_id))
+            .map(|k| (k.clone(), false))
+            .or_else(|| {
+                rel.bootstrap
+                    .as_ref()
+                    .filter(|b| hb(&b.key.public.key_id).is_ok_and(|x| x == key_id))
+                    .map(|b| (b.key.clone(), true))
+            });
+        let Some((key, is_bootstrap)) = found else {
+            return self.count_failure(conv); // delivery_key_unknown_or_stale
+        };
+        let (Ok(seed), Ok(mailbox)) = (h32(&key.seed), hb(&rel.my_mailbox)) else {
+            return;
+        };
+        // 4. route binding, key expiry, wrapper expiry no later than the key.
+        if hex(&delivery::mailbox_route_binding(&mailbox)) != key.public.route_binding
+            || now_s > key.public.expires_at.saturating_add(delivery::CLOCK_SKEW)
+            || wrapper_exp > key.public.expires_at
+        {
+            return self.count_failure(conv);
+        }
+        // 5. outer HPKE open + bucket validation.
+        let Ok(opened) = delivery::open(
+            wrapper,
+            &seed,
+            &key_id,
+            delivery::CORE_ROUTE_URI,
+            &mailbox,
+            now_s,
+        ) else {
+            return self.count_failure(conv); // delivery_open_failed / delivery_expired
+        };
+        // 6. bootstrap candidate budget, checked before a replay record is allocated.
+        if is_bootstrap
+            && rel.bootstrap.as_ref().is_some_and(|b| {
+                !b.candidates.contains(&fp) && b.candidates.len() >= MAX_BOOTSTRAP_CANDIDATES
+            })
+        {
+            return self.count_failure(conv);
+        }
+        // 7. RESERVED (transaction-local), then the unchanged inner envelope through the normal inbound API.
+        let Some(rel) = self.st.app.relationships.get_mut(conv) else {
+            return;
+        };
+        if is_bootstrap && let Some(b) = rel.bootstrap.as_mut() {
+            b.candidates.push(fp.clone());
+        }
+        rel.replay.insert(
+            rkey.clone(),
+            ReplayRec {
+                fingerprint: fp,
+                state: ReplayState::Reserved,
+                expires_at: wrapper_exp,
+            },
+        );
+        let accepted = self.process_inner(conv, &opened.inner_envelope, is_bootstrap);
+        // 8. COMPLETE or REJECTED in the same transaction as the inner acceptance.
+        if let Some(rel) = self.st.app.relationships.get_mut(conv) {
+            if let Some(r) = rel.replay.get_mut(&rkey) {
+                r.state = if accepted {
+                    ReplayState::Complete
+                } else {
+                    ReplayState::Rejected
+                };
+            }
+            if !accepted {
+                rel.integrity_failures = rel.integrity_failures.saturating_add(1);
+            }
+            // Tombstones live only through the authenticated window plus skew.
+            rel.replay
+                .retain(|_, r| r.expires_at.saturating_add(delivery::CLOCK_SKEW) >= now_s);
+        }
+    }
+
+    /// Process one complete inner envelope. Returns whether it was definitively accepted (a duplicate of an
+    /// already-processed inner envelope is accepted idempotently with no effect).
+    fn process_inner(&mut self, conv: &str, env: &[u8], via_bootstrap: bool) -> bool {
+        let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
+            return false;
+        };
+        let Ok(account) = h32(&rel.peer_account_id) else {
+            return false;
         };
         let env_id = hex(&crypto::sha256(&[env]));
         if rel.seen_envelopes.contains(&env_id) {
-            return; // redelivery of an envelope already processed (relay at-least-once): not an attack
+            return true; // the same inner envelope under a fresh wrapper (sender retry): not an attack, no effect
         }
         let Some(dev) = self.st.device.as_mut() else {
-            return;
+            return false;
         };
+        let snapshot = via_bootstrap.then(|| dev.clone());
         // ADR-0137: the relationship context is mandatory and is checked before any session lookup or secret operation.
         let res = dev.decrypt(&RelationshipContext::new(account), env, self.rng);
+        let pt = match res {
+            Ok((_, pt, _)) => pt,
+            Err(_) => return false,
+        };
+        let Ok(p) = cbor::decode(&pt) else {
+            self.restore(snapshot);
+            return false;
+        };
+        let kind = p.get(0).and_then(|x| x.u()).unwrap_or(0);
+        // The bootstrap key admits exactly one thing: the peer's Hello with a valid signed key record.
+        if via_bootstrap && kind != KIND_HELLO {
+            self.restore(snapshot);
+            return false;
+        }
+        let ok = match kind {
+            KIND_HELLO => self.on_hello(conv, &p, via_bootstrap),
+            KIND_KEYS => self.on_keys(conv, &p),
+            KIND_TEXT => self.on_text(conv, &p),
+            _ => true, // unknown payload kinds from a newer client are ignored, not fatal
+        };
+        if !ok {
+            self.restore(snapshot);
+            return false;
+        }
+        if let Some(r) = self.st.app.relationships.get_mut(conv) {
+            r.seen_envelopes.push(env_id);
+            if r.seen_envelopes.len() > 256 {
+                r.seen_envelopes.remove(0);
+            }
+        }
+        true
+    }
+
+    fn restore(&mut self, snapshot: Option<crate::crypto::store::Device>) {
+        if let Some(d) = snapshot {
+            self.st.device = Some(d);
+        }
+    }
+
+    /// Verify a peer's signed `SealedDeliveryKeyRecord` against the relationship (profile section 4): signed by the
+    /// pinned peer device, which must be active in the pinned ACS head, bound to the peer's own mailbox, unexpired.
+    fn verify_peer_record(
+        &self,
+        rel: &Relationship,
+        record: &[u8],
+        peer_mailbox: &[u8],
+    ) -> Option<KeyMaterial> {
+        let cred = rel
+            .peer_credentials
+            .iter()
+            .filter_map(|c| unhex(c).ok())
+            .filter_map(|c| binding::Credential::from_body(&c).ok())
+            .find(|c| hex(&c.device_id) == rel.peer_device_id)?;
+        let acs = Acs::from_body(&hb(&rel.peer_acs_body).ok()?).ok()?;
+        if !acs.device_active(&cred.device_id) {
+            return None;
+        }
+        let km = delivery::open_key_record(record, &cred.device_id, &cred.signing_pk).ok()?;
+        (km.route_binding == delivery::mailbox_route_binding(peer_mailbox)
+            && km.expires_at > self.now_s()
+            && km.expires_at <= self.now_s() + DELIVERY_KEY_TTL_S)
+            .then_some(km)
+    }
+
+    /// Install an established peer key from an authenticated inner control message. A newer record replaces the
+    /// old one (delivery-key rotation); an older or identical one changes nothing.
+    fn install_peer_key(&mut self, conv: &str, km: &KeyMaterial) {
         let Some(r) = self.st.app.relationships.get_mut(conv) else {
             return;
         };
-        let pt = match res {
-            Ok((_, pt, _)) => pt,
-            Err(_) => {
-                r.integrity_failures = r.integrity_failures.saturating_add(1);
-                return;
-            }
+        let replace = match &r.peer_delivery {
+            Some(pd) if !pd.bootstrap => pd.public.expires_at < km.expires_at,
+            _ => true,
         };
-        r.seen_envelopes.push(env_id);
-        if r.seen_envelopes.len() > 256 {
-            r.seen_envelopes.remove(0);
+        if replace {
+            r.peer_delivery = Some(PeerDelivery {
+                public: pub_key(km),
+                bootstrap: false,
+            });
         }
-        if r.blocked {
+        if r.state != RelState::Active && r.peer_mailbox.is_some() {
+            r.state = RelState::Active;
+        }
+    }
+
+    fn on_hello(&mut self, conv: &str, p: &V, via_bootstrap: bool) -> bool {
+        let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
+            return false;
+        };
+        let (Ok(mb), Ok(record)) = (
+            p.get(1).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            p.get(3).and_then(|x| x.b()).map(<[u8]>::to_vec),
+        ) else {
+            return false;
+        };
+        if mb.len() != 16 {
+            return false;
+        }
+        if rel.peer_mailbox.is_some() && rel.peer_mailbox.as_deref() != Some(hex(&mb).as_str()) {
+            return false; // a second, different Hello is not another bootstrap branch
+        }
+        let Some(km) = self.verify_peer_record(&rel, &record, &mb) else {
+            return false;
+        };
+        if let Some(r) = self.st.app.relationships.get_mut(conv) {
+            r.peer_mailbox = Some(hex(&mb));
+        }
+        self.install_peer_key(conv, &km);
+        if via_bootstrap {
+            // The winning bootstrap commit: the request-scoped key dies in the same transaction that installed
+            // the established route and key (ADR-0145). Later candidates have no key to open with.
+            if let Some(r) = self.st.app.relationships.get_mut(conv) {
+                r.bootstrap = None;
+            }
+            self.send_keys(conv);
+        }
+        true
+    }
+
+    /// Reply to the peer's Hello with our own signed delivery-key record, sealed to the key just installed.
+    fn send_keys(&mut self, conv: &str) {
+        let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
             return;
+        };
+        let (Some(my_key), Ok(peer_ik), Ok(pd), Some(Ok(mailbox))) = (
+            rel.my_delivery.first().cloned(),
+            h32(&rel.peer_ik),
+            self.peer_key_for_send(&rel).ok().ok_or(()),
+            rel.peer_mailbox.as_deref().map(hb),
+        ) else {
+            return;
+        };
+        let Ok(record) = self.signed_key_record(&my_key) else {
+            return;
+        };
+        let payload = cbor::encode(&V::M(vec![(0, V::U(KIND_KEYS)), (3, V::B(record))]));
+        let Some(Ok((env, _))) = self
+            .st
+            .device
+            .as_mut()
+            .map(|d| d.encrypt(&peer_ik, &payload))
+        else {
+            return;
+        };
+        let Ok(wrapper) = self.seal_to(&pd, &mailbox, &env) else {
+            return;
+        };
+        self.enqueue(
+            NetCall::Deposit {
+                mailbox,
+                bytes: wrapper,
+            },
+            Purpose::DepositKeys {
+                conversation_id: conv.to_string(),
+            },
+        );
+    }
+
+    fn on_keys(&mut self, conv: &str, p: &V) -> bool {
+        let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
+            return false;
+        };
+        let (Ok(record), Some(Ok(mb))) = (
+            p.get(3).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            rel.peer_mailbox.as_deref().map(hb),
+        ) else {
+            return false;
+        };
+        let Some(km) = self.verify_peer_record(&rel, &record, &mb) else {
+            return false;
+        };
+        self.install_peer_key(conv, &km);
+        true
+    }
+
+    fn on_text(&mut self, conv: &str, p: &V) -> bool {
+        let Some(r) = self.st.app.relationships.get_mut(conv) else {
+            return false;
+        };
+        if r.blocked {
+            return true;
         }
-        let Ok(p) = cbor::decode(&pt) else { return };
-        let kind = p.get(0).and_then(|x| x.u()).unwrap_or(0);
-        match kind {
-            KIND_HELLO => {
-                if let Ok(mb) = p.get(1).and_then(|x| x.b()).map(<[u8]>::to_vec)
-                    && mb.len() == 16
-                    && r.peer_mailbox.is_none()
-                {
-                    r.peer_mailbox = Some(hex(&mb));
-                    r.state = RelState::Active;
-                }
-            }
-            KIND_TEXT => {
-                let (Ok(id), Ok(text), Ok(at)) = (
-                    p.get(1).and_then(|x| x.b()),
-                    p.get(2).and_then(|x| x.t()),
-                    p.get(3).and_then(|x| x.u()),
-                ) else {
-                    return;
-                };
-                // A payload that decrypts on a session only the pinned peer can create also shows the peer accepted
-                // (the Hello that carries its mailbox may be reordered by the relay), so state is not checked here.
-                if id.len() != 16 || text.chars().count() > MAX_MESSAGE_CHARS {
-                    return;
-                }
-                let id = format!("msg-{}", hex(id));
-                if r.messages.iter().any(|m| m.id == id) {
-                    return;
-                }
-                // The peer's clock is shown as given but never orders authority; arrival order is the timeline.
-                r.messages.push(Msg {
-                    id,
-                    outgoing: false,
-                    operation_id: None,
-                    text: text.to_string(),
-                    sent_at: at,
-                    delivery: DeliveryState::Delivered,
-                    envelope: None,
-                });
-            }
-            _ => {} // unknown payload kinds from a newer client are ignored, not fatal
+        let (Ok(id), Ok(text), Ok(at)) = (
+            p.get(1).and_then(|x| x.b()),
+            p.get(2).and_then(|x| x.t()),
+            p.get(3).and_then(|x| x.u()),
+        ) else {
+            return false;
+        };
+        // A payload that decrypts on a session only the pinned peer can create also shows the peer accepted
+        // (the Hello that carries its mailbox may be reordered by the relay), so state is not checked here.
+        if id.len() != 16 || text.chars().count() > MAX_MESSAGE_CHARS {
+            return false;
         }
+        let id = format!("msg-{}", hex(id));
+        if r.messages.iter().any(|m| m.id == id) {
+            return true;
+        }
+        // The peer's clock is shown as given but never orders authority; arrival order is the timeline.
+        r.messages.push(Msg {
+            id,
+            outgoing: false,
+            operation_id: None,
+            text: text.to_string(),
+            sent_at: at,
+            delivery: DeliveryState::Delivered,
+            envelope: None,
+        });
+        true
     }
 }
 
@@ -1333,4 +1738,22 @@ pub fn request_key_digest(pk: &[u8]) -> [u8; 32] {
         LBL_REQUEST_KEY,
         &cbor::encode(&V::M(vec![(0, V::U(PROFILE_V1)), (1, V::B(pk.to_vec()))])),
     )
+}
+
+pub fn pub_key(km: &KeyMaterial) -> PubKey {
+    PubKey {
+        key_id: hex(&km.key_id),
+        public_key: hex(&km.public_key),
+        route_binding: hex(&km.route_binding),
+        expires_at: km.expires_at,
+    }
+}
+
+pub fn key_material(p: &PubKey) -> Result<KeyMaterial, CoreError> {
+    Ok(KeyMaterial {
+        key_id: h16(&p.key_id)?,
+        public_key: hb(&p.public_key)?,
+        route_binding: h32(&p.route_binding)?,
+        expires_at: p.expires_at,
+    })
 }

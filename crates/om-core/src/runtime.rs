@@ -44,6 +44,8 @@ struct NetState {
     mailboxes: BTreeMap<Vec<u8>, Mailbox>,
     faults: Vec<Fault>,
     deposits: u64,
+    /// Every deposit a relay ever received, in order (the relay-visible byte stream; mailboxes are drained by acks).
+    log: Vec<(Vec<u8>, Vec<u8>)>,
 }
 
 /// One loopback provider shared by every client in a test (cheap to clone).
@@ -67,13 +69,13 @@ impl LoopbackNetwork {
             .map(|m| m.items.iter().map(|(_, b)| b.clone()).collect())
             .unwrap_or_default()
     }
+    /// Every byte string any relay mailbox ever received, in deposit order (acks free relay storage, not this log).
     pub fn all_deposited_bytes(&self) -> Vec<Vec<u8>> {
-        self.0
-            .borrow()
-            .mailboxes
-            .values()
-            .flat_map(|m| m.items.iter().map(|(_, b)| b.clone()))
-            .collect()
+        self.0.borrow().log.iter().map(|(_, b)| b.clone()).collect()
+    }
+    /// The deposit log with its destination mailbox.
+    pub fn deposit_log(&self) -> Vec<(Vec<u8>, Vec<u8>)> {
+        self.0.borrow().log.clone()
     }
     pub fn revoke_all_invites(&self) {
         self.0.borrow_mut().invites.clear();
@@ -147,6 +149,7 @@ impl LoopbackNetwork {
             }
             NetCall::Deposit { mailbox, bytes } => {
                 s.deposits += 1;
+                s.log.push((mailbox.clone(), bytes.clone()));
                 let m = s.mailboxes.entry(mailbox.clone()).or_default();
                 m.next_seq += 1;
                 let seq = m.next_seq;

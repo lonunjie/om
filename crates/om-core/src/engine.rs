@@ -340,6 +340,16 @@ impl<R: RngCore + CryptoRng> Core<R> {
             .map(|r| r.outcome.clone()))
     }
 
+    /// TEST ONLY: the profile's app state as JSON, so scenario tests can assert on replay records and public keys.
+    /// Compiled only with `test-loopback`, which cannot be combined with `production`.
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_app_state(
+        &self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<serde_json::Value, CoreError> {
+        serde_json::to_value(&self.slot(ctx)?.state.app).map_err(|_| CoreError::Invalid("state"))
+    }
+
     // ------------------------------------------------------------------------------------------ queries
 
     /// Typed queries over committed state only. The result is the JSON of the matching platform-API view.

@@ -215,3 +215,138 @@ pub fn open(
         sender_authenticated: false,
     })
 }
+
+// ---------------------------------------------------------------------------------------------- key records
+
+pub const LBL_KEY_RECORD_SIG: &str = "OM-SEALED-DELIVERY-KEY-SIG-v1";
+/// Core has no `RelayEntry`/`RelaySet` yet (pass 2 routes by mailbox capability alone), so the route binding uses
+/// this fixed route name in the `relay_uri` position. The binding still ties a delivery key to one deposit
+/// capability, which is what the profile requires of it (section 3); see the pass-2 report for the gap.
+pub const CORE_ROUTE_URI: &str = "om-core:mailbox/v0";
+
+/// `DeliveryKeyMaterial` (spec/cddl/delivery.cddl): the relationship-private HPKE key a sender seals to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KeyMaterial {
+    pub key_id: [u8; 16],
+    pub public_key: Vec<u8>,
+    pub route_binding: [u8; 32],
+    pub expires_at: u64,
+}
+
+impl KeyMaterial {
+    pub fn to_v(&self) -> V {
+        V::M(vec![
+            (0, V::U(PROFILE_V1)),
+            (1, V::B(self.key_id.to_vec())),
+            (2, V::B(self.public_key.clone())),
+            (3, digest(&self.route_binding)),
+            (4, V::U(self.expires_at)),
+        ])
+    }
+
+    pub fn from_v(v: &V) -> Result<Self, Error> {
+        let bad = |s| Error::SealedDelivery(s);
+        if v.get(0)?.u()? != PROFILE_V1 {
+            return Err(bad("unsupported profile"));
+        }
+        let key_id: [u8; 16] = v
+            .get(1)?
+            .b()?
+            .try_into()
+            .map_err(|_| bad("delivery key id length"))?;
+        let public_key = v.get(2)?.b()?.to_vec();
+        if public_key.len() != hpke::NPK {
+            return Err(bad("profile-1 public key length"));
+        }
+        let d = v.get(3)?;
+        if d.get(0)?.u()? != 1 {
+            return Err(bad("route binding hash algorithm"));
+        }
+        Ok(KeyMaterial {
+            key_id,
+            public_key,
+            route_binding: d.get(1)?.b32()?,
+            expires_at: v.get(4)?.u()?,
+        })
+    }
+}
+
+/// Route binding of a Core mailbox capability.
+pub fn mailbox_route_binding(mailbox: &[u8]) -> [u8; 32] {
+    route_binding(CORE_ROUTE_URI, mailbox)
+}
+
+/// A signed `SealedDeliveryKeyRecord` (object type 22): one device signature, role `device`.
+pub fn sign_key_record(
+    signer: &crate::crypto::sig::DeviceSigner,
+    device_id: &[u8; 16],
+    km: &KeyMaterial,
+    rnd: [u8; 32],
+) -> Vec<u8> {
+    use crate::crypto::sig::{ROLE_DEVICE, ds_sig, envelope, signature_entry};
+    let body = cbor::encode(&V::M(vec![
+        (0, V::U(22)),
+        (1, V::U(1)),
+        (2, V::B(device_id.to_vec())),
+        (3, km.to_v()),
+    ]));
+    let s = signer.sign_with(
+        &ds_sig(
+            LBL_KEY_RECORD_SIG,
+            PROFILE_V1,
+            ROLE_DEVICE,
+            device_id,
+            &body,
+        ),
+        rnd,
+    );
+    envelope(
+        body,
+        vec![signature_entry(device_id, PROFILE_V1, ROLE_DEVICE, s)],
+    )
+}
+
+/// Verify a signed record against the device credential the caller already trusts (profile section 4, rules 1,2,6).
+/// The caller still checks that the device is active in the pinned ACS head, the route binding and the expiry.
+pub fn open_key_record(
+    bytes: &[u8],
+    device_id: &[u8; 16],
+    signing_pk: &[u8],
+) -> Result<KeyMaterial, Error> {
+    use crate::crypto::sig::{ROLE_DEVICE, open_envelope};
+    let body = open_envelope(
+        bytes,
+        LBL_KEY_RECORD_SIG,
+        PROFILE_V1,
+        ROLE_DEVICE,
+        device_id,
+        signing_pk,
+    )?;
+    let v = cbor::decode(&body)?;
+    if v.get(0)?.u()? != 22 || v.get(1)?.u()? != 1 || v.get(2)?.b()? != device_id {
+        return Err(Error::SealedDelivery("key record type or device"));
+    }
+    KeyMaterial::from_v(v.get(3)?)
+}
+
+/// Fresh key pair for a delivery key (the private seed never leaves the profile's encrypted state).
+pub fn new_key<R: RngCore + CryptoRng>(
+    mailbox: &[u8],
+    expires_at: u64,
+    rng: &mut R,
+) -> ([u8; 32], KeyMaterial) {
+    let mut ikm = crate::crypto::rng::arr32(rng);
+    let (seed, pk) = hpke::derive_key_pair(&ikm);
+    zeroize::Zeroize::zeroize(&mut ikm);
+    let mut key_id = [0u8; 16];
+    rng.fill_bytes(&mut key_id);
+    (
+        seed,
+        KeyMaterial {
+            key_id,
+            public_key: pk,
+            route_binding: mailbox_route_binding(mailbox),
+            expires_at,
+        },
+    )
+}
