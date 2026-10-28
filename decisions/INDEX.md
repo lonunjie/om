@@ -188,3 +188,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0179 — The default reference theme is named OM Calm](ADR-0179-default-theme-is-named-om-calm.md)
 - [ADR-0180 — Web vault passphrase layer; device suspend keeps its confirmation](ADR-0180-web-vault-passphrase-layer-and-device-suspend-confirmation.md)
 - [ADR-0181 — First contact in `core_kernel`: per-invite intro identity, hidden requester account, first-contact limits, Core-issued confirmation nonces](ADR-0181-first-contact-intro-identity-and-confirmation-nonces.md)
+- [ADR-0182 — Post-quantum (ML-DSA-65) co-signature on the release-root delegation](ADR-0182-post-quantum-co-signature-on-the-release-root-delegation.md)

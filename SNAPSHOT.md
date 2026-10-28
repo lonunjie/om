@@ -8,8 +8,12 @@ Generated: **2026-10-11 PHT (UTC+08:00)**, after the operator accepted the `grou
 - **Review model:** Claude performs all reviews at the operator's direction (ADR-0167). Gates passed this way carry `pre_engineering_review_basis=operator_single_vendor_ADR-0167`, which is not vendor-independent review.
 - **Design:** `design_open=0`. Review findings F-14..F-19 are fixed (ADR-0168, ADR-0170); F-20..F-23 are resolved by ADR-0172.
 - **Verification:** 8 gates still have pre-engineering open. V-004, V-009 and V-019 passed pre-engineering on 2026-10-01 under the ADR-0167 model, which completes the evidence for `groups`; ADR-0177 (accepted 2026-10-11) unlocks it. V-006 passed pre-engineering the same day for the first-release web matrix; Windows Chrome/Edge is untested and carried pre-release (ADR-0172). V-018 is pre-release (ADR-0170). Pre-release items for groups stay open: the V-004 multi-client partition harness on two implementations, the V-009 corpus run by every implementation, the V-019 interoperable migration.
-- **Ledgers:** 408 requirements / 408 trace rows, 156 threats, 202 decisions / 181 indexed ADRs, 40 security invariants.
+- **Ledgers:** 411 requirements / 411 trace rows, 158 threats, 203 decisions / 182 indexed ADRs, 40 security invariants.
 - **Next:** build the `core_kernel`, `provider_reference`, `reference_client_ui` and `groups` crates/packages (web first, per [`ADR-0178`](decisions/ADR-0178-pwa-canonical-store-independent-distribution.md)) per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). V-006 pre-release: run the probe on Windows or drop Windows, publish the support matrix with regression tests.
+
+## 2026-10-28 PHT — ADR-0182: post-quantum co-signature on the release root
+
+- ADR-0182 adds a required ML-DSA-65 co-signature (one software PQ root key, personal vault only) to the release-root delegation, on top of the unchanged Ed25519 2-of-3 root: pin descriptor and framing, `pqRequired` epoch with a persisted client floor that never lowers, fail-closed unknown algorithms, rotation, future Ledger path. Implemented in both verifiers with shared fixtures; the PQ ceremony (runbook [`KEY-CEREMONY-PQ.md`](deploy/KEY-CEREMONY-PQ.md)) is pending, so `PQ_ROOT` / `PINNED_PQ_ROOT` are `null` and behaviour is unchanged until it runs. D-203, R-418..R-420, T-167, T-168.
 
 ## 2026-10-28 PHT — ADR-0181: first contact and confirmation nonces
 

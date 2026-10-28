@@ -7,7 +7,7 @@
 //   --sign-with-key-file  sign with a PKCS8 PEM file (tests only: pass a throwaway key; also --key-id <id>, default the production id).
 //   --delegation <file>   root-signed release-key delegation to embed in the manifest (default apps/web/release-delegation.json).
 //                         Signing REFUSES unless it is signed by the pinned offline root, unexpired, and lists the signing key (audit B2).
-//   --test-roots-file <file>  tests only (with --sign-with-key-file or --signature): JSON {roots:{id:hex},threshold} replacing the pinned root.
+//   --test-roots-file <file>  tests only (with --sign-with-key-file or --signature): JSON {roots:{id:hex},threshold[,pq]} replacing the pinned root (and PQ root).
 // Without --dev the release REFUSES to be produced unless it is signed (--signature, --sign-from-vault or --sign-with-key-file).
 import { spawnSync } from "node:child_process";
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 import { RELEASE_KEY_ID, pemFromVault, signManifest } from "./sign.mjs";
 import { cleanBuildEnv, pollutedKeys } from "./clean-env.mjs";
 import { siteProblems } from "./release-guards.mjs";
-import { PINNED_ROOTS, PINNED_ROOT_THRESHOLD, verifyRelease } from "./verify-release.mjs";
+import { PINNED_PQ_ROOT, PINNED_ROOTS, PINNED_ROOT_THRESHOLD, verifyRelease } from "./verify-release.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = resolve(webRoot, "../..");
@@ -43,7 +43,7 @@ if (testRootsFile !== undefined && keyFile === undefined && sigFile === undefine
 // B2: the client pins only the offline ROOT key. Until the operator has run the key ceremony and set it, no production
 // release can be built (dev bundles are unaffected). A throwaway-key test release brings its own root.
 const testRoots = testRootsFile === undefined ? undefined : JSON.parse(readFileSync(testRootsFile, "utf8"));
-const trust = testRoots ?? { roots: PINNED_ROOTS, threshold: PINNED_ROOT_THRESHOLD };
+const trust = testRoots ?? { roots: PINNED_ROOTS, threshold: PINNED_ROOT_THRESHOLD, pq: PINNED_PQ_ROOT }; // ADR-0182: testRoots may carry `pq` too
 if (!dev && Object.keys(trust.roots).length === 0) {
   fail("refusing to produce a production release: no offline ROOT key is pinned yet (key ceremony pending).\n" +
     "  Follow deploy/KEY-CEREMONY.md, then set ROOT_KEYS in apps/web/src/update/release-key.ts and PINNED_ROOTS in apps/web/build/verify-release.mjs.");
@@ -87,7 +87,7 @@ try {
     let s;
     if (sigFile) s = JSON.parse(readFileSync(sigFile, "utf8"));
     else {
-      try { s = signManifest(manifest, fromVault ? pemFromVault() : readFileSync(keyFile, "utf8"), opt("--key-id") ?? RELEASE_KEY_ID, { roots: trust.roots, threshold: trust.threshold }); }
+      try { s = signManifest(manifest, fromVault ? pemFromVault() : readFileSync(keyFile, "utf8"), opt("--key-id") ?? RELEASE_KEY_ID, { roots: trust.roots, threshold: trust.threshold, pq: trust.pq ?? null }); }
       catch (e) { fail(`signing failed: ${e.message}`); }
     }
     if (typeof s.alg !== "string" || typeof s.keyId !== "string" || typeof s.sig !== "string") fail("bad signature file");
@@ -118,7 +118,7 @@ try {
   // L3: a "signed" release is only reported once its whole chain verifies (pinned root -> delegation -> release key ->
   // manifest signature); an externally supplied --signature is not trusted on sight.
   if (!dev) {
-    const v = verifyRelease(dir, { requireSigned: true, roots: trust.roots, threshold: trust.threshold });
+    const v = verifyRelease(dir, { requireSigned: true, roots: trust.roots, threshold: trust.threshold, pq: trust.pq ?? null, pqRequired: (trust.pq ?? null) !== null });
     if (!v.ok) fail(`the release does not verify (--require-signed):\n  ${v.errors.join("\n  ")}`);
   }
 

@@ -22,6 +22,16 @@
 //   verify           --in <delegation.json> --roots-file <file>               check the signatures against a roots file ({roots:{id:desc},threshold})
 //   inspect          --in <delegation.json>                                   human summary (public data)
 //
+// Post-quantum co-signature (ADR-0182, deploy/KEY-CEREMONY-PQ.md): an ML-DSA-65 software root, seed in the PERSONAL vault only.
+//   gen-pq-root      --to-stdin-for-vault [--name <item name>] [--pub-out <file>]   new PQ root; stdout is a Bitwarden secure-note item holding the 32-byte
+//                                                                             seed (never a file); stderr gets only id, fingerprint; --pub-out writes the PUBLIC descriptor
+//   show-pq-root     --pq-root-stdin [--pub-out <file>]                       id, fingerprint and the paste-ready pin literals of a vault copy
+//   pq-sign-delegation --pq-root-stdin --in <delegation.json> [--out <file>] [--roots-file <file>]   sign + attach the PQ co-signature (works before or after the Ed25519 signatures)
+//   pq-payload       --in <delegation.json> --pq-root-file <descriptor.json> --out <file>   exact bytes an external PQ signer must sign
+//   pq-attach        --in <delegation.json> --pq-root-file <descriptor.json> --sig <base64|hex> [--out <file>]   ingest an external PQ signature (verified first)
+//   draft/sign-delegation/revoke accept --pq-required: the delegation becomes the PQ epoch (needs fresh Ed25519 signatures); once set it is carried over by --prev.
+//   verify           also checks the PQ co-signature when the roots file has "pq"; --require-pq makes it mandatory
+//
 // <t> is YYYY-MM-DD, a full UTC time YYYY-MM-DDTHH:MM:SSZ, or +Nd (N days from now).
 // Private key material is never printed, logged, put in argv or in an error message. A key file is read only from
 // the path given, must be mode 0600, and is written only by `gen-root --out` (mode 0600, never overwritten).
@@ -31,6 +41,7 @@ import { chmodSync, existsSync, readFileSync, realpathSync, statSync, writeFileS
 import { dirname, isAbsolute, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { addPqSignature, checkDescriptor, externalPqAttach, formatPqNote, generatePqRoot, loadPqRootNote, pqPayload } from "./pq-ceremony.mjs";
 import { DELEGATION_FORMAT, FRAME_RAW, FRAME_SOLANA_OFFCHAIN_V0, KNOWN_FRAMES, describeRoot, frameDelegationPayload, ledgerText, delegationPayload, parseDelegation, verifyDelegation } from "./verify-release.mjs";
 
 const TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
@@ -127,7 +138,7 @@ export const attachSignature = (d, entry) => ({ ...d, signatures: [...d.signatur
  * Builds an UNSIGNED delegation. With `prev`, version is prev+1 and keys/revoked carry over. `addKey` appends a key,
  * `revokeId` moves a key id into `revoked` (and out of `keys`). `expires` is required and must be in the future.
  */
-export const buildDelegation = ({ prev, version, expires, addKey, revokeId, now = Date.now(), allowLong = false }) => {
+export const buildDelegation = ({ prev, version, expires, addKey, revokeId, pqRequired = false, now = Date.now(), allowLong = false }) => {
   const p = prev === undefined ? null : parseDelegation(prev);
   if (prev !== undefined && !p) throw new Error("--prev is not a valid delegation document");
   const exp = parseTime(expires, now);
@@ -155,18 +166,20 @@ export const buildDelegation = ({ prev, version, expires, addKey, revokeId, now 
   }
   keys.sort((a, b) => (a.keyId < b.keyId ? -1 : 1));
   revoked.sort();
-  return { format: DELEGATION_FORMAT, version: v, expires: exp, keys, revoked, signatures: [] };
+  // ADR-0182: the PQ epoch marker is sticky; a renewal can never drop it.
+  return { format: DELEGATION_FORMAT, version: v, expires: exp, keys, revoked, ...(pqRequired || p?.pqRequired === true ? { pqRequired: true } : {}), signatures: [] };
 };
 
 export const summary = (d) =>
   [`delegation v${d.version}, expires ${d.expires}`,
    ...d.keys.map((k) => `  key ${k.keyId} ${k.alg} ${k.pub}  ${k.notBefore} .. ${k.notAfter}`),
    `  revoked: ${d.revoked.length ? d.revoked.join(", ") : "(none)"}`,
+   ...(d.pqRequired === true ? ["  pq required: yes (needs the ML-DSA-65 co-signature of the pinned PQ root)"] : []),
    `  root signatures: ${d.signatures.length ? d.signatures.map((s) => s.keyId).join(", ") : "(none)"}`].join("\n");
 
 // ---------- CLI ----------
 const MEDIA = [/^\/Volumes\/[^/]+\//, /^\/media\//, /^\/mnt\//, /^\/run\/media\//];
-const FLAGS = new Set(["allow-long", "to-stdin-for-vault", "root-key-stdin"]);
+const FLAGS = new Set(["allow-long", "to-stdin-for-vault", "root-key-stdin", "pq-root-stdin", "pq-required", "require-pq"]);
 const parseArgs = (argv) => {
   const o = {};
   for (let i = 0; i < argv.length; i++) {
@@ -208,6 +221,17 @@ const readDelegation = (o, k = "in") => {
   if (!d) throw new Error(`--${k} is not a valid delegation document`);
   return d;
 };
+/** One PQ root note on stdin (never echoed). */
+const readPqRoot = () => {
+  let text;
+  try { text = readFileSync(0, "utf8"); } catch { throw new Error("cannot read the PQ root note from stdin"); }
+  try { return loadPqRootNote(text); } catch (e) { throw new Error(`stdin: ${e.message}`); }
+};
+/** --pub-out: the PUBLIC descriptor of a PQ root (not secret) for pq-payload/pq-attach and for pinning. */
+const writePub = (o, r) => {
+  const f = one(o, "pub-out");
+  if (f) writeFileSync(f, JSON.stringify({ keyId: r.keyId, alg: r.alg, pub: r.pub, frame: r.frame }, null, 2) + "\n");
+};
 const frameOf = (o) => one(o, "frame") ?? FRAME_SOLANA_OFFCHAIN_V0;
 const draftOf = (o, now = Date.now()) => {
   const pub = one(o, "online-pub");
@@ -216,7 +240,7 @@ const draftOf = (o, now = Date.now()) => {
   if (!pub && !prevFile) throw new Error("--online-pub is required (or pass --prev to renew an existing delegation)");
   const version = one(o, "version") === undefined ? undefined : Number(one(o, "version"));
   return buildDelegation({
-    prev: prevFile ? readJson(prevFile) : undefined, version, expires: one(o, "expires", true), allowLong: o["allow-long"] === true, now, revokeId,
+    prev: prevFile ? readJson(prevFile) : undefined, version, expires: one(o, "expires", true), allowLong: o["allow-long"] === true, now, revokeId, pqRequired: o["pq-required"] === true,
     addKey: pub ? { keyId: one(o, "key-id", true), pub, notBefore: one(o, "not-before"), notAfter: one(o, "not-after") } : undefined,
   });
 };
@@ -289,7 +313,7 @@ const cmds = {
     const prev = readJson(one(o, "prev", true));
     const p = parseDelegation(prev);
     if (!p) throw new Error("--prev is not a valid delegation document");
-    let d = buildDelegation({ prev, expires: one(o, "expires") ?? p.expires, revokeId: one(o, "key-id", true), allowLong: o["allow-long"] === true });
+    let d = buildDelegation({ prev, expires: one(o, "expires") ?? p.expires, revokeId: one(o, "key-id", true), pqRequired: o["pq-required"] === true, allowLong: o["allow-long"] === true });
     for (const r of roots) d = addRootSignature(d, r);
     console.error(summary(d));
     emit(d, one(o, "out"));
@@ -354,9 +378,53 @@ const cmds = {
     const f = readJson(one(o, "roots-file", true));
     if (!f || typeof f !== "object" || !f.roots || typeof f.roots !== "object") throw new Error("--roots-file must be {\"roots\":{id:descriptor},\"threshold\":n}");
     for (const [id, v] of Object.entries(f.roots)) if (!describeRoot(v)) throw new Error(`roots file: bad descriptor for ${id}`);
-    const r = verifyDelegation(d, { keys: f.roots, threshold: f.threshold }, { now: Date.now() });
-    console.log(r.ok ? `OK: ${f.threshold}-of-${Object.keys(f.roots).length} root signatures verify (delegation v${d.version}, expires ${d.expires})` : `FAILED: ${r.reason}`);
+    const pq = f.pq === undefined || f.pq === null ? null : checkDescriptor(f.pq);
+    const r = verifyDelegation(d, { keys: f.roots, threshold: f.threshold, pq, pqRequired: f.pqRequired === true }, { now: Date.now(), pqFloor: o["require-pq"] === true });
+    const pqNote = !r.ok || pq === null ? "" : d.signatures.some((s) => s.keyId === pq.keyId) ? `; PQ co-signature ${pq.keyId} verifies` : "; NO PQ co-signature (Ed25519-only chain, allowed until a pqRequired delegation)";
+    console.log(r.ok ? `OK: ${f.threshold}-of-${Object.keys(f.roots).length} root signatures verify (delegation v${d.version}, expires ${d.expires}${d.pqRequired === true ? ", pqRequired" : ""})${pqNote}` : `FAILED: ${r.reason}`);
     if (!r.ok) process.exitCode = 1;
+  },
+  "gen-pq-root"(o) {
+    if (!o["to-stdin-for-vault"]) throw new Error("gen-pq-root only runs with --to-stdin-for-vault: the PQ root seed never touches a disk (deploy/KEY-CEREMONY-PQ.md)");
+    if (o["out"]) throw new Error("--to-stdin-for-vault never writes a key file; drop --out");
+    if (process.stdout.isTTY) throw new Error("refusing to print a private key to a terminal; pipe stdout straight into `bw encode | bw create item` (see deploy/KEY-CEREMONY-PQ.md)");
+    const r = generatePqRoot();
+    const name = one(o, "name") ?? `OM release PQ root (ML-DSA-65) ${r.keyId}`;
+    process.stdout.write(JSON.stringify({ type: 2, name, notes: formatPqNote(r), secureNote: { type: 0 }, favorite: false, organizationId: null, folderId: null }));
+    writePub(o, r);
+    console.error(`pq root key id: ${r.keyId}\nalgorithm:      ${r.alg} (FIPS 204), frame ${r.frame}\nfingerprint:    sha256 ${r.fingerprint}\nThe seed went to stdout only (no file, no log). Confirm the vault item exists before closing this terminal.`);
+  },
+  "show-pq-root"(o) {
+    if (!o["pq-root-stdin"]) throw new Error("show-pq-root needs --pq-root-stdin (pipe the vault note in)");
+    const r = readPqRoot();
+    writePub(o, r);
+    const lit = JSON.stringify({ keyId: r.keyId, alg: r.alg, pub: r.pub, frame: r.frame }, null, 2);
+    console.log(`pq root key id: ${r.keyId}\nalgorithm:      ${r.alg}, frame ${r.frame}\nfingerprint:    sha256 ${r.fingerprint}\n\n// apps/web/src/update/pq-root.ts\nexport const PQ_ROOT: PqRootPin | null = ${lit};\n\n// apps/web/build/verify-release.mjs\nexport const PINNED_PQ_ROOT = ${lit};`);
+  },
+  "pq-sign-delegation"(o) {
+    if (!o["pq-root-stdin"]) throw new Error("pq-sign-delegation needs --pq-root-stdin (pipe the vault note in)");
+    const inFile = one(o, "in", true);
+    const d = readDelegation(o);
+    const r = readPqRoot();
+    console.error(`PQ-signing as ${r.keyId}. Check this is what you intend to authorise:\n${summary(d)}`);
+    const next = addPqSignature(d, r);
+    emit(next, one(o, "out") ?? inFile);
+    const rootsFile = one(o, "roots-file");
+    if (rootsFile) cmds.verify({ in: [one(o, "out") ?? inFile], "roots-file": [rootsFile], "require-pq": true });
+  },
+  "pq-payload"(o) {
+    const d = readDelegation(o);
+    const pin = checkDescriptor(readJson(one(o, "pq-root-file", true)));
+    const bytes = pqPayload(d, pin);
+    writeFileSync(one(o, "out", true), bytes);
+    console.log(`${summary(d)}\npq root: ${pin.keyId} (${pin.alg}, ${pin.frame})\nbytes to sign: ${bytes.length} bytes, sha256 ${createHash("sha256").update(bytes).digest("hex")}\nwritten to: ${one(o, "out", true)}`);
+  },
+  "pq-attach"(o) {
+    const d = readDelegation(o);
+    const pin = checkDescriptor(readJson(one(o, "pq-root-file", true)));
+    const next = externalPqAttach(d, pin, one(o, "sig", true));
+    console.error(`verified: ${pin.keyId} signed this delegation. Signatures now: ${next.signatures.map((s) => s.keyId).join(", ")}`);
+    emit(next, one(o, "out") ?? one(o, "in"));
   },
   inspect(o) {
     console.log(summary(readDelegation(o)));

@@ -4,7 +4,7 @@ import { createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { PINNED_ROOTS, PINNED_ROOT_THRESHOLD, resolveReleaseKey, verifyDelegation } from "./verify-release.mjs";
+import { PINNED_PQ_ROOT, PINNED_ROOTS, PINNED_ROOT_THRESHOLD, resolveReleaseKey, verifyDelegation } from "./verify-release.mjs";
 
 export const RELEASE_KEY_ID = "om-release-2026-10-28";
 export const VAULT_NOTE = "OM release signing key (ed25519) - lonunjie";
@@ -38,10 +38,12 @@ const rawPublicHex = (key) => createPublicKey(key).export({ format: "der", type:
  * Refuses (throws) unless the delegation is signed by the pinned root(s), unexpired, lists `keyId` as a valid,
  * unrevoked Ed25519 key inside its window, and that listed public key is the one `pem` belongs to.
  * Returns the delegation. Messages carry reason codes only, never key material.
+ * ADR-0182: once a PQ root is pinned (`pq`), the signing tool is stricter than a client in transition: it also insists on the
+ * ML-DSA-65 co-signature, whatever the delegation's own `pqRequired` says, so no release ships under an Ed25519-only chain. A caller-supplied `roots` (tests) never inherits the production PQ pin.
  */
-export const requireDelegation = (delegation, pem, keyId, { roots = PINNED_ROOTS, threshold = PINNED_ROOT_THRESHOLD, now = Date.now() } = {}) => {
+export const requireDelegation = (delegation, pem, keyId, { roots = PINNED_ROOTS, threshold = PINNED_ROOT_THRESHOLD, now = Date.now(), pq = roots === PINNED_ROOTS ? PINNED_PQ_ROOT : null } = {}) => {
   if (delegation === undefined || delegation === null) throw new Error("delegation missing: run the key ceremony (deploy/KEY-CEREMONY.md) and pass --delegation <file>");
-  const d = verifyDelegation(delegation, { keys: roots, threshold }, { now });
+  const d = verifyDelegation(delegation, { keys: roots, threshold, pq, pqRequired: pq !== null }, { now });
   if (!d.ok) throw new Error(`delegation refused: ${d.reason}`);
   const k = resolveReleaseKey(d.delegation, keyId, "ed25519", now);
   if (!k.ok) throw new Error(`delegation does not authorise key ${keyId}: ${k.reason}`);

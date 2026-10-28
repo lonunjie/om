@@ -2721,6 +2721,27 @@
         "conformance:ui_intents",
         "review:UI_CORE_PLATFORM_CONTRACT.md"
       ]
+    },
+    {
+      "requirement": "R-418",
+      "verified_by": [
+        "PR-005",
+        "review:KEY-CEREMONY-PQ.md"
+      ]
+    },
+    {
+      "requirement": "R-419",
+      "verified_by": [
+        "PR-005",
+        "review:KEY-CEREMONY-PQ.md"
+      ]
+    },
+    {
+      "requirement": "R-420",
+      "verified_by": [
+        "PR-005",
+        "review:KEY-CEREMONY-PQ.md"
+      ]
     }
   ]
 }
