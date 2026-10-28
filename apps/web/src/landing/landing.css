@@ -1,17 +1,67 @@
-/* Landing page. Uses only OM design tokens (loaded with the theme CSS), so it follows light and dark automatically. */
-.om-landing { box-sizing: border-box; max-inline-size: 40rem; margin-inline: auto; padding: var(--om-space-5) max(var(--om-space-4), env(safe-area-inset-right)) calc(var(--om-space-7) + env(safe-area-inset-bottom)) max(var(--om-space-4), env(safe-area-inset-left)); color: var(--om-color-text-primary); }
-.om-landing > * + * { margin-block-start: var(--om-space-6); }
-:where(.om-landing) :where(h1, h2, p, ul) { margin: 0; }
-.om-landing h2 { font-size: var(--om-text-lg-size); line-height: var(--om-text-lg-line); margin-block-end: var(--om-space-2); }
+/* Landing page. Uses only OM design tokens (loaded with the theme CSS), so it follows light and dark automatically.
+   Scroll-linked motion is progressive: browsers without animation-timeline, and people who ask for reduced motion, get the same page, static. */
+.om-landing { box-sizing: border-box; --om-landing-gutter: max(var(--om-space-4), calc((100% - 44rem) / 2)); padding: 0 max(var(--om-landing-gutter), env(safe-area-inset-right)) calc(var(--om-space-7) + env(safe-area-inset-bottom)) max(var(--om-landing-gutter), env(safe-area-inset-left)); color: var(--om-color-text-primary); overflow-x: clip; }
+.om-landing > * + * { margin-block-start: var(--om-space-7); }
+:where(.om-landing) :where(h1, h2, h3, p, ul, ol) { margin: 0; }
+.om-landing h2 { font-size: var(--om-text-xl-size); line-height: var(--om-text-lg-line); margin-block-end: var(--om-space-3); }
 .om-landing p + p, .om-landing p + ul, .om-landing ul + p, .om-landing ul + div { margin-block-start: var(--om-space-3); }
 .om-landing ul { padding-inline-start: var(--om-space-5); display: grid; gap: var(--om-space-2); }
 .om-landing a { color: var(--om-color-accent); text-underline-offset: 0.2em; display: inline-block; padding-block: var(--om-space-3); }
-.om-landing__hero > * + * { margin-block-start: var(--om-space-4); }
-.om-landing__brand { font-size: var(--om-text-2xl-size); font-weight: var(--om-weight-bold); letter-spacing: 0.08em; }
-.om-landing__headline { text-wrap: balance; font-size: var(--om-text-2xl-size); line-height: var(--om-text-2xl-line); font-weight: var(--om-weight-bold); }
+
+/* Hero: three rings (the "O") behind the words. */
+.om-landing__hero { position: relative; min-block-size: 92svh; display: grid; align-content: center; padding-block: var(--om-space-7); isolation: isolate; }
+.om-landing__hero-copy > * + * { margin-block-start: var(--om-space-4); }
+.om-landing__rings { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.om-landing__ring { position: absolute; inset-inline-start: 50%; inset-block-start: 50%; border-radius: 50%; border: 2px solid var(--om-color-accent); translate: -50% -50%; }
+.om-landing__ring--far { inline-size: 120vmin; block-size: 120vmin; opacity: 0.12; }
+.om-landing__ring--mid { inline-size: 80vmin; block-size: 80vmin; opacity: 0.2; }
+.om-landing__ring--near { inline-size: 44vmin; block-size: 44vmin; opacity: 0.32; background: radial-gradient(circle, var(--om-color-info-bg), transparent 70%); }
+.om-landing__brand { font-size: var(--om-text-2xl-size); font-weight: var(--om-weight-bold); letter-spacing: 0.08em; display: flex; align-items: center; gap: var(--om-space-3); }
+.om-landing__beta { font-size: var(--om-text-sm-size); font-weight: var(--om-weight-bold); letter-spacing: 0.04em; text-transform: uppercase; padding: 0.1rem var(--om-space-2); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-md); color: var(--om-color-text-secondary); }
+.om-landing__meaning { font-size: var(--om-text-lg-size); line-height: var(--om-text-lg-line); color: var(--om-color-text-secondary); }
+.om-landing__meaning strong { color: var(--om-color-text-primary); }
+.om-landing__headline { text-wrap: balance; font-size: clamp(2rem, 7vw, 3.25rem); line-height: 1.1; font-weight: var(--om-weight-bold); }
 .om-landing__lead { font-size: var(--om-text-lg-size); line-height: var(--om-text-lg-line); color: var(--om-color-text-secondary); }
 .om-landing__seedlife { color: var(--om-color-text-secondary); }
 .om-landing__button { box-sizing: border-box; min-block-size: var(--om-target-min); min-inline-size: var(--om-target-min); padding-inline: var(--om-space-5); border: 1px solid var(--om-color-accent); border-radius: var(--om-radius-md); background: var(--om-color-accent); color: var(--om-color-accent-text); font: inherit; font-weight: var(--om-weight-bold); cursor: pointer; }
-.om-landing__status { padding: var(--om-space-4); border: 2px solid var(--om-color-border); border-radius: var(--om-radius-md); background: var(--om-color-bg-surface); }
+
+/* Story: static list by default; pinned and scroll-driven where supported. */
+.om-landing__scene { display: none; }
+.om-landing__chapters { list-style: none; padding: 0; display: grid; gap: var(--om-space-5); }
+.om-landing__chapter { padding: var(--om-space-4); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-md); background: var(--om-color-bg-surface); }
+.om-landing__step { display: inline-grid; place-items: center; inline-size: 2rem; block-size: 2rem; border-radius: 50%; background: var(--om-color-accent); color: var(--om-color-accent-text); font-weight: var(--om-weight-bold); margin-block-end: var(--om-space-2); }
+.om-landing__chapter h3 { font-size: var(--om-text-lg-size); margin-block-end: var(--om-space-2); }
+
 .om-landing__footer { padding-block-start: var(--om-space-4); border-block-start: 1px solid var(--om-color-border); color: var(--om-color-text-secondary); }
 .om-landing button:focus-visible, .om-landing a:focus-visible { outline: 3px solid var(--om-color-focus-ring, currentColor); outline-offset: 2px; }
+
+@keyframes om-drift-far { to { transform: translateY(-18vh) scale(1.15); } }
+@keyframes om-drift-mid { to { transform: translateY(-9vh) scale(1.08); } }
+@keyframes om-drift-near { to { transform: translateY(-3vh) scale(0.9); } }
+@keyframes om-rise { from { opacity: 0; transform: translateY(2.5rem); } to { opacity: 1; transform: none; } }
+@keyframes om-chapter { 0%, 100% { opacity: 0; transform: translateY(2rem); } 15%, 85% { opacity: 1; transform: none; } }
+@keyframes om-chapter-first { 0% { opacity: 1; } 85% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-2rem); } }
+@keyframes om-chapter-last { 0% { opacity: 0; transform: translateY(2rem); } 15%, 100% { opacity: 1; transform: none; } }
+@keyframes om-orb { 0% { transform: scale(0.5); box-shadow: 0 0 0 0 transparent; } 33% { transform: scale(0.8); } 66% { transform: scale(1.1) translateX(8vw); } 100% { transform: scale(1.4) translateX(0); } }
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .om-landing__ring { animation-timing-function: linear; animation-fill-mode: both; animation-timeline: scroll(root block); animation-range: 0 100vh; }
+    .om-landing__ring--far { animation-name: om-drift-far; }
+    .om-landing__ring--mid { animation-name: om-drift-mid; }
+    .om-landing__ring--near { animation-name: om-drift-near; }
+
+    .om-landing__story { view-timeline-name: --om-story; view-timeline-axis: block; block-size: 400vh; position: relative; }
+    .om-landing__stage { position: sticky; inset-block-start: 0; block-size: 100svh; display: grid; grid-template-rows: auto 1fr; padding-block-start: var(--om-space-6); overflow: clip; }
+    .om-landing__scene { display: grid; place-items: center; }
+    .om-landing__orb { inline-size: 36vmin; block-size: 36vmin; border-radius: 50%; border: 3px solid var(--om-color-accent); background: radial-gradient(circle at 35% 30%, var(--om-color-info-bg), var(--om-color-bg-surface)); animation: om-orb linear both; animation-timeline: --om-story; animation-range: cover 22% cover 78%; }
+    .om-landing__chapters { position: absolute; inset-inline: 0; inset-block-end: var(--om-space-6); display: block; }
+    .om-landing__chapter { position: absolute; inset-inline: 0; inset-block-end: 0; opacity: 0; animation: om-chapter linear both; animation-timeline: --om-story; }
+    .om-landing__chapter--1 { animation-name: om-chapter-first; animation-range: cover 22% cover 38%; opacity: 1; }
+    .om-landing__chapter--2 { animation-range: cover 34% cover 52%; }
+    .om-landing__chapter--3 { animation-range: cover 48% cover 66%; }
+    .om-landing__chapter--4 { animation-name: om-chapter-last; animation-range: cover 62% cover 78%; }
+
+    .om-landing__reveal-list li, .om-landing section[id] > p, .om-landing section[id] > h2 { animation: om-rise linear both; animation-timeline: view(); animation-range: entry 0% entry 60%; }
+  }
+}

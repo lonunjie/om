@@ -9,7 +9,7 @@ test("index.html carries the landing text and metadata without running any JavaS
   const root = /<div id="root">([\s\S]*)<\/body>/.exec(html)?.[1] ?? "";
   for (const text of [
     "Private messaging that nobody operates for you", "open-source, operatorless, end-to-end-encrypted messenger", "Protect life. Seed it.",
-    "Beta", "Add to Home Screen", "Install app", "Run your own copy", "https://github.com/lonunjie/om", "Get started",
+    "Beta", "Oh Messenger", "Security & privacy", "Add to Home Screen", "Install app", "Run your own copy", "https://github.com/lonunjie/om", "Get started",
   ]) expect(root, text).toContain(text);
   expect(html).toMatch(/<meta name="description" content="[^"]{40,}"/);
   expect(html).toMatch(/<meta property="og:image" content="[^"]+og-image\.png"/);

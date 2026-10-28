@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "OM",
+  "name": "OM (Oh Messenger)",
   "short_name": "OM",
-  "description": "OM is an open-source, operatorless, end-to-end-encrypted messenger from the SeedLife project. Pre-release.",
+  "description": "OM is an open-source, operatorless, end-to-end-encrypted messenger from the SeedLife project. Beta.",
   "lang": "en",
   "dir": "ltr",
   "start_url": "/",

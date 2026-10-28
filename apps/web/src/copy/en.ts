@@ -615,7 +615,10 @@ export interface LandingCopy {
   readonly lead: string;
   readonly getStarted: string;
   readonly seedlife: { readonly label: string; readonly tagline: string };
-  readonly status: { readonly heading: string; readonly body: string };
+  readonly beta: string;
+  readonly meaning: { readonly lead: string; readonly body: string };
+  readonly story: { readonly heading: string; readonly chapters: readonly { readonly label: string; readonly title: string; readonly body: string }[] };
+  readonly security: { readonly heading: string; readonly points: readonly string[]; readonly link: string; readonly linkLabel: string };
   readonly what: { readonly heading: string; readonly points: readonly string[] };
   readonly install: {
     readonly heading: string;
@@ -636,24 +639,46 @@ export interface LandingCopy {
 const https = (hostAndPath: string): string => ["https", hostAndPath].join("://");
 
 export const landingCopy: LandingCopy = {
-  title: "OM: private messaging nobody runs for you",
-  description: "OM is an open-source, operatorless, end-to-end-encrypted messenger from the SeedLife project. Beta: not independently audited, may lose data.",
+  title: "OM (Oh Messenger) Beta: private messaging nobody runs for you",
+  description: "OM, short for Oh Messenger, is an open-source, operatorless, end-to-end-encrypted messenger from the SeedLife project. Beta.",
   brand: "OM",
   headline: "Private messaging that nobody operates for you",
   lead: "OM is an open-source, operatorless, end-to-end-encrypted messenger. Your conversations belong to you and your devices, not to a company that could read, sell or lose them.",
   getStarted: "Get started",
   seedlife: { label: "A SeedLife project", tagline: "Protect life. Seed it." },
-  status: {
-    heading: "Beta",
-    body: "OM is a beta. It is not independently audited, it makes no security claims, and it may lose data. Try it, but do not rely on it for anything private or important.",
+  beta: "Beta",
+  meaning: {
+    lead: "OM stands for Oh Messenger.",
+    body: "The \u201cOh\u201d is the small sound you make when a message lands from someone you care about. We want that moment to be the only thing a messenger has to deliver.",
+  },
+  story: {
+    heading: "One message, start to finish",
+    chapters: [
+      { label: "1", title: "You write", body: "A message starts on your device. There is no company account to sign up for." },
+      { label: "2", title: "It locks", body: "It is end-to-end encrypted, so it is locked before it leaves your hands." },
+      { label: "3", title: "It travels", body: "No company operates OM for you and no central service has to stay online. You pick a Home to carry it, or run your own." },
+      { label: "4", title: "They open it", body: "Only the people in the conversation hold the keys. That is the design; read the code and check it." },
+    ],
+  },
+  security: {
+    heading: "Security & privacy",
+    points: [
+      "OM is a beta. No human cryptographer has audited it.",
+      "OM makes no security claims. Do not rely on it for anything private or important yet.",
+      "Data may be lost during the beta: messages, contacts or your whole identity.",
+      "A Home can see that you connect and when, and how much you send, though it is designed not to read what you send.",
+      "Found a flaw? Write to hi@lonunjie.org with the subject \u201cOM security\u201d.",
+    ],
+    link: https("github.com/lonunjie/om/blob/main/SECURITY.md"),
+    linkLabel: "Read the full security policy",
   },
   what: {
     heading: "What OM is for",
     points: [
       "End-to-end encrypted: only the people in a conversation can read it.",
-      "Operatorless: there is no company account to sign up for and no central service that has to stay online.",
+      "Operatorless: no company account and no central service that has to stay online.",
       "Open source: anyone can read, check and run the code.",
-      "Made for ordinary people: no technical vocabulary needed.",
+      "Made for ordinary people, with no technical vocabulary.",
     ],
   },
   install: {

@@ -16,23 +16,42 @@ export function Landing({ onGetStarted, installSlot }: LandingProps) {
   return (
     <main className="om-landing" id="om-landing">
       <header className="om-landing__hero">
-        <p className="om-landing__brand">{c.brand}</p>
-        <h1 className="om-landing__headline">{c.headline}</h1>
-        <p className="om-landing__lead">{c.lead}</p>
-        <div className="om-landing__cta">
-          <button type="button" className="om-landing__button" data-primary="true" onClick={onGetStarted}>{c.getStarted}</button>
+        <div className="om-landing__rings" aria-hidden="true">
+          <span className="om-landing__ring om-landing__ring--far" />
+          <span className="om-landing__ring om-landing__ring--mid" />
+          <span className="om-landing__ring om-landing__ring--near" />
         </div>
-        <p className="om-landing__seedlife"><strong>{c.seedlife.label}.</strong> {c.seedlife.tagline}</p>
+        <div className="om-landing__hero-copy">
+          <p className="om-landing__brand">{c.brand} <span className="om-landing__beta">{c.beta}</span></p>
+          <p className="om-landing__meaning"><strong>{c.meaning.lead}</strong> {c.meaning.body}</p>
+          <h1 className="om-landing__headline">{c.headline}</h1>
+          <p className="om-landing__lead">{c.lead}</p>
+          <div className="om-landing__cta">
+            <button type="button" className="om-landing__button" data-primary="true" onClick={onGetStarted}>{c.getStarted}</button>
+          </div>
+          <p className="om-landing__seedlife"><strong>{c.seedlife.label}.</strong> {c.seedlife.tagline}</p>
+        </div>
       </header>
 
-      <section className="om-landing__status" aria-labelledby="om-landing-status-h">
-        <h2 id="om-landing-status-h">{c.status.heading}</h2>
-        <p>{c.status.body}</p>
+      <section className="om-landing__story" aria-labelledby="om-landing-story-h">
+        <div className="om-landing__stage">
+          <h2 id="om-landing-story-h">{c.story.heading}</h2>
+          <div className="om-landing__scene" aria-hidden="true"><span className="om-landing__orb" /></div>
+          <ol className="om-landing__chapters">
+            {c.story.chapters.map((ch, i) => (
+              <li key={ch.title} className={`om-landing__chapter om-landing__chapter--${String(i + 1)}`}>
+                <span className="om-landing__step">{ch.label}</span>
+                <h3>{ch.title}</h3>
+                <p>{ch.body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
       </section>
 
       <section aria-labelledby="om-landing-what-h">
         <h2 id="om-landing-what-h">{c.what.heading}</h2>
-        <ul>{c.what.points.map((p) => <li key={p}>{p}</li>)}</ul>
+        <ul className="om-landing__reveal-list">{c.what.points.map((p) => <li key={p}>{p}</li>)}</ul>
       </section>
 
       <section aria-labelledby="om-landing-install-h" id="install">
@@ -50,6 +69,12 @@ export function Landing({ onGetStarted, installSlot }: LandingProps) {
         <h2 id="om-landing-self-h">{c.selfHost.heading}</h2>
         <p>{c.selfHost.body}</p>
         <p><a href={c.selfHost.link} rel="noopener noreferrer">{c.selfHost.linkLabel}</a></p>
+      </section>
+
+      <section aria-labelledby="om-landing-security-h" id="security">
+        <h2 id="om-landing-security-h">{c.security.heading}</h2>
+        <ul>{c.security.points.map((p) => <li key={p}>{p}</li>)}</ul>
+        <p><a href={c.security.link} rel="noopener noreferrer">{c.security.linkLabel}</a></p>
       </section>
 
       <footer className="om-landing__footer">
