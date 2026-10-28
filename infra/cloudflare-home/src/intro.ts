@@ -115,12 +115,14 @@ export class IntroGate extends DurableObject<Env> {
       if (mr?.kind !== "message_request") throw new HomeError("invalid_request");
       const ticket = one<{ expires_at: number; max_uses: number; used: number; payload_limit: number; revoked: number }>(
         this.sql, "SELECT expires_at, max_uses, used, payload_limit, revoked FROM tickets WHERE id = ?", mr.ticketId);
+      if (!ticket || ticket.revoked) throw new HomeError("admission_denied"); // unknown, revoked: one answer, no oracle
+      if (ticket.expires_at + LIMITS.skewSeconds < now) throw new HomeError("expired");
+      // The rate limit is charged only to requests that name a real ticket, so junk aimed at a service's public ticket prefix
+      // cannot starve the people holding real tickets.
       const t = takeToken(metaNumber(this.sql, "tokens", LIMITS.submitBurst), metaNumber(this.sql, "tokens_at", now), now, LIMITS.submitBurst, LIMITS.submitRefillPerSecond);
       setMeta(this.sql, "tokens", t.tokens);
       setMeta(this.sql, "tokens_at", now);
       if (!t.allowed) throw new HomeError("rate_limited", { retryAfterSeconds: t.waitSeconds });
-      if (!ticket || ticket.revoked) throw new HomeError("admission_denied"); // unknown, revoked: one answer, no oracle
-      if (ticket.expires_at + LIMITS.skewSeconds < now) throw new HomeError("expired");
       if (request.length > ticket.payload_limit + 1024) throw new HomeError("payload_too_large"); // framing + HPKE enc + tag over the payload limit
       const fp = await fingerprint(request);
       const retry = one(this.sql, "SELECT 1 AS x FROM uses WHERE ticket_id = ? AND fp = ?", mr.ticketId, fp) !== undefined;

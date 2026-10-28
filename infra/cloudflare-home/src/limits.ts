@@ -20,6 +20,9 @@ export const LIMITS = {
   drainPageItems: 64,
   drainPageBytes: 1024 * 1024,
   maxDepositCapabilities: 64,
+  /** Rows of the replay set and of the request_id idempotency table kept per queue (oldest dropped first): a hostile but valid depositor cannot grow storage without bound. */
+  maxReplayRows: 8192,
+  maxCapabilityRows: 512,
   /** request_id idempotency horizon across restarts (home-api.md section 5). */
   idempotencySeconds: 7 * DAY,
   rotateOverlapSeconds: DAY,

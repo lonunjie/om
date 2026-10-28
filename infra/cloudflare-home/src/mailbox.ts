@@ -54,6 +54,8 @@ export function enqueue(sql: SqlStorage, input: { bytes: Uint8Array; fp: string;
   setMeta(sql, "next_seq", seq + 1);
   run(sql, "INSERT INTO items (seq, id, bytes, len, fp, expires_at, cap_hash) VALUES (?, ?, ?, ?, ?, ?, ?)", seq, id, input.bytes, input.bytes.length, input.fp, input.expiresAt, input.capHash ?? null);
   run(sql, "INSERT INTO seen (fp, tuple_key, item_id, seq, expires_at) VALUES (?, ?, ?, ?, ?)", input.fp, input.tupleKey ?? null, id, seq, input.expiresAt);
+  // The replay set is an availability aid (the recipient endpoint is the replay authority, SEALED_SENDER_DELIVERY_PROFILE.md section 7); keep it bounded.
+  run(sql, "DELETE FROM seen WHERE seq <= ?", seq - LIMITS.maxReplayRows);
   return { id, seq, duplicate: false };
 }
 

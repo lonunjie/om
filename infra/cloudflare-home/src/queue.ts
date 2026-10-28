@@ -49,6 +49,7 @@ export class MailboxQueue extends DurableObject<Env> {
   private async remember(requestId: Uint8Array, fp: string, result: Uint8Array, ttl: number): Promise<void> {
     const rid = await fingerprint(requestId);
     run(this.sql, "INSERT OR REPLACE INTO ops (request_id, fp, result, expires_at) VALUES (?, ?, ?, ?)", rid, fp, result, nowSeconds() + ttl);
+    run(this.sql, "DELETE FROM ops WHERE rowid <= (SELECT MAX(rowid) FROM ops) - ?", LIMITS.maxReplayRows);
   }
 
   private async schedule(): Promise<void> {
@@ -213,7 +214,8 @@ export class MailboxQueue extends DurableObject<Env> {
       const done = await this.replay(req.requestId, fp);
       if (done) return done;
       const count = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM dcaps WHERE revoked = 0")?.n ?? 0;
-      if (count >= LIMITS.maxDepositCapabilities) throw new HomeError("quota", { detail: quotaDetail(4, this.hard) });
+      const rows = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM dcaps")?.n ?? 0; // revoked tombstones count too
+      if (count >= LIMITS.maxDepositCapabilities || rows >= LIMITS.maxCapabilityRows) throw new HomeError("quota", { detail: quotaDetail(4, this.hard) });
       const now = nowSeconds();
       const cap = concat(adminCapPrefix(adminCap), randomBytes(32));
       const id = randomBytes(16);

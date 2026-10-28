@@ -25,6 +25,7 @@ product code is not. [`machine/repository_contract.json`](machine/repository_con
 | `machine/` | machine truth (contract, file registry, ledgers, traceability, threats) |
 | `verification/` | evidence: `tla/`, `bounded/`, `cbor/`, `prototypes/<gate>/`, `vectors/`, `results/` |
 | `crates/` | engineering (`core_kernel`): Rust workspace `om-codec`, `om-core`, `om-wasm`; `packages/om-core-wasm` is its TypeScript binding. Status: [`2026-10-28-core-kernel-m1-status.md`](docs/reports/2026-10-28-core-kernel-m1-status.md) |
+| `infra/`, `packages/om-home-wire`, `packages/om-provider-http` | engineering (`provider_reference`): the reference Home on Cloudflare (`infra/cloudflare-home`), its Home API wire layer and the Core transport adapter. Status and deploy plan: [`2026-10-28-relay-status.md`](docs/reports/2026-10-28-relay-status.md) |
 | `tools/` | [`validate_architecture.py`](tools/validate_architecture.py), [`om_docs.py`](tools/om_docs.py), [`om_drop.py`](tools/om_drop.py), [`build_manifest.py`](tools/build_manifest.py), [`layout.json`](tools/layout.json) |
 | `design-drops/` | **gitignored** drop zone for design zips going out to, or coming in from, other agents |
 
