@@ -419,3 +419,320 @@ fn bootstrap_key_admits_at_most_eight_candidates_then_dies_with_the_winning_hell
         failures + 1
     );
 }
+
+// ---------------------------------------------------------------------------------------------- events
+
+mod events {
+    use super::*;
+    use om_core::events::{
+        Header, Hlc, K_CREATE, K_DELETE, K_EDIT, K_RECEIPT, message_create_body, rich_text,
+    };
+
+    fn hexb(s: &str) -> Vec<u8> {
+        unhex(s).unwrap()
+    }
+
+    /// An established pair plus what Alice needs to author events by hand.
+    fn pair() -> (Pair, String, [u8; 32], [u8; 16], [u8; 32]) {
+        let mut p = half_open();
+        settle_all(&mut [(&mut p.alice, &p.a), (&mut p.bob, &p.b)]);
+        let b_conv = p
+            .bob
+            .query::<Vec<ConversationSummary>>(Query::GetConversationList { ctx: p.b.clone() })[0]
+            .id
+            .clone();
+        let ra = rel(&p.alice, &p.a);
+        let canon: [u8; 32] = hexb(ra["canonId"].as_str().unwrap()).try_into().unwrap();
+        // Alice's own account/device ids are Bob's recorded peer ids.
+        let rb = rel(&p.bob, &p.b);
+        let acct: [u8; 32] = hexb(rb["peerAccountId"].as_str().unwrap())
+            .try_into()
+            .unwrap();
+        let dev: [u8; 16] = hexb(rb["peerDeviceId"].as_str().unwrap())
+            .try_into()
+            .unwrap();
+        (p, b_conv, canon, dev, acct)
+    }
+
+    fn inject(p: &mut Pair, payload: Vec<u8>) {
+        let step = p
+            .alice
+            .core
+            .debug_inject_payload(&p.a, &p.a_conv, &payload)
+            .unwrap();
+        p.alice.settle(&step);
+        settle_all(&mut [(&mut p.alice, &p.a), (&mut p.bob, &p.b)]);
+    }
+
+    fn ev(
+        canon: [u8; 32],
+        acct: [u8; 32],
+        dev: [u8; 16],
+        id: u8,
+        ms: u64,
+        kind: u64,
+        body: om_core::crypto::cbor::V,
+    ) -> Vec<u8> {
+        Header {
+            event_id: [id; 16],
+            conversation_id: canon,
+            author_account: acct,
+            author_device: dev,
+            clock: Hlc {
+                physical_ms: ms,
+                logical: 0,
+            },
+            kind,
+            body,
+        }
+        .encode()
+    }
+
+    fn view(p: &Pair, conv: &str) -> ConversationView {
+        p.bob.query(Query::GetConversationView {
+            ctx: p.b.clone(),
+            conversation_id: conv.into(),
+        })
+    }
+
+    #[test]
+    fn messages_are_canonical_w0_events_with_event_ids() {
+        let (mut p, b_conv, canon, _, _) = pair();
+        text(&mut p.alice, &p.a, "m", &p.a_conv, "hello\nworld");
+        settle_all(&mut [(&mut p.alice, &p.a), (&mut p.bob, &p.b)]);
+        let v = view(&p, &b_conv);
+        let TimelineItem::Incoming {
+            message_id, text, ..
+        } = &v.timeline[0]
+        else {
+            panic!()
+        };
+        assert_eq!(text, "hello\nworld");
+        assert!(
+            message_id.starts_with("msg-") && message_id.len() == 4 + 32,
+            "message id is the 128-bit EventID"
+        );
+        assert_eq!(
+            hexb(rel(&p.bob, &p.b)["canonId"].as_str().unwrap()),
+            canon.to_vec(),
+            "both sides share the ConversationID"
+        );
+    }
+
+    #[test]
+    fn edits_and_deletes_apply_only_from_the_author_in_clock_order_and_equivocation_rejects_all_versions()
+     {
+        let (mut p, b_conv, canon, dev, acct) = pair();
+        inject(
+            &mut p,
+            ev(
+                canon,
+                acct,
+                dev,
+                1,
+                1_790_000_100_000,
+                K_CREATE,
+                message_create_body("first"),
+            ),
+        );
+        assert_eq!(texts_of(&view(&p, &b_conv)), vec!["first"]);
+        // Edit with a later clock replaces the text; a stale (earlier) edit does not.
+        let edit = |id: u8, ms: u64, t: &str| {
+            ev(
+                canon,
+                acct,
+                dev,
+                id,
+                ms,
+                K_EDIT,
+                om_core::crypto::cbor::V::M(vec![
+                    (0, om_core::crypto::cbor::V::B(vec![1; 16])),
+                    (1, rich_text(t)),
+                ]),
+            )
+        };
+        inject(&mut p, edit(2, 1_790_000_200_000, "second"));
+        inject(&mut p, edit(3, 1_790_000_150_000, "stale"));
+        assert_eq!(texts_of(&view(&p, &b_conv)), vec!["second"]);
+        // Same EventID, different payload: every version is rejected.
+        inject(
+            &mut p,
+            ev(
+                canon,
+                acct,
+                dev,
+                9,
+                1_790_000_300_000,
+                K_CREATE,
+                message_create_body("one"),
+            ),
+        );
+        inject(
+            &mut p,
+            ev(
+                canon,
+                acct,
+                dev,
+                9,
+                1_790_000_300_000,
+                K_CREATE,
+                message_create_body("two"),
+            ),
+        );
+        assert_eq!(texts_of(&view(&p, &b_conv)), vec!["second"]);
+        // A later replay of the first version is also refused.
+        inject(
+            &mut p,
+            ev(
+                canon,
+                acct,
+                dev,
+                9,
+                1_790_000_300_000,
+                K_CREATE,
+                message_create_body("one"),
+            ),
+        );
+        assert_eq!(texts_of(&view(&p, &b_conv)), vec!["second"]);
+        // Delete tombstones the message.
+        let del = ev(
+            canon,
+            acct,
+            dev,
+            4,
+            1_790_000_400_000,
+            K_DELETE,
+            om_core::crypto::cbor::V::M(vec![(0, om_core::crypto::cbor::V::B(vec![1; 16]))]),
+        );
+        inject(&mut p, del);
+        assert!(view(&p, &b_conv).timeline.is_empty());
+    }
+
+    #[test]
+    fn events_for_another_conversation_or_author_and_unknown_kinds_are_refused() {
+        let (mut p, b_conv, canon, dev, acct) = pair();
+        let before = rel(&p.bob, &p.b)["integrityFailures"].as_u64().unwrap();
+        inject(
+            &mut p,
+            ev(
+                [0xee; 32],
+                acct,
+                dev,
+                1,
+                1_790_000_100_000,
+                K_CREATE,
+                message_create_body("wrong conversation"),
+            ),
+        );
+        inject(
+            &mut p,
+            ev(
+                canon,
+                [0xdd; 32],
+                dev,
+                2,
+                1_790_000_100_000,
+                K_CREATE,
+                message_create_body("wrong author"),
+            ),
+        );
+        inject(
+            &mut p,
+            ev(
+                canon,
+                acct,
+                [0xcc; 16],
+                3,
+                1_790_000_100_000,
+                K_CREATE,
+                message_create_body("wrong endpoint"),
+            ),
+        );
+        inject(
+            &mut p,
+            ev(
+                canon,
+                acct,
+                dev,
+                4,
+                1_790_000_100_000,
+                6,
+                om_core::crypto::cbor::V::M(vec![]),
+            ),
+        );
+        assert!(view(&p, &b_conv).timeline.is_empty());
+        assert_eq!(
+            rel(&p.bob, &p.b)["integrityFailures"].as_u64().unwrap(),
+            before + 4
+        );
+    }
+
+    #[test]
+    fn a_receipt_settles_an_outgoing_message_as_delivered() {
+        let (mut p, b_conv, canon, _, _) = pair();
+        text(&mut p.alice, &p.a, "m", &p.a_conv, "ping");
+        settle_all(&mut [(&mut p.alice, &p.a), (&mut p.bob, &p.b)]);
+        let v: ConversationView = p.alice.query(Query::GetConversationView {
+            ctx: p.a.clone(),
+            conversation_id: p.a_conv.clone(),
+        });
+        let TimelineItem::Outgoing {
+            message_id,
+            delivery,
+            ..
+        } = &v.timeline[0]
+        else {
+            panic!()
+        };
+        assert_eq!(*delivery, DeliveryState::Sent);
+        let eid: Vec<u8> = hexb(message_id.trim_start_matches("msg-"));
+        // Bob (the peer) reports it delivered. Bob's own device authors the receipt.
+        let rb = rel(&p.bob, &p.b);
+        let (b_acct, b_dev): ([u8; 32], [u8; 16]) = {
+            let ra = rel(&p.alice, &p.a);
+            (
+                hexb(ra["peerAccountId"].as_str().unwrap())
+                    .try_into()
+                    .unwrap(),
+                hexb(ra["peerDeviceId"].as_str().unwrap())
+                    .try_into()
+                    .unwrap(),
+            )
+        };
+        let _ = rb;
+        let body = om_core::crypto::cbor::V::M(vec![
+            (0, om_core::crypto::cbor::V::U(1)),
+            (
+                1,
+                om_core::crypto::cbor::V::A(vec![om_core::crypto::cbor::V::B(eid)]),
+            ),
+        ]);
+        let payload = ev(canon, b_acct, b_dev, 7, 1_790_000_500_000, K_RECEIPT, body);
+        let step = p
+            .bob
+            .core
+            .debug_inject_payload(&p.b, &b_conv, &payload)
+            .unwrap();
+        p.bob.settle(&step);
+        settle_all(&mut [(&mut p.alice, &p.a), (&mut p.bob, &p.b)]);
+        let v: ConversationView = p.alice.query(Query::GetConversationView {
+            ctx: p.a.clone(),
+            conversation_id: p.a_conv.clone(),
+        });
+        let TimelineItem::Outgoing { delivery, .. } = &v.timeline[0] else {
+            panic!()
+        };
+        assert_eq!(*delivery, DeliveryState::Delivered);
+    }
+
+    fn texts_of(v: &ConversationView) -> Vec<String> {
+        v.timeline
+            .iter()
+            .map(|i| match i {
+                TimelineItem::Incoming { text, .. } | TimelineItem::Outgoing { text, .. } => {
+                    text.clone()
+                }
+            })
+            .collect()
+    }
+}

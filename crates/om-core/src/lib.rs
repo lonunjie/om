@@ -18,6 +18,7 @@ compile_error!(
 pub mod api;
 pub mod crypto;
 pub mod engine;
+pub mod events;
 mod flows;
 pub mod host;
 pub mod state;

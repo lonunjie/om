@@ -139,9 +139,20 @@ pub struct Msg {
     pub text: String,
     pub sent_at: u64,
     pub delivery: DeliveryState,
-    /// The exact encrypted envelope, kept until the relay accepts it so a retry never re-runs the ratchet.
+    /// The exact encrypted inner envelope, kept until the relay accepts it so a retry never re-runs the ratchet.
     #[serde(default)]
     pub envelope: Option<Hex>,
+    /// SHA-256 of the canonical `ConversationEvent` that created this message (EventID equivocation check).
+    #[serde(default)]
+    pub digest: Hex,
+    /// EventClock of the create or the latest accepted edit (epoch-free 1:1 last-writer-wins register).
+    #[serde(default)]
+    pub clock_ms: u64,
+    #[serde(default)]
+    pub clock_logical: u32,
+    /// Tombstoned by a `message.delete` from the author; never shown, kept so the EventID stays deduplicated.
+    #[serde(default)]
+    pub deleted: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -177,6 +188,17 @@ pub struct Relationship {
     /// `"<delivery_key_id>:<delivery_id>"` -> replay record.
     #[serde(default)]
     pub replay: BTreeMap<String, ReplayRec>,
+    /// Random 256-bit ConversationID chosen by the inviter and carried in its authenticated Hello.
+    #[serde(default)]
+    pub canon_id: Option<Hex>,
+    /// Last EventClock issued locally (HLC).
+    #[serde(default)]
+    pub hlc_ms: u64,
+    #[serde(default)]
+    pub hlc_logical: u32,
+    /// EventIDs seen with two different payloads: every version is rejected (EVENT_MODEL.md equivocation rule).
+    #[serde(default)]
+    pub equivocated: BTreeSet<Hex>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

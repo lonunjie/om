@@ -11,6 +11,7 @@ use crate::crypto::delivery::{self, KeyMaterial};
 use crate::crypto::rng::{CryptoRng, RngCore, arr32};
 use crate::crypto::sig::{digest, ds_hash};
 use crate::crypto::{self, PROFILE_V1, hex, hpke, unhex};
+use crate::events::{self, Hlc};
 use crate::host::{CoreError, NetCall, NetError, NetResult};
 use crate::state::*;
 use std::sync::OnceLock;
@@ -20,7 +21,6 @@ pub const BUNDLE_TTL_S: u64 = 90 * 24 * 60 * 60;
 pub const MAX_MESSAGE_CHARS: usize = 8000;
 pub const MAX_LABEL_CHARS: usize = 64;
 const ONE_TIME_KEYS: usize = 10;
-const KIND_TEXT: u64 = 1;
 const KIND_HELLO: u64 = 2;
 /// Post-acceptance control message carrying the sender's signed `SealedDeliveryKeyRecord` (ADR-0142 section 9).
 const KIND_KEYS: u64 = 3;
@@ -559,6 +559,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 }),
                 bootstrap: None,
                 replay: Default::default(),
+                canon_id: None,
+                hlc_ms: 0,
+                hlc_logical: 0,
+                equivocated: Default::default(),
             };
             Ok((rel, hex(&device_id)))
         })();
@@ -585,6 +589,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         rel.id = conv.clone();
         rel.my_mailbox = hex(&mb);
         rel.my_delivery = vec![self.new_delivery_key(&mb, DELIVERY_KEY_TTL_S)];
+        // The inviter names the conversation: random, provider-independent, bound to this relationship by the Hello.
+        rel.canon_id = Some(hex(&arr32(self.rng)));
         self.st.app.relationships.insert(conv.clone(), rel);
         self.st.app.intros.remove(request_id);
         let Ok(did) = hb(&device_hex) else {
@@ -623,15 +629,42 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.record(op, kind, rejected(RejectReason::Unavailable), None);
             return Ok(());
         };
-        let mut mid = [0u8; 16];
-        self.rng.fill_bytes(&mut mid);
+        let (Some(canon), Some(Ok(account)), Some(device_id)) = (
+            rel.canon_id.as_deref().and_then(|c| h32(c).ok()),
+            self.st.device.as_ref().map(|d| Ok::<_, ()>(d.account_id)),
+            self.st.device.as_ref().map(|d| d.device_id),
+        ) else {
+            self.record(op, kind, rejected(RejectReason::Unavailable), None);
+            return Ok(());
+        };
+        let clock = Hlc::next(
+            Hlc {
+                physical_ms: rel.hlc_ms,
+                logical: rel.hlc_logical,
+            },
+            self.now_ms,
+        );
+        let mid = self.rand16();
         let message_id = format!("msg-{}", hex(&mid));
-        let payload = cbor::encode(&V::M(vec![
-            (0, V::U(KIND_TEXT)),
-            (1, V::B(mid.to_vec())),
-            (2, V::T(text.to_string())),
-            (3, V::U(self.now_ms)),
-        ]));
+        // A canonical W0 ConversationEvent (message.create); the 1:1 session AEAD authenticates it.
+        let payload = events::Header {
+            event_id: mid,
+            conversation_id: canon,
+            author_account: account,
+            author_device: device_id,
+            clock,
+            kind: events::K_CREATE,
+            body: events::message_create_body(text),
+        }
+        .encode();
+        if registry()
+            .check("ConversationEvent", &payload, false)
+            .is_err()
+        {
+            self.record(op, kind, rejected(RejectReason::Invalid), None);
+            return Ok(());
+        }
+        let digest = hex(&crypto::sha256(&[&payload]));
         // The ratchet advance and the outbox entry are one staged transaction: persisted before the first external effect.
         let (env, _) = match self.device()?.encrypt(&peer_ik, &payload) {
             Ok(x) => x,
@@ -655,7 +688,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             sent_at: now,
             delivery: DeliveryState::PendingNetwork,
             envelope: Some(hex(&env)),
+            digest,
+            clock_ms: clock.physical_ms,
+            clock_logical: clock.logical,
+            deleted: false,
         });
+        rel.hlc_ms = clock.physical_ms;
+        rel.hlc_logical = clock.logical;
         let Ok(wrapper) = self.seal_to(&pd, &hb(&peer_mailbox)?, &env) else {
             return Err(CoreError::Invalid("seal")); // aborts the whole staged transaction: the ratchet is not advanced
         };
@@ -671,6 +710,43 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             },
         );
         self.record(op, kind, OutcomeClass::PendingNetwork, Some(message_id));
+        Ok(())
+    }
+
+    /// TEST ONLY (`test-loopback`): encrypt and seal an arbitrary inner payload as this device so scenario tests can
+    /// play a misbehaving authenticated peer (equivocation, wrong conversation, edits). Not reachable in production.
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_inject(&mut self, conv: &str, payload: &[u8]) -> Result<(), CoreError> {
+        let rel = self
+            .st
+            .app
+            .relationships
+            .get(conv)
+            .cloned()
+            .ok_or(CoreError::NotFound("conversation"))?;
+        let pd = self
+            .peer_key_for_send(&rel)
+            .map_err(|_| CoreError::Invalid("no key"))?;
+        let mailbox = hb(rel
+            .peer_mailbox
+            .as_deref()
+            .ok_or(CoreError::Invalid("mb"))?)?;
+        let (env, _) = self
+            .device()?
+            .encrypt(&h32(&rel.peer_ik)?, payload)
+            .map_err(|_| CoreError::Invalid("encrypt"))?;
+        let wrapper = self
+            .seal_to(&pd, &mailbox, &env)
+            .map_err(|_| CoreError::Invalid("seal"))?;
+        self.enqueue(
+            NetCall::Deposit {
+                mailbox,
+                bytes: wrapper,
+            },
+            Purpose::DepositKeys {
+                conversation_id: conv.to_string(),
+            },
+        );
         Ok(())
     }
 
@@ -1112,6 +1188,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     candidates: vec![],
                 }),
                 replay: Default::default(),
+                canon_id: None,
+                hlc_ms: 0,
+                hlc_logical: 0,
+                equivocated: Default::default(),
             },
         );
         self.enqueue(
@@ -1190,6 +1270,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(my_key) = rel.my_delivery.first().cloned() else {
             return rej(IntegrityFailure);
         };
+        let Some(canon_id) = rel.canon_id.as_deref().and_then(|c| h32(c).ok()) else {
+            return rej(IntegrityFailure);
+        };
         let Ok(record) = self.signed_key_record(&my_key) else {
             return rej(IntegrityFailure);
         };
@@ -1198,6 +1281,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (1, V::B(my_mailbox.to_vec())),
             (2, V::T(label)),
             (3, V::B(record)),
+            (4, V::B(canon_id.to_vec())),
         ]));
         let env = match self.st.device.as_mut().map(|d| d.encrypt(&peer_ik, &hello)) {
             Some(Ok((env, _))) => env,
@@ -1538,7 +1622,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let ok = match kind {
             KIND_HELLO => self.on_hello(conv, &p, via_bootstrap),
             KIND_KEYS => self.on_keys(conv, &p),
-            KIND_TEXT => self.on_text(conv, &p),
+            events::OBJECT_TYPE => self.on_event(conv, &pt),
             _ => true, // unknown payload kinds from a newer client are ignored, not fatal
         };
         if !ok {
@@ -1616,7 +1700,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ) else {
             return false;
         };
-        if mb.len() != 16 {
+        let Ok(canon) = p.get(4).and_then(|x| x.b32()) else {
+            return false;
+        };
+        if mb.len() != 16 || rel.canon_id.as_deref().is_some_and(|c| c != hex(&canon)) {
             return false;
         }
         if rel.peer_mailbox.is_some() && rel.peer_mailbox.as_deref() != Some(hex(&mb).as_str()) {
@@ -1627,6 +1714,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         if let Some(r) = self.st.app.relationships.get_mut(conv) {
             r.peer_mailbox = Some(hex(&mb));
+            r.canon_id = Some(hex(&canon));
         }
         self.install_peer_key(conv, &km);
         if via_bootstrap {
@@ -1696,40 +1784,136 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         true
     }
 
-    fn on_text(&mut self, conv: &str, p: &V) -> bool {
+    /// An authenticated inner payload that is a `ConversationEvent`: W0-valid, in this conversation, authored by the
+    /// pinned peer endpoint, deduplicated by EventID, and applied as a state transition.
+    fn on_event(&mut self, conv: &str, bytes: &[u8]) -> bool {
+        if registry().check("ConversationEvent", bytes, false).is_err() {
+            return false;
+        }
+        let Some(ev) = events::parse(bytes) else {
+            return false;
+        };
         let Some(r) = self.st.app.relationships.get_mut(conv) else {
             return false;
         };
-        if r.blocked {
-            return true;
-        }
-        let (Ok(id), Ok(text), Ok(at)) = (
-            p.get(1).and_then(|x| x.b()),
-            p.get(2).and_then(|x| x.t()),
-            p.get(3).and_then(|x| x.u()),
+        let (Some(canon), Ok(peer_account), Ok(peer_device)) = (
+            r.canon_id.as_deref(),
+            h32(&r.peer_account_id),
+            h16(&r.peer_device_id),
         ) else {
             return false;
         };
-        // A payload that decrypts on a session only the pinned peer can create also shows the peer accepted
-        // (the Hello that carries its mailbox may be reordered by the relay), so state is not checked here.
-        if id.len() != 16 || text.chars().count() > MAX_MESSAGE_CHARS {
+        // The event must name this conversation and be authored by the authenticated endpoint that carried it.
+        if hex(&ev.conversation_id) != canon
+            || ev.author_account != peer_account
+            || ev.author_device != peer_device
+        {
             return false;
         }
-        let id = format!("msg-{}", hex(id));
-        if r.messages.iter().any(|m| m.id == id) {
+        let eid = hex(&ev.event_id);
+        if r.equivocated.contains(&eid) {
+            return false;
+        }
+        if r.blocked {
             return true;
         }
-        // The peer's clock is shown as given but never orders authority; arrival order is the timeline.
-        r.messages.push(Msg {
-            id,
-            outgoing: false,
-            operation_id: None,
-            text: text.to_string(),
-            sent_at: at,
-            delivery: DeliveryState::Delivered,
-            envelope: None,
-        });
-        true
+        let target = |body: &V| -> Option<String> {
+            body.get(0)
+                .ok()?
+                .b()
+                .ok()
+                .filter(|b| b.len() == 16)
+                .map(|b| format!("msg-{}", hex(b)))
+        };
+        match ev.kind {
+            events::K_CREATE => {
+                let Some(text) = ev
+                    .body
+                    .get(0)
+                    .ok()
+                    .and_then(events::plain_text)
+                    .filter(|t| t.chars().count() <= MAX_MESSAGE_CHARS)
+                else {
+                    return false;
+                };
+                let id = format!("msg-{eid}");
+                if let Some(old) = r.messages.iter().position(|m| m.id == id) {
+                    if r.messages[old].digest == hex(&ev.digest) {
+                        return true; // logical duplicate (the EventID is the canonical dedupe key)
+                    }
+                    // One EventID, two payloads: reject every version.
+                    r.messages.remove(old);
+                    r.equivocated.insert(eid);
+                    return false;
+                }
+                // The peer's clock is shown as given but never orders authority; arrival order is the timeline.
+                r.messages.push(Msg {
+                    id,
+                    outgoing: false,
+                    operation_id: None,
+                    text,
+                    sent_at: ev.clock.physical_ms,
+                    delivery: DeliveryState::Delivered,
+                    envelope: None,
+                    digest: hex(&ev.digest),
+                    clock_ms: ev.clock.physical_ms,
+                    clock_logical: ev.clock.logical,
+                    deleted: false,
+                });
+                true
+            }
+            events::K_EDIT | events::K_DELETE => {
+                let Some(id) = target(&ev.body) else {
+                    return false;
+                };
+                // Only the author may edit or delete, so the target must be one of the peer's own messages.
+                let Some(m) = r.messages.iter_mut().find(|m| m.id == id && !m.outgoing) else {
+                    return true; // dangling or not the author's: held-and-never-displayed is unbuilt, so no effect
+                };
+                if m.deleted {
+                    return true;
+                }
+                let newer =
+                    (ev.clock.physical_ms, ev.clock.logical) > (m.clock_ms, m.clock_logical);
+                if ev.kind == events::K_DELETE {
+                    m.deleted = true;
+                    m.text.clear();
+                } else if newer {
+                    let Some(text) = ev
+                        .body
+                        .get(1)
+                        .ok()
+                        .and_then(events::plain_text)
+                        .filter(|t| t.chars().count() <= MAX_MESSAGE_CHARS)
+                    else {
+                        return false;
+                    };
+                    m.text = text;
+                    m.clock_ms = ev.clock.physical_ms;
+                    m.clock_logical = ev.clock.logical;
+                }
+                true
+            }
+            // Reactions have no UI surface in Core's view types yet: validated and accepted, no state kept.
+            events::K_REACTION => true,
+            events::K_RECEIPT => {
+                // `delivered` and `read` both settle an outgoing message at Delivered (the view has no read state).
+                if let Ok(ids) = ev.body.get(1).and_then(|x| x.a()) {
+                    for id in ids {
+                        if let Ok(b) = id.b() {
+                            let id = format!("msg-{}", hex(b));
+                            if let Some(m) = r.messages.iter_mut().find(|m| {
+                                m.id == id && m.outgoing && m.delivery == DeliveryState::Sent
+                            }) {
+                                m.delivery = DeliveryState::Delivered;
+                            }
+                        }
+                    }
+                }
+                true
+            }
+            _ => false, // later-wave kinds: refused, not silently dropped
+        }
     }
 }
 

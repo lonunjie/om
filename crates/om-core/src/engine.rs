@@ -350,6 +350,24 @@ impl<R: RngCore + CryptoRng> Core<R> {
         serde_json::to_value(&self.slot(ctx)?.state.app).map_err(|_| CoreError::Invalid("state"))
     }
 
+    /// TEST ONLY: deposit an arbitrary authenticated inner payload (see `Tx::debug_inject`).
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_inject_payload(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        conversation_id: &str,
+        payload: &[u8],
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.debug_inject(conversation_id, payload)
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
+    }
+
     // ------------------------------------------------------------------------------------------ queries
 
     /// Typed queries over committed state only. The result is the JSON of the matching platform-API view.
@@ -382,7 +400,12 @@ impl<R: RngCore + CryptoRng> Core<R> {
                             .ok_or(CoreError::NotFound("conversation"))?;
                         Ok(to(&ConversationView {
                             summary: summary(rel),
-                            timeline: rel.messages.iter().map(timeline_item).collect(),
+                            timeline: rel
+                                .messages
+                                .iter()
+                                .filter(|m| !m.deleted)
+                                .map(timeline_item)
+                                .collect(),
                         }))
                     }
                     Query::GetIntroductions { .. } => {
