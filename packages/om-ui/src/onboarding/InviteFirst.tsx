@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { parseInviteLink } from "@om/platform-api";
-import type { InviteView } from "@om/platform-api";
+import type { InviteView, OperationId } from "@om/platform-api";
 import { resolveIntent, settledOutcome } from "../conversations/services";
 import type { ConversationServices } from "../conversations/services";
 import { Button } from "../shell/primitives/Button";
@@ -23,6 +23,9 @@ export interface InviteFirstProps {
   readonly settleTimeoutMs?: number;
 }
 
+/** How long an unconfirmed invite is watched in the background (the bounded wait only decides what the step says). */
+const LONG_WAIT_MS = 2 ** 31 - 1;
+
 /** Zero-contact empty state. Contacts come only from invitations; there is no address-book path here. */
 export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAccepted, onSkip, settleTimeoutMs }: InviteFirstProps) {
   const [invite, setInvite] = useState<InviteView | null>(null);
@@ -32,6 +35,8 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAcce
   const [busy, setBusy] = useState(false);
   const mounted = useRef(true);
   const inviteRef = useRef<InviteView | null>(null);
+  /** An invite the provider has not confirmed yet (a slow Home): later clicks wait on it instead of creating another. */
+  const pendingInvite = useRef<OperationId | null>(null);
   const abort = useRef(new AbortController());
   // Leaving the step ends any wait for the provider and drops its observer.
   useEffect(() => {
@@ -43,19 +48,41 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAcce
   const settle = (id: Parameters<typeof settledOutcome>[1]) => settledOutcome(services, id, { signal: abort.current.signal, ...(settleTimeoutMs !== undefined ? { timeoutMs: settleTimeoutMs } : {}) });
   const say = (kind: "status" | "alert", text: string): void => { if (mounted.current) setStatus({ kind, text }); };
 
+  /** Keeps watching an unconfirmed invite after the bounded wait, so the link appears when the Home finally answers. */
+  function keepWatching(operationId: OperationId): void {
+    const have = (): boolean => inviteRef.current !== null || !mounted.current; // re-read after every await
+    void settledOutcome(services, operationId, { signal: abort.current.signal, timeoutMs: LONG_WAIT_MS }).then(async (o) => {
+      if (o.kind !== "Committed" || have()) return;
+      const view = await services.client.query({ kind: "GetInvite", ctx: services.ctx, operationId });
+      if (!view || have()) return;
+      inviteRef.current = view;
+      pendingInvite.current = null;
+      setInvite(view);
+      setStatus(null);
+    }, () => undefined);
+  }
+
   async function ensureInvite(): Promise<InviteView | null> {
     if (inviteRef.current) return inviteRef.current;
     try {
-      const r = resolveIntent(services, "create-invite", {});
-      if (r.status !== "intent") throw new Error("blocked");
-      const handle = await services.client.dispatch(r.intent);
-      const outcome = await settle(handle.operationId);
+      let operationId = pendingInvite.current;
+      if (operationId === null) {
+        const r = resolveIntent(services, "create-invite", {});
+        if (r.status !== "intent") throw new Error("blocked");
+        operationId = (await services.client.dispatch(r.intent)).operationId;
+      }
+      const outcome = await settle(operationId);
       if (outcome.kind === "PendingNetwork" || outcome.kind === "PendingReconciliation") {
-        say("status", copy.queued); // no provider yet: the invite is queued on this device, not usable to share
+        // No provider yet, or a slow one: the invite is queued on this device, not usable to share. Later clicks wait on
+        // this same operation, and the link shows up by itself if the provider confirms it.
+        if (pendingInvite.current === null) keepWatching(operationId);
+        pendingInvite.current = operationId;
+        say("status", copy.queued);
         return null;
       }
+      pendingInvite.current = null;
       if (outcome.kind !== "Committed") throw new Error("not committed");
-      const view = await services.client.query({ kind: "GetInvite", ctx: services.ctx, operationId: handle.operationId });
+      const view = await services.client.query({ kind: "GetInvite", ctx: services.ctx, operationId });
       if (!view) throw new Error("missing");
       inviteRef.current = view;
       if (mounted.current) setInvite(view);

@@ -467,6 +467,46 @@ describe("invite_first without a provider (audit M5)", () => {
   });
 });
 
+describe("invite_first with a slow provider", () => {
+  /** CreateInvite stays PendingNetwork until `release()`, then commits: a Home that answers after the bounded wait. */
+  const slow = (r: Rig) => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const created: string[] = [];
+    const client: CoreClient = {
+      ...r.h,
+      dispatch: async (i: CoreIntent) => {
+        const handle = await r.h.dispatch(i);
+        if (i.kind === "CreateInvite") created.push(handle.operationId);
+        return handle;
+      },
+      observe: (c: ProfileExecutionContext, o: OperationId, l: (x: OutcomeClass) => void) => {
+        if (!created.includes(o)) return r.h.observe(c, o, l);
+        let live = true;
+        l({ kind: "PendingNetwork" });
+        void gate.then(() => { if (live) l({ kind: "Committed" }); });
+        return () => { live = false; };
+      },
+    };
+    return { client, release, created };
+  };
+
+  it("says queued, creates no second invite on another click, and shows the link by itself when the Home answers", async () => {
+    const r = rig();
+    const s = slow(r);
+    await toInviteFirst(r, makePlatform({ share: "unavailable" }), { client: s.client, settleTimeoutMs: 30 });
+    await click("Share invite link");
+    expect((await screen.findByRole("status")).textContent).toBe("Saved on this device; it goes out when connected");
+    await click("Share invite link");
+    expect(s.created).toHaveLength(1);
+    expect(screen.queryByText(/^om:invite\//)).toBeNull();
+    s.release();
+    expect(await screen.findByText(/^om:invite\//)).toBeTruthy();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(s.created).toHaveLength(1);
+  });
+});
+
 describe("Home facts", () => {
   it("are shown on demand through copy, with no vendor names", async () => {
     const r = rig();
