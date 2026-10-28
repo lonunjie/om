@@ -189,6 +189,17 @@ Findings and decisions to record:
 - **Migration.** App state version 3; version 2 profiles open and drop pending introductions, unused invites, non-active relationships and their outbox entries (`state.rs`, tested).
 - **Still open:** blind-RSA referral tokens (IntroGate adapter), `ReferralAttestation`, a real `relay_uri` for the reply route (M1), per-invite reserved capacity.
 
+### B2 root custody applied (2-of-3: two Ledgers + a personal-vault key), operator decision 2026-10-28
+
+Still **not closed**: the operator's ceremony and the dependency approval are pending, and nothing was tested on a physical Ledger.
+
+- **Policy:** `ROOT_THRESHOLD = 2` and `ROOT_KEY_COUNT = 3` (`release-key.ts`, `PINNED_ROOT_THRESHOLD = 2` in [`verify-release.mjs`](../../apps/web/build/verify-release.mjs)); `ROOT_KEYS` / `PINNED_ROOTS` stay `{}` until the ceremony. A pinned value is a hex key (frame `raw`) or `{ pub, frame }`; one public key pinned under two ids makes the pin unusable (`root_unset`).
+- **Framing (pinned per key, never chosen by the signature):** `raw`, or `solana-offchain-v0`, the Ledger Solana app's off-chain message (header v0, format 0, restricted ASCII shown in clear, no blind signing) around `OM release delegation | version n | expires t | sha256 <delegation payload hash>`. A signature entry may declare `frame`; a declaration that differs from the pinned frame, an absent one for a framed key, and an unknown frame all count for nothing, and an unknown pinned frame fails closed. Exact layout, the source it was read from (`LedgerHQ/app-solana`) and the rejected alternatives: [`KEY-CEREMONY.md`](../../deploy/KEY-CEREMONY.md) "Ledger framing".
+- **Tests:** 18 new shared-fixture cases run through both verifiers (`delegation.test.ts`: wrong frame, mixed frames, 2-of-3, 1-of-3, duplicate entries counted once, unknown frames, duplicate pinned public key, tamper of version/expiry) plus a golden envelope vector from an independent Python implementation, and CLI end-to-end tests of the ceremony with a software stand-in for a Ledger.
+- **Tooling:** [`root-ceremony.mjs`](../../apps/web/build/root-ceremony.mjs) gained `gen-root --to-stdin-for-vault` (PEM only as a Bitwarden item on stdout; refuses a terminal; public data on stderr), `--root-key-stdin`, `draft`, `external-payload`, `external-attach` (verifies before accepting), `pin-snippet`, `verify`. The isolated USB helper is [`deploy/ledger/`](../../deploy/ledger/) (`@ledgerhq/hw-app-solana` 7.12.0 and `@ledgerhq/hw-transport-node-hid` 6.33.5, Apache-2.0, `node-hid` 2.1.2 native; own pnpm root, not in the workspace, not bundled; build scripts off until the operator approves).
+- **Runbook:** copy-pasteable steps with working directories, personal-vault login in a separate `BITWARDENCLI_APPDATA_DIR`, firmware/app checks, rotation, revocation and compromise cases: [`KEY-CEREMONY.md`](../../deploy/KEY-CEREMONY.md). `registry/signing.toml` lists the three signers as `pending-ceremony`.
+- **Unverified on hardware:** device acceptance and paging of the message, plain Ed25519 over the whole envelope (read from the app source; the ceremony verifies every signature locally and fails loudly otherwise), and the `node-hid` build on Node 24.
+
 ### Not changed, with reasons
 
 - **B2:** implemented, but not closed: the operator's key ceremony is still pending (see "B2 applied" above).
