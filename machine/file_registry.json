@@ -172,6 +172,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/build/clean-env.d.mts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/clean-env.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/ensure-core-wasm.mjs",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -208,6 +222,20 @@
     },
     {
       "path": "apps/web/build/plugin.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/release-guards.d.mts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/release-guards.mjs",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

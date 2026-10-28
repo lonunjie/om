@@ -1,11 +1,13 @@
 import { spawnSync } from "node:child_process";
 import { createPublicKey, generateKeyPairSync } from "node:crypto";
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { PINNED_KEYS, verifyRelease } from "./verify-release.mjs";
 import { RELEASE_KEY_ID, extractPem, signManifest } from "./sign.mjs";
+import { cleanBuildEnv, pollutedKeys } from "./clean-env.mjs";
+import { siteProblems } from "./release-guards.mjs";
 import { RELEASE_KEY_ID as TS_KEY_ID, RELEASE_PUBLIC_KEY_HEX, makeTrustRoot } from "../src/update/release-key";
 import { ed25519Verifier, verifyBundleSignature } from "../src/update/signature";
 import { signingPayload, type BundleManifest, type BundleSignature } from "../src/update/manifest";
@@ -16,6 +18,59 @@ afterAll(() => {
   rmSync(tmp, { recursive: true, force: true });
 });
 const run = (...a: string[]) => spawnSync("node", ["build/release.mjs", ...a], { cwd: webRoot, encoding: "utf8" });
+const repoRoot = new URL("../../..", import.meta.url).pathname;
+
+describe("production build hygiene (audit H1)", () => {
+  const polluters = ["VITE_OM_DEV_HARNESS", "VITE_OM_E2E_CORE", "OM_BUNDLE_DEV", "VITE_OM_ANYTHING"];
+
+  it("allowlists the build environment and never forwards bundle-selecting variables", () => {
+    const env = { PATH: "/bin", HOME: "/h", LANG: "C", VITE_OM_E2E_CORE: "1", OM_BUNDLE_DEV: "1", VITE_X: "1", SECRET_TOKEN: "s", NODE_ENV: "development" };
+    expect(pollutedKeys(env)).toEqual(["OM_BUNDLE_DEV", "VITE_OM_E2E_CORE", "VITE_X"]);
+    expect(cleanBuildEnv(env)).toEqual({ PATH: "/bin", HOME: "/h", LANG: "C", NODE_ENV: "production" });
+    expect(cleanBuildEnv(env, { dev: true }).OM_BUNDLE_DEV).toBe("1");
+    expect(Object.keys(cleanBuildEnv(env))).not.toContain("SECRET_TOKEN");
+  });
+
+  it.each(polluters)("release.mjs fails when %s is set in the environment (before building anything)", (name) => {
+    const r = spawnSync("node", ["build/release.mjs", "--dev", "--no-zip", "--out", tmp], {
+      cwd: webRoot, encoding: "utf8", env: { ...process.env, [name]: "1" },
+    });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(new RegExp(`refusing to build.*${name}`, "s"));
+    expect(existsSync(join(tmp, "om-web-0.0.0-dev"))).toBe(false);
+  });
+
+  it("vite itself refuses a production-mode build with a test flag unless the dev-bundle switch is set", { timeout: 60_000 }, () => {
+    for (const flag of ["VITE_OM_DEV_HARNESS", "VITE_OM_E2E_CORE"]) {
+      const env: Record<string, string | undefined> = { ...process.env, [flag]: "1" };
+      delete env["OM_BUNDLE_DEV"];
+      const r = spawnSync("pnpm", ["exec", "vite", "build", "--outDir", join(tmp, `refused-${flag}`)], { cwd: webRoot, encoding: "utf8", env });
+      expect(r.status, r.stdout).not.toBe(0);
+      expect(r.stdout + r.stderr).toMatch(/R-072/);
+      expect(existsSync(join(tmp, `refused-${flag}`))).toBe(false);
+    }
+  });
+
+  describe("pre-signing site checks", () => {
+    const site = (files: Record<string, string>) => {
+      const d = mkdtempSync(join(tmp, "site-"));
+      for (const [n, body] of Object.entries(files)) { mkdirSync(join(d, n, ".."), { recursive: true }); writeFileSync(join(d, n), body); }
+      return d;
+    };
+    const env = { ...process.env } as Record<string, string | undefined>;
+    it("passes a site with a clean Core wasm", () => {
+      expect(siteProblems(site({ "index.html": "<html></html>", "assets/om_wasm-1.wasm": "\0asm om_host random_fill" }), repoRoot, env)).toEqual([]);
+    });
+    it.each(["InsecureTestRng", "OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION", "debug_inject", "LoopbackNetwork"])("flags a Core wasm carrying %s", (marker) => {
+      const p = siteProblems(site({ "assets/om_wasm-1.wasm": `\0asm ${marker}` }), repoRoot, env);
+      expect(p.join("\n")).toContain(marker);
+    });
+    it("flags a harness bundle and a site without the Core", () => {
+      expect(siteProblems(site({ "assets/a.js": "OM-DEV-HARNESS-NOT-FOR-PRODUCTION", "assets/om_wasm-1.wasm": "\0asm" }), repoRoot, env).join()).toMatch(/harness/);
+      expect(siteProblems(site({ "index.html": "x" }), repoRoot, env).join()).toMatch(/Core is missing/);
+    });
+  });
+});
 
 describe("release script", () => {
   it("refuses an unsigned production release and says why", () => {

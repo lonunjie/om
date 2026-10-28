@@ -5,7 +5,8 @@
   `test-loopback`): only [dev-dependencies] may (R-072: a production build provably excludes dev/test providers).
 * The `production` feature stays declared and the compile_error! guard that forbids combining it with a test-only
   feature stays in the source.
-* The built wasm artifact, if present, carries none of the test-only markers.
+* The built wasm artifact, if present, carries none of the test-only markers. `--wasm FILE...` scans exactly those
+  files instead (the release script passes the wasm asset inside the site folder it is about to sign).
 * No `unsafe` outside the single audited ABI module of om-wasm.
 """
 from __future__ import annotations
@@ -17,11 +18,21 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TEST_FEATURES = {"insecure-test-rng", "test-loopback"}
-TEST_MARKERS = [b"OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION", b"OM-V001-INSECURE-TEST-RNG", b"InsecureTestRng", b"insecure_test_rng"]
+TEST_MARKERS = [
+    b"OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION",
+    b"OM-V001-INSECURE-TEST-RNG",
+    b"InsecureTestRng",
+    b"insecure_test_rng",
+    # Items compiled only under `test-loopback` (audit 2026-10-28, H1): their names make a leaked test build auditable.
+    b"debug_inject",
+    b"debug_app_state",
+    b"debug_link_messaging_device",
+    b"LoopbackNetwork",
+]
 UNSAFE = re.compile(r"\bunsafe\b")
 
 
-def main() -> int:
+def main(argv: list[str]) -> int:
     errs: list[str] = []
     crates = ROOT / "crates"
     for manifest in sorted(crates.glob("*/Cargo.toml")):
@@ -49,17 +60,26 @@ def main() -> int:
             code = line.split("//", 1)[0]
             if UNSAFE.search(code) and "forbid(unsafe_code)" not in code and '"unsafe_code"' not in code and "deny(unsafe_code" not in code:
                 errs.append(f"{rel}:{n}: unsafe outside the audited ABI module")
-    wasm = ROOT / "packages/om-core-wasm/dist/om_wasm.wasm"
-    if wasm.exists():
+    explicit = argv[argv.index("--wasm") + 1 :] if "--wasm" in argv else None
+    if explicit is not None and not explicit:
+        errs.append("--wasm needs at least one file")
+    wasms = [Path(a) for a in explicit] if explicit else [ROOT / "packages/om-core-wasm/dist/om_wasm.wasm"]
+    scanned = 0
+    for wasm in wasms:
+        if not wasm.exists():
+            if explicit:
+                errs.append(f"{wasm}: wasm artifact to scan does not exist")
+            continue
+        scanned += 1
         blob = wasm.read_bytes()
         for m in TEST_MARKERS:
             if m in blob:
-                errs.append(f"{wasm.relative_to(ROOT).as_posix()}: contains test-only marker {m.decode()}")
+                errs.append(f"{wasm}: contains test-only marker {m.decode()}")
     for e in errs:
         print("ERROR: core guard:", e, file=sys.stderr)
-    print(f"core guard: {'FAILED' if errs else 'OK'} ({len(errs)} error(s)){'' if wasm.exists() else ' [wasm artifact not built; marker scan skipped]'}")
+    print(f"core guard: {'FAILED' if errs else 'OK'} ({len(errs)} error(s)){'' if scanned else ' [wasm artifact not built; marker scan skipped]'}")
     return 1 if errs else 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))

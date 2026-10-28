@@ -13,6 +13,8 @@ import { tmpdir } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { RELEASE_KEY_ID, pemFromVault, signManifest } from "./sign.mjs";
+import { cleanBuildEnv, pollutedKeys } from "./clean-env.mjs";
+import { siteProblems } from "./release-guards.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = resolve(webRoot, "../..");
@@ -35,15 +37,28 @@ if (!dev && !sigFile && !signing) {
 if (dev && (sigFile || signing)) fail("--dev and signing flags are mutually exclusive");
 if ([sigFile !== undefined, fromVault, keyFile !== undefined].filter(Boolean).length > 1) fail("pick exactly one of --signature, --sign-from-vault, --sign-with-key-file");
 
+// H1: a release never inherits bundle-selecting variables (VITE_OM_DEV_HARNESS, VITE_OM_E2E_CORE, OM_BUNDLE_DEV, ...).
+// Refuse loudly, and build with an allowlisted copy of the environment regardless.
+const polluted = pollutedKeys(process.env);
+if (polluted.length > 0) {
+  fail(`refusing to build: bundle-selecting environment variable(s) set: ${polluted.join(", ")}.\n` +
+    "  They can turn a harness or test-loopback build into a signed release. Unset them (use --dev for a dev bundle).");
+}
+const buildEnv = cleanBuildEnv(process.env, { dev });
+
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const sha = (b) => createHash("sha256").update(b).digest("hex");
 const tmp = mkdtempSync(join(tmpdir(), "om-release-"));
 try {
   const site = join(tmp, "site");
-  const b = spawnSync("pnpm", ["exec", "vite", "build", "--outDir", site, "--emptyOutDir"], {
-    cwd: webRoot, stdio: "inherit", env: { ...process.env, ...(dev ? { OM_BUNDLE_DEV: "1" } : {}) },
-  });
+  // Never reuse a stale dist/om_wasm.wasm: rebuild it now, under the om-core/production compile guard (R-072).
+  const w = spawnSync("pnpm", ["--filter", "@om/core-wasm", "build:wasm"], { cwd: repoRoot, stdio: "inherit", env: buildEnv });
+  if (w.status !== 0) fail("core wasm build failed");
+  const b = spawnSync("pnpm", ["exec", "vite", "build", "--outDir", site, "--emptyOutDir"], { cwd: webRoot, stdio: "inherit", env: buildEnv });
   if (b.status !== 0) fail("vite build failed");
+  // Nothing is signed until the built site carries no harness, test provider or test-only wasm marker.
+  const problems = siteProblems(site, repoRoot, buildEnv);
+  if (problems.length > 0) fail(`the built site failed the pre-signing checks:\n  ${problems.join("\n  ")}`);
 
   const manifestPath = join(site, "bundle-manifest.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));

@@ -1,5 +1,5 @@
 { "name": "@om/web", "version": "0.0.0", "private": true, "type": "module", "scripts": { "dev": "vite", "build": "node build/ensure-core-wasm.mjs && tsc -b && vite build", "build:dev": "node build/ensure-core-wasm.mjs && OM_BUNDLE_DEV=1 tsc -b && OM_BUNDLE_DEV=1 vite build",
-    "build:harness": "node build/ensure-core-wasm.mjs && tsc -b && VITE_OM_DEV_HARNESS=1 vite build --outDir dist-harness --emptyOutDir",
+    "build:harness": "node build/ensure-core-wasm.mjs && tsc -b && VITE_OM_DEV_HARNESS=1 OM_BUNDLE_DEV=1 vite build --outDir dist-harness --emptyOutDir",
     "build:core-e2e": "node build/ensure-core-wasm.mjs && tsc -b && VITE_OM_E2E_CORE=1 OM_BUNDLE_DEV=1 vite build --outDir dist-core-e2e --emptyOutDir",
     "check:no-harness": "node build/check-no-harness.mjs",
     "repro": "node build/check-reproducible.mjs",
