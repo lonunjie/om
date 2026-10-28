@@ -186,6 +186,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/build/delegation.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/ensure-core-wasm.mjs",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -256,6 +263,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/build/root-ceremony.d.mts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/root-ceremony.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/sign.d.mts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -264,6 +285,13 @@
     },
     {
       "path": "apps/web/build/sign.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/testkit.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -614,6 +642,20 @@
     },
     {
       "path": "apps/web/src/sw/trust-root.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/update/delegation.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/update/ed25519.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -2298,6 +2340,13 @@
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",
       "authority": "decision_index"
+    },
+    {
+      "path": "deploy/KEY-CEREMONY.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
     },
     {
       "path": "deploy/README.md",

@@ -15,12 +15,17 @@ cd apps/web && node build/release.mjs --signature sig.json   # production: needs
 Output (git-ignored) in `apps/web/release/`: `om-web-<version>[-dev]/` and `.zip` + `.zip.sha256`. The folder holds
 `site/` (the bundle, `bundle-manifest.json`, `_headers`), `SHA256SUMS`, `verify.mjs`, the wrangler configs and a README.
 
-- **Signing:** production signing keys do not exist yet. Without `--dev`, the script refuses an unsigned release and says so.
-  `--dev` builds with `OM_BUNDLE_DEV=1`; the manifest is marked `dev` and unsigned, and production clients reject it.
-  `--signature` injects an externally produced `{alg,keyId,sig}` over the manifest signing payload
-  (`signingPayload()` in `apps/web/src/update/manifest.ts`); the client's pinned trust root verifies it.
+- **Signing (audit B2):** the client pins only an **offline root key**; the online release key signs under a root-signed,
+  expiring, revocable *delegation* embedded in every manifest. The root has not been generated yet (placeholder), so
+  production releases currently fail by design. Runbook: [`KEY-CEREMONY.md`](KEY-CEREMONY.md). Without `--dev`, the
+  script refuses an unsigned release and says so. `--dev` builds with `OM_BUNDLE_DEV=1`; the manifest is marked `dev`
+  and unsigned, and production clients reject it. `--sign-from-vault` signs with the delegated online key and needs
+  `apps/web/release-delegation.json` (or `--delegation <file>`). `--signature` injects an externally produced
+  `{alg,keyId,sig}` over the manifest signing payload (`signingPayload()` in `apps/web/src/update/manifest.ts`);
+  the delegation is still embedded and the whole chain is verified before the release is reported as signed.
 - **Verify (no deps, no build):** `node verify.mjs [dir] [--require-signed]` checks `SHA256SUMS`, every manifest hash and size,
-  and that `site/` has no unlisted files. It reports signed/unsigned/dev but does not verify the signature itself.
+  and that `site/` has no unlisted files. With a signature present it verifies the chain pinned root key, delegation, release key, manifest signature
+  (fails closed while the root is unset).
   Also check the zip: `shasum -a 256 -c om-web-X.zip.sha256`.
 - Never edit files in `site/` (including `index.html`): the service worker rejects any byte that differs from the manifest.
 

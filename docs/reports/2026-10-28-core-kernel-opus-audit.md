@@ -142,7 +142,7 @@ The "impossible to ship in a production configuration" rule (R-072) therefore ho
 
 ## Applied (2026-10-28, Sonnet 5.5 follow-up)
 
-Each fix has a regression test that failed before the change (checked by running the test against the unfixed source). B2 was deliberately not touched (offline root and TUF key custody is an operator decision).
+Each fix has a regression test that failed before the change (checked by running the test against the unfixed source). B2 was first left untouched (offline root and TUF key custody is an operator decision); its implementation followed the same day (see the B2 section below).
 
 | Finding | Commit | Test (fails before the fix) | Notes |
 |---|---|---|---|
@@ -156,9 +156,20 @@ Each fix has a regression test that failed before the change (checked by running
 | L3 | `3346bdb` | `release.test.ts` ("externally supplied signature") | [`release.mjs`](../../apps/web/build/release.mjs) verifies the signature against the pinned key (or the throwaway key's own public key) before reporting "signed"; deploy docs use `node verify.mjs --require-signed`. |
 | L6 | `d8c7e3e` | `release.test.ts` (marker cases) | Marker list extended, see H1. |
 
+### B2 applied (offline root + delegated online key)
+
+Implemented the minimal TUF-style chain of PR-005 / ADR-0149. **Not closed until the operator runs the key ceremony** ([`KEY-CEREMONY.md`](../../deploy/KEY-CEREMONY.md)): the root public key is a clearly marked, currently empty constant, so production releases fail and clients would reject any signed bundle (`root_unset`) by design. Dev builds are unaffected.
+
+- **Client and `verify.mjs`:** pin only the offline root key(s) (`ROOT_KEYS`/`ROOT_THRESHOLD` in `src/update/release-key.ts`, `PINNED_ROOTS` in `build/verify-release.mjs`; a 2-of-N threshold is already honoured, distinct root key ids only). Every signed manifest embeds a root-signed canonical `delegation` (`src/update/delegation.ts`): `version` (monotonic), `expires`, `keys[{keyId,alg,pub,notBefore,notAfter}]`, `revoked[]`. Fail-closed order: root threshold, expiry, persisted delegation-version floor (`delegation-floor` in the worker's IndexedDB, next to the bundle floor), revoked, unlisted, algorithm, key window, manifest signature.
+- **Tests (new; the old single-key tests were rewritten for the chain):** `apps/web/build/delegation.test.ts` runs 32 shared cases through both verifiers and requires identical verdicts and reasons (tamper, wrong root, below-threshold, duplicate roots, expiry, rollback, revoked, unlisted, window, alg); `src/update/verify.test.ts` covers the TS chain, floor persistence and 2-of-3; `build/release.test.ts` covers sign-refusal (missing/expired/unlisted/revoked/mismatched delegation), the unset-root refusal in [`release.mjs`](../../apps/web/build/release.mjs) and under `vite build` with `OM_RELEASE_BUILD`, and a full throwaway-root release. Tests use throwaway roots only.
+- **Signing:** [`sign.mjs`](../../apps/web/build/sign.mjs) refuses without a valid delegation; [`release.mjs`](../../apps/web/build/release.mjs) embeds `apps/web/release-delegation.json` (or `--delegation`) and verifies the whole chain before reporting "signed". The vault path for the online key is unchanged.
+- **Tool:** [`apps/web/build/root-ceremony.mjs`](../../apps/web/build/root-ceremony.mjs) (`gen-root`, `show-root`, `sign-delegation`, `revoke`, `cosign`, `inspect`): pure node, key file must be mode 600, `gen-root` writes only to the named path outside any git work tree and prints only public data.
+- **Registry:** `registry/signing.toml` marks `om-release-2026-10-28` as the delegated online key and adds `om-release-root` with `status = "pending-ceremony"`.
+- **Still open (operator):** run the ceremony; point 3 of the finding (move custody of the signing key out of the agent vault) is unchanged, now bounded by revocation and the delegation expiry. Plain `pnpm build` (used by `web:check`) still succeeds without a root; only release builds fail. The SW-replacement limit (an origin compromise bypasses the manifest) is unchanged, so no "signed updates" claim yet.
+
 ### Not changed, with reasons
 
-- **B2:** operator decision (offline root and key custody). Untouched.
+- **B2:** implemented, but not closed: the operator's key ceremony is still pending (see "B2 applied" below).
 - **H2:** `blocked-item`. The specification does not fully define the intro-identity lifecycle, the ticket issuer, the rate-limit numbers or the pre-acceptance disclosure rule. Open questions: [`2026-10-28-h2-first-contact-open-questions.md`](2026-10-28-h2-first-contact-open-questions.md).
 - **M1 (route binding):** documented, not changed. The spec defines `route_binding = SHA-256(["OM-SEALED-DELIVERY-ROUTE-v1", relay_uri, deposit_capability])` from a `RelayEntry`, but Core has no `RelayEntry`/`RelaySet` and the provider contract exposes no relay URI, so the real value cannot be computed yet. It must land with `RelaySet` and before the first provider adapter; the stand-in `om-core:mailbox/v0` must be versioned if it ever reaches users.
 - **M2 (rest):** needs a contract decision. `ConfirmationToken` is documented as minted only by the Action Registry (an opaque object, tracked UI-side). Core-issued nonces change that contract (new query and intent plumbing in `om-platform-api`, the harness and the UI).
@@ -166,4 +177,3 @@ Each fix has a regression test that failed before the change (checked by running
 - **L2:** no change needed today (Core sends no receipts). Condition stays: an unknown inner kind must not yield a `Delivered` receipt once receipts ship.
 - **L7:** already covered by `scenarios.rs::a_failed_host_commit_releases_nothing`.
 - **L4, L5:** accepted as written (L4 is replaced by TUF metadata under PR-005 with B2).
-
