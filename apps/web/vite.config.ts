@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type Plugin, type UserConfig } from "vite";
 import { landingPlugin } from "./build/landing.ts";
 import { bundleManifestPlugin } from "./build/plugin.ts";
-import { SECURITY_HEADERS, headersFile } from "./csp.ts";
+import { SECURITY_HEADERS, cspHeader, headersFile } from "./csp.ts";
 import { isRootPinned } from "./src/update/release-key.ts";
 
 const emitHeaders = (): Plugin => ({
@@ -15,6 +15,14 @@ const emitHeaders = (): Plugin => ({
 
 const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string };
 const dev = process.env["OM_BUNDLE_DEV"] === "1";
+
+// Local end-to-end only: the preview server may additionally allow one loopback http origin for the local reference Home.
+// Never applied to the emitted `_headers`, and ignored for anything that is not a loopback origin.
+function localRelayCsp(): Record<string, string> {
+  const origin = process.env["OM_E2E_CONNECT_SRC"];
+  if (origin === undefined || !/^http:\/\/(127\.0\.0\.1|localhost)(:\d{2,5})?$/.test(origin)) return {};
+  return { "Content-Security-Policy": cspHeader().replace("connect-src 'self' https: wss:", `connect-src 'self' https: wss: ${origin}`) };
+}
 
 const config: UserConfig = {
   plugins: [react(), landingPlugin(), emitHeaders(), bundleManifestPlugin({ version, dev })],
@@ -30,13 +38,13 @@ const config: UserConfig = {
       output: { entryFileNames: (chunk) => (chunk.name === "sw" ? "sw.js" : "assets/[name]-[hash].js") },
     },
   },
-  preview: { headers: { ...SECURITY_HEADERS } },
+  preview: { headers: { ...SECURITY_HEADERS, ...localRelayCsp() } },
 };
 
 // R-072 / audit H1: the bundle content is chosen by these flags (src/main.tsx). A production-mode build that sets one
 // without the explicit dev-bundle switch would ship a harness or the in-page TEST loopback provider as if it were
 // the product, so it does not build at all.
-const TEST_FLAGS = ["VITE_OM_DEV_HARNESS", "VITE_OM_E2E_CORE"] as const;
+const TEST_FLAGS = ["VITE_OM_DEV_HARNESS", "VITE_OM_E2E_CORE", "VITE_OM_ALLOW_LOOPBACK_RELAY"] as const;
 
 export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), "VITE_OM_"), ...process.env };

@@ -223,6 +223,9 @@ importers:
       '@om/platform-api':
         specifier: workspace:*
         version: link:../../packages/om-platform-api
+      '@om/provider-http':
+        specifier: workspace:*
+        version: link:../../packages/om-provider-http
       '@om/ui':
         specifier: workspace:*
         version: link:../../packages/om-ui

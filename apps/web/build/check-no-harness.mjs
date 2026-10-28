@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 // (@om/core-wasm, om_wasm.wasm) is deliberately NOT listed: it is what production ships.
 export const FORBIDDEN = [
   "OM-DEV-HARNESS-NOT-FOR-PRODUCTION", "core-harness",
-  "OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION", "core-wasm/test-support", "OM-V001-INSECURE-TEST-RNG", "InsecureTestRng",
+  "OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION", "core-wasm/test-support", "OM-V001-INSECURE-TEST-RNG", "InsecureTestRng", "OM-E2E-LOOPBACK-RELAY-NOT-FOR-PRODUCTION",
 ];
 
 /** Returns "relative/path: needle" for every forbidden string found in any file (names included) under `dir`. */

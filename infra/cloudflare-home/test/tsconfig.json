@@ -1,1 +1,1 @@
-{ "extends": "../../../tsconfig.base.json", "compilerOptions": { "types": ["node"], "composite": false, "declaration": false, "noEmit": true, "rootDir": "../../.." }, "include": [".", "../../../packages/om-home-wire/src"] }
+{ "extends": "../../../tsconfig.base.json", "compilerOptions": { "types": ["node"], "composite": false, "declaration": false, "noEmit": true, "allowImportingTsExtensions": true, "rootDir": "../../.." }, "include": [".", "../../../packages/om-home-wire/src"] }

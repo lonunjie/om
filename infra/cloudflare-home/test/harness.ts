@@ -25,12 +25,12 @@ export interface Home {
   dispose(): Promise<void>;
 }
 
-export async function startHome(opts: { persist?: string; vars?: Record<string, string> } = {}): Promise<Home> {
+export async function startHome(opts: { persist?: string; port?: number; vars?: Record<string, string> } = {}): Promise<Home> {
   const mf = new Miniflare({
     modules: [{ type: "ESModule", path: "index.js", contents: readFileSync(bundle(), "utf8") }],
     compatibilityDate: "2026-06-01",
     host: "127.0.0.1",
-    port: 0,
+    port: opts.port ?? 0,
     bindings: { OM_PROVIDER_ID: "om-test-home", OM_HARD_FREE_TIER: "1", ...(opts.vars ?? {}) },
     durableObjects: {
       QUEUES: { className: "MailboxQueue", useSQLite: true },
