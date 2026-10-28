@@ -51,3 +51,30 @@ fn sealed_delivery_objects_are_w0_valid_and_verify_against_the_device_credential
     .unwrap();
     assert!(reg.check("SealedDeliveryEnvelope", &wrapper, false).is_ok());
 }
+
+#[test]
+fn large_sealed_delivery_buckets_decode_under_the_frozen_cddl_bounds() {
+    // The 64 KiB and 128 KiB buckets (ciphertext 65552 and 131088 bytes) are valid per `delivery.cddl`; the CBOR
+    // profile's global string limit must not reject them (ADR-0181 consequences: first-contact chains need them).
+    use om_core::crypto::delivery;
+    let reg = Registry::load();
+    let mut rng = InsecureTestRng::from_label(b"w0-large");
+    let mailbox = [7u8; 16];
+    let (_seed, km) = delivery::new_key(&mailbox, 2_000_000_000, &mut rng);
+    for inner_len in [20_000usize, 70_000] {
+        let wrapper = delivery::seal(
+            &km.public_key,
+            &km.key_id,
+            delivery::CORE_ROUTE_URI,
+            &mailbox,
+            2_000_000_000,
+            &vec![1u8; inner_len],
+            &mut rng,
+        )
+        .unwrap();
+        assert!(
+            reg.check("SealedDeliveryEnvelope", &wrapper, false).is_ok(),
+            "{inner_len}-byte inner"
+        );
+    }
+}

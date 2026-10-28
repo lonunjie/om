@@ -315,10 +315,21 @@ impl Registry {
         }
     }
 
+    /// The decoder limits for one object type. A string cannot be longer than the object that holds it, so the
+    /// profile's global string limit never binds below an object's own `max_bytes`: the types whose registered size
+    /// exceeds it (MessageRequest, SealedDeliveryEnvelope, the group objects) carry ciphertexts and states that the
+    /// frozen CDDL bounds at up to `max_bytes` (for example `bstr .size (17..131088)`), and the per-field schema
+    /// bounds still apply. Without this, a 64 KiB sealed-delivery bucket could never be decoded.
+    fn limits_for(&self, t: &ObjType) -> Limits {
+        let mut l = self.lim;
+        l.max_string = l.max_string.max(t.max_bytes as u64);
+        l
+    }
+
     /// Decode + validate a top-level object of the declared type (SignedEnvelope for signed types).
     pub fn check(&self, type_name: &str, bytes: &[u8], lenient: bool) -> Result<Value, Class> {
         let t = self.types.get(type_name).ok_or("unknown_type")?;
-        let mut lim = self.lim;
+        let mut lim = self.limits_for(t);
         lim.lenient = lenient;
         let v = decode(bytes, lim, t.max_bytes)?;
         let cx = Cx { r: self, lenient };
@@ -336,7 +347,7 @@ impl Registry {
     /// looking at signatures. Used to check bodies Core builds before it signs them.
     pub fn check_body(&self, type_name: &str, body: &[u8]) -> Result<Value, Class> {
         let t = self.types.get(type_name).ok_or("unknown_type")?;
-        let v = decode(body, self.lim, t.max_bytes)?;
+        let v = decode(body, self.limits_for(t), t.max_bytes)?;
         Cx {
             r: self,
             lenient: false,

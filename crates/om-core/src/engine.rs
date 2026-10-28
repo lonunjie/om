@@ -440,17 +440,45 @@ impl<R: RngCore + CryptoRng> Core<R> {
                         }))
                     }
                     Query::GetIntroductions { .. } => {
+                        let now_s = self.clock.now_ms() / 1000;
                         let list: Vec<IntroductionRequest> = st
                             .app
                             .intros
                             .values()
+                            // The bootstrap key is the request's deadline: past it the request can no longer be answered.
+                            .filter(|i| i.reply_key.expires_at > now_s)
                             .map(|i| IntroductionRequest {
                                 id: i.request_id.clone(),
                                 from: i.person_id.clone(),
                                 display_name: i.display_name.clone(),
+                                // A pending request has no binding by construction (ADR-0181 section 7).
+                                verification: VerificationCode::Unverified,
                             })
                             .collect();
                         Ok(to(&list))
+                    }
+                    Query::GetConfirmation { operation_id, .. } => {
+                        let now = self.clock.now_ms();
+                        let v = st
+                            .app
+                            .confirmations
+                            .iter()
+                            .find(|c| &c.operation_id == operation_id && c.expires_at > now)
+                            .map(|c| ConfirmationView {
+                                nonce: c.nonce.clone(),
+                                expires_at: c.expires_at,
+                            });
+                        Ok(to(&v))
+                    }
+                    Query::GetIntroductionLoad { .. } => {
+                        let l = &st.app.first_contact;
+                        let now = self.clock.now_ms().max(l.high_water_ms);
+                        let throttled =
+                            l.dropped > 0 && l.last_drop_ms + crate::flows::HOUR_MS > now;
+                        Ok(to(&IntroductionLoadView {
+                            throttled,
+                            dropped: if throttled { l.dropped } else { 0 },
+                        }))
                     }
                     Query::GetRecoveryKey {
                         key_operation_id, ..
@@ -511,12 +539,24 @@ fn summary(r: &Relationship) -> ConversationSummary {
             subject: Some(r.person_id.clone()),
         });
     }
+    if r.state == RelState::AcceptedUnbound {
+        notices.push(SecurityNotice {
+            code: SecurityNoticeCode::UnverifiedContact,
+            subject: Some(r.person_id.clone()),
+        });
+    }
     ConversationSummary {
         id: r.id.clone(),
         person_id: r.person_id.clone(),
         display_name: r.display_name.clone(),
         last_message_at: r.messages.last().map(|m| m.sent_at),
         notices,
+        relationship: match r.state {
+            RelState::AwaitingAcceptance => RelationshipStateCode::AwaitingAcceptance,
+            RelState::AcceptedUnbound => RelationshipStateCode::AcceptedUnbound,
+            RelState::Establishing => RelationshipStateCode::Establishing,
+            RelState::Active => RelationshipStateCode::Active,
+        },
     }
 }
 

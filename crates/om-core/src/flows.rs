@@ -6,7 +6,7 @@
 
 use crate::api::*;
 use crate::control;
-use crate::crypto::binding::{self, Acs, PeerView, RelationshipContext, TrustedPeer};
+use crate::crypto::binding::{self, Acs, PeerView, RelationshipContext};
 use crate::crypto::cbor::{self, V};
 use crate::crypto::delivery::{self, KeyMaterial};
 use crate::crypto::rng::{CryptoRng, RngCore, arr32};
@@ -14,6 +14,7 @@ use crate::crypto::sig::{digest, ds_hash};
 use crate::crypto::{self, PROFILE_V1, hex, hpke, unhex};
 use crate::events::{self, Hlc};
 use crate::host::{CoreError, NetCall, NetError, NetResult};
+use crate::intro;
 use crate::state::*;
 use std::sync::OnceLock;
 
@@ -39,6 +40,20 @@ pub const BOOTSTRAP_CLOCK_SKEW_S: u64 = 60 * 60;
 /// ADR-0146: at most this many distinct bootstrap wrappers are ever admitted for one request.
 pub const MAX_BOOTSTRAP_CANDIDATES: usize = 8;
 const LBL_REQUEST_KEY: &str = "OM-REQUEST-KEY-HASH-v1";
+/// First contact (ADR-0181): the inviter's Accept (bootstrap response) and the requester's Bind.
+const KIND_ACCEPT: u64 = 4;
+const KIND_BIND: u64 = 5;
+pub const HOUR_MS: u64 = 60 * 60 * 1000;
+const DAY_MS: u64 = 24 * HOUR_MS;
+/// Requests admitted to expensive work per rolling hour and day (Core-local, persisted; ADR-0181 section 5).
+pub const FIRST_CONTACT_PER_HOUR: usize = 20;
+pub const FIRST_CONTACT_PER_DAY: usize = 100;
+/// An ACS chain from a peer that is not yet bound is refused above this many entries. Local resource policy, not a
+/// protocol rule (the protocol cap is 64 links); a client may raise it (ADR-0181 section 6).
+pub const FIRST_CONTACT_MAX_CHAIN: usize = 16;
+/// A destructive-intent confirmation nonce lives this long and is spent by its first use (ADR-0181 section 8).
+pub const CONFIRMATION_TTL_MS: u64 = 5 * 60 * 1000;
+const MAX_CONFIRMATIONS: usize = 16;
 
 /// The head state, the signed chain that leads to it and every credential the account has committed to.
 type AcsHead = (Acs, Vec<Vec<u8>>, Vec<Vec<u8>>);
@@ -219,6 +234,130 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .ok_or(CoreError::Invalid("no identity"))
     }
 
+    // ------------------------------------------------------------------------------------------ first contact
+
+    /// The invite's intro identity, derived from the profile's `intro_root` (created on first use; ADR-0181 section 1).
+    fn intro_signer(
+        &mut self,
+        invite_id: &[u8; 16],
+    ) -> Result<crate::crypto::sig::DeviceSigner, CoreError> {
+        if self.st.app.intro_root.is_none() {
+            let mut root = arr32(self.rng);
+            self.st.app.intro_root = Some(hex(&root).into());
+            zeroize::Zeroize::zeroize(&mut root);
+        }
+        let root = zeroize::Zeroizing::new(h32(self
+            .st
+            .app
+            .intro_root
+            .as_deref()
+            .ok_or(CoreError::CorruptState("intro root"))?)?);
+        Ok(intro::derive_signer(&root, invite_id))
+    }
+
+    /// The Core-local first-contact limiter (ADR-0181 section 5). Runs after the cheap checks and before any
+    /// decapsulation or signature verification. The clock is the wall clock guarded by a non-decreasing high-water
+    /// mark, so a clock set backwards cannot reopen a window; a mark more than a day ahead of the wall clock is
+    /// treated as a clock correction and reset.
+    fn admit_first_contact(&mut self) -> bool {
+        let wall = self.now_ms;
+        let l = &mut self.st.app.first_contact;
+        if l.high_water_ms > wall + DAY_MS {
+            l.high_water_ms = wall;
+            l.admitted.retain(|t| *t <= wall);
+        }
+        let now = wall.max(l.high_water_ms);
+        l.high_water_ms = now;
+        l.admitted.retain(|t| *t + DAY_MS > now);
+        let hour = l.admitted.iter().filter(|t| **t + HOUR_MS > now).count();
+        if hour >= FIRST_CONTACT_PER_HOUR || l.admitted.len() >= FIRST_CONTACT_PER_DAY {
+            // Silent drop: no reply and no per-request state, only one aggregated counter for the notice.
+            if l.last_drop_ms + HOUR_MS <= now {
+                l.dropped = 0;
+            }
+            l.dropped = l.dropped.saturating_add(1);
+            l.last_drop_ms = now;
+            return false;
+        }
+        l.admitted.push(now);
+        true
+    }
+
+    /// Drop first contacts that ran past their deadline, requests whose bootstrap key has expired, and expired
+    /// confirmation nonces. Called on every inbound batch and intent, so no timer is needed.
+    fn expire_stale(&mut self) {
+        let (now_ms, now_s) = (self.now_ms, self.now_s());
+        self.st
+            .app
+            .relationships
+            .retain(|_, r| match (&r.pending_bind, r.state) {
+                (Some(b), RelState::AwaitingAcceptance | RelState::AcceptedUnbound) => {
+                    b.deadline_ms > now_ms
+                }
+                _ => true,
+            });
+        self.st
+            .app
+            .intros
+            .retain(|_, i| i.reply_key.expires_at > now_s);
+        self.st.app.confirmations.retain(|c| c.expires_at > now_ms);
+    }
+
+    // ------------------------------------------------------------------------------------------ confirmations (M2)
+
+    fn issue_confirmation(&mut self, op: &OperationId, kind: &str, target: &str) -> OutcomeClass {
+        if !DESTRUCTIVE_KINDS.contains(&kind)
+            || target.is_empty()
+            || target.chars().count() > 256
+            || target.chars().any(char::is_control)
+        {
+            return OutcomeClass::Rejected {
+                reason: RejectReason::Invalid,
+            };
+        }
+        let nonce = hex(&self.rand16());
+        let now = self.now_ms;
+        let c = &mut self.st.app.confirmations;
+        c.retain(|x| x.expires_at > now);
+        c.push(ConfirmationRec {
+            operation_id: op.clone(),
+            nonce,
+            intent_kind: kind.into(),
+            target: target.into(),
+            expires_at: now + CONFIRMATION_TTL_MS,
+        });
+        while c.len() > MAX_CONFIRMATIONS {
+            c.remove(0);
+        }
+        OutcomeClass::Committed
+    }
+
+    /// UI-11: spend the nonce `token` names. It is single use even when it does not match, and it must name exactly
+    /// this intent kind and target in this profile and be unexpired.
+    fn consume_confirmation(
+        &mut self,
+        kind: &str,
+        target: Option<String>,
+        token: &serde_json::Value,
+    ) -> bool {
+        let now = self.now_ms;
+        self.st.app.confirmations.retain(|c| c.expires_at > now);
+        let Some(nonce) = token.get("nonce").and_then(|n| n.as_str()) else {
+            return false;
+        };
+        let Some(pos) = self
+            .st
+            .app
+            .confirmations
+            .iter()
+            .position(|c| c.nonce == nonce)
+        else {
+            return false;
+        };
+        let rec = self.st.app.confirmations.remove(pos);
+        rec.intent_kind == kind && target.as_deref() == Some(rec.target.as_str())
+    }
+
     // ------------------------------------------------------------------------------------------ sealed delivery
 
     /// A fresh receive key for `mailbox` (the private seed stays in this profile's encrypted state).
@@ -337,10 +476,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     pub fn apply_intent(&mut self, intent: &Intent) -> Result<(), CoreError> {
         let op = &intent.operation_id;
         let kind = intent.body.kind();
-        // UI-11: destructive intents never run on a bare dispatch. The token is an object minted by the Action
-        // Registry; `null`, booleans, numbers, strings and arrays are not confirmations. (Core-issued single-use
-        // nonces bound to intent, target and profile remain open: see the audit report, M2.)
-        if intent.body.confirmation().is_some_and(|c| !c.is_object()) {
+        self.expire_stale();
+        // UI-11 (M2): a destructive intent runs only with a confirmation nonce that Core issued for exactly this
+        // intent kind and target in this profile, unspent and unexpired. Anything else is `unauthorized`, and the
+        // nonce is spent either way.
+        if let Some(token) = intent.body.confirmation()
+            && !self.consume_confirmation(kind, intent.body.confirmation_target(), token)
+        {
             self.record(
                 op,
                 kind,
@@ -372,6 +514,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     rejected(RejectReason::NotFound)
                 }
             }
+            IntentBody::IssueConfirmation {
+                intent_kind,
+                target,
+            } => self.issue_confirmation(op, intent_kind, target),
             IntentBody::CreateInvite => self.create_invite(op),
             IntentBody::RevokeInvite { invite_id } => self.revoke_invite(op, invite_id),
             IntentBody::AcceptInvitation { link } => self.accept_invitation(op, link),
@@ -523,19 +669,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     fn create_invite(&mut self, op: &OperationId) -> OutcomeClass {
-        let Some(device) = &self.st.device else {
+        if self.st.device.is_none() || self.acs_head().is_none() {
             return OutcomeClass::Rejected {
                 reason: RejectReason::StaleState,
             };
-        };
-        let _ = device;
-        let Some((acs, chain, creds)) = self.acs_head() else {
-            return OutcomeClass::Rejected {
-                reason: RejectReason::IntegrityFailure,
-            };
-        };
-        let acs_body = acs.body();
-        let (acs_hash, label) = (acs.hash(), self.st.app.label.clone());
+        }
+        let label = self.st.app.label.clone();
         let invite_id = self.rand16();
         let mailbox = self.rand16();
         let mut ikm = arr32(self.rng);
@@ -544,20 +683,43 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         zeroize::Zeroize::zeroize(&mut ikm);
         let rk_digest = request_key_digest(&pk);
         let expires_at = self.now_ms + INVITE_TTL_MS;
-        let descriptor = cbor::encode(&V::M(vec![
-            (1, V::B(acs_body)),
-            (2, V::A(creds.into_iter().map(V::B).collect())),
-            (3, V::B(pk)),
-            (4, V::B(mailbox.to_vec())),
-            (5, V::U(expires_at / 1000)),
-            (6, V::T(label)),
-            (7, V::A(chain.into_iter().map(V::B).collect())),
+        // The per-invite intro identity signs the descriptor (which carries the request key) and the ticket; the
+        // link commits to its key digest. Neither object carries any account material (ADR-0181 sections 1, 2, 4).
+        let Ok(signer) = self.intro_signer(&invite_id) else {
+            return OutcomeClass::Rejected {
+                reason: RejectReason::IntegrityFailure,
+            };
+        };
+        let intro_pk = signer.public();
+        let intro_digest = intro::key_digest(&intro_pk);
+        let nonce = self.rand16();
+        let descriptor = intro::sign_intro(
+            &signer,
+            intro::LBL_DESCRIPTOR_SIG,
+            intro::descriptor_body(
+                &invite_id,
+                &label,
+                &intro::service_uri(&mailbox),
+                expires_at / 1000,
+                Some(&pk),
+            ),
+            self.rng,
+        );
+        let ticket = intro::sign_intro(
+            &signer,
+            intro::LBL_TICKET_SIG,
+            intro::ticket_body(&invite_id, &intro_digest, expires_at / 1000, &nonce, &pk),
+            self.rng,
+        );
+        // One opaque record for the introduction service: the signed descriptor and ticket, and the intro public key
+        // they verify under (the signature entry carries only the key's digest).
+        let record = cbor::encode(&V::M(vec![
+            (1, V::B(descriptor)),
+            (2, V::B(ticket)),
+            (3, V::B(intro_pk.clone())),
         ]));
-        // The link commits to the ACS head and the request key, so the (untrusted) introduction service cannot
-        // substitute either (QR/link possession is a rendezvous capability, not relationship authority).
         let mut token = invite_id.to_vec();
-        token.extend_from_slice(&acs_hash);
-        token.extend_from_slice(&rk_digest);
+        token.extend_from_slice(&intro_digest);
         let link = format!("om:invite/{}", b64url(&token));
         self.st.app.invites.insert(
             op.clone(),
@@ -569,6 +731,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 mailbox: hex(&mailbox),
                 request_seed: hex(&*seed).into(),
                 request_digest: hex(&rk_digest),
+                intro_pk: hex(&intro_pk),
                 revoked: false,
                 used: false,
             },
@@ -576,7 +739,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         self.enqueue(
             NetCall::PutInvite {
                 invite_id: invite_id.to_vec(),
-                descriptor,
+                descriptor: record,
                 expires_at,
             },
             Purpose::PutInvite {
@@ -618,7 +781,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(token) = parse_invite_token(link) else {
             return rejected(RejectReason::Invalid);
         };
-        let Some(raw) = unb64url(token).filter(|r| r.len() == 80) else {
+        // invite_id (16) || SHA-256(intro public key) (32)
+        let Some(raw) = unb64url(token).filter(|r| r.len() == 48) else {
             return rejected(RejectReason::Invalid);
         };
         if self.st.app.invites.values().any(|i| i.link == link.trim()) {
@@ -635,102 +799,122 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             Purpose::ResolveInvite {
                 operation_id: op.clone(),
                 invite_id,
-                acs_hash: hex(&raw[16..48]),
-                request_digest: hex(&raw[48..]),
+                intro_digest: hex(&raw[16..]),
             },
         );
         OutcomeClass::PendingNetwork
     }
 
+    /// The inviter accepts a pending request: the relationship is `ACCEPTED_UNBOUND` (no account is known), and one
+    /// Accept goes to the requester's reply route, sealed to its request-scoped bootstrap key (ADR-0181 section 3).
     fn accept_introduction(&mut self, op: &OperationId, request_id: &str) -> OutcomeClass {
         let rejected = |reason| OutcomeClass::Rejected { reason };
         let Some(intro) = self.st.app.intros.get(request_id).cloned() else {
             return rejected(RejectReason::NotFound);
         };
-        let built = (|| -> Result<(Relationship, String), CoreError> {
-            let creds = intro
-                .peer_credentials
-                .iter()
-                .map(|c| hb(c))
-                .collect::<Result<Vec<_>, _>>()?;
-            let acs_body = hb(&intro.peer_acs_body)?;
-            let acs = Acs::from_body(&acs_body).map_err(|_| CoreError::Invalid("peer acs"))?;
-            let peer = TrustedPeer {
-                acs_body: acs_body.clone(),
-                credential_bodies: creds,
-            };
-            let dev = binding::peer_devices(&peer, &acs.hash())
-                .map_err(|_| CoreError::Invalid("peer devices"))?;
-            let (ik, account, device_id, _) = dev
-                .into_iter()
-                .find(|d| d.3)
-                .ok_or(CoreError::Invalid("no active peer device"))?;
-            let rel = Relationship {
-                id: String::new(),
+        let Some(inv) = self.st.app.invites.get(&intro.invite_operation_id).cloned() else {
+            return rejected(RejectReason::NotFound);
+        };
+        if intro.reply_key.expires_at <= self.now_s() {
+            return rejected(RejectReason::Expired);
+        }
+        let (Some((head, chain, creds)), Some(my_key_dev)) = (
+            self.acs_head(),
+            self.st.device.as_ref().map(|d| (d.account_id, d.device_id)),
+        ) else {
+            return rejected(RejectReason::IntegrityFailure);
+        };
+        let (Ok(peer_mailbox), Ok(rk_digest), Ok(my_intro_pk)) = (
+            hb(&intro.peer_mailbox),
+            h32(&inv.request_digest),
+            hb(&inv.intro_pk),
+        ) else {
+            return rejected(RejectReason::IntegrityFailure);
+        };
+        let mb = self.rand16();
+        let conv = self.rand_id("conv");
+        let my_key = self.new_delivery_key(&mb, DELIVERY_KEY_TTL_S);
+        let canon = arr32(self.rng);
+        let Ok(record) = self.signed_key_record(&my_key) else {
+            return rejected(RejectReason::IntegrityFailure);
+        };
+        let rnd = arr32(self.rng);
+        let bind_body = intro::binding_body(
+            &my_key_dev.0,
+            &my_intro_pk,
+            &rk_digest,
+            head.generation,
+            &head.hash(),
+            self.now_s(),
+        );
+        let Some(binding) = self
+            .st
+            .device
+            .as_ref()
+            .map(|d| intro::sign_binding(&d.signer, &d.device_id, bind_body, rnd))
+        else {
+            return rejected(RejectReason::StaleState);
+        };
+        let payload = cbor::encode(&V::M(vec![
+            (0, V::U(KIND_ACCEPT)),
+            (1, V::B(mb.to_vec())),
+            (2, V::B(record)),
+            (3, V::B(canon.to_vec())),
+            (4, V::B(binding)),
+            (5, V::A(chain.into_iter().map(V::B).collect())),
+            (6, V::A(creds.into_iter().map(V::B).collect())),
+        ]));
+        let boot = PeerDelivery {
+            public: intro.reply_key.clone(),
+            bootstrap: true,
+        };
+        let Ok(wrapper) = self.seal_to(&boot, &peer_mailbox, &payload) else {
+            return rejected(RejectReason::PolicyDenied);
+        };
+        self.st.app.relationships.insert(
+            conv.clone(),
+            Relationship {
+                id: conv.clone(),
                 person_id: intro.person_id.clone(),
                 display_name: intro.display_name.clone(),
-                state: RelState::Establishing,
-                peer_account_id: hex(&account),
-                peer_device_id: hex(&device_id),
-                peer_ik: hex(&ik),
-                peer_acs_body: intro.peer_acs_body.clone(),
-                peer_credentials: intro.peer_credentials.clone(),
-                my_mailbox: String::new(),
+                state: RelState::AcceptedUnbound,
+                // No account is known until the requester's binding verifies.
+                peer_account_id: String::new(),
+                peer_device_id: String::new(),
+                peer_ik: String::new(),
+                peer_acs_body: String::new(),
+                peer_credentials: vec![],
+                my_mailbox: hex(&mb),
                 peer_mailbox: Some(intro.peer_mailbox.clone()),
                 blocked: false,
                 integrity_failures: 0,
                 created_at: self.now_ms,
                 messages: vec![],
                 seen_envelopes: vec![],
-                my_delivery: vec![],
-                // Until the invitee's signed record arrives, only the request-scoped bootstrap key is usable, and
-                // only for the Hello (send_message refuses a bootstrap key).
-                peer_delivery: Some(PeerDelivery {
-                    public: intro.reply_key.clone(),
-                    bootstrap: true,
-                }),
+                my_delivery: vec![my_key],
+                peer_delivery: Some(boot),
                 bootstrap: None,
                 replay: Default::default(),
-                canon_id: None,
+                // The inviter names the conversation: random, provider-independent, carried in the Accept.
+                canon_id: Some(hex(&canon)),
                 hlc_ms: 0,
                 hlc_logical: 0,
                 equivocated: Default::default(),
-            };
-            Ok((rel, hex(&device_id)))
-        })();
-        let Ok((mut rel, device_hex)) = built else {
-            return rejected(RejectReason::IntegrityFailure);
-        };
-        // Pin the peer's ACS head (K7 monotonic) before anything keyed to it happens (RelationshipContext is mandatory).
-        let creds: Vec<Vec<u8>> = rel
-            .peer_credentials
-            .iter()
-            .filter_map(|c| unhex(c).ok())
-            .collect();
-        let Ok(acs_body) = hb(&rel.peer_acs_body) else {
-            return rejected(RejectReason::IntegrityFailure);
-        };
-        let Ok(device) = self.device() else {
-            return rejected(RejectReason::StaleState);
-        };
-        if device.trust_peer(acs_body, creds).is_err() {
-            return rejected(RejectReason::StaleState);
-        }
-        let mb = self.rand16();
-        let conv = self.rand_id("conv");
-        rel.id = conv.clone();
-        rel.my_mailbox = hex(&mb);
-        rel.my_delivery = vec![self.new_delivery_key(&mb, DELIVERY_KEY_TTL_S)];
-        // The inviter names the conversation: random, provider-independent, bound to this relationship by the Hello.
-        rel.canon_id = Some(hex(&arr32(self.rng)));
-        self.st.app.relationships.insert(conv.clone(), rel);
+                pending_bind: Some(PendingBind {
+                    my_intro_pk: inv.intro_pk.clone(),
+                    peer_intro_pk: intro.peer_intro_pk.clone(),
+                    request_digest: inv.request_digest.clone(),
+                    deadline_ms: self.now_ms + BOOTSTRAP_TTL_S * 1000,
+                }),
+            },
+        );
         self.st.app.intros.remove(request_id);
-        let Ok(did) = hb(&device_hex) else {
-            return rejected(RejectReason::IntegrityFailure);
-        };
         self.enqueue(
-            NetCall::FetchKeyMaterial { device_id: did },
-            Purpose::FetchPeerKeys {
+            NetCall::Deposit {
+                mailbox: peer_mailbox,
+                bytes: wrapper,
+            },
+            Purpose::DepositAccept {
                 operation_id: op.clone(),
                 conversation_id: conv,
             },
@@ -1095,6 +1279,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     operation_id,
                     conversation_id,
                 }
+                | Purpose::DepositAccept {
+                    operation_id,
+                    conversation_id,
+                }
                 | Purpose::FetchPeerKeys {
                     operation_id,
                     conversation_id,
@@ -1112,7 +1300,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     Some(conversation_id.clone()),
                     Some(message_id.clone()),
                 )),
-                Purpose::PublishKeys | Purpose::Ack | Purpose::DepositKeys { .. } => None,
+                Purpose::PublishKeys
+                | Purpose::Ack
+                | Purpose::DepositKeys { .. }
+                | Purpose::DepositBind { .. } => None,
             }
         };
         let info = op_of(&entry.purpose);
@@ -1143,8 +1334,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     if let (Some(c), Some(m)) = (&conv, &msg) {
                         self.set_delivery(c, m, DeliveryState::Rejected { reason });
                     }
-                    if matches!(entry.purpose, Purpose::DepositRequest { .. })
-                        && let Some(c) = conv
+                    if matches!(
+                        entry.purpose,
+                        Purpose::DepositRequest { .. } | Purpose::DepositAccept { .. }
+                    ) && let Some(c) = conv
                     {
                         self.st.app.relationships.remove(&c);
                     }
@@ -1182,15 +1375,26 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             Purpose::PutInvite { operation_id } | Purpose::RevokeInvite { operation_id } => {
                 self.set_outcome(&operation_id, OutcomeClass::Committed)
             }
-            Purpose::DepositRequest { operation_id, .. } => {
+            Purpose::DepositRequest { operation_id, .. }
+            | Purpose::DepositAccept { operation_id, .. } => {
                 self.set_outcome(&operation_id, OutcomeClass::Committed)
             }
-            Purpose::DepositHello { operation_id, .. } => {
-                // The relationship becomes Active only when the peer's signed delivery-key record arrives:
-                // until then there is no key we may seal an ordinary message to.
+            Purpose::DepositHello {
+                operation_id,
+                conversation_id,
+            } => {
+                // Both bindings verified and the session's first message is out: the inviter's side is now ACTIVE and
+                // anything queued while it was establishing goes out, sealed.
                 self.set_outcome(&operation_id, OutcomeClass::Committed);
+                if let Some(r) = self.st.app.relationships.get_mut(&conversation_id)
+                    && r.state == RelState::Establishing
+                {
+                    r.state = RelState::Active;
+                    r.pending_bind = None;
+                    self.release_queued(&conversation_id)?;
+                }
             }
-            Purpose::DepositKeys { .. } => {}
+            Purpose::DepositKeys { .. } | Purpose::DepositBind { .. } => {}
             Purpose::DepositMessage {
                 operation_id,
                 conversation_id,
@@ -1211,14 +1415,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             Purpose::ResolveInvite {
                 operation_id,
                 invite_id,
-                acs_hash,
-                request_digest,
+                intro_digest,
             } => {
                 let out = self.on_invite_resolved(
                     &operation_id,
                     &invite_id,
-                    &acs_hash,
-                    &request_digest,
+                    &intro_digest,
                     bytes.unwrap_or_default(),
                 );
                 self.set_outcome(&operation_id, out);
@@ -1234,106 +1436,73 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         Ok(())
     }
 
+    /// The requester resolves the invite: the request key is trusted only from a ContactDescriptor signed by the
+    /// intro identity the link committed to, with a ticket signed by the same key (ADR-0181 section 2). The request
+    /// is then sealed; it carries the requester's intro key and label, never an account.
     fn on_invite_resolved(
         &mut self,
         op: &OperationId,
         invite_id: &str,
-        acs_hash: &str,
-        rk_digest: &str,
-        descriptor: Vec<u8>,
+        intro_digest: &str,
+        record: Vec<u8>,
     ) -> OutcomeClass {
         use RejectReason::*;
         let rej = |reason| OutcomeClass::Rejected { reason };
-        let parsed = (|| -> Result<_, CoreError> {
-            let v = cbor::decode(&descriptor).map_err(|_| CoreError::Invalid("descriptor"))?;
-            let acs_body = v
-                .get(1)
-                .and_then(|x| x.b())
-                .map_err(|_| CoreError::Invalid("acs"))?
-                .to_vec();
-            let creds: Vec<Vec<u8>> = v
-                .get(2)
-                .and_then(|x| x.a())
-                .map_err(|_| CoreError::Invalid("creds"))?
-                .iter()
-                .map(|c| c.b().map(<[u8]>::to_vec))
-                .collect::<Result<_, _>>()
-                .map_err(|_| CoreError::Invalid("creds"))?;
-            let pk = v
-                .get(3)
-                .and_then(|x| x.b())
-                .map_err(|_| CoreError::Invalid("pk"))?
-                .to_vec();
-            let mailbox: [u8; 16] = v
-                .get(4)
-                .and_then(|x| x.b())
-                .ok()
-                .and_then(|b| b.try_into().ok())
-                .ok_or(CoreError::Invalid("mailbox"))?;
-            let expires = v
-                .get(5)
-                .and_then(|x| x.u())
-                .map_err(|_| CoreError::Invalid("expiry"))?;
-            let label = v
-                .get(6)
-                .and_then(|x| x.t())
-                .map(sanitize_label)
-                .map_err(|_| CoreError::Invalid("label"))?;
-            let chain: Vec<Vec<u8>> = v
-                .get(7)
-                .and_then(|x| x.a())
-                .map_err(|_| CoreError::Invalid("acs chain"))?
-                .iter()
-                .map(|c| c.b().map(<[u8]>::to_vec))
-                .collect::<Result<_, _>>()
-                .map_err(|_| CoreError::Invalid("acs chain"))?;
-            Ok((acs_body, creds, pk, mailbox, expires, label, chain))
+        let (Ok(invite16), Ok(link_digest)) = (h16(invite_id), h32(intro_digest)) else {
+            return rej(IntegrityFailure);
+        };
+        let now_s = self.now_s();
+        let parsed = (|| -> Result<_, crypto::Error> {
+            if record.len() > 60_000 {
+                return Err(crypto::Error::Decode("introduction record too large"));
+            }
+            let v = cbor::decode(&record)?;
+            // The link commits to the digest of the intro key: check that before verifying any signature.
+            let pk = v.get(3)?.b()?.to_vec();
+            if intro::key_digest(&pk) != link_digest {
+                return Err(crypto::Error::Binding("intro key is not the linked one"));
+            }
+            let d = intro::open_intro(v.get(1)?.b()?, intro::LBL_DESCRIPTOR_SIG, &pk)?;
+            let t = intro::open_intro(v.get(2)?.b()?, intro::LBL_TICKET_SIG, &pk)?;
+            Ok((pk, d, t))
         })();
-        let Ok((acs_body, creds, pk, mailbox, expires, label, chain)) = parsed else {
+        let Ok((intro_pk, d, t)) = parsed else {
             return rej(IntegrityFailure);
         };
-        // The head the link committed to must be the head of a verified, signed AccountControlState chain.
-        if !control::verify_chain(&chain, &creds).is_ok_and(|h| h.body() == acs_body) {
-            return rej(IntegrityFailure);
-        }
-        // Everything the introduction service returned is checked against what the link committed to.
-        let Ok(acs) = Acs::from_body(&acs_body) else {
+        let (Ok(desc), Ok(ticket)) = (intro::read_descriptor(&d.body), intro::read_ticket(&t.body))
+        else {
             return rej(IntegrityFailure);
         };
-        if hex(&acs.hash()) != acs_hash || hex(&request_key_digest(&pk)) != rk_digest {
+        let Some(pk) = desc.request_key.clone().filter(|k| k.len() == hpke::NPK) else {
+            return rej(IntegrityFailure);
+        };
+        if desc.descriptor_id != invite16
+            || ticket.ticket_id != invite16
+            || ticket.service_binding != link_digest
+            || ticket.request_key.as_deref() != Some(pk.as_slice())
+            || registry()
+                .check_body("ContactDescriptor", &d.body_bytes)
+                .is_err()
+            || registry()
+                .check_body("IntroductionTicket", &t.body_bytes)
+                .is_err()
+        {
             return rej(IntegrityFailure);
         }
-        if expires <= self.now_s() {
+        if desc.expires_at_s <= now_s || ticket.expires_at_s <= now_s {
             return rej(Expired);
         }
-        let peer = TrustedPeer {
-            acs_body: acs_body.clone(),
-            credential_bodies: creds.clone(),
-        };
-        let Ok(devs) = binding::peer_devices(&peer, &acs.hash()) else {
+        // The inviter's request mailbox is part of the signed descriptor, so the introduction service cannot redirect it.
+        let Some(mailbox) = intro::parse_service_uri(&desc.intro_service) else {
             return rej(IntegrityFailure);
         };
-        let Some((ik, account, device_id, _)) = devs.into_iter().find(|d| d.3) else {
+        let mailbox = mailbox.to_vec();
+        let rk = request_key_digest(&pk);
+        let label = sanitize_label(&desc.label);
+        let Ok(my_signer) = self.intro_signer(&invite16) else {
             return rej(IntegrityFailure);
         };
-        let own = self.st.device.as_ref().map(|d| d.account_id);
-        if own == Some(account) {
-            return rej(Invalid);
-        }
-        // Pin the inviter's ACS head named by the link, then send the (HPKE-sealed) request.
-        let Ok(dev) = self.device() else {
-            return rej(StaleState);
-        };
-        if dev.trust_peer(acs_body.clone(), creds.clone()).is_err() {
-            return rej(StaleState);
-        }
-        let Some((my_head, my_chain, my_creds)) = self.acs_head() else {
-            return rej(IntegrityFailure);
-        };
-        let my_acs = my_head.body();
-        let (Ok(invite16), Ok(rk)) = (h16(invite_id), h32(rk_digest)) else {
-            return rej(IntegrityFailure);
-        };
+        let my_intro_pk = my_signer.public();
         let my_mailbox = self.rand16();
         let label_me = self.st.app.label.clone();
         // ADR-0144: a fresh request-scoped bootstrap key, bound to the reply route; never reused or promoted.
@@ -1341,15 +1510,40 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Ok(bootstrap_km) = key_material(&bootstrap_key.public) else {
             return rej(IntegrityFailure);
         };
-        let payload = cbor::encode(&V::M(vec![
-            (1, V::B(my_acs)),
-            (2, V::A(my_creds.into_iter().map(V::B).collect())),
-            (3, V::B(my_mailbox.to_vec())),
-            (4, V::T(label_me)),
-            (5, V::U(self.now_ms)),
-            (6, bootstrap_km.to_v()),
-            (7, V::A(my_chain.into_iter().map(V::B).collect())),
-        ]));
+        let route_expires = bootstrap_km.expires_at;
+        // The requester's own signed descriptor: its intro key, the unverified label and nothing else.
+        let sender_descriptor = intro::sign_intro(
+            &my_signer,
+            intro::LBL_DESCRIPTOR_SIG,
+            intro::descriptor_body(
+                &self.rand16(),
+                &label_me,
+                intro::INTRO_SERVICE_URI,
+                route_expires,
+                None,
+            ),
+            self.rng,
+        );
+        let payload = intro::sign_intro(
+            &my_signer,
+            intro::LBL_PAYLOAD_SIG,
+            intro::payload_body(
+                &invite16,
+                &rk,
+                &my_intro_pk,
+                &sender_descriptor,
+                &intro::RouteEntry {
+                    relay_uri: delivery::CORE_ROUTE_URI,
+                    capability: &my_mailbox,
+                    expires_at_s: route_expires,
+                },
+                bootstrap_km.to_v(),
+            ),
+            self.rng,
+        );
+        if payload.len() as u64 > ticket.payload_limit {
+            return rej(Quota);
+        }
         let mut rnd = [0u8; 64];
         self.rng.fill_bytes(&mut rnd);
         let Ok((ss, enc)) = hpke::encaps_derand(&pk, &rnd) else {
@@ -1383,11 +1577,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     label
                 },
                 state: RelState::AwaitingAcceptance,
-                peer_account_id: hex(&account),
-                peer_device_id: hex(&device_id),
-                peer_ik: hex(&ik),
-                peer_acs_body: hex(&acs_body),
-                peer_credentials: creds.iter().map(|c| hex(c)).collect(),
+                // The inviter's account is learned from its binding after acceptance, never before.
+                peer_account_id: String::new(),
+                peer_device_id: String::new(),
+                peer_ik: String::new(),
+                peer_acs_body: String::new(),
+                peer_credentials: vec![],
                 my_mailbox: hex(&my_mailbox),
                 peer_mailbox: None,
                 blocked: false,
@@ -1406,11 +1601,17 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 hlc_ms: 0,
                 hlc_logical: 0,
                 equivocated: Default::default(),
+                pending_bind: Some(PendingBind {
+                    my_intro_pk: hex(&my_intro_pk),
+                    peer_intro_pk: hex(&intro_pk),
+                    request_digest: hex(&rk),
+                    deadline_ms: route_expires * 1000,
+                }),
             },
         );
         self.enqueue(
             NetCall::Deposit {
-                mailbox: mailbox.to_vec(),
+                mailbox,
                 bytes: request,
             },
             Purpose::DepositRequest {
@@ -1421,12 +1622,17 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         OutcomeClass::PendingNetwork
     }
 
+    /// Inviter, after the requester's Bind verified: start the PQXDH session to the requester's device and send the
+    /// Hello over the established route (ADR-0181 section 3, step 4).
     fn on_peer_keys(&mut self, op: &OperationId, conv: &str, fetch: Vec<Vec<u8>>) -> OutcomeClass {
         use RejectReason::*;
         let rej = |reason| OutcomeClass::Rejected { reason };
         let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
             return rej(NotFound);
         };
+        if rel.state != RelState::Establishing {
+            return rej(StaleState);
+        }
         if registry()
             .check(
                 "AsyncKeyBundle",
@@ -1451,8 +1657,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         let trusted = ds_hash(binding::LBL_ACS_HASH, &acs_body);
         let now_s = self.now_s();
-        let (peer_ik, label) = (h32(&rel.peer_ik), self.st.app.label.clone());
-        let Ok(peer_ik) = peer_ik else {
+        let Ok(peer_ik) = h32(&rel.peer_ik) else {
             return rej(IntegrityFailure);
         };
         let Some(peer_mailbox) = rel.peer_mailbox.as_deref().and_then(|m| hb(m).ok()) else {
@@ -1473,35 +1678,22 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 _ => IntegrityFailure,
             });
         }
-        let my_mailbox = h16(&rel.my_mailbox).unwrap_or_default();
-        // The bootstrap key is request-scoped and valid for this one Hello only; its expiry is the request deadline.
-        let Some(boot) = rel.peer_delivery.clone().filter(|p| p.bootstrap) else {
-            return rej(IntegrityFailure);
-        };
-        if boot.public.expires_at <= self.now_s() {
-            return rej(Expired);
-        }
-        let Some(my_key) = rel.my_delivery.first().cloned() else {
-            return rej(IntegrityFailure);
+        // The Hello rides the requester's established key (installed from its verified Bind), not the bootstrap key.
+        let Ok(pd) = self.peer_key_for_send(&rel) else {
+            return rej(Unavailable);
         };
         let Some(canon_id) = rel.canon_id.as_deref().and_then(|c| h32(c).ok()) else {
             return rej(IntegrityFailure);
         };
-        let Ok(record) = self.signed_key_record(&my_key) else {
-            return rej(IntegrityFailure);
-        };
         let hello = cbor::encode(&V::M(vec![
             (0, V::U(KIND_HELLO)),
-            (1, V::B(my_mailbox.to_vec())),
-            (2, V::T(label)),
-            (3, V::B(record)),
             (4, V::B(canon_id.to_vec())),
         ]));
         let env = match self.st.device.as_mut().map(|d| d.encrypt(&peer_ik, &hello)) {
             Some(Ok((env, _))) => env,
             _ => return rej(IntegrityFailure),
         };
-        let Ok(wrapper) = self.seal_to(&boot, &peer_mailbox, &env) else {
+        let Ok(wrapper) = self.seal_to(&pd, &peer_mailbox, &env) else {
             return rej(IntegrityFailure);
         };
         self.enqueue(
@@ -1521,6 +1713,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// Process relay items for `mailbox` that are newer than the committed cursor.
     pub fn inbound(&mut self, mailbox: &str, items: Vec<(u64, Vec<u8>)>) -> Result<(), CoreError> {
+        self.expire_stale();
         let mut cursor = self.st.app.cursors.get(mailbox).copied().unwrap_or(0);
         let mut items = items;
         items.sort_by_key(|(s, _)| *s);
@@ -1575,14 +1768,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         } // unknown mailbox: not ours, drop
     }
 
+    /// A message in an invite mailbox. Order (ADR-0181 section 5): everything that is cheap and stateless first,
+    /// then the persisted limiter, and only then the HPKE decapsulation and the signature checks.
     fn on_message_request(&mut self, invite_op: &str, bytes: &[u8]) {
         let Some(inv) = self.st.app.invites.get(invite_op).cloned() else {
             return;
         };
-        // Single-use, unexpired, unrevoked invites only; everything else is dropped before any expensive work.
-        if inv.revoked || inv.used || inv.expires_at <= self.now_ms || bytes.len() > 70_000 {
+        // 1. Single-use, unexpired, unrevoked invites only; 2. a bounded message.
+        if inv.revoked
+            || inv.used
+            || inv.expires_at <= self.now_ms
+            || bytes.len() > intro::MAX_REQUEST_BYTES
+        {
             return;
         }
+        // 3. The W0 MessageRequest shape.
         if registry().check("MessageRequest", bytes, false).is_err() {
             return;
         }
@@ -1595,7 +1795,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ) else {
             return;
         };
+        // The ticket's payload limit plus the AEAD tag bounds the ciphertext, before any other work.
+        if ct.len() as u64 > intro::PAYLOAD_LIMIT_BYTES + intro::AEAD_TAG_BYTES {
+            return;
+        }
+        // 4. The ticket id and the request-key digest are exactly this invite's.
         if hex(&ticket) != inv.invite_id || hex(&rk) != inv.request_digest {
+            return;
+        }
+        // 5. The limiter. A refused request is dropped silently (and counted for the one aggregated notice).
+        if !self.admit_first_contact() {
             return;
         }
         let (Ok(seed), Ok(ticket16)) = (
@@ -1612,65 +1821,52 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Ok(pt) = hpke::key_schedule(&ss, &info).open(b"", &ct) else {
             return;
         };
-        let Ok(p) = cbor::decode(&pt) else { return };
+        let now_s = self.now_s();
         let parsed = (|| -> Result<_, crypto::Error> {
-            let acs_body = p.get(1)?.b()?.to_vec();
-            let creds: Vec<Vec<u8>> = p
-                .get(2)?
-                .a()?
-                .iter()
-                .map(|c| c.b().map(<[u8]>::to_vec))
-                .collect::<Result<_, _>>()?;
-            let mb = p.get(3)?.b()?.to_vec();
-            let label = sanitize_label(p.get(4)?.t()?);
-            let reply_key = KeyMaterial::from_v(p.get(6)?)?;
-            let chain: Vec<Vec<u8>> = p
-                .get(7)?
-                .a()?
-                .iter()
-                .map(|c| c.b().map(<[u8]>::to_vec))
-                .collect::<Result<_, _>>()?;
-            Ok((acs_body, creds, mb, label, reply_key, chain))
+            // The payload names the requester's intro key and is signed by it; its descriptor by the same key.
+            let signer = intro::peek_body(&pt)?.get(4)?.b()?.to_vec();
+            let p = intro::open_intro(&pt, intro::LBL_PAYLOAD_SIG, &signer)?;
+            let b = &p.body;
+            if b.get(0)?.u()? != intro::TYPE_PAYLOAD
+                || b.get(1)?.u()? != 1
+                || b.get(2)?.b()? != ticket16
+                || b.get(3)?.get(1)?.b32()? != rk
+            {
+                return Err(crypto::Error::Binding("payload does not match the request"));
+            }
+            let d = intro::open_intro(b.get(5)?.b()?, intro::LBL_DESCRIPTOR_SIG, &signer)?;
+            let desc = intro::read_descriptor(&d.body)?;
+            let route = b.get(8)?;
+            let (uri, cap, route_exp) = (
+                route.get(0)?.t()?,
+                route.get(1)?.b()?.to_vec(),
+                route.get(4)?.u()?,
+            );
+            let reply_key = KeyMaterial::from_v(b.get(9)?)?;
+            Ok((signer, desc, uri.to_string(), cap, route_exp, reply_key))
         })();
-        let Ok((acs_body, creds, mb, label, reply_key, chain)) = parsed else {
+        let Ok((peer_intro_pk, desc, uri, mb, route_exp, reply_key)) = parsed else {
             return;
         };
-        // The requester's state must be a verified, signed AccountControlState (nothing is pinned until accepted).
-        if !control::verify_chain(&chain, &creds).is_ok_and(|h| h.body() == acs_body) {
+        // The requester's descriptor must still be live, and must not be our own intro identity.
+        if desc.expires_at_s <= now_s || hex(&peer_intro_pk) == inv.intro_pk {
             return;
         }
-        // The bootstrap key must be bound to exactly the reply route in the same request, and fresh.
-        let now_s = self.now_s();
-        if mb.len() != 16
+        // The bootstrap key must be bound to exactly the reply route in the same request, fresh, and no later than
+        // the route (a bounded request deadline: min(route, key)).
+        if uri != delivery::CORE_ROUTE_URI
+            || mb.len() != 16
             || reply_key.route_binding != delivery::mailbox_route_binding(&mb)
             || reply_key.expires_at <= now_s
             || reply_key.expires_at > now_s + BOOTSTRAP_TTL_S + BOOTSTRAP_CLOCK_SKEW_S
-        {
-            return;
-        }
-        // Structural check only: the sender is NOT pinned until the user accepts (AcceptIntroduction).
-        let Ok(acs) = Acs::from_body(&acs_body) else {
-            return;
-        };
-        let peer = TrustedPeer {
-            acs_body: acs_body.clone(),
-            credential_bodies: creds.clone(),
-        };
-        let Ok(devs) = binding::peer_devices(&peer, &acs.hash()) else {
-            return;
-        };
-        if !devs.iter().any(|d| d.3)
-            || self
-                .st
-                .device
-                .as_ref()
-                .is_some_and(|d| d.account_id == acs.account_id)
+            || reply_key.expires_at > route_exp
         {
             return;
         }
         if let Some(i) = self.st.app.invites.get_mut(invite_op) {
             i.used = true;
         }
+        let label = sanitize_label(&desc.label);
         let request_id = self.rand_id("req");
         let person_id = self.rand_id("person");
         self.st.app.intros.insert(
@@ -1684,8 +1880,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 } else {
                     label
                 },
-                peer_acs_body: hex(&acs_body),
-                peer_credentials: creds.iter().map(|c| hex(c)).collect(),
+                peer_intro_pk: hex(&peer_intro_pk),
                 peer_mailbox: hex(&mb),
                 reply_key: pub_key(&reply_key),
             },
@@ -1813,24 +2008,51 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
     }
 
-    /// Process one complete inner envelope. Returns whether it was definitively accepted (a duplicate of an
-    /// already-processed inner envelope is accepted idempotently with no effect).
+    /// Process one complete inner payload. Returns whether it was definitively accepted (a duplicate of an
+    /// already-processed payload is accepted idempotently with no effect).
+    ///
+    /// Before the relationship is bound the payload is not a session envelope: the requester's bootstrap key admits
+    /// exactly one thing, the inviter's Accept, and an unbound inviter admits exactly the requester's Bind
+    /// (ADR-0181 section 3). Both are plain CBOR inside the sealed delivery and authenticate by their own signatures.
     fn process_inner(&mut self, conv: &str, env: &[u8], via_bootstrap: bool) -> bool {
         let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
-            return false;
-        };
-        let Ok(account) = h32(&rel.peer_account_id) else {
             return false;
         };
         let env_id = hex(&crypto::sha256(&[env]));
         if rel.seen_envelopes.contains(&env_id) {
             return true; // the same inner envelope under a fresh wrapper (sender retry): not an attack, no effect
         }
+        let unbound_inviter =
+            rel.state == RelState::AcceptedUnbound && rel.peer_account_id.is_empty();
+        if via_bootstrap || unbound_inviter {
+            let kind = if via_bootstrap {
+                KIND_ACCEPT
+            } else {
+                KIND_BIND
+            };
+            let ok = cbor::decode(env)
+                .ok()
+                .filter(|p| p.get(0).and_then(|x| x.u()).ok() == Some(kind))
+                .is_some_and(|p| {
+                    if via_bootstrap {
+                        self.on_accept(conv, &p)
+                    } else {
+                        self.on_bind(conv, &p)
+                    }
+                });
+            if ok && let Some(r) = self.st.app.relationships.get_mut(conv) {
+                r.seen_envelopes.push(env_id);
+            }
+            return ok;
+        }
+        let Ok(account) = h32(&rel.peer_account_id) else {
+            return false;
+        };
         let Some(dev) = self.st.device.as_mut() else {
             return false;
         };
-        // A payload that is not accepted must leave the cryptographic state untouched on every path, bootstrap or
-        // established (audit M6): decrypting advances the ratchet, so snapshot first and restore on rejection.
+        // A payload that is not accepted must leave the cryptographic state untouched on every path
+        // (audit M6): decrypting advances the ratchet, so snapshot first and restore on rejection.
         let snapshot = Some(dev.clone());
         // ADR-0137: the relationship context is mandatory and is checked before any session lookup or secret operation.
         let res = dev.decrypt(&RelationshipContext::new(account), env, self.rng);
@@ -1843,13 +2065,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return false;
         };
         let kind = p.get(0).and_then(|x| x.u()).unwrap_or(0);
-        // The bootstrap key admits exactly one thing: the peer's Hello with a valid signed key record.
-        if via_bootstrap && kind != KIND_HELLO {
-            self.restore(snapshot);
-            return false;
-        }
+        let live = matches!(rel.state, RelState::Establishing | RelState::Active);
         let ok = match kind {
-            KIND_HELLO => self.on_hello(conv, &p, via_bootstrap),
+            // The Hello is the first session message after both bindings verified; it activates the requester.
+            KIND_HELLO => self.on_hello(conv, &p),
+            // Nothing but the Hello is accepted while the relationship is not yet bound.
+            _ if !live => false,
             KIND_KEYS => self.on_keys(conv, &p),
             events::OBJECT_TYPE => self.on_event(conv, &pt),
             _ => true, // unknown payload kinds from a newer client are ignored, not fatal
@@ -1865,6 +2086,234 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
         }
         true
+    }
+
+    /// The `(head, credentials)` of a peer's chain sent with its binding, refused above the first-contact cap before
+    /// any signature is checked (ADR-0181 section 6), then verified to an ACS head.
+    fn first_contact_head(
+        chain: Option<Vec<Vec<u8>>>,
+        creds: Option<Vec<Vec<u8>>>,
+    ) -> Option<(Acs, Vec<Vec<u8>>)> {
+        let (chain, creds) = (chain?, creds?);
+        if chain.is_empty() || chain.len() > FIRST_CONTACT_MAX_CHAIN {
+            return None;
+        }
+        let head = control::verify_chain(&chain, &creds).ok()?;
+        Some((head, creds))
+    }
+
+    /// Requester: the inviter's Accept arrived on the request-scoped bootstrap key (the winning commit, ADR-0145).
+    /// Verify the inviter's `IntroIdentityBinding` for the intro key the link committed to, pin its account, install
+    /// its established delivery key, and answer with our own Bind.
+    fn on_accept(&mut self, conv: &str, p: &V) -> bool {
+        let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
+            return false;
+        };
+        let (RelState::AwaitingAcceptance, Some(pb)) = (rel.state, rel.pending_bind.clone()) else {
+            return false;
+        };
+        let (Ok(mb), Ok(record), Ok(canon), Ok(binding)) = (
+            p.get(1).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            p.get(2).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            p.get(3).and_then(|x| x.b32()),
+            p.get(4).and_then(|x| x.b()).map(<[u8]>::to_vec),
+        ) else {
+            return false;
+        };
+        let Some((head, creds)) =
+            Self::first_contact_head(bytes_list(p.get(5)), bytes_list(p.get(6)))
+        else {
+            return false;
+        };
+        let (Ok(peer_intro), Ok(rk), Ok(my_intro)) = (
+            hb(&pb.peer_intro_pk),
+            h32(&pb.request_digest),
+            hb(&pb.my_intro_pk),
+        ) else {
+            return false;
+        };
+        let Ok(vb) = intro::verify_binding(
+            &binding,
+            &head,
+            &creds,
+            &intro::BindingExpect {
+                intro_identity: &peer_intro,
+                request_key_digest: &rk,
+            },
+        ) else {
+            return false;
+        };
+        if mb.len() != 16
+            || self
+                .st
+                .device
+                .as_ref()
+                .is_none_or(|d| d.account_id == head.account_id)
+        {
+            return false;
+        }
+        let mut upd = rel.clone();
+        self.bind_peer(&mut upd, &head, &vb, &creds);
+        upd.peer_mailbox = Some(hex(&mb));
+        let Some(km) = self.verify_peer_record(&upd, &record, &mb) else {
+            return false;
+        };
+        let pd = PeerDelivery {
+            public: pub_key(&km),
+            bootstrap: false,
+        };
+        // Our Bind: the same kind of binding for the intro identity we used, sealed to the inviter's established key.
+        let Some((bind, bind_mailbox)) = self.build_bind(&upd, &pd, &my_intro, &rk) else {
+            return false;
+        };
+        let Some(dev) = self.st.device.as_mut() else {
+            return false;
+        };
+        if dev.trust_peer(head.body(), creds.clone()).is_err() {
+            return false;
+        }
+        upd.state = RelState::AcceptedUnbound;
+        upd.peer_delivery = Some(pd);
+        upd.canon_id = Some(hex(&canon));
+        upd.bootstrap = None; // the request-scoped key dies in the commit that installed the established route
+        self.st.app.relationships.insert(conv.to_string(), upd);
+        self.enqueue(
+            NetCall::Deposit {
+                mailbox: bind_mailbox,
+                bytes: bind,
+            },
+            Purpose::DepositBind {
+                conversation_id: conv.to_string(),
+            },
+        );
+        true
+    }
+
+    /// Inviter: the requester's Bind arrived. Verify its binding for the intro key it signed the request with, pin its
+    /// account, install its established key, and start the session (the Hello follows once its device bundle is fetched).
+    fn on_bind(&mut self, conv: &str, p: &V) -> bool {
+        let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
+            return false;
+        };
+        let (RelState::AcceptedUnbound, Some(pb), Some(mb)) = (
+            rel.state,
+            rel.pending_bind.clone(),
+            rel.peer_mailbox.as_deref().and_then(|m| hb(m).ok()),
+        ) else {
+            return false;
+        };
+        let (Ok(record), Ok(binding)) = (
+            p.get(1).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            p.get(2).and_then(|x| x.b()).map(<[u8]>::to_vec),
+        ) else {
+            return false;
+        };
+        let Some((head, creds)) =
+            Self::first_contact_head(bytes_list(p.get(3)), bytes_list(p.get(4)))
+        else {
+            return false;
+        };
+        let (Ok(peer_intro), Ok(rk)) = (hb(&pb.peer_intro_pk), h32(&pb.request_digest)) else {
+            return false;
+        };
+        let Ok(vb) = intro::verify_binding(
+            &binding,
+            &head,
+            &creds,
+            &intro::BindingExpect {
+                intro_identity: &peer_intro,
+                request_key_digest: &rk,
+            },
+        ) else {
+            return false;
+        };
+        if self
+            .st
+            .device
+            .as_ref()
+            .is_none_or(|d| d.account_id == head.account_id)
+        {
+            return false;
+        }
+        let mut upd = rel.clone();
+        self.bind_peer(&mut upd, &head, &vb, &creds);
+        let Some(km) = self.verify_peer_record(&upd, &record, &mb) else {
+            return false;
+        };
+        let Some(dev) = self.st.device.as_mut() else {
+            return false;
+        };
+        if dev.trust_peer(head.body(), creds.clone()).is_err() {
+            return false;
+        }
+        let device_id = vb.device_id.to_vec();
+        upd.state = RelState::Establishing;
+        upd.peer_delivery = Some(PeerDelivery {
+            public: pub_key(&km),
+            bootstrap: false,
+        });
+        self.st.app.relationships.insert(conv.to_string(), upd);
+        self.enqueue(
+            NetCall::FetchKeyMaterial { device_id },
+            Purpose::FetchPeerKeys {
+                operation_id: String::new(),
+                conversation_id: conv.to_string(),
+            },
+        );
+        true
+    }
+
+    /// Fill a relationship's peer fields from a verified ACS head and the device that signed the binding.
+    fn bind_peer(
+        &self,
+        rel: &mut Relationship,
+        head: &Acs,
+        vb: &intro::VerifiedBinding,
+        creds: &[Vec<u8>],
+    ) {
+        rel.peer_account_id = hex(&head.account_id);
+        rel.peer_device_id = hex(&vb.device_id);
+        rel.peer_ik = hex(&vb.credential.ik);
+        rel.peer_acs_body = hex(&head.body());
+        rel.peer_credentials = creds.iter().map(|c| hex(c)).collect();
+    }
+
+    /// The requester's Bind: our signed key record, our `IntroIdentityBinding`, our chain and credentials, sealed to
+    /// the inviter's established key. Returns the wrapper and the inviter's mailbox.
+    fn build_bind(
+        &mut self,
+        rel: &Relationship,
+        to: &PeerDelivery,
+        my_intro: &[u8],
+        rk: &[u8; 32],
+    ) -> Option<(Vec<u8>, Vec<u8>)> {
+        let (head, chain, creds) = self.acs_head()?;
+        let my_key = rel.my_delivery.first().cloned()?;
+        let record = self.signed_key_record(&my_key).ok()?;
+        let rnd = arr32(self.rng);
+        let body = intro::binding_body(
+            &self.st.device.as_ref()?.account_id,
+            my_intro,
+            rk,
+            head.generation,
+            &head.hash(),
+            self.now_s(),
+        );
+        let binding = self
+            .st
+            .device
+            .as_ref()
+            .map(|d| intro::sign_binding(&d.signer, &d.device_id, body, rnd))?;
+        let payload = cbor::encode(&V::M(vec![
+            (0, V::U(KIND_BIND)),
+            (1, V::B(record)),
+            (2, V::B(binding)),
+            (3, V::A(chain.into_iter().map(V::B).collect())),
+            (4, V::A(creds.into_iter().map(V::B).collect())),
+        ]));
+        let mailbox = hb(rel.peer_mailbox.as_deref()?).ok()?;
+        let wrapper = self.seal_to(to, &mailbox, &payload).ok()?;
+        Some((wrapper, mailbox))
     }
 
     fn restore(&mut self, snapshot: Option<crate::crypto::store::Device>) {
@@ -1914,90 +2363,31 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 bootstrap: false,
             });
         }
-        if r.state != RelState::Active && r.peer_mailbox.is_some() {
-            r.state = RelState::Active;
-        }
         // Messages queued while the relationship was establishing now go out, sealed.
         if self.release_queued(conv).is_err() {
             // A seal/encrypt failure here must not strand the key install: the messages stay queued.
         }
     }
 
-    fn on_hello(&mut self, conv: &str, p: &V, via_bootstrap: bool) -> bool {
-        let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
-            return false;
-        };
-        let (Ok(mb), Ok(record)) = (
-            p.get(1).and_then(|x| x.b()).map(<[u8]>::to_vec),
-            p.get(3).and_then(|x| x.b()).map(<[u8]>::to_vec),
-        ) else {
+    /// Requester: the inviter's Hello authenticated in the PQXDH session and names the conversation from the Accept.
+    /// Both bindings are verified, so the relationship is ACTIVE (ADR-0181 section 3, step 4).
+    fn on_hello(&mut self, conv: &str, p: &V) -> bool {
+        let Some(rel) = self.st.app.relationships.get(conv) else {
             return false;
         };
         let Ok(canon) = p.get(4).and_then(|x| x.b32()) else {
             return false;
         };
-        if mb.len() != 16 || rel.canon_id.as_deref().is_some_and(|c| c != hex(&canon)) {
+        if rel.state != RelState::AcceptedUnbound
+            || rel.canon_id.as_deref() != Some(hex(&canon).as_str())
+        {
             return false;
         }
-        if rel.peer_mailbox.is_some() && rel.peer_mailbox.as_deref() != Some(hex(&mb).as_str()) {
-            return false; // a second, different Hello is not another bootstrap branch
-        }
-        let Some(km) = self.verify_peer_record(&rel, &record, &mb) else {
-            return false;
-        };
         if let Some(r) = self.st.app.relationships.get_mut(conv) {
-            r.peer_mailbox = Some(hex(&mb));
-            r.canon_id = Some(hex(&canon));
-        }
-        self.install_peer_key(conv, &km);
-        if via_bootstrap {
-            // The winning bootstrap commit: the request-scoped key dies in the same transaction that installed
-            // the established route and key (ADR-0145). Later candidates have no key to open with.
-            if let Some(r) = self.st.app.relationships.get_mut(conv) {
-                r.bootstrap = None;
-            }
-            self.send_keys(conv);
+            r.state = RelState::Active;
+            r.pending_bind = None;
         }
         true
-    }
-
-    /// Reply to the peer's Hello with our own signed delivery-key record, sealed to the key just installed.
-    fn send_keys(&mut self, conv: &str) {
-        let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
-            return;
-        };
-        let (Some(my_key), Ok(peer_ik), Ok(pd), Some(Ok(mailbox))) = (
-            rel.my_delivery.first().cloned(),
-            h32(&rel.peer_ik),
-            self.peer_key_for_send(&rel).ok().ok_or(()),
-            rel.peer_mailbox.as_deref().map(hb),
-        ) else {
-            return;
-        };
-        let Ok(record) = self.signed_key_record(&my_key) else {
-            return;
-        };
-        let payload = cbor::encode(&V::M(vec![(0, V::U(KIND_KEYS)), (3, V::B(record))]));
-        let Some(Ok((env, _))) = self
-            .st
-            .device
-            .as_mut()
-            .map(|d| d.encrypt(&peer_ik, &payload))
-        else {
-            return;
-        };
-        let Ok(wrapper) = self.seal_to(&pd, &mailbox, &env) else {
-            return;
-        };
-        self.enqueue(
-            NetCall::Deposit {
-                mailbox,
-                bytes: wrapper,
-            },
-            Purpose::DepositKeys {
-                conversation_id: conv.to_string(),
-            },
-        );
     }
 
     fn on_keys(&mut self, conv: &str, p: &V) -> bool {
@@ -2149,6 +2539,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             _ => false, // later-wave kinds: refused, not silently dropped
         }
     }
+}
+
+fn bytes_list(v: Result<&V, crypto::Error>) -> Option<Vec<Vec<u8>>> {
+    v.ok()?
+        .a()
+        .ok()?
+        .iter()
+        .map(|x| x.b().ok().map(<[u8]>::to_vec))
+        .collect()
 }
 
 pub fn request_key_digest(pk: &[u8]) -> [u8; 32] {

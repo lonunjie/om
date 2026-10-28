@@ -2,12 +2,11 @@
 //! Signed AccountControlState in the engine: genesis, device views derived from the head, SuspendDevice and
 //! RevokeDevice as real authorized transitions, and a multi-generation chain accepted by a peer at first contact.
 
+mod common;
+
+use common::confirmation as nonce;
 use om_core::api::*;
 use om_core::runtime::{LoopbackNetwork, Runtime, settle_all};
-
-fn confirm() -> ConfirmationToken {
-    serde_json::json!({ "confirmed": true })
-}
 
 fn profile(rt: &mut Runtime, id: &str, label: &str) -> ProfileExecutionContext {
     let ctx = rt.open(id);
@@ -60,6 +59,7 @@ fn a_lone_device_has_a_signed_genesis_and_can_neither_suspend_nor_remove_itself(
         ("s-none", "00".repeat(16), RejectReason::NotFound),
         ("s-bad", "zz".into(), RejectReason::Invalid),
     ] {
+        let confirmation = nonce(&mut rt, &ctx, "SuspendDevice", &id);
         assert_eq!(
             outcome(
                 &mut rt,
@@ -67,13 +67,14 @@ fn a_lone_device_has_a_signed_genesis_and_can_neither_suspend_nor_remove_itself(
                 op,
                 IntentBody::SuspendDevice {
                     device_id: id,
-                    confirmation: confirm()
+                    confirmation
                 }
             ),
             rejected(want),
             "{op}"
         );
     }
+    let confirmation = nonce(&mut rt, &ctx, "RevokeDevice", &me.id);
     assert_eq!(
         outcome(
             &mut rt,
@@ -81,7 +82,7 @@ fn a_lone_device_has_a_signed_genesis_and_can_neither_suspend_nor_remove_itself(
             "r-self",
             IntentBody::RevokeDevice {
                 device_id: me.id.clone(),
-                confirmation: confirm()
+                confirmation
             }
         ),
         rejected(RejectReason::Conflict),
@@ -115,6 +116,7 @@ fn removing_a_messaging_device_is_a_signed_transition_and_is_terminal() {
         "one controller may remove a messaging device"
     );
     // Messaging devices are removed, never quarantined (section 4.1).
+    let confirmation = nonce(&mut rt, &ctx, "SuspendDevice", &id);
     assert_eq!(
         outcome(
             &mut rt,
@@ -122,7 +124,7 @@ fn removing_a_messaging_device_is_a_signed_transition_and_is_terminal() {
             "sus",
             IntentBody::SuspendDevice {
                 device_id: id.clone(),
-                confirmation: confirm()
+                confirmation
             }
         ),
         rejected(RejectReason::Conflict)
@@ -165,6 +167,7 @@ fn removing_a_messaging_device_is_a_signed_transition_and_is_terminal() {
             "case {n}"
         );
     }
+    let confirmation = nonce(&mut rt, &ctx, "RevokeDevice", &id);
     assert_eq!(
         outcome(
             &mut rt,
@@ -172,7 +175,7 @@ fn removing_a_messaging_device_is_a_signed_transition_and_is_terminal() {
             "rev",
             IntentBody::RevokeDevice {
                 device_id: id.clone(),
-                confirmation: confirm()
+                confirmation
             }
         ),
         Some(OutcomeClass::Committed)
@@ -182,6 +185,7 @@ fn removing_a_messaging_device_is_a_signed_transition_and_is_terminal() {
     assert_eq!(gone.state, DeviceStateCode::Revoked);
     assert!(gone.actions.is_empty());
     // Terminal: the same DeviceID cannot be removed (or anything else done to it) again.
+    let confirmation = nonce(&mut rt, &ctx, "RevokeDevice", &id);
     assert_eq!(
         outcome(
             &mut rt,
@@ -189,7 +193,7 @@ fn removing_a_messaging_device_is_a_signed_transition_and_is_terminal() {
             "rev2",
             IntentBody::RevokeDevice {
                 device_id: id,
-                confirmation: confirm()
+                confirmation
             }
         ),
         rejected(RejectReason::NotFound)
@@ -204,6 +208,7 @@ fn the_chain_survives_restart_and_a_multi_generation_head_is_accepted_by_a_peer(
     let b = profile(&mut bob, "pb", "Bob");
     let (id, step) = alice.core.debug_link_messaging_device(&a).unwrap();
     alice.settle(&step);
+    let confirmation = nonce(&mut alice, &a, "RevokeDevice", &id);
     assert_eq!(
         outcome(
             &mut alice,
@@ -211,7 +216,7 @@ fn the_chain_survives_restart_and_a_multi_generation_head_is_accepted_by_a_peer(
             "rev",
             IntentBody::RevokeDevice {
                 device_id: id,
-                confirmation: confirm()
+                confirmation
             }
         ),
         Some(OutcomeClass::Committed)
@@ -221,7 +226,7 @@ fn the_chain_survives_restart_and_a_multi_generation_head_is_accepted_by_a_peer(
     let ctxs = alice.restart();
     assert_eq!(devices(&alice, &ctxs[0]), before);
     let a = ctxs[0].clone();
-    // Generation-3 head: Alice's invite carries the verified chain and Bob accepts the introduction request path.
+    // Generation-3 head: Alice's binding carries the verified chain and Bob accepts it at first contact.
     alice.dispatch(&a, "inv", IntentBody::CreateInvite);
     alice.flush_net(&a);
     let link = alice
@@ -235,17 +240,31 @@ fn the_chain_survives_restart_and_a_multi_generation_head_is_accepted_by_a_peer(
     settle_all(&mut [(&mut alice, &a), (&mut bob, &b)]);
     assert_eq!(bob.outcome(&b, "acc"), Some(OutcomeClass::Committed));
     let intros: Vec<IntroductionRequest> = alice.query(Query::GetIntroductions { ctx: a.clone() });
-    assert_eq!(
-        intros.len(),
-        1,
-        "Alice accepted Bob's request over a verified chain"
+    assert_eq!(intros.len(), 1, "Alice received Bob's request");
+    alice.dispatch(
+        &a,
+        "ok",
+        IntentBody::AcceptIntroduction {
+            request_id: intros[0].id.clone(),
+        },
     );
+    settle_all(&mut [(&mut alice, &a), (&mut bob, &b)]);
+    for (rt, ctx) in [(&alice, &a), (&bob, &b)] {
+        let list: Vec<ConversationSummary> =
+            rt.query(Query::GetConversationList { ctx: ctx.clone() });
+        assert_eq!(list.len(), 1);
+        assert_eq!(
+            list[0].relationship,
+            RelationshipStateCode::Active,
+            "Bob verified Alice's generation-3 chain and binding, and Alice bound Bob's"
+        );
+    }
 }
 
 #[test]
-fn a_descriptor_whose_chain_does_not_end_at_the_linked_head_is_refused() {
-    // A hostile introduction service swaps in a different (even validly signed) account chain: the link commits to
-    // the head hash, so the invitee refuses.
+fn a_record_signed_by_another_intro_identity_than_the_linked_one_is_refused() {
+    // A hostile introduction service swaps in a different (even validly signed) record: the link commits to the
+    // intro identity's key digest, so the invitee refuses (ADR-0181 section 2).
     let net = LoopbackNetwork::default();
     let (mut alice, mut mallory, mut bob) = (
         Runtime::new("alice", &net),

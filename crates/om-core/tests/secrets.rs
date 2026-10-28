@@ -30,6 +30,7 @@ fn private_seeds_are_redacted_in_debug_output_of_every_record_that_holds_one() {
         mailbox: "cd".repeat(16),
         request_seed: SecretHex::from(SEED.to_string()),
         request_digest: "ef".repeat(32),
+        intro_pk: String::new(),
         revoked: false,
         used: false,
     };
@@ -51,4 +52,17 @@ fn a_secret_wipes_in_place_and_its_storage_shape_is_a_plain_hex_string() {
     s.zeroize();
     assert!(s.is_empty(), "zeroize must clear the hex text");
     assert_ne!(back, s);
+}
+
+#[test]
+fn the_intro_root_is_redacted_in_the_debug_output_of_the_app_state() {
+    use om_core::state::AppState;
+    let app = AppState {
+        intro_root: Some(SecretHex::from(SEED.to_string())),
+        ..AppState::default()
+    };
+    assert!(
+        !format!("{app:?}").contains(SEED),
+        "intro root leaked into Debug output"
+    );
 }

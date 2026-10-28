@@ -22,9 +22,14 @@ pub mod engine;
 pub mod events;
 mod flows;
 pub mod host;
+pub mod intro;
 pub mod state;
 
 #[cfg(any(test, feature = "test-loopback"))]
 pub mod runtime;
 
 pub use engine::Core;
+pub use flows::{
+    CONFIRMATION_TTL_MS, FIRST_CONTACT_MAX_CHAIN, FIRST_CONTACT_PER_DAY, FIRST_CONTACT_PER_HOUR,
+    HOUR_MS, request_key_digest,
+};

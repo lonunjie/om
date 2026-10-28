@@ -25,6 +25,7 @@ pub const SIG_LEN: usize = ED_SIG + MLDSA_SIG;
 /// Signature roles (om-crypto-profiles.json `signature_roles`).
 pub const ROLE_CONTROLLER: u64 = 1;
 pub const ROLE_DEVICE: u64 = 3;
+pub const ROLE_INTRO_IDENTITY: u64 = 4;
 
 /// DS-SIG(label, crypto_profile, role, signer, body) (om-domain-separation.json).
 pub fn ds_sig(label: &str, profile: u64, role: u64, signer: &[u8], body: &[u8]) -> Vec<u8> {

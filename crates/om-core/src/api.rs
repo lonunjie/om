@@ -233,7 +233,24 @@ pub enum IntentBody {
         request_id: String,
         confirmation: ConfirmationToken,
     },
+    /// Ask Core for a single-use confirmation nonce bound to a destructive intent kind and its target (M2,
+    /// ADR-0181 section 8). The nonce is read back with `Query::GetConfirmation`.
+    IssueConfirmation {
+        intent_kind: String,
+        target: String,
+    },
 }
+
+/// The destructive intent kinds that need a Core-issued confirmation (mirrors `DESTRUCTIVE_INTENT_KINDS`).
+pub const DESTRUCTIVE_KINDS: [&str; 7] = [
+    "BlockPerson",
+    "SuspendDevice",
+    "ChangePrivacyPolicy",
+    "ApproveDeviceLink",
+    "RevokeDevice",
+    "StartRecovery",
+    "VetoRecovery",
+];
 
 impl IntentBody {
     pub fn kind(&self) -> &'static str {
@@ -264,6 +281,24 @@ impl IntentBody {
             IntentBody::RevokeDevice { .. } => "RevokeDevice",
             IntentBody::StartRecovery { .. } => "StartRecovery",
             IntentBody::VetoRecovery { .. } => "VetoRecovery",
+            IntentBody::IssueConfirmation { .. } => "IssueConfirmation",
+        }
+    }
+
+    /// The target a confirmation nonce is bound to (see `DESTRUCTIVE_KINDS`).
+    pub fn confirmation_target(&self) -> Option<String> {
+        let code = |v: &dyn erased_ser::Code| v.code();
+        match self {
+            IntentBody::BlockPerson { person_id, .. } => Some(person_id.clone()),
+            IntentBody::SuspendDevice { device_id, .. }
+            | IntentBody::RevokeDevice { device_id, .. } => Some(device_id.clone()),
+            IntentBody::ApproveDeviceLink { request_id, .. }
+            | IntentBody::VetoRecovery { request_id, .. } => Some(request_id.clone()),
+            IntentBody::ChangePrivacyPolicy { policy, .. } => Some(code(policy)),
+            IntentBody::StartRecovery {
+                scope, custodian, ..
+            } => Some(format!("{}:{}", code(scope), code(custodian))),
+            _ => None,
         }
     }
 
@@ -278,6 +313,21 @@ impl IntentBody {
             | IntentBody::StartRecovery { confirmation, .. }
             | IntentBody::VetoRecovery { confirmation, .. } => Some(confirmation),
             _ => None,
+        }
+    }
+}
+
+mod erased_ser {
+    /// The snake_case wire code of a serde enum value.
+    pub trait Code {
+        fn code(&self) -> String;
+    }
+    impl<T: serde::Serialize> Code for T {
+        fn code(&self) -> String {
+            serde_json::to_value(self)
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_string))
+                .unwrap_or_default()
         }
     }
 }
@@ -348,6 +398,15 @@ pub enum Query {
     GetRecoveryStatus {
         ctx: ProfileExecutionContext,
     },
+    /// The nonce an `IssueConfirmation` operation produced (`null` once spent, expired or unknown).
+    GetConfirmation {
+        ctx: ProfileExecutionContext,
+        operation_id: OperationId,
+    },
+    /// Whether first-contact requests from strangers are currently being dropped (ADR-0181 section 5).
+    GetIntroductionLoad {
+        ctx: ProfileExecutionContext,
+    },
 }
 
 impl Query {
@@ -363,7 +422,9 @@ impl Query {
             | Query::GetDevices { ctx }
             | Query::GetLinkRequest { ctx, .. }
             | Query::GetLinkOffer { ctx, .. }
-            | Query::GetRecoveryStatus { ctx } => Some(ctx),
+            | Query::GetRecoveryStatus { ctx }
+            | Query::GetConfirmation { ctx, .. }
+            | Query::GetIntroductionLoad { ctx } => Some(ctx),
         }
     }
 }
@@ -405,6 +466,25 @@ pub struct ConversationSummary {
     pub display_name: String,
     pub last_message_at: Option<u64>,
     pub notices: Vec<SecurityNotice>,
+    pub relationship: RelationshipStateCode,
+}
+
+/// Where a relationship is in first contact (`ACCEPTED_UNBOUND` until both bindings verify; ADR-0181).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RelationshipStateCode {
+    AwaitingAcceptance,
+    AcceptedUnbound,
+    Establishing,
+    Active,
+}
+
+/// `unverified`: the requester's intro key is not bound to any account yet. `bound`: it is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VerificationCode {
+    Unverified,
+    Bound,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -439,7 +519,23 @@ pub struct ConversationView {
 pub struct IntroductionRequest {
     pub id: String,
     pub from: PersonId,
+    /// A label the requester chose for itself. Never verified.
     pub display_name: String,
+    pub verification: VerificationCode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmationView {
+    pub nonce: String,
+    pub expires_at: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntroductionLoadView {
+    pub throttled: bool,
+    pub dropped: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -34,7 +34,8 @@ fn mk(rt: &mut Runtime, id: &str, label: &str) -> ProfileExecutionContext {
     ctx
 }
 
-/// Runs the first contact up to (not including) the moment Bob processes Alice's Hello.
+/// Runs the first contact up to (not including) the moment Bob processes Alice's Accept: Bob's request-scoped
+/// bootstrap key is still live and neither side is bound.
 fn half_open() -> Pair {
     let net = LoopbackNetwork::default();
     let mut alice = Runtime::new("alice", &net);
@@ -60,8 +61,7 @@ fn half_open() -> Pair {
             request_id: intros[0].id.clone(),
         },
     );
-    // Alice fetches Bob's keys and deposits the sealed Hello; Bob has not polled yet.
-    alice.flush_net(&a);
+    // Alice deposits the sealed Accept; Bob has not polled yet.
     alice.flush_net(&a);
     let a_conv = alice
         .query::<Vec<ConversationSummary>>(Query::GetConversationList { ctx: a.clone() })[0]
@@ -122,7 +122,8 @@ fn contains(hay: &[u8], needle: &[u8]) -> bool {
 #[test]
 fn relay_never_sees_sender_identity_key_or_ratchet_header_on_established_traffic() {
     let mut p = half_open();
-    // Before Bob has answered, Alice has no established key: the message is queued, never sent in the clear.
+    // Before both bindings have verified, Alice has no established key: the message is refused, never sent in the
+    // clear (ADR-0181: nothing but binding material moves while the relationship is ACCEPTED_UNBOUND).
     let deposits = p.net.deposit_count();
     assert_eq!(
         text(
@@ -130,9 +131,11 @@ fn relay_never_sees_sender_identity_key_or_ratchet_header_on_established_traffic
             &p.a,
             "early",
             &p.a_conv,
-            "queued while establishing"
+            "refused while unbound"
         ),
-        Some(OutcomeClass::PendingNetwork)
+        Some(OutcomeClass::Rejected {
+            reason: RejectReason::Unavailable
+        })
     );
     p.alice.flush_net(&p.a);
     assert_eq!(
@@ -198,8 +201,8 @@ fn relay_never_sees_sender_identity_key_or_ratchet_header_on_established_traffic
         sealed += 1;
     }
     assert!(
-        sealed >= 10,
-        "expected Hello, keys reply and 8 messages, saw {sealed}"
+        sealed >= 11,
+        "expected Accept, Bind, Hello and 8 messages, saw {sealed}"
     );
     // Padding hides exact size within a bucket: a one-character and a 300-character message are the same size.
     p.alice.dispatch(

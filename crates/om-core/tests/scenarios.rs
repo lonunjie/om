@@ -3,13 +3,11 @@
 //! ratcheting across restarts, commit-before-release, unknown network outcomes, profile namespacing and the
 //! conservative failure paths. The sans-IO Core is driven exactly as a PlatformAdapter host drives it.
 
+mod common;
+
 use om_core::api::*;
 use om_core::host::CoreError;
 use om_core::runtime::{Fault, LoopbackNetwork, Runtime, settle_all};
-
-fn confirm() -> ConfirmationToken {
-    serde_json::json!({ "confirmed": true })
-}
 
 fn create_profile(rt: &mut Runtime, id: &str, label: &str) -> ProfileExecutionContext {
     let ctx = rt.open(id);
@@ -641,13 +639,15 @@ fn destructive_and_unbuilt_intents_fail_closed() {
             reason: RejectReason::Unsupported
         })
     );
+    let confirmation =
+        common::confirmation(&mut rt, &ctx, "StartRecovery", "identity:recovery_key");
     rt.dispatch(
         &ctx,
         "rec",
         IntentBody::StartRecovery {
             scope: RecoveryScope::Identity,
             custodian: RecoveryCustodianCode::RecoveryKey,
-            confirmation: confirm(),
+            confirmation,
         },
     );
     assert_eq!(
@@ -821,13 +821,14 @@ fn blocking_a_person_stops_delivery_locally() {
         .query::<Vec<ConversationSummary>>(Query::GetConversationList { ctx: p.a.clone() })[0]
         .person_id
         .clone();
+    let confirmation = common::confirmation(&mut p.alice, &p.a, "BlockPerson", &person);
     p.alice.dispatch(
         &p.a,
         "blk",
         IntentBody::BlockPerson {
             person_id: person,
             scope: BlockScope::Local,
-            confirmation: confirm(),
+            confirmation,
         },
     );
     assert_eq!(p.alice.outcome(&p.a, "blk"), Some(OutcomeClass::Committed));
