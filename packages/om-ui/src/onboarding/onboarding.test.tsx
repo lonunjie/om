@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { asProfileId, available, unavailable, FAMILY_NAMES } from "@om/platform-api";
-import type { CapabilityEntry, CapabilityReport, CreateVaultOptions, DeviceVault, FamilyName, PlatformAdapter, ProfileExecutionContext, ProfileId } from "@om/platform-api";
+import type { CapabilityEntry, CapabilityReport, CoreClient, CoreIntent, CreateVaultOptions, DeviceVault, FamilyName, OperationId, OutcomeClass, PlatformAdapter, ProfileExecutionContext, ProfileId } from "@om/platform-api";
 import { createHarness } from "@om/core-harness";
 import type { Harness } from "@om/core-harness";
 import { createWebDeviceVault } from "@om/web-platform";
@@ -425,6 +425,45 @@ describe("invite_first", () => {
     await userEvent.paste(own);
     await click("Accept invitation");
     expect((await screen.findByRole("alert")).textContent).toBe("Invitation rejected: invalid");
+  });
+});
+
+describe("invite_first without a provider (audit M5)", () => {
+  /** A client whose operations never leave PendingNetwork, as in production with no provider adapter. */
+  const noProvider = (r: Rig): CoreClient => {
+    const pending = new Set<string>();
+    return {
+      ...r.h,
+      dispatch: async (i: CoreIntent) => {
+        const handle = await r.h.dispatch(i);
+        if (i.kind === "CreateInvite" || i.kind === "AcceptInvitation") pending.add(handle.operationId);
+        return handle;
+      },
+      observe: (c: ProfileExecutionContext, o: OperationId, l: (x: OutcomeClass) => void) => {
+        if (!pending.has(o)) return r.h.observe(c, o, l);
+        l({ kind: "PendingNetwork" });
+        return () => undefined;
+      },
+    };
+  };
+
+  it("creating an invite settles on a queued message instead of a dead end", async () => {
+    const r = rig();
+    await toInviteFirst(r, makePlatform({ share: "unavailable" }), { client: noProvider(r), settleTimeoutMs: 30 });
+    await click("Share invite link");
+    expect((await screen.findByRole("status")).textContent).toBe("Saved on this device; it goes out when connected");
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Share invite link" }).disabled).toBe(false);
+  });
+
+  it("accepting a link settles on the same queued message and does not advance", async () => {
+    const r = rig();
+    await toInviteFirst(r, makePlatform(), { client: noProvider(r), settleTimeoutMs: 30 });
+    await userEvent.click(screen.getByRole("textbox", { name: "Invitation link" }));
+    await userEvent.paste("om:invite/AAAAAAAAAAAAAAAAAAAAAA");
+    await click("Accept invitation");
+    expect((await screen.findByRole("status")).textContent).toBe("Saved on this device; it goes out when connected");
+    expect(screen.queryByRole("heading", { name: "You are ready" })).toBeNull();
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Accept invitation" }).disabled).toBe(false);
   });
 });
 

@@ -19,10 +19,12 @@ export interface InviteFirstProps {
   readonly scanQr?: () => Promise<string | null>;
   readonly onAccepted: () => void;
   readonly onSkip: () => void;
+  /** Bound on waiting for the provider before the step shows the honest "queued" state (default 15 s). */
+  readonly settleTimeoutMs?: number;
 }
 
 /** Zero-contact empty state. Contacts come only from invitations; there is no address-book path here. */
-export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAccepted, onSkip }: InviteFirstProps) {
+export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAccepted, onSkip, settleTimeoutMs }: InviteFirstProps) {
   const [invite, setInvite] = useState<InviteView | null>(null);
   const [showQr, setShowQr] = useState(false);
   const [status, setStatus] = useState<{ readonly kind: "status" | "alert"; readonly text: string } | null>(null);
@@ -30,7 +32,15 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAcce
   const [busy, setBusy] = useState(false);
   const mounted = useRef(true);
   const inviteRef = useRef<InviteView | null>(null);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const abort = useRef(new AbortController());
+  // Leaving the step ends any wait for the provider and drops its observer.
+  useEffect(() => {
+    mounted.current = true;
+    abort.current = new AbortController();
+    const mine = abort.current;
+    return () => { mounted.current = false; mine.abort(); };
+  }, []);
+  const settle = (id: Parameters<typeof settledOutcome>[1]) => settledOutcome(services, id, { signal: abort.current.signal, ...(settleTimeoutMs !== undefined ? { timeoutMs: settleTimeoutMs } : {}) });
   const say = (kind: "status" | "alert", text: string): void => { if (mounted.current) setStatus({ kind, text }); };
 
   async function ensureInvite(): Promise<InviteView | null> {
@@ -39,7 +49,11 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAcce
       const r = resolveIntent(services, "create-invite", {});
       if (r.status !== "intent") throw new Error("blocked");
       const handle = await services.client.dispatch(r.intent);
-      const outcome = await settledOutcome(services, handle.operationId);
+      const outcome = await settle(handle.operationId);
+      if (outcome.kind === "PendingNetwork" || outcome.kind === "PendingReconciliation") {
+        say("status", copy.queued); // no provider yet: the invite is queued on this device, not usable to share
+        return null;
+      }
       if (outcome.kind !== "Committed") throw new Error("not committed");
       const view = await services.client.query({ kind: "GetInvite", ctx: services.ctx, operationId: handle.operationId });
       if (!view) throw new Error("missing");
@@ -60,9 +74,10 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAcce
       const r = resolveIntent(services, "accept-invitation", { link: text });
       if (r.status !== "intent") throw new Error("blocked");
       const handle = await services.client.dispatch(r.intent);
-      const outcome = await settledOutcome(services, handle.operationId);
+      const outcome = await settle(handle.operationId);
       if (!mounted.current) return;
       if (outcome.kind === "Committed") onAccepted();
+      else if (outcome.kind === "PendingNetwork" || outcome.kind === "PendingReconciliation") say("status", copy.queued);
       else say("alert", outcome.kind === "Rejected" ? copy.rejected[outcome.reason] : copy.failed);
     } catch {
       say("alert", copy.failed);

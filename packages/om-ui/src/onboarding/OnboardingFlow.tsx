@@ -28,11 +28,13 @@ export interface OnboardingFlowProps {
   readonly onExistingVault?: (reason: "already_exists" | "corrupt") => void;
   readonly renderQr?: (payload: string) => ReactNode;
   readonly scanQr?: () => Promise<string | null>;
+  /** Test seam: bound on waiting for a provider in the invite step. */
+  readonly settleTimeoutMs?: number;
   /** The host already showed its own introduction (the landing page): start at "protect device". */
   readonly skipWelcome?: boolean;
 }
 
-export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, skipWelcome = false }: OnboardingFlowProps) {
+export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, settleTimeoutMs, skipWelcome = false }: OnboardingFlowProps) {
   const [flow, dispatch] = useReducer(flowReducer, skipWelcome ? flowReducer(initialFlow, { type: "start" }) : initialFlow);
   const [keyOperationId, setKeyOperationId] = useState<OperationId | null>(null);
   const services: ConversationServices = { client, registry, ctx };
@@ -66,7 +68,7 @@ export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, o
         <>
           <InviteFirst
             services={services} platform={platform} copy={copy.invite}
-            {...(renderQr ? { renderQr } : {})} {...(scanQr ? { scanQr } : {})}
+            {...(renderQr ? { renderQr } : {})} {...(scanQr ? { scanQr } : {})} {...(settleTimeoutMs !== undefined ? { settleTimeoutMs } : {})}
             onAccepted={() => { dispatch({ type: "invite_accepted" }); }} onSkip={() => { dispatch({ type: "invites_skipped" }); }}
           />
           <HomeFacts client={client} ctx={ctx} copy={copy.home} />

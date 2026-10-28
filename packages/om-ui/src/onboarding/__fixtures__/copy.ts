@@ -56,7 +56,7 @@ export const testCopy: OnboardingCopy = {
     showQr: "Show my QR", qrLabel: "Your invite QR code", scan: "Scan QR", scanDenied: "Camera not allowed", scanNothing: "Nothing scanned",
     acceptHeading: "Accept an invitation", acceptLabel: "Invitation link", acceptHint: "Paste an om: link you received.", accept: "Accept invitation",
     parseError: { empty: "Enter a link", too_long: "That link is too long", malformed: "That is not an OM invitation" },
-    rejected: rec(REASONS, (r) => `Invitation rejected: ${r}`), failed: "Something went wrong", skip: "Skip for now",
+    rejected: rec(REASONS, (r) => `Invitation rejected: ${r}`), failed: "Something went wrong", queued: "Saved on this device; it goes out when connected", skip: "Skip for now",
   },
   home: {
     toggle: "Where is my Home?", heading: "Home facts", loading: "Loading", loadFailed: "Could not load Home facts", tier: (t) => `Home tier ${t}`,

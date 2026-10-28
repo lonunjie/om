@@ -257,6 +257,7 @@ export const onboardingCopy: OnboardingCopy = {
     },
     rejected: withPrefix("Invitation not accepted."),
     failed: "Something went wrong. Try again.",
+    queued: "Saved on this device. It goes out as soon as OM is connected to a provider; nothing has been sent yet.",
     skip: "Skip for now",
   },
   home: {

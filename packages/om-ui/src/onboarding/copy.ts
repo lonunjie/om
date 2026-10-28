@@ -90,6 +90,8 @@ export interface OnboardingCopy {
     readonly parseError: Readonly<Record<InviteParseErrorCode, string>>;
     readonly rejected: Readonly<Record<RejectReason, string>>;
     readonly failed: string;
+    /** The request is saved on this device and goes out once a provider is connected (nothing was sent yet). */
+    readonly queued: string;
     readonly skip: string;
   };
   readonly home: {
