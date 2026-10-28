@@ -152,7 +152,7 @@ Each fix has a regression test that failed before the change (checked by running
 | M6 | `2f16ab4` | `sealed_delivery.rs`: `a_rejected_payload_on_an_established_session_does_not_advance_the_ratchet` (uses the test-only `debug_device_digest`) | Decision: a payload that is not accepted never changes cryptographic state, on every path. The device is snapshotted before decrypt and restored on rejection. |
 | M3 | `43bd2a9` | `crates/om-core/tests/secrets.rs` | Delivery and request seeds are `SecretHex` (redacted `Debug`, wiped on drop, same JSON shape); working copies are `Zeroizing`. Not done: the profile record handed to the host still contains the seeds as hex (needs a vault-held record key inside Core). |
 | M5 | `fc1d32a` | `packages/om-ui/src/conversations/services.test.ts`; `onboarding.test.tsx` ("invite_first without a provider") | `settledOutcome` takes a timeout (default 15 s) and an abort signal, resolves with the latest pending outcome, and unsubscribes. `InviteFirst` shows a "queued, nothing sent yet" status and aborts on unmount. |
-| M2 (partial) | `0850762` | `crates/om-core/tests/devices.rs` | A confirmation token must be a JSON object; `false`, `0`, `""`, `[]` and strings are `Rejected(unauthorized)`. Core-issued single-use nonces bound to intent, target and profile are not done (see below). |
+| M2 (partial, superseded) | `0850762` | `crates/om-core/tests/devices.rs` | A confirmation token must be a JSON object. Superseded by the Core-issued nonces below (ADR-0181). |
 | L3 | `3346bdb` | `release.test.ts` ("externally supplied signature") | [`release.mjs`](../../apps/web/build/release.mjs) verifies the signature against the pinned key (or the throwaway key's own public key) before reporting "signed"; deploy docs use `node verify.mjs --require-signed`. |
 | L6 | `d8c7e3e` | `release.test.ts` (marker cases) | Marker list extended, see H1. |
 
@@ -167,12 +167,34 @@ Implemented the minimal TUF-style chain of PR-005 / ADR-0149. **Not closed until
 - **Registry:** `registry/signing.toml` marks `om-release-2026-10-28` as the delegated online key and adds `om-release-root` with `status = "pending-ceremony"`.
 - **Still open (operator):** run the ceremony; point 3 of the finding (move custody of the signing key out of the agent vault) is unchanged, now bounded by revocation and the delegation expiry. Plain `pnpm build` (used by `web:check`) still succeeds without a root; only release builds fail. The SW-replacement limit (an origin compromise bypasses the manifest) is unchanged, so no "signed updates" claim yet.
 
+### H2 and M2 applied (ADR-0181)
+
+The operator delegated the seven open questions of H2 and the M2 contract change to the engineering agents on 2026-10-28; the decisions are [ADR-0181](../../decisions/ADR-0181-first-contact-intro-identity-and-confirmation-nonces.md) (D-202, R-411..R-417, T-164..T-166). Commits: ADR and ledgers `47098d9`; Core, codec and Rust tests `318d6bb`; platform API, harness, Action Registry, UI and the queue-while-unbound fix `ee42d2c`. Regression tests: `crates/om-core/tests/{first_contact,first_contact_limits,acs_forgery,confirmations}.rs`, `w0_conformance.rs`, `secrets.rs`; `packages/om-ui/src/actions/{registry,confirm}.test.ts`, `conversations.test.tsx`; `packages/om-core-harness/src/devices.test.ts`; `packages/om-core-wasm/src/core.test.ts` (real Core). Mutation checks (disabling the limiter, the chain cap, the nonce match, single use, the link digest check) each fail named tests. The 63 golden vectors and the 16,200-case differential are unaffected (`acs_authorization.rs`, run with `OM_ACS_EXHAUSTIVE`).
+
+| Question | Built |
+|---|---|
+| Q1 intro identity | Per-invite composite Ed25519 + ML-DSA-65 key (role 4), HKDF-derived from a profile `intro_root` and the invite id, signs one descriptor and ticket (inviter) or one payload and descriptor (requester), expires with the invite. |
+| Q2 request key | Link = `invite_id \|\| SHA-256(intro key)` (48 bytes). The request key is trusted only from a signed ContactDescriptor under that key, plus a ticket under the same key; substituted or partial records are `IntegrityFailure`. The descriptor carries no account material. |
+| Q3 hidden account | The sealed payload carries only the intro key and an unverified label. `ACCEPTED_UNBOUND` until Accept, Bind and both `IntroIdentityBinding`s verify; Hello after both; messages composed meanwhile are queued and sent when ACTIVE. |
+| Q4 ticket | Core issues and signs it (`max_uses` 1, 32 KiB payload limit, empty `admission_proof`). |
+| Q5 limiter | Cheap checks (invite state, size, W0 shape, ticket and digest) then a persisted limiter, 20/hour and 100/day, all before any HPKE decapsulation; refused requests are silently dropped and aggregated in `GetIntroductionLoad`. |
+| Q6 chain cap | 16 entries for a not-yet-bound peer's chain, refused before any signature check; local policy (`FIRST_CONTACT_MAX_CHAIN`). |
+| Q7 verification | `IntroductionRequest.verification`, `ConversationSummary.relationship`, the `unverified_contact` notice, an "Unverified" label and a stranger-pressure notice in the UI. |
+| M2 | `IssueConfirmation` / `GetConfirmation`: single-use, 5-minute nonces bound to (intent kind, target, profile); anything else is `Rejected(unauthorized)` and the nonce is spent even on a mismatch. The Action Registry asks Core in two steps and only for a direct user action. |
+
+Findings and decisions to record:
+
+- **Codec defect found and fixed.** Accept and Bind carry an ACS chain, which needs the 64 KiB sealed bucket, but `om-codec` applied the profile-wide 65536-byte string limit before the CDDL's own per-field bounds, so a 64 KiB bucket (ciphertext 65552) and any `MessageRequest` ciphertext above 65536 bytes could never decode. The string limit now follows the object's registered `max_bytes`. No registry or vector changed; the W0 corpus replays identically.
+- **Conservative readings.** The intro identity signs no binding itself (the spec has a device sign it); the Accept is authenticated by the request-scoped key plus the device-signed binding bound to the intro key and request digest. The account the inviter's binding names is trusted on first use, as in any first contact. The limiter budget is per profile, not per invite, so a flood on one link also uses the budget for others (reserved invite-bound capacity is IntroGate work). A chain above the cap is refused even for a legitimate account until chain compaction exists. The limiter clock is the wall clock with a persisted non-decreasing high-water mark; an OS monotonic reading is not plumbed through the wasm ABI.
+- **Migration.** App state version 3; version 2 profiles open and drop pending introductions, unused invites, non-active relationships and their outbox entries (`state.rs`, tested).
+- **Still open:** blind-RSA referral tokens (IntroGate adapter), `ReferralAttestation`, a real `relay_uri` for the reply route (M1), per-invite reserved capacity.
+
 ### Not changed, with reasons
 
-- **B2:** implemented, but not closed: the operator's key ceremony is still pending (see "B2 applied" below).
-- **H2:** `blocked-item`. The specification does not fully define the intro-identity lifecycle, the ticket issuer, the rate-limit numbers or the pre-acceptance disclosure rule. Open questions: [`2026-10-28-h2-first-contact-open-questions.md`](2026-10-28-h2-first-contact-open-questions.md).
+- **B2:** implemented, but not closed: the operator's key ceremony is still pending (see "B2 applied" above).
+- **H2:** applied, see "H2 and M2 applied (ADR-0181)" below.
 - **M1 (route binding):** documented, not changed. The spec defines `route_binding = SHA-256(["OM-SEALED-DELIVERY-ROUTE-v1", relay_uri, deposit_capability])` from a `RelayEntry`, but Core has no `RelayEntry`/`RelaySet` and the provider contract exposes no relay URI, so the real value cannot be computed yet. It must land with `RelaySet` and before the first provider adapter; the stand-in `om-core:mailbox/v0` must be versioned if it ever reaches users.
-- **M2 (rest):** needs a contract decision. `ConfirmationToken` is documented as minted only by the Action Registry (an opaque object, tracked UI-side). Core-issued nonces change that contract (new query and intent plumbing in `om-platform-api`, the harness and the UI).
+- **M2 (rest):** applied, see below.
 - **L1:** intended v1 strictness, recorded here: the ACS parser rejects keys outside 0..=14, so a future non-critical ACS field needs a spec-defined skip rule before it is added.
 - **L2:** no change needed today (Core sends no receipts). Condition stays: an unknown inner kind must not yield a `Delivered` receipt once receipts ship.
 - **L7:** already covered by `scenarios.rs::a_failed_host_commit_releases_nothing`.

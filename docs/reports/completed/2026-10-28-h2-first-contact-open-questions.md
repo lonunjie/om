@@ -1,12 +1,12 @@
 # H2 first contact: open questions (blocked-item)
 
 - **Date:** 2026-10-28
-- **Status:** blocked-item. Not implemented. The specification does not fully define what the audit asks for; these are the questions that need an answer (an ADR or spec amendment) before engineering can start.
-- **Source finding:** H2 in [`2026-10-28-core-kernel-opus-audit.md`](2026-10-28-core-kernel-opus-audit.md). Spec: [`INVITES_INTROGATE_AND_SPAM.md`](../architecture/discovery/INVITES_INTROGATE_AND_SPAM.md) sections 5.1, 6 and 11; wire objects in [`spec/cddl/discovery.cddl`](../../spec/cddl/discovery.cddl).
+- **Status:** resolved and applied (2026-10-28). The operator delegated these decisions to the engineering agents; ADR-0181 answers all seven and the work is built. The questions below are kept as the record of what was open.
+- **Source finding:** H2 in [`2026-10-28-core-kernel-opus-audit.md`](../2026-10-28-core-kernel-opus-audit.md). Spec: [`INVITES_INTROGATE_AND_SPAM.md`](../../architecture/discovery/INVITES_INTROGATE_AND_SPAM.md) sections 5.1, 6 and 11; wire objects in [`spec/cddl/discovery.cddl`](../../../spec/cddl/discovery.cddl).
 
 ## What the spec does define
 
-- The wire shapes: `signed-ContactDescriptor`, `signed-IntroductionTicket`, `MessageRequest`, `signed-MessageRequestPayload`, `signed-IntroIdentityBinding`, and signature role 4 `intro_identity` ([`spec/cddl/common.cddl`](../../spec/cddl/common.cddl)).
+- The wire shapes: `signed-ContactDescriptor`, `signed-IntroductionTicket`, `MessageRequest`, `signed-MessageRequestPayload`, `signed-IntroIdentityBinding`, and signature role 4 `intro_identity` ([`spec/cddl/common.cddl`](../../../spec/cddl/common.cddl)).
 - The sealing construction (ADR-0131 PQ/T HPKE), the bootstrap reply key rules (ADR-0142 to ADR-0147) and the relationship states `ACCEPTED_UNBOUND` then `ACTIVE` after both `IntroIdentityBinding`s verify.
 - Qualitative abuse controls: cheap validation and replay rejection first, then endpoint, ticket and source rate limits, per-recipient quotas, short expiry.
 
@@ -27,3 +27,7 @@ Each request costs one HPKE decapsulation plus up to 65 chain links x 16 dual-si
 ## Suggested next step
 
 Settle questions 1 to 3 in one ADR (intro identity, link-committed request key or not, when the account becomes visible). Questions 4 to 7 are then implementable; 5 and 6 are the part that can ship earlier on their own once the numbers are chosen.
+
+## Applied (2026-10-28)
+
+Decided and built under [ADR-0181](../../../decisions/ADR-0181-first-contact-intro-identity-and-confirmation-nonces.md) (commits `47098d9`, `318d6bb`, `ee42d2c`). Answers: (1) per-invite composite intro identity derived in Core from a profile secret and the invite id; (2) the link commits to the intro key digest and the request key is trusted only from a descriptor that key signed; (3) the requester's account is hidden until acceptance, `ACCEPTED_UNBOUND` then `ACTIVE` after both bindings verify; (4) Core issues the ticket, `admission_proof` empty; (5) persisted limiter, 20 per hour and 100 per day, before any decapsulation, silent drop with one aggregated notice; (6) 16-entry chain cap as local policy; (7) `verification` field and an "Unverified" label. Detail and caveats: the "H2 and M2 applied" section of [`2026-10-28-core-kernel-opus-audit.md`](../2026-10-28-core-kernel-opus-audit.md).

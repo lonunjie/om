@@ -3651,13 +3651,6 @@
       "authority": "working_record_non_normative"
     },
     {
-      "path": "docs/reports/2026-10-28-h2-first-contact-open-questions.md",
-      "class": "report",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "working_record_non_normative"
-    },
-    {
       "path": "docs/reports/2026-10-28-relay-status.md",
       "class": "report",
       "domain": "architecture_process",
@@ -3687,6 +3680,13 @@
     },
     {
       "path": "docs/reports/completed/2026-10-01-groups-verification-handoff.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/completed/2026-10-28-h2-first-contact-open-questions.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",

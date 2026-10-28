@@ -2,7 +2,7 @@
 
 - **Status:** Accepted by operator delegation 2026-10-28
 - **Date:** 2026-10-28
-- **Resolves:** audit finding H2 and the seven open questions in [`2026-10-28-h2-first-contact-open-questions.md`](../docs/reports/2026-10-28-h2-first-contact-open-questions.md); audit finding M2 (rest) in [`2026-10-28-core-kernel-opus-audit.md`](../docs/reports/2026-10-28-core-kernel-opus-audit.md)
+- **Resolves:** audit finding H2 and the seven open questions in [`2026-10-28-h2-first-contact-open-questions.md`](../docs/reports/completed/2026-10-28-h2-first-contact-open-questions.md); audit finding M2 (rest) in [`2026-10-28-core-kernel-opus-audit.md`](../docs/reports/2026-10-28-core-kernel-opus-audit.md)
 - **Amends (implementation profile, no wire change):** [`INVITES_INTROGATE_AND_SPAM.md`](../docs/architecture/discovery/INVITES_INTROGATE_AND_SPAM.md) sections 5, 5.1, 6 and 11 as built by `core_kernel`; [`UI_CORE_PLATFORM_CONTRACT.md`](../docs/architecture/ux/UI_CORE_PLATFORM_CONTRACT.md) (UI-11 confirmation, `IntroductionRequest`)
 - **Does not amend:** frozen W0 CDDL, signature roles, domain-separation labels, the PQ/T HPKE construction (ADR-0131), the sealed delivery profile (ADR-0142 to ADR-0147) or AccountControlState
 

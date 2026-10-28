@@ -82,5 +82,13 @@
 
 ## Audit follow-up (2026-10-28)
 
-The Opus audit findings B1, H1, M2 (partly), M3, M4, M5, M6 and L3 are fixed; see the "Applied" section of [`2026-10-28-core-kernel-opus-audit.md`](2026-10-28-core-kernel-opus-audit.md). Still open: B2 (operator decision), H2 (blocked on spec questions, [`2026-10-28-h2-first-contact-open-questions.md`](2026-10-28-h2-first-contact-open-questions.md)), M1 (waits for `RelaySet`) and the Core-issued confirmation nonces of M2.
+The Opus audit findings B1, H1, H2, M2, M3, M4, M5, M6 and L3 are fixed; see the "Applied" section of [`2026-10-28-core-kernel-opus-audit.md`](2026-10-28-core-kernel-opus-audit.md). H2 and M2 were decided by operator delegation in [ADR-0181](../../decisions/ADR-0181-first-contact-intro-identity-and-confirmation-nonces.md) and built the same day (the questions are kept in [`completed/2026-10-28-h2-first-contact-open-questions.md`](completed/2026-10-28-h2-first-contact-open-questions.md)). Still open: B2 (operator ceremony) and M1 (waits for `RelaySet`).
 
+## First contact as built after ADR-0181 (supersedes "First contact (pass-1 shape)", spec question 4 and "What remains" item 1)
+
+- Link `om:invite/` + base64url of `invite_id || SHA-256(intro key)` (48 bytes). The introduction service stores a record `{signed ContactDescriptor, signed IntroductionTicket, intro public key}`; both objects are signed by the per-invite intro identity (role 4) and carry no account material. The ticket is issued by the inviter's Core with an empty `admission_proof` (no IntroGate adapter yet).
+- The sealed `MessageRequestPayload` carries the requester's intro key and an unverified label, never an AccountID. Order of checks on the inviter: invite state, size, W0 shape, ticket and digest, the persisted 20/hour 100/day limiter, and only then decapsulation and signatures. Excess requests are dropped silently and surfaced by `GetIntroductionLoad`.
+- Acceptance gives `ACCEPTED_UNBOUND`: Accept (inviter binding, chain, key record) -> Bind (requester binding, chain, key record) -> Hello. `ACTIVE` only after both `IntroIdentityBinding`s verify; chains above 16 entries are refused before any signature check; messages composed meanwhile are queued and sent when ACTIVE.
+- Destructive intents need a Core-issued single-use nonce (`IssueConfirmation` / `GetConfirmation`).
+- Tests: `crates/om-core/tests/{first_contact,first_contact_limits,acs_forgery,confirmations}.rs`, `packages/om-core-wasm/src/core.test.ts`, UI and harness suites; `make core-check`, `pnpm web:check` and `pnpm e2e` (22 of 22, including `core.spec.ts` and `relay.spec.ts`) are green.
+- Not built: blind-RSA referral tokens, `ReferralAttestation`, a real `relay_uri` in the reply route (M1), per-invite reserved capacity.
