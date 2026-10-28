@@ -637,15 +637,15 @@ const https = (hostAndPath: string): string => ["https", hostAndPath].join("://"
 
 export const landingCopy: LandingCopy = {
   title: "OM: private messaging nobody runs for you",
-  description: "OM is an open-source, operatorless, end-to-end-encrypted messenger from the SeedLife project. Pre-release: not ready for real conversations yet.",
+  description: "OM is an open-source, operatorless, end-to-end-encrypted messenger from the SeedLife project. Beta: not independently audited, may lose data.",
   brand: "OM",
   headline: "Private messaging that nobody operates for you",
   lead: "OM is an open-source, operatorless, end-to-end-encrypted messenger. Your conversations belong to you and your devices, not to a company that could read, sell or lose them.",
   getStarted: "Get started",
   seedlife: { label: "A SeedLife project", tagline: "Protect life. Seed it." },
   status: {
-    heading: "Pre-release",
-    body: "OM is still being built. This version is a preview of the app: it does not send real messages yet, so do not rely on it for anything private or urgent.",
+    heading: "Beta",
+    body: "OM is a beta. It is not independently audited, it makes no security claims, and it may lose data. Try it, but do not rely on it for anything private or important.",
   },
   what: {
     heading: "What OM is for",
