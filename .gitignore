@@ -31,6 +31,8 @@ design-drops/
 # Local agent tooling (worktrees, settings)
 .claude/
 dist-e2e/
+dist-relay-e2e/
+.wrangler/
 
 # Release output of apps/web/build/release.mjs (deploy kit).
 apps/web/release/

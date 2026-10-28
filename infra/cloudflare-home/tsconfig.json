@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["@cloudflare/workers-types/2023-07-01"],
+    "composite": false,
+    "declaration": false,
+    "noEmit": true,
+    "rootDir": "../.."
+  },
+  "include": ["src", "../../packages/om-home-wire/src"],
+  "exclude": ["../../packages/om-home-wire/src/**/*.test.ts"]
+}

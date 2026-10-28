@@ -4,7 +4,7 @@ import tseslint from "typescript-eslint";
 import { noInjection } from "./eslint.policy.js";
 
 
-const SRC = ["packages/**/*.{ts,tsx}", "apps/**/*.{ts,tsx}"];
+const SRC = ["packages/**/*.{ts,tsx}", "apps/**/*.{ts,tsx}", "infra/**/*.ts"];
 
 export default tseslint.config(
   { ignores: [".claude/**", "**/dist/**", "**/dist-types/**", "**/node_modules/**", "docs/**", "verification/**", "tools/**", "**/*.config.js", "eslint.policy.js", "**/__fixtures__/**"] },

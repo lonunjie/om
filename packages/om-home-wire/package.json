@@ -1,0 +1,10 @@
+{
+  "name": "@om/home-wire",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "OM Home API v1 wire layer (spec/protocol/home-api.md): deterministic CBOR for the Home API bodies, the typed error registry, the sealed-delivery outer object checks and the RelayEntry route binding. Runs in browsers, Node and Workers. Shared by the reference Home and the HTTP provider adapter.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

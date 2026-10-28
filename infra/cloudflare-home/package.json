@@ -1,0 +1,19 @@
+{
+  "name": "@om/cloudflare-home",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "OM reference Home on Cloudflare (Workers + SQLite Durable Objects): an untrusted store-and-forward relay, key-material store, descriptor store and IntroGate. provider_reference scope (ADR-0171). Replaceable; never a protocol dependency.",
+  "scripts": {
+    "dev": "wrangler dev --config wrangler.jsonc",
+    "bundle": "wrangler deploy --dry-run --config wrangler.jsonc --outdir .wrangler/bundle"
+  },
+  "dependencies": {
+    "@om/home-wire": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260611.1",
+    "miniflare": "4.20260611.0",
+    "wrangler": "4.100.0"
+  }
+}

@@ -39,7 +39,7 @@ def license_for(path: str) -> str:
         return "upstream-license-text"
     if path.startswith(("spec/", "machine/", "tools/", ".github/")) or path in {"Makefile", "REUSE.toml", ".gitignore"}:
         return AP
-    if path.startswith(("packages/", "apps/", "crates/")):
+    if path.startswith(("packages/", "apps/", "crates/", "infra/")):
         return "MPL-2.0"  # shared client libraries and the reference web client (LICENSING_AND_CONTRIBUTION_POLICY.md)
     if path in WEB_PLUMBING:
         return AP
@@ -94,6 +94,8 @@ def classify(path: str) -> dict:
         return e("verification_tool", "architecture_verification", "executable_verification_evidence")
     if p.startswith("crates/"):
         return e("product_code", "crypto_1to1", "product_implementation")
+    if p.startswith("infra/"):
+        return e("product_code", "provider_deployment_supply_chain", "product_implementation")
     if p.startswith(("packages/", "apps/")):
         return e("product_code", "client_endpoint_distribution", "product_implementation")
     if p in WEB_PLUMBING:
