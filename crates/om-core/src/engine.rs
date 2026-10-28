@@ -9,6 +9,7 @@ use crate::api::*;
 use crate::crypto::rng::{CryptoRng, RngCore};
 use crate::flows::Tx;
 use crate::host::*;
+use crate::route::{MAX_OFFERS, RouteOffer};
 use crate::state::*;
 use std::collections::BTreeMap;
 
@@ -35,6 +36,9 @@ pub struct Core<R: RngCore + CryptoRng> {
     next_generation: u64,
     next_commit: u64,
     staged: Option<Staged>,
+    /// Routes the host's provider adapter allocated for mailboxes Core has not created yet. Memory only: an offer is
+    /// worthless without the install secret the adapter holds, so nothing is lost by dropping them at restart.
+    offers: Vec<RouteOffer>,
 }
 
 impl<R: RngCore + CryptoRng> Core<R> {
@@ -52,7 +56,27 @@ impl<R: RngCore + CryptoRng> Core<R> {
             next_generation: 1,
             next_commit: 1,
             staged: None,
+            offers: vec![],
         }
+    }
+
+    /// The host hands over routes for future mailboxes (see [`crate::route`]). Invalid, duplicate and surplus offers
+    /// are dropped. Returns how many offers Core holds afterwards; the host tops up whenever this runs low.
+    pub fn supply_routes(&mut self, offers: Vec<RouteOffer>) -> usize {
+        for o in offers {
+            if self.offers.len() >= MAX_OFFERS {
+                break;
+            }
+            if o.is_valid() && !self.offers.iter().any(|x| x.mailbox == o.mailbox) {
+                self.offers.push(o);
+            }
+        }
+        self.offers.len()
+    }
+
+    /// How many unused route offers Core holds.
+    pub fn route_offers(&self) -> usize {
+        self.offers.len()
     }
 
     // ------------------------------------------------------------------------------------------ profiles
@@ -145,6 +169,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 now_ms: self.clock.now_ms(),
                 changed: vec![],
                 open_profiles: &open,
+                offers: &mut self.offers,
             };
             let v = f(&mut tx)?;
             (v, tx.changed)

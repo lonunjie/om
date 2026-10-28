@@ -8,13 +8,14 @@ use crate::api::{DeliveryState, OperationId, OutcomeClass};
 use crate::crypto::cbor::{self, V};
 use crate::crypto::store::Device;
 use crate::host::{CoreError, NetCall, Record, Write};
+use crate::route::{RelayEntry, RelaySet};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// A profile persists as ONE record, so a single key/value put makes a whole transition atomic: the ratchet,
 /// ledger and conversation state can never be stored out of step (the host store has no multi-key transaction).
 pub const REC_STATE: &str = "state";
-pub const APP_VERSION: u32 = 3;
+pub const APP_VERSION: u32 = 4;
 
 pub type Hex = String;
 
@@ -92,7 +93,8 @@ pub struct IntroRec {
     pub display_name: String,
     /// The requester's intro public key. There is deliberately no account material here (ADR-0181).
     pub peer_intro_pk: Hex,
-    pub peer_mailbox: Hex,
+    /// Where the requester receives (MessageRequestPayload `reply_route`).
+    pub peer_route: RelayEntry,
     /// The requester's request-scoped bootstrap delivery key (MessageRequestPayload `reply_delivery_key`).
     pub reply_key: PubKey,
 }
@@ -230,8 +232,12 @@ pub struct Relationship {
     pub peer_ik: Hex,
     pub peer_acs_body: Hex,
     pub peer_credentials: Vec<Hex>,
+    /// The mailbox id this install polls (the host derives its receive capabilities from it).
     pub my_mailbox: Hex,
-    pub peer_mailbox: Option<Hex>,
+    /// Where peers deposit for `my_mailbox`; every delivery key we receive on is bound to its single entry.
+    pub my_relays: RelaySet,
+    /// Where the peer receives; empty until the peer's route is known. Sealing and depositing use its single entry.
+    pub peer_relays: RelaySet,
     pub blocked: bool,
     pub integrity_failures: u32,
     pub created_at: u64,
@@ -460,7 +466,11 @@ impl ProfileState {
                     .map_err(|_| CoreError::CorruptState("app state"))?;
             match app.get("version").and_then(|x| x.as_u64()) {
                 Some(v) if v == u64::from(APP_VERSION) => {}
-                Some(2) => migrate_v2(&mut app),
+                Some(2) => {
+                    migrate_v2(&mut app);
+                    migrate_v3(&mut app);
+                }
+                Some(3) => migrate_v3(&mut app),
                 _ => return Err(CoreError::CorruptState("unsupported app state version")),
             }
             st.app =
@@ -478,7 +488,7 @@ impl ProfileState {
 fn migrate_v2(app: &mut serde_json::Value) {
     use serde_json::{Value, json};
     let Some(o) = app.as_object_mut() else { return };
-    o.insert("version".into(), json!(APP_VERSION));
+    o.insert("version".into(), json!(3));
     o.insert("intros".into(), json!({}));
     if let Some(Value::Object(invites)) = o.get_mut("invites") {
         for inv in invites.values_mut() {
@@ -524,6 +534,42 @@ fn migrate_v2(app: &mut serde_json::Value) {
         for op in stale_ops {
             if let Some(r) = ops.get_mut(&op) {
                 r["outcome"] = json!({"kind": "Rejected", "reason": "stale_state"});
+            }
+        }
+    }
+}
+
+/// Version 3 -> 4 (audit M1, deviation D1). Delivery keys used to be bound to the fixed stand-in route
+/// `om-core:mailbox/v0` plus the 16-byte mailbox; they are now bound to a `RelayEntry` the host's provider adapter
+/// allocated. Nothing that already exists can be re-bound (a binding is a signed, peer-held commitment), so every
+/// relationship, pending introduction and request keeps the stand-in as an explicit *legacy* entry: its keys keep
+/// verifying, its sends keep going to the same capability, and only new relationships use real routes.
+/// `peer_mailbox` (a hex capability) becomes `peer_relays`; `my_mailbox` gains `my_relays`.
+fn migrate_v3(app: &mut serde_json::Value) {
+    use serde_json::{Value, json};
+    let legacy = |mailbox: &Value| -> Value {
+        json!({"relayUri": crate::crypto::delivery::CORE_ROUTE_URI, "capability": mailbox, "priority": 0, "expiresAt": 0})
+    };
+    let Some(o) = app.as_object_mut() else { return };
+    o.insert("version".into(), json!(APP_VERSION));
+    if let Some(Value::Object(rels)) = o.get_mut("relationships") {
+        for r in rels.values_mut() {
+            let mine = r.get("myMailbox").cloned().unwrap_or(Value::Null);
+            let peer = r.get("peerMailbox").cloned().unwrap_or(Value::Null);
+            r["myRelays"] = json!({"entries": [legacy(&mine)]});
+            r["peerRelays"] =
+                json!({"entries": if peer.is_string() { vec![legacy(&peer)] } else { vec![] }});
+            if let Some(m) = r.as_object_mut() {
+                m.remove("peerMailbox");
+            }
+        }
+    }
+    if let Some(Value::Object(intros)) = o.get_mut("intros") {
+        for i in intros.values_mut() {
+            let peer = i.get("peerMailbox").cloned().unwrap_or(Value::Null);
+            i["peerRoute"] = legacy(&peer);
+            if let Some(m) = i.as_object_mut() {
+                m.remove("peerMailbox");
             }
         }
     }

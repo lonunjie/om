@@ -70,6 +70,17 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
   let disposed = false;
 
   const key = (profileId: string, op: string): string => `${profileId}\u0000${op}`;
+
+  /** Keep a few route offers in Core so an intent that needs a new mailbox never waits on the provider adapter. */
+  const OFFER_TARGET = 4;
+  async function topUpRoutes(): Promise<void> {
+    if (!provider.allocateRoutes) return;
+    try {
+      const held = core.call({ cmd: "supply_routes", routes: [] }) as number;
+      if (held >= OFFER_TARGET) return;
+      core.call({ cmd: "supply_routes", routes: await provider.allocateRoutes(OFFER_TARGET - held) });
+    } catch { /* no routes: Core refuses what needs a mailbox as unavailable; nothing is invented */ }
+  }
   const query = (q: CoreQuery): unknown => core.call({ cmd: "query", query: q });
 
   function emitQueries(profileId: string): void {
@@ -216,6 +227,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     },
     dispatch(intent: CoreIntent) {
       return exclusive(async () => {
+        await topUpRoutes();
         const step = core.call({ cmd: "dispatch", intent }) as StepJson;
         await commit(step.commit, intent.ctx);
         if (!step.handle) throw new CoreCallError("internal", "dispatch returned no handle");

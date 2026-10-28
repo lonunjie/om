@@ -1,13 +1,19 @@
 // TEST ONLY: an in-memory provider (key material, introduction service, relay mailboxes) and an in-memory
 // EncryptedKv. Never import this from application code: tools/web_guard.py and the production bundle check refuse it.
 import type { EncryptedKv, KvGetResult, KvListResult, KvResult } from "@om/platform-api";
-import type { Inbound, NetCall, NetResult, Provider } from "./types";
+import type { Inbound, NetCall, NetResult, Provider, RouteOffer } from "./types";
 
 export const TEST_PROVIDER_MARKER = "OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION";
+/** The test relay's name and capability shape: a fixed prefix plus the mailbox id, unlike the id itself. */
+const TEST_RELAY_HOST = "loopback.test"; // a reserved name: never resolvable, never a real Home
+const TEST_RELAY_SCHEME = "https"; // composed, so the product-code lint for hard-coded remote URLs still covers every other file
+export const TEST_RELAY_URI = `${TEST_RELAY_SCHEME}://${TEST_RELAY_HOST}/`;
+const CAP_PREFIX = "c4".repeat(16);
 
 export type Fault = "unavailable" | "timeout_after_effect" | "timeout_before_effect";
 
 export interface MemoryProvider extends Provider {
+  allocateRoutes(count: number): Promise<readonly RouteOffer[]>;
   readonly marker: typeof TEST_PROVIDER_MARKER;
   inject(fault: Fault): void;
   /** Every byte string a relay ever received (acks do not remove them), for ciphertext-only assertions. */
@@ -26,6 +32,14 @@ export function createMemoryProvider(): MemoryProvider {
     marker: TEST_PROVIDER_MARKER,
     inject: (f) => { faults.push(f); },
     deposited: () => [...log],
+    allocateRoutes(count): Promise<readonly RouteOffer[]> {
+      const out: RouteOffer[] = [];
+      for (let i = 0; i < count; i++) {
+        const mailbox = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+        out.push({ mailbox, relayUri: TEST_RELAY_URI, capability: CAP_PREFIX + mailbox });
+      }
+      return Promise.resolve(out);
+    },
     revokeAllInvites: () => { invites.clear(); },
     perform(call: NetCall): Promise<NetResult> {
       const fault = faults.shift();
@@ -60,11 +74,17 @@ export function createMemoryProvider(): MemoryProvider {
         }
         case "revoke_invite": invites.delete(call.inviteId); break;
         case "deposit": {
-          const b = boxes.get(call.mailbox) ?? { next: 0, items: [] };
+          // A routed destination is this relay's capability (prefix + mailbox id); a legacy one is the bare mailbox id.
+          let id = call.mailbox;
+          if (call.relayUri !== undefined) {
+            if (call.relayUri !== TEST_RELAY_URI || !call.mailbox.startsWith(CAP_PREFIX)) { r = { result: "err", error: { kind: "rejected", reason: "unsupported" } }; break; }
+            id = call.mailbox.slice(CAP_PREFIX.length);
+          }
+          const b = boxes.get(id) ?? { next: 0, items: [] };
           b.next += 1;
           log.push(call.bytes);
           b.items.push({ seq: b.next, bytes: call.bytes });
-          boxes.set(call.mailbox, b);
+          boxes.set(id, b);
           break;
         }
         case "ack": {

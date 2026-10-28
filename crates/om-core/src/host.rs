@@ -140,10 +140,15 @@ pub enum NetCall {
         #[serde(with = "hexs")]
         invite_id: Vec<u8>,
     },
-    /// Relay deposit to a mailbox capability.
+    /// Relay deposit. `mailbox` is the destination's deposit capability exactly as its `RelayEntry` carried it, and
+    /// `relay_uri` is that entry's `relay_uri`, so the adapter can refuse a destination that is not at the Home it is
+    /// configured for instead of depositing at the wrong place. `relay_uri` is absent only for a legacy (pass 2)
+    /// destination, where `mailbox` is the bare 16-byte mailbox id and the adapter derives the capability itself.
     Deposit {
         #[serde(with = "hexs")]
         mailbox: Vec<u8>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        relay_uri: Option<String>,
         #[serde(with = "hexs")]
         bytes: Vec<u8>,
     },

@@ -27,8 +27,9 @@ fn sealed_delivery_objects_are_w0_valid_and_verify_against_the_device_credential
     let reg = Registry::load();
     let mut rng = InsecureTestRng::from_label(b"w0-sealed");
     let d = Device::new(&mut rng);
-    let mailbox = [7u8; 16];
-    let (_seed, km) = delivery::new_key(&mailbox, 2_000_000_000, &mut rng);
+    let (uri, cap) = ("https://home.example/", [7u8; 32]);
+    let (_seed, km) =
+        delivery::new_key(delivery::route_binding(uri, &cap), 2_000_000_000, &mut rng);
     let rec = delivery::sign_key_record(&d.signer, &d.device_id, &km, [3; 32]);
     assert!(reg.check("SealedDeliveryKeyRecord", &rec, false).is_ok());
     let cred = d.credential();
@@ -42,8 +43,8 @@ fn sealed_delivery_objects_are_w0_valid_and_verify_against_the_device_credential
     let wrapper = delivery::seal(
         &km.public_key,
         &km.key_id,
-        delivery::CORE_ROUTE_URI,
-        &mailbox,
+        uri,
+        &cap,
         2_000_000_000,
         b"inner",
         &mut rng,
@@ -59,14 +60,15 @@ fn large_sealed_delivery_buckets_decode_under_the_frozen_cddl_bounds() {
     use om_core::crypto::delivery;
     let reg = Registry::load();
     let mut rng = InsecureTestRng::from_label(b"w0-large");
-    let mailbox = [7u8; 16];
-    let (_seed, km) = delivery::new_key(&mailbox, 2_000_000_000, &mut rng);
+    let (uri, cap) = ("https://home.example/", [7u8; 32]);
+    let (_seed, km) =
+        delivery::new_key(delivery::route_binding(uri, &cap), 2_000_000_000, &mut rng);
     for inner_len in [20_000usize, 70_000] {
         let wrapper = delivery::seal(
             &km.public_key,
             &km.key_id,
-            delivery::CORE_ROUTE_URI,
-            &mailbox,
+            uri,
+            &cap,
             2_000_000_000,
             &vec![1u8; inner_len],
             &mut rng,

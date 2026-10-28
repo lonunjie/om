@@ -23,6 +23,7 @@ pub mod events;
 mod flows;
 pub mod host;
 pub mod intro;
+pub mod route;
 pub mod state;
 
 #[cfg(any(test, feature = "test-loopback"))]

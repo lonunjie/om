@@ -15,6 +15,7 @@ use crate::crypto::{self, PROFILE_V1, hex, hpke, unhex};
 use crate::events::{self, Hlc};
 use crate::host::{CoreError, NetCall, NetError, NetResult};
 use crate::intro;
+use crate::route::{RelayEntry, RelaySet, RouteOffer};
 use crate::state::*;
 use std::sync::OnceLock;
 
@@ -160,6 +161,16 @@ fn recovery_groups(root: &[u8; 32]) -> Vec<String> {
 
 // ---------------------------------------------------------------------------------------------- transaction
 
+/// The deposit call for `route`. A legacy (pass 2) destination carries no `relay_uri`: its capability is the bare
+/// mailbox id and the adapter derives the deposit capability itself, exactly as before routes existed.
+fn deposit_call(route: &RelayEntry, bytes: Vec<u8>) -> NetCall {
+    NetCall::Deposit {
+        mailbox: route.capability.clone(),
+        relay_uri: (!route.is_legacy()).then(|| route.relay_uri.clone()),
+        bytes,
+    }
+}
+
 pub struct Tx<'a, R: RngCore + CryptoRng> {
     pub st: &'a mut ProfileState,
     pub rng: &'a mut R,
@@ -167,6 +178,8 @@ pub struct Tx<'a, R: RngCore + CryptoRng> {
     pub changed: Vec<OperationId>,
     /// Profiles currently open (SwitchIdentityProfile target check).
     pub open_profiles: &'a [String],
+    /// Single-use route offers from the host's provider adapter (see `crate::route`).
+    pub offers: &'a mut Vec<RouteOffer>,
 }
 
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
@@ -360,9 +373,24 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     // ------------------------------------------------------------------------------------------ sealed delivery
 
-    /// A fresh receive key for `mailbox` (the private seed stays in this profile's encrypted state).
-    fn new_delivery_key(&mut self, mailbox: &[u8], ttl_s: u64) -> DeliveryKeyRec {
-        let (seed, km) = delivery::new_key(mailbox, self.now_s() + ttl_s, self.rng);
+    /// Takes one route the provider adapter allocated: the mailbox id to poll and the entry peers deposit to. `None`
+    /// when the host has supplied none (no provider is configured, or the adapter could not allocate), in which case
+    /// nothing that needs a mailbox starts: there is no stand-in fallback.
+    fn take_route(&mut self) -> Option<([u8; 16], RelayEntry)> {
+        let at = self.offers.iter().position(|o| o.is_valid())?;
+        let offer = self.offers.remove(at);
+        let mailbox = <[u8; 16]>::try_from(offer.mailbox.as_slice()).ok()?;
+        let entry = RelayEntry::new(
+            &offer.relay_uri,
+            &offer.capability,
+            self.now_s() + DELIVERY_KEY_TTL_S,
+        )?;
+        Some((mailbox, entry))
+    }
+
+    /// A fresh receive key bound to `route` (the private seed stays in this profile's encrypted state).
+    fn new_delivery_key(&mut self, route: &RelayEntry, ttl_s: u64) -> DeliveryKeyRec {
+        let (seed, km) = delivery::new_key(route.binding(), self.now_s() + ttl_s, self.rng);
         let seed = zeroize::Zeroizing::new(seed);
         DeliveryKeyRec {
             public: pub_key(&km),
@@ -440,20 +468,23 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// Can we seal to this peer right now? There is never a clear-sender fallback (profile section 12).
     fn peer_key_for_send(&self, rel: &Relationship) -> Result<PeerDelivery, RejectReason> {
-        let (Some(pd), Some(mb)) = (&rel.peer_delivery, &rel.peer_mailbox) else {
+        let (Some(pd), Some(route)) = (&rel.peer_delivery, rel.peer_relays.primary()) else {
             return Err(RejectReason::Unavailable); // sealed_delivery_required / delivery_key_unknown_or_stale
         };
-        let bound = hb(mb)
-            .map(|m| hex(&delivery::mailbox_route_binding(&m)) == pd.public.route_binding)
-            .unwrap_or(false);
+        let bound = hex(&route.binding()) == pd.public.route_binding;
         if pd.bootstrap || !bound || pd.public.expires_at <= self.now_s() {
             return Err(RejectReason::Unavailable);
         }
         Ok(pd.clone())
     }
 
-    /// Wrap a complete inner envelope for `peer`'s mailbox in the unsigned `SealedDeliveryEnvelope`.
-    fn seal_to(&mut self, pd: &PeerDelivery, mailbox: &[u8], inner: &[u8]) -> Result<Vec<u8>, ()> {
+    /// Wrap a complete inner envelope for the peer's route in the unsigned `SealedDeliveryEnvelope`.
+    fn seal_to(
+        &mut self,
+        pd: &PeerDelivery,
+        route: &RelayEntry,
+        inner: &[u8],
+    ) -> Result<Vec<u8>, ()> {
         let (kid, pk) = (
             h16(&pd.public.key_id).map_err(|_| ())?,
             hb(&pd.public.public_key).map_err(|_| ())?,
@@ -462,8 +493,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         delivery::seal(
             &pk,
             &kid,
-            delivery::CORE_ROUTE_URI,
-            mailbox,
+            &route.relay_uri,
+            &route.capability,
             expires,
             inner,
             self.rng,
@@ -824,16 +855,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ) else {
             return rejected(RejectReason::IntegrityFailure);
         };
-        let (Ok(peer_mailbox), Ok(rk_digest), Ok(my_intro_pk)) = (
-            hb(&intro.peer_mailbox),
-            h32(&inv.request_digest),
-            hb(&inv.intro_pk),
-        ) else {
+        let (Ok(rk_digest), Ok(my_intro_pk)) = (h32(&inv.request_digest), hb(&inv.intro_pk)) else {
             return rejected(RejectReason::IntegrityFailure);
         };
-        let mb = self.rand16();
+        // Our own mailbox for this relationship comes from the provider adapter (no stand-in fallback).
+        let Some((mb, my_route)) = self.take_route() else {
+            return rejected(RejectReason::Unavailable);
+        };
+        let peer_route = intro.peer_route.clone();
         let conv = self.rand_id("conv");
-        let my_key = self.new_delivery_key(&mb, DELIVERY_KEY_TTL_S);
+        let my_key = self.new_delivery_key(&my_route, DELIVERY_KEY_TTL_S);
         let canon = arr32(self.rng);
         let Ok(record) = self.signed_key_record(&my_key) else {
             return rejected(RejectReason::IntegrityFailure);
@@ -857,7 +888,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         let payload = cbor::encode(&V::M(vec![
             (0, V::U(KIND_ACCEPT)),
-            (1, V::B(mb.to_vec())),
+            (1, my_route.to_v()),
             (2, V::B(record)),
             (3, V::B(canon.to_vec())),
             (4, V::B(binding)),
@@ -868,7 +899,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             public: intro.reply_key.clone(),
             bootstrap: true,
         };
-        let Ok(wrapper) = self.seal_to(&boot, &peer_mailbox, &payload) else {
+        let Ok(wrapper) = self.seal_to(&boot, &peer_route, &payload) else {
             return rejected(RejectReason::PolicyDenied);
         };
         self.st.app.relationships.insert(
@@ -885,7 +916,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 peer_acs_body: String::new(),
                 peer_credentials: vec![],
                 my_mailbox: hex(&mb),
-                peer_mailbox: Some(intro.peer_mailbox.clone()),
+                my_relays: RelaySet::single(my_route),
+                peer_relays: RelaySet::single(peer_route.clone()),
                 blocked: false,
                 integrity_failures: 0,
                 created_at: self.now_ms,
@@ -910,10 +942,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         );
         self.st.app.intros.remove(request_id);
         self.enqueue(
-            NetCall::Deposit {
-                mailbox: peer_mailbox,
-                bytes: wrapper,
-            },
+            deposit_call(&peer_route, wrapper),
             Purpose::DepositAccept {
                 operation_id: op.clone(),
                 conversation_id: conv,
@@ -936,7 +965,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         // Active: seal and send now. Not yet bound or still establishing (ADR-0181): queue the finished event and send
         // it, sealed, the moment the relationship is ACTIVE. Nothing is encrypted or deposited before then, and there
         // is never a clear fallback. The conversation id is fixed once the Accept exists, so a queued event is final.
-        let (state, has_mailbox, blocked) = (rel.state, rel.peer_mailbox.is_some(), rel.blocked);
+        let (state, has_mailbox, blocked) =
+            (rel.state, rel.peer_relays.primary().is_some(), rel.blocked);
         let queue = match (state, has_mailbox, blocked) {
             (RelState::Active, true, false) => false,
             (RelState::Establishing | RelState::AcceptedUnbound, true, false) => true,
@@ -1025,12 +1055,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Ok(pd) = self.peer_key_for_send(&rel) else {
             return Ok(()); // still no usable key: stay queued
         };
-        let (peer_ik, mailbox) = (
+        let (peer_ik, route) = (
             h32(&rel.peer_ik)?,
-            hb(rel
-                .peer_mailbox
-                .as_deref()
-                .ok_or(CoreError::Invalid("peer mailbox"))?)?,
+            rel.peer_relays
+                .primary()
+                .cloned()
+                .ok_or(CoreError::Invalid("peer route"))?,
         );
         for m in rel.messages.iter().filter(|m| m.queued_event.is_some()) {
             let payload = hb(m.queued_event.as_deref().unwrap_or_default())?;
@@ -1039,7 +1069,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .encrypt(&peer_ik, &payload)
                 .map_err(|_| CoreError::Invalid("encrypt"))?;
             let wrapper = self
-                .seal_to(&pd, &mailbox, &env)
+                .seal_to(&pd, &route, &env)
                 .map_err(|_| CoreError::Invalid("seal"))?;
             if let Some(slot) = self
                 .st
@@ -1052,10 +1082,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 slot.queued_event = None;
             }
             self.enqueue(
-                NetCall::Deposit {
-                    mailbox: mailbox.clone(),
-                    bytes: wrapper,
-                },
+                deposit_call(&route, wrapper),
                 Purpose::DepositMessage {
                     operation_id: m.operation_id.clone().unwrap_or_default(),
                     conversation_id: conv.to_string(),
@@ -1080,22 +1107,20 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let pd = self
             .peer_key_for_send(&rel)
             .map_err(|_| CoreError::Invalid("no key"))?;
-        let mailbox = hb(rel
-            .peer_mailbox
-            .as_deref()
-            .ok_or(CoreError::Invalid("mb"))?)?;
+        let route = rel
+            .peer_relays
+            .primary()
+            .cloned()
+            .ok_or(CoreError::Invalid("mb"))?;
         let (env, _) = self
             .device()?
             .encrypt(&h32(&rel.peer_ik)?, payload)
             .map_err(|_| CoreError::Invalid("encrypt"))?;
         let wrapper = self
-            .seal_to(&pd, &mailbox, &env)
+            .seal_to(&pd, &route, &env)
             .map_err(|_| CoreError::Invalid("seal"))?;
         self.enqueue(
-            NetCall::Deposit {
-                mailbox,
-                bytes: wrapper,
-            },
+            deposit_call(&route, wrapper),
             Purpose::DepositKeys {
                 conversation_id: conv.to_string(),
             },
@@ -1172,12 +1197,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (DeliveryState::Rejected { reason }, Some(env)) if reason.retryable() => {
                 // Resend the very same inner envelope: re-running the ratchet would create a second semantic send.
                 // It is re-sealed under a fresh delivery_id; the recipient dedupes the inner envelope.
-                let (peer_mailbox, env) = (
+                let (peer_route, env) = (
                     self.st
                         .app
                         .relationships
                         .get(&conv)
-                        .and_then(|r| r.peer_mailbox.clone()),
+                        .and_then(|r| r.peer_relays.primary().cloned()),
                     hb(env)?,
                 );
                 let pd = self
@@ -1186,7 +1211,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     .relationships
                     .get(&conv)
                     .and_then(|r| self.peer_key_for_send(r).ok());
-                let (Some(peer_mailbox), Some(pd)) = (peer_mailbox, pd) else {
+                let (Some(route), Some(pd)) = (peer_route, pd) else {
                     self.record(
                         op,
                         kind,
@@ -1197,16 +1222,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     );
                     return Ok(());
                 };
-                let mailbox = hb(&peer_mailbox)?;
-                let Ok(wrapper) = self.seal_to(&pd, &mailbox, &env) else {
+                let Ok(wrapper) = self.seal_to(&pd, &route, &env) else {
                     return Err(CoreError::Invalid("seal"));
                 };
                 self.set_delivery(&conv, &msg.id, DeliveryState::PendingNetwork);
                 self.enqueue(
-                    NetCall::Deposit {
-                        mailbox,
-                        bytes: wrapper,
-                    },
+                    deposit_call(&route, wrapper),
                     Purpose::DepositMessage {
                         operation_id: op.clone(),
                         conversation_id: conv,
@@ -1504,10 +1525,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return rej(IntegrityFailure);
         };
         let my_intro_pk = my_signer.public();
-        let my_mailbox = self.rand16();
+        // Our reply mailbox comes from the provider adapter; with none (no Home configured) nothing starts.
+        let Some((my_mailbox, my_route)) = self.take_route() else {
+            return rej(Unavailable);
+        };
         let label_me = self.st.app.label.clone();
         // ADR-0144: a fresh request-scoped bootstrap key, bound to the reply route; never reused or promoted.
-        let bootstrap_key = self.new_delivery_key(&my_mailbox, BOOTSTRAP_TTL_S);
+        let bootstrap_key = self.new_delivery_key(&my_route, BOOTSTRAP_TTL_S);
         let Ok(bootstrap_km) = key_material(&bootstrap_key.public) else {
             return rej(IntegrityFailure);
         };
@@ -1534,8 +1558,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 &my_intro_pk,
                 &sender_descriptor,
                 &intro::RouteEntry {
-                    relay_uri: delivery::CORE_ROUTE_URI,
-                    capability: &my_mailbox,
+                    relay_uri: &my_route.relay_uri,
+                    capability: &my_route.capability,
                     expires_at_s: route_expires,
                 },
                 bootstrap_km.to_v(),
@@ -1565,7 +1589,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ]));
         let conv = self.rand_id("conv");
         let person = self.rand_id("person");
-        let my_key = self.new_delivery_key(&my_mailbox, DELIVERY_KEY_TTL_S);
+        let my_key = self.new_delivery_key(&my_route, DELIVERY_KEY_TTL_S);
         self.st.app.accepted_invites.insert(invite_id.to_string());
         self.st.app.relationships.insert(
             conv.clone(),
@@ -1585,7 +1609,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 peer_acs_body: String::new(),
                 peer_credentials: vec![],
                 my_mailbox: hex(&my_mailbox),
-                peer_mailbox: None,
+                my_relays: RelaySet::single(my_route),
+                peer_relays: RelaySet::default(),
                 blocked: false,
                 integrity_failures: 0,
                 created_at: self.now_ms,
@@ -1613,6 +1638,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         self.enqueue(
             NetCall::Deposit {
                 mailbox,
+                relay_uri: None, // the introduction service route is still the pass-2 stand-in (D10)
                 bytes: request,
             },
             Purpose::DepositRequest {
@@ -1661,7 +1687,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Ok(peer_ik) = h32(&rel.peer_ik) else {
             return rej(IntegrityFailure);
         };
-        let Some(peer_mailbox) = rel.peer_mailbox.as_deref().and_then(|m| hb(m).ok()) else {
+        let Some(peer_route) = rel.peer_relays.primary().cloned() else {
             return rej(IntegrityFailure);
         };
         let view = PeerView {
@@ -1694,14 +1720,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             Some(Ok((env, _))) => env,
             _ => return rej(IntegrityFailure),
         };
-        let Ok(wrapper) = self.seal_to(&pd, &peer_mailbox, &env) else {
+        let Ok(wrapper) = self.seal_to(&pd, &peer_route, &env) else {
             return rej(IntegrityFailure);
         };
         self.enqueue(
-            NetCall::Deposit {
-                mailbox: peer_mailbox,
-                bytes: wrapper,
-            },
+            deposit_call(&peer_route, wrapper),
             Purpose::DepositHello {
                 operation_id: op.clone(),
                 conversation_id: conv.to_string(),
@@ -1837,27 +1860,22 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             let d = intro::open_intro(b.get(5)?.b()?, intro::LBL_DESCRIPTOR_SIG, &signer)?;
             let desc = intro::read_descriptor(&d.body)?;
-            let route = b.get(8)?;
-            let (uri, cap, route_exp) = (
-                route.get(0)?.t()?,
-                route.get(1)?.b()?.to_vec(),
-                route.get(4)?.u()?,
-            );
+            let route = RelayEntry::from_v(b.get(8)?)
+                .ok_or(crypto::Error::Binding("reply route is not a relay entry"))?;
             let reply_key = KeyMaterial::from_v(b.get(9)?)?;
-            Ok((signer, desc, uri.to_string(), cap, route_exp, reply_key))
+            Ok((signer, desc, route, reply_key))
         })();
-        let Ok((peer_intro_pk, desc, uri, mb, route_exp, reply_key)) = parsed else {
+        let Ok((peer_intro_pk, desc, route, reply_key)) = parsed else {
             return;
         };
+        let route_exp = route.expires_at;
         // The requester's descriptor must still be live, and must not be our own intro identity.
         if desc.expires_at_s <= now_s || hex(&peer_intro_pk) == inv.intro_pk {
             return;
         }
         // The bootstrap key must be bound to exactly the reply route in the same request, fresh, and no later than
         // the route (a bounded request deadline: min(route, key)).
-        if uri != delivery::CORE_ROUTE_URI
-            || mb.len() != 16
-            || reply_key.route_binding != delivery::mailbox_route_binding(&mb)
+        if reply_key.route_binding != route.binding()
             || reply_key.expires_at <= now_s
             || reply_key.expires_at > now_s + BOOTSTRAP_TTL_S + BOOTSTRAP_CLOCK_SKEW_S
             || reply_key.expires_at > route_exp
@@ -1882,7 +1900,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     label
                 },
                 peer_intro_pk: hex(&peer_intro_pk),
-                peer_mailbox: hex(&mb),
+                peer_route: route,
                 reply_key: pub_key(&reply_key),
             },
         );
@@ -1945,12 +1963,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some((key, is_bootstrap)) = found else {
             return self.count_failure(conv); // delivery_key_unknown_or_stale
         };
-        let (Ok(seed), Ok(mailbox)) = (h32(&key.seed), hb(&rel.my_mailbox)) else {
+        let (Ok(seed), Some(route)) = (h32(&key.seed), rel.my_relays.primary().cloned()) else {
             return;
         };
         let seed = zeroize::Zeroizing::new(seed);
         // 4. route binding, key expiry, wrapper expiry no later than the key.
-        if hex(&delivery::mailbox_route_binding(&mailbox)) != key.public.route_binding
+        if hex(&route.binding()) != key.public.route_binding
             || now_s > key.public.expires_at.saturating_add(delivery::CLOCK_SKEW)
             || wrapper_exp > key.public.expires_at
         {
@@ -1961,8 +1979,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             wrapper,
             &seed,
             &key_id,
-            delivery::CORE_ROUTE_URI,
-            &mailbox,
+            &route.relay_uri,
+            &route.capability,
             now_s,
         ) else {
             return self.count_failure(conv); // delivery_open_failed / delivery_expired
@@ -2113,8 +2131,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let (RelState::AwaitingAcceptance, Some(pb)) = (rel.state, rel.pending_bind.clone()) else {
             return false;
         };
-        let (Ok(mb), Ok(record), Ok(canon), Ok(binding)) = (
-            p.get(1).and_then(|x| x.b()).map(<[u8]>::to_vec),
+        // The inviter's route: a relay entry, or (a peer from before routes existed) its bare 16-byte mailbox.
+        let route = match p.get(1) {
+            Ok(V::B(mb)) if mb.len() == 16 => Some(RelayEntry::legacy(mb)),
+            Ok(v) => RelayEntry::from_v(v),
+            Err(_) => None,
+        };
+        let (Some(route), Ok(record), Ok(canon), Ok(binding)) = (
+            route,
             p.get(2).and_then(|x| x.b()).map(<[u8]>::to_vec),
             p.get(3).and_then(|x| x.b32()),
             p.get(4).and_then(|x| x.b()).map(<[u8]>::to_vec),
@@ -2144,19 +2168,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ) else {
             return false;
         };
-        if mb.len() != 16
-            || self
-                .st
-                .device
-                .as_ref()
-                .is_none_or(|d| d.account_id == head.account_id)
+        if self
+            .st
+            .device
+            .as_ref()
+            .is_none_or(|d| d.account_id == head.account_id)
         {
             return false;
         }
         let mut upd = rel.clone();
         self.bind_peer(&mut upd, &head, &vb, &creds);
-        upd.peer_mailbox = Some(hex(&mb));
-        let Some(km) = self.verify_peer_record(&upd, &record, &mb) else {
+        upd.peer_relays = RelaySet::single(route.clone());
+        let Some(km) = self.verify_peer_record(&upd, &record, &route) else {
             return false;
         };
         let pd = PeerDelivery {
@@ -2164,7 +2187,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             bootstrap: false,
         };
         // Our Bind: the same kind of binding for the intro identity we used, sealed to the inviter's established key.
-        let Some((bind, bind_mailbox)) = self.build_bind(&upd, &pd, &my_intro, &rk) else {
+        let Some((bind, bind_route)) = self.build_bind(&upd, &pd, &my_intro, &rk) else {
             return false;
         };
         let Some(dev) = self.st.device.as_mut() else {
@@ -2179,10 +2202,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         upd.bootstrap = None; // the request-scoped key dies in the commit that installed the established route
         self.st.app.relationships.insert(conv.to_string(), upd);
         self.enqueue(
-            NetCall::Deposit {
-                mailbox: bind_mailbox,
-                bytes: bind,
-            },
+            deposit_call(&bind_route, bind),
             Purpose::DepositBind {
                 conversation_id: conv.to_string(),
             },
@@ -2196,10 +2216,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
             return false;
         };
-        let (RelState::AcceptedUnbound, Some(pb), Some(mb)) = (
+        let (RelState::AcceptedUnbound, Some(pb), Some(route)) = (
             rel.state,
             rel.pending_bind.clone(),
-            rel.peer_mailbox.as_deref().and_then(|m| hb(m).ok()),
+            rel.peer_relays.primary().cloned(),
         ) else {
             return false;
         };
@@ -2238,7 +2258,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         let mut upd = rel.clone();
         self.bind_peer(&mut upd, &head, &vb, &creds);
-        let Some(km) = self.verify_peer_record(&upd, &record, &mb) else {
+        let Some(km) = self.verify_peer_record(&upd, &record, &route) else {
             return false;
         };
         let Some(dev) = self.st.device.as_mut() else {
@@ -2280,14 +2300,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     /// The requester's Bind: our signed key record, our `IntroIdentityBinding`, our chain and credentials, sealed to
-    /// the inviter's established key. Returns the wrapper and the inviter's mailbox.
+    /// the inviter's established key. Returns the wrapper and the inviter's route.
     fn build_bind(
         &mut self,
         rel: &Relationship,
         to: &PeerDelivery,
         my_intro: &[u8],
         rk: &[u8; 32],
-    ) -> Option<(Vec<u8>, Vec<u8>)> {
+    ) -> Option<(Vec<u8>, RelayEntry)> {
         let (head, chain, creds) = self.acs_head()?;
         let my_key = rel.my_delivery.first().cloned()?;
         let record = self.signed_key_record(&my_key).ok()?;
@@ -2312,9 +2332,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (3, V::A(chain.into_iter().map(V::B).collect())),
             (4, V::A(creds.into_iter().map(V::B).collect())),
         ]));
-        let mailbox = hb(rel.peer_mailbox.as_deref()?).ok()?;
-        let wrapper = self.seal_to(to, &mailbox, &payload).ok()?;
-        Some((wrapper, mailbox))
+        let route = rel.peer_relays.primary().cloned()?;
+        let wrapper = self.seal_to(to, &route, &payload).ok()?;
+        Some((wrapper, route))
     }
 
     fn restore(&mut self, snapshot: Option<crate::crypto::store::Device>) {
@@ -2324,12 +2344,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     /// Verify a peer's signed `SealedDeliveryKeyRecord` against the relationship (profile section 4): signed by the
-    /// pinned peer device, which must be active in the pinned ACS head, bound to the peer's own mailbox, unexpired.
+    /// pinned peer device, which must be active in the pinned ACS head, bound to the peer's own route, unexpired.
     fn verify_peer_record(
         &self,
         rel: &Relationship,
         record: &[u8],
-        peer_mailbox: &[u8],
+        peer_route: &RelayEntry,
     ) -> Option<KeyMaterial> {
         let cred = rel
             .peer_credentials
@@ -2342,7 +2362,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return None;
         }
         let km = delivery::open_key_record(record, &cred.device_id, &cred.signing_pk).ok()?;
-        (km.route_binding == delivery::mailbox_route_binding(peer_mailbox)
+        (km.route_binding == peer_route.binding()
             && km.expires_at > self.now_s()
             && km.expires_at <= self.now_s() + DELIVERY_KEY_TTL_S)
             .then_some(km)
@@ -2397,13 +2417,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
             return false;
         };
-        let (Ok(record), Some(Ok(mb))) = (
+        let (Ok(record), Some(route)) = (
             p.get(3).and_then(|x| x.b()).map(<[u8]>::to_vec),
-            rel.peer_mailbox.as_deref().map(hb),
+            rel.peer_relays.primary().cloned(),
         ) else {
             return false;
         };
-        let Some(km) = self.verify_peer_record(&rel, &record, &mb) else {
+        let Some(km) = self.verify_peer_record(&rel, &record, &route) else {
             return false;
         };
         self.install_peer_key(conv, &km);

@@ -15,7 +15,8 @@ use om_core::crypto::store::Device;
 use om_core::crypto::{delivery, hpke, sha256};
 use om_core::host::NetCall;
 use om_core::intro;
-use om_core::runtime::{LoopbackNetwork, Runtime, settle_all};
+use om_core::route::RelayEntry;
+use om_core::runtime::{LoopbackNetwork, Runtime, loopback_offer, settle_all};
 
 pub fn create_profile(rt: &mut Runtime, id: &str, label: &str) -> ProfileExecutionContext {
     let ctx = rt.open(id);
@@ -77,6 +78,12 @@ pub fn app_state(rt: &Runtime, ctx: &ProfileExecutionContext) -> serde_json::Val
     rt.core.debug_app_state(ctx).unwrap()
 }
 
+/// The route a provider adapter would allocate for `mailbox` on the loopback relay.
+pub fn route_of(mailbox: &[u8; 16]) -> RelayEntry {
+    let o = loopback_offer(*mailbox);
+    RelayEntry::new(&o.relay_uri, &o.capability, 2_000_000_000).expect("valid route")
+}
+
 /// A requester with its own account (standalone genesis) that the test drives by hand.
 pub struct FakeRequester {
     pub dev: Device,
@@ -89,6 +96,10 @@ pub struct FakeRequester {
     pub inviter_mailbox: Vec<u8>,
     /// Reply mailbox, bootstrap key (request-scoped) and the established key it will advertise in the Bind.
     pub mailbox: [u8; 16],
+    /// Its route: what the provider adapter would allocate for `mailbox` (a real `relay_uri` and capability).
+    pub route: RelayEntry,
+    /// If set, the `relay_uri` the request *claims* for the reply route, while its keys stay bound to `route`.
+    pub claimed_uri: Option<String>,
     pub boot_seed: [u8; 32],
     pub boot_km: delivery::KeyMaterial,
     pub est_seed: [u8; 32],
@@ -97,7 +108,8 @@ pub struct FakeRequester {
 
 /// What the inviter's Accept carried.
 pub struct Accept {
-    pub mailbox: Vec<u8>,
+    /// The inviter's route for the relationship (`relay-entry`).
+    pub route: RelayEntry,
     pub record: Vec<u8>,
     pub canon: Vec<u8>,
     pub binding: Vec<u8>,
@@ -120,8 +132,9 @@ impl FakeRequester {
         let dev = Device::new(rng);
         let genesis = control::sign_acs(&dev.acs().body(), &[(&dev.device_id, &dev.signer)], rng);
         let mailbox = [7u8; 16];
-        let (boot_seed, boot_km) = delivery::new_key(&mailbox, 0, rng);
-        let (est_seed, est_km) = delivery::new_key(&mailbox, 0, rng);
+        let route = route_of(&mailbox);
+        let (boot_seed, boot_km) = delivery::new_key(route.binding(), 0, rng);
+        let (est_seed, est_km) = delivery::new_key(route.binding(), 0, rng);
         FakeRequester {
             creds: vec![dev.credential().body()],
             chain: vec![genesis],
@@ -132,11 +145,19 @@ impl FakeRequester {
             inviter_intro_pk: vec![],
             inviter_mailbox: vec![],
             mailbox,
+            route,
+            claimed_uri: None,
             boot_seed,
             boot_km,
             est_seed,
             est_km,
         }
+    }
+
+    /// Move this requester to another mailbox (and the route the adapter would allocate for it).
+    pub fn set_mailbox(&mut self, mailbox: [u8; 16]) {
+        self.mailbox = mailbox;
+        self.route = route_of(&mailbox);
     }
 
     /// Deposit a hand-built MessageRequest for `link`/`record` whose request-scoped reply key lives `reply_ttl_s`.
@@ -167,10 +188,12 @@ impl FakeRequester {
         self.invite_id = link[..16].try_into().unwrap();
         self.rk_digest = om_core::request_key_digest(&pk);
         let now_s = now_ms / 1000;
-        let (boot_seed, boot_km) = delivery::new_key(&self.mailbox, now_s + reply_ttl_s, rng);
+        let (boot_seed, boot_km) =
+            delivery::new_key(self.route.binding(), now_s + reply_ttl_s, rng);
         self.boot_seed = boot_seed;
         self.boot_km = boot_km;
-        let (est_seed, est_km) = delivery::new_key(&self.mailbox, now_s + 90 * 24 * 3600, rng);
+        let (est_seed, est_km) =
+            delivery::new_key(self.route.binding(), now_s + 90 * 24 * 3600, rng);
         self.est_seed = est_seed;
         self.est_km = est_km;
         let sender_descriptor = intro::sign_intro(
@@ -194,8 +217,8 @@ impl FakeRequester {
                 &self.intro.public(),
                 &sender_descriptor,
                 &intro::RouteEntry {
-                    relay_uri: delivery::CORE_ROUTE_URI,
-                    capability: &self.mailbox,
+                    relay_uri: self.claimed_uri.as_deref().unwrap_or(&self.route.relay_uri),
+                    capability: &self.route.capability,
                     expires_at_s: now_s + reply_ttl_s,
                 },
                 self.boot_km.to_v(),
@@ -224,8 +247,8 @@ impl FakeRequester {
                 &wrapper,
                 &self.boot_seed,
                 &self.boot_km.key_id,
-                delivery::CORE_ROUTE_URI,
-                &self.mailbox,
+                &self.route.relay_uri,
+                &self.route.capability,
                 now_s,
             ) else {
                 continue;
@@ -244,7 +267,7 @@ impl FakeRequester {
                     .collect()
             };
             return Some(Accept {
-                mailbox: p.get(1).unwrap().b().unwrap().to_vec(),
+                route: RelayEntry::from_v(p.get(1).unwrap()).expect("Accept carries a relay entry"),
                 record: p.get(2).unwrap().b().unwrap().to_vec(),
                 canon: p.get(3).unwrap().b().unwrap().to_vec(),
                 binding: p.get(4).unwrap().b().unwrap().to_vec(),
@@ -311,15 +334,16 @@ impl FakeRequester {
         let wrapper = delivery::seal(
             &km.public_key,
             &km.key_id,
-            delivery::CORE_ROUTE_URI,
-            &accept.mailbox,
+            &accept.route.relay_uri,
+            &accept.route.capability,
             now_s + 7 * 24 * 3600,
             inner,
             rng,
         )
         .unwrap();
         net.perform(&NetCall::Deposit {
-            mailbox: accept.mailbox.clone(),
+            mailbox: accept.route.capability.clone(),
+            relay_uri: Some(accept.route.relay_uri.clone()),
             bytes: wrapper,
         });
     }
@@ -351,6 +375,7 @@ pub fn deposit_request(
     ]));
     net.perform(&NetCall::Deposit {
         mailbox: inbox.to_vec(),
+        relay_uri: None,
         bytes: request,
     });
 }

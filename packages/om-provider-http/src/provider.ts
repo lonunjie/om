@@ -10,7 +10,7 @@
 //
 // Failure classes follow Core's contract: `unavailable` = definitely not performed; `timeout` = may have been performed
 // (every mutating request carries a content-derived request_id, so Core's exact retry is idempotent at the Home).
-import type { Inbound, NetCall, NetError, NetResult, Provider } from "@om/core-wasm";
+import type { Inbound, NetCall, NetError, NetResult, Provider, RouteOffer } from "@om/core-wasm";
 import {
   decodeDescriptorGet, decodeDrainResponse, decodeKeyFetchResponse, encodeAckRequest, encodeDepositRequest, encodeDescriptorPut,
   encodeDrainRequest, encodeKeyFetch, encodeKeyPublish, encodeQueueCreate, fromHex, toHex, type HomeErrorBody, type RelayEntry,
@@ -31,6 +31,8 @@ export interface HttpProviderOptions {
 export type Reachability = "unknown" | "reachable" | "unreachable";
 
 export interface HttpProvider extends Provider {
+  /** Routes for new mailboxes at this Home (Provider.allocateRoutes, always present here). */
+  allocateRoutes(count: number): Promise<readonly RouteOffer[]>;
   readonly baseUrl: string;
   reachability(): Reachability;
   /** Mailboxes this installation could not claim because another party already holds the queue (squatted). */
@@ -205,13 +207,23 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     return { result: "ok" };
   }
 
-  async function deposit(mailboxHex: string, bytesHex: string): Promise<NetResult> {
-    const mailbox = fromHex(mailboxHex);
+  /**
+   * `target` is the destination's deposit capability as its RelayEntry carried it, with that entry's `relayUri`. A
+   * destination at another Home cannot be reached from here and is refused, not deposited at the wrong place. A legacy
+   * destination (no `relayUri`, the bare 16-byte mailbox) has its capability derived, as before routes existed.
+   */
+  async function deposit(targetHex: string, bytesHex: string, relayUri: string | undefined): Promise<NetResult> {
+    const target = fromHex(targetHex);
     const bytes = fromHex(bytesHex);
-    const key = `deposit:${mailboxHex}`;
+    let cap: Uint8Array;
+    if (relayUri === undefined) cap = await depositCap(target);
+    else if (relayUri !== `${base}/`) return rejected("unsupported");
+    else if (target.length < 16 || target.length > 96) return rejected("invalid");
+    else cap = target;
+    const key = `deposit:${targetHex}`;
     const r = await mutate(`${base}/v1/relay/deposit`, {
       method: "POST",
-      body: encodeDepositRequest({ requestId: await requestId("deposit", mailbox, bytes), cap: await depositCap(mailbox), envelope: bytes }),
+      body: encodeDepositRequest({ requestId: await requestId("deposit", target, bytes), cap, envelope: bytes }),
     }, key);
     if (isResult(r)) return r;
     if (r.kind === "home") return mapError(r.error, key);
@@ -280,6 +292,15 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     reachability: () => reach,
     lostMailboxes: () => [...lost],
     routeEntry: async (mailbox, expiresAt) => ({ relayUri: `${base}/`, capability: await depositCap(mailbox), priority: 0, expiresAt, transports: ["https"] }),
+    async allocateRoutes(count) {
+      const out: RouteOffer[] = [];
+      for (let i = 0; i < count; i++) {
+        const mailbox = crypto.getRandomValues(new Uint8Array(16));
+        const entry = await depositCap(mailbox);
+        out.push({ mailbox: toHex(mailbox), relayUri: `${base}/`, capability: toHex(entry) });
+      }
+      return out;
+    },
     async capabilities() {
       const r = await exchange(http, `${base}/.well-known/om-provider-capabilities`, { method: "GET" });
       if (r.kind !== "ok") return undefined;
@@ -288,7 +309,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     async perform(call: NetCall): Promise<NetResult> {
       try {
         switch (call.call) {
-          case "deposit": return await deposit(call.mailbox, call.bytes);
+          case "deposit": return await deposit(call.mailbox, call.bytes, call.relayUri);
           case "ack": return await ack(call.mailbox, call.seq);
           case "publish_key_material": return await publishKeys(call);
           case "fetch_key_material": return await fetchKeys(call);

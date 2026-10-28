@@ -476,7 +476,7 @@ fn a_bind_for_the_wrong_intro_identity_or_request_is_refused() {
         let mailbox = [n as u8 + 10; 16];
         let (link, record) = invite(&mut alice, &a, &format!("inv-{n}"));
         let mut r = FakeRequester::new(&mut rng);
-        r.mailbox = mailbox;
+        r.set_mailbox(mailbox);
         r.request(&net, &mut rng, &link, &record, now_ms, 3600, "Eve");
         alice.poll(&a);
         let req = alice
@@ -494,7 +494,7 @@ fn a_bind_for_the_wrong_intro_identity_or_request_is_refused() {
                 .as_object()
                 .unwrap()
                 .values()
-                .find(|x| x["peerMailbox"] == hex(&mailbox))
+                .find(|x| x["peerRelays"]["entries"][0]["capability"] == hex(&r.route.capability))
                 .unwrap()
                 .clone()
         };
@@ -660,7 +660,7 @@ fn a_v2_profile_loads_and_drops_what_cannot_finish_under_the_new_flow() {
         "pending introductions are dropped"
     );
     let st = core.debug_app_state(&ctx).unwrap();
-    assert_eq!(st["version"], 3);
+    assert_eq!(st["version"], 4);
     assert!(
         st["invites"]
             .as_object()

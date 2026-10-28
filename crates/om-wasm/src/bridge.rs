@@ -5,6 +5,7 @@ use om_core::Core;
 use om_core::api::{HomeSummary, Intent, ProfileExecutionContext, Query};
 use om_core::crypto::rng::{self, CryptoRng, RngCore};
 use om_core::host::{Clock, CoreError, Inbound, NetResult, Record};
+use om_core::route::RouteOffer;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -60,6 +61,10 @@ enum Command {
     Outcome {
         ctx: ProfileExecutionContext,
         operation_id: String,
+    },
+    /// Routes the provider adapter allocated for mailboxes Core has not created yet. Answers how many Core holds.
+    SupplyRoutes {
+        routes: Vec<RouteOffer>,
     },
 }
 
@@ -158,6 +163,7 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::Outcome { ctx, operation_id } => {
                 Ok(enc(&self.core()?.outcome(&ctx, &operation_id)?))
             }
+            Command::SupplyRoutes { routes } => Ok(json!(self.core()?.supply_routes(routes))),
         }
     }
 }

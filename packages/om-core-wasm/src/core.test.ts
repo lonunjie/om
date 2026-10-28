@@ -85,6 +85,25 @@ describe.skipIf(!present)("real Core through the CoreClient interface", () => {
     un();
   });
 
+  it("without a provider that allocates routes, an invite still works and a first contact is refused as unavailable (no stand-in route)", async () => {
+    const full = createMemoryProvider();
+    const alice = await boot(createMemoryKv(), full, asProfileId("alice"));
+    await alice.rt.dispatch({ kind: "CreateIdentityProfile", ctx: alice.ctx, operationId: op("a-create"), label: "Alice" });
+    await alice.rt.dispatch({ kind: "CreateInvite", ctx: alice.ctx, operationId: op("a-invite") });
+    await settle(alice);
+    const invite = await alice.rt.query({ kind: "GetInvite", ctx: alice.ctx, operationId: op("a-invite") });
+    if (!invite) throw new Error("no invite");
+    // Bob's host has a provider that can carry calls but allocates no routes (the shape of "no Home configured").
+    const bare: MemoryProvider = { ...createMemoryProvider(), perform: full.perform.bind(full), poll: full.poll.bind(full) };
+    delete (bare as { allocateRoutes?: unknown }).allocateRoutes;
+    const bob = await boot(createMemoryKv(), bare, asProfileId("bob"));
+    await bob.rt.dispatch({ kind: "CreateIdentityProfile", ctx: bob.ctx, operationId: op("b-create"), label: "Bob" });
+    await bob.rt.dispatch({ kind: "AcceptInvitation", ctx: bob.ctx, operationId: op("b-accept"), link: invite.link });
+    await settle(alice, bob);
+    expect(await outcome(bob, "b-accept")).toEqual({ kind: "Rejected", reason: "unavailable" });
+    expect(await alice.rt.query({ kind: "GetIntroductions", ctx: alice.ctx })).toEqual([]);
+  });
+
   it("two parties message through invite, introduction and a ratcheting session, across restarts", async () => {
     const provider = createMemoryProvider();
     const { alice, bob, aConv, bConv } = await connect(provider);

@@ -7,10 +7,39 @@
 use crate::api::*;
 use crate::crypto::rng::insecure_test_rng::InsecureTestRng;
 use crate::host::*;
+use crate::route::RouteOffer;
 use crate::{Core, crypto::hex};
+use rand_core::RngCore as _;
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::rc::Rc;
+
+/// The loopback's relay name and capability shape. Deliberately unlike the mailbox id (a fixed prefix plus the id), so a
+/// Core that confused "mailbox I poll" with "capability peers deposit to" would not work against it.
+pub const LOOPBACK_RELAY_URI: &str = "https://loopback.test/";
+const LOOPBACK_CAP_PREFIX: [u8; 16] = [0xC4; 16];
+
+/// What a provider adapter would allocate for one new mailbox on the loopback relay.
+pub fn loopback_offer(mailbox: [u8; 16]) -> RouteOffer {
+    let mut capability = LOOPBACK_CAP_PREFIX.to_vec();
+    capability.extend_from_slice(&mailbox);
+    RouteOffer {
+        mailbox: mailbox.to_vec(),
+        relay_uri: LOOPBACK_RELAY_URI.to_string(),
+        capability,
+    }
+}
+
+/// Which mailbox a deposit capability addresses: a real-route capability ends in the mailbox id, a legacy one is it.
+fn mailbox_of_deposit(mailbox: &[u8], relay_uri: Option<&str>) -> Vec<u8> {
+    match relay_uri {
+        Some(LOOPBACK_RELAY_URI) if mailbox.len() == 32 && mailbox[..16] == LOOPBACK_CAP_PREFIX => {
+            mailbox[16..].to_vec()
+        }
+        Some(_) => vec![], // not this relay's capability: lands nowhere
+        None => mailbox.to_vec(),
+    }
+}
 
 pub const TEST_ONLY_MARKER: &str = "OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION";
 
@@ -164,10 +193,15 @@ impl LoopbackNetwork {
                 s.invites.remove(invite_id);
                 NetResult::Ok
             }
-            NetCall::Deposit { mailbox, bytes } => {
+            NetCall::Deposit {
+                mailbox,
+                relay_uri,
+                bytes,
+            } => {
+                let mailbox = mailbox_of_deposit(mailbox, relay_uri.as_deref());
                 s.deposits += 1;
                 s.log.push((mailbox.clone(), bytes.clone()));
-                let m = s.mailboxes.entry(mailbox.clone()).or_default();
+                let m = s.mailboxes.entry(mailbox).or_default();
                 m.next_seq += 1;
                 let seq = m.next_seq;
                 m.items.push((seq, bytes.clone()));
@@ -220,6 +254,15 @@ struct MemStoreInner {
 impl MemStore {
     pub fn fail_next_commit(&self) {
         self.0.borrow_mut().fail_commits += 1;
+    }
+    /// Replace one stored record (tests that rewrite a profile into an older shape and reopen it).
+    pub fn replace_record(&self, profile: &str, key: &str, value: Vec<u8>) {
+        self.0
+            .borrow_mut()
+            .data
+            .entry(profile.to_string())
+            .or_default()
+            .insert(key.to_string(), value);
     }
     pub fn records(&self, profile: &str) -> Vec<Record> {
         self.0
@@ -284,6 +327,7 @@ pub struct Runtime {
     label: String,
     boots: u32,
     open: Vec<String>,
+    offer_rng: InsecureTestRng,
 }
 
 impl Runtime {
@@ -302,7 +346,20 @@ impl Runtime {
             label: label.to_string(),
             boots: 0,
             open: vec![],
+            offer_rng: InsecureTestRng::from_label(format!("{label}/offers").as_bytes()),
         }
+    }
+
+    /// Stands in for the driver topping Core's route offers up from the provider adapter (done before every dispatch).
+    pub fn supply_routes(&mut self, n: usize) {
+        let offers = (0..n)
+            .map(|_| {
+                let mut mb = [0u8; 16];
+                self.offer_rng.fill_bytes(&mut mb);
+                loopback_offer(mb)
+            })
+            .collect();
+        self.core.supply_routes(offers);
     }
 
     pub fn tick(&self, ms: u64) {
@@ -352,6 +409,7 @@ impl Runtime {
         op: &str,
         body: IntentBody,
     ) -> OperationHandle {
+        self.supply_routes(4usize.saturating_sub(self.core.route_offers()));
         let step = self
             .core
             .dispatch(&Intent {

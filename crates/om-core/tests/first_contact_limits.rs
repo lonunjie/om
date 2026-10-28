@@ -255,6 +255,7 @@ fn cheap_checks_run_first_and_spend_no_budget() {
         common::deposit_request(&net, &inbox, &id, &rk, vec![0; 1120], vec![0; 40_000]);
         net.perform(&om_core::host::NetCall::Deposit {
             mailbox: inbox.to_vec(),
+            relay_uri: None,
             bytes: vec![0xff; 100],
         });
         let _ = &mut rng;

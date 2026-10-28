@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { describe, expect, it } from "vitest";
-import { HomeError, decodeDepositRequest, encodeHomeError, toHex } from "@om/home-wire";
+import { HomeError, decodeDepositRequest, encodeHomeError, fromHex, toHex } from "@om/home-wire";
 import { createHttpProvider, createIndexedDbSecretStore, createMemorySecretStore, parseProviderUrl, type HttpProvider } from "./index";
 
 const cfg = (u = "https://home.example"): { baseUrl: string } => {
@@ -86,6 +86,46 @@ describe("failure classification (stubbed Home)", () => {
     expect((await p.perform(d)).result).toBe("err");
     expect((await p.perform(d)).result).toBe("err");
     expect(calls).toBe(1);
+  });
+});
+
+describe("routes (audit M1)", () => {
+  const sink = (seen: { url: string; cap: string }[]): HttpProvider => createHttpProvider({
+    config: cfg(), secrets: createMemorySecretStore(),
+    fetch: (i, init) => { seen.push({ url: urlOf(i), cap: toHex(decodeDepositRequest(init?.body as Uint8Array).cap) }); return Promise.resolve(new Response(null, { status: 204 })); },
+  });
+
+  it("allocates fresh mailboxes whose route is this Home's relay uri and the deposit capability the Home derives for them", async () => {
+    const p = sink([]);
+    const offers = await p.allocateRoutes(3);
+    expect(offers).toHaveLength(3);
+    expect(new Set(offers.map((o) => o.mailbox)).size).toBe(3);
+    for (const o of offers) {
+      expect(o.mailbox).toMatch(/^[0-9a-f]{32}$/);
+      expect(o.relayUri).toBe("https://home.example/");
+      const entry = await p.routeEntry(fromHex(o.mailbox), 1);
+      expect(entry.relayUri).toBe(o.relayUri);
+      expect(o.capability).toBe(toHex(entry.capability));
+      expect(o.capability).toHaveLength(64);
+    }
+  });
+
+  it("deposits to a route's capability as given when the route is at this Home; refuses another Home's route; derives for a legacy destination", async () => {
+    const seen: { url: string; cap: string }[] = [];
+    const p = sink(seen);
+    const [o] = await p.allocateRoutes(1);
+    if (!o) throw new Error("no offer");
+    expect(await p.perform({ call: "deposit", mailbox: o.capability, relayUri: o.relayUri, bytes: toHex(rand(40)) })).toEqual({ result: "ok" });
+    expect(seen.map((s) => s.cap)).toEqual([o.capability]);
+    // Another Home's route is not deposited at the wrong place.
+    const other = await p.perform({ call: "deposit", mailbox: o.capability, relayUri: "https://other.example/", bytes: toHex(rand(40)) });
+    expect(other).toEqual({ result: "err", error: { kind: "rejected", reason: "unsupported" } });
+    expect(seen).toHaveLength(1);
+    // A capability outside the spec's bounds is invalid, not sent.
+    expect(await p.perform({ call: "deposit", mailbox: toHex(rand(8)), relayUri: o.relayUri, bytes: toHex(rand(40)) })).toEqual({ result: "err", error: { kind: "rejected", reason: "invalid" } });
+    // A legacy destination (bare mailbox, no relay name) still gets the derived capability.
+    await p.perform({ call: "deposit", mailbox: o.mailbox, bytes: toHex(rand(40)) });
+    expect(seen[1]?.cap).toBe(o.capability);
   });
 });
 

@@ -104,3 +104,29 @@ fn malformed_and_hostile_requests_return_errors_not_panics() {
         "invalid"
     );
 }
+
+#[test]
+fn route_offers_cross_the_bridge_validated() {
+    let mut b = Bridge::new(
+        || InsecureTestRng::from_label(b"bridge-routes"),
+        || 1_790_000_000_000,
+    );
+    call(&mut b, json!({ "cmd": "init", "home": home() }));
+    let ok = json!({ "mailbox": "07".repeat(16), "relayUri": "https://home.test/", "capability": "09".repeat(32) });
+    let bad = json!({ "mailbox": "07".repeat(15), "relayUri": "https://home.test/", "capability": "09".repeat(32) });
+    let legacy = json!({ "mailbox": "08".repeat(16), "relayUri": "om-core:mailbox/v0", "capability": "09".repeat(32) });
+    assert_eq!(
+        call(
+            &mut b,
+            json!({ "cmd": "supply_routes", "routes": [ok, bad, legacy] })
+        ),
+        json!({ "ok": 1 })
+    );
+    assert!(
+        call(
+            &mut b,
+            json!({ "cmd": "supply_routes", "routes": [{ "mailbox": "zz" }] })
+        )["err"]
+            .is_object()
+    );
+}

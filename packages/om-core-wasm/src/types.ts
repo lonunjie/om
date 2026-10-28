@@ -7,7 +7,12 @@ export type NetCall =
   | { readonly call: "put_invite"; readonly inviteId: string; readonly descriptor: string; readonly expiresAt: number }
   | { readonly call: "get_invite"; readonly inviteId: string }
   | { readonly call: "revoke_invite"; readonly inviteId: string }
-  | { readonly call: "deposit"; readonly mailbox: string; readonly bytes: string }
+  /**
+   * `mailbox` is the destination's deposit capability exactly as its RelayEntry carried it; `relayUri` is that entry's
+   * relay_uri, so an adapter can refuse a destination at a Home other than the one it is configured for. Both are
+   * absent/legacy only for a pass-2 destination: no `relayUri`, and `mailbox` is the bare 16-byte mailbox id.
+   */
+  | { readonly call: "deposit"; readonly mailbox: string; readonly relayUri?: string; readonly bytes: string }
   | { readonly call: "ack"; readonly mailbox: string; readonly seq: number };
 
 /** Provider-neutral failure classes. `timeout` means the bytes may have been delivered (never a rejection). */
@@ -38,7 +43,17 @@ export interface Record { readonly key: string; readonly value: string }
 export interface Provider {
   perform(call: NetCall): Promise<NetResult>;
   poll(mailbox: string, after: number): Promise<readonly Inbound[]>;
+  /**
+   * Allocates routes for `count` new mailboxes: a fresh random 16-byte `mailbox` id (hex) for Core to poll, and the
+   * `relayUri` and deposit `capability` (hex) peers will use to reach it. Core binds its delivery keys to exactly
+   * these. Local work only (no network). A provider without it (none is configured) leaves Core unable to start
+   * anything that needs a mailbox; there is no stand-in.
+   */
+  allocateRoutes?(count: number): Promise<readonly RouteOffer[]>;
 }
+
+/** One new mailbox and the route to it (see Provider.allocateRoutes). */
+export interface RouteOffer { readonly mailbox: string; readonly relayUri: string; readonly capability: string }
 
 export class CoreCallError extends Error {
   constructor(readonly code: string, message: string) {

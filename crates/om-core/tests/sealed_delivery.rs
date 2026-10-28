@@ -337,6 +337,10 @@ fn bootstrap_key_admits_at_most_eight_candidates_then_dies_with_the_winning_hell
         .try_into()
         .unwrap();
     let mb = unhex(r["myMailbox"].as_str().unwrap()).unwrap();
+    // The route the bootstrap key is bound to (the one Bob's host allocated for this request).
+    let entry = &r["myRelays"]["entries"][0];
+    let uri = entry["relayUri"].as_str().unwrap().to_string();
+    let cap = unhex(entry["capability"].as_str().unwrap()).unwrap();
     let exp = boot["expiresAt"].as_u64().unwrap();
     let mut rng = InsecureTestRng::from_label(b"forger");
     let t = p
@@ -352,8 +356,8 @@ fn bootstrap_key_admits_at_most_eight_candidates_then_dies_with_the_winning_hell
         let w = delivery::seal(
             &pk,
             &kid,
-            delivery::CORE_ROUTE_URI,
-            &mb,
+            &uri,
+            &cap,
             exp.min(1_790_000_000 + 600),
             &[i; 60],
             &mut rng,
@@ -391,16 +395,7 @@ fn bootstrap_key_admits_at_most_eight_candidates_then_dies_with_the_winning_hell
     assert_eq!(rel(&q.alice, &q.a)["state"], "active");
     // A late wrapper sealed to the dead bootstrap key finds no key.
     let failures = r["integrityFailures"].as_u64().unwrap();
-    let w = delivery::seal(
-        &pk,
-        &kid,
-        delivery::CORE_ROUTE_URI,
-        &mb,
-        exp,
-        &[9; 60],
-        &mut rng,
-    )
-    .unwrap();
+    let w = delivery::seal(&pk, &kid, &uri, &cap, exp, &[9; 60], &mut rng).unwrap();
     let mb2 = unhex(r["myMailbox"].as_str().unwrap()).unwrap();
     let t2 = q
         .bob

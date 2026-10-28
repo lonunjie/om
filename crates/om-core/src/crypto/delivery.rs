@@ -219,9 +219,10 @@ pub fn open(
 // ---------------------------------------------------------------------------------------------- key records
 
 pub const LBL_KEY_RECORD_SIG: &str = "OM-SEALED-DELIVERY-KEY-SIG-v1";
-/// Core has no `RelayEntry`/`RelaySet` yet (pass 2 routes by mailbox capability alone), so the route binding uses
-/// this fixed route name in the `relay_uri` position. The binding still ties a delivery key to one deposit
-/// capability, which is what the profile requires of it (section 3); see the pass-2 report for the gap.
+/// LEGACY. Pass 2 had no `RelayEntry`/`RelaySet`, so a delivery key was bound to this fixed name in the `relay_uri`
+/// position plus the bare mailbox. New relationships bind to the route the provider adapter allocated
+/// (`crate::route`); this name survives only as the explicit legacy entry that state migration writes for
+/// relationships created earlier (audit M1).
 pub const CORE_ROUTE_URI: &str = "om-core:mailbox/v0";
 
 /// `DeliveryKeyMaterial` (spec/cddl/delivery.cddl): the relationship-private HPKE key a sender seals to.
@@ -271,7 +272,7 @@ impl KeyMaterial {
     }
 }
 
-/// Route binding of a Core mailbox capability.
+/// Route binding of a legacy (pass 2) mailbox route. Not used for new routes.
 pub fn mailbox_route_binding(mailbox: &[u8]) -> [u8; 32] {
     route_binding(CORE_ROUTE_URI, mailbox)
 }
@@ -331,7 +332,7 @@ pub fn open_key_record(
 
 /// Fresh key pair for a delivery key (the private seed never leaves the profile's encrypted state).
 pub fn new_key<R: RngCore + CryptoRng>(
-    mailbox: &[u8],
+    route_binding: [u8; 32],
     expires_at: u64,
     rng: &mut R,
 ) -> ([u8; 32], KeyMaterial) {
@@ -345,7 +346,7 @@ pub fn new_key<R: RngCore + CryptoRng>(
         KeyMaterial {
             key_id,
             public_key: pk,
-            route_binding: mailbox_route_binding(mailbox),
+            route_binding,
             expires_at,
         },
     )
