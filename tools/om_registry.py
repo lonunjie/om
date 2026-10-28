@@ -29,7 +29,7 @@ ARCH_DOMAINS = {
 }
 CODE = {".py", ".mjs", ".js", ".ts", ".rs", ".go", ".tla", ".cfg", ".sh", ".toml", ".lock", ".cddl", ".html", ".css"}
 CC, AP = "CC-BY-SA-4.0", "Apache-2.0"
-WEB_PLUMBING = {"package.json", "pnpm-workspace.yaml", "pnpm-lock.yaml", "tsconfig.json", "tsconfig.base.json", "eslint.config.js",
+WEB_PLUMBING = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "package.json", "pnpm-workspace.yaml", "pnpm-lock.yaml", "tsconfig.json", "tsconfig.base.json", "eslint.config.js",
                 "eslint.policy.js", "eslint.policy.d.ts", "vitest.config.ts"}
 
 
@@ -39,7 +39,7 @@ def license_for(path: str) -> str:
         return "upstream-license-text"
     if path.startswith(("spec/", "machine/", "tools/", ".github/")) or path in {"Makefile", "REUSE.toml", ".gitignore"}:
         return AP
-    if path.startswith(("packages/", "apps/")):
+    if path.startswith(("packages/", "apps/", "crates/")):
         return "MPL-2.0"  # shared client libraries and the reference web client (LICENSING_AND_CONTRIBUTION_POLICY.md)
     if path in WEB_PLUMBING:
         return AP
@@ -92,6 +92,8 @@ def classify(path: str) -> dict:
         if p.startswith(("verification/results/", "verification/vectors/")) or (ext == ".json" and "/prototypes/" not in p):
             return e("verification_artifact", "architecture_verification", "machine_verification_evidence")
         return e("verification_tool", "architecture_verification", "executable_verification_evidence")
+    if p.startswith("crates/"):
+        return e("product_code", "crypto_1to1", "product_implementation")
     if p.startswith(("packages/", "apps/")):
         return e("product_code", "client_endpoint_distribution", "product_implementation")
     if p in WEB_PLUMBING:

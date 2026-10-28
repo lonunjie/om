@@ -12,13 +12,13 @@ SPDX-FileCopyrightText = "OM contributors"
 SPDX-License-Identifier = "CC-BY-SA-4.0"
 
 [[annotations]]
-path = ["packages/**", "apps/**"]
+path = ["packages/**", "apps/**", "crates/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "OM contributors"
 SPDX-License-Identifier = "MPL-2.0"
 
 [[annotations]]
-path = ["package.json", "pnpm-workspace.yaml", "pnpm-lock.yaml", "tsconfig.json", "tsconfig.base.json", "eslint.config.js", "eslint.policy.js", "eslint.policy.d.ts", "vitest.config.ts"]
+path = ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "package.json", "pnpm-workspace.yaml", "pnpm-lock.yaml", "tsconfig.json", "tsconfig.base.json", "eslint.config.js", "eslint.policy.js", "eslint.policy.d.ts", "vitest.config.ts"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "OM contributors"
 SPDX-License-Identifier = "Apache-2.0"

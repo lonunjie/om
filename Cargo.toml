@@ -1,0 +1,22 @@
+# OM engineering workspace (core_kernel, ADR-0169). Layout: docs/process/ENGINEERING_REPOSITORY_LAYOUT.md.
+[workspace]
+resolver = "3"
+members = ["crates/om-codec", "crates/om-core", "crates/om-wasm"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.98"
+license = "MPL-2.0"
+publish = false
+repository = "https://github.com/lonunjie/om"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = false
+panic = "abort"

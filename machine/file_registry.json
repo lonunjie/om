@@ -46,6 +46,20 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "Cargo.lock",
+      "class": "repo_plumbing",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "Cargo.toml",
+      "class": "repo_plumbing",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
       "path": "GEMINI.md",
       "class": "agent_pointer",
       "domain": "architecture_process",
@@ -553,6 +567,76 @@
       "path": "apps/web/vite.config.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-codec/Cargo.toml",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-codec/src/cbor.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-codec/src/derive.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-codec/src/lib.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-codec/src/schema.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-codec/tests/w0_vectors.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/Cargo.toml",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/lib.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-wasm/Cargo.toml",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-wasm/src/lib.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
       "license": "MPL-2.0",
       "authority": "product_implementation"
     },
@@ -7355,6 +7439,13 @@
     },
     {
       "path": "pnpm-workspace.yaml",
+      "class": "repo_plumbing",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "rust-toolchain.toml",
       "class": "repo_plumbing",
       "domain": "architecture_process",
       "license": "Apache-2.0",
