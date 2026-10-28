@@ -12,6 +12,9 @@
     "@om/home-wire": "workspace:*"
   },
   "devDependencies": {
+    "@om/core-wasm": "workspace:*",
+    "@om/platform-api": "workspace:*",
+    "@om/provider-http": "workspace:*",
     "@cloudflare/workers-types": "4.20260611.1",
     "miniflare": "4.20260611.0",
     "wrangler": "4.100.0"

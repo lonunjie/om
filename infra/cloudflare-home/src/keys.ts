@@ -4,7 +4,7 @@
 // decides whether a bundle is valid or fresh for a peer: clients verify signatures, the ACS binding and their own
 // generation floor (PC-K05). The provider-side checks here are availability aids only.
 import { DurableObject } from "cloudflare:workers";
-import { Obj, HomeError, decode, encodeKeyFetchResponse, quotaDetail, type CborValue, type KeyPublishRequest } from "@om/home-wire";
+import { HomeError, encodeKeyFetchResponse, quotaDetail, readBundleFacts, type KeyPublishRequest } from "@om/home-wire";
 import type { Env } from "./env";
 import { LIMITS } from "./limits";
 import { all, metaNumber, metaString, one, run, setMeta } from "./sql";
@@ -15,24 +15,6 @@ CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v);
 CREATE TABLE IF NOT EXISTS prekeys (id INTEGER PRIMARY KEY AUTOINCREMENT, kind INTEGER NOT NULL, item BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS ops (request_id TEXT PRIMARY KEY, fp TEXT NOT NULL, expires_at INTEGER NOT NULL);
 `;
-
-interface BundleFacts { readonly deviceId: Uint8Array; readonly generation: number; readonly expiresAt: number }
-
-/** Best-effort structural read of a signed-AsyncKeyBundle: {1: bstr .cbor AsyncKeyBundle, 2: [signatures]}. Never verifies anything. */
-export function readBundleFacts(bundle: Uint8Array): BundleFacts | undefined {
-  try {
-    const outer = new Obj(decode(bundle));
-    const body = outer.bytes(1, 1, LIMITS.maxBundleBytes);
-    const inner = decode(body);
-    if (!(inner instanceof Map)) return undefined;
-    const m = inner as ReadonlyMap<number | string, CborValue>;
-    const [type, deviceId, generation, expiresAt] = [m.get(0), m.get(2), m.get(6), m.get(13)];
-    if (type !== 9 || !(deviceId instanceof Uint8Array) || typeof generation !== "number" || typeof expiresAt !== "number") return undefined;
-    return { deviceId, generation, expiresAt };
-  } catch {
-    return undefined;
-  }
-}
 
 export class KeyPool extends DurableObject<Env> {
   private readonly sql: SqlStorage;

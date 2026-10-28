@@ -1,0 +1,15 @@
+{
+  "name": "@om/provider-http",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "HTTPS provider adapter for om-core: implements the Core transport interface (Provider) over the OM Home API v1 reference HTTP binding. Works against any conforming Home (the Cloudflare reference Home is one); never names a vendor.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@om/core-wasm": "workspace:*",
+    "@om/home-wire": "workspace:*",
+    "@om/platform-api": "workspace:*"
+  }
+}

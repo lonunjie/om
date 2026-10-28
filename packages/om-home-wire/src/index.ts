@@ -6,6 +6,7 @@ export * from "./errors";
 export * from "./bodies";
 export * from "./route";
 export * from "./sealed";
+export * from "./bundle";
 export { Obj } from "./fields";
 
 /** Optional-feature ids a Home advertises in ProviderCapabilities.features (home-api.md section 1). */
