@@ -280,7 +280,8 @@ describe("root-ceremony: vault generation and external (hardware) signers", () =
     expect(item).toMatchObject({ type: 2, name: "OM test root", secureNote: { type: 0 } });
     // the key is a single-line HIDDEN custom field (type 1), never the note body (always visible in the UI)
     expect(item.fields).toHaveLength(1);
-    expect(item.fields[0]).toMatchObject({ name: expect.stringMatching(/^ed25519-pkcs8-\d{4}-\d{2}-\d{2}$/), type: 1 });
+    expect(item.fields[0]).toMatchObject({ type: 1 });
+    expect(item.fields[0]?.name).toMatch(/^ed25519-pkcs8-\d{4}-\d{2}-\d{2}$/);
     const body = item.fields[0]?.value ?? "";
     expect(body).toMatch(/^[A-Za-z0-9+/]{64}$/);
     expect(item.notes).not.toContain(body);
