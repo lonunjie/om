@@ -140,6 +140,31 @@ fn removing_a_messaging_device_is_a_signed_transition_and_is_terminal() {
         ),
         rejected(RejectReason::Unauthorized)
     );
+    // A token must be a token (an object): `false`, `0`, `""` and `[]` are not confirmations (audit M2).
+    for (n, bogus) in [
+        serde_json::json!(false),
+        serde_json::json!(0),
+        serde_json::json!(""),
+        serde_json::json!([]),
+        serde_json::json!("confirmed"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert_eq!(
+            outcome(
+                &mut rt,
+                &ctx,
+                &format!("bogus-{n}"),
+                IntentBody::RevokeDevice {
+                    device_id: id.clone(),
+                    confirmation: bogus
+                }
+            ),
+            rejected(RejectReason::Unauthorized),
+            "case {n}"
+        );
+    }
     assert_eq!(
         outcome(
             &mut rt,

@@ -337,8 +337,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     pub fn apply_intent(&mut self, intent: &Intent) -> Result<(), CoreError> {
         let op = &intent.operation_id;
         let kind = intent.body.kind();
-        // UI-11: destructive intents never run on a bare dispatch.
-        if intent.body.confirmation().is_some_and(|c| c.is_null()) {
+        // UI-11: destructive intents never run on a bare dispatch. The token is an object minted by the Action
+        // Registry; `null`, booleans, numbers, strings and arrays are not confirmations. (Core-issued single-use
+        // nonces bound to intent, target and profile remain open: see the audit report, M2.)
+        if intent.body.confirmation().is_some_and(|c| !c.is_object()) {
             self.record(
                 op,
                 kind,
