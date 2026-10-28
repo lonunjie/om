@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv, type Plugin, type UserConfig } from "vite";
+import { build as viteBuild, defineConfig, loadEnv, type Plugin, type UserConfig } from "vite";
 import { landingPlugin } from "./build/landing.ts";
 import { bundleManifestPlugin } from "./build/plugin.ts";
 import { SECURITY_HEADERS, cspHeader, headersFile } from "./csp.ts";
@@ -10,6 +10,33 @@ const emitHeaders = (): Plugin => ({
   name: "om-emit-headers",
   generateBundle() {
     this.emitFile({ type: "asset", fileName: "_headers", source: headersFile() });
+  },
+});
+
+// The service worker is registered as a CLASSIC script at a stable URL (/sw.js), so it must be one self-contained file. Built as a
+// second entry it shared a chunk with the app (both use @noble/hashes) and a classic worker cannot import it: registration failed
+// silently and no production build had a service worker. It is therefore bundled on its own (IIFE, nothing shared) and emitted
+// as /sw.js before the bundle manifest is computed.
+const serviceWorker = (): Plugin => ({
+  name: "om-service-worker",
+  async generateBundle() {
+    const out = await viteBuild({
+      configFile: false,
+      logLevel: "silent",
+      define: { __OM_DEV_BUNDLE__: JSON.stringify(dev) },
+      build: {
+        write: false,
+        target: "es2023",
+        sourcemap: false,
+        minify: true,
+        lib: { entry: new URL("./src/sw/sw.ts", import.meta.url).pathname, formats: ["iife"], name: "OmServiceWorker", fileName: () => "sw.js" },
+      },
+    });
+    const outputs = (Array.isArray(out) ? out : [out]).flatMap((o) => ("output" in o ? o.output : []));
+    const chunk = outputs.find((o) => o.type === "chunk");
+    if (chunk === undefined) throw new Error("service worker build produced no chunk");
+    if (/^\s*(import|export)\b|\bimport\s*\(|\bimportScripts\b/m.test(chunk.code)) throw new Error("service worker bundle must be self-contained (no import/export/importScripts)");
+    this.emitFile({ type: "asset", fileName: "sw.js", source: chunk.code });
   },
 });
 
@@ -25,18 +52,13 @@ function localRelayCsp(): Record<string, string> {
 }
 
 const config: UserConfig = {
-  plugins: [react(), landingPlugin(), emitHeaders(), bundleManifestPlugin({ version, dev })],
+  plugins: [react(), landingPlugin(), emitHeaders(), serviceWorker(), bundleManifestPlugin({ version, dev })],
   define: { __OM_DEV_BUNDLE__: JSON.stringify(dev) },
   build: {
     target: "es2023",
     sourcemap: false,
     modulePreload: { polyfill: false },
     assetsInlineLimit: 0,
-    // The service worker is a second entry with a stable, unhashed URL (/sw.js).
-    rollupOptions: {
-      input: { index: "index.html", sw: "src/sw/sw.ts" },
-      output: { entryFileNames: (chunk) => (chunk.name === "sw" ? "sw.js" : "assets/[name]-[hash].js") },
-    },
   },
   preview: { headers: { ...SECURITY_HEADERS, ...localRelayCsp() } },
 };
