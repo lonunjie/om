@@ -144,6 +144,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "apps/web/build/build-live-relay.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/check-no-harness.d.mts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -404,6 +411,13 @@
     },
     {
       "path": "apps/web/e2e/landing.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/e2e/live-relay.spec.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -2618,7 +2632,7 @@
       "path": "deploy/site-stage.mjs",
       "class": "architecture_doc",
       "domain": "architecture_process",
-      "license": "Apache-2.0",
+      "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
     },
     {

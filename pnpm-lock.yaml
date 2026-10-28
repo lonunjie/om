@@ -245,6 +245,9 @@ importers:
       '@om/core-harness':
         specifier: workspace:*
         version: link:../../packages/om-core-harness
+      '@om/home-wire':
+        specifier: workspace:*
+        version: link:../../packages/om-home-wire
 
   infra/cloudflare-home:
     dependencies:

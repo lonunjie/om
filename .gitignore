@@ -32,6 +32,7 @@ design-drops/
 .claude/
 dist-e2e/
 dist-relay-e2e/
+dist-live-relay/
 .wrangler/
 
 # Release output of apps/web/build/release.mjs (deploy kit).

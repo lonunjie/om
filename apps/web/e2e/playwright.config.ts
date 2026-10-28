@@ -9,6 +9,9 @@ const BUNDLE = "http://localhost:4175";
 const CORE = "http://localhost:4176";
 const RELAY_APP = "http://localhost:4177";
 const RELAY = "http://127.0.0.1:8788";
+const LIVE_APP = "http://localhost:4178";
+// Opt-in (OM_LIVE_RELAY=1): the production build against the LIVE reference Home. Never part of the hermetic run.
+const live = process.env["OM_LIVE_RELAY"] === "1";
 const cameraArgs = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-video-capture=${writeQrY4m()}`];
 
 export default defineConfig({
@@ -30,11 +33,13 @@ export default defineConfig({
     // The real Core in the production entry, connected to the local reference Home (the Worker bundle in workerd).
     { command: "node ../../infra/cloudflare-home/test/serve.ts 8788", cwd: "..", url: `${RELAY}/healthz`, reuseExistingServer: true },
     { command: "pnpm exec vite preview --outDir dist-relay-e2e --port 4177 --strictPort", cwd: "..", url: RELAY_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: RELAY } },
+    ...(live ? [{ command: "pnpm exec vite preview --outDir dist-live-relay --port 4178 --strictPort", cwd: "..", url: LIVE_APP, reuseExistingServer: true }] : []),
   ],
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"], launchOptions: { args: cameraArgs } }, testIgnore: /cross\.spec\.ts/ },
+    { name: "chromium", use: { ...devices["Desktop Chrome"], launchOptions: { args: cameraArgs } }, testIgnore: /(cross|live-relay)\.spec\.ts/ },
     { name: "firefox", use: { ...devices["Desktop Firefox"] }, testMatch: /(cross|core|relay)\.spec\.ts/ },
     { name: "webkit", use: { ...devices["Desktop Safari"] }, testMatch: /(cross|core|relay)\.spec\.ts/ },
+    ...(live ? [{ name: "live-chromium", use: { ...devices["Desktop Chrome"] }, testMatch: /live-relay\.spec\.ts/, timeout: 240_000 }] : []),
   ],
 });
 

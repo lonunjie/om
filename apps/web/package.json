@@ -5,8 +5,10 @@
     "repro": "node build/check-reproducible.mjs",
     "build:e2e": "node build/ensure-core-wasm.mjs && tsc -b && OM_BUNDLE_DEV=1 vite build --outDir dist-e2e --emptyOutDir",
     "build:relay-e2e": "node build/ensure-core-wasm.mjs && tsc -b && VITE_OM_RELAY_URL=http://127.0.0.1:8788 VITE_OM_ALLOW_LOOPBACK_RELAY=1 OM_BUNDLE_DEV=1 vite build --outDir dist-relay-e2e --emptyOutDir",
+    "build:live-relay": "node build/build-live-relay.mjs",
+    "e2e:live": "pnpm build:live-relay && OM_LIVE_RELAY=1 playwright test -c e2e live-relay.spec.ts --project=live-chromium",
     "preview:e2e": "vite preview --outDir dist-e2e --port 4175 --strictPort",
     "e2e": "pnpm build:harness && pnpm build:e2e && pnpm build:core-e2e && pnpm build:relay-e2e && playwright test -c e2e",
     "e2e:run": "playwright test -c e2e",
     "preview": "vite preview",
-    "preview:harness": "vite preview --outDir dist-harness --port 4173 --strictPort" }, "dependencies": { "@om/core-wasm": "workspace:*", "@om/platform-api": "workspace:*", "@om/provider-http": "workspace:*", "@om/ui": "workspace:*", "@om/web-platform": "workspace:*", "@noble/post-quantum": "0.7.1", "react": "19.3.0", "react-dom": "19.3.0" }, "devDependencies": { "@om/core-harness": "workspace:*" } }
+    "preview:harness": "vite preview --outDir dist-harness --port 4173 --strictPort" }, "dependencies": { "@om/core-wasm": "workspace:*", "@om/platform-api": "workspace:*", "@om/provider-http": "workspace:*", "@om/ui": "workspace:*", "@om/web-platform": "workspace:*", "@noble/post-quantum": "0.7.1", "react": "19.3.0", "react-dom": "19.3.0" }, "devDependencies": { "@om/core-harness": "workspace:*", "@om/home-wire": "workspace:*" } }
