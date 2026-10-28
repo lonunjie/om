@@ -19,7 +19,7 @@ import { chmodSync, existsSync, readFileSync, realpathSync, statSync, writeFileS
 import { dirname, isAbsolute, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { DELEGATION_FORMAT, delegationPayload, parseDelegation } from "./verify-release.mjs";
+import { DELEGATION_FORMAT, FRAME_RAW, KNOWN_FRAMES, frameDelegationPayload, parseDelegation } from "./verify-release.mjs";
 
 const TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const ID = /^[A-Za-z0-9._-]{1,64}$/;
@@ -60,17 +60,24 @@ export const loadRoot = (file) => {
   try { key = createPrivateKey(readFileSync(file, "utf8")); } catch { throw new Error(`${file} is not a PKCS8 PEM private key`); }
   if (key.asymmetricKeyType !== "ed25519") throw new Error(`${file} is not an ed25519 key`);
   const pubHex = rawPub(createPublicKey(key)).toString("hex");
-  return { key, ...describeKey(pubHex) };
+  return { key, frame: FRAME_RAW, ...describeKey(pubHex) };
 };
 
-/** Adds (or replaces) this root's signature over the delegation payload. Pure; returns a new object. */
+/**
+ * Adds (or replaces) this root's signature over the delegation payload, framed as `root.frame` (default "raw"; a software
+ * key can emulate a Ledger frame, which tests use). The entry declares its frame unless raw. Pure; returns a new object.
+ */
 export const addRootSignature = (delegation, root) => {
   const d = parseDelegation(delegation);
   if (!d) throw new Error("not a valid delegation document");
-  const sig = sign(null, delegationPayload(d), root.key).toString("base64");
-  const others = d.signatures.filter((s) => s.keyId !== root.id);
-  return { ...d, signatures: [...others, { keyId: root.id, alg: "ed25519", sig }].sort((a, b) => (a.keyId < b.keyId ? -1 : 1)) };
+  const frame = root.frame ?? FRAME_RAW;
+  const framed = frameDelegationPayload(frame, d, root.pub);
+  if (!framed) throw new Error(`unknown frame ${JSON.stringify(frame)} (known: ${KNOWN_FRAMES.join(", ")})`);
+  const sig = sign(null, framed, root.key).toString("base64");
+  return attachSignature(d, { keyId: root.id, alg: "ed25519", sig, ...(frame === FRAME_RAW ? {} : { frame }) });
 };
+/** Adds (or replaces) a ready-made signature entry; sorted by keyId. */
+export const attachSignature = (d, entry) => ({ ...d, signatures: [...d.signatures.filter((s) => s.keyId !== entry.keyId), entry].sort((a, b) => (a.keyId < b.keyId ? -1 : 1)) });
 
 /**
  * Builds an UNSIGNED delegation. With `prev`, version is prev+1 and keys/revoked carry over. `addKey` appends a key,

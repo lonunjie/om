@@ -5,12 +5,12 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { verifyChain } from "../src/update/delegation";
+import { frameDelegationPayload, verifyChain, type Delegation } from "../src/update/delegation";
 import { verifyBundleSignature } from "../src/update/signature";
 import { buildManifest } from "./manifest";
 import { DAY, NOW, delegate, mkOnline, mkRoot, pinOf, signWith, type Root } from "./testkit";
 import { buildDelegation, generateRoot, loadRoot, parseTime } from "./root-ceremony.mjs";
-import { verifyManifestSignature } from "./verify-release.mjs";
+import { frameDelegationPayload as frameMjs, verifyManifestSignature, type Delegation as MjsDelegation } from "./verify-release.mjs";
 
 const tmp = mkdtempSync(join(tmpdir(), "om-ceremony-test-"));
 afterAll(() => {
@@ -24,9 +24,19 @@ const R3 = mkRoot();
 const ONLINE = mkOnline();
 const OTHER = mkOnline();
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
-type Case = { name: string; delegation: unknown; pin: { keys: Record<string, string>; threshold: number }; signer?: typeof ONLINE; keyId?: string; now?: number; floor?: number | null; reason: string | null };
+type Case = { name: string; delegation: unknown; pin: { keys: Record<string, string | { pub: string; frame: string }>; threshold: number }; signer?: typeof ONLINE; keyId?: string; now?: number; floor?: number | null; reason: string | null };
 const good = delegate({ roots: [R1], online: ONLINE });
 const pin1 = pinOf([R1]);
+// Root framing (operator decision 2026-10-28): two Ledger-framed roots (software EMULATION of the Solana off-chain
+// envelope, no device) and one raw software root; 2 of 3.
+const LA = mkRoot("solana-offchain-v0");
+const LB = mkRoot("solana-offchain-v0");
+const SW = mkRoot();
+const pin3 = pinOf([LA, LB, SW], 2);
+type Sig = Record<string, unknown>;
+const editSigs = (d: Record<string, unknown>, f: (s: Sig[]) => Sig[]) => ({ ...clone(d), signatures: f(clone(d["signatures"]) as Sig[]) });
+const dropFrame = (s: Sig[]) => s.map((x) => Object.fromEntries(Object.entries(x).filter(([k]) => k !== "frame")));
+const asRaw = (r: Root): Root => ({ ...r, frame: "raw" }); // same key, signs the unframed payload
 const cases: Case[] = [
   { name: "valid chain", delegation: good, pin: pin1, reason: null },
   { name: "valid chain, floor equal", delegation: good, pin: pin1, floor: 1, reason: null },
@@ -50,6 +60,24 @@ const cases: Case[] = [
   { name: "2-of-3 with one root", delegation: delegate({ roots: [R1], online: ONLINE }), pin: pinOf([R1, R2, R3], 2), reason: "root_threshold" },
   { name: "2-of-3 with one root twice", delegation: delegate({ roots: [R1, R1], online: ONLINE }), pin: pinOf([R1, R2, R3], 2), reason: "root_threshold" },
   { name: "2-of-3 with one root plus a stranger", delegation: delegate({ roots: [R1, mkRoot()], online: ONLINE }), pin: pinOf([R1, R2, R3], 2), reason: "root_threshold" },
+  { name: "2-of-3: two Ledger-framed roots", delegation: delegate({ roots: [LA, LB], online: ONLINE }), pin: pin3, reason: null },
+  { name: "2-of-3 mixed frames: Ledger + software", delegation: delegate({ roots: [LB, SW], online: ONLINE }), pin: pin3, reason: null },
+  { name: "2-of-3: all three", delegation: delegate({ roots: [LA, LB, SW], online: ONLINE }), pin: pin3, reason: null },
+  { name: "1-of-3 (Ledger only)", delegation: delegate({ roots: [LA], online: ONLINE }), pin: pin3, reason: "root_threshold" },
+  { name: "1-of-3 (software only)", delegation: delegate({ roots: [SW], online: ONLINE }), pin: pin3, reason: "root_threshold" },
+  { name: "duplicate signature entries from one key count once", delegation: editSigs(delegate({ roots: [LA], online: ONLINE }), (s) => [...s, ...s]), pin: pin3, reason: "root_threshold" },
+  { name: "duplicate entries plus a second key still reach 2", delegation: editSigs(delegate({ roots: [LA, SW], online: ONLINE }), (s) => [...s, ...s]), pin: pin3, reason: null },
+  { name: "Ledger signature that omits its frame", delegation: editSigs(delegate({ roots: [LA, SW], online: ONLINE }), dropFrame), pin: pin3, reason: "root_threshold" },
+  { name: "Ledger key signed the raw payload (wrong frame, honestly declared raw)", delegation: delegate({ roots: [asRaw(LA), SW], online: ONLINE }), pin: pin3, reason: "root_threshold" },
+  { name: "Ledger key signed the raw payload but declares the Ledger frame", delegation: editSigs(delegate({ roots: [asRaw(LA), SW], online: ONLINE }), (s) => s.map((x) => (x["keyId"] === LA.id ? { ...x, frame: "solana-offchain-v0" } : x))), pin: pin3, reason: "root_threshold" },
+  { name: "software key declares a Ledger frame it is not pinned for", delegation: editSigs(delegate({ roots: [LA, SW], online: ONLINE }), (s) => s.map((x) => (x["keyId"] === SW.id ? { ...x, frame: "solana-offchain-v0" } : x))), pin: pin3, reason: "root_threshold" },
+  { name: "Ledger key signed the Ledger frame but the pin says raw", delegation: delegate({ roots: [LA, SW], online: ONLINE }), pin: { keys: { ...pin3.keys, [LA.id]: LA.pub }, threshold: 2 }, reason: "root_threshold" },
+  { name: "unknown declared frame is ignored", delegation: editSigs(delegate({ roots: [LA, SW], online: ONLINE }), (s) => s.map((x) => (x["keyId"] === LA.id ? { ...x, frame: "bogus/9" } : x))), pin: pin3, reason: "root_threshold" },
+  { name: "unknown pinned frame fails closed", delegation: delegate({ roots: [LA, LB], online: ONLINE }), pin: { keys: { ...pin3.keys, [LA.id]: { pub: LA.pub, frame: "bogus/9" } }, threshold: 2 }, reason: "root_unset" },
+  { name: "non-string signature frame is malformed", delegation: editSigs(delegate({ roots: [LA, LB], online: ONLINE }), (s) => s.map((x) => ({ ...x, frame: 7 }))), pin: pin3, reason: "malformed_delegation" },
+  { name: "one public key pinned under two ids is unusable", delegation: delegate({ roots: [LA, LB], online: ONLINE }), pin: { keys: { ...pin3.keys, "root-clone": { pub: LA.pub, frame: "solana-offchain-v0" } }, threshold: 2 }, reason: "root_unset" },
+  { name: "Ledger-framed roots, delegation edited after signing", delegation: { ...clone(delegate({ roots: [LA, LB], online: ONLINE })), version: 9 }, pin: pin3, reason: "root_threshold" },
+  { name: "Ledger-framed roots, expiry edited after signing", delegation: { ...clone(delegate({ roots: [LA, LB], online: ONLINE })), expires: "2027-12-31T00:00:00Z" }, pin: pin3, reason: "root_threshold" },
   { name: "expired delegation", delegation: good, pin: pin1, now: NOW + 91 * DAY, reason: "delegation_expired" },
   { name: "expires exactly now", delegation: good, pin: pin1, now: NOW + 90 * DAY, reason: "delegation_expired" },
   { name: "rolled back below floor", delegation: good, pin: pin1, floor: 2, reason: "delegation_rollback" },
@@ -87,6 +115,51 @@ describe("TS verifier and verify-release.mjs agree on every case (shared fixture
     const m = { ...signWith(await base, good, ONLINE), version: "2.0.0" };
     expect(await verifyBundleSignature(m, { roots: pin1, now: () => NOW })).toEqual({ ok: false, reason: "bad_signature" });
     expect(verifyManifestSignature(m, pin1, { now: NOW })).toEqual({ ok: false, reason: "bad_signature" });
+  });
+});
+
+describe("Ledger frame (Solana off-chain message, v0, format 0)", () => {
+  // Independent oracle: built by a separate Python implementation (not this code) from the layout in
+  // deploy/KEY-CEREMONY.md "Ledger framing", which follows LedgerHQ/app-solana (libsol/parser.c parse_offchain_message_header).
+  const GOLDEN_DELEGATION = JSON.parse(
+    '{"format":"om.release-delegation/1","version":3,"expires":"2027-01-26T00:00:00Z","keys":[{"keyId":"om-release-2026-10-28","alg":"ed25519","pub":"fad8cae9155ea0b7943c0b3f141a20f85b35c88ca5eacfe576a9bf578f28ebeb","notBefore":"2026-10-28T00:00:00Z","notAfter":"2027-01-26T00:00:00Z"}],"revoked":[],"signatures":[]}',
+  ) as Delegation;
+  const GOLDEN_JS = GOLDEN_DELEGATION as unknown as MjsDelegation;
+  const must = <T>(v: T | null): T => {
+    if (v === null) throw new Error("unexpected null");
+    return v;
+  };
+  const SIGNER = "11".repeat(32);
+  const GOLDEN_HEX =
+    "ff736f6c616e61206f6666636861696e006f6d2e72656c656173652d64656c65676174696f6e2f31000000000000000000000111111111111111111111111111111111111111111111111111111111111111118a004f4d2072656c656173652064656c65676174696f6e207c2076657273696f6e2033207c206578706972657320323032372d30312d32365430303a30303a30305a207c207368613235362033643361363334663635646339383036373364336533623362633739386465323830656166353932653937336134373138623265633661386431366339306539";
+  const hex = (b: Uint8Array) => Buffer.from(b).toString("hex");
+  it("both implementations produce the golden envelope byte for byte", async () => {
+    expect(hex(must(await frameDelegationPayload("solana-offchain-v0", GOLDEN_DELEGATION, SIGNER)))).toBe(GOLDEN_HEX);
+    expect(hex(must(frameMjs("solana-offchain-v0", GOLDEN_JS, SIGNER)))).toBe(GOLDEN_HEX);
+  });
+  it("the envelope is the Solana v0 layout: domain, version, app domain, format 0, one signer, u16 LE length, ASCII text", () => {
+    const b = Buffer.from(GOLDEN_HEX, "hex");
+    expect(b.subarray(0, 16).toString("latin1")).toBe("\xffsolana offchain");
+    expect(b[16]).toBe(0);
+    expect(b.subarray(17, 49).toString("latin1").replace(/\0+$/, "")).toBe("om.release-delegation/1");
+    expect([b[49], b[50]]).toEqual([0, 1]);
+    expect(b.subarray(51, 83).toString("hex")).toBe(SIGNER);
+    const len = b.readUInt16LE(83);
+    expect(b.length).toBe(85 + len); // OFFCHAIN_MESSAGE_HEADER_LENGTH = 85 for one signer (app globals.h)
+    const text = b.subarray(85).toString("latin1");
+    expect(text).toMatch(/^[\x20-\x7e]+$/); // restricted ASCII: the device shows it in clear
+    expect(len).toBeLessThanOrEqual(1212);
+  });
+  it("the frame binds the signer key, version, expiry and payload hash; raw returns the payload itself; unknown is null", async () => {
+    const f = async (d: object, pub = SIGNER) => hex(must(await frameDelegationPayload("solana-offchain-v0", d as Delegation, pub)));
+    const base = await f(GOLDEN_DELEGATION);
+    expect(await f(GOLDEN_DELEGATION, "22".repeat(32))).not.toBe(base);
+    expect(await f({ ...GOLDEN_DELEGATION, version: 4 })).not.toBe(base);
+    expect(await f({ ...GOLDEN_DELEGATION, revoked: ["x"] })).not.toBe(base);
+    expect(await f({ ...GOLDEN_DELEGATION, signatures: [{ keyId: "a", alg: "ed25519", sig: "AA==" }] })).toBe(base); // signatures are not signed
+    expect(hex(must(await frameDelegationPayload("raw", GOLDEN_DELEGATION, SIGNER)))).toBe(hex(must(frameMjs("raw", GOLDEN_JS, SIGNER))));
+    expect(await frameDelegationPayload("nope", GOLDEN_DELEGATION, SIGNER)).toBeNull();
+    expect(frameMjs("nope", GOLDEN_JS, SIGNER)).toBeNull();
   });
 });
 

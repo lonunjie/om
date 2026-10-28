@@ -16,8 +16,10 @@ const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.is
 // While unset, no signed release verifies (fail closed) and production release builds refuse. Must equal ROOT_KEYS /
 // ROOT_THRESHOLD in src/update/release-key.ts (release.test.ts checks). Release keys are NOT pinned: they come from the
 // root-signed delegation inside the manifest.
+// Operator decision 2026-10-28: 2-of-3 roots (two Ledgers, one software key). A pinned value is a bare 64-hex public key
+// (frame "raw") or { pub, frame }; the frame is pinned per key and a signature cannot choose it.
 export const PINNED_ROOTS = {};
-export const PINNED_ROOT_THRESHOLD = 1;
+export const PINNED_ROOT_THRESHOLD = 2;
 const isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 export const canonicalJson = (v) => {
   if (Array.isArray(v)) return `[${v.map(canonicalJson).join(",")}]`;
@@ -30,6 +32,9 @@ const HEX64 = /^[0-9a-f]{64}$/;
 const TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 export const DELEGATION_FORMAT = "om.release-delegation/1";
 const timeMs = (s) => (typeof s === "string" && TIME.test(s) ? Date.parse(s) : Number.NaN);
+export const FRAME_RAW = "raw";
+export const FRAME_SOLANA_OFFCHAIN_V0 = "solana-offchain-v0";
+export const KNOWN_FRAMES = [FRAME_RAW, FRAME_SOLANA_OFFCHAIN_V0];
 const edVerify = (hex, payload, sigB64) => {
   try {
     const key = createPublicKey({ key: Buffer.concat([SPKI_ED25519, Buffer.from(hex, "hex")]), format: "der", type: "spki" });
@@ -37,8 +42,31 @@ const edVerify = (hex, payload, sigB64) => {
   } catch { return false; }
 };
 
-/** Bytes a root signature covers. Mirror of delegationPayload in src/update/delegation.ts. */
+/** Bytes a raw-framed root signature covers. Mirror of delegationPayload in src/update/delegation.ts. */
 export const delegationPayload = (d) => Buffer.from(canonicalJson({ ...d, signatures: null }), "utf8");
+
+// Ledger Solana app off-chain message, header v0, format 0 (restricted ASCII). Mirror of frameDelegationPayload; see
+// deploy/KEY-CEREMONY.md "Ledger framing". The app signs the WHOLE envelope (PureEdDSA).
+const SOLANA_DOMAIN = Buffer.concat([Buffer.from([0xff]), Buffer.from("solana offchain", "ascii")]);
+const SOLANA_APP_DOMAIN = Buffer.concat([Buffer.from("om.release-delegation/1", "ascii"), Buffer.alloc(9)]);
+/** The short ASCII text a Ledger shows and signs for a delegation. */
+export const ledgerText = (d, payloadSha256Hex) => `OM release delegation | version ${d.version} | expires ${d.expires} | sha256 ${payloadSha256Hex}`;
+/** The exact bytes a root key with `frame` signs for delegation `d`; null for an unknown frame. */
+export const frameDelegationPayload = (frame, d, signerPubHex) => {
+  const payload = delegationPayload(d);
+  if (frame === FRAME_RAW) return payload;
+  if (frame !== FRAME_SOLANA_OFFCHAIN_V0) return null;
+  const text = Buffer.from(ledgerText(d, sha(payload)), "ascii");
+  const len = Buffer.alloc(2);
+  len.writeUInt16LE(text.length);
+  return Buffer.concat([SOLANA_DOMAIN, Buffer.from([0]), SOLANA_APP_DOMAIN, Buffer.from([0, 1]), Buffer.from(signerPubHex, "hex"), len, text]);
+};
+/** Pinned descriptor as { pub, frame }; null when malformed or the frame is unknown (fail closed). */
+export const describeRoot = (v) => {
+  const d = typeof v === "string" ? { pub: v, frame: FRAME_RAW } : v;
+  if (!isRecord(d) || typeof d.pub !== "string" || typeof d.frame !== "string") return null;
+  return HEX64.test(d.pub) && KNOWN_FRAMES.includes(d.frame) ? { pub: d.pub, frame: d.frame } : null;
+};
 
 /** Strict structural check; returns the delegation or null. Mirror of parseDelegation. */
 export const parseDelegation = (v) => {
@@ -55,26 +83,36 @@ export const parseDelegation = (v) => {
     ids.add(k.keyId);
   }
   for (const r of revoked) if (typeof r !== "string" || !ID.test(r)) return null;
-  for (const x of signatures) if (!isRecord(x) || typeof x.keyId !== "string" || typeof x.alg !== "string" || typeof x.sig !== "string") return null;
+  for (const x of signatures) {
+    if (!isRecord(x) || typeof x.keyId !== "string" || typeof x.alg !== "string" || typeof x.sig !== "string") return null;
+    if (x.frame !== undefined && (typeof x.frame !== "string" || x.frame.length > 64)) return null;
+  }
   return v;
 };
 
 /**
  * root -> delegation. Same order and reason strings as verifyDelegation in src/update/delegation.ts:
  * root_unset, malformed_delegation, root_threshold, delegation_expired, delegation_rollback.
- * `pin` is { keys: {keyId: hex}, threshold }.
+ * `pin` is { keys: {keyId: hex | {pub, frame}}, threshold }.
  */
 export const verifyDelegation = (raw, pin, { now = Date.now(), floor = null } = {}) => {
   const ids = Object.keys(pin.keys);
-  if (ids.length === 0 || !Number.isSafeInteger(pin.threshold) || pin.threshold < 1 || pin.threshold > ids.length || !ids.every((i) => HEX64.test(pin.keys[i]))) return { ok: false, reason: "root_unset" };
+  const pubs = new Set();
+  let usable = ids.length > 0 && Number.isSafeInteger(pin.threshold) && pin.threshold >= 1 && pin.threshold <= ids.length;
+  for (const i of usable ? ids : []) {
+    const r = describeRoot(pin.keys[i]);
+    if (!r || pubs.has(r.pub)) { usable = false; break; }
+    pubs.add(r.pub);
+  }
+  if (!usable) return { ok: false, reason: "root_unset" };
   const d = parseDelegation(raw);
   if (!d) return { ok: false, reason: "malformed_delegation" };
-  const payload = delegationPayload(d);
   const good = new Set();
   for (const s of d.signatures) {
-    const hex = Object.hasOwn(pin.keys, s.keyId) ? pin.keys[s.keyId] : undefined;
-    if (hex === undefined || s.alg !== "ed25519" || good.has(s.keyId)) continue;
-    if (edVerify(hex, payload, s.sig)) good.add(s.keyId);
+    const root = Object.hasOwn(pin.keys, s.keyId) ? describeRoot(pin.keys[s.keyId]) : null;
+    if (root === null || s.alg !== "ed25519" || good.has(s.keyId) || (s.frame ?? FRAME_RAW) !== root.frame) continue;
+    const framed = frameDelegationPayload(root.frame, d, root.pub);
+    if (framed && edVerify(root.pub, framed, s.sig)) good.add(s.keyId);
   }
   if (good.size < pin.threshold) return { ok: false, reason: "root_threshold" };
   if (now >= timeMs(d.expires)) return { ok: false, reason: "delegation_expired" };

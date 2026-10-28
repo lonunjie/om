@@ -8,18 +8,24 @@ import type { BundleManifest } from "../src/update/manifest";
 export const NOW = Date.parse("2026-11-01T00:00:00Z");
 export const DAY = 86_400_000;
 export interface Root extends RootKey { pem: string }
+export type Frame = "raw" | "solana-offchain-v0"
 export interface Online { pem: string; pub: string }
 
 const pair = () => {
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");
   return { pem: privateKey.export({ format: "pem", type: "pkcs8" }), pub: publicKey.export({ format: "der", type: "spki" }).subarray(-32).toString("hex") };
 };
-export const mkRoot = (): Root => {
+/** `frame` other than "raw" makes this a SOFTWARE EMULATION of a hardware signer (same bytes, no device). */
+export const mkRoot = (frame: Frame = "raw"): Root => {
   const p = pair();
-  return { pem: p.pem, key: createPrivateKey(p.pem), ...describeKey(p.pub) };
+  return { pem: p.pem, key: createPrivateKey(p.pem), ...describeKey(p.pub), frame };
 };
 export const mkOnline = (): Online => pair();
-export const pinOf = (roots: Root[], threshold = 1) => ({ keys: Object.fromEntries(roots.map((r) => [r.id, r.pub])), threshold });
+/** Pins each root with ITS frame (a bare hex for "raw", `{ pub, frame }` otherwise). */
+export const pinOf = (roots: Root[], threshold = 1) => ({
+  keys: Object.fromEntries(roots.map((r) => [r.id, r.frame === "raw" ? r.pub : { pub: r.pub, frame: r.frame }])) as Record<string, string | { pub: string; frame: string }>,
+  threshold,
+});
 const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
 
 export interface DelegateOpts {

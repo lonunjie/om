@@ -7,7 +7,7 @@ import { PINNED_ROOTS, PINNED_ROOT_THRESHOLD, verifyRelease } from "./verify-rel
 import { extractPem, requireDelegation, signManifest } from "./sign.mjs";
 import { cleanBuildEnv, pollutedKeys } from "./clean-env.mjs";
 import { siteProblems } from "./release-guards.mjs";
-import { ROOT_KEYS, ROOT_THRESHOLD, isRootPinned, makeTrustRoot } from "../src/update/release-key";
+import { ROOT_KEYS, ROOT_KEY_COUNT, ROOT_THRESHOLD, isRootPinned, makeTrustRoot } from "../src/update/release-key";
 import { verifyBundleSignature } from "../src/update/signature";
 import { signingPayload, type BundleManifest } from "../src/update/manifest";
 import { delegate, mkOnline, mkRoot, pinOf } from "./testkit";
@@ -95,6 +95,16 @@ describe("release script", () => {
     const v = verifyRelease(bad);
     expect(v.ok).toBe(false);
     expect(v.errors.join("\n")).toMatch(/mismatch/);
+  });
+
+  it("the root policy is 2-of-3 and, once pinned, exactly three distinct root keys with distinct public keys", () => {
+    expect(ROOT_THRESHOLD).toBe(2);
+    expect(ROOT_KEY_COUNT).toBe(3);
+    if (isRootPinned()) {
+      const ids = Object.keys(ROOT_KEYS);
+      expect(ids).toHaveLength(ROOT_KEY_COUNT);
+      expect(new Set(Object.values(ROOT_KEYS).map((v) => (typeof v === "string" ? v : v.pub))).size).toBe(ROOT_KEY_COUNT);
+    }
   });
 
   it("pins the same offline root in the client trust root and verify.mjs (currently UNSET: ceremony pending)", () => {
