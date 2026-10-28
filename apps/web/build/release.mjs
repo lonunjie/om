@@ -4,7 +4,7 @@
 //   --dev        build with OM_BUNDLE_DEV=1: unsigned dev bundle, folder/zip are named "-dev". Never for production.
 //   --signature  JSON {alg,keyId,sig} produced externally over signingPayload(manifest); injected into the manifest.
 //   --sign-from-vault     sign with the production key read in-memory from the agent vault (key id om-release-2026-10-28).
-//   --sign-with-key-file  sign with a PKCS8 PEM file (tests only: pass a throwaway key; also --key-id <id>, default the production id).
+//   --sign-with-key-file  sign with a key file: PKCS8 PEM, one-line PEM or base64 DER, or vault-item JSON (tests only: pass a throwaway key; also --key-id <id>, default the production id).
 //   --delegation <file>   root-signed release-key delegation to embed in the manifest (default apps/web/release-delegation.json).
 //                         Signing REFUSES unless it is signed by the pinned offline root, unexpired, and lists the signing key (audit B2).
 //   --test-roots-file <file>  tests only (with --sign-with-key-file or --signature): JSON {roots:{id:hex},threshold[,pq]} replacing the pinned root (and PQ root).
@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { RELEASE_KEY_ID, pemFromVault, signManifest } from "./sign.mjs";
+import { RELEASE_KEY_ID, pemFromSecretText, pemFromVault, signManifest } from "./sign.mjs";
 import { cleanBuildEnv, pollutedKeys } from "./clean-env.mjs";
 import { siteProblems } from "./release-guards.mjs";
 import { PINNED_PQ_ROOT, PINNED_ROOTS, PINNED_ROOT_THRESHOLD, verifyRelease } from "./verify-release.mjs";
@@ -87,7 +87,7 @@ try {
     let s;
     if (sigFile) s = JSON.parse(readFileSync(sigFile, "utf8"));
     else {
-      try { s = signManifest(manifest, fromVault ? pemFromVault() : readFileSync(keyFile, "utf8"), opt("--key-id") ?? RELEASE_KEY_ID, { roots: trust.roots, threshold: trust.threshold, pq: trust.pq ?? null }); }
+      try { s = signManifest(manifest, fromVault ? pemFromVault() : pemFromSecretText(readFileSync(keyFile, "utf8")), opt("--key-id") ?? RELEASE_KEY_ID, { roots: trust.roots, threshold: trust.threshold, pq: trust.pq ?? null }); }
       catch (e) { fail(`signing failed: ${e.message}`); }
     }
     if (typeof s.alg !== "string" || typeof s.keyId !== "string" || typeof s.sig !== "string") fail("bad signature file");

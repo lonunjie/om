@@ -303,13 +303,20 @@ describe("ceremony: PQ commands", () => {
   const vaultItem = () => {
     const r = ceremony("gen-pq-root", "--to-stdin-for-vault", "--name", "OM test PQ root", "--pub-out", join(tmp, "pq-pub.json"));
     expect(r.status, r.stderr).toBe(0);
-    return { r, item: JSON.parse(r.stdout) as { type: number; name: string; notes: string; secureNote: { type: number } } };
+    const item = JSON.parse(r.stdout) as { type: number; name: string; notes: string; secureNote: { type: number }; fields: { name: string; value: string; type: number }[] };
+    // `notes` here is the vault-item JSON as `bw get item` prints it (the stdin the ceremony commands read); `legacy` is the old note-body format
+    return { r, item: { ...item, notes: r.stdout } };
   };
   it("gen-pq-root puts the seed only in a Bitwarden item on stdout (no file), prints only public data, writes the public descriptor", () => {
     const { r, item } = vaultItem();
     expect(item).toMatchObject({ type: 2, name: "OM test PQ root", secureNote: { type: 0 } });
-    expect(item.notes).toMatch(/^-----BEGIN OM PQ ROOT SEED-----\nalg: ml-dsa-65\nframe: om-pq-v1\nkey-id: pq-root-[0-9a-f]{16}\nfingerprint: sha256 [0-9a-f]{64}\nseed: [0-9a-f]{64}\n-----END OM PQ ROOT SEED-----\n$/);
-    const seed = /seed: ([0-9a-f]{64})/.exec(item.notes)?.[1] ?? "";
+    expect(item.fields).toHaveLength(1);
+    expect(item.fields[0]).toMatchObject({ name: "secret", type: 1 });
+    const seed = item.fields[0]?.value ?? "";
+    expect(seed).toMatch(/^[0-9a-f]{64}$/);
+    const note = (JSON.parse(r.stdout) as { notes: string }).notes;
+    expect(note).not.toContain(seed);
+    expect(note).toMatch(/key-id: pq-root-[0-9a-f]{16}\nfingerprint: sha256 [0-9a-f]{64}/);
     expect(r.stderr).not.toContain(seed);
     expect(r.stderr).toMatch(/pq root key id: pq-root-[0-9a-f]{16}/);
     expect(r.stderr).toMatch(/fingerprint:\s+sha256 [0-9a-f ]+/);
@@ -333,11 +340,19 @@ describe("ceremony: PQ commands", () => {
     expect(bad.status).toBe(1);
     expect(bad.stderr).toMatch(/not an OM PQ root seed note/);
     expect(bad.stderr + bad.stdout).not.toContain("SECRET-LOOKING-TEXT");
-    const flipped = item.notes.replace(/seed: ([0-9a-f])/, (_m, c: string) => `seed: ${c === "0" ? "1" : "0"}`);
+    // legacy note-body format (secret in the note): damaged copies and other algorithms are still refused
+    const legacy = formatPqNote(generatePqRoot());
+    const flipped = legacy.replace(/seed: ([0-9a-f])/, (_m, c: string) => `seed: ${c === "0" ? "1" : "0"}`);
     const damaged = ceremonyIn(flipped, "show-pq-root", "--pq-root-stdin");
     expect(damaged.status).toBe(1);
     expect(damaged.stderr).toMatch(/fingerprint does not match its seed/);
-    expect(() => loadPqRootNote(item.notes.replace("ml-dsa-65", "ml-dsa-87"))).toThrow(/another algorithm/);
+    expect(() => loadPqRootNote(legacy.replace("ml-dsa-65", "ml-dsa-87"))).toThrow(/another algorithm/);
+    // new format: a swapped seed no longer matches the item's own public description
+    const swapped = JSON.parse(item.notes) as { fields: Record<string, unknown>[] };
+    swapped.fields = [{ name: "secret", type: 1, value: Buffer.from(generatePqRoot().seed).toString("hex") }];
+    const sw = ceremonyIn(JSON.stringify(swapped), "show-pq-root", "--pq-root-stdin");
+    expect(sw.status).toBe(1);
+    expect(sw.stderr).toMatch(/does not match the secret/);
   });
   it("full flow: Ed25519 2-of-3, pq-sign-delegation from stdin, verify; then the epoch with --pq-required; strict verify fails without PQ", () => {
     const { item } = vaultItem();
@@ -382,7 +397,7 @@ describe("ceremony: PQ commands", () => {
     const other = ceremony("gen-pq-root", "--to-stdin-for-vault");
     const wrong = join(tmp, "pq-wrong.json");
     writeFileSync(wrong, JSON.stringify(addRootSignature(addRootSignature(JSON.parse(readFileSync(e, "utf8")), R1), R2)));
-    expect(ceremonyIn((JSON.parse(other.stdout) as { notes: string }).notes, "pq-sign-delegation", "--pq-root-stdin", "--in", wrong).status).toBe(0);
+    expect(ceremonyIn(other.stdout, "pq-sign-delegation", "--pq-root-stdin", "--in", wrong).status).toBe(0);
     expect(verify(wrong, rootsFile).stdout).toMatch(/FAILED: pq_missing/);
   });
   it("external PQ signer path: pq-payload writes the exact bytes, pq-attach verifies before writing", () => {

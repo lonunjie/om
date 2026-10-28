@@ -4,9 +4,12 @@
 // Every signature is also verified with node:crypto (OpenSSL), a second, independent implementation, and with the
 // production verifier (verify-release.mjs) before it is attached, so a defect in either library fails loudly here.
 // The private key is the 32-byte FIPS 204 seed. It is never printed, logged, put in argv or in an error message, and it
-// is written only as a Bitwarden secure-note item on stdout (gen-pq-root --to-stdin-for-vault) for the PERSONAL vault.
+// is written only as a Bitwarden secure-note item on stdout (gen-pq-root --to-stdin-for-vault) for the PERSONAL vault: the notes
+// are a non-secret description, the seed is the HIDDEN custom field `secret` (secret-reader.mjs, one reader for every encoding).
 import { createHash, randomBytes } from "node:crypto";
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
+import { checkDescription, readPqSeed, secureNoteItem } from "./secret-reader.mjs";
+import { KINDS } from "./vault-migrate.mjs";
 import { PQ_ALG, PQ_FRAME, PQ_PUBLIC_KEY_BYTES, PQ_SIGNATURE_BYTES, delegationPayload, describePq, parseDelegation, pqSigningBytes, pqVerify } from "./verify-release.mjs";
 
 const sha256 = (b) => createHash("sha256").update(b).digest("hex");
@@ -29,23 +32,29 @@ export const generatePqRoot = () => {
   return { ...r, ...describePqKey(r.pub) };
 };
 
-// The vault note is exactly this block (so `bw get notes <name>` is the key). `fingerprint` is public and only lets a
+// LEGACY vault note (secret in the note body, always shown in plaintext): exactly this block. Kept so old items still load
+// (`loadPqRootNote` falls back to it) and for tests; new items are `pqVaultItem`. `fingerprint` is public and only lets a
 // restore detect a damaged seed; the seed alone is the key.
 const BEGIN = "-----BEGIN OM PQ ROOT SEED-----";
 const END = "-----END OM PQ ROOT SEED-----";
 export const formatPqNote = (r) => `${BEGIN}\nalg: ${PQ_ALG}\nframe: ${PQ_FRAME}\nkey-id: ${r.keyId}\nfingerprint: sha256 ${pqFingerprint(r.pub)}\nseed: ${Buffer.from(r.seed).toString("hex")}\n${END}\n`;
-/** Parses a vault note. Errors never include the content. */
-export const loadPqRootNote = (text) => {
-  const m = new RegExp(`${BEGIN}\\n([\\s\\S]*?)${END}`).exec(typeof text === "string" ? text : "");
-  if (!m) throw new Error("input is not an OM PQ root seed note");
-  const f = Object.fromEntries(m[1].split("\n").filter(Boolean).map((l) => { const i = l.indexOf(": "); return i < 0 ? ["", ""] : [l.slice(0, i), l.slice(i + 2)]; }));
-  if (f.alg !== PQ_ALG || f.frame !== PQ_FRAME) throw new Error(`the PQ root note is for another algorithm or frame (this tool knows ${PQ_ALG} / ${PQ_FRAME})`);
-  if (!/^[0-9a-f]{64}$/.test(f.seed ?? "")) throw new Error("the PQ root note has no valid 32-byte seed");
-  const r = fromSeed(new Uint8Array(Buffer.from(f.seed, "hex")));
+/** The Bitwarden secure-note item the generator emits: description in `notes`, the 64-hex seed in the hidden field `secret`. */
+export const pqVaultItem = (r, name) =>
+  secureNoteItem({ name, notes: KINDS["pq-root"].describe({ id: r.keyId, fingerprint: pqFingerprint(r.pub) }), secret: Buffer.from(r.seed).toString("hex") });
+/**
+ * Loads a PQ root from vault-item JSON (`bw get item`: hidden field `secret`, else the legacy note body) or raw text (64 hex,
+ * `seed: <hex>`, or the legacy block). Errors never include the content.
+ */
+export const loadPqRootNote = (text, opts = {}) => {
+  const s = readPqSeed(text, opts);
+  const f = s.meta;
+  if (Object.keys(f).length > 0 && (f.alg !== PQ_ALG || f.frame !== PQ_FRAME)) throw new Error(`the PQ root note is for another algorithm or frame (this tool knows ${PQ_ALG} / ${PQ_FRAME})`);
+  const r = fromSeed(new Uint8Array(Buffer.from(s.seedHex, "hex")));
   const d = describePqKey(r.pub);
   if (f.fingerprint !== undefined && f.fingerprint !== `sha256 ${pqFingerprint(r.pub)}`) throw new Error("the PQ root note's fingerprint does not match its seed (damaged copy; restore from another backup)");
   if (f["key-id"] !== undefined && f["key-id"] !== d.keyId) throw new Error("the PQ root note's key id does not match its seed");
-  return { ...r, ...d };
+  checkDescription(s.notes, { fingerprint: pqFingerprint(r.pub), keyId: d.keyId });
+  return { ...r, ...d, value: s.seedHex, source: s.source };
 };
 /** Reads the public descriptor file (JSON) written by --pub-out; the descriptor must be usable. */
 export const checkDescriptor = (v) => {

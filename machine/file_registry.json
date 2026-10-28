@@ -298,6 +298,27 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/build/secret-reader.d.mts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/secret-reader.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/secret-reader.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/sign.d.mts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -313,6 +334,20 @@
     },
     {
       "path": "apps/web/build/testkit.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/vault-migrate.d.mts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/vault-migrate.mjs",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

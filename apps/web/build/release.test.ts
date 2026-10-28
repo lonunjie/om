@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { PINNED_ROOTS, PINNED_ROOT_THRESHOLD, verifyRelease } from "./verify-release.mjs";
-import { extractPem, requireDelegation, signManifest } from "./sign.mjs";
+import { requireDelegation, signManifest } from "./sign.mjs";
 import { cleanBuildEnv, pollutedKeys } from "./clean-env.mjs";
 import { siteProblems } from "./release-guards.mjs";
 import { ROOT_KEYS, ROOT_KEY_COUNT, ROOT_THRESHOLD, isRootPinned, makeTrustRoot } from "../src/update/release-key";
@@ -130,10 +130,6 @@ describe("release script", () => {
     expect(r.status, r.stdout).not.toBe(0);
     expect(r.stdout + r.stderr).toMatch(/offline ROOT public key is not pinned/);
     expect(existsSync(join(tmp, "refused-release"))).toBe(false);
-  });
-  it("extracts only the PEM block from a vault note", () => {
-    expect(extractPem("note\n-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\ntail")).toMatch(/^-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----$/);
-    expect(extractPem("nothing")).toBeNull();
   });
 
   describe("signed release (throwaway root + online key)", () => {

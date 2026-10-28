@@ -276,17 +276,23 @@ describe("root-ceremony: vault generation and external (hardware) signers", () =
   it("gen-root --to-stdin-for-vault puts the PEM only in a Bitwarden item on stdout; no file; public data on stderr", () => {
     const r = ceremony("gen-root", "--to-stdin-for-vault", "--name", "OM test root");
     expect(r.status, r.stderr).toBe(0);
-    const item = JSON.parse(r.stdout) as { type: number; name: string; notes: string; secureNote: { type: number } };
+    const item = JSON.parse(r.stdout) as { type: number; name: string; notes: string; secureNote: { type: number }; fields: { name: string; value: string; type: number }[] };
     expect(item).toMatchObject({ type: 2, name: "OM test root", secureNote: { type: 0 } });
-    expect(item.notes).toMatch(/^-----BEGIN PRIVATE KEY-----/);
-    const body = item.notes.replace(/-----[A-Z ]+-----|\s/g, "");
+    // the key is a single-line HIDDEN custom field (type 1), never the note body (always visible in the UI)
+    expect(item.fields).toHaveLength(1);
+    expect(item.fields[0]).toMatchObject({ name: "secret", type: 1 });
+    const body = item.fields[0]?.value ?? "";
+    expect(body).toMatch(/^[A-Za-z0-9+/]{64}$/);
+    expect(item.notes).not.toContain(body);
+    expect(item.notes).not.toMatch(/PRIVATE KEY-----\n?[A-Za-z0-9+/]/);
     expect(r.stderr).not.toContain(body);
     expect(r.stderr).not.toMatch(/PRIVATE KEY/);
     const pub = /public key:\s+([0-9a-f]{64})/.exec(r.stderr)?.[1] ?? "";
     expect(r.stderr).toMatch(/root key id:\s+root-[0-9a-f]{16}/);
     expect(r.stderr).toMatch(/fingerprint:\s+sha256 [0-9a-f ]+/);
-    // the vault copy is the key: show-root --root-key-stdin on the note body yields the same public key
-    expect(ceremonyIn(item.notes, "show-root", "--root-key-stdin").stdout).toContain(pub);
+    // the vault copy is the key: show-root --root-key-stdin on `bw get item` JSON (or the bare field value) yields the same public key
+    expect(ceremonyIn(JSON.stringify(item), "show-root", "--root-key-stdin").stdout).toContain(pub);
+    expect(ceremonyIn(body, "show-root", "--root-key-stdin").stdout).toContain(pub);
     expect(ceremony("gen-root", "--to-stdin-for-vault", "--out", join(tmp, "x.pem")).stderr).toMatch(/never writes a file/);
     expect(existsSync(join(tmp, "x.pem"))).toBe(false);
   });
@@ -302,7 +308,7 @@ describe("root-ceremony: vault generation and external (hardware) signers", () =
     const LA2 = mkRoot("solana-offchain-v0");
     const LB2 = mkRoot("solana-offchain-v0");
     const vaultKey = ceremony("gen-root", "--to-stdin-for-vault");
-    const vaultPem = (JSON.parse(vaultKey.stdout) as { notes: string }).notes;
+    const vaultPem = vaultKey.stdout; // the whole item JSON, as `bw get item` would print it
     const swPub = /public key:\s+([0-9a-f]{64})/.exec(vaultKey.stderr)?.[1] ?? "";
     const d = join(tmp, "flow-delegation.json");
     expect(ceremony("draft", "--online-pub", ONLINE_PUB, "--key-id", "om-release-2026-10-28", "--expires", "+90d", "--out", d).status).toBe(0);

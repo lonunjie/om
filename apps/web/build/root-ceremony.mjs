@@ -4,9 +4,15 @@
 //
 //   gen-root         --out <abs path on removable media>                      new software root key file; prints ONLY id, public key, fingerprint
 //   gen-root         --to-stdin-for-vault [--name <item name>]                new software root key, NEVER on disk: stdout is a Bitwarden secure-note item
-//                                                                             (JSON) holding the PEM, to pipe into `bw encode | bw create item` of the
-//                                                                             operator's PERSONAL vault; stderr gets only id, public key, fingerprint
-//   show-root        --root-key <file> | --root-key-stdin                     prints id, public key, fingerprint of a key (to check a backup)
+//                                                                             (JSON): notes = public description, the key = HIDDEN custom field `secret`
+//                                                                             (one line); pipe into `bw encode | bw create item` of the operator's PERSONAL
+//                                                                             vault; stderr gets only id, public key, fingerprint
+//   show-root        --root-key <file> | --root-key-stdin                     prints id, public key, fingerprint of a key (to check a backup); stdin takes
+//                                                                             `bw get item NAME` JSON (or a legacy note body, or a bare key)
+//   migrate-vault-item --kind online-ed25519|root-ed25519|pq-root [--item <name>] [--dry-run] [--bw-command <bw>]
+//                                                                             moves a legacy NOTE-body secret into the hidden field `secret` through `bw`
+//                                                                             (BW_SESSION / BITWARDENCLI_APPDATA_DIR supplied by the caller), verifying the
+//                                                                             same public key before and after each edit; prints only public data
 //   draft            --expires <t> [--online-pub <hex> --key-id <id> [--not-before <t>] [--not-after <t>]]
 //                    [--prev <delegation.json>] [--version <n>] [--revoke-key-id <id>] [--out <file>]   UNSIGNED delegation (for external signers)
 //   sign-delegation  (--root-key <file> | --root-key-stdin)... --out <file> --expires <t>
@@ -23,8 +29,8 @@
 //   inspect          --in <delegation.json>                                   human summary (public data)
 //
 // Post-quantum co-signature (ADR-0182, deploy/KEY-CEREMONY-PQ.md): an ML-DSA-65 software root, seed in the PERSONAL vault only.
-//   gen-pq-root      --to-stdin-for-vault [--name <item name>] [--pub-out <file>]   new PQ root; stdout is a Bitwarden secure-note item holding the 32-byte
-//                                                                             seed (never a file); stderr gets only id, fingerprint; --pub-out writes the PUBLIC descriptor
+//   gen-pq-root      --to-stdin-for-vault [--name <item name>] [--pub-out <file>]   new PQ root; stdout is a Bitwarden secure-note item whose hidden field
+//                                                                             `secret` holds the 32-byte seed (never a file); stderr gets only id, fingerprint; --pub-out writes the PUBLIC descriptor
 //   show-pq-root     --pq-root-stdin [--pub-out <file>]                       id, fingerprint and the paste-ready pin literals of a vault copy
 //   pq-sign-delegation --pq-root-stdin --in <delegation.json> [--out <file>] [--roots-file <file>]   sign + attach the PQ co-signature (works before or after the Ed25519 signatures)
 //   pq-payload       --in <delegation.json> --pq-root-file <descriptor.json> --out <file>   exact bytes an external PQ signer must sign
@@ -35,13 +41,15 @@
 // <t> is YYYY-MM-DD, a full UTC time YYYY-MM-DDTHH:MM:SSZ, or +Nd (N days from now).
 // Private key material is never printed, logged, put in argv or in an error message. A key file is read only from
 // the path given, must be mode 0600, and is written only by `gen-root --out` (mode 0600, never overwritten).
-// `--root-key-stdin` reads one PEM from stdin (for a key that lives only in a password vault); nothing touches disk.
+// `--root-key-stdin` reads one key from stdin (for a key that lives only in a password vault); nothing touches disk.
 import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, sign, verify } from "node:crypto";
 import { chmodSync, existsSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { addPqSignature, checkDescriptor, externalPqAttach, formatPqNote, generatePqRoot, loadPqRootNote, pqPayload } from "./pq-ceremony.mjs";
+import { addPqSignature, checkDescriptor, externalPqAttach, generatePqRoot, loadPqRootNote, pqFingerprint, pqPayload, pqVaultItem } from "./pq-ceremony.mjs";
+import { checkDescription, ed25519FieldValue, readEd25519, secureNoteItem } from "./secret-reader.mjs";
+import { KIND_NAMES, KINDS, defaultItemName, migrateViaBw } from "./vault-migrate.mjs";
 import { DELEGATION_FORMAT, FRAME_RAW, FRAME_SOLANA_OFFCHAIN_V0, KNOWN_FRAMES, describeRoot, frameDelegationPayload, ledgerText, delegationPayload, parseDelegation, verifyDelegation } from "./verify-release.mjs";
 
 const TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
@@ -73,13 +81,17 @@ export const generateRoot = () => {
   return { pem: privateKey.export({ format: "pem", type: "pkcs8" }), ...describeKey(pubHex) };
 };
 
-/** Parses a PKCS8 PEM Ed25519 private key. Errors never include the content. */
-export const loadRootPem = (pem) => {
-  let key;
-  try { key = createPrivateKey(pem); } catch { throw new Error("input is not a PKCS8 PEM private key"); }
-  if (key.asymmetricKeyType !== "ed25519") throw new Error("input is not an ed25519 key");
+/**
+ * Parses an Ed25519 root key from vault-item JSON (hidden field `secret`, else the legacy note body) or raw text: multi-line PEM,
+ * one-line PEM or base64 PKCS8 DER (secret-reader.mjs). Errors never include the content.
+ */
+export const loadRootPem = (input, opts = {}) => {
+  const s = readEd25519(input, opts);
+  const key = createPrivateKey(s.pem);
   const pubHex = rawPub(createPublicKey(key)).toString("hex");
-  return { key, frame: FRAME_RAW, ...describeKey(pubHex) };
+  const d = describeKey(pubHex);
+  checkDescription(s.notes, { publicKey: pubHex, fingerprint: fingerprint(pubHex), keyId: d.id });
+  return { key, frame: FRAME_RAW, ...d, value: ed25519FieldValue(key), source: s.source };
 };
 
 /** Loads a root key file (must be mode 0600). Errors never include file content. */
@@ -179,7 +191,7 @@ export const summary = (d) =>
 
 // ---------- CLI ----------
 const MEDIA = [/^\/Volumes\/[^/]+\//, /^\/media\//, /^\/mnt\//, /^\/run\/media\//];
-const FLAGS = new Set(["allow-long", "to-stdin-for-vault", "root-key-stdin", "pq-root-stdin", "pq-required", "require-pq"]);
+const FLAGS = new Set(["dry-run", "allow-long", "to-stdin-for-vault", "root-key-stdin", "pq-root-stdin", "pq-required", "require-pq"]);
 const parseArgs = (argv) => {
   const o = {};
   for (let i = 0; i < argv.length; i++) {
@@ -206,13 +218,13 @@ const emit = (d, out) => {
   else process.stdout.write(text);
 };
 const insideGit = (dir) => spawnSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], { encoding: "utf8" }).status === 0;
-/** Software roots named on the command line: key files plus at most one PEM on stdin (never echoed). */
+/** Software roots named on the command line: key files plus at most one secret on stdin (never echoed): `bw get item` JSON or a raw key. */
 const loadRoots = (o) => {
   const roots = (o["root-key"] ?? []).map(loadRoot);
   if (o["root-key-stdin"]) {
-    let pem;
-    try { pem = readFileSync(0, "utf8"); } catch { throw new Error("cannot read a PEM from stdin"); }
-    try { roots.push(loadRootPem(pem)); } catch (e) { throw new Error(`stdin: ${e.message}`); }
+    let text;
+    try { text = readFileSync(0, "utf8"); } catch { throw new Error("cannot read a key from stdin"); }
+    try { roots.push(loadRootPem(text)); } catch (e) { throw new Error(`stdin: ${e.message}`); }
   }
   return roots;
 };
@@ -269,8 +281,9 @@ const cmds = {
       if (process.stdout.isTTY) throw new Error("refusing to print a private key to a terminal; pipe stdout straight into `bw encode | bw create item` (see deploy/KEY-CEREMONY.md)");
       const r = generateRoot();
       const name = one(o, "name") ?? `OM release root (software signer) ${r.id}`;
-      // Bitwarden CLI item JSON: type 2 = secure note. The note body is exactly the PEM, so `bw get notes <id>` is the key.
-      process.stdout.write(JSON.stringify({ type: 2, name, notes: r.pem, secureNote: { type: 0 }, favorite: false, organizationId: null, folderId: null }));
+      // Bitwarden CLI item JSON: type 2 = secure note. The notes are a public description; the key is the HIDDEN custom field `secret`
+      // (single line, base64 PKCS8 DER), masked in the UI. Read back with `bw get item <name> | ... --root-key-stdin`.
+      process.stdout.write(JSON.stringify(secureNoteItem({ name, notes: KINDS["root-ed25519"].describe({ id: r.id, pub: r.pub, fingerprint: fingerprint(r.pub) }), secret: ed25519FieldValue(r.pem) })));
       console.error(`root key id:  ${r.id}\npublic key:   ${r.pub}\nfingerprint:  sha256 ${r.fingerprint}\npin as:       "${r.id}": "${r.pub}"   (frame raw)\nThe private key went to stdout only (no file, no log). Confirm the vault item exists before closing this terminal.`);
       return;
     }
@@ -390,9 +403,23 @@ const cmds = {
     if (process.stdout.isTTY) throw new Error("refusing to print a private key to a terminal; pipe stdout straight into `bw encode | bw create item` (see deploy/KEY-CEREMONY-PQ.md)");
     const r = generatePqRoot();
     const name = one(o, "name") ?? `OM release PQ root (ML-DSA-65) ${r.keyId}`;
-    process.stdout.write(JSON.stringify({ type: 2, name, notes: formatPqNote(r), secureNote: { type: 0 }, favorite: false, organizationId: null, folderId: null }));
+    process.stdout.write(JSON.stringify(pqVaultItem(r, name)));
     writePub(o, r);
     console.error(`pq root key id: ${r.keyId}\nalgorithm:      ${r.alg} (FIPS 204), frame ${r.frame}\nfingerprint:    sha256 ${r.fingerprint}\nThe seed went to stdout only (no file, no log). Confirm the vault item exists before closing this terminal.`);
+  },
+  "migrate-vault-item"(o) {
+    const kind = one(o, "kind", true);
+    if (!KINDS[kind]) throw new Error(`--kind must be one of ${KIND_NAMES.join(", ")}`);
+    const itemName = one(o, "item") ?? defaultItemName(kind);
+    const derive = KINDS[kind].family === "pq"
+      ? (input, opts) => { const r = loadPqRootNote(input, opts); return { id: r.keyId, pub: r.pub, fingerprint: pqFingerprint(r.pub), value: r.value }; }
+      : (input, opts) => { const k = loadRootPem(input, opts); return { id: k.id, pub: k.pub, fingerprint: fingerprint(k.pub), value: k.value }; };
+    const r = migrateViaBw({ itemName, kind, derive, bw: one(o, "bw-command") ?? "bw", dryRun: o["dry-run"] === true });
+    const pub = KINDS[kind].family === "pq" ? "" : `public key:   ${r.info.pub}\n`;
+    const state = r.planned === 0 ? "already migrated (hidden field `secret` holds the key, note is a description); nothing written"
+      : o["dry-run"] ? `dry run: ${r.planned} edit(s) would be written; nothing written`
+      : `migrated in ${r.written} verified edit(s): the key now lives in the hidden custom field \`secret\`, the note is a non-secret description`;
+    console.log(`item:         ${itemName}\nkey id:       ${r.info.id}\n${pub}fingerprint:  sha256 ${r.info.fingerprint}\n${state}`);
   },
   "show-pq-root"(o) {
     if (!o["pq-root-stdin"]) throw new Error("show-pq-root needs --pq-root-stdin (pipe the vault note in)");

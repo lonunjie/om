@@ -19,7 +19,7 @@ Output (git-ignored) in `apps/web/release/`: `om-web-<version>[-dev]/` and `.zip
   expiring, revocable *delegation* embedded in every manifest. The root has not been generated yet (placeholder), so
   production releases currently fail by design. Runbook: [`KEY-CEREMONY.md`](KEY-CEREMONY.md). Without `--dev`, the
   script refuses an unsigned release and says so. `--dev` builds with `OM_BUNDLE_DEV=1`; the manifest is marked `dev`
-  and unsigned, and production clients reject it. `--sign-from-vault` signs with the delegated online key and needs
+  and unsigned, and production clients reject it. `--sign-from-vault` signs with the delegated online key (read from the hidden custom field `secret` of the agents' vault item) and needs
   [`apps/web/release-delegation.json`](../apps/web/release-delegation.json) (or `--delegation <file>`). `--signature` injects an externally produced
   `{alg,keyId,sig}` over the manifest signing payload (`signingPayload()` in `apps/web/src/update/manifest.ts`);
   the delegation is still embedded and the whole chain is verified before the release is reported as signed.

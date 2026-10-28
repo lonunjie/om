@@ -5,9 +5,10 @@ import { spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { PINNED_PQ_ROOT, PINNED_ROOTS, PINNED_ROOT_THRESHOLD, resolveReleaseKey, verifyDelegation } from "./verify-release.mjs";
+import { checkDescription, ed25519PublicHex, readEd25519, sha256Hex } from "./secret-reader.mjs";
 
 export const RELEASE_KEY_ID = "om-release-2026-10-28";
-export const VAULT_NOTE = "OM release signing key (ed25519) - lonunjie";
+export const VAULT_NOTE = "OM release signing key (ed25519) - lonunjie"; // the vault ITEM name (a secure note whose hidden field `secret` holds the key)
 
 const isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 /** Mirror of canonicalJson in src/update/manifest.ts. */
@@ -20,17 +21,21 @@ export const canonicalJson = (v) => {
 };
 export const signingPayload = (m) => Buffer.from(canonicalJson({ ...m, signature: null }), "utf8");
 
-export const extractPem = (text) => {
-  const m = /-----BEGIN PRIVATE KEY-----[A-Za-z0-9+/=\s]+?-----END PRIVATE KEY-----/.exec(text);
-  return m ? m[0] : null;
+/**
+ * The online key from vault-item JSON (`bw get item`: the hidden custom field `secret`, else the legacy note body) or from raw
+ * text/file contents (multi-line PEM, one-line PEM, or base64 PKCS8 DER). Returns canonical PKCS8 PEM. Content-free errors.
+ */
+export const pemFromSecretText = (text) => {
+  const r = readEd25519(text);
+  const pub = ed25519PublicHex(r.pem);
+  checkDescription(r.notes, { publicKey: pub, fingerprint: sha256Hex(Buffer.from(pub, "hex")) });
+  return r.pem;
 };
 export const pemFromVault = () => {
   const bw = join(homedir(), "dig/bin/bw-agent");
-  const r = spawnSync(bw, ["--profile", "lonunjie-agents", "get", "notes", VAULT_NOTE], { encoding: "utf8" });
+  const r = spawnSync(bw, ["--profile", "lonunjie-agents", "get", "item", VAULT_NOTE], { encoding: "utf8" });
   if (r.status !== 0) throw new Error(`vault read failed (exit ${r.status})`); // never echo stdout/stderr: may carry secrets
-  const pem = extractPem(r.stdout);
-  if (!pem) throw new Error("vault note has no PKCS8 PEM block");
-  return pem;
+  return pemFromSecretText(r.stdout);
 };
 const rawPublicHex = (key) => createPublicKey(key).export({ format: "der", type: "spki" }).subarray(-32).toString("hex");
 
