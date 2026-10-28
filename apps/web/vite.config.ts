@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
+import { landingPlugin } from "./build/landing.ts";
 import { bundleManifestPlugin } from "./build/plugin.ts";
 import { SECURITY_HEADERS, headersFile } from "./csp.ts";
 
@@ -15,7 +16,7 @@ const { version } = JSON.parse(readFileSync(new URL("./package.json", import.met
 const dev = process.env["OM_BUNDLE_DEV"] === "1";
 
 export default defineConfig({
-  plugins: [react(), emitHeaders(), bundleManifestPlugin({ version, dev })],
+  plugins: [react(), landingPlugin(), emitHeaders(), bundleManifestPlugin({ version, dev })],
   define: { __OM_DEV_BUNDLE__: JSON.stringify(dev) },
   build: {
     target: "es2023",

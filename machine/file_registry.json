@@ -151,6 +151,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/build/landing.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/make-icons.sh",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/manifest.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -200,6 +214,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/landing.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/playwright.config.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -235,6 +256,34 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/public/icons/apple-touch-icon.png",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/public/icons/icon-192.png",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/public/icons/icon-512.png",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/public/icons/icon-maskable-512.png",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/public/icons/icon-maskable.svg",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -250,6 +299,20 @@
     },
     {
       "path": "apps/web/public/manifest.webmanifest",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/public/og-image.png",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/public/robots.txt",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -292,6 +355,34 @@
     },
     {
       "path": "apps/web/src/dev/main.dev.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/install/InstallAffordance.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/install/useInstall.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/landing/Landing.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/landing/landing.css",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

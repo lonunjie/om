@@ -16,6 +16,8 @@ SKIP = {"node_modules", "dist", "dist-types", ".vite", "coverage", "playwright-r
 REMOTE = re.compile(r"""(?:src|href|action|poster|srcset)\s*=\s*["']?\s*(?:https?:)?//|url\(\s*["']?\s*(?:https?:)?//|@import\s+["']?\s*(?:https?:)?//""", re.I)
 INLINE_HANDLER = re.compile(r"""\son[a-z]+\s*=""", re.I)
 INLINE_SCRIPT = re.compile(r"<script(?![^>]*\bsrc=)[^>]*>\s*\S", re.I)
+# Anchors are navigation, not subresources: the landing page links to the project repository and site.
+ANCHOR_TAG = re.compile(r"<a\s[^>]*>", re.I)
 HARNESS_IMPORT = re.compile(r"""['"]@om/core-harness['"]""")
 
 
@@ -37,7 +39,7 @@ def main() -> int:
             continue
         text = p.read_text(encoding="utf-8", errors="replace")
         if p.suffix in {".html", ".css"}:
-            if REMOTE.search(text):
+            if REMOTE.search(ANCHOR_TAG.sub("", text) if p.suffix == ".html" else text):
                 errs.append(f"{rel}: remote subresource (no CDN/remote fonts/themes; ENGINEERING_REPOSITORY_LAYOUT.md)")
         if p.suffix == ".html":
             if INLINE_HANDLER.search(text):

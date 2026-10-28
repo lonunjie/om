@@ -24,7 +24,7 @@ test("onboarding with a passphrase, QR code, Settings > Devices and Recovery", a
 
 test("service worker installs, controls the page and serves the shell offline", async ({ page, context, browserName }) => {
   await page.goto(BUNDLE_URL + "/");
-  await expect(page.getByRole("heading", { name: "OM is not connected yet" }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Private messaging that nobody operates for you" }).first()).toBeVisible();
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await page.reload();
   await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
@@ -43,6 +43,6 @@ test("service worker installs, controls the page and serves the shell offline", 
   }
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByRole("heading", { name: "OM is not connected yet" }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Private messaging that nobody operates for you" }).first()).toBeVisible();
   await context.setOffline(false);
 });

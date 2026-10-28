@@ -59,13 +59,13 @@ test("the camera scanner decodes a QR code from a real video stream and accepts 
 test.describe("service worker on the dev-signed production bundle", () => {
   test("installs, controls the page after reload, and serves the shell offline", async ({ page, context }) => {
     await page.goto(BUNDLE_URL + "/");
-    await expect(page.getByRole("heading", { name: "OM is not connected yet" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Private messaging that nobody operates for you" }).first()).toBeVisible();
     await page.evaluate(async () => { await navigator.serviceWorker.ready; });
     await page.reload();
     await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
     await context.setOffline(true);
     await page.reload();
-    await expect(page.getByRole("heading", { name: "OM is not connected yet" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Private messaging that nobody operates for you" }).first()).toBeVisible();
     await context.setOffline(false);
   });
 

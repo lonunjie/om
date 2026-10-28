@@ -7,6 +7,8 @@ import {
   ProfileProvider, Text, ThemeProvider, createActionRegistry, createMemoryKeyValue, createProfileScopedState, useActiveProfile, useCaptureContext, useConversationList,
   type ActionRegistry, type ConversationServices, type OnboardingPlatform,
 } from "@om/ui";
+import { InstallAffordance } from "../install/InstallAffordance";
+import { Landing } from "../landing/Landing";
 import { appStrings as t, conversationCopy, deviceScannerCopy, devicesCopy, onboardingCopy, recoveryCopy, scannerCopy, shellLabels, switcherLabels } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
@@ -44,14 +46,17 @@ function Gate({ harness, registry, vault, platform, initiallyOnboarded }: GatePr
   // One frozen context per selection: a new object each render would re-run every query effect.
   const ctx = useMemo<ProfileExecutionContext | null>(() => (activeId === null ? null : capture()), [activeId, capture]);
   const { scanQr, dialog } = useQrScanner(scannerCopy);
+  const [started, setStarted] = useState(false);
   if (activeId === null || ctx === null) return <Text>{t.loading}</Text>;
   if (!done.has(activeId)) {
+    // No identity on this device yet: the landing page comes first and its call to action starts onboarding.
+    if (!started) return <Landing onGetStarted={() => { setStarted(true); }} installSlot={<InstallAffordance />} />;
     return (
       <>
         <OnboardingFlow
           key={activeId} client={harness} registry={registry} ctx={ctx} vault={vault} platform={platform} copy={onboardingCopy}
           renderQr={(payload) => <QrCode payload={payload} />} scanQr={scanQr}
-          onDone={() => { setDone((d) => new Set(d).add(activeId)); }}
+          skipWelcome onDone={() => { setDone((d) => new Set(d).add(activeId)); }}
         />
         {dialog}
       </>
@@ -170,6 +175,7 @@ function SettingsMenu({ onOpen, onClose }: { readonly onOpen: (v: SettingsView) 
         <li><Button className="om-dev-settings__row" onClick={() => { onOpen("devices"); }}>{t.settingsDevices}</Button></li>
         <li><Button className="om-dev-settings__row" onClick={() => { onOpen("recovery"); }}>{t.settingsRecovery}</Button></li>
       </ul>
+      <InstallAffordance />
       <Button variant="quiet" onClick={onClose}>{t.backToChats}</Button>
     </nav>
   );

@@ -4,7 +4,7 @@
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto auto;
   grid-template-areas: "panes" "reach" "tabs";
-  block-size: 100dvh;
+  block-size: calc(100dvh - var(--om-dev-banner-h, 0px));
   background: var(--om-color-bg-canvas);
   color: var(--om-color-text-primary);
 }
@@ -24,6 +24,7 @@
   overflow: auto;
   grid-column: 1;
   grid-row: 1;
+  padding: var(--om-space-4) max(var(--om-space-4), env(safe-area-inset-right)) var(--om-space-4) max(var(--om-space-4), env(safe-area-inset-left));
 }
 
 .om-shell__composer {
@@ -31,8 +32,9 @@
   grid-row: 2;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--om-space-2);
-  padding: var(--om-space-2) var(--om-space-3);
+  padding: var(--om-space-2) max(var(--om-space-3), env(safe-area-inset-right)) calc(var(--om-space-2) + env(safe-area-inset-bottom, 0px)) max(var(--om-space-3), env(safe-area-inset-left));
   border-block-start: 1px solid var(--om-color-border);
   background: var(--om-color-bg-surface);
 }
@@ -42,8 +44,20 @@
   display: flex;
   align-items: center;
   justify-content: flex-end; /* trailing reach zone */
+  flex-wrap: wrap;
   gap: var(--om-space-2);
-  padding: var(--om-space-2) var(--om-space-3);
+  padding: var(--om-space-2) max(var(--om-space-3), env(safe-area-inset-right)) var(--om-space-2) max(var(--om-space-3), env(safe-area-inset-left));
+}
+
+/* With no tab bar, the reach zone is the bottom edge of the screen. */
+.om-shell:not(:has(.om-shell__tabbar)) .om-shell__reach {
+  padding-block-end: calc(var(--om-space-2) + env(safe-area-inset-bottom, 0px));
+}
+
+.om-profile-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--om-space-1);
 }
 
 .om-shell[data-mirrored="true"] .om-shell__reach {
@@ -98,6 +112,7 @@
   display: flex;
   align-items: center;
   gap: var(--om-space-3);
+  flex-wrap: wrap;
   padding: var(--om-space-2) var(--om-space-3);
 }
 
@@ -161,9 +176,24 @@
     flex-direction: column;
   }
 
+  .om-shell__rail {
+    overflow: auto;
+    gap: var(--om-space-3);
+  }
+
   .om-shell__rail-footer {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--om-space-2);
     padding-block-start: var(--om-space-3);
+  }
+
+  .om-shell__rail-footer .om-profile-switcher {
+    flex-direction: column;
+  }
+
+  .om-shell__rail-footer .om-button {
+    inline-size: 100%;
   }
 }

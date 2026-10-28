@@ -1,0 +1,17 @@
+/* Landing page. Uses only OM design tokens (loaded with the theme CSS), so it follows light and dark automatically. */
+.om-landing { box-sizing: border-box; max-inline-size: 40rem; margin-inline: auto; padding: var(--om-space-5) max(var(--om-space-4), env(safe-area-inset-right)) calc(var(--om-space-7) + env(safe-area-inset-bottom)) max(var(--om-space-4), env(safe-area-inset-left)); color: var(--om-color-text-primary); }
+.om-landing > * + * { margin-block-start: var(--om-space-6); }
+:where(.om-landing) :where(h1, h2, p, ul) { margin: 0; }
+.om-landing h2 { font-size: var(--om-text-lg-size); line-height: var(--om-text-lg-line); margin-block-end: var(--om-space-2); }
+.om-landing p + p, .om-landing p + ul, .om-landing ul + p, .om-landing ul + div { margin-block-start: var(--om-space-3); }
+.om-landing ul { padding-inline-start: var(--om-space-5); display: grid; gap: var(--om-space-2); }
+.om-landing a { color: var(--om-color-accent); text-underline-offset: 0.2em; display: inline-block; padding-block: var(--om-space-3); }
+.om-landing__hero > * + * { margin-block-start: var(--om-space-4); }
+.om-landing__brand { font-size: var(--om-text-2xl-size); font-weight: var(--om-weight-bold); letter-spacing: 0.08em; }
+.om-landing__headline { text-wrap: balance; font-size: var(--om-text-2xl-size); line-height: var(--om-text-2xl-line); font-weight: var(--om-weight-bold); }
+.om-landing__lead { font-size: var(--om-text-lg-size); line-height: var(--om-text-lg-line); color: var(--om-color-text-secondary); }
+.om-landing__seedlife { color: var(--om-color-text-secondary); }
+.om-landing__button { box-sizing: border-box; min-block-size: var(--om-target-min); min-inline-size: var(--om-target-min); padding-inline: var(--om-space-5); border: 1px solid var(--om-color-accent); border-radius: var(--om-radius-md); background: var(--om-color-accent); color: var(--om-color-accent-text); font: inherit; font-weight: var(--om-weight-bold); cursor: pointer; }
+.om-landing__status { padding: var(--om-space-4); border: 2px solid var(--om-color-border); border-radius: var(--om-radius-md); background: var(--om-color-bg-surface); }
+.om-landing__footer { padding-block-start: var(--om-space-4); border-block-start: 1px solid var(--om-color-border); color: var(--om-color-text-secondary); }
+.om-landing button:focus-visible, .om-landing a:focus-visible { outline: 3px solid var(--om-color-focus-ring, currentColor); outline-offset: 2px; }

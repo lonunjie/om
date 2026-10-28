@@ -96,3 +96,15 @@
 .om-skip-link:focus {
   transform: none;
 }
+
+/* Checkboxes and radios: a target big enough to hit; the wrapping label is the full-size tap area. */
+input[type="checkbox"], input[type="radio"] {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin: 0 var(--om-space-2) 0 0;
+  accent-color: var(--om-color-accent);
+}
+
+@media (forced-colors: active) {
+  .om-button[data-variant="primary"], .om-shell__dest[aria-selected="true"], .om-shell__dest[aria-current="page"] { border: 2px solid ButtonText; }
+}

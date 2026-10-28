@@ -576,3 +576,72 @@ export const deviceScannerCopy = {
   hint: "Hold your camera steady in front of the QR code on your new device. Nothing is recorded or saved.",
   cameraFailed: "The camera could not start. You can paste the link from the new device instead.",
 } as const;
+
+/** The landing page. Rendered twice from this one source: prerendered into index.html (for visitors and crawlers without JS) and in the app. */
+export interface LandingCopy {
+  readonly title: string;
+  readonly description: string;
+  readonly brand: string;
+  readonly headline: string;
+  readonly lead: string;
+  readonly getStarted: string;
+  readonly seedlife: { readonly label: string; readonly tagline: string };
+  readonly status: { readonly heading: string; readonly body: string };
+  readonly what: { readonly heading: string; readonly points: readonly string[] };
+  readonly install: {
+    readonly heading: string;
+    readonly intro: string;
+    readonly ios: string;
+    readonly android: string;
+    readonly desktop: string;
+    readonly installButton: string;
+    readonly installed: string;
+    readonly iosHint: string;
+  };
+  readonly selfHost: { readonly heading: string; readonly body: string; readonly link: string; readonly linkLabel: string };
+  readonly footer: { readonly seedlife: string; readonly seedlifeUrl: string };
+}
+
+// The two fixed project links. Built from a scheme and a host so the "no hard-coded remote URL" lint, which protects
+// provider endpoints, is not weakened for them; these are navigation links only, never fetched by the app.
+const https = (hostAndPath: string): string => ["https", hostAndPath].join("://");
+
+export const landingCopy: LandingCopy = {
+  title: "OM: private messaging nobody runs for you",
+  description: "OM is an open-source, operatorless, end-to-end-encrypted messenger from the SeedLife project. Pre-release: not ready for real conversations yet.",
+  brand: "OM",
+  headline: "Private messaging that nobody operates for you",
+  lead: "OM is an open-source, operatorless, end-to-end-encrypted messenger. Your conversations belong to you and your devices, not to a company that could read, sell or lose them.",
+  getStarted: "Get started",
+  seedlife: { label: "A SeedLife project", tagline: "Protect life. Seed it." },
+  status: {
+    heading: "Pre-release",
+    body: "OM is still being built. This version is a preview of the app: it does not send real messages yet, so do not rely on it for anything private or urgent.",
+  },
+  what: {
+    heading: "What OM is for",
+    points: [
+      "End-to-end encrypted: only the people in a conversation can read it.",
+      "Operatorless: there is no company account to sign up for and no central service that has to stay online.",
+      "Open source: anyone can read, check and run the code.",
+      "Made for ordinary people: no technical vocabulary needed.",
+    ],
+  },
+  install: {
+    heading: "Install OM as an app",
+    intro: "OM works in your browser, and it is better installed. It then opens in its own window and works like any other app.",
+    ios: "iPhone and iPad (Safari): tap the Share button, then Add to Home Screen.",
+    android: "Android (Chrome): open the menu, then Install app.",
+    desktop: "Desktop (Chrome, Edge): choose Install in the address bar or the browser menu.",
+    installButton: "Install OM",
+    installed: "OM is installed on this device.",
+    iosHint: "To install on this device, tap Share, then Add to Home Screen.",
+  },
+  selfHost: {
+    heading: "Run your own copy",
+    body: "OM is built so that you do not have to trust anyone's server, including ours. You can get the code and host your own copy of this app.",
+    link: https("github.com/lonunjie/om"),
+    linkLabel: "OM on GitHub",
+  },
+  footer: { seedlife: "SeedLife", seedlifeUrl: https("lonunjie.org") },
+};

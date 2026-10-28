@@ -28,10 +28,12 @@ export interface OnboardingFlowProps {
   readonly onExistingVault?: (reason: "already_exists" | "corrupt") => void;
   readonly renderQr?: (payload: string) => ReactNode;
   readonly scanQr?: () => Promise<string | null>;
+  /** The host already showed its own introduction (the landing page): start at "protect device". */
+  readonly skipWelcome?: boolean;
 }
 
-export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr }: OnboardingFlowProps) {
-  const [flow, dispatch] = useReducer(flowReducer, initialFlow);
+export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, skipWelcome = false }: OnboardingFlowProps) {
+  const [flow, dispatch] = useReducer(flowReducer, skipWelcome ? flowReducer(initialFlow, { type: "start" }) : initialFlow);
   const [keyOperationId, setKeyOperationId] = useState<OperationId | null>(null);
   const services: ConversationServices = { client, registry, ctx };
 
