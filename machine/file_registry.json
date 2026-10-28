@@ -2510,6 +2510,13 @@
       "authority": "decision_index"
     },
     {
+      "path": "deploy/CUTOVER.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "deploy/KEY-CEREMONY-PQ.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
@@ -2602,6 +2609,13 @@
     },
     {
       "path": "deploy/ledger/pnpm-workspace.yaml",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "deploy/site-stage.mjs",
       "class": "architecture_doc",
       "domain": "architecture_process",
       "license": "Apache-2.0",
@@ -3798,6 +3812,13 @@
       "authority": "working_record_non_normative"
     },
     {
+      "path": "docs/reports/2026-10-28-beta-gate-readiness.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
       "path": "docs/reports/2026-10-28-core-kernel-m1-status.md",
       "class": "report",
       "domain": "architecture_process",
@@ -3820,6 +3841,20 @@
     },
     {
       "path": "docs/reports/2026-10-28-relay-threat-model.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-10-28-v006-device-checks.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-10-28-v018-participant-study-kit.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
