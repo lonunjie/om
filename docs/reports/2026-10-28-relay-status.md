@@ -88,3 +88,8 @@ Also recorded: `wrangler` is pinned to 4.100.0 and `miniflare` to 4.20260611.0 (
 2. A Settings control for the Home URL and for `lostMailboxes()` (D11, D3).
 3. The conformance runner (`conformance/runner`), the second vendor-neutral Home (PR-013), and the PC-B, C03, D, E, F, I cases.
 4. Independent review of this component (it handles capability and replay logic but no new cryptography).
+
+## Deployed (2026-10-28, operator approved SeedLife's Cloudflare account)
+- First test Home: `https://om-home-lonunjie.majal.workers.dev` (Worker `om-home-lonunjie`, free plan `OM_HARD_FREE_TIER=1`, Workers Logs off). Deployed with a cf-mint token (900 s, Workers Scripts Write), token not stored. Capabilities endpoint answers healthy.
+- A first deploy briefly went out under the placeholder name `om-home-replace-me` (sed flag error); it was redeployed under the real name and the placeholder Worker deleted.
+- Not yet done: WAF rate-limit rules for forged-capability floods; client default `VITE_OM_RELAY_URL` (left unset until the privacy trade-offs are accepted); custom domain `home.om.lonunjie.org`.

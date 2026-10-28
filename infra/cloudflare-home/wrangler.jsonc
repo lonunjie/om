@@ -3,7 +3,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   // Change per deployment. Pick a name that is not a person (a Worker name is public in its workers.dev hostname).
-  "name": "om-home-replace-me",
+  "name": "om-home-lonunjie",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-01",
   // Zero-domain personal use (CLOUDFLARE_REFERENCE_DEPLOYMENT.md): <name>.<account-subdomain>.workers.dev.
