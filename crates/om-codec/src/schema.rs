@@ -331,6 +331,21 @@ impl Registry {
     }
 }
 
+impl Registry {
+    /// Decode + validate the *inner body* of a signed type (the bytes carried in SignedEnvelope key 1), without
+    /// looking at signatures. Used to check bodies Core builds before it signs them.
+    pub fn check_body(&self, type_name: &str, body: &[u8]) -> Result<Value, Class> {
+        let t = self.types.get(type_name).ok_or("unknown_type")?;
+        let v = decode(body, self.lim, t.max_bytes)?;
+        Cx {
+            r: self,
+            lenient: false,
+        }
+        .body(&v, t)?;
+        Ok(v)
+    }
+}
+
 struct Cx<'a> {
     r: &'a Registry,
     lenient: bool,

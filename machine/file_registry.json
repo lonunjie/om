@@ -4,6 +4,13 @@
   "purpose": "Every current file must be explicitly classified; new files fail validation until mapped. History is integrity-covered by MANIFEST but intentionally excluded from current authority.",
   "files": [
     {
+      "path": ".cargo/config.toml",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": ".github/workflows/verify.yml",
       "class": "repo_plumbing",
       "domain": "architecture_process",
@@ -620,7 +627,133 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/crypto/binding.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/cbor.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/delivery.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/error.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/hpke.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/kdf.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/ledger.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/mod.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/pqxdh.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/ratchet.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/rng.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/selftest.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/session.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/sig.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/store.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/vectors.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/lib.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/v001_vectors.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/w0_conformance.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
