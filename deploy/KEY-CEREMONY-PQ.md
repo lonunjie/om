@@ -9,7 +9,7 @@ Do the original ceremony first (Ed25519 roots, first delegation, pins committed)
 | Key | Where it lives | What it signs | Lifetime |
 |---|---|---|---|
 | Ed25519 roots (Ledger A, Ledger B, vault PEM), 2 of 3 | unchanged, see [`KEY-CEREMONY.md`](KEY-CEREMONY.md) | the delegation | years |
-| **PQ root** (ML-DSA-65, FIPS 204, one software key) | ONLY your **personal** Vaultwarden, as a secure note whose **hidden custom field `secret`** holds the 32-byte seed (64 hex; the note body is only a public description). Never on disk, never in the agents' vault `vw.agents@lonunjie.org`, never given to an agent. | the same delegation, framed with its own label (ADR-0182 section 2) | years |
+| **PQ root** (ML-DSA-65, FIPS 204, one software key) | ONLY your **personal** Vaultwarden, as a secure note whose **hidden custom field `mldsa65-seed-YYYY-MM-DD`** (legacy name `secret`, accepted until renamed) holds the 32-byte seed (64 hex; the note body is only a public description). Never on disk, never in the agents' vault `vw.agents@lonunjie.org`, never given to an agent. | the same delegation, framed with its own label (ADR-0182 section 2) | years |
 | Online release key (Ed25519) | unchanged | each bundle manifest | months |
 
 A delegation is valid only if **2 of 3 Ed25519 roots AND the PQ root** signed it. Until a delegation carries `pqRequired`
@@ -33,7 +33,7 @@ Use the same personal-vault shell as [`KEY-CEREMONY.md`](KEY-CEREMONY.md) step 1
 
 ### A1. Generate it straight into the personal vault
 
-The seed goes to stdout as a Bitwarden secure-note item (seed in the hidden field `secret`, a public description in the note) and into `bw create item`; no file, no log. Stderr shows only the public key id
+The seed goes to stdout as a Bitwarden secure-note item (seed in the hidden field `mldsa65-seed-YYYY-MM-DD`, a public description in the note) and into `bw create item`; no file, no log. Stderr shows only the public key id
 and fingerprint. The command refuses to print to a terminal.
 
 ```sh
@@ -66,7 +66,7 @@ node apps/web/build/root-ceremony.mjs migrate-vault-item --kind pq-root --item "
 node apps/web/build/root-ceremony.mjs migrate-vault-item --kind pq-root --item "OM release PQ root (ML-DSA-65) 2026-10-28"
 ```
 
-The seed is moved into the hidden field `secret` (verified by reading it back: the same fingerprint), then the note body is replaced by a public
+The seed is moved into the hidden field `mldsa65-seed-<date>` (a legacy `secret` field is renamed; verified by reading it back: the same fingerprint), then the note body is replaced by a public
 description. It prints only the key id and fingerprint: compare with `registry/signing.toml` (`om-release-root-pq`: b44d71873569f5f4...). Safe to re-run.
 ### A3. Keep an offline backup (recommended before phase C)
 
@@ -75,7 +75,7 @@ section 9). Print the seed once on a trusted machine, put it on paper in a seale
 clear the terminal:
 
 ```sh
-bw get item "OM release PQ root (ML-DSA-65) 2026-10-28" | node -e 'const i=JSON.parse(require("fs").readFileSync(0,"utf8"));console.log(i.fields.find(f=>f.name==="secret").value)'
+bw get item "OM release PQ root (ML-DSA-65) 2026-10-28" | node -e 'const i=JSON.parse(require("fs").readFileSync(0,"utf8"));console.log(i.fields.find(f=>f.name.startsWith("mldsa65-seed-")||f.name==="secret").value)'
 ```
 
 ## Phase B. Co-sign the current delegation and pin the PQ root
@@ -152,7 +152,7 @@ cd ~/dig/lonunjie/om && node apps/web/build/root-ceremony.mjs verify \
 - **PQ key compromised or suspected, Ed25519 roots fine:** not urgent (the attacker still needs 2 of 3 Ed25519 roots). Generate a new PQ root (A1, new
   vault name), sign **one** delegation with both PQ keys (run `pq-sign-delegation` twice with each vault note), ship a client release pinning the new key
   (B2 for the new descriptor, keep both keys in the delegation until old clients are gone), then delete the old vault note and rotate the vault password.
-- **PQ key lost:** restore from the offline backup (A3): rebuild a vault item: a secure note with a **hidden** custom field named `secret` holding the 64-hex seed (see
+- **PQ key lost:** restore from the offline backup (A3): rebuild a vault item: a secure note with a **hidden** custom field named `mldsa65-seed-<date>` holding the 64-hex seed (see
   `show-pq-root` for the id/fingerprint it must reproduce; the old `-----BEGIN OM PQ ROOT SEED-----` note body still loads too, but do not use it for new items). With no backup and browsers that hold the floor, they must reinstall from a verified
   out-of-band release that pins a new PQ key; there is intentionally no way to clear the floor (ADR-0182 section 9).
 - **Moving the key onto a Ledger** is a rotation (ADR-0182 section 10) once an ML-DSA signing app exists and is verified; as of 2026-10-28 none is
@@ -163,7 +163,7 @@ cd ~/dig/lonunjie/om && node apps/web/build/root-ceremony.mjs verify \
 ```
 gen-pq-root         --to-stdin-for-vault [--name <n>] [--pub-out <file>]   PQ root straight into the PERSONAL vault, no file
 show-pq-root        --pq-root-stdin [--pub-out <file>]                      id, fingerprint, paste-ready pins (pipe `bw get item NAME` in)
-migrate-vault-item  --kind pq-root [--item <name>] [--dry-run]              legacy note-body seed -> hidden field `secret`, verified (see A2b)
+migrate-vault-item  --kind pq-root [--item <name>] [--dry-run]              legacy note-body seed -> dated hidden field (renames legacy `secret`), verified (see A2b)
 pq-sign-delegation  --pq-root-stdin --in <file> [--out <file>] [--roots-file <file>]   sign + attach (then verifies if a roots file with "pq" is given)
 pq-payload          --in <file> --pq-root-file <descriptor.json> --out <file>           exact bytes for an external PQ signer
 pq-attach           --in <file> --pq-root-file <descriptor.json> --sig <b64|hex> [--out <file>]

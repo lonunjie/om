@@ -10,8 +10,8 @@ Operator decision 2026-10-28: the root is **2-of-3 Ed25519 signers**.
 |---|---|---|---|
 | **Root signer 1: Ledger A** (Nano S+, own recovery phrase) | The device. The private key never leaves it. | One small `delegation` document | Years |
 | **Root signer 2: Ledger B** (Nano S+, a different recovery phrase, kept elsewhere) | The device. | same | Years |
-| **Root signer 3: software key** (Ed25519 PKCS8 PEM) | ONLY the operator's **personal** Vaultwarden: a secure note whose key is in a **hidden custom field `secret`** (not the note body). Never on disk, never in the agents' vault `vw.agents@lonunjie.org`, never given to an agent. | same | Years |
-| **Online release key** (Ed25519) | Agent vault (secure note `OM release signing key (ed25519) - lonunjie`, key in the hidden custom field `secret`; read by `release.mjs --sign-from-vault`) | Each bundle manifest | Months. Replaced by a root-signed delegation. |
+| **Root signer 3: software key** (Ed25519 PKCS8 PEM) | ONLY the operator's **personal** Vaultwarden: a secure note whose key is in a **hidden custom field `ed25519-pkcs8-YYYY-MM-DD`** (not the note body; legacy name `secret` is still read). Never on disk, never in the agents' vault `vw.agents@lonunjie.org`, never given to an agent. | same | Years |
+| **Online release key** (Ed25519) | Agent vault (secure note `OM release signing key (ed25519) - lonunjie`, key in the hidden custom field `ed25519-pkcs8-2026-10-28`; read by `release.mjs --sign-from-vault`) | Each bundle manifest | Months. Replaced by a root-signed delegation. |
 
 - The client (service worker) and `verify.mjs` pin **only the three root public keys, each with its signing frame**
   (see "Ledger framing"), and `ROOT_THRESHOLD = 2`. The delegation travels inside every signed `bundle-manifest.json`
@@ -169,7 +169,7 @@ profile for the root PEM.
 ## 2. Generate the software root key straight into the personal vault
 
 The key is written to stdout as a Bitwarden secure-note item and piped into `bw create item`; no file, no log. The note body is only a public
-description; the key is the **hidden custom field `secret`** (type 1, masked in the UI, one line: base64 PKCS8 DER). A note body would be shown in
+description; the key is the **hidden custom field `ed25519-pkcs8-YYYY-MM-DD`** (type 1, masked in the UI, one line: base64 PKCS8 DER). A note body would be shown in
 plaintext whenever the item is opened (shoulder-surfing, cameras), a hidden field is not. `bw create item` echoes the item it created (with the
 key), so its stdout goes to `/dev/null`. Stderr shows only the public data.
 
@@ -188,13 +188,13 @@ cd ~/dig/lonunjie/om && bw sync && bw get item "OM release root (software signer
 ```
 
 Every command that reads a vault key takes the output of `bw get item NAME` on stdin. The reader ([`secret-reader.mjs`](../apps/web/build/secret-reader.mjs), shared with
-[`sign.mjs`](../apps/web/build/sign.mjs) and [`pq-ceremony.mjs`](../apps/web/build/pq-ceremony.mjs)) takes the hidden field `secret`, and falls back to the legacy note body for an item not yet migrated.
+[`sign.mjs`](../apps/web/build/sign.mjs) and [`pq-ceremony.mjs`](../apps/web/build/pq-ceremony.mjs)) takes the hidden field named for its kind (`ed25519-pkcs8-*`, `mldsa65-seed-*`; an explicit name wins; several candidates are refused), accepts the legacy name `secret` as an alias, and falls back to the legacy note body for an item not yet migrated.
 For the field it accepts a multi-line PEM, a PEM collapsed onto one line (spaces or literal `\n`) or bare base64 PKCS8 DER; anything else is
 refused without echoing it.
 
 ### 2b. Move a legacy item (key in the note body) into the hidden field
 
-Needed once for an item made by an earlier version of this tool, whose key is in the note body (a note body is shown in plaintext). In the personal-vault shell of step 1
+Needed once for an item made by an earlier version of this tool, whose key is in the note body (shown in plaintext) or in a field still named `secret` (renamed to the dated name by the same command). In the personal-vault shell of step 1
 (`BITWARDENCLI_APPDATA_DIR`, `BW_SESSION` set, `bw status` shows your personal email); preview first, then migrate:
 
 ```sh
@@ -317,7 +317,7 @@ cd ~/dig/lonunjie/om/apps/web && node build/release.mjs --sign-from-vault   # em
 ```
 
 `--sign-from-vault` runs `bw-agent --profile lonunjie-agents get item "OM release signing key (ed25519) - lonunjie"` and reads the key from the hidden
-custom field `secret` (legacy fallback: the note body). To move a legacy online key into the hidden field (agents' vault; `bw-agent --exec` supplies
+custom field `ed25519-pkcs8-2026-10-28` (legacy: `secret`, then the note body). To move a legacy online key into the hidden field (agents' vault; `bw-agent --exec` supplies
 `BW_SESSION` and the profile's `BITWARDENCLI_APPDATA_DIR` to the tool, which calls plain `bw`):
 
 ```sh
@@ -346,7 +346,7 @@ with the next release. Put a calendar reminder 30 days before expiry. (Software-
 
 ## 9. Rotate the online key (planned)
 
-1. Generate a new Ed25519 key on the signing host, store the key in the agent vault as a secure note with the key in the hidden custom field `secret` (`migrate-vault-item --kind online-ed25519` does this for a note-body key), and take
+1. Generate a new Ed25519 key on the signing host, store the key in the agent vault as a secure note with the key in the hidden custom field `ed25519-pkcs8-<date>` (`migrate-vault-item --kind online-ed25519` does this for a note-body key), and take
    its raw public key (64 hex). Pick a **new** key id (ids are never reused), for example `om-release-2027-04-01`.
 2. Draft it onto the current delegation (the old key stays valid until you revoke it), then sign with two roots (step 5):
 
@@ -375,7 +375,7 @@ still-valid key is ready to ship, or you strand updates.
 ## 11. Compromise, loss and root rotation runbook
 
 **Online release key (vault or agent host) compromised**
-1. Generate a new online key on a clean host (step 9.1) and store it in a fresh vault item (hidden field `secret`); delete the old item.
+1. Generate a new online key on a clean host (step 9.1) and store it in a fresh vault item (hidden field `ed25519-pkcs8-<date>`); delete the old item.
 2. Draft one delegation that adds the new key and revokes the old one (`draft --prev apps/web/release-delegation.json
    --online-pub <NEW> --key-id <NEW ID> --revoke-key-id <OLD ID> --expires +30d`), then two root signers (step 5).
 3. Commit the delegation, ship a release signed by the new key, deploy it.
@@ -407,7 +407,7 @@ out of band and have users reinstall (state is lost only if they did not back up
 
 ```
 gen-root         --out <abs path>                         # software key on removable media (legacy, offline)
-gen-root         --to-stdin-for-vault [--name <n>]        # software key straight into the PERSONAL vault (hidden field `secret`), no file
+gen-root         --to-stdin-for-vault [--name <n>]        # software key straight into the PERSONAL vault (hidden field `ed25519-pkcs8-<date>`), no file
 migrate-vault-item --kind online-ed25519|root-ed25519|pq-root [--item <name>] [--dry-run]   # legacy note-body key -> hidden field, verified
 show-root        --root-key <file> | --root-key-stdin     # stdin = `bw get item NAME`
 draft            --expires <t> [--online-pub <hex> --key-id <id>] [--prev <file>] [--revoke-key-id <id>] [--out <file>]

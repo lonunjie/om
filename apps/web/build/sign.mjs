@@ -21,12 +21,14 @@ export const canonicalJson = (v) => {
 };
 export const signingPayload = (m) => Buffer.from(canonicalJson({ ...m, signature: null }), "utf8");
 
+/** The documented hidden-field name of the online key in the agents' vault item; the legacy name `secret` is the fallback alias. */
+export const ONLINE_KEY_FIELD = "ed25519-pkcs8-2026-10-28";
 /**
- * The online key from vault-item JSON (`bw get item`: the hidden custom field `secret`, else the legacy note body) or from raw
+ * The online key from vault-item JSON (`bw get item`: the hidden custom field `ed25519-pkcs8-*` (legacy name `secret`), else the legacy note body) or from raw
  * text/file contents (multi-line PEM, one-line PEM, or base64 PKCS8 DER). Returns canonical PKCS8 PEM. Content-free errors.
  */
-export const pemFromSecretText = (text) => {
-  const r = readEd25519(text);
+export const pemFromSecretText = (text, fieldName = ONLINE_KEY_FIELD) => {
+  const r = readEd25519(text, { fieldName });
   const pub = ed25519PublicHex(r.pem);
   checkDescription(r.notes, { publicKey: pub, fingerprint: sha256Hex(Buffer.from(pub, "hex")) });
   return r.pem;

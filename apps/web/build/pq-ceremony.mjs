@@ -5,10 +5,10 @@
 // production verifier (verify-release.mjs) before it is attached, so a defect in either library fails loudly here.
 // The private key is the 32-byte FIPS 204 seed. It is never printed, logged, put in argv or in an error message, and it
 // is written only as a Bitwarden secure-note item on stdout (gen-pq-root --to-stdin-for-vault) for the PERSONAL vault: the notes
-// are a non-secret description, the seed is the HIDDEN custom field `secret` (secret-reader.mjs, one reader for every encoding).
+// are a non-secret description, the seed is the HIDDEN custom field `mldsa65-seed-YYYY-MM-DD` (secret-reader.mjs, one reader for every encoding).
 import { createHash, randomBytes } from "node:crypto";
 import { ml_dsa65 } from "@noble/post-quantum/ml-dsa.js";
-import { checkDescription, readPqSeed, secureNoteItem } from "./secret-reader.mjs";
+import { checkDescription, readPqSeed, secretFieldName, secureNoteItem } from "./secret-reader.mjs";
 import { KINDS } from "./vault-migrate.mjs";
 import { PQ_ALG, PQ_FRAME, PQ_PUBLIC_KEY_BYTES, PQ_SIGNATURE_BYTES, delegationPayload, describePq, parseDelegation, pqSigningBytes, pqVerify } from "./verify-release.mjs";
 
@@ -38,11 +38,11 @@ export const generatePqRoot = () => {
 const BEGIN = "-----BEGIN OM PQ ROOT SEED-----";
 const END = "-----END OM PQ ROOT SEED-----";
 export const formatPqNote = (r) => `${BEGIN}\nalg: ${PQ_ALG}\nframe: ${PQ_FRAME}\nkey-id: ${r.keyId}\nfingerprint: sha256 ${pqFingerprint(r.pub)}\nseed: ${Buffer.from(r.seed).toString("hex")}\n${END}\n`;
-/** The Bitwarden secure-note item the generator emits: description in `notes`, the 64-hex seed in the hidden field `secret`. */
-export const pqVaultItem = (r, name) =>
-  secureNoteItem({ name, notes: KINDS["pq-root"].describe({ id: r.keyId, fingerprint: pqFingerprint(r.pub) }), secret: Buffer.from(r.seed).toString("hex") });
+/** The Bitwarden secure-note item the generator emits: description in `notes`, the 64-hex seed in the hidden field `mldsa65-seed-YYYY-MM-DD`. */
+export const pqVaultItem = (r, name, fieldName = secretFieldName("pq")) =>
+  secureNoteItem({ name, fieldName, notes: KINDS["pq-root"].describe({ id: r.keyId, fingerprint: pqFingerprint(r.pub), fieldName }), secret: Buffer.from(r.seed).toString("hex") });
 /**
- * Loads a PQ root from vault-item JSON (`bw get item`: hidden field `secret`, else the legacy note body) or raw text (64 hex,
+ * Loads a PQ root from vault-item JSON (`bw get item`: hidden field `mldsa65-seed-*` (legacy name `secret`), else the legacy note body) or raw text (64 hex,
  * `seed: <hex>`, or the legacy block). Errors never include the content.
  */
 export const loadPqRootNote = (text, opts = {}) => {

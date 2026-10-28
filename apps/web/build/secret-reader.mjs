@@ -2,7 +2,7 @@
 // pq-ceremony.mjs). Pure node, no dependencies, no I/O: callers hand it text, it hands back validated key material.
 //
 // Where the secret lives. NEW (2026-10-28): a secure-note item whose notes are only a non-secret description and whose
-// secret is the custom field `secret`, type 1 (HIDDEN: masked in the UI, unlike a note body, which is always shown in
+// secret is a custom field, type 1 (HIDDEN: masked in the UI, unlike a note body, which is always shown in
 // plaintext when the item is opened). LEGACY: the secret is the note body. Input accepted from stdin or a file:
 //   1. `bw get item NAME` JSON  -> field `secret` (must be hidden), else the legacy note body
 //   2. any other text           -> treated as the secret itself (a `bw get notes` body, a bare value, a key file)
@@ -14,7 +14,20 @@
 // Secret material is never printed, logged, put in argv or in an error message, and nothing here touches a disk.
 import { createHash, createPrivateKey, createPublicKey } from "node:crypto";
 
-export const SECRET_FIELD = "secret";
+/** Legacy field name (accepted as an alias on read). New fields are descriptive and dated: `ed25519-pkcs8-YYYY-MM-DD`, `mldsa65-seed-YYYY-MM-DD`. */
+export const LEGACY_FIELD = "secret";
+export const SECRET_FIELD = LEGACY_FIELD;
+/** Field-name prefix per secret kind (readEd25519 -> "ed25519", readPqSeed -> "pq"). */
+export const FIELD_PREFIX = { ed25519: "ed25519-pkcs8", pq: "mldsa65-seed" };
+const today = () => new Date().toISOString().slice(0, 10);
+/** The field name a generator/migration writes for `kind`, dated so a rotated secret can sit beside the old one. */
+export const secretFieldName = (kind, date = today()) => {
+  if (!FIELD_PREFIX[kind]) throw new Error(`unknown secret kind ${JSON.stringify(kind)}`);
+  return `${FIELD_PREFIX[kind]}-${date}`;
+};
+const isDatedName = (name, kind) => typeof name === "string" && new RegExp(`^${FIELD_PREFIX[kind]}-\\d{4}-\\d{2}-\\d{2}$`).test(name);
+/** True for any name this reader treats as a secret field of `kind` (dated or legacy). */
+export const isSecretFieldName = (name, kind) => name === LEGACY_FIELD || isDatedName(name, kind);
 export const FIELD_HIDDEN = 1; // Bitwarden custom field types: 0 text, 1 hidden, 2 boolean, 3 linked
 
 const B64 = /^[A-Za-z0-9+/]+={0,2}$/;
@@ -30,12 +43,14 @@ const isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v)
 /**
  * Finds the secret text in `input` (a string: item JSON or raw text; or an already parsed item object).
  * Returns { value, strict, source: "field" | "notes" | "raw", notes }:
- *   - "field": the hidden custom field `secret` (strict: the value must be exactly one secret)
- *   - "notes": the legacy note body of an item with no `secret` field (tolerant)
+ *   - "field": a hidden custom field (strict: the value must be exactly one secret). Which one: `opts.fieldName` if given (exact),
+ *              else the single dated field of `opts.kind` (`ed25519-pkcs8-*` / `mldsa65-seed-*`); the legacy name `secret` is the
+ *              fallback alias when neither is present. Several candidates are an error: name one with `fieldName`.
+ *   - "notes": the legacy note body of an item with no secret field (tolerant)
  *   - "raw":   not item JSON; the text itself (tolerant)
  * `allowVisibleField` (migration only) also accepts a `secret` field of the wrong, visible type; otherwise that is an error.
  */
-export const locateSecret = (input, { allowVisibleField = false } = {}) => {
+export const locateSecret = (input, { allowVisibleField = false, kind, fieldName } = {}) => {
   let item = input;
   if (typeof input === "string") {
     if (input.length > 4 * MAX_SECRET_CHARS) throw new Error("input is too large to be a vault item");
@@ -44,15 +59,18 @@ export const locateSecret = (input, { allowVisibleField = false } = {}) => {
   }
   if (!isRecord(item)) throw new Error("input is not a vault item");
   const notes = typeof item.notes === "string" ? item.notes : "";
-  const fields = Array.isArray(item.fields) ? item.fields.filter((f) => isRecord(f) && f.name === SECRET_FIELD) : [];
-  if (fields.length > 1) throw new Error(`the item has more than one custom field named ${SECRET_FIELD}`);
+  const all = Array.isArray(item.fields) ? item.fields.filter(isRecord) : [];
+  const named = (pred) => all.filter((f) => pred(f.name));
+  let fields = fieldName !== undefined ? named((n) => n === fieldName) : kind !== undefined ? named((n) => isDatedName(n, kind)) : [];
+  if (fields.length === 0) fields = named((n) => n === LEGACY_FIELD);
+  if (fields.length > 1) throw new Error(fieldName !== undefined ? `the item has more than one custom field named ${fieldName}` : "the item has more than one candidate secret field; pass the field name explicitly");
   if (fields.length === 1) {
     const f = fields[0];
-    if (f.type !== FIELD_HIDDEN && !allowVisibleField) throw new Error(`the custom field ${SECRET_FIELD} is not of type hidden; fix it with migrate-vault-item (a visible field defeats the purpose)`);
-    if (typeof f.value !== "string" || f.value.length === 0) throw new Error(`the custom field ${SECRET_FIELD} is empty`);
-    return { value: f.value, strict: true, source: "field", notes, fieldType: f.type };
+    if (f.type !== FIELD_HIDDEN && !allowVisibleField) throw new Error(`the custom field ${f.name} is not of type hidden; fix it with migrate-vault-item (a visible field defeats the purpose)`);
+    if (typeof f.value !== "string" || f.value.length === 0) throw new Error(`the custom field ${f.name} is empty`);
+    return { value: f.value, strict: true, source: "field", notes, fieldType: f.type, fieldName: f.name };
   }
-  if (notes.length === 0) throw new Error(`the item has no ${SECRET_FIELD} custom field and its note is empty`);
+  if (notes.length === 0) throw new Error(`the item has no secret custom field and its note is empty`);
   return { value: notes, strict: false, source: "notes", notes };
 };
 
@@ -95,8 +113,8 @@ export const ed25519PublicHex = (pem) => createPublicKey(createPrivateKey(pem)).
 
 /** Reads an Ed25519 key from item JSON or raw text. Returns { pem, notes, source }; `notes` is the description to cross-check. */
 export const readEd25519 = (input, opts = {}) => {
-  const loc = locateSecret(input, opts);
-  return { pem: normalizeEd25519(loc.value, { strict: loc.strict }), notes: loc.notes, source: loc.source };
+  const loc = locateSecret(input, { kind: "ed25519", ...opts });
+  return { pem: normalizeEd25519(loc.value, { strict: loc.strict }), notes: loc.notes, source: loc.source, fieldName: loc.fieldName };
 };
 
 // ---------- ML-DSA-65 seed ----------
@@ -127,8 +145,8 @@ export const normalizePqSeed = (text, { strict = false } = {}) => {
 };
 /** Reads a PQ seed from item JSON or raw text. Returns { seedHex, meta, notes, source }. */
 export const readPqSeed = (input, opts = {}) => {
-  const loc = locateSecret(input, opts);
-  return { ...normalizePqSeed(loc.value, { strict: loc.strict }), notes: loc.notes, source: loc.source };
+  const loc = locateSecret(input, { kind: "pq", ...opts });
+  return { ...normalizePqSeed(loc.value, { strict: loc.strict }), notes: loc.notes, source: loc.source, fieldName: loc.fieldName };
 };
 
 // ---------- the non-secret description in `notes` ----------
@@ -137,9 +155,9 @@ export const readPqSeed = (input, opts = {}) => {
  * `notes` of a migrated/generated item: only public facts, one `label: value` per line. `public-key`, `key-id` and
  * `fingerprint` are cross-checked against the secret on every read, so a damaged or swapped item is caught.
  */
-export const describeItem = ({ purpose, keyId, keyIdLabel = "key-id", publicKey, fingerprint, extra = [] }) =>
+export const describeItem = ({ purpose, keyId, keyIdLabel = "key-id", publicKey, fingerprint, extra = [], fieldName = LEGACY_FIELD }) =>
   [purpose, "", `${keyIdLabel}: ${keyId}`, ...(publicKey ? [`public-key: ${publicKey}`] : []), `fingerprint: sha256 ${fingerprint}`, ...extra, "",
-   `The private key is NOT in this note: it is in the hidden custom field "${SECRET_FIELD}" (single line). Do not paste it here.`].join("\n");
+   `The private key is NOT in this note: it is in the hidden custom field "${fieldName}" (single line). Do not paste it here.`].join("\n");
 /** Throws if a `public-key:` / `fingerprint:` / `key-id:` line of the description disagrees with what the secret derives. Only claims present are checked. */
 export const checkDescription = (notes, { publicKey, fingerprint, keyId }) => {
   const get = (label) => new RegExp(`^${label}: (.+)$`, "m").exec(notes ?? "")?.[1]?.trim();
@@ -152,7 +170,7 @@ export const checkDescription = (notes, { publicKey, fingerprint, keyId }) => {
 };
 
 /** A Bitwarden secure-note item (CLI JSON) with the secret in a HIDDEN custom field. */
-export const secureNoteItem = ({ name, notes, secret }) => ({
+export const secureNoteItem = ({ name, notes, secret, fieldName }) => ({
   type: 2, name, notes, secureNote: { type: 0 }, favorite: false, organizationId: null, folderId: null,
-  fields: [{ name: SECRET_FIELD, value: secret, type: FIELD_HIDDEN, linkedId: null }],
+  fields: [{ name: fieldName, value: secret, type: FIELD_HIDDEN, linkedId: null }],
 });

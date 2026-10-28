@@ -4,13 +4,13 @@
 //
 //   gen-root         --out <abs path on removable media>                      new software root key file; prints ONLY id, public key, fingerprint
 //   gen-root         --to-stdin-for-vault [--name <item name>]                new software root key, NEVER on disk: stdout is a Bitwarden secure-note item
-//                                                                             (JSON): notes = public description, the key = HIDDEN custom field `secret`
+//                                                                             (JSON): notes = public description, the key = HIDDEN custom field `ed25519-pkcs8-YYYY-MM-DD`
 //                                                                             (one line); pipe into `bw encode | bw create item` of the operator's PERSONAL
 //                                                                             vault; stderr gets only id, public key, fingerprint
 //   show-root        --root-key <file> | --root-key-stdin                     prints id, public key, fingerprint of a key (to check a backup); stdin takes
 //                                                                             `bw get item NAME` JSON (or a legacy note body, or a bare key)
-//   migrate-vault-item --kind online-ed25519|root-ed25519|pq-root [--item <name>] [--dry-run] [--bw-command <bw>]
-//                                                                             moves a legacy NOTE-body secret into the hidden field `secret` through `bw`
+//   migrate-vault-item --kind online-ed25519|root-ed25519|pq-root [--item <name>] [--field <name>] [--dry-run] [--bw-command <bw>]
+//                                                                             moves a legacy NOTE-body secret into a dated hidden field (or renames the legacy `secret` field) through `bw`
 //                                                                             (BW_SESSION / BITWARDENCLI_APPDATA_DIR supplied by the caller), verifying the
 //                                                                             same public key before and after each edit; prints only public data
 //   draft            --expires <t> [--online-pub <hex> --key-id <id> [--not-before <t>] [--not-after <t>]]
@@ -48,7 +48,7 @@ import { dirname, isAbsolute, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { addPqSignature, checkDescriptor, externalPqAttach, generatePqRoot, loadPqRootNote, pqFingerprint, pqPayload, pqVaultItem } from "./pq-ceremony.mjs";
-import { checkDescription, ed25519FieldValue, readEd25519, secureNoteItem } from "./secret-reader.mjs";
+import { checkDescription, ed25519FieldValue, readEd25519, secretFieldName, secureNoteItem } from "./secret-reader.mjs";
 import { KIND_NAMES, KINDS, defaultItemName, migrateViaBw } from "./vault-migrate.mjs";
 import { DELEGATION_FORMAT, FRAME_RAW, FRAME_SOLANA_OFFCHAIN_V0, KNOWN_FRAMES, describeRoot, frameDelegationPayload, ledgerText, delegationPayload, parseDelegation, verifyDelegation } from "./verify-release.mjs";
 
@@ -82,7 +82,7 @@ export const generateRoot = () => {
 };
 
 /**
- * Parses an Ed25519 root key from vault-item JSON (hidden field `secret`, else the legacy note body) or raw text: multi-line PEM,
+ * Parses an Ed25519 root key from vault-item JSON (hidden field `ed25519-pkcs8-*`, legacy name `secret`, else the legacy note body) or raw text: multi-line PEM,
  * one-line PEM or base64 PKCS8 DER (secret-reader.mjs). Errors never include the content.
  */
 export const loadRootPem = (input, opts = {}) => {
@@ -281,9 +281,10 @@ const cmds = {
       if (process.stdout.isTTY) throw new Error("refusing to print a private key to a terminal; pipe stdout straight into `bw encode | bw create item` (see deploy/KEY-CEREMONY.md)");
       const r = generateRoot();
       const name = one(o, "name") ?? `OM release root (software signer) ${r.id}`;
-      // Bitwarden CLI item JSON: type 2 = secure note. The notes are a public description; the key is the HIDDEN custom field `secret`
+      // Bitwarden CLI item JSON: type 2 = secure note. The notes are a public description; the key is the HIDDEN custom field `ed25519-pkcs8-YYYY-MM-DD`
       // (single line, base64 PKCS8 DER), masked in the UI. Read back with `bw get item <name> | ... --root-key-stdin`.
-      process.stdout.write(JSON.stringify(secureNoteItem({ name, notes: KINDS["root-ed25519"].describe({ id: r.id, pub: r.pub, fingerprint: fingerprint(r.pub) }), secret: ed25519FieldValue(r.pem) })));
+      const fieldName = secretFieldName("ed25519");
+      process.stdout.write(JSON.stringify(secureNoteItem({ name, fieldName, notes: KINDS["root-ed25519"].describe({ id: r.id, pub: r.pub, fingerprint: fingerprint(r.pub), fieldName }), secret: ed25519FieldValue(r.pem) })));
       console.error(`root key id:  ${r.id}\npublic key:   ${r.pub}\nfingerprint:  sha256 ${r.fingerprint}\npin as:       "${r.id}": "${r.pub}"   (frame raw)\nThe private key went to stdout only (no file, no log). Confirm the vault item exists before closing this terminal.`);
       return;
     }
@@ -414,11 +415,11 @@ const cmds = {
     const derive = KINDS[kind].family === "pq"
       ? (input, opts) => { const r = loadPqRootNote(input, opts); return { id: r.keyId, pub: r.pub, fingerprint: pqFingerprint(r.pub), value: r.value }; }
       : (input, opts) => { const k = loadRootPem(input, opts); return { id: k.id, pub: k.pub, fingerprint: fingerprint(k.pub), value: k.value }; };
-    const r = migrateViaBw({ itemName, kind, derive, bw: one(o, "bw-command") ?? "bw", dryRun: o["dry-run"] === true });
+    const r = migrateViaBw({ itemName, kind, derive, bw: one(o, "bw-command") ?? "bw", dryRun: o["dry-run"] === true, fieldName: one(o, "field") });
     const pub = KINDS[kind].family === "pq" ? "" : `public key:   ${r.info.pub}\n`;
-    const state = r.planned === 0 ? "already migrated (hidden field `secret` holds the key, note is a description); nothing written"
+    const state = r.planned === 0 ? "already migrated (a dated hidden field holds the key, note is a description); nothing written"
       : o["dry-run"] ? `dry run: ${r.planned} edit(s) would be written; nothing written`
-      : `migrated in ${r.written} verified edit(s): the key now lives in the hidden custom field \`secret\`, the note is a non-secret description`;
+      : `migrated in ${r.written} verified edit(s): the key now lives in the hidden custom field \`${r.fieldName}\`, the note is a non-secret description`;
     console.log(`item:         ${itemName}\nkey id:       ${r.info.id}\n${pub}fingerprint:  sha256 ${r.info.fingerprint}\n${state}`);
   },
   "show-pq-root"(o) {

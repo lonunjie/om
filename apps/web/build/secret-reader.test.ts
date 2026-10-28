@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { generatePqRoot, loadPqRootNote, formatPqNote, pqFingerprint } from "./pq-ceremony.mjs";
 import { fingerprint, generateRoot, loadRootPem } from "./root-ceremony.mjs";
-import { ed25519FieldValue, locateSecret, normalizeEd25519, normalizePqSeed, readEd25519, secureNoteItem } from "./secret-reader.mjs";
+import { ed25519FieldValue, locateSecret, normalizeEd25519, normalizePqSeed, readEd25519, secretFieldName, secureNoteItem } from "./secret-reader.mjs";
 import { pemFromSecretText, signManifest } from "./sign.mjs";
 import { planMigration } from "./vault-migrate.mjs";
 import { delegate, mkOnline, mkRoot, pinOf } from "./testkit";
@@ -59,6 +59,19 @@ describe("Ed25519 encodings", () => {
     expect(() => readEd25519({ ...hiddenItem(b64), fields: [{ name: "secret", value: b64, type: 1 }, { name: "secret", value: b64, type: 1 }] })).toThrow(/more than one/);
     expect(() => readEd25519({ ...hiddenItem(b64), fields: [{ name: "secret", value: "", type: 1 }] })).toThrow(/empty/);
     expect(() => readEd25519({ id: "i", type: 2, notes: "", fields: [] })).toThrow(/no secret custom field/);
+  });
+  it("field selection: dated name preferred, explicit name exact, legacy `secret` is an alias, several dated need an explicit name", () => {
+    const other = generateRoot();
+    const ob64 = ed25519FieldValue(other.pem);
+    const f = (name: string, value: string, type = 1) => ({ name, value, type });
+    const item = (...fields: unknown[]) => ({ id: "i", type: 2, notes: "", fields });
+    expect(readEd25519(item(f("secret", ob64), f("ed25519-pkcs8-2026-10-28", b64))).pem).toBe(key.pem); // dated beats legacy
+    expect(readEd25519(item(f("ed25519-pkcs8-2026-10-28", b64), f("ed25519-pkcs8-2027-01-01", ob64)), { fieldName: "ed25519-pkcs8-2027-01-01" }).pem).toBe(other.pem);
+    expect(() => readEd25519(item(f("ed25519-pkcs8-2026-10-28", b64), f("ed25519-pkcs8-2027-01-01", ob64)))).toThrow(/more than one candidate/);
+    expect(readEd25519(item(f("secret", b64)), { fieldName: "ed25519-pkcs8-2026-10-28" }).pem).toBe(key.pem); // explicit name absent -> legacy alias
+    expect(readEd25519(item(f("mldsa65-seed-2026-10-28", "00".repeat(32)), f("ed25519-pkcs8-2026-10-28", b64))).pem).toBe(key.pem); // other kinds ignored
+    expect(readEd25519(item(f("ed25519-pkcs8-2026-10-28", b64))).fieldName).toBe("ed25519-pkcs8-2026-10-28");
+    expect(secretFieldName("pq", "2027-02-03")).toBe("mldsa65-seed-2027-02-03");
   });
   it("a hidden field must be exactly one key; the legacy note may have text around it", () => {
     expect(() => readEd25519(hiddenItem(`note ${key.pem}`))).toThrow(/more than one key|exactly the key/);
@@ -150,7 +163,7 @@ describe("sign.mjs reads the online key from a key file path in every encoding",
     ["PEM file", online.pem],
     ["one-line PEM file", online.pem.trim().replace(/\n/g, " ")],
     ["bare DER base64 file", `${onlineB64}\n`],
-    ["bw item JSON file", JSON.stringify(secureNoteItem({ name: "k", notes: "public description", secret: onlineB64 }))],
+    ["bw item JSON file", JSON.stringify(secureNoteItem({ name: "k", notes: "public description", fieldName: "ed25519-pkcs8-2026-10-28", secret: onlineB64 }))],
     ["legacy bw item JSON file (note body)", JSON.stringify({ id: "i", type: 2, notes: online.pem, fields: [] })],
   ])("%s", (n, text) => {
     const file = join(tmp, `online-${n.replace(/\W+/g, "-")}.key`);
@@ -171,11 +184,11 @@ describe("generators write the secret only into a single-line hidden field", () 
       const it = JSON.parse(r.stdout) as { notes: string; fields: { name: string; value: string; type: number }[] };
       expect(it.fields).toHaveLength(1);
       const [f] = it.fields as [{ name: string; value: string; type: number; linkedId: null }];
-      expect({ name: f.name, type: f.type, linkedId: f.linkedId }).toEqual({ name: "secret", type: 1, linkedId: null });
+      expect({ name: f.name.replace(/\d{4}-\d{2}-\d{2}$/, "DATE"), type: f.type, linkedId: f.linkedId }).toEqual({ name: cmd === "gen-root" ? "ed25519-pkcs8-DATE" : "mldsa65-seed-DATE", type: 1, linkedId: null });
       expect(f.value).toMatch(/^[A-Za-z0-9+/]+=*$/);
       expect(f.value).not.toMatch(/\s/);
       expect(it.notes).not.toContain(f.value);
-      expect(it.notes).toMatch(/hidden custom field "secret"/);
+      expect(it.notes).toMatch(/hidden custom field "(ed25519-pkcs8|mldsa65-seed)-\d{4}-\d{2}-\d{2}"/);
       expect(it.notes).toMatch(/fingerprint: sha256 [0-9a-f]{64}/);
       expect(r.stderr).not.toContain(f.value);
     }
@@ -231,7 +244,7 @@ describe("migrate-vault-item", () => {
     expect(r.stdout).toContain(`public key:   ${k.pub}`);
     expect(r.stdout).toMatch(/fingerprint: {2}sha256 [0-9a-f]{64}/);
     expect(r.stdout).toMatch(/migrated in 2 verified edit/);
-    expect(after.fields).toContainEqual({ name: "secret", value: ed25519FieldValue(k.pem), type: 1, linkedId: null });
+    expect(after.fields).toContainEqual({ name: secretFieldName("ed25519"), value: ed25519FieldValue(k.pem), type: 1, linkedId: null });
     expect(after.fields).toContainEqual({ name: "other", value: "keep me", type: 0 }); // other fields survive
     expect(after.notes).not.toMatch(/PRIVATE KEY/);
     expect(after.notes).toContain(`public-key: ${k.pub}`);
@@ -255,8 +268,17 @@ describe("migrate-vault-item", () => {
     expect(loadRootPem(a.after).pub).toBe(k.pub);
     const b = migrate({ ...legacyEd("n", "d"), fields: [{ name: "secret", value: ed25519FieldValue(k.pem), type: 0 }] }, "root-ed25519", "n");
     expect(b.r.status, b.r.stderr).toBe(0);
-    expect(b.after.fields).toEqual([{ name: "secret", value: ed25519FieldValue(k.pem), type: 1, linkedId: null }]);
+    expect(b.after.fields).toEqual([{ name: secretFieldName("ed25519"), value: ed25519FieldValue(k.pem), type: 1, linkedId: null }]);
     expect(b.after.notes).not.toMatch(/PRIVATE KEY/);
+  });
+  it("renames a hidden legacy `secret` field to the dated name (one verified edit) and is idempotent", () => {
+    const k = generateRoot();
+    const item = { ...legacyEd("n", "d"), fields: [{ name: "secret", value: ed25519FieldValue(k.pem), type: 1, linkedId: null }] };
+    const a = migrate(item, "root-ed25519", "n");
+    expect(a.r.status, a.r.stderr).toBe(0);
+    expect(a.after.fields).toEqual([{ name: secretFieldName("ed25519"), value: ed25519FieldValue(k.pem), type: 1, linkedId: null }]);
+    expect(a.after.notes).toContain(`hidden custom field "${secretFieldName("ed25519")}"`);
+    expect(migrate(a.after, "root-ed25519", "n").r.stdout).toMatch(/already migrated/);
   });
   it("pq-root: the legacy seed block -> hidden field with the bare seed; same fingerprint", () => {
     const pq = generatePqRoot();
@@ -267,7 +289,7 @@ describe("migrate-vault-item", () => {
     expect(r.stdout).toContain(`sha256 ${pqFingerprint(pq.pub)}`);
     expect(r.stdout + r.stderr).not.toContain(seed);
     expect(calls).not.toContain(seed);
-    expect(after.fields).toEqual([{ name: "secret", value: seed, type: 1, linkedId: null }]);
+    expect(after.fields).toEqual([{ name: secretFieldName("pq"), value: seed, type: 1, linkedId: null }]);
     expect(after.notes).not.toContain(seed);
     expect(loadPqRootNote(after).pub).toBe(pq.pub);
   });
