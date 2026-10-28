@@ -101,7 +101,10 @@ export const migrateViaBw = ({ itemName, kind, derive, bw = "bw", dryRun = false
   const { info, steps } = planMigration(item, kind, derive);
   if (dryRun || steps.length === 0) return { info, written: 0, planned: steps.length };
   let n = 0;
-  for (const step of steps) {
+  for (const [i, planned] of steps.entries()) {
+    // Every edit bumps the item's revisionDate and the server refuses a write built on an older copy, so steps after the
+    // first are re-applied (notes only) to a fresh read instead of replaying the copy read before step 1.
+    const step = i === 0 ? planned : { ...read(item.id), notes: planned.notes };
     run(["edit", "item", item.id], Buffer.from(JSON.stringify(step), "utf8").toString("base64")); // output discarded (it echoes the item)
     run(["sync"]);
     const back = read(item.id);

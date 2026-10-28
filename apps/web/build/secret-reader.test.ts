@@ -196,6 +196,10 @@ else if (args[0] === "get" && args[1] === "item") {
   process.stdout.write(JSON.stringify(it));
 } else if (args[0] === "edit" && args[1] === "item") {
   const next = JSON.parse(Buffer.from(fs.readFileSync(0, "utf8").trim(), "base64").toString("utf8"));
+  const cur = item();
+  // like Vaultwarden: a write built on an older copy than the server holds is refused, and every accepted write bumps the revision
+  if ((cur.revisionDate ?? 0) !== (next.revisionDate ?? 0)) { process.stderr.write("The client copy of this cipher is out of date."); process.exit(1); }
+  next.revisionDate = (cur.revisionDate ?? 0) + 1;
   if (process.env.FAKE_BW_CORRUPT) next.fields = next.fields.map((f) => ({ ...f, value: f.value.replace(/^./, (c) => (c === "A" ? "B" : "A")) }));
   fs.writeFileSync(state, JSON.stringify(next));
   process.stdout.write(JSON.stringify(next)); // real bw echoes the item
