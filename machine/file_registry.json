@@ -466,6 +466,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/release-delegation.json",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/src/copy/en.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",

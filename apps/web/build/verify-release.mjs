@@ -18,7 +18,17 @@ const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.is
 // root-signed delegation inside the manifest.
 // Operator decision 2026-10-28: 2-of-3 roots (two Ledgers, one software key). A pinned value is a bare 64-hex public key
 // (frame "raw") or { pub, frame }; the frame is pinned per key and a signature cannot choose it.
-export const PINNED_ROOTS = {};
+export const PINNED_ROOTS = {
+  "root-1ad451cf9d829f8c": {
+    "pub": "79f4816d521646a1a05f4044aee630b59f711a9b0c6111c9fbdfd106152b5a2a",
+    "frame": "solana-offchain-v0"
+  },
+  "root-424a711d6c98e116": {
+    "pub": "f3576e4b061d5bf87e879d1ee980ab5a9b7ca5685057347e7120429bba257b99",
+    "frame": "solana-offchain-v0"
+  },
+  "root-547e93244cf6a195": "dd0206e04683a13c1c2bf0fa7b01abd0060561f029de21c57d767bdb8c9f7729"
+};
 export const PINNED_ROOT_THRESHOLD = 2;
 const isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 export const canonicalJson = (v) => {

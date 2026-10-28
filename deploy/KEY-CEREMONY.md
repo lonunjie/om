@@ -310,7 +310,7 @@ cd ~/dig/lonunjie/om && node apps/web/build/root-ceremony.mjs draft \
   --prev apps/web/release-delegation.json --expires +90d --out ~/om-root-work/release-delegation.json
 ```
 
-then step 5 (payload, sign, attach for two signers, `verify`), then copy to `apps/web/release-delegation.json` and ship it
+then step 5 (payload, sign, attach for two signers, `verify`), then copy to [`apps/web/release-delegation.json`](../apps/web/release-delegation.json) and ship it
 with the next release. Put a calendar reminder 30 days before expiry. (Software-only shortcut: `sign-delegation
 --root-key-stdin` with a second `cosign`, as in step 5.)
 

@@ -15,7 +15,17 @@ import type { RootKeyDescriptor, RootPin } from "./delegation";
 // and set the SAME value in build/verify-release.mjs (PINNED_ROOTS); release.test.ts checks both agree.
 // The client pins ONLY root keys. The online release key arrives in a root-signed delegation inside every manifest.
 // ============================================================================================================
-export const ROOT_KEYS: Readonly<Record<string, RootKeyDescriptor>> = {};
+export const ROOT_KEYS: Readonly<Record<string, RootKeyDescriptor>> = {
+  "root-1ad451cf9d829f8c": {
+    "pub": "79f4816d521646a1a05f4044aee630b59f711a9b0c6111c9fbdfd106152b5a2a",
+    "frame": "solana-offchain-v0"
+  },
+  "root-424a711d6c98e116": {
+    "pub": "f3576e4b061d5bf87e879d1ee980ab5a9b7ca5685057347e7120429bba257b99",
+    "frame": "solana-offchain-v0"
+  },
+  "root-547e93244cf6a195": "dd0206e04683a13c1c2bf0fa7b01abd0060561f029de21c57d767bdb8c9f7729"
+};
 /** Distinct root signatures required on a delegation: 2 of the 3 pinned roots (operator decision 2026-10-28; deploy/KEY-CEREMONY.md). */
 export const ROOT_THRESHOLD = 2;
 /** Exactly this many distinct roots are pinned once the ceremony is done (release.test.ts checks it). */

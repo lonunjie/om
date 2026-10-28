@@ -20,7 +20,7 @@ Output (git-ignored) in `apps/web/release/`: `om-web-<version>[-dev]/` and `.zip
   production releases currently fail by design. Runbook: [`KEY-CEREMONY.md`](KEY-CEREMONY.md). Without `--dev`, the
   script refuses an unsigned release and says so. `--dev` builds with `OM_BUNDLE_DEV=1`; the manifest is marked `dev`
   and unsigned, and production clients reject it. `--sign-from-vault` signs with the delegated online key and needs
-  `apps/web/release-delegation.json` (or `--delegation <file>`). `--signature` injects an externally produced
+  [`apps/web/release-delegation.json`](../apps/web/release-delegation.json) (or `--delegation <file>`). `--signature` injects an externally produced
   `{alg,keyId,sig}` over the manifest signing payload (`signingPayload()` in `apps/web/src/update/manifest.ts`);
   the delegation is still embedded and the whole chain is verified before the release is reported as signed.
 - **Verify (no deps, no build):** `node verify.mjs [dir] [--require-signed]` checks `SHA256SUMS`, every manifest hash and size,

@@ -4,4 +4,4 @@ packages: []
 # Native build scripts stay OFF until the operator has approved the dependency set (deploy/KEY-CEREMONY.md, "Ledger helper").
 # After approval: `pnpm approve-builds` in this folder (node-hid) flips the line below.
 allowBuilds:
-  node-hid: false
+  node-hid: true
