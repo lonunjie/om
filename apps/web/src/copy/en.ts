@@ -611,15 +611,16 @@ export interface LandingCopy {
   readonly title: string;
   readonly description: string;
   readonly brand: string;
+  readonly beta: string;
   readonly headline: string;
   readonly lead: string;
   readonly getStarted: string;
+  readonly chat: { readonly mine: readonly string[]; readonly other: string; readonly label: string };
   readonly seedlife: { readonly label: string; readonly tagline: string };
-  readonly beta: string;
-  readonly meaning: { readonly lead: string; readonly body: string };
-  readonly story: { readonly heading: string; readonly chapters: readonly { readonly label: string; readonly title: string; readonly body: string }[] };
-  readonly security: { readonly heading: string; readonly points: readonly string[]; readonly link: string; readonly linkLabel: string };
-  readonly what: { readonly heading: string; readonly points: readonly string[] };
+  readonly what: { readonly heading: string; readonly cards: readonly { readonly title: string; readonly body: string }[] };
+  readonly why: { readonly eyebrow: string; readonly heading: string; readonly items: readonly { readonly words: readonly [string, string]; readonly body: string }[] };
+  readonly yours: { readonly eyebrow: string; readonly heading: string; readonly body: readonly string[]; readonly quote: string };
+  readonly security: { readonly eyebrow: string; readonly heading: string; readonly intro: string; readonly points: readonly string[]; readonly link: string; readonly linkLabel: string };
   readonly install: {
     readonly heading: string;
     readonly intro: string;
@@ -639,51 +640,62 @@ export interface LandingCopy {
 const https = (hostAndPath: string): string => ["https", hostAndPath].join("://");
 
 export const landingCopy: LandingCopy = {
-  title: "OM (Oh Messenger) Beta: private messaging nobody runs for you",
-  description: "OM, short for Oh Messenger, is an open-source, operatorless, end-to-end-encrypted messenger from the SeedLife project. Beta.",
+  title: "OM (Oh Messenger) Beta: The messaging app you own",
+  description: "OM, short for Oh Messenger, is a friendly, open-source, end-to-end-encrypted messaging app that belongs to you, from the SeedLife project. Beta.",
   brand: "OM",
-  headline: "Private messaging that nobody operates for you",
-  lead: "OM is an open-source, operatorless, end-to-end-encrypted messenger. Your conversations belong to you and your devices, not to a company that could read, sell or lose them.",
-  getStarted: "Get started",
-  seedlife: { label: "A SeedLife project", tagline: "Protect life. Seed it." },
   beta: "Beta",
-  meaning: {
-    lead: "OM stands for Oh Messenger.",
-    body: "The \u201cOh\u201d is the small sound you make when a message lands from someone you care about. We want that moment to be the only thing a messenger has to deliver.",
-  },
-  story: {
-    heading: "One message, start to finish",
-    chapters: [
-      { label: "1", title: "You write", body: "A message starts on your device. There is no company account to sign up for." },
-      { label: "2", title: "It locks", body: "It is end-to-end encrypted, so it is locked before it leaves your hands." },
-      { label: "3", title: "It travels", body: "No company operates OM for you and no central service has to stay online. You pick a Home to carry it, or run your own." },
-      { label: "4", title: "They open it", body: "Only the people in the conversation hold the keys. That is the design; read the code and check it." },
+  headline: "The messaging app you own",
+  lead: "OM stands for Oh Messenger: the happy little \u201coh\u201d when a message from someone you love arrives. It is open source and end-to-end encrypted, with no company in the middle deciding what happens to your conversations.",
+  getStarted: "Get started",
+  chat: { label: "What using OM should feel like", mine: ["Install OM", "Pick a name", "Say hello"], other: "That\u2019s it? \u{1F642}" },
+  seedlife: { label: "A SeedLife project", tagline: "Protect life. Seed it." },
+  what: {
+    heading: "What you get",
+    cards: [
+      { title: "Just for you and them", body: "Messages are end-to-end encrypted, so only the people in a conversation can read them." },
+      { title: "Nobody in charge of you", body: "There is no company account to sign up for, and no single service that has to stay online." },
+      { title: "Open to everyone", body: "The code is public. Anyone can read it, check it, run it and improve it." },
+      { title: "Easy from the first minute", body: "No settings to learn and no jargon. If you can send a text, you can use OM." },
     ],
   },
+  why: {
+    eyebrow: "Why \u201cOM\u201d",
+    heading: "One short name, six little promises",
+    items: [
+      { words: ["Open-source", "Messenger"], body: "A gift to everyone. Anyone can use it, copy it and make it better." },
+      { words: ["Open", "Messenger"], body: "Not a walled garden. Other apps can talk to OM without asking permission." },
+      { words: ["Own", "Messenger"], body: "Make it yours: your identity, your look, your own setup. No central OM account needed." },
+      { words: ["Our", "Messenger"], body: "Made for people who gather: families, friends, teams and communities, each with their own spaces and rules." },
+      { words: ["One", "Messenger"], body: "It is meant to grow with add-ons, so your group does not need a new app every time it wants something new." },
+      { words: ["Oh", "Messenger"], body: "Friendly, lively and human. The engineering stays under the hood, and you just get a pleasant messenger." },
+    ],
+  },
+  yours: {
+    eyebrow: "How it stays free",
+    heading: "Looked after, never owned",
+    body: [
+      "SeedLife looks after OM, but nobody owns it. Not SeedLife, not its founder, not whoever comes next. Nobody gets to make your conversations depend on them.",
+      "If the people who made OM, this website or a company behind a server all disappeared, the people already talking on OM should still be able to keep talking.",
+    ],
+    quote: "Companies are welcome to join in. Special treatment for anyone is not.",
+  },
   security: {
+    eyebrow: "Straight talk",
     heading: "Security & privacy",
+    intro: "OM is new, and we would rather be honest about it than impressive.",
     points: [
-      "OM is a beta. No human cryptographer has audited it.",
-      "OM makes no security claims. Do not rely on it for anything private or important yet.",
-      "Data may be lost during the beta: messages, contacts or your whole identity.",
-      "A Home can see that you connect and when, and how much you send, though it is designed not to read what you send.",
-      "Found a flaw? Write to hi@lonunjie.org with the subject \u201cOM security\u201d.",
+      "OM is in beta. No human cryptographer has audited it yet.",
+      "We do not make security promises. Please do not rely on it for anything private or important yet.",
+      "Things can go wrong in a beta, including losing messages, contacts or your whole identity.",
+      "The Home that carries your messages can see that you connect, when, and how much you send. It is designed not to read what you send.",
+      "Found a problem? Write to hi@lonunjie.org with the subject \u201cOM security\u201d. We would love to hear it.",
     ],
     link: https("github.com/lonunjie/om/blob/main/SECURITY.md"),
     linkLabel: "Read the full security policy",
   },
-  what: {
-    heading: "What OM is for",
-    points: [
-      "End-to-end encrypted: only the people in a conversation can read it.",
-      "Operatorless: no company account and no central service that has to stay online.",
-      "Open source: anyone can read, check and run the code.",
-      "Made for ordinary people, with no technical vocabulary.",
-    ],
-  },
   install: {
     heading: "Install OM as an app",
-    intro: "OM works in your browser, and it is better installed. It then opens in its own window and works like any other app.",
+    intro: "OM works in your browser, and it feels nicer installed. It then opens in its own window like any other app.",
     ios: "iPhone and iPad (Safari): tap the Share button, then Add to Home Screen.",
     android: "Android (Chrome): open the menu, then Install app.",
     desktop: "Desktop (Chrome, Edge): choose Install in the address bar or the browser menu.",
@@ -693,7 +705,7 @@ export const landingCopy: LandingCopy = {
   },
   selfHost: {
     heading: "Run your own copy",
-    body: "OM is built so that you do not have to trust anyone's server, including ours. You can get the code and host your own copy of this app.",
+    body: "You should not have to take anyone's word for it, including ours. Grab the code and host your very own copy of this app.",
     link: https("github.com/lonunjie/om"),
     linkLabel: "OM on GitHub",
   },

@@ -8,8 +8,8 @@ test("index.html carries the landing text and metadata without running any JavaS
   const html = await res.text();
   const root = /<div id="root">([\s\S]*)<\/body>/.exec(html)?.[1] ?? "";
   for (const text of [
-    "Private messaging that nobody operates for you", "open-source, operatorless, end-to-end-encrypted messenger", "Protect life. Seed it.",
-    "Beta", "Oh Messenger", "Security & privacy", "Add to Home Screen", "Install app", "Run your own copy", "https://github.com/lonunjie/om", "Get started",
+    "The messaging app you own", "OM stands for Oh Messenger", "Protect life. Seed it.",
+    "Beta", "Security &amp; privacy", "Add to Home Screen", "Install app", "Run your own copy", "https://github.com/lonunjie/om", "Get started",
   ]) expect(root, text).toContain(text);
   expect(html).toMatch(/<meta name="description" content="[^"]{40,}"/);
   expect(html).toMatch(/<meta property="og:image" content="[^"]+og-image\.png"/);
@@ -22,7 +22,7 @@ test("index.html carries the landing text and metadata without running any JavaS
 
 test("with JavaScript the app replaces the landing page only after Get started", async ({ page }) => {
   await page.goto(BUNDLE_URL + "/");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Private messaging that nobody operates for you");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("The messaging app you own");
   await page.getByRole("button", { name: "Get started" }).click();
   // The real Core starts, and the first run continues into device setup (no provider is configured in this build).
   await expect(page.getByRole("button", { name: "Lock this device" })).toBeVisible();
