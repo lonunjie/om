@@ -655,6 +655,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/control.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/crypto/binding.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -810,6 +817,20 @@
     },
     {
       "path": "crates/om-core/src/state.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/acs_authorization.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/devices.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -8538,6 +8559,13 @@
     },
     {
       "path": "verification/bounded/acs_authorization_table.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/bounded/acs_dump_cases.py",
       "class": "verification_tool",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

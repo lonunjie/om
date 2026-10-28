@@ -17,7 +17,6 @@
 //! persisted like the peer heads of K7). The check runs before any secret-key operation for both new and
 //! established sessions, so there is no optional/unpinned receive path.
 
-use crate::crypto::Error;
 use crate::crypto::binding::{
     self, Acs, BundleFreshness, Credential, KIND_EC_ONE_TIME, KIND_PQ_ONE_TIME, PeerDevice,
     PeerView, RelationshipContext, StaticKeys, TrustedPeer, VerifiedBundle,
@@ -28,6 +27,7 @@ use crate::crypto::pqxdh::{self, InitHeader, PqKind, encode_ec};
 use crate::crypto::rng::{CryptoRng, RngCore, arr32, arr64};
 use crate::crypto::session::{MsgKeys, SessionState};
 use crate::crypto::sig::DeviceSigner;
+use crate::crypto::{Error, PROFILE_V1};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Fixed prototype clock values (bundle expiry is checked against `NOW`).
@@ -269,6 +269,12 @@ impl Device {
             messaging: BTreeSet::new(),
             revoked: BTreeSet::new(),
             credentials: vec![(self.device_id, self.credential().hash())],
+            previous: None,
+            constitutional: (1, None),
+            recovery_commitment: None,
+            min_profile: PROFILE_V1,
+            key_epochs: vec![],
+            transparency: None,
         }
     }
 

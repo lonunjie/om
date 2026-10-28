@@ -96,6 +96,18 @@ pub struct Acs {
     pub revoked: BTreeSet<[u8; 16]>,
     /// device_id -> credential digest
     pub credentials: Vec<([u8; 16], [u8; 32])>,
+    /// `previous_state_hash` (key 4): absent only on the genesis state.
+    pub previous: Option<[u8; 32]>,
+    /// `constitutional_policy` (key 9): (kind, optional fixed threshold).
+    pub constitutional: (u64, Option<u64>),
+    /// `recovery_policy_commitment` (key 10).
+    pub recovery_commitment: Option<[u8; 32]>,
+    /// `minimum_crypto_profile` (key 11): the account-wide 1:1 floor.
+    pub min_profile: u64,
+    /// `control_key_epochs` (key 12): (device, epoch).
+    pub key_epochs: Vec<([u8; 16], u64)>,
+    /// `transparency_commitment` (key 14).
+    pub transparency: Option<[u8; 32]>,
 }
 
 fn id_set(s: &BTreeSet<[u8; 16]>) -> V {
@@ -123,14 +135,18 @@ impl Acs {
             .map(|(d, h)| cbor::encode(&V::M(vec![(0, V::B(d.to_vec())), (1, digest(h))])))
             .collect();
         creds.sort();
+        let mut constitutional = vec![(0, V::U(self.constitutional.0))];
+        if let Some(t) = self.constitutional.1 {
+            constitutional.push((1, V::U(t)));
+        }
         let mut m = vec![
             (0, V::U(1)),
             (1, V::U(1)),
             (2, V::B(self.account_id.to_vec())),
             (3, V::U(self.generation)),
             (5, id_set(&self.control)),
-            (9, V::M(vec![(0, V::U(1))])),
-            (11, V::U(PROFILE_V1)),
+            (9, V::M(constitutional)),
+            (11, V::U(self.min_profile)),
             (
                 13,
                 V::A(creds.iter().map(|c| cbor::decode(c).unwrap()).collect()),
@@ -145,12 +161,66 @@ impl Acs {
         if !self.revoked.is_empty() {
             m.push((8, id_set(&self.revoked)));
         }
+        if let Some(p) = &self.previous {
+            m.push((4, digest(p)));
+        }
+        if let Some(r) = &self.recovery_commitment {
+            m.push((10, digest(r)));
+        }
+        if !self.key_epochs.is_empty() {
+            let mut e: Vec<Vec<u8>> = self
+                .key_epochs
+                .iter()
+                .map(|(d, n)| cbor::encode(&V::M(vec![(0, V::B(d.to_vec())), (1, V::U(*n))])))
+                .collect();
+            e.sort();
+            m.push((
+                12,
+                V::A(e.iter().map(|c| cbor::decode(c).unwrap()).collect()),
+            ));
+        }
+        if let Some(t) = &self.transparency {
+            m.push((14, digest(t)));
+        }
         cbor::encode(&V::M(m))
     }
     pub fn from_body(b: &[u8]) -> Result<Self, Error> {
         let v = cbor::decode(b)?;
         if v.get(0)?.u()? != 1 || v.get(1)?.u()? != 1 {
             return Err(Error::Binding("not an AccountControlState v1"));
+        }
+        // Key 23 holds critical extensions (fork_ack, legacy_policy): a decoder that does not implement them rejects
+        // the whole state, and so does every key this parser does not know.
+        for (k, _) in v.m()? {
+            if !matches!(*k, 0..=14) {
+                return Err(Error::Binding(
+                    "acs: unsupported field or critical extension",
+                ));
+            }
+        }
+        let constitutional = {
+            let c = v.get(9)?;
+            (c.get(0)?.u()?, c.opt(1).map(|t| t.u()).transpose()?)
+        };
+        let digest_of = |k: u64| -> Result<Option<[u8; 32]>, Error> {
+            v.opt(k)
+                .map(|d| {
+                    if d.get(0)?.u()? != 1 {
+                        return Err(Error::Binding("acs digest algorithm"));
+                    }
+                    d.get(1)?.b32()
+                })
+                .transpose()
+        };
+        let mut key_epochs = vec![];
+        if let Some(e) = v.opt(12) {
+            for x in e.a()? {
+                let d = x.get(0)?.b()?;
+                if d.len() != 16 {
+                    return Err(Error::Binding("acs key epoch device"));
+                }
+                key_epochs.push((d.try_into().unwrap(), x.get(1)?.u()?));
+            }
         }
         let mut credentials = vec![];
         if let Some(c) = v.opt(13) {
@@ -171,6 +241,12 @@ impl Acs {
             messaging: read_ids(v.opt(7))?,
             revoked: read_ids(v.opt(8))?,
             credentials,
+            previous: digest_of(4)?,
+            constitutional,
+            recovery_commitment: digest_of(10)?,
+            min_profile: v.get(11)?.u()?,
+            key_epochs,
+            transparency: digest_of(14)?,
         })
     }
     pub fn hash(&self) -> [u8; 32] {

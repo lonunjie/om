@@ -5,6 +5,7 @@
 //! docs/reports/2026-10-28-core-kernel-m1-status.md "Spec questions" for what is deliberately not built).
 
 use crate::api::*;
+use crate::control;
 use crate::crypto::binding::{self, Acs, PeerView, RelationshipContext, TrustedPeer};
 use crate::crypto::cbor::{self, V};
 use crate::crypto::delivery::{self, KeyMaterial};
@@ -32,6 +33,9 @@ pub const BOOTSTRAP_TTL_S: u64 = 7 * 24 * 60 * 60;
 /// ADR-0146: at most this many distinct bootstrap wrappers are ever admitted for one request.
 pub const MAX_BOOTSTRAP_CANDIDATES: usize = 8;
 const LBL_REQUEST_KEY: &str = "OM-REQUEST-KEY-HASH-v1";
+
+/// The head state, the signed chain that leads to it and every credential the account has committed to.
+type AcsHead = (Acs, Vec<Vec<u8>>, Vec<Vec<u8>>);
 
 pub fn registry() -> &'static om_codec::Registry {
     static R: OnceLock<om_codec::Registry> = OnceLock::new();
@@ -233,6 +237,26 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ))
     }
 
+    /// The account's signed AccountControlState chain and its head, re-verified from stored bytes.
+    fn acs_head(&self) -> Option<AcsHead> {
+        let chain: Vec<Vec<u8>> = self
+            .st
+            .app
+            .acs_chain
+            .iter()
+            .map(|c| unhex(c).ok())
+            .collect::<Option<_>>()?;
+        let creds: Vec<Vec<u8>> = self
+            .st
+            .app
+            .acs_credentials
+            .iter()
+            .map(|c| unhex(c).ok())
+            .collect::<Option<_>>()?;
+        let head = control::verify_chain(&chain, &creds).ok()?;
+        Some((head, chain, creds))
+    }
+
     /// Can we seal to this peer right now? There is never a clear-sender fallback (profile section 12).
     fn peer_key_for_send(&self, rel: &Relationship) -> Result<PeerDelivery, RejectReason> {
         let (Some(pd), Some(mb)) = (&rel.peer_delivery, &rel.peer_mailbox) else {
@@ -337,9 +361,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             IntentBody::ClearAdaptiveNavigation
             | IntentBody::OpenOmnibarResult { .. }
             | IntentBody::PinNavigationTarget { .. } => OutcomeClass::Committed,
-            // Not built in pass 1 (status report "What remains"); Rejected(unsupported) is the conservative answer.
+            IntentBody::SuspendDevice { device_id, .. } => {
+                self.device_transition(device_id, control::Action::Suspend)
+            }
+            IntentBody::RevokeDevice { device_id, .. } => {
+                self.device_transition(device_id, control::Action::Revoke)
+            }
+            // Not built (status report "What remains"); Rejected(unsupported) is the conservative answer.
             IntentBody::ShareContact { .. }
-            | IntentBody::SuspendDevice { .. }
             | IntentBody::ChangePrivacyPolicy { .. }
             | IntentBody::ShareStaticLocation { .. }
             | IntentBody::StartCall { .. }
@@ -348,13 +377,51 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             | IntentBody::RequestDeviceLink { .. }
             | IntentBody::ApproveDeviceLink { .. }
             | IntentBody::RejectDeviceLink { .. }
-            | IntentBody::RevokeDevice { .. }
             | IntentBody::StartRecovery { .. }
             | IntentBody::VetoRecovery { .. } => unsupported,
         };
         let msg = None;
         self.record(op, kind, outcome, msg);
         Ok(())
+    }
+
+    /// `SuspendDevice` / `RevokeDevice`: a real AccountControlState transition, authorized against the parent head
+    /// with this device as the only signer, signed, re-verified and appended to the chain in this transaction.
+    fn device_transition(&mut self, device_id: &str, action: control::Action) -> OutcomeClass {
+        use control::PlanError::*;
+        let rejected = |reason| OutcomeClass::Rejected { reason };
+        let (Some((head, chain, creds)), Some(me)) = (
+            self.acs_head(),
+            self.st.device.as_ref().map(|d| d.device_id),
+        ) else {
+            return rejected(RejectReason::StaleState);
+        };
+        let Some(target) = unhex(device_id)
+            .ok()
+            .and_then(|v| <[u8; 16]>::try_from(v).ok())
+        else {
+            return rejected(RejectReason::Invalid);
+        };
+        let child = match control::plan(&head, &me, action, &target) {
+            Ok(c) => c,
+            Err(NotFound) => return rejected(RejectReason::NotFound),
+            Err(NotController) => return rejected(RejectReason::Unauthorized),
+            Err(Conflict | WouldFreeze) => return rejected(RejectReason::Conflict),
+            // Authorized only with other controllers' signatures: Core has no signature-collection transport yet.
+            Err(NeedsOtherSigners) => return rejected(RejectReason::Unsupported),
+            Err(Forbidden) => return rejected(RejectReason::Unauthorized),
+        };
+        let Some(dev) = self.st.device.as_ref() else {
+            return rejected(RejectReason::StaleState);
+        };
+        let signed = control::sign_acs(&child.body(), &[(&dev.device_id, &dev.signer)], self.rng);
+        // Defense in depth: the signed child must verify as a successor of the head we hold.
+        if control::verify_successor(&head, &signed, &creds).is_err() {
+            return rejected(RejectReason::IntegrityFailure);
+        }
+        let _ = chain;
+        self.st.app.acs_chain.push(hex(&signed));
+        OutcomeClass::Committed
     }
 
     fn create_identity(&mut self, op: &OperationId, label: &str) -> OutcomeClass {
@@ -376,6 +443,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let mut device = crate::crypto::store::Device::new(self.rng);
         device.bundle_expires_at = now_s + BUNDLE_TTL_S;
         let up = device.generate_one_time(ONE_TIME_KEYS, ONE_TIME_KEYS, self.rng);
+        // The genesis AccountControlState is signed by the genesis control device (role `controller`).
+        let genesis = control::sign_acs(
+            &device.acs().body(),
+            &[(&device.device_id, &device.signer)],
+            self.rng,
+        );
+        self.st.app.acs_chain = vec![hex(&genesis)];
+        self.st.app.acs_credentials = vec![hex(&device.credential().body())];
+        self.st.app.device_meta.insert(
+            hex(&device.device_id),
+            DeviceMeta {
+                label: "This device".into(),
+                enrolled_at: self.now_ms,
+            },
+        );
         let call = NetCall::PublishKeyMaterial {
             device_id: device.device_id.to_vec(),
             bundle: up.bundle,
@@ -402,9 +484,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 reason: RejectReason::StaleState,
             };
         };
-        let acs = device.acs();
+        let _ = device;
+        let Some((acs, chain, creds)) = self.acs_head() else {
+            return OutcomeClass::Rejected {
+                reason: RejectReason::IntegrityFailure,
+            };
+        };
         let acs_body = acs.body();
-        let cred_body = device.credential().body();
         let (acs_hash, label) = (acs.hash(), self.st.app.label.clone());
         let invite_id = self.rand16();
         let mailbox = self.rand16();
@@ -415,11 +501,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let expires_at = self.now_ms + INVITE_TTL_MS;
         let descriptor = cbor::encode(&V::M(vec![
             (1, V::B(acs_body)),
-            (2, V::A(vec![V::B(cred_body)])),
+            (2, V::A(creds.into_iter().map(V::B).collect())),
             (3, V::B(pk)),
             (4, V::B(mailbox.to_vec())),
             (5, V::U(expires_at / 1000)),
             (6, V::T(label)),
+            (7, V::A(chain.into_iter().map(V::B).collect())),
         ]));
         // The link commits to the ACS head and the request key, so the (untrusted) introduction service cannot
         // substitute either (QR/link possession is a rendezvous capability, not relationship authority).
@@ -748,6 +835,37 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             },
         );
         Ok(())
+    }
+
+    /// TEST ONLY (`test-loopback`): enroll a second device as a MESSAGING device by a real, signed `link_messaging`
+    /// transition (the device-link ceremony transport is not built, so tests need a way to get a multi-device ACS).
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_link_messaging_device(&mut self) -> Result<String, CoreError> {
+        let (head, _, _) = self.acs_head().ok_or(CoreError::Invalid("no acs"))?;
+        let (me_id, account) = {
+            let d = self.device()?;
+            (d.device_id, d.account_id)
+        };
+        let mut other = crate::crypto::store::Device::new(self.rng);
+        other.account_id = account;
+        let cred = other.credential();
+        let mut child = head.clone();
+        child.generation = head.generation + 1;
+        child.previous = Some(head.hash());
+        child.messaging.insert(other.device_id);
+        child.credentials.push((other.device_id, cred.hash()));
+        let signer = self.device()?.signer.clone();
+        let signed = control::sign_acs(&child.body(), &[(&me_id, &signer)], self.rng);
+        self.st.app.acs_credentials.push(hex(&cred.body()));
+        self.st.app.acs_chain.push(hex(&signed));
+        self.st.app.device_meta.insert(
+            hex(&other.device_id),
+            DeviceMeta {
+                label: "Test phone".into(),
+                enrolled_at: self.now_ms,
+            },
+        );
+        Ok(hex(&other.device_id))
     }
 
     fn retry_delivery(&mut self, op: &OperationId, message_id: &str) -> Result<(), CoreError> {
@@ -1080,11 +1198,23 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .and_then(|x| x.t())
                 .map(sanitize_label)
                 .map_err(|_| CoreError::Invalid("label"))?;
-            Ok((acs_body, creds, pk, mailbox, expires, label))
+            let chain: Vec<Vec<u8>> = v
+                .get(7)
+                .and_then(|x| x.a())
+                .map_err(|_| CoreError::Invalid("acs chain"))?
+                .iter()
+                .map(|c| c.b().map(<[u8]>::to_vec))
+                .collect::<Result<_, _>>()
+                .map_err(|_| CoreError::Invalid("acs chain"))?;
+            Ok((acs_body, creds, pk, mailbox, expires, label, chain))
         })();
-        let Ok((acs_body, creds, pk, mailbox, expires, label)) = parsed else {
+        let Ok((acs_body, creds, pk, mailbox, expires, label, chain)) = parsed else {
             return rej(IntegrityFailure);
         };
+        // The head the link committed to must be the head of a verified, signed AccountControlState chain.
+        if !control::verify_chain(&chain, &creds).is_ok_and(|h| h.body() == acs_body) {
+            return rej(IntegrityFailure);
+        }
         // Everything the introduction service returned is checked against what the link committed to.
         let Ok(acs) = Acs::from_body(&acs_body) else {
             return rej(IntegrityFailure);
@@ -1116,8 +1246,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if dev.trust_peer(acs_body.clone(), creds.clone()).is_err() {
             return rej(StaleState);
         }
-        let my_acs = dev.acs().body();
-        let my_cred = dev.credential().body();
+        let Some((my_head, my_chain, my_creds)) = self.acs_head() else {
+            return rej(IntegrityFailure);
+        };
+        let my_acs = my_head.body();
         let (Ok(invite16), Ok(rk)) = (h16(invite_id), h32(rk_digest)) else {
             return rej(IntegrityFailure);
         };
@@ -1130,11 +1262,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         let payload = cbor::encode(&V::M(vec![
             (1, V::B(my_acs)),
-            (2, V::A(vec![V::B(my_cred)])),
+            (2, V::A(my_creds.into_iter().map(V::B).collect())),
             (3, V::B(my_mailbox.to_vec())),
             (4, V::T(label_me)),
             (5, V::U(self.now_ms)),
             (6, bootstrap_km.to_v()),
+            (7, V::A(my_chain.into_iter().map(V::B).collect())),
         ]));
         let mut rnd = [0u8; 64];
         self.rng.fill_bytes(&mut rnd);
@@ -1408,11 +1541,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             let mb = p.get(3)?.b()?.to_vec();
             let label = sanitize_label(p.get(4)?.t()?);
             let reply_key = KeyMaterial::from_v(p.get(6)?)?;
-            Ok((acs_body, creds, mb, label, reply_key))
+            let chain: Vec<Vec<u8>> = p
+                .get(7)?
+                .a()?
+                .iter()
+                .map(|c| c.b().map(<[u8]>::to_vec))
+                .collect::<Result<_, _>>()?;
+            Ok((acs_body, creds, mb, label, reply_key, chain))
         })();
-        let Ok((acs_body, creds, mb, label, reply_key)) = parsed else {
+        let Ok((acs_body, creds, mb, label, reply_key, chain)) = parsed else {
             return;
         };
+        // The requester's state must be a verified, signed AccountControlState (nothing is pinned until accepted).
+        if !control::verify_chain(&chain, &creds).is_ok_and(|h| h.body() == acs_body) {
+            return;
+        }
         // The bootstrap key must be bound to exactly the reply route in the same request, and fresh.
         let now_s = self.now_s();
         if mb.len() != 16

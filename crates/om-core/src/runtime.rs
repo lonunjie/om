@@ -77,6 +77,14 @@ impl LoopbackNetwork {
     pub fn deposit_log(&self) -> Vec<(Vec<u8>, Vec<u8>)> {
         self.0.borrow().log.clone()
     }
+    /// Hostile introduction service: exchange the descriptors stored under two invite ids.
+    pub fn swap_invites(&self, a: &[u8], b: &[u8]) {
+        let mut s = self.0.borrow_mut();
+        if let (Some(x), Some(y)) = (s.invites.get(a).cloned(), s.invites.get(b).cloned()) {
+            s.invites.insert(a.to_vec(), y);
+            s.invites.insert(b.to_vec(), x);
+        }
+    }
     pub fn revoke_all_invites(&self) {
         self.0.borrow_mut().invites.clear();
     }

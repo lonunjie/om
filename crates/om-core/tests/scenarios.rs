@@ -634,14 +634,7 @@ fn destructive_and_unbuilt_intents_fail_closed() {
             reason: RejectReason::Unauthorized
         })
     );
-    rt.dispatch(
-        &ctx,
-        "unbuilt",
-        IntentBody::RevokeDevice {
-            device_id: "d".into(),
-            confirmation: confirm(),
-        },
-    );
+    rt.dispatch(&ctx, "unbuilt", IntentBody::OfferDeviceLink);
     assert_eq!(
         rt.outcome(&ctx, "unbuilt"),
         Some(OutcomeClass::Rejected {

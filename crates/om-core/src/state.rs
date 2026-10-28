@@ -280,6 +280,22 @@ pub struct AppState {
     /// Mailbox (hex) -> highest relay sequence already processed and committed.
     pub cursors: BTreeMap<Hex, u64>,
     pub keys_published: bool,
+    /// The signed AccountControlState chain `[genesis, ..., head]` (each a W0 SignedAccountControlState, hex).
+    #[serde(default)]
+    pub acs_chain: Vec<Hex>,
+    /// Every DeviceCredential body this account has committed to, current and historical (hex).
+    #[serde(default)]
+    pub acs_credentials: Vec<Hex>,
+    /// Local display data for devices (never authority).
+    #[serde(default)]
+    pub device_meta: BTreeMap<Hex, DeviceMeta>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceMeta {
+    pub label: String,
+    pub enrolled_at: u64,
 }
 
 #[derive(Clone, Debug)]

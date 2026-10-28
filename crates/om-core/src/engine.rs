@@ -350,6 +350,23 @@ impl<R: RngCore + CryptoRng> Core<R> {
         serde_json::to_value(&self.slot(ctx)?.state.app).map_err(|_| CoreError::Invalid("state"))
     }
 
+    /// TEST ONLY: see `Tx::debug_link_messaging_device`.
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_link_messaging_device(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<(String, Step), CoreError> {
+        self.slot(ctx)?;
+        let (id, commit) = self.txn(&ctx.profile_id, |tx| tx.debug_link_messaging_device())?;
+        Ok((
+            id,
+            Step {
+                commit,
+                handle: None,
+            },
+        ))
+    }
+
     /// TEST ONLY: deposit an arbitrary authenticated inner payload (see `Tx::debug_inject`).
     #[cfg(feature = "test-loopback")]
     pub fn debug_inject_payload(
@@ -520,29 +537,95 @@ fn conversation_list(st: &ProfileState) -> Vec<ConversationSummary> {
 }
 
 fn devices_view(st: &ProfileState) -> DevicesView {
-    let devices = st
-        .device
-        .as_ref()
-        .map(|d| {
-            vec![DeviceSummary {
-                id: crate::crypto::hex(&d.device_id),
-                label: "This device".into(),
-                role: DeviceRole::Control,
-                state: DeviceStateCode::Active,
-                is_current: true,
-                enrolled_at: st.app.created_at,
-                last_seen: LastSeenClass::Now,
-                // The only voting controller can be neither suspended nor revoked (ACCOUNT_CONTINUITY_AND_CONTROL.md section 13).
-                actions: vec![],
-                cautions: vec![
-                    DeviceCautionCode::LastVotingController,
-                    DeviceCautionCode::HistorySyncUnavailable,
-                ],
-            }]
-        })
-        .unwrap_or_default();
+    let head = (|| {
+        let chain: Vec<Vec<u8>> = st
+            .app
+            .acs_chain
+            .iter()
+            .map(|c| crate::crypto::unhex(c).ok())
+            .collect::<Option<_>>()?;
+        let creds: Vec<Vec<u8>> = st
+            .app
+            .acs_credentials
+            .iter()
+            .map(|c| crate::crypto::unhex(c).ok())
+            .collect::<Option<_>>()?;
+        crate::control::verify_chain(&chain, &creds).ok()
+    })();
+    let (Some(head), Some(me)) = (head, st.device.as_ref().map(|d| d.device_id)) else {
+        return DevicesView {
+            control_state: AccountControlStateCode::Normal,
+            devices: vec![],
+            link_requests: vec![],
+            notices: vec![],
+        };
+    };
+    use crate::control::{Action, PlanError, plan};
+    let me_active = head.control.contains(&me) && !head.quarantined.contains(&me);
+    let voting = head.control.difference(&head.quarantined).count();
+    let frozen = crate::control::safety_frozen(&head);
+    let summary = |id: &[u8; 16], role: DeviceRole, state: DeviceStateCode| {
+        let hexid = crate::crypto::hex(id);
+        let meta = st.app.device_meta.get(&hexid);
+        let is_current = *id == me;
+        let mut actions = vec![];
+        let mut cautions = vec![DeviceCautionCode::HistorySyncUnavailable];
+        if is_current && role == DeviceRole::Control && voting == 1 {
+            cautions.push(DeviceCautionCode::LastVotingController);
+        }
+        if me_active && !is_current && !frozen && state != DeviceStateCode::Revoked {
+            if role == DeviceRole::Control && state == DeviceStateCode::Active {
+                match plan(&head, &me, Action::Suspend, id) {
+                    Ok(_) => actions.push(DeviceActionCode::Suspend),
+                    Err(PlanError::WouldFreeze) => {
+                        cautions.push(DeviceCautionCode::SuspendWouldFreeze)
+                    }
+                    Err(_) => {}
+                }
+            }
+            if plan(&head, &me, Action::Revoke, id).is_ok() {
+                actions.push(DeviceActionCode::Revoke);
+            }
+        }
+        DeviceSummary {
+            id: hexid,
+            label: meta
+                .map(|m| m.label.clone())
+                .unwrap_or_else(|| "Linked device".into()),
+            role,
+            state,
+            is_current,
+            enrolled_at: meta.map(|m| m.enrolled_at).unwrap_or(st.app.created_at),
+            last_seen: if is_current {
+                LastSeenClass::Now
+            } else {
+                LastSeenClass::Never
+            },
+            actions,
+            cautions,
+        }
+    };
+    let mut devices = vec![];
+    for id in &head.control {
+        let state = if head.quarantined.contains(id) {
+            DeviceStateCode::Quarantined
+        } else {
+            DeviceStateCode::Active
+        };
+        devices.push(summary(id, DeviceRole::Control, state));
+    }
+    for id in &head.messaging {
+        devices.push(summary(id, DeviceRole::Messaging, DeviceStateCode::Active));
+    }
+    for id in &head.revoked {
+        devices.push(summary(id, DeviceRole::Messaging, DeviceStateCode::Revoked));
+    }
     DevicesView {
-        control_state: AccountControlStateCode::Normal,
+        control_state: if frozen {
+            AccountControlStateCode::SafetyFreeze
+        } else {
+            AccountControlStateCode::Normal
+        },
         devices,
         link_requests: vec![],
         notices: vec![],
