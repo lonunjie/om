@@ -200,6 +200,15 @@ Still **not closed**: the operator's ceremony and the dependency approval are pe
 - **Runbook:** copy-pasteable steps with working directories, personal-vault login in a separate `BITWARDENCLI_APPDATA_DIR`, firmware/app checks, rotation, revocation and compromise cases: [`KEY-CEREMONY.md`](../../deploy/KEY-CEREMONY.md). `registry/signing.toml` lists the three signers as `pending-ceremony`.
 - **Unverified on hardware:** device acceptance and paging of the message, plain Ed25519 over the whole envelope (read from the app source; the ceremony verifies every signature locally and fails loudly otherwise), and the `node-hid` build on Node 24.
 
+### B2 post-quantum co-signature applied (ADR-0182), operator decision 2026-10-28
+
+Still **not closed**: neither ceremony has run. Adds a **required** ML-DSA-65 (FIPS 204) co-signature from one software PQ root key (seed only in the operator's personal Vaultwarden) to the delegation; the Ed25519 2-of-3 roots, `ROOT_KEYS`, `PINNED_ROOTS`, `release-delegation.json` and [`KEY-CEREMONY.md`](../../deploy/KEY-CEREMONY.md) are unchanged.
+
+- **Rule:** valid only if the Ed25519 threshold is met AND, once required, a valid PQ signature from the pinned PQ root (algorithm tag `ml-dsa-65`, frame `om-pq-v1`, over `label | alg | SHA-256(pub) | delegationPayload`). Required = a root-signed `pqRequired` delegation, the persisted client floor, or the build flag. Until the epoch an Ed25519-only chain is accepted; the floor only rises. Reasons `pq_root_unset`, `pq_missing`, `pq_invalid`.
+- **Code:** `src/update/{pq,pq-root}.ts` (new), `delegation.ts`, `signature.ts`, `floor.ts`, `sw/core.ts`, [`verify-release.mjs`](../../apps/web/build/verify-release.mjs) (on `node:crypto`, independent of the client's `@noble/post-quantum` 0.7.1), [`sign.mjs`](../../apps/web/build/sign.mjs), [`release.mjs`](../../apps/web/build/release.mjs); ceremony commands in [`root-ceremony.mjs`](../../apps/web/build/root-ceremony.mjs) and [`pq-ceremony.mjs`](../../apps/web/build/pq-ceremony.mjs); runbook [`KEY-CEREMONY-PQ.md`](../../deploy/KEY-CEREMONY-PQ.md).
+- **Tests:** `apps/web/build/pq-cosign.test.ts` (56): 37 shared-fixture cases through both verifiers (valid, missing PQ, wrong PQ key, tampered payload, downgrade and rollback, wrong alg tag, 2-of-3 Ed25519 without PQ, unknown tags and pins), golden signed bytes from an independent Python build, noble/OpenSSL interop, the floor in the service-worker shell, the signing tool, ceremony commands, two full release builds. Mutation checks (dropping the epoch trigger or the floor write) fail named tests.
+- **Dependency:** `@noble/post-quantum` 0.7.1, MIT (plus `@noble/curves`, `@noble/ciphers` 2.4.0), not independently audited (self-audit at 0.6.1); mitigated by the second implementation. Re-check before any public release.
+
 ### Not changed, with reasons
 
 - **B2:** implemented, but not closed: the operator's key ceremony is still pending (see "B2 applied" above).

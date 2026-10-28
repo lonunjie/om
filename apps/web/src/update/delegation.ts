@@ -5,6 +5,7 @@
 import { canonicalJson } from "./manifest";
 import { ed25519Verifier, fromBase64, fromHex } from "./ed25519";
 import { sha256Hex } from "./hash";
+import { describePq, verifyPqSignature, type PqRootPin } from "./pq";
 
 export const DELEGATION_FORMAT = "om.release-delegation/1";
 export const MAX_ROOT_SIGNATURES = 16;
@@ -36,7 +37,13 @@ export interface Delegation {
   readonly expires: string;
   readonly keys: readonly DelegatedKey[];
   readonly revoked: readonly string[];
-  /** Root signatures over `delegationPayload(d)`; not part of the signed bytes. */
+  /**
+   * ADR-0182 PQ epoch: when `true` (the only legal value, absent otherwise) this delegation and every later one needs a valid
+   * ML-DSA-65 co-signature from the pinned PQ root; a client that accepts it persists that as a floor it never lowers.
+   * Part of the signed payload, so only the Ed25519 roots can set it.
+   */
+  readonly pqRequired?: true;
+  /** Root signatures over `delegationPayload(d)`; not part of the signed bytes. Ed25519 roots and, by `keyId`, the PQ root (ADR-0182). */
   readonly signatures: readonly RootSignature[];
 }
 /**
@@ -55,10 +62,16 @@ export type RootKeyDescriptor = string | { readonly pub: string; readonly frame:
 export interface RootPin {
   readonly keys: Readonly<Record<string, RootKeyDescriptor>>;
   readonly threshold: number;
+  /** The pinned ML-DSA-65 PQ root (ADR-0182); absent or null while it is not pinned. A pinned but unusable descriptor fails closed. */
+  readonly pq?: PqRootPin | null;
+  /** Build-level PQ floor: when true every delegation needs the PQ co-signature, whatever the browser has seen so far. */
+  readonly pqRequired?: boolean;
 }
-export type DelegationFailure = "root_unset" | "malformed_delegation" | "root_threshold" | "delegation_expired" | "delegation_rollback";
+export type DelegationFailure = "root_unset" | "malformed_delegation" | "root_threshold" | "delegation_expired" | "delegation_rollback" | PqFailure;
+/** ADR-0182: PQ pin unusable or absent where required; no PQ signature where required; a PQ signature from the pinned key that does not verify. */
+export type PqFailure = "pq_root_unset" | "pq_missing" | "pq_invalid";
 export type KeyFailure = "revoked_key" | "unlisted_key" | "alg_mismatch" | "key_not_yet_valid" | "key_expired";
-export type DelegationResult = { readonly ok: true; readonly delegation: Delegation } | { readonly ok: false; readonly reason: DelegationFailure };
+export type DelegationResult = { readonly ok: true; readonly delegation: Delegation; /** Present (true) when a valid PQ co-signature was required: persist the PQ floor. */ readonly pqRequired?: true } | { readonly ok: false; readonly reason: DelegationFailure };
 export type KeyResult = { readonly ok: true; readonly pub: string } | { readonly ok: false; readonly reason: KeyFailure };
 
 const ID = /^[A-Za-z0-9._-]{1,64}$/;
@@ -90,6 +103,7 @@ export const parseDelegation = (v: unknown): Delegation | null => {
     if (!isRecord(s) || typeof s["keyId"] !== "string" || typeof s["alg"] !== "string" || typeof s["sig"] !== "string") return null;
     if (s["frame"] !== undefined && (typeof s["frame"] !== "string" || s["frame"].length > 64)) return null;
   }
+  if (v["pqRequired"] !== undefined && v["pqRequired"] !== true) return null;
   return v as unknown as Delegation;
 };
 
@@ -125,7 +139,7 @@ const SOLANA_APP_DOMAIN = (() => {
 
 /** The short ASCII text a Ledger shows and signs for a delegation. */
 export const ledgerText = (d: Delegation, payloadSha256Hex: string): string =>
-  `OM release delegation | version ${String(d.version)} | expires ${d.expires} | sha256 ${payloadSha256Hex}`;
+  `OM release delegation | version ${String(d.version)} | expires ${d.expires}${d.pqRequired === true ? " | pq required" : ""} | sha256 ${payloadSha256Hex}`;
 
 /** The exact bytes a root key with `frame` signs for delegation `d`; null for an unknown frame. */
 export const frameDelegationPayload = async (frame: string, d: Delegation, signerPubHex: string): Promise<Uint8Array | null> => {
@@ -152,8 +166,10 @@ export const frameDelegationPayload = async (frame: string, d: Delegation, signe
  * framed as the PINNED descriptor says; duplicates, unknown keyIds and a declared frame that differs from the pinned one
  * add nothing (ADR-0149).
  */
-export const verifyDelegation = async (raw: unknown, pin: RootPin, ctx: { now: number; floor: number | null }): Promise<DelegationResult> => {
+export const verifyDelegation = async (raw: unknown, pin: RootPin, ctx: { now: number; floor: number | null; pqFloor?: boolean }): Promise<DelegationResult> => {
   if (!pinUsable(pin)) return { ok: false, reason: "root_unset" };
+  const pq = pin.pq === undefined || pin.pq === null ? null : describePq(pin.pq);
+  if (pin.pq !== undefined && pin.pq !== null && pq === null) return { ok: false, reason: "pq_root_unset" };
   const d = parseDelegation(raw);
   if (!d) return { ok: false, reason: "malformed_delegation" };
   const good = new Set<string>();
@@ -172,7 +188,23 @@ export const verifyDelegation = async (raw: unknown, pin: RootPin, ctx: { now: n
   if (good.size < pin.threshold) return { ok: false, reason: "root_threshold" };
   if (ctx.now >= timeMs(d.expires)) return { ok: false, reason: "delegation_expired" };
   if (ctx.floor !== null && d.version < ctx.floor) return { ok: false, reason: "delegation_rollback" };
-  return { ok: true, delegation: d };
+  // ADR-0182. The PQ co-signature is required once the build, the persisted floor or this (Ed25519-root-signed) delegation
+  // says so; until then an Ed25519-only chain stands. A PQ signature from the pinned key that is present must verify.
+  const pqRequired = pin.pqRequired === true || ctx.pqFloor === true || d.pqRequired === true;
+  if (pq === null) {
+    if (pqRequired) return { ok: false, reason: "pq_root_unset" };
+  } else {
+    const entries = d.signatures.filter((s) => s.keyId === pq.keyId);
+    if (entries.length === 0) {
+      if (pqRequired) return { ok: false, reason: "pq_missing" };
+    } else {
+      const payload = delegationPayload(d);
+      let valid = false;
+      for (const s of entries) if (s.alg === pq.alg && s.frame === pq.frame && (await verifyPqSignature(pq, payload, s.sig))) { valid = true; break; }
+      if (!valid) return { ok: false, reason: "pq_invalid" };
+    }
+  }
+  return pqRequired ? { ok: true, delegation: d, pqRequired: true } : { ok: true, delegation: d };
 };
 
 /** delegation -> release key: listed, not revoked, right algorithm, inside its validity window. */
@@ -190,12 +222,13 @@ export const resolveReleaseKey = (d: Delegation, keyId: string, alg: string, now
 export const verifyChain = async (
   raw: unknown,
   pin: RootPin,
-  ctx: { now: number; floor: number | null },
+  ctx: { now: number; floor: number | null; pqFloor?: boolean },
   keyId: string,
   alg: string,
-): Promise<{ readonly ok: true; readonly pub: string; readonly delegationVersion: number } | { readonly ok: false; readonly reason: DelegationFailure | KeyFailure }> => {
+): Promise<{ readonly ok: true; readonly pub: string; readonly delegationVersion: number; readonly pqRequired?: true } | { readonly ok: false; readonly reason: DelegationFailure | KeyFailure }> => {
   const d = await verifyDelegation(raw, pin, ctx);
   if (!d.ok) return d;
   const k = resolveReleaseKey(d.delegation, keyId, alg, ctx.now);
-  return k.ok ? { ok: true, pub: k.pub, delegationVersion: d.delegation.version } : k;
+  if (!k.ok) return k;
+  return d.pqRequired ? { ok: true, pub: k.pub, delegationVersion: d.delegation.version, pqRequired: true } : { ok: true, pub: k.pub, delegationVersion: d.delegation.version };
 };

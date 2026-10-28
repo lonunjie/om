@@ -1,5 +1,6 @@
 import type { TrustRoot } from "./signature";
 import type { RootKeyDescriptor, RootPin } from "./delegation";
+import { PQ_REQUIRED_BY_BUILD, PQ_ROOT } from "./pq-root";
 
 // ============================================================================================================
 // TEMPORARY PLACEHOLDER (audit B2). The OFFLINE ROOT public key has not been generated yet (operator key
@@ -31,7 +32,7 @@ export const ROOT_THRESHOLD = 2;
 /** Exactly this many distinct roots are pinned once the ceremony is done (release.test.ts checks it). */
 export const ROOT_KEY_COUNT = 3;
 
-export const rootPin = (keys: Readonly<Record<string, RootKeyDescriptor>> = ROOT_KEYS, threshold = ROOT_THRESHOLD): RootPin => ({ keys, threshold });
+export const rootPin = (keys: Readonly<Record<string, RootKeyDescriptor>> = ROOT_KEYS, threshold = ROOT_THRESHOLD): RootPin => ({ keys, threshold, pq: PQ_ROOT, pqRequired: PQ_REQUIRED_BY_BUILD }); // pq: ADR-0182, pq-root.ts
 export const isRootPinned = (): boolean => Object.keys(ROOT_KEYS).length > 0;
 
 /** Production trust root; `allowUnsignedDev` is true solely for dev bundles. */

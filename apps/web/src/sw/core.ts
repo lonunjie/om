@@ -37,6 +37,7 @@ export interface StageResult {
 export const CACHE_PREFIX = "om-shell-";
 const FLOOR_KEY = "floor";
 const DELEGATION_FLOOR_KEY = "delegation-floor";
+const PQ_FLOOR_KEY = "pq-required-floor";
 
 export const createShell = (deps: ShellDeps) => {
   const { storage, kv, fetchFn, trustRoot } = deps;
@@ -50,6 +51,9 @@ export const createShell = (deps: ShellDeps) => {
       return v === null ? null : Number.isSafeInteger(n) && n >= 1 ? n : Number.MAX_SAFE_INTEGER;
     },
     setDelegation: (v) => kv.set(DELEGATION_FLOOR_KEY, String(v)),
+    // ADR-0182: any stored value counts as "required" (a corrupt value must not switch the requirement off); only "1" is ever written.
+    getPqRequired: async () => (await kv.get(PQ_FLOOR_KEY)) !== null,
+    setPqRequired: () => kv.set(PQ_FLOOR_KEY, "1"),
   };
   let activeName: string | null | undefined;
 

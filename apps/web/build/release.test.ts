@@ -110,7 +110,7 @@ describe("release script", () => {
   it("pins the same offline root in the client trust root and verify.mjs (currently UNSET: ceremony pending)", () => {
     expect(PINNED_ROOTS).toEqual(ROOT_KEYS);
     expect(PINNED_ROOT_THRESHOLD).toBe(ROOT_THRESHOLD);
-    expect(makeTrustRoot(false).roots).toEqual({ keys: ROOT_KEYS, threshold: ROOT_THRESHOLD });
+    expect(makeTrustRoot(false).roots).toMatchObject({ keys: ROOT_KEYS, threshold: ROOT_THRESHOLD }); // plus the PQ pin (ADR-0182), checked in pq-cosign.test.ts
     expect(makeTrustRoot(false).allowUnsignedDev).toBe(false);
     // No online release key is pinned anywhere in the client any more: only roots.
     expect(Object.keys(makeTrustRoot(false))).not.toContain("verifiers");

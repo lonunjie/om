@@ -9,7 +9,7 @@ export declare function loadRoot(file: string): RootKey;
 export declare function attachSignature(d: Delegation, entry: { keyId: string; alg: string; sig: string; frame?: string }): Delegation;
 export declare function addRootSignature(delegation: unknown, root: RootKey): Delegation;
 export declare function buildDelegation(o: {
-  prev?: unknown; version?: number | undefined; expires: string; addKey?: { keyId: string; pub: string; notBefore?: string; notAfter?: string }; revokeId?: string | undefined; now?: number; allowLong?: boolean;
+  prev?: unknown; version?: number | undefined; expires: string; addKey?: { keyId: string; pub: string; notBefore?: string; notAfter?: string }; revokeId?: string | undefined; pqRequired?: boolean; now?: number; allowLong?: boolean;
 }): Delegation;
 export declare function summary(d: Delegation): string;
 export declare function loadRootPem(pem: string): RootKey;

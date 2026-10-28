@@ -235,6 +235,27 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/build/pq-ceremony.d.mts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/pq-ceremony.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/pq-cosign.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/release-guards.d.mts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -712,6 +733,20 @@
     },
     {
       "path": "apps/web/src/update/manifest.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/update/pq-root.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/update/pq.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -2398,11 +2433,25 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0182-post-quantum-co-signature-on-the-release-root-delegation.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",
       "authority": "decision_index"
+    },
+    {
+      "path": "deploy/KEY-CEREMONY-PQ.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
     },
     {
       "path": "deploy/KEY-CEREMONY.md",

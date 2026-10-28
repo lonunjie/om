@@ -8,9 +8,15 @@ export interface FloorStore {
   /** Highest delegation version ever accepted (integer), separate from the bundle floor so a root-signed rollback of keys is refused too. */
   getDelegation(): Promise<number | null>;
   setDelegation(version: number): Promise<void>;
+  /**
+   * ADR-0182 PQ floor: true once a delegation requiring the ML-DSA-65 co-signature was accepted. It only ever rises: there is
+   * no setter to clear it, so a root-signed (or replayed) Ed25519-only chain can never switch the requirement off again.
+   */
+  getPqRequired(): Promise<boolean>;
+  setPqRequired(): Promise<void>;
 }
 export type AcceptResult =
-  | { readonly ok: true; readonly unsignedDev: boolean; readonly rolledBack: boolean; readonly delegationVersion: number | null }
+  | { readonly ok: true; readonly unsignedDev: boolean; readonly rolledBack: boolean; readonly delegationVersion: number | null; readonly pqRequired?: true }
   | { readonly ok: false; readonly reason: string };
 
 /**
@@ -19,16 +25,17 @@ export type AcceptResult =
  * AND its signature verified for real (an unsigned dev bundle can never roll back).
  */
 export const evaluateManifest = async (manifest: BundleManifest, floor: FloorStore, trustRoot: TrustRoot): Promise<AcceptResult> => {
-  const sig = await verifyBundleSignature(manifest, trustRoot, await floor.getDelegation());
+  const sig = await verifyBundleSignature(manifest, trustRoot, await floor.getDelegation(), await floor.getPqRequired());
   if (!sig.ok) return { ok: false, reason: sig.reason };
   const dv = sig.delegationVersion;
+  const pqx = sig.pqRequired ? { pqRequired: true as const } : {};
   const current = await floor.get();
-  if (current === null) return { ok: true, unsignedDev: sig.unsignedDev, rolledBack: false, delegationVersion: dv };
+  if (current === null) return { ok: true, unsignedDev: sig.unsignedDev, rolledBack: false, delegationVersion: dv, ...pqx };
   const cmp = compareVersions(manifest.version, current);
   if (cmp === null) return { ok: false, reason: "bad_version" };
-  if (cmp >= 0) return { ok: true, unsignedDev: sig.unsignedDev, rolledBack: false, delegationVersion: dv };
+  if (cmp >= 0) return { ok: true, unsignedDev: sig.unsignedDev, rolledBack: false, delegationVersion: dv, ...pqx };
   const r = manifest.rollback;
-  if (r && !sig.unsignedDev && r.from === current && r.to === manifest.version) return { ok: true, unsignedDev: false, rolledBack: true, delegationVersion: dv };
+  if (r && !sig.unsignedDev && r.from === current && r.to === manifest.version) return { ok: true, unsignedDev: false, rolledBack: true, delegationVersion: dv, ...pqx };
   return { ok: false, reason: "rollback_refused" };
 };
 
@@ -41,4 +48,6 @@ export const commitFloor = async (floor: FloorStore, accepted: Extract<AcceptRes
     const dCurrent = await floor.getDelegation();
     if (dCurrent === null || accepted.delegationVersion > dCurrent) await floor.setDelegation(accepted.delegationVersion);
   }
+  // The PQ floor only ever rises, and only after the whole chain (including the PQ signature) verified.
+  if (accepted.pqRequired === true && !(await floor.getPqRequired())) await floor.setPqRequired();
 };

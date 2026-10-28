@@ -14,7 +14,7 @@ export interface TrustRoot {
 }
 export type SignatureFailure = "unsigned" | "no_delegation" | DelegationFailure | KeyFailure | "bad_signature";
 export type SignatureResult =
-  | { readonly ok: true; readonly unsignedDev: boolean; /** The accepted delegation version to persist as the new floor (null for unsigned dev). */ readonly delegationVersion: number | null }
+  | { readonly ok: true; readonly unsignedDev: boolean; /** The accepted delegation version to persist as the new floor (null for unsigned dev). */ readonly delegationVersion: number | null; /** Present (true) when a PQ co-signature was required and verified: persist the PQ floor (ADR-0182). */ readonly pqRequired?: true }
   | { readonly ok: false; readonly reason: SignatureFailure };
 
 /**
@@ -26,6 +26,7 @@ export const verifyBundleSignature = async (
   manifest: BundleManifest,
   trustRoot: TrustRoot,
   delegationFloor: number | null = null,
+  pqFloor = false,
 ): Promise<SignatureResult> => {
   const s = manifest.signature;
   if (s === null) {
@@ -33,13 +34,13 @@ export const verifyBundleSignature = async (
   }
   if (manifest.delegation === undefined) return { ok: false, reason: "no_delegation" };
   const now = (trustRoot.now ?? Date.now)();
-  const key = await verifyChain(manifest.delegation, trustRoot.roots, { now, floor: delegationFloor }, s.keyId, s.alg);
+  const key = await verifyChain(manifest.delegation, trustRoot.roots, { now, floor: delegationFloor, pqFloor }, s.keyId, s.alg);
   if (!key.ok) return { ok: false, reason: key.reason };
   const sig = fromBase64(s.sig);
   if (!sig) return { ok: false, reason: "bad_signature" };
   try {
     const v: SignatureVerifier = ed25519Verifier(fromHex(key.pub));
-    return (await v.verify(signingPayload(manifest), sig)) ? { ok: true, unsignedDev: false, delegationVersion: key.delegationVersion } : { ok: false, reason: "bad_signature" };
+    return (await v.verify(signingPayload(manifest), sig)) ? { ok: true, unsignedDev: false, delegationVersion: key.delegationVersion, ...(key.pqRequired ? { pqRequired: true as const } : {}) } : { ok: false, reason: "bad_signature" };
   } catch {
     return { ok: false, reason: "bad_signature" };
   }

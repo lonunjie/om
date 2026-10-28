@@ -15,10 +15,11 @@ const source = (files: Record<string, string>): FetchFile => (p) => {
   const d = files[p];
   return Promise.resolve(d === undefined ? undefined : { ok: true, arrayBuffer: () => Promise.resolve(enc(d).buffer) });
 };
-const fakeFloor = (initial: string | null = null, delegation: number | null = null): FloorStore & { v: string | null; d: number | null } => {
+const fakeFloor = (initial: string | null = null, delegation: number | null = null, pq = false): FloorStore & { v: string | null; d: number | null; pq: boolean } => {
   const s = {
     v: initial,
     d: delegation,
+    pq,
     get: () => Promise.resolve(s.v),
     set: (x: string) => {
       s.v = x;
@@ -27,6 +28,11 @@ const fakeFloor = (initial: string | null = null, delegation: number | null = nu
     getDelegation: () => Promise.resolve(s.d),
     setDelegation: (x: number) => {
       s.d = x;
+      return Promise.resolve();
+    },
+    getPqRequired: () => Promise.resolve(s.pq),
+    setPqRequired: () => {
+      s.pq = true;
       return Promise.resolve();
     },
   };
