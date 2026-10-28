@@ -153,6 +153,9 @@ pub struct Msg {
     /// Tombstoned by a `message.delete` from the author; never shown, kept so the EventID stays deduplicated.
     #[serde(default)]
     pub deleted: bool,
+    /// Canonical event bytes of an outgoing message still waiting for the peer's established delivery key.
+    #[serde(default)]
+    pub queued_event: Option<Hex>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

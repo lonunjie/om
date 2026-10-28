@@ -18,6 +18,29 @@ export function resolveIntent(s: ConversationServices, actionId: string, params:
   return result.status === "intent" ? { status: "intent", intent: result.intent } : { status: "blocked", result };
 }
 
+/**
+ * Resolves with the first outcome that is not waiting on the network (anything but PendingNetwork or
+ * PendingReconciliation). For flows whose result is only usable once the provider has acted, such as publishing an
+ * invite or sending a request: the real Core reports `PendingNetwork` first and settles later. A flow that never
+ * settles (no provider) simply keeps waiting; the host's connection status explains why.
+ */
+export function settledOutcome(s: ConversationServices, operationId: OperationId): Promise<OutcomeClass> {
+  return new Promise((resolve, reject) => {
+    const st: { done: boolean; unsub: (() => void) | null } = { done: false, unsub: null };
+    try {
+      st.unsub = s.client.observe(s.ctx, operationId, (o) => {
+        if (st.done || o.kind === "PendingNetwork" || o.kind === "PendingReconciliation") return;
+        st.done = true;
+        resolve(o);
+        st.unsub?.();
+      });
+      if (st.done) st.unsub();
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error("observe failed"));
+    }
+  });
+}
+
 /** Resolves with the first outcome Core reports for the operation, then stops observing. Observing never creates an operation. */
 export function firstOutcome(s: ConversationServices, operationId: OperationId): Promise<OutcomeClass> {
   return new Promise((resolve, reject) => {

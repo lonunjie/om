@@ -217,6 +217,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@om/core-wasm':
+        specifier: workspace:*
+        version: link:../../packages/om-core-wasm
       '@om/platform-api':
         specifier: workspace:*
         version: link:../../packages/om-platform-api

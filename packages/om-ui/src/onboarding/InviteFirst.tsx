@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { parseInviteLink } from "@om/platform-api";
 import type { InviteView } from "@om/platform-api";
-import { firstOutcome, resolveIntent } from "../conversations/services";
+import { resolveIntent, settledOutcome } from "../conversations/services";
 import type { ConversationServices } from "../conversations/services";
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
@@ -39,7 +39,7 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAcce
       const r = resolveIntent(services, "create-invite", {});
       if (r.status !== "intent") throw new Error("blocked");
       const handle = await services.client.dispatch(r.intent);
-      const outcome = await firstOutcome(services, handle.operationId);
+      const outcome = await settledOutcome(services, handle.operationId);
       if (outcome.kind !== "Committed") throw new Error("not committed");
       const view = await services.client.query({ kind: "GetInvite", ctx: services.ctx, operationId: handle.operationId });
       if (!view) throw new Error("missing");
@@ -60,7 +60,7 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAcce
       const r = resolveIntent(services, "accept-invitation", { link: text });
       if (r.status !== "intent") throw new Error("blocked");
       const handle = await services.client.dispatch(r.intent);
-      const outcome = await firstOutcome(services, handle.operationId);
+      const outcome = await settledOutcome(services, handle.operationId);
       if (!mounted.current) return;
       if (outcome.kind === "Committed") onAccepted();
       else say("alert", outcome.kind === "Rejected" ? copy.rejected[outcome.reason] : copy.failed);

@@ -6,7 +6,8 @@
   "description": "TypeScript binding for om-core compiled to WASM (om-wasm). Implements the platform-api CoreClient; production-eligible, unlike @om/core-harness.",
   "exports": {
     ".": "./src/index.ts",
-    "./test-support": "./src/test-support.ts"
+    "./test-support": "./src/test-support.ts",
+    "./om_wasm.wasm": "./dist/om_wasm.wasm"
   },
   "scripts": {
     "build:wasm": "node build.mjs"

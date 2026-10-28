@@ -10,7 +10,7 @@ export type Fault = "unavailable" | "timeout_after_effect" | "timeout_before_eff
 export interface MemoryProvider extends Provider {
   readonly marker: typeof TEST_PROVIDER_MARKER;
   inject(fault: Fault): void;
-  /** Every byte string a relay could see, for ciphertext-only assertions. */
+  /** Every byte string a relay ever received (acks do not remove them), for ciphertext-only assertions. */
   deposited(): readonly string[];
   /** Pending mailbox contents, by mailbox. */
   revokeAllInvites(): void;
@@ -21,10 +21,11 @@ export function createMemoryProvider(): MemoryProvider {
   const invites = new Map<string, string>();
   const boxes = new Map<string, { next: number; items: { seq: number; bytes: string }[] }>();
   const faults: Fault[] = [];
+  const log: string[] = []; // every deposit ever received: acks free relay storage, not this record of what it saw
   return {
     marker: TEST_PROVIDER_MARKER,
     inject: (f) => { faults.push(f); },
-    deposited: () => [...boxes.values()].flatMap((b) => b.items.map((i) => i.bytes)),
+    deposited: () => [...log],
     revokeAllInvites: () => { invites.clear(); },
     perform(call: NetCall): Promise<NetResult> {
       const fault = faults.shift();
@@ -61,6 +62,7 @@ export function createMemoryProvider(): MemoryProvider {
         case "deposit": {
           const b = boxes.get(call.mailbox) ?? { next: 0, items: [] };
           b.next += 1;
+          log.push(call.bytes);
           b.items.push({ seq: b.next, bytes: call.bytes });
           boxes.set(call.mailbox, b);
           break;

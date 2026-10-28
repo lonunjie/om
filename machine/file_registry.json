@@ -172,6 +172,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/build/ensure-core-wasm.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/landing.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -263,6 +270,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/core.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/cross.spec.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -285,6 +299,13 @@
     },
     {
       "path": "apps/web/e2e/playwright.config.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/e2e/production.spec.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -396,6 +417,41 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/src/core/RealApp.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/Shell.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/loadCore.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/provider.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/registry.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/src/csp.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -418,6 +474,13 @@
     },
     {
       "path": "apps/web/src/dev/main.dev.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/dev/main.e2e-core.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -831,6 +894,13 @@
     },
     {
       "path": "crates/om-core/tests/devices.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/prekeys.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",

@@ -6,6 +6,7 @@ import { writeQrY4m } from "./qr-video.ts";
 
 const HARNESS = "http://localhost:4174";
 const BUNDLE = "http://localhost:4175";
+const CORE = "http://localhost:4176";
 const cameraArgs = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-video-capture=${writeQrY4m()}`];
 
 export default defineConfig({
@@ -22,11 +23,13 @@ export default defineConfig({
   webServer: [
     { command: "pnpm exec vite preview --outDir dist-harness --port 4174 --strictPort", cwd: "..", url: HARNESS, reuseExistingServer: true },
     { command: "pnpm exec vite preview --outDir dist-e2e --port 4175 --strictPort", cwd: "..", url: BUNDLE, reuseExistingServer: true },
+    // The real Core (om_wasm.wasm) with the in-page TEST loopback provider; never a production build.
+    { command: "pnpm exec vite preview --outDir dist-core-e2e --port 4176 --strictPort", cwd: "..", url: CORE, reuseExistingServer: true },
   ],
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"], launchOptions: { args: cameraArgs } }, testIgnore: /cross\.spec\.ts/ },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] }, testMatch: /cross\.spec\.ts/ },
-    { name: "webkit", use: { ...devices["Desktop Safari"] }, testMatch: /cross\.spec\.ts/ },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] }, testMatch: /(cross|core)\.spec\.ts/ },
+    { name: "webkit", use: { ...devices["Desktop Safari"] }, testMatch: /(cross|core)\.spec\.ts/ },
   ],
 });
 

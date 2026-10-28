@@ -15,6 +15,11 @@ export interface OnboardOptions { readonly passphrase?: string; readonly stopAt?
 export async function onboard(page: Page, o: OnboardOptions = {}): Promise<{ readonly lockMs: number }> {
   await page.goto("/");
   await page.getByRole("button", { name: "Get started" }).click();
+  return walkSetup(page, o);
+}
+
+/** The setup steps after the landing page ("Lock this device" through the recovery key check). */
+export async function walkSetup(page: Page, o: OnboardOptions = {}): Promise<{ readonly lockMs: number }> {
   if (o.passphrase !== undefined) {
     await page.getByLabel("Also protect with a passphrase").check();
     await page.getByLabel("Passphrase", { exact: true }).fill(o.passphrase);

@@ -77,6 +77,15 @@ impl LoopbackNetwork {
     pub fn deposit_log(&self) -> Vec<(Vec<u8>, Vec<u8>)> {
         self.0.borrow().log.clone()
     }
+    /// One-time prekeys the key-material provider still holds, per published device: (device id, EC items, PQ items).
+    pub fn key_inventory(&self) -> Vec<(Vec<u8>, usize, usize)> {
+        self.0
+            .borrow()
+            .keys
+            .iter()
+            .map(|(d, p)| (d.clone(), p.opks.len(), p.pqopks.len()))
+            .collect()
+    }
     /// Hostile introduction service: exchange the descriptors stored under two invite ids.
     pub fn swap_invites(&self, a: &[u8], b: &[u8]) {
         let mut s = self.0.borrow_mut();

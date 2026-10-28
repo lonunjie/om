@@ -22,6 +22,8 @@ pub const BUNDLE_TTL_S: u64 = 90 * 24 * 60 * 60;
 pub const MAX_MESSAGE_CHARS: usize = 8000;
 pub const MAX_LABEL_CHARS: usize = 64;
 const ONE_TIME_KEYS: usize = 10;
+/// Publish a fresh batch of one-time prekeys when fewer than this many of either kind remain locally.
+const REPLENISH_BELOW: usize = 4;
 const KIND_HELLO: u64 = 2;
 /// Post-acceptance control message carrying the sender's signed `SealedDeliveryKeyRecord` (ADR-0142 section 9).
 const KIND_KEYS: u64 = 3;
@@ -235,6 +237,41 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             &km,
             rnd,
         ))
+    }
+
+    /// One-time prekey replenishment. A fetch pops one item of each kind at the provider, so the local private
+    /// inventory (which only shrinks when a handshake consumes an item) tracks it closely; when it runs low a new
+    /// batch is generated and queued for the key-material provider. The signed bundle and its epoch are unchanged.
+    /// Signed-prekey rotation and bundle expiry renewal change the epoch and the provider's pool and are not built.
+    fn maintain_prekeys(&mut self) {
+        if !self.st.app.keys_published
+            || self
+                .st
+                .app
+                .outbox
+                .iter()
+                .any(|e| matches!(e.purpose, Purpose::PublishKeys))
+        {
+            return;
+        }
+        let Some(dev) = self.st.device.as_mut() else {
+            return;
+        };
+        if dev.opks.len() >= REPLENISH_BELOW && dev.pqopks.len() >= REPLENISH_BELOW {
+            return;
+        }
+        let (n_ec, n_pq) = (
+            ONE_TIME_KEYS.saturating_sub(dev.opks.len()),
+            ONE_TIME_KEYS.saturating_sub(dev.pqopks.len()),
+        );
+        let up = dev.generate_one_time(n_ec, n_pq, self.rng);
+        let call = NetCall::PublishKeyMaterial {
+            device_id: dev.device_id.to_vec(),
+            bundle: up.bundle,
+            opks: up.opks,
+            pqopks: up.pqopks,
+        };
+        self.enqueue(call, Purpose::PublishKeys);
     }
 
     /// The account's signed AccountControlState chain and its head, re-verified from stored bytes.
@@ -704,26 +741,29 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.record(op, kind, rejected(RejectReason::Invalid), None);
             return Ok(());
         }
-        let (RelState::Active, Some(peer_mailbox), false) =
-            (rel.state, rel.peer_mailbox.clone(), rel.blocked)
-        else {
-            self.record(op, kind, rejected(RejectReason::Unavailable), None);
-            return Ok(());
+        // Active: seal and send now. Establishing (we accepted; the peer's signed delivery key has not arrived yet):
+        // queue the finished event and send it, sealed, the moment the key arrives. There is never a clear fallback.
+        let (state, has_mailbox, blocked) = (rel.state, rel.peer_mailbox.is_some(), rel.blocked);
+        let queue = match (state, has_mailbox, blocked) {
+            (RelState::Active, true, false) => false,
+            (RelState::Establishing, true, false) => true,
+            _ => {
+                self.record(op, kind, rejected(RejectReason::Unavailable), None);
+                return Ok(());
+            }
         };
-        let peer_ik = h32(&rel.peer_ik)?;
-        // Seal or fail: no usable established delivery key means the message is not created at all.
-        let Ok(pd) = self.peer_key_for_send(rel) else {
-            self.record(op, kind, rejected(RejectReason::Unavailable), None);
-            return Ok(());
-        };
-        let (Some(canon), Some(Ok(account)), Some(device_id)) = (
+        let (Some(canon), Some(account), Some(device_id)) = (
             rel.canon_id.as_deref().and_then(|c| h32(c).ok()),
-            self.st.device.as_ref().map(|d| Ok::<_, ()>(d.account_id)),
+            self.st.device.as_ref().map(|d| d.account_id),
             self.st.device.as_ref().map(|d| d.device_id),
         ) else {
             self.record(op, kind, rejected(RejectReason::Unavailable), None);
             return Ok(());
         };
+        if !queue && self.peer_key_for_send(rel).is_err() {
+            self.record(op, kind, rejected(RejectReason::Unavailable), None);
+            return Ok(());
+        }
         let clock = Hlc::next(
             Hlc {
                 physical_ms: rel.hlc_ms,
@@ -733,7 +773,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         );
         let mid = self.rand16();
         let message_id = format!("msg-{}", hex(&mid));
-        // A canonical W0 ConversationEvent (message.create); the 1:1 session AEAD authenticates it.
+        // A canonical W0 ConversationEvent (message.create); the 1:1 session AEAD authenticates it. Its EventID,
+        // clock and bytes are fixed here, so queueing never changes what is eventually sent.
         let payload = events::Header {
             event_id: mid,
             conversation_id: canon,
@@ -751,15 +792,6 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.record(op, kind, rejected(RejectReason::Invalid), None);
             return Ok(());
         }
-        let digest = hex(&crypto::sha256(&[&payload]));
-        // The ratchet advance and the outbox entry are one staged transaction: persisted before the first external effect.
-        let (env, _) = match self.device()?.encrypt(&peer_ik, &payload) {
-            Ok(x) => x,
-            Err(_) => {
-                self.record(op, kind, rejected(RejectReason::Unavailable), None);
-                return Ok(());
-            }
-        };
         let now = self.now_ms;
         let rel = self
             .st
@@ -774,29 +806,70 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             text: text.to_string(),
             sent_at: now,
             delivery: DeliveryState::PendingNetwork,
-            envelope: Some(hex(&env)),
-            digest,
+            envelope: None,
+            digest: hex(&crypto::sha256(&[&payload])),
             clock_ms: clock.physical_ms,
             clock_logical: clock.logical,
             deleted: false,
+            queued_event: Some(hex(&payload)),
         });
         rel.hlc_ms = clock.physical_ms;
         rel.hlc_logical = clock.logical;
-        let Ok(wrapper) = self.seal_to(&pd, &hb(&peer_mailbox)?, &env) else {
-            return Err(CoreError::Invalid("seal")); // aborts the whole staged transaction: the ratchet is not advanced
-        };
-        self.enqueue(
-            NetCall::Deposit {
-                mailbox: hb(&peer_mailbox)?,
-                bytes: wrapper,
-            },
-            Purpose::DepositMessage {
-                operation_id: op.clone(),
-                conversation_id: conv.to_string(),
-                message_id: message_id.clone(),
-            },
-        );
+        if !queue {
+            // The ratchet advance and the outbox entry are one staged transaction: persisted before the first external effect.
+            self.release_queued(conv)?;
+        }
         self.record(op, kind, OutcomeClass::PendingNetwork, Some(message_id));
+        Ok(())
+    }
+
+    /// Encrypt, seal and enqueue every queued outgoing event of `conv`, in order. Any failure aborts the whole staged
+    /// transaction, so a ratchet advance is never persisted without its outbox entry.
+    fn release_queued(&mut self, conv: &str) -> Result<(), CoreError> {
+        let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
+            return Ok(());
+        };
+        let Ok(pd) = self.peer_key_for_send(&rel) else {
+            return Ok(()); // still no usable key: stay queued
+        };
+        let (peer_ik, mailbox) = (
+            h32(&rel.peer_ik)?,
+            hb(rel
+                .peer_mailbox
+                .as_deref()
+                .ok_or(CoreError::Invalid("peer mailbox"))?)?,
+        );
+        for m in rel.messages.iter().filter(|m| m.queued_event.is_some()) {
+            let payload = hb(m.queued_event.as_deref().unwrap_or_default())?;
+            let (env, _) = self
+                .device()?
+                .encrypt(&peer_ik, &payload)
+                .map_err(|_| CoreError::Invalid("encrypt"))?;
+            let wrapper = self
+                .seal_to(&pd, &mailbox, &env)
+                .map_err(|_| CoreError::Invalid("seal"))?;
+            if let Some(slot) = self
+                .st
+                .app
+                .relationships
+                .get_mut(conv)
+                .and_then(|r| r.messages.iter_mut().find(|x| x.id == m.id))
+            {
+                slot.envelope = Some(hex(&env));
+                slot.queued_event = None;
+            }
+            self.enqueue(
+                NetCall::Deposit {
+                    mailbox: mailbox.clone(),
+                    bytes: wrapper,
+                },
+                Purpose::DepositMessage {
+                    operation_id: m.operation_id.clone().unwrap_or_default(),
+                    conversation_id: conv.to_string(),
+                    message_id: m.id.clone(),
+                },
+            );
+        }
         Ok(())
     }
 
@@ -1452,6 +1525,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             cursor = seq;
             advanced = true;
         }
+        self.maintain_prekeys();
         if advanced {
             self.st.app.cursors.insert(mailbox.to_string(), cursor);
             // One pending Ack per mailbox, carrying the latest committed sequence.
@@ -1831,6 +1905,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if r.state != RelState::Active && r.peer_mailbox.is_some() {
             r.state = RelState::Active;
         }
+        // Messages queued while the relationship was establishing now go out, sealed.
+        if self.release_queued(conv).is_err() {
+            // A seal/encrypt failure here must not strand the key install: the messages stay queued.
+        }
     }
 
     fn on_hello(&mut self, conv: &str, p: &V, via_bootstrap: bool) -> bool {
@@ -2002,6 +2080,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     clock_ms: ev.clock.physical_ms,
                     clock_logical: ev.clock.logical,
                     deleted: false,
+                    queued_event: None,
                 });
                 true
             }

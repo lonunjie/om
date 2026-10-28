@@ -122,15 +122,24 @@ fn contains(hay: &[u8], needle: &[u8]) -> bool {
 #[test]
 fn relay_never_sees_sender_identity_key_or_ratchet_header_on_established_traffic() {
     let mut p = half_open();
-    // Before Bob has answered, Alice has no established key: nothing may be sealed or sent in the clear.
+    // Before Bob has answered, Alice has no established key: the message is queued, never sent in the clear.
     let deposits = p.net.deposit_count();
     assert_eq!(
-        text(&mut p.alice, &p.a, "early", &p.a_conv, "too early"),
-        Some(OutcomeClass::Rejected {
-            reason: RejectReason::Unavailable
-        })
+        text(
+            &mut p.alice,
+            &p.a,
+            "early",
+            &p.a_conv,
+            "queued while establishing"
+        ),
+        Some(OutcomeClass::PendingNetwork)
     );
-    assert_eq!(p.net.deposit_count(), deposits);
+    p.alice.flush_net(&p.a);
+    assert_eq!(
+        p.net.deposit_count(),
+        deposits,
+        "nothing is deposited without an established delivery key"
+    );
     settle_all(&mut [(&mut p.alice, &p.a), (&mut p.bob, &p.b)]);
     let b_conv = p
         .bob

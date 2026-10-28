@@ -301,6 +301,13 @@ export interface AppStrings {
   readonly vaultUnavailable: { readonly heading: string; readonly body: string };
   readonly requests: (n: number) => string;
   readonly settings: string;
+  readonly addProfile: string;
+  readonly providerStatus: {
+    readonly none: string;
+    readonly loopback: string;
+  };
+  readonly coreLoading: string;
+  readonly coreFailed: { readonly heading: string; readonly body: string };
   readonly settingsHeading: string;
   readonly settingsDevices: string;
   readonly settingsRecovery: string;
@@ -319,8 +326,8 @@ export const appStrings: AppStrings = {
   requestsHeading: "People who want to reach you",
   conversationOpened: "Conversation opened",
   notConnected: {
-    heading: "OM is not connected yet",
-    body: "This build has no messaging engine, so nothing here is sent or stored. Your data is safe: this page does not hold any.",
+    heading: "Not connected to a provider",
+    body: "OM is running on this device, but no messaging provider is set up yet. You can create your identity here; messages cannot be sent or received until a provider is connected.",
   },
   vaultUnavailable: {
     heading: "This browser cannot protect your data",
@@ -328,6 +335,16 @@ export const appStrings: AppStrings = {
   },
   requests: (n) => plural(n, "request", "requests"),
   settings: "Settings",
+  addProfile: "Add identity",
+  providerStatus: {
+    none: "Not connected to a provider. Nothing leaves this device until one is set up.",
+    loopback: "TEST LOOPBACK PROVIDER, NOT PRODUCTION. Messages never leave this page.",
+  },
+  coreLoading: "Starting OM",
+  coreFailed: {
+    heading: "OM could not start",
+    body: "The messaging engine did not load. Reload the page; if this keeps happening, your data is unchanged and safe on this device.",
+  },
   settingsHeading: "Settings",
   settingsDevices: "Devices",
   settingsRecovery: "Recovery",

@@ -9,6 +9,7 @@ __pycache__/
 node_modules/
 dist/
 dist-harness/
+dist-core-e2e/
 dist-types/
 coverage/
 playwright-report/
