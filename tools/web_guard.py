@@ -19,6 +19,7 @@ INLINE_SCRIPT = re.compile(r"<script(?![^>]*\bsrc=)[^>]*>\s*\S", re.I)
 # Anchors are navigation, not subresources: the landing page links to the project repository and site.
 ANCHOR_TAG = re.compile(r"<a\s[^>]*>", re.I)
 HARNESS_IMPORT = re.compile(r"""['"]@om/core-harness['"]""")
+TEST_SUPPORT_IMPORT = re.compile(r"""['"]@om/core-wasm/test-support['"]|['"]\./test-support['"]""")
 
 
 def files():
@@ -50,6 +51,10 @@ def main() -> int:
         if p.suffix in {".ts", ".tsx"} and ".test." not in p.name and not rel.startswith("packages/om-core-harness/"):
             if HARNESS_IMPORT.search(text) and "/dev/" not in rel and not rel.endswith(("main.dev.tsx",)):
                 errs.append(f"{rel}: imports @om/core-harness outside tests/dev entry (dev-only, never ships)")
+        # The real Core binding may ship; its in-memory test provider/store may not.
+        if p.suffix in {".ts", ".tsx"} and ".test." not in p.name and not rel.startswith("packages/om-core-wasm/src/test-support") and "/dev/" not in rel:
+            if TEST_SUPPORT_IMPORT.search(text):
+                errs.append(f"{rel}: imports the Core test-support provider outside tests/dev (test-only, never ships)")
     for e in errs:
         print("ERROR: web guard:", e, file=sys.stderr)
     print(f"web guard: {'FAILED' if errs else 'OK'} ({len(errs)} error(s))")

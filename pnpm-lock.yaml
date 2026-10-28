@@ -243,6 +243,28 @@ importers:
         specifier: workspace:*
         version: link:../om-platform-api
 
+  packages/om-core-wasm:
+    dependencies:
+      '@om/platform-api':
+        specifier: workspace:*
+        version: link:../om-platform-api
+    devDependencies:
+      '@om/core-harness':
+        specifier: workspace:*
+        version: link:../om-core-harness
+      '@om/ui':
+        specifier: workspace:*
+        version: link:../om-ui
+      '@om/web-platform':
+        specifier: workspace:*
+        version: link:../om-web-platform
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
+
   packages/om-design: {}
 
   packages/om-platform-api: {}

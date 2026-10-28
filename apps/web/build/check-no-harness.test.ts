@@ -25,4 +25,10 @@ describe("check-no-harness", () => {
   it("fails on a harness file name", () => {
     expect((findHarness(make({ "assets/core-harness-1.js": "" }))).length).toBe(1);
   });
+  it("permits the real Core (wasm module, runtime, binding) and forbids test-only providers", () => {
+    expect(findHarness(make({ "assets/om_wasm-1.wasm": "\0asm om_host random_fill", "assets/a.js": "createCoreRuntime(instantiateCore)" }))).toEqual([]);
+    expect(findHarness(make({ "assets/a.js": "x='OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION'" })).length).toBe(1);
+    expect(findHarness(make({ "assets/a.js": "import '@om/core-wasm/test-support'" })).length).toBe(1);
+    expect(findHarness(make({ "assets/om_wasm.wasm": "..OM-V001-INSECURE-TEST-RNG.." })).length).toBe(1);
+  });
 });

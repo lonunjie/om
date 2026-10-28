@@ -1,0 +1,1 @@
+{ "extends": "../../tsconfig.base.json", "compilerOptions": { "outDir": "dist", "rootDir": "..", "tsBuildInfoFile": "dist/.tsbuildinfo", "types": ["node"] }, "include": ["src"], "references": [{ "path": "../om-platform-api" }, { "path": "../om-core-harness" }, { "path": "../om-ui" }, { "path": "../om-web-platform" }] }

@@ -3,7 +3,12 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const FORBIDDEN = ["OM-DEV-HARNESS-NOT-FOR-PRODUCTION", "core-harness"];
+// The dev harness and every test-only Core provider are forbidden in a production bundle. The real Core
+// (@om/core-wasm, om_wasm.wasm) is deliberately NOT listed: it is what production ships.
+export const FORBIDDEN = [
+  "OM-DEV-HARNESS-NOT-FOR-PRODUCTION", "core-harness",
+  "OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION", "core-wasm/test-support", "OM-V001-INSECURE-TEST-RNG", "InsecureTestRng",
+];
 
 /** Returns "relative/path: needle" for every forbidden string found in any file (names included) under `dir`. */
 export function findHarness(dir, base = dir) {

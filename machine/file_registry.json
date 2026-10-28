@@ -6696,6 +6696,76 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-core-wasm/build.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/package.json",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/core.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/index.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/runtime.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/test-support.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/types.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/ui.test.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/wasm.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/tsconfig.json",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-design/package.json",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8223,6 +8293,13 @@
     },
     {
       "path": "tools/continuity_bundle.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/core_guard.py",
       "class": "architecture_tool",
       "domain": "architecture_process",
       "license": "Apache-2.0",

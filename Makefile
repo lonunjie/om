@@ -10,11 +10,11 @@ endif
 help: ## list targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
 
-check: validate docs-check file-registry evolution web-guard ## fast checks: validator + docs links + current file registry + protocol-evolution policy
+check: validate docs-check file-registry evolution web-guard core-guard ## fast checks: validator + docs links + current file registry + protocol-evolution policy
 
 verify-drop: preflight-drop evidence-drop check manifest ## fresh design-drop checks; no Git history or heavyweight toolchain required
 
-verify: preflight-full evidence tlc check web-check web-release-check manifest registries ## full Git-repo verification including Rust/TLC and history immutability
+verify: preflight-full evidence tlc check core-check core-wasm web-check web-release-check manifest registries ## full Git-repo verification including Rust/TLC and history immutability
 
 preflight: ## report verification-tool availability without changing evidence
 	$(PY) tools/verify_preflight.py --profile report
@@ -25,10 +25,18 @@ preflight-drop: ## require the portable tools used by verify-drop
 preflight-full: ## require Git history + Rust/Java/bootstrap tools used by full verify
 	$(PY) tools/verify_preflight.py --profile full
 
-core-check: ## core_kernel: cargo fmt + clippy + tests for the Rust workspace (replays W0 and V-001 vectors)
+core-guard: ## Rust Core guard: no test-only provider reachable from production, no stray unsafe (no toolchain needed)
+	$(PY) tools/core_guard.py
+
+core-check: ## core_kernel: cargo fmt + clippy (native and wasm32) + tests (replays the W0 corpus and V-001 vectors)
 	cargo fmt --all --check
 	cargo clippy --workspace --all-targets -- -D warnings
+	cargo clippy -p om-wasm --target wasm32-unknown-unknown -- -D warnings
 	cargo test --workspace
+
+core-wasm: ## core_kernel: build packages/om-core-wasm/dist/om_wasm.wasm (release, wasm32-unknown-unknown) and re-run the marker guard
+	pnpm --filter @om/core-wasm build:wasm
+	$(PY) tools/core_guard.py
 
 web-guard: ## web workspace guard: no remote subresources, inline scripts, or harness import in app code (no Node needed)
 	$(PY) tools/web_guard.py

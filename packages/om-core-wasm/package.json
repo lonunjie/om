@@ -1,0 +1,24 @@
+{
+  "name": "@om/core-wasm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript binding for om-core compiled to WASM (om-wasm). Implements the platform-api CoreClient; production-eligible, unlike @om/core-harness.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./test-support": "./src/test-support.ts"
+  },
+  "scripts": {
+    "build:wasm": "node build.mjs"
+  },
+  "dependencies": {
+    "@om/platform-api": "workspace:*"
+  },
+  "devDependencies": {
+    "@om/core-harness": "workspace:*",
+    "@om/ui": "workspace:*",
+    "@om/web-platform": "workspace:*",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}
