@@ -3,14 +3,14 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { ConversationId, IntroductionRequest } from "@om/platform-api";
 import {
-  AppShell, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, LiveRegion, MessageRequest, RecoveryScreen, StrangerPressure, Text,
-  useConversationList, type ConversationServices,
+  AppShell, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeScreen, LiveRegion, MessageRequest, RecoveryScreen, StrangerPressure, Text,
+  useConversationList, type ConversationServices, type HomeSettingsServices,
 } from "@om/ui";
-import { appStrings as t, conversationCopy, deviceScannerCopy, devicesCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
+import { appStrings as t, conversationCopy, deviceScannerCopy, devicesCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
 import { useQrScanner } from "../qr/Scanner";
 import { InstallAffordance } from "../install/InstallAffordance";
 
-type SettingsView = "menu" | "devices" | "recovery";
+type SettingsView = "menu" | "devices" | "recovery" | "home";
 
 export interface ShellProps {
   readonly services: ConversationServices;
@@ -18,9 +18,11 @@ export interface ShellProps {
   readonly devicesExtra?: ReactNode;
   /** Offers "Add identity" next to the profile switcher when provided. */
   readonly onAddProfile?: () => void;
+  /** Settings > Your Home, when the host can configure its Home (the production entry; not the dev harness). */
+  readonly home?: HomeSettingsServices;
 }
 
-export function Shell({ services, devicesExtra, onAddProfile }: ShellProps) {
+export function Shell({ services, devicesExtra, onAddProfile, home }: ShellProps) {
   const [selected, setSelected] = useState<ConversationId | null>(null);
   const [settings, setSettings] = useState<SettingsView | null>(null);
   const deviceScan = useQrScanner(deviceScannerCopy);
@@ -43,7 +45,7 @@ export function Shell({ services, devicesExtra, onAddProfile }: ShellProps) {
           onDestinationChange={() => undefined}
           conversationOpen={settings !== "menu"}
           labels={shellLabels}
-          list={<SettingsMenu onOpen={setSettings} onClose={() => { setSettings(null); }} />}
+          list={<SettingsMenu onOpen={setSettings} onClose={() => { setSettings(null); }} hasHome={home !== undefined} />}
           detail={settings === "menu" ? <Text>{t.settingsHeading}</Text> : (
             <>
               <Button variant="quiet" onClick={() => { setSettings("menu"); }}>{t.backToSettings}</Button>
@@ -52,7 +54,7 @@ export function Shell({ services, devicesExtra, onAddProfile }: ShellProps) {
                   <DevicesScreen services={services} copy={devicesCopy} scanQr={deviceScan.scanQr} />
                   {devicesExtra}
                 </>
-              ) : <RecoveryScreen services={services} copy={recoveryCopy} />}
+              ) : settings === "home" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} /> : <RecoveryScreen services={services} copy={recoveryCopy} />}
             </>
           )}
           omnibarTrigger={<Button disabled>{t.omnibar}</Button>}
@@ -125,13 +127,14 @@ function Requests({ services }: { readonly services: ConversationServices }) {
 }
 
 /** Settings is reached from the profile area (Profile -> Settings), not a tab: Chats stays the compact root. */
-function SettingsMenu({ onOpen, onClose }: { readonly onOpen: (v: SettingsView) => void; readonly onClose: () => void }) {
+function SettingsMenu({ onOpen, onClose, hasHome }: { readonly onOpen: (v: SettingsView) => void; readonly onClose: () => void; readonly hasHome: boolean }) {
   return (
     <nav aria-label={t.settingsHeading} className="om-dev-settings">
       <Text as="h1" size="xl" weight="bold">{t.settingsHeading}</Text>
       <ul className="om-dev-settings__list">
         <li><Button className="om-dev-settings__row" onClick={() => { onOpen("devices"); }}>{t.settingsDevices}</Button></li>
         <li><Button className="om-dev-settings__row" onClick={() => { onOpen("recovery"); }}>{t.settingsRecovery}</Button></li>
+        {hasHome ? <li><Button className="om-dev-settings__row" onClick={() => { onOpen("home"); }}>{t.settingsHome}</Button></li> : null}
       </ul>
       <InstallAffordance />
       <Button variant="quiet" onClick={onClose}>{t.backToChats}</Button>

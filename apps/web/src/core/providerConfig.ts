@@ -56,19 +56,38 @@ export async function saveRelayUrl(env: ProviderEnv, url: string | undefined): P
   return true;
 }
 
-/** The configured provider, or `null` when none is configured (or the stored choice is unusable). */
-export async function resolveProviderConfig(env: ProviderEnv): Promise<ProviderConfig | null> {
+/** Where the Home in use came from: the user's own choice, or the default baked into this build. */
+export interface ProviderChoice {
+  readonly config: ProviderConfig;
+  readonly source: "chosen" | "default";
+}
+
+/** True when this build carries a usable default Home (so "use the default" is a real option). */
+export function hasBuildDefault(env: ProviderEnv): boolean {
+  return env.buildUrl !== undefined && env.buildUrl !== "" && parseProviderUrl(env.buildUrl, { allowLoopbackHttp: env.allowLoopbackHttp === true }) !== undefined;
+}
+
+/** The configured provider and where it came from, or `null` when none is configured (or the stored choice is unusable). */
+export async function resolveProviderChoice(env: ProviderEnv): Promise<ProviderChoice | null> {
   const opts = { allowLoopbackHttp: env.allowLoopbackHttp === true };
   let stored: string | undefined;
   try { stored = await readStored(env.indexedDB); } catch { stored = undefined; }
   const chosen = stored !== undefined ? parseProviderUrl(stored, opts) : undefined;
-  if (chosen) return chosen;
+  if (chosen) return { config: chosen, source: "chosen" };
   const built = env.buildUrl !== undefined && env.buildUrl !== "" ? parseProviderUrl(env.buildUrl, opts) : undefined;
-  return built ?? null;
+  return built ? { config: built, source: "default" } : null;
+}
+
+/** The configured provider, or `null` when none is configured (or the stored choice is unusable). */
+export async function resolveProviderConfig(env: ProviderEnv): Promise<ProviderConfig | null> {
+  return (await resolveProviderChoice(env))?.config ?? null;
+}
+
+export function createHttpProviderFor(env: ProviderEnv, config: ProviderConfig): HttpProvider {
+  return createHttpProvider({ config, secrets: createIndexedDbSecretStore(env.indexedDB), ...(env.fetch === undefined ? {} : { fetch: env.fetch }) });
 }
 
 export async function createConfiguredProvider(env: ProviderEnv): Promise<HttpProvider | null> {
   const config = await resolveProviderConfig(env);
-  if (config === null) return null;
-  return createHttpProvider({ config, secrets: createIndexedDbSecretStore(env.indexedDB), ...(env.fetch === undefined ? {} : { fetch: env.fetch }) });
+  return config === null ? null : createHttpProviderFor(env, config);
 }

@@ -99,3 +99,20 @@ test("two identities talk through the configured reference Home; the Home sees o
   expect(paths).toContain("/v1/keys/bundles/:id");
   expect(paths).toContain("/v1/discovery/descriptors/:id");
 });
+
+test("Settings shows the Home in use with what it says about itself, and refuses an address that is not https", async ({ page }) => {
+  await noPasskeys(page);
+  await onboard(page, { stopAt: "invite" });
+  await page.getByRole("button", { name: "Skip for now" }).click();
+  await page.getByRole("button", { name: "Open my chats" }).click();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Your Home" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Your Home" })).toBeVisible();
+  await expect(page.getByText(`Address: ${RELAY}`)).toBeVisible();
+  await expect(page.getByText("This address answered and calls itself")).toBeVisible();
+  await expect(page.getByText("It reports that it is working normally.")).toBeVisible();
+  await page.getByLabel("Home address").fill("http://home.example");
+  await page.getByRole("button", { name: "Check this Home" }).click();
+  await expect(page.getByRole("alert")).toContainText("must start with https://");
+  await expect(page.getByRole("button", { name: /Use this Home|Use it anyway/ })).toHaveCount(0);
+});

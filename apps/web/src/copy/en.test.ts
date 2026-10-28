@@ -1,7 +1,7 @@
 import type { AccountControlStateCode, DeviceCautionCode, DeviceRole, DeviceStateCode, LastSeenClass, LinkOfferState, LinkRequestState, RecoveryCustodianCode, RecoveryPolicyState, RecoveryRequestState, RecoveryScope } from "@om/platform-api";
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
 import { describe, expect, it } from "vitest";
-import { appStrings, conversationCopy, deviceScannerCopy, landingCopy, devicesCopy, linkThisDeviceCopy, onboardingCopy, recoveryCopy, scannerCopy, shellLabels, switcherLabels, unlockCopy } from "./en";
+import { appStrings, conversationCopy, deviceScannerCopy, landingCopy, devicesCopy, homeCopy, linkThisDeviceCopy, onboardingCopy, recoveryCopy, scannerCopy, shellLabels, switcherLabels, unlockCopy } from "./en";
 
 /** Every leaf must be a non-empty string; functions are called with sample arguments. */
 function leaves(v: unknown, path: string, out: [string, string][]): void {
@@ -47,7 +47,7 @@ const SCOPES = keys<RecoveryScope>({ identity: true, history: true, provider: tr
 describe("English copy catalog", () => {
   it("has a non-empty string for every key of every copy type", () => {
     const entries = [...all("conversation", conversationCopy), ...all("onboarding", onboardingCopy), ...all("shell", shellLabels), ...all("switcher", switcherLabels), ...all("app", appStrings), ...all("landing", landingCopy), ...all("scanner", scannerCopy), ...all("unlock", unlockCopy),
-      ...all("deviceScanner", deviceScannerCopy), ...all("devices", devicesCopy), ...all("linkThisDevice", linkThisDeviceCopy), ...all("recovery", recoveryCopy)];
+      ...all("deviceScanner", deviceScannerCopy), ...all("devices", devicesCopy), ...all("linkThisDevice", linkThisDeviceCopy), ...all("recovery", recoveryCopy), ...all("home", homeCopy)];
     expect(entries.length).toBeGreaterThan(200);
     expect(entries.filter(([, s]) => s.trim() === "").map(([p]) => p)).toEqual([]);
   });

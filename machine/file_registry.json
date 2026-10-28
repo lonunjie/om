@@ -564,6 +564,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/src/core/homeSettings.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/homeSettings.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/src/core/loadCore.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -7788,6 +7802,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-provider-http/src/probe.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-provider-http/src/probe.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-provider-http/src/provider.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8048,6 +8076,48 @@
     },
     {
       "path": "packages/om-ui/src/devices/operation.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/home/HomeScreen.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/home/__fixtures__/copy.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/home/copy.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/home/home.test.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/home/index.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/home/services.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

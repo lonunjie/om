@@ -6,3 +6,4 @@ export * from "./conversations/index";
 export * from "./onboarding/index";
 export * from "./devices/index";
 export * from "./recovery/index";
+export * from "./home/index";

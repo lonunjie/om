@@ -7,7 +7,7 @@ import { type WasmCoreClient } from "@om/core-wasm";
 import { browserVaultEnv, createWebDeviceVault, createWebPlatform } from "@om/web-platform";
 import {
   OnboardingFlow, ProfileProvider, Text, ThemeProvider, UnlockVault, createActionRegistry, createMemoryKeyValue, createProfileScopedState,
-  useActiveProfile, useCaptureContext, type ActionRegistry, type OnboardingPlatform,
+  useActiveProfile, useCaptureContext, type ActionRegistry, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import { InstallAffordance } from "../install/InstallAffordance";
 import { Landing } from "../landing/Landing";
@@ -26,6 +26,8 @@ export interface RealAppProps {
   readonly banner?: ReactNode;
   /** Mailbox polling interval; tests and e2e use a short one. */
   readonly pollMs?: number;
+  /** Settings > Your Home, when the host can change its Home (the production entry). */
+  readonly home?: HomeSettingsServices;
 }
 
 interface Ready {
@@ -40,7 +42,7 @@ type Boot = { readonly k: "loading" } | { readonly k: "no_vault" } | { readonly 
 
 const newProfileId = (): ProfileId => asProfileId("p-" + Array.from(globalThis.crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join(""));
 
-export function RealApp({ provider, banner, pollMs = 3000 }: RealAppProps) {
+export function RealApp({ provider, banner, pollMs = 3000, home }: RealAppProps) {
   const [boot, setBoot] = useState<Boot>({ k: "loading" });
   useEffect(() => {
     const life = { live: true };
@@ -70,7 +72,7 @@ export function RealApp({ provider, banner, pollMs = 3000 }: RealAppProps) {
       {boot.k === "no_vault" ? <Notice heading={t.vaultUnavailable.heading} body={t.vaultUnavailable.body} /> : null}
       {boot.k === "failed" ? <Notice heading={t.coreFailed.heading} body={t.coreFailed.body} /> : null}
       {boot.k === "ready" ? (
-        <Profiles rt={boot.rt} vault={boot.vault} registry={boot.registry} platform={boot.platform} known={boot.known} connected={provider !== null} />
+        <Profiles rt={boot.rt} vault={boot.vault} registry={boot.registry} platform={boot.platform} known={boot.known} connected={provider !== null} {...(home === undefined ? {} : { home })} />
       ) : null}
     </ThemeProvider>
   );
@@ -80,10 +82,10 @@ function Notice({ heading, body }: { readonly heading: string; readonly body: st
   return <main className="om-dev-fail"><Text as="h1">{heading}</Text><Text as="p">{body}</Text></main>;
 }
 
-interface ProfilesProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly platform: OnboardingPlatform; readonly known: readonly ProfileId[]; readonly connected: boolean }
+interface ProfilesProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly platform: OnboardingPlatform; readonly known: readonly ProfileId[]; readonly connected: boolean; readonly home?: HomeSettingsServices }
 
 /** Which identities exist, which are unlocked, and which one is being created. */
-function Profiles({ rt, vault, registry, platform, known: initial, connected }: ProfilesProps) {
+function Profiles({ rt, vault, registry, platform, known: initial, connected, home }: ProfilesProps) {
   const [known, setKnown] = useState<readonly ProfileId[]>(initial);
   const [open, setOpen] = useState<ReadonlySet<ProfileId>>(() => new Set());
   const [pending, setPending] = useState<{ readonly id: ProfileId; readonly ctx: ProfileExecutionContext } | null>(null);
@@ -134,12 +136,12 @@ function Profiles({ rt, vault, registry, platform, known: initial, connected }: 
   return (
     <ProfileProvider client={rt} contexts={rt} store={store} {...(known[0] === undefined ? {} : { initialProfileId: known[0] })}>
       {connected ? null : <p role="status" className="om-dev-banner">{t.providerStatus.none}</p>}
-      <Connected rt={rt} onAddProfile={begin} />
+      <Connected rt={rt} onAddProfile={begin} {...(home === undefined ? {} : { home })} />
     </ProfileProvider>
   );
 }
 
-function Connected({ rt, onAddProfile }: { readonly rt: WasmCoreClient; readonly onAddProfile: () => void }) {
+function Connected({ rt, onAddProfile, home }: { readonly rt: WasmCoreClient; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices }) {
   const registry = useMemo(() => createActionRegistry(), []);
   const active = useActiveProfile();
   const capture = useCaptureContext();
@@ -147,7 +149,7 @@ function Connected({ rt, onAddProfile }: { readonly rt: WasmCoreClient; readonly
   // One frozen context per selection: a new object each render would re-run every query effect.
   const ctx = useMemo<ProfileExecutionContext | null>(() => (activeId === null ? null : capture()), [activeId, capture]);
   if (activeId === null || ctx === null) return <Text>{t.loading}</Text>;
-  return <Shell key={activeId} services={{ client: rt, registry, ctx }} onAddProfile={onAddProfile} />;
+  return <Shell key={activeId} services={{ client: rt, registry, ctx }} onAddProfile={onAddProfile} {...(home === undefined ? {} : { home })} />;
 }
 
 interface OnboardProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly pending: { readonly id: ProfileId; readonly ctx: ProfileExecutionContext }; readonly first: boolean; readonly onDone: () => void }

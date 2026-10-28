@@ -1,7 +1,7 @@
 // The only place user-visible English lives. Components take these as props; keys are machine reason codes, so a
 // missing code is a compile error. Wording rules: plain language, no provider names, honest about limits.
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
-import type { ConversationCopy, DevicesCopy, LinkThisDeviceCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, RecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
+import type { ConversationCopy, DevicesCopy, HomeCopy, LinkThisDeviceCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, RecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
 
 const REJECT: Readonly<Record<RejectReason, string>> = {
   invalid: "That was not valid.",
@@ -321,6 +321,7 @@ export interface AppStrings {
   readonly settingsHeading: string;
   readonly settingsDevices: string;
   readonly settingsRecovery: string;
+  readonly settingsHome: string;
   readonly backToChats: string;
   readonly backToSettings: string;
 }
@@ -358,6 +359,7 @@ export const appStrings: AppStrings = {
   settingsHeading: "Settings",
   settingsDevices: "Devices",
   settingsRecovery: "Recovery",
+  settingsHome: "Your Home",
   backToChats: "Back to chats",
   backToSettings: "Back to settings",
 };
@@ -671,4 +673,56 @@ export const landingCopy: LandingCopy = {
     linkLabel: "OM on GitHub",
   },
   footer: { seedlife: "SeedLife", seedlifeUrl: https("lonunjie.org") },
+};
+
+export const homeCopy: HomeCopy = {
+  heading: "Your Home",
+  currentHeading: "The Home you are using",
+  none: "No Home is set up. Nothing leaves this device until you choose one.",
+  address: (url) => `Address: ${url}`,
+  source: { chosen: "You chose this Home.", default: "This is the Home that came with this version of OM." },
+  checkingCurrent: "Checking how your Home is doing.",
+  selfReported: "This is what the Home says about itself; OM cannot confirm who runs it.",
+  changeHeading: "Use a different Home",
+  changeBody: "Type the address of the Home you want to use. OM asks it who it is before you can choose it. Nothing is changed until you confirm.",
+  urlLabel: "Home address",
+  urlHint: "It starts with https:// and has no password, question mark or extra parts.",
+  check: "Check this Home",
+  checking: "Checking this address.",
+  changeWarning: "Both people in a conversation need to use the same Home. Changing yours can cut you off from conversations you already have until the other person changes theirs too.",
+  useThis: "Use this Home",
+  useAnyway: "Use it anyway",
+  alreadyUsing: "This is the Home you are already using.",
+  saveFailed: "This choice could not be saved, so nothing changed.",
+  saved: "Saved. OM will use this Home the next time it connects.",
+  reconnect: "Connect now (you will unlock OM again)",
+  useDefault: "Go back to the Home that came with OM",
+  disconnect: "Stop using this Home",
+  cleared: "Your choice was removed. OM will use the default the next time it connects.",
+  invalid: {
+    malformed: "That does not look like a web address. Start it with https://.",
+    not_https: "The address must start with https://, so that what you send to it is protected on the way.",
+    credentials: "The address cannot contain a username or password.",
+    query_or_fragment: "The address cannot contain a question mark, a # or anything after them.",
+  },
+  result: {
+    ok: (id) => `This address answered and calls itself \u201c${id}\u201d.`,
+    health: {
+      healthy: "It reports that it is working normally.",
+      degraded: "It reports reduced service: messages may be late. You can still use it.",
+      unhealthy: "It reports that it is not working, so it cannot be chosen now. Try again later.",
+      unknown: "It does not say how it is doing, so OM cannot tell whether it is working.",
+    },
+    unreachable: "OM could not reach this address. Check it, your connection, and try again. If the address is right, the Home may be offline or may not accept connections from this app.",
+    failing: (status) => `This address answered with a server error (${String(status)}). The Home may be having trouble; try again later.`,
+    notAHome: "This address answered, but it is not an OM Home.",
+    wrongVersion: (offered) => `This Home only speaks a version OM does not understand${offered === "" ? "" : ` (it offers: ${offered})`}. Update OM, or choose a different Home.`,
+    noMailbox: "This Home does not deliver messages, so it cannot be used here.",
+  },
+  lost: {
+    heading: "Some messages cannot reach you here",
+    body: (n) => `${plural(n, "mailbox", "mailboxes")} at this Home could not be set up, because someone else already holds ${n === 1 ? "it" : "them"}. Messages for ${n === 1 ? "that conversation" : "those conversations"} will not arrive. This can happen if someone learned a mailbox address before you first used it. Ask the other person to invite you again, or choose a different Home.`,
+    item: (reference) => `Reference ${reference}`,
+  },
+  back: "Back to settings",
 };
