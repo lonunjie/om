@@ -1303,10 +1303,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 ) else {
                     return;
                 };
-                if id.len() != 16
-                    || text.chars().count() > MAX_MESSAGE_CHARS
-                    || r.state != RelState::Active
-                {
+                // A payload that decrypts on a session only the pinned peer can create also shows the peer accepted
+                // (the Hello that carries its mailbox may be reordered by the relay), so state is not checked here.
+                if id.len() != 16 || text.chars().count() > MAX_MESSAGE_CHARS {
                     return;
                 }
                 let id = format!("msg-{}", hex(id));
