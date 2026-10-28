@@ -224,9 +224,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// A fresh receive key for `mailbox` (the private seed stays in this profile's encrypted state).
     fn new_delivery_key(&mut self, mailbox: &[u8], ttl_s: u64) -> DeliveryKeyRec {
         let (seed, km) = delivery::new_key(mailbox, self.now_s() + ttl_s, self.rng);
+        let seed = zeroize::Zeroizing::new(seed);
         DeliveryKeyRec {
             public: pub_key(&km),
-            seed: hex(&seed),
+            seed: hex(&*seed).into(),
         }
     }
 
@@ -537,6 +538,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let mailbox = self.rand16();
         let mut ikm = arr32(self.rng);
         let (seed, pk) = hpke::derive_key_pair(&ikm);
+        let seed = zeroize::Zeroizing::new(seed);
         zeroize::Zeroize::zeroize(&mut ikm);
         let rk_digest = request_key_digest(&pk);
         let expires_at = self.now_ms + INVITE_TTL_MS;
@@ -563,7 +565,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 link,
                 expires_at,
                 mailbox: hex(&mailbox),
-                request_seed: hex(&seed),
+                request_seed: hex(&*seed).into(),
                 request_digest: hex(&rk_digest),
                 revoked: false,
                 used: false,
@@ -1600,6 +1602,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ) else {
             return;
         };
+        let seed = zeroize::Zeroizing::new(seed);
         let Ok(ss) = hpke::decaps(&seed, &enc) else {
             return;
         };
@@ -1747,6 +1750,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let (Ok(seed), Ok(mailbox)) = (h32(&key.seed), hb(&rel.my_mailbox)) else {
             return;
         };
+        let seed = zeroize::Zeroizing::new(seed);
         // 4. route binding, key expiry, wrapper expiry no later than the key.
         if hex(&delivery::mailbox_route_binding(&mailbox)) != key.public.route_binding
             || now_s > key.public.expires_at.saturating_add(delivery::CLOCK_SKEW)

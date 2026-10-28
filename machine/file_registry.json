@@ -977,6 +977,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/tests/secrets.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/tests/v001_vectors.rs",
       "class": "product_code",
       "domain": "crypto_1to1",

@@ -18,6 +18,45 @@ pub const APP_VERSION: u32 = 2;
 
 pub type Hex = String;
 
+/// Hex text of a private seed. Stored exactly like any other hex string (`#[serde(transparent)]`), but never printed
+/// by `Debug` and wiped when dropped, so clones, staged copies and discarded states do not leave seeds behind in
+/// freed memory (audit M3). The encoded profile record that is handed to the host still contains it: removing that
+/// needs a vault-held record key inside Core and is recorded as remaining work.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct SecretHex(String);
+
+impl From<String> for SecretHex {
+    fn from(s: String) -> Self {
+        SecretHex(s)
+    }
+}
+
+impl core::ops::Deref for SecretHex {
+    type Target = str;
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl core::fmt::Debug for SecretHex {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("SecretHex(<redacted>)")
+    }
+}
+
+impl zeroize::Zeroize for SecretHex {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
+    }
+}
+
+impl Drop for SecretHex {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(self);
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecoveryKeyRec {
@@ -34,7 +73,7 @@ pub struct InviteRec {
     pub expires_at: u64,
     pub mailbox: Hex,
     /// HPKE private key seed for the request key. Single-purpose; dies with the invite.
-    pub request_seed: Hex,
+    pub request_seed: SecretHex,
     pub request_digest: Hex,
     pub revoked: bool,
     pub used: bool,
@@ -69,7 +108,7 @@ pub struct PubKey {
 #[serde(rename_all = "camelCase")]
 pub struct DeliveryKeyRec {
     pub public: PubKey,
-    pub seed: Hex,
+    pub seed: SecretHex,
 }
 
 impl core::fmt::Debug for DeliveryKeyRec {
