@@ -1,7 +1,7 @@
 # OM design repository tasks. `make help` lists them.
 PY ?= python3
 
-.PHONY: help web-guard web-check web-e2e check verify verify-drop validate docs docs-check file-registry evidence evidence-drop tlc export import reuse registries manifest bundle preflight preflight-drop preflight-full
+.PHONY: help web-guard web-check web-release-check web-e2e check verify verify-drop validate docs docs-check file-registry evidence evidence-drop tlc export import reuse registries manifest bundle preflight preflight-drop preflight-full
 
 help: ## list targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -10,7 +10,7 @@ check: validate docs-check file-registry evolution web-guard ## fast checks: val
 
 verify-drop: preflight-drop evidence-drop check manifest ## fresh design-drop checks; no Git history or heavyweight toolchain required
 
-verify: preflight-full evidence tlc check web-check manifest registries ## full Git-repo verification including Rust/TLC and history immutability
+verify: preflight-full evidence tlc check web-check web-release-check manifest registries ## full Git-repo verification including Rust/TLC and history immutability
 
 preflight: ## report verification-tool availability without changing evidence
 	$(PY) tools/verify_preflight.py --profile report
@@ -29,6 +29,9 @@ web-e2e: ## web workspace: real-browser e2e (Chromium/Firefox/WebKit from the sh
 
 web-check: ## web workspace: typecheck, lint, tests, production build (needs pnpm install)
 	pnpm install --frozen-lockfile && pnpm web:check
+
+web-release-check: ## deploy kit: refuse-unsigned + dev release build + verify.mjs + tamper detection (needs pnpm install)
+	pnpm exec vitest run apps/web/build/release.test.ts
 
 validate: ## architecture contract validator
 	$(PY) tools/validate_architecture.py

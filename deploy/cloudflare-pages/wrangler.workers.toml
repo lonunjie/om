@@ -1,0 +1,9 @@
+# Variant for "Deploy to Cloudflare" (Workers static assets; the button does not support Pages).
+# Rename to wrangler.toml (and drop the Pages one) in the repo you point the button at.
+# `_headers` inside site/ is honoured by Workers static assets as well.
+name = "om-web"            # change to your own Worker name
+compatibility_date = "2026-10-01"
+
+[assets]
+directory = "./site"
+not_found_handling = "single-page-application"   # SPA fallback; the app has no server routes

@@ -1,0 +1,7 @@
+# Cloudflare Pages config for the OM web bundle. Copied into every release folder next to site/.
+# Deploy YOUR copy to YOUR account:   npx wrangler pages deploy ./site --project-name <your-project>
+# (Pages reads site/_headers for CSP and the other security headers; do not delete it.)
+# No origin is hard-coded: the app runs on whatever origin serves it.
+name = "om-web"            # change to your own Pages project name
+pages_build_output_dir = "./site"
+compatibility_date = "2026-10-01"
