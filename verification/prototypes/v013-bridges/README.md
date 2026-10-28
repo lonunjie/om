@@ -16,7 +16,7 @@ ADR-0117 (proposed) decides whether an AI reviewer counts as independent. The co
 
 ## Run
 
-`./run.sh` takes about 2 s after the first build. It needs Rust 1.98.1 (`rust-toolchain.toml`) and `sha2`
+`./run.sh` takes about 2 s after the first build. It needs Rust 1.98.1 ([`rust-toolchain.toml`](../../../rust-toolchain.toml)) and `sha2`
 (`Cargo.lock`). It writes [`verification/results/v013-bridges-latest.json`](../../results/v013-bridges-latest.json).
 
 ## Results

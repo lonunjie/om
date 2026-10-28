@@ -6,7 +6,7 @@
 
 ## Starting point
 
-No product code exists yet: there is no `Cargo.toml`, `packages/` or `apps/` in the repository. The layout to create is in [`ENGINEERING_REPOSITORY_LAYOUT.md`](../process/ENGINEERING_REPOSITORY_LAYOUT.md) (`packages/om-ui`, `om-design`, `om-platform-api`, `om-web-platform`, `apps/web`; React + TypeScript strict + Vite; pnpm only).
+No product code exists yet: there is no [`Cargo.toml`](../../Cargo.toml), `packages/` or `apps/` in the repository. The layout to create is in [`ENGINEERING_REPOSITORY_LAYOUT.md`](../process/ENGINEERING_REPOSITORY_LAYOUT.md) (`packages/om-ui`, `om-design`, `om-platform-api`, `om-web-platform`, `apps/web`; React + TypeScript strict + Vite; pnpm only).
 
 The scope's only integration prerequisite is a **Core command/view harness**; a live provider is optional. So UI work does not wait for `core_kernel`. It runs against a typed, clearly non-production harness that is later swapped for the real WASM bridge.
 
