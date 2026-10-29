@@ -578,6 +578,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/public/icons/social.svg",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/public/manifest.webmanifest",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
