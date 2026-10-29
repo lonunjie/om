@@ -116,7 +116,7 @@ Scopes shipped: `core_kernel`, `provider_reference`, `reference_client_ui`. PR-0
 
 | Criterion | Today |
 |---|---|
-| Published security contact (security.txt/SECURITY.md) | **Partly.** [`SECURITY.md`](../../SECURITY.md) exists (contact `hi@lonunjie.org`, 7-day acknowledgement) but says "there is no shipped software yet": stale for a beta. No `security.txt` in `apps/web/public` or anywhere in the repo. |
+| Published security contact (security.txt/SECURITY.md) | **Partly.** [`SECURITY.md`](../../SECURITY.md) exists (contact was an email address, later replaced by GitHub private reporting, 7-day acknowledgement) but says "there is no shipped software yet": stale for a beta. No `security.txt` in `apps/web/public` or anywhere in the repo. |
 | Signed advisory channel, key delegated from the release root, expiry on every advisory (R-263/R-264) | **Not met.** Schema exists ([`spec/protocol/security-advisory.logical.schema.json`](../../spec/protocol/security-advisory.logical.schema.json)); no feed, no advisory role in [`apps/web/release-delegation.json`](../../apps/web/release-delegation.json). |
 | Embargo/coordination policy | **Partly.** Reference policy (90 days, signed advisory at disclosure) in [`VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md`](../architecture/providers/VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md) section 4; not stated in SECURITY.md. |
 | Voluntary implementer contact list | **Not met.** Described, no list file. |

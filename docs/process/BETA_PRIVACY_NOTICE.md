@@ -1,7 +1,7 @@
 # OM open beta: privacy notice and abuse procedure
 
 **Draft, not reviewed by counsel.** Status: open beta. No human cryptographer has audited OM. Data may be lost during the beta.
-Contact for privacy and abuse reports: **hi@lonunjie.org**.
+Contact for privacy and abuse reports: GitHub, using the [private report form](https://github.com/lonunjie/om/security/advisories/new) for anything sensitive or [public issues](https://github.com/lonunjie/om/issues) for everything else.
 
 ## Short version for users
 
@@ -10,7 +10,7 @@ Contact for privacy and abuse reports: **hi@lonunjie.org**.
   send and collect messages, and roughly how big a message is (padded to five size buckets, from 1 KiB to 128 KiB).
 - Anyone who runs a Home can see those facts for the requests it receives. Timing and addresses can still link activity.
   OM does not hide your network address.
-- Report illegal content to `hi@lonunjie.org`. We acknowledge within 7 days.
+- Report illegal content through the [private report form](https://github.com/lonunjie/om/security/advisories/new). Do not paste the material into a public issue. We acknowledge within 7 days.
 
 ## What the hosted Home can observe
 
@@ -45,7 +45,7 @@ section 3, row "ClientHost origin".
 
 ## Abuse and illegal-content reports (draft procedure)
 
-1. **Receive.** Reports go to `hi@lonunjie.org` with the subject `OM abuse`. The reporter includes what they received,
+1. **Receive.** Reports go through the private GitHub report form with the title `OM abuse`. The reporter includes what they received,
    when, and from which OM address or Home if known. The Home cannot read message content, so it cannot check the
    content itself. The assessment works from the report.
 2. **Acknowledge** within **7 days**.

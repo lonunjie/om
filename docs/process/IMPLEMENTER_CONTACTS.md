@@ -8,9 +8,9 @@ obligation on either side. Entries stay out of the list unless the implementer a
 
 How it works:
 
-1. Send your entry to `hi@lonunjie.org` with the subject `OM implementer contact`. Use a contact that you monitor.
+1. Open an [issue](https://github.com/lonunjie/om/issues) titled `OM implementer contact` with your entry, or a pull request that adds the row. Use a contact that you monitor; the row is public.
 2. We add one row below and reply to confirm.
-3. To leave, send `OM implementer contact removal` to `hi@lonunjie.org`. We remove the row within 7 days.
+3. To leave, open an issue titled `OM implementer contact removal`. We remove the row within 7 days.
 4. Advisories under the [coordinated disclosure process](../../SECURITY.md) may be sent to listed contacts under the same 90-day embargo.
    Listed contacts must keep embargoed information private.
 

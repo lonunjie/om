@@ -2,7 +2,7 @@
 # checked by `make reuse` (reuse lint). A file-level SPDX header overrides these defaults.
 version = 1
 SPDX-PackageName = "OM"
-SPDX-PackageSupplier = "SeedLife / lonunjie <hi@lonunjie.org>"
+SPDX-PackageSupplier = "SeedLife / lonunjie (https://lonunjie.org)"
 SPDX-PackageDownloadLocation = "https://github.com/lonunjie/om"
 
 [[annotations]]

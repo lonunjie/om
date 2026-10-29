@@ -18,8 +18,8 @@ to their owners. If a deployed copy is run by someone else, tell us as well, bec
 
 ## How to report
 
-Report privately by email to **hi@lonunjie.org** with the subject `OM security`. Include steps to reproduce, the
-affected version or URL, and your name or handle if you want credit.
+Report privately with GitHub's [private vulnerability report](https://github.com/lonunjie/om/security/advisories/new) form (it needs a GitHub account and is visible only to the maintainers). Include steps to reproduce, the
+affected version or URL, and your handle if you want credit.
 
 - Please do not post exploit details publicly, and do not test against people's data or other users' accounts.
 - Design flaws that are not exploitable anywhere yet may be filed as a public issue on
