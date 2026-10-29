@@ -536,6 +536,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/public/.well-known/security.txt",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/public/icons/apple-touch-icon.png",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -3728,6 +3735,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "docs/process/BETA_PRIVACY_NOTICE.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "docs/process/CONTINUITY_TABLETOP_DRILLS.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
@@ -3771,6 +3785,13 @@
     },
     {
       "path": "docs/process/IMPLEMENTATION_ROADMAP.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/process/IMPLEMENTER_CONTACTS.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",

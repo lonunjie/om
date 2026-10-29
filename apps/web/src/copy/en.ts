@@ -688,6 +688,7 @@ export const landingCopy: LandingCopy = {
     points: [
       "OM is in beta and no human cryptographer has audited it yet. Things go wrong in a beta. Back up for safety.",
       "Your messages travel through a small helper service called your Home. It knows when you are online and how many messages you send. What you write stays scrambled, so the Home cannot read it.",
+      "Releases are signed. The signing root needs two of three keys (two hardware wallets and one software key) plus a post-quantum key, all held by one custodian. Against coercion that is no stronger than one key.",
     ],
     links: [
       { label: "Found a problem or have an idea? Tell us on GitHub", url: https("github.com/lonunjie/om/issues") },

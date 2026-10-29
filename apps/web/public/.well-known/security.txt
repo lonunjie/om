@@ -1,0 +1,6 @@
+# OM (Oh Messenger) is a labelled open beta. No human cryptographer has audited it.
+Contact: mailto:hi@lonunjie.org
+Expires: 2027-09-29T00:00:00Z
+Preferred-Languages: en
+Canonical: https://om.lonunjie.org/.well-known/security.txt
+Policy: https://github.com/lonunjie/om/blob/main/SECURITY.md
