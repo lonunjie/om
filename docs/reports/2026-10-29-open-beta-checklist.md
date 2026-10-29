@@ -51,9 +51,9 @@ Escalate one way only: Haiku fails twice -> Sonnet; Sonnet blocked -> ask the op
 - [ ] C5 Operator reviews the preview at `https://beta-preview.om-lonunjie.pages.dev` after a non-`main` push; then approves the `main` push.
 
 ### D. "Do what can be done" from the not-done list
-- [ ] D1 (Sonnet, medium) Audit leftovers M3 (seeds as hex in the profile record), H2 follow-ups, L1/L2. Source: [`docs/reports/2026-10-28-core-kernel-opus-audit.md`](2026-10-28-core-kernel-opus-audit.md) (Applied section lists what is open). Pass: `cargo test --workspace`, `make core-check`.
+- [x] D1 Dispositioned 2026-10-29: L1/L2/L7 stay as recorded in the audit report ("Not changed, with reasons"); H2 applied (ADR-0181). **M3 remainder** (seeds as hex in the profile record) needs a design for a vault-held record key inside Core: post-launch work package, Sonnet high in the main session, not a beta blocker (the beta makes no residue or key-handling claim).
 - [ ] D2 (Sonnet, medium) "Run your own copy" link from deployed copies back to the official site. Pass: targeted test + deploy kit README.
-- [ ] D3 (Haiku, low) Stage the Deploy-to-Cloudflare `release/` folder in `lonunjie/om.lonunjie.org` via the cutover tool ([`deploy/site-stage.mjs`](../../deploy/site-stage.mjs)), and write the button URL into the README. Push to a non-`main` branch only. Pass: `verify.mjs --require-signed`.
+- [ ] D3 **Blocked:** a verified signed release needs the ML-DSA-65 co-signature (operator personal vault) and the Ledger delegation; an agent cannot produce one. Once a signed release exists, a Haiku task stages `release/` into `lonunjie/om.lonunjie.org` on a non-`main` branch and writes the button URL into the README. Pass: `verify.mjs --require-signed`.
 - [ ] D4 (operator, 10 min) Click the Deploy button once from the preview branch and tell the agent whether it worked. I (the agent) cannot test that flow.
 - [ ] D5 Publish: GitHub release with the signed zip. Operator approves; needs B6 and C5 first.
 - [ ] D6 Device link, recovery/multi-device, per-conversation records, signed-prekey rotation: **not beta-blocking**. Open as separate work packages (each its own session, Sonnet medium) after launch; the client keeps rejecting them with `Rejected(unsupported)`.
