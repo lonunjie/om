@@ -642,6 +642,9 @@ export interface LandingCopy {
   readonly footer: { readonly prefix: string; readonly seedlife: string; readonly seedlifeUrl: string; readonly suffix: string; readonly siteSource: LandingLink };
 }
 
+/** Shown only on a copy of OM that someone else deployed (see src/official.ts); the official site never shows it. */
+export interface CopyNoticeCopy { readonly text: string; readonly linkLabel: string; readonly url: string }
+
 // The two fixed project links. Built from a scheme and a host so the "no hard-coded remote URL" lint, which protects
 // provider endpoints, is not weakened for them; these are navigation links only, never fetched by the app.
 const https = (hostAndPath: string): string => ["https", hostAndPath].join("://");
@@ -725,6 +728,12 @@ export const landingCopy: LandingCopy = {
     prefix: "OM is a ", seedlife: "SeedLife", seedlifeUrl: https("lonunjie.org"), suffix: " project.",
     siteSource: { label: "Site source", url: https("github.com/lonunjie/om.lonunjie.org") },
   },
+};
+
+export const copyNoticeCopy: CopyNoticeCopy = {
+  text: "This is a self-hosted copy of OM. The official site is ",
+  linkLabel: "om.lonunjie.org",
+  url: https("om.lonunjie.org"),
 };
 
 export const homeCopy: HomeCopy = {

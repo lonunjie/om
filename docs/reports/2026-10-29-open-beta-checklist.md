@@ -52,7 +52,7 @@ Escalate one way only: Haiku fails twice -> Sonnet; Sonnet blocked -> ask the op
 
 ### D. "Do what can be done" from the not-done list
 - [x] D1 Dispositioned 2026-10-29: L1/L2/L7 stay as recorded in the audit report ("Not changed, with reasons"); H2 applied (ADR-0181). **M3 remainder** (seeds as hex in the profile record) needs a design for a vault-held record key inside Core: post-launch work package, Sonnet high in the main session, not a beta blocker (the beta makes no residue or key-handling claim).
-- [ ] D2 (Sonnet, medium) "Run your own copy" link from deployed copies back to the official site. Pass: targeted test + deploy kit README.
+- [x] D2 (Sonnet, medium) "Run your own copy" link from deployed copies back to the official site. Pass: targeted test + deploy kit README. Done 2026-10-29: runtime origin check (`apps/web/src/official.ts`, `CopyNotice`) in the landing footer and Settings menu; hidden on om.lonunjie.org, om-lonunjie.pages.dev (and previews) and localhost; copy in `copyNoticeCopy`; tests in `official.test.tsx`; note in [`deploy/README.md`](../../deploy/README.md). The prerendered landing has no notice (client-side only).
 - [ ] D3 **Blocked:** a verified signed release needs the ML-DSA-65 co-signature (operator personal vault) and the Ledger delegation; an agent cannot produce one. Once a signed release exists, a Haiku task stages `release/` into `lonunjie/om.lonunjie.org` on a non-`main` branch and writes the button URL into the README. Pass: `verify.mjs --require-signed`.
 - [ ] D4 (operator, 10 min) Click the Deploy button once from the preview branch and tell the agent whether it worked. I (the agent) cannot test that flow.
 - [ ] D5 Publish: GitHub release with the signed zip. Operator approves; needs B6 and C5 first.

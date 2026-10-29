@@ -8,6 +8,7 @@ import {
 } from "@om/ui";
 import { appStrings as t, conversationCopy, deviceScannerCopy, devicesCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
 import { useQrScanner } from "../qr/Scanner";
+import { CopyNotice } from "../CopyNotice";
 import { InstallAffordance } from "../install/InstallAffordance";
 
 type SettingsView = "menu" | "devices" | "recovery" | "home";
@@ -137,6 +138,7 @@ function SettingsMenu({ onOpen, onClose, hasHome }: { readonly onOpen: (v: Setti
         {hasHome ? <li><Button className="om-dev-settings__row" onClick={() => { onOpen("home"); }}>{t.settingsHome}</Button></li> : null}
       </ul>
       <InstallAffordance />
+      <CopyNotice />
       <Button variant="quiet" onClick={onClose}>{t.backToChats}</Button>
     </nav>
   );

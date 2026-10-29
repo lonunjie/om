@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { CopyNotice } from "../CopyNotice";
 import { landingCopy as c } from "../copy/en";
 
 export interface LandingProps {
@@ -120,6 +121,7 @@ export function Landing({ onGetStarted, installSlot }: LandingProps) {
         <footer className="om-landing__footer">
           <p>{c.footer.prefix}<a href={c.footer.seedlifeUrl} rel="noopener noreferrer">{c.footer.seedlife}</a>{c.footer.suffix}</p>
           <p><a href={c.footer.siteSource.url} rel="noopener noreferrer">{c.footer.siteSource.label}</a></p>
+          <CopyNotice />
         </footer>
       </div>
     </main>

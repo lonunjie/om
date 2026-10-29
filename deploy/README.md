@@ -46,6 +46,11 @@ Output (git-ignored) in `apps/web/release/`: `om-web-<version>[-dev]/` and `.zip
 Common requirements: serve at the **origin root** (SW scope and manifest scope are `/`), HTTPS, and the headers from
 `apps/web/csp.ts` (the single source; `site/_headers` is generated from it).
 
+## Copies link back to the official site
+
+A copy built from this kit shows a small line, "This is a self-hosted copy of OM. The official site is om.lonunjie.org.", on the landing page and in Settings.
+It is decided in the browser by comparing the page's origin with the pinned official one (not by the signed manifest or any build variable), so a copy cannot be mistaken for the official site; it is hidden on om.lonunjie.org, its Pages previews and localhost.
+
 ## Custody statement
 
 The offline root that authorises every release key is **2-of-3 Ed25519** (two Ledger hardware wallets and one software key) plus a **required
