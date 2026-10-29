@@ -8,7 +8,7 @@ test("index.html carries the landing text and metadata without running any JavaS
   const html = await res.text();
   const root = /<div id="root">([\s\S]*)<\/body>/.exec(html)?.[1] ?? "";
   for (const text of [
-    "The messaging app you own", "OM stands for Oh Messenger", "Protect life. Seed it.",
+    "The messaging app you own", "no single company, server, or app store is indispensable", "Why make another app?", "What’s in a name?",
     "Beta", "Security &amp; privacy", "Add to Home Screen", "Install app", "Run your own copy", "https://github.com/lonunjie/om", "Get started",
   ]) expect(root, text).toContain(text);
   expect(html).toMatch(/<meta name="description" content="[^"]{40,}"/);

@@ -31,7 +31,7 @@ export function Landing({ onGetStarted, installSlot }: LandingProps) {
       <div className="om-landing__wrap">
         <header className="om-landing__topbar">
           <p className="om-landing__brand">{c.brand} <span className="om-landing__beta">{c.beta}</span></p>
-          <p className="om-landing__by">{c.seedlife.label}</p>
+          <p className="om-landing__by"><a href={c.byline.url} rel="noopener noreferrer">{c.byline.label}</a></p>
         </header>
 
         <div className="om-landing__hero">
@@ -39,45 +39,38 @@ export function Landing({ onGetStarted, installSlot }: LandingProps) {
             <h1 className="om-landing__headline">{c.headline}</h1>
             <p className="om-landing__lead">{c.lead}</p>
             <div className="om-landing__cta">
-              <button type="button" className="om-landing__button" data-primary="true" onClick={onGetStarted}>{c.getStarted}</button>
+              <button type="button" className="om-landing__button" data-primary="true" onClick={onGetStarted}>
+                {c.getStarted}<span className="om-landing__arrow" aria-hidden="true">{"\u2192"}</span>
+              </button>
             </div>
-            <p className="om-landing__seedlife">{c.seedlife.tagline}</p>
           </div>
           <div className="om-landing__chat" role="img" aria-label={c.chat.label}>
-            {c.chat.mine.map((m) => <p key={m} className="om-landing__bubble om-landing__bubble--mine">{m}</p>)}
-            <p className="om-landing__bubble om-landing__bubble--other">{c.chat.other}</p>
+            {c.chat.incoming.map((m) => <p key={m} className="om-landing__bubble om-landing__bubble--other">{m}</p>)}
+            <p className="om-landing__bubble om-landing__bubble--mine">{c.chat.reply}</p>
           </div>
         </div>
 
-        <section aria-labelledby="om-landing-what-h">
-          <h2 id="om-landing-what-h">{c.what.heading}</h2>
+        <section aria-labelledby="om-landing-why-h">
+          <h2 id="om-landing-why-h">{c.why.heading}</h2>
+          <p className="om-landing__intro">{c.why.intro}</p>
           <ul className="om-landing__cards">
-            {c.what.cards.map((card) => <li key={card.title}><h3>{card.title}</h3><p>{card.body}</p></li>)}
+            {c.why.points.map((pt) => <li key={pt.title}><h3>{pt.title}</h3><p>{pt.body}</p></li>)}
           </ul>
+          <p className="om-landing__intro om-landing__closing">{c.why.closing}</p>
         </section>
 
-        <section aria-labelledby="om-landing-why-h">
-          <p className="om-landing__eyebrow">{c.why.eyebrow}</p>
-          <h2 id="om-landing-why-h">{c.why.heading}</h2>
+        <section aria-labelledby="om-landing-names-h">
+          <h2 id="om-landing-names-h">{c.names.heading}</h2>
+          <p className="om-landing__intro">{c.names.intro}</p>
           <ul className="om-landing__cards om-landing__cards--meanings">
-            {c.why.items.map((it) => (
-              <li key={it.words[0]}>
-                <h3>{it.words.map((w, i) => <span key={w}>{i > 0 ? " " : ""}<b>{w.slice(0, 1)}</b>{w.slice(1)}</span>)}</h3>
+            {c.names.items.map((it) => (
+              <li key={it.title}>
+                <h3>{it.title.split("*").map((part, i) => (i % 2 === 1 ? <b key={part}>{part}</b> : part))}</h3>
                 <p>{it.body}</p>
+                {it.link ? <p><a href={it.link.url} rel="noopener noreferrer">{it.link.label}</a></p> : null}
               </li>
             ))}
           </ul>
-        </section>
-
-        <section aria-labelledby="om-landing-yours-h">
-          <p className="om-landing__eyebrow">{c.yours.eyebrow}</p>
-          <div className="om-landing__split">
-            <div>
-              <h2 id="om-landing-yours-h">{c.yours.heading}</h2>
-              {c.yours.body.map((p) => <p key={p}>{p}</p>)}
-            </div>
-            <blockquote>{c.yours.quote}</blockquote>
-          </div>
         </section>
 
         <section aria-labelledby="om-landing-install-h" id="install">
@@ -102,11 +95,14 @@ export function Landing({ onGetStarted, installSlot }: LandingProps) {
           <h2 id="om-landing-security-h">{c.security.heading}</h2>
           <p>{c.security.intro}</p>
           <ul>{c.security.points.map((p) => <li key={p}>{p}</li>)}</ul>
-          <p><a href={c.security.link} rel="noopener noreferrer">{c.security.linkLabel}</a></p>
+          {c.security.links.map((l) => <p key={l.url}><a href={l.url} rel="noopener noreferrer">{l.label}</a></p>)}
         </section>
 
         <footer className="om-landing__footer">
-          <p><a href={c.footer.seedlifeUrl} rel="noopener noreferrer">{c.footer.seedlife}</a>. {c.seedlife.tagline}</p>
+          <p>{c.footer.prefix}<a href={c.footer.seedlifeUrl} rel="noopener noreferrer">{c.footer.seedlife}</a>{c.footer.suffix}</p>
+          <ul className="om-landing__socials">
+            {c.footer.socials.map((l) => <li key={l.url}><a href={l.url} rel="noopener noreferrer">{l.label}</a></li>)}
+          </ul>
         </footer>
       </div>
     </main>

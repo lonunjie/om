@@ -607,6 +607,8 @@ export const deviceScannerCopy = {
 } as const;
 
 /** The landing page. Rendered twice from this one source: prerendered into index.html (for visitors and crawlers without JS) and in the app. */
+export interface LandingLink { readonly label: string; readonly url: string }
+
 export interface LandingCopy {
   readonly title: string;
   readonly description: string;
@@ -615,12 +617,13 @@ export interface LandingCopy {
   readonly headline: string;
   readonly lead: string;
   readonly getStarted: string;
-  readonly chat: { readonly mine: readonly string[]; readonly other: string; readonly label: string };
-  readonly seedlife: { readonly label: string; readonly tagline: string };
-  readonly what: { readonly heading: string; readonly cards: readonly { readonly title: string; readonly body: string }[] };
-  readonly why: { readonly eyebrow: string; readonly heading: string; readonly items: readonly { readonly words: readonly [string, string]; readonly body: string }[] };
-  readonly yours: { readonly eyebrow: string; readonly heading: string; readonly body: readonly string[]; readonly quote: string };
-  readonly security: { readonly eyebrow: string; readonly heading: string; readonly intro: string; readonly points: readonly string[]; readonly link: string; readonly linkLabel: string };
+  /** The sample chat: the three messages come in on the left, the reply goes out on the right. */
+  readonly chat: { readonly incoming: readonly string[]; readonly reply: string; readonly label: string };
+  readonly byline: { readonly label: string; readonly url: string };
+  readonly why: { readonly heading: string; readonly intro: string; readonly points: readonly { readonly title: string; readonly body: string }[]; readonly closing: string };
+  /** Titles mark their bold letters with asterisks, for example "*O*pen *M*essenger". */
+  readonly names: { readonly heading: string; readonly intro: string; readonly items: readonly { readonly title: string; readonly body: string; readonly link?: LandingLink }[] };
+  readonly security: { readonly eyebrow: string; readonly heading: string; readonly intro: string; readonly points: readonly string[]; readonly links: readonly LandingLink[] };
   readonly install: {
     readonly heading: string;
     readonly intro: string;
@@ -632,7 +635,7 @@ export interface LandingCopy {
     readonly iosHint: string;
   };
   readonly selfHost: { readonly heading: string; readonly body: string; readonly link: string; readonly linkLabel: string };
-  readonly footer: { readonly seedlife: string; readonly seedlifeUrl: string };
+  readonly footer: { readonly prefix: string; readonly seedlife: string; readonly seedlifeUrl: string; readonly suffix: string; readonly socials: readonly LandingLink[] };
 }
 
 // The two fixed project links. Built from a scheme and a host so the "no hard-coded remote URL" lint, which protects
@@ -641,57 +644,52 @@ const https = (hostAndPath: string): string => ["https", hostAndPath].join("://"
 
 export const landingCopy: LandingCopy = {
   title: "OM (Oh Messenger) Beta: The messaging app you own",
-  description: "OM, short for Oh Messenger, is a friendly, open-source, end-to-end-encrypted messaging app that belongs to you, from the SeedLife project. Beta.",
+  description: "OM is a fast, uncluttered, open-source messenger with strong end-to-end encryption, designed so that no single company, server, or app store is indispensable. Beta.",
   brand: "OM",
   beta: "Beta",
   headline: "The messaging app you own",
-  lead: "OM stands for Oh Messenger: the happy little \u201coh\u201d when a message from someone you love arrives. It is open source and end-to-end encrypted, with no company in the middle deciding what happens to your conversations.",
+  lead: "OM is a fast, uncluttered, open-source messenger with strong end-to-end encryption, designed so that no single company, server, or app store is indispensable.",
   getStarted: "Get started",
-  chat: { label: "What using OM should feel like", mine: ["Install OM", "Pick a name", "Say hello"], other: "That\u2019s it? \u{1F642}" },
-  seedlife: { label: "A SeedLife project", tagline: "Protect life. Seed it." },
-  what: {
-    heading: "What you get",
-    cards: [
-      { title: "Just for you and them", body: "Messages are end-to-end encrypted, so only the people in a conversation can read them." },
-      { title: "Nobody in charge of you", body: "There is no company account to sign up for, and no single service that has to stay online." },
-      { title: "Open to everyone", body: "The code is public. Anyone can read it, check it, run it and improve it." },
-      { title: "Easy from the first minute", body: "No settings to learn and no jargon. If you can send a text, you can use OM." },
-    ],
-  },
+  chat: { label: "What using OM should feel like", incoming: ["Install OM", "Pick a name", "Say hello"], reply: "That\u2019s it? \u{1F642}" },
+  byline: { label: "A SeedLife project", url: https("lonunjie.org") },
   why: {
-    eyebrow: "Why \u201cOM\u201d",
-    heading: "One short name, six little promises",
-    items: [
-      { words: ["Open-source", "Messenger"], body: "A gift to everyone. Anyone can use it, copy it and make it better." },
-      { words: ["Open", "Messenger"], body: "Not a walled garden. Other apps can talk to OM without asking permission." },
-      { words: ["Own", "Messenger"], body: "Make it yours: your identity, your look, your own setup. No central OM account needed." },
-      { words: ["Our", "Messenger"], body: "Made for people who gather: families, friends, teams and communities, each with their own spaces and rules." },
-      { words: ["One", "Messenger"], body: "It is meant to grow with add-ons, so your group does not need a new app every time it wants something new." },
-      { words: ["Oh", "Messenger"], body: "Friendly, lively and human. The engineering stays under the hood, and you just get a pleasant messenger." },
+    heading: "Why make another app?",
+    intro: "We use messaging apps every day, and we like a lot of them. But the more we looked, the more we kept running into the same worries.",
+    points: [
+      { title: "Closed doors", body: "Most apps do not talk to each other. If your friends are on a different app, you either join it or lose touch." },
+      { title: "Free is not always free", body: "Many apps cost nothing because your attention, and sometimes your data, pays the bills. When you are not the customer, you can end up being the product." },
+      { title: "Private only if you find the switch", body: "Some popular apps leave end-to-end encryption off unless you turn it on yourself, and some chats can never use it. Until it is on, the company behind the app can read your messages." },
+      { title: "Private, but still watching", body: "Some apps do encrypt your messages and still collect plenty around them: who you talk to, when, how often and from where. Others add extras, like AI summaries, that send your messages to their servers to work." },
+      { title: "Good, but in one pair of hands", body: "The best private messengers are wonderful, and we are grateful for them. Still, each depends on one organization and one set of servers, and most start with your phone number." },
     ],
+    closing: "Most of the world\u2019s messengers are built to make money, and that shapes what they do with your conversations. None of them fully holds the ideals of a kind messenger that leaves your data with you. So we are building the one we wished existed.",
   },
-  yours: {
-    eyebrow: "How it stays free",
-    heading: "Looked after, never owned",
-    body: [
-      "SeedLife looks after OM, but nobody owns it. Not SeedLife, not its founder, not whoever comes next. Nobody gets to make your conversations depend on them.",
-      "If the people who made OM, this website or a company behind a server all disappeared, the people already talking on OM should still be able to keep talking.",
+  names: {
+    heading: "What\u2019s in a name?",
+    intro: "OM is more than Oh Messenger. The name carries seven small promises.",
+    items: [
+      { title: "*O*pen-source *M*essenger", body: "A gift to everyone. Anyone can read it, check it, run it and make it better.", link: { label: "See the code", url: https("github.com/lonunjie/om") } },
+      { title: "*O*pen *M*essenger", body: "Not a walled garden. Other apps can talk to OM without asking permission." },
+      { title: "*O*wn *M*essenger", body: "Make it yours: your identity, your look, your own setup. No central OM account needed." },
+      { title: "*O*ur *M*essenger", body: "Made for people who gather: families, friends, teams and communities, each with their own spaces and rules." },
+      { title: "*O*ne *M*essenger", body: "It is meant to grow with add-ons, so your group does not need a new app every time it wants something new." },
+      { title: "*O*h *M*essenger", body: "Friendly, lively and human. Designed to be easy: if you can send a text, you can use OM. We always kept Grandma in mind." },
+      { title: "*0*M: zero total control", body: "Nobody, including us, gets total control. Real systems need helpers, but no one should be able to switch you off or own the whole network." },
     ],
-    quote: "Companies are welcome to join in. Special treatment for anyone is not.",
   },
   security: {
     eyebrow: "Straight talk",
     heading: "Security & privacy",
     intro: "OM is new, and we would rather be honest about it than impressive.",
     points: [
-      "OM is in beta. No human cryptographer has audited it yet.",
-      "We do not make security promises. Please do not rely on it for anything private or important yet.",
-      "Things can go wrong in a beta, including losing messages, contacts or your whole identity.",
-      "The Home that carries your messages can see that you connect, when, and how much you send. It is designed not to read what you send.",
-      "Found a problem? Write to hi@lonunjie.org with the subject \u201cOM security\u201d. We would love to hear it.",
+      "OM is in beta and no human cryptographer has audited it yet. Things go wrong in a beta. Back up for safety.",
+      "We do not make security promises yet.",
+      "Your Home delivers your messages. It can see when you connect and how much you send, but by design it cannot see what you wrote.",
     ],
-    link: https("github.com/lonunjie/om/blob/main/SECURITY.md"),
-    linkLabel: "Read the full security policy",
+    links: [
+      { label: "Found a problem or have an idea? Tell us on GitHub", url: https("github.com/lonunjie/om/issues") },
+      { label: "Read the full security policy", url: https("github.com/lonunjie/om/blob/main/SECURITY.md") },
+    ],
   },
   install: {
     heading: "Install OM as an app",
@@ -709,7 +707,15 @@ export const landingCopy: LandingCopy = {
     link: https("github.com/lonunjie/om"),
     linkLabel: "OM on GitHub",
   },
-  footer: { seedlife: "SeedLife", seedlifeUrl: https("lonunjie.org") },
+  footer: {
+    prefix: "OM is a ", seedlife: "SeedLife", seedlifeUrl: https("lonunjie.org"), suffix: " project.",
+    socials: [
+      { label: "Bluesky", url: https("bsky.app/profile/lonunjie.org") },
+      { label: "X", url: https("x.com/lonunjie") },
+      { label: "YouTube", url: https("www.youtube.com/@lonunjie") },
+      { label: "GitHub", url: https("github.com/lonunjie") },
+    ],
+  },
 };
 
 export const homeCopy: HomeCopy = {
