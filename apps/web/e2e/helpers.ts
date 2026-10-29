@@ -11,27 +11,27 @@ export async function noPasskeys(page: Page): Promise<void> {
 
 export interface OnboardOptions { readonly passphrase?: string; readonly stopAt?: "protected" | "invite" }
 
-/** Walks first run on the dev harness. Returns how long the "Lock this device" step took (Argon2id shows up here). */
+/** Walks first run on the dev harness. Returns how long the "Protect my chats" step took (Argon2id shows up here). */
 export async function onboard(page: Page, o: OnboardOptions = {}): Promise<{ readonly lockMs: number }> {
   await page.goto("/");
   await page.getByRole("button", { name: "Get started" }).click();
   return walkSetup(page, o);
 }
 
-/** The setup steps after the landing page ("Lock this device" through the recovery key check). */
+/** The setup steps after the landing page ("Protect my chats" through the recovery key check). */
 export async function walkSetup(page: Page, o: OnboardOptions = {}): Promise<{ readonly lockMs: number }> {
   if (o.passphrase !== undefined) {
-    await page.getByLabel("Also protect with a passphrase").check();
-    await page.getByLabel("Passphrase", { exact: true }).fill(o.passphrase);
+    await page.getByLabel("Also add a password of my own").check();
+    await page.getByLabel("Password", { exact: true }).fill(o.passphrase);
     await page.getByLabel("Type it again").fill(o.passphrase);
   }
   const t0 = Date.now();
-  await page.getByRole("button", { name: "Lock this device" }).click();
+  await page.getByRole("button", { name: "Protect my chats" }).click();
   await expect(page.getByRole("heading", { name: "How your data is locked" })).toBeVisible({ timeout: 60_000 });
   const lockMs = Date.now() - t0;
   if (o.stopAt === "protected") return { lockMs };
   await page.getByRole("button", { name: "Continue" }).click();
-  const items = page.getByRole("list", { name: "Recovery key" }).getByRole("listitem");
+  const items = page.getByRole("list", { name: "Safety code" }).getByRole("listitem");
   await expect(items.first()).toBeVisible();
   const groups = (await items.allTextContents()).map((t) => t.replace(/^Group \d+ of \d+:?\s*/, "").trim());
   await page.getByRole("button", { name: "I wrote it down" }).click();

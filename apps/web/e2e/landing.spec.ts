@@ -25,7 +25,7 @@ test("with JavaScript the app replaces the landing page only after Get started",
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("The messaging app you own");
   await page.getByRole("button", { name: "Get started" }).click();
   // The real Core starts, and the first run continues into device setup (no provider is configured in this build).
-  await expect(page.getByRole("button", { name: "Lock this device" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Protect my chats" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Run your own copy" })).toHaveCount(0);
 });
 
