@@ -1,17 +1,25 @@
 // The connected application shell shared by the production Core composition and the dev/e2e entries: conversation
 // list, requests, conversation view, composer, Settings > Devices / Recovery. It only talks to a CoreClient.
 import { useEffect, useState, type ReactNode } from "react";
-import type { ConversationId, IntroductionRequest } from "@om/platform-api";
+import type { ConversationId, IntroductionRequest, OperationId } from "@om/platform-api";
 import {
   AppShell, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeScreen, LiveRegion, MessageRequest, RecoveryScreen, StrangerPressure, Text,
-  useConversationList, type ConversationServices, type HomeSettingsServices,
+  RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
-import { appStrings as t, conversationCopy, deviceScannerCopy, devicesCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
+import { appStrings as t, conversationCopy, onboardingCopy, deviceScannerCopy, devicesCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
 import { useQrScanner } from "../qr/Scanner";
 import { CopyNotice } from "../CopyNotice";
 import { InstallAffordance } from "../install/InstallAffordance";
 
 type SettingsView = "menu" | "devices" | "recovery" | "home";
+
+/** The display-once safety code Core still holds: setup did not ask for it (ADR-0111), so the shell offers it on the user's time. */
+export interface SafetyCodeOffer {
+  readonly keyOperationId: OperationId;
+  readonly platform: OnboardingPlatform;
+  /** Called once Core has accepted the confirmation, or when the code is no longer available. */
+  readonly onResolved: () => void;
+}
 
 export interface ShellProps {
   readonly services: ConversationServices;
@@ -21,11 +29,13 @@ export interface ShellProps {
   readonly onAddProfile?: () => void;
   /** Settings > Your Home, when the host can configure its Home (the production entry; not the dev harness). */
   readonly home?: HomeSettingsServices;
+  readonly safetyCode?: SafetyCodeOffer;
 }
 
-export function Shell({ services, devicesExtra, onAddProfile, home }: ShellProps) {
+export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode }: ShellProps) {
   const [selected, setSelected] = useState<ConversationId | null>(null);
   const [settings, setSettings] = useState<SettingsView | null>(null);
+  const [savingCode, setSavingCode] = useState(false);
   const deviceScan = useQrScanner(deviceScannerCopy);
   const [drafts, setDrafts] = useState<ReadonlyMap<ConversationId, string>>(() => new Map());
   const list = useConversationList(services);
@@ -37,6 +47,29 @@ export function Shell({ services, devicesExtra, onAddProfile, home }: ShellProps
       <Button variant="quiet" aria-pressed={settings !== null} onClick={() => { setSettings(settings === null ? "menu" : null); }}>{t.settings}</Button>
     </>
   );
+  if (savingCode && safetyCode !== undefined) {
+    return (
+      <AppShell
+        destinations={[{ id: "chats", label: t.chats }]}
+        activeDestination="chats"
+        onDestinationChange={() => undefined}
+        conversationOpen
+        labels={shellLabels}
+        list={<Text>{t.loading}</Text>}
+        detail={(
+          <>
+            <Button variant="quiet" onClick={() => { setSavingCode(false); }}>{t.backToChats}</Button>
+            <RecoveryKeyStep
+              services={services} platform={safetyCode.platform} keyOperationId={safetyCode.keyOperationId} copy={onboardingCopy.recovery}
+              onConfirmed={() => { setSavingCode(false); safetyCode.onResolved(); }}
+            />
+          </>
+        )}
+        omnibarTrigger={<Button disabled>{t.omnibar}</Button>}
+        profileControl={profileControl}
+      />
+    );
+  }
   if (settings !== null) {
     return (
       <>
@@ -75,6 +108,12 @@ export function Shell({ services, devicesExtra, onAddProfile, home }: ShellProps
         labels={shellLabels}
         list={
           <>
+            {safetyCode === undefined ? null : (
+              <section className="om-dev-requests" aria-label={t.safetyCode.action}>
+                <Text as="p">{t.safetyCode.reminder}</Text>
+                <Button onClick={() => { setSavingCode(true); }}>{t.safetyCode.action}</Button>
+              </section>
+            )}
             <StrangerPressure services={services} copy={conversationCopy.pressure} />
             <Requests services={services} />
             {list.status === "loading" ? <Text>{t.loading}</Text> : null}

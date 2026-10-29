@@ -20,22 +20,22 @@ test.describe("passkey wrapping", () => {
   test("a device-bound PRF passkey wraps the vault with no reduced-protection notice", async ({ page }) => {
     await virtualAuthenticator(page, { prf: true, backupEligible: false });
     await onboard(page, { stopAt: "protected" });
-    await expect(page.getByText("Your data is locked with a passkey from this device or your password manager.")).toBeVisible();
-    await expect(page.getByText(/synced between your devices/)).toHaveCount(0);
+    await expect(page.getByText("Your chats are protected by a passkey: your fingerprint, face or screen code, or your password manager.")).toBeVisible();
+    await expect(page.getByText(/shared between your devices/)).toHaveCount(0);
   });
 
   test("a synced passkey wraps the vault and the reduced at-rest property is stated", async ({ page }) => {
     await virtualAuthenticator(page, { prf: true, backupEligible: true });
     await onboard(page, { stopAt: "protected" });
-    await expect(page.getByText("Your data is locked with a passkey from this device or your password manager.")).toBeVisible();
-    await expect(page.getByText(/synced between your devices/)).toBeVisible();
+    await expect(page.getByText("Your chats are protected by a passkey: your fingerprint, face or screen code, or your password manager.")).toBeVisible();
+    await expect(page.getByText(/shared between your devices/)).toBeVisible();
   });
 
   test("an authenticator without PRF falls back to a browser-held key and says so", async ({ page }) => {
     await virtualAuthenticator(page, { prf: false, backupEligible: false });
     await onboard(page, { stopAt: "protected" });
-    await expect(page.getByText("Your data is locked with a key kept in this browser.")).toBeVisible();
-    await expect(page.getByText(/can open your local data/)).toBeVisible();
+    await expect(page.getByText("Your chats are protected by a private key kept in this browser. Nothing asks for a fingerprint or code to open them here.")).toBeVisible();
+    await expect(page.getByText(/copy this browser.s data/)).toBeVisible();
   });
 
   test("passphrase layered over a PRF passkey completes onboarding", async ({ page }, info) => {
@@ -51,21 +51,21 @@ test("the camera scanner decodes a QR code from a real video stream and accepts 
   await onboard(page, { stopAt: "invite" });
   await page.getByRole("button", { name: "Scan a QR code" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  // The dialog closes by itself once a frame decodes; the accepted link moves the flow on.
-  await expect(page.getByRole("heading", { name: "You are set up" })).toBeVisible({ timeout: 30_000 });
+  // The dialog closes by itself once a frame decodes; the accepted link finishes setup and opens the app.
+  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
 test.describe("service worker on the dev-signed production bundle", () => {
   test("installs, controls the page after reload, and serves the shell offline", async ({ page, context }) => {
     await page.goto(BUNDLE_URL + "/");
-    await expect(page.getByRole("heading", { name: "Private messaging that nobody operates for you" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "The messaging app you own" }).first()).toBeVisible();
     await page.evaluate(async () => { await navigator.serviceWorker.ready; });
     await page.reload();
     await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
     await context.setOffline(true);
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Private messaging that nobody operates for you" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "The messaging app you own" }).first()).toBeVisible();
     await context.setOffline(false);
   });
 

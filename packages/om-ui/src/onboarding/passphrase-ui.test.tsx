@@ -3,8 +3,8 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { asProfileId, available, unavailable, FAMILY_NAMES } from "@om/platform-api";
-import type { CapabilityEntry, CapabilityReport, CreateVaultOptions, DeviceVault, FamilyName, PlatformAdapter, UnlockResult, VaultWrappingInfo } from "@om/platform-api";
+import { asProfileId } from "@om/platform-api";
+import type { CreateVaultOptions, DeviceVault, UnlockResult, VaultWrappingInfo } from "@om/platform-api";
 import { createHarness } from "@om/core-harness";
 import { createActionRegistry } from "../actions/registry";
 import { testCopy, testUnlockCopy } from "./__fixtures__/copy";
@@ -18,13 +18,6 @@ const PID = asProfileId("me");
 const WRAP: VaultWrappingInfo = { method: "device-key", reason: "device_key_requested", reducedAtRestProperty: false, passphraseProtected: true };
 const axeViolations = async (el: Element): Promise<string[]> =>
   (await axe.run(el, { rules: { "color-contrast": { enabled: false }, region: { enabled: false } } })).violations.map((v) => `${v.id}: ${v.help}`);
-
-function platform(): PlatformAdapter {
-  const entry = (state: CapabilityEntry["state"]): CapabilityEntry => ({ state });
-  const families = Object.fromEntries(FAMILY_NAMES.map((f) => [f, entry("unavailable")])) as Record<FamilyName, CapabilityEntry>;
-  const report: CapabilityReport = { families, backgroundPush: "none", localDiscovery: "manual_known_endpoint", localContacts: "unavailable", callSystemIntegration: false };
-  return { capabilities: () => report, share: () => unavailable<never>(), camera: () => unavailable<never>(), clipboard: () => available({ write: () => Promise.resolve("written" as const) }) } as unknown as PlatformAdapter;
-}
 
 const PASS = "correct horse battery";
 
@@ -43,7 +36,7 @@ describe("ProtectDevice passphrase option", () => {
     const h = createHarness({ env: {}, clock: () => 1000 });
     const ctx = h.seedProfile({ profileId: PID, label: "pending" });
     const vault = { createProfileVault } as unknown as DeviceVault;
-    render(<ProtectDevice services={{ client: h, registry: createActionRegistry(), ctx }} vault={vault} platform={platform()} copy={testCopy.protect} onProtected={vi.fn()} />);
+    render(<ProtectDevice services={{ client: h, registry: createActionRegistry(), ctx }} vault={vault} copy={testCopy.protect} onProtected={vi.fn()} />);
   }
 
   it("is off by default and creates the vault without an additional factor", async () => {

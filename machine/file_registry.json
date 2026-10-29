@@ -711,6 +711,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/src/core/safetyCode.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/src/csp.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8356,6 +8363,13 @@
     },
     {
       "path": "packages/om-ui/src/onboarding/ProtectDevice.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/onboarding/ProtectionSummary.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

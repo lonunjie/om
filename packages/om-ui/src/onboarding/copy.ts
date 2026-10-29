@@ -17,6 +17,8 @@ export interface OnboardingCopy {
     readonly passkeyUser: { readonly name: string; readonly displayName: string };
     readonly defaultProfileLabel: string;
     readonly resultHeading: string;
+    /** Summary label for the collapsed explanation of how chats are protected. */
+    readonly moreOptions: string;
     readonly method: Readonly<Record<WrappingMethod, string>>;
     readonly reason: Readonly<Record<WrappingReason, string>>;
     /** ADR-0129: a synced passkey's PRF wraps the vault. */
@@ -34,7 +36,6 @@ export interface OnboardingCopy {
     readonly openRecovery: string;
     readonly profileFailed: string;
     readonly retryProfile: string;
-    readonly next: string;
     /** Optional passphrase layer (Argon2id). Off by default; a forgotten passphrase cannot be recovered. */
     readonly passphrase: {
       readonly toggle: string;
@@ -109,7 +110,6 @@ export interface OnboardingCopy {
     readonly migrationUnavailable: string;
     readonly origin: Readonly<Record<ClientOriginChoiceCode, string>>;
   };
-  readonly ready: { readonly heading: string; readonly body: string; readonly done: string };
 }
 
 /** Strings for unlocking an existing vault. Separate from first-run copy: it is used on every later start. */

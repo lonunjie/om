@@ -32,7 +32,6 @@ test("two identities on the real Core: invite, introduction, messages both ways,
   const link = (await page.locator("code[translate=no]").first().textContent())?.trim() ?? "";
   expect(link).toMatch(/^om:invite\/[A-Za-z0-9_-]+$/);
   await page.getByRole("button", { name: "Skip for now" }).click();
-  await page.getByRole("button", { name: "Open my chats" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 
   // Bob: a second identity in the same browser accepts Alice's invite while setting up.
@@ -40,7 +39,6 @@ test("two identities on the real Core: invite, introduction, messages both ways,
   await walkSetup(page, { stopAt: "invite" });
   await page.getByLabel("Invitation link").fill(link);
   await page.getByRole("button", { name: "Accept invitation" }).click();
-  await page.getByRole("button", { name: "Open my chats" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 
   // Alice (current again after Bob's setup) sees the request (the sender is unknown until she accepts) and accepts it.

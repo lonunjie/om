@@ -3,12 +3,12 @@
 // the typed intents/queries/outcomes are the same, only the Core behind the CoreClient differs (task C1, mechanical swap).
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FAMILY_NAMES, asProfileId, available, unavailable } from "@om/platform-api";
-import type { CapabilityEntry, CapabilityReport, FamilyName, PlatformAdapter } from "@om/platform-api";
-import { OnboardingFlow, createActionRegistry } from "@om/ui";
+import type { CapabilityEntry, CapabilityReport, FamilyName, OperationId, PlatformAdapter } from "@om/platform-api";
+import { OnboardingFlow, RecoveryKeyStep, createActionRegistry } from "@om/ui";
 import { createWebDeviceVault } from "@om/web-platform";
 import { FakeAuthenticator, fakeEnv } from "../../om-web-platform/src/vault/__fixtures__/fake-env";
 import { testCopy } from "../../om-ui/src/onboarding/__fixtures__/copy";
@@ -41,19 +41,33 @@ function sameRealm(v: unknown): unknown {
 }
 
 describe.skipIf(!existsSync(WASM))("OnboardingFlow against the real Core", () => {
-  it("creates an identity, shows the real recovery key once and ends with empty Chats", async () => {
+  it("creates an identity, sets up in one step and offers the real safety code later", async () => {
     const env = fakeEnv({ auth: new FakeAuthenticator({ prf: "ok", backupEligible: false }) });
     const vault = createWebDeviceVault(env.credentials === undefined ? env : { ...env, credentials: sameRealm(env.credentials) as NonNullable<typeof env.credentials> });
     const core = await instantiateCore(readFileSync(WASM));
     const rt = await createCoreRuntime({ core, provider: createMemoryProvider(), storage: () => createMemoryKv(), home: { tier: "T1", observers: ["host_sees_ciphertext"], migrationAvailable: true, clientOriginChoice: ["default_origin"] }, autoDrain: false });
     const ctx = await rt.openProfile(asProfileId("me"));
     const done = vi.fn();
-    render(<OnboardingFlow client={rt} registry={createActionRegistry()} ctx={ctx} vault={vault} platform={platform()} copy={testCopy} onDone={done as () => void} />);
+    const registry = createActionRegistry();
+    render(<OnboardingFlow client={rt} registry={registry} ctx={ctx} vault={vault} platform={platform()} copy={testCopy} onDone={done as () => void} />);
     const click = (name: string | RegExp) => userEvent.click(screen.getByRole("button", { name }));
     await click("Get started");
     await click("Protect this device");
-    await screen.findByRole("heading", { name: "Protection chosen" });
-    await click("Continue");
+    // One tap later setup is at its ready state: no result screen, no safety code, nothing to type.
+    await screen.findByRole("heading", { name: "Add your first contact" });
+    expect(screen.queryByRole("list", { name: "Recovery key" })).toBeNull();
+    await click("Skip for now");
+    expect(done).toHaveBeenCalledTimes(1);
+    const { safetyCodePending } = done.mock.calls[0]?.[0] as { safetyCodePending: OperationId };
+    // Core now holds the identity and keeps the display-once key until the user saves it.
+    const keyOp = (await rt.pendingOperations(ctx)).find((o) => o.intentKind === "CreateIdentityProfile");
+    expect(keyOp?.outcome).toEqual({ kind: "Committed" });
+    expect(keyOp?.operationId).toBe(safetyCodePending);
+    expect((await rt.query({ kind: "GetRecoveryStatus", ctx })).recoveryKeySaved).toBe(false);
+
+    // Later, on the user's time: the same step shows the real key once.
+    cleanup();
+    render(<RecoveryKeyStep services={{ client: rt, registry, ctx }} platform={platform()} keyOperationId={safetyCodePending} copy={testCopy.recovery} onConfirmed={vi.fn()} />);
     await screen.findByRole("list", { name: "Recovery key" });
     const groups = within(screen.getByRole("list", { name: "Recovery key" })).getAllByRole("listitem").map((li) => li.textContent.replace(/^Group \d+ of \d+:\s*/, ""));
     expect(groups).toHaveLength(14);
@@ -64,15 +78,7 @@ describe.skipIf(!existsSync(WASM))("OnboardingFlow against the real Core", () =>
       await userEvent.type(input, groups[n - 1] ?? "");
     }
     await click("I saved it");
-    await screen.findByRole("heading", { name: "Add your first contact" });
-    await click("Skip for now");
-    await screen.findByRole("heading", { name: "You are ready" });
-    await click("Open chats");
-    expect(done).toHaveBeenCalledTimes(1);
-    // Core now holds the identity, and the display-once key is gone for good.
-    const keyOp = (await rt.pendingOperations(ctx)).find((o) => o.intentKind === "CreateIdentityProfile");
-    expect(keyOp?.outcome).toEqual({ kind: "Committed" });
-    expect(await rt.query({ kind: "GetRecoveryKey", ctx, keyOperationId: keyOp?.operationId as never })).toBeNull();
-    expect((await rt.query({ kind: "GetRecoveryStatus", ctx })).recoveryKeySaved).toBe(true);
+    await waitFor(async () => { expect((await rt.query({ kind: "GetRecoveryStatus", ctx })).recoveryKeySaved).toBe(true); });
+    expect(await rt.query({ kind: "GetRecoveryKey", ctx, keyOperationId: safetyCodePending })).toBeNull();
   });
 });

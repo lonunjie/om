@@ -178,7 +178,7 @@ const ORIGIN: Readonly<Record<ClientOriginChoiceCode, string>> = {
 export const onboardingCopy: OnboardingCopy = {
   welcome: {
     heading: "Welcome to OM",
-    body: "OM keeps your chats private. Setup takes about a minute and needs no technical knowledge. First we protect your chats on this device. Then you get a safety code to keep for emergencies.",
+    body: "OM keeps your chats private. Setup is one tap and needs no technical knowledge.",
     start: "Get started",
   },
   protect: {
@@ -189,6 +189,7 @@ export const onboardingCopy: OnboardingCopy = {
     passkeyUser: { name: "OM", displayName: "OM" },
     defaultProfileLabel: "Me",
     resultHeading: "How your chats are protected",
+    moreOptions: "More options",
     method: METHOD,
     reason: WRAPPING_REASON,
     reducedAtRest: "Your passkey is shared between your devices by the company or app that keeps it. Anyone who can sign in to that account could open your chats. Protection here is weaker.",
@@ -207,7 +208,6 @@ export const onboardingCopy: OnboardingCopy = {
     openRecovery: "Use my safety code",
     profileFailed: "Your OM account could not be set up.",
     retryProfile: "Try again",
-    next: "Continue",
     passphrase: {
       toggle: "Also add a password of my own",
       hint: "A password adds a second lock. You type it each time you open OM.",
@@ -282,11 +282,6 @@ export const onboardingCopy: OnboardingCopy = {
     migrationUnavailable: "Moving your Home is not available yet.",
     origin: ORIGIN,
   },
-  ready: {
-    heading: "You are set up",
-    body: "Your conversations will appear here.",
-    done: "Open my chats",
-  },
 };
 
 export const shellLabels: ShellLabels = {
@@ -326,6 +321,7 @@ export interface AppStrings {
   readonly settingsHome: string;
   readonly backToChats: string;
   readonly backToSettings: string;
+  readonly safetyCode: { readonly reminder: string; readonly action: string };
 }
 
 export const appStrings: AppStrings = {
@@ -364,6 +360,10 @@ export const appStrings: AppStrings = {
   settingsHome: "Your Home",
   backToChats: "Back to chats",
   backToSettings: "Back to settings",
+  safetyCode: {
+    reminder: "If you lose this device, only your safety code can get your account back. Keep a paper copy; it takes a minute and shows only once.",
+    action: "Save my safety code",
+  },
 };
 
 export const scannerCopy = {

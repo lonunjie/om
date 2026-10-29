@@ -18,19 +18,32 @@ export async function onboard(page: Page, o: OnboardOptions = {}): Promise<{ rea
   return walkSetup(page, o);
 }
 
-/** The setup steps after the landing page ("Protect my chats" through the recovery key check). */
+/** The setup steps after the landing page: one tap on "Protect my chats" lands on the ready state (invite first). */
 export async function walkSetup(page: Page, o: OnboardOptions = {}): Promise<{ readonly lockMs: number }> {
   if (o.passphrase !== undefined) {
+    await page.getByText("More options").click();
     await page.getByLabel("Also add a password of my own").check();
     await page.getByLabel("Password", { exact: true }).fill(o.passphrase);
     await page.getByLabel("Type it again").fill(o.passphrase);
   }
   const t0 = Date.now();
   await page.getByRole("button", { name: "Protect my chats" }).click();
-  await expect(page.getByRole("heading", { name: "How your data is locked" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("heading", { name: "Add your first contact" })).toBeVisible({ timeout: 60_000 });
   const lockMs = Date.now() - t0;
-  if (o.stopAt === "protected") return { lockMs };
-  await page.getByRole("button", { name: "Continue" }).click();
+  // "protected": open the explanation of how the chats are protected, for specs that assert on it.
+  if (o.stopAt === "protected") {
+    await page.getByText("How your chats are protected").click();
+    return { lockMs };
+  }
+  if (o.stopAt === "invite") return { lockMs };
+  await page.getByRole("button", { name: "Skip for now" }).click();
+  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
+  return { lockMs };
+}
+
+/** The optional safety-code flow, from the "Save my safety code" reminder in the chat list. */
+export async function saveSafetyCode(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Save my safety code" }).click();
   const items = page.getByRole("list", { name: "Safety code" }).getByRole("listitem");
   await expect(items.first()).toBeVisible();
   const groups = (await items.allTextContents()).map((t) => t.replace(/^Group \d+ of \d+:?\s*/, "").trim());
@@ -43,10 +56,5 @@ export async function walkSetup(page: Page, o: OnboardOptions = {}): Promise<{ r
     await box.fill(groups[n - 1] ?? "");
   }
   await page.getByRole("button", { name: "Confirm" }).click();
-  await expect(page.getByRole("heading", { name: "Add your first contact" })).toBeVisible();
-  if (o.stopAt === "invite") return { lockMs };
-  await page.getByRole("button", { name: "Skip for now" }).click();
-  await page.getByRole("button", { name: "Open my chats" }).click();
-  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
-  return { lockMs };
+  await expect(page.getByRole("button", { name: "Save my safety code" })).toHaveCount(0);
 }

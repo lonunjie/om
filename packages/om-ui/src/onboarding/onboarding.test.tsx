@@ -12,10 +12,12 @@ import { FakeAuthenticator, fakeEnv } from "../../../om-web-platform/src/vault/_
 import type { FakeEnv } from "../../../om-web-platform/src/vault/__fixtures__/fake-env";
 import { createActionRegistry } from "../actions/registry";
 import { ConversationList } from "../conversations/ConversationList";
+import { firstOutcome, resolveIntent } from "../conversations/services";
 import { useConversationList } from "../conversations/hooks";
 import { testCopy as conversationCopy } from "../conversations/__fixtures__/copy";
 import { testCopy } from "./__fixtures__/copy";
 import { OnboardingFlow } from "./OnboardingFlow";
+import { RecoveryKeyStep } from "./RecoveryKeyStep";
 import type { OnboardingPlatform } from "./platform";
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); window.localStorage.clear(); window.sessionStorage.clear(); });
@@ -79,19 +81,26 @@ function ui(r: Rig, tp: TestPlatform, extra: Partial<Parameters<typeof Onboardin
 }
 
 const click = (name: string | RegExp) => userEvent.click(screen.getByRole("button", { name }));
+/** Protecting the device ends on the ready state (invite first): no result screen, no safety-code step in between. */
 async function toProtected(r: Rig, tp: TestPlatform, extra = {}) {
   const view = render(ui(r, tp, extra));
   await click("Get started");
   await click("Protect this device");
-  await screen.findByRole("heading", { name: "Protection chosen" });
+  await screen.findByRole("heading", { name: "Add your first contact" });
   return view;
 }
 const keyGroups = (): string[] => within(screen.getByRole("list", { name: "Recovery key" })).getAllByRole("listitem").map((li) => li.textContent.replace(/^Group \d+ of \d+:\s*/, ""));
+/** The safety code is offered after setup on its own (opt-in); this renders that step against a freshly created profile. */
 async function toRecovery(r: Rig, tp: TestPlatform) {
-  const view = await toProtected(r, tp);
-  await click("Continue");
+  const services = { client: r.h, registry: createActionRegistry(), ctx: r.ctx };
+  const res = resolveIntent(services, "create-profile", { label: "Me" });
+  if (res.status !== "intent") throw new Error("create-profile blocked");
+  const handle = await r.h.dispatch(res.intent);
+  await firstOutcome(services, handle.operationId);
+  const confirmed = vi.fn();
+  const view = render(<RecoveryKeyStep services={services} platform={tp.platform} keyOperationId={handle.operationId} copy={testCopy.recovery} onConfirmed={confirmed} />);
   await screen.findByRole("list", { name: "Recovery key" });
-  return view;
+  return { view, container: view.container, confirmed, keyOperationId: handle.operationId };
 }
 /** Retypes whichever groups the form asks for (from the visible key, as a user who wrote it down would). */
 async function verifyWith(groups: readonly string[], wrong = false) {
@@ -102,20 +111,12 @@ async function verifyWith(groups: readonly string[], wrong = false) {
   }
 }
 async function toInviteFirst(r: Rig, tp: TestPlatform, extra = {}) {
-  const view = render(ui(r, tp, extra));
-  await click("Get started");
-  await click("Protect this device");
-  await screen.findByRole("heading", { name: "Protection chosen" });
-  await click("Continue");
-  const groups = keyGroups();
-  await verifyWith(groups);
-  await click("I saved it");
-  await screen.findByRole("heading", { name: "Add your first contact" });
-  return { view, groups };
+  const view = await toProtected(r, tp, extra);
+  return { view };
 }
 
 describe("protect_device", () => {
-  it("happy path: PRF on a device-bound passkey, then recovery, invites skipped, empty Chats", async () => {
+  it("happy path: PRF on a device-bound passkey, straight to the ready state, invites skipped, empty Chats", async () => {
     const r = rig();
     const tp = makePlatform();
     const { container } = render(ui(r, tp));
@@ -125,7 +126,7 @@ describe("protect_device", () => {
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Protect this device" }));
     expect(await axeViolations(container)).toEqual([]);
     await click("Protect this device");
-    await screen.findByRole("heading", { name: "Protection chosen" });
+    await screen.findByRole("heading", { name: "Add your first contact" });
     expect(screen.getByText("Method: webauthn-prf")).toBeTruthy();
     expect(screen.getByText("Because: prf_verified")).toBeTruthy();
     expect(screen.queryByText(/REDUCED/)).toBeNull();
@@ -133,24 +134,14 @@ describe("protect_device", () => {
     expect(await axeViolations(container)).toEqual([]);
     expect(r.auth.createCalls).toBe(1);
 
-    await click("Continue");
-    await screen.findByRole("heading", { name: "Your recovery key" });
-    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Your recovery key" }));
-    expect(await axeViolations(container)).toEqual([]);
-    const groups = keyGroups();
-    expect(groups.join("-")).toMatch(/^OM-DEV-FAKE-/);
-    await verifyWith(groups);
-    expect(await axeViolations(container)).toEqual([]);
-    await click("I saved it");
-
-    await screen.findByRole("heading", { name: "Add your first contact" });
+    // Straight to the ready state: no "Continue", no safety code, nothing to type.
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Add your first contact" }));
+    expect(screen.queryByRole("list", { name: "Recovery key" })).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
     await click("Skip for now");
-    await screen.findByRole("heading", { name: "You are ready" });
-    expect(await axeViolations(container)).toEqual([]);
-    await click("Open chats");
     expect(r.done).toHaveBeenCalledTimes(1);
+    // Core still holds the display-once safety code, so the host can offer it later.
+    expect(typeof (r.done.mock.calls[0]?.[0] as { safetyCodePending: unknown }).safetyCodePending).toBe("string");
     expect(tp.contactsTouched.n).toBe(0);
 
     function Chats() {
@@ -196,7 +187,7 @@ describe("protect_device", () => {
     expect(screen.queryByRole("heading", { name: "Protection chosen" })).toBeNull();
     r.env.focused = () => true;
     await click("Continue confirmation");
-    await screen.findByRole("heading", { name: "Protection chosen" });
+    await screen.findByRole("heading", { name: "Add your first contact" });
     expect(auth.createCalls).toBe(1);
   });
 
@@ -209,7 +200,7 @@ describe("protect_device", () => {
     await click("Protect this device");
     expect((await screen.findByRole("alert")).textContent).toBe("Error: storage_failed");
     await click("Try again");
-    await screen.findByRole("heading", { name: "Protection chosen" });
+    await screen.findByRole("heading", { name: "Add your first contact" });
   });
 
   it("already_exists never overwrites, recreates or deletes; it only offers the recovery flow", async () => {
@@ -280,18 +271,30 @@ describe("recovery_key", () => {
   it("the key is not retrievable from Core after confirm and never reaches storage, logs or operation records", async () => {
     const logs = [vi.spyOn(console, "log"), vi.spyOn(console, "info"), vi.spyOn(console, "warn"), vi.spyOn(console, "error"), vi.spyOn(console, "debug")];
     const r = rig();
-    const { groups } = await toInviteFirst(r, makePlatform());
+    const { confirmed, keyOperationId } = await toRecovery(r, makePlatform());
+    const groups = keyGroups();
     const secret = groups.slice(3);
     expect(secret.every((g) => g.length === 4)).toBe(true);
+    await verifyWith(groups);
+    await click("I saved it");
+    await waitFor(() => { expect(confirmed).toHaveBeenCalledTimes(1); });
     const everything = JSON.stringify([
       Object.entries(window.localStorage), Object.entries(window.sessionStorage), document.cookie, await r.h.pendingOperations(r.ctx), logs.map((l) => l.mock.calls),
     ]);
     for (const g of secret) expect(everything).not.toContain(g);
     // Core will not show it again, and it is gone from the DOM.
-    const ops = await r.h.pendingOperations(r.ctx);
-    const creating = ops.find((o) => o.intentKind === "CreateIdentityProfile");
-    expect(await r.h.query({ kind: "GetRecoveryKey", ctx: r.ctx, keyOperationId: creating?.operationId as never })).toBeNull();
+    expect(await r.h.query({ kind: "GetRecoveryKey", ctx: r.ctx, keyOperationId })).toBeNull();
     for (const g of secret) expect(document.body.textContent).not.toContain(g);
+  });
+
+  it("the key stays available in Core until it is confirmed, so setup need not wait for it", async () => {
+    const r = rig();
+    const tp = makePlatform();
+    await toProtected(r, tp);
+    await click("Skip for now");
+    const sent = r.done.mock.calls[0]?.[0] as { safetyCodePending: OperationId };
+    const key = await r.h.query({ kind: "GetRecoveryKey", ctx: r.ctx, keyOperationId: sent.safetyCodePending });
+    expect(key?.groups.join("-")).toMatch(/^OM-DEV-FAKE-/);
   });
 
   it("copy uses the sensitive clipboard when available", async () => {
@@ -369,7 +372,7 @@ describe("invite_first", () => {
     expect(await axeViolations(view.container)).toEqual([]);
     await click("Scan QR");
     expect(tp.cameraCalls.n).toBe(1);
-    await screen.findByRole("heading", { name: "You are ready" });
+    await waitFor(() => { expect(r.done).toHaveBeenCalledTimes(1); });
   });
 
   it("scan is hidden when the camera is unavailable and reports denial otherwise", async () => {
@@ -419,7 +422,7 @@ describe("invite_first", () => {
     await userEvent.click(screen.getByRole("textbox", { name: "Invitation link" }));
     await userEvent.paste(`  ${LINK}  `);
     await click("Accept invitation");
-    await screen.findByRole("heading", { name: "You are ready" });
+    await waitFor(() => { expect(r.done).toHaveBeenCalledTimes(1); });
     expect((await r.h.pendingOperations(r.ctx)).some((o) => o.intentKind === "AcceptInvitation" && o.outcome.kind === "Committed")).toBe(true);
   });
 
@@ -469,7 +472,7 @@ describe("invite_first without a provider (audit M5)", () => {
     await userEvent.paste("om:invite/AAAAAAAAAAAAAAAAAAAAAA");
     await click("Accept invitation");
     expect((await screen.findByRole("status")).textContent).toBe("Saved on this device; it goes out when connected");
-    expect(screen.queryByRole("heading", { name: "You are ready" })).toBeNull();
+    expect(r.done).not.toHaveBeenCalled();
     expect(screen.getByRole<HTMLButtonElement>("button", { name: "Accept invitation" }).disabled).toBe(false);
   });
 });
@@ -536,7 +539,7 @@ describe("no address-book path", () => {
     const tp = makePlatform({ share: "shared", camera: "granted" });
     await toInviteFirst(r, tp, { renderQr: () => <span />, scanQr: () => Promise.resolve(null) });
     await click("Skip for now");
-    await screen.findByRole("heading", { name: "You are ready" });
+    expect(r.done).toHaveBeenCalledTimes(1);
     expect(tp.contactsTouched.n).toBe(0);
   });
 });

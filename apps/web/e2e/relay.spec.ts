@@ -31,14 +31,12 @@ test("two identities talk through the configured reference Home; the Home sees o
   const link = (await page.locator("code[translate=no]").first().textContent())?.trim() ?? "";
   expect(link).toMatch(/^om:invite\/[A-Za-z0-9_-]+$/);
   await page.getByRole("button", { name: "Skip for now" }).click();
-  await page.getByRole("button", { name: "Open my chats" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 
   await page.getByRole("button", { name: "Add identity" }).click();
   await walkSetup(page, { stopAt: "invite" });
   await page.getByLabel("Invitation link").fill(link);
   await page.getByRole("button", { name: "Accept invitation" }).click();
-  await page.getByRole("button", { name: "Open my chats" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 
   const me = { who: "alice" as Who };
@@ -104,7 +102,6 @@ test("Settings shows the Home in use with what it says about itself, and refuses
   await noPasskeys(page);
   await onboard(page, { stopAt: "invite" });
   await page.getByRole("button", { name: "Skip for now" }).click();
-  await page.getByRole("button", { name: "Open my chats" }).click();
   await page.getByRole("button", { name: "Settings" }).click();
   await page.getByRole("button", { name: "Your Home" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Your Home" })).toBeVisible();

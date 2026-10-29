@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { describeLimits } from "@om/platform-api";
 import type { DeviceVault, OperationId, VaultErrorReason, VaultStage, VaultWrappingInfo } from "@om/platform-api";
 import { firstOutcome, resolveIntent } from "../conversations/services";
 import type { ConversationServices } from "../conversations/services";
@@ -8,13 +7,11 @@ import { LiveRegion } from "../shell/primitives/LiveRegion";
 import { Text } from "../shell/primitives/Text";
 import type { OnboardingCopy } from "./copy";
 import { checkNewPassphrase, passphraseBytes, PASSPHRASE_MIN_CODE_POINTS } from "./passphrase";
-import type { OnboardingPlatform } from "./platform";
 import { StepHeading } from "./StepHeading";
 
 export interface ProtectDeviceProps {
   readonly services: ConversationServices;
   readonly vault: DeviceVault;
-  readonly platform: OnboardingPlatform;
   readonly copy: OnboardingCopy["protect"];
   /** Core created the identity; `keyOperationId` names the RecoveryKeyView to show next. */
   readonly onProtected: (keyOperationId: OperationId, wrapping: VaultWrappingInfo) => void;
@@ -28,10 +25,9 @@ type Phase =
   | { readonly k: "gesture"; readonly stage: VaultStage }
   | { readonly k: "error"; readonly reason: VaultErrorReason }
   | { readonly k: "existing"; readonly reason: "already_exists" | "corrupt" }
-  | { readonly k: "profile_failed"; readonly wrapping: VaultWrappingInfo }
-  | { readonly k: "done"; readonly wrapping: VaultWrappingInfo; readonly keyOperationId: OperationId };
+  | { readonly k: "profile_failed"; readonly wrapping: VaultWrappingInfo };
 
-export function ProtectDevice({ services, vault, platform, copy, onProtected, onExistingVault }: ProtectDeviceProps) {
+export function ProtectDevice({ services, vault, copy, onProtected, onExistingVault }: ProtectDeviceProps) {
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
   const [usePassphrase, setUsePassphrase] = useState(false);
   const [pass, setPass] = useState("");
@@ -47,7 +43,9 @@ export function ProtectDevice({ services, vault, platform, copy, onProtected, on
       if (r.status !== "intent") { set({ k: "profile_failed", wrapping }); return; }
       const handle = await services.client.dispatch(r.intent);
       const outcome = await firstOutcome(services, handle.operationId);
-      set(outcome.kind === "Committed" ? { k: "done", wrapping, keyOperationId: handle.operationId } : { k: "profile_failed", wrapping });
+      if (outcome.kind !== "Committed") { set({ k: "profile_failed", wrapping }); return; }
+      // Straight on: nothing to read or tap between "protected" and the ready state (the summary follows there).
+      if (mounted.current) onProtected(handle.operationId, wrapping);
     } catch {
       set({ k: "profile_failed", wrapping });
     }
@@ -82,29 +80,13 @@ export function ProtectDevice({ services, vault, platform, copy, onProtected, on
   const busy = phase.k === "working";
   const choosing = phase.k === "idle" || phase.k === "gesture" || phase.k === "error";
   const passProblem = usePassphrase && passShown ? checkNewPassphrase(pass, passConfirm) : null;
-  const wrapping = phase.k === "done" || phase.k === "profile_failed" ? phase.wrapping : null;
   return (
     <section className="om-onb__step" aria-labelledby="om-onb-protect-h">
       <StepHeading id="om-onb-protect-h">{copy.heading}</StepHeading>
       <Text as="p">{copy.body}</Text>
-      {wrapping ? (
-        <div className="om-onb__result">
-          <Text as="h3" size="md" weight="bold">{copy.resultHeading}</Text>
-          <Text as="p">{copy.method[wrapping.method]}</Text>
-          <Text as="p" tone="secondary">{copy.reason[wrapping.reason]}</Text>
-          {wrapping.reducedAtRestProperty ? <p role="note" className="om-onb__notice" data-code="reduced_at_rest">{copy.reducedAtRest}</p> : null}
-          {wrapping.method === "device-key" ? (
-            <div role="note" className="om-onb__notice" data-code="device_key_limit">
-              <p>{copy.deviceKeyLimit}</p>
-              <p>{copy.nativeRecommended}</p>
-              <Text as="h4" size="sm" weight="bold">{copy.limitsHeading}</Text>
-              <ul>{describeLimits(platform.capabilities()).map((c) => <li key={c}>{copy.limits[c]}</li>)}</ul>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
       {choosing || busy ? (
-        <div className="om-onb__result">
+        <details className="om-onb__more">
+          <summary>{copy.moreOptions}</summary>
           <label className="om-onb__check">
             <input type="checkbox" checked={usePassphrase} disabled={busy} onChange={(e) => { setUsePassphrase(e.target.checked); setPassShown(false); }} />
             {" "}{copy.passphrase.toggle}
@@ -128,7 +110,7 @@ export function ProtectDevice({ services, vault, platform, copy, onProtected, on
               {passProblem === "too_short" || passProblem === "too_long" ? <p role="alert" data-code={`passphrase_${passProblem}`}>{copy.passphrase.tooShort(PASSPHRASE_MIN_CODE_POINTS)}</p> : null}
             </>
           ) : null}
-        </div>
+        </details>
       ) : null}
       {phase.k === "gesture" ? <p role="status">{copy.needsGesture[phase.stage]}</p> : null}
       {phase.k === "error" ? <p role="alert" data-reason={phase.reason}>{copy.errors[phase.reason]}</p> : null}
@@ -141,7 +123,6 @@ export function ProtectDevice({ services, vault, platform, copy, onProtected, on
         {phase.k === "error" ? <Button variant="primary" onClick={run(protect)}>{copy.retry}</Button> : null}
         {phase.k === "profile_failed" ? <Button variant="primary" onClick={run(() => createProfile(phase.wrapping))}>{copy.retryProfile}</Button> : null}
         {phase.k === "existing" && onExistingVault ? <Button variant="primary" onClick={() => { onExistingVault(phase.reason); }}>{copy.openRecovery}</Button> : null}
-        {phase.k === "done" ? <Button variant="primary" onClick={() => { onProtected(phase.keyOperationId, phase.wrapping); }}>{copy.next}</Button> : null}
       </div>
     </section>
   );

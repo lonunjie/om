@@ -1,6 +1,6 @@
 import { useReducer, useState } from "react";
 import type { ReactNode } from "react";
-import type { CoreClient, DeviceVault, OperationId, ProfileExecutionContext } from "@om/platform-api";
+import type { CoreClient, DeviceVault, OperationId, ProfileExecutionContext, VaultWrappingInfo } from "@om/platform-api";
 import type { ActionRegistry } from "../actions/registry";
 import type { ConversationServices } from "../conversations/services";
 import { Button } from "../shell/primitives/Button";
@@ -11,9 +11,11 @@ import { HomeFacts } from "./HomeFacts";
 import { InviteFirst } from "./InviteFirst";
 import type { OnboardingPlatform } from "./platform";
 import { ProtectDevice } from "./ProtectDevice";
-import { RecoveryKeyStep } from "./RecoveryKeyStep";
+import { ProtectionSummary } from "./ProtectionSummary";
 import { StepHeading } from "./StepHeading";
 import "./onboarding.css";
+
+export interface OnboardingResult { readonly safetyCodePending: OperationId | null }
 
 export interface OnboardingFlowProps {
   readonly client: CoreClient;
@@ -23,7 +25,11 @@ export interface OnboardingFlowProps {
   readonly vault: DeviceVault;
   readonly platform: OnboardingPlatform;
   readonly copy: OnboardingCopy;
-  readonly onDone: () => void;
+  /**
+   * The flow is over. `safetyCodePending` names the display-once safety code Core still holds (ADR-0111: recovery is on by
+   * default and the code is saved on the user's own time); the host offers it later with `RecoveryKeyStep`.
+   */
+  readonly onDone: (result: OnboardingResult) => void;
   /** Called when vault data already exists or is corrupt; the host opens its recovery flow. */
   readonly onExistingVault?: (reason: "already_exists" | "corrupt") => void;
   readonly renderQr?: (payload: string) => ReactNode;
@@ -36,7 +42,8 @@ export interface OnboardingFlowProps {
 
 export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, settleTimeoutMs, skipWelcome = false }: OnboardingFlowProps) {
   const [flow, dispatch] = useReducer(flowReducer, skipWelcome ? flowReducer(initialFlow, { type: "start" }) : initialFlow);
-  const [keyOperationId, setKeyOperationId] = useState<OperationId | null>(null);
+  const [protectedAs, setProtectedAs] = useState<{ readonly keyOperationId: OperationId; readonly wrapping: VaultWrappingInfo } | null>(null);
+  const finish = (): void => { onDone({ safetyCodePending: protectedAs?.keyOperationId ?? null }); };
   const services: ConversationServices = { client, registry, ctx };
 
   switch (flow.step) {
@@ -51,16 +58,9 @@ export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, o
     case "protect_device":
       return (
         <ProtectDevice
-          services={services} vault={vault} platform={platform} copy={copy.protect}
+          services={services} vault={vault} copy={copy.protect}
           {...(onExistingVault ? { onExistingVault } : {})}
-          onProtected={(op) => { setKeyOperationId(op); dispatch({ type: "device_protected" }); }}
-        />
-      );
-    case "recovery_key":
-      return keyOperationId === null ? null : (
-        <RecoveryKeyStep
-          services={services} platform={platform} keyOperationId={keyOperationId} copy={copy.recovery}
-          onConfirmed={() => { setKeyOperationId(null); dispatch({ type: "key_confirmed" }); }}
+          onProtected={(op, wrapping) => { setProtectedAs({ keyOperationId: op, wrapping }); dispatch({ type: "device_protected" }); }}
         />
       );
     case "invite_first":
@@ -69,19 +69,11 @@ export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, o
           <InviteFirst
             services={services} platform={platform} copy={copy.invite}
             {...(renderQr ? { renderQr } : {})} {...(scanQr ? { scanQr } : {})} {...(settleTimeoutMs !== undefined ? { settleTimeoutMs } : {})}
-            onAccepted={() => { dispatch({ type: "invite_accepted" }); }} onSkip={() => { dispatch({ type: "invites_skipped" }); }}
+            onAccepted={finish} onSkip={finish}
           />
+          {protectedAs ? <ProtectionSummary wrapping={protectedAs.wrapping} platform={platform} copy={copy.protect} /> : null}
           <HomeFacts client={client} ctx={ctx} copy={copy.home} />
         </>
-      );
-    case "ready":
-      return (
-        <section className="om-onb__step" aria-labelledby="om-onb-ready-h">
-          <StepHeading id="om-onb-ready-h">{copy.ready.heading}</StepHeading>
-          <Text as="p">{copy.ready.body}</Text>
-          <HomeFacts client={client} ctx={ctx} copy={copy.home} />
-          <div className="om-onb__actions"><Button variant="primary" onClick={onDone}>{copy.ready.done}</Button></div>
-        </section>
       );
   }
 }

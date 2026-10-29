@@ -7,7 +7,7 @@ import { type WasmCoreClient } from "@om/core-wasm";
 import { browserVaultEnv, createWebDeviceVault, createWebPlatform } from "@om/web-platform";
 import {
   OnboardingFlow, ProfileProvider, Text, ThemeProvider, UnlockVault, createActionRegistry, createMemoryKeyValue, createProfileScopedState,
-  useActiveProfile, useCaptureContext, type ActionRegistry, type HomeSettingsServices, type OnboardingPlatform,
+  useActiveProfile, useCaptureContext, type ActionRegistry, type HomeSettingsServices, type OnboardingPlatform, type OnboardingResult,
 } from "@om/ui";
 import { InstallAffordance } from "../install/InstallAffordance";
 import { Landing } from "../landing/Landing";
@@ -17,6 +17,7 @@ import { useQrScanner } from "../qr/Scanner";
 import { startCore } from "./loadCore";
 import { unavailableProvider, type ConfiguredProvider } from "./provider";
 import { createProfileRegistry, type ProfileRegistry } from "./registry";
+import { clearPendingSafetyCode, readPendingSafetyCode, savePendingSafetyCode } from "./safetyCode";
 import { Shell } from "./Shell";
 
 export interface RealAppProps {
@@ -112,7 +113,8 @@ function Profiles({ rt, vault, registry, platform, known: initial, connected, ho
     return (
       <Onboard
         rt={rt} vault={vault} platform={platform} pending={pending} first={known.length === 0}
-        onDone={() => {
+        onDone={(result) => {
+          if (result.safetyCodePending !== null) savePendingSafetyCode(pending.id, result.safetyCodePending);
           registryRef.current.add(pending.id).then(() => {
             setKnown((k) => [...k, pending.id]);
             setOpen((o) => new Set(o).add(pending.id));
@@ -136,23 +138,41 @@ function Profiles({ rt, vault, registry, platform, known: initial, connected, ho
   return (
     <ProfileProvider client={rt} contexts={rt} store={store} {...(known[0] === undefined ? {} : { initialProfileId: known[0] })}>
       {connected ? null : <p role="status" className="om-dev-banner">{t.providerStatus.none}</p>}
-      <Connected rt={rt} onAddProfile={begin} {...(home === undefined ? {} : { home })} />
+      <Connected rt={rt} platform={platform} onAddProfile={begin} {...(home === undefined ? {} : { home })} />
     </ProfileProvider>
   );
 }
 
-function Connected({ rt, onAddProfile, home }: { readonly rt: WasmCoreClient; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices }) {
+function Connected({ rt, platform, onAddProfile, home }: { readonly rt: WasmCoreClient; readonly platform: OnboardingPlatform; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices }) {
   const registry = useMemo(() => createActionRegistry(), []);
   const active = useActiveProfile();
   const capture = useCaptureContext();
   const activeId = active?.id ?? null;
   // One frozen context per selection: a new object each render would re-run every query effect.
   const ctx = useMemo<ProfileExecutionContext | null>(() => (activeId === null ? null : capture()), [activeId, capture]);
+  const [resolved, setResolved] = useState(0);
+  const pending = useMemo(() => (activeId === null ? null : readPendingSafetyCode(activeId)), [activeId, resolved]);
+  // A code Core no longer holds (already saved elsewhere, or the data was reset) is not worth offering.
+  useEffect(() => {
+    if (activeId === null || ctx === null || pending === null) return;
+    let live = true;
+    rt.query({ kind: "GetRecoveryKey", ctx, keyOperationId: pending }).then(
+      (v) => { if (live && v === null) { clearPendingSafetyCode(activeId); setResolved((n) => n + 1); } },
+      () => undefined,
+    );
+    return () => { live = false; };
+  }, [rt, activeId, ctx, pending]);
   if (activeId === null || ctx === null) return <Text>{t.loading}</Text>;
-  return <Shell key={activeId} services={{ client: rt, registry, ctx }} onAddProfile={onAddProfile} {...(home === undefined ? {} : { home })} />;
+  const resolve = (): void => { clearPendingSafetyCode(activeId); setResolved((n) => n + 1); };
+  return (
+    <Shell
+      key={activeId} services={{ client: rt, registry, ctx }} onAddProfile={onAddProfile} {...(home === undefined ? {} : { home })}
+      {...(pending === null ? {} : { safetyCode: { keyOperationId: pending, platform, onResolved: resolve } })}
+    />
+  );
 }
 
-interface OnboardProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly pending: { readonly id: ProfileId; readonly ctx: ProfileExecutionContext }; readonly first: boolean; readonly onDone: () => void }
+interface OnboardProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly pending: { readonly id: ProfileId; readonly ctx: ProfileExecutionContext }; readonly first: boolean; readonly onDone: (result: OnboardingResult) => void }
 
 function Onboard({ rt, vault, platform, pending, first, onDone }: OnboardProps) {
   const registry = useMemo<ActionRegistry>(() => createActionRegistry(), []);

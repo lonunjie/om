@@ -133,7 +133,6 @@ test("two fresh identities exchange messages through the LIVE Home with the prod
     const link = (await page.locator("code[translate=no]").first().textContent())?.trim() ?? "";
     expect(link).toMatch(/^om:invite\/[A-Za-z0-9_-]+$/);
     await page.getByRole("button", { name: "Skip for now" }).click();
-    await page.getByRole("button", { name: "Open my chats" }).click();
     await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 
     await page.getByRole("button", { name: "Add identity" }).click();
@@ -141,7 +140,6 @@ test("two fresh identities exchange messages through the LIVE Home with the prod
     await page.getByLabel("Invitation link").fill(link);
     at.accept = Date.now();
     await page.getByRole("button", { name: "Accept invitation" }).click();
-    await page.getByRole("button", { name: "Open my chats" }).click();
     await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 
     // Bob's request reaches Alice through the Home; she accepts.

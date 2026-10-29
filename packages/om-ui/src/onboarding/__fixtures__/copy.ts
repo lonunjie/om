@@ -30,14 +30,14 @@ export const testCopy: OnboardingCopy = {
   welcome: { heading: "Welcome", body: "Set up this device.", start: "Get started" },
   protect: {
     heading: "Protect this device", body: "Your data is locked on this device.", action: "Protect this device", working: "Protecting",
-    passkeyUser: { name: "me", displayName: "Me" }, defaultProfileLabel: "Me", resultHeading: "Protection chosen",
+    passkeyUser: { name: "me", displayName: "Me" }, defaultProfileLabel: "Me", resultHeading: "Protection chosen", moreOptions: "More options",
     method: rec(METHODS, (m) => `Method: ${m}`), reason: rec(WRAPPING_REASONS, (r) => `Because: ${r}`),
     reducedAtRest: "REDUCED: a synced passkey protects this vault.", deviceKeyLimit: "DEVICE KEY: a copy of this browser profile opens local data without a passkey prompt.",
     nativeRecommended: "Use a native app for Hardened protection.", limitsHeading: "What this browser cannot do", limits: rec(LIMITS, (l) => `Limit: ${l}`),
     needsGesture: rec(STAGES, (s) => `Another confirmation is needed (${s})`), continueCeremony: "Continue confirmation",
     errors: rec(VAULT_ERRORS, (e) => `Error: ${e}`), retry: "Try again",
     existing: { already_exists: "This browser already has an OM vault.", corrupt: "The OM vault here is damaged." }, openRecovery: "Open recovery",
-    profileFailed: "Could not create your identity.", retryProfile: "Retry identity", next: "Continue",
+    profileFailed: "Could not create your identity.", retryProfile: "Retry identity",
     passphrase: {
       toggle: "Also use a passphrase", hint: "Adds a second lock.", warning: "If you forget it, this data cannot be recovered.", label: "Passphrase",
       confirmLabel: "Repeat passphrase", tooShort: (n) => `Use at least ${String(n)} characters.`, mismatch: "The passphrases do not match.", slowNote: "Unlocking takes a few seconds.",
@@ -63,5 +63,4 @@ export const testCopy: OnboardingCopy = {
     observers: rec(OBSERVERS, (o) => `Observer: ${o}`), migrationAvailable: "You can move your Home.", migrationUnavailable: "Moving is not available.",
     origin: rec(ORIGINS, (o) => `Origin: ${o}`),
   },
-  ready: { heading: "You are ready", body: "Chats will appear here.", done: "Open chats" },
 };

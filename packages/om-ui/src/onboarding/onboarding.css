@@ -16,3 +16,7 @@
   .om-onb__copied { animation: om-onb-copied 260ms ease-out both; }
   @keyframes om-onb-copied { from { opacity: 0; transform: translateY(4px) scale(0.98); } to { opacity: 1; transform: none; } }
 }
+
+/* Optional detail stays closed: nobody has to open it to finish setup. */
+.om-onb__more > summary { cursor: pointer; min-block-size: var(--om-target-min); display: flex; align-items: center; color: var(--om-color-text-secondary); }
+.om-onb__more[open] > summary { margin-block-end: var(--om-space-2); }

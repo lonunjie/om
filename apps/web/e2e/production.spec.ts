@@ -9,7 +9,6 @@ test("without a provider the real Core runs and the shell says it is not connect
   await noPasskeys(page);
   await onboard(page, { stopAt: "invite" });
   await page.getByRole("button", { name: "Skip for now" }).click();
-  await page.getByRole("button", { name: "Open my chats" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("status").filter({ hasText: "Not connected to a provider" })).toBeVisible();
   // No test banner: this is not the loopback build.

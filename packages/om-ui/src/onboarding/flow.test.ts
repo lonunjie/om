@@ -7,22 +7,17 @@ const run = (events: readonly FlowEvent["type"][], from: FlowState = initialFlow
   events.reduce((s, type) => flowReducer(s, { type }), from);
 
 describe("onboarding flow reducer", () => {
-  it("walks welcome -> protect_device -> recovery_key -> invite_first -> ready", () => {
+  it("walks welcome -> protect_device -> invite_first, with no safety-code step (ADR-0111)", () => {
     expect(initialFlow.step).toBe("welcome");
     expect(run(["start"]).step).toBe("protect_device");
-    expect(run(["start", "device_protected"]).step).toBe("recovery_key");
-    expect(run(["start", "device_protected", "key_confirmed"]).step).toBe("invite_first");
-    expect(run(["start", "device_protected", "key_confirmed", "invite_accepted"]).step).toBe("ready");
-    expect(run(["start", "device_protected", "key_confirmed", "invites_skipped"]).step).toBe("ready");
+    expect(run(["start", "device_protected"]).step).toBe("invite_first");
   });
 
-  it("ignores events that are illegal in the current step, so no step can be skipped", () => {
-    expect(run(["key_confirmed", "invite_accepted", "device_protected"]).step).toBe("welcome");
-    expect(run(["start", "key_confirmed"]).step).toBe("protect_device");
-    expect(run(["start", "device_protected", "invites_skipped"]).step).toBe("recovery_key");
-    expect(run(["start", "device_protected", "key_confirmed", "start"]).step).toBe("invite_first");
-    const ready = run(["start", "device_protected", "key_confirmed", "invites_skipped"]);
-    expect(run(["start", "device_protected", "key_confirmed", "invite_accepted"], ready)).toBe(ready);
+  it("ignores events that are illegal in the current step, so protection cannot be skipped", () => {
+    expect(run(["device_protected"]).step).toBe("welcome");
+    expect(run(["start", "start"]).step).toBe("protect_device");
+    const ready = run(["start", "device_protected"]);
+    expect(run(["start", "device_protected"], ready)).toBe(ready);
   });
 
   it("is pure: the input state is unchanged", () => {

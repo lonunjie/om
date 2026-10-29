@@ -13,7 +13,6 @@ test("onboarding with a passphrase, QR code, Settings > Devices and Recovery", a
   await expect(page.getByRole("figure", { name: "QR code for your invite" }).locator("svg path")).toBeVisible();
 
   await page.getByRole("button", { name: "Skip for now" }).click();
-  await page.getByRole("button", { name: "Open my chats" }).click();
   await page.getByRole("button", { name: "Settings" }).click();
   await page.getByRole("button", { name: "Devices" }).click();
   await expect(page.getByRole("heading", { name: "Devices", exact: true })).toBeVisible();
@@ -24,7 +23,7 @@ test("onboarding with a passphrase, QR code, Settings > Devices and Recovery", a
 
 test("service worker installs, controls the page and serves the shell offline", async ({ page, context, browserName }) => {
   await page.goto(BUNDLE_URL + "/");
-  await expect(page.getByRole("heading", { name: "Private messaging that nobody operates for you" }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "The messaging app you own" }).first()).toBeVisible();
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await page.reload();
   await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
@@ -43,6 +42,6 @@ test("service worker installs, controls the page and serves the shell offline", 
   }
   await context.setOffline(true);
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Private messaging that nobody operates for you" }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "The messaging app you own" }).first()).toBeVisible();
   await context.setOffline(false);
 });

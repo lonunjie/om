@@ -8,7 +8,7 @@ test("index.html carries the landing text and metadata without running any JavaS
   const html = await res.text();
   const root = /<div id="root">([\s\S]*)<\/body>/.exec(html)?.[1] ?? "";
   for (const text of [
-    "The messaging app you own", "no single company, server, or app store is indispensable", "Why make another app?", "What’s in a name?",
+    "The messaging app you own", "no single company, server, or app store is indispensable", "Another app?!", "What’s in a name?",
     "Beta", "Security &amp; privacy", "Add to Home Screen", "Install app", "Run your own copy", "https://github.com/lonunjie/om", "Get started",
   ]) expect(root, text).toContain(text);
   expect(html).toMatch(/<meta name="description" content="[^"]{40,}"/);
@@ -33,7 +33,7 @@ test("the dev harness shows the landing page first and Get started opens onboard
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Run your own copy" })).toBeVisible();
   await page.getByRole("button", { name: "Get started" }).click();
-  await expect(page.getByRole("heading", { name: "Lock your data on this device" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Keep your chats private on this device" })).toBeVisible();
 });
 
 test("the manifest is complete and every icon it names is a valid PNG or SVG of the declared size", async ({ request }) => {
