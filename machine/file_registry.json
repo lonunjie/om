@@ -193,7 +193,35 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/build/compare-rebuild.d.mts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/compare-rebuild.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/delegation.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/digest-log.d.mts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/digest-log.mjs",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -263,6 +291,27 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/build/provenance.d.mts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/provenance.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/provenance.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/release-guards.d.mts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -299,6 +348,20 @@
     },
     {
       "path": "apps/web/build/root-ceremony.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/sbom.d.mts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/sbom.mjs",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -2559,6 +2622,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "deploy/REBUILD-AND-COMPARE.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "deploy/cloudflare-pages/README.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
@@ -2633,6 +2703,13 @@
       "class": "architecture_doc",
       "domain": "architecture_process",
       "license": "Apache-2.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "deploy/release-log/README.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
       "authority": "canonical_normative"
     },
     {

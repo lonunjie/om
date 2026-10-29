@@ -8,6 +8,10 @@
 //   --delegation <file>   root-signed release-key delegation to embed in the manifest (default apps/web/release-delegation.json).
 //                         Signing REFUSES unless it is signed by the pinned offline root, unexpired, and lists the signing key (audit B2).
 //   --test-roots-file <file>  tests only (with --sign-with-key-file or --signature): JSON {roots:{id:hex},threshold[,pq]} replacing the pinned root (and PQ root).
+//   --builder-id <uri>    builder identity recorded in the provenance (default: the operator workstation id in provenance.mjs).
+//   --append-digest-log [file]  after a signed release verifies, append its digests to the single-operator signed log (default deploy/release-log/digests.jsonl).
+// Signed (non-dev) releases also get provenance.intoto.jsonl (in-toto/SLSA statement in a DSSE envelope signed by the same delegated key; not listed in SHA256SUMS
+// because it covers SHA256SUMS) and sbom.cdx.json (CycloneDX, listed in SHA256SUMS). With an external --signature there is no key here, so provenance is skipped (said so).
 // Without --dev the release REFUSES to be produced unless it is signed (--signature, --sign-from-vault or --sign-with-key-file).
 import { spawnSync } from "node:child_process";
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -15,10 +19,13 @@ import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { appendEntry, DEFAULT_LOG } from "./digest-log.mjs";
+import { buildProvenance, provenanceLine, signProvenance } from "./provenance.mjs";
+import { writeSbom } from "./sbom.mjs";
 import { RELEASE_KEY_ID, pemFromSecretText, pemFromVault, signManifest } from "./sign.mjs";
 import { cleanBuildEnv, pollutedKeys } from "./clean-env.mjs";
 import { siteProblems } from "./release-guards.mjs";
-import { PINNED_PQ_ROOT, PINNED_ROOTS, PINNED_ROOT_THRESHOLD, verifyRelease } from "./verify-release.mjs";
+import { PINNED_PQ_ROOT, PINNED_ROOTS, PINNED_ROOT_THRESHOLD, PROVENANCE_FILE, verifyRelease } from "./verify-release.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = resolve(webRoot, "../..");
@@ -62,6 +69,7 @@ if (polluted.length > 0) {
 // OM_RELEASE_BUILD makes vite itself refuse to build while the root key is unset (a throwaway-root test release is exempt).
 const buildEnv = cleanBuildEnv(process.env, { dev, release: !dev && testRoots === undefined });
 
+const manifestPath_of = (dir) => join(dir, "site", "bundle-manifest.json");
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const sha = (b) => createHash("sha256").update(b).digest("hex");
 const tmp = mkdtempSync(join(tmpdir(), "om-release-"));
@@ -78,6 +86,7 @@ try {
 
   const manifestPath = join(site, "bundle-manifest.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  let signerPem; // kept in memory only, to sign the provenance statement with the same key
   if (sigFile || signing) {
     // The delegation is part of the signed payload: embed it first, and refuse early if the chain cannot verify.
     let delegation;
@@ -87,7 +96,7 @@ try {
     let s;
     if (sigFile) s = JSON.parse(readFileSync(sigFile, "utf8"));
     else {
-      try { s = signManifest(manifest, fromVault ? pemFromVault() : pemFromSecretText(readFileSync(keyFile, "utf8")), opt("--key-id") ?? RELEASE_KEY_ID, { roots: trust.roots, threshold: trust.threshold, pq: trust.pq ?? null }); }
+      try { signerPem = fromVault ? pemFromVault() : pemFromSecretText(readFileSync(keyFile, "utf8")); s = signManifest(manifest, signerPem, opt("--key-id") ?? RELEASE_KEY_ID, { roots: trust.roots, threshold: trust.threshold, pq: trust.pq ?? null }); }
       catch (e) { fail(`signing failed: ${e.message}`); }
     }
     if (typeof s.alg !== "string" || typeof s.keyId !== "string" || typeof s.sig !== "string") fail("bad signature file");
@@ -108,10 +117,15 @@ try {
   }
   writeFileSync(join(dir, "README.txt"),
     `OM web release ${manifest.version}${dev ? " (DEV BUILD: UNSIGNED, NOT FOR PRODUCTION)" : ""}\n\n` +
-    `1. node verify.mjs${dev ? "           " : " --require-signed"}   # checks SHA256SUMS, every file in site/bundle-manifest.json${dev ? "" : " and the release signature"}\n` +
+    `1. node verify.mjs${dev ? "           " : (signerPem === undefined ? " --require-signed" : " --require-signed --require-provenance")}   # checks SHA256SUMS, every file in site/bundle-manifest.json${dev ? "" : " and the release signature" + (signerPem === undefined ? "" : ", provenance.intoto.jsonl")}\n` +
     "2. Upload site/ to any static host (see deploy/ in https://github.com/lonunjie/om).\n" +
     "Serve site/ at the ORIGIN ROOT; site/_headers carries the required CSP (translate it for non-Cloudflare hosts).\n");
-  const sums = walk(dir).map((p) => relative(dir, p).split(sep).join("/")).filter((p) => p !== "SHA256SUMS").sort()
+  if (!dev) {
+    try { console.log(`release: sbom.cdx.json (${writeSbom(join(dir, "sbom.cdx.json"))} components)`); }
+    catch (e) { fail(`SBOM failed: ${e.message}`); }
+  }
+  // SHA256SUMS lists everything except itself and provenance.intoto.jsonl (provenance covers SHA256SUMS, so listing it would be circular).
+  const sums = walk(dir).map((p) => relative(dir, p).split(sep).join("/")).filter((p) => p !== "SHA256SUMS" && p !== PROVENANCE_FILE).sort()
     .map((p) => `${sha(readFileSync(join(dir, p)))}  ${p}`);
   writeFileSync(join(dir, "SHA256SUMS"), sums.join("\n") + "\n");
 
@@ -120,6 +134,28 @@ try {
   if (!dev) {
     const v = verifyRelease(dir, { requireSigned: true, roots: trust.roots, threshold: trust.threshold, pq: trust.pq ?? null, pqRequired: (trust.pq ?? null) !== null });
     if (!v.ok) fail(`the release does not verify (--require-signed):\n  ${v.errors.join("\n  ")}`);
+    if (signerPem === undefined) console.log("release: provenance skipped (external --signature: the release key is not available here)");
+    else {
+      // The same commit vite stamps into the bundle: HEAD of this checkout (OM_* variables are refused above, so no override exists).
+      const commit = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).stdout.trim();
+      const keyId = manifest.signature.keyId;
+      const ptrust = { roots: trust.roots, threshold: trust.threshold, pq: trust.pq ?? null };
+      try {
+        const st = buildProvenance(dir, { commit, finishedOn: new Date().toISOString(), builderId: opt("--builder-id"), repoRoot });
+        writeFileSync(join(dir, PROVENANCE_FILE), provenanceLine(signProvenance(st, signerPem, keyId, manifest.delegation, ptrust)));
+      } catch (e) { fail(`provenance failed: ${e.message}`); }
+      const pv = verifyRelease(dir, { requireSigned: true, requireProvenance: true, roots: trust.roots, threshold: trust.threshold, pq: trust.pq ?? null, pqRequired: (trust.pq ?? null) !== null });
+      if (!pv.ok) fail(`the release does not verify with provenance:\n  ${pv.errors.join("\n  ")}`);
+      console.log(`release: provenance verified (${PROVENANCE_FILE}, commit ${commit.slice(0, 12)})`);
+      if (flag("--append-digest-log")) {
+        const next = args[args.indexOf("--append-digest-log") + 1];
+        const logFile = resolve(next && !next.startsWith("--") ? next : DEFAULT_LOG);
+        try {
+          appendEntry(logFile, { version: manifest.version, commit, manifestSha256: sha(readFileSync(manifestPath_of(dir))), sha256sumsSha256: sha(readFileSync(join(dir, "SHA256SUMS"))) }, signerPem, keyId, manifest.delegation, ptrust);
+        } catch (e) { fail(`digest log append failed: ${e.message}`); }
+        console.log(`release: digests appended to ${logFile} (single-operator log; commit it)`);
+      }
+    }
   }
 
   const out = { dir, zip: null };

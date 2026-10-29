@@ -6,8 +6,8 @@ export interface Delegation { format: string; version: number; expires: string; 
 export type Verdict<T = object> = ({ ok: true } & T) | { ok: false; reason: string };
 export declare function verifyRelease(
   dir: string,
-  opts?: { requireSigned?: boolean; roots?: Record<string, RootKeyDescriptor>; threshold?: number; now?: number; delegationFloor?: number | null; pq?: PqRootPin | null; pqRequired?: boolean; pqFloor?: boolean },
-): { ok: boolean; errors: string[]; info: { version?: string; dev?: boolean; signed?: boolean; keyId?: string; signatureValid?: boolean; delegationVersion?: number } };
+  opts?: { requireSigned?: boolean; roots?: Record<string, RootKeyDescriptor>; threshold?: number; now?: number; delegationFloor?: number | null; pq?: PqRootPin | null; pqRequired?: boolean; pqFloor?: boolean; requireProvenance?: boolean },
+): { ok: boolean; errors: string[]; info: { provenance?: { ok: boolean; commit?: string; builder?: string }; version?: string; dev?: boolean; signed?: boolean; keyId?: string; signatureValid?: boolean; delegationVersion?: number } };
 export declare const PINNED_ROOTS: Record<string, RootKeyDescriptor>;
 export declare const FRAME_RAW: string;
 export declare const FRAME_SOLANA_OFFCHAIN_V0: string;
@@ -33,3 +33,12 @@ export declare const PINNED_PQ_REQUIRED: boolean;
 export declare function describePq(v: unknown): PqRootPin | null;
 export declare function pqSigningBytes(pin: PqRootPin, payload: Uint8Array): Buffer;
 export declare function pqVerify(pin: PqRootPin, payload: Uint8Array, sigBase64: string): boolean;
+export declare const PROVENANCE_FILE: string;
+export declare const DSSE_PAYLOAD_TYPE: string;
+export declare const STATEMENT_TYPE: string;
+export declare const SLSA_PREDICATE_TYPE: string;
+export declare function dssePae(type: string, body: Uint8Array): Buffer;
+export declare function verifyProvenance(
+  dir: string,
+  opts?: { roots?: Record<string, RootKeyDescriptor>; threshold?: number; now?: number; delegationFloor?: number | null; pq?: PqRootPin | null; pqRequired?: boolean; pqFloor?: boolean },
+): { ok: boolean; errors: string[]; info: { commit?: string; keyId?: string; builder?: string } };

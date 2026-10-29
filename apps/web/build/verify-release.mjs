@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 // Standalone, dependency-free verifier for an OM web release folder. Shipped inside every release as verify.mjs.
-// Usage: node verify.mjs [releaseDir] [--require-signed]
+// Usage: node verify.mjs [releaseDir] [--require-signed] [--require-provenance]
 // Checks: SHA256SUMS against every file, every bundle-manifest.json entry (hash + size), no unlisted files in site/.
 // With a signature present it verifies the chain pinned ROOT key -> root-signed delegation (unexpired, release key listed,
 // in window, not revoked) -> Ed25519 manifest signature. The delegation version floor lives in the browser (service worker).
+// provenance.intoto.jsonl (when present) is verified too: DSSE signature by the delegated key, subjects = bundle-manifest.json and SHA256SUMS. --require-provenance makes it mandatory
+// (--require-signed does not, so releases made before provenance existed still verify).
 // --require-signed additionally fails on unsigned/dev bundles. The root pin must equal src/update/release-key.ts (release.test.ts checks).
 import { createHash, createPublicKey, verify } from "node:crypto";
-import { readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -206,10 +208,68 @@ export const PINNED_PQ_ROOT = {
   "frame": "om-pq-v1"
 };
 export const PINNED_PQ_REQUIRED = false;
+// ---- Release provenance (in-toto Statement v1 in a DSSE envelope, signed by the delegated release key; see provenance.mjs) ----
+export const PROVENANCE_FILE = "provenance.intoto.jsonl";
+export const DSSE_PAYLOAD_TYPE = "application/vnd.in-toto+json";
+export const STATEMENT_TYPE = "https://in-toto.io/Statement/v1";
+export const SLSA_PREDICATE_TYPE = "https://slsa.dev/provenance/v1";
+/** DSSE v1 pre-authentication encoding. */
+export const dssePae = (type, body) => Buffer.concat([Buffer.from(`DSSEv1 ${Buffer.byteLength(type)} ${type} ${body.length} `, "utf8"), body]);
+const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
+const edVerifyPae = (hex, payload, sigB64) => {
+  try { return verify(null, payload, createPublicKey({ key: Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(hex, "hex")]), format: "der", type: "spki" }), Buffer.from(sigB64, "base64")); } catch { return false; }
+};
+/**
+ * Verifies `<dir>/provenance.intoto.jsonl`: DSSE signature by a release key that the pinned root authorises (the delegation carried by the
+ * envelope must be the one embedded in the manifest), statement/predicate types, and that every subject digest matches the file in `dir`.
+ * Returns { ok, errors, info }. A missing file is reported as one error ("missing"); callers decide whether that is acceptable.
+ */
+export const verifyProvenance = (dir, { roots = PINNED_ROOTS, threshold = PINNED_ROOT_THRESHOLD, now = Date.now(), delegationFloor = null, pq = roots === PINNED_ROOTS ? PINNED_PQ_ROOT : null, pqRequired = roots === PINNED_ROOTS ? PINNED_PQ_REQUIRED : false, pqFloor = false } = {}) => {
+  const errors = [];
+  const info = {};
+  const bad = (m) => { errors.push(m); return { ok: false, errors, info }; };
+  let text;
+  try { text = readFileSync(join(dir, PROVENANCE_FILE), "utf8"); } catch { return bad("missing"); }
+  const lines = text.split("\n").filter(Boolean);
+  if (lines.length !== 1) return bad(`expected exactly one envelope line, found ${lines.length}`);
+  let env;
+  try { env = JSON.parse(lines[0]); } catch { return bad("envelope is not JSON"); }
+  if (!isRecord(env) || env.payloadType !== DSSE_PAYLOAD_TYPE || typeof env.payload !== "string" || !Array.isArray(env.signatures) || env.signatures.length !== 1) return bad("not a DSSE envelope of the expected shape");
+  const sig = env.signatures[0];
+  if (!isRecord(sig) || typeof sig.keyid !== "string" || typeof sig.sig !== "string") return bad("bad envelope signature entry");
+  const body = Buffer.from(env.payload, "base64");
+  // chain: pinned root -> delegation (must equal the manifest's) -> release key -> envelope signature
+  let manifest;
+  try { manifest = JSON.parse(readFileSync(join(dir, "site", "bundle-manifest.json"), "utf8")); } catch { return bad("site/bundle-manifest.json unreadable"); }
+  if (manifest.delegation === undefined || canonicalJson(manifest.delegation) !== canonicalJson(env.delegation ?? null)) return bad("delegation differs from the one embedded in the manifest");
+  const d = verifyDelegation(env.delegation, { keys: roots, threshold, pq, pqRequired }, { now, floor: delegationFloor, pqFloor });
+  if (!d.ok) return bad(`delegation: ${d.reason}`);
+  const k = resolveReleaseKey(d.delegation, sig.keyid, "ed25519", now);
+  if (!k.ok) return bad(`release key: ${k.reason}`);
+  if (manifest.signature?.keyId !== sig.keyid) return bad("signed by a different key than the manifest");
+  if (!edVerifyPae(k.pub, dssePae(env.payloadType, body), sig.sig)) return bad("bad_signature");
+  let st;
+  try { st = JSON.parse(body.toString("utf8")); } catch { return bad("payload is not JSON"); }
+  if (!isRecord(st) || st._type !== STATEMENT_TYPE || st.predicateType !== SLSA_PREDICATE_TYPE || !Array.isArray(st.subject) || st.subject.length === 0) return bad("not an in-toto v1 SLSA provenance statement");
+  const names = new Set();
+  for (const s of st.subject) {
+    const want = isRecord(s) && isRecord(s.digest) ? s.digest.sha256 : undefined;
+    if (!isRecord(s) || typeof s.name !== "string" || typeof want !== "string" || s.name.startsWith("/") || s.name.split("/").some((x) => x === ".." || x === "." || x === "")) { errors.push("bad subject entry"); continue; }
+    names.add(s.name);
+    try { if (sha(readFileSync(join(dir, s.name))) !== want) errors.push(`subject digest mismatch ${s.name}`); } catch { errors.push(`subject missing ${s.name}`); }
+  }
+  for (const need of ["site/bundle-manifest.json", "SHA256SUMS"]) if (!names.has(need)) errors.push(`subject ${need} not covered`);
+  const ep = st.predicate?.buildDefinition?.externalParameters;
+  if (!isRecord(ep) || ep.version !== manifest.version) errors.push("externalParameters.version differs from the manifest version");
+  info.commit = isRecord(ep) ? ep.commit : undefined;
+  info.keyId = sig.keyid;
+  info.builder = st.predicate?.runDetails?.builder?.id;
+  return { ok: errors.length === 0, errors, info };
+};
 const UNSERVED = new Set(["_headers"]);
 
 /** Returns { ok, errors, info }. Pure over the filesystem; exported for tests. */
-export const verifyRelease = (dir, { requireSigned = false, roots = PINNED_ROOTS, threshold = PINNED_ROOT_THRESHOLD, now = Date.now(), delegationFloor = null, pq = roots === PINNED_ROOTS ? PINNED_PQ_ROOT : null, pqRequired = roots === PINNED_ROOTS ? PINNED_PQ_REQUIRED : false, pqFloor = false } = {}) => {
+export const verifyRelease = (dir, { requireSigned = false, roots = PINNED_ROOTS, threshold = PINNED_ROOT_THRESHOLD, now = Date.now(), delegationFloor = null, pq = roots === PINNED_ROOTS ? PINNED_PQ_ROOT : null, pqRequired = roots === PINNED_ROOTS ? PINNED_PQ_REQUIRED : false, pqFloor = false, requireProvenance = false } = {}) => {
   const errors = [];
   const info = {};
   const site = join(dir, "site");
@@ -253,6 +313,13 @@ export const verifyRelease = (dir, { requireSigned = false, roots = PINNED_ROOTS
     }
     if (requireSigned && (!info.signed || info.dev)) errors.push("--require-signed: bundle is " + (info.dev ? "a dev build" : "unsigned"));
   }
+  // 3. provenance (optional: releases made before B4 have none; --require-provenance makes it mandatory)
+  if (existsSync(join(dir, PROVENANCE_FILE)) || requireProvenance) {
+    const p = verifyProvenance(dir, { roots, threshold, now, delegationFloor, pq, pqRequired, pqFloor });
+    info.provenance = p.ok ? { ok: true, ...p.info } : { ok: false };
+    // When the manifest's own chain already failed, the same delegation/key failure would only repeat in the provenance check.
+    for (const e of p.errors) if (!(info.signatureValid === false && /^(delegation|release key): /.test(e))) errors.push(`provenance: ${e}`);
+  }
   return { ok: errors.length === 0, errors, info };
 };
 
@@ -260,11 +327,12 @@ if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToP
   const args = process.argv.slice(2);
   const dir = resolve(args.find((a) => !a.startsWith("--")) ?? dirname(fileURLToPath(import.meta.url)));
   try { statSync(dir); } catch { console.error(`no such directory: ${dir}`); process.exit(2); }
-  const r = verifyRelease(dir, { requireSigned: args.includes("--require-signed") });
+  const r = verifyRelease(dir, { requireSigned: args.includes("--require-signed"), requireProvenance: args.includes("--require-provenance") });
   for (const e of r.errors) console.error("FAIL:", e);
   const i = r.info;
   if (i.signed && !i.signatureValid && Object.keys(PINNED_ROOTS).length === 0) console.error("HINT: no offline root key is pinned in this verifier yet (key ceremony pending: deploy/KEY-CEREMONY.md), so no signed release can verify.");
   if (r.errors.some((e) => e.startsWith("signature: pq_"))) console.error("HINT: the delegation needs the ML-DSA-65 post-quantum co-signature of the pinned PQ root (ADR-0182); this check needs Node 24 with ML-DSA support in node:crypto (tested on 24.14).");
+  if (i.provenance?.ok) console.log(`provenance: verified (commit ${i.provenance.commit}, builder ${i.provenance.builder})`);
   console.log(`${r.ok ? "OK" : "FAILED"}: version ${i.version ?? "?"}, ${i.dev ? "DEV build (unsigned, not for production)" : i.signed ? `signed (key ${i.keyId}, delegation v${i.delegationVersion}; verified root -> delegation -> release key -> manifest)` : "UNSIGNED"}`);
   process.exit(r.ok ? 0 : 1);
 }

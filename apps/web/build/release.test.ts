@@ -194,6 +194,13 @@ describe("release script", () => {
       expect(sigErr(dir, { roots: pinOf([mkRoot()]).keys })).toEqual(["signature: root_threshold"]);
       const cli = spawnSync("node", [join(dir, "verify.mjs"), dir, "--require-signed"], { encoding: "utf8" });
       expect(cli.status).toBe(1); // verify.mjs carries the real pin, not the test root
+      // B4: provenance (signed by the same delegated key) and SBOM; SHA256SUMS lists the SBOM but not the provenance (which covers SHA256SUMS)
+      expect(existsSync(join(dir, "provenance.intoto.jsonl"))).toBe(true);
+      expect(verifyRelease(dir, { ...trust, requireSigned: true, requireProvenance: true }).errors).toEqual([]);
+      const sums = readFileSync(join(dir, "SHA256SUMS"), "utf8");
+      expect(sums).toMatch(/ {2}sbom\.cdx\.json$/m);
+      expect(sums).not.toMatch(/provenance/);
+      expect(sums).not.toMatch(/SHA256SUMS/);
     });
     it("rejects a tampered manifest", () => {
       const d = clone("t-manifest");

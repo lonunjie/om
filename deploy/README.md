@@ -27,6 +27,12 @@ Output (git-ignored) in `apps/web/release/`: `om-web-<version>[-dev]/` and `.zip
   and that `site/` has no unlisted files. With a signature present it verifies the chain pinned root key, delegation, release key, manifest signature
   (fails closed while the root is unset).
   Also check the zip: `shasum -a 256 -c om-web-X.zip.sha256`.
+- **Provenance, SBOM, digest log:** a signed release also holds `provenance.intoto.jsonl` (an in-toto Statement v1 with a SLSA v1 provenance predicate in a DSSE
+  envelope, signed by the same delegated key and carrying the manifest's delegation; subjects are `site/bundle-manifest.json` and `SHA256SUMS`, so it is the
+  one file not listed in `SHA256SUMS`) and `sbom.cdx.json` (CycloneDX, production dependencies, listed in `SHA256SUMS`). `verify.mjs` checks the provenance when
+  present; `--require-provenance` makes it mandatory (it is not implied by `--require-signed`, so releases made before it existed still verify). The provenance is
+  self-attested by the operator's own machine. [`release-log/`](release-log/README.md) is a signed, hash-chained **single-operator** digest log, not a transparency log.
+  How a third party rebuilds and compares: [`REBUILD-AND-COMPARE.md`](REBUILD-AND-COMPARE.md).
 - Never edit files in `site/` (including `index.html`): the service worker rejects any byte that differs from the manifest.
 
 ## Targets
@@ -39,3 +45,10 @@ Output (git-ignored) in `apps/web/release/`: `om-web-<version>[-dev]/` and `.zip
 
 Common requirements: serve at the **origin root** (SW scope and manifest scope are `/`), HTTPS, and the headers from
 `apps/web/csp.ts` (the single source; `site/_headers` is generated from it).
+
+## Custody statement
+
+The offline root that authorises every release key is **2-of-3 Ed25519** (two Ledger hardware wallets and one software key) plus a **required
+ML-DSA-65 post-quantum co-signature**, and all of it is held by **one custodian**. Against coercion of that person this is equal to a single key. There is
+no independent monitoring, no independent mirror and no transparency log for these releases; the digest log is a single-operator file. The bundle is
+reproducible from source ([`REBUILD-AND-COMPARE.md`](REBUILD-AND-COMPARE.md)), which lets anyone check the content, not who controls the keys.
