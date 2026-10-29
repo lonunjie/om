@@ -229,7 +229,8 @@ export const onboardingCopy: OnboardingCopy = {
     unavailable: "The key is no longer available. Go back and start again.",
     copy: "Copy key",
     copied: "Copied. Clear it from your clipboard after you save it.",
-    copyUnavailable: "Copying is not available here. Write the key down by hand.",
+    copyUnavailable: "Copying is not available in this browser. Write the key down by hand.",
+    copiedOpen: "Copied. Other apps on this device may be able to read what you copy, so paste the key somewhere safe now, then clear your clipboard.",
     copyFailed: "Copying failed. Write the key down by hand.",
     toVerify: "I wrote it down",
     verifyHeading: "Check what you wrote",
@@ -274,7 +275,8 @@ export const onboardingCopy: OnboardingCopy = {
     heading: "About your Home",
     loading: "Loading",
     loadFailed: "Facts about your Home could not be loaded.",
-    tier: (tier) => `Home level: ${tier}`,
+    intro: "A Home is the small online service that holds your messages until the person you wrote to opens OM. Think of it as your mailbox.",
+    tier: (tier) => (tier === "none" ? "You have not picked a Home yet, so OM cannot send anything." : `Home level: ${tier}`),
     observers: OBSERVER,
     migrationAvailable: "You can move your Home to a different host later.",
     migrationUnavailable: "Moving your Home is not available yet.",
@@ -624,6 +626,7 @@ export interface LandingCopy {
   /** Titles mark their bold letters with asterisks, for example "*O*pen *M*essenger". */
   readonly names: { readonly heading: string; readonly intro: string; readonly items: readonly { readonly title: string; readonly body: string; readonly link?: LandingLink }[] };
   readonly security: { readonly eyebrow: string; readonly heading: string; readonly intro: string; readonly points: readonly string[]; readonly links: readonly LandingLink[] };
+  readonly follow: { readonly heading: string; readonly links: readonly (LandingLink & { readonly icon: string })[] };
   readonly install: {
     readonly heading: string;
     readonly intro: string;
@@ -635,7 +638,7 @@ export interface LandingCopy {
     readonly iosHint: string;
   };
   readonly selfHost: { readonly heading: string; readonly body: string; readonly link: string; readonly linkLabel: string };
-  readonly footer: { readonly prefix: string; readonly seedlife: string; readonly seedlifeUrl: string; readonly suffix: string; readonly socials: readonly LandingLink[] };
+  readonly footer: { readonly prefix: string; readonly seedlife: string; readonly seedlifeUrl: string; readonly suffix: string; readonly siteSource: LandingLink };
 }
 
 // The two fixed project links. Built from a scheme and a host so the "no hard-coded remote URL" lint, which protects
@@ -653,28 +656,28 @@ export const landingCopy: LandingCopy = {
   chat: { label: "What using OM should feel like", incoming: ["Install OM", "Pick a name", "Say hello"], reply: "That\u2019s it? \u{1F642}" },
   byline: { label: "A SeedLife project", url: https("lonunjie.org") },
   why: {
-    heading: "Why make another app?",
-    intro: "We use messaging apps every day, and we like a lot of them. But the more we looked, the more we kept running into the same worries.",
+    heading: "Another app?!",
+    intro: "We like messaging, but it is confusing that there are so many apps. We are building the one messaging app to have the **best features combined.**",
     points: [
       { title: "Closed doors", body: "Most apps do not talk to each other. If your friends are on a different app, you either join it or lose touch." },
       { title: "Free is not always free", body: "Many apps cost nothing because your attention, and sometimes your data, pays the bills. When you are not the customer, you can end up being the product." },
-      { title: "Private only if you find the switch", body: "Some popular apps leave end-to-end encryption off unless you turn it on yourself, and some chats can never use it. Until it is on, the company behind the app can read your messages." },
-      { title: "Private, but still watching", body: "Some apps do encrypt your messages and still collect plenty around them: who you talk to, when, how often and from where. Others add extras, like AI summaries, that send your messages to their servers to work." },
-      { title: "Good, but in one pair of hands", body: "The best private messengers are wonderful, and we are grateful for them. Still, each depends on one organization and one set of servers, and most start with your phone number." },
+      { title: "Private only if you find the switch", body: "Some popular apps (\u{1F44B} Telegram) leave end-to-end encryption off unless you turn it on yourself, and some chats can never use it. Until it is on, the company behind the app can read your messages." },
+      { title: "Private, but still watching", body: "Some apps do encrypt your messages and still collect plenty around them: who you talk to, when, how often and from where. Others add extras, like AI summaries (Meta \u{1F440}), that send your messages to their servers to work." },
+      { title: "Good, but in one pair of hands", body: "The best private messengers are wonderful (\u{1F44F} Signal), and we are grateful for them. Still, each depends on one organization and one set of servers, and most start with your phone number." },
     ],
-    closing: "Most of the world\u2019s messengers are built to make money, and that shapes what they do with your conversations. None of them fully holds the ideals of a kind messenger that leaves your data with you. So we are building the one we wished existed.",
+    closing: "Most of the world\u2019s messengers are built to make money, and that shapes what they do with your conversations. None of them fully holds the ideals of a kind messenger that leaves your data with you. It\u2019s [[our]] data, we should [[own]] it. So **we are building the [[one]] we wished existed.**",
   },
   names: {
     heading: "What\u2019s in a name?",
-    intro: "OM is more than Oh Messenger. The name carries seven small promises.",
+    intro: "OM stands for many things, here are some of them.",
     items: [
-      { title: "*O*pen-source *M*essenger", body: "A gift to everyone. Anyone can read it, check it, run it and make it better.", link: { label: "See the code", url: https("github.com/lonunjie/om") } },
+      { title: "*O*pen-source *M*essenger", body: "A gift to everyone.", link: { label: "Anyone can read it, check it, run it, and make it better.", url: https("github.com/lonunjie/om") } },
+      { title: "*0*M", body: "Zero total control. Nobody, including us, gets total control. Real systems need helpers, but no one should be able to switch you off or own the whole network." },
       { title: "*O*pen *M*essenger", body: "Not a walled garden. Other apps can talk to OM without asking permission." },
       { title: "*O*wn *M*essenger", body: "Make it yours: your identity, your look, your own setup. No central OM account needed." },
       { title: "*O*ur *M*essenger", body: "Made for people who gather: families, friends, teams and communities, each with their own spaces and rules." },
-      { title: "*O*ne *M*essenger", body: "It is meant to grow with add-ons, so your group does not need a new app every time it wants something new." },
       { title: "*O*h *M*essenger", body: "Friendly, lively and human. Designed to be easy: if you can send a text, you can use OM. We always kept Grandma in mind." },
-      { title: "*0*M: zero total control", body: "Nobody, including us, gets total control. Real systems need helpers, but no one should be able to switch you off or own the whole network." },
+      { title: "*O*ne *M*essenger", body: "Our vision, if possible, is to have just one messaging app that connects everyone." },
     ],
   },
   security: {
@@ -683,12 +686,21 @@ export const landingCopy: LandingCopy = {
     intro: "OM is new, and we would rather be honest about it than impressive.",
     points: [
       "OM is in beta and no human cryptographer has audited it yet. Things go wrong in a beta. Back up for safety.",
-      "We do not make security promises yet.",
-      "Your Home delivers your messages. It can see when you connect and how much you send, but by design it cannot see what you wrote.",
+      "Your messages travel through a small helper service called your Home. It knows when you are online and how many messages you send. What you write stays scrambled, so the Home cannot read it.",
     ],
     links: [
       { label: "Found a problem or have an idea? Tell us on GitHub", url: https("github.com/lonunjie/om/issues") },
       { label: "Read the full security policy", url: https("github.com/lonunjie/om/blob/main/SECURITY.md") },
+    ],
+  },
+  follow: {
+    heading: "Follow along",
+    links: [
+      { label: "Bluesky", icon: "bluesky", url: https("bsky.app/profile/lonunjie.org") },
+      { label: "X", icon: "x", url: https("x.com/lonunjie") },
+      { label: "YouTube", icon: "youtube", url: https("www.youtube.com/@lonunjie") },
+      { label: "GitHub", icon: "github", url: https("github.com/lonunjie") },
+      { label: "hi@lonunjie.org", icon: "email", url: ["mailto", "hi@lonunjie.org"].join(":") },
     ],
   },
   install: {
@@ -709,12 +721,7 @@ export const landingCopy: LandingCopy = {
   },
   footer: {
     prefix: "OM is a ", seedlife: "SeedLife", seedlifeUrl: https("lonunjie.org"), suffix: " project.",
-    socials: [
-      { label: "Bluesky", url: https("bsky.app/profile/lonunjie.org") },
-      { label: "X", url: https("x.com/lonunjie") },
-      { label: "YouTube", url: https("www.youtube.com/@lonunjie") },
-      { label: "GitHub", url: https("github.com/lonunjie") },
-    ],
+    siteSource: { label: "Site source", url: https("github.com/lonunjie/om.lonunjie.org") },
   },
 };
 

@@ -46,7 +46,7 @@ export const testCopy: OnboardingCopy = {
   recovery: {
     heading: "Your recovery key", body: "Write this key down. It is shown once.", shownAnnouncement: "Recovery key shown on screen.", keyLabel: "Recovery key",
     group: (n, t) => `Group ${String(n)} of ${String(t)}:`, loading: "Loading key", unavailable: "The key is no longer available.",
-    copy: "Copy key", copied: "Copied", copyUnavailable: "Copy is not available here; write the key down.", copyFailed: "Copy failed",
+    copy: "Copy key", copied: "Copied", copiedOpen: "Copied. Other apps can read your clipboard.", copyUnavailable: "Copy is not available here; write the key down.", copyFailed: "Copy failed",
     toVerify: "Check my copy", verifyHeading: "Check your recovery key", verifyBody: "Type the requested groups.", verifyField: (n) => `Group ${String(n)}`,
     showAgain: "Show key again", saved: "I saved it", confirming: "Confirming", confirmFailed: "Could not confirm.",
   },
@@ -59,7 +59,7 @@ export const testCopy: OnboardingCopy = {
     rejected: rec(REASONS, (r) => `Invitation rejected: ${r}`), failed: "Something went wrong", queued: "Saved on this device; it goes out when connected", skip: "Skip for now",
   },
   home: {
-    toggle: "Where is my Home?", heading: "Home facts", loading: "Loading", loadFailed: "Could not load Home facts", tier: (t) => `Home tier ${t}`,
+    toggle: "Where is my Home?", heading: "Home facts", loading: "Loading", loadFailed: "Could not load Home facts", tier: (t) => `Home tier ${t}`, intro: "A Home holds your messages.",
     observers: rec(OBSERVERS, (o) => `Observer: ${o}`), migrationAvailable: "You can move your Home.", migrationUnavailable: "Moving is not available.",
     origin: rec(ORIGINS, (o) => `Origin: ${o}`),
   },

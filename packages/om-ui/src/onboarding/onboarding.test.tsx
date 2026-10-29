@@ -46,7 +46,7 @@ function makePlatform(o: PlatformOpts = {}): TestPlatform {
     capabilities: () => report,
     share: () => (o.share === undefined || o.share === "unavailable" ? unavailable<never>() : available({ share: (c: unknown) => { shared.push(c); return Promise.resolve(o.share as "shared" | "cancelled" | "failed"); } })),
     camera: () => (o.camera === undefined || o.camera === "unavailable" ? unavailable<never>() : available({ requestAccess: () => { cameraCalls.n++; return Promise.resolve(o.camera as "granted" | "denied"); } })),
-    clipboard: () => (clip === "unavailable" ? unavailable<never>() : available({ write: (t: string) => { written.push(t); return Promise.resolve(clip === "sensitive" ? "written" as const : "sensitive_unsupported" as const); } })),
+    clipboard: () => (clip === "unavailable" ? unavailable<never>() : available({ write: (t: string, opts?: { sensitive?: boolean }) => { if (opts?.sensitive === true && clip !== "sensitive") return Promise.resolve("sensitive_unsupported" as const); written.push(t); return Promise.resolve("written" as const); } })),
     get contactsLocal(): never { contactsTouched.n++; throw new Error("contactsLocal must not be used"); },
   } as unknown as PlatformAdapter;
   return { platform: full, written, shared, cameraCalls, contactsTouched };
@@ -303,17 +303,24 @@ describe("recovery_key", () => {
     expect(tp.written).toEqual([keyGroups().join("-")]);
   });
 
-  it("without sensitive clipboard support there is no copy button, only the notice", async () => {
-    for (const clipboard of ["unsupported", "unavailable"] as const) {
-      cleanup();
-      const r = rig();
-      const tp = makePlatform({ clipboard });
-      const { container } = await toRecovery(r, tp);
-      expect(screen.queryByRole("button", { name: "Copy key" })).toBeNull();
-      expect(screen.getByText(/Copy is not available here/)).toBeTruthy();
-      expect(tp.written).toEqual([]);
-      expect(await axeViolations(container)).toEqual([]);
-    }
+  it("where the clipboard cannot be marked sensitive, copying still works and says other apps may read it", async () => {
+    const r = rig();
+    const tp = makePlatform({ clipboard: "unsupported" });
+    const { container } = await toRecovery(r, tp);
+    await click("Copy key");
+    expect(await screen.findByText(/Other apps can read your clipboard/)).toBeTruthy();
+    expect(tp.written).toEqual([keyGroups().join("-")]);
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it("with no clipboard at all there is no copy button, only the notice", async () => {
+    const r = rig();
+    const tp = makePlatform({ clipboard: "unavailable" });
+    const { container } = await toRecovery(r, tp);
+    expect(screen.queryByRole("button", { name: "Copy key" })).toBeNull();
+    expect(screen.getByText(/Copy is not available here/)).toBeTruthy();
+    expect(tp.written).toEqual([]);
+    expect(await axeViolations(container)).toEqual([]);
   });
 });
 

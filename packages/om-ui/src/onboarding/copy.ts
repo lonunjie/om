@@ -58,6 +58,8 @@ export interface OnboardingCopy {
     readonly copy: string;
     readonly copied: string;
     readonly copyUnavailable: string;
+    /** Shown after a copy that could not be marked sensitive: other apps may be able to read the clipboard. */
+    readonly copiedOpen: string;
     readonly copyFailed: string;
     readonly toVerify: string;
     readonly verifyHeading: string;
@@ -100,6 +102,8 @@ export interface OnboardingCopy {
     readonly loading: string;
     readonly loadFailed: string;
     readonly tier: (tier: string) => string;
+    /** One plain sentence on what a Home is, shown first. */
+    readonly intro: string;
     readonly observers: Readonly<Record<HomeObserverCode, string>>;
     readonly migrationAvailable: string;
     readonly migrationUnavailable: string;

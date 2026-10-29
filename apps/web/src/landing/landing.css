@@ -14,8 +14,8 @@
 .om-landing__eyebrow { margin-block-end: var(--om-space-2); font-size: var(--om-text-sm-size); font-weight: 650; letter-spacing: 0.12em; text-transform: uppercase; color: var(--om-color-text-muted); }
 
 .om-landing__topbar { display: flex; align-items: center; justify-content: space-between; padding-block: var(--om-space-5); }
-.om-landing__brand { display: flex; align-items: center; gap: var(--om-space-3); font-size: 1.5rem; font-weight: 800; letter-spacing: -0.04em; color: var(--om-color-accent); }
-.om-landing__beta { align-self: center; font-size: 0.6rem; line-height: 1.3; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0 0.35rem; border: 1px solid var(--om-color-border); border-radius: 4px; color: var(--om-color-text-secondary); }
+.om-landing__brand { display: flex; align-items: baseline; gap: var(--om-space-3); font-size: 1.5rem; font-weight: 800; letter-spacing: -0.04em; color: var(--om-color-accent); }
+.om-landing__beta { align-self: baseline; translate: 0 calc(-0.2em - 2.6px); font-size: 0.6rem; line-height: 1; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2em 0.35rem; border: 1px solid var(--om-color-border); border-radius: 4px; color: var(--om-color-text-secondary); }
 .om-landing__by { font-size: 0.9rem; }
 .om-landing .om-landing__by a { padding: 0; color: var(--om-color-text-secondary); text-decoration: none; }
 .om-landing .om-landing__by a:hover { color: var(--om-color-text-primary); }
@@ -26,7 +26,7 @@
 .om-landing__cta { margin-block-start: var(--om-space-5); }
 /* The call to action is dark and has an arrow, so it never reads as a chat bubble. The ring that ripples out of it is a
    "this is where you start" cue, and it stops as soon as you point at it. */
-.om-landing__button { position: relative; display: inline-flex; align-items: center; gap: var(--om-space-3); box-sizing: border-box; min-block-size: 3.25rem; padding-inline: var(--om-space-6) var(--om-space-5); border: 0; border-radius: 0.9rem; background: var(--om-color-text-primary); color: var(--om-color-bg-canvas); font: inherit; font-size: 1.05rem; font-weight: var(--om-weight-bold); cursor: pointer; }
+.om-landing__button { position: relative; display: inline-flex; align-items: center; gap: var(--om-space-3); box-sizing: border-box; min-block-size: 3.25rem; padding-inline: var(--om-space-6) var(--om-space-5); border: 0; border-radius: 0.9rem; background: linear-gradient(110deg, #1f5fbf, #5b3fd1, #b0309a, #d4574a); background-size: 300% 100%; color: #fff; font: inherit; font-size: 1.05rem; font-weight: var(--om-weight-bold); cursor: pointer; }
 .om-landing__button::after { content: ""; position: absolute; inset: 0; border-radius: inherit; border: 2px solid var(--om-color-accent); opacity: 0; pointer-events: none; }
 .om-landing__arrow { display: inline-block; }
 
@@ -40,12 +40,18 @@
 .om-landing__cards li { padding: 1.25rem 1.3rem; border: 1px solid var(--om-color-border); border-radius: 16px; background: var(--om-color-bg-surface); }
 .om-landing__intro { max-inline-size: 42rem; margin-block-end: var(--om-space-5); font-size: 1.1rem; line-height: 1.55; color: var(--om-color-text-secondary); }
 .om-landing__closing { margin-block: var(--om-space-5) 0; color: var(--om-color-text-primary); font-weight: 600; }
+.om-landing__cards a { display: inline; padding: 0; }
+.om-landing__em { color: var(--om-color-accent); }
+.om-landing__own { margin-block-start: var(--om-space-6); padding-block-start: var(--om-space-5); border-block-start: 1px solid var(--om-color-border); }
+.om-landing__follow { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.om-landing .om-landing__follow a { display: inline-flex; align-items: center; gap: 0.55rem; min-block-size: 44px; box-sizing: border-box; padding: 0.6rem 0.95rem; border: 1px solid var(--om-color-border); border-radius: 12px; background: var(--om-color-bg-surface); color: var(--om-color-text-primary); text-decoration: none; font-weight: 500; }
+.om-landing .om-landing__follow a:hover { border-color: var(--om-color-accent); }
+.om-landing__follow svg { inline-size: 1.15rem; block-size: 1.15rem; fill: currentColor; }
 .om-landing__cards p { color: var(--om-color-text-secondary); font-size: 0.98rem; }
 .om-landing__cards--meanings h3 b { color: var(--om-color-accent); }
 
 .om-landing__split { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(1.5rem, 5vw, 4rem); align-items: start; }
 .om-landing blockquote { margin: 0; padding: 1.5rem 1.6rem; border-inline-start: 4px solid var(--om-color-accent); border-radius: 0 16px 16px 0; background: var(--om-color-info-bg); font-size: clamp(1.2rem, 2.6vw, 1.5rem); font-weight: 600; letter-spacing: -0.015em; line-height: 1.35; }
-.om-landing__socials { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: var(--om-space-2) var(--om-space-5); margin-block-start: var(--om-space-2); }
 .om-landing__footer { margin-block-start: clamp(4rem, 9vw, 6rem); padding-block: var(--om-space-5) var(--om-space-7); border-block-start: 1px solid var(--om-color-border); color: var(--om-color-text-secondary); font-size: 0.9rem; }
 
 /* The phone: a quiet drawing behind the page. Tall, tilted, mostly transparent. */
@@ -67,13 +73,15 @@
 @keyframes om-float-c { from { transform: translateY(10vh); } to { transform: translateY(-25vh); } }
 @keyframes om-ripple { 0% { opacity: 0.7; transform: scale(1); } 45%, 100% { opacity: 0; transform: scale(1.25, 1.55); } }
 @keyframes om-nudge { 0%, 55%, 100% { transform: none; } 70% { transform: translateX(0.3rem); } 85% { transform: translateX(0); } }
+@keyframes om-flow { to { background-position: 100% 0; } }
 @keyframes om-appear { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: no-preference) {
   .om-landing__bubble { animation: om-appear 340ms ease-out both; }
-  .om-landing__bubble:nth-child(2) { animation-delay: 220ms; }
-  .om-landing__bubble:nth-child(3) { animation-delay: 440ms; }
-  .om-landing__bubble:nth-child(4) { animation-delay: 660ms; }
+  .om-landing__bubble:nth-child(2) { animation-delay: 500ms; }
+  .om-landing__bubble:nth-child(3) { animation-delay: 1000ms; }
+  .om-landing__bubble:nth-child(4) { animation-delay: 1900ms; }
+  .om-landing__button { animation: om-flow 9s ease-in-out infinite alternate; }
   .om-landing__button::after { animation: om-ripple 3.2s ease-out infinite; }
   .om-landing__arrow { animation: om-nudge 3.2s ease-in-out infinite; }
   .om-landing__button:hover::after, .om-landing__button:focus-visible::after, .om-landing__button:hover .om-landing__arrow, .om-landing__button:focus-visible .om-landing__arrow { animation: none; }

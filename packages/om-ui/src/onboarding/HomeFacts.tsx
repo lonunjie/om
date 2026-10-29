@@ -28,6 +28,7 @@ export function HomeFacts({ client, ctx, copy }: HomeFactsProps) {
         {phase.status === "failed" ? <Text as="p" role="alert">{copy.loadFailed}</Text> : null}
         {phase.status === "open" ? (
           <>
+            <Text as="p">{copy.intro}</Text>
             <Text as="h3" size="md" weight="bold">{copy.tier(phase.home.tier)}</Text>
             <ul>
               {phase.home.observers.map((o) => <li key={o}>{copy.observers[o]}</li>)}

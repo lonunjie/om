@@ -21,7 +21,7 @@ export interface RecoveryKeyStepProps {
 
 type Load = { readonly k: "loading" } | { readonly k: "unavailable" } | { readonly k: "ready"; readonly groups: readonly string[] };
 type Phase = "show" | "verify" | "confirming";
-type CopyState = "idle" | "copied" | "failed";
+type CopyState = "idle" | "copied" | "copiedOpen" | "failed";
 
 /**
  * The key lives only in this component's React state: never in storage, logs, the announcement or an attribute.
@@ -48,17 +48,20 @@ export function RecoveryKeyStep({ services, platform, keyOperationId, copy, onCo
   const groups = load.k === "ready" ? load.groups : null;
   const indices = useMemo(() => (groups ? pickVerifyIndices(groups.length) : []), [groups]);
 
-  // Copy goes through the Action Registry's sensitive-clipboard request, and only when this platform honors `sensitive`.
+  // Copy goes through the Action Registry. Where the platform can mark the item sensitive it always does; where it cannot
+  // (the web), copying is still offered because a person who asked for it should get it, and the confirmation says plainly
+  // that other apps may be able to read the clipboard.
   const clipboard = platform.clipboard();
   const report = platform.capabilities().families.clipboard;
-  const canCopy = clipboard.state === "available" && report.detail !== "sensitive_unsupported";
+  const canCopy = clipboard.state === "available";
+  const sensitive = report.detail !== "sensitive_unsupported";
   const doCopy = async (): Promise<void> => {
     if (!groups || clipboard.state === "unavailable") return;
-    const r = services.registry.resolve({ actionId: "copy-text", params: { sensitive: true }, ctx: services.ctx, origin: "direct" });
-    if (r.status !== "platform" || r.request.capability !== "Clipboard" || !r.request.sensitive) { setCopyState("failed"); return; }
+    const r = services.registry.resolve({ actionId: "copy-text", params: { sensitive }, ctx: services.ctx, origin: "direct" });
+    if (r.status !== "platform" || r.request.capability !== "Clipboard" || r.request.sensitive !== sensitive) { setCopyState("failed"); return; }
     try {
-      const res = await clipboard.api.write(groups.join("-"), { sensitive: true });
-      if (mounted.current) setCopyState(res === "written" ? "copied" : "failed");
+      const res = await clipboard.api.write(groups.join("-"), { sensitive });
+      if (mounted.current) setCopyState(res === "written" ? (sensitive ? "copied" : "copiedOpen") : "failed");
     } catch {
       if (mounted.current) setCopyState("failed");
     }
@@ -102,7 +105,8 @@ export function RecoveryKeyStep({ services, platform, keyOperationId, copy, onCo
           ) : (
             <p role="note" data-code="clipboard_sensitive_unavailable">{copy.copyUnavailable}</p>
           )}
-          {copyState === "copied" ? <p role="status">{copy.copied}</p> : null}
+          {copyState === "copied" ? <p role="status" className="om-onb__copied">{copy.copied}</p> : null}
+          {copyState === "copiedOpen" ? <p role="status" className="om-onb__copied">{copy.copiedOpen}</p> : null}
           {copyState === "failed" ? <p role="alert">{copy.copyFailed}</p> : null}
           <div className="om-onb__actions">
             <Button variant="primary" onClick={() => { setTyped([]); setPhase("verify"); }}>{copy.toVerify}</Button>
