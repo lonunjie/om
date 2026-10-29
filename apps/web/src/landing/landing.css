@@ -74,7 +74,7 @@
 @keyframes om-float-b { from { transform: translateY(0); } to { transform: translateY(30vh); } }
 @keyframes om-float-c { from { transform: translateY(10vh); } to { transform: translateY(-25vh); } }
 @keyframes om-nudge { 0%, 55%, 100% { transform: none; } 70% { transform: translateX(0.3rem); } 85% { transform: translateX(0); } }
-@keyframes om-orbit { 0%, 55% { --om-angle: 0deg; opacity: 0; } 58% { opacity: 1; } 92% { --om-angle: 360deg; opacity: 1; } 100% { --om-angle: 360deg; opacity: 0; } }
+@keyframes om-orbit { 0%, 55% { --om-angle: 0deg; opacity: 0; } 59% { opacity: 1; } 78% { opacity: 1; } 96% { opacity: 0; } 100% { --om-angle: 360deg; opacity: 0; } }
 @keyframes om-flow { to { background-position: 100% 0; } }
 @keyframes om-appear { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
@@ -84,7 +84,7 @@
   .om-landing__bubble:nth-child(3) { animation-delay: 1000ms; }
   .om-landing__bubble:nth-child(4) { animation-delay: 1900ms; }
   .om-landing__button { animation: om-flow 9s ease-in-out infinite alternate; }
-  .om-landing__button::before { animation: om-orbit 7s cubic-bezier(0.45, 0, 0.35, 1) infinite; }
+  .om-landing__button::before { animation: om-orbit 7s ease-in-out infinite; }
   .om-landing__arrow { animation: om-nudge 3.2s ease-in-out infinite; }
   .om-landing__button:hover::before, .om-landing__button:focus-visible::before, .om-landing__button:hover .om-landing__arrow, .om-landing__button:focus-visible .om-landing__arrow { animation: none; }
   .om-landing__button:hover .om-landing__arrow { transform: translateX(0.3rem); transition: transform 150ms ease-out; }
