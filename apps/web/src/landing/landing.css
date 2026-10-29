@@ -5,7 +5,7 @@
 :where(.om-landing) :where(h1, h2, h3, p, ul) { margin: 0; }
 .om-landing__wrap { position: relative; z-index: 1; box-sizing: border-box; max-inline-size: 64rem; margin-inline: auto; padding-inline: max(var(--om-space-4), env(safe-area-inset-left)) max(var(--om-space-4), env(safe-area-inset-right)); }
 .om-landing__wrap > section { padding-block-start: clamp(3rem, 7vw, 5rem); }
-.om-landing h2 { font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 740; letter-spacing: -0.03em; line-height: 1.12; margin-block-end: var(--om-space-5); }
+.om-landing h2 { font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 740; letter-spacing: -0.03em; line-height: 1.12; margin-block-end: var(--om-space-4); }
 .om-landing h3 { font-size: var(--om-text-lg-size); letter-spacing: -0.015em; margin-block-end: var(--om-space-2); }
 .om-landing p + p, .om-landing p + ul, .om-landing ul + p, .om-landing ul + div { margin-block-start: var(--om-space-3); }
 .om-landing section ul:not([class]) { padding-inline-start: var(--om-space-5); display: grid; gap: var(--om-space-2); }
@@ -24,10 +24,11 @@
 .om-landing__headline { margin-block-end: var(--om-space-4); text-wrap: balance; font-size: clamp(2.4rem, 6.2vw, 4.25rem); font-weight: 780; letter-spacing: -0.04em; line-height: 1.02; }
 .om-landing__lead { max-inline-size: 34rem; font-size: clamp(1.1rem, 2.2vw, 1.3rem); line-height: 1.55; color: var(--om-color-text-secondary); }
 .om-landing__cta { margin-block-start: var(--om-space-5); }
-/* The call to action is dark and has an arrow, so it never reads as a chat bubble. The ring that ripples out of it is a
-   "this is where you start" cue, and it stops as soon as you point at it. */
+/* The call to action is a colourful gradient with an arrow, so it never reads as a chat bubble. Now and then a soft light
+   runs once around its edge: a "this is where you start" cue that stops as soon as you point at it. */
+@property --om-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 .om-landing__button { position: relative; display: inline-flex; align-items: center; gap: var(--om-space-3); box-sizing: border-box; min-block-size: 3.25rem; padding-inline: var(--om-space-6) var(--om-space-5); border: 0; border-radius: 0.9rem; background: linear-gradient(110deg, #1f5fbf, #5b3fd1, #b0309a, #d4574a); background-size: 300% 100%; color: #fff; font: inherit; font-size: 1.05rem; font-weight: var(--om-weight-bold); cursor: pointer; }
-.om-landing__button::after { content: ""; position: absolute; inset: 0; border-radius: inherit; border: 2px solid var(--om-color-accent); opacity: 0; pointer-events: none; }
+.om-landing__button::before { content: ""; position: absolute; inset: -4px; padding: 3px; border-radius: calc(0.9rem + 4px); pointer-events: none; opacity: 0; background: conic-gradient(from var(--om-angle), transparent 0 55%, #7fb0ff 70%, #ff8fd0 85%, #ffd27f 95%, transparent 100%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
 .om-landing__arrow { display: inline-block; }
 
 .om-landing__chat { display: flex; flex-direction: column; gap: 0.55rem; padding: 1.5rem; border: 1px solid var(--om-color-border); border-radius: 24px; background: var(--om-color-bg-surface); box-shadow: 0 10px 30px rgb(0 0 0 / 0.08); }
@@ -39,7 +40,8 @@
 .om-landing__cards--meanings { grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); }
 .om-landing__cards li { padding: 1.25rem 1.3rem; border: 1px solid var(--om-color-border); border-radius: 16px; background: var(--om-color-bg-surface); }
 .om-landing__intro { max-inline-size: 42rem; margin-block-end: var(--om-space-5); font-size: 1.1rem; line-height: 1.55; color: var(--om-color-text-secondary); }
-.om-landing__closing { margin-block: var(--om-space-5) 0; color: var(--om-color-text-primary); font-weight: 600; }
+.om-landing .om-landing__closing { margin-block: var(--om-space-6) 0; }
+.om-landing strong { font-weight: 650; color: var(--om-color-text-primary); }
 .om-landing__cards a { display: inline; padding: 0; }
 .om-landing__em { color: var(--om-color-accent); }
 .om-landing__own { margin-block-start: var(--om-space-6); padding-block-start: var(--om-space-5); border-block-start: 1px solid var(--om-color-border); }
@@ -71,8 +73,8 @@
 @keyframes om-float-a { from { transform: translateY(0); } to { transform: translateY(-40vh); } }
 @keyframes om-float-b { from { transform: translateY(0); } to { transform: translateY(30vh); } }
 @keyframes om-float-c { from { transform: translateY(10vh); } to { transform: translateY(-25vh); } }
-@keyframes om-ripple { 0% { opacity: 0.7; transform: scale(1); } 45%, 100% { opacity: 0; transform: scale(1.25, 1.55); } }
 @keyframes om-nudge { 0%, 55%, 100% { transform: none; } 70% { transform: translateX(0.3rem); } 85% { transform: translateX(0); } }
+@keyframes om-orbit { 0%, 55% { --om-angle: 0deg; opacity: 0; } 58% { opacity: 1; } 92% { --om-angle: 360deg; opacity: 1; } 100% { --om-angle: 360deg; opacity: 0; } }
 @keyframes om-flow { to { background-position: 100% 0; } }
 @keyframes om-appear { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
@@ -82,9 +84,9 @@
   .om-landing__bubble:nth-child(3) { animation-delay: 1000ms; }
   .om-landing__bubble:nth-child(4) { animation-delay: 1900ms; }
   .om-landing__button { animation: om-flow 9s ease-in-out infinite alternate; }
-  .om-landing__button::after { animation: om-ripple 3.2s ease-out infinite; }
+  .om-landing__button::before { animation: om-orbit 7s cubic-bezier(0.45, 0, 0.35, 1) infinite; }
   .om-landing__arrow { animation: om-nudge 3.2s ease-in-out infinite; }
-  .om-landing__button:hover::after, .om-landing__button:focus-visible::after, .om-landing__button:hover .om-landing__arrow, .om-landing__button:focus-visible .om-landing__arrow { animation: none; }
+  .om-landing__button:hover::before, .om-landing__button:focus-visible::before, .om-landing__button:hover .om-landing__arrow, .om-landing__button:focus-visible .om-landing__arrow { animation: none; }
   .om-landing__button:hover .om-landing__arrow { transform: translateX(0.3rem); transition: transform 150ms ease-out; }
   @supports (animation-timeline: scroll()) {
     .om-landing__device, .om-landing__float { animation-timing-function: linear; animation-fill-mode: both; animation-timeline: scroll(root block); }
@@ -99,3 +101,18 @@
   .om-landing__hero, .om-landing__split { grid-template-columns: 1fr; }
   .om-landing__device { inset-inline-end: -12vw; opacity: 0.12; }
 }
+
+/* Spacing: link lists keep a comfortable touch target without stacking big gaps. */
+.om-landing__links { list-style: none; padding: 0; display: grid; gap: 0; margin-block-start: var(--om-space-4); }
+.om-landing__links a { padding-block: 0.5rem; }
+.om-landing__footer a { padding-block: 0.2rem; }
+.om-landing__footer { display: grid; gap: var(--om-space-1); }
+
+/* Card rows fill the width: no lonely card at the end of a row. */
+@media (min-width: 761px) {
+  .om-landing__cards { grid-template-columns: repeat(6, 1fr); }
+  .om-landing__cards > li { grid-column: span 2; }
+  .om-landing__cards:not(.om-landing__cards--meanings) > li:nth-child(n + 4) { grid-column: span 3; }
+  .om-landing__cards--meanings > li:last-child { grid-column: span 6; }
+}
+.om-landing__own p a, .om-landing__intro a { padding-block: 0.25rem; }

@@ -93,11 +93,10 @@ export function Landing({ onGetStarted, installSlot }: LandingProps) {
         </section>
 
         <section aria-labelledby="om-landing-security-h" id="security">
-          <p className="om-landing__eyebrow">{c.security.eyebrow}</p>
           <h2 id="om-landing-security-h">{c.security.heading}</h2>
           <p>{c.security.intro}</p>
           <ul>{c.security.points.map((p) => <li key={p}>{p}</li>)}</ul>
-          {c.security.links.map((l) => <p key={l.url}><a href={l.url} rel="noopener noreferrer">{l.label}</a></p>)}
+          <ul className="om-landing__links">{c.security.links.map((l) => <li key={l.url}><a href={l.url} rel="noopener noreferrer">{l.label}</a></li>)}</ul>
         </section>
 
         <section aria-labelledby="om-landing-follow-h">

@@ -625,7 +625,7 @@ export interface LandingCopy {
   readonly why: { readonly heading: string; readonly intro: string; readonly points: readonly { readonly title: string; readonly body: string }[]; readonly closing: string };
   /** Titles mark their bold letters with asterisks, for example "*O*pen *M*essenger". */
   readonly names: { readonly heading: string; readonly intro: string; readonly items: readonly { readonly title: string; readonly body: string; readonly link?: LandingLink }[] };
-  readonly security: { readonly eyebrow: string; readonly heading: string; readonly intro: string; readonly points: readonly string[]; readonly links: readonly LandingLink[] };
+  readonly security: { readonly heading: string; readonly intro: string; readonly points: readonly string[]; readonly links: readonly LandingLink[] };
   readonly follow: { readonly heading: string; readonly links: readonly (LandingLink & { readonly icon: string })[] };
   readonly install: {
     readonly heading: string;
@@ -681,7 +681,6 @@ export const landingCopy: LandingCopy = {
     ],
   },
   security: {
-    eyebrow: "Straight talk",
     heading: "Security & privacy",
     intro: "OM is new, and we would rather be honest about it than impressive.",
     points: [
