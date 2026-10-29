@@ -7,10 +7,31 @@ Messenger) plus **0M: zero total control**; see [`NAMING.md`](docs/constitution/
 
 OM is stewarded by SeedLife ("Protect life. Seed it.") under the [lonunjie](https://github.com/lonunjie) organization.
 
+## Try it
+
+OM is in **beta** (a label, like early Gmail: it is usable and still changing). Open **<https://om.lonunjie.org>** in your
+browser and install it as an app from the page. Setup takes about a minute and needs no technical knowledge; advanced
+controls are there for people who want them.
+
+OM has not been independently audited by a human cryptographer, makes no security claims, and may lose data during the
+beta. Details: [`SECURITY.md`](SECURITY.md) and the privacy notice in
+[`docs/process/BETA_PRIVACY_NOTICE.md`](docs/process/BETA_PRIVACY_NOTICE.md).
+
+## Run your own copy
+
+Anyone can run their own copy of OM, on their own address, with their own Home (the small online mailbox that holds
+messages until the other person opens OM). Start with [`deploy/README.md`](deploy/README.md). Release folders are signed and
+checked before use (`node verify.mjs --require-signed`); [`deploy/REBUILD-AND-COMPARE.md`](deploy/REBUILD-AND-COMPARE.md) shows how
+to rebuild the app yourself and compare it with the published release.
+
 ## Status
 
-**Architecture verification, design-frozen (`design_open=0`). Product engineering is not yet authorized.** The design covers every planned
-delivery wave. ADR-0157 closes independent-review convergence/history/scheduled-send gaps, ADR-0158 resolves A-055 with a concrete W1 LAN delivery profile, and ADR-0159 reconciles the full OM UI/UX design into the canonical architecture without changing Core/protocol authority. The design is being checked by formal models, prototypes, device/human evidence and independent reviews, called verification gates, before product code is written. The current state is always in [`SNAPSHOT.md`](SNAPSHOT.md). The gate list and what each gate still needs is in [`verification/GATE_PASS_CRITERIA.md`](verification/GATE_PASS_CRITERIA.md).
+**Open beta.** The web app, the Rust core, the reference Home on Cloudflare and the deploy kit are built and in use. The
+release gates and which of them are waived for the beta are recorded in
+[`ADR-0183`](decisions/ADR-0183-open-beta-release-waivers.md); the live checklist is
+[`docs/reports/2026-10-29-open-beta-checklist.md`](docs/reports/2026-10-29-open-beta-checklist.md). Still to come: linking
+more devices, account recovery flows beyond the safety code, per-conversation records and a second independent Home. The
+protocol design is documented below and is the source of truth.
 
 ## Reading the design
 
@@ -28,6 +49,11 @@ delivery wave. ADR-0157 closes independent-review convergence/history/scheduled-
 
 ```text
 README.md  SNAPSHOT.md  AGENTS.md  CHANGELOG.md  CONTRIBUTING.md  SECURITY.md  LICENSE.md
+apps/web/      the web app (PWA) served at om.lonunjie.org
+crates/        the Rust core (om-codec, om-core, om-wasm)
+packages/      shared TypeScript packages (UI, platform, core bindings)
+infra/         the reference Home (Cloudflare Workers + Durable Objects)
+deploy/        signed release tooling, key ceremony runbooks, deploy kits
 docs/          human-readable design (constitution, overview, architecture/<domain>, process, reviews, ...)
 decisions/     architecture decision records (ADRs), indexed in decisions/INDEX.md
 spec/          protocol/client models plus normative frozen CDDL/registries; for frozen W0 wire objects, CDDL/registries are the canonical bytes
@@ -37,7 +63,7 @@ tools/         validator, docs formatter, design-drop import/export
 LICENSES/      full license texts (see LICENSE.md and REUSE.toml for which applies where)
 ```
 
-## Verifying the design locally
+## Checking the project locally
 
 ```sh
 make verify-drop     # fresh exported ZIP: portable evidence + validator/docs + continuity manifest
