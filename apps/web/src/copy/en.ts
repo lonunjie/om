@@ -619,6 +619,7 @@ export interface LandingCopy {
   readonly headline: string;
   readonly lead: string;
   readonly getStarted: string;
+  readonly startUsing: string;
   /** The sample chat: the three messages come in on the left, the reply goes out on the right. */
   readonly chat: { readonly incoming: readonly string[]; readonly reply: string; readonly label: string };
   readonly byline: { readonly label: string; readonly url: string };
@@ -653,6 +654,7 @@ export const landingCopy: LandingCopy = {
   headline: "The messaging app you own",
   lead: "OM is a fast, uncluttered, open-source messenger with strong end-to-end encryption, designed so that no single company, server, or app store is indispensable.",
   getStarted: "Get started",
+  startUsing: "Start using OM",
   chat: { label: "What using OM should feel like", incoming: ["Install OM", "Pick a name", "Say hello"], reply: "That\u2019s it? \u{1F642}" },
   byline: { label: "A SeedLife project", url: https("lonunjie.org") },
   why: {

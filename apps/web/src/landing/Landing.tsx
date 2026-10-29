@@ -85,6 +85,11 @@ export function Landing({ onGetStarted, installSlot }: LandingProps) {
             <li>{c.install.desktop}</li>
           </ul>
           {installSlot}
+          <div className="om-landing__cta">
+            <button type="button" className="om-landing__button" onClick={onGetStarted}>
+              {c.startUsing}<span className="om-landing__arrow" aria-hidden="true">{"\u2192"}</span>
+            </button>
+          </div>
           <div className="om-landing__own" id="run-your-own">
             <h3 id="om-landing-self-h">{c.selfHost.heading}</h3>
             <p>{c.selfHost.body}</p>

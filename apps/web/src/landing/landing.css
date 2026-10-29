@@ -44,7 +44,7 @@
 .om-landing strong { font-weight: 650; color: var(--om-color-text-primary); }
 .om-landing__cards a { display: inline; padding: 0; }
 .om-landing__em { color: var(--om-color-accent); }
-.om-landing__own { margin-block-start: var(--om-space-6); padding-block-start: var(--om-space-5); border-block-start: 1px solid var(--om-color-border); }
+.om-landing__own { margin-block-start: var(--om-space-7); }
 .om-landing__follow { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.6rem; }
 .om-landing .om-landing__follow a { display: inline-flex; align-items: center; gap: 0.55rem; min-block-size: 44px; box-sizing: border-box; padding: 0.6rem 0.95rem; border: 1px solid var(--om-color-border); border-radius: 12px; background: var(--om-color-bg-surface); color: var(--om-color-text-primary); text-decoration: none; font-weight: 500; }
 .om-landing .om-landing__follow a:hover { border-color: var(--om-color-accent); }
@@ -116,3 +116,4 @@
   .om-landing__cards--meanings > li:last-child { grid-column: span 6; }
 }
 .om-landing__own p a, .om-landing__intro a { padding-block: 0.25rem; }
+.om-landing .om-landing__cta { margin-block-start: var(--om-space-5); }
