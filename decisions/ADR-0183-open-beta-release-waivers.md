@@ -53,7 +53,7 @@ Also required, software only, not waivable: the in-app beta label (a quiet "Beta
 
 ### 7. What "audited" means here
 
-Several Anthropic-model review passes exist (including one Opus pass on the Core). They are single-vendor AI reviews of AI-written code (ADR-0167): useful, not independent. A second Opus pass is **deferred** until the beta candidate is complete; it must be scoped to code changed since `b6e32da` and the release signing path, and the operator approves it at that time.
+Many AI review passes exist: the earlier OpenAI/GPT design and architecture reviews (for example run 10a and the review-remediation ADRs 0157-0165, which ADR-0167 later made single-vendor by operator direction) and the Anthropic passes of 2026-10-28, including one Opus pass on the Core. None is an independent human review (ADR-0167), so the beta still says no human cryptographer has audited it. Reviews by two vendors are useful but do not satisfy the independent-crypto-review requirement for a non-beta release. A second Opus pass is **deferred** until the beta candidate is complete; it must be scoped to code changed since `b6e32da` and the release signing path, and the operator approves it at that time.
 
 ## Consequences
 
