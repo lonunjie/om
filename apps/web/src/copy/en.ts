@@ -705,7 +705,7 @@ export const landingCopy: LandingCopy = {
       { label: "X", icon: "x", url: https("x.com/lonunjie") },
       { label: "YouTube", icon: "youtube", url: https("www.youtube.com/@lonunjie") },
       { label: "GitHub", icon: "github", url: https("github.com/lonunjie") },
-      { label: "hi@lonunjie.org", icon: "email", url: ["mailto", "hi@lonunjie.org"].join(":") },
+      { label: "Email us", icon: "email", url: ["mailto", "hi%40lonunjie.org"].join(":") }, // no literal address in the HTML: Cloudflare Email Address Obfuscation would inject a script and break the signed manifest digest of index.html
     ],
   },
   install: {
