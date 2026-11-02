@@ -16,7 +16,7 @@ export const testDevicesCopy: DevicesCopy = {
   controlState: { control_conflict: "Control conflict", safety_freeze: "Safety Freeze is on", fork_detected: "Fork detected" },
   deviceLinkedNotice: (label) => `New device linked: ${label}`,
   linkRequestsHeading: "Devices asking to link", linkRequestRow: (label) => `${label} wants to link`,
-  currentHeading: "This device", otherHeading: "Other devices", noOtherDevices: "No other devices", removedHeading: "Removed devices",
+  currentHeading: "This device", otherHeading: "Other devices", noOtherDevices: "No other devices", linkLater: "Linking is not available yet", removedHeading: "Removed devices",
   role: { control: "Can manage account", messaging: "Messages only" },
   state: { active: "Active", quarantined: "Suspended", revocation_pending: "Removal waiting for approval", revoked: "Removed" },
   lastSeen: { now: "Used now", recent: "Used recently", this_week: "Used this week", this_month: "Used this month", long_ago: "Not used for a long time", never: "Never used" },

@@ -12,6 +12,8 @@ export interface UnlockVaultProps {
   readonly profileId: ProfileId;
   readonly copy: UnlockCopy;
   readonly onUnlocked: () => void;
+  /** Unlock by itself when the vault needs no prompt and no password (a key kept in this browser): there is nothing for a person to do. */
+  readonly autoUnlock?: boolean;
   /** Missing, damaged or evicted vault data: the only way forward is the recovery flow. */
   readonly onNeedsRecovery?: () => void;
 }
@@ -29,7 +31,7 @@ const NEEDS_RECOVERY: readonly VaultErrorReason[] = ["not_found", "corrupt"];
  * Unlock screen. Runs a vault ceremony only from a click (each prompt needs its own user gesture) and asks for the
  * passphrase only when the vault says one is set. The passphrase leaves component state as soon as it is sent.
  */
-export function UnlockVault({ vault, profileId, copy, onUnlocked, onNeedsRecovery }: UnlockVaultProps) {
+export function UnlockVault({ vault, profileId, copy, onUnlocked, autoUnlock = false, onNeedsRecovery }: UnlockVaultProps) {
   const [phase, setPhase] = useState<Phase>({ k: "loading" });
   const [needsPassphrase, setNeedsPassphrase] = useState(false);
   const [passphrase, setPassphrase] = useState("");
@@ -42,7 +44,11 @@ export function UnlockVault({ vault, profileId, copy, onUnlocked, onNeedsRecover
     vault.wrapping(profileId).then(
       (r) => {
         if (!live) return;
-        if (r.ok) { setNeedsPassphrase(r.wrapping.passphraseProtected); setPhase({ k: "idle" }); }
+        if (r.ok) {
+          setNeedsPassphrase(r.wrapping.passphraseProtected);
+          setPhase({ k: "idle" });
+          if (autoUnlock && r.wrapping.method === "device-key" && !r.wrapping.passphraseProtected) void unlock(false);
+        }
         else setPhase({ k: "error", reason: r.reason });
       },
       () => { if (live) setPhase({ k: "error", reason: "storage_failed" }); },
@@ -50,10 +56,10 @@ export function UnlockVault({ vault, profileId, copy, onUnlocked, onNeedsRecover
     return () => { live = false; };
   }, [vault, profileId]);
 
-  async function unlock(): Promise<void> {
-    if (needsPassphrase && passphrase === "") { set({ k: "error", reason: "passphrase_required" }); return; }
+  async function unlock(withPassphrase = needsPassphrase): Promise<void> {
+    if (withPassphrase && passphrase === "") { set({ k: "error", reason: "passphrase_required" }); return; }
     set({ k: "working" });
-    const secret = needsPassphrase ? passphraseBytes(passphrase) : null;
+    const secret = withPassphrase ? passphraseBytes(passphrase) : null;
     setPassphrase("");
     let result;
     try {

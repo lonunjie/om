@@ -24,7 +24,7 @@
 .om-onb__step { display: flex; flex-direction: column; gap: var(--om-space-3); }
 .om-onb__step > .om-text { color: var(--om-color-text-secondary); }
 /* The main action is one wide, easy target; secondary actions share the next row; "skip" sits quietly apart. */
-.om-onb__actions > .om-button { flex: 1 1 8rem; }
+.om-onb__actions > .om-button { flex: 1 1 auto; white-space: nowrap; }
 .om-onb__actions > .om-button[data-variant="primary"] { flex-basis: 100%; min-block-size: 3rem; }
 .om-onb__actions > .om-button[data-variant="quiet"] { flex: 0 0 auto; margin-inline: auto; }
 .om-onb__accept { padding-block-start: var(--om-space-4); border-block-start: 1px solid var(--om-color-border); }
@@ -37,10 +37,11 @@
   @keyframes om-onb-spin { to { transform: rotate(360deg); } }
 }
 .om-onb__heading { margin: 0; font-size: 1.75em; letter-spacing: -0.02em; line-height: 1.15; font-weight: var(--om-weight-bold); }
-.om-onb__heading:focus-visible { outline: 3px solid var(--om-color-focus-ring); outline-offset: 2px; }
+/* The heading takes focus only so a screen reader starts on the new step; it is not operable, so it shows no ring. */
+.om-onb__heading:focus, .om-onb__heading:focus-visible { outline: none; box-shadow: none; }
 .om-onb__actions { display: flex; flex-wrap: wrap; gap: var(--om-space-2); }
 .om-onb__result, .om-onb__invite, .om-onb__accept, .om-onb__home { display: flex; flex-direction: column; gap: var(--om-space-2); }
-.om-onb__notice { margin: 0; padding: var(--om-space-3); border: 2px solid var(--om-color-text-secondary); border-radius: var(--om-radius-md, 0.5rem); }
+.om-onb__notice { margin: 0; padding: var(--om-space-3) var(--om-space-4); border-radius: var(--om-radius-md, 0.5rem); background: var(--om-color-info-bg); color: var(--om-color-info-fg); font-size: var(--om-text-sm-size); line-height: var(--om-text-sm-line, 1.45); }
 .om-onb__key { display: flex; flex-wrap: wrap; gap: var(--om-space-2); margin: 0; padding: 0; list-style: none; font-family: monospace; font-size: 1.25em; user-select: all; }
 .om-onb__key li { padding: var(--om-space-1) var(--om-space-2); border: 1px solid var(--om-color-text-secondary); border-radius: var(--om-radius-sm, 0.25rem); }
 .om-onb__field { display: flex; flex-direction: column; gap: var(--om-space-1); }
@@ -56,8 +57,22 @@
 }
 
 /* Optional detail stays closed: nobody has to open it to finish setup. */
-.om-onb__more > summary { cursor: pointer; min-block-size: var(--om-target-min); display: flex; align-items: center; color: var(--om-color-text-secondary); }
+.om-onb__more > summary { cursor: pointer; min-block-size: var(--om-target-min); display: flex; align-items: center; justify-content: space-between; gap: var(--om-space-2); list-style: none; color: var(--om-color-accent); font-weight: var(--om-weight-medium); }
+.om-onb__more > summary::-webkit-details-marker { display: none; }
+/* A chevron says "this opens"; it turns when open. The label is the whole target. */
+.om-onb__more > summary::after { content: ""; flex: none; inline-size: 0.5rem; block-size: 0.5rem; border-inline-end: 2px solid currentColor; border-block-end: 2px solid currentColor; rotate: 45deg; translate: 0 -0.1rem; transition: rotate var(--om-motion-quick) var(--om-ease-move); }
+.om-onb__more[open] > summary::after { rotate: 225deg; translate: 0 0.1rem; }
 .om-onb__more[open] > summary { margin-block-end: var(--om-space-2); }
+.om-onb__more + .om-onb__more { border-block-start: 1px solid var(--om-color-border); }
 
 /* Text for assistive technology only: the heading above the field already asks the question. */
 .om-onb__sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* A result note sits right under the buttons that caused it, so it is never below the fold behind a QR code. */
+.om-onb__status { margin: 0; color: var(--om-color-text-secondary); font-size: var(--om-text-sm-size); }
+.om-onb__status[role="alert"] { color: var(--om-color-danger-fg, var(--om-color-text-primary)); }
+
+/* A quiet button that opens a panel reads like the other disclosures: left label, chevron, turns when open. */
+.om-onb__home > .om-button[aria-expanded] { justify-content: space-between; padding-inline: 0; font-weight: var(--om-weight-medium); }
+.om-onb__home > .om-button[aria-expanded]::after { content: ""; flex: none; inline-size: 0.5rem; block-size: 0.5rem; border-inline-end: 2px solid currentColor; border-block-end: 2px solid currentColor; rotate: 45deg; translate: 0 -0.1rem; transition: rotate var(--om-motion-quick) var(--om-ease-move); }
+.om-onb__home > .om-button[aria-expanded="true"]::after { rotate: 225deg; translate: 0 0.1rem; }

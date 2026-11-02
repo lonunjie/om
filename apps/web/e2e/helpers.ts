@@ -65,3 +65,18 @@ export async function addIdentity(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Settings" }).click();
   await page.getByRole("button", { name: "Add identity" }).click();
 }
+
+/**
+ * After a reload every identity is behind its vault. A key kept in this browser opens by itself; a vault that wants a click
+ * shows "Unlock". Either way, finish when the app proper (its Settings button) is up.
+ */
+export async function reopen(page: Page, timeout = 30_000): Promise<void> {
+  const settings = page.getByRole("button", { name: "Settings" });
+  const unlock = page.getByRole("button", { name: "Unlock", exact: true });
+  for (const deadline = Date.now() + timeout; Date.now() < deadline;) {
+    if (await settings.isVisible()) return;
+    if (await unlock.isVisible()) await unlock.click({ timeout: 2_000 }).catch(() => undefined); // it may have unlocked by itself meanwhile
+    await page.waitForTimeout(200);
+  }
+  await expect(settings).toBeVisible({ timeout: 1_000 });
+}

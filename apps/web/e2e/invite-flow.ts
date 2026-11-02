@@ -84,5 +84,12 @@ export async function inviteAndChat(browser: Browser, base: string): Promise<{ r
   await bob.getByRole("button", { name: /send/i }).click();
   await expect(alice.getByText("hi alice")).toBeVisible({ timeout: 60_000 });
   await shot(bob, "08-bob-chat");
+  // With OM_SHOTS set, also look at the places a person reaches from Settings (addresses are in route/place.ts).
+  if (SHOTS !== undefined) {
+    for (const [n, path] of [["09-settings", "/settings"], ["10-delivery", "/settings/delivery"], ["11-devices", "/settings/devices"], ["12-recovery", "/settings/recovery"]] as const) {
+      await alice.goto(path);
+      await shot(alice, n);
+    }
+  }
   return { alice, bob };
 }

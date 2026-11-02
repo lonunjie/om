@@ -13,7 +13,8 @@ test("without a provider the real Core runs and the shell says it is not connect
   await expect(page.getByRole("status").filter({ hasText: "Not connected to a delivery service" })).toBeVisible();
   // No test banner: this is not the loopback build.
   await expect(page.getByText("LOOPBACK")).toHaveCount(0);
-  // Identity data lives in the encrypted store: after a reload the identity is behind its vault, not gone.
+  // Identity data lives in the encrypted store: after a reload the identity is still there, and a key kept in this browser opens it without asking.
   await page.reload();
-  await expect(page.getByRole("heading", { name: /unlock/i }).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Get started" })).toHaveCount(0);
 });

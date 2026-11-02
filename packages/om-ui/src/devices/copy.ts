@@ -82,6 +82,8 @@ export interface DevicesCopy {
   readonly currentHeading: string;
   readonly otherHeading: string;
   readonly noOtherDevices: string;
+  /** Shown in place of the link button while Core cannot link a device yet (`linking="later"`). */
+  readonly linkLater: string;
   readonly removedHeading: string;
   readonly role: Readonly<Record<DeviceRole, string>>;
   readonly state: Readonly<Record<DeviceStateCode, string>>;

@@ -65,6 +65,8 @@
   border-color: transparent;
   background: transparent;
 }
+/* A quiet button is still a button: accent text says it can be pressed. */
+.om-button[data-variant="quiet"] { color: var(--om-color-accent); }
 
 .om-button:disabled,
 .om-icon-button:disabled {

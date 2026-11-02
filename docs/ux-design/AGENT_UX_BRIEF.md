@@ -105,6 +105,11 @@ Product screens share the same few rules, all from tokens (`om-ui` conversations
   message rises in (`om-rise`), the view follows it if it is yours or you were reading the end; the composer is one pill that grows with the text, Enter sends with a keyboard (a touch screen keeps Enter as a new line), the round send button is an icon with a name.
 - **Lists and menus:** edge-to-edge rows with hairlines, a leading bar plus background for the selected row (never colour alone), press feedback (`scale(.97)`, instant) and hover only where hover exists.
 - **Cards** (`om-card`) hold one request or reminder each; banners are calm (`om-notice-bar`) and sit in the flow, a test build's banner (`om-dev-banner`) is loud on purpose.
+- **Disclosures** (`details/summary`, or a quiet button with `aria-expanded`): accent label on the left, chevron on the right that turns when open, so nothing that opens looks like loose text. A quiet button is accent-coloured, never grey text.
+- **Notes about weaker protection** are a calm info panel (`om-onb__notice`), not a heavy outlined box. A result note ("Link copied") sits directly under the buttons that caused it, never below a QR code.
+- **Message times:** today shows only the clock ("10:55 PM"); older adds the day, older than this year adds the year (`sentAt` in `copy/en.ts`).
+- **Reload / return:** a key kept in this browser opens by itself (`UnlockVault autoUnlock`); the person only sees the branded "Unlock" step when a password or a passkey prompt is needed. The unlock step uses `OnboardingFrame` like every first-run page.
+- **Unbuilt flows are not offered:** Settings > Devices shows a plain "not ready yet" note instead of "Link a new device" until Core can link (`DevicesScreen linking="later"`; flip it in `Shell.tsx` when phase 4 of the multi-device plan lands).
 - Phone: the pane that opens slides in from its side (`om-slide-in`), so Back reads as going back. No dead controls: an unbuilt control (the Omnibar) is not shown.
 - Borrowed from `~/dig/formflow` (its README "Motion" section): movement guides and never decorates, press is instant, hover lifts only on hover devices, "whisper" status tones.
 

@@ -129,7 +129,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, 
               <BackBar label={t.backToSettings} onBack={() => { back({ kind: "settings", page: "menu" }); }} />
               {settings === "devices" ? (
                 <>
-                  <DevicesScreen services={services} copy={devicesCopy} scanQr={deviceScan.scanQr} />
+                  <DevicesScreen services={services} copy={devicesCopy} scanQr={deviceScan.scanQr} linking="later" />
                   {devicesExtra}
                 </>
               ) : settings === "delivery" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} /> : <RecoveryScreen services={services} copy={recoveryCopy} />}
@@ -182,7 +182,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, 
           </>
         }
         detail={
-          selected === null ? <div className="om-page"><Text tone="secondary">{t.selectConversation}</Text></div> : (
+          selected === null ? <div className="om-page om-page--empty"><Text tone="secondary">{t.selectConversation}</Text></div> : (
             <ConversationView key={selected} services={services} conversationId={selected} copy={conversationCopy} onBack={toChats} />
           )
         }

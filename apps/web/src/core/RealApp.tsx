@@ -6,7 +6,7 @@ import { asProfileId, webInviteLink, type DeviceVault, type ProfileExecutionCont
 import { type WasmCoreClient } from "@om/core-wasm";
 import { browserVaultEnv, createWebDeviceVault, createWebPlatform } from "@om/web-platform";
 import {
-  OnboardingFlow, ProfileProvider, Text, ThemeProvider, UnlockVault, createActionRegistry, createMemoryKeyValue, createProfileScopedState,
+  OnboardingFlow, OnboardingFrame, ProfileProvider, Text, ThemeProvider, UnlockVault, createActionRegistry, createMemoryKeyValue, createProfileScopedState,
   useActiveProfile, useCaptureContext, type ActionRegistry, type HomeSettingsServices, type OnboardingPlatform, type OnboardingResult,
 } from "@om/ui";
 import { InstallAffordance } from "../install/InstallAffordance";
@@ -135,12 +135,12 @@ function Profiles({ rt, vault, registry, platform, known: initial, connected, ho
   }
   if (firstLocked !== undefined) {
     return (
-      <main>
+      <OnboardingFrame copy={onboardingCopy.frame} stepKey="unlock">
         <UnlockVault
-          key={firstLocked} vault={vault} profileId={firstLocked} copy={unlockCopy}
+          key={firstLocked} vault={vault} profileId={firstLocked} copy={unlockCopy} autoUnlock
           onUnlocked={() => { rt.openProfile(firstLocked).then(() => { setOpen((o) => new Set(o).add(firstLocked)); }, () => { setError(true); }); }}
         />
-      </main>
+      </OnboardingFrame>
     );
   }
   if (known.length === 0) return <Text>{t.coreLoading}</Text>;

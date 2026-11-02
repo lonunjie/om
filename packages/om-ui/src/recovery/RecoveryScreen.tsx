@@ -75,7 +75,7 @@ function Status({ copy, status, pending, onView }: StatusProps) {
       <section className="om-settings__group" aria-labelledby="om-recovery-scope-h">
         <Text as="h2" size="lg" weight="bold" id="om-recovery-scope-h">{copy.scopesHeading}</Text>
         <ul className="om-settings__list">
-          {status.scopes.map((s) => <li key={s}><strong>{copy.scope[s].title}</strong> {copy.scope[s].body}</li>)}
+          {status.scopes.map((s) => <li key={s}><strong>{copy.scope[s].title}</strong>{" "}<span className="om-settings__meta">{copy.scope[s].body}</span></li>)}
         </ul>
         <Text as="p">{copy.delay(status.activationDelayMs)}</Text>
       </section>

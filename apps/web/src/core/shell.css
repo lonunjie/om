@@ -7,6 +7,8 @@
 
 .om-page { padding: var(--om-space-4) max(var(--om-space-4), env(safe-area-inset-right)) var(--om-space-4) max(var(--om-space-4), env(safe-area-inset-left)); }
 .om-page:empty { display: none; }
+/* The wide layout's unselected detail pane: a quiet centred prompt, not a stray line in the corner. */
+.om-page--empty { block-size: 100%; box-sizing: border-box; display: grid; place-items: center; text-align: center; }
 .om-stack { display: grid; gap: var(--om-space-3); }
 .om-page-head { padding: var(--om-space-4) max(var(--om-space-4), env(safe-area-inset-right)) var(--om-space-2) max(var(--om-space-4), env(safe-area-inset-left)); }
 .om-card { display: grid; gap: var(--om-space-3); padding: var(--om-space-4); border-radius: var(--om-radius-lg); background: var(--om-color-bg-raised); box-shadow: var(--om-elevation-1); animation: om-rise var(--om-motion-standard) var(--om-ease-enter) both; }

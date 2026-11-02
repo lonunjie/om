@@ -189,6 +189,7 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareL
         <Button disabled={busy} onClick={run(copyClick)}>{copy.copyLink}</Button>
         {renderQr ? <Button disabled={busy} onClick={run(qr)}>{copy.showQr}</Button> : null}
       </div>
+      {status ? <p className="om-onb__status" role={status.kind === "alert" ? "alert" : "status"}>{status.text}</p> : null}
       {invite ? (
         <div className="om-onb__invite">
           <Text as="p" size="sm" weight="bold" id="om-onb-invite-link-l">{copy.linkLabel}</Text>
@@ -213,7 +214,6 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareL
         <Button type="submit" disabled={busy}>{copy.accept}</Button>
       </form>
       </details>
-      {status ? <p role={status.kind === "alert" ? "alert" : "status"}>{status.text}</p> : null}
       {onSkip ? <div className="om-onb__actions"><Button variant="quiet" disabled={busy} onClick={onSkip}>{copy.skip}</Button></div> : null}
     </section>
   );

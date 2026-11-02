@@ -37,6 +37,14 @@ export const NOTICE_LABELS: Readonly<Record<SecurityNoticeCode, string>> = {
 };
 
 const timeFormat = new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" });
+const clockFormat = new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" });
+const withYearFormat = new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", month: "short", day: "numeric", year: "numeric" });
+/** A message sent today shows only its time; an older one adds the day, and the year once it is not this year. */
+function sentAt(ms: number, now: Date = new Date()): string {
+  const then = new Date(ms);
+  if (then.toDateString() === now.toDateString()) return clockFormat.format(then);
+  return (then.getFullYear() === now.getFullYear() ? timeFormat : withYearFormat).format(then);
+}
 const plural = (n: number, one: string, many: string): string => `${String(n)} ${n === 1 ? one : many}`;
 
 export const conversationCopy: ConversationCopy = {
@@ -55,7 +63,7 @@ export const conversationCopy: ConversationCopy = {
     outgoing: "You said:",
     retry: "Try sending again",
     back: "Back to chats",
-    formatTime: (ms) => timeFormat.format(ms),
+    formatTime: (ms) => sentAt(ms),
   },
   delivery: {
     pending: "Sending",
@@ -429,7 +437,7 @@ export const scannerCopy = {
 
 export const unlockCopy: UnlockCopy = {
   heading: "Unlock OM",
-  body: "Your chats on this device are locked. Sign in to open them.",
+  body: "Your chats on this device are locked. Open them to continue.",
   passphraseLabel: "Password",
   unlock: "Unlock",
   working: "Opening",
@@ -471,6 +479,7 @@ export const devicesCopy: DevicesCopy = {
   currentHeading: "This device",
   otherHeading: "Your other devices",
   noOtherDevices: "No other devices are linked.",
+  linkLater: "Using the same account on a second device is not ready yet. Until it is, set OM up on each device and invite each one.",
   removedHeading: "Removed devices",
   role: { control: "Can manage your account", messaging: "Can send and read messages" },
   state: { active: "Active", quarantined: "Suspended", revocation_pending: "Removal waiting for approval", revoked: "Removed for good" },

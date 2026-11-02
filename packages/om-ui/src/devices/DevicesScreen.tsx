@@ -15,6 +15,8 @@ export interface DevicesScreenProps {
   readonly copy: DevicesCopy;
   /** QR scanning slot (camera opens only from the click). Without it, pasting the link is the only path. */
   readonly scanQr?: () => Promise<string | null>;
+  /** "later" while Core cannot link a device: never offer a flow that ends in "unsupported" (UX brief section 5). Default "available". */
+  readonly linking?: "available" | "later";
 }
 
 type View =
@@ -30,7 +32,7 @@ const isPendingKind = (k: string): k is DevicePendingKind => (PENDING_KINDS as r
  * Settings > Devices. Every state, allowed action and outcome comes from Core. List rows only open details:
  * security-critical actions run from their dedicated step, never from a list row (deep-link rule).
  */
-export function DevicesScreen({ services, copy, scanQr }: DevicesScreenProps) {
+export function DevicesScreen({ services, copy, scanQr, linking = "available" }: DevicesScreenProps) {
   const [view, setView] = useState<View>({ kind: "list" });
   const live = useLiveQuery(services, { kind: "GetDevices", ctx: services.ctx }, "devices");
   const toList = (): void => { setView({ kind: "list" }); };
@@ -49,11 +51,11 @@ export function DevicesScreen({ services, copy, scanQr }: DevicesScreenProps) {
       break;
     case "device": {
       const device = value.devices.find((d) => d.id === view.id);
-      body = device ? <DeviceDetails services={services} copy={copy} view={value} device={device} onBack={toList} /> : <DeviceList copy={copy} view={value} ops={ops} onOpen={setView} />;
+      body = device ? <DeviceDetails services={services} copy={copy} view={value} device={device} onBack={toList} /> : <DeviceList copy={copy} view={value} ops={ops} onOpen={setView} linking={linking} />;
       break;
     }
     case "list":
-      body = <DeviceList copy={copy} view={value} ops={ops} onOpen={setView} />;
+      body = <DeviceList copy={copy} view={value} ops={ops} onOpen={setView} linking={linking} />;
       break;
   }
   return (
@@ -75,7 +77,7 @@ function ControlBanners({ copy, view }: { readonly copy: DevicesCopy; readonly v
   );
 }
 
-function DeviceList({ copy, view, ops, onOpen }: { readonly copy: DevicesCopy; readonly view: DevicesView; readonly ops: readonly PendingOperationView[]; readonly onOpen: (v: View) => void }) {
+function DeviceList({ copy, view, ops, onOpen, linking }: { readonly copy: DevicesCopy; readonly view: DevicesView; readonly ops: readonly PendingOperationView[]; readonly onOpen: (v: View) => void; readonly linking: "available" | "later" }) {
   const current = view.devices.filter((d) => d.isCurrent);
   const others = view.devices.filter((d) => !d.isCurrent && d.state !== "revoked");
   const removed = view.devices.filter((d) => !d.isCurrent && d.state === "revoked");
@@ -113,9 +115,11 @@ function DeviceList({ copy, view, ops, onOpen }: { readonly copy: DevicesCopy; r
       <DeviceGroup id="om-devices-current-h" heading={copy.currentHeading} devices={current} copy={copy} onOpen={onOpen} />
       <DeviceGroup id="om-devices-other-h" heading={copy.otherHeading} devices={others} copy={copy} onOpen={onOpen} empty={copy.noOtherDevices} />
       {removed.length > 0 ? <DeviceGroup id="om-devices-removed-h" heading={copy.removedHeading} devices={removed} copy={copy} onOpen={onOpen} /> : null}
-      <div className="om-settings__actions">
-        <Button variant="primary" onClick={() => { onOpen({ kind: "link" }); }}>{copy.link.start}</Button>
-      </div>
+      {linking === "later" ? <Text as="p" tone="secondary">{copy.linkLater}</Text> : (
+        <div className="om-settings__actions">
+          <Button variant="primary" onClick={() => { onOpen({ kind: "link" }); }}>{copy.link.start}</Button>
+        </div>
+      )}
     </>
   );
 }

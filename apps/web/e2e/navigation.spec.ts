@@ -2,18 +2,13 @@
 // never an error page. Runs against the production entry connected to the local reference Home.
 import { expect, test, type Page } from "@playwright/test";
 import { inviteAndChat, newDevice, shot } from "./invite-flow.ts";
-import { walkSetup } from "./helpers.ts";
+import { walkSetup, reopen } from "./helpers.ts";
 
 const BASE = "http://localhost:4177";
 test.use({ baseURL: BASE });
 
 const path = (p: Page): string => { const u = new URL(p.url()); return u.pathname + u.hash; };
 
-async function unlockIfAsked(page: Page): Promise<void> {
-  const unlock = page.getByRole("button", { name: "Unlock", exact: true });
-  const asked = await unlock.waitFor({ timeout: 20_000 }).then(() => true, () => false);
-  if (asked) await unlock.click();
-}
 
 test("settings pages have addresses; Back and Forward walk them; a reload stays put; unknown addresses fall back to the root", async ({ browser }) => {
   const me = await newDevice(browser, BASE);
@@ -46,17 +41,17 @@ test("settings pages have addresses; Back and Forward walk them; a reload stays 
 
   // A reload at a deep address comes back to the same place (after the unlock the locked vault asks for).
   await me.goto("/settings/recovery");
-  await unlockIfAsked(me);
+  await reopen(me);
   await expect(me.getByRole("heading", { name: /recovery|safety code/i }).first()).toBeVisible({ timeout: 60_000 });
   expect(path(me)).toBe("/settings/recovery");
   await me.reload();
-  await unlockIfAsked(me);
+  await reopen(me);
   await expect(me.getByRole("heading", { name: /recovery|safety code/i }).first()).toBeVisible({ timeout: 60_000 });
 
   // Nonsense is the root, not an error.
   for (const bad of ["/nope", "/settings/nope", "/chats#no-such-chat"]) {
     await me.goto(bad);
-    await unlockIfAsked(me);
+    await reopen(me);
     await expect(me.getByRole("heading", { name: "Chats", level: 1 })).toBeVisible({ timeout: 60_000 });
     await expect.poll(() => path(me)).toBe("/");
   }
@@ -86,7 +81,7 @@ test("a chat has an address that never reaches the host, and Back leaves it for 
   const link = bob.url();
   const tab = await bob.context().newPage();
   await tab.goto(link);
-  await unlockIfAsked(tab);
+  // (the key in this browser opens by itself; on a phone the chat fills the screen, so there is no Settings button to wait for)
   await expect(tab.getByRole("textbox", { name: /message/i })).toBeVisible({ timeout: 60_000 });
   await expect(tab.getByText("hello bob")).toBeVisible();
 });

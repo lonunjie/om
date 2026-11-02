@@ -2,7 +2,7 @@
 // each with its own vault, talking through the TEST loopback provider. Everything user-visible goes through the same
 // shell and typed intents as production; only the transport is the loopback.
 import { expect, test, type Page } from "@playwright/test";
-import { noPasskeys, onboard, walkSetup, addIdentity } from "./helpers.ts";
+import { noPasskeys, onboard, walkSetup, addIdentity, reopen } from "./helpers.ts";
 
 test.use({ baseURL: "http://localhost:4176" });
 
@@ -77,11 +77,7 @@ test("two identities on the real Core: invite, introduction, messages both ways,
   // The profile registry and Core state survive a reload: each identity is behind its own vault, and unlocking it
   // brings back its conversation from the encrypted store (the loopback relay is gone, the local history is not).
   await page.reload();
-  for (let n = 0; n < 2; n++) {
-    await expect(page.getByRole("heading", { name: /unlock/i }).first()).toBeVisible({ timeout: 30_000 });
-    await page.getByRole("button", { name: "Unlock", exact: true }).click();
-  }
-  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible({ timeout: 30_000 });
+  await reopen(page, 30_000);
   await expect(page.getByRole("option")).toHaveCount(1);
   await page.getByRole("option").click();
   await expect(page.getByText("hello from alice")).toBeVisible();

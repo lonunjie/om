@@ -80,14 +80,14 @@ describe("ProtectDevice passphrase option", () => {
 });
 
 describe("UnlockVault", () => {
-  function setup(protectedVault: boolean, unlock: DeviceVault["unlock"]) {
+  function setup(protectedVault: boolean, unlock: DeviceVault["unlock"], extra: { readonly autoUnlock?: boolean; readonly method?: "device-key" | "webauthn-prf" } = {}) {
     const onUnlocked = vi.fn();
     const onNeedsRecovery = vi.fn();
     const vault = {
-      wrapping: vi.fn().mockResolvedValue({ ok: true, wrapping: { ...WRAP, passphraseProtected: protectedVault } }),
+      wrapping: vi.fn().mockResolvedValue({ ok: true, wrapping: { ...WRAP, ...(extra.method ? { method: extra.method } : {}), passphraseProtected: protectedVault } }),
       unlock,
     } as unknown as DeviceVault;
-    render(<UnlockVault vault={vault} profileId={PID} copy={testUnlockCopy} onUnlocked={onUnlocked} onNeedsRecovery={onNeedsRecovery} />);
+    render(<UnlockVault vault={vault} profileId={PID} copy={testUnlockCopy} onUnlocked={onUnlocked} onNeedsRecovery={onNeedsRecovery} {...(extra.autoUnlock ? { autoUnlock: true } : {})} />);
     return { onUnlocked, onNeedsRecovery };
   }
 
@@ -99,6 +99,27 @@ describe("UnlockVault", () => {
     await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
     await waitFor(() => { expect(onUnlocked).toHaveBeenCalled(); });
     expect(unlock).toHaveBeenCalledWith(PID, undefined);
+  });
+
+  it("opens a key kept in this browser by itself, but never skips a passphrase or a prompt", async () => {
+    const unlock = vi.fn<DeviceVault["unlock"]>().mockResolvedValue({ ok: true });
+    const { onUnlocked } = setup(false, unlock, { autoUnlock: true, method: "device-key" });
+    await waitFor(() => { expect(onUnlocked).toHaveBeenCalled(); });
+    expect(unlock).toHaveBeenCalledWith(PID, undefined);
+  });
+
+  it("waits for a click when the vault has a password", async () => {
+    const unlock = vi.fn<DeviceVault["unlock"]>().mockResolvedValue({ ok: true });
+    setup(true, unlock, { autoUnlock: true, method: "device-key" });
+    await screen.findByLabelText("Passphrase");
+    expect(unlock).not.toHaveBeenCalled();
+  });
+
+  it("waits for a click when the vault is a passkey, even with auto-unlock on", async () => {
+    const unlock = vi.fn<DeviceVault["unlock"]>().mockResolvedValue({ ok: true });
+    setup(false, unlock, { autoUnlock: true, method: "webauthn-prf" });
+    await screen.findByRole("button", { name: "Unlock" });
+    expect(unlock).not.toHaveBeenCalled();
   });
 
   it("sends the passphrase, clears the field, reports a wrong one, and unlocks on retry", async () => {

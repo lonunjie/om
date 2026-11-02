@@ -3,7 +3,7 @@
 // each other through it, and a reload does not lose the install's right to its own mailboxes. Everything the Home sees
 // is captured on the wire and checked for plaintext and for capabilities in URLs.
 import { expect, test, type Page } from "@playwright/test";
-import { noPasskeys, onboard, walkSetup, addIdentity } from "./helpers.ts";
+import { noPasskeys, onboard, walkSetup, addIdentity, reopen } from "./helpers.ts";
 
 test.use({ baseURL: "http://localhost:4177" });
 
@@ -69,11 +69,7 @@ test("two identities talk through the configured reference Home; the Home sees o
 
   // Reload: unlock both identities; the install keeps its right to its own mailboxes, so a new message still arrives.
   await page.reload();
-  for (let n = 0; n < 2; n++) {
-    await expect(page.getByRole("heading", { name: /unlock/i }).first()).toBeVisible({ timeout: 30_000 });
-    await page.getByRole("button", { name: "Unlock", exact: true }).click();
-  }
-  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible({ timeout: 30_000 });
+  await reopen(page, 30_000);
   const after = { who: "alice" as Who };
   await page.getByRole("option").click();
   await page.getByRole("textbox", { name: /message/i }).fill("after the reload");

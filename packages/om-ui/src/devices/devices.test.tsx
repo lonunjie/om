@@ -96,6 +96,15 @@ describe("Devices screen", () => {
   });
 });
 
+describe("device linking not ready in Core", () => {
+  it("shows no link button, only a plain note, so nobody starts a flow that ends in 'unsupported'", async () => {
+    const { services } = setup();
+    render(<DevicesScreen services={services} copy={testDevicesCopy} linking="later" />);
+    await screen.findByText("Linking is not available yet");
+    expect(screen.queryByRole("button", { name: "Link a new device" })).toBeNull();
+  });
+});
+
 describe("device linking (NoSilentLink)", () => {
   it("existing device: paste offer -> review shows who and the same code -> explicit approval -> enrollment notice", async () => {
     const { h, services } = setup();

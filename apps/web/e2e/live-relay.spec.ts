@@ -9,7 +9,7 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { decodeDepositRequest, decodeDrainResponse, decodeKeyPublish, encodeAckRequest, encodeDrainRequest, readBundleFacts, toBase64Url } from "@om/home-wire";
-import { noPasskeys, onboard, walkSetup, addIdentity } from "./helpers.ts";
+import { noPasskeys, onboard, walkSetup, addIdentity, reopen } from "./helpers.ts";
 
 test.skip(process.env["OM_LIVE_RELAY"] !== "1", "opt-in: set OM_LIVE_RELAY=1 (this talks to the live Home)");
 test.use({ baseURL: "http://localhost:4178" });
@@ -178,11 +178,7 @@ test("two fresh identities exchange messages through the LIVE Home with the prod
 
     // A reload (both identities unlock again) and one more message: the install keeps its right to its own mailboxes.
     await page.reload();
-    for (let n = 0; n < 2; n++) {
-      await expect(page.getByRole("heading", { name: /unlock/i }).first()).toBeVisible({ timeout: 60_000 });
-      await page.getByRole("button", { name: "Unlock", exact: true }).click();
-    }
-    await expect(page.getByRole("button", { name: "Settings" })).toBeVisible({ timeout: 60_000 });
+    await reopen(page, 60_000);
     who.who = "alice";
     const s3 = await send("alice", "live check three");
     await receive("bob", "live check three", s3);
