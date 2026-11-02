@@ -33,7 +33,7 @@ export async function inviteAndChat(browser: Browser, base: string): Promise<{ r
   // Alice copies her link with one tap and gets told what to do with it.
   await shot(alice, "01-alice-ready");
   await alice.getByRole("button", { name: "Copy link" }).click();
-  await expect(alice.getByText(/Link copied/)).toBeVisible();
+  await expect(alice.getByText(/Link copied/)).toBeAttached(); // a green tick for the eye, the words for a screen reader
   await alice.getByRole("button", { name: "Show as QR code" }).click();
   await shot(alice, "02-alice-link");
   const link = (await alice.locator("code[translate=no]").first().textContent())?.trim() ?? "";
@@ -86,7 +86,7 @@ export async function inviteAndChat(browser: Browser, base: string): Promise<{ r
   await shot(bob, "08-bob-chat");
   // With OM_SHOTS set, also look at the places a person reaches from Settings (addresses are in route/place.ts).
   if (SHOTS !== undefined) {
-    for (const [n, path] of [["09-settings", "/settings"], ["10-delivery", "/settings/delivery"], ["11-devices", "/settings/devices"], ["12-recovery", "/settings/recovery"]] as const) {
+    for (const [n, path] of [["09-settings", "/settings"], ["10-delivery", "/settings/delivery"], ["11-devices", "/settings/devices"], ["12-recovery", "/settings/recovery"], ["13-lock", "/settings/lock"]] as const) {
       await alice.goto(path);
       await shot(alice, n);
     }

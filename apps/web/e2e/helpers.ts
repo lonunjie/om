@@ -42,8 +42,9 @@ export async function walkSetup(page: Page, o: OnboardOptions = {}): Promise<{ r
   return { lockMs };
 }
 
-/** The optional safety-code flow, from the "Save my safety code" reminder in the chat list. */
+/** The optional safety-code flow, from the "Save my safety code" reminder at the top of Settings (a dot on the profile button points there). */
 export async function saveSafetyCode(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Settings" }).click();
   await page.getByRole("button", { name: "Save my safety code" }).click();
   const items = page.getByRole("list", { name: "Safety code" }).getByRole("listitem");
   await expect(items.first()).toBeVisible();
@@ -57,6 +58,8 @@ export async function saveSafetyCode(page: Page): Promise<void> {
     await box.fill(groups[n - 1] ?? "");
   }
   await page.getByRole("button", { name: "Confirm" }).click();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByRole("heading", { name: "Settings", level: 1 })).toBeVisible();
   await expect(page.getByRole("button", { name: "Save my safety code" })).toHaveCount(0);
 }
 
@@ -68,11 +71,11 @@ export async function addIdentity(page: Page): Promise<void> {
 
 /**
  * After a reload every identity is behind its vault. A key kept in this browser opens by itself; a vault that wants a click
- * shows "Unlock". Either way, finish when the app proper (its Settings button) is up.
+ * shows "Open my chats". Either way, finish when the app proper (its Settings button) is up.
  */
 export async function reopen(page: Page, timeout = 30_000): Promise<void> {
   const settings = page.getByRole("button", { name: "Settings" });
-  const unlock = page.getByRole("button", { name: "Unlock", exact: true });
+  const unlock = page.getByRole("button", { name: "Open my chats", exact: true });
   for (const deadline = Date.now() + timeout; Date.now() < deadline;) {
     if (await settings.isVisible()) return;
     if (await unlock.isVisible()) await unlock.click({ timeout: 2_000 }).catch(() => undefined); // it may have unlocked by itself meanwhile

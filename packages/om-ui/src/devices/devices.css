@@ -5,7 +5,7 @@
 .om-settings__group, .om-settings__step, .om-settings__form { display: flex; flex-direction: column; gap: var(--om-space-2); }
 .om-settings__rows, .om-settings__list, .om-settings__facts { display: flex; flex-direction: column; gap: var(--om-space-1); margin: 0; padding: 0; list-style: none; }
 .om-settings__list { padding-inline-start: var(--om-space-5, 1.5em); list-style: disc; }
-.om-settings__row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--om-space-2); inline-size: 100%; min-block-size: var(--om-target-min); text-align: start; }
+.om-settings__row { border-radius: var(--om-radius-lg); padding-block: var(--om-space-2); display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--om-space-2); inline-size: 100%; min-block-size: var(--om-target-min); text-align: start; }
 .om-settings__name { min-inline-size: 0; overflow-wrap: anywhere; }
 .om-settings__meta { font-size: 0.875em; color: var(--om-color-text-secondary); }
 .om-settings__actions { display: flex; flex-wrap: wrap; gap: var(--om-space-2); }

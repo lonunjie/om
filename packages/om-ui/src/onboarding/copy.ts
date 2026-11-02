@@ -83,11 +83,10 @@ export interface OnboardingCopy {
   };
   readonly invite: {
     readonly heading: string;
-    readonly body: string;
+    readonly body?: string;
     readonly share: string;
     readonly shareTitle: string;
     readonly shareText: string;
-    readonly shareCancelled: string;
     readonly shareFailed: string;
     /** What to do with the link once it is on screen, in one plain sentence. */
     readonly copyLink: string;
@@ -143,7 +142,10 @@ export interface OnboardingCopy {
 /** Strings for unlocking an existing vault. Separate from first-run copy: it is used on every later start. */
 export interface UnlockCopy {
   readonly heading: string;
+  /** What to do when the device itself asks (passkey, fingerprint, face). */
   readonly body: string;
+  /** What to do when a password of the person's own is set: the field is already in front of them. */
+  readonly bodyPassphrase: string;
   readonly passphraseLabel: string;
   readonly unlock: string;
   readonly working: string;

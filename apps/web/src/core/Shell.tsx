@@ -1,9 +1,10 @@
 // The connected application shell shared by the production Core composition and the dev/e2e entries: conversation
 // list, requests, conversation view, composer, Settings > Devices / Recovery. It only talks to a CoreClient.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { ConversationId, IntroductionRequest, OperationId } from "@om/platform-api";
 import {
-  AppShell, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeScreen, Icon, LiveRegion, MessageRequest, RecoveryScreen, StrangerPressure, Text, useLayoutMode,
+  AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, RecoveryScreen, StrangerPressure, Text, useActiveProfile, useLayoutMode,
+  type IconName,
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import { appStrings as t, conversationCopy, onboardingCopy, deviceScannerCopy, devicesCopy, scannerCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
@@ -12,6 +13,7 @@ import { CopyNotice } from "../CopyNotice";
 import { CHATS, placeTitle, placeUrl, usePlace, type SettingsPage } from "../route/place";
 import "./shell.css";
 import { InstallAffordance } from "../install/InstallAffordance";
+import { LockScreen, type LockServices } from "./LockScreen";
 
 /** The display-once safety code Core still holds: setup did not ask for it (ADR-0111), so the shell offers it on the user's time. */
 export interface SafetyCodeOffer {
@@ -30,6 +32,8 @@ export interface ShellProps {
   /** Settings > Your Home, when the host can configure its Home (the production entry; not the dev harness). */
   readonly home?: HomeSettingsServices;
   readonly safetyCode?: SafetyCodeOffer;
+  /** Settings > Lock, when the host can read how this device opens OM (the production entry). */
+  readonly lock?: LockServices;
   /** With it, an empty Chats list is the invite-first screen instead of a dead end (UI_UX_SYSTEM: first run and invitations). */
   readonly invite?: { readonly platform: OnboardingPlatform; readonly renderQr: (payload: string) => ReactNode; readonly shareLink?: (coreLink: string) => string };
   /** An invitation link that was opened here, and the chat it is expected to add. */
@@ -44,10 +48,11 @@ export interface ShellProps {
   };
 }
 
-export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, invite, incoming }: ShellProps) {
+export function Shell({ services, devicesExtra, onAddProfile, home, lock, safetyCode, invite, incoming }: ShellProps) {
   const inviteScan = useQrScanner(scannerCopy);
   const deviceScan = useQrScanner(deviceScannerCopy);
   const { place, raw, go, back } = usePlace();
+  const me = useActiveProfile();
   const mode = useLayoutMode();
   const [drafts, setDrafts] = useState<ReadonlyMap<ConversationId, string>>(() => new Map());
   const list = useConversationList(services);
@@ -71,7 +76,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, 
 
   // An address that names nothing real (a chat that is not here, a step this host does not have) falls back to the root, not to an error.
   const chatGone = selected !== null && newChatAfter === null && list.status === "ready" && !list.value.some((c) => c.id === selected);
-  const noSuchPlace = (place.kind === "safety-code" && safetyCode === undefined) || (place.kind === "settings" && place.page === "delivery" && home === undefined) || chatGone;
+  const noSuchPlace = (place.kind === "safety-code" && safetyCode === undefined) || (place.kind === "settings" && place.page === "delivery" && home === undefined) || (place.kind === "settings" && place.page === "lock" && lock === undefined) || chatGone;
   useEffect(() => { if (noSuchPlace) go(CHATS, { replace: true }); }, [noSuchPlace, go]);
   // The address bar shows the place's own address ("/index.html" and "/nope" become "/"), so what is shown can be copied and reopened.
   useEffect(() => { if (!noSuchPlace && placeUrl(place) !== raw) go(place, { replace: true }); }, [raw, place, noSuchPlace, go]);
@@ -85,19 +90,32 @@ export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, 
     document.getElementById("om-main")?.focus({ preventScroll: true });
   }, [placeKey]);
 
+  // The person, not the word "Settings": their name and initial open Settings. A dot says something there needs them (the safety code).
+  const name = me?.label ?? t.settings;
+  const attention = safetyCode !== undefined;
+  // Chats is a place, not "back": going there must not walk the history through the settings pages that were open.
+  const toChatsRoot = (): void => { go(CHATS); };
   const profileControl = (
     <>
       <ConnectedProfileSwitcher labels={switcherLabels} />
       {settings !== null && mode === "compact" ? (
-        <Button variant="quiet" onClick={() => { back(CHATS); }}><Icon name="back" size={20} />{t.chats}</Button>
+        <Button variant="quiet" onClick={toChatsRoot}><Icon name="chat" size={20} />{t.chats}</Button>
       ) : (
-        <Button variant="quiet" aria-pressed={settings !== null} onClick={() => { if (settings === null) go({ kind: "settings", page: "menu" }); else back(CHATS); }}>
-          <Icon name="settings" size={20} />{t.settings}
+        <Button
+          variant="quiet" className="om-me" aria-pressed={settings !== null}
+          aria-label={`${name}, ${t.settings}${attention ? `, ${t.settingsNeedsAttention}` : ""}`}
+          onClick={() => { if (settings === null) go({ kind: "settings", page: "menu" }); else toChatsRoot(); }}
+        >
+          <span className="om-me__avatar"><Avatar name={name} />{attention ? <span className="om-me__dot" aria-hidden="true" /> : null}</span>
+          <span className="om-me__name">{name}</span>
         </Button>
       )}
     </>
   );
-  const common = { destinations: [{ id: "chats", label: t.chats }], activeDestination: "chats", onDestinationChange: () => { if (settings !== null) back(CHATS); }, labels: shellLabels, profileControl } as const;
+  const common = {
+    destinations: [{ id: "chats", label: t.chats, icon: <Icon name="chat" size={20} /> }], activeDestination: settings === null && !savingCode ? "chats" : "",
+    onDestinationChange: () => { if (place.kind !== "chats" || place.chat !== null) toChatsRoot(); }, labels: shellLabels, profileControl,
+  } as const;
 
   if (savingCode) {
     return (
@@ -107,11 +125,12 @@ export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, 
         list={<Text>{t.loading}</Text>}
         detail={(
           <div className="om-page">
-            <BackBar label={t.backToChats} onBack={toChats} />
-            <RecoveryKeyStep
-              services={services} platform={safetyCode.platform} keyOperationId={safetyCode.keyOperationId} copy={onboardingCopy.recovery}
-              onConfirmed={() => { toChats(); safetyCode.onResolved(); }}
-            />
+            <SubPage label={t.backToChats} onBack={toChats}>
+              <RecoveryKeyStep
+                services={services} platform={safetyCode.platform} keyOperationId={safetyCode.keyOperationId} copy={onboardingCopy.recovery}
+                onConfirmed={() => { toChats(); safetyCode.onResolved(); }}
+              />
+            </SubPage>
           </div>
         )}
       />
@@ -123,16 +142,24 @@ export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, 
         <AppShell
           {...common}
           conversationOpen={settings !== "menu"}
-          list={<SettingsMenu page={settings} onOpen={(page) => { go({ kind: "settings", page }); }} onAddProfile={onAddProfile} hasHome={home !== undefined} />}
-          detail={settings === "menu" ? <div className="om-page"><Text>{t.settingsHint}</Text></div> : (
+          list={(
+            <SettingsMenu
+              page={settings} onOpen={(page) => { go({ kind: "settings", page }); }} onAddProfile={onAddProfile} hasHome={home !== undefined} hasLock={lock !== undefined}
+              onSafetyCode={safetyCode === undefined ? undefined : () => { go({ kind: "safety-code" }); }}
+            />
+          )}
+          detail={settings === "menu" ? <div className="om-page om-page--empty"><span className="om-empty-art" aria-hidden="true"><Icon name="settings" size={72} /></span></div> : (
             <div className="om-page">
-              <BackBar label={t.backToSettings} onBack={() => { back({ kind: "settings", page: "menu" }); }} />
-              {settings === "devices" ? (
-                <>
-                  <DevicesScreen services={services} copy={devicesCopy} scanQr={deviceScan.scanQr} linking="later" />
-                  {devicesExtra}
-                </>
-              ) : settings === "delivery" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} /> : <RecoveryScreen services={services} copy={recoveryCopy} />}
+              <SubPage label={t.backToSettings} onBack={() => { back({ kind: "settings", page: "menu" }); }}>
+                {settings === "devices" ? (
+                  <>
+                    <DevicesScreen services={services} copy={devicesCopy} scanQr={deviceScan.scanQr} linking="later" />
+                    {devicesExtra}
+                  </>
+                ) : settings === "delivery" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} />
+                  : settings === "lock" && lock !== undefined ? <LockScreen services={lock} />
+                  : <RecoveryScreen services={services} copy={recoveryCopy} />}
+              </SubPage>
             </div>
           )}
         />
@@ -160,14 +187,6 @@ export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, 
             ) : null}
             <StrangerPressure services={services} copy={conversationCopy.pressure} />
             <Requests services={services} />
-            {safetyCode === undefined ? null : (
-              <section className="om-page om-stack" aria-label={t.safetyCode.action}>
-                <div className="om-card">
-                  <Text as="p">{t.safetyCode.reminder}</Text>
-                  <Button onClick={() => { go({ kind: "safety-code" }); }}>{t.safetyCode.action}</Button>
-                </div>
-              </section>
-            )}
             {list.status === "loading" ? <div className="om-page"><Text>{t.loading}</Text></div> : null}
             {list.status === "failed" ? <div className="om-page"><Text role="alert">{t.loadFailed}</Text></div> : null}
             {emptyInviteFirst ? (
@@ -182,7 +201,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, 
           </>
         }
         detail={
-          selected === null ? <div className="om-page om-page--empty"><Text tone="secondary">{t.selectConversation}</Text></div> : (
+          selected === null ? <div className="om-page om-page--empty"><span className="om-empty-art" aria-hidden="true"><Icon name="chat" size={72} /></span></div> : (
             <ConversationView key={selected} services={services} conversationId={selected} copy={conversationCopy} onBack={toChats} />
           )
         }
@@ -199,9 +218,17 @@ export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, 
   );
 }
 
-/** Leaves a page that replaced the list (phones only: beside the list there is nothing to go back to). */
-function BackBar({ label, onBack }: { readonly label: string; readonly onBack: () => void }) {
-  return <div className="om-backbar"><Button variant="quiet" onClick={onBack}><Icon name="back" size={20} />{label}</Button></div>;
+/**
+ * A page opened from a menu: a round arrow beside the heading (like X's settings), no words. Phones only: beside the list (900 px and
+ * up) there is nothing to go back to. The arrow carries its name for screen readers and a circle highlight for sighted users.
+ */
+function SubPage({ label, onBack, children }: { readonly label: string; readonly onBack: () => void; readonly children: ReactNode }) {
+  return (
+    <div className="om-subpage">
+      <IconButton className="om-subpage__back" label={label} icon={<Icon name="back" />} onClick={onBack} />
+      <div className="om-subpage__body">{children}</div>
+    </div>
+  );
 }
 
 function Requests({ services }: { readonly services: ConversationServices }) {
@@ -227,34 +254,87 @@ function Requests({ services }: { readonly services: ConversationServices }) {
   );
 }
 
-/** Settings is reached from the profile area (Profile -> Settings), not a tab: Chats stays the compact root. */
-function SettingsMenu({ page, onOpen, onAddProfile, hasHome }: { readonly page: SettingsPage; readonly onOpen: (p: SettingsPage) => void; readonly onAddProfile: (() => void) | undefined; readonly hasHome: boolean }) {
-  const rows: readonly { readonly id: SettingsPage; readonly title: string; readonly hint: string }[] = [
-    { id: "devices", title: t.settingsDevices, hint: t.settingsRows.devices },
-    { id: "recovery", title: t.settingsRecovery, hint: t.settingsRows.recovery },
-    ...(hasHome ? [{ id: "delivery" as const, title: t.settingsHome, hint: t.settingsRows.delivery }] : []),
+interface MenuRow { readonly id: SettingsPage; readonly title: string; readonly hint: string; readonly icon: IconName; readonly words: string }
+
+/** Settings is reached from the profile area (Profile -> Settings), not a tab: Chats stays the compact root. Typing anywhere searches it. */
+function SettingsMenu({ page, onOpen, onAddProfile, hasHome, hasLock, onSafetyCode }: {
+  readonly page: SettingsPage; readonly onOpen: (p: SettingsPage) => void; readonly onAddProfile: (() => void) | undefined; readonly hasHome: boolean; readonly hasLock: boolean; readonly onSafetyCode: (() => void) | undefined;
+}) {
+  const [query, setQuery] = useState("");
+  const search = useRef<HTMLInputElement>(null);
+  const rows: readonly MenuRow[] = [
+    ...(hasLock ? [{ id: "lock" as const, title: t.settingsLock, hint: t.settingsRows.lock, icon: "lock" as const, words: t.settingsKeywords.lock }] : []),
+    { id: "devices", title: t.settingsDevices, hint: t.settingsRows.devices, icon: "devices", words: t.settingsKeywords.devices },
+    { id: "recovery", title: t.settingsRecovery, hint: t.settingsRows.recovery, icon: "shield", words: t.settingsKeywords.recovery },
+    ...(hasHome ? [{ id: "delivery" as const, title: t.settingsHome, hint: t.settingsRows.delivery, icon: "delivery" as const, words: t.settingsKeywords.delivery }] : []),
   ];
+  const terms = query.toLowerCase().split(/\s+/).filter((w) => w !== "");
+  const matches = (text: string): boolean => terms.every((w) => text.toLowerCase().includes(w));
+  const shown = rows.filter((r) => matches(`${r.title} ${r.hint} ${r.words}`));
+  const showAdd = onAddProfile !== undefined && matches(`${t.addProfile} ${t.settingsRows.addProfile} ${t.settingsKeywords.addProfile}`);
+  const nothing = terms.length > 0 && shown.length === 0 && !showAdd;
+
+  // Type to search: a letter typed while nothing else takes text goes to the search field (the keypress then lands in it).
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent): void => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1 || e.key === " ") return;
+      const el = e.target as HTMLElement | null;
+      if (el !== null && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.closest("[role=dialog]") !== null)) return;
+      search.current?.focus();
+    };
+    globalThis.addEventListener("keydown", onKey);
+    return () => { globalThis.removeEventListener("keydown", onKey); };
+  }, []);
+  const onSearchKey = (e: KeyboardEvent<HTMLInputElement>): void => {
+    if (e.key === "Escape") { setQuery(""); return; }
+    if (e.key !== "Enter") return;
+    const first = shown[0];
+    if (first !== undefined) onOpen(first.id);
+    else if (showAdd) onAddProfile();
+  };
   return (
     <nav aria-label={t.settingsHeading} className="om-menu">
       <header className="om-page-head"><Text as="h1" size="xl" weight="bold">{t.settingsHeading}</Text></header>
+      <div className="om-page om-menu__search">
+        <label className="om-search">
+          <span className="om-search__icon" aria-hidden="true"><Icon name="search" size={20} /></span>
+          <span className="om-visually-hidden">{t.settingsSearch.label}</span>
+          <input
+            ref={search} type="search" className="om-search__input" value={query} placeholder={t.settingsSearch.label} enterKeyHint="go"
+            autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false}
+            onChange={(e) => { setQuery(e.target.value); }} onKeyDown={onSearchKey}
+          />
+        </label>
+      </div>
+      {onSafetyCode !== undefined && terms.length === 0 ? (
+        <section className="om-page" aria-label={t.safetyCode.action}>
+          <div className="om-card om-card--attention">
+            <p className="om-card__line"><span className="om-dot" aria-hidden="true" /><Text as="span">{t.safetyCode.reminder}</Text></p>
+            <Button variant="primary" onClick={onSafetyCode}><Icon name="shield" size={20} />{t.safetyCode.action}</Button>
+          </div>
+        </section>
+      ) : null}
       <ul className="om-menu__list">
-        {rows.map((r) => (
+        {shown.map((r) => (
           <li key={r.id}>
             <button type="button" className="om-menu__row" aria-current={page === r.id ? "page" : undefined} onClick={() => { onOpen(r.id); }}>
+              <span className="om-menu__icon" aria-hidden="true"><Icon name={r.icon} size={22} /></span>
               <span className="om-menu__text"><span className="om-menu__title">{r.title}</span><span className="om-menu__hint">{r.hint}</span></span>
               <Icon name="chevron" size={20} />
             </button>
           </li>
         ))}
-        {onAddProfile ? (
+        {showAdd ? (
           <li>
             <button type="button" className="om-menu__row" onClick={onAddProfile}>
+              <span className="om-menu__icon" aria-hidden="true"><Icon name="userPlus" size={22} /></span>
               <span className="om-menu__text"><span className="om-menu__title">{t.addProfile}</span><span className="om-menu__hint">{t.settingsRows.addProfile}</span></span>
               <Icon name="plus" size={20} />
             </button>
           </li>
         ) : null}
       </ul>
+      {nothing ? <p className="om-page om-menu__none" role="status">{t.settingsSearch.none(query.trim())}</p> : null}
       <div className="om-page om-stack">
         <InstallAffordance />
         <CopyNotice />

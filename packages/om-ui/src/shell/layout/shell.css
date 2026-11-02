@@ -184,9 +184,24 @@
     gap: var(--om-space-1);
   }
 
+  /* The destination is a button and looks like one: a round outline with its icon, filled when it is the place you are in. */
   .om-shell__rail .om-shell__dest {
-    flex-direction: column;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--om-space-2);
+    padding-inline: var(--om-space-4);
+    border: 1px solid var(--om-color-border);
+    border-radius: var(--om-radius-pill);
+    color: var(--om-color-text-primary);
+    font-weight: var(--om-weight-medium);
   }
+  .om-shell__rail .om-shell__dest[aria-current="page"] {
+    background: var(--om-color-bg-sunken);
+    border-color: var(--om-color-accent);
+    color: var(--om-color-accent);
+    box-shadow: none;
+  }
+  .om-shell__rail .om-shell__dest-icon { display: inline-flex; }
 
   .om-shell__rail {
     overflow: auto;

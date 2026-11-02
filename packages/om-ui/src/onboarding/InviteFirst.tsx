@@ -5,7 +5,9 @@ import type { InviteView, OperationId } from "@om/platform-api";
 import { resolveIntent, settledOutcome } from "../conversations/services";
 import type { ConversationServices } from "../conversations/services";
 import { Button } from "../shell/primitives/Button";
+import { Icon } from "../shell/primitives/icons";
 import { Text } from "../shell/primitives/Text";
+import { VisuallyHidden } from "../shell/primitives/VisuallyHidden";
 import type { InviteUnavailableCode, OnboardingCopy } from "./copy";
 import type { OnboardingPlatform } from "./platform";
 import { StepHeading } from "./StepHeading";
@@ -33,7 +35,7 @@ const LONG_WAIT_MS = 2 ** 31 - 1;
 export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareLink, onAccepted, onSkip, settleTimeoutMs }: InviteFirstProps) {
   const [invite, setInvite] = useState<InviteView | null>(null);
   const [showQr, setShowQr] = useState(false);
-  const [status, setStatus] = useState<{ readonly kind: "status" | "alert"; readonly text: string } | null>(null);
+  const [status, setStatus] = useState<{ readonly kind: "status" | "alert" | "done"; readonly text: string } | null>(null);
   const [pasted, setPasted] = useState("");
   const [busy, setBusy] = useState(false);
   const mounted = useRef(true);
@@ -49,7 +51,13 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareL
     return () => { mounted.current = false; mine.abort(); };
   }, []);
   const settle = (id: Parameters<typeof settledOutcome>[1]) => settledOutcome(services, id, { signal: abort.current.signal, ...(settleTimeoutMs !== undefined ? { timeoutMs: settleTimeoutMs } : {}) });
-  const say = (kind: "status" | "alert", text: string): void => { if (mounted.current) setStatus({ kind, text }); };
+  const say = (kind: "status" | "alert" | "done", text: string): void => { if (mounted.current) setStatus({ kind, text }); };
+  // A confirmation is a green tick that fades by itself; it is not text to read or dismiss.
+  useEffect(() => {
+    if (status?.kind !== "done") return;
+    const t = setTimeout(() => { setStatus(null); }, 2600);
+    return () => { clearTimeout(t); };
+  }, [status]);
 
   /** Keeps watching an unconfirmed invite after the bounded wait, so the link appears when the Home finally answers. */
   function keepWatching(operationId: OperationId): void {
@@ -124,8 +132,7 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareL
       const cap = platform.share();
       if (cap.state === "unavailable") { await copyLink(view, copy.sharedByCopy); return; } // no share sheet here: the link is copied and shown
       const res = await cap.api.share({ title: copy.shareTitle, text: copy.shareText, url: linkOf(view) });
-      if (res === "cancelled") say("status", copy.shareCancelled);
-      else if (res === "failed") say("alert", copy.shareFailed);
+      if (res === "failed") say("alert", copy.shareFailed);
     } catch {
       say("alert", copy.shareFailed);
     } finally {
@@ -143,7 +150,7 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareL
     if (clipboard.state === "unavailable" || r.status !== "platform" || r.request.capability !== "Clipboard") { say("alert", copy.copyFailed); return; }
     try {
       const res = await clipboard.api.write(linkOf(view), { sensitive: false });
-      if (res === "written") say("status", done); else say("alert", copy.copyFailed);
+      if (res === "written") say("done", done); else say("alert", copy.copyFailed);
     } catch { say("alert", copy.copyFailed); }
   }
 
@@ -183,13 +190,15 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareL
   return (
     <section className="om-onb__step" aria-labelledby="om-onb-invite-h">
       <StepHeading id="om-onb-invite-h">{copy.heading}</StepHeading>
-      <Text as="p">{copy.body}</Text>
+      {copy.body ? <Text as="p">{copy.body}</Text> : null}
       <div className="om-onb__actions" role="group" aria-label={copy.heading} data-hidden-actions={hidden.join(" ")}>
-        <Button variant="primary" disabled={busy} onClick={run(share)}>{copy.share}</Button>
-        <Button disabled={busy} onClick={run(copyClick)}>{copy.copyLink}</Button>
-        {renderQr ? <Button disabled={busy} onClick={run(qr)}>{copy.showQr}</Button> : null}
+        <Button variant="primary" disabled={busy} onClick={run(share)}><Icon name="share" size={20} />{copy.share}</Button>
+        <Button disabled={busy} onClick={run(copyClick)}><Icon name="link" size={20} />{copy.copyLink}</Button>
+        {renderQr ? <Button disabled={busy} onClick={run(qr)}><Icon name="qr" size={20} />{copy.showQr}</Button> : null}
       </div>
-      {status ? <p className="om-onb__status" role={status.kind === "alert" ? "alert" : "status"}>{status.text}</p> : null}
+      {status?.kind === "done" ? (
+        <p className="om-onb__done" role="status"><span className="om-onb__done-mark" aria-hidden="true"><Icon name="check" size={20} /></span><VisuallyHidden>{status.text}</VisuallyHidden></p>
+      ) : status ? <p className="om-onb__status" role={status.kind === "alert" ? "alert" : "status"}>{status.text}</p> : null}
       {invite ? (
         <div className="om-onb__invite">
           <Text as="p" size="sm" weight="bold" id="om-onb-invite-link-l">{copy.linkLabel}</Text>
@@ -200,7 +209,7 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareL
       ) : null}
       <details className="om-onb__more">
       <summary>{copy.haveInvite}</summary>
-      {scanQr && !hidden.includes("camera_unavailable") ? <div className="om-onb__actions"><Button disabled={busy} onClick={run(scan)}>{copy.scan}</Button></div> : null}
+      {scanQr && !hidden.includes("camera_unavailable") ? <div className="om-onb__actions"><Button disabled={busy} onClick={run(scan)}><Icon name="scan" size={20} />{copy.scan}</Button></div> : null}
       <form className="om-onb__accept" aria-labelledby="om-onb-accept-h" onSubmit={(e) => { e.preventDefault(); void acceptLink(pasted); }}>
         <Text as="h3" size="md" weight="bold" id="om-onb-accept-h">{copy.acceptHeading}</Text>
         <label className="om-onb__field">

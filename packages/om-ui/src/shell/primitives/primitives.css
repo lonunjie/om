@@ -21,9 +21,11 @@
   box-sizing: border-box;
   min-block-size: var(--om-target-min);
   min-inline-size: var(--om-target-min);
-  padding-inline: var(--om-space-4);
+  position: relative;
+  overflow: hidden;
+  padding-inline: var(--om-space-5);
   border: 1px solid var(--om-color-border);
-  border-radius: var(--om-radius-md);
+  border-radius: var(--om-radius-pill); /* round ends, like the OM mark */
   background: var(--om-color-bg-surface);
   color: var(--om-color-text-primary);
   font: inherit;
@@ -48,6 +50,26 @@
   .om-icon-button:not(:disabled):hover { background: var(--om-color-bg-sunken); }
   .om-button[data-variant="primary"]:not(:disabled):hover,
   .om-icon-button[data-variant="primary"]:not(:disabled):hover { background: var(--om-color-accent); filter: brightness(1.08); }
+}
+
+/* Press circle: a soft disc grows from where the finger or pointer landed (the centre for a key press) and fades on release.
+   It explains "this was pressed"; it never delays the action. Reduced motion collapses the durations to ~0. */
+.om-button::after,
+.om-icon-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  clip-path: circle(0 at var(--om-press-x, 50%) var(--om-press-y, 50%));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--om-motion-standard) var(--om-ease-exit), clip-path 0s var(--om-motion-standard);
+}
+.om-button:not(:disabled):active::after,
+.om-icon-button:not(:disabled):active::after {
+  clip-path: circle(150% at var(--om-press-x, 50%) var(--om-press-y, 50%));
+  opacity: 1;
+  transition: clip-path var(--om-motion-standard) var(--om-ease-enter), opacity var(--om-motion-instant) linear;
 }
 
 /* Press: the control answers the tap at once (formflow's rule: movement explains, never delays). */

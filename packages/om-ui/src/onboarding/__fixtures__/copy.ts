@@ -22,7 +22,7 @@ const OBSERVERS: readonly HomeObserverCode[] = ["sponsor_sees_metadata", "host_s
 const ORIGINS: readonly ClientOriginChoiceCode[] = ["default_origin", "independent_origin_available", "independent_origin_active"];
 
 export const testUnlockCopy: UnlockCopy = {
-  heading: "Unlock OM", body: "Unlock your data on this device.", passphraseLabel: "Passphrase", unlock: "Unlock", working: "Unlocking", workingSlow: "Unlocking, this takes a few seconds",
+  heading: "Unlock OM", body: "Unlock your data on this device.", bodyPassphrase: "Type your password.", passphraseLabel: "Passphrase", unlock: "Unlock", working: "Unlocking", workingSlow: "Unlocking, this takes a few seconds",
   continueCeremony: "Continue", needsGesture: rec(STAGES, (s) => `Another confirmation is needed (${s})`), errors: rec(VAULT_ERRORS, (e) => `Error: ${e}`), openRecovery: "Open recovery",
 };
 
@@ -54,7 +54,7 @@ export const testCopy: OnboardingCopy = {
   },
   invite: {
     heading: "Add your first contact", body: "Invite someone you know.", share: "Share invite link", shareTitle: "Join me", shareText: "Open this link in OM.",
-    shareCancelled: "Sharing cancelled", shareFailed: "Sharing failed", copyLink: "Copy link", copied: "Copied", copyFailed: "Copy failed", sharedByCopy: "Link copied", linkLabel: "Your invite link", expires: (ms) => `Expires at ${String(ms)}`,
+    shareFailed: "Sharing failed", copyLink: "Copy link", copied: "Copied", copyFailed: "Copy failed", sharedByCopy: "Link copied", linkLabel: "Your invite link", expires: (ms) => `Expires at ${String(ms)}`,
     showQr: "Show my QR", qrLabel: "Your invite QR code", scan: "Scan QR", scanDenied: "Camera not allowed", scanNothing: "Nothing scanned",
     acceptHeading: "Accept an invitation", acceptLabel: "Invitation link", haveInvite: "Have an invite?", accept: "Accept invitation",
     parseError: { empty: "Enter a link", too_long: "That link is too long", malformed: "That is not an OM invitation" },

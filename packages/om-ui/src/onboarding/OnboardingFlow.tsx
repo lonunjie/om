@@ -52,9 +52,11 @@ export interface OnboardingFlowProps {
   readonly skipWelcome?: boolean;
   /** Test seam: see `ProtectDevice`. */
   readonly slowPromptMs?: number;
+  /** Adding a further identity from inside the app: a way back out, and no second password choice. Omit on first run. */
+  readonly addingIdentity?: { readonly backLabel: string; readonly onBack: () => void };
 }
 
-export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, shareLink, incomingInvite = null, onIncomingInviteDeclined, settleTimeoutMs, skipWelcome = false, slowPromptMs }: OnboardingFlowProps) {
+export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, shareLink, incomingInvite = null, onIncomingInviteDeclined, settleTimeoutMs, skipWelcome = false, slowPromptMs, addingIdentity }: OnboardingFlowProps) {
   const [flow, dispatch] = useReducer(flowReducer, skipWelcome ? flowReducer(initialFlow, { type: "start" }) : initialFlow);
   const [protectedAs, setProtectedAs] = useState<{ readonly keyOperationId: OperationId; readonly wrapping: VaultWrappingInfo } | null>(null);
   const [declined, setDeclined] = useState(false);
@@ -63,7 +65,7 @@ export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, o
 
   const total = skipWelcome ? 2 : 3;
   const frame = (n: number, children: ReactNode): ReactNode => (
-    <OnboardingFrame copy={copy.frame} stepKey={flow.step} progress={{ n, total }}>{children}</OnboardingFrame>
+    <OnboardingFrame copy={copy.frame} stepKey={flow.step} progress={{ n, total }} {...(addingIdentity !== undefined && flow.step === "protect_device" ? { back: { label: addingIdentity.backLabel, onBack: addingIdentity.onBack } } : {})}>{children}</OnboardingFrame>
   );
 
   switch (flow.step) {
@@ -78,7 +80,7 @@ export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, o
     case "protect_device":
       return frame(total - 1, (
         <ProtectDevice
-          services={services} vault={vault} copy={copy.protect}
+          services={services} vault={vault} copy={copy.protect} allowPassphrase={addingIdentity === undefined}
           {...(onExistingVault ? { onExistingVault } : {})} {...(slowPromptMs !== undefined ? { slowPromptMs } : {})}
           onProtected={(op, wrapping) => { setProtectedAs({ keyOperationId: op, wrapping }); dispatch({ type: "device_protected" }); }}
         />

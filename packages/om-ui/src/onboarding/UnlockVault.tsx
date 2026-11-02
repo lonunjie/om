@@ -76,17 +76,17 @@ export function UnlockVault({ vault, profileId, copy, onUnlocked, autoUnlock = f
   const busy = phase.k === "working";
   const ready = phase.k === "idle" || phase.k === "error" || phase.k === "gesture";
   return (
-    <section className="om-onb__step" aria-labelledby="om-unlock-h">
+    <section className="om-onb__step om-onb__welcome-back" aria-labelledby="om-unlock-h">
       <StepHeading id="om-unlock-h">{copy.heading}</StepHeading>
-      <Text as="p">{copy.body}</Text>
+      {phase.k === "loading" ? null : <Text as="p">{needsPassphrase ? copy.bodyPassphrase : copy.body}</Text>}
       {needsPassphrase && phase.k !== "loading" ? (
-        <div className="om-onb__field">
+        <form className="om-onb__field" onSubmit={(e) => { e.preventDefault(); void unlock(); }}>
           <label htmlFor="om-unlock-pass">{copy.passphraseLabel}</label>
           <input
-            id="om-unlock-pass" className="om-onb__input" type="password" autoComplete="current-password" spellCheck={false} autoCapitalize="none"
+            id="om-unlock-pass" className="om-onb__input" type="password" autoComplete="current-password" spellCheck={false} autoCapitalize="none" autoFocus
             value={passphrase} disabled={busy} onChange={(e) => { setPassphrase(e.target.value); }}
           />
-        </div>
+        </form>
       ) : null}
       {phase.k === "gesture" ? <p role="status">{copy.needsGesture[phase.stage]}</p> : null}
       {phase.k === "error" ? <p role="alert" data-reason={phase.reason}>{copy.errors[phase.reason]}</p> : null}

@@ -19,6 +19,8 @@ export interface ProtectDeviceProps {
   readonly onExistingVault?: (reason: "already_exists" | "corrupt") => void;
   /** Test seam: how long the device prompt may stay open before the person is offered a way past it. */
   readonly slowPromptMs?: number;
+  /** Off when adding a further identity: how this device opens OM is one choice for the whole device (Settings > Lock), not asked again. */
+  readonly allowPassphrase?: boolean;
 }
 
 type Phase =
@@ -33,7 +35,7 @@ const SLOW_PROMPT_MS = 6000;
 /** Core bounds a label at 64 characters. */
 const NAME_MAX = 64;
 
-export function ProtectDevice({ services, vault, copy, onProtected, onExistingVault, slowPromptMs = SLOW_PROMPT_MS }: ProtectDeviceProps) {
+export function ProtectDevice({ services, vault, copy, onProtected, onExistingVault, slowPromptMs = SLOW_PROMPT_MS, allowPassphrase = true }: ProtectDeviceProps) {
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
   const [usePassphrase, setUsePassphrase] = useState(false);
   const [pass, setPass] = useState("");
@@ -118,7 +120,7 @@ export function ProtectDevice({ services, vault, copy, onProtected, onExistingVa
           {nameShown && nameProblem === "too_long" ? <p role="alert" data-code="name_too_long">{copy.name.tooLong(NAME_MAX)}</p> : null}
         </div>
       ) : null}
-      {choosing || busy ? (
+      {allowPassphrase && (choosing || busy) ? (
         <details className="om-onb__more">
           <summary>{copy.moreOptions}</summary>
           <label className="om-onb__check">

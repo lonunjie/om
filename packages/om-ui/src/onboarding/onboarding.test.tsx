@@ -189,6 +189,17 @@ describe("protect_device", () => {
     expect(auth.createCalls).toBe(1);
   });
 
+  it("adding a further identity has a way back out and does not ask for a second password", async () => {
+    const auth = new FakeAuthenticator({ prf: "ok", backupEligible: false });
+    const r = rig(auth);
+    const onBack = vi.fn();
+    const { container } = render(ui(r, makePlatform(), { skipWelcome: true, addingIdentity: { backLabel: "Back to settings", onBack } }));
+    expect(screen.queryByText(testCopy.protect.moreOptions)).toBeNull(); // the lock is one choice for the whole device (Settings > Lock)
+    await click("Back to settings");
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it("needs_user_gesture waits for another click and never retries by itself", async () => {
     const auth = new FakeAuthenticator({ prf: "ok", backupEligible: false });
     const r = rig(auth);

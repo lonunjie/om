@@ -21,6 +21,7 @@ import { unavailableProvider, type ConfiguredProvider } from "./provider";
 import { createProfileRegistry, type ProfileRegistry } from "./registry";
 import { clearPendingSafetyCode, readPendingSafetyCode, savePendingSafetyCode } from "./safetyCode";
 import { Shell } from "./Shell";
+import type { LockServices } from "./LockScreen";
 
 export interface RealAppProps {
   /** `null`: no provider is configured; the app says so and queues everything locally. */
@@ -75,7 +76,7 @@ export function RealApp({ provider, banner, pollMs = 3000, home }: RealAppProps)
     <ThemeProvider>
       <div className="om-app">
       {banner}
-      {boot.k === "loading" ? <Text>{t.coreLoading}</Text> : null}
+      {boot.k === "loading" ? <Starting /> : null}
       {boot.k === "no_vault" ? <Notice heading={t.vaultUnavailable.heading} body={t.vaultUnavailable.body} /> : null}
       {boot.k === "failed" ? <Notice heading={t.coreFailed.heading} body={t.coreFailed.body} /> : null}
       {boot.k === "ready" ? (
@@ -83,6 +84,17 @@ export function RealApp({ provider, banner, pollMs = 3000, home }: RealAppProps)
       ) : null}
       </div>
     </ThemeProvider>
+  );
+}
+
+/** The wait while Core loads: the round OM mark, a ring that turns, and one calm line. */
+function Starting() {
+  return (
+    <main className="om-starting" role="status" aria-live="polite">
+      <span className="om-starting__mark" aria-hidden="true" translate="no">OM</span>
+      <p className="om-starting__text">{t.coreLoading}</p>
+      <p className="om-starting__text om-starting__note">{t.coreLoadingNote}</p>
+    </main>
   );
 }
 
@@ -119,7 +131,7 @@ function Profiles({ rt, vault, registry, platform, known: initial, connected, ho
   if (pending !== null) {
     return (
       <Onboard
-        rt={rt} vault={vault} platform={platform} pending={pending} first={known.length === 0}
+        rt={rt} vault={vault} platform={platform} pending={pending} first={known.length === 0} onCancel={() => { setPending(null); navigate({ kind: "settings", page: "menu" }, { replace: true }); }}
         onDone={(result) => {
           if (result.safetyCodePending !== null) savePendingSafetyCode(pending.id, result.safetyCodePending);
           if (result.inviteAccepted) { clearPendingInvite(); expectNewChat([]); }
@@ -143,16 +155,16 @@ function Profiles({ rt, vault, registry, platform, known: initial, connected, ho
       </OnboardingFrame>
     );
   }
-  if (known.length === 0) return <Text>{t.coreLoading}</Text>;
+  if (known.length === 0) return <Starting />;
   return (
     <ProfileProvider client={rt} contexts={rt} store={store} {...(known[0] === undefined ? {} : { initialProfileId: known[0] })}>
       {connected ? null : <p role="status" className="om-notice-bar">{t.providerStatus.none}</p>}
-      <Connected rt={rt} platform={platform} onAddProfile={begin} {...(home === undefined ? {} : { home })} />
+      <Connected rt={rt} vault={vault} platform={platform} onAddProfile={begin} {...(home === undefined ? {} : { home })} />
     </ProfileProvider>
   );
 }
 
-function Connected({ rt, platform, onAddProfile, home }: { readonly rt: WasmCoreClient; readonly platform: OnboardingPlatform; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices }) {
+function Connected({ rt, vault, platform, onAddProfile, home }: { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices }) {
   const registry = useMemo(() => createActionRegistry(), []);
   const active = useActiveProfile();
   const capture = useCaptureContext();
@@ -173,20 +185,21 @@ function Connected({ rt, platform, onAddProfile, home }: { readonly rt: WasmCore
     );
     return () => { live = false; };
   }, [rt, activeId, ctx, pending]);
-  if (activeId === null || ctx === null) return <Text>{t.loading}</Text>;
+  const lock = useMemo<LockServices | null>(() => (activeId === null ? null : { wrapping: async () => { const r = await vault.wrapping(activeId); return r.ok ? r.wrapping : null; } }), [vault, activeId]);
+  if (activeId === null || ctx === null || lock === null) return <Text>{t.loading}</Text>;
   const resolve = (): void => { clearPendingSafetyCode(activeId); setResolved((n) => n + 1); };
   return (
     <Shell
-      key={activeId} services={{ client: rt, registry, ctx }} onAddProfile={onAddProfile} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
+      key={activeId} services={{ client: rt, registry, ctx }} onAddProfile={onAddProfile} lock={lock} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
       incoming={{ token, newChatAfter, onAccepted: (known) => { clearPendingInvite(); expectNewChat(known); }, onDeclined: clearPendingInvite, onNewChatOpened: clearExpectedNewChat }}
       {...(pending === null ? {} : { safetyCode: { keyOperationId: pending, platform, onResolved: resolve } })}
     />
   );
 }
 
-interface OnboardProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly pending: { readonly id: ProfileId; readonly ctx: ProfileExecutionContext }; readonly first: boolean; readonly onDone: (result: OnboardingResult) => void }
+interface OnboardProps { readonly onCancel: () => void; readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly pending: { readonly id: ProfileId; readonly ctx: ProfileExecutionContext }; readonly first: boolean; readonly onDone: (result: OnboardingResult) => void }
 
-function Onboard({ rt, vault, platform, pending, first, onDone }: OnboardProps) {
+function Onboard({ rt, vault, platform, pending, first, onDone, onCancel }: OnboardProps) {
   const registry = useMemo<ActionRegistry>(() => createActionRegistry(), []);
   const { scanQr, dialog } = useQrScanner(scannerCopy);
   const token = usePendingInvite();
@@ -198,7 +211,7 @@ function Onboard({ rt, vault, platform, pending, first, onDone }: OnboardProps) 
       <OnboardingFlow
         key={pending.id} client={rt} registry={registry} ctx={pending.ctx} vault={vault} platform={platform} copy={onboardingCopy}
         renderQr={(payload) => <QrCode payload={payload} />} scanQr={scanQr} shareLink={shareLink} incomingInvite={first ? token : null} onIncomingInviteDeclined={clearPendingInvite}
-        skipWelcome onDone={onDone}
+        skipWelcome onDone={onDone} {...(first ? {} : { addingIdentity: { backLabel: t.backToSettings, onBack: onCancel } })}
       />
       {dialog}
     </>

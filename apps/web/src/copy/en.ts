@@ -263,16 +263,14 @@ export const onboardingCopy: OnboardingCopy = {
   },
   invite: {
     heading: "Invite someone to chat",
-    body: "Send a link to someone you know.",
     share: "Share my invite",
     shareTitle: "Chat with me on OM",
     shareText: "Open this link to start a private chat with me.",
-    shareCancelled: "Sharing was cancelled.",
     shareFailed: "Sharing did not work. You can copy the link instead.",
     copyLink: "Copy link",
-    copied: "Link copied. Paste it to send.",
+    copied: "Link copied",
     copyFailed: "Copying did not work. Select the link and copy it by hand.",
-    sharedByCopy: "Link copied. Paste it to send.",
+    sharedByCopy: "Link copied",
     linkLabel: "Your invite link",
     expires: (ms) => `Expires ${timeFormat.format(ms)}`,
     showQr: "Show as QR code",
@@ -347,7 +345,6 @@ export interface AppStrings {
   /** The landing page's note for a visit that came from someone's invitation link. */
   readonly chats: string;
   readonly back: string;
-  readonly selectConversation: string;
   readonly omnibar: string;
   readonly profile: string;
   readonly loading: string;
@@ -364,11 +361,16 @@ export interface AppStrings {
     readonly loopback: string;
   };
   readonly coreLoading: string;
+  readonly coreLoadingNote: string;
   readonly coreFailed: { readonly heading: string; readonly body: string };
   readonly appName: string;
   readonly settingsHeading: string;
-  readonly settingsHint: string;
-  readonly settingsRows: { readonly devices: string; readonly recovery: string; readonly delivery: string; readonly addProfile: string };
+  readonly settingsSearch: { readonly label: string; readonly none: (query: string) => string };
+  readonly settingsRows: { readonly devices: string; readonly recovery: string; readonly delivery: string; readonly lock: string; readonly addProfile: string };
+  /** Words a person might type for a row that its title does not contain. */
+  readonly settingsKeywords: { readonly devices: string; readonly recovery: string; readonly delivery: string; readonly lock: string; readonly addProfile: string };
+  readonly settingsLock: string;
+  readonly settingsNeedsAttention: string;
   readonly settingsDevices: string;
   readonly settingsRecovery: string;
   readonly settingsHome: string;
@@ -380,7 +382,6 @@ export interface AppStrings {
 export const appStrings: AppStrings = {
   chats: "Chats",
   back: "Back to chats",
-  selectConversation: "Choose a conversation to read it.",
   omnibar: "Find or do",
   profile: "Identity",
   loading: "Loading",
@@ -402,20 +403,31 @@ export const appStrings: AppStrings = {
     none: "Not connected to a delivery service. Nothing leaves this device until one is set up.",
     loopback: "TEST LOOPBACK PROVIDER, NOT PRODUCTION. Messages never leave this page.",
   },
-  coreLoading: "Starting OM",
+  coreLoading: "Getting OM ready",
+  coreLoadingNote: "Your chats stay on this device.",
   coreFailed: {
     heading: "OM could not start",
     body: "The messaging engine did not load. Reload the page; if this keeps happening, your data is unchanged and safe on this device.",
   },
   appName: "OM",
   settingsHeading: "Settings",
-  settingsHint: "Choose something to change.",
+  settingsSearch: { label: "Search settings", none: (query) => `Nothing matches “${query}”.` },
   settingsRows: {
     devices: "The phones and computers that can open your chats.",
     recovery: "How to get your chats back if you lose this device.",
     delivery: "The service that carries your messages between devices.",
+    lock: "Whether OM asks before it opens on this device.",
     addProfile: "Set up a second identity on this device.",
   },
+  settingsKeywords: {
+    devices: "phone computer linked sessions",
+    recovery: "safety code backup restore lost",
+    delivery: "relay server network connection messages",
+    lock: "password passcode pin passkey fingerprint face biometric privacy security",
+    addProfile: "account second identity profile new",
+  },
+  settingsLock: "Lock",
+  settingsNeedsAttention: "needs attention",
   settingsDevices: "Devices",
   settingsRecovery: "Recovery",
   settingsHome: "Message delivery",
@@ -436,10 +448,11 @@ export const scannerCopy = {
 } as const;
 
 export const unlockCopy: UnlockCopy = {
-  heading: "Unlock OM",
-  body: "Your chats on this device are locked. Open them to continue.",
+  heading: "Welcome back!",
+  body: "Confirm on this device to open your chats.",
+  bodyPassphrase: "Type your password to open your chats.",
   passphraseLabel: "Password",
-  unlock: "Unlock",
+  unlock: "Open my chats",
   working: "Opening",
   workingSlow: "Opening your chats. This takes a few seconds.",
   continueCeremony: "Continue",
@@ -850,3 +863,18 @@ export const homeCopy: HomeCopy = {
   },
   back: "Back to settings",
 };
+
+/** Settings > Lock: what protects this device, without technical words. Read-only until the vault can change its lock. */
+export const lockCopy = {
+  heading: "Lock",
+  loading: "Checking",
+  failed: "Could not read how this device is locked.",
+  warning: "Anyone who can use this browser can read your chats.",
+  fixed: "You cannot change this here yet.",
+  modes: {
+    none: { title: "Not locked on this device", body: "OM opens by itself, without asking for a fingerprint, a code or a password." },
+    device: { title: "Locked by this device", body: "OM asks for your fingerprint, face or device code each time you open it." },
+    "device-shared": { title: "Locked by your passkey", body: "OM asks for your passkey each time you open it. The company or app that keeps your passkey copies it between your devices, so anyone who can sign in there could open your chats." },
+    password: { title: "Locked by your password", body: "OM asks for your password each time you open it." },
+  },
+} as const;

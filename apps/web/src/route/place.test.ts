@@ -10,6 +10,7 @@ describe("places and addresses", () => {
     { kind: "settings", page: "devices" },
     { kind: "settings", page: "recovery" },
     { kind: "settings", page: "delivery" },
+    { kind: "settings", page: "lock" },
     { kind: "safety-code" },
   ];
   it("every place round-trips through its address", () => {
