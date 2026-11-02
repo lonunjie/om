@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ConfiguredApp } from "./core/ConfiguredApp";
 import { watchInviteAddress } from "./invite/pendingInvite";
-import { registerServiceWorker } from "./sw/register";
+import { applyWhenIdle, registerServiceWorker } from "./sw/register";
 import "./landing/landing.css";
 
 const root = document.getElementById("root");
@@ -21,7 +21,7 @@ if (import.meta.env.DEV || import.meta.env.VITE_OM_DEV_HARNESS === "1") {
 } else if (import.meta.env.VITE_OM_E2E_CORE === "1") {
   void import("./dev/main.e2e-core").then((m) => { m.mountE2eCore(root); });
 } else {
-  void registerServiceWorker();
+  void registerServiceWorker({ onUpdateReady: (apply) => { applyWhenIdle(apply); } });
   createRoot(root).render(
     <StrictMode>
       <ConfiguredApp banner={import.meta.env.VITE_OM_ALLOW_LOOPBACK_RELAY === "1" ? <div className="om-dev-banner" role="note">E2E LOCAL RELAY, NOT PRODUCTION (OM-E2E-LOOPBACK-RELAY-NOT-FOR-PRODUCTION).</div> : undefined} pollMs={import.meta.env.VITE_OM_ALLOW_LOOPBACK_RELAY === "1" ? 400 : undefined} />

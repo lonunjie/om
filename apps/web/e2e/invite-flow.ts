@@ -39,7 +39,7 @@ export async function inviteAndChat(browser: Browser, base: string): Promise<voi
   const link = (await alice.locator("code[translate=no]").first().textContent())?.trim() ?? "";
   expect(link).toMatch(new RegExp(`^${base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/#invite/[A-Za-z0-9_-]{22,}$`));
   if (browser.browserType().name() === "chromium") expect(await alice.evaluate(() => navigator.clipboard.readText())).toBe(link);
-  await expect(alice.getByText(/Send this link to the person/)).toBeVisible();
+  await expect(alice.getByText(/Send this link in any app/)).toBeVisible();
   await alice.getByRole("button", { name: "Skip for now" }).click();
   await expect(alice.getByRole("button", { name: "Settings" })).toBeVisible();
 

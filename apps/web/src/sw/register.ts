@@ -22,6 +22,41 @@ const scriptUrl = (): string | null => {
   }
 };
 
+const IDLE_MS = 20_000;
+const CHECK_MS = 60 * 60 * 1000;
+
+/** Apply a staged update without asking: as soon as the page is hidden, or after IDLE_MS with no input. The new worker takes
+ *  over, then the page reloads (see `reloadOnTakeover`). Returns a stop function. */
+export const applyWhenIdle = (apply: () => void): (() => void) => {
+  let last = Date.now();
+  const touch = (): void => { last = Date.now(); };
+  const events = ["pointerdown", "keydown", "touchstart", "scroll"] as const;
+  for (const e of events) addEventListener(e, touch, { passive: true });
+  const tick = (): void => {
+    if (document.visibilityState === "hidden" || Date.now() - last >= IDLE_MS) { stop(); apply(); }
+  };
+  const timer = setInterval(tick, 2000);
+  document.addEventListener("visibilitychange", tick);
+  const stop = (): void => {
+    clearInterval(timer);
+    document.removeEventListener("visibilitychange", tick);
+    for (const e of events) removeEventListener(e, touch);
+  };
+  tick();
+  return stop;
+};
+
+/** A new worker took over a page that was already controlled: reload once so the page runs the bundle it now serves. */
+const reloadOnTakeover = (): void => {
+  if (!navigator.serviceWorker.controller) return;
+  let done = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (done) return;
+    done = true;
+    location.reload();
+  });
+};
+
 export const registerServiceWorker = async (opts: RegisterOptions = {}): Promise<void> => {
   if (import.meta.env.DEV || !("serviceWorker" in navigator)) return;
   const url = scriptUrl();
@@ -35,6 +70,11 @@ export const registerServiceWorker = async (opts: RegisterOptions = {}): Promise
         waiting.postMessage({ type: "om.sw/activate" });
       });
     };
+    reloadOnTakeover();
+    // A long-lived installed copy looks for a new release on its own, not only at a cold start.
+    const check = (): void => { void reg.update().catch(() => undefined); };
+    setInterval(check, CHECK_MS);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
     offer();
     reg.addEventListener("updatefound", () => {
       reg.installing?.addEventListener("statechange", offer);

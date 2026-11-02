@@ -35,6 +35,11 @@ export interface StageResult {
 }
 
 export const CACHE_PREFIX = "om-shell-";
+
+/** A navigation may not be answered with a redirected response (the browser shows "site can't be reached"), and the host
+ *  redirects `/index.html` to `/`. Rebuild such a response with the same body and headers so it is served as a plain one. */
+const plain = async (res: Response): Promise<Response> =>
+  res.redirected ? new Response(await res.blob(), { status: res.status, statusText: res.statusText, headers: res.headers }) : res;
 const FLOOR_KEY = "floor";
 const DELEGATION_FLOOR_KEY = "delegation-floor";
 const PQ_FLOOR_KEY = "pq-required-floor";
@@ -72,7 +77,7 @@ export const createShell = (deps: ShellDeps) => {
       for (const f of manifest.files) {
         const r = await fetchFn(f.path);
         if (!r.ok) throw new Error(`fetch failed: ${f.path}`);
-        await cache.put(f.path, r);
+        await cache.put(f.path, await plain(r));
       }
       const verdict = await verifyLoadedBundle(manifest, async (p) => (await cache.get(p))?.clone(), () => cache.paths());
       if (!verdict.ok) throw new Error(`bundle verification failed: ${verdict.reason} ${verdict.path}`);
@@ -103,8 +108,11 @@ export const createShell = (deps: ShellDeps) => {
     if (path === MANIFEST_PATH) return undefined;
     const cache = await storage.open(activeName);
     const hit = path === "" ? undefined : await cache.get(path);
-    if (hit) return hit;
-    if (isNavigation) return cache.get((await kv.get("entry:" + activeName)) ?? "index.html");
+    if (hit) return plain(hit);
+    if (isNavigation) {
+      const entry = await cache.get((await kv.get("entry:" + activeName)) ?? "index.html");
+      return entry && plain(entry);
+    }
     return undefined;
   };
 

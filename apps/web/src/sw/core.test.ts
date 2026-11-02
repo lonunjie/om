@@ -52,6 +52,23 @@ describe("service worker shell", () => {
     expect(await r.shell.respond("/bundle-manifest.json", false)).toBeUndefined();
     expect([...r.caches.values()].every((c) => !c.m.has("api/v1/messages"))).toBe(true);
   });
+  it("caches a redirected response as a plain one, so a navigation can be answered with it", async () => {
+    const r = rig();
+    await r.publish("1.0.0", V1);
+    const stored: boolean[] = [];
+    const shell = createShell({
+      storage: { ...r.storage, open: async (n) => { const c = await r.storage.open(n); return { ...c, put: (p, res) => { stored.push(res.redirected); return c.put(p, res); } }; } },
+      kv: r.kv,
+      trustRoot: { roots: { keys: {}, threshold: 1 }, allowUnsignedDev: true },
+      // The host answers /index.html with a redirect to /.
+      fetchFn: async (p) => { const res = await r.fetchFn(p); return p === "index.html" ? Object.defineProperty(res, "redirected", { value: true }) : res; },
+    });
+    await shell.stage();
+    await shell.activate();
+    expect(stored.length).toBeGreaterThan(0);
+    expect(stored.every((x) => !x)).toBe(true);
+    expect(await (await shell.respond("/", true))?.text()).toBe("<html>1");
+  });
   it("keeps the old shell serving until activate, then drops it", async () => {
     const r = rig();
     await r.publish("1.0.0", V1);
