@@ -9,7 +9,7 @@ export async function noPasskeys(page: Page): Promise<void> {
   });
 }
 
-export interface OnboardOptions { readonly passphrase?: string; readonly stopAt?: "protected" | "invite" }
+export interface OnboardOptions { readonly passphrase?: string; readonly stopAt?: "protected" | "invite"; readonly name?: string }
 
 /** Walks first run on the dev harness. Returns how long the "Protect my chats" step took (Argon2id shows up here). */
 export async function onboard(page: Page, o: OnboardOptions = {}): Promise<{ readonly lockMs: number }> {
@@ -26,6 +26,7 @@ export async function walkSetup(page: Page, o: OnboardOptions = {}): Promise<{ r
     await page.getByLabel("Password", { exact: true }).fill(o.passphrase);
     await page.getByLabel("Type it again").fill(o.passphrase);
   }
+  await page.getByLabel("Your name").fill(o.name ?? "Tester");
   const t0 = Date.now();
   await page.getByRole("button", { name: "Protect my chats" }).click();
   await expect(page.getByRole("heading", { name: "Invite someone to chat" })).toBeVisible({ timeout: 60_000 });

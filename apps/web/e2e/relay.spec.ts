@@ -29,7 +29,7 @@ test("two identities talk through the configured reference Home; the Home sees o
   await expect(page.getByText("Not connected to a provider")).toHaveCount(0);
   await page.getByRole("button", { name: "Show as QR code" }).click();
   const link = (await page.locator("code[translate=no]").first().textContent())?.trim() ?? "";
-  expect(link).toMatch(/^om:invite\/[A-Za-z0-9_-]+$/);
+  expect(link).toMatch(/^https?:\/\/[^/]+\/#invite\/[A-Za-z0-9_-]+$/);
   await page.getByRole("button", { name: "Skip for now" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 

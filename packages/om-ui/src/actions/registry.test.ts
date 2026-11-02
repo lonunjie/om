@@ -38,6 +38,10 @@ describe("Action Registry", () => {
     for (const link of ["https://x.example/a", "om:invite/short", "om:other/AAAAAAAAAAAAAAAAAAAAAA", "", 5]) {
       expect(registry.resolve({ actionId: "accept-invitation", params: { link }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
     }
+    // Every shareable form reaches Core in its canonical form.
+    for (const link of ["om:invite/AAAAAAAAAAAAAAAAAAAAAA", " https://om.lonunjie.org/#invite/AAAAAAAAAAAAAAAAAAAAAA ", "Join me: https://om.lonunjie.org/#invite/AAAAAAAAAAAAAAAAAAAAAA"]) {
+      expect(intentOf(registry.resolve({ actionId: "accept-invitation", params: { link }, ctx, origin: "direct" }))).toMatchObject({ kind: "AcceptInvitation", link: "om:invite/AAAAAAAAAAAAAAAAAAAAAA" });
+    }
     expect(registry.resolve({ actionId: "create-profile", params: { label: " " }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
     expect(registry.resolve({ actionId: "confirm-recovery-key-stored", params: {}, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
   });

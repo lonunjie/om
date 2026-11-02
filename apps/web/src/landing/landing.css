@@ -20,6 +20,8 @@
 .om-landing .om-landing__by a { padding: 0; color: var(--om-color-text-secondary); text-decoration: none; }
 .om-landing .om-landing__by a:hover { color: var(--om-color-text-primary); }
 
+.om-landing__invited { padding: var(--om-space-4) var(--om-space-5); border: 2px solid var(--om-color-accent); border-radius: var(--om-radius-lg); background: var(--om-color-bg-surface); }
+.om-landing .om-landing__invited h2 { font-size: var(--om-text-lg-size); margin-block-end: var(--om-space-1); }
 .om-landing__hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: clamp(2rem, 5vw, 4rem); align-items: center; padding-block: clamp(2rem, 7vw, 5rem) clamp(2rem, 6vw, 4rem); }
 .om-landing__headline { margin-block-end: var(--om-space-4); text-wrap: balance; font-size: clamp(2.4rem, 6.2vw, 4.25rem); font-weight: 780; letter-spacing: -0.04em; line-height: 1.02; }
 .om-landing__lead { max-inline-size: 34rem; font-size: clamp(1.1rem, 2.2vw, 1.3rem); line-height: 1.55; color: var(--om-color-text-secondary); }

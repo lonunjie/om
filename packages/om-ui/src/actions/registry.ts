@@ -1,7 +1,7 @@
 // Action Registry (ADR-0159): semantic UI action id -> typed CoreIntent | query | presentation op | platform capability.
 // It has no canonical-state authority and no generic execute(name, args) path: unknown ids are rejected.
 import {
-  asConversationId, asDeviceId, asMessageId, confirmationTarget, parseDeviceLink, parseInviteLink, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
+  asConversationId, asDeviceId, asMessageId, canonicalInviteLink, confirmationTarget, parseDeviceLink, parseInviteLink, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
 } from "@om/platform-api";
 import type {
   ConfirmationToken, CoreIntent, CoreQuery, OperationId, PrivacyPolicyLevel, ProfileExecutionContext, RecoveryCustodianCode, RecoveryScope,
@@ -177,8 +177,10 @@ const SPECS: Readonly<Record<string, Spec>> = {
   "create-invite": { destructive: false, parse: () => ({ intent: (ctx, op) => ({ kind: "CreateInvite", ctx, operationId: op }) }) },
   "accept-invitation": { destructive: false, parse: (p) => {
     const link = p["link"];
-    if (typeof link !== "string" || !parseInviteLink(link).ok) return null;
-    return { intent: (ctx, op) => ({ kind: "AcceptInvitation", ctx, operationId: op, link: link.trim() }) };
+    const parsed = typeof link === "string" ? parseInviteLink(link) : null;
+    if (parsed === null || !parsed.ok) return null;
+    // Core is given its own canonical form whichever form the person pasted, scanned or opened.
+    return { intent: (ctx, op) => ({ kind: "AcceptInvitation", ctx, operationId: op, link: canonicalInviteLink(parsed.token) }) };
   } },
   "attach-media": { destructive: false, parse: () => ({ platform: { capability: "Files", purpose: "attach-media" } }) },
   "copy-text": { destructive: false, parse: (p) => {

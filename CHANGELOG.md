@@ -1,3 +1,10 @@
+# 2026-11-02 PHT — web client: invitations are links people can open; setup asks for a name
+
+- Invites are shared, copied and encoded as `https://<app address>/#invite/<token>` (token in the fragment, never sent to a server); Core keeps its own `om:invite/` form and is always given that. The app reads an opened link once, clears it from the address bar and asks "Accept this invite?" (first-run's last step, or a card above the chat list). Pasting or scanning accepts either form or a message around a link.
+- After Accept the new chat opens at once and says it is waiting for the other person; their request now explains that the name is whatever the sender typed. A slow Home no longer reads "nothing was sent".
+- Setup asks for the name the other person sees (required in the web copy; before, every chat partner was "Me").
+- E2E: two-person flow on separate devices in Chromium, Firefox and WebKit (`invite-link.spec.ts`), plus opt-in `live-invite.spec.ts` against the deployed Home. `build:e2e` is built without a default Home so `production.spec.ts` still covers "not connected".
+
 # 2026-10-28 PHT — ADR-0182: post-quantum (ML-DSA-65) co-signature on the release-root delegation
 
 - **ADR-0182** (accepted by operator delegation): the delegation needs, besides the Ed25519 2-of-3 threshold, a valid ML-DSA-65 (FIPS 204) signature from one pinned software PQ root key held only in the operator's personal vault. Algorithm-tag/pin descriptor, domain-separated signed bytes, `pqRequired` epoch with a persisted never-lowered client floor (Ed25519-only chains accepted until then; unknown algorithms fail closed), rotation and the future Ledger path. Verifiers: TS client (`@noble/post-quantum` 0.7.1, MIT, exact pin) and `verify-release.mjs` (`node:crypto`), 56 new tests (`pq-cosign.test.ts`); ceremony commands `gen-pq-root`, `show-pq-root`, `pq-sign-delegation`, `pq-payload`, `pq-attach`, `--pq-required`; runbook addendum [`KEY-CEREMONY-PQ.md`](deploy/KEY-CEREMONY-PQ.md). D-203, R-418..R-420, T-167, T-168. No PQ key is generated or pinned yet (the pins are `null`); `ROOT_KEYS`, `PINNED_ROOTS` and `KEY-CEREMONY.md` are untouched.

@@ -54,11 +54,15 @@ export const testCopy: OnboardingCopy = {
   },
   invite: {
     heading: "Add your first contact", body: "Invite someone you know.", share: "Share invite link", shareTitle: "Join me", shareText: "Open this link in OM.",
-    shareCancelled: "Sharing cancelled", shareFailed: "Sharing failed", linkLabel: "Your invite link", expires: (ms) => `Expires at ${String(ms)}`,
+    shareCancelled: "Sharing cancelled", shareFailed: "Sharing failed", linkHint: "Send this link.", copyLink: "Copy link", copied: "Copied", copyFailed: "Copy failed", sharedByCopy: "Link copied", linkLabel: "Your invite link", expires: (ms) => `Expires at ${String(ms)}`,
     showQr: "Show my QR", qrLabel: "Your invite QR code", scan: "Scan QR", scanDenied: "Camera not allowed", scanNothing: "Nothing scanned",
     acceptHeading: "Accept an invitation", acceptLabel: "Invitation link", acceptHint: "Paste an om: link you received.", accept: "Accept invitation",
     parseError: { empty: "Enter a link", too_long: "That link is too long", malformed: "That is not an OM invitation" },
     rejected: rec(REASONS, (r) => `Invitation rejected: ${r}`), failed: "Something went wrong", queued: "Saved on this device; it goes out when connected", skip: "Skip for now",
+  },
+  incoming: {
+    heading: "Accept this invite?", body: "Someone sent you an invite.", accept: "Accept invite", decline: "Not now", accepting: "Sending", parseError: "That invite link does not work.", rejected: rec(REASONS, (r) => `Invite not accepted: ${r}`),
+    failed: "Something went wrong", queued: "Saved on this device"
   },
   home: {
     toggle: "Where is my Home?", heading: "Home facts", loading: "Loading", loadFailed: "Could not load Home facts", tier: (t) => `Home tier ${t}`, intro: "A Home holds your messages.",

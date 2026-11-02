@@ -18,6 +18,11 @@ export interface OnboardingCopy {
     readonly working: string;
     readonly passkeyUser: { readonly name: string; readonly displayName: string };
     readonly defaultProfileLabel: string;
+    /**
+     * Asks for the name the other person sees (an invitation carries it). Without this slot nothing is asked and the profile
+     * gets `defaultProfileLabel`, so every chat partner would read the same word.
+     */
+    readonly name?: { readonly label: string; readonly hint: string; readonly missing: string; readonly tooLong: (max: number) => string };
     readonly resultHeading: string;
     /** Summary label for the collapsed explanation of how chats are protected. */
     readonly moreOptions: string;
@@ -83,6 +88,13 @@ export interface OnboardingCopy {
     readonly shareText: string;
     readonly shareCancelled: string;
     readonly shareFailed: string;
+    /** What to do with the link once it is on screen, in one plain sentence. */
+    readonly linkHint: string;
+    readonly copyLink: string;
+    readonly copied: string;
+    readonly copyFailed: string;
+    /** Sharing is not available here, so the link was copied instead. */
+    readonly sharedByCopy: string;
     readonly linkLabel: string;
     readonly expires: (epochMs: number) => string;
     readonly showQr: string;
@@ -100,6 +112,18 @@ export interface OnboardingCopy {
     /** The request is saved on this device and goes out once a provider is connected (nothing was sent yet). */
     readonly queued: string;
     readonly skip: string;
+  };
+  /** An invitation that arrived as a link (a camera scan or a chat app opened it): confirm, then say what happens next. */
+  readonly incoming: {
+    readonly heading: string;
+    readonly body: string;
+    readonly accept: string;
+    readonly decline: string;
+    readonly accepting: string;
+    readonly parseError: string;
+    readonly rejected: Readonly<Record<RejectReason, string>>;
+    readonly failed: string;
+    readonly queued: string;
   };
   readonly home: {
     readonly toggle: string;

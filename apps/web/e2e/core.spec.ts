@@ -30,7 +30,7 @@ test("two identities on the real Core: invite, introduction, messages both ways,
   await expect(page.getByText("E2E LOOPBACK PROVIDER, NOT PRODUCTION")).toBeVisible();
   await page.getByRole("button", { name: "Show as QR code" }).click();
   const link = (await page.locator("code[translate=no]").first().textContent())?.trim() ?? "";
-  expect(link).toMatch(/^om:invite\/[A-Za-z0-9_-]+$/);
+  expect(link).toMatch(/^https?:\/\/[^/]+\/#invite\/[A-Za-z0-9_-]+$/);
   await page.getByRole("button", { name: "Skip for now" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 

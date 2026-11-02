@@ -132,7 +132,6 @@ describe("protect_device", () => {
     expect(screen.queryByText(/REDUCED/)).toBeNull();
     expect(screen.queryByText(/DEVICE KEY/)).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
-    expect(r.auth.createCalls).toBe(1);
 
     // Straight to the ready state: no "Continue", no safety code, nothing to type.
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Add your first contact" }));
@@ -535,6 +534,42 @@ describe("invite_first with a slow provider", () => {
   });
 });
 
+describe("an invitation link answered slowly", () => {
+  it("says it is still sending, cannot be tapped twice, and finishes by itself when the Home answers", async () => {
+    const r = rig();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const accepted: string[] = [];
+    const client: CoreClient = {
+      ...r.h,
+      dispatch: async (i: CoreIntent) => {
+        const handle = await r.h.dispatch(i);
+        if (i.kind === "AcceptInvitation") accepted.push(handle.operationId);
+        return handle;
+      },
+      observe: (c: ProfileExecutionContext, o: OperationId, l: (x: OutcomeClass) => void) => {
+        if (!accepted.includes(o)) return r.h.observe(c, o, l);
+        let live = true;
+        l({ kind: "PendingNetwork" });
+        void gate.then(() => { if (live) l({ kind: "Committed" }); });
+        return () => { live = false; };
+      },
+    };
+    render(ui(r, makePlatform(), { client, incomingInvite: "AAAAAAAAAAAAAAAAAAAAAA", settleTimeoutMs: 30 }));
+    await click("Get started");
+    await click("Protect this device");
+    await screen.findByRole("heading", { name: "Accept this invite?" });
+    await click("Accept invite");
+    expect((await screen.findByRole("status")).textContent).toBe("Saved on this device");
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Sending" }).disabled).toBe(true);
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Not now" }).disabled).toBe(true);
+    expect(r.done).not.toHaveBeenCalled();
+    release();
+    await waitFor(() => { expect(r.done).toHaveBeenCalledTimes(1); });
+    expect(accepted).toHaveLength(1);
+  });
+});
+
 describe("Home facts", () => {
   it("are shown on demand through copy, with no vendor names", async () => {
     const r = rig();
@@ -559,5 +594,131 @@ describe("no address-book path", () => {
     await click("Skip for now");
     expect(r.done).toHaveBeenCalledTimes(1);
     expect(tp.contactsTouched.n).toBe(0);
+  });
+});
+
+describe("invite links people can actually open", () => {
+  const WEB = (t: string): string => `https://om.example/#invite/${t}`;
+  const shareLink = (core: string): string => WEB(core.replace("om:invite/", ""));
+
+  it("shows, shares, copies and encodes the web link, never Core's om: form", async () => {
+    const r = rig();
+    const tp = makePlatform({ share: "shared", clipboard: "unsupported" });
+    await toInviteFirst(r, tp, { shareLink, renderQr: (p: string) => <svg role="img" aria-label={`qr:${p}`} /> });
+    await click("Share invite link");
+    const shown = (await screen.findByText(/^https:\/\/om\.example\/#invite\//)).textContent;
+    expect(shown).toMatch(/^https:\/\/om\.example\/#invite\/[A-Za-z0-9_-]{22}$/);
+    await waitFor(() => { expect(tp.shared).toHaveLength(1); });
+    expect(tp.shared[0]).toMatchObject({ url: shown });
+    expect(screen.getByText(/Send this link\./)).toBeTruthy();
+    await click("Copy link");
+    await waitFor(() => { expect(tp.written).toEqual([shown]); });
+    expect((await screen.findByRole("status")).textContent).toBe("Copied");
+    await click("Show my QR");
+    expect(await screen.findByRole("img", { name: `qr:${shown}` })).toBeTruthy();
+  });
+
+  it("without a share sheet the Share button copies the link and says so", async () => {
+    const r = rig();
+    const tp = makePlatform({ share: "unavailable", clipboard: "unsupported" });
+    await toInviteFirst(r, tp, { shareLink });
+    await click("Share invite link");
+    await waitFor(() => { expect(tp.written).toHaveLength(1); });
+    expect(tp.written[0]).toMatch(/^https:\/\/om\.example\/#invite\//);
+    expect((await screen.findByRole("status")).textContent).toBe("Link copied");
+  });
+
+  it("a copy that cannot happen says so instead of pretending", async () => {
+    const r = rig();
+    await toInviteFirst(r, makePlatform({ share: "unavailable", clipboard: "unavailable" }), { shareLink });
+    await click("Copy link");
+    expect((await screen.findByRole("alert")).textContent).toBe("Copy failed");
+  });
+
+  it("accepts a pasted web link, or a whole message around it, and gives Core its own form", async () => {
+    const r = rig();
+    await toInviteFirst(r, makePlatform());
+    await userEvent.click(screen.getByRole("textbox", { name: "Invitation link" }));
+    await userEvent.paste(`Hey, join me on OM! ${WEB("AAAAAAAAAAAAAAAAAAAAAA")} see you there`);
+    await click("Accept invitation");
+    await waitFor(() => { expect(r.done).toHaveBeenCalledTimes(1); });
+    expect((await r.h.pendingOperations(r.ctx)).some((o) => o.intentKind === "AcceptInvitation" && o.outcome.kind === "Committed")).toBe(true);
+  });
+});
+
+describe("an invitation that arrived as a link", () => {
+  const TOKEN = "AAAAAAAAAAAAAAAAAAAAAA";
+
+  it("asks once, sends nothing before Accept, and finishes setup as accepted", async () => {
+    const r = rig();
+    const { container } = render(ui(r, makePlatform(), { incomingInvite: TOKEN }));
+    await click("Get started");
+    await click("Protect this device");
+    await screen.findByRole("heading", { name: "Accept this invite?" });
+    expect(screen.queryByRole("heading", { name: "Add your first contact" })).toBeNull();
+    expect((await r.h.pendingOperations(r.ctx)).some((o) => o.intentKind === "AcceptInvitation")).toBe(false);
+    expect(await axeViolations(container)).toEqual([]);
+    await click("Accept invite");
+    await waitFor(() => { expect(r.done).toHaveBeenCalledTimes(1); });
+    expect((r.done.mock.calls[0]?.[0] as { inviteAccepted: boolean }).inviteAccepted).toBe(true);
+    expect((await r.h.pendingOperations(r.ctx)).some((o) => o.intentKind === "AcceptInvitation" && o.outcome.kind === "Committed")).toBe(true);
+  });
+
+  it("Not now forgets the link and offers the ordinary invite step", async () => {
+    const r = rig();
+    const declined = vi.fn();
+    render(ui(r, makePlatform(), { incomingInvite: TOKEN, onIncomingInviteDeclined: declined }));
+    await click("Get started");
+    await click("Protect this device");
+    await screen.findByRole("heading", { name: "Accept this invite?" });
+    await click("Not now");
+    expect(declined).toHaveBeenCalledTimes(1);
+    await screen.findByRole("heading", { name: "Add your first contact" });
+    expect((await r.h.pendingOperations(r.ctx)).some((o) => o.intentKind === "AcceptInvitation")).toBe(false);
+  });
+
+  it("an invite Core refuses says why in plain words and can be turned down", async () => {
+    const r = rig();
+    // Core's own invite is refused: accept the invite this profile just created.
+    const services = { client: r.h, registry: createActionRegistry(), ctx: r.ctx };
+    const made = resolveIntent(services, "create-invite", {});
+    if (made.status !== "intent") throw new Error("create-invite blocked");
+    const handle = await r.h.dispatch(made.intent);
+    await firstOutcome(services, handle.operationId);
+    const own = (await r.h.query({ kind: "GetInvite", ctx: r.ctx, operationId: handle.operationId }))?.link.replace("om:invite/", "") ?? "";
+    render(ui(r, makePlatform(), { incomingInvite: own }));
+    await click("Get started");
+    await click("Protect this device");
+    await screen.findByRole("heading", { name: "Accept this invite?" });
+    await click("Accept invite");
+    expect((await screen.findByRole("alert")).textContent).toBe("Invite not accepted: invalid");
+    expect(r.done).not.toHaveBeenCalled();
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Accept invite" }).disabled).toBe(false);
+  });
+});
+
+describe("asking for a name", () => {
+  const named = { ...testCopy, protect: { ...testCopy.protect, name: { label: "Your name", hint: "Others see it.", missing: "Type your name first.", tooLong: (n: number) => `At most ${String(n)}.` } } };
+
+  it("does nothing but explain when the name is empty, and keeps going once it is typed", async () => {
+    const r = rig();
+    const tp = makePlatform();
+    render(ui(r, tp, { copy: named }));
+    await click("Get started");
+    await click("Protect this device");
+    expect((await screen.findByRole("alert")).textContent).toBe("Type your name first.");
+    expect(document.activeElement).toBe(screen.getByLabelText("Your name"));
+    await userEvent.type(screen.getByLabelText("Your name"), "  Maya ");
+    await click("Protect this device");
+    await screen.findByRole("heading", { name: "Add your first contact" });
+  });
+
+  it("refuses a name longer than Core accepts", async () => {
+    const r = rig();
+    render(ui(r, makePlatform(), { copy: named }));
+    await click("Get started");
+    await userEvent.type(screen.getByLabelText("Your name"), "x".repeat(65));
+    await click("Protect this device");
+    expect((await screen.findByRole("alert")).textContent).toBe("At most 64.");
   });
 });

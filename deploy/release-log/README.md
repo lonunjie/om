@@ -1,6 +1,6 @@
 # Release digest log (single-operator)
 
-`digests.jsonl` records, for each signed web release, its version, source commit and the sha256 of `site/bundle-manifest.json` and of `SHA256SUMS`.
+[`digests.jsonl`](digests.jsonl) records, for each signed web release, its version, source commit and the sha256 of `site/bundle-manifest.json` and of `SHA256SUMS`.
 Each line is signed by the delegated release key (same root -> delegation -> key chain as the bundle) and carries the sha256 of the previous line
 (`prev`; the first line uses 64 zeros). `delegations/<sha256>.json` holds the delegations the signatures refer to.
 

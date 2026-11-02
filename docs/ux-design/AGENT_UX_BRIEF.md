@@ -50,6 +50,17 @@ Power options (own password) sit behind "More options". Rules:
 - Weaker-than-expected protection (synced passkey, device key) is always visible as a note; the long explanation is a disclosure.
 - Home facts (who can see what) are disclosed at the decision point, in plain words, behind one disclosure; no provider names (a copy test enforces it).
 
+## 4a. Invitations are web links (2026-11-02)
+
+What a person sends, shows as a QR code or copies is `https://<this app's own address>/#invite/<token>`, never Core's `om:invite/<token>` (a phone camera
+or a chat app cannot open that). The token is in the fragment, so no server sees it. The app reads it once on load, removes it from the address bar and holds it
+for that tab only (`apps/web/src/invite/pendingInvite.ts`), then asks **"Accept this invite?"** (`AcceptInvite`): in first-run's last step for a new person, as a card
+above the chat list for someone already set up. Nothing is sent before Accept. Pasting or scanning accepts either form, or a whole message around a link
+(`parseInviteLink`); Core is always given its own canonical form. After Accept, Core adds the chat at once and the shell opens it: it says it is waiting for the
+other person, who sees a "Message request" that says what the name means. Setup asks for **your name** (required, the other person sees it); without it every chat
+partner would read "Me". Share = share sheet, else copy; "Copy link" is always there. A slow Home never says "nothing was sent": the card keeps watching the same
+operation and finishes by itself.
+
 ## 5. Adding a device (multi-device) — design, not yet buildable
 
 Sources: [`MULTI_DEVICE_SYNC.md`](../architecture/crypto/MULTI_DEVICE_SYNC.md), [`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md),

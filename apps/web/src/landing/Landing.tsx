@@ -7,6 +7,8 @@ export interface LandingProps {
   readonly onGetStarted?: () => void;
   /** Dynamic install control (the prerendered page has none, only the static instructions). */
   readonly installSlot?: ReactNode;
+  /** Shown above the page when this visit came from an invitation link (the running app only). */
+  readonly inviteNotice?: { readonly heading: string; readonly body: string };
 }
 
 /** Marks emphasis in copy: **bold**, and [[blue]] for the words the page leans on. They can nest, as in **we are [[one]]**. */
@@ -17,7 +19,7 @@ const rich = (text: string): ReactNode[] => text.split("**").map((part, i) => (i
  * The landing page. It uses plain elements and no imports with side effects, because the build renders it to static
  * HTML inside index.html (see build/landing.ts); styling is landing.css, loaded by the entry point.
  */
-export function Landing({ onGetStarted, installSlot }: LandingProps) {
+export function Landing({ onGetStarted, installSlot, inviteNotice }: LandingProps) {
   return (
     <main className="om-landing" id="om-landing">
       <div className="om-landing__phone" aria-hidden="true">
@@ -38,6 +40,13 @@ export function Landing({ onGetStarted, installSlot }: LandingProps) {
           <p className="om-landing__brand">{c.brand} <span className="om-landing__beta">{c.beta}</span></p>
           <p className="om-landing__by"><a href={c.byline.url} rel="noopener noreferrer">{c.byline.label}</a></p>
         </header>
+
+        {inviteNotice ? (
+          <section className="om-landing__invited" aria-labelledby="om-landing-invited-h">
+            <h2 id="om-landing-invited-h">{inviteNotice.heading}</h2>
+            <p>{inviteNotice.body}</p>
+          </section>
+        ) : null}
 
         <div className="om-landing__hero">
           <div>

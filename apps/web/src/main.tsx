@@ -1,11 +1,15 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ConfiguredApp } from "./core/ConfiguredApp";
+import { watchInviteAddress } from "./invite/pendingInvite";
 import { registerServiceWorker } from "./sw/register";
 import "./landing/landing.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root");
+
+// An invitation link opened in this tab: read the token from the address fragment before anything renders.
+watchInviteAddress();
 
 // Production: the real Core over the device vault, connected to the Home named by configuration (a stored choice, else the
 // build default VITE_OM_RELAY_URL). With none configured the app says so ("Not connected to a provider") and queues

@@ -6,6 +6,7 @@ export * from "./HomeFacts";
 export * from "./ProtectDevice";
 export * from "./RecoveryKeyStep";
 export * from "./ProtectionSummary";
+export * from "./AcceptInvite";
 export * from "./InviteFirst";
 export * from "./OnboardingFlow";
 export * from "./UnlockVault";

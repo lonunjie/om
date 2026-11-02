@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { parseInviteLink } from "@om/platform-api";
+import { canonicalInviteLink, parseInviteLink } from "@om/platform-api";
 import type { InviteView, OperationId } from "@om/platform-api";
 import { resolveIntent, settledOutcome } from "../conversations/services";
 import type { ConversationServices } from "../conversations/services";
@@ -17,6 +17,8 @@ export interface InviteFirstProps {
   /** QR encode/decode libraries are not bundled: without these slots the QR controls are hidden, not broken. */
   readonly renderQr?: (payload: string) => ReactNode;
   readonly scanQr?: () => Promise<string | null>;
+  /** The form of the invite a person sends (Core's own `om:` link is not something a phone camera or a chat app opens). */
+  readonly shareLink?: (coreLink: string) => string;
   readonly onAccepted: () => void;
   /** Omit where the step is not skippable because it is the screen itself (the empty Chats list). */
   readonly onSkip?: () => void;
@@ -28,7 +30,7 @@ export interface InviteFirstProps {
 const LONG_WAIT_MS = 2 ** 31 - 1;
 
 /** Zero-contact empty state. Contacts come only from invitations; there is no address-book path here. */
-export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAccepted, onSkip, settleTimeoutMs }: InviteFirstProps) {
+export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareLink, onAccepted, onSkip, settleTimeoutMs }: InviteFirstProps) {
   const [invite, setInvite] = useState<InviteView | null>(null);
   const [showQr, setShowQr] = useState(false);
   const [status, setStatus] = useState<{ readonly kind: "status" | "alert"; readonly text: string } | null>(null);
@@ -99,7 +101,7 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAcce
     if (!parsed.ok) { say("alert", copy.parseError[parsed.reason]); return; }
     setBusy(true);
     try {
-      const r = resolveIntent(services, "accept-invitation", { link: text });
+      const r = resolveIntent(services, "accept-invitation", { link: canonicalInviteLink(parsed.token) });
       if (r.status !== "intent") throw new Error("blocked");
       const handle = await services.client.dispatch(r.intent);
       const outcome = await settle(handle.operationId);
@@ -120,8 +122,8 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAcce
       const view = await ensureInvite();
       if (!view) return;
       const cap = platform.share();
-      if (cap.state === "unavailable") return; // the link text is already on screen as the fallback
-      const res = await cap.api.share({ title: copy.shareTitle, text: copy.shareText, url: view.link });
+      if (cap.state === "unavailable") { await copyLink(view, copy.sharedByCopy); return; } // no share sheet here: the link is copied and shown
+      const res = await cap.api.share({ title: copy.shareTitle, text: copy.shareText, url: linkOf(view) });
       if (res === "cancelled") say("status", copy.shareCancelled);
       else if (res === "failed") say("alert", copy.shareFailed);
     } catch {
@@ -129,6 +131,25 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAcce
     } finally {
       if (mounted.current) setBusy(false);
     }
+  }
+
+  const linkOf = (view: InviteView): string => (shareLink ? shareLink(view.link) : view.link);
+
+  /** Copy goes through the Action Registry like every platform capability; the invite link is not secret, so it is not marked sensitive. */
+  async function copyLink(view: InviteView | null, done: string): Promise<void> {
+    const clipboard = platform.clipboard();
+    if (!view) return;
+    const r = services.registry.resolve({ actionId: "copy-text", params: { sensitive: false }, ctx: services.ctx, origin: "direct" });
+    if (clipboard.state === "unavailable" || r.status !== "platform" || r.request.capability !== "Clipboard") { say("alert", copy.copyFailed); return; }
+    try {
+      const res = await clipboard.api.write(linkOf(view), { sensitive: false });
+      if (res === "written") say("status", done); else say("alert", copy.copyFailed);
+    } catch { say("alert", copy.copyFailed); }
+  }
+
+  async function copyClick(): Promise<void> {
+    setBusy(true);
+    try { await copyLink(await ensureInvite(), copy.copied); } finally { if (mounted.current) setBusy(false); }
   }
 
   async function qr(): Promise<void> {
@@ -165,15 +186,17 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAcce
       <Text as="p">{copy.body}</Text>
       <div className="om-onb__actions" role="group" aria-label={copy.heading} data-hidden-actions={hidden.join(" ")}>
         <Button variant="primary" disabled={busy} onClick={run(share)}>{copy.share}</Button>
+        <Button disabled={busy} onClick={run(copyClick)}>{copy.copyLink}</Button>
         {renderQr ? <Button disabled={busy} onClick={run(qr)}>{copy.showQr}</Button> : null}
         {scanQr && !hidden.includes("camera_unavailable") ? <Button disabled={busy} onClick={run(scan)}>{copy.scan}</Button> : null}
       </div>
       {invite ? (
         <div className="om-onb__invite">
           <Text as="p" size="sm" weight="bold" id="om-onb-invite-link-l">{copy.linkLabel}</Text>
-          <code className="om-onb__link" aria-labelledby="om-onb-invite-link-l" translate="no">{invite.link}</code>
+          <code className="om-onb__link" aria-labelledby="om-onb-invite-link-l" translate="no">{linkOf(invite)}</code>
+          <Text as="p" size="sm">{copy.linkHint}</Text>
           <Text as="p" size="sm" tone="secondary">{copy.expires(invite.expiresAt)}</Text>
-          {showQr && renderQr ? <figure className="om-onb__qr" aria-label={copy.qrLabel}>{renderQr(invite.link)}</figure> : null}
+          {showQr && renderQr ? <figure className="om-onb__qr" aria-label={copy.qrLabel}>{renderQr(linkOf(invite))}</figure> : null}
         </div>
       ) : null}
       <form className="om-onb__accept" aria-labelledby="om-onb-accept-h" onSubmit={(e) => { e.preventDefault(); void acceptLink(pasted); }}>

@@ -41,6 +41,8 @@ export interface ConversationCopy {
   readonly request: {
     readonly heading: string;
     readonly unknownSender: string;
+    /** One plain sentence on what the name means and when to accept. */
+    readonly hint: string;
     /** Marks a requester whose name is self-chosen and not tied to any verified account. */
     readonly unverified: string;
     readonly accept: string;

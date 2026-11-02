@@ -1,14 +1,15 @@
 // The connected application shell shared by the production Core composition and the dev/e2e entries: conversation
 // list, requests, conversation view, composer, Settings > Devices / Recovery. It only talks to a CoreClient.
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ConversationId, IntroductionRequest, OperationId } from "@om/platform-api";
 import {
   AppShell, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeScreen, LiveRegion, MessageRequest, RecoveryScreen, StrangerPressure, Text,
-  InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
+  AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import { appStrings as t, conversationCopy, onboardingCopy, deviceScannerCopy, devicesCopy, scannerCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
 import { useQrScanner } from "../qr/Scanner";
 import { CopyNotice } from "../CopyNotice";
+import "./shell.css";
 import { InstallAffordance } from "../install/InstallAffordance";
 
 type SettingsView = "menu" | "devices" | "recovery" | "home";
@@ -31,10 +32,20 @@ export interface ShellProps {
   readonly home?: HomeSettingsServices;
   readonly safetyCode?: SafetyCodeOffer;
   /** With it, an empty Chats list is the invite-first screen instead of a dead end (UI_UX_SYSTEM: first run and invitations). */
-  readonly invite?: { readonly platform: OnboardingPlatform; readonly renderQr: (payload: string) => ReactNode };
+  readonly invite?: { readonly platform: OnboardingPlatform; readonly renderQr: (payload: string) => ReactNode; readonly shareLink?: (coreLink: string) => string };
+  /** An invitation link that was opened here, and the chat it is expected to add. */
+  readonly incoming?: {
+    /** The opened link's token: the shell asks "Accept this invite?" until it is accepted or declined. */
+    readonly token: string | null;
+    /** The chats that existed when an invite was accepted: the first chat not among them is opened. Null: none expected. */
+    readonly newChatAfter: readonly string[] | null;
+    readonly onAccepted: (knownChats: readonly string[]) => void;
+    readonly onDeclined: () => void;
+    readonly onNewChatOpened: () => void;
+  };
 }
 
-export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, invite }: ShellProps) {
+export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, invite, incoming }: ShellProps) {
   const inviteScan = useQrScanner(scannerCopy);
   const [selected, setSelected] = useState<ConversationId | null>(null);
   const [settings, setSettings] = useState<SettingsView | null>(null);
@@ -42,7 +53,18 @@ export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, 
   const deviceScan = useQrScanner(deviceScannerCopy);
   const [drafts, setDrafts] = useState<ReadonlyMap<ConversationId, string>>(() => new Map());
   const list = useConversationList(services);
+  const chatsBeforeAccept = useRef<readonly string[]>([]);
   const select = (id: ConversationId): void => { setSelected(id); };
+  // An accepted invite adds its chat at once (it says it is waiting for the other person): open it so the person sees what happened.
+  const newChatAfter = incoming?.newChatAfter ?? null;
+  const newChatOpened = incoming?.onNewChatOpened;
+  useEffect(() => {
+    if (newChatAfter === null || list.status !== "ready") return;
+    const fresh = list.value.find((c) => !newChatAfter.includes(c.id));
+    if (fresh === undefined) return;
+    setSelected(fresh.id);
+    newChatOpened?.();
+  }, [newChatAfter, list, newChatOpened]);
   const profileControl = (
     <>
       <ConnectedProfileSwitcher labels={switcherLabels} />
@@ -111,23 +133,32 @@ export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, 
         labels={shellLabels}
         list={
           <>
+            {incoming?.token != null ? (
+              <section className="om-dev-requests">
+                <AcceptInvite
+                  key={incoming.token} services={services} copy={onboardingCopy.incoming} token={incoming.token}
+                  onSending={() => { chatsBeforeAccept.current = list.status === "ready" ? list.value.map((c) => c.id) : []; }}
+                  onAccepted={() => { incoming.onAccepted(chatsBeforeAccept.current); }} onDecline={incoming.onDeclined}
+                />
+              </section>
+            ) : null}
+            <StrangerPressure services={services} copy={conversationCopy.pressure} />
+            <Requests services={services} />
             {safetyCode === undefined ? null : (
               <section className="om-dev-requests" aria-label={t.safetyCode.action}>
                 <Text as="p">{t.safetyCode.reminder}</Text>
                 <Button onClick={() => { setSavingCode(true); }}>{t.safetyCode.action}</Button>
               </section>
             )}
-            <StrangerPressure services={services} copy={conversationCopy.pressure} />
-            <Requests services={services} />
             {list.status === "loading" ? <Text>{t.loading}</Text> : null}
             {list.status === "failed" ? <Text>{t.loadFailed}</Text> : null}
-            {list.status === "ready" && list.value.length === 0 && invite !== undefined ? (
+            {list.status === "ready" && list.value.length === 0 && invite !== undefined && incoming?.token == null ? (
               <InviteFirst
-                services={services} platform={invite.platform} copy={onboardingCopy.invite} renderQr={invite.renderQr} scanQr={inviteScan.scanQr}
+                services={services} platform={invite.platform} copy={onboardingCopy.invite} renderQr={invite.renderQr} scanQr={inviteScan.scanQr} {...(invite.shareLink ? { shareLink: invite.shareLink } : {})}
                 onAccepted={() => undefined}
               />
             ) : null}
-            {list.status === "ready" && !(list.value.length === 0 && invite !== undefined) ? <ConversationList conversations={list.value} selectedId={selected} onSelect={select} copy={conversationCopy} /> : null}
+            {list.status === "ready" && !(list.value.length === 0 && invite !== undefined && incoming?.token == null) ? <ConversationList conversations={list.value} selectedId={selected} onSelect={select} copy={conversationCopy} /> : null}
           </>
         }
         detail={

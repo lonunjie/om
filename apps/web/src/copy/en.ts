@@ -73,7 +73,7 @@ export const conversationCopy: ConversationCopy = {
     needsAction: NEEDS_ACTION,
   },
   relationship: {
-    awaiting_acceptance: "Waiting for them to accept your request.",
+    awaiting_acceptance: "Waiting for them to accept. They need to open OM to see your request; you can message them as soon as they do.",
     accepted_unbound: "Setting up. This person is not verified yet, and you can't send messages until it is done.",
     establishing: "Almost ready. Finishing the secure connection.",
   },
@@ -83,6 +83,7 @@ export const conversationCopy: ConversationCopy = {
   request: {
     heading: "Message request",
     unknownSender: "Not in your contacts",
+    hint: "They opened your invite link. The name is whatever they typed, so only accept if you know who it is. If you accept, you can write to each other.",
     unverified: "Unverified",
     accept: "Accept",
     ignore: "Ignore for now",
@@ -189,6 +190,12 @@ export const onboardingCopy: OnboardingCopy = {
     working: "Setting up",
     passkeyUser: { name: "OM", displayName: "OM" },
     defaultProfileLabel: "Me",
+    name: {
+      label: "Your name",
+      hint: "The people you chat with see this name. Use the one they know you by.",
+      missing: "Type your name first, so the people you invite know it is you.",
+      tooLong: (max) => `Use ${String(max)} letters or fewer.`,
+    },
     resultHeading: "How your chats are protected",
     moreOptions: "More options",
     method: METHOD,
@@ -255,6 +262,11 @@ export const onboardingCopy: OnboardingCopy = {
     shareText: "Open this link to start a private chat with me.",
     shareCancelled: "Sharing was cancelled.",
     shareFailed: "Sharing did not work. You can copy the link instead.",
+    linkHint: "Send this link to the person you want to chat with, in any app. When they open it and accept, you will get their request here.",
+    copyLink: "Copy link",
+    copied: "Link copied. Paste it into any chat or email to send it.",
+    copyFailed: "Copying did not work. Select the link and copy it by hand.",
+    sharedByCopy: "Link copied. Paste it into any chat or email to send it.",
     linkLabel: "Your invite link",
     expires: (ms) => `Expires ${timeFormat.format(ms)}`,
     showQr: "Show as QR code",
@@ -275,6 +287,31 @@ export const onboardingCopy: OnboardingCopy = {
     failed: "Something went wrong. Try again.",
     queued: "Saved on this device. It goes out as soon as OM is connected to a provider; nothing has been sent yet.",
     skip: "Skip for now",
+  },
+  incoming: {
+    heading: "Accept this invite?",
+    body: "Someone you know sent you a link to chat privately on OM. If you accept, you can write to each other. Only accept an invite from a person you trust.",
+    accept: "Accept invite",
+    decline: "Not now",
+    accepting: "Sending your answer",
+    parseError: "This invite link does not work. Ask the person to send a new one.",
+    rejected: {
+      invalid: "This invite link does not work. Check that it is not your own invite, or ask the person to send a new one.",
+      unsupported: "This version of OM cannot use that invite.",
+      unauthorized: "This invite is not for you. Ask the person to send a new one.",
+      revoked: "The person cancelled this invite. Ask them to send a new one.",
+      expired: "This invite has expired. Ask the person to send a new one.",
+      stale_state: "Something changed while you waited. Try again.",
+      conflict: "You already accepted this invite. Your chat appears when the person approves it.",
+      policy_denied: "This invite cannot be used here. Ask the person to send a new one.",
+      quota: "The service is very busy right now. Try again in a little while.",
+      rate_limited: "Too many tries. Wait a minute and try again.",
+      integrity_failure: "This invite link is damaged. Ask the person to send it again.",
+      unavailable: "OM could not reach the service. Check your connection and try again.",
+      not_found: "This invite was not found. It may have been used or cancelled. Ask the person to send a new one.",
+    },
+    failed: "Something went wrong. Try again.",
+    queued: "Still sending. The service is slow to answer, so keep this page open. If it cannot be reached, your answer waits on this device and goes out when it can.",
   },
   home: {
     toggle: "Where is my Home?",
@@ -301,6 +338,8 @@ export const switcherLabels: ProfileSwitcherLabels = { group: "Identities", curr
 
 /** Strings for the composed app that no component owns. */
 export interface AppStrings {
+  /** The landing page's note for a visit that came from someone's invitation link. */
+  readonly invitedNotice: { readonly heading: string; readonly body: string };
   readonly chats: string;
   readonly back: string;
   readonly selectConversation: string;
@@ -331,6 +370,10 @@ export interface AppStrings {
 }
 
 export const appStrings: AppStrings = {
+  invitedNotice: {
+    heading: "You were invited to chat on OM",
+    body: "Tap Get started. It takes under a minute, and then you can accept the invite. Nothing is sent until you do.",
+  },
   chats: "Chats",
   back: "Back to conversations",
   selectConversation: "Choose a conversation to read it.",

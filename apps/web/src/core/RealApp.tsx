@@ -2,7 +2,7 @@
 // unlock, the connected shell and an identity switcher. The provider is injected: production passes none and the
 // shell says so; the e2e build passes a clearly-named loopback. Nothing here knows what the provider is.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { asProfileId, type DeviceVault, type ProfileExecutionContext, type ProfileId } from "@om/platform-api";
+import { asProfileId, webInviteLink, type DeviceVault, type ProfileExecutionContext, type ProfileId } from "@om/platform-api";
 import { type WasmCoreClient } from "@om/core-wasm";
 import { browserVaultEnv, createWebDeviceVault, createWebPlatform } from "@om/web-platform";
 import {
@@ -10,6 +10,7 @@ import {
   useActiveProfile, useCaptureContext, type ActionRegistry, type HomeSettingsServices, type OnboardingPlatform, type OnboardingResult,
 } from "@om/ui";
 import { InstallAffordance } from "../install/InstallAffordance";
+import { clearExpectedNewChat, clearPendingInvite, expectNewChat, useExpectedNewChat, usePendingInvite } from "../invite/pendingInvite";
 import { Landing } from "../landing/Landing";
 import { appStrings as t, onboardingCopy, scannerCopy, unlockCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
@@ -40,6 +41,9 @@ interface Ready {
 }
 
 type Boot = { readonly k: "loading" } | { readonly k: "no_vault" } | { readonly k: "failed" } | ({ readonly k: "ready" } & Ready);
+
+/** What a person sends: a web link on this app's own address (a phone camera or a chat app opens it), never Core's `om:` form. */
+const shareLink = (coreLink: string): string => webInviteLink(coreLink, globalThis.location.origin);
 
 const newProfileId = (): ProfileId => asProfileId("p-" + Array.from(globalThis.crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join(""));
 
@@ -115,6 +119,7 @@ function Profiles({ rt, vault, registry, platform, known: initial, connected, ho
         rt={rt} vault={vault} platform={platform} pending={pending} first={known.length === 0}
         onDone={(result) => {
           if (result.safetyCodePending !== null) savePendingSafetyCode(pending.id, result.safetyCodePending);
+          if (result.inviteAccepted) { clearPendingInvite(); expectNewChat([]); }
           registryRef.current.add(pending.id).then(() => {
             setKnown((k) => [...k, pending.id]);
             setOpen((o) => new Set(o).add(pending.id));
@@ -151,6 +156,8 @@ function Connected({ rt, platform, onAddProfile, home }: { readonly rt: WasmCore
   // One frozen context per selection: a new object each render would re-run every query effect.
   const ctx = useMemo<ProfileExecutionContext | null>(() => (activeId === null ? null : capture()), [activeId, capture]);
   const [resolved, setResolved] = useState(0);
+  const token = usePendingInvite();
+  const newChatAfter = useExpectedNewChat();
   const pending = useMemo(() => (activeId === null ? null : readPendingSafetyCode(activeId)), [activeId, resolved]);
   // A code Core no longer holds (already saved elsewhere, or the data was reset) is not worth offering.
   useEffect(() => {
@@ -166,7 +173,8 @@ function Connected({ rt, platform, onAddProfile, home }: { readonly rt: WasmCore
   const resolve = (): void => { clearPendingSafetyCode(activeId); setResolved((n) => n + 1); };
   return (
     <Shell
-      key={activeId} services={{ client: rt, registry, ctx }} onAddProfile={onAddProfile} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} /> }} {...(home === undefined ? {} : { home })}
+      key={activeId} services={{ client: rt, registry, ctx }} onAddProfile={onAddProfile} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
+      incoming={{ token, newChatAfter, onAccepted: (known) => { clearPendingInvite(); expectNewChat(known); }, onDeclined: clearPendingInvite, onNewChatOpened: clearExpectedNewChat }}
       {...(pending === null ? {} : { safetyCode: { keyOperationId: pending, platform, onResolved: resolve } })}
     />
   );
@@ -177,14 +185,16 @@ interface OnboardProps { readonly rt: WasmCoreClient; readonly vault: DeviceVaul
 function Onboard({ rt, vault, platform, pending, first, onDone }: OnboardProps) {
   const registry = useMemo<ActionRegistry>(() => createActionRegistry(), []);
   const { scanQr, dialog } = useQrScanner(scannerCopy);
+  const token = usePendingInvite();
   const [started, setStarted] = useState(!first);
   // The very first run opens with the landing page; adding a further identity goes straight into setup.
-  if (!started) return <Landing onGetStarted={() => { setStarted(true); }} installSlot={<InstallAffordance />} />;
+  if (!started) return <Landing onGetStarted={() => { setStarted(true); }} installSlot={<InstallAffordance />} {...(token === null ? {} : { inviteNotice: t.invitedNotice })} />;
   return (
     <>
       <OnboardingFlow
         key={pending.id} client={rt} registry={registry} ctx={pending.ctx} vault={vault} platform={platform} copy={onboardingCopy}
-        renderQr={(payload) => <QrCode payload={payload} />} scanQr={scanQr} skipWelcome onDone={onDone}
+        renderQr={(payload) => <QrCode payload={payload} />} scanQr={scanQr} shareLink={shareLink} incomingInvite={first ? token : null} onIncomingInviteDeclined={clearPendingInvite}
+        skipWelcome onDone={onDone}
       />
       {dialog}
     </>

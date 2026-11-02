@@ -36,10 +36,10 @@ export default defineConfig({
     ...(live ? [{ command: "pnpm exec vite preview --outDir dist-live-relay --port 4178 --strictPort", cwd: "..", url: LIVE_APP, reuseExistingServer: true }] : []),
   ],
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"], launchOptions: { args: cameraArgs } }, testIgnore: /(cross|live-relay)\.spec\.ts/ },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] }, testMatch: /(cross|core|relay)\.spec\.ts/ },
-    { name: "webkit", use: { ...devices["Desktop Safari"] }, testMatch: /(cross|core|relay)\.spec\.ts/ },
-    ...(live ? [{ name: "live-chromium", use: { ...devices["Desktop Chrome"] }, testMatch: /live-relay\.spec\.ts/, timeout: 240_000 }] : []),
+    { name: "chromium", use: { ...devices["Desktop Chrome"], launchOptions: { args: cameraArgs } }, testIgnore: /(cross|live-relay|live-invite)\.spec\.ts/ },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] }, testMatch: /(cross|core|relay|invite-link)\.spec\.ts/ },
+    { name: "webkit", use: { ...devices["Desktop Safari"] }, testMatch: /(cross|core|relay|invite-link)\.spec\.ts/ },
+    ...(live ? [{ name: "live-chromium", use: { ...devices["Desktop Chrome"] }, testMatch: /live-(relay|invite)\.spec\.ts/, timeout: 240_000 }] : []),
   ],
 });
 

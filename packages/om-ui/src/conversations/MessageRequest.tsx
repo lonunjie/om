@@ -60,6 +60,7 @@ export function MessageRequest({ services, request, copy, onIgnore, onResolved }
     <section className="om-request" aria-label={c.heading}>
       <Text as="h3" size="md" weight="bold">{c.heading}</Text>
       <Text as="p" className="om-request__sender"><bdi>{request.displayName}</bdi> <span className="om-request__unknown">{c.unknownSender}</span>{request.verification === "unverified" ? <> <span className="om-request__unverified" data-verification="unverified">{c.unverified}</span></> : null}</Text>
+      <Text as="p" size="sm" tone="secondary">{c.hint}</Text>
       {phase === "confirm_block" ? (
         <div role="group" aria-label={c.blockPrompt} className="om-request__confirm">
           <Text as="p">{c.blockPrompt}</Text>

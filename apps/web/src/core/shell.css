@@ -1,0 +1,3 @@
+/* The connected shell's own blocks above the chat list (requests, an opened invitation, the safety-code reminder). Tokens only. */
+.om-dev-requests { display: grid; gap: var(--om-space-2); padding-block: var(--om-space-2) var(--om-space-4); border-block-end: 1px solid var(--om-color-border); }
+.om-dev-requests:empty { display: none; }

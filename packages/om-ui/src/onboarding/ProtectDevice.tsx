@@ -30,12 +30,17 @@ type Phase =
   | { readonly k: "profile_failed"; readonly wrapping: VaultWrappingInfo };
 
 const SLOW_PROMPT_MS = 6000;
+/** Core bounds a label at 64 characters. */
+const NAME_MAX = 64;
 
 export function ProtectDevice({ services, vault, copy, onProtected, onExistingVault, slowPromptMs = SLOW_PROMPT_MS }: ProtectDeviceProps) {
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
   const [usePassphrase, setUsePassphrase] = useState(false);
   const [pass, setPass] = useState("");
   const [passConfirm, setPassConfirm] = useState("");
+  const [name, setName] = useState("");
+  const [nameShown, setNameShown] = useState(false); // the "type a name" message appears only after a first attempt
+  const nameField = useRef<HTMLInputElement>(null);
   const [passShown, setPassShown] = useState(false); // validation message appears only after a first attempt
   const mounted = useRef(true);
   /** The device's own prompt can sit open for a minute; after a few seconds the person may skip it (the same call then uses the device key). */
@@ -52,7 +57,7 @@ export function ProtectDevice({ services, vault, copy, onProtected, onExistingVa
 
   async function createProfile(wrapping: VaultWrappingInfo): Promise<void> {
     try {
-      const r = resolveIntent(services, "create-profile", { label: copy.defaultProfileLabel });
+      const r = resolveIntent(services, "create-profile", { label: copy.name ? name.trim() : copy.defaultProfileLabel });
       if (r.status !== "intent") { set({ k: "profile_failed", wrapping }); return; }
       const handle = await services.client.dispatch(r.intent);
       const outcome = await firstOutcome(services, handle.operationId);
@@ -66,6 +71,7 @@ export function ProtectDevice({ services, vault, copy, onProtected, onExistingVa
 
   // Runs only from a click: every ceremony needs its own user gesture, so nothing here retries on its own.
   async function protect(): Promise<void> {
+    if (copy.name && nameProblem !== null) { setNameShown(true); nameField.current?.focus(); return; }
     if (usePassphrase && checkNewPassphrase(pass, passConfirm) !== null) { setPassShown(true); return; }
     set({ k: "working" });
     // A fresh buffer per attempt: the vault zeroes it. The typed text leaves component state once it is encoded.
@@ -94,11 +100,25 @@ export function ProtectDevice({ services, vault, copy, onProtected, onExistingVa
 
   const busy = phase.k === "working";
   const choosing = phase.k === "idle" || phase.k === "gesture" || phase.k === "error";
+  const nameProblem: "missing" | "too_long" | null = !copy.name ? null : name.trim() === "" ? "missing" : Array.from(name.trim()).length > NAME_MAX ? "too_long" : null;
   const passProblem = usePassphrase && passShown ? checkNewPassphrase(pass, passConfirm) : null;
   return (
     <section className="om-onb__step" aria-labelledby="om-onb-protect-h">
       <StepHeading id="om-onb-protect-h">{copy.heading}</StepHeading>
       <Text as="p">{copy.body}</Text>
+      {copy.name && (choosing || busy) ? (
+        <div className="om-onb__field">
+          <label htmlFor="om-name">{copy.name.label}</label>
+          <input
+            id="om-name" ref={nameField} className="om-onb__input om-onb__input--text" type="text" value={name} disabled={busy} maxLength={NAME_MAX * 2}
+            autoComplete="nickname" autoCapitalize="words" spellCheck={false} aria-describedby="om-name-hint" aria-invalid={nameShown && nameProblem !== null}
+            onChange={(e) => { setName(e.target.value); }}
+          />
+          <Text as="p" size="sm" tone="secondary" id="om-name-hint">{copy.name.hint}</Text>
+          {nameShown && nameProblem === "missing" ? <p role="alert" data-code="name_missing">{copy.name.missing}</p> : null}
+          {nameShown && nameProblem === "too_long" ? <p role="alert" data-code="name_too_long">{copy.name.tooLong(NAME_MAX)}</p> : null}
+        </div>
+      ) : null}
       {choosing || busy ? (
         <details className="om-onb__more">
           <summary>{copy.moreOptions}</summary>

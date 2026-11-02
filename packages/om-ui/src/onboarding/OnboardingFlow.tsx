@@ -8,6 +8,7 @@ import { Text } from "../shell/primitives/Text";
 import type { OnboardingCopy } from "./copy";
 import { flowReducer, initialFlow } from "./flow";
 import { HomeFacts } from "./HomeFacts";
+import { AcceptInvite } from "./AcceptInvite";
 import { InviteFirst } from "./InviteFirst";
 import { OnboardingFrame } from "./OnboardingFrame";
 import type { OnboardingPlatform } from "./platform";
@@ -16,7 +17,11 @@ import { ProtectionSummary } from "./ProtectionSummary";
 import { StepHeading } from "./StepHeading";
 import "./onboarding.css";
 
-export interface OnboardingResult { readonly safetyCodePending: OperationId | null }
+export interface OnboardingResult {
+  readonly safetyCodePending: OperationId | null;
+  /** An invitation was accepted during setup (the other person still has to approve it). */
+  readonly inviteAccepted: boolean;
+}
 
 export interface OnboardingFlowProps {
   readonly client: CoreClient;
@@ -35,6 +40,12 @@ export interface OnboardingFlowProps {
   readonly onExistingVault?: (reason: "already_exists" | "corrupt") => void;
   readonly renderQr?: (payload: string) => ReactNode;
   readonly scanQr?: () => Promise<string | null>;
+  /** See `InviteFirst`: the form of an invite that is shown, shared and put in the QR code. */
+  readonly shareLink?: (coreLink: string) => string;
+  /** The token of an invitation link this person opened to get here: the last step offers to accept it instead of inviting. */
+  readonly incomingInvite?: string | null;
+  /** Called when the person turns the opened invitation down. */
+  readonly onIncomingInviteDeclined?: () => void;
   /** Test seam: bound on waiting for a provider in the invite step. */
   readonly settleTimeoutMs?: number;
   /** The host already showed its own introduction (the landing page): start at "protect device". */
@@ -43,10 +54,11 @@ export interface OnboardingFlowProps {
   readonly slowPromptMs?: number;
 }
 
-export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, settleTimeoutMs, skipWelcome = false, slowPromptMs }: OnboardingFlowProps) {
+export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, shareLink, incomingInvite = null, onIncomingInviteDeclined, settleTimeoutMs, skipWelcome = false, slowPromptMs }: OnboardingFlowProps) {
   const [flow, dispatch] = useReducer(flowReducer, skipWelcome ? flowReducer(initialFlow, { type: "start" }) : initialFlow);
   const [protectedAs, setProtectedAs] = useState<{ readonly keyOperationId: OperationId; readonly wrapping: VaultWrappingInfo } | null>(null);
-  const finish = (): void => { onDone({ safetyCodePending: protectedAs?.keyOperationId ?? null }); };
+  const [declined, setDeclined] = useState(false);
+  const finish = (inviteAccepted = false): void => { onDone({ safetyCodePending: protectedAs?.keyOperationId ?? null, inviteAccepted }); };
   const services: ConversationServices = { client, registry, ctx };
 
   const total = skipWelcome ? 2 : 3;
@@ -74,11 +86,18 @@ export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, o
     case "invite_first":
       return frame(total, (
         <>
-          <InviteFirst
-            services={services} platform={platform} copy={copy.invite}
-            {...(renderQr ? { renderQr } : {})} {...(scanQr ? { scanQr } : {})} {...(settleTimeoutMs !== undefined ? { settleTimeoutMs } : {})}
-            onAccepted={finish} onSkip={finish}
-          />
+          {incomingInvite !== null && !declined ? (
+            <AcceptInvite
+              services={services} copy={copy.incoming} token={incomingInvite} {...(settleTimeoutMs !== undefined ? { settleTimeoutMs } : {})}
+              onAccepted={() => { finish(true); }} onDecline={() => { setDeclined(true); onIncomingInviteDeclined?.(); }}
+            />
+          ) : (
+            <InviteFirst
+              services={services} platform={platform} copy={copy.invite}
+              {...(renderQr ? { renderQr } : {})} {...(scanQr ? { scanQr } : {})} {...(shareLink ? { shareLink } : {})} {...(settleTimeoutMs !== undefined ? { settleTimeoutMs } : {})}
+              onAccepted={() => { finish(true); }} onSkip={() => { finish(); }}
+            />
+          )}
           <aside className="om-onb__aside">
             {protectedAs ? <ProtectionSummary wrapping={protectedAs.wrapping} platform={platform} copy={copy.protect} /> : null}
             <HomeFacts client={client} ctx={ctx} copy={copy.home} />

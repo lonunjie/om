@@ -144,6 +144,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "apps/web/.env.production",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/build-live-relay.mjs",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -473,7 +480,28 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/invite-flow.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/e2e/invite-link.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/landing.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/e2e/live-invite.spec.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -718,6 +746,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/src/core/shell.css",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/src/csp.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -761,6 +796,13 @@
     },
     {
       "path": "apps/web/src/install/useInstall.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/invite/pendingInvite.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -2749,6 +2791,20 @@
     },
     {
       "path": "deploy/release-log/README.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "deploy/release-log/delegations/e8d74640ec1fc5bdcf6215ccf28e8a086ff498a1244ce12970880a8003b695c8.json",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "deploy/release-log/digests.jsonl",
       "class": "architecture_doc",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -7893,6 +7949,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-platform-api/src/core/invite.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-platform-api/src/core/invite.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8349,6 +8412,13 @@
     },
     {
       "path": "packages/om-ui/src/index.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/onboarding/AcceptInvite.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
