@@ -1,5 +1,42 @@
-.om-onb__step { display: flex; flex-direction: column; gap: var(--om-space-3); max-inline-size: 40rem; margin-inline: auto; padding: var(--om-space-4); }
-.om-onb__heading { margin: 0; font-size: 1.5em; font-weight: var(--om-weight-bold); }
+/* First-run page: brand + progress on top, one card below. Same single column on a phone and a desktop window; the card is
+   plain on a phone and a raised surface once there is room. Tokens only, so light, dark and high contrast follow the theme. */
+.om-onb { box-sizing: border-box; min-block-size: 100dvh; display: flex; flex-direction: column; align-items: center; gap: var(--om-space-5);
+  padding: max(var(--om-space-4), env(safe-area-inset-top)) max(var(--om-space-4), env(safe-area-inset-right)) max(var(--om-space-5), env(safe-area-inset-bottom)) max(var(--om-space-4), env(safe-area-inset-left)); }
+.om-onb__top { box-sizing: border-box; inline-size: 100%; max-inline-size: 32rem; display: flex; align-items: center; justify-content: space-between; gap: var(--om-space-3); padding-block: var(--om-space-2); }
+.om-onb__brand { display: inline-flex; align-items: baseline; gap: var(--om-space-2); font-size: 1.5rem; font-weight: 800; letter-spacing: -0.04em; color: var(--om-color-accent); }
+.om-onb__beta { font-size: 0.6rem; line-height: 1; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2em 0.35rem; border: 1px solid var(--om-color-border); border-radius: 4px; color: var(--om-color-text-secondary); translate: 0 -0.2em; }
+.om-onb__progress { display: inline-flex; align-items: center; gap: var(--om-space-2); color: var(--om-color-text-secondary); font-size: var(--om-text-sm-size); }
+.om-onb__dots { display: inline-flex; gap: var(--om-space-1); }
+.om-onb__dot { inline-size: 0.5rem; block-size: 0.5rem; border-radius: var(--om-radius-pill); border: 1px solid var(--om-color-text-secondary); box-sizing: border-box; }
+.om-onb__dot[data-state="done"], .om-onb__dot[data-state="current"] { background: var(--om-color-accent); border-color: var(--om-color-accent); }
+.om-onb__dot[data-state="current"] { inline-size: 1.25rem; }
+.om-onb__card { box-sizing: border-box; inline-size: 100%; max-inline-size: 32rem; margin-block-end: auto; display: flex; flex-direction: column; gap: var(--om-space-5); }
+@media (min-width: 40rem) {
+  .om-onb__card { margin-block: auto; padding: var(--om-space-6); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-lg); background: var(--om-color-bg-surface); box-shadow: 0 10px 30px rgb(0 0 0 / 0.06); }
+}
+/* A new step arrives with a short rise and fade: it says "this is the next one" without delaying anything. Reduced motion removes it. */
+@media (prefers-reduced-motion: no-preference) {
+  .om-onb__card { animation: om-onb-arrive var(--om-motion-standard) var(--om-ease-enter) both; }
+  @keyframes om-onb-arrive { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+}
+.om-onb__aside { display: flex; flex-direction: column; gap: var(--om-space-3); padding-block-start: var(--om-space-4); border-block-start: 1px solid var(--om-color-border); }
+
+.om-onb__step { display: flex; flex-direction: column; gap: var(--om-space-3); }
+.om-onb__step > .om-text { color: var(--om-color-text-secondary); }
+/* The main action is one wide, easy target; secondary actions share the next row; "skip" sits quietly apart. */
+.om-onb__actions > .om-button { flex: 1 1 8rem; }
+.om-onb__actions > .om-button[data-variant="primary"] { flex-basis: 100%; min-block-size: 3rem; }
+.om-onb__actions > .om-button[data-variant="quiet"] { flex: 0 0 auto; margin-inline: auto; }
+.om-onb__accept { padding-block-start: var(--om-space-4); border-block-start: 1px solid var(--om-color-border); }
+
+/* The device's own prompt is open: show that OM is waiting for it, in words, with a ring that turns (a still ring for reduced motion). */
+.om-onb__waiting { display: flex; flex-direction: column; align-items: flex-start; gap: var(--om-space-3); padding: var(--om-space-4); border-radius: var(--om-radius-md); background: var(--om-color-info-bg); }
+.om-onb__spinner { inline-size: 1.5rem; block-size: 1.5rem; border-radius: 50%; border: 3px solid var(--om-color-border); border-block-start-color: var(--om-color-accent); box-sizing: border-box; }
+@media (prefers-reduced-motion: no-preference) {
+  .om-onb__spinner { animation: om-onb-spin 900ms linear infinite; }
+  @keyframes om-onb-spin { to { transform: rotate(360deg); } }
+}
+.om-onb__heading { margin: 0; font-size: 1.75em; letter-spacing: -0.02em; line-height: 1.15; font-weight: var(--om-weight-bold); }
 .om-onb__heading:focus-visible { outline: 3px solid var(--om-color-focus-ring); outline-offset: 2px; }
 .om-onb__actions { display: flex; flex-wrap: wrap; gap: var(--om-space-2); }
 .om-onb__result, .om-onb__invite, .om-onb__accept, .om-onb__home { display: flex; flex-direction: column; gap: var(--om-space-2); }

@@ -18,7 +18,8 @@ export interface InviteFirstProps {
   readonly renderQr?: (payload: string) => ReactNode;
   readonly scanQr?: () => Promise<string | null>;
   readonly onAccepted: () => void;
-  readonly onSkip: () => void;
+  /** Omit where the step is not skippable because it is the screen itself (the empty Chats list). */
+  readonly onSkip?: () => void;
   /** Bound on waiting for the provider before the step shows the honest "queued" state (default 15 s). */
   readonly settleTimeoutMs?: number;
 }
@@ -189,7 +190,7 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, onAcce
         <Button type="submit" disabled={busy}>{copy.accept}</Button>
       </form>
       {status ? <p role={status.kind === "alert" ? "alert" : "status"}>{status.text}</p> : null}
-      <div className="om-onb__actions"><Button variant="quiet" disabled={busy} onClick={onSkip}>{copy.skip}</Button></div>
+      {onSkip ? <div className="om-onb__actions"><Button variant="quiet" disabled={busy} onClick={onSkip}>{copy.skip}</Button></div> : null}
     </section>
   );
 }

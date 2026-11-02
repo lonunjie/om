@@ -1,7 +1,12 @@
 // Everything WebDeviceVault touches, injected so tests run in Node (fake-indexeddb + fake WebAuthn).
+import type { CancelSignal } from "@om/platform-api";
+
 export type Bytes = Uint8Array<ArrayBuffer>;
 
 export interface PrfValues { readonly first: Bytes; readonly second?: Bytes }
+
+/** `AbortSignal` as the browser's credentials API takes it. */
+export type SignalLike = CancelSignal;
 
 export interface PublicKeyCreateOptionsLike {
   readonly rp: { readonly name: string; readonly id: string };
@@ -24,8 +29,8 @@ export interface PublicKeyGetOptionsLike {
 
 /** `navigator.credentials` slice. Results are `unknown` and parsed defensively. */
 export interface CredentialsLike {
-  create(options: { readonly publicKey: PublicKeyCreateOptionsLike }): Promise<unknown>;
-  get(options: { readonly publicKey: PublicKeyGetOptionsLike }): Promise<unknown>;
+  create(options: { readonly publicKey: PublicKeyCreateOptionsLike; readonly signal?: SignalLike }): Promise<unknown>;
+  get(options: { readonly publicKey: PublicKeyGetOptionsLike; readonly signal?: SignalLike }): Promise<unknown>;
 }
 
 export interface VaultEnv {

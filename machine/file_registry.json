@@ -4022,6 +4022,13 @@
       "authority": "working_record_non_normative"
     },
     {
+      "path": "docs/reports/2026-11-02-multi-device-plan.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
       "path": "docs/reports/README.md",
       "class": "report",
       "domain": "architecture_process",
@@ -4160,6 +4167,13 @@
       "domain": "security_crosscutting",
       "license": "CC-BY-SA-4.0",
       "authority": "normative_security_analysis"
+    },
+    {
+      "path": "docs/ux-design/AGENT_UX_BRIEF.md",
+      "class": "design_artifact",
+      "domain": "ux_accessibility_personalization",
+      "license": "CC-BY-SA-4.0",
+      "authority": "design_reference"
     },
     {
       "path": "docs/ux-design/COMPONENT_CATALOG.md",
@@ -8356,6 +8370,13 @@
     },
     {
       "path": "packages/om-ui/src/onboarding/OnboardingFlow.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/onboarding/OnboardingFrame.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

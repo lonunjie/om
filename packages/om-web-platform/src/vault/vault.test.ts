@@ -147,6 +147,17 @@ describe("wrapper selection by test (R-391)", () => {
     expect(auth.getCalls).toBe(0);
   });
 
+  it("an aborted passkey prompt carries on with the device key in the same call", async () => {
+    const auth = new FakeAuthenticator();
+    auth.hangCreate = true;
+    const ctl = new AbortController();
+    const pending = setup({ auth }).vault.createProfileVault(A, { signal: ctl.signal });
+    await new Promise((r) => setTimeout(r, 20));
+    ctl.abort();
+    expect(await pending).toMatchObject({ ok: true, wrapping: { method: "device-key", reason: "webauthn_create_failed" } });
+    expect(auth.createCalls).toBe(1);
+  });
+
   it("no WebAuthn, a cancelled create, or an explicit request all use the device key", async () => {
     expect(await setup({ auth: null }).vault.createProfileVault(A)).toMatchObject({ ok: true, wrapping: { reason: "webauthn_absent" } });
     const auth = new FakeAuthenticator();

@@ -27,6 +27,7 @@ export const testUnlockCopy: UnlockCopy = {
 };
 
 export const testCopy: OnboardingCopy = {
+  frame: { brand: "OM", beta: "Beta", step: (n, total) => `Step ${String(n)} of ${String(total)}` },
   welcome: { heading: "Welcome", body: "Set up this device.", start: "Get started" },
   protect: {
     heading: "Protect this device", body: "Your data is locked on this device.", action: "Protect this device", working: "Protecting",
@@ -35,6 +36,7 @@ export const testCopy: OnboardingCopy = {
     reducedAtRest: "REDUCED: a synced passkey protects this vault.", deviceKeyLimit: "DEVICE KEY: a copy of this browser profile opens local data without a passkey prompt.",
     nativeRecommended: "Use a native app for Hardened protection.", limitsHeading: "What this browser cannot do", limits: rec(LIMITS, (l) => `Limit: ${l}`),
     needsGesture: rec(STAGES, (s) => `Another confirmation is needed (${s})`), continueCeremony: "Continue confirmation",
+    waiting: { body: "Waiting for this device.", slow: "Still waiting.", skip: "Skip this prompt" },
     errors: rec(VAULT_ERRORS, (e) => `Error: ${e}`), retry: "Try again",
     existing: { already_exists: "This browser already has an OM vault.", corrupt: "The OM vault here is damaged." }, openRecovery: "Open recovery",
     profileFailed: "Could not create your identity.", retryProfile: "Retry identity",

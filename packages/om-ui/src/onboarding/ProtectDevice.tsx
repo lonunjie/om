@@ -17,6 +17,8 @@ export interface ProtectDeviceProps {
   readonly onProtected: (keyOperationId: OperationId, wrapping: VaultWrappingInfo) => void;
   /** Existing or corrupt vault data: the only way forward is the recovery flow, never overwrite or recreate. */
   readonly onExistingVault?: (reason: "already_exists" | "corrupt") => void;
+  /** Test seam: how long the device prompt may stay open before the person is offered a way past it. */
+  readonly slowPromptMs?: number;
 }
 
 type Phase =
@@ -27,15 +29,26 @@ type Phase =
   | { readonly k: "existing"; readonly reason: "already_exists" | "corrupt" }
   | { readonly k: "profile_failed"; readonly wrapping: VaultWrappingInfo };
 
-export function ProtectDevice({ services, vault, copy, onProtected, onExistingVault }: ProtectDeviceProps) {
+const SLOW_PROMPT_MS = 6000;
+
+export function ProtectDevice({ services, vault, copy, onProtected, onExistingVault, slowPromptMs = SLOW_PROMPT_MS }: ProtectDeviceProps) {
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
   const [usePassphrase, setUsePassphrase] = useState(false);
   const [pass, setPass] = useState("");
   const [passConfirm, setPassConfirm] = useState("");
   const [passShown, setPassShown] = useState(false); // validation message appears only after a first attempt
   const mounted = useRef(true);
+  /** The device's own prompt can sit open for a minute; after a few seconds the person may skip it (the same call then uses the device key). */
+  const ceremony = useRef<AbortController | null>(null);
+  const [slow, setSlow] = useState(false);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const set = (p: Phase): void => { if (mounted.current) setPhase(p); };
+  const working = phase.k === "working";
+  useEffect(() => {
+    if (!working) { setSlow(false); return; }
+    const t = setTimeout(() => { setSlow(true); }, slowPromptMs);
+    return () => { clearTimeout(t); };
+  }, [working, slowPromptMs]);
 
   async function createProfile(wrapping: VaultWrappingInfo): Promise<void> {
     try {
@@ -57,10 +70,12 @@ export function ProtectDevice({ services, vault, copy, onProtected, onExistingVa
     set({ k: "working" });
     // A fresh buffer per attempt: the vault zeroes it. The typed text leaves component state once it is encoded.
     const secret = usePassphrase ? passphraseBytes(pass) : null;
+    const abort = new AbortController();
+    ceremony.current = abort;
     let result;
     try {
       result = await vault.createProfileVault(services.ctx.profileId, {
-        wrapping: "auto", passkeyUser: copy.passkeyUser,
+        wrapping: "auto", passkeyUser: copy.passkeyUser, signal: abort.signal,
         ...(secret ? { additionalFactor: { kind: "passphrase" as const, secret } } : {}),
       });
     } catch {
@@ -116,6 +131,18 @@ export function ProtectDevice({ services, vault, copy, onProtected, onExistingVa
       {phase.k === "error" ? <p role="alert" data-reason={phase.reason}>{copy.errors[phase.reason]}</p> : null}
       {phase.k === "existing" ? <p role="alert" data-reason={phase.reason}>{copy.existing[phase.reason]}</p> : null}
       {phase.k === "profile_failed" ? <p role="alert">{copy.profileFailed}</p> : null}
+      {busy ? (
+        <div className="om-onb__waiting" data-slow={slow}>
+          <span className="om-onb__spinner" aria-hidden="true" />
+          <Text as="p">{copy.waiting.body}</Text>
+          {slow && !usePassphrase ? (
+            <>
+              <Text as="p" size="sm" tone="secondary">{copy.waiting.slow}</Text>
+              <Button onClick={() => { ceremony.current?.abort(); }}>{copy.waiting.skip}</Button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
       <LiveRegion>{busy ? copy.working : ""}</LiveRegion>
       <div className="om-onb__actions">
         {phase.k === "idle" || phase.k === "working" ? <Button variant="primary" disabled={busy} onClick={run(protect)}>{busy ? copy.working : copy.action}</Button> : null}

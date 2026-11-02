@@ -15,6 +15,8 @@ A prototype never creates protocol, recovery, provider, group/publication or acc
 
 ## Current canonical design references
 
+- [`AGENT_UX_BRIEF.md`](AGENT_UX_BRIEF.md) — **start here**: one-page digest of the decisions below, for agents building screens.
+
 - [`SCREEN_MAP_AND_JOURNEYS.md`](SCREEN_MAP_AND_JOURNEYS.md) — reconciled shell/journeys.
 - [`COMPONENT_CATALOG.md`](COMPONENT_CATALOG.md) — semantic shared-UI component set.
 - [`specs/`](specs/) — detailed interaction, Omnibar, messaging, calls, security, responsive, localization and visual-system specifications.

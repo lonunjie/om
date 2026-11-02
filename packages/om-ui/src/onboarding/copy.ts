@@ -8,6 +8,8 @@ export type InviteUnavailableCode = "qr_renderer_missing" | "scan_slot_missing" 
 
 /** All user-visible strings for first run. Components contain no copy; callers supply (localized) text. */
 export interface OnboardingCopy {
+  /** Page chrome shared by every step. */
+  readonly frame: { readonly brand: string; readonly beta: string; readonly step: (n: number, total: number) => string };
   readonly welcome: { readonly heading: string; readonly body: string; readonly start: string };
   readonly protect: {
     readonly heading: string;
@@ -30,6 +32,8 @@ export interface OnboardingCopy {
     readonly limits: Readonly<Record<LimitCode, string>>;
     readonly needsGesture: Readonly<Record<VaultStage, string>>;
     readonly continueCeremony: string;
+    /** Shown while the device's own lock prompt is open: say what is happening before it feels stuck. */
+    readonly waiting: { readonly body: string; readonly slow: string; readonly skip: string };
     readonly errors: Readonly<Record<VaultErrorReason, string>>;
     readonly retry: string;
     readonly existing: Readonly<Record<"already_exists" | "corrupt", string>>;

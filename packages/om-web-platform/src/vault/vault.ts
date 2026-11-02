@@ -193,18 +193,18 @@ export function createVaultWithKdfPolicy(env: VaultEnv, policy: KdfPolicy): Devi
   }
 
   /** Method selection by test (R-391): PRF only after `prf.enabled` at create AND a 32-byte output from a later get(). */
-  async function buildWrapper(profileId: ProfileId, layer: Layer, pref: WrappingPreference, user: CreateVaultOptions["passkeyUser"]): Promise<Built> {
+  async function buildWrapper(profileId: ProfileId, layer: Layer, pref: WrappingPreference, user: CreateVaultOptions["passkeyUser"], signal?: CreateVaultOptions["signal"]): Promise<Built> {
     let reason: WrappingReason = "device_key_requested";
     if (pref === "auto") {
       const salt = randomBytes(c, PRF_SALT_BYTES);
       const input = await prfInput(c, salt);
-      const created = await createVaultCredential(env, user ?? DEFAULT_PASSKEY_USER, input);
+      const created = await createVaultCredential(env, user ?? DEFAULT_PASSKEY_USER, input, signal);
       if (!created.ok && created.reason === "needs_user_gesture") return fail("needs_user_gesture", "enroll_create");
       if (!created.ok) reason = created.reason === "unavailable" ? "webauthn_absent" : "webauthn_create_failed";
       else if (!created.value.prfEnabled) reason = "prf_not_enabled";
       else {
         const { credentialId, backup } = created.value;
-        const ev = await evaluateVaultPrf(env, env.rpId, credentialId, input);
+        const ev = await evaluateVaultPrf(env, env.rpId, credentialId, input, signal);
         if (!ev.ok && ev.reason === "needs_user_gesture") return fail("needs_user_gesture", "enroll_verify");
         if (!ev.ok) reason = "webauthn_get_failed";
         else if (ev.output?.length !== PRF_OUTPUT_BYTES) { ev.output?.fill(0); reason = "prf_no_output"; }
@@ -331,7 +331,7 @@ export function createVaultWithKdfPolicy(env: VaultEnv, policy: KdfPolicy): Devi
     const raw = randomBytes(c, PVK_BYTES);
     try {
       const layer = pass.k === "ok" ? newPassphraseLayer(profileId, raw, pass.pw, opts?.passphraseTargetMs) : plainLayer(profileId, raw);
-      const built = await buildWrapper(profileId, layer, opts?.wrapping ?? "auto", opts?.passkeyUser);
+      const built = await buildWrapper(profileId, layer, opts?.wrapping ?? "auto", opts?.passkeyUser, opts?.signal);
       if (!built.ok) return built;
       const rec: WrappedRecord = { ...built.rec, generation: 1 };
       let db: IDBDatabase | undefined;
@@ -484,7 +484,7 @@ export function createVaultWithKdfPolicy(env: VaultEnv, policy: KdfPolicy): Devi
         // changes, so rotation needs no passphrase and never sees the PVK of a passphrase-protected vault.
         const h = l.rec.passphrase;
         const layer = h === undefined ? plainLayer(profileId, u.raw) : keptPassphraseLayer(profileId, u.raw, h);
-        const built = await buildWrapper(profileId, layer, opts?.wrapping ?? "auto", opts?.passkeyUser);
+        const built = await buildWrapper(profileId, layer, opts?.wrapping ?? "auto", opts?.passkeyUser, opts?.signal);
         if (!built.ok) return built;
         const rec: WrappedRecord = { ...built.rec, generation: l.rec.generation + 1 };
         const ex = await openExisting(env.indexedDB, dbName(profileId));

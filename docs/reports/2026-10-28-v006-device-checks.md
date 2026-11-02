@@ -68,11 +68,11 @@ Open the URL. Do the steps in order. Write each answer into the results grid (se
 - the "What this browser cannot do" list, verbatim (this records push, backup, clipboard and local-discovery limits);
 - any error text ("This browser cannot protect your data safely enough for OM.", "The passkey prompt was cancelled or did not finish.", and so on) and a screenshot.
 
-**A5. Recovery key and invite (C16 setup).** Continue: write down the test recovery key, type the groups asked for, reach "Add your first contact".
+**A5. Recovery key and invite (C16 setup).** Continue: write down the test recovery key, type the groups asked for, reach "Invite someone to chat".
 
 **A6. Non-extractable key (C10).** Desktop only: paste snippet S2 (section 9). Expected when the browser-held key was chosen: one `om-vault-...` database with `hasDeviceKeyRecord: true` and `extractable: false`. Expected when the passkey method was chosen: `hasDeviceKeyRecord: false`. Record the output. On phones this check comes from the probe (Part B, section 2 of the probe) instead.
 
-**A7. Camera QR scan (C14).** Needs two devices. On the other device (call it the inviter) finish onboarding to "Add your first contact" and tap **Show as QR code**. On the device under test tap **Scan a QR code**. Record: the permission prompt text, whether the camera opened, whether the scan was accepted. Then repeat and **deny** the camera: expected "Camera access was not allowed. You can paste a link instead." Then paste the link instead and accept it. For R2/R4 this is inside the installed app.
+**A7. Camera QR scan (C14).** Needs two devices. On the other device (call it the inviter) finish onboarding to "Invite someone to chat" and tap **Show as QR code**. On the device under test tap **Scan a QR code**. Record: the permission prompt text, whether the camera opened, whether the scan was accepted. Then repeat and **deny** the camera: expected "Camera access was not allowed. You can paste a link instead." Then paste the link instead and accept it. For R2/R4 this is inside the installed app.
 
 **A8. Message smoke (C16).** After accepting, send a message from each side through the Home. Record sent, delivered, and any "queued" or "not connected" text. (This also exercises the service worker and camera in the real flow.)
 

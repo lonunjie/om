@@ -176,6 +176,7 @@ const ORIGIN: Readonly<Record<ClientOriginChoiceCode, string>> = {
 };
 
 export const onboardingCopy: OnboardingCopy = {
+  frame: { brand: "OM", beta: "Beta", step: (n, total) => `Step ${String(n)} of ${String(total)}` },
   welcome: {
     heading: "Welcome to OM",
     body: "OM keeps your chats private. Setup is one tap and needs no technical knowledge.",
@@ -199,6 +200,11 @@ export const onboardingCopy: OnboardingCopy = {
     limits: LIMITS,
     needsGesture: STAGE,
     continueCeremony: "Continue",
+    waiting: {
+      body: "Your device may ask for your fingerprint, face or screen lock. Look for a prompt and confirm it.",
+      slow: "No prompt? You can skip it. OM will then keep your chats locked with a key stored in this browser.",
+      skip: "Skip the prompt",
+    },
     errors: VAULT_ERROR,
     retry: "Try again",
     existing: {
@@ -242,7 +248,7 @@ export const onboardingCopy: OnboardingCopy = {
     confirmFailed: "That did not match. Check your written copy and try again.",
   },
   invite: {
-    heading: "Add your first contact",
+    heading: "Invite someone to chat",
     body: "Invite someone you know, or accept an invitation you were sent. You can skip this and do it later.",
     share: "Share my invite",
     shareTitle: "Chat with me on OM",

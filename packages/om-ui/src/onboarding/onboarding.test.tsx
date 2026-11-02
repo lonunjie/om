@@ -172,6 +172,24 @@ describe("protect_device", () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it("shows where you are, says what the device is doing, and lets a stuck prompt be skipped (the same call uses the device key)", async () => {
+    const auth = new FakeAuthenticator({ prf: "ok", backupEligible: false });
+    auth.hangCreate = true;
+    const r = rig(auth);
+    const { container } = render(ui(r, makePlatform(), { skipWelcome: true, slowPromptMs: 300 }));
+    expect(screen.getByRole("group", { name: "Step 1 of 2" })).toBeTruthy();
+    await click("Protect this device");
+    expect(await screen.findByText("Waiting for this device.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Skip this prompt" })).toBeNull();
+    await screen.findByRole("button", { name: "Skip this prompt" });
+    expect(await axeViolations(container)).toEqual([]);
+    await click("Skip this prompt");
+    await screen.findByRole("heading", { name: "Add your first contact" });
+    expect(screen.getByRole("group", { name: "Step 2 of 2" })).toBeTruthy();
+    expect(screen.getByText("Method: device-key")).toBeTruthy();
+    expect(auth.createCalls).toBe(1);
+  });
+
   it("needs_user_gesture waits for another click and never retries by itself", async () => {
     const auth = new FakeAuthenticator({ prf: "ok", backupEligible: false });
     const r = rig(auth);

@@ -48,6 +48,12 @@ export interface PassphraseFactor {
   readonly secret: Uint8Array;
 }
 
+/** The part of `AbortSignal` the vault needs (this package has no DOM types). */
+export interface CancelSignal {
+  readonly aborted: boolean;
+  addEventListener(type: "abort", listener: () => void, options?: { readonly once?: boolean }): void;
+}
+
 export interface CreateVaultOptions {
   readonly wrapping?: WrappingPreference;
   readonly additionalFactor?: PassphraseFactor;
@@ -58,6 +64,11 @@ export interface CreateVaultOptions {
   readonly passphraseTargetMs?: number;
   /** Shown by the passkey provider; supplied by the caller (copy stays out of the vault). */
   readonly passkeyUser?: { readonly name: string; readonly displayName: string };
+  /**
+   * Aborts a pending passkey prompt. An aborted prompt is an ordinary passkey failure: the same call carries on with the
+   * device key (reason `webauthn_create_failed` / `webauthn_get_failed`), so "skip the prompt" never races a second attempt.
+   */
+  readonly signal?: CancelSignal;
 }
 
 /** Rotation replaces the method 1/2 wrapper and keeps an existing passphrase layer unchanged (no passphrase needed). */

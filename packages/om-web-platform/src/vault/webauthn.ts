@@ -1,6 +1,6 @@
 // WebAuthn PRF ceremonies, from the measured V-006 probe (verification/prototypes/v006-web-vault).
 import type { CredentialBackup } from "@om/platform-api";
-import type { Bytes, VaultEnv } from "./env";
+import type { Bytes, SignalLike, VaultEnv } from "./env";
 import { randomBytes } from "./crypto";
 
 /** Bounded wait for document focus before every ceremony (Safari: "The document is not focused" ~1.4 s after a prompt). */
@@ -54,7 +54,7 @@ export interface CreatedCredential {
 }
 
 export async function createVaultCredential(
-  env: VaultEnv, user: { readonly name: string; readonly displayName: string }, prfIn: Bytes,
+  env: VaultEnv, user: { readonly name: string; readonly displayName: string }, prfIn: Bytes, signal?: SignalLike,
 ): Promise<{ readonly ok: true; readonly value: CreatedCredential } | CeremonyFailure> {
   if (env.credentials === undefined) return { ok: false, reason: "unavailable" };
   if (!(await waitForFocus(env))) return { ok: false, reason: "needs_user_gesture" };
@@ -68,7 +68,7 @@ export async function createVaultCredential(
       authenticatorSelection: { residentKey: "preferred", userVerification: "required" },
       timeout: CEREMONY_TIMEOUT_MS,
       extensions: { prf: { eval: { first: prfIn } } },
-    } });
+    }, ...(signal === undefined ? {} : { signal }) });
   } catch {
     return { ok: false, reason: "failed" };
   }
@@ -83,7 +83,7 @@ export async function createVaultCredential(
 
 /** `output` is undefined when the authenticator returned no PRF result (third-party providers, R-391). */
 export async function evaluateVaultPrf(
-  env: VaultEnv, rpId: string, credentialId: Bytes, prfIn: Bytes,
+  env: VaultEnv, rpId: string, credentialId: Bytes, prfIn: Bytes, signal?: SignalLike,
 ): Promise<{ readonly ok: true; readonly output: Bytes | undefined } | CeremonyFailure> {
   if (env.credentials === undefined) return { ok: false, reason: "unavailable" };
   if (!(await waitForFocus(env))) return { ok: false, reason: "needs_user_gesture" };
@@ -96,7 +96,7 @@ export async function evaluateVaultPrf(
       allowCredentials: [{ type: "public-key", id: credentialId }],
       timeout: CEREMONY_TIMEOUT_MS,
       extensions: { prf: { eval: { first: prfIn } } },
-    } });
+    }, ...(signal === undefined ? {} : { signal }) });
   } catch {
     return { ok: false, reason: "failed" };
   }

@@ -9,6 +9,7 @@ import type { OnboardingCopy } from "./copy";
 import { flowReducer, initialFlow } from "./flow";
 import { HomeFacts } from "./HomeFacts";
 import { InviteFirst } from "./InviteFirst";
+import { OnboardingFrame } from "./OnboardingFrame";
 import type { OnboardingPlatform } from "./platform";
 import { ProtectDevice } from "./ProtectDevice";
 import { ProtectionSummary } from "./ProtectionSummary";
@@ -38,42 +39,51 @@ export interface OnboardingFlowProps {
   readonly settleTimeoutMs?: number;
   /** The host already showed its own introduction (the landing page): start at "protect device". */
   readonly skipWelcome?: boolean;
+  /** Test seam: see `ProtectDevice`. */
+  readonly slowPromptMs?: number;
 }
 
-export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, settleTimeoutMs, skipWelcome = false }: OnboardingFlowProps) {
+export function OnboardingFlow({ client, registry, ctx, vault, platform, copy, onDone, onExistingVault, renderQr, scanQr, settleTimeoutMs, skipWelcome = false, slowPromptMs }: OnboardingFlowProps) {
   const [flow, dispatch] = useReducer(flowReducer, skipWelcome ? flowReducer(initialFlow, { type: "start" }) : initialFlow);
   const [protectedAs, setProtectedAs] = useState<{ readonly keyOperationId: OperationId; readonly wrapping: VaultWrappingInfo } | null>(null);
   const finish = (): void => { onDone({ safetyCodePending: protectedAs?.keyOperationId ?? null }); };
   const services: ConversationServices = { client, registry, ctx };
 
+  const total = skipWelcome ? 2 : 3;
+  const frame = (n: number, children: ReactNode): ReactNode => (
+    <OnboardingFrame copy={copy.frame} stepKey={flow.step} progress={{ n, total }}>{children}</OnboardingFrame>
+  );
+
   switch (flow.step) {
     case "welcome":
-      return (
+      return frame(1, (
         <section className="om-onb__step" aria-labelledby="om-onb-welcome-h">
           <StepHeading id="om-onb-welcome-h" focus={false}>{copy.welcome.heading}</StepHeading>
           <Text as="p">{copy.welcome.body}</Text>
           <div className="om-onb__actions"><Button variant="primary" onClick={() => { dispatch({ type: "start" }); }}>{copy.welcome.start}</Button></div>
         </section>
-      );
+      ));
     case "protect_device":
-      return (
+      return frame(total - 1, (
         <ProtectDevice
           services={services} vault={vault} copy={copy.protect}
-          {...(onExistingVault ? { onExistingVault } : {})}
+          {...(onExistingVault ? { onExistingVault } : {})} {...(slowPromptMs !== undefined ? { slowPromptMs } : {})}
           onProtected={(op, wrapping) => { setProtectedAs({ keyOperationId: op, wrapping }); dispatch({ type: "device_protected" }); }}
         />
-      );
+      ));
     case "invite_first":
-      return (
+      return frame(total, (
         <>
           <InviteFirst
             services={services} platform={platform} copy={copy.invite}
             {...(renderQr ? { renderQr } : {})} {...(scanQr ? { scanQr } : {})} {...(settleTimeoutMs !== undefined ? { settleTimeoutMs } : {})}
             onAccepted={finish} onSkip={finish}
           />
-          {protectedAs ? <ProtectionSummary wrapping={protectedAs.wrapping} platform={platform} copy={copy.protect} /> : null}
-          <HomeFacts client={client} ctx={ctx} copy={copy.home} />
+          <aside className="om-onb__aside">
+            {protectedAs ? <ProtectionSummary wrapping={protectedAs.wrapping} platform={platform} copy={copy.protect} /> : null}
+            <HomeFacts client={client} ctx={ctx} copy={copy.home} />
+          </aside>
         </>
-      );
+      ));
   }
 }

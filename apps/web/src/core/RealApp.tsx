@@ -166,7 +166,7 @@ function Connected({ rt, platform, onAddProfile, home }: { readonly rt: WasmCore
   const resolve = (): void => { clearPendingSafetyCode(activeId); setResolved((n) => n + 1); };
   return (
     <Shell
-      key={activeId} services={{ client: rt, registry, ctx }} onAddProfile={onAddProfile} {...(home === undefined ? {} : { home })}
+      key={activeId} services={{ client: rt, registry, ctx }} onAddProfile={onAddProfile} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} /> }} {...(home === undefined ? {} : { home })}
       {...(pending === null ? {} : { safetyCode: { keyOperationId: pending, platform, onResolved: resolve } })}
     />
   );

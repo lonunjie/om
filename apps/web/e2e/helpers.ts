@@ -28,7 +28,7 @@ export async function walkSetup(page: Page, o: OnboardOptions = {}): Promise<{ r
   }
   const t0 = Date.now();
   await page.getByRole("button", { name: "Protect my chats" }).click();
-  await expect(page.getByRole("heading", { name: "Add your first contact" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("heading", { name: "Invite someone to chat" })).toBeVisible({ timeout: 60_000 });
   const lockMs = Date.now() - t0;
   // "protected": open the explanation of how the chats are protected, for specs that assert on it.
   if (o.stopAt === "protected") {

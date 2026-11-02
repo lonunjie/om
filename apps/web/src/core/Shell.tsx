@@ -4,9 +4,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { ConversationId, IntroductionRequest, OperationId } from "@om/platform-api";
 import {
   AppShell, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeScreen, LiveRegion, MessageRequest, RecoveryScreen, StrangerPressure, Text,
-  RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
+  InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
-import { appStrings as t, conversationCopy, onboardingCopy, deviceScannerCopy, devicesCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
+import { appStrings as t, conversationCopy, onboardingCopy, deviceScannerCopy, devicesCopy, scannerCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
 import { useQrScanner } from "../qr/Scanner";
 import { CopyNotice } from "../CopyNotice";
 import { InstallAffordance } from "../install/InstallAffordance";
@@ -30,9 +30,12 @@ export interface ShellProps {
   /** Settings > Your Home, when the host can configure its Home (the production entry; not the dev harness). */
   readonly home?: HomeSettingsServices;
   readonly safetyCode?: SafetyCodeOffer;
+  /** With it, an empty Chats list is the invite-first screen instead of a dead end (UI_UX_SYSTEM: first run and invitations). */
+  readonly invite?: { readonly platform: OnboardingPlatform; readonly renderQr: (payload: string) => ReactNode };
 }
 
-export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode }: ShellProps) {
+export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode, invite }: ShellProps) {
+  const inviteScan = useQrScanner(scannerCopy);
   const [selected, setSelected] = useState<ConversationId | null>(null);
   const [settings, setSettings] = useState<SettingsView | null>(null);
   const [savingCode, setSavingCode] = useState(false);
@@ -118,7 +121,13 @@ export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode }
             <Requests services={services} />
             {list.status === "loading" ? <Text>{t.loading}</Text> : null}
             {list.status === "failed" ? <Text>{t.loadFailed}</Text> : null}
-            {list.status === "ready" ? <ConversationList conversations={list.value} selectedId={selected} onSelect={select} copy={conversationCopy} /> : null}
+            {list.status === "ready" && list.value.length === 0 && invite !== undefined ? (
+              <InviteFirst
+                services={services} platform={invite.platform} copy={onboardingCopy.invite} renderQr={invite.renderQr} scanQr={inviteScan.scanQr}
+                onAccepted={() => undefined}
+              />
+            ) : null}
+            {list.status === "ready" && !(list.value.length === 0 && invite !== undefined) ? <ConversationList conversations={list.value} selectedId={selected} onSelect={select} copy={conversationCopy} /> : null}
           </>
         }
         detail={
@@ -138,6 +147,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, safetyCode }
         omnibarTrigger={<Button disabled>{t.omnibar}</Button>}
         profileControl={profileControl}
       />
+      {inviteScan.dialog}
       <LiveRegion>{selected === null ? "" : t.conversationOpened}</LiveRegion>
     </>
   );

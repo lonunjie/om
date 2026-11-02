@@ -1,6 +1,6 @@
 // Test-only: fake WebAuthn authenticator (RP-ID bound, PRF = HMAC like CTAP hmac-secret), fake focus/clock, crypto spy.
 import { IDBFactory } from "fake-indexeddb";
-import type { CredentialsLike, PublicKeyCreateOptionsLike, PublicKeyGetOptionsLike, VaultEnv } from "../env";
+import type { CredentialsLike, PublicKeyCreateOptionsLike, PublicKeyGetOptionsLike, SignalLike, VaultEnv } from "../env";
 
 export type PrfMode = "ok" | "enabled_no_output" | "not_enabled";
 
@@ -15,6 +15,8 @@ export class FakeAuthenticator {
   backupEligible: boolean;
   authData = true;
   failCreate = false;
+  /** The prompt stays open until the caller's signal aborts it (a person who never answers). */
+  hangCreate = false;
   createCalls = 0;
   getCalls = 0;
   /** Runs inside every ceremony, before it resolves (to interleave operations deterministically). */
@@ -40,8 +42,9 @@ export class FakeAuthenticator {
   /** The browser binds ceremonies to the page's origin: RP ID must equal this origin's hostname. */
   credentialsFor(originHost: string): CredentialsLike {
     return {
-      create: async ({ publicKey }: { publicKey: PublicKeyCreateOptionsLike }) => {
+      create: async ({ publicKey, signal }: { publicKey: PublicKeyCreateOptionsLike; signal?: SignalLike }) => {
         this.createCalls++;
+        if (this.hangCreate) await new Promise<void>((_, reject) => { signal?.addEventListener("abort", () => { reject(Object.assign(new Error("aborted"), { name: "AbortError" })); }, { once: true }); });
         if (publicKey.rp.id !== originHost) throw Object.assign(new Error("rp"), { name: "SecurityError" });
         if (this.onCeremony) await this.onCeremony();
         if (this.failCreate) throw notAllowed();
