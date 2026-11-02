@@ -17,13 +17,14 @@ const emitHeaders = (): Plugin => ({
 // second entry it shared a chunk with the app (both use @noble/hashes) and a classic worker cannot import it: registration failed
 // silently and no production build had a service worker. It is therefore bundled on its own (IIFE, nothing shared) and emitted
 // as /sw.js before the bundle manifest is computed.
-const serviceWorker = (): Plugin => ({
+/** The worker carries the release version: browsers only reinstall a service worker whose bytes changed, and the install is what stages a new bundle. */
+const serviceWorker = (bundleVersion: string): Plugin => ({
   name: "om-service-worker",
   async generateBundle() {
     const out = await viteBuild({
       configFile: false,
       logLevel: "silent",
-      define: { __OM_DEV_BUNDLE__: JSON.stringify(dev) },
+      define: { __OM_DEV_BUNDLE__: JSON.stringify(dev), __OM_BUNDLE_VERSION__: JSON.stringify(bundleVersion) },
       build: {
         write: false,
         target: "es2023",
@@ -52,7 +53,7 @@ function localRelayCsp(): Record<string, string> {
 }
 
 const config: UserConfig = {
-  plugins: [react(), landingPlugin(), emitHeaders(), serviceWorker(), bundleManifestPlugin({ version, dev })],
+  plugins: [react(), landingPlugin(), emitHeaders(), serviceWorker(version), bundleManifestPlugin({ version, dev })],
   define: { __OM_DEV_BUNDLE__: JSON.stringify(dev) },
   build: {
     target: "es2023",

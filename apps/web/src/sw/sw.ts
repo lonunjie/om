@@ -23,6 +23,7 @@ interface SwScope {
   addEventListener(type: "fetch", l: (e: FetchEventLike) => void): void;
   addEventListener(type: "message", l: (e: MessageEventLike) => void): void;
 }
+declare const __OM_BUNDLE_VERSION__: string;
 const sw = self as unknown as SwScope;
 
 const wrap = (c: Cache): ShellCache => ({
@@ -49,7 +50,9 @@ sw.addEventListener("install", (e) => {
   e.waitUntil(shell.stage());
 });
 sw.addEventListener("activate", (e) => {
-  e.waitUntil(shell.activate());
+  // Recording the version also keeps it in the worker's bytes: a release that changes only the bundle still changes /sw.js,
+  // which is what makes an installed copy fetch, verify and stage the new bundle.
+  e.waitUntil(shell.activate().then(() => idbKv.set("worker-version", __OM_BUNDLE_VERSION__)));
 });
 sw.addEventListener("message", (e) => {
   const d = e.data;

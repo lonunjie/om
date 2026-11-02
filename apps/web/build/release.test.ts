@@ -13,6 +13,7 @@ import { signingPayload, type BundleManifest } from "../src/update/manifest";
 import { delegate, mkOnline, mkRoot, pinOf } from "./testkit";
 
 const webRoot = new URL("..", import.meta.url).pathname;
+const VERSION = (JSON.parse(readFileSync(join(webRoot, "package.json"), "utf8")) as { version: string }).version;
 const tmp = mkdtempSync(join(tmpdir(), "om-release-test-"));
 afterAll(() => {
   rmSync(tmp, { recursive: true, force: true });
@@ -37,7 +38,7 @@ describe("production build hygiene (audit H1)", () => {
     });
     expect(r.status).toBe(1);
     expect(r.stderr).toMatch(new RegExp(`refusing to build.*${name}`, "s"));
-    expect(existsSync(join(tmp, "om-web-0.0.0-dev"))).toBe(false);
+    expect(existsSync(join(tmp, `om-web-${VERSION}-dev`))).toBe(false);
   });
 
   it("vite itself refuses a production-mode build with a test flag unless the dev-bundle switch is set", { timeout: 60_000 }, () => {
@@ -82,7 +83,7 @@ describe("release script", () => {
   it("builds a verifiable dev release; tampering and --require-signed fail", { timeout: 120_000 }, () => {
     const r = run("--dev", "--no-zip", "--out", tmp);
     expect(r.status, r.stderr).toBe(0);
-    const dir = join(tmp, "om-web-0.0.0-dev");
+    const dir = join(tmp, `om-web-${VERSION}-dev`);
     expect(existsSync(join(dir, "SHA256SUMS"))).toBe(true);
     expect(verifyRelease(dir).ok).toBe(true);
     expect(verifyRelease(dir, { requireSigned: true }).ok).toBe(false);
@@ -145,7 +146,7 @@ describe("release script", () => {
     writeFileSync(rootsFile, JSON.stringify({ roots: trust.roots, threshold: 1 }));
     const delegationFile = join(tmp, "delegation.json");
     writeFileSync(delegationFile, JSON.stringify(delegation));
-    const dir = join(tmp, "om-web-0.0.0");
+    const dir = join(tmp, `om-web-${VERSION}`);
     const clone = (name: string) => { const d = join(tmp, name); cpSync(dir, d, { recursive: true }); return d; };
     const manifestOf = (d: string) => JSON.parse(readFileSync(join(d, "site/bundle-manifest.json"), "utf8")) as BundleManifest;
     const rewrite = (d: string, mut: (m: Record<string, unknown>) => void) => {
@@ -162,7 +163,7 @@ describe("release script", () => {
       const r = run(...signArgs, "--delegation", join(tmp, "nope.json"));
       expect(r.status).toBe(1);
       expect(r.stderr).toMatch(/delegation missing or unreadable/);
-      expect(existsSync(join(tmp, "om-web-0.0.0"))).toBe(false);
+      expect(existsSync(join(tmp, `om-web-${VERSION}`))).toBe(false);
     });
     it("sign.mjs refuses a missing, expired, wrongly-listed, revoked or mismatched-key delegation (no output)", () => {
       const m = { version: "1.0.0", delegation: undefined as unknown };
