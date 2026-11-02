@@ -13,7 +13,8 @@ import { CopyNotice } from "../CopyNotice";
 import { CHATS, placeTitle, placeUrl, usePlace, type SettingsPage } from "../route/place";
 import "./shell.css";
 import { InstallAffordance } from "../install/InstallAffordance";
-import { LockScreen, type LockServices } from "./LockScreen";
+import { LockScreen } from "./LockScreen";
+import type { LockServices } from "./lockServices";
 
 /** The display-once safety code Core still holds: setup did not ask for it (ADR-0111), so the shell offers it on the user's time. */
 export interface SafetyCodeOffer {

@@ -1,6 +1,6 @@
 // WebDeviceVault (DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION.md §4-5, 2026-10-01 resolution; ADR-0172 R-391/R-392).
 import type {
-  CreateVaultOptions, CreateVaultResult, CredentialBackup, DeleteVaultResult, DeviceVault, OpenResult, ProfileId,
+  ChangePassphraseOptions, ChangePassphraseResult, CreateVaultOptions, CreateVaultResult, CredentialBackup, DeleteVaultResult, DeviceVault, OpenResult, ProfileId,
   PassphraseFactor, RotateOptions, RotateResult, SealResult, UnlockOptions, UnlockResult, VaultCapabilities, VaultError, VaultErrorReason,
   VaultPurpose, VaultStage, VaultStatus, VaultWrappingInfo, WrappingInfoResult, WrappingMethod, WrappingPreference, WrappingReason,
 } from "@om/platform-api";
@@ -265,7 +265,7 @@ export function createVaultWithKdfPolicy(env: VaultEnv, policy: KdfPolicy): Devi
   /** Raw PVK (format 1) or the passphrase inner layer (format 2) through the stored method wrapper (caller zeroes it). */
   async function unwrapStored(
     rec: WrappedRecord, deviceKey: CryptoKey | undefined, stage: "unlock" | "rotate_unwrap",
-  ): Promise<{ readonly ok: true; readonly raw: Bytes } | VaultError<"needs_user_gesture" | "ceremony_failed" | "prf_unavailable" | "unwrap_failed" | "crypto_failed">> {
+  ): Promise<{ readonly ok: true; readonly raw: Bytes; readonly kek: CryptoKey } | VaultError<"needs_user_gesture" | "ceremony_failed" | "prf_unavailable" | "unwrap_failed" | "crypto_failed">> {
     let kek: CryptoKey;
     if (rec.prf === undefined) {
       if (deviceKey === undefined) return fail("unwrap_failed");
@@ -279,7 +279,7 @@ export function createVaultWithKdfPolicy(env: VaultEnv, policy: KdfPolicy): Devi
       try { kek = await prfKek(c, ev.output, rec.prf.salt); } catch { return fail("crypto_failed"); }
     }
     const raw = await unwrapPvk(c, kek, rec, rec.profileId, rec.method, rec.passphrase);
-    return raw === undefined ? fail("unwrap_failed") : { ok: true, raw };
+    return raw === undefined ? fail("unwrap_failed") : { ok: true, raw, kek };
   }
 
   async function install(profileId: ProfileId, raw: Bytes): Promise<void> {
@@ -376,6 +376,34 @@ export function createVaultWithKdfPolicy(env: VaultEnv, policy: KdfPolicy): Devi
     let k = s.subkeys.get(purpose);
     if (k === undefined) { k = deriveSubkey(c, s.base, purpose); s.subkeys.set(purpose, k); }
     return k;
+  }
+
+  /** Replaces the stored wrapper record in one compare-and-swap transaction, leaving the device key where it is. */
+  async function swapWrapper(profileId: ProfileId, prev: WrappedRecord, rec: WrappedRecord): Promise<{ readonly ok: true } | VaultError<"conflict" | "storage_failed" | "not_found" | "corrupt">> {
+    const ex = await openExisting(env.indexedDB, dbName(profileId));
+    if (ex.kind !== "open") return fail(ex.kind === "absent" ? "not_found" : ex.kind === "unusable" ? "corrupt" : "storage_failed");
+    const cas = { conflict: false };
+    try {
+      const tx = ex.db.transaction([STORE_WRAPPED], "readwrite");
+      const done = committed(tx);
+      const wrappedStore = tx.objectStore(STORE_WRAPPED);
+      const cur = wrappedStore.get(WRAPPED_ID);
+      cur.onsuccess = () => {
+        const now = parse(cur.result, profileId);
+        if (now === undefined || now.generation !== prev.generation || !equalBytes(now.nonce, prev.nonce)) {
+          cas.conflict = true;
+          tx.abort();
+          return;
+        }
+        wrappedStore.put(rec, WRAPPED_ID);
+      };
+      await done;
+      return { ok: true };
+    } catch {
+      return fail(cas.conflict ? "conflict" : "storage_failed");
+    } finally {
+      ex.db.close();
+    }
   }
 
   const vault: DeviceVault = {
@@ -522,6 +550,52 @@ export function createVaultWithKdfPolicy(env: VaultEnv, policy: KdfPolicy): Devi
         return fail("crypto_failed");
       } finally {
         u.raw.fill(0);
+      }
+    },
+
+    async changePassphrase(profileId, opts: ChangePassphraseOptions): Promise<ChangePassphraseResult> {
+      const current = takePassphrase(opts.current);
+      const next = takePassphrase(opts.next);
+      try {
+        if (!isValidProfileId(profileId)) return fail("invalid_profile_id");
+        if (current.k === "unsupported" || next.k === "unsupported") return fail("unsupported_factor");
+        // An omitted `next` removes the layer; one that was given but is empty or not UTF-8 is refused, never read as "remove".
+        if (opts.next !== undefined && next.k !== "ok") return fail("passphrase_required");
+        const l = await load(profileId);
+        if (l.kind !== "ok") return fail(loadFailure(l.kind));
+        const h = l.rec.passphrase;
+        // Checked before any ceremony: a missing or wrong current passphrase never costs a passkey prompt (the wrong one is found below).
+        if (h !== undefined && current.k !== "ok") return fail("passphrase_required");
+        const u = await unwrapStored(l.rec, l.deviceKey, "rotate_unwrap");
+        if (!u.ok) return u;
+        let raw: Bytes | undefined = u.raw;
+        if (h !== undefined && current.k === "ok") {
+          try {
+            raw = await openPassphraseInner(c, await passphraseKek(c, current.pw, h), u.raw, profileId, h);
+          } catch {
+            return fail("crypto_failed");
+          } finally {
+            u.raw.fill(0);
+          }
+          if (raw === undefined) return fail("wrong_passphrase");
+        }
+        try {
+          // The same method key wraps the new layers, so a device key or a passkey is neither replaced nor asked for twice.
+          const layer = next.k === "ok" ? newPassphraseLayer(profileId, raw, next.pw, opts.passphraseTargetMs) : plainLayer(profileId, raw);
+          const w = await layer(u.kek, l.rec.method);
+          const rec: WrappedRecord = {
+            ...w, profileId, method: l.rec.method, reason: l.rec.reason, generation: l.rec.generation + 1, ...(l.rec.prf === undefined ? {} : { prf: l.rec.prf }),
+          };
+          const swapped = await swapWrapper(profileId, l.rec, rec);
+          return swapped.ok ? { ok: true, wrapping: infoOf(rec) } : swapped;
+        } catch {
+          return fail("crypto_failed");
+        } finally {
+          raw.fill(0);
+        }
+      } finally {
+        wipe(current);
+        wipe(next);
       }
     },
   };

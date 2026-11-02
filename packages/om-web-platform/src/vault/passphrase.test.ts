@@ -237,6 +237,76 @@ describe("passphrase layer: rotation keeps it", () => {
   });
 });
 
+describe("passphrase layer: add, change and remove on an existing vault", () => {
+  for (const method of ["device-key", "webauthn-prf"] as const) {
+    it(`adds, changes and removes it over ${method}; the data and the method key stay as they were`, async () => {
+      const auth = method === "webauthn-prf" ? new FakeAuthenticator({ prf: "ok", backupEligible: false }) : null;
+      const { env, vault } = setup({ auth });
+      await vault.createProfileVault(A, { wrapping: method === "device-key" ? "device-key" : "auto" });
+      const sealed = await sealOk(vault, "kept through every change");
+      const creds = auth?.creds.size ?? 0;
+      const before = await getRec(env);
+
+      const first = pass("first horse battery staple");
+      expect(await vault.changePassphrase(A, { next: first })).toMatchObject({ ok: true, wrapping: { method, passphraseProtected: true } });
+      expect(first.secret.every((b) => b === 0)).toBe(true);
+      expect((await getRec(env)).generation).toBe(before.generation + 1);
+      expect(await rawStore(env, A, STORE_DEVICE_KEY, (s) => s.count())).toBe(method === "device-key" ? 1 : 0);
+      expect(auth?.creds.size ?? 0).toBe(creds); // no new passkey was made
+      vault.lock(A);
+      expect(await vault.unlock(A)).toEqual({ ok: false, reason: "passphrase_required" });
+      expect(await vault.unlock(A, { passphrase: pass("first horse battery staple") })).toEqual({ ok: true });
+      expect(await opened(vault, sealed)).toBe("kept through every change");
+
+      expect(await vault.changePassphrase(A, { current: pass("first horse battery staple"), next: pass("second horse battery staple") })).toMatchObject({ ok: true, wrapping: { passphraseProtected: true } });
+      vault.lock(A);
+      expect(await vault.unlock(A, { passphrase: pass("first horse battery staple") })).toEqual({ ok: false, reason: "wrong_passphrase" });
+      expect(await vault.unlock(A, { passphrase: pass("second horse battery staple") })).toEqual({ ok: true });
+
+      expect(await vault.changePassphrase(A, { current: pass("second horse battery staple") })).toMatchObject({ ok: true, wrapping: { method, passphraseProtected: false } });
+      expect((await getRec(env)).format).toBe(1);
+      vault.lock(A);
+      expect(await vault.unlock(A)).toEqual({ ok: true });
+      expect(await opened(vault, sealed)).toBe("kept through every change");
+    });
+  }
+
+  it("refuses without touching anything: a wrong or missing current passphrase, an empty new one, a bad id", async () => {
+    const { env, vault } = setup();
+    await vault.createProfileVault(A, { wrapping: "device-key", additionalFactor: pass("right horse battery staple") });
+    const before = await getRec(env);
+    expect(await vault.changePassphrase(A, { next: pass("another horse battery staple") })).toEqual({ ok: false, reason: "passphrase_required" });
+    expect(await vault.changePassphrase(A, { current: pass("wrong horse battery staple") })).toEqual({ ok: false, reason: "wrong_passphrase" });
+    expect(await vault.changePassphrase(A, { current: pass("right horse battery staple"), next: pass("") })).toEqual({ ok: false, reason: "passphrase_required" });
+    expect(await vault.changePassphrase("../x" as ProfileId, { next: pass("anything long enough") })).toEqual({ ok: false, reason: "invalid_profile_id" });
+    expect(await vault.changePassphrase(asProfileId("absent"), { next: pass("anything long enough") })).toEqual({ ok: false, reason: "not_found" });
+    expect(await getRec(env)).toEqual(before);
+  });
+
+  it("a passphrase given as 'current' for a vault without one is ignored and zeroed", async () => {
+    const { vault } = setup();
+    await vault.createProfileVault(A, { wrapping: "device-key" });
+    const stray = pass("not needed here");
+    expect(await vault.changePassphrase(A, { current: stray, next: pass("a brand new horse staple") })).toMatchObject({ ok: true, wrapping: { passphraseProtected: true } });
+    expect(stray.secret.every((b) => b === 0)).toBe(true);
+  });
+
+  it("a change that races another one is detected (compare-and-swap) and leaves a consistent wrapper", async () => {
+    const auth = new FakeAuthenticator({ prf: "ok", backupEligible: false });
+    const { vault } = setup({ auth });
+    await vault.createProfileVault(A);
+    let inner: unknown;
+    auth.onCeremony = async () => {
+      auth.onCeremony = undefined;
+      inner = await vault.changePassphrase(A, { next: pass("the winning horse staple") });
+    };
+    expect(await vault.changePassphrase(A, { next: pass("the losing horse staple") })).toEqual({ ok: false, reason: "conflict" });
+    expect(inner).toMatchObject({ ok: true });
+    vault.lock(A);
+    expect(await vault.unlock(A, { passphrase: pass("the winning horse staple") })).toEqual({ ok: true });
+  });
+});
+
 describe("format 1 compatibility", () => {
   it("a format 1 record built with the original construction (written out here) still unlocks", async () => {
     const env = fakeEnv({ auth: null });

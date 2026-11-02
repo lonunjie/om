@@ -864,17 +864,55 @@ export const homeCopy: HomeCopy = {
   back: "Back to settings",
 };
 
-/** Settings > Lock: what protects this device, without technical words. Read-only until the vault can change its lock. */
+/** Settings > Lock: what protects this device and how to change it, without technical words. */
 export const lockCopy = {
   heading: "Lock",
   loading: "Checking",
   failed: "Could not read how this device is locked.",
   warning: "Anyone who can use this browser can read your chats.",
-  fixed: "You cannot change this here yet.",
   modes: {
     none: { title: "Not locked on this device", body: "OM opens by itself, without asking for a fingerprint, a code or a password." },
     device: { title: "Locked by this device", body: "OM asks for your fingerprint, face or device code each time you open it." },
     "device-shared": { title: "Locked by your passkey", body: "OM asks for your passkey each time you open it. The company or app that keeps your passkey copies it between your devices, so anyone who can sign in there could open your chats." },
     password: { title: "Locked by your password", body: "OM asks for your password each time you open it." },
+  },
+  changeHeading: "Change how OM opens",
+  actions: {
+    addPassword: { title: "Add a password", hint: "OM asks for it each time it opens." },
+    changePassword: { title: "Change password", hint: "Pick a new one. You need the current one." },
+    removePassword: { title: "Remove password", hint: "Keep the device prompt, drop the password." },
+    devicePrompt: { title: "Use this device's fingerprint, face or code", hint: "Uses a passkey kept by this device." },
+    stop: { title: "Stop locking on this device", hint: "OM will open without asking." },
+  },
+  password: {
+    current: "Current password",
+    next: "New password",
+    again: "Type it again",
+    save: "Save password",
+    remove: "Remove password",
+    cancel: "Cancel",
+    working: "Saving. This takes a few seconds.",
+  },
+  device: {
+    body: "Your browser will ask you to confirm twice: once to make the passkey, once to check it.",
+    start: "Continue",
+    waiting: "Confirm on this device.",
+    cancel: "Cancel",
+    unavailable: "This browser could not use a device prompt, so nothing changed.",
+  },
+  stop: {
+    heading: "Stop locking on this device?",
+    warning: "Anyone who can use this browser, or copy its data, can read your chats. Only do this on a device that only you use.",
+    confirm: "Stop locking",
+    cancel: "Keep locking",
+  },
+  done: "Saved",
+  idle: {
+    heading: "Lock when I am away",
+    hint: "OM locks itself and asks again after you have not touched it for a while.",
+    never: "Only when I close OM",
+    after: (minutes: number) => (minutes === 60 ? "After 1 hour" : minutes === 1 ? "After 1 minute" : `After ${String(minutes)} minutes`),
+    needsLock: "Add a password or use this device's prompt first. A device that opens by itself has nothing to lock.",
+    now: "Lock now",
   },
 } as const;

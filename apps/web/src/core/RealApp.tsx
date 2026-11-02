@@ -21,7 +21,9 @@ import { unavailableProvider, type ConfiguredProvider } from "./provider";
 import { createProfileRegistry, type ProfileRegistry } from "./registry";
 import { clearPendingSafetyCode, readPendingSafetyCode, savePendingSafetyCode } from "./safetyCode";
 import { Shell } from "./Shell";
-import type { LockServices } from "./LockScreen";
+import { createLockServices, type LockServices } from "./lockServices";
+import { readIdleMinutes, writeIdleMinutes, type IdleMinutes } from "./lockPrefs";
+import { useIdleLock } from "./useIdleLock";
 
 export interface RealAppProps {
   /** `null`: no provider is configured; the app says so and queues everything locally. */
@@ -112,6 +114,22 @@ function Profiles({ rt, vault, registry, platform, known: initial, connected, ho
   const [error, setError] = useState(false);
   const store = useMemo(() => createProfileScopedState(createMemoryKeyValue()), []); // in memory only: nothing persisted
   const registryRef = useRef(registry);
+  const [idle, setIdleState] = useState<IdleMinutes>(readIdleMinutes);
+  const openRef = useRef(open);
+  openRef.current = open;
+
+  /** Locks every open identity that has something to unlock with (a password or a passkey). A key kept in this browser has nothing to ask for, so locking it would only flicker. */
+  const lockOpen = useCallback(async (): Promise<void> => {
+    const lockable: ProfileId[] = [];
+    for (const id of openRef.current) {
+      const w = await vault.wrapping(id);
+      if (w.ok && (w.wrapping.passphraseProtected || w.wrapping.method === "webauthn-prf")) lockable.push(id);
+    }
+    if (lockable.length === 0) return;
+    for (const id of lockable) { rt.closeProfile(id); vault.lock(id); }
+    setOpen((o) => { const n = new Set(o); for (const id of lockable) n.delete(id); return n; });
+  }, [rt, vault]);
+  const setIdle = useCallback((minutes: IdleMinutes): void => { writeIdleMinutes(minutes); setIdleState(minutes); }, []);
 
   const begin = useCallback((): void => {
     const id = newProfileId();
@@ -127,6 +145,7 @@ function Profiles({ rt, vault, registry, platform, known: initial, connected, ho
   }, [initial, begin]);
 
   const firstLocked = known.find((p) => !open.has(p));
+  useIdleLock({ minutes: idle, enabled: pending === null && firstLocked === undefined && open.size > 0, onIdle: () => { void lockOpen(); } });
   if (error) return <Notice heading={t.coreFailed.heading} body={t.coreFailed.body} />;
   if (pending !== null) {
     return (
@@ -159,12 +178,17 @@ function Profiles({ rt, vault, registry, platform, known: initial, connected, ho
   return (
     <ProfileProvider client={rt} contexts={rt} store={store} {...(known[0] === undefined ? {} : { initialProfileId: known[0] })}>
       {connected ? null : <p role="status" className="om-notice-bar">{t.providerStatus.none}</p>}
-      <Connected rt={rt} vault={vault} platform={platform} onAddProfile={begin} {...(home === undefined ? {} : { home })} />
+      <Connected rt={rt} vault={vault} platform={platform} onAddProfile={begin} lockOpen={lockOpen} idle={idle} setIdle={setIdle} {...(home === undefined ? {} : { home })} />
     </ProfileProvider>
   );
 }
 
-function Connected({ rt, vault, platform, onAddProfile, home }: { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices }) {
+interface ConnectedProps {
+  readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices;
+  readonly lockOpen: () => Promise<void>; readonly idle: IdleMinutes; readonly setIdle: (minutes: IdleMinutes) => void;
+}
+
+function Connected({ rt, vault, platform, onAddProfile, home, lockOpen, idle, setIdle }: ConnectedProps) {
   const registry = useMemo(() => createActionRegistry(), []);
   const active = useActiveProfile();
   const capture = useCaptureContext();
@@ -185,7 +209,10 @@ function Connected({ rt, vault, platform, onAddProfile, home }: { readonly rt: W
     );
     return () => { live = false; };
   }, [rt, activeId, ctx, pending]);
-  const lock = useMemo<LockServices | null>(() => (activeId === null ? null : { wrapping: async () => { const r = await vault.wrapping(activeId); return r.ok ? r.wrapping : null; } }), [vault, activeId]);
+  const lock = useMemo<LockServices | null>(
+    () => (activeId === null ? null : createLockServices({ vault, profileId: activeId, passkeyUser: onboardingCopy.protect.passkeyUser, lockOpen, idleMinutes: () => idle, setIdleMinutes: setIdle })),
+    [vault, activeId, lockOpen, idle, setIdle],
+  );
   if (activeId === null || ctx === null || lock === null) return <Text>{t.loading}</Text>;
   const resolve = (): void => { clearPendingSafetyCode(activeId); setResolved((n) => n + 1); };
   return (

@@ -74,6 +74,18 @@ export interface CreateVaultOptions {
 /** Rotation replaces the method 1/2 wrapper and keeps an existing passphrase layer unchanged (no passphrase needed). */
 export type RotateOptions = Omit<CreateVaultOptions, "additionalFactor" | "passphraseTargetMs">;
 
+/**
+ * Adds, changes or removes the passphrase layer of an existing vault. The profile key and every sealed record stay as they
+ * are; only the wrapper around the key is rebuilt, under the same method key (same device key or same passkey).
+ * `current` is needed when a passphrase is set (and is checked); `next` is the new passphrase, and omitting it removes the layer.
+ */
+export interface ChangePassphraseOptions {
+  readonly current?: PassphraseFactor;
+  readonly next?: PassphraseFactor;
+  /** As `CreateVaultOptions.passphraseTargetMs`, for the new passphrase. */
+  readonly passphraseTargetMs?: number;
+}
+
 export interface UnlockOptions {
   /** Required when `VaultWrappingInfo.passphraseProtected`; ignored (and zeroed) otherwise. */
   readonly passphrase?: PassphraseFactor;
@@ -143,6 +155,11 @@ export type RotateResult =
   | VaultError<"invalid_profile_id" | "not_found" | "corrupt" | "conflict" | "unwrap_failed" | "crypto_failed"
       | "storage_failed" | Ceremony>;
 
+export type ChangePassphraseResult =
+  | { readonly ok: true; readonly wrapping: VaultWrappingInfo }
+  | VaultError<"invalid_profile_id" | "not_found" | "corrupt" | "conflict" | "unwrap_failed" | "crypto_failed" | "storage_failed"
+      | "passphrase_required" | "wrong_passphrase" | "unsupported_factor" | Ceremony>;
+
 export type WrappingInfoResult =
   | { readonly ok: true; readonly wrapping: VaultWrappingInfo }
   | VaultError<"invalid_profile_id" | "not_found" | "corrupt" | "storage_failed">;
@@ -171,6 +188,8 @@ export interface DeviceVault {
   deleteProfileVault(profileId: ProfileId): Promise<DeleteVaultResult>;
   /** Re-wraps the same PVK under a fresh wrapper; sealed data is not re-encrypted. */
   rotateWrapping(profileId: ProfileId, opts?: RotateOptions): Promise<RotateResult>;
+  /** Adds, changes or removes the passphrase layer (see `ChangePassphraseOptions`). A passkey vault needs a user gesture for its prompt. */
+  changePassphrase(profileId: ProfileId, opts: ChangePassphraseOptions): Promise<ChangePassphraseResult>;
 }
 
 export type KvResult = { readonly ok: true } | VaultError<VaultErrorReason>;

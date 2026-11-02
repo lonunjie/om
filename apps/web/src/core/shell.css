@@ -62,10 +62,28 @@
 .om-lock { display: grid; gap: var(--om-space-4); }
 .om-lock h1 { margin: 0; }
 .om-lock__state { display: flex; gap: var(--om-space-3); padding: var(--om-space-4); border-radius: var(--om-radius-lg); background: var(--om-color-success-bg); color: var(--om-color-success-fg); }
-.om-lock__state[data-mode="none"], .om-lock__state[data-mode="device-shared"] { background: var(--om-color-danger-bg, var(--om-color-warning-bg)); color: var(--om-color-danger-fg, var(--om-color-warning-fg)); }
+.om-lock__state[data-mode="none"], .om-lock__state[data-mode="device-shared"] { background: var(--om-color-danger-bg); color: var(--om-color-danger-fg); }
 .om-lock__icon { flex: none; display: grid; place-items: center; inline-size: 2.5rem; block-size: 2.5rem; border-radius: 50%; background: color-mix(in srgb, currentColor 14%, transparent); }
 .om-lock__text { display: grid; gap: var(--om-space-1); min-inline-size: 0; }
 .om-lock__text .om-text { color: inherit; }
+.om-lock__section, .om-lock__panel { display: grid; gap: var(--om-space-3); }
+.om-lock__section .om-menu__list { margin-inline: calc(-1 * var(--om-space-4)); }
+.om-lock__section h2, .om-lock__panel h2 { margin: 0; }
+.om-lock__panel { padding: var(--om-space-4); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-lg); background: var(--om-color-bg-raised); animation: om-rise var(--om-motion-standard) var(--om-ease-enter) both; }
+.om-lock__panel--danger { border-color: var(--om-color-danger-fg); background: var(--om-color-danger-bg); }
+.om-lock__danger-note { margin: 0; font-weight: var(--om-weight-bold); color: var(--om-color-danger-fg); }
+.om-lock__action[data-danger="true"] .om-menu__title { color: var(--om-color-danger-fg); }
+.om-lock__action[data-danger="true"] .om-menu__icon { background: var(--om-color-danger-bg); color: var(--om-color-danger-fg); }
+.om-button.om-button--danger[data-variant] { border-color: var(--om-color-danger-fg); background: var(--om-color-danger-fg); color: var(--om-color-danger-bg); }
+.om-lock__choices { display: grid; gap: var(--om-space-1); margin: 0; padding: 0; border: 0; }
+.om-lock__choice { display: flex; align-items: center; gap: var(--om-space-2); min-block-size: var(--om-target-min); cursor: pointer; }
+.om-lock__waiting { display: flex; align-items: center; gap: var(--om-space-3); margin: 0; }
+/* A saved change: a green tick in a circle that pops in and fades by itself (the word is for screen readers). */
+.om-lock__done { margin: 0; display: flex; justify-content: center; min-block-size: 2rem; }
+.om-lock__done-mark { display: grid; place-items: center; inline-size: 2rem; block-size: 2rem; border-radius: 50%; background: var(--om-color-success-bg); color: var(--om-color-success-fg); box-shadow: inset 0 0 0 2px var(--om-color-success-fg); }
+@media (prefers-reduced-motion: no-preference) {
+  .om-lock__done-mark { animation: om-onb-done 2600ms var(--om-ease-enter) both; }
+}
 
 /* The app is starting: the OM mark, round, with a ring that turns while Core loads. */
 .om-starting { min-block-size: 100dvh; box-sizing: border-box; display: grid; place-content: center; justify-items: center; gap: var(--om-space-4); padding: var(--om-space-4); text-align: center; }
