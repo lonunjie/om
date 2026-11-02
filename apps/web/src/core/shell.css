@@ -1,3 +1,37 @@
-/* The connected shell's own blocks above the chat list (requests, an opened invitation, the safety-code reminder). Tokens only. */
-.om-dev-requests { display: grid; gap: var(--om-space-2); padding-block: var(--om-space-2) var(--om-space-4); border-block-end: 1px solid var(--om-color-border); }
-.om-dev-requests:empty { display: none; }
+/* The application's own layout around om-ui's AppShell: the page wrapper, headers, cards, the settings menu, status bars and the
+   QR / camera pieces. Tokens only. Everything the production app shows is styled here, never in dev/dev.css (which the
+   production bundle does not load). */
+.om-app { display: flex; flex-direction: column; block-size: 100dvh; }
+.om-app > .om-shell { flex: 1 1 0; block-size: auto; min-block-size: 0; }
+.om-app > :not(.om-shell) { flex: none; }
+
+.om-page { padding: var(--om-space-4) max(var(--om-space-4), env(safe-area-inset-right)) var(--om-space-4) max(var(--om-space-4), env(safe-area-inset-left)); }
+.om-page:empty { display: none; }
+.om-stack { display: grid; gap: var(--om-space-3); }
+.om-page-head { padding: var(--om-space-4) max(var(--om-space-4), env(safe-area-inset-right)) var(--om-space-2) max(var(--om-space-4), env(safe-area-inset-left)); }
+.om-card { display: grid; gap: var(--om-space-3); padding: var(--om-space-4); border-radius: var(--om-radius-lg); background: var(--om-color-bg-raised); box-shadow: var(--om-elevation-1); animation: om-rise var(--om-motion-standard) var(--om-ease-enter) both; }
+.om-backbar { margin-inline-start: calc(-1 * var(--om-space-3)); margin-block-end: var(--om-space-2); }
+.om-shell:not([data-layout="compact"]) .om-backbar,
+.om-shell:not([data-layout="compact"]) .om-conv-view__back { display: none; }
+
+/* Settings menu */
+.om-menu__list { margin: 0; padding: 0; list-style: none; }
+.om-menu__row { display: flex; align-items: center; gap: var(--om-space-3); inline-size: 100%; box-sizing: border-box; min-block-size: 4rem; padding: var(--om-space-3) max(var(--om-space-4), env(safe-area-inset-right)) var(--om-space-3) max(var(--om-space-4), env(safe-area-inset-left)); border: 0; border-block-end: 1px solid var(--om-hairline); background: transparent; color: var(--om-color-text-primary); font: inherit; text-align: start; cursor: pointer; transition: background-color var(--om-motion-instant) var(--om-ease-enter); }
+.om-menu__row:active { background: var(--om-color-bg-sunken); }
+@media (hover: hover) { .om-menu__row:hover { background: var(--om-color-bg-sunken); } }
+.om-menu__row[aria-current="page"] { background: var(--om-color-bg-sunken); box-shadow: inset 3px 0 0 var(--om-color-accent); }
+.om-menu__text { flex: 1 1 auto; min-inline-size: 0; display: grid; gap: 2px; }
+.om-menu__title { font-weight: var(--om-weight-medium); }
+.om-menu__hint { font-size: var(--om-text-sm-size); line-height: var(--om-text-sm-line); color: var(--om-color-text-secondary); }
+.om-menu__row > .om-icon { color: var(--om-color-text-muted); }
+
+/* Status bars: the build's own notices (not connected, test loopback). Calm and in the flow, never covering the page. */
+.om-notice-bar { box-sizing: border-box; padding: var(--om-space-2) var(--om-space-4); background: var(--om-color-warning-bg); color: var(--om-color-warning-fg); font-size: var(--om-text-sm-size); line-height: var(--om-text-sm-line); text-align: center; }
+/* A test or development build says so loudly; it must never be mistaken for the real thing. */
+.om-dev-banner { box-sizing: border-box; padding: 4px 12px; background: #5a1a00; color: #fff; font: 600 12px/1.4 system-ui, sans-serif; text-align: center; overflow-wrap: anywhere; }
+.om-dev-fail { max-inline-size: 36rem; margin: 10vh auto; padding: 0 var(--om-space-4); }
+
+/* Camera and QR */
+.om-qr { display: block; inline-size: min(100%, 18rem); block-size: auto; background: #fff; border-radius: var(--om-radius-md); } /* a QR code needs a white field in every theme */
+.om-scan { position: fixed; inset: 0; z-index: var(--om-z-modal); display: grid; align-content: center; justify-items: center; gap: var(--om-space-3); padding: var(--om-space-4); background: var(--om-color-bg-canvas); }
+.om-scan__video { inline-size: min(100%, 28rem); max-block-size: 60dvh; background: #000; border-radius: var(--om-radius-md); object-fit: cover; }

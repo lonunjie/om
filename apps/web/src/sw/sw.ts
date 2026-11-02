@@ -45,9 +45,10 @@ const shell = createShell({
   trustRoot: TRUST_ROOT,
 });
 
-// A failed or refused stage rejects install: the previously active worker and its cache stay in service.
+// A failed or refused stage rejects install: the previously active worker and its cache stay in service. A predecessor that
+// serves a shell browsers refuse (0.0.0 and 0.0.1) is replaced at once: a phone stuck on an error page heals on its next try.
 sw.addEventListener("install", (e) => {
-  e.waitUntil(shell.stage());
+  e.waitUntil(shell.stage().then(async () => { if (await shell.replacesBrokenShell()) await sw.skipWaiting(); }));
 });
 sw.addEventListener("activate", (e) => {
   // Recording the version also keeps it in the worker's bytes: a release that changes only the bundle still changes /sw.js,

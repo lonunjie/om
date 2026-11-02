@@ -5,6 +5,13 @@
   box-shadow: 0 0 0 5px var(--om-color-focus-halo);
 }
 
+:root { --om-hairline: color-mix(in srgb, var(--om-color-border) 35%, transparent); }
+
+/* Motion roles shared by every screen: arrival (what is new), travel (a place replaced another), working (still going). */
+@keyframes om-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes om-slide-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+@keyframes om-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
 .om-button,
 .om-icon-button {
   display: inline-flex;
@@ -22,17 +29,30 @@
   font: inherit;
   font-weight: var(--om-weight-medium);
   cursor: pointer;
-  transition: background-color var(--om-motion-instant) var(--om-ease-enter);
+  transition: background-color var(--om-motion-instant) var(--om-ease-enter), transform var(--om-motion-quick) var(--om-ease-enter), filter var(--om-motion-quick) var(--om-ease-enter);
 }
 
 .om-icon-button {
   padding-inline: 0;
+  border-radius: var(--om-radius-pill);
+}
+.om-icon-button[data-variant="primary"] {
+  border-color: var(--om-color-accent);
+  background: var(--om-color-accent);
+  color: var(--om-color-accent-text);
+}
+.om-icon { display: block; flex: none; }
+
+@media (hover: hover) {
+  .om-button:not(:disabled):hover,
+  .om-icon-button:not(:disabled):hover { background: var(--om-color-bg-sunken); }
+  .om-button[data-variant="primary"]:not(:disabled):hover,
+  .om-icon-button[data-variant="primary"]:not(:disabled):hover { background: var(--om-color-accent); filter: brightness(1.08); }
 }
 
-.om-button:hover,
-.om-icon-button:hover {
-  background: var(--om-color-bg-sunken);
-}
+/* Press: the control answers the tap at once (formflow's rule: movement explains, never delays). */
+.om-button:not(:disabled):active,
+.om-icon-button:not(:disabled):active { transform: scale(0.97); transition-duration: var(--om-motion-instant); }
 
 .om-button[data-variant="primary"] {
   border-color: var(--om-color-accent);
@@ -41,7 +61,7 @@
 }
 
 .om-button[data-variant="quiet"],
-.om-icon-button {
+.om-icon-button:not([data-variant]) {
   border-color: transparent;
   background: transparent;
 }

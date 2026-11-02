@@ -3,7 +3,7 @@
 // each other through it, and a reload does not lose the install's right to its own mailboxes. Everything the Home sees
 // is captured on the wire and checked for plaintext and for capabilities in URLs.
 import { expect, test, type Page } from "@playwright/test";
-import { noPasskeys, onboard, walkSetup } from "./helpers.ts";
+import { noPasskeys, onboard, walkSetup, addIdentity } from "./helpers.ts";
 
 test.use({ baseURL: "http://localhost:4177" });
 
@@ -26,14 +26,14 @@ test("two identities talk through the configured reference Home; the Home sees o
 
   await onboard(page, { stopAt: "invite" });
   await expect(page.getByText("E2E LOCAL RELAY, NOT PRODUCTION")).toBeVisible();
-  await expect(page.getByText("Not connected to a provider")).toHaveCount(0);
+  await expect(page.getByText("Not connected to a delivery service")).toHaveCount(0);
   await page.getByRole("button", { name: "Show as QR code" }).click();
   const link = (await page.locator("code[translate=no]").first().textContent())?.trim() ?? "";
   expect(link).toMatch(/^https?:\/\/[^/]+\/#invite\/[A-Za-z0-9_-]+$/);
   await page.getByRole("button", { name: "Skip for now" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Add identity" }).click();
+  await addIdentity(page);
   await walkSetup(page, { stopAt: "invite" });
   await page.getByText("Have an invite?").click();
   await page.getByLabel("Invitation link").fill(link);
@@ -104,13 +104,13 @@ test("Settings shows the Home in use with what it says about itself, and refuses
   await onboard(page, { stopAt: "invite" });
   await page.getByRole("button", { name: "Skip for now" }).click();
   await page.getByRole("button", { name: "Settings" }).click();
-  await page.getByRole("button", { name: "Your Home" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Your Home" })).toBeVisible();
+  await page.getByRole("button", { name: /Message delivery/ }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Message delivery" })).toBeVisible();
   await expect(page.getByText(`Address: ${RELAY}`)).toBeVisible();
   await expect(page.getByText("This address answered and calls itself")).toBeVisible();
   await expect(page.getByText("It reports that it is working normally.")).toBeVisible();
-  await page.getByLabel("Home address").fill("http://home.example");
-  await page.getByRole("button", { name: "Check this Home" }).click();
+  await page.getByLabel("Delivery service address").fill("http://home.example");
+  await page.getByRole("button", { name: "Check this delivery service" }).click();
   await expect(page.getByRole("alert")).toContainText("must start with https://");
-  await expect(page.getByRole("button", { name: /Use this Home|Use it anyway/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Use this delivery service|Use it anyway/ })).toHaveCount(0);
 });

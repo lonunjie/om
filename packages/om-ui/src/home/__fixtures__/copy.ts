@@ -2,6 +2,7 @@ import type { HomeCopy } from "../copy";
 
 export const testHomeCopy: HomeCopy = {
   heading: "Your Home",
+  intro: "A Home carries your messages.",
   currentHeading: "Home in use",
   none: "No Home is set up",
   address: (u) => `Address: ${u}`,

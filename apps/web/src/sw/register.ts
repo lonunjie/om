@@ -23,6 +23,19 @@ const scriptUrl = (): string | null => {
 };
 
 const IDLE_MS = 20_000;
+const RELOAD_KEY = "om.sw/reloaded-at";
+/** Two takeovers inside this window would be a reload loop: the second one is skipped (the page runs the bundle it has). */
+const RELOAD_GAP_MS = 60_000;
+
+/** Something typed and not yet sent or saved (a name, a draft): a reload would lose it, so an update waits for a calmer moment. */
+const hasUnsavedInput = (): boolean => {
+  for (const el of document.querySelectorAll("input, textarea")) {
+    if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) continue;
+    if (el instanceof HTMLInputElement && ["hidden", "checkbox", "radio", "button", "submit"].includes(el.type)) continue;
+    if (el.value !== "") return true;
+  }
+  return false;
+};
 const CHECK_MS = 60 * 60 * 1000;
 
 /** Apply a staged update without asking: as soon as the page is hidden, or after IDLE_MS with no input. The new worker takes
@@ -33,6 +46,7 @@ export const applyWhenIdle = (apply: () => void): (() => void) => {
   const events = ["pointerdown", "keydown", "touchstart", "scroll"] as const;
   for (const e of events) addEventListener(e, touch, { passive: true });
   const tick = (): void => {
+    if (hasUnsavedInput()) return;
     if (document.visibilityState === "hidden" || Date.now() - last >= IDLE_MS) { stop(); apply(); }
   };
   const timer = setInterval(tick, 2000);
@@ -53,6 +67,11 @@ const reloadOnTakeover = (): void => {
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (done) return;
     done = true;
+    try {
+      const at = Number(sessionStorage.getItem(RELOAD_KEY) ?? "0");
+      if (Date.now() - at < RELOAD_GAP_MS) return;
+      sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+    } catch { /* no session storage: reload once, as before */ }
     location.reload();
   });
 };

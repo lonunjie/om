@@ -40,6 +40,20 @@ export const CACHE_PREFIX = "om-shell-";
  *  redirects `/index.html` to `/`. Rebuild such a response with the same body and headers so it is served as a plain one. */
 const plain = async (res: Response): Promise<Response> =>
   res.redirected ? new Response(await res.blob(), { status: res.status, statusText: res.statusText, headers: res.headers }) : res;
+/** Workers older than this served the host's redirected shell, which browsers refuse ("site can't be reached"), so a page stuck
+ *  behind one never runs the code that would let a newer worker take over. No recorded version means older still. */
+const FIRST_WORKING_SHELL = [0, 0, 2] as const;
+export const servesBrokenShell = (version: string | null): boolean => {
+  if (version === null) return true;
+  const m = /^(\d+)\.(\d+)\.(\d+)/.exec(version);
+  if (m === null) return false; // dev and e2e builds carry free-form versions
+  for (let i = 0; i < 3; i++) {
+    const have = Number(m[i + 1]);
+    const need = FIRST_WORKING_SHELL[i] ?? 0;
+    if (have !== need) return have < need;
+  }
+  return false;
+};
 const FLOOR_KEY = "floor";
 const DELEGATION_FLOOR_KEY = "delegation-floor";
 const PQ_FLOOR_KEY = "pq-required-floor";
@@ -116,5 +130,9 @@ export const createShell = (deps: ShellDeps) => {
     return undefined;
   };
 
-  return { stage, activate, respond };
+  /** True when a worker is already serving a shell that browsers refuse: the new worker may then take over at once, since nothing
+   *  that page shows can be lost. Never true for a first install, and never for a working predecessor (those wait for idle). */
+  const replacesBrokenShell = async (): Promise<boolean> => (await kv.get("active")) !== null && servesBrokenShell(await kv.get("worker-version"));
+
+  return { stage, activate, respond, replacesBrokenShell };
 };

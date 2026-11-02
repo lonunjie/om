@@ -9,7 +9,7 @@ const DESKTOP = { width: 1280, height: 800 };
 /** `OM_SHOTS=<dir>` saves a screenshot of each step (`OM_VIEW=desktop` for 1280x800) so the screens can be looked at. */
 const SHOTS = process.env["OM_SHOTS"];
 const size = process.env["OM_VIEW"] === "desktop" ? DESKTOP : PHONE;
-async function shot(page: Page, name: string): Promise<void> {
+export async function shot(page: Page, name: string): Promise<void> {
   if (SHOTS === undefined) return;
   await page.waitForTimeout(500); // let the arrival animation finish
   await page.screenshot({ path: `${SHOTS}/${name}-${String(size.width)}.png`, fullPage: false });
@@ -24,7 +24,7 @@ export async function newDevice(browser: Browser, base: string): Promise<Page> {
   return page;
 }
 
-export async function inviteAndChat(browser: Browser, base: string): Promise<void> {
+export async function inviteAndChat(browser: Browser, base: string): Promise<{ readonly alice: Page; readonly bob: Page }> {
   const alice = await newDevice(browser, base);
   await alice.goto("/");
   await alice.getByRole("button", { name: "Get started" }).first().click();
@@ -84,4 +84,5 @@ export async function inviteAndChat(browser: Browser, base: string): Promise<voi
   await bob.getByRole("button", { name: /send/i }).click();
   await expect(alice.getByText("hi alice")).toBeVisible({ timeout: 60_000 });
   await shot(bob, "08-bob-chat");
+  return { alice, bob };
 }

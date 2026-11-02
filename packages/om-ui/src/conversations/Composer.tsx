@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, SyntheticEvent } from "react";
 import type { ConversationId, CoreIntent, OperationHandle, OutcomeClass } from "@om/platform-api";
-import { Button } from "../shell/primitives/Button";
+import { Icon } from "../shell/primitives/icons";
+import { IconButton } from "../shell/primitives/IconButton";
 import type { ConversationCopy } from "./copy";
 import { firstOutcome, resolveIntent, type ConversationServices } from "./services";
 import "./conversations.css";
@@ -21,15 +22,27 @@ export interface ComposerProps {
 }
 
 /** Clear the draft only for these; Rejected and NeedsUserAction leave it intact. */
+const MAX_INPUT_PX = 160;
+/** A keyboard with a real Enter key sends on Enter (Shift+Enter adds a line); a touch screen keeps Enter as a new line and sends with the button. */
+const enterSends = (): boolean => typeof matchMedia === "function" && matchMedia("(pointer: fine)").matches;
+
 const clearsDraft = (o: OutcomeClass): boolean => o.kind === "Committed" || o.kind === "PendingAuthorization" || o.kind === "PendingNetwork" || o.kind === "PendingReconciliation";
 
 export function Composer({ services, conversationId, copy, draft, onDraftChange, inputPrivacy = PRIVATE_DEFAULT, onSent }: ComposerProps) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  // The box grows with what is typed, up to a few lines, then scrolls.
+  useEffect(() => {
+    const el = input.current;
+    if (el === null) return;
+    el.style.blockSize = "auto";
+    el.style.blockSize = `${String(Math.min(el.scrollHeight, MAX_INPUT_PX))}px`;
+  }, [draft]);
   // After a dispatch error or NeedsUserAction, resubmitting the same text re-dispatches the same intent (same OperationId).
   const inflight = useRef<{ readonly text: string; readonly intent: CoreIntent } | null>(null);
 
@@ -68,17 +81,18 @@ export function Composer({ services, conversationId, copy, draft, onDraftChange,
 
   const onSubmit = (e: SyntheticEvent): void => { e.preventDefault(); void submit(); };
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void submit(); }
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+    if (e.ctrlKey || e.metaKey || (!e.shiftKey && enterSends())) { e.preventDefault(); void submit(); }
   };
 
   return (
     <form className="om-composer" onSubmit={onSubmit}>
       <textarea
-        className="om-composer__input" aria-label={copy.composer.label} placeholder={copy.composer.placeholder} rows={2}
+        ref={input} className="om-composer__input" aria-label={copy.composer.label} placeholder={copy.composer.placeholder} rows={1}
         value={draft} spellCheck={inputPrivacy.spellcheck} autoComplete={inputPrivacy.autocomplete} autoCorrect={inputPrivacy.autocomplete}
         onChange={(e) => { onDraftChange(e.target.value); }} onKeyDown={onKeyDown}
       />
-      <Button type="submit" variant="primary" disabled={busy || draft.trim() === ""}>{copy.composer.send}</Button>
+      <IconButton type="submit" className="om-composer__send" data-variant="primary" label={copy.composer.send} icon={<Icon name="send" />} disabled={busy || draft.trim() === ""} />
       {notice === null ? null : <p className="om-composer__notice" role="alert">{notice}</p>}
     </form>
   );

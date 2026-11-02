@@ -4,7 +4,7 @@
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto auto;
   grid-template-areas: "panes" "reach" "tabs";
-  block-size: calc(100dvh - var(--om-dev-banner-h, 0px));
+  block-size: 100dvh; /* inside the app (.om-app) it fills what the banners leave */
   background: var(--om-color-bg-canvas);
   color: var(--om-color-text-primary);
 }
@@ -22,10 +22,17 @@
 .om-shell__detail {
   min-block-size: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   grid-column: 1;
   grid-row: 1;
-  padding: var(--om-space-4) max(var(--om-space-4), env(safe-area-inset-right)) var(--om-space-4) max(var(--om-space-4), env(safe-area-inset-left));
+  /* Edge to edge: rows, headers and pages pad themselves, so a header can stick and a row can highlight across the pane. */
+  padding: 0;
 }
+
+/* Travel: on a phone the pane that opens slides in from the side it came from, so Back reads as going back. */
+.om-shell[data-layout="compact"] .om-shell__detail { animation: om-slide-in var(--om-motion-standard) var(--om-ease-enter) both; }
+.om-shell[data-layout="compact"][data-conversation-open="false"] .om-shell__list { animation: om-slide-back var(--om-motion-standard) var(--om-ease-enter) both; }
+@keyframes om-slide-back { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
 
 .om-shell__composer {
   grid-column: 1;
@@ -35,7 +42,7 @@
   flex-wrap: wrap;
   gap: var(--om-space-2);
   padding: var(--om-space-2) max(var(--om-space-3), env(safe-area-inset-right)) calc(var(--om-space-2) + env(safe-area-inset-bottom, 0px)) max(var(--om-space-3), env(safe-area-inset-left));
-  border-block-start: 1px solid var(--om-color-border);
+  border-block-start: 1px solid var(--om-hairline);
   background: var(--om-color-bg-surface);
 }
 
@@ -46,7 +53,9 @@
   justify-content: flex-end; /* trailing reach zone */
   flex-wrap: wrap;
   gap: var(--om-space-2);
-  padding: var(--om-space-2) max(var(--om-space-3), env(safe-area-inset-right)) var(--om-space-2) max(var(--om-space-3), env(safe-area-inset-left));
+  padding: var(--om-space-1) max(var(--om-space-3), env(safe-area-inset-right)) var(--om-space-1) max(var(--om-space-3), env(safe-area-inset-left));
+  border-block-start: 1px solid var(--om-hairline);
+  background: var(--om-color-bg-surface);
 }
 
 /* With no tab bar, the reach zone is the bottom edge of the screen. */
@@ -67,7 +76,7 @@
 .om-shell__tabbar {
   grid-area: tabs;
   display: flex;
-  border-block-start: 1px solid var(--om-color-border);
+  border-block-start: 1px solid var(--om-hairline);
   background: var(--om-color-bg-surface);
   padding-block-end: env(safe-area-inset-bottom, 0);
 }
@@ -114,7 +123,10 @@
   gap: var(--om-space-3);
   flex-wrap: wrap;
   padding: var(--om-space-2) var(--om-space-3);
+  border-block-end: 1px solid var(--om-hairline);
+  background: var(--om-color-bg-surface);
 }
+.om-shell__topbar:empty { display: none; }
 
 @media (min-width: 600px) {
   .om-shell {
@@ -135,7 +147,7 @@
   .om-shell__list {
     grid-column: 1;
     grid-row: 1 / span 2;
-    border-inline-end: 1px solid var(--om-color-border);
+    border-inline-end: 1px solid var(--om-hairline);
   }
 
   .om-shell__detail {
@@ -162,7 +174,7 @@
     flex-direction: column;
     justify-content: space-between;
     padding: var(--om-space-3) var(--om-space-2);
-    border-inline-end: 1px solid var(--om-color-border);
+    border-inline-end: 1px solid var(--om-hairline);
     background: var(--om-color-bg-surface);
   }
 

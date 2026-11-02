@@ -28,10 +28,12 @@ export function DevApp({ harness, vault, platform, pendingProfileId, onboarded }
   const store = useMemo(() => createProfileScopedState(createMemoryKeyValue()), []); // in memory only: nothing persisted
   return (
     <ThemeProvider>
+      <div className="om-app">
       <div className="om-dev-banner" role="note">DEV HARNESS — NOT PRODUCTION ({HARNESS_MARKER})</div>
       <ProfileProvider client={harness} contexts={harness} store={store} initialProfileId={pendingProfileId}>
         <Gate harness={harness} registry={registry} vault={vault} platform={platform} initiallyOnboarded={onboarded} />
       </ProfileProvider>
+      </div>
     </ThemeProvider>
   );
 }

@@ -14,6 +14,7 @@ import { clearExpectedNewChat, clearPendingInvite, expectNewChat, useExpectedNew
 import { Landing } from "../landing/Landing";
 import { appStrings as t, onboardingCopy, scannerCopy, unlockCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
+import { CHATS, navigate } from "../route/place";
 import { useQrScanner } from "../qr/Scanner";
 import { startCore } from "./loadCore";
 import { unavailableProvider, type ConfiguredProvider } from "./provider";
@@ -72,6 +73,7 @@ export function RealApp({ provider, banner, pollMs = 3000, home }: RealAppProps)
 
   return (
     <ThemeProvider>
+      <div className="om-app">
       {banner}
       {boot.k === "loading" ? <Text>{t.coreLoading}</Text> : null}
       {boot.k === "no_vault" ? <Notice heading={t.vaultUnavailable.heading} body={t.vaultUnavailable.body} /> : null}
@@ -79,6 +81,7 @@ export function RealApp({ provider, banner, pollMs = 3000, home }: RealAppProps)
       {boot.k === "ready" ? (
         <Profiles rt={boot.rt} vault={boot.vault} registry={boot.registry} platform={boot.platform} known={boot.known} connected={provider !== null} {...(home === undefined ? {} : { home })} />
       ) : null}
+      </div>
     </ThemeProvider>
   );
 }
@@ -120,6 +123,7 @@ function Profiles({ rt, vault, registry, platform, known: initial, connected, ho
         onDone={(result) => {
           if (result.safetyCodePending !== null) savePendingSafetyCode(pending.id, result.safetyCodePending);
           if (result.inviteAccepted) { clearPendingInvite(); expectNewChat([]); }
+          navigate(CHATS, { replace: true }); // first run can start at any address; the app proper starts at the root
           registryRef.current.add(pending.id).then(() => {
             setKnown((k) => [...k, pending.id]);
             setOpen((o) => new Set(o).add(pending.id));
@@ -142,7 +146,7 @@ function Profiles({ rt, vault, registry, platform, known: initial, connected, ho
   if (known.length === 0) return <Text>{t.coreLoading}</Text>;
   return (
     <ProfileProvider client={rt} contexts={rt} store={store} {...(known[0] === undefined ? {} : { initialProfileId: known[0] })}>
-      {connected ? null : <p role="status" className="om-dev-banner">{t.providerStatus.none}</p>}
+      {connected ? null : <p role="status" className="om-notice-bar">{t.providerStatus.none}</p>}
       <Connected rt={rt} platform={platform} onAddProfile={begin} {...(home === undefined ? {} : { home })} />
     </ProfileProvider>
   );

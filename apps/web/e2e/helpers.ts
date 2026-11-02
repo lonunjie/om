@@ -59,3 +59,9 @@ export async function saveSafetyCode(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Confirm" }).click();
   await expect(page.getByRole("button", { name: "Save my safety code" })).toHaveCount(0);
 }
+
+/** A further identity in the same browser: Settings > Add identity, then the same setup steps as a first run. */
+export async function addIdentity(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Add identity" }).click();
+}

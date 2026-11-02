@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { ConversationId, ConversationSummary } from "@om/platform-api";
+import { Avatar } from "./Avatar";
 import { VisuallyHidden } from "../shell/primitives/VisuallyHidden";
 import type { ConversationCopy } from "./copy";
 import { DeliveryIndicator, type DeliveryDisplay } from "./delivery";
@@ -53,6 +54,7 @@ export function ConversationList({ conversations, selectedId, onSelect, copy, un
             data-unread={count > 0 ? "true" : undefined} className="om-conv-list__row"
             onClick={() => { setActive(i); onSelect(c.id); }}
           >
+            <Avatar name={c.displayName} />
             <span className="om-conv-list__name">{c.displayName}</span>
             <span className="om-conv-list__meta">
               {c.notices.length > 0 ? <span className="om-conv-list__notice" data-security-notice="true"><span aria-hidden="true">!</span><VisuallyHidden>{copy.list.securityNotice}</VisuallyHidden></span> : null}

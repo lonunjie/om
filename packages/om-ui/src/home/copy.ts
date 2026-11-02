@@ -1,8 +1,10 @@
 import type { HomeUrlProblem, HomeProbeResult } from "./services";
 
-/** Wording for Settings > Your Home. "Home" is the product word; no infrastructure vocabulary reaches the user. */
+/** Wording for Settings > Message delivery. The user-facing word is "delivery service" (the code and docs keep "Home"); no infrastructure vocabulary reaches the user. */
 export interface HomeCopy {
   readonly heading: string;
+  /** What the delivery service is, in two plain sentences, shown first. */
+  readonly intro: string;
   readonly currentHeading: string;
   /** No Home at all: nothing leaves this device. */
   readonly none: string;

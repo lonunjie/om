@@ -9,7 +9,7 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { decodeDepositRequest, decodeDrainResponse, decodeKeyPublish, encodeAckRequest, encodeDrainRequest, readBundleFacts, toBase64Url } from "@om/home-wire";
-import { noPasskeys, onboard, walkSetup } from "./helpers.ts";
+import { noPasskeys, onboard, walkSetup, addIdentity } from "./helpers.ts";
 
 test.skip(process.env["OM_LIVE_RELAY"] !== "1", "opt-in: set OM_LIVE_RELAY=1 (this talks to the live Home)");
 test.use({ baseURL: "http://localhost:4178" });
@@ -128,14 +128,14 @@ test("two fresh identities exchange messages through the LIVE Home with the prod
     await onboard(page, { stopAt: "invite" });
     // The production entry, connected to the live Home by build configuration: no loopback banner, not "unconnected".
     await expect(page.getByText("E2E LOCAL RELAY")).toHaveCount(0);
-    await expect(page.getByText("Not connected to a provider")).toHaveCount(0);
+    await expect(page.getByText("Not connected to a delivery service")).toHaveCount(0);
     await page.getByRole("button", { name: "Show as QR code" }).click();
     const link = (await page.locator("code[translate=no]").first().textContent())?.trim() ?? "";
     expect(link).toMatch(/^https?:\/\/[^/]+\/#invite\/[A-Za-z0-9_-]+$/);
     await page.getByRole("button", { name: "Skip for now" }).click();
     await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Add identity" }).click();
+    await addIdentity(page);
     await walkSetup(page, { stopAt: "invite" });
     await page.getByText("Have an invite?").click();
     await page.getByLabel("Invitation link").fill(link);

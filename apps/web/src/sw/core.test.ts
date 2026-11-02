@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildManifest, serializeManifest } from "../../build/manifest";
-import { createShell, type KV, type ShellCache, type ShellStorage } from "./core";
+import { createShell, servesBrokenShell, type KV, type ShellCache, type ShellStorage } from "./core";
 
 const enc = (s: string) => new TextEncoder().encode(s);
 const memCache = (): ShellCache & { m: Map<string, string> } => {
@@ -101,5 +101,30 @@ describe("service worker shell", () => {
     const strict = createShell({ storage: r.storage, kv: r.kv, trustRoot: { roots: { keys: {}, threshold: 1 } }, fetchFn: r.fetchFn });
     await expect(strict.stage()).rejects.toThrow(/unsigned/);
     expect(r.caches.size).toBe(0);
+  });
+});
+
+describe("a worker that serves a shell browsers refuse", () => {
+  it("is recognised by its recorded version", () => {
+    expect(servesBrokenShell(null)).toBe(true); // no version recorded: 0.0.0
+    expect(servesBrokenShell("0.0.1")).toBe(true);
+    expect(servesBrokenShell("0.0.2")).toBe(false);
+    expect(servesBrokenShell("0.0.10")).toBe(false);
+    expect(servesBrokenShell("0.1.0")).toBe(false);
+    expect(servesBrokenShell("1.0.0")).toBe(false);
+    expect(servesBrokenShell("dev-build")).toBe(false); // free-form dev and e2e versions are never treated as broken
+  });
+
+  it("is replaced at once, but a first install and a working predecessor are not", async () => {
+    const r = rig();
+    await r.publish("1.0.0", V1);
+    expect(await r.shell.replacesBrokenShell()).toBe(false); // nothing active yet: a first install
+    await r.shell.stage();
+    await r.shell.activate();
+    expect(await r.shell.replacesBrokenShell()).toBe(true); // active, and no worker-version was ever recorded
+    r.kvm.set("worker-version", "0.0.1");
+    expect(await r.shell.replacesBrokenShell()).toBe(true);
+    r.kvm.set("worker-version", "0.0.2");
+    expect(await r.shell.replacesBrokenShell()).toBe(false);
   });
 });

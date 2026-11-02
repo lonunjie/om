@@ -4,3 +4,4 @@ export * from "./Text";
 export * from "./VisuallyHidden";
 export * from "./LiveRegion";
 export * from "./SkipLink";
+export * from "./icons";

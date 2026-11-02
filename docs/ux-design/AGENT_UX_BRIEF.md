@@ -33,6 +33,11 @@ Layout states are Compact, Split, Expanded, Multi-pane, chosen by window size, n
 - **Settings** is reached from the profile control, not a tab.
 - **Omnibar** is find-or-do. On compact screens it shares the composer's lower zone; the composer and Omnibar never both show a text field.
 - **Changing place = navigation; acting within a place = sheet or popover.** Back restores the previous place, focus and draft.
+- **Every place has a web address** (`apps/web/src/route/place.ts`, History API; the host and the service worker already answer any path with the shell):
+  `/` chats, `/chats#<id>` one chat, `/settings`, `/settings/devices`, `/settings/recovery`, `/settings/delivery`, `/safety-code`. Changing place pushes an entry, so the phone's Back button,
+  the browser's Back/Forward and a reload all work; an unknown address becomes `/` (never an error page) and the bar always shows the canonical address. A chat's id is in the fragment, never the path,
+  so no host log learns which chat is open. Tab titles name the place, never a chat. A new screen gets a place in `place.ts` and a row in `place.test.ts`; do not keep navigation in component state.
+  On a phone a page that replaces the list has a Back control; beside the list (900 px and up) it does not.
 - **First-run page** (`OnboardingFrame`): brand + "Step n of m" on top, one card below. On a phone the card is plain and top-aligned;
   from 40 rem wide it is a raised, centred card. Safe-area insets respected. Nothing scrolls sideways, down to 320 px.
 - **Empty Chats is the invite screen** ("Invite someone to chat": share link, show QR, scan QR, paste a link). It recedes once conversations exist. No tutorial carousel, ever.
@@ -48,7 +53,9 @@ Power options (own password) sit behind "More options". Rules:
 - Every ceremony starts from a click (user gesture); nothing retries by itself.
 - A step moves focus to its heading, announces busy states in a live region, and never loses typed input on error.
 - Weaker-than-expected protection (synced passkey, device key) is always visible as a note; the long explanation is a disclosure.
-- Home facts (who can see what) are disclosed at the decision point, in plain words, behind one disclosure; no provider names (a copy test enforces it).
+- Delivery-service facts (who can see what) are disclosed at the decision point, in plain words, behind one disclosure; no provider names (a copy test enforces it).
+- **Say "delivery service", never "Home" or "relay" to a person** (2026-11-02: "Home" read as a street address). It is the small online service that carries your messages: it holds each one, still locked, until the
+  other person's device picks it up; it cannot read it, and chats and keys stay on the devices. Settings calls it "Message delivery". Code, ADRs and docs keep "Home" as the technical name.
 
 ## 4a. Invitations are web links (2026-11-02)
 
@@ -91,9 +98,19 @@ durations to ~0 and keeps state feedback (focus, status text, progress). Every a
 step rising in = "this is the next one"; a turning ring = "still working". Gestures track the finger and are interruptible.
 Expressive delight (OhMessenger) is separate, optional and owned by the recipient. Decoration degrades before typing, focus or action response.
 
+## 6a. Chat and shell look (2026-11-02)
+
+Product screens share the same few rules, all from tokens (`om-ui` conversations.css, shell.css; app layout in `apps/web/src/core/shell.css`; the production bundle loads no `dev.css`, so nothing the app shows may be styled there):
+- **Chat:** a sticky header (Back on a phone, initial avatar, name); bubbles with the tail on the last of a run, your messages in the accent colour, theirs raised; the time shows once per run (an unsettled or refused message always says so); a new
+  message rises in (`om-rise`), the view follows it if it is yours or you were reading the end; the composer is one pill that grows with the text, Enter sends with a keyboard (a touch screen keeps Enter as a new line), the round send button is an icon with a name.
+- **Lists and menus:** edge-to-edge rows with hairlines, a leading bar plus background for the selected row (never colour alone), press feedback (`scale(.97)`, instant) and hover only where hover exists.
+- **Cards** (`om-card`) hold one request or reminder each; banners are calm (`om-notice-bar`) and sit in the flow, a test build's banner (`om-dev-banner`) is loud on purpose.
+- Phone: the pane that opens slides in from its side (`om-slide-in`), so Back reads as going back. No dead controls: an unbuilt control (the Omnibar) is not shown.
+- Borrowed from `~/dig/formflow` (its README "Motion" section): movement guides and never decorates, press is instant, hover lifts only on hover devices, "whisper" status tones.
+
 ## 7. Words
 
-Plain, warm, short; "protect my chats", "safety code", "password", "Home" glossed once. No crypto or infrastructure vocabulary for normal users, no vendor names.
+Plain, warm, short; "protect my chats", "safety code", "password", "delivery service" glossed once. No crypto or infrastructure vocabulary for normal users, no vendor names.
 All strings come from copy objects (`apps/web/src/copy/en.ts`, typed by `packages/om-ui/src/*/copy.ts`), none inline in components.
 State is never conveyed by colour, motion, sound or haptics alone.
 
@@ -114,5 +131,5 @@ keyboard path for every gesture; headings are real headings; live regions for as
 ## 10. Code map
 
 `packages/om-ui/src/onboarding` (first run), `devices` (link, suspend, remove), `recovery`, `home`, `conversations`, `shell`;
-`apps/web/src/core/{RealApp,Shell}.tsx` (composition), `apps/web/src/landing`, `apps/web/src/copy/en.ts`;
+`apps/web/src/core/{RealApp,Shell}.tsx` (composition), `apps/web/src/route` (places and addresses), `apps/web/src/landing`, `apps/web/src/copy/en.ts`;
 `packages/om-web-platform/src/vault` (passkey and device key), `packages/om-design` (tokens, themes).

@@ -16,6 +16,8 @@ export interface ConversationCopy {
     readonly incoming: string;
     readonly outgoing: string;
     readonly retry: string;
+    /** Accessible name of the control that leaves a conversation for the list. */
+    readonly back: string;
     readonly formatTime: (epochMs: number) => string;
   };
   readonly delivery: {

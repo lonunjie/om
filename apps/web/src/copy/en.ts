@@ -54,6 +54,7 @@ export const conversationCopy: ConversationCopy = {
     incoming: "They said:",
     outgoing: "You said:",
     retry: "Try sending again",
+    back: "Back to chats",
     formatTime: (ms) => timeFormat.format(ms),
   },
   delivery: {
@@ -165,10 +166,10 @@ const VAULT_ERROR: Readonly<Record<VaultErrorReason, string>> = {
   delete_unverified: "OM could not confirm the data was removed.",
 };
 const OBSERVER: Readonly<Record<HomeObserverCode, string>> = {
-  sponsor_sees_metadata: "The person or group hosting your Home can see who talks to whom and when, but not what is said.",
-  host_sees_metadata: "Your Home's host can see who talks to whom and when, but not what is said.",
-  host_sees_ciphertext: "Your Home's host stores your messages only in scrambled form.",
-  no_third_party: "No outside party sits between you and your Home.",
+  sponsor_sees_metadata: "The person or group running your delivery service can see who talks to whom and when, but not what is said.",
+  host_sees_metadata: "The service that delivers your messages can see who talks to whom and when, but not what is said.",
+  host_sees_ciphertext: "The service that delivers your messages stores your messages only in scrambled form.",
+  no_third_party: "No outside party sits between you and your delivery service.",
 };
 const ORIGIN: Readonly<Record<ClientOriginChoiceCode, string>> = {
   default_origin: "You are using OM from its standard web address.",
@@ -311,15 +312,15 @@ export const onboardingCopy: OnboardingCopy = {
     queued: "Still sending. Keep this page open.",
   },
   home: {
-    toggle: "Where is my Home?",
-    heading: "About your Home",
+    toggle: "What is the delivery service?",
+    heading: "About your delivery service",
     loading: "Loading",
-    loadFailed: "Facts about your Home could not be loaded.",
-    intro: "A Home is the small online service that holds your messages until the person you wrote to opens OM. Think of it as your mailbox.",
-    tier: (tier) => (tier === "none" ? "You have not picked a Home yet, so OM cannot send anything." : `Home level: ${tier}`),
+    loadFailed: "Facts about your delivery service could not be loaded.",
+    intro: "The delivery service is a small online service that carries your messages. It holds each one, still locked, until the other person's device collects it. It cannot read them, and your chats and keys stay on your devices.",
+    tier: (tier) => (tier === "none" ? "You have not picked a delivery service yet, so OM cannot send anything." : `Service level: ${tier}`),
     observers: OBSERVER,
-    migrationAvailable: "You can move your Home to a different host later.",
-    migrationUnavailable: "Moving your Home is not available yet.",
+    migrationAvailable: "You can move your delivery service to a different host later.",
+    migrationUnavailable: "Moving your delivery service is not available yet.",
     origin: ORIGIN,
   },
 };
@@ -356,7 +357,10 @@ export interface AppStrings {
   };
   readonly coreLoading: string;
   readonly coreFailed: { readonly heading: string; readonly body: string };
+  readonly appName: string;
   readonly settingsHeading: string;
+  readonly settingsHint: string;
+  readonly settingsRows: { readonly devices: string; readonly recovery: string; readonly delivery: string; readonly addProfile: string };
   readonly settingsDevices: string;
   readonly settingsRecovery: string;
   readonly settingsHome: string;
@@ -367,7 +371,7 @@ export interface AppStrings {
 
 export const appStrings: AppStrings = {
   chats: "Chats",
-  back: "Back to conversations",
+  back: "Back to chats",
   selectConversation: "Choose a conversation to read it.",
   omnibar: "Find or do",
   profile: "Identity",
@@ -376,8 +380,8 @@ export const appStrings: AppStrings = {
   requestsHeading: "People who want to reach you",
   conversationOpened: "Conversation opened",
   notConnected: {
-    heading: "Not connected to a provider",
-    body: "OM is running on this device, but no messaging provider is set up yet. You can create your identity here; messages cannot be sent or received until a provider is connected.",
+    heading: "Not connected to a delivery service",
+    body: "OM is running on this device, but no delivery service is set up yet. You can create your identity here; messages cannot be sent or received until one is connected.",
   },
   vaultUnavailable: {
     heading: "This browser cannot protect your data",
@@ -387,7 +391,7 @@ export const appStrings: AppStrings = {
   settings: "Settings",
   addProfile: "Add identity",
   providerStatus: {
-    none: "Not connected to a provider. Nothing leaves this device until one is set up.",
+    none: "Not connected to a delivery service. Nothing leaves this device until one is set up.",
     loopback: "TEST LOOPBACK PROVIDER, NOT PRODUCTION. Messages never leave this page.",
   },
   coreLoading: "Starting OM",
@@ -395,10 +399,18 @@ export const appStrings: AppStrings = {
     heading: "OM could not start",
     body: "The messaging engine did not load. Reload the page; if this keeps happening, your data is unchanged and safe on this device.",
   },
+  appName: "OM",
   settingsHeading: "Settings",
+  settingsHint: "Choose something to change.",
+  settingsRows: {
+    devices: "The phones and computers that can open your chats.",
+    recovery: "How to get your chats back if you lose this device.",
+    delivery: "The service that carries your messages between devices.",
+    addProfile: "Set up a second identity on this device.",
+  },
   settingsDevices: "Devices",
   settingsRecovery: "Recovery",
-  settingsHome: "Your Home",
+  settingsHome: "Message delivery",
   backToChats: "Back to chats",
   backToSettings: "Back to settings",
   safetyCode: {
@@ -590,7 +602,7 @@ export const recoveryCopy: RecoveryCopy = {
   scope: {
     identity: { title: "Your account", body: "Who you are on OM and control of your devices." },
     history: { title: "Your messages", body: "Past messages from an encrypted backup." },
-    provider: { title: "Your Home connection", body: "How OM reaches your Home and contacts." },
+    provider: { title: "Your delivery service", body: "How OM reaches your delivery service and contacts." },
   },
   delay: (ms) => `To keep a thief out, getting your account back on a new device takes ${durationText(ms)} unless one of your devices approves it sooner. Any of your devices can stop it.`,
   recoveryKeySaved: "You have a safety code.",
@@ -621,7 +633,7 @@ export const recoveryCopy: RecoveryCopy = {
         "When it finishes, devices that were not part of it lose control of your account.",
       ],
       history: ["This brings back past messages only. It does not change who controls your account."],
-      provider: ["This reconnects your Home only. It does not change who controls your account."],
+      provider: ["This reconnects your delivery service only. It does not change who controls your account."],
     },
     confirm: "Start recovery",
     cancel: "Cancel",
@@ -731,7 +743,7 @@ export const landingCopy: LandingCopy = {
     intro: "OM is new, and we would rather be honest about it than impressive.",
     points: [
       "OM is in beta and no human cryptographer has audited it yet. Things go wrong in a beta. Back up for safety.",
-      "Your messages travel through a small helper service called your Home. It knows when you are online and how many messages you send. What you write stays scrambled, so the Home cannot read it.",
+      "Your messages travel through a small helper called the delivery service. It knows when you are online and how many messages you send. What you write stays scrambled, so it cannot read it.",
       "Releases are signed. The signing root needs two of three keys (two hardware wallets and one software key) plus a post-quantum key, all held by one custodian. Against coercion that is no stronger than one key.",
     ],
     links: [
@@ -778,28 +790,29 @@ export const copyNoticeCopy: CopyNoticeCopy = {
 };
 
 export const homeCopy: HomeCopy = {
-  heading: "Your Home",
-  currentHeading: "The Home you are using",
-  none: "No Home is set up. Nothing leaves this device until you choose one.",
+  heading: "Message delivery",
+  intro: "OM has no company in the middle. A small delivery service carries your messages: it holds each one, still locked, until the other person's device picks it up. It cannot read your messages, and your chats and keys stay on your devices.",
+  currentHeading: "The delivery service you are using",
+  none: "No delivery service is set up. Nothing leaves this device until you choose one.",
   address: (url) => `Address: ${url}`,
-  source: { chosen: "You chose this Home.", default: "This is the Home that came with this version of OM." },
-  checkingCurrent: "Checking how your Home is doing.",
-  selfReported: "This is what the Home says about itself; OM cannot confirm who runs it.",
-  changeHeading: "Use a different Home",
-  changeBody: "Type the address of the Home you want to use. OM asks it who it is before you can choose it. Nothing is changed until you confirm.",
-  urlLabel: "Home address",
+  source: { chosen: "You chose this delivery service.", default: "This is the delivery service that came with this version of OM." },
+  checkingCurrent: "Checking how your delivery service is doing.",
+  selfReported: "This is what the delivery service says about itself; OM cannot confirm who runs it.",
+  changeHeading: "Use a different delivery service",
+  changeBody: "Type the address of the delivery service you want to use. OM asks it who it is before you can choose it. Nothing is changed until you confirm.",
+  urlLabel: "Delivery service address",
   urlHint: "It starts with https:// and has no password, question mark or extra parts.",
-  check: "Check this Home",
+  check: "Check this delivery service",
   checking: "Checking this address.",
-  changeWarning: "Both people in a conversation need to use the same Home. Changing yours can cut you off from conversations you already have until the other person changes theirs too.",
-  useThis: "Use this Home",
+  changeWarning: "Both people in a conversation need to use the same delivery service. Changing yours can cut you off from conversations you already have until the other person changes theirs too.",
+  useThis: "Use this delivery service",
   useAnyway: "Use it anyway",
-  alreadyUsing: "This is the Home you are already using.",
+  alreadyUsing: "This is the delivery service you are already using.",
   saveFailed: "This choice could not be saved, so nothing changed.",
-  saved: "Saved. OM will use this Home the next time it connects.",
+  saved: "Saved. OM will use this delivery service the next time it connects.",
   reconnect: "Connect now (you will unlock OM again)",
-  useDefault: "Go back to the Home that came with OM",
-  disconnect: "Stop using this Home",
+  useDefault: "Go back to the delivery service that came with OM",
+  disconnect: "Stop using this delivery service",
   cleared: "Your choice was removed. OM will use the default the next time it connects.",
   invalid: {
     malformed: "That does not look like a web address. Start it with https://.",
@@ -815,15 +828,15 @@ export const homeCopy: HomeCopy = {
       unhealthy: "It reports that it is not working, so it cannot be chosen now. Try again later.",
       unknown: "It does not say how it is doing, so OM cannot tell whether it is working.",
     },
-    unreachable: "OM could not reach this address. Check it, your connection, and try again. If the address is right, the Home may be offline or may not accept connections from this app.",
-    failing: (status) => `This address answered with a server error (${String(status)}). The Home may be having trouble; try again later.`,
-    notAHome: "This address answered, but it is not an OM Home.",
-    wrongVersion: (offered) => `This Home only speaks a version OM does not understand${offered === "" ? "" : ` (it offers: ${offered})`}. Update OM, or choose a different Home.`,
-    noMailbox: "This Home does not deliver messages, so it cannot be used here.",
+    unreachable: "OM could not reach this address. Check it, your connection, and try again. If the address is right, the delivery service may be offline or may not accept connections from this app.",
+    failing: (status) => `This address answered with a server error (${String(status)}). The delivery service may be having trouble; try again later.`,
+    notAHome: "This address answered, but it is not an OM delivery service.",
+    wrongVersion: (offered) => `This delivery service only speaks a version OM does not understand${offered === "" ? "" : ` (it offers: ${offered})`}. Update OM, or choose a different delivery service.`,
+    noMailbox: "This delivery service does not deliver messages, so it cannot be used here.",
   },
   lost: {
     heading: "Some messages cannot reach you here",
-    body: (n) => `${plural(n, "mailbox", "mailboxes")} at this Home could not be set up, because someone else already holds ${n === 1 ? "it" : "them"}. Messages for ${n === 1 ? "that conversation" : "those conversations"} will not arrive. This can happen if someone learned a mailbox address before you first used it. Ask the other person to invite you again, or choose a different Home.`,
+    body: (n) => `${plural(n, "mailbox", "mailboxes")} at this delivery service could not be set up, because someone else already holds ${n === 1 ? "it" : "them"}. Messages for ${n === 1 ? "that conversation" : "those conversations"} will not arrive. This can happen if someone learned a mailbox address before you first used it. Ask the other person to invite you again, or choose a different delivery service.`,
     item: (reference) => `Reference ${reference}`,
   },
   back: "Back to settings",

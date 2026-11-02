@@ -2,7 +2,7 @@
 // each with its own vault, talking through the TEST loopback provider. Everything user-visible goes through the same
 // shell and typed intents as production; only the transport is the loopback.
 import { expect, test, type Page } from "@playwright/test";
-import { noPasskeys, onboard, walkSetup } from "./helpers.ts";
+import { noPasskeys, onboard, walkSetup, addIdentity } from "./helpers.ts";
 
 test.use({ baseURL: "http://localhost:4176" });
 
@@ -35,7 +35,7 @@ test("two identities on the real Core: invite, introduction, messages both ways,
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 
   // Bob: a second identity in the same browser accepts Alice's invite while setting up.
-  await page.getByRole("button", { name: "Add identity" }).click();
+  await addIdentity(page);
   await walkSetup(page, { stopAt: "invite" });
   await page.getByText("Have an invite?").click();
   await page.getByLabel("Invitation link").fill(link);

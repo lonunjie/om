@@ -10,7 +10,7 @@ test("without a provider the real Core runs and the shell says it is not connect
   await onboard(page, { stopAt: "invite" });
   await page.getByRole("button", { name: "Skip for now" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
-  await expect(page.getByRole("status").filter({ hasText: "Not connected to a provider" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Not connected to a delivery service" })).toBeVisible();
   // No test banner: this is not the loopback build.
   await expect(page.getByText("LOOPBACK")).toHaveCount(0);
   // Identity data lives in the encrypted store: after a reload the identity is behind its vault, not gone.

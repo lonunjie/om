@@ -85,6 +85,7 @@ export function HomeScreen({ services, copy, refreshMs = 4000 }: HomeScreenProps
   return (
     <section className="om-settings om-home" aria-labelledby="om-home-h">
       <Text as="h1" size="xl" weight="bold" id="om-home-h">{copy.heading}</Text>
+      <Text as="p" tone="secondary">{copy.intro}</Text>
 
       <section className="om-settings__group" aria-labelledby="om-home-now-h">
         <Text as="h2" size="lg" weight="bold" id="om-home-now-h">{copy.currentHeading}</Text>

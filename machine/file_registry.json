@@ -515,6 +515,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/navigation.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/playwright.config.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -866,6 +873,20 @@
     },
     {
       "path": "apps/web/src/qr/qr-ui.test.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/route/place.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/route/place.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -3805,6 +3826,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "docs/process/AGENT_ARCHITECTURE_RULES.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "docs/process/ARCHITECTURE_CONTRACT_AND_DRIFT_CONTROL.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
@@ -3848,13 +3876,6 @@
     },
     {
       "path": "docs/process/ENGINEER_START_HERE.md",
-      "class": "architecture_doc",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "canonical_normative"
-    },
-    {
-      "path": "docs/process/AGENT_ARCHITECTURE_RULES.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -8187,6 +8208,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/conversations/Avatar.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/conversations/Composer.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8720,6 +8748,13 @@
     },
     {
       "path": "packages/om-ui/src/shell/primitives/VisuallyHidden.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/shell/primitives/icons.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
