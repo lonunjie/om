@@ -5,7 +5,7 @@ import { test } from "@playwright/test";
 import { inviteAndChat } from "./invite-flow.ts";
 
 test.skip(process.env["OM_LIVE_RELAY"] !== "1", "opt-in: set OM_LIVE_RELAY=1 (this talks to the live Home)");
-const BASE = "http://localhost:4178";
+const BASE = process.env["OM_INVITE_BASE"] ?? "http://localhost:4178"; // OM_INVITE_BASE: a deployed preview of the signed bundle
 test.use({ baseURL: BASE });
 
 test("two people message through the LIVE Home from a shared link", async ({ browser }) => { await inviteAndChat(browser, BASE); });
