@@ -58,3 +58,6 @@
 /* Optional detail stays closed: nobody has to open it to finish setup. */
 .om-onb__more > summary { cursor: pointer; min-block-size: var(--om-target-min); display: flex; align-items: center; color: var(--om-color-text-secondary); }
 .om-onb__more[open] > summary { margin-block-end: var(--om-space-2); }
+
+/* Text for assistive technology only: the heading above the field already asks the question. */
+.om-onb__sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

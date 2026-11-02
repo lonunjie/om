@@ -39,23 +39,20 @@ export async function inviteAndChat(browser: Browser, base: string): Promise<voi
   const link = (await alice.locator("code[translate=no]").first().textContent())?.trim() ?? "";
   expect(link).toMatch(new RegExp(`^${base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/#invite/[A-Za-z0-9_-]{22,}$`));
   if (browser.browserType().name() === "chromium") expect(await alice.evaluate(() => navigator.clipboard.readText())).toBe(link);
-  await expect(alice.getByText(/Send this link in any app/)).toBeVisible();
   await alice.getByRole("button", { name: "Skip for now" }).click();
   await expect(alice.getByRole("button", { name: "Settings" })).toBeVisible();
 
-  // Bob opens that link on his own device. He lands on the landing page and is told why, with no token left in the address.
+  // Bob opens that link on his own device. He goes straight to "What should we call you?", with no token left in the address.
   const bob = await newDevice(browser, base);
   await bob.goto(link);
-  await expect(bob.getByRole("heading", { name: "You were invited to chat on OM" })).toBeVisible();
+  await expect(bob.getByRole("heading", { name: "What should we call you?" })).toBeVisible();
   expect(new URL(bob.url()).hash).toBe("");
-  await shot(bob, "03-bob-landing");
-  await bob.getByRole("button", { name: "Get started" }).first().click();
   await shot(bob, "04-bob-name");
   // Pressing the button without a name says why, instead of doing nothing.
-  await bob.getByRole("button", { name: "Protect my chats" }).click();
+  await bob.getByRole("button", { name: "Next: Secure your identity" }).click();
   await expect(bob.getByRole("alert")).toContainText("Type your name first");
   await bob.getByLabel("Your name").fill("Bob");
-  await bob.getByRole("button", { name: "Protect my chats" }).click();
+  await bob.getByRole("button", { name: "Next: Secure your identity" }).click();
 
   // After setup his one decision is "Accept this invite?"; nothing was sent before this.
   await expect(bob.getByRole("heading", { name: "Accept this invite?" })).toBeVisible({ timeout: 60_000 });

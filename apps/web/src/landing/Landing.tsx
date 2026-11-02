@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { CopyNotice } from "../CopyNotice";
-import { landingCopy as c } from "../copy/en";
+import { CopyNotice } from "../CopyNotice.tsx";
+import { landingCopy as c } from "../copy/en.ts";
 
 export interface LandingProps {
   /** Wired in the running app. In the prerendered page nothing is wired: the button waits for the app to load. */

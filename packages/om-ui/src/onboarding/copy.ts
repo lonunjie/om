@@ -13,7 +13,8 @@ export interface OnboardingCopy {
   readonly welcome: { readonly heading: string; readonly body: string; readonly start: string };
   readonly protect: {
     readonly heading: string;
-    readonly body: string;
+    /** Optional: the first page asks one question and says nothing more. */
+    readonly body?: string;
     readonly action: string;
     readonly working: string;
     readonly passkeyUser: { readonly name: string; readonly displayName: string };
@@ -22,7 +23,7 @@ export interface OnboardingCopy {
      * Asks for the name the other person sees (an invitation carries it). Without this slot nothing is asked and the profile
      * gets `defaultProfileLabel`, so every chat partner would read the same word.
      */
-    readonly name?: { readonly label: string; readonly hint: string; readonly missing: string; readonly tooLong: (max: number) => string };
+    readonly name?: { readonly label: string; readonly missing: string; readonly tooLong: (max: number) => string };
     readonly resultHeading: string;
     /** Summary label for the collapsed explanation of how chats are protected. */
     readonly moreOptions: string;
@@ -89,7 +90,6 @@ export interface OnboardingCopy {
     readonly shareCancelled: string;
     readonly shareFailed: string;
     /** What to do with the link once it is on screen, in one plain sentence. */
-    readonly linkHint: string;
     readonly copyLink: string;
     readonly copied: string;
     readonly copyFailed: string;
@@ -104,7 +104,7 @@ export interface OnboardingCopy {
     readonly scanNothing: string;
     readonly acceptHeading: string;
     readonly acceptLabel: string;
-    readonly acceptHint: string;
+    readonly haveInvite: string;
     readonly accept: string;
     readonly parseError: Readonly<Record<InviteParseErrorCode, string>>;
     readonly rejected: Readonly<Record<RejectReason, string>>;

@@ -137,6 +137,7 @@ test("two fresh identities exchange messages through the LIVE Home with the prod
 
     await page.getByRole("button", { name: "Add identity" }).click();
     await walkSetup(page, { stopAt: "invite" });
+    await page.getByText("Have an invite?").click();
     await page.getByLabel("Invitation link").fill(link);
     at.accept = Date.now();
     await page.getByRole("button", { name: "Accept invitation" }).click();

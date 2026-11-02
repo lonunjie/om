@@ -105,16 +105,15 @@ export function ProtectDevice({ services, vault, copy, onProtected, onExistingVa
   return (
     <section className="om-onb__step" aria-labelledby="om-onb-protect-h">
       <StepHeading id="om-onb-protect-h">{copy.heading}</StepHeading>
-      <Text as="p">{copy.body}</Text>
+      {copy.body ? <Text as="p">{copy.body}</Text> : null}
       {copy.name && (choosing || busy) ? (
         <div className="om-onb__field">
-          <label htmlFor="om-name">{copy.name.label}</label>
+          <label htmlFor="om-name" className="om-onb__sr">{copy.name.label}</label>
           <input
             id="om-name" ref={nameField} className="om-onb__input om-onb__input--text" type="text" value={name} disabled={busy} maxLength={NAME_MAX * 2}
-            autoComplete="nickname" autoCapitalize="words" spellCheck={false} aria-describedby="om-name-hint" aria-invalid={nameShown && nameProblem !== null}
+            autoComplete="nickname" autoCapitalize="words" spellCheck={false} aria-invalid={nameShown && nameProblem !== null}
             onChange={(e) => { setName(e.target.value); }}
           />
-          <Text as="p" size="sm" tone="secondary" id="om-name-hint">{copy.name.hint}</Text>
           {nameShown && nameProblem === "missing" ? <p role="alert" data-code="name_missing">{copy.name.missing}</p> : null}
           {nameShown && nameProblem === "too_long" ? <p role="alert" data-code="name_too_long">{copy.name.tooLong(NAME_MAX)}</p> : null}
         </div>

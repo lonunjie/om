@@ -184,15 +184,13 @@ export const onboardingCopy: OnboardingCopy = {
     start: "Get started",
   },
   protect: {
-    heading: "Lock your chats",
-    body: "Uses this device\u2019s fingerprint, face or screen lock.",
-    action: "Protect my chats",
+    heading: "What should we call you?",
+    action: "Next: Secure your identity",
     working: "Setting up",
     passkeyUser: { name: "OM", displayName: "OM" },
     defaultProfileLabel: "Me",
     name: {
       label: "Your name",
-      hint: "Shown to the people you chat with.",
       missing: "Type your name first.",
       tooLong: (max) => `Use ${String(max)} letters or fewer.`,
     },
@@ -208,7 +206,7 @@ export const onboardingCopy: OnboardingCopy = {
     needsGesture: STAGE,
     continueCeremony: "Continue",
     waiting: {
-      body: "Confirm with your fingerprint, face or screen lock.",
+      body: "Confirm on this device.",
       slow: "No prompt? You can skip it.",
       skip: "Skip the prompt",
     },
@@ -262,7 +260,6 @@ export const onboardingCopy: OnboardingCopy = {
     shareText: "Open this link to start a private chat with me.",
     shareCancelled: "Sharing was cancelled.",
     shareFailed: "Sharing did not work. You can copy the link instead.",
-    linkHint: "Send this link in any app. You will see their request here.",
     copyLink: "Copy link",
     copied: "Link copied. Paste it to send.",
     copyFailed: "Copying did not work. Select the link and copy it by hand.",
@@ -276,7 +273,7 @@ export const onboardingCopy: OnboardingCopy = {
     scanNothing: "No code was found. Try again or paste a link.",
     acceptHeading: "Accept an invitation",
     acceptLabel: "Invitation link",
-    acceptHint: "Paste the link someone sent you.",
+    haveInvite: "Have an invite?",
     accept: "Accept invitation",
     parseError: {
       empty: "Paste a link first.",
@@ -339,7 +336,6 @@ export const switcherLabels: ProfileSwitcherLabels = { group: "Identities", curr
 /** Strings for the composed app that no component owns. */
 export interface AppStrings {
   /** The landing page's note for a visit that came from someone's invitation link. */
-  readonly invitedNotice: { readonly heading: string; readonly body: string };
   readonly chats: string;
   readonly back: string;
   readonly selectConversation: string;
@@ -370,10 +366,6 @@ export interface AppStrings {
 }
 
 export const appStrings: AppStrings = {
-  invitedNotice: {
-    heading: "You were invited to chat on OM",
-    body: "Set up takes a few seconds.",
-  },
   chats: "Chats",
   back: "Back to conversations",
   selectConversation: "Choose a conversation to read it.",

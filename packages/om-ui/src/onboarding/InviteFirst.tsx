@@ -188,30 +188,31 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareL
         <Button variant="primary" disabled={busy} onClick={run(share)}>{copy.share}</Button>
         <Button disabled={busy} onClick={run(copyClick)}>{copy.copyLink}</Button>
         {renderQr ? <Button disabled={busy} onClick={run(qr)}>{copy.showQr}</Button> : null}
-        {scanQr && !hidden.includes("camera_unavailable") ? <Button disabled={busy} onClick={run(scan)}>{copy.scan}</Button> : null}
       </div>
       {invite ? (
         <div className="om-onb__invite">
           <Text as="p" size="sm" weight="bold" id="om-onb-invite-link-l">{copy.linkLabel}</Text>
           <code className="om-onb__link" aria-labelledby="om-onb-invite-link-l" translate="no">{linkOf(invite)}</code>
-          <Text as="p" size="sm">{copy.linkHint}</Text>
           <Text as="p" size="sm" tone="secondary">{copy.expires(invite.expiresAt)}</Text>
           {showQr && renderQr ? <figure className="om-onb__qr" aria-label={copy.qrLabel}>{renderQr(linkOf(invite))}</figure> : null}
         </div>
       ) : null}
+      <details className="om-onb__more">
+      <summary>{copy.haveInvite}</summary>
+      {scanQr && !hidden.includes("camera_unavailable") ? <div className="om-onb__actions"><Button disabled={busy} onClick={run(scan)}>{copy.scan}</Button></div> : null}
       <form className="om-onb__accept" aria-labelledby="om-onb-accept-h" onSubmit={(e) => { e.preventDefault(); void acceptLink(pasted); }}>
         <Text as="h3" size="md" weight="bold" id="om-onb-accept-h">{copy.acceptHeading}</Text>
         <label className="om-onb__field">
           <span>{copy.acceptLabel}</span>
           <input
-            type="text" className="om-onb__input" value={pasted} aria-describedby="om-onb-accept-hint" inputMode="url"
+            type="text" className="om-onb__input" value={pasted} inputMode="url"
             autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false}
             onChange={(e) => { setPasted(e.target.value); }}
           />
         </label>
-        <Text as="p" size="sm" tone="secondary" id="om-onb-accept-hint">{copy.acceptHint}</Text>
         <Button type="submit" disabled={busy}>{copy.accept}</Button>
       </form>
+      </details>
       {status ? <p role={status.kind === "alert" ? "alert" : "status"}>{status.text}</p> : null}
       {onSkip ? <div className="om-onb__actions"><Button variant="quiet" disabled={busy} onClick={onSkip}>{copy.skip}</Button></div> : null}
     </section>

@@ -1,6 +1,6 @@
-import type { TrustRoot } from "./signature";
-import type { RootKeyDescriptor, RootPin } from "./delegation";
-import { PQ_REQUIRED_BY_BUILD, PQ_ROOT } from "./pq-root";
+import type { TrustRoot } from "./signature.ts";
+import type { RootKeyDescriptor, RootPin } from "./delegation.ts";
+import { PQ_REQUIRED_BY_BUILD, PQ_ROOT } from "./pq-root.ts";
 
 // ============================================================================================================
 // TEMPORARY PLACEHOLDER (audit B2). The OFFLINE ROOT public key has not been generated yet (operator key

@@ -35,6 +35,7 @@ test("two identities talk through the configured reference Home; the Home sees o
 
   await page.getByRole("button", { name: "Add identity" }).click();
   await walkSetup(page, { stopAt: "invite" });
+  await page.getByText("Have an invite?").click();
   await page.getByLabel("Invitation link").fill(link);
   await page.getByRole("button", { name: "Accept invitation" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();

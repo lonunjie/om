@@ -610,7 +610,6 @@ describe("invite links people can actually open", () => {
     expect(shown).toMatch(/^https:\/\/om\.example\/#invite\/[A-Za-z0-9_-]{22}$/);
     await waitFor(() => { expect(tp.shared).toHaveLength(1); });
     expect(tp.shared[0]).toMatchObject({ url: shown });
-    expect(screen.getByText(/Send this link\./)).toBeTruthy();
     await click("Copy link");
     await waitFor(() => { expect(tp.written).toEqual([shown]); });
     expect((await screen.findByRole("status")).textContent).toBe("Copied");

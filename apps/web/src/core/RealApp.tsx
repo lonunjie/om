@@ -186,9 +186,9 @@ function Onboard({ rt, vault, platform, pending, first, onDone }: OnboardProps) 
   const registry = useMemo<ActionRegistry>(() => createActionRegistry(), []);
   const { scanQr, dialog } = useQrScanner(scannerCopy);
   const token = usePendingInvite();
-  const [started, setStarted] = useState(!first);
-  // The very first run opens with the landing page; adding a further identity goes straight into setup.
-  if (!started) return <Landing onGetStarted={() => { setStarted(true); }} installSlot={<InstallAffordance />} {...(token === null ? {} : { inviteNotice: t.invitedNotice })} />;
+  // The very first run opens with the landing page; adding a further identity, or opening an invite link, goes straight into setup.
+  const [started, setStarted] = useState(!first || token !== null);
+  if (!started) return <Landing onGetStarted={() => { setStarted(true); }} installSlot={<InstallAffordance />} />;
   return (
     <>
       <OnboardingFlow

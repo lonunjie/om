@@ -25,7 +25,7 @@ test("with JavaScript the app replaces the landing page only after Get started",
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("The messaging app you own");
   await page.getByRole("button", { name: "Get started" }).click();
   // The real Core starts, and the first run continues into device setup (no provider is configured in this build).
-  await expect(page.getByRole("button", { name: "Protect my chats" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Next: Secure your identity" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Run your own copy" })).toHaveCount(0);
 });
 
@@ -33,7 +33,7 @@ test("the dev harness shows the landing page first and Get started opens onboard
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Run your own copy" })).toBeVisible();
   await page.getByRole("button", { name: "Get started" }).click();
-  await expect(page.getByRole("heading", { name: "Keep your chats private on this device" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What should we call you?" })).toBeVisible();
 });
 
 test("the manifest is complete and every icon it names is a valid PNG or SVG of the declared size", async ({ request }) => {

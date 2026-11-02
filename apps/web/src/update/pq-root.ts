@@ -1,4 +1,4 @@
-import type { PqRootPin } from "./pq";
+import type { PqRootPin } from "./pq.ts";
 
 // ============================================================================================================
 // PQ ROOT PIN (ADR-0182, deploy/KEY-CEREMONY-PQ.md). Kept in its own file so the Ed25519 root pin in release-key.ts and

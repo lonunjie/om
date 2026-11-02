@@ -49,6 +49,7 @@ test("the camera scanner decodes a QR code from a real video stream and accepts 
   await context.grantPermissions(["camera"]);
   await noPasskeys(page);
   await onboard(page, { stopAt: "invite" });
+  await page.getByText("Have an invite?").click();
   await page.getByRole("button", { name: "Scan a QR code" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   // The dialog closes by itself once a frame decodes; the accepted link finishes setup and opens the app.
