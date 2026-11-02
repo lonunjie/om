@@ -26,7 +26,7 @@ for e in reg.get('extensions',[]):
 for rel in ['decisions/ADR-0165-protocol-evolution-compatibility-and-engineering-guardrails.md','docs/process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md','machine/protocol_evolution_policy.json','verification/bounded/protocol_evolution_adr0165.py']:
     if not (ROOT/rel).exists(): fail('missing '+rel)
 for rel, needle in [
-    ('AGENTS.md','Run 7 protocol-evolution rules'),
+    ('docs/process/AGENT_ARCHITECTURE_RULES.md','Run 7 protocol-evolution rules'),
     ('docs/constitution/PROTOCOL_LONGEVITY_AND_0M_CONTINUITY.md','ADR-0165'),
     ('docs/constitution/PROTOCOL_EXTENSIBILITY.md','ADR-0165'),
     ('docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md','ADR-0165'),

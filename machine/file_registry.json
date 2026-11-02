@@ -3854,6 +3854,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "docs/process/AGENT_ARCHITECTURE_RULES.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "docs/process/FORMAL_VERIFICATION_AND_FUZZING.md",
       "class": "architecture_doc",
       "domain": "architecture_process",
