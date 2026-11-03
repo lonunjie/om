@@ -55,6 +55,18 @@ export interface Provider {
 /** One new mailbox and the route to it (see Provider.allocateRoutes). */
 export interface RouteOffer { readonly mailbox: string; readonly relayUri: string; readonly capability: string }
 
+/** Password-hashing settings for a backup file (Argon2id). The host derives the key with exactly these. */
+export interface BackupKdf { readonly mKib: number; readonly t: number; readonly p: number }
+/** The settings and fresh random salt (hex) for the next backup file. */
+export interface BackupPlan { readonly kdf: BackupKdf; readonly salt: string }
+/** The public header of a backup file: what the host needs to derive the key for it. */
+export interface BackupHeader { readonly version: number; readonly profile: number; readonly kdf: BackupKdf; readonly salt: string; readonly ciphertextLen: number }
+/** What a restore did. */
+export interface ImportSummary { readonly chatsAdded: number; readonly chatsUpdated: number; readonly chatsSkipped: number; readonly messagesAdded: number }
+/** Every reason a backup file is refused, as Core names it (the error code is `backup_<reason>`). */
+export const BACKUP_REFUSALS = ["not_a_backup", "unsupported_version", "unsupported_profile", "unsupported_parameters", "truncated", "malformed", "wrong_password", "tampered", "invalid_content", "too_large"] as const;
+export type BackupRefusal = typeof BACKUP_REFUSALS[number];
+
 export class CoreCallError extends Error {
   constructor(readonly code: string, message: string) {
     super(message);
@@ -80,4 +92,11 @@ export function fromHex(s: string): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(s.length / 2);
   for (let i = 0; i < out.length; i++) out[i] = parseInt(s.slice(2 * i, 2 * i + 2), 16);
   return out;
+}
+
+/** The reason behind a backup refusal, or undefined when the error is something else. */
+export function backupRefusal(e: unknown): BackupRefusal | undefined {
+  if (!(e instanceof CoreCallError) || !e.code.startsWith("backup_")) return undefined;
+  const reason = e.code.slice("backup_".length);
+  return (BACKUP_REFUSALS as readonly string[]).includes(reason) ? (reason as BackupRefusal) : undefined;
 }

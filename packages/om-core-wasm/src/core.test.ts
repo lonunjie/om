@@ -6,7 +6,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { asConversationId, asOperationId, asProfileId } from "@om/platform-api";
 import type { ConfirmationToken, ConversationSummary, ConversationTimelineItem, HomeSummary, OutcomeClass, ProfileExecutionContext, ProfileId } from "@om/platform-api";
-import { createCoreRuntime, CoreStorageError, instantiateCore } from "./index";
+import { deriveBackupKey } from "@om/web-platform";
+import { backupRefusal, createCoreRuntime, CoreStorageError, fromHex, instantiateCore } from "./index";
 import type { WasmCoreClient } from "./index";
 import { createMemoryKv, createMemoryProvider, type MemoryKv, type MemoryProvider } from "./test-support";
 
@@ -222,4 +223,60 @@ describe.skipIf(!present)("real Core through the CoreClient interface", () => {
     expect(await other.rt.pendingOperations(other.ctx)).toEqual([]);
     expect([...p.kv.snapshot().keys()]).toEqual(["core/state"]);
   });
+  it("a chat-history backup file: write it with a password, read it on a fresh install as history only, refuse wrong passwords and altered files", async () => {
+    const provider = createMemoryProvider();
+    const { alice, bob, aConv, bConv } = await connect(provider);
+    await alice.rt.dispatch({ kind: "SendMessage", ctx: alice.ctx, operationId: op("m1"), conversationId: asConversationId(aConv), draft: { text: "hello bob" } });
+    await settle(alice, bob);
+    await bob.rt.dispatch({ kind: "SendMessage", ctx: bob.ctx, operationId: op("m2"), conversationId: asConversationId(bConv), draft: { text: "hi alice" } });
+    await settle(alice, bob);
+
+    const password = "correct horse battery staple";
+    const plan = alice.rt.backupPlan();
+    expect(plan.kdf).toEqual({ mKib: 65_536, t: 3, p: 1 }); // the production build writes the full cost
+    const key = await deriveBackupKey(password, plan.kdf, fromHex(plan.salt));
+    if (key === undefined) throw new Error("no key");
+    const file = alice.rt.exportBackup(alice.ctx, plan, key);
+    expect(new TextDecoder().decode(file.slice(0, 8))).toBe("OMBACKUP");
+    // Nothing readable in the file: neither the messages nor the other person's name.
+    const asText = new TextDecoder("latin1").decode(file);
+    expect(asText).not.toContain("hello bob");
+    expect(asText).not.toContain("Bob");
+
+    // A fresh install (new storage, new identity, a different provider) restores it as read-only history.
+    const fresh = await boot(createMemoryKv(), createMemoryProvider(), asProfileId("fresh"));
+    await fresh.rt.dispatch({ kind: "CreateIdentityProfile", ctx: fresh.ctx, operationId: op("f-create"), label: "Alice again" });
+    const head = fresh.rt.inspectBackup(file);
+    expect(head.kdf).toEqual(plan.kdf);
+    const key2 = await deriveBackupKey(password, head.kdf, fromHex(head.salt));
+    if (key2 === undefined) throw new Error("no key");
+    const wrongKey = await deriveBackupKey("not the password at all", head.kdf, fromHex(head.salt));
+    if (wrongKey === undefined) throw new Error("no key");
+    try {
+      await fresh.rt.importBackup(fresh.ctx, file, wrongKey);
+      throw new Error("should have refused");
+    } catch (e) {
+      expect(backupRefusal(e)).toBe("wrong_password");
+    }
+    expect(await fresh.rt.query({ kind: "GetConversationList", ctx: fresh.ctx })).toEqual([]);
+    const altered = file.slice();
+    altered[altered.length - 1] = (altered[altered.length - 1] ?? 0) ^ 1;
+    await expect(fresh.rt.importBackup(fresh.ctx, altered, key2)).rejects.toSatisfy((e) => backupRefusal(e) === "tampered");
+    await expect(fresh.rt.importBackup(fresh.ctx, file.slice(0, file.length - 3), key2)).rejects.toSatisfy((e) => backupRefusal(e) === "truncated");
+    expect(await fresh.rt.query({ kind: "GetConversationList", ctx: fresh.ctx })).toEqual([]);
+
+    const summary = await fresh.rt.importBackup(fresh.ctx, file, key2);
+    expect(summary).toEqual({ chatsAdded: 1, chatsUpdated: 0, chatsSkipped: 0, messagesAdded: 2 });
+    const [chat] = await fresh.rt.query({ kind: "GetConversationList", ctx: fresh.ctx });
+    expect(chat).toMatchObject({ displayName: "Bob", relationship: "restored" });
+    expect(await timeline(fresh, chat?.id ?? "")).toEqual(["out:hello bob", "in:hi alice"]);
+    // It is history only: nothing to send with, nothing to poll, and sending is refused.
+    await fresh.rt.dispatch({ kind: "SendMessage", ctx: fresh.ctx, operationId: op("try"), conversationId: asConversationId(chat?.id ?? ""), draft: { text: "as the old me" } });
+    expect((await outcome(fresh, "try"))?.kind).toBe("Rejected");
+    // And it is durable: a restart over the same storage still has it.
+    const again = await boot(fresh.kv, createMemoryProvider(), fresh.id);
+    expect(await timeline(again, chat?.id ?? "")).toEqual(["out:hello bob", "in:hi alice"]);
+    key.fill(0); key2.fill(0); wrongKey.fill(0);
+  }, 120_000);
+
 });

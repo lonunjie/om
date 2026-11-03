@@ -85,6 +85,7 @@ export const conversationCopy: ConversationCopy = {
     awaiting_acceptance: "Waiting for them to accept. They need to open OM to see your request; you can message them as soon as they do.",
     accepted_unbound: "Setting up. This person is not verified yet, and you can't send messages until it is done.",
     establishing: "Almost ready. Finishing the secure connection.",
+    restored: "Restored from a backup file. You can read these messages but not reply here, and OM cannot check that they are genuine. To talk again, ask for a new invite.",
   },
   pressure: {
     notice: "You are receiving a lot of requests from strangers. People you invited can still reach you.",
@@ -366,13 +367,14 @@ export interface AppStrings {
   readonly appName: string;
   readonly settingsHeading: string;
   readonly settingsSearch: { readonly label: string; readonly none: (query: string) => string };
-  readonly settingsRows: { readonly devices: string; readonly recovery: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
+  readonly settingsRows: { readonly devices: string; readonly recovery: string; readonly backup: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
   /** Words a person might type for a row that its title does not contain. */
-  readonly settingsKeywords: { readonly devices: string; readonly recovery: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
+  readonly settingsKeywords: { readonly devices: string; readonly recovery: string; readonly backup: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
   readonly settingsLock: string;
   readonly settingsNeedsAttention: string;
   readonly settingsDevices: string;
   readonly settingsRecovery: string;
+  readonly settingsBackup: string;
   readonly settingsHome: string;
   readonly settingsHelp: string;
   readonly backToChats: string;
@@ -416,6 +418,7 @@ export const appStrings: AppStrings = {
   settingsRows: {
     devices: "The phones and computers that can open your chats.",
     recovery: "How to get your chats back if you lose this device.",
+    backup: "Save your chats to a file, or read them back from one.",
     delivery: "The service that carries your messages between devices.",
     lock: "Whether OM asks before it opens on this device.",
     help: "Report a problem or suggest an idea.",
@@ -424,6 +427,7 @@ export const appStrings: AppStrings = {
   settingsKeywords: {
     devices: "phone computer linked sessions",
     recovery: "safety code backup restore lost",
+    backup: "backup restore export import download save file history chats copy move new phone drive usb password",
     delivery: "relay server network connection messages",
     lock: "password passcode pin passkey fingerprint face biometric privacy security",
     help: "bug problem issue report feedback idea suggestion feature request support github version",
@@ -433,6 +437,7 @@ export const appStrings: AppStrings = {
   settingsNeedsAttention: "needs attention",
   settingsDevices: "Devices",
   settingsRecovery: "Recovery",
+  settingsBackup: "Backup file",
   settingsHome: "Message delivery",
   settingsHelp: "Help and feedback",
   backToChats: "Back to chats",
@@ -866,6 +871,55 @@ export const homeCopy: HomeCopy = {
   },
   back: "Back to settings",
 };
+
+/** Settings > Backup file: save the chats to a file, and read them back. Plain words; what a backup does and does not hold is said up front. */
+export const backupCopy = {
+  heading: "Backup file",
+  intro: "Keep a copy of your chats in a file of your own. If you lose this device, set up OM again and read your old chats from the file.",
+  holds: {
+    heading: "What is in a backup file",
+    yes: "Your chats: who you talked to and every message, as they are on this device.",
+    no: "Not your account, your keys or your safety code. A backup lets you read old chats; it cannot send as you. To talk to someone again after losing a device, ask for a new invite.",
+    care: "Anyone who has the file and its password can read your chats, so keep both private. Nobody at OM can open the file or recover the password.",
+  },
+  save: {
+    heading: "Save a backup file",
+    password: "Choose a password",
+    again: "Type it again",
+    warning: "If you forget this password, nobody can open the file. OM never sees it and cannot reset it.",
+    slow: "Making the file takes a few seconds, longer on an older phone.",
+    action: "Save backup file",
+    working: "Making your backup. This takes a few seconds.",
+    done: (name: string) => `Saved ${name}. Keep a copy somewhere safe, like your cloud drive or a USB stick.`,
+    nothing: "You have no chats to back up yet. Come back after your first conversation.",
+  },
+  restore: {
+    heading: "Restore from a backup file",
+    hint: "Read the chats in a backup file. They appear in your chat list as saved copies: you can read them but not reply, and OM cannot check that they are genuine.",
+    file: "Choose the backup file",
+    password: "Password for this file",
+    action: "Restore chats",
+    working: "Opening the backup. This takes a few seconds.",
+    done: (chats: number, messages: number) => `Restored ${plural(chats, "chat", "chats")} with ${plural(messages, "message", "messages")}. They are in your chat list.`,
+    nothingNew: "That backup had nothing new for this device.",
+    already: (n: number) => `${plural(n, "chat", "chats")} already on this device ${n === 1 ? "was" : "were"} left as ${n === 1 ? "it is" : "they are"}.`,
+  },
+  errors: {
+    not_a_backup: "That does not look like an OM backup file.",
+    unsupported_version: "This backup comes from a newer version of OM. Update OM and try again.",
+    unsupported_profile: "This backup comes from a newer version of OM. Update OM and try again.",
+    unsupported_parameters: "This backup file cannot be opened by this version of OM.",
+    truncated: "This file is incomplete. It may not have finished copying. Get the file again and try again.",
+    malformed: "This file is damaged, so OM cannot open it. Nothing was restored.",
+    wrong_password: "That password does not match this backup. Check it and try again.",
+    tampered: "This file was changed or damaged after it was saved, so OM will not open it. Nothing was restored.",
+    invalid_content: "This file is not a chat backup that OM can read. Nothing was restored.",
+    too_large: "Your chats are too large for one backup file in this version of OM.",
+    empty_password: "Type the backup password.",
+    failed: "That did not work, and nothing was changed. Try again.",
+    no_chats: "You have no chats to back up yet.",
+  },
+} as const;
 
 /** Settings > Lock: what protects this device and how to change it, without technical words. */
 export const helpCopy = {

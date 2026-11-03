@@ -16,6 +16,7 @@ compile_error!(
 );
 
 pub mod api;
+pub mod backup;
 pub mod control;
 pub mod crypto;
 pub mod engine;

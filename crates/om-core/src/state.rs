@@ -274,6 +274,39 @@ pub struct Relationship {
     pub pending_bind: Option<PendingBind>,
 }
 
+/// A conversation brought back from a backup file (ADR-0184). It is history only: no relationship, key, route or outbox
+/// entry exists for it, so it can be shown and re-exported and can never send, receive or act with authority.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RestoredChat {
+    pub id: String,
+    pub display_name: String,
+    #[serde(default)]
+    pub peer_account_id: Hex,
+    pub created_at: u64,
+    #[serde(default)]
+    pub canon_id: Option<Hex>,
+    pub restored_at: u64,
+    pub messages: Vec<RestoredMsg>,
+}
+
+/// `delivery`: 0 never left the device it was written on, 1 sent, 2 delivered, 3 refused (see `backup::ArchivedMsg`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RestoredMsg {
+    pub id: String,
+    pub outgoing: bool,
+    pub text: String,
+    pub sent_at: u64,
+    pub delivery: u8,
+    #[serde(default)]
+    pub clock_ms: u64,
+    #[serde(default)]
+    pub clock_logical: u32,
+    #[serde(default)]
+    pub digest: Hex,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpRec {
@@ -356,6 +389,9 @@ pub struct AppState {
     pub accepted_invites: BTreeSet<Hex>,
     pub intros: BTreeMap<String, IntroRec>,
     pub relationships: BTreeMap<String, Relationship>,
+    /// History restored from a backup file: read-only, additive to version 4 (absent in older records).
+    #[serde(default)]
+    pub restored: BTreeMap<String, RestoredChat>,
     pub ops: BTreeMap<OperationId, OpRec>,
     pub outbox: Vec<OutboxEntry>,
     pub next_net_id: u64,

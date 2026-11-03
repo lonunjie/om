@@ -7,7 +7,7 @@ import type {
   ProfileExecutionContext, ProfileId, QueryResult, Unsubscribe,
 } from "@om/platform-api";
 import { asProfileGeneration, asProfileId } from "@om/platform-api";
-import type { Commit, Inbound, NetOp, NetResult, PollTarget, Provider, Record as CoreRecord } from "./types";
+import type { BackupHeader, BackupPlan, Commit, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, Record as CoreRecord } from "./types";
 import { CoreCallError, CoreStorageError, fromHex, toHex } from "./types";
 import type { WasmCore } from "./wasm";
 
@@ -39,6 +39,15 @@ export interface WasmCoreClient extends CoreClient {
   idle(): Promise<void>;
   /** Release timers. */
   dispose(): void;
+  /** Chat-history backup file (ADR-0184). The host derives the key from the person's password; Core never sees the password. */
+  /** The Argon2id settings and a fresh salt for the next file. */
+  backupPlan(): BackupPlan;
+  /** The profile's history, sealed under `key` (32 bytes derived with `plan`). Refuses with a `backup_*` CoreCallError. */
+  exportBackup(ctx: ProfileExecutionContext, plan: BackupPlan, key: Uint8Array): Uint8Array;
+  /** A file's public header (settings and salt), without any key. Refuses a non-backup, an unknown version, a short file. */
+  inspectBackup(file: Uint8Array): BackupHeader;
+  /** Restores a file as read-only history: all of it or none of it, durable before this resolves. */
+  importBackup(ctx: ProfileExecutionContext, file: Uint8Array, key: Uint8Array): Promise<ImportSummary>;
 }
 
 interface StepJson { readonly commit: Commit | null; readonly handle: OperationHandle | null }
@@ -256,6 +265,18 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     },
     pendingOperations(ctx) {
       try { return Promise.resolve(core.call({ cmd: "pending_operations", ctx }) as PendingOperationView[]); } catch (e) { return Promise.reject(e instanceof Error ? e : new CoreCallError("internal", "failed")); }
+    },
+    backupPlan() { return core.call({ cmd: "backup_plan" }) as BackupPlan; },
+    exportBackup(ctx, plan, key) {
+      return fromHex(core.call({ cmd: "backup_export", ctx, plan, key: toHex(key) }) as string);
+    },
+    inspectBackup(file) { return core.call({ cmd: "backup_inspect", file: toHex(file) }) as BackupHeader; },
+    importBackup(ctx, file, key) {
+      return exclusive(async () => {
+        const r = core.call({ cmd: "backup_import", ctx: ctxOf(ctx), file: toHex(file), key: toHex(key) }) as { summary: ImportSummary; commit: Commit | null };
+        await commit(r.commit, ctx);
+        return r.summary;
+      });
     },
     flush,
     async idle() {

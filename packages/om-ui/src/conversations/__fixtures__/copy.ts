@@ -14,7 +14,7 @@ export const testCopy: ConversationCopy = {
     rejected: rec(REASONS, (r) => `Not sent: ${r}`),
   },
   composer: { label: "Message", placeholder: "Write a message", send: "Send", sendFailed: "Send failed", rejected: rec(REASONS, (r) => `Rejected: ${r}`), needsAction: rec(ACTIONS, (a) => `Action: ${a}`) },
-  relationship: { awaiting_acceptance: "Waiting for acceptance", accepted_unbound: "Not verified yet", establishing: "Establishing" },
+  relationship: { awaiting_acceptance: "Waiting for acceptance", accepted_unbound: "Not verified yet", establishing: "Establishing", restored: "Restored from a backup file" },
   pressure: { notice: "Many requests from strangers" },
   request: {
     heading: "Message request", unknownSender: "(not in your contacts)", hint: "Only accept if you know who this is.", unverified: "Unverified", accept: "Accept", ignore: "Ignore", block: "Block", blockConfirm: "Yes, block",

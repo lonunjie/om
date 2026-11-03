@@ -477,6 +477,8 @@ pub enum RelationshipStateCode {
     AcceptedUnbound,
     Establishing,
     Active,
+    /// History brought back from a backup file: read-only, no way to send (ADR-0184).
+    Restored,
 }
 
 /// `unverified`: the requester's intro key is not bound to any account yet. `bound`: it is.

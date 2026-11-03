@@ -227,6 +227,8 @@ pub enum CoreError {
     CorruptState(&'static str),
     NotFound(&'static str),
     Invalid(&'static str),
+    /// A backup file could not be written or read (see `backup::BackupError`).
+    Backup(crate::backup::BackupError),
 }
 
 impl core::fmt::Display for CoreError {

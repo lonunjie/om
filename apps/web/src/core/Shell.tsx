@@ -14,6 +14,8 @@ import { CHATS, placeTitle, placeUrl, usePlace, type SettingsPage } from "../rou
 import "./shell.css";
 import { InstallAffordance } from "../install/InstallAffordance";
 import { HelpScreen } from "./HelpScreen";
+import { BackupScreen } from "./BackupScreen";
+import type { BackupServices } from "./backupServices";
 import { LockScreen } from "./LockScreen";
 import type { LockServices } from "./lockServices";
 
@@ -42,6 +44,8 @@ export interface ShellProps {
   readonly safetyCode?: SafetyCodeOffer;
   /** Settings > Lock, when the host can read how this device opens OM (the production entry). */
   readonly lock?: LockServices;
+  /** Settings > Backup file, when the host can save and restore one (the production entry). */
+  readonly backup?: BackupServices;
   /** Where drafts are kept between visits (the production entry); without it they last until the page closes. */
   readonly draftSync?: DraftSync;
   /** With it, an empty Chats list is the invite-first screen instead of a dead end (UI_UX_SYSTEM: first run and invitations). */
@@ -58,7 +62,7 @@ export interface ShellProps {
   };
 }
 
-export function Shell({ services, devicesExtra, onAddProfile, home, lock, draftSync, safetyCode, invite, incoming }: ShellProps) {
+export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup, draftSync, safetyCode, invite, incoming }: ShellProps) {
   const inviteScan = useQrScanner(scannerCopy);
   const deviceScan = useQrScanner(deviceScannerCopy);
   const { place, raw, go, back } = usePlace();
@@ -93,7 +97,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, draftS
 
   // An address that names nothing real (a chat that is not here, a step this host does not have) falls back to the root, not to an error.
   const chatGone = selected !== null && newChatAfter === null && list.status === "ready" && !list.value.some((c) => c.id === selected);
-  const noSuchPlace = (place.kind === "safety-code" && safetyCode === undefined) || (place.kind === "settings" && place.page === "delivery" && home === undefined) || (place.kind === "settings" && place.page === "lock" && lock === undefined) || chatGone;
+  const noSuchPlace = (place.kind === "safety-code" && safetyCode === undefined) || (place.kind === "settings" && place.page === "delivery" && home === undefined) || (place.kind === "settings" && place.page === "lock" && lock === undefined) || (place.kind === "settings" && place.page === "backup" && backup === undefined) || chatGone;
   useEffect(() => { if (noSuchPlace) go(CHATS, { replace: true }); }, [noSuchPlace, go]);
   // The address bar shows the place's own address ("/index.html" and "/nope" become "/"), so what is shown can be copied and reopened.
   useEffect(() => { if (!noSuchPlace && placeUrl(place) !== raw) go(place, { replace: true }); }, [raw, place, noSuchPlace, go]);
@@ -161,7 +165,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, draftS
           conversationOpen={settings !== "menu"}
           list={(
             <SettingsMenu
-              page={settings} onOpen={(page) => { go({ kind: "settings", page }); }} onAddProfile={onAddProfile} hasHome={home !== undefined} hasLock={lock !== undefined}
+              page={settings} onOpen={(page) => { go({ kind: "settings", page }); }} onAddProfile={onAddProfile} hasHome={home !== undefined} hasLock={lock !== undefined} hasBackup={backup !== undefined}
               onSafetyCode={safetyCode === undefined ? undefined : () => { go({ kind: "safety-code" }); }}
             />
           )}
@@ -175,6 +179,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, draftS
                   </>
                 ) : settings === "delivery" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} />
                   : settings === "lock" && lock !== undefined ? <LockScreen services={lock} />
+                  : settings === "backup" && backup !== undefined ? <BackupScreen services={backup} />
                   : settings === "help" ? <HelpScreen />
                   : <RecoveryScreen services={services} copy={recoveryCopy} />}
               </SubPage>
@@ -223,7 +228,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, draftS
             <ConversationView key={selected} services={services} conversationId={selected} copy={conversationCopy} onBack={toChats} />
           )
         }
-        composerZone={selected === null ? undefined : (
+        composerZone={selected === null || (list.status === "ready" && list.value.some((c) => c.id === selected && c.relationship === "restored")) ? undefined : (
           <Composer
             key={selected} services={services} conversationId={selected} copy={conversationCopy} draft={drafts.get(selected) ?? ""}
             onDraftChange={(next) => { setDrafts((d) => new Map(d).set(selected, next)); draftSync?.save(selected, next); }}
@@ -275,8 +280,8 @@ function Requests({ services }: { readonly services: ConversationServices }) {
 interface MenuRow { readonly id: SettingsPage; readonly title: string; readonly hint: string; readonly icon: IconName; readonly words: string }
 
 /** Settings is reached from the profile area (Profile -> Settings), not a tab: Chats stays the compact root. Typing anywhere searches it. */
-function SettingsMenu({ page, onOpen, onAddProfile, hasHome, hasLock, onSafetyCode }: {
-  readonly page: SettingsPage; readonly onOpen: (p: SettingsPage) => void; readonly onAddProfile: (() => void) | undefined; readonly hasHome: boolean; readonly hasLock: boolean; readonly onSafetyCode: (() => void) | undefined;
+function SettingsMenu({ page, onOpen, onAddProfile, hasHome, hasLock, hasBackup, onSafetyCode }: {
+  readonly page: SettingsPage; readonly onOpen: (p: SettingsPage) => void; readonly onAddProfile: (() => void) | undefined; readonly hasHome: boolean; readonly hasLock: boolean; readonly hasBackup: boolean; readonly onSafetyCode: (() => void) | undefined;
 }) {
   const [query, setQuery] = useState("");
   const search = useRef<HTMLInputElement>(null);
@@ -284,6 +289,7 @@ function SettingsMenu({ page, onOpen, onAddProfile, hasHome, hasLock, onSafetyCo
     ...(hasLock ? [{ id: "lock" as const, title: t.settingsLock, hint: t.settingsRows.lock, icon: "lock" as const, words: t.settingsKeywords.lock }] : []),
     { id: "devices", title: t.settingsDevices, hint: t.settingsRows.devices, icon: "devices", words: t.settingsKeywords.devices },
     { id: "recovery", title: t.settingsRecovery, hint: t.settingsRows.recovery, icon: "shield", words: t.settingsKeywords.recovery },
+    ...(hasBackup ? [{ id: "backup" as const, title: t.settingsBackup, hint: t.settingsRows.backup, icon: "download" as const, words: t.settingsKeywords.backup }] : []),
     ...(hasHome ? [{ id: "delivery" as const, title: t.settingsHome, hint: t.settingsRows.delivery, icon: "delivery" as const, words: t.settingsKeywords.delivery }] : []),
     { id: "help", title: t.settingsHelp, hint: t.settingsRows.help, icon: "chat", words: t.settingsKeywords.help },
   ];

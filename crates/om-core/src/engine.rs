@@ -6,12 +6,14 @@
 //! One commit may be outstanding at a time; the host serialises calls (the TypeScript driver uses a queue).
 
 use crate::api::*;
+use crate::backup::{self, BackupPlan};
 use crate::crypto::rng::{CryptoRng, RngCore};
 use crate::flows::Tx;
 use crate::host::*;
 use crate::route::{MAX_OFFERS, RouteOffer};
 use crate::state::*;
 use std::collections::BTreeMap;
+use zeroize::Zeroize;
 
 struct Slot {
     state: ProfileState,
@@ -424,6 +426,77 @@ impl<R: RngCore + CryptoRng> Core<R> {
         })
     }
 
+    // ------------------------------------------------------------------------------------------ backup file (ADR-0184)
+
+    /// The password-hashing settings and a fresh random salt for the next backup file. The host derives the key from
+    /// the person's password with exactly these and hands it to [`Core::export_history`].
+    pub fn backup_plan(&mut self) -> BackupPlan {
+        let mut salt = [0u8; backup::SALT_LEN];
+        self.rng.fill_bytes(&mut salt);
+        BackupPlan {
+            kdf: backup::default_kdf(),
+            salt: salt.to_vec(),
+        }
+    }
+
+    /// Seal the profile's history (never any key or authority; see `backup::collect`) into one backup file. Reads
+    /// committed state only, so it never conflicts with an outstanding commit and changes nothing.
+    pub fn export_history(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        plan: &BackupPlan,
+        key: &[u8],
+    ) -> Result<Vec<u8>, CoreError> {
+        let mut master: [u8; 32] = key
+            .try_into()
+            .map_err(|_| CoreError::Invalid("backup key"))?;
+        let salt: [u8; backup::SALT_LEN] = plan
+            .salt
+            .as_slice()
+            .try_into()
+            .map_err(|_| CoreError::Invalid("backup salt"))?;
+        let mut nonce = [0u8; backup::NONCE_LEN];
+        self.rng.fill_bytes(&mut nonce);
+        let out = (|| {
+            let archive = backup::collect(&self.slot(ctx)?.state.app, self.clock.now_ms())?;
+            let mut body = backup::encode_body(&archive);
+            let file = backup::seal(&body, plan.kdf, &salt, &nonce, &master);
+            body.zeroize();
+            Ok(file?)
+        })();
+        master.zeroize();
+        out.map_err(|e: BackupOrCore| e.0)
+    }
+
+    /// What the host needs to derive the key for a backup file. Needs no profile: any file can be looked at first.
+    pub fn inspect_backup(file: &[u8]) -> Result<backup::BackupHeader, CoreError> {
+        backup::inspect(file).map_err(CoreError::Backup)
+    }
+
+    /// Restore a backup file into the profile as read-only history. All or nothing: the whole file is authenticated and
+    /// validated before anything is staged, and the staged result is one commit.
+    pub fn import_history(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        file: &[u8],
+        key: &[u8],
+    ) -> Result<(backup::ImportSummary, Option<Commit>), CoreError> {
+        self.slot(ctx)?;
+        let mut master: [u8; 32] = key
+            .try_into()
+            .map_err(|_| CoreError::Invalid("backup key"))?;
+        let opened = backup::open(file, &master);
+        master.zeroize();
+        let mut body = opened.map_err(CoreError::Backup)?;
+        let archive = backup::decode_body(&body);
+        body.zeroize();
+        let archive = archive.map_err(CoreError::Backup)?;
+        let now = self.clock.now_ms();
+        self.txn(&ctx.profile_id, |tx| {
+            backup::apply_import(&mut tx.st.app, archive, now).map_err(CoreError::Backup)
+        })
+    }
+
     // ------------------------------------------------------------------------------------------ queries
 
     /// Typed queries over committed state only. The result is the JSON of the matching platform-API view.
@@ -449,6 +522,14 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     Query::GetConversationView {
                         conversation_id, ..
                     } => {
+                        if !st.app.relationships.contains_key(conversation_id)
+                            && let Some(r) = st.app.restored.get(conversation_id)
+                        {
+                            return Ok(to(&ConversationView {
+                                summary: restored_summary(r),
+                                timeline: r.messages.iter().map(restored_item).collect(),
+                            }));
+                        }
                         let rel = st
                             .app
                             .relationships
@@ -545,6 +626,19 @@ impl<R: RngCore + CryptoRng> Core<R> {
     }
 }
 
+/// Lets the export closure use `?` on both `CoreError` and `BackupError`.
+struct BackupOrCore(CoreError);
+impl From<CoreError> for BackupOrCore {
+    fn from(e: CoreError) -> Self {
+        BackupOrCore(e)
+    }
+}
+impl From<backup::BackupError> for BackupOrCore {
+    fn from(e: backup::BackupError) -> Self {
+        BackupOrCore(CoreError::Backup(e))
+    }
+}
+
 mod erased {
     pub trait Ser {
         fn to_value(&self) -> serde_json::Value;
@@ -602,17 +696,70 @@ fn timeline_item(m: &Msg) -> TimelineItem {
     }
 }
 
+fn restored_summary(r: &RestoredChat) -> ConversationSummary {
+    ConversationSummary {
+        id: r.id.clone(),
+        person_id: format!("restored:{}", r.id),
+        display_name: r.display_name.clone(),
+        last_message_at: r.messages.last().map(|m| m.sent_at),
+        notices: vec![],
+        relationship: RelationshipStateCode::Restored,
+    }
+}
+
+/// A restored message has no operation behind it. Outgoing ones keep their old state as far as it is still true: an
+/// attempt that never left the old device is shown as not sent, since nothing will ever retry it.
+fn restored_item(m: &RestoredMsg) -> TimelineItem {
+    if m.outgoing {
+        TimelineItem::Outgoing {
+            message_id: m.id.clone(),
+            operation_id: format!("restored:{}", m.id),
+            text: m.text.clone(),
+            sent_at: m.sent_at,
+            delivery: match m.delivery {
+                1 => DeliveryState::Sent,
+                2 => DeliveryState::Delivered,
+                _ => DeliveryState::Rejected {
+                    reason: RejectReason::Unavailable,
+                },
+            },
+        }
+    } else {
+        TimelineItem::Incoming {
+            message_id: m.id.clone(),
+            text: m.text.clone(),
+            sent_at: m.sent_at,
+        }
+    }
+}
+
 fn conversation_list(st: &ProfileState) -> Vec<ConversationSummary> {
-    let mut v: Vec<&Relationship> = st.app.relationships.values().collect();
-    v.sort_by(|a, b| {
-        b.messages
-            .last()
-            .map(|m| m.sent_at)
-            .unwrap_or(b.created_at)
-            .cmp(&a.messages.last().map(|m| m.sent_at).unwrap_or(a.created_at))
-            .then_with(|| a.id.cmp(&b.id))
-    });
-    v.into_iter().map(summary).collect()
+    // (last activity, summary): live conversations and restored history are listed together, newest first.
+    let mut v: Vec<(u64, ConversationSummary)> = st
+        .app
+        .relationships
+        .values()
+        .map(|r| {
+            (
+                r.messages.last().map(|m| m.sent_at).unwrap_or(r.created_at),
+                summary(r),
+            )
+        })
+        .collect();
+    v.extend(
+        st.app
+            .restored
+            .values()
+            .filter(|r| !st.app.relationships.contains_key(&r.id))
+            .map(|r| {
+                (
+                    r.messages.last().map(|m| m.sent_at).unwrap_or(r.created_at),
+                    restored_summary(r),
+                )
+            }),
+    );
+    v.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.id.cmp(&b.1.id)));
+    v.into_iter().map(|(_, s)| s).collect()
 }
 
 fn devices_view(st: &ProfileState) -> DevicesView {

@@ -3,6 +3,7 @@
 
 use om_core::Core;
 use om_core::api::{HomeSummary, Intent, ProfileExecutionContext, Query};
+use om_core::backup::BackupPlan;
 use om_core::crypto::rng::{self, CryptoRng, RngCore};
 use om_core::host::{Clock, CoreError, Inbound, NetResult, Record};
 use om_core::route::RouteOffer;
@@ -61,6 +62,24 @@ enum Command {
     Outcome {
         ctx: ProfileExecutionContext,
         operation_id: String,
+    },
+    /// Settings and a fresh salt for the next backup file (ADR-0184).
+    BackupPlan,
+    /// Seal the profile's history into a backup file; `key` is the host's Argon2id output for `plan` (hex).
+    BackupExport {
+        ctx: ProfileExecutionContext,
+        plan: BackupPlan,
+        key: String,
+    },
+    /// Read a backup file's public header (what the host needs to derive the key); needs no profile.
+    BackupInspect {
+        file: String,
+    },
+    /// Restore a backup file into the profile as read-only history: all of it or none of it.
+    BackupImport {
+        ctx: ProfileExecutionContext,
+        file: String,
+        key: String,
     },
     /// Routes the provider adapter allocated for mailboxes Core has not created yet. Answers how many Core holds.
     SupplyRoutes {
@@ -163,6 +182,19 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::Outcome { ctx, operation_id } => {
                 Ok(enc(&self.core()?.outcome(&ctx, &operation_id)?))
             }
+            Command::BackupPlan => Ok(enc(&self.core()?.backup_plan())),
+            Command::BackupExport { ctx, plan, key } => {
+                let key = unhex(&key)?;
+                Ok(json!(om_core::crypto::hex(
+                    &self.core()?.export_history(&ctx, &plan, &key)?
+                )))
+            }
+            Command::BackupInspect { file } => Ok(enc(&Core::<R>::inspect_backup(&unhex(&file)?)?)),
+            Command::BackupImport { ctx, file, key } => {
+                let (file, key) = (unhex(&file)?, unhex(&key)?);
+                let (summary, commit) = self.core()?.import_history(&ctx, &file, &key)?;
+                Ok(json!({ "summary": enc(&summary), "commit": enc(&commit) }))
+            }
             Command::SupplyRoutes { routes } => Ok(json!(self.core()?.supply_routes(routes))),
         }
     }
@@ -177,7 +209,15 @@ fn err(code: &str, message: &str) -> Value {
     json!({ "err": { "code": code, "message": message } })
 }
 
+fn unhex(s: &str) -> Result<Vec<u8>, CoreError> {
+    om_core::crypto::unhex(s).map_err(|_| CoreError::Invalid("hex"))
+}
+
 fn core_err(e: &CoreError) -> Value {
+    if let CoreError::Backup(b) = e {
+        // `backup_wrong_password`, `backup_tampered`, ...: one code per cause, so the UI can say the right thing.
+        return err(&format!("backup_{}", b.code()), &e.to_string());
+    }
     let code = match e {
         CoreError::ProfileAccess(_) => "profile_access",
         CoreError::OperationIdConflict => "operation_id_conflict",
@@ -185,6 +225,7 @@ fn core_err(e: &CoreError) -> Value {
         CoreError::CorruptState(_) => "corrupt_state",
         CoreError::NotFound(_) => "not_found",
         CoreError::Invalid(_) => "invalid",
+        CoreError::Backup(_) => "invalid",
     };
     err(code, &e.to_string())
 }

@@ -23,6 +23,7 @@ import { browserPollPace } from "./pollPace";
 import { createProfileRegistry, type ProfileRegistry } from "./registry";
 import { clearPendingSafetyCode, readPendingSafetyCode, savePendingSafetyCode } from "./safetyCode";
 import { Shell, type DraftSync } from "./Shell";
+import { createBackupServices, type BackupServices } from "./backupServices";
 import { createLockServices, type LockServices } from "./lockServices";
 import { readIdleMinutes, writeIdleMinutes, type IdleMinutes } from "./lockPrefs";
 import { useIdleLock } from "./useIdleLock";
@@ -234,15 +235,16 @@ function Connected({ rt, vault, drafts, platform, onAddProfile, home, lockOpen, 
     () => (activeId === null ? null : createLockServices({ vault, profileId: activeId, passkeyUser: onboardingCopy.protect.passkeyUser, lockOpen, idleMinutes: () => idle, setIdleMinutes: setIdle })),
     [vault, activeId, lockOpen, idle, setIdle],
   );
+  const backup = useMemo<BackupServices | null>(() => (ctx === null ? null : createBackupServices({ rt, ctx })), [rt, ctx]);
   const draftSync = useMemo<DraftSync | null>(
     () => (activeId === null ? null : { load: () => drafts.load(activeId), save: (conversation, text) => { drafts.set(activeId, conversation, text); } }),
     [drafts, activeId],
   );
-  if (activeId === null || ctx === null || lock === null || draftSync === null) return <Text>{t.loading}</Text>;
+  if (activeId === null || ctx === null || lock === null || backup === null || draftSync === null) return <Text>{t.loading}</Text>;
   const resolve = (): void => { clearPendingSafetyCode(activeId); setResolved((n) => n + 1); };
   return (
     <Shell
-      key={activeId} services={{ client: rt, registry, ctx }} onAddProfile={onAddProfile} lock={lock} draftSync={draftSync} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
+      key={activeId} services={{ client: rt, registry, ctx }} onAddProfile={onAddProfile} lock={lock} backup={backup} draftSync={draftSync} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
       incoming={{ token, newChatAfter, onAccepted: (known) => { clearPendingInvite(); expectNewChat(known); }, onDeclined: clearPendingInvite, onNewChatOpened: clearExpectedNewChat }}
       {...(pending === null ? {} : { safetyCode: { keyOperationId: pending, platform, onResolved: resolve } })}
     />

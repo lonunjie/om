@@ -29,8 +29,9 @@ export interface ProfileSummary { readonly id: ProfileId; readonly label: string
 /**
  * Where a relationship is in first contact. `accepted_unbound`: accepted, but both IntroIdentityBindings have not
  * verified, so the contact is unverified and nothing can be sent. `establishing`: both verified, session being set up.
+ * `restored`: history brought back from a backup file (ADR-0184): read-only, it has no connection to send or receive on.
  */
-export type RelationshipStateCode = "awaiting_acceptance" | "accepted_unbound" | "establishing" | "active";
+export type RelationshipStateCode = "awaiting_acceptance" | "accepted_unbound" | "establishing" | "active" | "restored";
 
 export interface ConversationSummary {
   readonly id: ConversationId;

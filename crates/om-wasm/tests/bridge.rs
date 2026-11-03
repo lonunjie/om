@@ -130,3 +130,59 @@ fn route_offers_cross_the_bridge_validated() {
             .is_object()
     );
 }
+
+#[test]
+fn backup_commands_round_trip_and_name_each_refusal() {
+    let mut b = Bridge::new(
+        || InsecureTestRng::from_label(b"backup"),
+        || 1_790_000_000_000,
+    );
+    call(&mut b, json!({ "cmd": "init", "home": home() }));
+    let ctx = call(
+        &mut b,
+        json!({ "cmd": "open_profile", "profileId": "me", "records": [] }),
+    )["ok"]
+        .clone();
+    let key = "42".repeat(32);
+    let plan = call(&mut b, json!({ "cmd": "backup_plan" }))["ok"].clone();
+    assert_eq!(plan["kdf"]["p"], 1);
+    assert_eq!(plan["salt"].as_str().unwrap().len(), 32);
+    let file = call(
+        &mut b,
+        json!({ "cmd": "backup_export", "ctx": ctx, "plan": plan, "key": key }),
+    )["ok"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let head = call(&mut b, json!({ "cmd": "backup_inspect", "file": file }));
+    assert_eq!(head["ok"]["version"], 1);
+    assert_eq!(head["ok"]["salt"], plan["salt"]);
+
+    let wrong = call(
+        &mut b,
+        json!({ "cmd": "backup_import", "ctx": ctx, "file": file, "key": "43".repeat(32) }),
+    );
+    assert_eq!(wrong["err"]["code"], "backup_wrong_password");
+    let junk = call(
+        &mut b,
+        json!({ "cmd": "backup_inspect", "file": "00".repeat(200) }),
+    );
+    assert_eq!(junk["err"]["code"], "backup_not_a_backup");
+    let cut = call(
+        &mut b,
+        json!({ "cmd": "backup_inspect", "file": &file[..100] }),
+    );
+    assert_eq!(cut["err"]["code"], "backup_truncated");
+    let ok = call(
+        &mut b,
+        json!({ "cmd": "backup_import", "ctx": ctx, "file": file, "key": key }),
+    );
+    assert_eq!(ok["ok"]["summary"]["messagesAdded"], 0);
+    assert_eq!(
+        call(
+            &mut b,
+            json!({ "cmd": "backup_export", "ctx": ctx, "plan": plan, "key": "00" })
+        )["err"]["code"],
+        "invalid"
+    );
+}

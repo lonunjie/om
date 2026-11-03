@@ -3,3 +3,5 @@ export { browserEnv } from "./env";
 export type { WebEnv } from "./env";
 export * from "./vault/index";
 export * from "./qr/index";
+export { deriveBackupKey } from "./backup";
+export type { BackupCost } from "./backup";

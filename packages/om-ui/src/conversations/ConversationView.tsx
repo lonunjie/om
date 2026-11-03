@@ -118,7 +118,7 @@ export function ConversationView({ services, conversationId, copy, richTextFor, 
                     <span className="om-conv-view__foot">
                       <time dateTime={new Date(item.sentAt).toISOString()}>{copy.view.formatTime(item.sentAt)}</time>
                       {delivery ? <DeliveryIndicator delivery={delivery} copy={copy.delivery} /> : null}
-                      {delivery?.kind === "rejected" && RETRYABLE_REASONS.has(delivery.reason)
+                      {delivery?.kind === "rejected" && view.summary.relationship !== "restored" && RETRYABLE_REASONS.has(delivery.reason)
                         ? <Button variant="quiet" disabled={retrying.current.has(item.messageId)} onClick={() => { retry(item.messageId); }}>{copy.view.retry}</Button>
                         : null}
                     </span>
