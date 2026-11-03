@@ -299,20 +299,34 @@ impl<R: RngCore + CryptoRng> Core<R> {
     ) -> Result<Vec<PollTarget>, CoreError> {
         let st = &self.slot(ctx)?.state;
         let now = self.clock.now_ms();
-        let mut boxes: Vec<&String> = st
+        let mut boxes: Vec<(&String, MailboxKind)> = st
             .app
             .invites
             .values()
             .filter(|i| !i.revoked && !i.used && i.expires_at > now)
-            .map(|i| &i.mailbox)
+            .map(|i| {
+                // An invite's requests wait at its introduction service; one made before they existed, in a mailbox.
+                let kind = if i.intro_service.is_some() {
+                    MailboxKind::Intro
+                } else {
+                    MailboxKind::Relay
+                };
+                (&i.mailbox, kind)
+            })
             .collect();
-        boxes.extend(st.app.relationships.values().map(|r| &r.my_mailbox));
+        boxes.extend(
+            st.app
+                .relationships
+                .values()
+                .map(|r| (&r.my_mailbox, MailboxKind::Relay)),
+        );
         Ok(boxes
             .into_iter()
-            .filter_map(|m| {
+            .filter_map(|(m, kind)| {
                 Some(PollTarget {
                     mailbox: crate::crypto::unhex(m).ok()?,
                     after: st.app.cursors.get(m).copied().unwrap_or(0),
+                    kind,
                 })
             })
             .collect())

@@ -14,6 +14,7 @@ const SCHEMA = `
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v);
 CREATE TABLE IF NOT EXISTS prekeys (id INTEGER PRIMARY KEY AUTOINCREMENT, kind INTEGER NOT NULL, item BLOB NOT NULL);
 CREATE TABLE IF NOT EXISTS ops (request_id TEXT PRIMARY KEY, fp TEXT NOT NULL, expires_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS fetch_caps (h TEXT PRIMARY KEY, tokens REAL NOT NULL, tokens_at INTEGER NOT NULL);
 `;
 
 export class KeyPool extends DurableObject<Env> {
@@ -73,28 +74,55 @@ export class KeyPool extends DurableObject<Env> {
   }
 
   /**
-   * Returns `[bundle, one-time item?, pq one-time item?]`. Consumption is throttled per device, so a stranger cannot
-   * drain the pool faster than it refills; a throttled fetch gets the signed bundle without one-time items, which is
-   * the specified degraded (not weaker) handshake.
+   * `PUT /v1/keys/bundles/{device}/fetch-caps` (feature om.keys.relationship-caps.v1): the owner (holder of the device's
+   * key_publish_cap) grants fetch capabilities, one per accepted relationship. Only hashes are kept. A retry grants the
+   * same capability again, which changes nothing.
    */
-  fetchItems(): Promise<Reply> {
-    return reply(() => {
+  grantFetch(cap: Uint8Array, caps: readonly Uint8Array[]): Promise<Reply> {
+    return reply(async () => {
+      await this.publishAuth(cap, false);
+      const now = nowSeconds();
+      const have = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM fetch_caps")?.n ?? 0;
+      for (const c of caps) {
+        const h = await capHash(c);
+        if (one(this.sql, "SELECT 1 AS x FROM fetch_caps WHERE h = ?", h)) continue;
+        if (have + 1 > LIMITS.maxFetchCapabilities) throw new HomeError("quota", { detail: quotaDetail(4, this.hard) });
+        run(this.sql, "INSERT INTO fetch_caps (h, tokens, tokens_at) VALUES (?, ?, ?)", h, LIMITS.fetchBurst, now);
+      }
+      return new Uint8Array(0);
+    });
+  }
+
+  /**
+   * Returns `[bundle, one-time item?, pq one-time item?]` to the holder of a relationship fetch capability the owner
+   * granted (ASYNC_KEY_MATERIAL 2.1); anyone else gets `unauthorized`. Consumption is throttled per capability and per
+   * device, so one capability cannot drain the pool faster than it refills; a throttled fetch gets the signed bundle
+   * without one-time items, which is the specified degraded (not weaker) handshake.
+   */
+  fetchItems(cap: Uint8Array): Promise<Reply> {
+    return reply(async () => {
+      const h = await capHash(cap);
+      const granted = one<{ tokens: number; tokens_at: number }>(this.sql, "SELECT tokens, tokens_at FROM fetch_caps WHERE h = ?", h);
+      if (!granted) throw new HomeError("unauthorized");
       const bundle = getBundle(this.sql);
       if (!bundle) throw new HomeError("not_found");
       const now = nowSeconds();
       const items: Uint8Array[] = [bundle];
-      const t = takeToken(metaNumber(this.sql, "tokens", LIMITS.fetchBurst), metaNumber(this.sql, "tokens_at", now), now, LIMITS.fetchBurst, 1 / LIMITS.fetchRefillSeconds);
-      if (t.allowed) {
+      const refill = 1 / LIMITS.fetchRefillSeconds;
+      const device = takeToken(metaNumber(this.sql, "tokens", LIMITS.fetchBurst), metaNumber(this.sql, "tokens_at", now), now, LIMITS.fetchBurst, refill);
+      const held = takeToken(granted.tokens, granted.tokens_at, now, LIMITS.fetchBurst, refill);
+      if (device.allowed && held.allowed) {
         for (const kind of [1, 2]) {
           const row = one<{ id: number; item: Uint8Array }>(this.sql, "SELECT id, item FROM prekeys WHERE kind = ? ORDER BY id LIMIT 1", kind);
           if (!row) continue;
           run(this.sql, "DELETE FROM prekeys WHERE id = ?", row.id);
           items.push(new Uint8Array(row.item));
         }
-        setMeta(this.sql, "tokens", t.tokens);
+        setMeta(this.sql, "tokens", device.tokens);
         setMeta(this.sql, "tokens_at", now);
+        run(this.sql, "UPDATE fetch_caps SET tokens = ?, tokens_at = ? WHERE h = ?", held.tokens, now, h);
       }
-      return Promise.resolve(encodeKeyFetchResponse({ items }));
+      return encodeKeyFetchResponse({ items });
     });
   }
 

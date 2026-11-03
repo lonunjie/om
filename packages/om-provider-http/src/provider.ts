@@ -7,18 +7,28 @@
 //   publish_key_material            -> PUT  /v1/keys/bundles/{device}         (feature om.keys.pool.v1)
 //   fetch_key_material              -> POST /v1/keys/fetch
 //   put_invite / get_invite / revoke_invite -> PUT | GET | DELETE /v1/discovery/descriptors/{id}
+//                                              (+ POST | DELETE /v1/intro/tickets[/{id}]: the invite's single-use ticket, om.intro.v1)
+//   submit_intro                   -> POST /v1/intro/requests at the inviter's Home;   poll/ack of an invite -> POST /v1/intro/drain
+//   grant_key_fetch                -> PUT  /v1/keys/bundles/{device}/fetch-caps         (om.keys.relationship-caps.v1)
+//
+// Homes. The configured Home is the person's own: it is where they poll, publish and create resources, and the only one
+// that ever sees their admission secret. A peer's Home (named by an invite link, a signed descriptor, a route or a
+// relationship) is only ever sent what a stranger may send (a deposit, a descriptor read, a MessageRequest, a fetch),
+// with the capability the peer gave, over https (loopback http only when the host opts in), without redirects, and after
+// one public capabilities read that must look like an OM Home. Nothing is stored about it.
 //
 // Failure classes follow Core's contract: `unavailable` = definitely not performed; `timeout` = may have been performed
 // (every mutating request carries a content-derived request_id, so Core's exact retry is idempotent at the Home).
-import type { Inbound, NetCall, NetError, NetResult, Provider, RouteOffer } from "@om/core-wasm";
+import type { Inbound, MailboxKind, NetCall, NetError, NetResult, Provider, RouteOffer } from "@om/core-wasm";
 import {
-  decodeDescriptorGet, decodeDrainResponse, decodeKeyFetchResponse, encodeAckRequest, encodeDepositRequest, encodeDescriptorPut,
-  encodeDrainRequest, encodeKeyFetch, encodeKeyPublish, encodeQueueCreate, fromHex, toHex, FEATURES, type HomeErrorBody, type RelayEntry,
+  API_MAJOR, decodeDescriptorGet, decodeDrainResponse, decodeKeyFetchResponse, encodeAckRequest, encodeDepositRequest, encodeDescriptorPut,
+  encodeDrainRequest, encodeIntroTicketRequest, encodeKeyFetch, encodeKeyFetchGrant, encodeKeyPublish, encodeQueueCreate, encodeTicketParams, fromHex, toHex,
+  FEATURES, type HomeErrorBody, type RelayEntry,
 } from "@om/home-wire";
 import { exchange, type Exchange, type HttpOptions } from "./http";
-import { depositCap, descriptorPublishCap, installSecret, keyPublishCap, mailboxCaps, requestId } from "./derive";
+import { depositCap, descriptorPublishCap, installSecret, introServiceCap, keyPublishCap, mailboxCaps, requestId } from "./derive";
 import type { SecretStore } from "./secrets";
-import type { ProviderConfig } from "./config";
+import { checkProviderUrl, type ProviderConfig } from "./config";
 import { createWakeHub, type WakeHubOptions, type WakeSocketFactory, type WakeStats } from "./wake";
 
 export interface HttpProviderOptions {
@@ -34,6 +44,11 @@ export interface HttpProviderOptions {
   readonly webSocket?: WakeSocketFactory | false;
   /** The owner's admission secret for this Home (om.admission.v1), 32 random bytes made for this Home only; absent for a Home that does not ask. */
   readonly admission?: Uint8Array;
+  /**
+   * Accept a peer's Home at plain http on a loopback host (local development and the two-Home tests). Like the plain-http
+   * rule for the configured Home, a production build never sets it.
+   */
+  readonly allowLoopbackHttp?: boolean;
   /** Tuning of the wake channel (timers, socket cap); tests use short values. */
   readonly wake?: Pick<WakeHubOptions, "pingMs" | "pongMs" | "safetyMs" | "connectMs" | "maxSockets">;
 }
@@ -98,15 +113,60 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
   }
   const clear = (key: string): void => { backoff.delete(key); };
 
-  async function probe(): Promise<boolean> {
-    const r = await exchange({ ...http, timeoutMs: Math.min(http.timeoutMs, 5000) }, `${base}/.well-known/om-provider-capabilities`, { method: "GET" });
-    reach = r.kind === "ok" ? "reachable" : "unreachable";
+  // ------------------------------------------------------------------------------------------ Homes
+
+  /** Where a request goes: the configured Home, or a peer's. Only the configured Home is sent the admission secret. */
+  interface Target { readonly base: string; readonly http: HttpOptions; readonly own: boolean }
+  const ownTarget: Target = { base, http, own: true };
+  const peerHttp: HttpOptions = { fetch: http.fetch, timeoutMs: http.timeoutMs };
+  type PeerView = { readonly kind: "ok" } | { readonly kind: "refused" } | { readonly kind: "unreachable" };
+  const vetted = new Map<string, Promise<PeerView>>();
+
+  /** A Home named by a link, descriptor, route or relationship: https (or opted-in loopback http), no credentials, nothing else in the URL. */
+  function homeOf(uri: string | undefined): Target | undefined {
+    if (uri === undefined) return ownTarget;
+    // The configured Home was accepted when it was configured; a name for it is always fine. Any other must pass the rules now.
+    const same = checkProviderUrl(uri, { allowLoopbackHttp: true });
+    if (same.ok && same.config.baseUrl === base) return ownTarget;
+    const c = checkProviderUrl(uri, { allowLoopbackHttp: opts.allowLoopbackHttp === true });
+    return c.ok ? { base: c.config.baseUrl, http: peerHttp, own: false } : undefined;
+  }
+
+  async function capabilitiesOf(t: Target, timeoutMs = 5000): Promise<PeerView> {
+    const r = await exchange({ ...t.http, timeoutMs: Math.min(t.http.timeoutMs, timeoutMs) }, `${t.base}/.well-known/om-provider-capabilities`, { method: "GET" });
+    if (r.kind === "network") return { kind: "unreachable" };
+    if (r.kind !== "ok" || r.body.length > 64 * 1024) return { kind: "refused" };
+    try {
+      const d = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(r.body)) as { schema_version?: unknown; api_versions?: unknown };
+      if (d.schema_version !== 1 || !Array.isArray(d.api_versions) || !d.api_versions.includes(String(API_MAJOR))) return { kind: "refused" };
+      return { kind: "ok" };
+    } catch { return { kind: "refused" }; }
+  }
+
+  /**
+   * The first request to a Home the person did not configure follows one public read of its capabilities document: it must
+   * answer like an OM Home at this API version and offer what the call needs. Nothing identifying is sent before that. A Home
+   * that cannot be reached is retried on the next call; one that answered wrongly is not asked again this session.
+   */
+  async function ready(t: Target): Promise<NetResult | undefined> {
+    if (t.own) return undefined;
+    let p = vetted.get(t.base);
+    if (!p) { p = capabilitiesOf(t); vetted.set(t.base, p); }
+    const v = await p;
+    if (v.kind === "unreachable") { vetted.delete(t.base); return UNAVAILABLE; }
+    if (v.kind === "refused") return rejected("unsupported");
+    return undefined;
+  }
+
+  async function probe(t: Target = ownTarget): Promise<boolean> {
+    const r = await exchange({ ...t.http, timeoutMs: Math.min(t.http.timeoutMs, 5000) }, `${t.base}/.well-known/om-provider-capabilities`, { method: "GET" });
+    if (t.own) reach = r.kind === "ok" ? "reachable" : "unreachable";
     return r.kind === "ok";
   }
 
   /** A mutating request that got no answer: if the Home is reachable the request may have landed (unknown), otherwise it was not sent. */
-  async function unknownOutcome(): Promise<NetResult> {
-    return (await probe()) ? TIMEOUT : UNAVAILABLE;
+  async function unknownOutcome(t: Target): Promise<NetResult> {
+    return (await probe(t)) ? TIMEOUT : UNAVAILABLE;
   }
 
   /** Home error -> Core failure class. `retryLater` is for a mailbox/queue whose deposit failed on a transient limit. */
@@ -134,20 +194,20 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     }
   }
 
-  async function mutate(url: string, init: Parameters<typeof exchange>[2], key?: string): Promise<Settled> {
+  async function mutate(url: string, init: Parameters<typeof exchange>[2], key?: string, t: Target = ownTarget): Promise<Settled> {
     if (key !== undefined && blocked(key)) return UNAVAILABLE;
-    const r = await exchange(http, url, init);
-    if (r.kind === "network" || r.kind === "gateway") return unknownOutcome();
-    reach = "reachable";
+    const r = await exchange(t.http, url, init);
+    if (r.kind === "network" || r.kind === "gateway") return unknownOutcome(t);
+    if (t.own) reach = "reachable";
     return r;
   }
 
   const isResult = (x: Settled): x is NetResult => "result" in x;
 
-  async function read(url: string, init: Parameters<typeof exchange>[2]): Promise<Settled> {
-    const r = await exchange(http, url, init);
-    if (r.kind === "network" || r.kind === "gateway") { reach = "unreachable"; return UNAVAILABLE; }
-    reach = "reachable";
+  async function read(url: string, init: Parameters<typeof exchange>[2], t: Target = ownTarget): Promise<Settled> {
+    const r = await exchange(t.http, url, init);
+    if (r.kind === "network" || r.kind === "gateway") { if (t.own) reach = "unreachable"; return UNAVAILABLE; }
+    if (t.own) reach = "reachable";
     return r;
   }
 
@@ -201,7 +261,27 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     return { items: page.items.map((i) => ({ seq: i.seq ?? 0, id: i.id, bytes: i.bytes })), next };
   }
 
-  async function poll(mailboxHex: string, after: number): Promise<readonly Inbound[]> {
+  /**
+   * An invite's requests wait in its introduction service at the person's own Home. The drain acknowledges what the caller
+   * already holds (`after`), so polling and acknowledging are the same request (om.intro.v1, drain with implicit ack).
+   */
+  async function introDrain(inviteHex: string, after: number): Promise<{ items: Inbound[]; ok: boolean }> {
+    const cap = await introServiceCap(await secret(), fromHex(inviteHex));
+    const out: Inbound[] = [];
+    let cursor = after;
+    for (let i = 0; i < MAX_PAGES; i++) {
+      const r = await read(`${base}/v1/intro/drain`, { method: "POST", body: encodeDrainRequest({ requestId: crypto.getRandomValues(new Uint8Array(16)), cap, after: cursor }) });
+      if (isResult(r) || r.kind !== "ok") return { items: out, ok: false };
+      const page = decodeDrainResponse(r.body);
+      for (const it of page.items) if ((it.seq ?? 0) > after) out.push({ seq: it.seq ?? 0, bytes: toHex(it.bytes) });
+      if (!page.next) break;
+      cursor = Number(new DataView(page.next.buffer, page.next.byteOffset, page.next.byteLength).getBigUint64(0));
+    }
+    return { items: out, ok: true };
+  }
+
+  async function poll(mailboxHex: string, after: number, kind: MailboxKind = "relay"): Promise<readonly Inbound[]> {
+    if (kind === "intro") return (await introDrain(mailboxHex, after)).items;
     const mailbox = fromHex(mailboxHex);
     if ((await ensureQueue(mailbox, mailboxHex)) !== "ok") return [];
     // A live wake socket for this mailbox vouches that nothing newer exists: skip the request. Otherwise drain as always.
@@ -228,7 +308,8 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
   }
 
   /** Core acknowledges cumulatively ("everything up to seq is processed"); the Home acknowledges item ids. */
-  async function ack(mailboxHex: string, seq: number): Promise<NetResult> {
+  async function ack(mailboxHex: string, seq: number, kind: MailboxKind = "relay"): Promise<NetResult> {
+    if (kind === "intro") return (await introDrain(mailboxHex, seq)).ok ? { result: "ok" } : UNAVAILABLE;
     const mailbox = fromHex(mailboxHex);
     const caps = await mailboxCaps(await secret(), mailbox);
     const known = ackIds.get(mailboxHex) ?? new Map<number, Uint8Array>();
@@ -260,23 +341,31 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
   }
 
   /**
-   * `target` is the destination's deposit capability as its RelayEntry carried it, with that entry's `relayUri`. A
-   * destination at another Home cannot be reached from here and is refused, not deposited at the wrong place. A legacy
-   * destination (no `relayUri`, the bare 16-byte mailbox) has its capability derived, as before routes existed.
+   * `target` is the destination's deposit capability as its RelayEntry carried it, with that entry's `relayUri`: the deposit
+   * goes to the Home that entry names, which is the recipient's own (MULTI_RELAY section 1: the sender deposits to the
+   * route the recipient gave). A legacy destination (no `relayUri`, the bare 16-byte mailbox) is at the configured Home and
+   * has its capability derived, as before routes existed.
    */
   async function deposit(targetHex: string, bytesHex: string, relayUri: string | undefined): Promise<NetResult> {
     const target = fromHex(targetHex);
     const bytes = fromHex(bytesHex);
     let cap: Uint8Array;
+    let t = ownTarget;
     if (relayUri === undefined) cap = await depositCap(target);
-    else if (relayUri !== `${base}/`) return rejected("unsupported");
-    else if (target.length < 16 || target.length > 96) return rejected("invalid");
-    else cap = target;
-    const key = `deposit:${targetHex}`;
-    const r = await mutate(`${base}/v1/relay/deposit`, {
+    else {
+      const h = homeOf(relayUri);
+      if (!h) return rejected("unsupported");
+      t = h;
+      if (target.length < 16 || target.length > 96) return rejected("invalid");
+      cap = target;
+    }
+    const not = await ready(t);
+    if (not) return not;
+    const key = `deposit:${t.base}:${targetHex}`;
+    const r = await mutate(`${t.base}/v1/relay/deposit`, {
       method: "POST",
       body: encodeDepositRequest({ requestId: await requestId("deposit", target, bytes), cap, envelope: bytes }),
-    }, key);
+    }, key, t);
     if (isResult(r)) return r;
     if (r.kind === "home") return mapError(r.error, key);
     clear(key);
@@ -299,17 +388,43 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     return r.kind === "home" ? mapError(r.error) : { result: "ok" };
   }
 
-  async function fetchKeys(c: Extract<NetCall, { call: "fetch_key_material" }>): Promise<NetResult> {
-    const r = await read(`${base}/v1/keys/fetch`, {
-      method: "POST",
-      // No relationship capability exists in Core yet (D5): a fixed anonymous placeholder; the Home throttles one-time items.
-      body: encodeKeyFetch({ requestId: crypto.getRandomValues(new Uint8Array(16)), cap: new Uint8Array(16), devices: [fromHex(c.deviceId)] }),
+  /** The device owner lets the holder of `capability` fetch this device's bundle: the grant is made at the owner's own Home. */
+  async function grantKeyFetch(c: Extract<NetCall, { call: "grant_key_fetch" }>): Promise<NetResult> {
+    const device = fromHex(c.deviceId);
+    const cap = fromHex(c.capability);
+    const r = await mutate(`${base}/v1/keys/bundles/${c.deviceId}/fetch-caps`, {
+      method: "PUT",
+      body: encodeKeyFetchGrant({ requestId: await requestId("fetch-cap", device, cap), caps: [cap] }),
+      bearer: await keyPublishCap(await secret(), device),
     });
+    if (isResult(r)) return r;
+    return r.kind === "home" ? mapError(r.error) : { result: "ok" };
+  }
+
+  /**
+   * Fetch a peer device's bundle and one-time items at the Home that holds its pool, with the per-relationship capability the
+   * peer issued (ASYNC_KEY_MATERIAL 2.1; D4). A peer from before capabilities existed sends none: the Home then answers
+   * `unauthorized`, which is a refusal, not a downgrade to anonymous fetch.
+   */
+  async function fetchKeys(c: Extract<NetCall, { call: "fetch_key_material" }>): Promise<NetResult> {
+    const t = homeOf(c.service);
+    if (!t) return rejected("unsupported");
+    const not = await ready(t);
+    if (not) return not;
+    const cap = c.capability === undefined || c.capability === "" ? new Uint8Array(16) : fromHex(c.capability);
+    const r = await read(`${t.base}/v1/keys/fetch`, {
+      method: "POST",
+      body: encodeKeyFetch({ requestId: crypto.getRandomValues(new Uint8Array(16)), cap, devices: [fromHex(c.deviceId)] }),
+    }, t);
     if (isResult(r)) return r;
     if (r.kind === "home") return mapError(r.error);
     return { result: "many", items: decodeKeyFetchResponse(r.body).items.map(toHex) };
   }
 
+  /**
+   * The inviter's own Home is its introduction service: the descriptor is stored under the invite id, and the invite's single
+   * ticket is opened under the id Core signed (ADR-0181 section 4), in a service only this install can drain.
+   */
   async function putInvite(c: Extract<NetCall, { call: "put_invite" }>): Promise<NetResult> {
     const id = fromHex(c.inviteId);
     const body = fromHex(c.descriptor);
@@ -320,21 +435,54 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
       bearer: await descriptorPublishCap(await secret(), id),
     });
     if (isResult(r)) return r;
-    return r.kind === "home" ? mapError(r.error) : { result: "ok" };
+    if (r.kind === "home") return mapError(r.error);
+    const ttlSeconds = Math.max(1, Math.min(expiresAt - Math.floor(Date.now() / 1000), 14 * 86_400));
+    const params = encodeTicketParams({ ttlSeconds, maxUses: 1, payloadLimitBytes: c.payloadLimit && c.payloadLimit > 0 ? c.payloadLimit : 32_768, allowAttachments: false, allowCalls: false, ticketId: id });
+    const t = await mutate(`${base}/v1/intro/tickets`, {
+      method: "POST",
+      body: encodeIntroTicketRequest({ requestId: await requestId("ticket", id), params, count: 1 }),
+      bearer: await introServiceCap(await secret(), id),
+    });
+    if (isResult(t)) return t;
+    return t.kind === "home" ? mapError(t.error) : { result: "ok" };
   }
 
+  /** The descriptor comes from the introduction service the link names; the person's tap on Accept is what sends this. */
   async function getInvite(c: Extract<NetCall, { call: "get_invite" }>): Promise<NetResult> {
-    const r = await read(`${base}/v1/discovery/descriptors/${c.inviteId}`, { method: "GET" });
+    const t = homeOf(c.service);
+    if (!t) return rejected("unsupported");
+    const not = await ready(t);
+    if (not) return not;
+    const r = await read(`${t.base}/v1/discovery/descriptors/${c.inviteId}`, { method: "GET" }, t);
     if (isResult(r)) return r;
-    if (r.kind === "home") return mapError(r.error, `get:${c.inviteId}`);
+    if (r.kind === "home") return mapError(r.error, `get:${t.base}:${c.inviteId}`);
     return { result: "bytes", bytes: toHex(decodeDescriptorGet(r.body).body) };
+  }
+
+  /** A sealed MessageRequest for the inviter's introduction service. The gate admits by the ticket inside it; nothing else is sent. */
+  async function submitIntro(c: Extract<NetCall, { call: "submit_intro" }>): Promise<NetResult> {
+    const t = homeOf(c.service);
+    if (!t) return rejected("unsupported");
+    const not = await ready(t);
+    if (not) return not;
+    const bytes = fromHex(c.bytes);
+    const key = `intro:${t.base}:${toHex(bytes.slice(0, 64))}`;
+    const r = await mutate(`${t.base}/v1/intro/requests`, { method: "POST", body: bytes }, key, t);
+    if (isResult(r)) return r;
+    if (r.kind === "home") return mapError(r.error, key);
+    clear(key);
+    return { result: "ok" };
   }
 
   async function revokeInvite(c: Extract<NetCall, { call: "revoke_invite" }>): Promise<NetResult> {
     const id = fromHex(c.inviteId);
     const r = await mutate(`${base}/v1/discovery/descriptors/${c.inviteId}`, { method: "DELETE", bearer: await descriptorPublishCap(await secret(), id) });
     if (isResult(r)) return r;
-    return r.kind === "home" ? mapError(r.error) : { result: "ok" };
+    if (r.kind === "home") return mapError(r.error);
+    // The gate stops admitting requests for this invite too; a Home that never opened a ticket for it treats this as done.
+    const t = await mutate(`${base}/v1/intro/tickets/${c.inviteId}`, { method: "DELETE", bearer: await introServiceCap(await secret(), id) });
+    if (isResult(t)) return t;
+    return t.kind === "home" ? mapError(t.error) : { result: "ok" };
   }
 
   // ------------------------------------------------------------------------------------------ Provider
@@ -367,9 +515,11 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
       try {
         switch (call.call) {
           case "deposit": return await deposit(call.mailbox, call.bytes, call.relayUri);
-          case "ack": return await ack(call.mailbox, call.seq);
+          case "ack": return await ack(call.mailbox, call.seq, call.kind);
           case "publish_key_material": return await publishKeys(call);
+          case "grant_key_fetch": return await grantKeyFetch(call);
           case "fetch_key_material": return await fetchKeys(call);
+          case "submit_intro": return await submitIntro(call);
           case "put_invite": return await putInvite(call);
           case "get_invite": return await getInvite(call);
           case "revoke_invite": return await revokeInvite(call);
@@ -378,6 +528,6 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
         return UNAVAILABLE; // a local failure (secret store, bad hex): nothing was sent
       }
     },
-    poll: (mailbox, after) => poll(mailbox, after).catch(() => []),
+    poll: (mailbox, after, kind) => poll(mailbox, after, kind).catch(() => []),
   };
 }

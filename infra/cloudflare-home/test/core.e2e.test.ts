@@ -136,6 +136,7 @@ describe.skipIf(!present)("two real Core profiles through the reference Home", (
     let bundles = 0;
     for (const { url, body } of seen) {
       if (url.endsWith("/v1/relay/deposit")) kinds.add(parseDeposit(decodeDepositRequest(body).envelope).kind);
+      if (url.endsWith("/v1/intro/requests")) kinds.add(parseDeposit(body).kind); // the whole body is the MessageRequest
       const m = /\/v1\/keys\/bundles\/([0-9a-f]{32})$/.exec(url);
       if (m) {
         const facts = readBundleFacts(decodeKeyPublish(body).bundle);

@@ -110,22 +110,97 @@ describe("routes (audit M1)", () => {
     }
   });
 
-  it("deposits to a route's capability as given when the route is at this Home; refuses another Home's route; derives for a legacy destination", async () => {
+  it("deposits to a route's capability as given when the route is at this Home; derives for a legacy destination", async () => {
     const seen: { url: string; cap: string }[] = [];
     const p = sink(seen);
     const [o] = await p.allocateRoutes(1);
     if (!o) throw new Error("no offer");
     expect(await p.perform({ call: "deposit", mailbox: o.capability, relayUri: o.relayUri, bytes: toHex(rand(40)) })).toEqual({ result: "ok" });
     expect(seen.map((s) => s.cap)).toEqual([o.capability]);
-    // Another Home's route is not deposited at the wrong place.
-    const other = await p.perform({ call: "deposit", mailbox: o.capability, relayUri: "https://other.example/", bytes: toHex(rand(40)) });
-    expect(other).toEqual({ result: "err", error: { kind: "rejected", reason: "unsupported" } });
-    expect(seen).toHaveLength(1);
     // A capability outside the spec's bounds is invalid, not sent.
     expect(await p.perform({ call: "deposit", mailbox: toHex(rand(8)), relayUri: o.relayUri, bytes: toHex(rand(40)) })).toEqual({ result: "err", error: { kind: "rejected", reason: "invalid" } });
     // A legacy destination (bare mailbox, no relay name) still gets the derived capability.
     await p.perform({ call: "deposit", mailbox: o.mailbox, bytes: toHex(rand(40)) });
     expect(seen[1]?.cap).toBe(o.capability);
+  });
+});
+
+describe("a peer's Home (cross-Home first contact and delivery)", () => {
+  const PEER = "https://peer.example";
+  const doc = (): Response => new Response(JSON.stringify({ schema_version: 1, provider_id: "peer", provider_kinds: ["relay"], api_versions: ["1"], features: [] }), { status: 200, headers: { "content-type": "application/json" } });
+  /** A stub of two Homes: records every request with the Home it went to and whether it carried the admission header. */
+  function world(opts: { peerDoc?: () => Response; peerDown?: boolean } = {}) {
+    const seen: { home: string; path: string; method: string; admission: boolean; auth: boolean }[] = [];
+    const secret = rand(32);
+    const p = createHttpProvider({
+      config: cfg(), secrets: createMemorySecretStore(), admission: secret, timeoutMs: 1000,
+      fetch: (i, init) => {
+        const u = new URL(urlOf(i));
+        const h = new Headers(init?.headers);
+        seen.push({ home: u.origin, path: u.pathname, method: init?.method ?? "GET", admission: h.has("om-admission"), auth: h.has("authorization") });
+        if (u.origin === PEER && opts.peerDown) return Promise.reject(new TypeError("down"));
+        if (u.pathname === "/.well-known/om-provider-capabilities") return Promise.resolve(u.origin === PEER ? (opts.peerDoc ?? doc)() : doc());
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+    });
+    return { p, seen };
+  }
+  const cap = toHex(rand(32));
+
+  it("deposits to the Home the route names, after one capabilities read, and never sends it the owner's admission secret", async () => {
+    const { p, seen } = world();
+    expect(await p.perform({ call: "deposit", mailbox: cap, relayUri: `${PEER}/`, bytes: toHex(rand(40)) })).toEqual({ result: "ok" });
+    expect(await p.perform({ call: "deposit", mailbox: cap, relayUri: `${PEER}/`, bytes: toHex(rand(41)) })).toEqual({ result: "ok" });
+    const atPeer = seen.filter((s) => s.home === PEER);
+    expect(atPeer.map((s) => s.path)).toEqual(["/.well-known/om-provider-capabilities", "/v1/relay/deposit", "/v1/relay/deposit"]); // vetted once, not per call
+    expect(seen.every((s) => s.home === PEER)).toBe(true); // nothing went to the configured Home
+    expect(atPeer.some((s) => s.admission)).toBe(false);
+  });
+
+  it("refuses a Home it will not contact: not https, credentials, or something that does not answer like an OM Home", async () => {
+    const { p, seen } = world({ peerDoc: () => new Response("<html>hello</html>", { status: 200 }) });
+    for (const relayUri of ["http://peer.example/", "https://u:p@peer.example/", "https://peer.example/?x=1", "ftp://peer.example/", "nonsense"]) {
+      expect(await p.perform({ call: "deposit", mailbox: cap, relayUri, bytes: toHex(rand(40)) }), relayUri).toEqual({ result: "err", error: { kind: "rejected", reason: "unsupported" } });
+    }
+    expect(seen).toHaveLength(0); // nothing was sent to any of them
+    expect(await p.perform({ call: "deposit", mailbox: cap, relayUri: `${PEER}/`, bytes: toHex(rand(40)) })).toEqual({ result: "err", error: { kind: "rejected", reason: "unsupported" } });
+    expect(seen.map((s) => s.path)).toEqual(["/.well-known/om-provider-capabilities"]); // the read, and no deposit
+  });
+
+  it("a peer's Home that is down is a retry, never a rejection, and does not mark the person's own Home unreachable", async () => {
+    const { p } = world({ peerDown: true });
+    expect(await p.perform({ call: "deposit", mailbox: cap, relayUri: `${PEER}/`, bytes: toHex(rand(40)) })).toEqual({ result: "err", error: { kind: "unavailable" } });
+    expect(p.reachability()).toBe("unknown");
+  });
+
+  it("reads an invite from the service the link names, submits the request to the one the descriptor names, and fetches keys with the relationship capability", async () => {
+    const { p, seen } = world();
+    const id = toHex(rand(16));
+    const r = await p.perform({ call: "get_invite", inviteId: id, service: `${PEER}/` });
+    expect(r.result).toBe("err"); // the stub answers 204 with no descriptor: what matters is where it went
+    expect(seen.find((s) => s.path === `/v1/discovery/descriptors/${id}`)).toMatchObject({ home: PEER, method: "GET", auth: false });
+    await p.perform({ call: "submit_intro", service: `${PEER}/`, bytes: toHex(rand(100)) });
+    expect(seen.find((s) => s.path === "/v1/intro/requests")).toMatchObject({ home: PEER, method: "POST", auth: false });
+    await p.perform({ call: "fetch_key_material", deviceId: toHex(rand(16)), service: `${PEER}/`, capability: cap });
+    expect(seen.find((s) => s.path === "/v1/keys/fetch")).toMatchObject({ home: PEER });
+    expect(seen.filter((s) => s.home === PEER).some((s) => s.admission)).toBe(false);
+  });
+
+  it("owner operations stay at the configured Home: grants, tickets and the intro drain never go to a peer", async () => {
+    const { p, seen } = world();
+    const device = toHex(rand(16));
+    await p.perform({ call: "grant_key_fetch", deviceId: device, capability: cap });
+    await p.perform({ call: "put_invite", inviteId: toHex(rand(16)), descriptor: toHex(rand(50)), expiresAt: Date.now() + 86_400_000, payloadLimit: 32_768 });
+    await p.poll(toHex(rand(16)), 0, "intro");
+    const mine = seen.filter((s) => ["/v1/intro/tickets", "/v1/intro/drain"].includes(s.path) || s.path.endsWith("/fetch-caps"));
+    expect(mine.length).toBe(3);
+    expect(mine.every((s) => s.home === "https://home.example")).toBe(true);
+  });
+
+  it("a descriptor that names no Home is read from the configured one, as a link without a service never reaches here", async () => {
+    const { p, seen } = world();
+    await p.perform({ call: "get_invite", inviteId: toHex(rand(16)) });
+    expect(seen.every((s) => s.home === "https://home.example")).toBe(true);
   });
 });
 

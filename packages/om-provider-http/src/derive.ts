@@ -47,6 +47,12 @@ export async function depositCap(mailbox: Uint8Array): Promise<Uint8Array> {
 }
 
 export const keyPublishCap = (secret: Uint8Array, deviceId: Uint8Array): Promise<Uint8Array> => hmac(secret, "om-key-publish-v0", deviceId);
+/**
+ * The owner's capability for one invite's introduction service at its own Home: the invite id's first 8 bytes route to the
+ * service (they are the ticket id's prefix, the only routing a requester can give), the rest only this install can compute.
+ * One service per invite, so two invites of one person share nothing a Home or a link holder could use to join them.
+ */
+export const introServiceCap = async (secret: Uint8Array, inviteId: Uint8Array): Promise<Uint8Array> => concat(inviteId.slice(0, 8), await hmac(secret, "om-intro-service-v0", inviteId));
 export const descriptorPublishCap = (secret: Uint8Array, id: Uint8Array): Promise<Uint8Array> => hmac(secret, "om-descriptor-publish-v0", id);
 
 /** Deterministic, content-bound request id: an exact retry of the same operation, even after a restart, carries the same one. */

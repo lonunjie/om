@@ -31,6 +31,7 @@ fn private_seeds_are_redacted_in_debug_output_of_every_record_that_holds_one() {
         request_seed: SecretHex::from(SEED.to_string()),
         request_digest: "ef".repeat(32),
         intro_pk: String::new(),
+        intro_service: None,
         revoked: false,
         used: false,
     };

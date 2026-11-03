@@ -25,6 +25,7 @@ export interface MemoryProvider extends Provider {
 export function createMemoryProvider(): MemoryProvider {
   const keys = new Map<string, { bundle: string; opks: string[]; pqopks: string[] }>();
   const invites = new Map<string, string>();
+  const grants = new Map<string, Set<string>>(); // device id -> fetch capabilities its owner granted
   const boxes = new Map<string, { next: number; items: { seq: number; bytes: string }[] }>();
   const faults: Fault[] = [];
   const log: string[] = []; // every deposit ever received: acks free relay storage, not this record of what it saw
@@ -55,7 +56,15 @@ export function createMemoryProvider(): MemoryProvider {
           keys.set(call.deviceId, p);
           break;
         }
+        case "grant_key_fetch": {
+          const g = grants.get(call.deviceId) ?? new Set<string>();
+          g.add(call.capability);
+          grants.set(call.deviceId, g);
+          break;
+        }
         case "fetch_key_material": {
+          // Only the holder of a capability the device owner granted may fetch (ASYNC_KEY_MATERIAL 2.1).
+          if (!grants.get(call.deviceId)?.has(call.capability ?? "")) { r = { result: "err", error: { kind: "rejected", reason: "unauthorized" } }; break; }
           const p = keys.get(call.deviceId);
           if (!p) { r = { result: "err", error: { kind: "not_found" } }; break; }
           const items = [p.bundle];
@@ -80,6 +89,18 @@ export function createMemoryProvider(): MemoryProvider {
             if (call.relayUri !== TEST_RELAY_URI || !call.mailbox.startsWith(CAP_PREFIX)) { r = { result: "err", error: { kind: "rejected", reason: "unsupported" } }; break; }
             id = call.mailbox.slice(CAP_PREFIX.length);
           }
+          const b = boxes.get(id) ?? { next: 0, items: [] };
+          b.next += 1;
+          log.push(call.bytes);
+          b.items.push({ seq: b.next, bytes: call.bytes });
+          boxes.set(id, b);
+          break;
+        }
+        case "submit_intro": {
+          // The introduction service queues each request under its ticket id (the invite id), at fixed place of the canonical MessageRequest.
+          const head = call.bytes.slice(2, 14);
+          if (head !== "001301010250") { r = { result: "err", error: { kind: "rejected", reason: "invalid" } }; break; }
+          const id = call.bytes.slice(14, 46);
           const b = boxes.get(id) ?? { next: 0, items: [] };
           b.next += 1;
           log.push(call.bytes);

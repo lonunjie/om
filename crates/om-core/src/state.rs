@@ -79,6 +79,10 @@ pub struct InviteRec {
     /// Public key of this invite's intro identity (the signer is re-derived from the profile's `intro_root`).
     #[serde(default)]
     pub intro_pk: Hex,
+    /// The introduction service the link and the descriptor name (the inviter's own Home); absent on an invite made
+    /// before introduction services existed, which is then polled as a plain mailbox.
+    #[serde(default)]
+    pub intro_service: Option<String>,
     pub revoked: bool,
     pub used: bool,
 }
@@ -339,6 +343,10 @@ pub enum Purpose {
     },
     DepositRequest {
         operation_id: OperationId,
+        conversation_id: String,
+    },
+    /// The requester lets the inviter fetch its device bundle (relationship fetch capability).
+    GrantKeyFetch {
         conversation_id: String,
     },
     /// The inviter's Accept, sealed to the requester's request-scoped bootstrap key.

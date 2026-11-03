@@ -3,7 +3,7 @@
 // The Worker routes by an opaque capability prefix or object id to a SQLite Durable Object and keeps nothing itself.
 // It never reads a network address or any identifying header, writes no log, and sets no cookie.
 import {
-  CborError, HomeError, decodeAckRequest, decodeDepositRequest, decodeDescriptorPut, decodeDrainRequest, decodeIntroDrainRequest, decodeIntroTicketRequest, decodeKeyFetch,
+  CborError, HomeError, decodeAckRequest, decodeDepositRequest, decodeDescriptorPut, decodeDrainRequest, decodeIntroDrainRequest, decodeIntroTicketRequest, decodeKeyFetch, decodeKeyFetchGrant,
   ADMISSION_HEADER, admissionHash, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, fromHex, decode, Obj, type HomeErrorName,
 } from "@om/home-wire";
 import { admissionConfigured, admissionHashes, capabilitiesDocument, wakeOn } from "./capabilities";
@@ -146,6 +146,14 @@ async function route(request: Request, env: Env): Promise<Response> {
     const device = fromHex(bundle[1] ?? "");
     return fromReply(await env.KEYS.get(env.KEYS.idFromName(`k:${bundle[1] ?? ""}`)).publish(cap, device, parse(decodeKeyPublish, await body(request, 4 * LIMITS.maxBundleBytes))));
   }
+  const grant = /^\/v1\/keys\/bundles\/([0-9a-f]{32})\/fetch-caps$/.exec(path);
+  if (grant) {
+    if (m !== "PUT") return fail("invalid_request");
+    const cap = bearer(request);
+    if (!cap) return fail("unauthorized");
+    const req = parse(decodeKeyFetchGrant, await body(request, 2048));
+    return fromReply(await env.KEYS.get(env.KEYS.idFromName(`k:${grant[1] ?? ""}`)).grantFetch(cap, req.caps));
+  }
   const gen = /^\/v1\/keys\/bundles\/([0-9a-f]{32})\/generations\/(\d{1,15})$/.exec(path);
   if (gen) {
     if (m !== "DELETE") return fail("invalid_request");
@@ -159,7 +167,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     const items: Uint8Array[] = [];
     for (const d of req.devices) {
       if (d.length !== 16) return fail("invalid_request");
-      const r: Reply = await env.KEYS.get(env.KEYS.idFromName(`k:${hex(d)}`)).fetchItems();
+      const r: Reply = await env.KEYS.get(env.KEYS.idFromName(`k:${hex(d)}`)).fetchItems(req.cap);
       if (!r.ok) return fromReply(r);
       items.push(...decodeKeyFetchResponse(r.body).items);
     }
@@ -171,6 +179,13 @@ async function route(request: Request, env: Env): Promise<Response> {
     const cap = bearer(request);
     if (!cap || !wellFormed(cap, 8) || !(await admitted(request, env))) return fail("unauthorized");
     return fromReply(await introOf(env, cap).issueTickets(cap, parse(decodeIntroTicketRequest, await body(request, 1024))));
+  }
+  // Revoking an invite revokes its ticket at this gate, so a request that still holds the link fails closed (INVITES_INTROGATE_AND_SPAM 3, 10).
+  const ticket = /^\/v1\/intro\/tickets\/([0-9a-f]{32})$/.exec(path);
+  if (ticket && m === "DELETE") {
+    const cap = bearer(request);
+    if (!cap || !wellFormed(cap, 8) || !(await admitted(request, env))) return fail("unauthorized");
+    return fromReply(await introOf(env, cap).revokeTicket(cap, fromHex(ticket[1] ?? "")));
   }
   if (path === "/v1/intro/requests") {
     const b = await body(request, LIMITS.maxTicketPayload + 4096);

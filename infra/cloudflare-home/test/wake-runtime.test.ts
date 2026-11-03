@@ -48,7 +48,9 @@ async function conversation(h: Home, pollMs: number, budgetMs: number): Promise<
     if (!invite) return { delivered: false, ms: Date.now() - t0, requests, wakes: provider.wakeStats().wakes };
     stage("invite");
     await rt.dispatch({ kind: "AcceptInvitation", ctx: b, operationId: op("b-accept"), link: invite.link });
-    const intro = await wait(async () => (await rt.query({ kind: "GetIntroductions", ctx: a }))[0]);
+    // An invite's requests wait in the Home's introduction service, which has no wake channel (ADR-0185 covers relay queues): the
+    // inviter sees one at its next poll, so this stands in for the person looking at the app (RealApp polls on focus).
+    const intro = await wait(async () => { await rt.flush(asProfileId("alice")); return (await rt.query({ kind: "GetIntroductions", ctx: a }))[0]; });
     stage("intro?" + String(intro !== undefined));
     if (!intro) return { delivered: false, ms: Date.now() - t0, requests, wakes: provider.wakeStats().wakes };
     stage("intro");

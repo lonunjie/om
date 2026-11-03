@@ -69,6 +69,8 @@ pub enum Fault {
 #[derive(Default)]
 struct NetState {
     keys: BTreeMap<Vec<u8>, Published>,
+    /// Fetch capabilities each device owner granted (relationship fetch capabilities).
+    fetch_grants: BTreeMap<Vec<u8>, Vec<Vec<u8>>>,
     invites: BTreeMap<Vec<u8>, Vec<u8>>,
     mailboxes: BTreeMap<Vec<u8>, Mailbox>,
     faults: Vec<Fault>,
@@ -160,7 +162,33 @@ impl LoopbackNetwork {
                 p.pqopks.extend(pqopks.iter().cloned());
                 NetResult::Ok
             }
-            NetCall::FetchKeyMaterial { device_id } => match s.keys.get_mut(device_id) {
+            NetCall::GrantKeyFetch {
+                device_id,
+                capability,
+            } => {
+                s.fetch_grants
+                    .entry(device_id.clone())
+                    .or_default()
+                    .push(capability.clone());
+                NetResult::Ok
+            }
+            // A fetch needs a capability the device owner granted (ASYNC_KEY_MATERIAL 2.1); anonymous fetch gets nothing.
+            NetCall::FetchKeyMaterial {
+                device_id,
+                capability,
+                ..
+            } if !s
+                .fetch_grants
+                .get(device_id)
+                .is_some_and(|g| g.contains(capability)) =>
+            {
+                NetResult::Err {
+                    error: NetError::Rejected {
+                        reason: RejectReason::Unauthorized,
+                    },
+                }
+            }
+            NetCall::FetchKeyMaterial { device_id, .. } => match s.keys.get_mut(device_id) {
                 None => NetResult::Err {
                     error: NetError::NotFound,
                 },
@@ -183,7 +211,7 @@ impl LoopbackNetwork {
                 s.invites.insert(invite_id.clone(), descriptor.clone());
                 NetResult::Ok
             }
-            NetCall::GetInvite { invite_id } => match s.invites.get(invite_id) {
+            NetCall::GetInvite { invite_id, .. } => match s.invites.get(invite_id) {
                 Some(d) => NetResult::Bytes { bytes: d.clone() },
                 None => NetResult::Err {
                     error: NetError::NotFound,
@@ -207,7 +235,21 @@ impl LoopbackNetwork {
                 m.items.push((seq, bytes.clone()));
                 NetResult::Ok
             }
-            NetCall::Ack { mailbox, seq } => {
+            // The introduction service holds each invite's requests in a queue named by the ticket id (the invite id).
+            NetCall::SubmitIntro { bytes, .. } => {
+                let ticket = crate::crypto::cbor::decode(bytes)
+                    .ok()
+                    .and_then(|v| v.get(2).and_then(|t| t.b().map(<[u8]>::to_vec)).ok())
+                    .unwrap_or_default();
+                s.deposits += 1;
+                s.log.push((ticket.clone(), bytes.clone()));
+                let m = s.mailboxes.entry(ticket).or_default();
+                m.next_seq += 1;
+                let seq = m.next_seq;
+                m.items.push((seq, bytes.clone()));
+                NetResult::Ok
+            }
+            NetCall::Ack { mailbox, seq, .. } => {
                 if let Some(m) = s.mailboxes.get_mut(mailbox) {
                     m.items.retain(|(q, _)| q > seq);
                 }

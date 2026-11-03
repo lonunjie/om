@@ -32,6 +32,8 @@ export const LIMITS = {
   /** Key pool. */
   maxOneTimePerKind: 100,
   maxBundleBytes: 65_536,
+  /** Relationship fetch capabilities one device pool holds (one per accepted relationship). */
+  maxFetchCapabilities: 256,
   fetchBurst: 8,
   fetchRefillSeconds: 600,
   /** Descriptor store. */

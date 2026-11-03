@@ -2,7 +2,7 @@
 // KeyMaterialProvider (PC-K), descriptor store (PC-G01) and IntroGate (PC-G02) cases against the real Worker bundle.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  concat, decodeDescriptorGet, decodeDrainResponse, decodeHomeError, decodeKeyFetchResponse, decodeTicketList, encode, encodeDescriptorPut, encodeIntroTicketRequest, encodeKeyFetch, encodeKeyPublish, encodeTicketParams,
+  concat, decodeDescriptorGet, encodeKeyFetchGrant, decodeDrainResponse, decodeHomeError, decodeKeyFetchResponse, decodeTicketList, encode, encodeDescriptorPut, encodeIntroTicketRequest, encodeKeyFetch, encodeKeyPublish, encodeTicketParams,
   equalBytes, map, toHex, type HomeErrorBody,
 } from "@om/home-wire";
 import type { Home } from "./harness";
@@ -29,10 +29,14 @@ function bundle(device: Uint8Array, generation: number, expiresAt = nowS() + 864
 describe("PC-K key material", () => {
   const device = rand(16);
   const publishCap = rand(32);
+  const fetchCap = rand(32);
   const put = (dev: Uint8Array, cap: Uint8Array, b: Uint8Array, opks: Uint8Array[] = [], pq: Uint8Array[] = []) =>
     send(`/v1/keys/bundles/${toHex(dev)}`, { method: "PUT", headers: { ...cbor, ...bearer(cap) }, body: encodeKeyPublish({ requestId: rand(16), bundle: b, opks, pqopks: pq }) });
-  const fetchKeys = (dev: Uint8Array) =>
-    send("/v1/keys/fetch", { method: "POST", headers: cbor, body: encodeKeyFetch({ requestId: rand(16), cap: rand(16), devices: [dev] }) });
+  const fetchKeys = (dev: Uint8Array, cap: Uint8Array) =>
+    send("/v1/keys/fetch", { method: "POST", headers: cbor, body: encodeKeyFetch({ requestId: rand(16), cap, devices: [dev] }) });
+  /** The owner (holder of the device's key_publish_cap) grants one relationship's fetch capability (om.keys.relationship-caps.v1). */
+  const grant = (dev: Uint8Array, publishCap: Uint8Array, fetchCap: Uint8Array) =>
+    send(`/v1/keys/bundles/${toHex(dev)}/fetch-caps`, { method: "PUT", headers: { ...cbor, ...bearer(publishCap) }, body: encodeKeyFetchGrant({ requestId: rand(16), caps: [fetchCap] }) });
 
   it("PC-K01/K02: publish claims the device; fetch returns the bundle then one-time items, consumed once", async () => {
     const opks = [rand(40), rand(40), rand(40)];
@@ -40,12 +44,21 @@ describe("PC-K key material", () => {
     expect((await put(device, publishCap, bundle(device, 1), opks, pq)).error).toBeUndefined();
     const stranger = await put(device, rand(32), bundle(device, 2));
     expect(stranger.error?.name).toBe("unauthorized");
-    const f1 = await fetchKeys(device);
+    // D4 (ASYNC_KEY_MATERIAL 2.1): only the holder of a capability the owner granted for a relationship may fetch.
+    expect((await fetchKeys(device, fetchCap)).error?.name).toBe("unauthorized"); // not granted yet
+    expect((await grant(device, rand(32), fetchCap)).error?.name).toBe("unauthorized"); // a stranger cannot grant
+    expect((await grant(device, publishCap, fetchCap)).error).toBeUndefined();
+    expect((await grant(device, publishCap, fetchCap)).error).toBeUndefined(); // idempotent
+    expect((await fetchKeys(device, rand(32))).error?.name).toBe("unauthorized"); // anonymous or guessed
+    const otherDevice = rand(16);
+    await put(otherDevice, rand(32), bundle(otherDevice, 1));
+    expect((await fetchKeys(otherDevice, fetchCap)).error?.name).toBe("unauthorized"); // a capability opens one device's pool only
+    const f1 = await fetchKeys(device, fetchCap);
     const items = decodeKeyFetchResponse(f1.body).items;
     expect(items).toHaveLength(3);
     expect(equalBytes(items[1] ?? new Uint8Array(0), opks[0] ?? new Uint8Array(1))).toBe(true);
     expect(equalBytes(items[2] ?? new Uint8Array(0), pq[0] ?? new Uint8Array(1))).toBe(true);
-    const f2 = decodeKeyFetchResponse((await fetchKeys(device)).body).items;
+    const f2 = decodeKeyFetchResponse((await fetchKeys(device, fetchCap)).body).items;
     expect(equalBytes(f2[1] ?? new Uint8Array(0), opks[1] ?? new Uint8Array(1))).toBe(true); // never the same item twice
   });
 
@@ -56,18 +69,20 @@ describe("PC-K key material", () => {
     expect((await put(device, publishCap, bundle(device, 5, nowS() - 86400))).error?.name).toBe("expired");
   });
 
-  it("anonymous fetch cannot drain the pool: past the throttle a fetch gets the signed bundle without one-time items", async () => {
+  it("one capability cannot drain the pool: past the throttle a fetch gets the signed bundle without one-time items", async () => {
     const d = rand(16);
     const cap = rand(32);
+    const mine = rand(32);
     const many = Array.from({ length: 40 }, () => rand(40));
     await put(d, cap, bundle(d, 1), many, many);
+    await grant(d, cap, mine);
     let lastLen = 3;
-    for (let i = 0; i < 12; i++) lastLen = decodeKeyFetchResponse((await fetchKeys(d)).body).items.length;
+    for (let i = 0; i < 12; i++) lastLen = decodeKeyFetchResponse((await fetchKeys(d, mine)).body).items.length;
     expect(lastLen).toBe(1);
   });
 
   it("limits and fetch of an unknown device", async () => {
-    expect((await fetchKeys(rand(16))).error?.name).toBe("not_found");
+    expect((await fetchKeys(rand(16), rand(32))).error?.name).toBe("unauthorized"); // an unknown device answers like a missing capability
     const d = rand(16);
     const cap = rand(32);
     expect((await put(d, cap, bundle(d, 1), Array.from({ length: 101 }, () => rand(8)))).error?.name).toBe("invalid_request"); // CDDL: at most 100
@@ -80,11 +95,13 @@ describe("PC-K key material", () => {
     const d = rand(16);
     const cap = rand(32);
     await put(d, cap, bundle(d, 7), [rand(8)], [rand(8)]);
+    const mine = rand(32);
+    await grant(d, cap, mine);
     const path = `/v1/keys/bundles/${toHex(d)}/generations/7`;
     expect((await send(path, { method: "DELETE", headers: bearer(rand(32)) })).error?.name).toBe("unauthorized");
     expect((await send(path, { method: "DELETE", headers: bearer(cap) })).error).toBeUndefined();
     expect((await send(path, { method: "DELETE", headers: bearer(cap) })).error).toBeUndefined();
-    expect((await fetchKeys(d)).error?.name).toBe("not_found");
+    expect((await fetchKeys(d, mine)).error?.name).toBe("not_found");
   });
 });
 
@@ -172,6 +189,34 @@ describe("PC-G02 IntroGate", () => {
     const b = decodeDrainResponse((await drain(s2, seqs[0] ?? 0)).body);
     expect(b.items).toHaveLength(2);
     expect(decodeDrainResponse((await drain(s2)).body).items).toHaveLength(2); // the first was acknowledged by `after`
+  });
+
+  it("the recipient's Core names its ticket (ADR-0181 section 4): the id must route to this service and stands for one ticket", async () => {
+    const s4 = concat(rand(8), rand(24));
+    const named = (ticketId: Uint8Array, count = 1, maxUses = 1, requestId = rand(16)) =>
+      send("/v1/intro/tickets", { method: "POST", headers: { ...cbor, ...bearer(s4) }, body: encodeIntroTicketRequest({ requestId, params: encodeTicketParams({ ttlSeconds: 600, maxUses, payloadLimitBytes: 2048, ticketId }), count }) });
+    const id = concat(s4.slice(0, 8), rand(8));
+    const t = decodeTicketList((await named(id)).body)[0];
+    expect(t && equalBytes(t.ticketId, id)).toBe(true);
+    expect(decodeTicketList((await named(id)).body)[0]?.ticketId).toEqual(id); // a retry is the same call
+    expect((await named(id, 1, 2)).error?.name).toBe("invalid_request"); // the same id with other terms is not the same call
+    expect((await named(concat(rand(8), rand(8)))).error?.name).toBe("invalid_request"); // another service's prefix
+    expect((await named(concat(s4.slice(0, 8), rand(8)), 2)).error?.name).toBe("invalid_request"); // one id, one ticket
+    expect((await submit(messageRequest(id))).error).toBeUndefined();
+    expect(decodeDrainResponse((await drain(s4)).body).items).toHaveLength(1);
+  });
+
+  it("revoking a ticket (INVITES_INTROGATE_AND_SPAM 3, 10) needs the service capability, is idempotent, and fails closed afterwards", async () => {
+    const s5 = concat(rand(8), rand(24));
+    const id = concat(s5.slice(0, 8), rand(8));
+    const named = send("/v1/intro/tickets", { method: "POST", headers: { ...cbor, ...bearer(s5) }, body: encodeIntroTicketRequest({ requestId: rand(16), params: encodeTicketParams({ ttlSeconds: 600, maxUses: 1, payloadLimitBytes: 2048, ticketId: id }), count: 1 }) });
+    expect((await named).error).toBeUndefined();
+    const del = (cap: Uint8Array) => send(`/v1/intro/tickets/${toHex(id)}`, { method: "DELETE", headers: bearer(cap) });
+    expect((await del(concat(s5.slice(0, 8), rand(24)))).error?.name).toBe("unauthorized");
+    expect((await submit(messageRequest(id))).error).toBeUndefined(); // still open after a refused revoke
+    expect((await del(s5)).error).toBeUndefined();
+    expect((await del(s5)).error).toBeUndefined();
+    expect((await submit(messageRequest(id))).error?.name).toBe("admission_denied");
   });
 
   it("a retried issue request returns the same tickets", async () => {

@@ -17,6 +17,8 @@ export const FEATURES = {
   admission: "om.admission.v1",
   keysPool: "om.keys.pool.v1",
   keysAnonymousFetch: "om.keys.fetch-throttled.v1",
+  /** Fetching a device's bundle needs a capability its owner granted for one relationship (D4). */
+  keysRelationshipCaps: "om.keys.relationship-caps.v1",
   discoveryPut: "om.discovery.put.v1",
   discoveryDelete: "om.discovery.delete.v1",
   introGate: "om.intro.v1",

@@ -93,7 +93,7 @@ pub struct FakeRequester {
     pub invite_id: [u8; 16],
     pub rk_digest: [u8; 32],
     pub inviter_intro_pk: Vec<u8>,
-    pub inviter_mailbox: Vec<u8>,
+    pub inviter_service: String,
     /// Reply mailbox, bootstrap key (request-scoped) and the established key it will advertise in the Bind.
     pub mailbox: [u8; 16],
     /// Its route: what the provider adapter would allocate for `mailbox` (a real `relay_uri` and capability).
@@ -143,7 +143,7 @@ impl FakeRequester {
             invite_id: [0; 16],
             rk_digest: [0; 32],
             inviter_intro_pk: vec![],
-            inviter_mailbox: vec![],
+            inviter_service: String::new(),
             mailbox,
             route,
             claimed_uri: None,
@@ -182,9 +182,7 @@ impl FakeRequester {
         let desc = intro::read_descriptor(&d.body).unwrap();
         let pk = desc.request_key.clone().unwrap();
         self.inviter_intro_pk = inviter_pk;
-        self.inviter_mailbox = intro::parse_service_uri(&desc.intro_service)
-            .unwrap()
-            .to_vec();
+        self.inviter_service = desc.intro_service.clone();
         self.invite_id = link[..16].try_into().unwrap();
         self.rk_digest = om_core::request_key_digest(&pk);
         let now_s = now_ms / 1000;
@@ -232,7 +230,7 @@ impl FakeRequester {
         let ct = hpke::key_schedule(&ss, &info).seal(b"", &payload);
         deposit_request(
             net,
-            &self.inviter_mailbox,
+            &self.inviter_service,
             &self.invite_id,
             &self.rk_digest,
             enc,
@@ -358,7 +356,7 @@ fn rng_32(rng: &mut InsecureTestRng) -> [u8; 32] {
 /// Deposit a W0 MessageRequest object into an inviter's request mailbox.
 pub fn deposit_request(
     net: &LoopbackNetwork,
-    inbox: &[u8],
+    service: &str,
     ticket: &[u8; 16],
     rk_digest: &[u8; 32],
     enc: Vec<u8>,
@@ -373,9 +371,8 @@ pub fn deposit_request(
         (5, V::B(enc)),
         (6, V::B(ct)),
     ]));
-    net.perform(&NetCall::Deposit {
-        mailbox: inbox.to_vec(),
-        relay_uri: None,
+    net.perform(&NetCall::SubmitIntro {
+        service: service.to_string(),
         bytes: request,
     });
 }

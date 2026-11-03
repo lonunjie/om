@@ -13,7 +13,7 @@ use crate::crypto::rng::{CryptoRng, RngCore, arr32};
 use crate::crypto::sig::{digest, ds_hash};
 use crate::crypto::{self, PROFILE_V1, hex, hpke, unhex};
 use crate::events::{self, Hlc};
-use crate::host::{CoreError, NetCall, NetError, NetResult};
+use crate::host::{CoreError, MailboxKind, NetCall, NetError, NetResult};
 use crate::intro;
 use crate::route::{RelayEntry, RelaySet, RouteOffer};
 use crate::state::*;
@@ -100,11 +100,11 @@ pub fn unb64url(s: &str) -> Option<Vec<u8>> {
 /// `om:invite/<token>`: the same strict grammar as `parseInviteLink` in the platform API.
 pub fn parse_invite_token(input: &str) -> Option<&str> {
     let s = input.trim();
-    if s.len() > 256 {
+    if s.len() > 512 {
         return None;
     }
     let t = s.strip_prefix("om:invite/")?;
-    ((16..=200).contains(&t.len())
+    ((16..=480).contains(&t.len())
         && t.bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'))
     .then_some(t)
@@ -705,9 +705,22 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 reason: RejectReason::StaleState,
             };
         }
+        // The introduction service is the inviter's own Home, as its provider adapter offers it: with none configured
+        // there is nowhere to receive a request, so nothing starts (DISCOVERY_FABRIC section 6; deviation D10).
+        let Some(home) = self
+            .offers
+            .iter()
+            .find(|o| o.is_valid())
+            .map(|o| o.relay_uri.clone())
+        else {
+            return OutcomeClass::Rejected {
+                reason: RejectReason::Unavailable,
+            };
+        };
         let label = self.st.app.label.clone();
         let invite_id = self.rand16();
-        let mailbox = self.rand16();
+        // The id the host polls for this invite's requests is the invite id itself, as a service id (not a relay mailbox).
+        let mailbox = invite_id;
         let mut ikm = arr32(self.rng);
         let (seed, pk) = hpke::derive_key_pair(&ikm);
         let seed = zeroize::Zeroizing::new(seed);
@@ -727,13 +740,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let descriptor = intro::sign_intro(
             &signer,
             intro::LBL_DESCRIPTOR_SIG,
-            intro::descriptor_body(
-                &invite_id,
-                &label,
-                &intro::service_uri(&mailbox),
-                expires_at / 1000,
-                Some(&pk),
-            ),
+            intro::descriptor_body(&invite_id, &label, &home, expires_at / 1000, Some(&pk)),
             self.rng,
         );
         let ticket = intro::sign_intro(
@@ -749,9 +756,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (2, V::B(ticket)),
             (3, V::B(intro_pk.clone())),
         ]));
-        let mut token = invite_id.to_vec();
-        token.extend_from_slice(&intro_digest);
-        let link = format!("om:invite/{}", b64url(&token));
+        let link = format!(
+            "om:invite/{}",
+            b64url(&intro::link_token(&invite_id, &intro_digest, &[&home]))
+        );
         self.st.app.invites.insert(
             op.clone(),
             InviteRec {
@@ -763,6 +771,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 request_seed: hex(&*seed).into(),
                 request_digest: hex(&rk_digest),
                 intro_pk: hex(&intro_pk),
+                intro_service: Some(home),
                 revoked: false,
                 used: false,
             },
@@ -772,6 +781,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 invite_id: invite_id.to_vec(),
                 descriptor: record,
                 expires_at,
+                payload_limit: intro::PAYLOAD_LIMIT_BYTES,
             },
             Purpose::PutInvite {
                 operation_id: op.clone(),
@@ -812,25 +822,28 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(token) = parse_invite_token(link) else {
             return rejected(RejectReason::Invalid);
         };
-        // invite_id (16) || SHA-256(intro public key) (32)
-        let Some(raw) = unb64url(token).filter(|r| r.len() == 48) else {
+        // invite_id (16) || SHA-256(intro public key) (32) || intro_services[]
+        let Some(tok) = unb64url(token).and_then(|r| intro::parse_link_token(&r)) else {
             return rejected(RejectReason::Invalid);
         };
         if self.st.app.invites.values().any(|i| i.link == link.trim()) {
             return rejected(RejectReason::Invalid); // our own invite
         }
-        let invite_id = hex(&raw[..16]);
+        let invite_id = hex(&tok.invite_id);
         if self.st.app.accepted_invites.contains(&invite_id) {
             return rejected(RejectReason::Conflict);
         }
+        // The first service the inviter listed is asked for the descriptor; this runs on the user's own tap, and the
+        // host sees nothing but the invite id. The descriptor is signed, so where it came from decides nothing.
         self.enqueue(
             NetCall::GetInvite {
-                invite_id: raw[..16].to_vec(),
+                invite_id: tok.invite_id.to_vec(),
+                service: tok.services.into_iter().next(),
             },
             Purpose::ResolveInvite {
                 operation_id: op.clone(),
                 invite_id,
-                intro_digest: hex(&raw[16..]),
+                intro_digest: hex(&tok.intro_digest),
             },
         );
         OutcomeClass::PendingNetwork
@@ -1275,6 +1288,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 error: NetError::Timeout,
             } => match entry.call {
                 NetCall::Deposit { .. }
+                | NetCall::SubmitIntro { .. }
                 | NetCall::PutInvite { .. }
                 | NetCall::RevokeInvite { .. } => K::MaybeSent,
                 _ => K::Retry,
@@ -1325,6 +1339,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 Purpose::PublishKeys
                 | Purpose::Ack
                 | Purpose::DepositKeys { .. }
+                | Purpose::GrantKeyFetch { .. }
                 | Purpose::DepositBind { .. } => None,
             }
         };
@@ -1416,7 +1431,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     self.release_queued(&conversation_id)?;
                 }
             }
-            Purpose::DepositKeys { .. } | Purpose::DepositBind { .. } => {}
+            Purpose::DepositKeys { .. }
+            | Purpose::GrantKeyFetch { .. }
+            | Purpose::DepositBind { .. } => {}
             Purpose::DepositMessage {
                 operation_id,
                 conversation_id,
@@ -1514,11 +1531,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if desc.expires_at_s <= now_s || ticket.expires_at_s <= now_s {
             return rej(Expired);
         }
-        // The inviter's request mailbox is part of the signed descriptor, so the introduction service cannot redirect it.
-        let Some(mailbox) = intro::parse_service_uri(&desc.intro_service) else {
-            return rej(IntegrityFailure);
-        };
-        let mailbox = mailbox.to_vec();
+        // The inviter's introduction service is part of the signed descriptor, so whoever served the descriptor cannot
+        // redirect the request; the adapter refuses a locator it will not contact.
+        let service = desc.intro_service.clone();
         let rk = request_key_digest(&pk);
         let label = sanitize_label(&desc.label);
         let Ok(my_signer) = self.intro_signer(&invite16) else {
@@ -1636,9 +1651,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             },
         );
         self.enqueue(
-            NetCall::Deposit {
-                mailbox,
-                relay_uri: None, // the introduction service route is still the pass-2 stand-in (D10)
+            NetCall::SubmitIntro {
+                service,
                 bytes: request,
             },
             Purpose::DepositRequest {
@@ -1757,11 +1771,23 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.st.app.outbox.retain(
                 |e| !matches!(&e.call, NetCall::Ack { mailbox: m, .. } if hex(m) == mailbox),
             );
+            let kind = if self
+                .st
+                .app
+                .invites
+                .values()
+                .any(|i| i.mailbox == mailbox && i.intro_service.is_some())
+            {
+                MailboxKind::Intro
+            } else {
+                MailboxKind::Relay
+            };
             if let Ok(m) = hb(mailbox) {
                 self.enqueue(
                     NetCall::Ack {
                         mailbox: m,
                         seq: cursor,
+                        kind,
                     },
                     Purpose::Ack,
                 );
@@ -2187,7 +2213,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             bootstrap: false,
         };
         // Our Bind: the same kind of binding for the intro identity we used, sealed to the inviter's established key.
-        let Some((bind, bind_route)) = self.build_bind(&upd, &pd, &my_intro, &rk) else {
+        let Some((bind, bind_route, grant)) = self.build_bind(&upd, &pd, &my_intro, &rk) else {
             return false;
         };
         let Some(dev) = self.st.device.as_mut() else {
@@ -2201,6 +2227,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         upd.canon_id = Some(hex(&canon));
         upd.bootstrap = None; // the request-scoped key dies in the commit that installed the established route
         self.st.app.relationships.insert(conv.to_string(), upd);
+        // The grant goes first: the inviter fetches as soon as it has read the Bind.
+        self.enqueue(
+            grant,
+            Purpose::GrantKeyFetch {
+                conversation_id: conv.to_string(),
+            },
+        );
         self.enqueue(
             deposit_call(&bind_route, bind),
             Purpose::DepositBind {
@@ -2268,6 +2301,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return false;
         }
         let device_id = vb.device_id.to_vec();
+        // Where the requester's key pool is and the capability it issued for this relationship (absent from a peer
+        // that predates relationship fetch capabilities: the fetch then fails closed at the Home).
+        let capability = p
+            .get(5)
+            .and_then(|x| x.b())
+            .map(<[u8]>::to_vec)
+            .unwrap_or_default();
+        let service = p.get(6).and_then(|x| x.t()).ok().map(String::from);
         upd.state = RelState::Establishing;
         upd.peer_delivery = Some(PeerDelivery {
             public: pub_key(&km),
@@ -2275,7 +2316,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         });
         self.st.app.relationships.insert(conv.to_string(), upd);
         self.enqueue(
-            NetCall::FetchKeyMaterial { device_id },
+            NetCall::FetchKeyMaterial {
+                device_id,
+                service,
+                capability,
+            },
             Purpose::FetchPeerKeys {
                 operation_id: String::new(),
                 conversation_id: conv.to_string(),
@@ -2307,9 +2352,17 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         to: &PeerDelivery,
         my_intro: &[u8],
         rk: &[u8; 32],
-    ) -> Option<(Vec<u8>, RelayEntry)> {
+    ) -> Option<(Vec<u8>, RelayEntry, NetCall)> {
         let (head, chain, creds) = self.acs_head()?;
         let my_key = rel.my_delivery.first().cloned()?;
+        // The per-relationship capability with which the inviter fetches our device bundle (ASYNC_KEY_MATERIAL 2.1,
+        // D4), and the Home that holds our key pool. The Home learns the capability's hash from `GrantKeyFetch`.
+        let fetch_cap = arr32(self.rng);
+        let key_service = rel.my_relays.primary()?.relay_uri.clone();
+        let grant = NetCall::GrantKeyFetch {
+            device_id: self.st.device.as_ref()?.device_id.to_vec(),
+            capability: fetch_cap.to_vec(),
+        };
         let record = self.signed_key_record(&my_key).ok()?;
         let rnd = arr32(self.rng);
         let body = intro::binding_body(
@@ -2331,10 +2384,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (2, V::B(binding)),
             (3, V::A(chain.into_iter().map(V::B).collect())),
             (4, V::A(creds.into_iter().map(V::B).collect())),
+            (5, V::B(fetch_cap.to_vec())),
+            (6, V::T(key_service)),
         ]));
         let route = rel.peer_relays.primary().cloned()?;
         let wrapper = self.seal_to(to, &route, &payload).ok()?;
-        Some((wrapper, route))
+        Some((wrapper, route, grant))
     }
 
     fn restore(&mut self, snapshot: Option<crate::crypto::store::Device>) {

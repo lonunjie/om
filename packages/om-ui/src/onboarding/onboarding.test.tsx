@@ -427,7 +427,7 @@ describe("invite_first", () => {
     const cases: readonly [string, string][] = [
       ["https://evil.example/om:invite/AAAAAAAAAAAAAAAAAAAAAA", "That is not an OM invitation"],
       ["om:invite/short", "That is not an OM invitation"],
-      [`om:invite/${"A".repeat(400)}`, "That link is too long"],
+      [`om:invite/${"A".repeat(520)}`, "That link is too long"],
     ];
     for (const [text, message] of cases) {
       await userEvent.clear(box);

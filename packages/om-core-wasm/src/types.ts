@@ -3,17 +3,31 @@ import type { RejectReason } from "@om/platform-api";
 
 export type NetCall =
   | { readonly call: "publish_key_material"; readonly deviceId: string; readonly bundle: string; readonly opks: readonly string[]; readonly pqopks: readonly string[] }
-  | { readonly call: "fetch_key_material"; readonly deviceId: string }
-  | { readonly call: "put_invite"; readonly inviteId: string; readonly descriptor: string; readonly expiresAt: number }
-  | { readonly call: "get_invite"; readonly inviteId: string }
+  /**
+   * `service` is the Home that holds the device's key pool (the peer's, from the accepted relationship) and `capability`
+   * the per-relationship fetch capability the peer issued (hex). Both are absent only for a peer from before fetch
+   * capabilities existed.
+   */
+  | { readonly call: "fetch_key_material"; readonly deviceId: string; readonly service?: string; readonly capability?: string }
+  /** The device owner lets the holder of `capability` (hex) fetch this device's bundle: sent to the owner's own Home. */
+  | { readonly call: "grant_key_fetch"; readonly deviceId: string; readonly capability: string }
+  /** Introduction service (the inviter's own Home): store the descriptor and open the single-use ticket (`payloadLimit`, `expiresAt`). */
+  | { readonly call: "put_invite"; readonly inviteId: string; readonly descriptor: string; readonly expiresAt: number; readonly payloadLimit?: number }
+  /** `service` is the introduction service the link names (the inviter's Home); absent: the host's own Home. */
+  | { readonly call: "get_invite"; readonly inviteId: string; readonly service?: string }
   | { readonly call: "revoke_invite"; readonly inviteId: string }
+  /** A sealed MessageRequest for the introduction service named in the inviter's signed descriptor (`service`). */
+  | { readonly call: "submit_intro"; readonly service: string; readonly bytes: string }
   /**
    * `mailbox` is the destination's deposit capability exactly as its RelayEntry carried it; `relayUri` is that entry's
    * relay_uri, so an adapter can refuse a destination at a Home other than the one it is configured for. Both are
    * absent/legacy only for a pass-2 destination: no `relayUri`, and `mailbox` is the bare 16-byte mailbox id.
    */
   | { readonly call: "deposit"; readonly mailbox: string; readonly relayUri?: string; readonly bytes: string }
-  | { readonly call: "ack"; readonly mailbox: string; readonly seq: number };
+  | { readonly call: "ack"; readonly mailbox: string; readonly seq: number; readonly kind?: MailboxKind };
+
+/** What a polled id names: a relay mailbox (the default), or an invite's introduction service at the host's own Home. */
+export type MailboxKind = "relay" | "intro";
 
 /** Provider-neutral failure classes. `timeout` means the bytes may have been delivered (never a rejection). */
 export type NetError =
@@ -30,7 +44,7 @@ export type NetResult =
 
 export interface NetOp { readonly id: number; readonly call: NetCall }
 export interface Inbound { readonly seq: number; readonly bytes: string }
-export interface PollTarget { readonly mailbox: string; readonly after: number }
+export interface PollTarget { readonly mailbox: string; readonly after: number; readonly kind?: MailboxKind }
 export interface Write { readonly key: string; readonly value: string | null }
 export interface Commit { readonly id: number; readonly profileId: string; readonly writes: readonly Write[] }
 export interface Record { readonly key: string; readonly value: string }
@@ -42,7 +56,7 @@ export interface Record { readonly key: string; readonly value: string }
  */
 export interface Provider {
   perform(call: NetCall): Promise<NetResult>;
-  poll(mailbox: string, after: number): Promise<readonly Inbound[]>;
+  poll(mailbox: string, after: number, kind?: MailboxKind): Promise<readonly Inbound[]>;
   /**
    * Allocates routes for `count` new mailboxes: a fresh random 16-byte `mailbox` id (hex) for Core to poll, and the
    * `relayUri` and deposit `capability` (hex) peers will use to reach it. Core binds its delivery keys to exactly

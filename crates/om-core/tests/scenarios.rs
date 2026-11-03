@@ -757,6 +757,7 @@ fn invite_failure_paths_are_conservative() {
         invite_id: raw[..16].to_vec(),
         descriptor: mallory_desc.unwrap(),
         expires_at: u64::MAX,
+        payload_limit: 0,
     };
     assert_eq!(net.perform(&swap), om_core::host::NetResult::Ok);
     bob.dispatch(

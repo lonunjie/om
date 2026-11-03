@@ -3,11 +3,12 @@
 // Core's canonical form is `om:invite/<token>`. People share a web form, `https://<host>/#invite/<token>`, because a phone
 // camera or a chat app can open it: the token sits in the fragment, so it is never sent to any server. Both forms carry the
 // same token, and a pasted message that merely contains a link works too (people paste whatever they were sent).
-export const INVITE_LINK_MAX_LENGTH = 256;
+export const INVITE_LINK_MAX_LENGTH = 512;
 /** Longest pasted text searched for a link; anything bigger is not a chat message about an invitation. */
 export const INVITE_TEXT_MAX_LENGTH = 2000;
 
-const TOKEN = "[A-Za-z0-9_-]{16,200}";
+// invite id, intro key digest and the introduction services the invite names (`intro_services[]`): 480 characters is 360 bytes.
+const TOKEN = "[A-Za-z0-9_-]{16,480}";
 // The `om:` form must start the text or follow a space or an opening quote/bracket: not a path inside some other address.
 const CANONICAL = new RegExp(`(?<=^|[\\s"'(<])om:invite/(${TOKEN})(?![A-Za-z0-9_-])`);
 const WEB = new RegExp(`https?://[A-Za-z0-9.-]+(?::\\d{1,5})?/?#invite/(${TOKEN})(?![A-Za-z0-9_-])`);

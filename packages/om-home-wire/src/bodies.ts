@@ -152,6 +152,20 @@ export function decodeQueueCreate(b: Uint8Array): QueueCreateRequest {
 // ------------------------------------------------------------------------------------------------ keys (normative + ext)
 
 export interface KeyBundleFetchRequest { readonly requestId: Id16; readonly cap: Cap; readonly devices: readonly Uint8Array[] }
+/**
+ * Feature om.keys.relationship-caps.v1 (ASYNC_KEY_MATERIAL 2.1, home-api.md `relationship_cap`): `PUT /v1/keys/bundles/{device}/fetch-caps`
+ * under the device's `key_publish_cap` lets the owner grant fetch capabilities, one per accepted relationship. The Home
+ * keeps only their hashes; a fetch (`POST /v1/keys/fetch`) must present one of them for each device it asks about.
+ */
+export interface KeyFetchGrantRequest { readonly requestId: Id16; readonly caps: readonly Uint8Array[] }
+export const encodeKeyFetchGrant = (r: KeyFetchGrantRequest) => encode(map([[0, API_MAJOR], [1, r.requestId], [2, [...r.caps]]]));
+export function decodeKeyFetchGrant(b: Uint8Array): KeyFetchGrantRequest {
+  const o = open(b);
+  const requestId = o.bytes(1, ID, ID);
+  const caps = o.byteList(2, 1, 8, CAP_MIN, CAP_MAX);
+  o.done();
+  return { requestId, caps };
+}
 export const encodeKeyFetch = (r: KeyBundleFetchRequest) => encode(map([[0, API_MAJOR], [1, r.requestId], [2, r.cap], [3, [...r.devices]]]));
 export function decodeKeyFetch(b: Uint8Array): KeyBundleFetchRequest {
   const o = open(b);
@@ -236,8 +250,13 @@ export function decodeIntroTicketRequest(b: Uint8Array): IntroTicketRequest {
   return { requestId, params, ...(count === undefined ? {} : { count }) };
 }
 
-export interface TicketParams { readonly ttlSeconds: number; readonly maxUses: number; readonly payloadLimitBytes: number; readonly allowAttachments?: boolean; readonly allowCalls?: boolean }
-export const encodeTicketParams = (p: TicketParams) => encode(map([[0, p.ttlSeconds], [1, p.maxUses], [2, p.payloadLimitBytes], [3, p.allowAttachments], [4, p.allowCalls]]));
+/**
+ * `ticketId` (key 5) is the 16-byte id the recipient's Core signed into its IntroductionTicket (ADR-0181 section 4: the
+ * recipient issues its own ticket and names it after the invite). Its first 8 bytes must be the service's routing prefix, which
+ * is the first 8 bytes of the service capability, and the request must ask for exactly one ticket. A Home without it chooses the id.
+ */
+export interface TicketParams { readonly ttlSeconds: number; readonly maxUses: number; readonly payloadLimitBytes: number; readonly allowAttachments?: boolean; readonly allowCalls?: boolean; readonly ticketId?: Uint8Array }
+export const encodeTicketParams = (p: TicketParams) => encode(map([[0, p.ttlSeconds], [1, p.maxUses], [2, p.payloadLimitBytes], [3, p.allowAttachments], [4, p.allowCalls], [5, p.ticketId]]));
 export function decodeTicketParams(b: Uint8Array): TicketParams {
   const o = new Obj(decode(b));
   const ttlSeconds = o.uint(0);
@@ -245,8 +264,9 @@ export function decodeTicketParams(b: Uint8Array): TicketParams {
   const payloadLimitBytes = o.uint(2);
   const allowAttachments = o.optBool(3);
   const allowCalls = o.optBool(4);
+  const ticketId = o.optBytes(5, 16, 16);
   o.done();
-  return { ttlSeconds, maxUses, payloadLimitBytes, ...(allowAttachments === undefined ? {} : { allowAttachments }), ...(allowCalls === undefined ? {} : { allowCalls }) };
+  return { ttlSeconds, maxUses, payloadLimitBytes, ...(allowAttachments === undefined ? {} : { allowAttachments }), ...(allowCalls === undefined ? {} : { allowCalls }), ...(ticketId === undefined ? {} : { ticketId }) };
 }
 
 /** IntroductionTicket (object type 15, spec/cddl/discovery.cddl). Unsigned here: the Home's record is the authority for admission. */

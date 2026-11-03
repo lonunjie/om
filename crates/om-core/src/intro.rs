@@ -25,21 +25,58 @@ pub const LBL_BINDING_SIG: &str = "OM-INTRO-IDENTITY-BINDING-SIG-v1";
 /// Core-local labels (not wire registry labels; they never leave the profile except as the link digest).
 const HKDF_SALT: &[u8] = b"om-core:intro-identity/v0";
 const KEY_DIGEST_LABEL: &str = "om-core:intro-key-digest/v0";
-/// Stand-in `introduction_services` entry for a Core-issued descriptor (no IntroGate adapter exists yet). An inviter
-/// descriptor appends the request mailbox: `om-core:intro/v0/<32 hex>`; it is signed, so the introduction service
-/// cannot redirect requests.
+/// The `introduction_services` entry of a requester's own descriptor. A requester runs no introduction service (it
+/// only submits to the inviter's), but the frozen descriptor needs one entry, so it carries this inert marker.
 pub const INTRO_SERVICE_URI: &str = "om-core:intro/v0";
 
-pub fn service_uri(request_mailbox: &[u8; 16]) -> String {
-    format!(
-        "{INTRO_SERVICE_URI}/{}",
-        crate::crypto::hex(request_mailbox)
-    )
+/// An invite link names at most this many introduction services (`intro_services[]`, DISCOVERY_FABRIC section 6).
+pub const MAX_LINK_SERVICES: usize = 8;
+/// Longest introduction service URI (`intro-service-ref`, spec/cddl/discovery.cddl).
+pub const MAX_SERVICE_URI: usize = 2048;
+
+/// The decoded body of an `om:invite/` link: the invite id, the digest of the intro key it commits to, and the
+/// introduction services to ask (`intro_services[]`), in the inviter's order.
+pub struct LinkToken {
+    pub invite_id: [u8; 16],
+    pub intro_digest: [u8; 32],
+    pub services: Vec<String>,
 }
 
-pub fn parse_service_uri(uri: &str) -> Option<[u8; 16]> {
-    let h = uri.strip_prefix(INTRO_SERVICE_URI)?.strip_prefix('/')?;
-    crate::crypto::unhex(h).ok()?.try_into().ok()
+/// `invite_id (16) || SHA-256(intro public key) (32) || OM-CBOR [* {0: introduction service URI}]`. The services are
+/// locators only: the descriptor they lead to is signed by the key the digest commits to.
+pub fn link_token(invite_id: &[u8; 16], intro_digest: &[u8; 32], services: &[&str]) -> Vec<u8> {
+    let mut t = invite_id.to_vec();
+    t.extend_from_slice(intro_digest);
+    t.extend(cbor::encode(&V::A(
+        services
+            .iter()
+            .map(|u| V::M(vec![(0, V::T((*u).into()))]))
+            .collect(),
+    )));
+    t
+}
+
+pub fn parse_link_token(raw: &[u8]) -> Option<LinkToken> {
+    if raw.len() <= 48 {
+        return None; // a link from before invites named a service carries none and cannot be followed
+    }
+    let v = cbor::decode(&raw[48..]).ok()?;
+    let list = v.a().ok()?;
+    if list.is_empty() || list.len() > MAX_LINK_SERVICES {
+        return None;
+    }
+    let services = list
+        .iter()
+        .map(|e| {
+            let u = e.get(0).ok()?.t().ok()?;
+            (!u.is_empty() && u.len() <= MAX_SERVICE_URI).then(|| u.to_string())
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(LinkToken {
+        invite_id: raw[..16].try_into().ok()?,
+        intro_digest: raw[16..48].try_into().ok()?,
+        services,
+    })
 }
 
 pub const TYPE_DESCRIPTOR: u64 = 11;

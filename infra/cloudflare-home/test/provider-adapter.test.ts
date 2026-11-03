@@ -68,15 +68,20 @@ describe("against the real reference Home", () => {
     const other = mkReal();
     const dev = toHex(rand(16));
     const opk = toHex(rand(20));
-    expect(await owner.perform({ call: "fetch_key_material", deviceId: dev })).toEqual({ result: "err", error: { kind: "not_found" } });
+    const rel = toHex(rand(32)); // the relationship fetch capability the owner gives one peer (D4)
     expect(await owner.perform({ call: "publish_key_material", deviceId: dev, bundle: toHex(rand(60)), opks: [opk], pqopks: [] })).toEqual({ result: "ok" });
     expect(await other.perform({ call: "publish_key_material", deviceId: dev, bundle: toHex(rand(60)), opks: [], pqopks: [] })).toEqual({ result: "err", error: { kind: "rejected", reason: "unauthorized" } });
-    const fetched = await other.perform({ call: "fetch_key_material", deviceId: dev });
+    // Without the owner's grant no one fetches, not even a peer that knows the device id; a stranger cannot grant.
+    const unauthorized = { result: "err", error: { kind: "rejected", reason: "unauthorized" } };
+    expect(await other.perform({ call: "fetch_key_material", deviceId: dev, service: `${home.url}/`, capability: rel })).toEqual(unauthorized);
+    expect(await other.perform({ call: "grant_key_fetch", deviceId: dev, capability: rel })).toEqual(unauthorized);
+    expect(await owner.perform({ call: "grant_key_fetch", deviceId: dev, capability: rel })).toEqual({ result: "ok" });
+    const fetched = await other.perform({ call: "fetch_key_material", deviceId: dev, service: `${home.url}/`, capability: rel });
     expect(fetched.result === "many" && fetched.items).toHaveLength(2);
 
     const id = toHex(rand(16));
     const descriptor = toHex(rand(200));
-    expect(await owner.perform({ call: "put_invite", inviteId: id, descriptor, expiresAt: Date.now() + 3_600_000 })).toEqual({ result: "ok" });
+    expect(await owner.perform({ call: "put_invite", inviteId: id, descriptor, expiresAt: Date.now() + 3_600_000, payloadLimit: 32_768 })).toEqual({ result: "ok" });
     expect(await other.perform({ call: "get_invite", inviteId: id })).toEqual({ result: "bytes", bytes: descriptor });
     expect(await other.perform({ call: "revoke_invite", inviteId: id })).toEqual({ result: "err", error: { kind: "rejected", reason: "unauthorized" } });
     expect(await owner.perform({ call: "revoke_invite", inviteId: id })).toEqual({ result: "ok" });

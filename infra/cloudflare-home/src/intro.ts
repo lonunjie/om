@@ -78,10 +78,15 @@ export class IntroGate extends DurableObject<Env> {
       const active = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM tickets WHERE revoked = 0 AND expires_at + ? >= ?", LIMITS.skewSeconds, now)?.n ?? 0;
       const out: IntroductionTicket[] = [];
       const binding = (await sha256(prefix)).slice(0, 16);
+      // The recipient's Core signs its own ticket and names it after the invite (ADR-0181 section 4): it may name the id, which
+      // must route to this service (same 8-byte prefix) and then stands for exactly one ticket.
+      if (params.ticketId && (count !== 1 || !params.ticketId.subarray(0, 8).every((b, i) => b === prefix[i]))) throw new HomeError("invalid_request");
       for (let i = 0; i < count; i++) {
         const idTail = (await sha256(prefix, req.requestId, new Uint8Array([i]))).slice(0, 8);
-        const id = concat(prefix, idTail);
+        const id = params.ticketId ?? concat(prefix, idTail);
         const row = one<{ expires_at: number; max_uses: number; payload_limit: number }>(this.sql, "SELECT expires_at, max_uses, payload_limit FROM tickets WHERE id = ?", id);
+        // A named ticket that exists keeps the terms it was opened with: a retry is the same call, anything else is another invite's id.
+        if (row && params.ticketId && (row.max_uses !== params.maxUses || row.payload_limit !== params.payloadLimitBytes)) throw new HomeError("invalid_request");
         if (!row) {
           if (active + out.length >= LIMITS.maxTicketsPerService) throw new HomeError("quota", { detail: quotaDetail(4, this.hard) });
           run(this.sql, "INSERT INTO tickets (id, expires_at, max_uses, payload_limit) VALUES (?, ?, ?, ?)", id, now + params.ttlSeconds, params.maxUses, params.payloadLimitBytes);

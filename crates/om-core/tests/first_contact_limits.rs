@@ -68,7 +68,7 @@ fn junk_request(net: &LoopbackNetwork, rng: &mut InsecureTestRng, link: &[u8], r
     .unwrap();
     let desc = om_core::intro::read_descriptor(&d.body).unwrap();
     let pk = desc.request_key.unwrap();
-    let inbox = om_core::intro::parse_service_uri(&desc.intro_service).unwrap();
+    let inbox = desc.intro_service;
     let rk = om_core::request_key_digest(&pk);
     let mut enc = vec![0u8; 1120];
     let mut ct = vec![0u8; 600];
@@ -245,7 +245,7 @@ fn cheap_checks_run_first_and_spend_no_budget() {
     )
     .unwrap();
     let desc = om_core::intro::read_descriptor(&d.body).unwrap();
-    let inbox = om_core::intro::parse_service_uri(&desc.intro_service).unwrap();
+    let inbox = desc.intro_service;
     let rk = om_core::request_key_digest(&desc.request_key.unwrap());
     let id: [u8; 16] = link[..16].try_into().unwrap();
     for _ in 0..(3 * FIRST_CONTACT_PER_HOUR) {
@@ -253,9 +253,8 @@ fn cheap_checks_run_first_and_spend_no_budget() {
         common::deposit_request(&net, &inbox, &[1; 16], &rk, vec![0; 1120], vec![0; 600]);
         common::deposit_request(&net, &inbox, &id, &[2; 32], vec![0; 1120], vec![0; 600]);
         common::deposit_request(&net, &inbox, &id, &rk, vec![0; 1120], vec![0; 40_000]);
-        net.perform(&om_core::host::NetCall::Deposit {
-            mailbox: inbox.to_vec(),
-            relay_uri: None,
+        net.perform(&om_core::host::NetCall::SubmitIntro {
+            service: inbox.clone(),
             bytes: vec![0xff; 100],
         });
         let _ = &mut rng;

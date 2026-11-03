@@ -239,10 +239,16 @@ fn hello_follows_both_bindings_and_each_side_activates_only_then() {
 fn the_link_commits_to_the_intro_key_and_the_record_is_signed_by_it() {
     let mut d = duo();
     let (link, record) = invite(&mut d.alice, &d.a, "inv");
-    assert_eq!(link.len(), 48, "invite id plus intro key digest");
+    // invite id, intro key digest, and the introduction services the invite names (DISCOVERY_FABRIC section 6)
+    let tok = intro::parse_link_token(&link).expect("a link that names its introduction service");
+    assert_eq!(tok.services, vec!["https://loopback.test/".to_string()]);
     let rec = cbor::decode(&record).unwrap();
     let pk = rec.get(3).unwrap().b().unwrap();
-    assert_eq!(intro::key_digest(pk).to_vec(), link[16..].to_vec());
+    assert_eq!(intro::key_digest(pk).to_vec(), link[16..48].to_vec());
+    assert!(
+        intro::parse_link_token(&link[..48]).is_none(),
+        "a bare 48-byte link names no service"
+    );
     let (d_bytes, t_bytes) = (
         rec.get(1).unwrap().b().unwrap(),
         rec.get(2).unwrap().b().unwrap(),
@@ -295,7 +301,7 @@ fn intro_identities_are_per_invite_derived_and_distinct() {
             .to_vec()
     };
     assert_ne!(key(&r1), key(&r2), "no intro key is reused across invites");
-    assert_ne!(l1[16..], l2[16..]);
+    assert_ne!(l1[16..48], l2[16..48]);
     // Deterministic derivation from the profile secret and the invite id.
     let (root, id) = ([3u8; 32], [9u8; 16]);
     let same = |a: &[u8; 32], b: &[u8; 16]| intro::derive_signer(a, b).public();
@@ -321,6 +327,7 @@ fn put(net: &LoopbackNetwork, link: &[u8], record: Vec<u8>) {
         invite_id: link[..16].to_vec(),
         descriptor: record,
         expires_at: 0,
+        payload_limit: 0,
     });
 }
 
@@ -361,14 +368,14 @@ fn a_request_key_is_trusted_only_from_a_descriptor_signed_by_the_linked_intro_id
     let (_, request_pk) = om_core::crypto::hpke::derive_key_pair(&[9u8; 32]);
     let mut frng = InsecureTestRng::from_label(b"forger-sign");
     let invite_id: [u8; 16] = link[..16].try_into().unwrap();
-    let digest: [u8; 32] = link[16..].try_into().unwrap();
+    let digest: [u8; 32] = link[16..48].try_into().unwrap();
     let forged_desc = intro::sign_intro(
         &forger,
         intro::LBL_DESCRIPTOR_SIG,
         intro::descriptor_body(
             &invite_id,
             "Alice",
-            &intro::service_uri(&[1; 16]),
+            "https://loopback.test/",
             2_000_000_000,
             Some(&request_pk),
         ),
