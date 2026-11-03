@@ -88,7 +88,7 @@ describe("Settings > Backup file: restoring", () => {
     await user.click(restore);
     expect(await screen.findByText(backupCopy.restore.done(2, 7))).toBeTruthy();
     expect(services.restore).toHaveBeenCalledTimes(1);
-    expect((screen.getByLabelText(backupCopy.restore.password) as HTMLInputElement).value).toBe("");
+    expect(screen.getByLabelText<HTMLInputElement>(backupCopy.restore.password).value).toBe("");
   });
 
   it("says at once that a file is not a backup, before asking for a password", async () => {

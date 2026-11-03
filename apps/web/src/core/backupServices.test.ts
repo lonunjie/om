@@ -31,9 +31,10 @@ describe("backup services", () => {
   });
 
   it("does not make a file when there are no chats, or no password", async () => {
-    const none = fakeRt({ query: vi.fn(() => Promise.resolve([])) });
+    const exportBackup = vi.fn(() => Uint8Array.of(1));
+    const none = fakeRt({ query: vi.fn(() => Promise.resolve([])), exportBackup });
     expect(await createBackupServices({ rt: none, ctx }).save("a long enough password")).toEqual({ ok: false, failure: "no_chats" });
-    expect(none.exportBackup).not.toHaveBeenCalled();
+    expect(exportBackup).not.toHaveBeenCalled();
     expect(await createBackupServices({ rt: fakeRt(), ctx }).save("")).toEqual({ ok: false, failure: "empty_password" });
   });
 
@@ -60,8 +61,9 @@ describe("backup services", () => {
   });
 
   it("says an empty password is not a password, before touching Core's import", async () => {
-    const rt = fakeRt();
+    const importBackup = vi.fn(() => Promise.resolve(SUMMARY));
+    const rt = fakeRt({ importBackup });
     expect(await createBackupServices({ rt, ctx }).restore(Uint8Array.of(1), "")).toEqual({ ok: false, failure: "empty_password" });
-    expect(rt.importBackup).not.toHaveBeenCalled();
+    expect(importBackup).not.toHaveBeenCalled();
   });
 });
