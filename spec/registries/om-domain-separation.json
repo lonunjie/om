@@ -630,6 +630,22 @@
       "object": "GroupHistoryBundle",
       "wave": "W1",
       "status": "frozen"
+    },
+    {
+      "label": "OM-BACKUP-v1 aead key",
+      "use": "kdf_info",
+      "construction": "HKDF-SHA256 info",
+      "object": "chat-history backup file (OMB-1): XChaCha20-Poly1305 key",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-BACKUP-v1 key check",
+      "use": "kdf_info",
+      "construction": "HKDF-SHA256 info",
+      "object": "chat-history backup file (OMB-1): 16-byte wrong-password check",
+      "wave": "W1",
+      "status": "frozen"
     }
   ]
 }

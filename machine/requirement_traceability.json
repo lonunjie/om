@@ -2742,6 +2742,36 @@
         "PR-005",
         "review:KEY-CEREMONY-PQ.md"
       ]
+    },
+    {
+      "requirement": "R-421",
+      "verified_by": [
+        "review:2026-11-03-chat-backup-file.md"
+      ]
+    },
+    {
+      "requirement": "R-422",
+      "verified_by": [
+        "review:2026-11-03-chat-backup-file.md"
+      ]
+    },
+    {
+      "requirement": "R-423",
+      "verified_by": [
+        "review:2026-11-03-chat-backup-file.md"
+      ]
+    },
+    {
+      "requirement": "R-424",
+      "verified_by": [
+        "review:2026-11-03-chat-backup-file.md"
+      ]
+    },
+    {
+      "requirement": "R-425",
+      "verified_by": [
+        "review:2026-11-03-chat-backup-file.md"
+      ]
     }
   ]
 }

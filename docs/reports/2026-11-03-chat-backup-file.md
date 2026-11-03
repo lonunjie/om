@@ -1,0 +1,50 @@
+# Chat backup file (OMB-1): design, threats, what remains
+
+Date: 2026-11-03. Decision: [`ADR-0184`](../../decisions/ADR-0184-chat-history-backup-file.md). Builds steps 1 and 2 of the capacity report's backup order; step 3 is not built.
+
+## What exists
+
+A person can save one file from Settings > Backup file, keep it anywhere (a drive, a mail, a USB stick), and restore it in a fresh install. The file holds their conversations and messages, sealed under a password only they know. SeedLife operates nothing in this path.
+
+Restoring shows the old conversations read-only, marked "Restored from a backup file". It does **not** bring back the ability to message those people: a restored chat has no relationship, no keys and no outbox, so there is no composer and no retry. To talk again, both people start from an invitation. This is the conservative reading of "importing never grants authority" (IMPORT_EXPORT sections 7-10), and it needs no operator decision.
+
+## Format (normative copy in `crates/om-core/src/backup.rs`)
+
+84-byte header, then the AEAD ciphertext. Header: magic `OMBACKUP`, version 1, profile 1 (`OMB-ENC-1`), flags 0, Argon2id m/t/p, 16-byte salt, 24-byte nonce, 16-byte key check, ciphertext length. The whole header is the associated data.
+
+- Argon2id (host, `@noble/hashes`): 64 MiB, 3 passes, 1 lane; password NFKC-normalised. Core receives the 32-byte output.
+- `prk = HKDF-Extract(salt, master)`; AEAD key and key check are two Expand outputs under labels `OM-BACKUP-v1 aead key` / `key check` (registered).
+- XChaCha20-Poly1305 over a deterministic CBOR body (`om.history-backup` v1).
+- Floor 64 MiB / 3 passes and ceiling 256 MiB / 10 passes / 4 lanes are enforced before any key work, in both directions. Builds with the insecure test RNG (never production, R-072) use token costs so tests stay fast.
+- Limits: 6 MiB file, 10,000 chats, 250,000 messages, 64 KiB per text. Text only, no compression, no attachments.
+
+Typed refusals: `not_a_backup`, `unsupported_version`, `unsupported_profile`, `unsupported_parameters`, `truncated`, `malformed`, `wrong_password`, `tampered`, `invalid_content`, `too_large`. An import is a single staged transaction: nothing is half imported, and a failed commit leaves the profile as it was.
+
+## Verification
+
+Rust (`crates/om-core/tests/backup.rs`, vectors in [`verification/vectors/om-backup-file-vectors.json`](../../verification/vectors/om-backup-file-vectors.json), `crates/om-wasm/tests/bridge.rs`): fixed vector; round trip; wrong key; every truncation and every byte flip classified; trailing byte; version/profile/flag/cost refusals; secrets absent (every long hex string in the exporter's state is searched for in the file); fresh device reads but cannot send; restore twice and incremental restores; restart persistence; refusals import nothing; failed commit; export leaves state unchanged; deleted messages not exported.
+
+TypeScript: pinned Argon2id vector and NFKC equivalence (`om-web-platform`), services and screen with axe (`apps/web`), real-wasm round trip (`om-core-wasm`).
+
+Playwright `apps/web/e2e/backup.spec.ts` (Chromium, Firefox, WebKit, production wasm at full Argon2 cost): Alice and Bob chat, Alice saves a file, a fresh browser context with a new identity restores it, reads the history, has no composer; a junk file, wrong password, changed file and cut file are each named and import nothing; restoring again says nothing is new; the history survives a reload.
+
+## Threat notes (T-169..T-171)
+
+- **Leaked file:** offline guessing, no rate limit possible. Argon2id at 64 MiB / 3 passes slows it; the password strength decides. The UI applies the existing passphrase checks. Size and header reveal that it is an OM backup and roughly how large the history is.
+- **Forged or swapped file:** an unsigned archive proves integrity only to someone who knows the password. Restored chats are labelled an unverified copy and carry no authority. A stale file can omit newer history.
+- **Accidental leakage via state growth:** the body is built from an allow-list, so a new profile field is not exported until `collect` changes. A test scans for the profile's secrets, but a secret of a new shape needs a new test.
+- **Wrong password versus damaged salt or cost:** indistinguishable by construction (the key differs), reported as wrong password. Damage to nonce or ciphertext is reported as tampered.
+- **Host memory:** the derived key and file bytes pass through JS (hex across the JSON bridge) and are zeroed where possible, not guaranteed. Same class of exposure as the vault passphrase path.
+
+## Limits of this release
+
+- Not the Portable Archive (still locked, `portability`): no human-readable export, attachments, selective export, foreign imports or provenance classes. `OMB-1` is a legacy-readable object if that scope opens.
+- ViewOnce and expiring content do not exist in Core yet; when they do, ADR-0129 applies and the allow-list must exclude ViewOnce and carry expiry.
+- A device lost without recovery still loses the identity; this file restores history only.
+
+## What remains
+
+1. **Step 3: user-connected destinations** (the person's own S3/R2 or Drive) that store this same sealed file. Needs its own go-ahead; nothing in `OMB-1` changes.
+2. A "Have a backup file?" path in onboarding so a new install can offer restore before the first chat.
+3. Automatic or scheduled backups (needs a destination first).
+4. Optional: pass the Argon2 output to Core as bytes rather than hex across the bridge, if the bridge gains a binary channel.

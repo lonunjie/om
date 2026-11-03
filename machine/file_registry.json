@@ -466,6 +466,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/backup.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/chromium.spec.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -697,6 +704,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/src/core/BackupScreen.test.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/BackupScreen.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/src/core/ConfiguredApp.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -740,6 +761,20 @@
     },
     {
       "path": "apps/web/src/core/Shell.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/backupServices.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/backupServices.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -1208,6 +1243,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/backup.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/control.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1398,6 +1440,13 @@
     },
     {
       "path": "crates/om-core/tests/acs_forgery.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/backup.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -2805,6 +2854,13 @@
     },
     {
       "path": "decisions/ADR-0183-open-beta-release-waivers.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0184-chat-history-backup-file.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",
@@ -4226,6 +4282,13 @@
     },
     {
       "path": "docs/reports/2026-11-02-multi-device-plan.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-03-chat-backup-file.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -8978,6 +9041,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-web-platform/src/backup.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-web-platform/src/backup.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-web-platform/src/env.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -13011,6 +13088,13 @@
     },
     {
       "path": "verification/vectors/adr0157-critical-extension-convergence.json",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/om-backup-file-vectors.json",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

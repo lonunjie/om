@@ -190,3 +190,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0181 — First contact in `core_kernel`: per-invite intro identity, hidden requester account, first-contact limits, Core-issued confirmation nonces](ADR-0181-first-contact-intro-identity-and-confirmation-nonces.md)
 - [ADR-0182 — Post-quantum (ML-DSA-65) co-signature on the release-root delegation](ADR-0182-post-quantum-co-signature-on-the-release-root-delegation.md)
 - [ADR-0183 — Open beta: which release gates are waived, which are not, and when each comes back](ADR-0183-open-beta-release-waivers.md)
+- [ADR-0184 — Chat-history backup file (OMB-1): a password-sealed, history-only file; restoring grants no authority](ADR-0184-chat-history-backup-file.md)

@@ -8,8 +8,12 @@ Generated: **2026-10-11 PHT (UTC+08:00)**, after the operator accepted the `grou
 - **Review model:** Claude performs all reviews at the operator's direction (ADR-0167). Gates passed this way carry `pre_engineering_review_basis=operator_single_vendor_ADR-0167`, which is not vendor-independent review.
 - **Design:** `design_open=0`. Review findings F-14..F-19 are fixed (ADR-0168, ADR-0170); F-20..F-23 are resolved by ADR-0172.
 - **Verification:** 8 gates still have pre-engineering open. V-004, V-009 and V-019 passed pre-engineering on 2026-10-01 under the ADR-0167 model, which completes the evidence for `groups`; ADR-0177 (accepted 2026-10-11) unlocks it. V-006 passed pre-engineering the same day for the first-release web matrix; Windows Chrome/Edge is untested and carried pre-release (ADR-0172). V-018 is pre-release (ADR-0170). Pre-release items for groups stay open: the V-004 multi-client partition harness on two implementations, the V-009 corpus run by every implementation, the V-019 interoperable migration.
-- **Ledgers:** 411 requirements / 411 trace rows, 158 threats, 203 decisions / 182 indexed ADRs, 40 security invariants.
+- **Ledgers:** 416 requirements / 416 trace rows, 161 threats, 204 decisions / 183 indexed ADRs, 40 security invariants.
 - **Next:** build the `core_kernel`, `provider_reference`, `reference_client_ui` and `groups` crates/packages (web first, per [`ADR-0178`](decisions/ADR-0178-pwa-canonical-store-independent-distribution.md)) per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). V-006 pre-release: run the probe on Windows or drop Windows, publish the support matrix with regression tests.
+
+## 2026-11-03 PHT — ADR-0184: chat-history backup file
+
+- ADR-0184 adds `OMB-1`, a password-sealed, history-only backup file (Settings > Backup file): Argon2id in the host, HKDF-SHA-256, XChaCha20-Poly1305 with the whole header authenticated, typed refusals, no partial import. It is not the OM Portable Archive (still locked, `portability`) and not `OMA-ENC-1-candidate`. Restoring creates read-only, unverified conversations with no relationship, key or outbox, so importing grants no authority. User-connected destinations (step 3) are not built. D-204, R-421..R-425, T-169..T-171. Report: [`2026-11-03-chat-backup-file.md`](docs/reports/2026-11-03-chat-backup-file.md).
 
 ## 2026-10-28 PHT — ADR-0182: post-quantum co-signature on the release root
 

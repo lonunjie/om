@@ -1,3 +1,10 @@
+# 2026-11-03 PHT — ADR-0184: chat-history backup file (OMB-1)
+
+- **Core:** `om_core::backup` exports one profile's conversations and messages to a sealed file (Argon2id in the host, HKDF-SHA-256, XChaCha20-Poly1305, 84-byte authenticated header, fresh salt and nonce) and imports it as read-only restored conversations. Ten typed refusals; all-or-nothing; no keys, routes or control state in the file. Bridge commands `backup_plan|export|inspect|import`; test vectors in `verification/vectors/om-backup-file-vectors.json`.
+- **Web:** Settings > Backup file: save (password twice) and restore (file, password). Restored chats are labelled and have no composer.
+- **Not built:** user-connected destinations (a person's own bucket or drive), the Portable Archive, a "have a backup file?" path in onboarding.
+- D-204, R-421..R-425, T-169..T-171; two HKDF labels registered.
+
 # 2026-11-02 PHT — web client: invitations are links people can open; setup asks for a name
 
 - Invites are shared, copied and encoded as `https://<app address>/#invite/<token>` (token in the fragment, never sent to a server); Core keeps its own `om:invite/` form and is always given that. The app reads an opened link once, clears it from the address bar and asks "Accept this invite?" (first-run's last step, or a card above the chat list). Pasting or scanning accepts either form or a message around a link.
