@@ -282,3 +282,67 @@ export function decodeTicketList(b: Uint8Array): readonly IntroductionTicket[] {
 export interface IntroDrainRequest { readonly requestId: Id16; readonly cap: Cap; readonly after?: number }
 export const encodeIntroDrainRequest = encodeDrainRequest;
 export const decodeIntroDrainRequest = decodeDrainRequest;
+
+// ------------------------------------------------------------------------------------------------ wake (feature om.relay.wake.v1)
+
+/**
+ * Feature om.relay.wake.v1: an optional wake channel for one queue. It carries no message, no content and no capability in
+ * its URL: it only tells the holder of the receive capability that the queue has something newer than they last saw, so
+ * the client drains with the ordinary `drain` operation instead of asking on a timer. A Home that does not advertise the
+ * feature is polled as before; nothing else depends on it.
+ *
+ * Binding (WebSocket; any transport with ordered messages fits): `GET /v1/relay/wake` with `Upgrade: websocket` and the
+ * subprotocols `om.relay.wake.v1` and `om.q.<32 hex>`. The second is the queue's routing label (the first 16 bytes of
+ * every capability for that queue), which names the queue but is no capability. The client's first message is a
+ * `WakeAuth` frame carrying the receive capability; the Home answers `ready` (the head sequence), then sends `wake`
+ * whenever a new item is stored. A text message `ping` is answered with `pong` without waking the queue.
+ */
+export const WAKE_SUBPROTOCOL = "om.relay.wake.v1";
+export const WAKE_LABEL_PREFIX = "om.q.";
+export const WAKE_PING = "ping";
+export const WAKE_PONG = "pong";
+/** Application close codes (RFC 6455 section 7.4.2 private range). */
+export const WAKE_CLOSE = { badFrame: 4400, unauthorized: 4401, authTimeout: 4408, superseded: 4409, tooMany: 4429 } as const;
+/** A Home must close a socket whose first frame has not arrived within this many seconds. */
+export const WAKE_AUTH_SECONDS = 10;
+/** Frames in either direction are small; anything larger is `badFrame`. */
+export const WAKE_FRAME_MAX = 256;
+
+export const wakeLabel = (queueId: Uint8Array): string => WAKE_LABEL_PREFIX + toHexLocal(queueId);
+export function parseWakeProtocols(header: string | null): { readonly queueId: Uint8Array } | undefined {
+  if (header === null) return undefined;
+  const parts = header.split(",").map((x) => x.trim());
+  if (!parts.includes(WAKE_SUBPROTOCOL)) return undefined;
+  const labels = parts.filter((x) => x.startsWith(WAKE_LABEL_PREFIX));
+  const label = labels[0];
+  if (labels.length !== 1 || label === undefined) return undefined;
+  const hex = label.slice(WAKE_LABEL_PREFIX.length);
+  if (!/^[0-9a-f]{32}$/.test(hex)) return undefined;
+  const out = new Uint8Array(16);
+  for (let i = 0; i < 16; i++) out[i] = parseInt(hex.slice(2 * i, 2 * i + 2), 16);
+  return { queueId: out };
+}
+function toHexLocal(b: Uint8Array): string {
+  return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+export interface WakeAuth { readonly cap: Cap }
+export const encodeWakeAuth = (a: WakeAuth) => encode(map([[0, API_MAJOR], [1, a.cap]]));
+export function decodeWakeAuth(b: Uint8Array): WakeAuth {
+  const o = open(b);
+  const cap = o.bytes(1, CAP_MIN, CAP_MAX);
+  o.done();
+  return { cap };
+}
+
+/** `ready`: authenticated, `seq` is the newest sequence stored (0 when empty). `wake`: a newer item arrived; `seq` is its sequence. */
+export interface WakeEvent { readonly kind: "ready" | "wake"; readonly seq: number }
+export const encodeWakeEvent = (e: WakeEvent) => encode(map([[0, API_MAJOR], [1, e.kind === "ready" ? 1 : 2], [2, e.seq]]));
+export function decodeWakeEvent(b: Uint8Array): WakeEvent {
+  const o = open(b);
+  const k = o.uint(1);
+  if (k !== 1 && k !== 2) throw new CborError("unknown wake event");
+  const seq = o.uint(2);
+  o.done();
+  return { kind: k === 1 ? "ready" : "wake", seq };
+}

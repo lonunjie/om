@@ -47,7 +47,7 @@ describe("PC-A06 / metadata minimisation (source guard)", () => {
       expect(c, `${f} logs`).not.toMatch(/\bconsole\./);
       expect(c, `${f} reads an address`).not.toMatch(/cf-connecting-ip|x-forwarded-for|x-real-ip|true-client-ip|request\.cf\b|\.cf\?|cf-ipcountry|forwarded/i);
       expect(c, `${f} cookie`).not.toMatch(/set-cookie|headers\.get\("cookie|getCookie/i);
-      expect(c, `${f} user agent`).not.toMatch(/user-agent|\.headers\.get\("(?!authorization|content-length)/i);
+      expect(c, `${f} user agent`).not.toMatch(/user-agent|\.headers\.get\("(?!authorization|content-length|upgrade|sec-websocket-protocol)/i);
     }
   });
   it("capabilities never appear in a URL: the only dynamic path parts are object ids and device ids", () => {

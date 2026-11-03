@@ -3,10 +3,11 @@
 // and receive capabilities it holds only as hashes. It never learns who deposits, who drains, an AccountID or a name.
 import { DurableObject } from "cloudflare:workers";
 import {
-  HomeError, concat, encodeDepositCapabilityRecord, encodeDepositReceipt, encodeDrainResponse, encodeRotateResponse, parseDeposit, quotaDetail,
+  CborError, HomeError, WAKE_AUTH_SECONDS, WAKE_CLOSE, WAKE_FRAME_MAX, WAKE_PING, WAKE_PONG, WAKE_SUBPROTOCOL, concat, decodeWakeAuth, encodeWakeEvent, encodeDepositCapabilityRecord, encodeDepositReceipt, encodeDrainResponse, encodeRotateResponse, parseDeposit, quotaDetail,
   type DepositCapabilityRecord, type MintDepositCapabilityRequest, type QueueCreateRequest, type RelayAckRequest, type RelayDepositRequest, type RelayDrainRequest, type RelayRotateRequest,
 } from "@om/home-wire";
 import type { Env } from "./env";
+import { fail } from "./http";
 import { LIMITS } from "./limits";
 import { depositCapStatus, receiveStatus, sealedExpiry } from "./rules";
 import { MAILBOX_SCHEMA, ack, cursorOf, enqueue, nextExpiry, page, purgeExpired } from "./mailbox";
@@ -18,6 +19,9 @@ CREATE TABLE IF NOT EXISTS dcaps (hash TEXT PRIMARY KEY, id BLOB NOT NULL, gener
 CREATE UNIQUE INDEX IF NOT EXISTS dcaps_id ON dcaps (id);
 `;
 
+/** Per-socket state, kept in the socket attachment so it survives hibernation. `at` is the connect time (ms since epoch). */
+interface WakeState { readonly authed: boolean; readonly at: number }
+
 interface CapRow { hash: string; id: Uint8Array; generation: number; expires_at: number | null; revoked: number; max_items: number | null; tokens: number; tokens_at: number }
 
 export class MailboxQueue extends DurableObject<Env> {
@@ -27,6 +31,8 @@ export class MailboxQueue extends DurableObject<Env> {
     super(ctx, env);
     this.sql = ctx.storage.sql;
     this.sql.exec(SCHEMA);
+    // Keepalive without waking the object: a client `ping` is answered by the runtime while the queue sleeps.
+    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(WAKE_PING, WAKE_PONG));
   }
 
   private get hard(): boolean {
@@ -127,6 +133,7 @@ export class MailboxQueue extends DurableObject<Env> {
       }
       purgeExpired(this.sql, now);
       const q = enqueue(this.sql, { bytes, fp: wrapperFp, tupleKey, expiresAt, capHash: cap.hash, hard: this.hard });
+      if (!q.duplicate) this.wake(q.seq);
       const out = encodeDepositReceipt({ itemId: q.id, seq: q.seq });
       await this.remember(req.requestId, fp, out, LIMITS.idempotencySeconds);
       await this.schedule();
@@ -194,10 +201,80 @@ export class MailboxQueue extends DurableObject<Env> {
       setMeta(this.sql, "generation", gen);
       setMeta(this.sql, "overlap_until", overlapUntil);
       run(this.sql, "INSERT INTO dcaps (hash, id, generation, tokens, tokens_at) VALUES (?, ?, ?, ?, ?)", await capHash(depositCap), randomBytes(16), gen, LIMITS.depositBurst, nowSeconds());
+      this.closeWake(WAKE_CLOSE.superseded); // sockets authenticated with the old capability reconnect with the new one
       const out = encodeRotateResponse({ receiveCap, depositCap, overlapUntil });
       await this.remember(req.requestId, fp, out, LIMITS.rotateResultSeconds);
       return out;
     });
+  }
+
+  // ---------------------------------------------------------------------------------------------------- wake (om.relay.wake.v1)
+  //
+  // A hibernatable WebSocket per connected client. The object sleeps between messages, so an idle queue costs nothing; a
+  // deposit sends the awake sockets one small frame (the new sequence) and the client drains with the ordinary `drain`.
+  // The frame carries no content. The only authority is the receive capability in the client's first frame.
+
+  /** The Worker has already checked the upgrade and the routing label; this accepts the socket or refuses it with a typed answer. */
+  override fetch(): Response {
+    const sockets = this.ctx.getWebSockets();
+    if (sockets.length >= LIMITS.maxWakeSockets) {
+      // Make room for an owner: the oldest socket that never authenticated goes first. Only if none exists is the newcomer refused.
+      const stale = sockets
+        .map((s) => ({ s, st: this.wakeState(s) }))
+        .filter((x) => !x.st.authed)
+        .sort((a, b) => a.st.at - b.st.at)[0];
+      if (!stale) return fail("rate_limited", { retryAfterSeconds: 30 });
+      stale.s.close(WAKE_CLOSE.tooMany, "replaced");
+    }
+    const [client, server] = Object.values(new WebSocketPair()) as [WebSocket, WebSocket];
+    this.ctx.acceptWebSocket(server);
+    server.serializeAttachment({ authed: false, at: Date.now() } satisfies WakeState);
+    return new Response(null, { status: 101, webSocket: client, headers: { "Sec-WebSocket-Protocol": WAKE_SUBPROTOCOL, "Cache-Control": "no-store" } });
+  }
+
+  private wakeState(ws: WebSocket): WakeState {
+    const a = ws.deserializeAttachment() as Partial<WakeState> | null;
+    return { authed: a?.authed === true, at: typeof a?.at === "number" ? a.at : 0 };
+  }
+
+  override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    const st = this.wakeState(ws);
+    // Only `ping` (answered by the runtime) is text. After authentication the client sends nothing else.
+    if (typeof message === "string" || message.byteLength > WAKE_FRAME_MAX || st.authed) { ws.close(WAKE_CLOSE.badFrame, "bad frame"); return; }
+    if (Date.now() > st.at + WAKE_AUTH_SECONDS * 1000) { ws.close(WAKE_CLOSE.authTimeout, "too late"); return; }
+    let cap: Uint8Array;
+    try { cap = decodeWakeAuth(new Uint8Array(message)).cap; } catch (e) {
+      if (e instanceof CborError) { ws.close(WAKE_CLOSE.badFrame, "bad frame"); return; }
+      throw e;
+    }
+    try { await this.receiveAuth(cap, false); } catch (e) {
+      // A forged capability, a queue that does not exist and a revoked one all end the same way: no existence oracle.
+      if (e instanceof HomeError) { ws.close(WAKE_CLOSE.unauthorized, "unauthorized"); return; }
+      throw e;
+    }
+    ws.serializeAttachment({ authed: true, at: st.at } satisfies WakeState);
+    ws.send(encodeWakeEvent({ kind: "ready", seq: metaNumber(this.sql, "next_seq", 1) - 1 }));
+  }
+
+  override webSocketClose(ws: WebSocket, code: number): void {
+    try { ws.close(code >= 1000 && code < 5000 && code !== 1005 && code !== 1006 ? code : 1000, "bye"); } catch { /* already closed */ }
+  }
+
+  override webSocketError(ws: WebSocket): void {
+    try { ws.close(1011, "error"); } catch { /* already closed */ }
+  }
+
+  /** Tells every authenticated socket that item `seq` arrived. A socket that cannot be written to is dropped; the client falls back to its slow poll. */
+  private wake(seq: number): void {
+    const frame = encodeWakeEvent({ kind: "wake", seq });
+    for (const ws of this.ctx.getWebSockets()) {
+      if (!this.wakeState(ws).authed) continue;
+      try { ws.send(frame); } catch { try { ws.close(1011, "error"); } catch { /* gone */ } }
+    }
+  }
+
+  private closeWake(code: number): void {
+    for (const ws of this.ctx.getWebSockets()) { try { ws.close(code, "superseded"); } catch { /* gone */ } }
   }
 
   // ---------------------------------------------------------------------------------------------------- admin

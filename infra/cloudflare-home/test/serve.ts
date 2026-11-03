@@ -4,7 +4,8 @@
 import { startHome } from "./harness.ts";
 
 const port = Number(process.argv[2] ?? "8788");
-const home = await startHome({ port });
+// OM_WAKE=0 starts the Home without the optional wake channel (om.relay.wake.v1), for before/after request counts.
+const home = await startHome({ port, vars: process.env["OM_WAKE"] === "0" ? { OM_WAKE: "0" } : {} });
 process.stdout.write(`om reference Home listening on ${home.url}\n`);
 const stop = (): void => { void home.dispose().finally(() => { process.exit(0); }); };
 process.on("SIGINT", stop);

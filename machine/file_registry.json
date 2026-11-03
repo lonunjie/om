@@ -2867,6 +2867,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0185-home-wake-channel.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -3372,6 +3379,13 @@
     },
     {
       "path": "docs/architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
+      "class": "architecture_doc",
+      "domain": "provider_deployment_supply_chain",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "docs/architecture/providers/HOME_WAKE_CHANNEL.md",
       "class": "architecture_doc",
       "domain": "provider_deployment_supply_chain",
       "license": "CC-BY-SA-4.0",
@@ -4296,6 +4310,13 @@
     },
     {
       "path": "docs/reports/2026-11-03-delivery-capacity-and-backup.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-03-delivery-realignment-and-wake-channel.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -7655,6 +7676,27 @@
       "authority": "product_implementation"
     },
     {
+      "path": "infra/cloudflare-home/test/wake-adapter.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/cloudflare-home/test/wake-runtime.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/cloudflare-home/test/wake.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "infra/cloudflare-home/tsconfig.json",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
@@ -8335,6 +8377,20 @@
     },
     {
       "path": "packages/om-provider-http/src/secrets.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-provider-http/src/wake.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-provider-http/src/wake.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

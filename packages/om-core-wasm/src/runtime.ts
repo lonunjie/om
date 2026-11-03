@@ -78,6 +78,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
   const draining = new Map<string, Promise<void>>();
   const inflight = new Set<string>();
   let disposed = false;
+  let wakeOff: (() => void) | undefined;
 
   const key = (profileId: string, op: string): string => `${profileId}\u0000${op}`;
 
@@ -288,10 +289,15 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     },
     dispose() {
       disposed = true;
+      wakeOff?.();
       for (const t of timers) { clearTimeout(t); clearInterval(t); }
       timers.clear();
     },
   };
+  if (autoDrain && provider.onWake) {
+    // The transport heard that mail is waiting: collect now for every open profile (a flush already running is followed by one more).
+    wakeOff = provider.onWake(() => { if (!disposed) for (const p of [...openProfiles]) void flush(p); });
+  }
   if (autoDrain && (typeof pollMs === "function" || pollMs > 0)) {
     // Background mailbox polling: a message from another device arrives with no local change to trigger a drain.
     const tick = (): void => {

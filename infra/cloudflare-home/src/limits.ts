@@ -17,6 +17,8 @@ export const LIMITS = {
   /** Per deposit capability token bucket. */
   depositBurst: 30,
   depositRefillPerSecond: 1,
+  /** Wake channel (feature om.relay.wake.v1): sockets one queue holds at once, authenticated or not. */
+  maxWakeSockets: 8,
   drainPageItems: 64,
   drainPageBytes: 1024 * 1024,
   maxDepositCapabilities: 64,

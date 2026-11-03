@@ -50,6 +50,12 @@ export interface Provider {
    * anything that needs a mailbox; there is no stand-in.
    */
   allocateRoutes?(count: number): Promise<readonly RouteOffer[]>;
+  /**
+   * Optional: the transport can tell Core that something newer may be waiting (a wake channel). The runtime then collects
+   * at once instead of at its next timer tick. Purely an optimisation: the timer keeps running, so a provider that never
+   * calls the listener (or has no wake channel) behaves exactly as before. Returns the unsubscribe.
+   */
+  onWake?(listener: () => void): () => void;
 }
 
 /** One new mailbox and the route to it (see Provider.allocateRoutes). */

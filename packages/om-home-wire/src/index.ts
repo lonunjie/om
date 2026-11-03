@@ -12,6 +12,7 @@ export { Obj } from "./fields";
 /** Optional-feature ids a Home advertises in ProviderCapabilities.features (home-api.md section 1). */
 export const FEATURES = {
   relayQueues: "om.relay.queues.v1",
+  relayWake: "om.relay.wake.v1",
   keysPool: "om.keys.pool.v1",
   keysAnonymousFetch: "om.keys.fetch-throttled.v1",
   discoveryPut: "om.discovery.put.v1",

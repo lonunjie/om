@@ -122,3 +122,7 @@ Also recorded: `wrangler` is pinned to 4.100.0 and `miniflare` to 4.20260611.0 (
 
 ## Service worker fixed (2026-10-29)
 The 3 pre-existing `cross.spec.ts` service-worker failures were real: `sw.js` imported a chunk shared with the app (`@noble/hashes`, from the PQ work), a classic worker cannot import, and registration failed silently, so no production build had a service worker. `apps/web/vite.config.ts` now bundles the worker on its own as one IIFE (`serviceWorker()` plugin, built with Vite's JS API, 39 KB) and fails the build if the output contains import/export/importScripts. `make web-e2e`: 25 passed, 2 skipped (live-relay, opt-in); `pnpm web:check`, `make check`, `make web-release-check` green.
+
+## Update 2026-11-03: wake channel
+
+The optional feature `om.relay.wake.v1` (hibernating WebSocket per queue, ADR-0185) is built and tested but **not deployed**; the deploy approval is listed in [`2026-11-03-delivery-realignment-and-wake-channel`](2026-11-03-delivery-realignment-and-wake-channel.md), which also records where the shipped default departs from the tiers design.

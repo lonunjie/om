@@ -24,7 +24,7 @@ Path, in order of effort:
 
 1. **Done in 0.0.8:** adaptive polling (`apps/web/src/core/pollPace.ts`), plus an immediate check when the app returns to the screen or the network comes back.
 2. **Operator decision, small:** move the Worker to the Workers Paid plan (about 5 USD a month; 10M Worker requests and 1M Durable Object requests a month included, then cents per million). That is roughly ten times the free headroom and removes the hard stop. Add the WAF rate-limit rules still listed as not done.
-3. **Engineering, medium:** replace polling with a push wake-up (WebSocket with hibernation on the queue Durable Object, or Web Push). Idle users then cost nothing between messages, which is the real scale lever.
+3. **Engineering, medium (built 2026-11-03, not yet deployed; see [`2026-11-03-delivery-realignment-and-wake-channel`](2026-11-03-delivery-realignment-and-wake-channel.md); that report also corrects the per-tab estimate above, which is per mailbox):** replace polling with a push wake-up (WebSocket with hibernation on the queue Durable Object, or Web Push). Idle users then cost nothing between messages, which is the real scale lever.
 4. **Engineering, large:** cross-Home delivery plus a second, vendor-neutral Home (PR-013), so the default is one choice among several and anyone can run their own.
 
 ## Chat backup to R2 or Google Drive

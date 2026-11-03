@@ -33,7 +33,7 @@ export default defineConfig({
     // The real Core in the production entry, connected to the local reference Home (the Worker bundle in workerd).
     { command: "node ../../infra/cloudflare-home/test/serve.ts 8788", cwd: "..", url: `${RELAY}/healthz`, reuseExistingServer: true },
     { command: "pnpm exec vite preview --outDir dist-relay-e2e --port 4177 --strictPort", cwd: "..", url: RELAY_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: RELAY } },
-    ...(live ? [{ command: "pnpm exec vite preview --outDir dist-live-relay --port 4178 --strictPort", cwd: "..", url: LIVE_APP, reuseExistingServer: true }] : []),
+    ...(live ? [{ command: "pnpm exec vite preview --outDir dist-live-relay --port 4178 --strictPort", cwd: "..", url: LIVE_APP, reuseExistingServer: true, env: { ...(/^http:\/\/(127\.0\.0\.1|localhost)(:\d{2,5})?$/.test(process.env["OM_LIVE_RELAY_URL"] ?? "") ? { OM_E2E_CONNECT_SRC: process.env["OM_LIVE_RELAY_URL"] ?? "" } : {}) } }] : []),
   ],
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"], launchOptions: { args: cameraArgs } }, testIgnore: /(cross|live-relay|live-invite)\.spec\.ts/ },

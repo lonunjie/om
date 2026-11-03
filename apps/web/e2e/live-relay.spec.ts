@@ -117,6 +117,15 @@ test("two fresh identities exchange messages through the LIVE Home with the prod
       hits.push({ url: r.url(), method: r.method(), body: r.postDataBuffer(), status: res?.status() ?? 0, ms: Math.max(0, t.responseEnd), at: Date.now() });
     });
   });
+  // Wake channel (om.relay.wake.v1): sockets are not HTTP requests, so count them and their frames on their own.
+  const sockets: { url: string; sent: number; received: number }[] = [];
+  page.on("websocket", (ws) => {
+    if (!ws.url().startsWith(HOME.replace(/^http/, "ws"))) return;
+    const s = { url: ws.url(), sent: 0, received: 0 };
+    sockets.push(s);
+    ws.on("framesent", () => { s.sent++; });
+    ws.on("framereceived", () => { s.received++; });
+  });
   const consoleErrors: string[] = [];
   page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource/.test(m.text())) consoleErrors.push(m.text()); });
   await noPasskeys(page);
@@ -127,7 +136,8 @@ test("two fresh identities exchange messages through the LIVE Home with the prod
   {
     await onboard(page, { stopAt: "invite" });
     // The production entry, connected to the live Home by build configuration: no loopback banner, not "unconnected".
-    await expect(page.getByText("E2E LOCAL RELAY")).toHaveCount(0);
+    // (A local Home, used to compare request counts, shows the loopback banner by design.)
+    if (!/^http:\/\/(127\.0\.0\.1|localhost)/.test(HOME)) await expect(page.getByText("E2E LOCAL RELAY")).toHaveCount(0);
     await expect(page.getByText("Not connected to a delivery service")).toHaveCount(0);
     await page.getByRole("button", { name: "Show as QR code" }).click();
     const link = (await page.locator("code[translate=no]").first().textContent())?.trim() ?? "";
@@ -195,10 +205,22 @@ test("two fresh identities exchange messages through the LIVE Home with the prod
     for (const p of ["/v1/relay/deposit", "/v1/relay/drain", "/v1/relay/ack", "/v1/relay/queues", "/v1/keys/fetch", "/v1/keys/bundles/:id", "/v1/discovery/descriptors/:id"]) expect(paths, p).toContain(p);
     expect(consoleErrors).toEqual([]);
 
+    // Optional idle hold (OM_LIVE_IDLE_SECONDS): the app stays open and visible with nothing happening; what the Home is asked meanwhile is the steady-state cost.
+    const idleSeconds = Number(process.env["OM_LIVE_IDLE_SECONDS"] ?? "0");
+    let idleRequests = 0;
+    if (idleSeconds > 0) {
+      const from = hits.length;
+      await page.waitForTimeout(idleSeconds * 1000);
+      idleRequests = hits.length - from;
+    }
+    const perPath: Record<string, number> = {};
+    for (const h of hits) { const k = new URL(h.url).pathname.replace(/[0-9a-f]{32}/g, ":id"); perPath[k] = (perPath[k] ?? 0) + 1; }
+
     const byEndpoint = (suffix: string): number[] => hits.filter((h) => h.url.endsWith(suffix) && h.status < 400).map((h) => h.ms);
     summary = {
       browser: browserName, home: HOME,
-      messages: 3, homeRequests: hits.length, failedRequests: hits.filter((h) => h.status >= 400).length,
+      messages: 3, homeRequests: hits.length, perPath, idleSeconds, idleRequests,
+      wake: { sockets: sockets.length, framesSent: sockets.reduce((n, x) => n + x.sent, 0), framesReceived: sockets.reduce((n, x) => n + x.received, 0), urlsWithQueryOrFragment: sockets.filter((x) => /[?#]/.test(x.url)).length }, failedRequests: hits.filter((h) => h.status >= 400).length,
       firstContactMs: at.relationship - at.accept,
       sendToVisibleMs: latencies, // click Send in one identity -> text visible in the other (includes the identity switch and a <=3 s poll)
       requestMs: { deposit: { median: median(byEndpoint("/v1/relay/deposit")), p95: p95(byEndpoint("/v1/relay/deposit")) }, drain: { median: median(byEndpoint("/v1/relay/drain")), p95: p95(byEndpoint("/v1/relay/drain")) } },

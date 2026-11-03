@@ -8,5 +8,6 @@ const HOME = process.env.OM_LIVE_RELAY_URL ?? "https://om-home-lonunjie.majal.wo
 execFileSync("node", ["build/ensure-core-wasm.mjs"], { stdio: "inherit" });
 execFileSync("pnpm", ["exec", "vite", "build", "--outDir", "dist-live-relay", "--emptyOutDir"], {
   stdio: "inherit",
-  env: { ...process.env, VITE_OM_RELAY_URL: HOME, OM_BUNDLE_DEV: "1" },
+  // A loopback target (a local Home, to compare request counts without touching the live one) needs the dev-only opt-in.
+  env: { ...process.env, VITE_OM_RELAY_URL: HOME, OM_BUNDLE_DEV: "1", ...(/^http:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(HOME) ? { VITE_OM_ALLOW_LOOPBACK_RELAY: "1" } : {}) },
 });

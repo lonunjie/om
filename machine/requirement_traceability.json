@@ -2772,6 +2772,30 @@
       "verified_by": [
         "review:2026-11-03-chat-backup-file.md"
       ]
+    },
+    {
+      "requirement": "R-426",
+      "verified_by": [
+        "review:2026-11-03-delivery-realignment-and-wake-channel.md"
+      ]
+    },
+    {
+      "requirement": "R-427",
+      "verified_by": [
+        "review:2026-11-03-delivery-realignment-and-wake-channel.md"
+      ]
+    },
+    {
+      "requirement": "R-428",
+      "verified_by": [
+        "review:2026-11-03-delivery-realignment-and-wake-channel.md"
+      ]
+    },
+    {
+      "requirement": "R-429",
+      "verified_by": [
+        "review:2026-11-03-delivery-realignment-and-wake-channel.md"
+      ]
     }
   ]
 }

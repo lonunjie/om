@@ -7,3 +7,4 @@ export { probeHome } from "./probe";
 export type { HomeHealth, HomeProbe, ProbeOptions } from "./probe";
 export { createIndexedDbSecretStore, createMemorySecretStore } from "./secrets";
 export type { SecretStore } from "./secrets";
+export type { WakeSocketFactory, WakeStats } from "./wake";

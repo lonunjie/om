@@ -44,12 +44,12 @@ const serviceWorker = (bundleVersion: string): Plugin => ({
 const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string };
 const dev = process.env["OM_BUNDLE_DEV"] === "1";
 
-// Local end-to-end only: the preview server may additionally allow one loopback http origin for the local reference Home.
+// Local end-to-end only: the preview server may additionally allow one loopback http origin (and its ws origin, for the wake channel) for the local reference Home.
 // Never applied to the emitted `_headers`, and ignored for anything that is not a loopback origin.
 function localRelayCsp(): Record<string, string> {
   const origin = process.env["OM_E2E_CONNECT_SRC"];
   if (origin === undefined || !/^http:\/\/(127\.0\.0\.1|localhost)(:\d{2,5})?$/.test(origin)) return {};
-  return { "Content-Security-Policy": cspHeader().replace("connect-src 'self' https: wss:", `connect-src 'self' https: wss: ${origin}`) };
+  return { "Content-Security-Policy": cspHeader().replace("connect-src 'self' https: wss:", `connect-src 'self' https: wss: ${origin} ${origin.replace(/^http/, "ws")}`) };
 }
 
 const config: UserConfig = {

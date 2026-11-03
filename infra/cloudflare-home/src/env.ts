@@ -14,4 +14,6 @@ export interface Env {
   readonly OM_PROVIDER_ID?: string;
   /** Free-plan guard: `1` declares that exhausting a limit is a hard stop (reported in quota details). */
   readonly OM_HARD_FREE_TIER?: string;
+  /** `0` turns the optional wake channel (om.relay.wake.v1) off: not advertised, not served. Anything else leaves it on. */
+  readonly OM_WAKE?: string;
 }

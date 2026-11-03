@@ -83,8 +83,17 @@ export async function resolveProviderConfig(env: ProviderEnv): Promise<ProviderC
   return (await resolveProviderChoice(env))?.config ?? null;
 }
 
+/**
+ * The wake channel (a socket per mailbox that says "mail is waiting", so nothing asks on a timer) exists only while the page
+ * is on screen: it opens when the page becomes visible and closes when it is hidden, where the slow poll takes over.
+ */
 export function createHttpProviderFor(env: ProviderEnv, config: ProviderConfig): HttpProvider {
-  return createHttpProvider({ config, secrets: createIndexedDbSecretStore(env.indexedDB), ...(env.fetch === undefined ? {} : { fetch: env.fetch }) });
+  const provider = createHttpProvider({ config, secrets: createIndexedDbSecretStore(env.indexedDB), ...(env.fetch === undefined ? {} : { fetch: env.fetch }) });
+  if (typeof document === "undefined") return provider;
+  const sync = (): void => { provider.setWakeActive(document.visibilityState === "visible"); };
+  document.addEventListener("visibilitychange", sync);
+  sync();
+  return { ...provider, dispose: () => { document.removeEventListener("visibilitychange", sync); provider.dispose(); } };
 }
 
 export async function createConfiguredProvider(env: ProviderEnv): Promise<HttpProvider | null> {

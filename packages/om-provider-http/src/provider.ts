@@ -13,12 +13,13 @@
 import type { Inbound, NetCall, NetError, NetResult, Provider, RouteOffer } from "@om/core-wasm";
 import {
   decodeDescriptorGet, decodeDrainResponse, decodeKeyFetchResponse, encodeAckRequest, encodeDepositRequest, encodeDescriptorPut,
-  encodeDrainRequest, encodeKeyFetch, encodeKeyPublish, encodeQueueCreate, fromHex, toHex, type HomeErrorBody, type RelayEntry,
+  encodeDrainRequest, encodeKeyFetch, encodeKeyPublish, encodeQueueCreate, fromHex, toHex, FEATURES, type HomeErrorBody, type RelayEntry,
 } from "@om/home-wire";
 import { exchange, type Exchange, type HttpOptions } from "./http";
 import { depositCap, descriptorPublishCap, installSecret, keyPublishCap, mailboxCaps, requestId } from "./derive";
 import type { SecretStore } from "./secrets";
 import type { ProviderConfig } from "./config";
+import { createWakeHub, type WakeHubOptions, type WakeSocketFactory, type WakeStats } from "./wake";
 
 export interface HttpProviderOptions {
   readonly config: ProviderConfig;
@@ -26,6 +27,13 @@ export interface HttpProviderOptions {
   readonly fetch?: typeof fetch;
   /** Per-request timeout (default 20 s). A timeout after a mutating request is `timeout` (unknown), never a rejection. */
   readonly timeoutMs?: number;
+  /**
+   * Wake channel (om.relay.wake.v1): how to open a WebSocket. Default is the platform's `WebSocket` when it has one. `false`
+   * turns the channel off for this provider; the caller then polls on its timer exactly as before.
+   */
+  readonly webSocket?: WakeSocketFactory | false;
+  /** Tuning of the wake channel (timers, socket cap); tests use short values. */
+  readonly wake?: Pick<WakeHubOptions, "pingMs" | "pongMs" | "safetyMs" | "connectMs" | "maxSockets">;
 }
 
 export type Reachability = "unknown" | "reachable" | "unreachable";
@@ -41,6 +49,16 @@ export interface HttpProvider extends Provider {
   routeEntry(mailbox: Uint8Array, expiresAt: number): Promise<RelayEntry>;
   /** The Home's public ProviderCapabilities document, or undefined if it cannot be fetched. */
   capabilities(): Promise<Readonly<Record<string, unknown>> | undefined>;
+  /**
+   * The wake channel may hold sockets only while the app is on screen: the host calls this with its visibility. While a
+   * socket is live for a mailbox, `poll` answers from it without asking the Home; otherwise it drains as before.
+   */
+  setWakeActive(active: boolean): void;
+  /** Called when the Home reports something newer than this client holds (Provider.onWake). */
+  onWake(listener: () => void): () => void;
+  wakeStats(): WakeStats;
+  /** Closes every socket and timer. The provider keeps working by polling. */
+  dispose(): void;
 }
 
 /** What remains of an exchange once network failure and gateway noise have been turned into a Core failure class. */
@@ -65,6 +83,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
   const lost = new Set<string>();
   const ackIds = new Map<string, Map<number, Uint8Array>>();
   const backoff = new Map<string, { until: number; step: number }>();
+  const socketFactory: WakeSocketFactory | undefined = opts.webSocket === false ? undefined : opts.webSocket ?? (typeof globalThis.WebSocket === "function" ? (u, p) => new globalThis.WebSocket(u, p) : undefined);
 
   // ------------------------------------------------------------------------------------------ plumbing
 
@@ -128,6 +147,23 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     return r;
   }
 
+  async function advertisedFeatures(): Promise<readonly unknown[] | undefined> {
+    const r = await exchange(http, `${base}/.well-known/om-provider-capabilities`, { method: "GET" });
+    if (r.kind !== "ok") return undefined;
+    try { const f = (JSON.parse(new TextDecoder().decode(r.body)) as { features?: unknown }).features; return Array.isArray(f) ? f : undefined; } catch { return undefined; }
+  }
+
+  const hub = createWakeHub({
+    base,
+    webSocket: socketFactory,
+    supported: async () => (await advertisedFeatures())?.includes(FEATURES.relayWake) === true,
+    credentials: async (mailboxHex) => {
+      const caps = await mailboxCaps(await secret(), fromHex(mailboxHex));
+      return { queueId: caps.queueId, receive: caps.receive };
+    },
+    ...opts.wake,
+  });
+
   // ------------------------------------------------------------------------------------------ queues
 
   /** First poll of an own mailbox claims the queue at the Home (idempotent for identical capabilities). */
@@ -156,6 +192,9 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
   async function poll(mailboxHex: string, after: number): Promise<readonly Inbound[]> {
     const mailbox = fromHex(mailboxHex);
     if ((await ensureQueue(mailbox, mailboxHex)) !== "ok") return [];
+    // A live wake socket for this mailbox vouches that nothing newer exists: skip the request. Otherwise drain as always.
+    hub.watch(mailboxHex, after);
+    if (hub.quiet(mailboxHex, after)) return [];
     const caps = await mailboxCaps(await secret(), mailbox);
     const out: Inbound[] = [];
     const ids = ackIds.get(mailboxHex) ?? new Map<number, Uint8Array>();
@@ -172,6 +211,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
       cursor = page.next;
     }
     ackIds.set(mailboxHex, ids);
+    hub.drained(mailboxHex, out.reduce((m, i) => Math.max(m, i.seq), 0));
     return out;
   }
 
@@ -306,6 +346,10 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
       if (r.kind !== "ok") return undefined;
       try { return JSON.parse(new TextDecoder().decode(r.body)) as Record<string, unknown>; } catch { return undefined; }
     },
+    setWakeActive: (active) => { hub.setActive(active); },
+    onWake: (listener) => hub.onWake(listener),
+    wakeStats: () => hub.stats(),
+    dispose: () => { hub.dispose(); },
     async perform(call: NetCall): Promise<NetResult> {
       try {
         switch (call.call) {

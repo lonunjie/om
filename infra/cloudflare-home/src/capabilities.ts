@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 // GET /.well-known/om-provider-capabilities (spec/protocol/provider-capabilities.logical.schema.json). Public, no secrets,
 // no per-user data: the same document for every caller.
-import { FEATURES } from "@om/home-wire";
+import { FEATURES, WAKE_AUTH_SECONDS } from "@om/home-wire";
 import type { Env } from "./env";
 import { LIMITS } from "./limits";
+
+/** The optional wake channel is on unless the deployment sets OM_WAKE=0. */
+export const wakeOn = (env: Env): boolean => env.OM_WAKE !== "0";
 
 export function capabilitiesDocument(env: Env): Record<string, unknown> {
   return {
@@ -11,7 +14,7 @@ export function capabilitiesDocument(env: Env): Record<string, unknown> {
     provider_id: env.OM_PROVIDER_ID ?? "om-reference-home",
     provider_kinds: ["relay", "key_material", "discovery_relay", "intro_gate"],
     durability_class: "durable",
-    features: Object.values(FEATURES).sort(),
+    features: Object.values(FEATURES).filter((f) => f !== FEATURES.relayWake || wakeOn(env)).sort(),
     api_versions: ["1"],
     health: "healthy",
     limits: {
@@ -25,6 +28,7 @@ export function capabilitiesDocument(env: Env): Record<string, unknown> {
       max_deposit_capabilities: LIMITS.maxDepositCapabilities,
       max_descriptor_bytes: LIMITS.maxDescriptorBytes,
       max_ticket_uses: LIMITS.maxTicketUses,
+      ...(wakeOn(env) ? { wake_sockets_per_queue: LIMITS.maxWakeSockets, wake_auth_seconds: WAKE_AUTH_SECONDS } : {}),
     },
     abuse_controls: {
       per_capability_deposit_rate: { burst: LIMITS.depositBurst, per_second: LIMITS.depositRefillPerSecond },

@@ -4,9 +4,9 @@
 // It never reads a network address or any identifying header, writes no log, and sets no cookie.
 import {
   CborError, HomeError, decodeAckRequest, decodeDepositRequest, decodeDescriptorPut, decodeDrainRequest, decodeIntroDrainRequest, decodeIntroTicketRequest, decodeKeyFetch,
-  decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, encodeKeyFetchResponse, decodeKeyFetchResponse, fromHex, decode, Obj, type HomeErrorName,
+  decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, fromHex, decode, Obj, type HomeErrorName,
 } from "@om/home-wire";
-import { capabilitiesDocument } from "./capabilities";
+import { capabilitiesDocument, wakeOn } from "./capabilities";
 import type { Env } from "./env";
 import { bearer, fail, fromReply, json, ok, preflight, readBody } from "./http";
 import { LIMITS } from "./limits";
@@ -58,6 +58,14 @@ async function route(request: Request, env: Env): Promise<Response> {
     const prefix = hex(req.receiveCap.slice(0, 16));
     if (hex(req.depositCap.slice(0, 16)) !== prefix || (req.adminCap && hex(req.adminCap.slice(0, 16)) !== prefix)) return fail("invalid_request");
     return fromReply(await queueOf(env, req.receiveCap).create(req));
+  }
+  if (path === "/v1/relay/wake") {
+    // The queue is named by a routing label in the subprotocol header, never by the URL; authority arrives in the first frame.
+    if (!wakeOn(env)) return fail("not_found");
+    if (m !== "GET" || request.headers.get("upgrade")?.toLowerCase() !== "websocket") return fail("invalid_request");
+    const label = parseWakeProtocols(request.headers.get("sec-websocket-protocol"));
+    if (!label) return fail("invalid_request");
+    return env.QUEUES.get(env.QUEUES.idFromName(`q:${hex(label.queueId)}`)).fetch(request);
   }
   if (path === "/v1/relay/deposit") {
     const req = parse(decodeDepositRequest, await body(request, BODY_MAX));

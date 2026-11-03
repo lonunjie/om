@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   CborError, HOME_ERROR_CODES, HomeError, decode, decodeAckRequest, decodeDepositRequest, decodeDrainResponse, decodeHomeError, decodeRelayEntry, decodeTicketParams, encode, encodeAckRequest,
+  decodeWakeAuth, decodeWakeEvent, encodeWakeAuth, encodeWakeEvent, parseWakeProtocols, wakeLabel,
   encodeDepositRequest, encodeDrainResponse, encodeHomeError, encodeRelayEntry, encodeTicketParams, fromHex, isRetryable, map, parseDeposit, routeBinding, toHex, type HomeErrorName,
 } from "./index";
 
@@ -117,5 +118,29 @@ describe("route object and binding (SEALED_SENDER_DELIVERY_PROFILE.md section 3)
     expect(decodeRelayEntry(encodeRelayEntry(e))).toEqual(e);
     expect(() => decodeRelayEntry(encode(map([[0, "u"], [1, new Uint8Array(15)], [2, 0], [4, 1]])))).toThrow(CborError);
     expect(() => decodeRelayEntry(encode(map([[0, "u"], [1, new Uint8Array(16)], [2, 256], [4, 1]])))).toThrow(CborError);
+  });
+});
+
+describe("wake channel (om.relay.wake.v1)", () => {
+  it("auth and event frames round-trip, are strict, and are tiny", () => {
+    const cap = new Uint8Array(48).fill(3);
+    expect(decodeWakeAuth(encodeWakeAuth({ cap })).cap).toEqual(cap);
+    expect(() => decodeWakeAuth(encodeWakeAuth({ cap: new Uint8Array(15) }))).toThrow();
+    for (const kind of ["ready", "wake"] as const) {
+      const b = encodeWakeEvent({ kind, seq: 70_000 });
+      expect(decodeWakeEvent(b)).toEqual({ kind, seq: 70_000 });
+      expect(b.length).toBeLessThan(16);
+    }
+    expect(() => decodeWakeEvent(encode(map([[0, 1], [1, 9], [2, 1]])))).toThrow(); // unknown kind
+    expect(() => decodeWakeEvent(encode(map([[0, 1], [1, 2], [2, 1], [3, 1]])))).toThrow(); // unknown key
+    expect(() => decodeWakeEvent(encode(map([[0, 2], [1, 2], [2, 1]])))).toThrow(); // other api major
+  });
+  it("the routing label names a queue but is not a capability: exactly one label and the feature id are required", () => {
+    const q = new Uint8Array(16).map((_, i) => i);
+    expect(wakeLabel(q)).toBe("om.q.000102030405060708090a0b0c0d0e0f");
+    expect(parseWakeProtocols(`om.relay.wake.v1, ${wakeLabel(q)}`)?.queueId).toEqual(q);
+    for (const bad of [null, "", "om.relay.wake.v1", wakeLabel(q), `om.relay.wake.v1, ${wakeLabel(q)}, ${wakeLabel(q)}`, "om.relay.wake.v1, om.q.xyz", `om.relay.wake.v1, om.q.${"0".repeat(64)}`]) {
+      expect(parseWakeProtocols(bad), String(bad)).toBeUndefined();
+    }
   });
 });

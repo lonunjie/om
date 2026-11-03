@@ -39,6 +39,8 @@ export function ConfiguredApp({ banner, pollMs }: { readonly banner?: ReactNode 
     })();
     return () => { life.live = false; };
   }, [generation]);
+  // A replaced or unmounted provider closes its wake sockets and stops listening to the page.
+  useEffect(() => () => { if (state.k === "ready") state.provider?.dispose(); }, [state]);
   const home = useMemo(
     () => (state.k === "ready" && state.env !== undefined ? createHomeSettings({ env: state.env, choice: state.choice, provider: state.provider, reconnect }) : undefined),
     [state, reconnect],
