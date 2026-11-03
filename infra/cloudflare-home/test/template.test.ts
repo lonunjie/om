@@ -59,7 +59,8 @@ describe("signed relay release", () => {
     const strip = (t: string) => JSON.parse(t.split("\n").filter((l) => !l.trim().startsWith("//")).join("\n")) as Record<string, unknown>;
     const src = strip(readFileSync(join(homeRoot, "wrangler.jsonc"), "utf8"));
     const out = JSON.parse(readFileSync(join(rel, "wrangler.json"), "utf8")) as Record<string, unknown>;
-    for (const k of ["compatibility_date", "workers_dev", "preview_urls", "observability", "vars", "durable_objects", "migrations"]) expect(out[k], k).toEqual(src[k]);
+    for (const k of ["compatibility_date", "workers_dev", "preview_urls", "observability", "durable_objects", "migrations"]) expect(out[k], k).toEqual(src[k]);
+    expect(out["vars"]).toEqual({ ...(src["vars"] as Record<string, string>), OM_ADMISSION_REQUIRED: "1" }); // the one addition: an empty prompt cannot open a personal relay
   });
 
   it("verifies under its own roots, with provenance, and is a byte-for-byte rebuild of the same Worker", () => {
@@ -154,11 +155,13 @@ describe("wrangler accepts the template and uploads the released bytes", () => {
 describe("the released Worker, in workerd, configured as a deployed template would be", () => {
   const secret = crypto.getRandomValues(new Uint8Array(32));
   let home: Home;
+  let bare: Home;
   beforeAll(async () => {
     const cfg = JSON.parse(readFileSync(join(rel, "wrangler.json"), "utf8")) as { vars: Record<string, string> };
     home = await startHome({ bundle: join(rel, "relay/worker.js"), vars: { ...cfg.vars, OM_ADMISSION: await admissionHash(secret) } });
+    bare = await startHome({ bundle: join(rel, "relay/worker.js"), vars: cfg.vars }); // the prompt left empty
   }, 120_000);
-  afterAll(async () => { await home.dispose(); });
+  afterAll(async () => { await home.dispose(); await bare.dispose(); });
   const create = (headers: Record<string, string>) => {
     const c = newCaps();
     return home.fetch("/v1/relay/queues", { method: "POST", headers: { "content-type": "application/cbor", ...headers }, body: asBody(encodeQueueCreate({ requestId: rand(16), receiveCap: c.receive, depositCap: c.deposit, adminCap: c.admin })) }).then((r) => ({ r, c }));
@@ -168,6 +171,13 @@ describe("the released Worker, in workerd, configured as a deployed template wou
     const doc = (await (await home.fetch("/.well-known/om-provider-capabilities")).json()) as { provider_id: string; features: string[] };
     expect(doc.provider_id).toBe("om-reference-home");
     expect(doc.features).toContain("om.admission.v1");
+  });
+
+  it("an empty setup value cannot open the relay: creation is refused and admission is not advertised", async () => {
+    const c = newCaps();
+    const r = await bare.fetch("/v1/relay/queues", { method: "POST", headers: { "content-type": "application/cbor" }, body: asBody(encodeQueueCreate({ requestId: rand(16), receiveCap: c.receive, depositCap: c.deposit, adminCap: c.admin })) });
+    expect(r.status).toBe(401);
+    expect(((await (await bare.fetch("/.well-known/om-provider-capabilities")).json()) as { features: string[] }).features).not.toContain("om.admission.v1");
   });
 
   it("creates nothing without the setup key, and carries a message end to end with it", async () => {

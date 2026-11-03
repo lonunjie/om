@@ -45,6 +45,22 @@ describe("PC-X owner admission", () => {
     expect(r.status).toBeLessThan(300);
   });
 
+  it("PC-X03b a value that is set but yields no valid hash closes creation (a typo must not open a personal relay), and is not advertised", async () => {
+    for (const vars of [{ OM_ADMISSION: "not-a-hash" }, { OM_ADMISSION: "ab".repeat(31) }, { OM_ADMISSION: " , " }]) {
+      const h = await startHome({ vars });
+      try {
+        const { r } = await create(h, withSecret(secret));
+        expect(r.status).toBe(401);
+        const caps = (await (await h.fetch("/.well-known/om-provider-capabilities")).json()) as { features: string[] };
+        expect(caps.features).not.toContain("om.admission.v1");
+      } finally { await h.dispose(); }
+    }
+    const required = await startHome({ vars: { OM_ADMISSION_REQUIRED: "1" } }); // the per-user template: an empty prompt cannot open the relay
+    try { expect((await create(required, withSecret(secret))).r.status).toBe(401); } finally { await required.dispose(); }
+    const blank = await startHome({ vars: { OM_ADMISSION: "  " } }); // blank is the same as unset
+    try { expect((await create(blank, {})).r.status).toBeLessThan(300); } finally { await blank.dispose(); }
+  });
+
   it("PC-X04 peers need no admission: deposit, drain and ack run on their own capabilities", async () => {
     const { r, c } = await create(home, withSecret(secret));
     expect(r.status).toBeLessThan(300);

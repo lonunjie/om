@@ -8,9 +8,15 @@ import { LIMITS } from "./limits";
 /** The optional wake channel is on unless the deployment sets OM_WAKE=0. */
 export const wakeOn = (env: Env): boolean => env.OM_WAKE !== "0";
 
-/** The hashes of the admission secrets this deployment accepts; empty means resource creation is open (a shared or test Home). */
+/** The hashes of the admission secrets this deployment accepts; empty and not `admissionConfigured` means resource creation is open (a shared or test Home). */
 export const admissionHashes = (env: Env): readonly string[] =>
   (env.OM_ADMISSION ?? "").split(",").map((h) => h.trim().toLowerCase()).filter((h) => /^[0-9a-f]{64}$/.test(h));
+
+/**
+ * True when the deployment was given an admission value at all, or declares one required (`OM_ADMISSION_REQUIRED=1`, set by the per-user template so an empty prompt cannot open the relay). A value that yields no valid hash (a typo, a placeholder) must close creation, never open it:
+ * "set but unusable" is a misconfiguration, not "no admission wanted" (per-user template, 2026-11-03).
+ */
+export const admissionConfigured = (env: Env): boolean => (env.OM_ADMISSION ?? "").trim() !== "" || env.OM_ADMISSION_REQUIRED === "1";
 
 export function capabilitiesDocument(env: Env): Record<string, unknown> {
   return {

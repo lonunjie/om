@@ -8,7 +8,8 @@
   "observability": { "enabled": false },
   "vars": {
     "OM_PROVIDER_ID": "om-reference-home",
-    "OM_HARD_FREE_TIER": "1"
+    "OM_HARD_FREE_TIER": "1",
+    "OM_ADMISSION_REQUIRED": "1"
   },
   "durable_objects": {
     "bindings": [

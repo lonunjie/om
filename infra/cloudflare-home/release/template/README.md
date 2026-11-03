@@ -54,8 +54,8 @@ that checks independent transparency monitors is specified (CLIENTHOST_UPDATE_LI
 - **One account is one observer.** Your relay, your contact page and your mailbox live in the same Cloudflare account, so whoever controls that
   account (and Cloudflare) could link them. Protect it with a passkey and a unique password. Your relay address is trusted on first use:
   a contact who first reaches it cannot yet prove it is yours. A single relay is also a single point of failure; OM can use more than one.
-- If the setup value is empty or malformed, **your relay is open to anyone**. After deploying, `/.well-known/om-provider-capabilities`
-  must list `om.admission.v1`; the OM app checks this when you enter the address.
+- If the setup value is empty or malformed, your relay **refuses to create anything** (it fails closed) and does not advertise
+  `om.admission.v1`; the OM app checks for that when you enter the address and tells you to fix the value.
 - The release signature has one human custodian (2-of-3 offline root, equal to one key against coercion of that person) and is not yet
   watched by independent monitors.
 - A new release (including a security fix) only reaches you when you take it; nothing tells a stale clone that one exists, so watch

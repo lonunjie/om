@@ -6,7 +6,7 @@ import {
   CborError, HomeError, decodeAckRequest, decodeDepositRequest, decodeDescriptorPut, decodeDrainRequest, decodeIntroDrainRequest, decodeIntroTicketRequest, decodeKeyFetch,
   ADMISSION_HEADER, admissionHash, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, fromHex, decode, Obj, type HomeErrorName,
 } from "@om/home-wire";
-import { admissionHashes, capabilitiesDocument, wakeOn } from "./capabilities";
+import { admissionConfigured, admissionHashes, capabilitiesDocument, wakeOn } from "./capabilities";
 import type { Env } from "./env";
 import { bearer, fail, fromReply, json, ok, preflight, readBody } from "./http";
 import { LIMITS } from "./limits";
@@ -57,7 +57,7 @@ function sameHex(a: string, b: string): boolean {
  */
 async function admitted(request: Request, env: Env): Promise<boolean> {
   const hashes = admissionHashes(env);
-  if (hashes.length === 0) return true;
+  if (hashes.length === 0) return !admissionConfigured(env); // set but unusable closes creation; only an unset variable leaves it open
   const h = request.headers.get(ADMISSION_HEADER);
   if (h === null) return false;
   let secret: Uint8Array;

@@ -18,4 +18,6 @@ export interface Env {
   readonly OM_WAKE?: string;
   /** Owner admission (om.admission.v1): comma-separated lowercase-hex `admissionHash` values. Public hashes, not secrets. When set, only a request carrying a matching admission secret may create resources. */
   readonly OM_ADMISSION?: string;
+  /** `1` (set by the per-user template): creation stays closed while no valid admission hash is configured, even if `OM_ADMISSION` is empty or missing. */
+  readonly OM_ADMISSION_REQUIRED?: string;
 }
