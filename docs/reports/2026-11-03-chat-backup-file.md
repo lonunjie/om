@@ -42,9 +42,20 @@ Playwright `apps/web/e2e/backup.spec.ts` (Chromium, Firefox, WebKit, production 
 - ViewOnce and expiring content do not exist in Core yet; when they do, ADR-0129 applies and the allow-list must exclude ViewOnce and carry expiry.
 - A device lost without recovery still loses the identity; this file restores history only.
 
-## What remains
+## What remains (handoff for the next agent)
 
-1. **Step 3: user-connected destinations** (the person's own S3/R2 or Drive) that store this same sealed file. Needs its own go-ahead; nothing in `OMB-1` changes.
-2. A "Have a backup file?" path in onboarding so a new install can offer restore before the first chat.
-3. Automatic or scheduled backups (needs a destination first).
-4. Optional: pass the Argon2 output to Core as bytes rather than hex across the bridge, if the bridge gains a binary channel.
+Ordered by what the operator asked for next. State at handoff: OMB-1 and Settings > Backup file are merged, pushed and live as om-web 0.0.10; `make core-check`, `pnpm web:check`, `make check` and the Chromium/Firefox/WebKit backup spec are green.
+
+1. **Filterable export and import (operator request 2026-11-03).** "All-or-nothing" today means integrity (a refused file imports nothing); it does not mean the person cannot choose. IMPORT_EXPORT section 9 already lists what people may choose (conversations, date ranges, attachments/media, contact records, aliases, provenance, preferences; drafts, tokens, provider secrets, caches and device keys excluded by default). Plan:
+   - *Export filter* (easy): extend the plan passed to `Core::export_history` with a `Filter { chats: Option<set of conversation ids>, from_ms, to_ms, direction, kinds }`. `backup::collect` already builds from an allow-list, so filtering is a pure pre-step; the header and AEAD are unchanged. Record the filter inside the body (not the header) so a restored copy says "partial: these chats, these dates".
+   - *Import filter* (moderate): add `Core::inspect_history(file, key)` that authenticates and decodes the body and returns a summary (per chat: name, message count, first/last date) without staging a transaction; then `import_history(.., ImportSelection)` applies only the chosen chats/dates in one staged transaction. Atomicity stays: either the whole selection lands or nothing does. UI: after the password, list chats with checkboxes and a date range, then "Restore selected".
+   - *Types*: only text messages exist in Core today. Add a `kind` per message when attachments, calls or system events exist, then filter by kind; unknown kinds in a file must be skipped, not refused (version-gate with `FORMAT_VERSION`).
+   - *Gate*: "selective export" is part of the locked `portability` scope. Ask the operator for a narrow go-ahead for filters on OMB-1 (core_kernel + reference_client_ui) and record it in an ADR-0184 amendment or ADR-0185 before building. Add R-/T- entries (a filtered file must not be mistaken for a full backup; a date range can hide the messages that matter).
+2. **Step 3: user-connected destinations** (the person's own S3/R2 or Drive) storing the same sealed file. Needs its own go-ahead and a provider-neutral destination interface; nothing in OMB-1 changes. Scheduled or automatic backups depend on this.
+3. **Onboarding path "Have a backup file?"** so a fresh install can restore before the first chat (today restore lives in Settings, after setup).
+4. **ViewOnce/expiry**: when Core gains them, exclude ViewOnce and carry expiry in the body (ADR-0129); extend `collect` and the secrets-absence test.
+5. **Portable Archive** (`portability` scope, still locked): human-readable export, attachments, foreign imports, provenance classes. Keep an OMB-1 reader as a legacy importer.
+6. **Hardening, optional**: pass the Argon2 output to Core as bytes (not hex) if the bridge gains a binary channel; a recovery-assisted wrong-password hint is deliberately not offered.
+7. **Operator-only, not an agent job**: nothing pending from this work. A larger real-device pass of Save/Restore on phones (V-006 matrix) is still open.
+
+Pointers: format `crates/om-core/src/backup.rs`; engine `crates/om-core/src/engine.rs` (`export_history`, `import_history`); bridge `crates/om-wasm/src/bridge.rs`; services `apps/web/src/core/backupServices.ts`; UI `apps/web/src/core/BackupScreen.tsx`; tests `crates/om-core/tests/backup.rs`, `apps/web/e2e/backup.spec.ts`; memory `lonunjie/memory/topics/om-core-kernel.md`.
