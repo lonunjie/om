@@ -8,6 +8,35 @@ test.use({ baseURL: BASE });
 
 test("a shared link is enough: open it, accept, get approved, and chat", async ({ browser }) => { await inviteAndChat(browser, BASE); });
 
+test("an unsent draft is still there after the page is reloaded, and a sent one is not", async ({ browser }) => {
+  const { alice } = await inviteAndChat(browser, BASE);
+  const box = alice.getByRole("textbox", { name: /message/i });
+  await box.fill("not sent yet");
+  await alice.waitForTimeout(1_500); // drafts are written a moment after typing stops
+  await alice.reload();
+  await expect(box).toHaveValue("not sent yet", { timeout: 60_000 });
+  await alice.getByRole("button", { name: /send/i }).click();
+  await expect(box).toHaveValue("");
+  await alice.waitForTimeout(1_500);
+  await alice.reload();
+  await expect(box).toBeVisible({ timeout: 60_000 });
+  await expect(box).toHaveValue("");
+});
+
+test("Settings has a Help and feedback page that points at GitHub", async ({ browser }) => {
+  const alice = await newDevice(browser, BASE);
+  await alice.goto("/");
+  await alice.getByRole("button", { name: "Get started" }).first().click();
+  await walkSetup(alice, { stopAt: "invite", name: "Alice" });
+  await alice.getByRole("button", { name: "Skip for now" }).click();
+  await alice.getByRole("button", { name: "Settings" }).click();
+  await alice.getByRole("button", { name: /Help and feedback/ }).click();
+  await expect(alice.getByRole("heading", { name: "Help and feedback", level: 1 })).toBeVisible();
+  const report = alice.getByRole("link", { name: /Report a problem/ });
+  await expect(report).toHaveAttribute("href", /^https:\/\/github\.com\/lonunjie\/om\/issues\/new\?template=bug\.yml&version=\d+\.\d+\.\d+/);
+  await expect(alice.getByRole("link", { name: /Suggest an idea/ })).toHaveAttribute("target", "_blank");
+});
+
 test("someone already set up opens a link, can say not now, and an unusable link says why", async ({ browser }) => {
   const alice = await newDevice(browser, BASE);
   await alice.goto("/");

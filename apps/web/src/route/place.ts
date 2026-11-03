@@ -5,19 +5,20 @@
 //   /chats#<id>        one chat                  /settings/recovery  Settings > Recovery
 //   /settings          Settings                  /settings/delivery  Settings > Message delivery
 //   /safety-code       the safety-code steps     /settings/lock      Settings > Lock
+//                                                /settings/help      Settings > Help and feedback
 //
 // A chat's id goes in the fragment, not the path: a fragment never leaves the device, so no host log learns which chat is open.
 // Invitation links use `/#invite/<token>` and are read and removed by `invite/pendingInvite.ts` before anything else.
 import { useCallback, useSyncExternalStore } from "react";
 
-export type SettingsPage = "menu" | "devices" | "recovery" | "delivery" | "lock";
+export type SettingsPage = "menu" | "devices" | "recovery" | "delivery" | "lock" | "help";
 export type Place =
   | { readonly kind: "chats"; readonly chat: string | null }
   | { readonly kind: "settings"; readonly page: SettingsPage }
   | { readonly kind: "safety-code" };
 
 export const CHATS: Place = { kind: "chats", chat: null };
-const SETTINGS_PATH: Readonly<Record<SettingsPage, string>> = { menu: "/settings", devices: "/settings/devices", recovery: "/settings/recovery", delivery: "/settings/delivery", lock: "/settings/lock" };
+const SETTINGS_PATH: Readonly<Record<SettingsPage, string>> = { menu: "/settings", devices: "/settings/devices", recovery: "/settings/recovery", delivery: "/settings/delivery", lock: "/settings/lock", help: "/settings/help" };
 const trim = (p: string): string => (p.length > 1 ? p.replace(/\/+$/, "") : p);
 
 export function parsePlace(pathname: string, hash: string): Place {

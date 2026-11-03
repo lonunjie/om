@@ -11,6 +11,27 @@
       "authority": "canonical_normative"
     },
     {
+      "path": ".github/ISSUE_TEMPLATE/bug.yml",
+      "class": "repo_plumbing",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/config.yml",
+      "class": "repo_plumbing",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/idea.yml",
+      "class": "repo_plumbing",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
       "path": ".github/workflows/verify.yml",
       "class": "repo_plumbing",
       "domain": "architecture_process",
@@ -690,6 +711,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/src/core/HelpScreen.test.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/HelpScreen.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/src/core/LockScreen.test.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -712,6 +747,20 @@
     },
     {
       "path": "apps/web/src/core/Shell.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/draftStore.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/draftStore.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -761,6 +810,20 @@
     },
     {
       "path": "apps/web/src/core/lockServices.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/pollPace.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/pollPace.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -4170,6 +4233,13 @@
     },
     {
       "path": "docs/reports/2026-11-02-multi-device-plan.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-03-delivery-capacity-and-backup.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",

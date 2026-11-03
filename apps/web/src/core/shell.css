@@ -17,6 +17,7 @@
 /* Settings menu */
 .om-menu__list { margin: 0; padding: 0; list-style: none; }
 .om-menu__row { display: flex; align-items: center; gap: var(--om-space-3); inline-size: 100%; box-sizing: border-box; min-block-size: 4rem; padding: var(--om-space-3) max(var(--om-space-4), env(safe-area-inset-right)) var(--om-space-3) max(var(--om-space-4), env(safe-area-inset-left)); border: 0; border-block-end: 1px solid var(--om-hairline); background: transparent; color: var(--om-color-text-primary); font: inherit; text-align: start; cursor: pointer; transition: background-color var(--om-motion-instant) var(--om-ease-enter); }
+a.om-menu__row { text-decoration: none; }
 .om-menu__row:active { background: var(--om-color-bg-sunken); }
 @media (hover: hover) { .om-menu__row:hover { background: var(--om-color-bg-sunken); } }
 .om-menu__row[aria-current="page"] { background: var(--om-color-bg-sunken); box-shadow: inset -3px 0 0 var(--om-color-accent); } /* the bar sits on the side the page opens from */

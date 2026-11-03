@@ -129,7 +129,6 @@ export function Landing({ onGetStarted, installSlot, inviteNotice }: LandingProp
 
         <footer className="om-landing__footer">
           <p>{c.footer.prefix}<a href={c.footer.seedlifeUrl} rel="noopener noreferrer">{c.footer.seedlife}</a>{c.footer.suffix}</p>
-          <p><a href={c.footer.siteSource.url} rel="noopener noreferrer">{c.footer.siteSource.label}</a></p>
           <CopyNotice />
         </footer>
       </div>

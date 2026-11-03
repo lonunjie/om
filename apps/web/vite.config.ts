@@ -54,7 +54,7 @@ function localRelayCsp(): Record<string, string> {
 
 const config: UserConfig = {
   plugins: [react(), landingPlugin(), emitHeaders(), serviceWorker(version), bundleManifestPlugin({ version, dev })],
-  define: { __OM_DEV_BUNDLE__: JSON.stringify(dev) },
+  define: { __OM_DEV_BUNDLE__: JSON.stringify(dev), __OM_VERSION__: JSON.stringify(version) },
   build: {
     target: "es2023",
     sourcemap: false,

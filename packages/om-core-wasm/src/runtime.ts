@@ -23,8 +23,8 @@ export interface CoreRuntimeOptions {
   readonly autoDrain?: boolean;
   /** Delay before retrying a network operation that was unavailable (default 2000 ms). */
   readonly retryMs?: number;
-  /** Poll open profiles' mailboxes at this interval while autoDrain is on (default 0 = only after changes). */
-  readonly pollMs?: number;
+  /** Poll open profiles' mailboxes at this interval while autoDrain is on (default 0 = only after changes). A function is asked again before every poll and returns the wait in ms, so the host can slow down while nobody is looking (a non-positive answer means 5 s). */
+  readonly pollMs?: number | (() => number);
 }
 
 export interface WasmCoreClient extends CoreClient {
@@ -51,6 +51,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
   const autoDrain = opts.autoDrain ?? true;
   const retryMs = opts.retryMs ?? 2000;
   const pollMs = opts.pollMs ?? 0;
+  const pollEvery = (): number => (typeof pollMs === "function" ? pollMs() : pollMs);
   const openProfiles = new Set<ProfileId>();
   core.call({ cmd: "init", home: opts.home });
 
@@ -270,10 +271,19 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       timers.clear();
     },
   };
-  if (autoDrain && pollMs > 0) {
+  if (autoDrain && (typeof pollMs === "function" || pollMs > 0)) {
     // Background mailbox polling: a message from another device arrives with no local change to trigger a drain.
-    const t = setInterval(() => { for (const p of [...openProfiles]) if (!draining.has(p)) void flush(p); }, pollMs);
-    timers.add(t);
+    const tick = (): void => {
+      if (disposed) return;
+      const wait = pollEvery();
+      const t = setTimeout(() => {
+        timers.delete(t);
+        for (const p of [...openProfiles]) if (!draining.has(p)) void flush(p);
+        tick();
+      }, wait > 0 ? wait : 5000);
+      timers.add(t);
+    };
+    tick();
   }
   return Promise.resolve(client);
 }

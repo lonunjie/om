@@ -86,7 +86,7 @@ export async function inviteAndChat(browser: Browser, base: string): Promise<{ r
   await shot(bob, "08-bob-chat");
   // With OM_SHOTS set, also look at the places a person reaches from Settings (addresses are in route/place.ts).
   if (SHOTS !== undefined) {
-    for (const [n, path] of [["09-settings", "/settings"], ["10-delivery", "/settings/delivery"], ["11-devices", "/settings/devices"], ["12-recovery", "/settings/recovery"], ["13-lock", "/settings/lock"]] as const) {
+    for (const [n, path] of [["09-settings", "/settings"], ["10-delivery", "/settings/delivery"], ["11-devices", "/settings/devices"], ["12-recovery", "/settings/recovery"], ["13-lock", "/settings/lock"], ["14-help", "/settings/help"]] as const) {
       await alice.goto(path);
       await shot(alice, n);
     }

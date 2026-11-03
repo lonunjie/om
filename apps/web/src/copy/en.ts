@@ -366,14 +366,15 @@ export interface AppStrings {
   readonly appName: string;
   readonly settingsHeading: string;
   readonly settingsSearch: { readonly label: string; readonly none: (query: string) => string };
-  readonly settingsRows: { readonly devices: string; readonly recovery: string; readonly delivery: string; readonly lock: string; readonly addProfile: string };
+  readonly settingsRows: { readonly devices: string; readonly recovery: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
   /** Words a person might type for a row that its title does not contain. */
-  readonly settingsKeywords: { readonly devices: string; readonly recovery: string; readonly delivery: string; readonly lock: string; readonly addProfile: string };
+  readonly settingsKeywords: { readonly devices: string; readonly recovery: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
   readonly settingsLock: string;
   readonly settingsNeedsAttention: string;
   readonly settingsDevices: string;
   readonly settingsRecovery: string;
   readonly settingsHome: string;
+  readonly settingsHelp: string;
   readonly backToChats: string;
   readonly backToSettings: string;
   readonly safetyCode: { readonly reminder: string; readonly action: string };
@@ -417,6 +418,7 @@ export const appStrings: AppStrings = {
     recovery: "How to get your chats back if you lose this device.",
     delivery: "The service that carries your messages between devices.",
     lock: "Whether OM asks before it opens on this device.",
+    help: "Report a problem or suggest an idea.",
     addProfile: "Set up a second identity on this device.",
   },
   settingsKeywords: {
@@ -424,6 +426,7 @@ export const appStrings: AppStrings = {
     recovery: "safety code backup restore lost",
     delivery: "relay server network connection messages",
     lock: "password passcode pin passkey fingerprint face biometric privacy security",
+    help: "bug problem issue report feedback idea suggestion feature request support github version",
     addProfile: "account second identity profile new",
   },
   settingsLock: "Lock",
@@ -431,6 +434,7 @@ export const appStrings: AppStrings = {
   settingsDevices: "Devices",
   settingsRecovery: "Recovery",
   settingsHome: "Message delivery",
+  settingsHelp: "Help and feedback",
   backToChats: "Back to chats",
   backToSettings: "Back to settings",
   safetyCode: {
@@ -609,7 +613,7 @@ export const recoveryCopy: RecoveryCopy = {
   back: "Back to recovery",
   policy: {
     on: "Recovery is on. If you lose your devices, you can get your account back.",
-    pending: "Recovery is not set up yet. Until it is, losing this device could mean losing this account.",
+    pending: "Recovery is not finished yet. Save your safety code to finish it; until then, losing this device could mean losing this account.",
     off_explicit: "Recovery is off. If you lose all your devices, this account is gone.",
   },
   custodiansHeading: "Where your recovery is kept",
@@ -714,7 +718,7 @@ export interface LandingCopy {
     readonly iosHint: string;
   };
   readonly selfHost: { readonly heading: string; readonly body: string; readonly link: string; readonly linkLabel: string };
-  readonly footer: { readonly prefix: string; readonly seedlife: string; readonly seedlifeUrl: string; readonly suffix: string; readonly siteSource: LandingLink };
+  readonly footer: { readonly prefix: string; readonly seedlife: string; readonly seedlifeUrl: string; readonly suffix: string};
 }
 
 /** Shown only on a copy of OM that someone else deployed (see src/official.ts); the official site never shows it. */
@@ -801,7 +805,6 @@ export const landingCopy: LandingCopy = {
   },
   footer: {
     prefix: "OM is a ", seedlife: "SeedLife", seedlifeUrl: https("lonunjie.org"), suffix: " project.",
-    siteSource: { label: "Site source", url: https("github.com/lonunjie/om.lonunjie.org") },
   },
 };
 
@@ -865,6 +868,20 @@ export const homeCopy: HomeCopy = {
 };
 
 /** Settings > Lock: what protects this device and how to change it, without technical words. */
+export const helpCopy = {
+  heading: "Help and feedback",
+  intro: "OM is in beta, so some things will go wrong, and your ideas shape what comes next. Reports are public on GitHub, where anyone can read and answer them.",
+  actions: {
+    problem: { title: "Report a problem", hint: "Something broke or looks wrong.", url: https("github.com/lonunjie/om/issues/new?template=bug.yml") },
+    idea: { title: "Suggest an idea", hint: "Something you wish OM did.", url: https("github.com/lonunjie/om/issues/new?template=idea.yml") },
+    browse: { title: "See what others reported", hint: "Check whether someone already said it.", url: https("github.com/lonunjie/om/issues") },
+    security: { title: "Report a security problem", hint: "Tell us privately, not in public.", url: https("github.com/lonunjie/om/security/advisories/new") },
+  },
+  newTab: "Opens GitHub in a new tab.",
+  privacy: "Never paste your messages, your safety code or your password into a report. OM adds only its version number.",
+  version: (v: string) => `OM web ${v}`,
+};
+
 export const lockCopy = {
   heading: "Lock",
   loading: "Checking",

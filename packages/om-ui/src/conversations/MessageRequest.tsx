@@ -71,7 +71,7 @@ export function MessageRequest({ services, request, copy, onIgnore, onResolved }
         <div className="om-request__actions">
           <Button variant="primary" disabled={!idle} onClick={() => { void run("accept"); }}>{c.accept}</Button>
           <Button disabled={!idle} onClick={() => { onIgnore(request.id); }}>{c.ignore}</Button>
-          <Button disabled={!idle} onClick={() => { setPhase("confirm_block"); }}>{c.block}</Button>
+          <Button variant="quiet" disabled={!idle} onClick={() => { setPhase("confirm_block"); }}>{c.block}</Button>
         </div>
       )}
       {status === null ? null : <p className="om-request__status" role="status">{status}</p>}

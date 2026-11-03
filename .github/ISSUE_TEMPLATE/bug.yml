@@ -1,0 +1,25 @@
+name: Report a problem
+description: Something in OM broke or looks wrong.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Reports here are public. Please do not paste your messages, your safety code or your password.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: OM version
+      description: Filled in for you when you open this from Settings > Help and feedback.
+  - type: input
+    id: device
+    attributes:
+      label: Phone or computer, and browser
+      placeholder: "iPhone, Safari / Windows, Chrome / installed app"

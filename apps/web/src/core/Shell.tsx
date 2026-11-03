@@ -13,6 +13,7 @@ import { CopyNotice } from "../CopyNotice";
 import { CHATS, placeTitle, placeUrl, usePlace, type SettingsPage } from "../route/place";
 import "./shell.css";
 import { InstallAffordance } from "../install/InstallAffordance";
+import { HelpScreen } from "./HelpScreen";
 import { LockScreen } from "./LockScreen";
 import type { LockServices } from "./lockServices";
 
@@ -22,6 +23,12 @@ export interface SafetyCodeOffer {
   readonly platform: OnboardingPlatform;
   /** Called once Core has accepted the confirmation, or when the code is no longer available. */
   readonly onResolved: () => void;
+}
+
+/** Keeps unsent drafts on this device (encrypted), so locking or reloading does not lose them. */
+export interface DraftSync {
+  readonly load: () => Promise<ReadonlyMap<ConversationId, string>>;
+  readonly save: (conversationId: ConversationId, text: string) => void;
 }
 
 export interface ShellProps {
@@ -35,6 +42,8 @@ export interface ShellProps {
   readonly safetyCode?: SafetyCodeOffer;
   /** Settings > Lock, when the host can read how this device opens OM (the production entry). */
   readonly lock?: LockServices;
+  /** Where drafts are kept between visits (the production entry); without it they last until the page closes. */
+  readonly draftSync?: DraftSync;
   /** With it, an empty Chats list is the invite-first screen instead of a dead end (UI_UX_SYSTEM: first run and invitations). */
   readonly invite?: { readonly platform: OnboardingPlatform; readonly renderQr: (payload: string) => ReactNode; readonly shareLink?: (coreLink: string) => string };
   /** An invitation link that was opened here, and the chat it is expected to add. */
@@ -49,13 +58,20 @@ export interface ShellProps {
   };
 }
 
-export function Shell({ services, devicesExtra, onAddProfile, home, lock, safetyCode, invite, incoming }: ShellProps) {
+export function Shell({ services, devicesExtra, onAddProfile, home, lock, draftSync, safetyCode, invite, incoming }: ShellProps) {
   const inviteScan = useQrScanner(scannerCopy);
   const deviceScan = useQrScanner(deviceScannerCopy);
   const { place, raw, go, back } = usePlace();
   const me = useActiveProfile();
   const mode = useLayoutMode();
   const [drafts, setDrafts] = useState<ReadonlyMap<ConversationId, string>>(() => new Map());
+  // Drafts saved on an earlier visit (or before a lock) come back; anything typed since this screen opened wins.
+  useEffect(() => {
+    if (draftSync === undefined) return;
+    let live = true;
+    draftSync.load().then((saved) => { if (live && saved.size > 0) setDrafts((now) => new Map([...saved, ...now])); }, () => undefined);
+    return () => { live = false; };
+  }, [draftSync]);
   const list = useConversationList(services);
   const chatsBeforeAccept = useRef<readonly string[]>([]);
   const selected = place.kind === "chats" ? (place.chat as ConversationId | null) : null;
@@ -159,6 +175,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, safety
                   </>
                 ) : settings === "delivery" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} />
                   : settings === "lock" && lock !== undefined ? <LockScreen services={lock} />
+                  : settings === "help" ? <HelpScreen />
                   : <RecoveryScreen services={services} copy={recoveryCopy} />}
               </SubPage>
             </div>
@@ -209,7 +226,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, safety
         composerZone={selected === null ? undefined : (
           <Composer
             key={selected} services={services} conversationId={selected} copy={conversationCopy} draft={drafts.get(selected) ?? ""}
-            onDraftChange={(next) => { setDrafts((d) => new Map(d).set(selected, next)); }}
+            onDraftChange={(next) => { setDrafts((d) => new Map(d).set(selected, next)); draftSync?.save(selected, next); }}
           />
         )}
       />
@@ -268,6 +285,7 @@ function SettingsMenu({ page, onOpen, onAddProfile, hasHome, hasLock, onSafetyCo
     { id: "devices", title: t.settingsDevices, hint: t.settingsRows.devices, icon: "devices", words: t.settingsKeywords.devices },
     { id: "recovery", title: t.settingsRecovery, hint: t.settingsRows.recovery, icon: "shield", words: t.settingsKeywords.recovery },
     ...(hasHome ? [{ id: "delivery" as const, title: t.settingsHome, hint: t.settingsRows.delivery, icon: "delivery" as const, words: t.settingsKeywords.delivery }] : []),
+    { id: "help", title: t.settingsHelp, hint: t.settingsRows.help, icon: "chat", words: t.settingsKeywords.help },
   ];
   const terms = query.toLowerCase().split(/\s+/).filter((w) => w !== "");
   const matches = (text: string): boolean => terms.every((w) => text.toLowerCase().includes(w));

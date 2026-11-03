@@ -5,7 +5,7 @@ import type { DeviceVault, ProfileId } from "@om/platform-api";
 import { createEncryptedKv } from "@om/web-platform";
 import wasmUrl from "@om/core-wasm/om_wasm.wasm?url";
 
-export async function startCore(opts: { readonly vault: DeviceVault; readonly indexedDB: IDBFactory; readonly provider: Provider; readonly pollMs: number }): Promise<WasmCoreClient> {
+export async function startCore(opts: { readonly vault: DeviceVault; readonly indexedDB: IDBFactory; readonly provider: Provider; readonly pollMs: number | (() => number) }): Promise<WasmCoreClient> {
   const res = await fetch(wasmUrl);
   if (!res.ok) throw new Error("core module unavailable");
   const core = await instantiateCore(await res.arrayBuffer());
