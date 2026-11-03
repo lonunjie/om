@@ -50,7 +50,7 @@ No wire (CDDL) change is needed: `introduction_services`, `relay_hints`, `relay-
 
 ## 4. Decisions the operator has to make (everything else follows the design)
 
-1. **Link format.** ADR-0181 section 2.1 deliberately shrank the link to 48 bytes and put the introduction service in the descriptor it stores. But the invitee cannot find the descriptor without a locator, and the Fabric says the invite carries it. Recommendation: a new ADR amending ADR-0181 so the link is `invite_id || SHA-256(intro key) || locator`, the locator being the inviter's introduction service URI (up to 2,048 bytes in the CDDL, in practice a short `workers.dev` address), with the digest still authenticating the descriptor so a wrong locator can only fail, never substitute. This is a client-profile change, not a wire change.
+1. ~~Link format ADR~~ **Withdrawn** (see [`2026-11-03-return-to-the-audited-design`](2026-11-03-return-to-the-audited-design.md)): no new ADR. The audited invite already carries `intro_services[]` (Fabric 6, Invites 2); ADR-0181 section 2.1 is the departure, and the operator is asked to mark that clause superseded by the audited text. The link encoding is an implementation detail of `om:<encoded invite>`.
 2. **Who may be contacted on an invitee's tap.** Recommendation: any `https` Home, after the host is shown, with the existing capabilities probe first and nothing identifying sent before Accept; the user's tap is the consent. A deny-list or allow-list is not part of the design and is not proposed.
 3. **Second Home for live testing:** approve one more Worker in SeedLife's Cloudflare account for a test, or use a volunteer's own account. Local two-Home tests need neither.
 
@@ -59,4 +59,4 @@ No wire (CDDL) change is needed: `introduction_services`, `relay_hints`, `relay-
 - No Paid plan, no WAF, no money or settings on SeedLife's account.
 - No global directory, no OM-run lookup service, no default list of Homes (ADR-0019, ADR-0043).
 - No change to which Home is the default, until step 1 and 2 ship and the sunset ADR says so.
-- No RelaySet lineage work before it is needed for resilience.
+- No RelaySet lineage work before steps 1 to 3 land (it needs them), but it is required afterwards (failover before the free-plan hard stop).

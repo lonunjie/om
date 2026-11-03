@@ -6,6 +6,8 @@
 
 ## 1. What it is, and what it is not
 
+**Audited basis.** The Cloudflare reference profile lists "WebSocket hibernation for connected clients" ([`RELAY_AND_DELIVERY_ARCHITECTURE.md`](../delivery/RELAY_AND_DELIVERY_ARCHITECTURE.md), "Cloudflare reference implementation"), and the Home API allows "additional endpoints only as advertised optional capabilities" ([`home-api.md`](../../../spec/protocol/home-api.md) section 3). This document specifies that optional capability; it adds no protocol authority.
+
 An **optional** feature, advertised in `ProviderCapabilities.features` as `om.relay.wake.v1`. A Home that does not advertise it is polled with the ordinary `drain` operation, exactly as before. A client that does not know it never notices it. It is not a protocol dependency of any kind: no conversation, key, route or cryptographic state depends on it, and a lost or never-sent wake costs time only.
 
 It carries **no message, no content, no item id, no sender or recipient identity and no capability in its URL**. A wake frame is a sequence number. The client then drains with the receive capability as always; delivery, acknowledgement, replay handling and expiry are untouched.

@@ -62,6 +62,10 @@ invite carry the inviter's introduction service. That cost a day of rework. The 
 5. **SeedLife's own accounts are not a product dependency.** Nothing may be designed or sized so that OM relies on money or
    settings on SeedLife's Cloudflare account; each person owns their own Home ([`CLOUDFLARE_REFERENCE_DEPLOYMENT.md`](docs/architecture/providers/CLOUDFLARE_REFERENCE_DEPLOYMENT.md),
    ADR-0043). The default Home is a labelled beta convenience (ADR-0183).
+6. **No ADR changes audited design.** An "accepted by operator delegation" ADR cannot amend audited text in design-bound areas. If the
+   text looks wrong or incomplete, write the question in a report and stop. What ships differently is a deviation (see the
+   D1 to D12 table in [`docs/reports/2026-10-28-relay-status.md`](docs/reports/2026-10-28-relay-status.md)) citing the passage it departs from. The 2026-11-03 audit of what
+   drifted is [`docs/reports/2026-11-03-return-to-the-audited-design.md`](docs/reports/2026-11-03-return-to-the-audited-design.md).
 
 ### Design drops (zip <-> repository)
 
