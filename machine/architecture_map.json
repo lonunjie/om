@@ -468,7 +468,8 @@
         "docs/architecture/providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md",
         "docs/architecture/providers/IMPLEMENTATION_INTERFACES.md",
         "docs/architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md",
-        "docs/architecture/providers/VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md"
+        "docs/architecture/providers/VULNERABILITY_RESPONSE_AND_SECURITY_ADVISORIES.md",
+        "docs/architecture/providers/HOME_WAKE_CHANNEL.md"
       ],
       "schemas": [
         "spec/protocol/provider-capabilities.logical.schema.json",
@@ -489,7 +490,8 @@
         "ADR-0104",
         "ADR-0112",
         "ADR-0130",
-        "ADR-0159"
+        "ADR-0159",
+        "ADR-0185"
       ],
       "resolved_questions": [
         "Q-012",
@@ -887,5 +889,134 @@
     "requirement_traceability": "machine/requirement_traceability.json",
     "threat_register": "machine/threat_register.jsonl",
     "conformance_suites": "machine/conformance_suites.json"
-  }
+  },
+  "code_paths": [
+    {
+      "glob": "crates/**",
+      "domains": [
+        "crypto_1to1",
+        "identity_control_recovery",
+        "time_ordering_events",
+        "discovery_first_contact",
+        "relay_reachability",
+        "metadata_privacy"
+      ]
+    },
+    {
+      "glob": "packages/om-core-wasm/**",
+      "domains": [
+        "crypto_1to1",
+        "identity_control_recovery",
+        "time_ordering_events",
+        "discovery_first_contact",
+        "relay_reachability",
+        "metadata_privacy"
+      ]
+    },
+    {
+      "glob": "packages/om-core-harness/**",
+      "domains": [
+        "crypto_1to1",
+        "identity_control_recovery",
+        "time_ordering_events",
+        "discovery_first_contact",
+        "relay_reachability",
+        "metadata_privacy"
+      ]
+    },
+    {
+      "glob": "packages/om-platform-api/**",
+      "domains": [
+        "crypto_1to1",
+        "identity_control_recovery",
+        "time_ordering_events",
+        "discovery_first_contact",
+        "relay_reachability",
+        "metadata_privacy"
+      ]
+    },
+    {
+      "glob": "spec/cddl/**",
+      "domains": [
+        "crypto_1to1",
+        "identity_control_recovery",
+        "time_ordering_events",
+        "discovery_first_contact",
+        "relay_reachability",
+        "metadata_privacy",
+        "provider_deployment_supply_chain"
+      ]
+    },
+    {
+      "glob": "infra/**",
+      "domains": [
+        "relay_reachability",
+        "discovery_first_contact",
+        "provider_deployment_supply_chain",
+        "metadata_privacy",
+        "constitution_governance"
+      ]
+    },
+    {
+      "glob": "packages/om-home-wire/**",
+      "domains": [
+        "relay_reachability",
+        "discovery_first_contact",
+        "provider_deployment_supply_chain",
+        "metadata_privacy",
+        "constitution_governance"
+      ]
+    },
+    {
+      "glob": "packages/om-provider-http/**",
+      "domains": [
+        "relay_reachability",
+        "discovery_first_contact",
+        "provider_deployment_supply_chain",
+        "metadata_privacy",
+        "constitution_governance"
+      ]
+    },
+    {
+      "glob": "deploy/**",
+      "domains": [
+        "relay_reachability",
+        "discovery_first_contact",
+        "provider_deployment_supply_chain",
+        "metadata_privacy",
+        "constitution_governance"
+      ]
+    },
+    {
+      "glob": "apps/**",
+      "domains": [
+        "ux_accessibility_personalization",
+        "client_endpoint_distribution",
+        "discovery_first_contact",
+        "relay_reachability"
+      ]
+    },
+    {
+      "glob": "packages/om-ui/**",
+      "domains": [
+        "ux_accessibility_personalization",
+        "client_endpoint_distribution",
+        "discovery_first_contact"
+      ]
+    },
+    {
+      "glob": "packages/om-web-platform/**",
+      "domains": [
+        "ux_accessibility_personalization",
+        "client_endpoint_distribution",
+        "discovery_first_contact"
+      ]
+    },
+    {
+      "glob": "packages/om-design/**",
+      "domains": [
+        "ux_accessibility_personalization"
+      ]
+    }
+  ]
 }

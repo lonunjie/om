@@ -40,6 +40,29 @@ make verify      # validator + docs check + phase-1 evidence + TLC
 make check       # fast subset: validator + docs link check
 ```
 
+### Design gate (read the design before you build; operator rule, 2026-11-03)
+
+The design is practically complete, so the usual way to go wrong is not a missing design but building from memory of it.
+On 2026-11-03 a delivery plan was written from the tiers document alone and missed that the Discovery Fabric makes the
+invite carry the inviter's introduction service. That cost a day of rework. The rules that stop it:
+
+1. **Code in `crates/`, `infra/`, `packages/`, `apps/`, `spec/cddl/`, `deploy/` is design-bound.** Before you plan or change it, run
+   `python3 tools/design_gate.py needs <paths>` and read the docs and ADRs it prints for those paths' domains (the map is
+   [`machine/architecture_map.json`](machine/architecture_map.json), `code_paths` over `domains`). Read them; a grep is not reading. Then also read any ADR
+   that amends them ([`decisions/INDEX.md`](decisions/INDEX.md), newest first).
+2. **Every code commit carries two trailers**, enforced by the `commit-msg` hook (`make hooks` installs it once per clone;
+   `--no-verify` is a violation of this rule):
+   `Design-Read: <domain ids>` and `Design-Departures: none | <ADR/waiver/requirement ids>`. A departure is anything that
+   ships or is planned differently from a normative doc; it must cite the ADR or waiver that accepts it. If none exists,
+   stop and ask the operator, do not ship the difference quietly. The trailers are an audit trail; the operator reviews them.
+3. **Plans and reports about design-bound work start with "Design sources read" and say which relevant documents were not
+   read.** Not having read something is acceptable if stated; claiming a design without having read it is not.
+4. **When code and design disagree, the design wins until an ADR says otherwise.** Do not invent product architecture
+   (new tiers, paid plans, spending, a default service, a directory) to fill a gap; record the gap in a report and ask.
+5. **SeedLife's own accounts are not a product dependency.** Nothing may be designed or sized so that OM relies on money or
+   settings on SeedLife's Cloudflare account; each person owns their own Home ([`CLOUDFLARE_REFERENCE_DEPLOYMENT.md`](docs/architecture/providers/CLOUDFLARE_REFERENCE_DEPLOYMENT.md),
+   ADR-0043). The default Home is a labelled beta convenience (ADR-0183).
+
 ### Design drops (zip <-> repository)
 
 External design agents (for example the ChatGPT design agent) work on zips; this repository is canonical.
@@ -79,8 +102,8 @@ When working there, read `../AGENTS.md` first for org-wide rules and registry.
 
 The architecture rules (mission, absolute rules, core interfaces, change discipline, every dated hardening, resolution and
 protocol-evolution rule) are in [`AGENT_ARCHITECTURE_RULES.md`](docs/process/AGENT_ARCHITECTURE_RULES.md). **Read it before touching
-`spec/`, `decisions/`, `machine/`, `crates/`, or anything about protocol, cryptography, security, delivery, discovery, groups or the
-design.** Routine UI, release and docs work does not need it, but these always apply:
+`spec/`, `decisions/`, `machine/`, `crates/`, `infra/`, `packages/`, `apps/` (design-bound code: see "Design gate" above), or anything about protocol, cryptography,
+security, delivery, discovery, groups or the design.** Docs-only and release-notes work does not need it, but these always apply:
 
 - Provider names never become wire-protocol semantics; Cloudflare is a reference implementation, never a dependency.
 - Never silently downgrade security; crypto upgrades are automatic and invisible; no user-facing cipher choice.

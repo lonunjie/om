@@ -4323,6 +4323,13 @@
       "authority": "working_record_non_normative"
     },
     {
+      "path": "docs/reports/2026-11-03-first-contact-across-homes-plan.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
       "path": "docs/reports/README.md",
       "class": "report",
       "domain": "architecture_process",
@@ -9833,6 +9840,20 @@
     },
     {
       "path": "tools/core_guard.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/design_gate.py",
+      "class": "architecture_tool",
+      "domain": "architecture_process",
+      "license": "Apache-2.0",
+      "authority": "executable_guardrail"
+    },
+    {
+      "path": "tools/hooks/commit-msg",
       "class": "architecture_tool",
       "domain": "architecture_process",
       "license": "Apache-2.0",

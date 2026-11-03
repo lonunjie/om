@@ -1,0 +1,3 @@
+#!/bin/sh
+# Design gate (AGENTS.md): code commits must carry Design-Read and Design-Departures trailers.
+exec python3 "$(git rev-parse --show-toplevel)/tools/design_gate.py" commit-msg "$1"

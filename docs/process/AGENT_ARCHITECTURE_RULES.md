@@ -2,7 +2,7 @@
 
 The architecture rules for any agent working in this repository, moved out of [`AGENTS.md`](../../AGENTS.md) on 2026-11-02 so
 that routine work (UI, release, docs) does not load them. **Read this file before touching `spec/`, `decisions/`, `machine/`,
-`crates/`, `packages/om-core-wasm`, or anything about protocol, cryptography, security, delivery, discovery, groups or the
+`crates/`, `infra/`, `packages/`, `apps/`, or anything about protocol, cryptography, security, delivery, discovery, groups or the
 design itself.** The shared UI constraints stayed in [`AGENTS.md`](../../AGENTS.md).
 
 ## Rules (from the design package; edit with care)
