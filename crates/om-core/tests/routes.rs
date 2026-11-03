@@ -251,6 +251,7 @@ fn offers_are_single_use_validated_and_bounded() {
         mailbox: vec![n; 16],
         relay_uri: "https://home.test/".into(),
         capability: vec![n; 32],
+        priority: 0,
     };
     assert_eq!(
         rt.core.supply_routes(vec![good(1), good(1)]),
@@ -356,6 +357,15 @@ fn into_v3_world(rt: &Runtime, profile: &str) {
         let o = rel.as_object_mut().unwrap();
         o.remove("myRelays");
         o.remove("peerRelays");
+        for k in [
+            "myBoxes",
+            "myLineage",
+            "peerLineage",
+            "peerKeys",
+            "routeHealth",
+        ] {
+            o.remove(k);
+        }
     }
     let old = om_core::crypto::cbor::encode(&om_core::crypto::cbor::V::M(vec![
         (0, v.get(0).unwrap().clone()),
@@ -377,7 +387,7 @@ fn an_active_version_3_relationship_migrates_to_explicit_legacy_routes_and_keeps
 
     for (rt, ctx) in [(&d.alice, &d.a), (&d.bob, &d.b)] {
         let rel = the_relationship(rt, ctx);
-        assert_eq!(app_state(rt, ctx)["version"], 4);
+        assert_eq!(app_state(rt, ctx)["version"], 5);
         assert!(
             rel.get("peerMailbox").is_none(),
             "the bare peer mailbox is gone"
@@ -475,13 +485,14 @@ fn a_relay_entry_round_trips_and_rejects_what_the_spec_forbids() {
     assert_eq!(RelayEntry::from_v(&e.to_v()), Some(e.clone()));
     assert_eq!(RelaySet::single(e.clone()).primary(), Some(&e));
     assert!(RelaySet::default().primary().is_none());
+    let mut other = e.clone();
+    other.capability = vec![8u8; 32];
+    other.priority = 1;
     let two = RelaySet {
-        entries: vec![e.clone(), e.clone()],
+        entries: vec![other.clone(), e.clone()],
     };
-    assert!(
-        two.primary().is_none(),
-        "several entries per mailbox are not used yet, and not half-used"
-    );
+    assert_eq!(two.primary(), Some(&e), "the most preferred entry leads");
+    assert_eq!(two.ordered(), vec![&e, &other]);
     assert!(RelayEntry::new("https://home.test/", &[9u8; 15], 1).is_none());
     assert!(RelayEntry::new("", &[9u8; 16], 1).is_none());
     assert_eq!(

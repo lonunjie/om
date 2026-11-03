@@ -667,7 +667,7 @@ fn a_v2_profile_loads_and_drops_what_cannot_finish_under_the_new_flow() {
         "pending introductions are dropped"
     );
     let st = core.debug_app_state(&ctx).unwrap();
-    assert_eq!(st["version"], 4);
+    assert_eq!(st["version"], 5);
     assert!(
         st["invites"]
             .as_object()

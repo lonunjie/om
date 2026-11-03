@@ -27,13 +27,36 @@ pub fn loopback_offer(mailbox: [u8; 16]) -> RouteOffer {
         mailbox: mailbox.to_vec(),
         relay_uri: LOOPBACK_RELAY_URI.to_string(),
         capability,
+        priority: 0,
     }
+}
+
+/// The loopback can stand in for several Homes: `https://loopback.test/` is Home 0, `https://loopback.test/h<n>/` is
+/// Home n. A person with several Homes gets offers spread over them, the first preferred (`priority` = its rank).
+pub fn loopback_home_uri(home: u8) -> String {
+    if home == 0 {
+        LOOPBACK_RELAY_URI.to_string()
+    } else {
+        format!("{LOOPBACK_RELAY_URI}h{home}/")
+    }
+}
+
+/// What a provider adapter would allocate for one new mailbox at loopback Home `home`.
+pub fn loopback_offer_at(mailbox: [u8; 16], home: u8) -> RouteOffer {
+    let mut o = loopback_offer(mailbox);
+    o.relay_uri = loopback_home_uri(home);
+    o.priority = home;
+    o
 }
 
 /// Which mailbox a deposit capability addresses: a real-route capability ends in the mailbox id, a legacy one is it.
 fn mailbox_of_deposit(mailbox: &[u8], relay_uri: Option<&str>) -> Vec<u8> {
     match relay_uri {
-        Some(LOOPBACK_RELAY_URI) if mailbox.len() == 32 && mailbox[..16] == LOOPBACK_CAP_PREFIX => {
+        Some(u)
+            if u.starts_with(LOOPBACK_RELAY_URI)
+                && mailbox.len() == 32
+                && mailbox[..16] == LOOPBACK_CAP_PREFIX =>
+        {
             mailbox[16..].to_vec()
         }
         Some(_) => vec![], // not this relay's capability: lands nowhere
@@ -74,6 +97,8 @@ struct NetState {
     invites: BTreeMap<Vec<u8>, Vec<u8>>,
     mailboxes: BTreeMap<Vec<u8>, Mailbox>,
     faults: Vec<Fault>,
+    /// Loopback Homes that are down: deposits to them are `unavailable`, and nothing can be drained from them.
+    blocked: Vec<String>,
     deposits: u64,
     /// Every deposit a relay ever received, in order (the relay-visible byte stream; mailboxes are drained by acks).
     log: Vec<(Vec<u8>, Vec<u8>)>,
@@ -87,6 +112,13 @@ impl LoopbackNetwork {
     /// Queue a fault for the next network call of any kind.
     pub fn inject(&self, f: Fault) {
         self.0.borrow_mut().faults.push(f);
+    }
+    /// Take a loopback Home down (a vendor block, an outage): deposits to its routes fail, its mailboxes cannot be polled.
+    pub fn block_home(&self, relay_uri: &str) {
+        self.0.borrow_mut().blocked.push(relay_uri.to_string());
+    }
+    pub fn unblock_home(&self, relay_uri: &str) {
+        self.0.borrow_mut().blocked.retain(|u| u != relay_uri);
     }
     pub fn deposit_count(&self) -> u64 {
         self.0.borrow().deposits
@@ -222,6 +254,11 @@ impl LoopbackNetwork {
                 NetResult::Ok
             }
             NetCall::Deposit {
+                relay_uri: Some(u), ..
+            } if s.blocked.contains(u) => NetResult::Err {
+                error: NetError::Unavailable,
+            },
+            NetCall::Deposit {
                 mailbox,
                 relay_uri,
                 bytes,
@@ -262,6 +299,14 @@ impl LoopbackNetwork {
             };
         }
         r
+    }
+
+    /// Poll a mailbox at the Home its route names (nothing comes back from a blocked Home).
+    pub fn poll_at(&self, relay_uri: Option<&str>, mailbox: &[u8], after: u64) -> Vec<Inbound> {
+        if relay_uri.is_some_and(|u| self.0.borrow().blocked.iter().any(|b| b == u)) {
+            return vec![];
+        }
+        self.poll(mailbox, after)
     }
 
     pub fn poll(&self, mailbox: &[u8], after: u64) -> Vec<Inbound> {
@@ -370,6 +415,8 @@ pub struct Runtime {
     boots: u32,
     open: Vec<String>,
     offer_rng: InsecureTestRng,
+    /// The loopback Homes this person has, most preferred first (offers rotate over them); `[0]` is the ordinary case.
+    pub homes: Vec<u8>,
 }
 
 impl Runtime {
@@ -389,16 +436,21 @@ impl Runtime {
             boots: 0,
             open: vec![],
             offer_rng: InsecureTestRng::from_label(format!("{label}/offers").as_bytes()),
+            homes: vec![0],
         }
     }
 
     /// Stands in for the driver topping Core's route offers up from the provider adapter (done before every dispatch).
     pub fn supply_routes(&mut self, n: usize) {
+        let homes = self.homes.clone();
         let offers = (0..n)
-            .map(|_| {
+            .map(|i| {
                 let mut mb = [0u8; 16];
                 self.offer_rng.fill_bytes(&mut mb);
-                loopback_offer(mb)
+                let at = i % homes.len();
+                let mut o = loopback_offer_at(mb, homes[at]);
+                o.priority = at as u8;
+                o
             })
             .collect();
         self.core.supply_routes(offers);
@@ -491,7 +543,9 @@ impl Runtime {
     pub fn poll(&mut self, ctx: &ProfileExecutionContext) -> usize {
         let mut n = 0;
         for t in self.core.poll_targets(ctx).expect("poll targets") {
-            let items = self.net.poll(&t.mailbox, t.after);
+            let items = self
+                .net
+                .poll_at(t.relay_uri.as_deref(), &t.mailbox, t.after);
             if items.is_empty() {
                 continue;
             }

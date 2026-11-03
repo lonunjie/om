@@ -24,7 +24,8 @@ export type NetCall =
    * absent/legacy only for a pass-2 destination: no `relayUri`, and `mailbox` is the bare 16-byte mailbox id.
    */
   | { readonly call: "deposit"; readonly mailbox: string; readonly relayUri?: string; readonly bytes: string }
-  | { readonly call: "ack"; readonly mailbox: string; readonly seq: number; readonly kind?: MailboxKind };
+  /** `relayUri` names the Home that holds the mailbox (the route Core bound to it); absent for a legacy mailbox and for an introduction mailbox. */
+  | { readonly call: "ack"; readonly mailbox: string; readonly seq: number; readonly kind?: MailboxKind; readonly relayUri?: string };
 
 /** What a polled id names: a relay mailbox (the default), or an invite's introduction service at the host's own Home. */
 export type MailboxKind = "relay" | "intro";
@@ -44,7 +45,8 @@ export type NetResult =
 
 export interface NetOp { readonly id: number; readonly call: NetCall }
 export interface Inbound { readonly seq: number; readonly bytes: string }
-export interface PollTarget { readonly mailbox: string; readonly after: number; readonly kind?: MailboxKind }
+/** `relayUri` is the Home that holds a relay mailbox (the person may have several); absent for a legacy mailbox and for an introduction mailbox. */
+export interface PollTarget { readonly mailbox: string; readonly after: number; readonly kind?: MailboxKind; readonly relayUri?: string }
 export interface Write { readonly key: string; readonly value: string | null }
 export interface Commit { readonly id: number; readonly profileId: string; readonly writes: readonly Write[] }
 export interface Record { readonly key: string; readonly value: string }
@@ -56,14 +58,15 @@ export interface Record { readonly key: string; readonly value: string }
  */
 export interface Provider {
   perform(call: NetCall): Promise<NetResult>;
-  poll(mailbox: string, after: number, kind?: MailboxKind): Promise<readonly Inbound[]>;
+  poll(mailbox: string, after: number, kind?: MailboxKind, relayUri?: string): Promise<readonly Inbound[]>;
   /**
    * Allocates routes for `count` new mailboxes: a fresh random 16-byte `mailbox` id (hex) for Core to poll, and the
    * `relayUri` and deposit `capability` (hex) peers will use to reach it. Core binds its delivery keys to exactly
-   * these. Local work only (no network). A provider without it (none is configured) leaves Core unable to start
+   * these. Local work only (no network). `held` names the Home (relayUri) of every offer Core already holds, so a provider with
+   * several Homes can fill the thinnest one. A provider without it (none is configured) leaves Core unable to start
    * anything that needs a mailbox; there is no stand-in.
    */
-  allocateRoutes?(count: number): Promise<readonly RouteOffer[]>;
+  allocateRoutes?(count: number, held?: readonly string[]): Promise<readonly RouteOffer[]>;
   /**
    * Optional: the transport can tell Core that something newer may be waiting (a wake channel). The runtime then collects
    * at once instead of at its next timer tick. Purely an optimisation: the timer keeps running, so a provider that never
@@ -73,7 +76,13 @@ export interface Provider {
 }
 
 /** One new mailbox and the route to it (see Provider.allocateRoutes). */
-export interface RouteOffer { readonly mailbox: string; readonly relayUri: string; readonly capability: string }
+export interface RouteOffer {
+  readonly mailbox: string;
+  readonly relayUri: string;
+  readonly capability: string;
+  /** How much the person prefers this Home: 0 (the default) is their active Home, higher numbers are fallbacks. */
+  readonly priority?: number;
+}
 
 /** Password-hashing settings for a backup file (Argon2id). The host derives the key with exactly these. */
 export interface BackupKdf { readonly mKib: number; readonly t: number; readonly p: number }

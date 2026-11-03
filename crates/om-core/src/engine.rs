@@ -76,9 +76,36 @@ impl<R: RngCore + CryptoRng> Core<R> {
         self.offers.len()
     }
 
+    /// The person stopped using the Home `relay_uri`: every relationship with another route publishes a new RelaySet
+    /// version without it and keeps polling the dropped route for the overlap (immediately closed when `emergency`).
+    /// Returns how many relationships had no other route and so stay on that Home.
+    pub fn retire_home(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        relay_uri: &str,
+        emergency: bool,
+    ) -> Result<(usize, Step), CoreError> {
+        self.slot(ctx)?;
+        let (stuck, commit) = self.txn(&ctx.profile_id, |tx| {
+            Ok(tx.retire_home(relay_uri, emergency))
+        })?;
+        Ok((
+            stuck,
+            Step {
+                commit,
+                handle: None,
+            },
+        ))
+    }
+
     /// How many unused route offers Core holds.
     pub fn route_offers(&self) -> usize {
         self.offers.len()
+    }
+
+    /// The Home each unused route offer is at, so the adapter can top the pool up where it is thinnest.
+    pub fn offer_homes(&self) -> Vec<String> {
+        self.offers.iter().map(|o| o.relay_uri.clone()).collect()
     }
 
     // ------------------------------------------------------------------------------------------ profiles
@@ -174,6 +201,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 offers: &mut self.offers,
             };
             let v = f(&mut tx)?;
+            tx.maintain_relays();
             (v, tx.changed)
         };
         let records = next.encode()?;
@@ -299,7 +327,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
     ) -> Result<Vec<PollTarget>, CoreError> {
         let st = &self.slot(ctx)?.state;
         let now = self.clock.now_ms();
-        let mut boxes: Vec<(&String, MailboxKind)> = st
+        let mut boxes: Vec<(&String, MailboxKind, Option<&String>)> = st
             .app
             .invites
             .values()
@@ -311,22 +339,29 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 } else {
                     MailboxKind::Relay
                 };
-                (&i.mailbox, kind)
+                (&i.mailbox, kind, None)
             })
             .collect();
+        // Every route of every relationship that has not been closed: the published ones and those still draining.
         boxes.extend(
             st.app
                 .relationships
                 .values()
-                .map(|r| (&r.my_mailbox, MailboxKind::Relay)),
+                .flat_map(|r| r.my_boxes.iter())
+                .filter(|b| !b.closed)
+                .map(|b| {
+                    let uri = (!b.route.is_legacy()).then_some(&b.route.relay_uri);
+                    (&b.mailbox, MailboxKind::Relay, uri)
+                }),
         );
         Ok(boxes
             .into_iter()
-            .filter_map(|(m, kind)| {
+            .filter_map(|(m, kind, uri)| {
                 Some(PollTarget {
                     mailbox: crate::crypto::unhex(m).ok()?,
                     after: st.app.cursors.get(m).copied().unwrap_or(0),
                     kind,
+                    relay_uri: uri.cloned(),
                 })
             })
             .collect())

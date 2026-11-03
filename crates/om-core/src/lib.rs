@@ -24,6 +24,7 @@ pub mod events;
 mod flows;
 pub mod host;
 pub mod intro;
+pub mod relayset;
 pub mod route;
 pub mod state;
 

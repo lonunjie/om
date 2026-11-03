@@ -187,6 +187,10 @@ pub enum NetCall {
         seq: u64,
         #[serde(default, skip_serializing_if = "MailboxKind::is_relay")]
         kind: MailboxKind,
+        /// The Home that holds the mailbox (the `relay_uri` of the route Core bound to it); absent for a legacy mailbox
+        /// and for an introduction mailbox, which live at the host's configured Home.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        relay_uri: Option<String>,
     },
 }
 
@@ -244,12 +248,16 @@ pub enum NetResult {
 
 /// A mailbox the host should poll, and the highest sequence Core has already processed.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PollTarget {
     #[serde(with = "hexs")]
     pub mailbox: Vec<u8>,
     pub after: u64,
     #[serde(default, skip_serializing_if = "MailboxKind::is_relay")]
     pub kind: MailboxKind,
+    /// The Home that holds this mailbox (see `NetCall::Ack`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay_uri: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

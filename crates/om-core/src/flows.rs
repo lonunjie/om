@@ -15,6 +15,7 @@ use crate::crypto::{self, PROFILE_V1, hex, hpke, unhex};
 use crate::events::{self, Hlc};
 use crate::host::{CoreError, MailboxKind, NetCall, NetError, NetResult};
 use crate::intro;
+use crate::relayset::{self, Lineage, Node, Offer, Record};
 use crate::route::{RelayEntry, RelaySet, RouteOffer};
 use crate::state::*;
 use std::sync::OnceLock;
@@ -44,6 +45,23 @@ const LBL_REQUEST_KEY: &str = "OM-REQUEST-KEY-HASH-v1";
 /// First contact (ADR-0181): the inviter's Accept (bootstrap response) and the requester's Bind.
 const KIND_ACCEPT: u64 = 4;
 const KIND_BIND: u64 = 5;
+/// Post-acceptance control message carrying the sender's next signed `RelaySet` and the signed delivery-key records
+/// for its routes (MULTI_RELAY_AND_DELIVERY_RESILIENCE 2.1 and 2.2). Also optional key 7 of the Accept and the Bind:
+/// the sender's genesis (version 1) RelaySet.
+const KIND_RELAYSET: u64 = 6;
+/// The peer adopted a RelaySet version of ours: `{0: 7, 1: record hash}`. It is what lets us stop polling a dropped
+/// route (the "ack" of add/overlap/ack/drain/revoke) without the relay learning anything.
+const KIND_RELAYSET_ACK: u64 = 7;
+/// Deposits that make no progress this many times in a row move to the peer's next route (same inner envelope).
+pub const FAILOVER_AFTER: u32 = 2;
+/// A route the sender failed over from is tried last for this long.
+pub const UNHEALTHY_MS: u64 = 10 * 60 * 1000;
+/// A route dropped from our RelaySet is still polled this long (add/overlap/ack/drain/revoke; R-187's 30-day floor).
+pub const OVERLAP_MS: u64 = 30 * DAY_MS;
+/// Once the peer is seen using a newer route, a dropped route stays open this much longer for stragglers.
+pub const ACK_GRACE_MS: u64 = DAY_MS;
+/// Delivery keys kept per relationship for the peer's routes other than the first (bounded).
+const MAX_PEER_KEYS: usize = 32;
 pub const HOUR_MS: u64 = 60 * 60 * 1000;
 const DAY_MS: u64 = 24 * HOUR_MS;
 /// Requests admitted to expensive work per rolling hour and day (Core-local, persisted; ADR-0181 section 5).
@@ -236,7 +254,34 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     fn enqueue(&mut self, call: NetCall, purpose: Purpose) -> u64 {
         let id = self.st.app.next_net_id;
         self.st.app.next_net_id += 1;
-        self.st.app.outbox.push(OutboxEntry { id, call, purpose });
+        self.st.app.outbox.push(OutboxEntry {
+            id,
+            call,
+            purpose,
+            fails: 0,
+            failover: None,
+        });
+        id
+    }
+
+    /// Enqueue a deposit of a session-sealed `inner` envelope to `route`, remembering the inner envelope so a route
+    /// that makes no progress can be replaced by another of the peer's routes without changing the EventID.
+    fn enqueue_sealed(
+        &mut self,
+        conv: &str,
+        route: &RelayEntry,
+        wrapper: Vec<u8>,
+        inner: &[u8],
+        purpose: Purpose,
+    ) -> u64 {
+        let id = self.enqueue(deposit_call(route, wrapper), purpose);
+        if let Some(e) = self.st.app.outbox.iter_mut().find(|e| e.id == id) {
+            e.failover = Some(Failover {
+                conversation_id: conv.to_string(),
+                inner: hex(inner),
+                tried: vec![],
+            });
+        }
         id
     }
 
@@ -377,14 +422,26 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// when the host has supplied none (no provider is configured, or the adapter could not allocate), in which case
     /// nothing that needs a mailbox starts: there is no stand-in fallback.
     fn take_route(&mut self) -> Option<([u8; 16], RelayEntry)> {
-        let at = self.offers.iter().position(|o| o.is_valid())?;
+        self.take_route_excluding(&[])
+    }
+
+    /// The most preferred offer (lowest priority number; the pool order breaks ties) at a Home not in `used`.
+    fn take_route_excluding(&mut self, used: &[String]) -> Option<([u8; 16], RelayEntry)> {
+        let at = self
+            .offers
+            .iter()
+            .enumerate()
+            .filter(|(_, o)| o.is_valid() && !used.contains(&o.relay_uri))
+            .min_by_key(|(i, o)| (o.priority, *i))
+            .map(|(i, _)| i)?;
         let offer = self.offers.remove(at);
         let mailbox = <[u8; 16]>::try_from(offer.mailbox.as_slice()).ok()?;
-        let entry = RelayEntry::new(
+        let mut entry = RelayEntry::new(
             &offer.relay_uri,
             &offer.capability,
             self.now_s() + DELIVERY_KEY_TTL_S,
         )?;
+        entry.priority = offer.priority;
         Some((mailbox, entry))
     }
 
@@ -466,16 +523,43 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         Some((head, chain, creds))
     }
 
-    /// Can we seal to this peer right now? There is never a clear-sender fallback (profile section 12).
-    fn peer_key_for_send(&self, rel: &Relationship) -> Result<PeerDelivery, RejectReason> {
-        let (Some(pd), Some(route)) = (&rel.peer_delivery, rel.peer_relays.primary()) else {
-            return Err(RejectReason::Unavailable); // sealed_delivery_required / delivery_key_unknown_or_stale
+    /// The peer's established delivery key bound to `route`, if one is held and unexpired.
+    fn established_key(&self, rel: &Relationship, route: &RelayEntry) -> Option<PeerDelivery> {
+        let (b, now) = (hex(&route.binding()), self.now_s());
+        rel.peer_delivery
+            .iter()
+            .chain(rel.peer_keys.iter())
+            .find(|pd| !pd.bootstrap && pd.public.route_binding == b && pd.public.expires_at > now)
+            .cloned()
+    }
+
+    /// Every peer route we can seal to right now, in the order a sender tries them: unexpired entries that have an
+    /// established key, healthy ones first, then by `priority` (RelaySet entry order is the peer's preference), and a
+    /// fixed tiebreak so every sender chooses the same (MULTI_RELAY 4: normal sending uses one healthy entry).
+    fn peer_targets(&self, rel: &Relationship) -> Vec<(PeerDelivery, RelayEntry)> {
+        let now_s = self.now_s();
+        let mut v: Vec<(PeerDelivery, RelayEntry)> = rel
+            .peer_relays
+            .ordered()
+            .into_iter()
+            .filter(|r| r.expires_at == 0 || r.expires_at > now_s)
+            .filter_map(|r| Some((self.established_key(rel, r)?, r.clone())))
+            .collect();
+        let unhealthy = |r: &RelayEntry| {
+            rel.route_health
+                .get(&hex(&r.binding()))
+                .is_some_and(|until| *until > self.now_ms)
         };
-        let bound = hex(&route.binding()) == pd.public.route_binding;
-        if pd.bootstrap || !bound || pd.public.expires_at <= self.now_s() {
-            return Err(RejectReason::Unavailable);
-        }
-        Ok(pd.clone())
+        v.sort_by_key(|(_, r)| unhealthy(r)); // stable: healthy first, order within each group unchanged
+        v
+    }
+
+    /// Can we seal to this peer right now? There is never a clear-sender fallback (profile section 12).
+    fn peer_target(&self, rel: &Relationship) -> Result<(PeerDelivery, RelayEntry), RejectReason> {
+        self.peer_targets(rel)
+            .into_iter()
+            .next()
+            .ok_or(RejectReason::Unavailable) // sealed_delivery_required / delivery_key_unknown_or_stale
     }
 
     /// Wrap a complete inner envelope for the peer's route in the unsigned `SealedDeliveryEnvelope`.
@@ -882,6 +966,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Ok(record) = self.signed_key_record(&my_key) else {
             return rejected(RejectReason::IntegrityFailure);
         };
+        let Some((genesis, genesis_node)) = self.genesis_set(&my_route) else {
+            return rejected(RejectReason::IntegrityFailure);
+        };
         let rnd = arr32(self.rng);
         let bind_body = intro::binding_body(
             &my_key_dev.0,
@@ -907,6 +994,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (4, V::B(binding)),
             (5, V::A(chain.into_iter().map(V::B).collect())),
             (6, V::A(creds.into_iter().map(V::B).collect())),
+            (7, V::B(genesis)),
         ]));
         let boot = PeerDelivery {
             public: intro.reply_key.clone(),
@@ -929,8 +1017,24 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 peer_acs_body: String::new(),
                 peer_credentials: vec![],
                 my_mailbox: hex(&mb),
-                my_relays: RelaySet::single(my_route),
+                my_relays: RelaySet::single(my_route.clone()),
                 peer_relays: RelaySet::single(peer_route.clone()),
+                my_boxes: vec![MyBox {
+                    mailbox: hex(&mb),
+                    route: my_route,
+                    retired_at_ms: None,
+                    drain_until_ms: 0,
+                    retired_version: 0,
+                    acked: false,
+                    closed: false,
+                }],
+                my_lineage: Lineage {
+                    nodes: vec![genesis_node],
+                    pending: vec![],
+                },
+                peer_lineage: Lineage::default(),
+                peer_keys: vec![],
+                route_health: Default::default(),
                 blocked: false,
                 integrity_failures: 0,
                 created_at: self.now_ms,
@@ -996,7 +1100,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.record(op, kind, rejected(RejectReason::Unavailable), None);
             return Ok(());
         };
-        if !queue && self.peer_key_for_send(rel).is_err() {
+        if !queue && self.peer_target(rel).is_err() {
             self.record(op, kind, rejected(RejectReason::Unavailable), None);
             return Ok(());
         }
@@ -1065,16 +1169,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
             return Ok(());
         };
-        let Ok(pd) = self.peer_key_for_send(&rel) else {
+        let Ok((pd, route)) = self.peer_target(&rel) else {
             return Ok(()); // still no usable key: stay queued
         };
-        let (peer_ik, route) = (
-            h32(&rel.peer_ik)?,
-            rel.peer_relays
-                .primary()
-                .cloned()
-                .ok_or(CoreError::Invalid("peer route"))?,
-        );
+        let peer_ik = h32(&rel.peer_ik)?;
         for m in rel.messages.iter().filter(|m| m.queued_event.is_some()) {
             let payload = hb(m.queued_event.as_deref().unwrap_or_default())?;
             let (env, _) = self
@@ -1094,8 +1192,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 slot.envelope = Some(hex(&env));
                 slot.queued_event = None;
             }
-            self.enqueue(
-                deposit_call(&route, wrapper),
+            self.enqueue_sealed(
+                conv,
+                &route,
+                wrapper,
+                &env,
                 Purpose::DepositMessage {
                     operation_id: m.operation_id.clone().unwrap_or_default(),
                     conversation_id: conv.to_string(),
@@ -1117,14 +1218,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .get(conv)
             .cloned()
             .ok_or(CoreError::NotFound("conversation"))?;
-        let pd = self
-            .peer_key_for_send(&rel)
+        let (pd, route) = self
+            .peer_target(&rel)
             .map_err(|_| CoreError::Invalid("no key"))?;
-        let route = rel
-            .peer_relays
-            .primary()
-            .cloned()
-            .ok_or(CoreError::Invalid("mb"))?;
         let (env, _) = self
             .device()?
             .encrypt(&h32(&rel.peer_ik)?, payload)
@@ -1210,21 +1306,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (DeliveryState::Rejected { reason }, Some(env)) if reason.retryable() => {
                 // Resend the very same inner envelope: re-running the ratchet would create a second semantic send.
                 // It is re-sealed under a fresh delivery_id; the recipient dedupes the inner envelope.
-                let (peer_route, env) = (
-                    self.st
-                        .app
-                        .relationships
-                        .get(&conv)
-                        .and_then(|r| r.peer_relays.primary().cloned()),
-                    hb(env)?,
-                );
-                let pd = self
+                let env = hb(env)?;
+                let target = self
                     .st
                     .app
                     .relationships
                     .get(&conv)
-                    .and_then(|r| self.peer_key_for_send(r).ok());
-                let (Some(route), Some(pd)) = (peer_route, pd) else {
+                    .and_then(|r| self.peer_target(r).ok());
+                let Some((pd, route)) = target else {
                     self.record(
                         op,
                         kind,
@@ -1239,11 +1328,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     return Err(CoreError::Invalid("seal"));
                 };
                 self.set_delivery(&conv, &msg.id, DeliveryState::PendingNetwork);
-                self.enqueue(
-                    deposit_call(&route, wrapper),
+                self.enqueue_sealed(
+                    &conv,
+                    &route,
+                    wrapper,
+                    &env,
                     Purpose::DepositMessage {
                         operation_id: op.clone(),
-                        conversation_id: conv,
+                        conversation_id: conv.clone(),
                         message_id: msg.id.clone(),
                     },
                 );
@@ -1260,6 +1352,485 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             _ => self.record(op, kind, OutcomeClass::Committed, Some(msg.id)),
         }
         Ok(())
+    }
+
+    // ------------------------------------------------------------------------------------------ RelaySet (D22)
+
+    /// Is the device that signed a RelaySet record active and not quarantined in `acs`? (MULTI_RELAY 2.1: peers
+    /// validate the signer against the newest ACS they hold; anything else is not an effective candidate.)
+    fn signer_ok(acs: &Acs, signer_hex: &str) -> bool {
+        unhex(signer_hex)
+            .ok()
+            .and_then(|d| <[u8; 16]>::try_from(d).ok())
+            .is_some_and(|d| acs.device_active(&d))
+    }
+
+    /// A `signed-RelaySet` for `rec`, signed by this device (role `device`).
+    fn sign_set(&mut self, rec: &Record) -> Option<Vec<u8>> {
+        let rnd = arr32(self.rng);
+        let dev = self.st.device.as_ref()?;
+        Some(relayset::sign(&dev.signer, &dev.device_id, rec, rnd))
+    }
+
+    /// Version 1 of a new relationship's RelaySet: the one route it starts with.
+    fn genesis_set(&mut self, route: &RelayEntry) -> Option<(Vec<u8>, Node)> {
+        let rec = Record::new(1, None, vec![route.clone()])?;
+        let signed = self.sign_set(&rec)?;
+        let device = self.st.device.as_ref()?.device_id;
+        Some((signed, Node::from_record(&rec, &device)))
+    }
+
+    /// Verify a peer's signed RelaySet against the peer's pinned ACS and credentials, and offer it to the lineage it
+    /// extends. `None` when it is not acceptable (unknown or ineligible signer, bad signature, malformed record, or a
+    /// continuity violation); a record whose parent has not arrived is accepted as pending.
+    fn accept_peer_set(rel: &mut Relationship, signed: &[u8]) -> Option<Offer> {
+        let signer = relayset::claimed_signer(signed)?;
+        let acs = Acs::from_body(&hb(&rel.peer_acs_body).ok()?).ok()?;
+        if !acs.device_active(&signer) {
+            return None;
+        }
+        let cred = rel
+            .peer_credentials
+            .iter()
+            .filter_map(|c| unhex(c).ok())
+            .filter_map(|c| binding::Credential::from_body(&c).ok())
+            .find(|c| c.device_id == signer)?;
+        let rec = relayset::open(signed, &signer, &cred.signing_pk).ok()?;
+        match rel.peer_lineage.offer(Node::from_record(&rec, &signer)) {
+            Offer::Rejected(_) => None,
+            o => Some(o),
+        }
+    }
+
+    /// The peer's routes become the effective record of its lineage (highest version, then smallest hash, among
+    /// records whose signer is eligible now). A relationship with no signed record keeps its implicit set.
+    fn refresh_peer_relays(rel: &mut Relationship) {
+        let Some(acs) = hb(&rel.peer_acs_body)
+            .ok()
+            .and_then(|b| Acs::from_body(&b).ok())
+        else {
+            return;
+        };
+        if let Some(n) = rel.peer_lineage.effective(|s| Self::signer_ok(&acs, s)) {
+            rel.peer_relays = RelaySet {
+                entries: n.entries.clone(),
+            };
+        }
+    }
+
+    /// The genesis RelaySet that came with an Accept or a Bind (optional key 7): when present it must verify and hold
+    /// the route the same message names. A peer that sends none keeps its one route as an implicit set.
+    fn adopt_genesis(rel: &mut Relationship, signed: Option<&V>, route: &RelayEntry) -> bool {
+        let Some(v) = signed else { return true };
+        let Ok(bytes) = v.b() else { return false };
+        if Self::accept_peer_set(rel, bytes).is_none() {
+            return false;
+        }
+        Self::refresh_peer_relays(rel);
+        rel.peer_relays
+            .entries
+            .iter()
+            .any(|e| e.relay_uri == route.relay_uri && e.capability == route.capability)
+    }
+
+    /// The next RelaySet record of our lineage with `entries`, signed, and a signed key record for each route in it.
+    /// A relationship with no signed history (one from before lineages) starts its lineage with this record.
+    fn compose_set_update(
+        &mut self,
+        rel: &Relationship,
+        entries: Vec<RelayEntry>,
+    ) -> Option<(Vec<u8>, Node, Vec<Vec<u8>>)> {
+        let (head, ..) = self.acs_head()?;
+        let rec = match rel.my_lineage.effective(|s| Self::signer_ok(&head, s)) {
+            Some(parent) => {
+                Record::new(parent.version + 1, Some(h32(&parent.hash).ok()?), entries)?
+            }
+            None if rel.my_lineage.is_empty() => Record::new(1, None, entries)?,
+            None => return None,
+        };
+        let signed = self.sign_set(&rec)?;
+        let device = self.st.device.as_ref()?.device_id;
+        let mut records = vec![];
+        for e in &rec.entries {
+            let binding = hex(&e.binding());
+            let key = rel
+                .my_delivery
+                .iter()
+                .filter(|k| k.public.route_binding == binding)
+                .max_by_key(|k| k.public.expires_at)?
+                .clone();
+            records.push(self.signed_key_record(&key).ok()?);
+        }
+        Some((signed.clone(), Node::from_record(&rec, &device), records))
+    }
+
+    /// Send a RelaySet update (and the delivery keys of its routes) to the peer inside the relationship. The ratchet
+    /// advance and the outbox entry are one staged transaction; on any failure the device state is put back.
+    fn send_set(&mut self, conv: &str, signed: &[u8], records: &[Vec<u8>]) -> bool {
+        let payload = cbor::encode(&V::M(vec![
+            (0, V::U(KIND_RELAYSET)),
+            (1, V::B(signed.to_vec())),
+            (2, V::A(records.iter().cloned().map(V::B).collect())),
+        ]));
+        self.send_control(
+            conv,
+            &payload,
+            Purpose::DepositRelaySet {
+                conversation_id: conv.to_string(),
+            },
+        )
+    }
+
+    /// Encrypt `payload` in the relationship's session, seal it for the peer's best route and enqueue it.
+    fn send_control(&mut self, conv: &str, payload: &[u8], purpose: Purpose) -> bool {
+        let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
+            return false;
+        };
+        let (Ok((pd, route)), Ok(peer_ik)) = (self.peer_target(&rel), h32(&rel.peer_ik)) else {
+            return false;
+        };
+        let snapshot = self.st.device.clone();
+        let env = match self
+            .st
+            .device
+            .as_mut()
+            .map(|d| d.encrypt(&peer_ik, payload))
+        {
+            Some(Ok((env, _))) => env,
+            _ => {
+                self.restore(snapshot);
+                return false;
+            }
+        };
+        let Ok(wrapper) = self.seal_to(&pd, &route, &env) else {
+            self.restore(snapshot);
+            return false;
+        };
+        self.enqueue_sealed(conv, &route, wrapper, &env, purpose);
+        true
+    }
+
+    /// Add a route at one more of the person's Homes to an active relationship (add: new capability, new delivery key,
+    /// a new RelaySet version naming both routes; the old route stays for overlap). Returns whether one was added.
+    fn add_route(&mut self, conv: &str) -> bool {
+        let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
+            return false;
+        };
+        if rel.state != RelState::Active
+            || rel.blocked
+            || rel.my_relays.entries.len() >= relayset::MAX_ENTRIES
+        {
+            return false;
+        }
+        let used: Vec<String> = rel
+            .my_boxes
+            .iter()
+            .map(|b| b.route.relay_uri.clone())
+            .collect();
+        if self.peer_target(&rel).is_err()
+            || !self
+                .offers
+                .iter()
+                .any(|o| o.is_valid() && !used.contains(&o.relay_uri))
+        {
+            return false;
+        }
+        let Some((mailbox, route)) = self.take_route_excluding(&used) else {
+            return false;
+        };
+        let key = self.new_delivery_key(&route, DELIVERY_KEY_TTL_S);
+        let mut entries = rel.my_relays.entries.clone();
+        entries.push(route.clone());
+        let mut draft = rel;
+        draft.my_delivery.push(key.clone());
+        let Some((signed, node, records)) = self.compose_set_update(&draft, entries.clone()) else {
+            return false;
+        };
+        if !self.send_set(conv, &signed, &records) {
+            return false;
+        }
+        if let Some(r) = self.st.app.relationships.get_mut(conv) {
+            r.my_relays = RelaySet { entries };
+            r.my_lineage.offer(node);
+            r.my_delivery.push(key);
+            r.my_boxes.push(MyBox {
+                mailbox: hex(&mailbox),
+                route,
+                retired_at_ms: None,
+                drain_until_ms: 0,
+                retired_version: 0,
+                acked: false,
+                closed: false,
+            });
+        }
+        true
+    }
+
+    /// Stop using the Home `relay_uri` (the person moved away from it or lost it). Every relationship that has another
+    /// route publishes a new RelaySet version without this one; the dropped route is still polled for the overlap
+    /// (`OVERLAP_MS`, shortened once the peer is seen on a newer route), or not at all when `emergency` (the entry is
+    /// gone from the set and its key records are dropped; revoking the capability at the Home is the host's business).
+    /// Returns how many relationships have no other route and so stay on it.
+    pub fn retire_home(&mut self, relay_uri: &str, emergency: bool) -> usize {
+        self.offers.retain(|o| o.relay_uri != relay_uri);
+        let convs: Vec<String> = self
+            .st
+            .app
+            .relationships
+            .values()
+            .filter(|r| {
+                r.my_boxes
+                    .iter()
+                    .any(|b| b.route.relay_uri == relay_uri && b.retired_at_ms.is_none())
+            })
+            .map(|r| r.id.clone())
+            .collect();
+        let mut stuck = 0;
+        for conv in convs {
+            let Some(rel) = self.st.app.relationships.get(&conv).cloned() else {
+                continue;
+            };
+            let entries: Vec<RelayEntry> = rel
+                .my_relays
+                .entries
+                .iter()
+                .filter(|e| e.relay_uri != relay_uri)
+                .cloned()
+                .collect();
+            if entries.is_empty() || rel.state != RelState::Active {
+                stuck += 1;
+                continue;
+            }
+            let Some((signed, node, records)) = self.compose_set_update(&rel, entries.clone())
+            else {
+                stuck += 1;
+                continue;
+            };
+            if !self.send_set(&conv, &signed, &records) {
+                stuck += 1;
+                continue;
+            }
+            let now = self.now_ms;
+            let version = node.version;
+            if let Some(r) = self.st.app.relationships.get_mut(&conv) {
+                r.my_relays = RelaySet { entries };
+                r.my_lineage.offer(node);
+                for b in r
+                    .my_boxes
+                    .iter_mut()
+                    .filter(|b| b.route.relay_uri == relay_uri && b.retired_at_ms.is_none())
+                {
+                    b.retired_at_ms = Some(now);
+                    b.retired_version = version;
+                    b.drain_until_ms = if emergency { now } else { now + OVERLAP_MS };
+                    b.closed = emergency;
+                }
+            }
+        }
+        self.drop_closed_routes();
+        stuck
+    }
+
+    /// Forget routes whose overlap is over: no longer polled, their delivery keys and cursor dropped.
+    fn drop_closed_routes(&mut self) {
+        let now = self.now_ms;
+        let mut cursors: Vec<String> = vec![];
+        for rel in self.st.app.relationships.values_mut() {
+            for b in rel.my_boxes.iter_mut() {
+                if let Some(t) = b.retired_at_ms
+                    && !b.closed
+                    && (now >= b.drain_until_ms || (b.acked && now >= t + ACK_GRACE_MS))
+                {
+                    b.closed = true;
+                }
+            }
+            let gone: Vec<String> = rel
+                .my_boxes
+                .iter()
+                .filter(|b| b.closed)
+                .map(|b| hex(&b.route.binding()))
+                .collect();
+            if gone.is_empty() {
+                continue;
+            }
+            rel.my_delivery
+                .retain(|k| !gone.contains(&k.public.route_binding));
+            cursors.extend(
+                rel.my_boxes
+                    .iter()
+                    .filter(|b| b.closed)
+                    .map(|b| b.mailbox.clone()),
+            );
+            rel.my_boxes.retain(|b| !b.closed);
+        }
+        for m in cursors {
+            self.st.app.cursors.remove(&m);
+        }
+    }
+
+    /// Run after every transition: close routes whose overlap ended, and give every active relationship a route at
+    /// each of the person's other Homes the host has offered (a single-Home person is never affected).
+    pub fn maintain_relays(&mut self) {
+        self.drop_closed_routes();
+        if self.offers.is_empty() {
+            return;
+        }
+        let convs: Vec<String> = self
+            .st
+            .app
+            .relationships
+            .values()
+            .filter(|r| r.state == RelState::Active && !r.blocked)
+            .map(|r| r.id.clone())
+            .collect();
+        for conv in convs {
+            while self.add_route(&conv) {}
+        }
+    }
+
+    /// A deposit made no progress. After `FAILOVER_AFTER` in a row, the very same inner envelope is sealed afresh for the
+    /// peer's next route (fresh wrapper and delivery id under that route's own delivery key) and the entry is rewritten
+    /// to deposit there; the route left is tried last for a while. The OM event identity never changes, and the
+    /// recipient deduplicates by the inner envelope if both copies arrive.
+    fn note_no_progress(&mut self, pos: usize) {
+        let Some(e) = self.st.app.outbox.get_mut(pos) else {
+            return;
+        };
+        e.fails += 1;
+        if e.fails < FAILOVER_AFTER {
+            return;
+        }
+        let (
+            Some(fo),
+            NetCall::Deposit {
+                mailbox,
+                relay_uri: Some(uri),
+                ..
+            },
+        ) = (e.failover.clone(), e.call.clone())
+        else {
+            return;
+        };
+        e.fails = 0;
+        let now = self.now_ms;
+        let current = hex(&delivery::route_binding(&uri, &mailbox));
+        let Some(rel) = self.st.app.relationships.get_mut(&fo.conversation_id) else {
+            return;
+        };
+        rel.route_health.insert(current.clone(), now + UNHEALTHY_MS);
+        rel.route_health.retain(|_, until| *until > now);
+        let mut tried = fo.tried.clone();
+        tried.push(current);
+        let rel = rel.clone();
+        let next = self
+            .peer_targets(&rel)
+            .into_iter()
+            .find(|(_, r)| !tried.contains(&hex(&r.binding())));
+        let inner = hb(&fo.inner).ok();
+        let (Some((pd, route)), Some(inner)) = (next, inner) else {
+            // Every route was tried this round: start over from the most preferred healthy one.
+            if let Some(f) = self
+                .st
+                .app
+                .outbox
+                .get_mut(pos)
+                .and_then(|e| e.failover.as_mut())
+            {
+                f.tried.clear();
+            }
+            return;
+        };
+        let Ok(wrapper) = self.seal_to(&pd, &route, &inner) else {
+            return;
+        };
+        if let Some(e) = self.st.app.outbox.get_mut(pos) {
+            e.call = deposit_call(&route, wrapper);
+            if let Some(f) = e.failover.as_mut() {
+                f.tried = tried;
+            }
+        }
+    }
+
+    /// A peer's next RelaySet (and the delivery keys of its routes), inside the relationship. The signer must be a
+    /// device the newest ACS we hold lists as active and not quarantined; the record joins the lineage (kept even as a
+    /// side branch, pending when its parent is missing) and the effective set is recomputed independent of arrival
+    /// order. Key records are kept only for routes some retained record names.
+    fn on_relayset(&mut self, conv: &str, p: &V) -> bool {
+        let Some(mut rel) = self.st.app.relationships.get(conv).cloned() else {
+            return false;
+        };
+        let Ok(signed) = p.get(1).and_then(|x| x.b()).map(<[u8]>::to_vec) else {
+            return false;
+        };
+        if Self::accept_peer_set(&mut rel, &signed).is_none() {
+            return false;
+        }
+        let known: Vec<String> = rel
+            .peer_lineage
+            .nodes
+            .iter()
+            .chain(rel.peer_lineage.pending.iter())
+            .flat_map(|n| n.entries.iter().map(|e| hex(&e.binding())))
+            .collect();
+        for record in bytes_list(p.get(2)).unwrap_or_default() {
+            if let Some(km) = self.open_peer_key(&rel, &record)
+                && known.contains(&hex(&km.route_binding))
+            {
+                Self::put_peer_key(&mut rel, &km);
+            }
+        }
+        let before = rel.peer_relays.clone();
+        Self::refresh_peer_relays(&mut rel);
+        let adopted = (rel.peer_relays != before).then(|| {
+            hb(&rel.peer_acs_body)
+                .ok()
+                .and_then(|b| Acs::from_body(&b).ok())
+                .and_then(|acs| {
+                    rel.peer_lineage
+                        .effective(|s| Self::signer_ok(&acs, s))
+                        .map(|n| n.hash.clone())
+                })
+        });
+        self.st.app.relationships.insert(conv.to_string(), rel);
+        // Tell the peer which version we now use, so it can stop polling a route that version dropped.
+        if let Some(Some(hash)) = adopted
+            && let Ok(h) = h32(&hash)
+        {
+            let ack = cbor::encode(&V::M(vec![(0, V::U(KIND_RELAYSET_ACK)), (1, digest(&h))]));
+            self.send_control(
+                conv,
+                &ack,
+                Purpose::DepositRelaySet {
+                    conversation_id: conv.to_string(),
+                },
+            );
+        }
+        // Messages that waited for a usable route go out now.
+        let _ = self.release_queued(conv);
+        true
+    }
+
+    /// The peer names a RelaySet version of ours it now uses. Only a hash that is in our own lineage counts; routes that
+    /// version (or an earlier one) dropped are then acknowledged and close after a short grace period.
+    fn on_relayset_ack(&mut self, conv: &str, p: &V) -> bool {
+        let Some(rel) = self.st.app.relationships.get_mut(conv) else {
+            return false;
+        };
+        let Some(version) = p
+            .get(1)
+            .ok()
+            .filter(|d| d.get(0).and_then(|a| a.u()).ok() == Some(1))
+            .and_then(|d| d.get(1).and_then(|h| h.b32()).ok())
+            .and_then(|h| rel.my_lineage.get(&hex(&h)).map(|n| n.version))
+        else {
+            return false;
+        };
+        for b in rel.my_boxes.iter_mut() {
+            if b.retired_at_ms.is_some() && version >= b.retired_version {
+                b.acked = true;
+            }
+        }
+        true
     }
 
     // ------------------------------------------------------------------------------------------ network results
@@ -1339,6 +1910,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 Purpose::PublishKeys
                 | Purpose::Ack
                 | Purpose::DepositKeys { .. }
+                | Purpose::DepositRelaySet { .. }
                 | Purpose::GrantKeyFetch { .. }
                 | Purpose::DepositBind { .. } => None,
             }
@@ -1346,6 +1918,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let info = op_of(&entry.purpose);
         match k {
             K::Retry => {
+                self.note_no_progress(pos);
                 if let Some((op, ..)) = &info {
                     self.set_outcome(op, OutcomeClass::PendingNetwork);
                 }
@@ -1355,6 +1928,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 Ok(()) // stays in the outbox, identity unchanged
             }
             K::MaybeSent => {
+                self.note_no_progress(pos);
                 // A timeout after the bytes may have left is never a rejection (UI-12): reconcile by exact retry.
                 if let Some((op, ..)) = &info {
                     self.set_outcome(op, OutcomeClass::PendingReconciliation);
@@ -1432,6 +2006,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 }
             }
             Purpose::DepositKeys { .. }
+            | Purpose::DepositRelaySet { .. }
             | Purpose::GrantKeyFetch { .. }
             | Purpose::DepositBind { .. } => {}
             Purpose::DepositMessage {
@@ -1605,6 +2180,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let conv = self.rand_id("conv");
         let person = self.rand_id("person");
         let my_key = self.new_delivery_key(&my_route, DELIVERY_KEY_TTL_S);
+        let Some((_, genesis_node)) = self.genesis_set(&my_route) else {
+            return rej(IntegrityFailure);
+        };
         self.st.app.accepted_invites.insert(invite_id.to_string());
         self.st.app.relationships.insert(
             conv.clone(),
@@ -1624,8 +2202,24 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 peer_acs_body: String::new(),
                 peer_credentials: vec![],
                 my_mailbox: hex(&my_mailbox),
-                my_relays: RelaySet::single(my_route),
+                my_relays: RelaySet::single(my_route.clone()),
                 peer_relays: RelaySet::default(),
+                my_boxes: vec![MyBox {
+                    mailbox: hex(&my_mailbox),
+                    route: my_route,
+                    retired_at_ms: None,
+                    drain_until_ms: 0,
+                    retired_version: 0,
+                    acked: false,
+                    closed: false,
+                }],
+                my_lineage: Lineage {
+                    nodes: vec![genesis_node],
+                    pending: vec![],
+                },
+                peer_lineage: Lineage::default(),
+                peer_keys: vec![],
+                route_health: Default::default(),
                 blocked: false,
                 integrity_failures: 0,
                 created_at: self.now_ms,
@@ -1701,9 +2295,6 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Ok(peer_ik) = h32(&rel.peer_ik) else {
             return rej(IntegrityFailure);
         };
-        let Some(peer_route) = rel.peer_relays.primary().cloned() else {
-            return rej(IntegrityFailure);
-        };
         let view = PeerView {
             acs_body: &acs_body,
             trusted_acs_hash: trusted,
@@ -1720,7 +2311,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             });
         }
         // The Hello rides the requester's established key (installed from its verified Bind), not the bootstrap key.
-        let Ok(pd) = self.peer_key_for_send(&rel) else {
+        let Ok((pd, peer_route)) = self.peer_target(&rel) else {
             return rej(Unavailable);
         };
         let Some(canon_id) = rel.canon_id.as_deref().and_then(|c| h32(c).ok()) else {
@@ -1737,8 +2328,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Ok(wrapper) = self.seal_to(&pd, &peer_route, &env) else {
             return rej(IntegrityFailure);
         };
-        self.enqueue(
-            deposit_call(&peer_route, wrapper),
+        self.enqueue_sealed(
+            conv,
+            &peer_route,
+            wrapper,
+            &env,
             Purpose::DepositHello {
                 operation_id: op.clone(),
                 conversation_id: conv.to_string(),
@@ -1782,12 +2376,23 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             } else {
                 MailboxKind::Relay
             };
+            // The Home that holds a relay mailbox is the one its route names (the host may serve several of our Homes).
+            let relay_uri = self
+                .st
+                .app
+                .relationships
+                .values()
+                .flat_map(|r| r.my_boxes.iter())
+                .find(|b| b.mailbox == mailbox)
+                .map(|b| b.route.relay_uri.clone())
+                .filter(|u| u != delivery::CORE_ROUTE_URI);
             if let Ok(m) = hb(mailbox) {
                 self.enqueue(
                     NetCall::Ack {
                         mailbox: m,
                         seq: cursor,
                         kind,
+                        relay_uri,
                     },
                     Purpose::Ack,
                 );
@@ -1811,7 +2416,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .app
             .relationships
             .values()
-            .find(|r| r.my_mailbox == mailbox)
+            .find(|r| r.my_boxes.iter().any(|b| b.mailbox == mailbox && !b.closed))
             .map(|r| r.id.clone())
         {
             self.on_session_envelope(&conv, bytes);
@@ -1989,7 +2594,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some((key, is_bootstrap)) = found else {
             return self.count_failure(conv); // delivery_key_unknown_or_stale
         };
-        let (Ok(seed), Some(route)) = (h32(&key.seed), rel.my_relays.primary().cloned()) else {
+        // The key names its route by binding; that route is one of the mailboxes we poll and has not been closed.
+        let Some(route) = rel
+            .my_boxes
+            .iter()
+            .find(|b| !b.closed && hex(&b.route.binding()) == key.public.route_binding)
+            .map(|b| b.route.clone())
+        else {
+            return self.count_failure(conv); // delivery_key_unknown_or_stale
+        };
+        let Ok(seed) = h32(&key.seed) else {
             return;
         };
         let seed = zeroize::Zeroizing::new(seed);
@@ -2117,6 +2731,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             // Nothing but the Hello is accepted while the relationship is not yet bound.
             _ if !live => false,
             KIND_KEYS => self.on_keys(conv, &p),
+            KIND_RELAYSET => self.on_relayset(conv, &p),
+            KIND_RELAYSET_ACK => self.on_relayset_ack(conv, &p),
             events::OBJECT_TYPE => self.on_event(conv, &pt),
             _ => true, // unknown payload kinds from a newer client are ignored, not fatal
         };
@@ -2205,6 +2821,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let mut upd = rel.clone();
         self.bind_peer(&mut upd, &head, &vb, &creds);
         upd.peer_relays = RelaySet::single(route.clone());
+        // The inviter's signed genesis RelaySet, when it sent one: it must hold the route the Accept names.
+        if !Self::adopt_genesis(&mut upd, p.opt(7), &route) {
+            return false;
+        }
         let Some(km) = self.verify_peer_record(&upd, &record, &route) else {
             return false;
         };
@@ -2291,6 +2911,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         let mut upd = rel.clone();
         self.bind_peer(&mut upd, &head, &vb, &creds);
+        if !Self::adopt_genesis(&mut upd, p.opt(7), &route) {
+            return false;
+        }
         let Some(km) = self.verify_peer_record(&upd, &record, &route) else {
             return false;
         };
@@ -2359,6 +2982,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         // D4), and the Home that holds our key pool. The Home learns the capability's hash from `GrantKeyFetch`.
         let fetch_cap = arr32(self.rng);
         let key_service = rel.my_relays.primary()?.relay_uri.clone();
+        let genesis = {
+            let first = rel.my_lineage.nodes.iter().find(|n| n.version == 1)?;
+            let rec = Record::new(1, None, first.entries.clone())?;
+            self.sign_set(&rec)?
+        };
         let grant = NetCall::GrantKeyFetch {
             device_id: self.st.device.as_ref()?.device_id.to_vec(),
             capability: fetch_cap.to_vec(),
@@ -2386,6 +3014,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (4, V::A(creds.into_iter().map(V::B).collect())),
             (5, V::B(fetch_cap.to_vec())),
             (6, V::T(key_service)),
+            (7, V::B(genesis)),
         ]));
         let route = rel.peer_relays.primary().cloned()?;
         let wrapper = self.seal_to(to, &route, &payload).ok()?;
@@ -2406,6 +3035,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         record: &[u8],
         peer_route: &RelayEntry,
     ) -> Option<KeyMaterial> {
+        let km = self.open_peer_key(rel, record)?;
+        (km.route_binding == peer_route.binding()).then_some(km)
+    }
+
+    /// A peer's signed key record, checked except for which route it belongs to: signed by the pinned peer device,
+    /// active in the pinned ACS head, unexpired and not beyond the delivery-key lifetime.
+    fn open_peer_key(&self, rel: &Relationship, record: &[u8]) -> Option<KeyMaterial> {
         let cred = rel
             .peer_credentials
             .iter()
@@ -2417,31 +3053,52 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return None;
         }
         let km = delivery::open_key_record(record, &cred.device_id, &cred.signing_pk).ok()?;
-        (km.route_binding == peer_route.binding()
-            && km.expires_at > self.now_s()
-            && km.expires_at <= self.now_s() + DELIVERY_KEY_TTL_S)
+        (km.expires_at > self.now_s() && km.expires_at <= self.now_s() + DELIVERY_KEY_TTL_S)
             .then_some(km)
     }
 
-    /// Install an established peer key from an authenticated inner control message. A newer record replaces the
-    /// old one (delivery-key rotation); an older or identical one changes nothing.
+    /// Install an established peer key from an authenticated inner control message. A newer record for the same route
+    /// replaces the old one (delivery-key rotation); an older or identical one changes nothing.
     fn install_peer_key(&mut self, conv: &str, km: &KeyMaterial) {
         let Some(r) = self.st.app.relationships.get_mut(conv) else {
             return;
         };
-        let replace = match &r.peer_delivery {
-            Some(pd) if !pd.bootstrap => pd.public.expires_at < km.expires_at,
-            _ => true,
-        };
-        if replace {
-            r.peer_delivery = Some(PeerDelivery {
-                public: pub_key(km),
-                bootstrap: false,
-            });
-        }
+        Self::put_peer_key(r, km);
         // Messages queued while the relationship was establishing now go out, sealed.
         if self.release_queued(conv).is_err() {
             // A seal/encrypt failure here must not strand the key install: the messages stay queued.
+        }
+    }
+
+    /// Keep `km` as the established key for its route: in `peer_delivery` when that holds the same route (or only the
+    /// bootstrap key), otherwise among `peer_keys`.
+    fn put_peer_key(r: &mut Relationship, km: &KeyMaterial) {
+        let new = PeerDelivery {
+            public: pub_key(km),
+            bootstrap: false,
+        };
+        match &r.peer_delivery {
+            None => r.peer_delivery = Some(new),
+            Some(pd) if pd.bootstrap => r.peer_delivery = Some(new),
+            Some(pd) if pd.public.route_binding == new.public.route_binding => {
+                if pd.public.expires_at < km.expires_at {
+                    r.peer_delivery = Some(new);
+                }
+            }
+            Some(_) => {
+                let at = r
+                    .peer_keys
+                    .iter()
+                    .position(|k| k.public.route_binding == new.public.route_binding);
+                match at {
+                    Some(i) if r.peer_keys[i].public.expires_at < km.expires_at => {
+                        r.peer_keys[i] = new
+                    }
+                    Some(_) => {}
+                    None if r.peer_keys.len() < MAX_PEER_KEYS => r.peer_keys.push(new),
+                    None => {}
+                }
+            }
         }
     }
 
@@ -2472,15 +3129,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
             return false;
         };
-        let (Ok(record), Some(route)) = (
-            p.get(3).and_then(|x| x.b()).map(<[u8]>::to_vec),
-            rel.peer_relays.primary().cloned(),
-        ) else {
+        let Ok(record) = p.get(3).and_then(|x| x.b()).map(<[u8]>::to_vec) else {
             return false;
         };
-        let Some(km) = self.verify_peer_record(&rel, &record, &route) else {
+        let Some(km) = self.open_peer_key(&rel, &record) else {
             return false;
         };
+        // The key must belong to one of the routes in the peer's current set.
+        if !rel
+            .peer_relays
+            .entries
+            .iter()
+            .any(|e| e.binding() == km.route_binding)
+        {
+            return false;
+        }
         self.install_peer_key(conv, &km);
         true
     }

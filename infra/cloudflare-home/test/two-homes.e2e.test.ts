@@ -2,7 +2,8 @@
 // Two people, each on their own Home (two separate workerd instances), complete invite -> IntroGate -> MessageRequest -> chat
 // with two real Core wasm profiles and the HTTP adapter (deviations D4 and D10; plan: docs/reports/2026-11-03-first-contact-across-homes-plan.md).
 // Conformance cases: DS-01 (a signed descriptor via two providers), DS-05 (the discovery provider is unavailable), PC-A05
-// (one capability, one relay) and the V-020 vendor-block drill as far as one route per relationship allows.
+// (one capability, one relay) and the V-020 vendor-block drill (D22: a signed RelaySet with a route at each of a person's Homes,
+// sender failover, and migration with overlap).
 // Needs `make core-wasm` for dist/om_wasm.wasm (skipped, loudly, if absent).
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -15,7 +16,7 @@ import { createMemoryKv, type MemoryKv } from "@om/core-wasm/test-support";
 import {
   admissionHash, concat, decodeDescriptorGet, decodeHomeError, encode, encodeDepositRequest, encodeKeyFetch, fromBase64Url, fromHex, map, toBase64Url, toHex,
 } from "@om/home-wire";
-import { createHttpProvider, createMemorySecretStore, parseProviderUrl, type HttpProvider, type SecretStore } from "@om/provider-http";
+import { createHomesProvider, createHttpProvider, createMemorySecretStore, parseProviderUrl, type HttpProvider, type SecretStore } from "@om/provider-http";
 import { startHome, type Home } from "./harness";
 import { asBody, rand, sealed } from "./kit";
 
@@ -27,18 +28,20 @@ const HOME: HomeSummary = { tier: "T1", observers: ["host_sees_ciphertext"], mig
 const op = asOperationId;
 
 /** Alice's Home (a) and Bob's Home (b) ask for their owner's admission secret, as a freshly deployed personal Home does; c and d are open. */
-let a: Home; let b: Home; let c: Home; let d: Home;
+let a: Home; let b: Home; let c: Home; let d: Home; let e: Home; let f: Home;
 const adm = { a: crypto.getRandomValues(new Uint8Array(32)), b: crypto.getRandomValues(new Uint8Array(32)) };
 beforeAll(async () => {
   if (!present) return;
-  [a, b, c, d] = await Promise.all([
+  [a, b, c, d, e, f] = await Promise.all([
     startHome({ vars: { OM_ADMISSION: await admissionHash(adm.a) } }),
     startHome({ vars: { OM_ADMISSION: await admissionHash(adm.b) } }),
     startHome(),
     startHome(),
+    startHome(),
+    startHome(),
   ]);
 }, 180_000);
-afterAll(async () => { if (present) await Promise.all([a, b, c, d].map((h) => h.dispose())); });
+afterAll(async () => { if (present) await Promise.all([a, b, c, d, e, f].map((h) => h.dispose())); });
 
 interface Req { readonly by: string; readonly home: string; readonly method: string; readonly path: string; readonly admission: boolean }
 /** Every request any adapter made, and a switch that makes a Home unreachable (a vendor block, a dead machine). */
@@ -76,6 +79,16 @@ async function boot(kv: MemoryKv, secrets: SecretStore, provider: HttpProvider, 
 const newParty = async (world: World, who: string, home: Home, admission?: Uint8Array): Promise<Party> => {
   const secrets = createMemorySecretStore();
   return boot(createMemoryKv(), secrets, providerFor(world, who, home, secrets, admission), asProfileId(who));
+};
+
+/** A person with several Homes: the first is the active one, the rest are fallbacks; `draining` ones are only being left. */
+const homesParty = async (world: World, who: string, homes: readonly Home[], draining: readonly Home[] = [], kv: MemoryKv = createMemoryKv(), stores = new Map<string, SecretStore>()): Promise<Party> => {
+  const own = (h: Home): HttpProvider => {
+    const secrets = stores.get(h.url) ?? createMemorySecretStore(); // one install secret per Home, kept across restarts
+    stores.set(h.url, secrets);
+    return providerFor(world, who, h, secrets);
+  };
+  return boot(kv, createMemorySecretStore(), createHomesProvider(homes.map(own), draining.map(own)), asProfileId(who));
 };
 
 async function settle(...ps: Party[]): Promise<void> {
@@ -305,4 +318,70 @@ describe.skipIf(!present)("first contact and chat across two Homes", () => {
     expect(await outcome(alice, "m-alice")).toEqual({ kind: "Committed" });
     expect(await timeline(bob, bConv)).toEqual(["out:bob, while his Home is blocked", "in:alice, to a blocked Home"]); // exactly once
   }, 120_000);
+
+  it("V-020 drill, D22: each person holds a second Home; with Bob's active Home blocked, Alice's mail reaches him through his second route, once", async () => {
+    const world = new World(c, d, e, f);
+    const alice = await homesParty(world, "alice", [c, e]);
+    const bob = await homesParty(world, "bob", [d, f]);
+    await create([alice, "Alice"], [bob, "Bob"]);
+    const { aConv, bConv } = await introduce(alice, bob, await createInvite(alice, "a-invite"));
+    await say(alice, aConv, "m0", "before the block");
+    await settle(alice, bob);
+    await settle(alice, bob); // the RelaySets, their acknowledgements and the second routes' keys
+    expect(await timeline(bob, bConv)).toEqual(["in:before the block"]);
+
+    world.down.add(d.url); // Bob's active Home is blocked (a vendor-wide action, an outage)
+    await say(alice, aConv, "m1", "one");
+    await say(alice, aConv, "m2", "two");
+    await say(bob, bConv, "m-bob", "bob, while his Home is blocked");
+    await settle(alice, bob);
+    await settle(alice, bob);
+    expect(await outcome(alice, "m1")).toEqual({ kind: "Committed" });
+    expect(await outcome(alice, "m2")).toEqual({ kind: "Committed" });
+    // Bob reads his mail from his second Home, in order and once; his own message reached Alice's Home as before.
+    expect((await timeline(bob, bConv)).filter((t) => t.startsWith("in:"))).toEqual(["in:before the block", "in:one", "in:two"]);
+    expect(await timeline(bob, bConv)).toContain("out:bob, while his Home is blocked");
+    expect(await timeline(alice, aConv)).toEqual(["out:before the block", "out:one", "out:two", "in:bob, while his Home is blocked"]);
+    // A route attempt at the second Home used that Home's own capability: its deposits are not repeats of the blocked Home's.
+    expect(world.by("alice", f).filter((r) => r.path === "/v1/relay/deposit").length).toBeGreaterThanOrEqual(2);
+
+    world.down.delete(d.url);
+    await settle(alice, bob);
+    expect((await timeline(bob, bConv)).filter((t) => t.startsWith("in:"))).toEqual(["in:before the block", "in:one", "in:two"]); // nothing doubled when the Home returns
+    expect(await outcome(alice, "m1")).toEqual({ kind: "Committed" });
+  }, 240_000);
+
+  it("migration with overlap: Alice leaves her active Home; mail sent before the change still arrives, new mail follows the new RelaySet", async () => {
+    const world = new World(c, d, e, f);
+    const kv = createMemoryKv();
+    const stores = new Map<string, SecretStore>();
+    let alice = await homesParty(world, "alice", [c, e], [], kv, stores);
+    const bob = await homesParty(world, "bob", [d, f]);
+    await create([alice, "Alice"], [bob, "Bob"]);
+    const { aConv, bConv } = await introduce(alice, bob, await createInvite(alice, "a-invite"));
+    await settle(alice, bob);
+    await settle(alice, bob);
+
+    // Bob sends while still on version 1 of Alice's RelaySet: that mail is queued at Alice's old Home.
+    await say(bob, bConv, "old", "sent on the old set");
+    await bob.rt.flush(bob.id);
+    expect(await alice.rt.retireHome(alice.ctx, `${c.url}/`)).toBe(0);
+    // Alice now offers only her second Home and keeps the old one only to drain it.
+    await alice.rt.idle();
+    alice = await homesParty(world, "alice", [e], [c], kv, stores);
+    const depositsAtC = (): number => world.by("bob", c).filter((r) => r.path === "/v1/relay/deposit").length;
+    await settle(alice, bob);
+    await settle(alice, bob);
+    await say(bob, bConv, "new", "sent on the new set");
+    const before = depositsAtC();
+    await settle(alice, bob);
+    expect(await timeline(alice, aConv)).toEqual(["in:sent on the old set", "in:sent on the new set"]);
+    expect(depositsAtC()).toBe(before); // once Bob has the new set he no longer uses the old Home
+
+    // Emergency: the old Home is blocked outright; the new route carries on.
+    world.down.add(c.url);
+    await say(bob, bConv, "last", "with the old Home gone");
+    await settle(alice, bob);
+    expect(await timeline(alice, aConv)).toEqual(["in:sent on the old set", "in:sent on the new set", "in:with the old Home gone"]);
+  }, 240_000);
 });

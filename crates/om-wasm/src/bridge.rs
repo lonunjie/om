@@ -85,6 +85,16 @@ enum Command {
     SupplyRoutes {
         routes: Vec<RouteOffer>,
     },
+    /// The Home (relay_uri) of each route offer Core still holds.
+    OfferHomes,
+    /// The person stopped using one of their Homes: relationships with another route publish a RelaySet without it.
+    /// Answers how many relationships had no other route and so stay on that Home.
+    RetireHome {
+        ctx: ProfileExecutionContext,
+        relay_uri: String,
+        #[serde(default)]
+        emergency: bool,
+    },
 }
 
 pub struct HostClock<F: Fn() -> u64>(pub F);
@@ -195,7 +205,16 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 let (summary, commit) = self.core()?.import_history(&ctx, &file, &key)?;
                 Ok(json!({ "summary": enc(&summary), "commit": enc(&commit) }))
             }
+            Command::OfferHomes => Ok(json!(self.core()?.offer_homes())),
             Command::SupplyRoutes { routes } => Ok(json!(self.core()?.supply_routes(routes))),
+            Command::RetireHome {
+                ctx,
+                relay_uri,
+                emergency,
+            } => {
+                let (stuck, step) = self.core()?.retire_home(&ctx, &relay_uri, emergency)?;
+                Ok(json!({ "stuck": stuck, "commit": enc(&step.commit) }))
+            }
         }
     }
 }

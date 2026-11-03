@@ -8,9 +8,9 @@
 //! delivery keys to what the adapter said. The stand-in `om-core:mailbox/v0` of pass 2 survives only as a *legacy*
 //! entry that state migration writes for relationships created before routes existed.
 //!
-//! Built here: the per-relationship entry set with one active entry. Not built: the signed, versioned RelaySet
-//! lineage (`previous_set_hash`, branch convergence, signer checks), several entries per mailbox, weights and
-//! transports. A set with more than one entry is refused rather than half-used.
+//! The signed, versioned RelaySet lineage (several entries, branch convergence, signer checks) is [`crate::relayset`];
+//! this module holds the entry, the unsigned entry set a relationship currently uses, and the host's route offer.
+//! Not built: weights and transport profiles.
 
 use crate::crypto::cbor::V;
 use crate::crypto::delivery::{self, CORE_ROUTE_URI};
@@ -104,7 +104,8 @@ impl RelayEntry {
     }
 }
 
-/// The routes of one mailbox for one relationship (receiving side). One active entry in this milestone.
+/// The entries of one relationship's *effective* RelaySet (either side). The signed record behind it is in
+/// [`crate::relayset::Lineage`]; this is what sending and sealing read.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RelaySet {
@@ -116,12 +117,19 @@ impl RelaySet {
         RelaySet { entries: vec![e] }
     }
 
-    /// A set Core can act on: exactly one valid entry.
+    /// The most preferred valid entry (lowest `priority`, ties by capability so the choice is the same everywhere).
     pub fn primary(&self) -> Option<&RelayEntry> {
-        match self.entries.as_slice() {
-            [e] if e.is_valid() => Some(e),
-            _ => None,
-        }
+        self.entries
+            .iter()
+            .filter(|e| e.is_valid())
+            .min_by(|a, b| (a.priority, &a.capability).cmp(&(b.priority, &b.capability)))
+    }
+
+    /// Valid entries, most preferred first (the order a sender tries them in).
+    pub fn ordered(&self) -> Vec<&RelayEntry> {
+        let mut v: Vec<&RelayEntry> = self.entries.iter().filter(|e| e.is_valid()).collect();
+        v.sort_by(|a, b| (a.priority, &a.capability).cmp(&(b.priority, &b.capability)));
+        v
     }
 
     pub fn is_empty(&self) -> bool {
@@ -139,6 +147,9 @@ pub struct RouteOffer {
     pub relay_uri: String,
     #[serde(with = "hexs")]
     pub capability: Vec<u8>,
+    /// How much the person prefers this Home: 0 is the active Home, higher numbers are fallbacks (the entry's `priority`).
+    #[serde(default)]
+    pub priority: u8,
 }
 
 impl RouteOffer {

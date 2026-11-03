@@ -48,6 +48,12 @@ export interface WasmCoreClient extends CoreClient {
   inspectBackup(file: Uint8Array): BackupHeader;
   /** Restores a file as read-only history: all of it or none of it, durable before this resolves. */
   importBackup(ctx: ProfileExecutionContext, file: Uint8Array, key: Uint8Array): Promise<ImportSummary>;
+  /**
+   * The person stopped using one of their Homes (`relayUri` is its route name, `RouteOffer.relayUri`). Every relationship that has
+   * another route publishes a new RelaySet version without it and keeps collecting from the dropped route for an overlap
+   * (closed at once when `emergency`). Resolves with how many relationships had no other route and so stay on that Home.
+   */
+  retireHome(ctx: ProfileExecutionContext, relayUri: string, emergency?: boolean): Promise<number>;
 }
 
 interface StepJson { readonly commit: Commit | null; readonly handle: OperationHandle | null }
@@ -89,7 +95,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     try {
       const held = core.call({ cmd: "supply_routes", routes: [] }) as number;
       if (held >= OFFER_TARGET) return;
-      core.call({ cmd: "supply_routes", routes: await provider.allocateRoutes(OFFER_TARGET - held) });
+      core.call({ cmd: "supply_routes", routes: await provider.allocateRoutes(OFFER_TARGET - held, core.call({ cmd: "offer_homes" }) as string[]) });
     } catch { /* no routes: Core refuses what needs a mailbox as unavailable; nothing is invented */ }
   }
   const query = (q: CoreQuery): unknown => core.call({ cmd: "query", query: q });
@@ -181,7 +187,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     const targets = core.call({ cmd: "poll_targets", ctx }) as PollTarget[];
     for (const t of targets) {
       let items: readonly Inbound[];
-      try { items = await provider.poll(t.mailbox, t.after, t.kind); } catch { continue; }
+      try { items = await provider.poll(t.mailbox, t.after, t.kind, t.relayUri); } catch { continue; }
       if (items.length === 0) continue;
       any = true;
       await exclusive(async () => {
@@ -277,6 +283,13 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
         const r = core.call({ cmd: "backup_import", ctx: ctxOf(ctx), file: toHex(file), key: toHex(key) }) as { summary: ImportSummary; commit: Commit | null };
         await commit(r.commit, ctx);
         return r.summary;
+      });
+    },
+    retireHome(ctx, relayUri, emergency = false) {
+      return exclusive(async () => {
+        const r = core.call({ cmd: "retire_home", ctx: ctxOf(ctx), relayUri, emergency }) as { stuck: number; commit: Commit | null };
+        await commit(r.commit, ctx);
+        return r.stuck;
       });
     },
     flush,

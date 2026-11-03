@@ -57,7 +57,7 @@ export type Reachability = "unknown" | "reachable" | "unreachable";
 
 export interface HttpProvider extends Provider {
   /** Routes for new mailboxes at this Home (Provider.allocateRoutes, always present here). */
-  allocateRoutes(count: number): Promise<readonly RouteOffer[]>;
+  allocateRoutes(count: number, held?: readonly string[]): Promise<readonly RouteOffer[]>;
   readonly baseUrl: string;
   /** True once this Home refused to create a resource because it asks for the owner's admission secret and this client's was missing or wrong. */
   admissionRefused(): boolean;

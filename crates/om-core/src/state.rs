@@ -8,6 +8,7 @@ use crate::api::{DeliveryState, OperationId, OutcomeClass};
 use crate::crypto::cbor::{self, V};
 use crate::crypto::store::Device;
 use crate::host::{CoreError, NetCall, Record, Write};
+use crate::relayset::Lineage;
 use crate::route::{RelayEntry, RelaySet};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -15,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 /// A profile persists as ONE record, so a single key/value put makes a whole transition atomic: the ratchet,
 /// ledger and conversation state can never be stored out of step (the host store has no multi-key transaction).
 pub const REC_STATE: &str = "state";
-pub const APP_VERSION: u32 = 4;
+pub const APP_VERSION: u32 = 5;
 
 pub type Hex = String;
 
@@ -224,6 +225,31 @@ pub struct Msg {
     pub queued_event: Option<Hex>,
 }
 
+/// A mailbox this install polls for one relationship, and the route peers deposit to for it (one per own RelayEntry).
+/// A route the RelaySet dropped stays here, still polled, until its overlap ends (add/overlap/ack/drain/revoke).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MyBox {
+    pub mailbox: Hex,
+    pub route: RelayEntry,
+    /// When a published version dropped this route; `None` while it is part of the set we publish.
+    #[serde(default)]
+    pub retired_at_ms: Option<u64>,
+    /// Polling stops at this wall time whatever else happens (the overlap bound).
+    #[serde(default)]
+    pub drain_until_ms: u64,
+    /// The RelaySet version that dropped this route; the peer acknowledges by naming a version at or above it.
+    #[serde(default)]
+    pub retired_version: u64,
+    /// The peer has acknowledged a RelaySet version that no longer names this route (a signed message in the
+    /// relationship, so only the peer can say it).
+    #[serde(default)]
+    pub acked: bool,
+    /// Overlap over: no longer polled and nothing arriving for its keys is accepted.
+    #[serde(default)]
+    pub closed: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Relationship {
@@ -236,12 +262,29 @@ pub struct Relationship {
     pub peer_ik: Hex,
     pub peer_acs_body: Hex,
     pub peer_credentials: Vec<Hex>,
-    /// The mailbox id this install polls (the host derives its receive capabilities from it).
+    /// The mailbox id this install first polled for this relationship (kept for reading older records; every mailbox we
+    /// poll is in `my_boxes`).
     pub my_mailbox: Hex,
-    /// Where peers deposit for `my_mailbox`; every delivery key we receive on is bound to its single entry.
+    /// The entries of our own effective RelaySet: where peers deposit. Every delivery key we receive on is bound to one.
     pub my_relays: RelaySet,
-    /// Where the peer receives; empty until the peer's route is known. Sealing and depositing use its single entry.
+    /// Where the peer receives: the entries of its effective RelaySet; empty until its route is known.
     pub peer_relays: RelaySet,
+    /// Every mailbox we poll for this relationship, with its route (the published ones and those draining).
+    #[serde(default)]
+    pub my_boxes: Vec<MyBox>,
+    /// The signed lineage of the RelaySet we publish to this peer.
+    #[serde(default)]
+    pub my_lineage: Lineage,
+    /// The signed lineage of the RelaySet this peer published to us. Empty for a peer that sent none (its one route
+    /// from the Accept or the request stands as an implicit set until it publishes a signed one).
+    #[serde(default)]
+    pub peer_lineage: Lineage,
+    /// Established delivery keys of the peer for routes other than the one in `peer_delivery`.
+    #[serde(default)]
+    pub peer_keys: Vec<PeerDelivery>,
+    /// Route binding (hex) -> wall time until which a sender treats the route as unhealthy after a failover.
+    #[serde(default)]
+    pub route_health: BTreeMap<Hex, u64>,
     pub blocked: bool,
     pub integrity_failures: u32,
     pub created_at: u64,
@@ -370,6 +413,10 @@ pub enum Purpose {
     DepositKeys {
         conversation_id: String,
     },
+    /// Our next signed RelaySet version with the delivery keys of its routes, sent inside the relationship.
+    DepositRelaySet {
+        conversation_id: String,
+    },
     DepositMessage {
         operation_id: OperationId,
         conversation_id: String,
@@ -383,6 +430,22 @@ pub struct OutboxEntry {
     pub id: u64,
     pub call: NetCall,
     pub purpose: Purpose,
+    /// Consecutive attempts that made no progress (the Home was unreachable or its answer unknown).
+    #[serde(default)]
+    pub fails: u32,
+    /// Present on a deposit of a session-sealed inner envelope: what is needed to re-seal the very same inner envelope
+    /// for another of the peer's routes when this one makes no progress (sender failover; same EventID, fresh wrapper).
+    #[serde(default)]
+    pub failover: Option<Failover>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Failover {
+    pub conversation_id: String,
+    pub inner: Hex,
+    /// Route bindings already tried in this round.
+    pub tried: Vec<Hex>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -513,8 +576,13 @@ impl ProfileState {
                 Some(2) => {
                     migrate_v2(&mut app);
                     migrate_v3(&mut app);
+                    migrate_v4(&mut app);
                 }
-                Some(3) => migrate_v3(&mut app),
+                Some(3) => {
+                    migrate_v3(&mut app);
+                    migrate_v4(&mut app);
+                }
+                Some(4) => migrate_v4(&mut app),
                 _ => return Err(CoreError::CorruptState("unsupported app state version")),
             }
             st.app =
@@ -615,6 +683,28 @@ fn migrate_v3(app: &mut serde_json::Value) {
             if let Some(m) = i.as_object_mut() {
                 m.remove("peerMailbox");
             }
+        }
+    }
+}
+
+/// Version 4 -> 5 (D22). A relationship polled exactly one mailbox, `myMailbox`, whose route was the single entry of
+/// `myRelays`; both now live in `myBoxes`. The signed lineages start empty: until the peer publishes a signed RelaySet,
+/// its one route stands as an implicit set, and ours is signed the first time we change it.
+fn migrate_v4(app: &mut serde_json::Value) {
+    use serde_json::{Value, json};
+    let Some(o) = app.as_object_mut() else { return };
+    o.insert("version".into(), json!(APP_VERSION));
+    if let Some(Value::Object(rels)) = o.get_mut("relationships") {
+        for r in rels.values_mut() {
+            let route = r["myRelays"]["entries"]
+                .as_array()
+                .and_then(|a| a.first())
+                .cloned();
+            let mb = r.get("myMailbox").cloned().unwrap_or(Value::Null);
+            r["myBoxes"] = match route {
+                Some(route) => json!([{"mailbox": mb, "route": route}]),
+                None => json!([]),
+            };
         }
     }
 }
