@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // OM relay release verifier. Ships in every relay template as verify.mjs (this file, copied by build.mjs), next to verify-chain.mjs (a byte copy of apps/web/build/verify-release.mjs:
 // the same pinned offline root, delegation and Ed25519/ML-DSA-65 checks the web release uses). Dependency-free; Node 24 (ML-DSA in node:crypto).
 // PROVISIONING_AND_BOOTSTRAP.md section 10 / R-261: nothing is deployed unless the Worker in relay/ is a signed release pinned by digest.

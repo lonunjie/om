@@ -7560,91 +7560,91 @@
       "path": "infra/cloudflare-home/release/build.mjs",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/release/template/.dev.vars.example",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/release/template/.gitignore",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/release/template/.node-version",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/release/template/LICENSE",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/release/template/README.md",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/release/template/SECURITY.md",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/release/template/package.json",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/release/template/pnpm-lock.yaml",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/release/template/wrangler.json",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/release/verify-chain.mjs",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/release/verify-relay.d.mts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/release/verify-relay.mjs",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
@@ -7819,7 +7819,7 @@
       "path": "infra/cloudflare-home/test/template.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {

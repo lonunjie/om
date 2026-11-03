@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Builds the signed OM relay release as a ready-to-publish deploy template (the content of the per-user template repository).
 // Design: PROVISIONING_AND_BOOTSTRAP.md section 10 / R-261 (a template deploys a signed, digest-pinned release behind a verifier, never a branch head).
 // Usage: node build.mjs (--sign-from-vault | --sign-with-key-file <key>) [--out <dir>] [--delegation <file>] [--key-id <id>] [--builder-id <uri>] [--allow-dirty]

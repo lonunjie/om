@@ -17,6 +17,13 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "OM contributors"
 SPDX-License-Identifier = "MPL-2.0"
 
+# Reference provisioning and network-service code is AGPL-3.0-or-later (LICENSING_AND_CONTRIBUTION_POLICY.md section 1): the relay deploy template and its builder.
+[[annotations]]
+path = ["infra/cloudflare-home/release/**", "infra/cloudflare-home/test/template.test.ts"]
+precedence = "override"
+SPDX-FileCopyrightText = "OM contributors"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
 [[annotations]]
 path = ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "package.json", "pnpm-workspace.yaml", "pnpm-lock.yaml", "tsconfig.json", "tsconfig.base.json", "eslint.config.js", "eslint.policy.js", "eslint.policy.d.ts", "vitest.config.ts"]
 precedence = "aggregate"

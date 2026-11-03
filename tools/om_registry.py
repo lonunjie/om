@@ -39,6 +39,8 @@ def license_for(path: str) -> str:
         return "upstream-license-text"
     if path.startswith(("spec/", "machine/", "tools/", ".github/", "deploy/ledger/")) or path in {"Makefile", "REUSE.toml", ".gitignore"}:
         return AP
+    if path.startswith("infra/cloudflare-home/release/") or path == "infra/cloudflare-home/test/template.test.ts":
+        return "AGPL-3.0-or-later"  # reference provisioning code (LICENSING_AND_CONTRIBUTION_POLICY.md section 1); REUSE.toml mirrors this
     if path.startswith(("packages/", "apps/", "crates/", "infra/")):
         return "MPL-2.0"  # shared client libraries and the reference web client (LICENSING_AND_CONTRIBUTION_POLICY.md)
     if path in WEB_PLUMBING:

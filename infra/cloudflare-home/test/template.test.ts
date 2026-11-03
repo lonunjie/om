@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // The per-user deploy template (ADR-0186 decision 5; PROVISIONING_AND_BOOTSTRAP section 10, R-261): a signed relay release, its verifier, and the
 // released Worker running in workerd. Signed with THROWAWAY keys and roots generated per run; no Cloudflare account, token or network is involved.
 import { spawnSync } from "node:child_process";

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import type { PqRootPin, RootKeyDescriptor } from "../../../apps/web/build/verify-release.mjs";
 export declare const MANIFEST_FORMAT: string;
 export declare const MANIFEST_FILE: string;

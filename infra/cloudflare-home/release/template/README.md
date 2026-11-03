@@ -63,3 +63,13 @@ that checks independent transparency monitors is specified (CLIENTHOST_UPDATE_LI
   a *rebuild* of an old clone fails closed until you take a newer release; a relay that is already running is not affected.
 - Cloudflare's free plan limits apply; hitting a limit makes operations fail, never bills you. The wake channel can be turned off with
   `OM_WAKE=0`, but that changes the signed configuration, so it needs a release that ships it.
+
+## Licence and source
+
+This template (the verifier, the scripts and the configuration) is **AGPL-3.0-or-later** (see `LICENSE`): OM's reference relay and provisioning
+software stays open for anyone who runs it as a service. `relay/worker.js` is built from the OM source at the commit named in
+`relay-manifest.json` (`createdFrom.gitCommit`) in [lonunjie/om](https://github.com/lonunjie/om); that is its corresponding source, and
+`node infra/cloudflare-home/release/build.mjs --compare <this folder>` rebuilds it from there. It includes files that are covered by MPL-2.0
+([`infra/cloudflare-home`](https://github.com/lonunjie/om/tree/main/infra/cloudflare-home), [`packages/om-home-wire`](https://github.com/lonunjie/om/tree/main/packages/om-home-wire));
+those files stay under [MPL-2.0](https://www.mozilla.org/en-US/MPL/2.0/) and are combined into this larger work as MPL-2.0 section 3.3 allows.
+The file "verify-chain.mjs" is MPL-2.0 too. The OM protocol itself is independently implementable under Apache-2.0 artifacts: you do not need this code to interoperate.
