@@ -1,3 +1,8 @@
+# 2026-11-03 PHT — per-user relay deploy template (ADR-0186 decision 5)
+
+- **Template, verifier, signed relay release** in `infra/cloudflare-home/release/`: the audited Worker + SQLite Durable Objects as one `no_bundle` file, `OM_ADMISSION` as the template's only prompt, a verifier that runs before every build and deploy (same pinned root, delegation and ML-DSA-65 co-signature as the web release; manifest `om.relay-release/1`, `release.lock` pin and floor, provenance, strict configuration check), a builder (`build.mjs`, `--compare` rebuild). Tested in workerd with throwaway keys; the whole Home suite also passes on the released bytes. Nothing deployed.
+- Deviations D14 to D18 (relay status report); report `docs/reports/2026-11-03-relay-deploy-template.md`. The Deploy-to-Cloudflare button and `release/` leave the site repository (prepared on a branch, not pushed to `main`).
+
 # 2026-11-03 PHT — ADR-0185: Home wake channel (`om.relay.wake.v1`); ADR-0186: every person runs their own relay
 
 - **ADR-0186 (operator decision, 2026-11-03):** every person sets up their own relay in onboarding (Cloudflare first, named; R2 opt-in later); no built-in default relay; the deploy button leaves the website repository for onboarding.

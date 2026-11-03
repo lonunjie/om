@@ -1,0 +1,2 @@
+# The one value this deployment asks for. The comment on the right is shown by Cloudflare while you deploy.
+OM_ADMISSION= # the 64-character setup value from OM (public fingerprint of your setup key)

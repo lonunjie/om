@@ -1,0 +1,24 @@
+{
+  "name": "om-relay",
+  "main": "relay/worker.js",
+  "no_bundle": true,
+  "compatibility_date": "2026-06-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "vars": {
+    "OM_PROVIDER_ID": "om-reference-home",
+    "OM_HARD_FREE_TIER": "1"
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "QUEUES", "class_name": "MailboxQueue" },
+      { "name": "KEYS", "class_name": "KeyPool" },
+      { "name": "DESCRIPTORS", "class_name": "DescriptorStore" },
+      { "name": "INTRO", "class_name": "IntroGate" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["MailboxQueue", "KeyPool", "DescriptorStore", "IntroGate"] }
+  ]
+}

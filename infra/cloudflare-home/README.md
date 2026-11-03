@@ -37,5 +37,20 @@ node infra/cloudflare-home/test/serve.ts 8788     # the Home on http://127.0.0.1
 `wrangler` 4.100.0 and `miniflare` 4.20260611.0 are pinned devDependencies (the 4.100 line is the last that uses a stable
 miniflare). `pnpm approve-builds` is set to deny the esbuild, sharp and workerd install scripts; nothing needs them.
 
+## Per-user deploy template (signed relay release)
+
+Every person deploys their own copy (ADR-0186). The template repository content is built, not hand-edited: `release/` holds the template skeleton
+(`release/template/`), the verifier (`release/verify-relay.mjs`, shipped as `verify.mjs`, which uses `release/verify-chain.mjs`, a link to the web release verifier) and the builder.
+
+```sh
+cd /path/to/om
+node infra/cloudflare-home/release/build.mjs --sign-from-vault        # needs a clean tree; writes dist/relay-template/om-relay-<version>/
+node infra/cloudflare-home/release/verify-relay.mjs dist/relay-template/om-relay-<version>
+node infra/cloudflare-home/release/build.mjs --compare dist/relay-template/om-relay-<version>    # rebuild from this checkout, compare bytes
+OM_HOME_BUNDLE=$PWD/dist/relay-template/om-relay-<version>/relay/worker.js pnpm exec vitest run infra/cloudflare-home   # the whole suite on the released bytes
+```
+
+Design and gaps: [`2026-11-03-relay-deploy-template.md`](../../docs/reports/2026-11-03-relay-deploy-template.md); deviations D14 to D18 in the status report below.
+
 Deviations from the spec and the deploy plan: [`2026-10-28-relay-status.md`](../../docs/reports/2026-10-28-relay-status.md).
 Threat model: [`2026-10-28-relay-threat-model.md`](../../docs/reports/2026-10-28-relay-threat-model.md).

@@ -1,0 +1,22 @@
+{
+  "name": "om-relay",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A personal OM delivery service (relay) on your own Cloudflare account: a signed, verified release of the OM reference Home (Worker + SQLite Durable Objects). Nothing else is deployed.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "verify": "node verify.mjs",
+    "build": "node verify.mjs",
+    "deploy": "node verify.mjs && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.100.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "OM_ADMISSION": {
+        "description": "Paste the setup value that OM showed you: 64 letters and digits (0-9 and a-f). It is the public fingerprint of your private setup key, so it is safe to paste here. Only the holder of that key can create things on your delivery service. Do not leave it empty or change it."
+      }
+    }
+  }
+}

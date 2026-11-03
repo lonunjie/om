@@ -1,0 +1,1 @@
+../../../apps/web/build/verify-release.mjs

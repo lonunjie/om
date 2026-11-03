@@ -35,6 +35,12 @@ Output (git-ignored) in `apps/web/release/`: `om-web-<version>[-dev]/` and `.zip
   How a third party rebuilds and compares: [`REBUILD-AND-COMPARE.md`](REBUILD-AND-COMPARE.md).
 - Never edit files in `site/` (including `index.html`): the service worker rejects any byte that differs from the manifest.
 
+## Relay (the delivery service) template
+
+The per-user relay is a separate signed release, deployed from a small template with a verifier as its first step: see
+[`infra/cloudflare-home/README.md`](../infra/cloudflare-home/README.md) and [`2026-11-03-relay-deploy-template.md`](../docs/reports/2026-11-03-relay-deploy-template.md).
+It signs under the same root, delegation and release key as the web release (ceremony: [`KEY-CEREMONY.md`](KEY-CEREMONY.md)).
+
 ## Targets
 
 | Host | Guide | Headers (CSP etc.) |
