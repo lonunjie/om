@@ -3,7 +3,7 @@
 - **Date:** 2026-11-03
 - **Scope:** `provider_reference`, `reference_client_ui` (one optional `core_kernel` hook). Decision: [`ADR-0185`](../../decisions/ADR-0185-home-wake-channel.md). Specification and privacy review: [`HOME_WAKE_CHANNEL.md`](../architecture/providers/HOME_WAKE_CHANNEL.md).
 - **Answers the operator's questions:** why did delivery drift from "each person is their own relay, no centralized actor", and can the exchange with the relay be reduced to what is needed.
-- **State:** the wake channel is built, tested and merged. **The Worker is not deployed**; section 5 says what to approve.
+- **State:** the wake channel is built, tested and merged. **Deployed to the default Home on 2026-11-03** (section 5 records it).
 - **Sources read:** ADR-0102, ADR-0112, ADR-0130, the Home tiers document, the relay status and threat-model reports, the 2026-11-03 capacity report, `infra/cloudflare-home`, `packages/om-provider-http`.
 
 ## 1. Where the shipped default departs from the design
@@ -32,10 +32,14 @@ The order differs from the tiers document's, because later steps ride on earlier
 
 ## 3. Recommendation: what to ship first
 
-1. **Now (this change):** the wake channel. It is safe, self-contained, optional, and removes most of the quota spend (section 4). Approve the Worker deploy (section 5); the client is compatible either way.
-2. **Same day, operator decisions, no code:** move the Worker to the Workers Paid plan and add WAF rate-limit rules for forged-capability floods (both already listed as open). They remove the hard stop for everyone while the structural work happens.
-3. **Next, small engineering:** keep a socket for a hidden tab (no pings, close events and the safety drain only), since hidden tabs now dominate the remaining spend; and find why idle polling ran at about 5 requests a second (section 4).
-4. **Then the foundation:** cross-Home delivery with multi-route RelaySet (item 1), with the second Home (item 3) started in parallel as the test of it. Move-to-own-Home and T0 follow. Record the single-default-Home situation in an ADR with a sunset condition, so it reads as a decision with an exit, not as drift.
+1. **Done (this change):** the wake channel, deployed to the default Home on 2026-11-03 on the operator's approval. It removes most of the quota spend (section 4) without spending anything.
+2. **Not an option, by design:** a Workers Paid plan, WAF rules or any other money or account settings on SeedLife's Cloudflare account. The constitution is that each person owns their own Worker account and nobody relies on SeedLife; the default Home's free-plan hard stop is the beta's honest limit (ADR-0183), and the cure is more people on their own Homes, not a bigger SeedLife bill. An earlier version of this report, and the capacity report, proposed the Paid plan; that was wrong and is withdrawn.
+3. **Next, in this order** (each is a step toward "every person has their own Home and the default is one choice among several"):
+   1. **Cross-Home delivery with a multi-route RelaySet** (section 2 item 1). Until it exists, two people on different Homes cannot talk, so an own Home cuts you off from everyone on the default; nothing below is usable without it.
+   2. **A way to have your own Home without a terminal** (new, in parallel): the **Deploy to Cloudflare** template described in [`CLOUDFLARE_REFERENCE_DEPLOYMENT.md`](../architecture/providers/CLOUDFLARE_REFERENCE_DEPLOYMENT.md) and [`PROVISIONING_AND_BOOTSTRAP.md`](../architecture/providers/PROVISIONING_AND_BOOTSTRAP.md) section 10 (a verifier step that deploys only a signed, digest-pinned release checked against the distribution's TUF metadata, then stays as the update controller; free plan, `OM_HARD_FREE_TIER=1`, no pasted API token). Nothing of it exists yet (searched `infra/` and `packages/`); today an own Home needs `wrangler deploy` and a token.
+   3. **Move to my own Home** (section 2 item 2), then the **second vendor-neutral Home** (item 3, can start any time) and **T0 sponsorship** (item 4).
+4. **Small engineering alongside:** keep a socket for a hidden tab (no pings, close events and the safety drain only), since hidden tabs now dominate the remaining spend; find why idle polling ran at about 5 requests a second (section 4).
+5. **Record the single-default-Home situation in an ADR with a sunset condition** (the default stops being the only zero-signup path once items 1 to 3 ship), so it reads as a decision with an exit, not as drift.
 
 ## 4. Event-driven delivery: what was built and what it measured
 
@@ -59,15 +63,15 @@ Two things the numbers show that the earlier estimate missed:
 
 **Web Push for a closed installed app: evaluated, not shipped** (details in [`HOME_WAKE_CHANNEL.md`](../architecture/providers/HOME_WAKE_CHANNEL.md) section 5): it adds a third party that sees every wake, a stable per-install identifier at the Home, VAPID keys held by whoever runs the Home (a SeedLife identity on every subscription today), a mandatory visible notification on iOS, and a locked vault that cannot show anything but a generic notice. It needs its own ADR, per-profile subscriptions, a declared linkage point and a privacy review (R-429, PR-006). The beta makes no background-delivery claim.
 
-## 5. What the operator must approve to deploy the Worker
+## 5. Deployment (done 2026-11-03, operator approved)
 
-Nothing was deployed and no Cloudflare setting was touched. The change is in `infra/cloudflare-home` (`src/queue.ts`, `src/index.ts`, `src/capabilities.ts`) and `packages/om-home-wire`.
+`om-home-lonunjie` was deployed with a `cf-mint` token (Workers Scripts Write, 900 s, never printed or stored): version `0ce0f911-0f48-497e-9410-7dac23f354cb`. No binding, variable, migration or stored-data change; `wrangler.jsonc` is unchanged; no other Cloudflare setting was touched. (The first attempt failed before uploading anything: the account id in the mint result carries a `com.cloudflare.api.account.` prefix that wrangler does not accept.)
 
-1. **Approve `wrangler deploy` of `om-home-lonunjie`** with a short-lived `cf-mint` token (Workers Scripts Write, 900 s), exactly as in the 2026-10-28 deploy plan, step 4. No new binding, no variable, no Durable Object migration (the same four classes; `MailboxQueue` only gains handlers), no stored data change. `wrangler.jsonc` is unchanged.
-2. **Rollback** is `wrangler rollback` to the previous version, or setting the variable `OM_WAKE` to `0` and redeploying; clients then poll as before.
-3. **After deploying, verify:** `curl -s https://om-home-lonunjie.majal.workers.dev/.well-known/om-provider-capabilities` lists `om.relay.wake.v1`; then `OM_LIVE_IDLE_SECONDS=120 pnpm --filter @om/web e2e:live` should report sockets above 0 and `idleRequests` near 0. Check the Durable Object request and duration graphs in the dashboard over a day.
-4. **The web client** (a new om-web release) is a separate decision and follows the release process; it is compatible with the old and the new Worker (checked against the live Home). Shipping the client first changes nothing; shipping the Worker first changes nothing until clients update.
-5. Not part of this approval and still open: the Paid plan, WAF rules, the custom domain.
+- **Capabilities** now list `om.relay.wake.v1` and `limits.wake_sockets_per_queue: 8`.
+- **Live run** (`OM_LIVE_IDLE_SECONDS=120 pnpm --filter @om/web e2e:live`, Chromium, production build, the live Home): passed. 44 Home requests for the whole run including the 120 s idle phase, of which **1 during the idle phase**; 5 sockets (one per mailbox), 9 frames sent, 14 received, no URL with a query or fragment, 0 failed requests, cleanup left nothing. Message to visible in the other identity: 0.9 s, 0.9 s, 2.4 s. The baseline before (no idle phase) was 62 requests in 22 s.
+- **Rollback**: `wrangler rollback`, or set `OM_WAKE` to `0` and redeploy; clients then poll as before.
+- **Still to do by the operator**: nothing for the Worker. The web client release (an om-web version that includes the hub) follows the release process and was not cut here; it works with old and new Worker.
+- Not pursued: a Paid plan or WAF rules (section 3 item 2). The custom domain `home.om.lonunjie.org` stays optional and undone.
 
 ## 6. Checks
 
@@ -77,6 +81,6 @@ Nothing was deployed and no Cloudflare setting was touched. The change is in `in
 
 ## 7. Not done, deliberately
 
-- The default Home was not changed and the Worker was not deployed.
+- The default Home was not changed.
 - No Web Push, no wake for hidden tabs, no change to polling pace, no Core protocol change.
 - The departures in section 1 are not closed; section 2 is the plan, and each item is a decision for the operator before it is built.

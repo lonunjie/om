@@ -1,6 +1,6 @@
 # 2026-11-03 PHT — ADR-0185: Home wake channel (`om.relay.wake.v1`)
 
-- **Home (staged, not deployed):** the reference Home's queue object accepts a hibernating WebSocket per connected client and sends it the new sequence number when an item is stored. Optional feature, advertised in capabilities, `OM_WAKE=0` turns it off; authority is the receive capability in the first frame, nothing identifying in the URL; PC-W01..W06.
+- **Home (deployed 2026-11-03 to `om-home-lonunjie`):** the reference Home's queue object accepts a hibernating WebSocket per connected client and sends it the new sequence number when an item is stored. Optional feature, advertised in capabilities, `OM_WAKE=0` turns it off; authority is the receive capability in the first frame, nothing identifying in the URL; PC-W01..W06.
 - **Client:** the HTTP adapter opens it only while the app is on screen and only if advertised, answers polls locally while a live socket vouches the queue is quiet, and falls back to polling on any failure (safety drain every 5 minutes). `Provider.onWake` lets the Core runtime collect at once.
 - **Measured** (local Home, same Worker bundle, 3 messages and 120 s idle): 676 requests without it, 38 with it, 0 at idle; send-to-visible 0.4-0.9 s down to 0.1 s. Web Push evaluated and not built.
 - D-205, R-426..R-429, T-172..T-173. Report: `docs/reports/2026-11-03-delivery-realignment-and-wake-channel.md` (also: where the shipped default departs from the tiers design, and the order to close each gap).

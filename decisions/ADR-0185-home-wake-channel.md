@@ -1,6 +1,6 @@
 # ADR-0185 — Home wake channel (`om.relay.wake.v1`): event-driven delivery instead of a poll timer
 
-- **Status:** Accepted by operator delegation 2026-11-03 (operator: reduce the exchange with the delivery service to what is needed instead of constant polling, to save quota; stage the Worker change, do not deploy it)
+- **Status:** Accepted by operator delegation 2026-11-03 (operator: reduce the exchange with the delivery service to what is needed instead of constant polling, to save quota); deployed to the default Home 2026-11-03 on the operator's approval
 - **Date:** 2026-11-03
 - **Amends (adds one optional Home API feature; no change to any required operation or object):** [`home-api.md`](../spec/protocol/home-api.md) section 3 (optional capabilities), [`NOTIFICATIONS_AND_PUSH.md`](../docs/architecture/client/NOTIFICATIONS_AND_PUSH.md) section 5 (the "persistent path": an authenticated encrypted relay/Home wake/fetch connection)
 - **Does not amend:** any wire object, crypto, key or route rule; ADR-0183 (PR-006 push/VAPID stays waived; no background-delivery claim is made); which Home is the default.
@@ -17,7 +17,7 @@ Every open client asked its Home for new mail on a timer, one request per mailbo
 3. **The client opens it only while the app is on screen**, only if the Home advertises it, one socket per mailbox (16 at most), and falls back to ordinary polling on any failure. While a socket vouches that nothing newer exists, polls make no request; a five-minute safety drain bounds a lost wake. Hiding the app closes the sockets and the 60 s hidden poll applies.
 4. **Core stays unchanged apart from an optional `Provider.onWake` hook** that lets the runtime collect at once; a provider without it behaves as before.
 5. **Web Push is evaluated and not built** ([`HOME_WAKE_CHANNEL.md`](../docs/architecture/providers/HOME_WAKE_CHANNEL.md) section 5). It would add a third party and a stable per-install identifier and needs its own ADR, a per-profile subscription and a V-015 descriptor.
-6. **Staged, not deployed.** The Worker change is in the repository with tests; deploying `om-home-lonunjie` is a separate operator approval. The client is safe to ship before or after the Worker: against a Home without the feature it polls as before (checked against the live Home).
+6. **Deployed 2026-11-03** to `om-home-lonunjie` (operator approved; measured in the report). The client is safe to ship before or after the Worker: against a Home without the feature it polls as before (checked against the live Home).
 7. **Kill switch.** `OM_WAKE=0` on a deployment turns the feature off (not advertised, `404`).
 
 ## Where did authority go?

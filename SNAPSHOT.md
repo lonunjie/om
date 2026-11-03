@@ -13,7 +13,7 @@ Generated: **2026-10-11 PHT (UTC+08:00)**, after the operator accepted the `grou
 
 ## 2026-11-03 PHT — ADR-0185: Home wake channel
 
-- ADR-0185 adds the optional Home API feature `om.relay.wake.v1` (hibernating per-queue WebSocket, sequence number only, receive capability in the first frame, polling as the fallback). Reference Home and adapter built and tested; the Worker is **not deployed** (operator approval listed in the report). Web Push evaluated and not built. D-205, R-426..R-429, T-172..T-173. The report also records, for the first time, where the shipped single-default-Home departs from the tiers design.
+- ADR-0185 adds the optional Home API feature `om.relay.wake.v1` (hibernating per-queue WebSocket, sequence number only, receive capability in the first frame, polling as the fallback). Reference Home and adapter built and tested; the Worker is **deployed** to the default Home (2026-11-03, measured in the report). Web Push evaluated and not built. D-205, R-426..R-429, T-172..T-173. The report also records, for the first time, where the shipped single-default-Home departs from the tiers design.
 
 ## 2026-11-03 PHT — ADR-0184: chat-history backup file
 

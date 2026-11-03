@@ -125,4 +125,4 @@ The 3 pre-existing `cross.spec.ts` service-worker failures were real: `sw.js` im
 
 ## Update 2026-11-03: wake channel
 
-The optional feature `om.relay.wake.v1` (hibernating WebSocket per queue, ADR-0185) is built and tested but **not deployed**; the deploy approval is listed in [`2026-11-03-delivery-realignment-and-wake-channel`](2026-11-03-delivery-realignment-and-wake-channel.md), which also records where the shipped default departs from the tiers design.
+The optional feature `om.relay.wake.v1` (hibernating WebSocket per queue, ADR-0185) is built, tested and **deployed to the default Home on 2026-11-03**; see [`2026-11-03-delivery-realignment-and-wake-channel`](2026-11-03-delivery-realignment-and-wake-channel.md), which also records where the shipped default departs from the tiers design.
