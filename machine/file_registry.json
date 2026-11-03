@@ -158,13 +158,6 @@
       "authority": "canonical_normative"
     },
     {
-      "path": "apps/web/.env.production",
-      "class": "product_code",
-      "domain": "client_endpoint_distribution",
-      "license": "MPL-2.0",
-      "authority": "product_implementation"
-    },
-    {
       "path": "apps/web/build/build-live-relay.mjs",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -4345,6 +4338,13 @@
     },
     {
       "path": "docs/reports/2026-11-03-owner-admission-and-devices.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-03-remaining-work-after-adr-0186.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
