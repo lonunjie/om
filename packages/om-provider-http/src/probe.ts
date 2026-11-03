@@ -2,14 +2,14 @@
 // Asking a Home who it is before the app uses it: one public GET of its capabilities document (no capability, no
 // identity, no cookie), classified honestly. The answer is only what the Home claims about itself; it is a reason to
 // refuse an obviously unsuitable address, never proof that the Home is trustworthy or who operates it.
-import { API_MAJOR } from "@om/home-wire";
+import { API_MAJOR, FEATURES } from "@om/home-wire";
 import { exchange } from "./http";
 
 export type HomeHealth = "healthy" | "degraded" | "unhealthy" | "unknown";
 
 export type HomeProbe =
   /** A Home that offers mailboxes at an API version this app speaks. `providerId` and `health` are self-reported. */
-  | { readonly kind: "ok"; readonly baseUrl: string; readonly providerId: string; readonly health: HomeHealth }
+  | { readonly kind: "ok"; readonly baseUrl: string; readonly providerId: string; readonly health: HomeHealth; /** The Home advertises om.admission.v1: it creates resources only for the holder of the owner's admission secret. */ readonly admission: boolean }
   /** No answer: offline, refused, timed out, bad certificate, redirect, or blocked by the browser. */
   | { readonly kind: "unreachable" }
   /** The address answered with a server error (5xx). */
@@ -59,5 +59,6 @@ export async function probeHome(baseUrl: string, opts: ProbeOptions = {}): Promi
   if (!kinds.includes("relay")) return { kind: "no_mailbox" };
   const h = d["health"];
   const health: HomeHealth = typeof h === "string" && HEALTH.includes(h) ? (h as HomeHealth) : "unknown";
-  return { kind: "ok", baseUrl, providerId, health };
+  const features = d["features"];
+  return { kind: "ok", baseUrl, providerId, health, admission: Array.isArray(features) && features.includes(FEATURES.admission) };
 }

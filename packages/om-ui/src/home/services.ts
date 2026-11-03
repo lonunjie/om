@@ -7,7 +7,7 @@ export type HomeHealth = "healthy" | "degraded" | "unhealthy" | "unknown";
 /** The outcome of asking an address who it is. `providerId` and `health` are the Home's own claims. */
 export type HomeProbeResult =
   | { readonly kind: "invalid_url"; readonly reason: HomeUrlProblem }
-  | { readonly kind: "ok"; readonly baseUrl: string; readonly providerId: string; readonly health: HomeHealth }
+  | { readonly kind: "ok"; readonly baseUrl: string; readonly providerId: string; readonly health: HomeHealth; /** The Home asks for the owner's admission secret (om.admission.v1). Unknown to a host that does not check. */ readonly admission?: boolean }
   | { readonly kind: "unreachable" }
   | { readonly kind: "failing"; readonly status: number }
   | { readonly kind: "not_a_home" }

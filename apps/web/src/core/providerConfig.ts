@@ -5,7 +5,7 @@
 // With neither, the app runs unconnected and says so ("Not connected to a provider"); nothing is ever guessed or
 // hard-coded, and no vendor name appears here. A URL is validated before use (https only; plain http only for a loopback
 // host in a build that opted in, and such a build refuses to be a production build, see vite.config.ts).
-import { createHttpProvider, createIndexedDbSecretStore, parseProviderUrl, type HttpProvider, type ProviderConfig } from "@om/provider-http";
+import { createHttpProvider, createIndexedDbSecretStore, parseProviderUrl, readAdmission, type HttpProvider, type ProviderConfig } from "@om/provider-http";
 
 const DB = "om-app-config";
 const STORE = "config";
@@ -88,8 +88,8 @@ export async function resolveProviderConfig(env: ProviderEnv): Promise<ProviderC
  * The wake channel (a socket per mailbox that says "mail is waiting", so nothing asks on a timer) exists only while the page
  * is on screen: it opens when the page becomes visible and closes when it is hidden, where the slow poll takes over.
  */
-export function createHttpProviderFor(env: ProviderEnv, config: ProviderConfig): HttpProvider {
-  const provider = createHttpProvider({ config, secrets: createIndexedDbSecretStore(env.indexedDB), ...(env.fetch === undefined ? {} : { fetch: env.fetch }) });
+export function createHttpProviderFor(env: ProviderEnv, config: ProviderConfig, admission?: Uint8Array): HttpProvider {
+  const provider = createHttpProvider({ config, secrets: createIndexedDbSecretStore(env.indexedDB), ...(env.fetch === undefined ? {} : { fetch: env.fetch }), ...(admission === undefined ? {} : { admission }) });
   if (typeof document === "undefined") return provider;
   const sync = (): void => { provider.setWakeActive(document.visibilityState === "visible"); };
   document.addEventListener("visibilitychange", sync);
@@ -97,7 +97,12 @@ export function createHttpProviderFor(env: ProviderEnv, config: ProviderConfig):
   return { ...provider, dispose: () => { document.removeEventListener("visibilitychange", sync); provider.dispose(); } };
 }
 
+/** The owner's admission secret for exactly this Home, if this device set it up (om.admission.v1); a Home chosen any other way gets none. */
+export function readAdmissionFor(env: ProviderEnv, config: ProviderConfig): Promise<Uint8Array | undefined> {
+  return readAdmission(createIndexedDbSecretStore(env.indexedDB), config.baseUrl).catch(() => undefined);
+}
+
 export async function createConfiguredProvider(env: ProviderEnv): Promise<HttpProvider | null> {
   const config = await resolveProviderConfig(env);
-  return config === null ? null : createHttpProviderFor(env, config);
+  return config === null ? null : createHttpProviderFor(env, config, await readAdmissionFor(env, config));
 }

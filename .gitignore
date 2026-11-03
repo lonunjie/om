@@ -32,6 +32,7 @@ design-drops/
 .claude/
 dist-e2e/
 dist-relay-e2e/
+dist-setup-e2e/
 dist-live-relay/
 .wrangler/
 

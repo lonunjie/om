@@ -1,3 +1,4 @@
+import type { HomeCopy } from "../home/copy";
 import type {
   ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason,
 } from "@om/platform-api";
@@ -137,6 +138,45 @@ export interface OnboardingCopy {
     readonly migrationUnavailable: string;
     readonly origin: Readonly<Record<ClientOriginChoiceCode, string>>;
   };
+  /** The first-run page where a person sets up their own delivery service (ADR-0186). */
+  readonly relay: RelaySetupCopy;
+}
+
+/**
+ * Wording for `RelaySetup`. The person-facing word is "delivery service". The vendor is named only in `cloudflare` (ADR-0186
+ * decision 2: "they better know it's Cloudflare"); the copy test allows provider names in that group and nowhere else.
+ */
+export interface RelaySetupCopy {
+  readonly heading: string;
+  /** Why OM is different, as short sentences. */
+  readonly why: readonly string[];
+  readonly pick: string;
+  readonly ownFree: string;
+  /** Choices that are listed and not built yet: plain text, never a control. */
+  readonly later: { readonly heading: string; readonly items: readonly string[] };
+  /** The only strings that may name a vendor. */
+  readonly cloudflare: { readonly uses: string; readonly steps: readonly string[]; /** What the address looks like, so a person knows it when the setup shows it. */ readonly addressExample: string; /** R-164 (HOME_ONBOARDING 5): steer to a passkey or security key on the account, with the reason in one sentence. */ readonly protect: string; readonly open: string; readonly opensNewTab: string; readonly notReady: string };
+  readonly setup: {
+    readonly heading: string;
+    readonly valueLabel: string;
+    readonly valueNote: string;
+    readonly preparing: string;
+    readonly prepareFailed: string;
+    readonly copy: string;
+    readonly copied: string;
+    readonly copyFailed: string;
+    readonly addressLabel: string;
+    readonly addressHint: string;
+    readonly check: string;
+    readonly checking: string;
+    readonly saveFailed: string;
+    /** The address answered as a delivery service that does not ask for the setup value, so anyone could use it: refused (ADR-0186, owner admission). */
+    readonly notLocked: string;
+    readonly back: string;
+  };
+  /** What a probe can say about the typed address (the same lines as Settings > Message delivery). */
+  readonly invalid: HomeCopy["invalid"];
+  readonly result: HomeCopy["result"];
 }
 
 /** Strings for unlocking an existing vault. Separate from first-run copy: it is used on every later start. */

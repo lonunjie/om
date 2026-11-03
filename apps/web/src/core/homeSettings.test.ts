@@ -22,7 +22,7 @@ describe("Settings > Your Home over the real configuration", () => {
       expect(await s.probe(bad)).toEqual({ kind: "invalid_url", reason });
     }
     expect(urls).toEqual([]); // nothing was requested for an unacceptable address
-    expect(await s.probe(" https://home.example/ ")).toEqual({ kind: "ok", baseUrl: "https://home.example", providerId: "test-home", health: "healthy" });
+    expect(await s.probe(" https://home.example/ ")).toEqual({ kind: "ok", baseUrl: "https://home.example", providerId: "test-home", health: "healthy", admission: false });
     expect(urls).toEqual(["https://home.example/.well-known/om-provider-capabilities"]);
   });
 
@@ -61,13 +61,13 @@ describe("no link-based way to set the Home", () => {
     return statSync(p).isDirectory() ? files(p) : /\.tsx?$/.test(n) && !/\.test\./.test(n) ? [p] : [];
   });
 
-  it("the stored choice is written only by saveRelayUrl, which only the Settings screen's services call", () => {
+  it("the stored choice is written only by saveRelayUrl, which only the Settings screen's services and the first-run setup page's services call (both from typed text)", () => {
     const callers = files(join(here, "..")).filter((f) => /saveRelayUrl/.test(readFileSync(f, "utf8"))).map((f) => f.slice(join(here, "..").length + 1));
-    expect(callers.sort()).toEqual(["core/homeSettings.ts", "core/providerConfig.ts"]);
+    expect(callers.sort()).toEqual(["core/homeSettings.ts", "core/providerConfig.ts", "core/relaySetup.ts"]);
   });
 
   it("configuration never reads the page address, so a link cannot point the app at a Home", () => {
-    for (const f of ["providerConfig.ts", "homeSettings.ts", "ConfiguredApp.tsx"]) {
+    for (const f of ["providerConfig.ts", "homeSettings.ts", "relaySetup.ts", "ConfiguredApp.tsx"]) {
       expect(readFileSync(join(here, f), "utf8"), f).not.toMatch(/location|URLSearchParams|document\.referrer|window\.name/);
     }
   });

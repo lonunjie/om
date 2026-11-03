@@ -85,8 +85,29 @@ describe("English copy catalog", () => {
     expect(devicesCopy.suspend.confirm).not.toBe(devicesCopy.revoke.confirm);
     expect(devicesCopy.suspend.consequences.filter((c) => devicesCopy.revoke.consequences.includes(c) && !/already on it/.test(c))).toEqual([]);
   });
+  // ADR-0186 decision 2 (operator: "they better know it's Cloudflare, besides, they click it and make/login a Cloudflare account"): the first-run
+  // setup choice names its vendor, and only that group of strings may. Everything else stays vendor-free.
+  const NAMING_ALLOWED = "o.relay.cloudflare.";
+  const PROVIDER_NAMES = /\b(?:Google|Apple|Microsoft|Cloudflare|WebAuthn|PRF|IndexedDB)\b/;
+  const MACHINE_CODES = /\b[a-z]+_[a-z_]+\b/;
+  const people = [...all("c", conversationCopy), ...all("o", onboardingCopy), ...all("a", appStrings), ...all("d", devicesCopy), ...all("l", linkThisDeviceCopy), ...all("r", recoveryCopy), ...all("b", backupCopy)];
   it("shows no provider names or raw machine codes to people", () => {
-    const text = [...all("c", conversationCopy), ...all("o", onboardingCopy), ...all("a", appStrings), ...all("d", devicesCopy), ...all("l", linkThisDeviceCopy), ...all("r", recoveryCopy), ...all("b", backupCopy)].map(([, s]) => s).join("\n");
-    expect(text).not.toMatch(/\b(?:Google|Apple|Microsoft|Cloudflare|WebAuthn|PRF|IndexedDB|[a-z]+_[a-z_]+)\b/);
+    const text = people.filter(([path]) => !path.startsWith(NAMING_ALLOWED)).map(([, s]) => s).join("\n");
+    expect(text).not.toMatch(PROVIDER_NAMES);
+    expect(text).not.toMatch(MACHINE_CODES);
+  });
+  it("the one exception: the delivery-service setup names Cloudflare, and no other vendor, in its own group", () => {
+    const allowed = people.filter(([path]) => path.startsWith(NAMING_ALLOWED));
+    expect(allowed.length).toBeGreaterThan(0);
+    expect(allowed.some(([, s]) => /\bCloudflare\b/.test(s))).toBe(true);
+    expect(allowed.map(([, s]) => s).join("\n")).not.toMatch(/\b(?:Google|Apple|Microsoft|WebAuthn|PRF|IndexedDB)\b/);
+    expect(allowed.map(([, s]) => s).join("\n")).not.toMatch(MACHINE_CODES);
+    // The choice itself, and everything around it, says "delivery service" and never the technical names.
+    // (The example address is a real address shape, "om-relay" being the setup's default name; it is not prose.)
+    const relay = people.filter(([path]) => path.startsWith("o.relay.") && path !== "o.relay.cloudflare.addressExample");
+    expect(relay.map(([, s]) => s).join("\n")).not.toMatch(/\b(?:relay|Worker|Durable|admission|hash|SHA)\b/i);
+    expect(relay.map(([, s]) => s).join("\n")).not.toMatch(/\bHome\b/); // "a computer at home" is plain speech; the technical name "Home" is not
+    expect(onboardingCopy.relay.ownFree).toBe("Set up my own, free");
+    expect(onboardingCopy.relay.cloudflare.uses).toMatch(/Cloudflare/);
   });
 });

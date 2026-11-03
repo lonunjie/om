@@ -51,16 +51,20 @@ Layout states are Compact, Split, Expanded, Multi-pane, chosen by window size, n
 
 ## 4. First run: the budget
 
-Landing "Get started" → **Protect my chats** (one tap; the device's own prompt follows) → **Invite someone to chat** (ready; skip allowed).
+Landing "Get started" → **Set up my own delivery service** (only while the install has none, ADR-0186) → **Protect my chats** (one tap; the device's own prompt follows) → **Invite someone to chat** (ready; skip allowed).
 Three taps, no account form, no safety-code step (ADR-0111: recovery is on by default; the safety code is offered later from the shell).
-Power options (own password) sit behind "More options". Rules:
+Power options (own password) sit behind "More options". The setup page is not counted in "Step n of m" and has no skip: a signed build carries no delivery service, so nobody starts without one of their own (an invited person too).
+Page one (`RelaySetup` in `packages/om-ui/src/onboarding`, copy `onboardingCopy.relay`): short sentences on why OM is different ("You own your data, not us."), "Pick how you would like to set up your first delivery service. Come back here once this is set up.", then **Set up my own, free**,
+which says it uses Cloudflare and that the one-click setup also needs a GitHub or GitLab account (Cloudflare clones its template into one). The other ways (container, install script, tunnel, open ports) are plain text under "Coming later", never controls. Choosing the first shows a **setup value** (the public hash of an admission secret made on this device, `@om/provider-http` `pendingAdmissionHash`;
+shown again unchanged after a reload) with a copy button, one sentence steering the person to a passkey or security key on that account (R-164, [`HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`](../architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md) 5), and a link that opens the one-click setup in a new tab (`VITE_OM_RELAY_DEPLOY_URL`, https only, set in `apps/web/.env.production` to the `lonunjie/om-relay` template; unset, the page says that way is not ready yet). The person comes back and types the address; it is probed (`/.well-known/om-provider-capabilities`),
+and only an address that answers as a delivery service **and advertises `om.admission.v1`** is stored (one that does not was deployed without the setup value and is open to anyone: refused with a plain explanation), together with the matching secret (`adoptAdmission`, bound to that address only), after which first run continues. R2 is never part of this page. Rules:
 
 - Say what the device is about to do *before* its prompt appears, and never leave a dead button: the waiting state names the
   prompt, and after 6 s offers "Skip the prompt" (same call falls back to the key stored in this browser; the weaker protection is shown afterwards, never hidden).
 - Every ceremony starts from a click (user gesture); nothing retries by itself.
 - A step moves focus to its heading, announces busy states in a live region, and never loses typed input on error.
 - Weaker-than-expected protection (synced passkey, device key) is always visible as a note; the long explanation is a disclosure.
-- Delivery-service facts (who can see what) are disclosed at the decision point, in plain words, behind one disclosure; no provider names (a copy test enforces it).
+- Delivery-service facts (who can see what) are disclosed at the decision point, in plain words, behind one disclosure; no provider names (a copy test enforces it; the one named exception is the setup choice below).
 - **Say "delivery service", never "Home" or "relay" to a person** (2026-11-02: "Home" read as a street address). It is the small online service that carries your messages: it holds each one, still locked, until the
   other person's device picks it up; it cannot read it, and chats and keys stay on the devices. Settings calls it "Message delivery". Code, ADRs and docs keep "Home" as the technical name.
 
@@ -132,7 +136,7 @@ Product screens share the same few rules, all from tokens (`om-ui` conversations
 
 ## 7. Words
 
-Plain, warm, short; "protect my chats", "safety code", "password", "delivery service" glossed once. No crypto or infrastructure vocabulary for normal users, no vendor names.
+Plain, warm, short; "protect my chats", "safety code", "password", "delivery service" glossed once. No crypto or infrastructure vocabulary for normal users, no vendor names, **except** the first-run delivery-service setup, which names Cloudflare (ADR-0186 decision 2: "they better know it's Cloudflare"). That exception is the copy group `onboardingCopy.relay.cloudflare` only; `apps/web/src/copy/en.test.ts` allows provider names in that path and nowhere else.
 All strings come from copy objects (`apps/web/src/copy/en.ts`, typed by `packages/om-ui/src/*/copy.ts`), none inline in components.
 State is never conveyed by colour, motion, sound or haptics alone.
 

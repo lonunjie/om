@@ -174,6 +174,29 @@ const VAULT_ERROR: Readonly<Record<VaultErrorReason, string>> = {
   storage_failed: "This browser could not save your chats.",
   delete_unverified: "OM could not confirm the data was removed.",
 };
+/** What a probe of a typed address can say, shared by Settings > Message delivery and the first-run setup page. */
+const HOME_INVALID: HomeCopy["invalid"] = {
+  malformed: "That does not look like a web address. Start it with https://.",
+  not_https: "The address must start with https://, so that what you send to it is protected on the way.",
+  credentials: "The address cannot contain a username or password.",
+  query_or_fragment: "The address cannot contain a question mark, a # or anything after them.",
+};
+
+const HOME_RESULT: HomeCopy["result"] = {
+  ok: (id) => `This address answered and calls itself \u201c${id}\u201d.`,
+  health: {
+    healthy: "It reports that it is working normally.",
+    degraded: "It reports reduced service: messages may be late. You can still use it.",
+    unhealthy: "It reports that it is not working, so it cannot be chosen now. Try again later.",
+    unknown: "It does not say how it is doing, so OM cannot tell whether it is working.",
+  },
+  unreachable: "OM could not reach this address. Check it, your connection, and try again. If the address is right, the delivery service may be offline or may not accept connections from this app.",
+  failing: (status) => `This address answered with a server error (${String(status)}). The delivery service may be having trouble; try again later.`,
+  notAHome: "This address answered, but it is not an OM delivery service.",
+  wrongVersion: (offered) => `This delivery service only speaks a version OM does not understand${offered === "" ? "" : ` (it offers: ${offered})`}. Update OM, or choose a different delivery service.`,
+  noMailbox: "This delivery service does not deliver messages, so it cannot be used here.",
+};
+
 const OBSERVER: Readonly<Record<HomeObserverCode, string>> = {
   sponsor_sees_metadata: "The person or group running your delivery service can see who talks to whom and when, but not what is said.",
   host_sees_metadata: "The service that delivers your messages can see who talks to whom and when, but not what is said.",
@@ -329,6 +352,54 @@ export const onboardingCopy: OnboardingCopy = {
     migrationAvailable: "You can move your delivery service to a different host later.",
     migrationUnavailable: "Moving your delivery service is not available yet.",
     origin: ORIGIN,
+  },
+  relay: {
+    heading: "OM is different",
+    why: [
+      "You own your data, not us.",
+      "OM has no company server in the middle, and your chats stay on your devices.",
+      "A small delivery service of your own carries your messages. It holds each one, still locked, until the other person's device picks it up. It cannot read them.",
+    ],
+    pick: "Pick how you would like to set up your first delivery service. Come back here once this is set up.",
+    ownFree: "Set up my own, free",
+    later: {
+      heading: "Coming later",
+      items: ["On my own server, as a container", "With an install script", "On a computer at home, through a tunnel", "On my own server, with open ports"],
+    },
+    // ADR-0186 decision 2: the only place a vendor is named. The copy test (en.test.ts) allows provider names in this group and nowhere else.
+    cloudflare: {
+      uses: "Uses Cloudflare. You will create or sign in to a free Cloudflare account, and to a GitHub or GitLab account, which Cloudflare needs to copy the setup into.",
+      steps: [
+        "Copy your setup value below.",
+        "Open Cloudflare setup. Create or sign in to a free Cloudflare account and a GitHub or GitLab account.",
+        "Paste your setup value when it asks, and wait for it to finish.",
+        "Come back to this tab and type the address it shows.",
+      ],
+      addressExample: "The address looks like https://om-relay.your-name.workers.dev",
+      protect: "Protect that Cloudflare account with a passkey or security key if it offers one: whoever gets into the account can change your delivery service.",
+      open: "Open Cloudflare setup",
+      opensNewTab: "(opens in a new tab)",
+      notReady: "This way of setting up is not ready yet. If you already have a delivery service of your own, type its address below.",
+    },
+    setup: {
+      heading: "Set up your delivery service",
+      valueLabel: "Your setup value",
+      valueNote: "It is not a secret. It makes sure only you can add things to your delivery service. The matching key stays on this device.",
+      preparing: "Making your setup value",
+      prepareFailed: "Your setup value could not be made on this device. Go back and try again.",
+      copy: "Copy setup value",
+      copied: "Setup value copied",
+      copyFailed: "Copying failed. Select the value and copy it by hand.",
+      addressLabel: "Address of your delivery service",
+      addressHint: "OM checks the address before using it. It must start with https://",
+      check: "Check and continue",
+      checking: "Checking the address",
+      saveFailed: "This address could not be saved on this device. Nothing was changed. Try again.",
+      notLocked: "This delivery service did not ask for your setup value, so anyone who learns its address could use it. It was not saved. Set it up again and paste your setup value when it asks.",
+      back: "Back",
+    },
+    invalid: HOME_INVALID,
+    result: HOME_RESULT,
   },
 };
 
@@ -844,26 +915,8 @@ export const homeCopy: HomeCopy = {
   useDefault: "Go back to the delivery service that came with OM",
   disconnect: "Stop using this delivery service",
   cleared: "Your choice was removed. OM will use the default the next time it connects.",
-  invalid: {
-    malformed: "That does not look like a web address. Start it with https://.",
-    not_https: "The address must start with https://, so that what you send to it is protected on the way.",
-    credentials: "The address cannot contain a username or password.",
-    query_or_fragment: "The address cannot contain a question mark, a # or anything after them.",
-  },
-  result: {
-    ok: (id) => `This address answered and calls itself \u201c${id}\u201d.`,
-    health: {
-      healthy: "It reports that it is working normally.",
-      degraded: "It reports reduced service: messages may be late. You can still use it.",
-      unhealthy: "It reports that it is not working, so it cannot be chosen now. Try again later.",
-      unknown: "It does not say how it is doing, so OM cannot tell whether it is working.",
-    },
-    unreachable: "OM could not reach this address. Check it, your connection, and try again. If the address is right, the delivery service may be offline or may not accept connections from this app.",
-    failing: (status) => `This address answered with a server error (${String(status)}). The delivery service may be having trouble; try again later.`,
-    notAHome: "This address answered, but it is not an OM delivery service.",
-    wrongVersion: (offered) => `This delivery service only speaks a version OM does not understand${offered === "" ? "" : ` (it offers: ${offered})`}. Update OM, or choose a different delivery service.`,
-    noMailbox: "This delivery service does not deliver messages, so it cannot be used here.",
-  },
+  invalid: HOME_INVALID,
+  result: HOME_RESULT,
   lost: {
     heading: "Some messages cannot reach you here",
     body: (n) => `${plural(n, "mailbox", "mailboxes")} at this delivery service could not be set up, because someone else already holds ${n === 1 ? "it" : "them"}. Messages for ${n === 1 ? "that conversation" : "those conversations"} will not arrive. This can happen if someone learned a mailbox address before you first used it. Ask the other person to invite you again, or choose a different delivery service.`,

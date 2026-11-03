@@ -2,6 +2,7 @@
 // Playwright cache (@playwright/test is pinned to the version that matches them), so nothing is downloaded.
 // Servers: the dev-harness build (4174) and a dev-signed production bundle with the service worker (4175).
 import { defineConfig, devices } from "@playwright/test";
+import { E2E_ADMISSION_HASH, LOCKED_RELAY } from "./admission-fixture.ts";
 import { writeQrY4m } from "./qr-video.ts";
 
 const HARNESS = "http://localhost:4174";
@@ -10,6 +11,7 @@ const CORE = "http://localhost:4176";
 const RELAY_APP = "http://localhost:4177";
 const RELAY = "http://127.0.0.1:8788";
 const LIVE_APP = "http://localhost:4178";
+const SETUP_APP = "http://localhost:4179";
 // Opt-in (OM_LIVE_RELAY=1): the production build against the LIVE reference Home. Never part of the hermetic run.
 const live = process.env["OM_LIVE_RELAY"] === "1";
 const cameraArgs = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-video-capture=${writeQrY4m()}`];
@@ -33,6 +35,10 @@ export default defineConfig({
     // The real Core in the production entry, connected to the local reference Home (the Worker bundle in workerd).
     { command: "node ../../infra/cloudflare-home/test/serve.ts 8788", cwd: "..", url: `${RELAY}/healthz`, reuseExistingServer: true },
     { command: "pnpm exec vite preview --outDir dist-relay-e2e --port 4177 --strictPort", cwd: "..", url: RELAY_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: RELAY } },
+    // A build with no relay of its own (as shipped) but allowed to reach the local reference Home: the first-run delivery-service setup page.
+    // ... and a locked Home (it holds only the hash of the owner's admission secret), which is where that setup page connects.
+    { command: "node ../../infra/cloudflare-home/test/serve.ts 8789", cwd: "..", url: `${LOCKED_RELAY}/healthz`, reuseExistingServer: true, env: { OM_ADMISSION: E2E_ADMISSION_HASH } },
+    { command: "pnpm exec vite preview --outDir dist-setup-e2e --port 4179 --strictPort", cwd: "..", url: SETUP_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: LOCKED_RELAY } },
     ...(live ? [{ command: "pnpm exec vite preview --outDir dist-live-relay --port 4178 --strictPort", cwd: "..", url: LIVE_APP, reuseExistingServer: true, env: { ...(/^http:\/\/(127\.0\.0\.1|localhost)(:\d{2,5})?$/.test(process.env["OM_LIVE_RELAY_URL"] ?? "") ? { OM_E2E_CONNECT_SRC: process.env["OM_LIVE_RELAY_URL"] ?? "" } : {}) } }] : []),
   ],
   projects: [

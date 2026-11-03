@@ -12,3 +12,4 @@ export * from "./OnboardingFlow";
 export * from "./UnlockVault";
 export * from "./OnboardingFrame";
 export * from "./passphrase";
+export * from "./RelaySetup";

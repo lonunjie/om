@@ -34,11 +34,17 @@ describe("probeHome", () => {
 
   it("reports a healthy Home with the id it gives itself; the request carries nothing identifying", async () => {
     const { f, calls } = asks(json(doc()));
-    expect(await probeHome(BASE, { fetch: f })).toEqual({ kind: "ok", baseUrl: BASE, providerId: "om-reference-home", health: "healthy" });
+    expect(await probeHome(BASE, { fetch: f })).toEqual({ kind: "ok", baseUrl: BASE, providerId: "om-reference-home", health: "healthy", admission: false });
     expect(calls).toHaveLength(1);
     expect(calls[0]?.url).toBe(`${BASE}/.well-known/om-provider-capabilities`);
     expect(calls[0]?.init).toMatchObject({ method: "GET", credentials: "omit", redirect: "error", referrerPolicy: "no-referrer" });
     expect(Object.keys((calls[0]?.init.headers as Record<string, string> | undefined) ?? {})).toEqual([]);
+  });
+
+  it("reports whether the Home asks for the owner's admission secret (om.admission.v1)", async () => {
+    expect(await probeHome(BASE, { fetch: asks(json(doc({ features: ["om.admission.v1"] }))).f })).toMatchObject({ kind: "ok", admission: true });
+    expect(await probeHome(BASE, { fetch: asks(json(doc({ features: ["om.relay.wake.v1"] }))).f })).toMatchObject({ kind: "ok", admission: false });
+    expect(await probeHome(BASE, { fetch: asks(json(doc({ features: "om.admission.v1" }))).f })).toMatchObject({ kind: "ok", admission: false });
   });
 
   it("passes degraded, unhealthy and unknown health through, and treats a missing or odd value as unknown", async () => {

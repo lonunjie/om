@@ -158,6 +158,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "apps/web/.env.production",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/build/build-live-relay.mjs",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -459,6 +466,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/admission-fixture.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/backup.spec.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -558,6 +572,13 @@
     },
     {
       "path": "apps/web/e2e/qr-video.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/e2e/relay-setup.spec.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -873,6 +894,20 @@
     },
     {
       "path": "apps/web/src/core/registry.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/relaySetup.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/relaySetup.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -8474,6 +8509,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-provider-http/src/admission.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-provider-http/src/admission.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-provider-http/src/config.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8902,6 +8951,20 @@
     },
     {
       "path": "packages/om-ui/src/onboarding/RecoveryKeyStep.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/onboarding/RelaySetup.test.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/onboarding/RelaySetup.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

@@ -6,8 +6,8 @@ import { asProfileId, webInviteLink, type DeviceVault, type ProfileExecutionCont
 import { type WasmCoreClient } from "@om/core-wasm";
 import { browserVaultEnv, createEncryptedKv, createWebDeviceVault, createWebPlatform } from "@om/web-platform";
 import {
-  OnboardingFlow, OnboardingFrame, ProfileProvider, Text, ThemeProvider, UnlockVault, createActionRegistry, createMemoryKeyValue, createProfileScopedState,
-  useActiveProfile, useCaptureContext, type ActionRegistry, type HomeSettingsServices, type OnboardingPlatform, type OnboardingResult,
+  OnboardingFlow, OnboardingFrame, ProfileProvider, RelaySetup, Text, ThemeProvider, UnlockVault, createActionRegistry, createMemoryKeyValue, createProfileScopedState,
+  useActiveProfile, useCaptureContext, type ActionRegistry, type HomeSettingsServices, type OnboardingPlatform, type OnboardingResult, type RelaySetupServices,
 } from "@om/ui";
 import { InstallAffordance } from "../install/InstallAffordance";
 import { clearExpectedNewChat, clearPendingInvite, expectNewChat, useExpectedNewChat, usePendingInvite } from "../invite/pendingInvite";
@@ -17,6 +17,7 @@ import { QrCode } from "../qr/QrCode";
 import { CHATS, navigate } from "../route/place";
 import { useQrScanner } from "../qr/Scanner";
 import { startCore } from "./loadCore";
+import { relayJustConnected } from "./relaySetup";
 import { unavailableProvider, type ConfiguredProvider } from "./provider";
 import { createDraftStore, type DraftStore } from "./draftStore";
 import { browserPollPace } from "./pollPace";
@@ -37,6 +38,8 @@ export interface RealAppProps {
   readonly pollMs?: number;
   /** Settings > Your Home, when the host can change its Home (the production entry). */
   readonly home?: HomeSettingsServices;
+  /** First-run page where a new install sets up its own delivery service; shown only when `provider` is `null` (ADR-0186). Left out, first run goes straight on. */
+  readonly relaySetup?: RelaySetupServices;
 }
 
 interface Ready {
@@ -55,7 +58,7 @@ const shareLink = (coreLink: string): string => webInviteLink(coreLink, globalTh
 
 const newProfileId = (): ProfileId => asProfileId("p-" + Array.from(globalThis.crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join(""));
 
-export function RealApp({ provider, banner, pollMs, home }: RealAppProps) {
+export function RealApp({ provider, banner, pollMs, home, relaySetup }: RealAppProps) {
   const [boot, setBoot] = useState<Boot>({ k: "loading" });
   useEffect(() => {
     const life = { live: true };
@@ -87,7 +90,7 @@ export function RealApp({ provider, banner, pollMs, home }: RealAppProps) {
       {boot.k === "no_vault" ? <Notice heading={t.vaultUnavailable.heading} body={t.vaultUnavailable.body} /> : null}
       {boot.k === "failed" ? <Notice heading={t.coreFailed.heading} body={t.coreFailed.body} /> : null}
       {boot.k === "ready" ? (
-        <Profiles rt={boot.rt} vault={boot.vault} registry={boot.registry} drafts={boot.drafts} platform={boot.platform} known={boot.known} connected={provider !== null} {...(home === undefined ? {} : { home })} />
+        <Profiles rt={boot.rt} vault={boot.vault} registry={boot.registry} drafts={boot.drafts} platform={boot.platform} known={boot.known} connected={provider !== null} {...(home === undefined ? {} : { home })} {...(relaySetup === undefined ? {} : { relaySetup })} />
       ) : null}
       </div>
     </ThemeProvider>
@@ -109,10 +112,10 @@ function Notice({ heading, body }: { readonly heading: string; readonly body: st
   return <main className="om-dev-fail"><Text as="h1">{heading}</Text><Text as="p">{body}</Text></main>;
 }
 
-interface ProfilesProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly drafts: DraftStore; readonly platform: OnboardingPlatform; readonly known: readonly ProfileId[]; readonly connected: boolean; readonly home?: HomeSettingsServices }
+interface ProfilesProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly drafts: DraftStore; readonly platform: OnboardingPlatform; readonly known: readonly ProfileId[]; readonly connected: boolean; readonly home?: HomeSettingsServices; readonly relaySetup?: RelaySetupServices }
 
 /** Which identities exist, which are unlocked, and which one is being created. */
-function Profiles({ rt, vault, registry, drafts, platform, known: initial, connected, home }: ProfilesProps) {
+function Profiles({ rt, vault, registry, drafts, platform, known: initial, connected, home, relaySetup }: ProfilesProps) {
   const [known, setKnown] = useState<readonly ProfileId[]>(initial);
   const [open, setOpen] = useState<ReadonlySet<ProfileId>>(() => new Set());
   const [pending, setPending] = useState<{ readonly id: ProfileId; readonly ctx: ProfileExecutionContext } | null>(null);
@@ -172,7 +175,7 @@ function Profiles({ rt, vault, registry, drafts, platform, known: initial, conne
   if (pending !== null) {
     return (
       <Onboard
-        rt={rt} vault={vault} platform={platform} pending={pending} first={known.length === 0} onCancel={() => { setPending(null); navigate({ kind: "settings", page: "menu" }, { replace: true }); }}
+        rt={rt} vault={vault} platform={platform} pending={pending} first={known.length === 0} {...(connected || relaySetup === undefined ? {} : { relaySetup })} onCancel={() => { setPending(null); navigate({ kind: "settings", page: "menu" }, { replace: true }); }}
         onDone={(result) => {
           if (result.safetyCodePending !== null) savePendingSafetyCode(pending.id, result.safetyCodePending);
           if (result.inviteAccepted) { clearPendingInvite(); expectNewChat([]); }
@@ -251,15 +254,18 @@ function Connected({ rt, vault, drafts, platform, onAddProfile, home, lockOpen, 
   );
 }
 
-interface OnboardProps { readonly onCancel: () => void; readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly pending: { readonly id: ProfileId; readonly ctx: ProfileExecutionContext }; readonly first: boolean; readonly onDone: (result: OnboardingResult) => void }
+interface OnboardProps { readonly onCancel: () => void; readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly pending: { readonly id: ProfileId; readonly ctx: ProfileExecutionContext }; readonly first: boolean; readonly relaySetup?: RelaySetupServices; readonly onDone: (result: OnboardingResult) => void }
 
-function Onboard({ rt, vault, platform, pending, first, onDone, onCancel }: OnboardProps) {
-  const registry = useMemo<ActionRegistry>(() => createActionRegistry(), []);
+function Onboard({ rt, vault, platform, pending, first, relaySetup, onDone, onCancel }: OnboardProps) {
   const { scanQr, dialog } = useQrScanner(scannerCopy);
   const token = usePendingInvite();
   // The very first run opens with the landing page; adding a further identity, or opening an invite link, goes straight into setup.
-  const [started, setStarted] = useState(!first || token !== null);
+  // Setting up the delivery service restarts the app against it; the person has already seen the landing page by then.
+  const [started, setStarted] = useState(!first || token !== null || relayJustConnected());
+  const registry = useMemo<ActionRegistry>(() => createActionRegistry(), []);
   if (!started) return <Landing onGetStarted={() => { setStarted(true); }} installSlot={<InstallAffordance />} />;
+  // ADR-0186: nobody starts without a delivery service of their own, not even someone who opened an invite link.
+  if (first && relaySetup !== undefined) return <RelaySetup services={relaySetup} copy={onboardingCopy.relay} frame={onboardingCopy.frame} platform={platform} registry={registry} ctx={pending.ctx} />;
   return (
     <>
       <OnboardingFlow
