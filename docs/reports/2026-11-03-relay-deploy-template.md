@@ -1,6 +1,6 @@
 # Per-user relay deploy template (remaining-work section B)
 
-- **Date:** 2026-11-03. **Status:** template, verifier and release builder built and tested locally in workerd; **nothing deployed to Cloudflare, no spend, no GitHub repository created yet** (needs the operator's answer below).
+- **Date:** 2026-11-03. **Status:** template, verifier and release builder built and tested locally in workerd; **published** to the public repository [`lonunjie/om-relay`](https://github.com/lonunjie/om-relay) (release 0.1.0, built from om `a5c1c38`, worker sha256 `8481748a...`) on the operator's "do everything"; the button and `release/` are removed from `om.lonunjie.org` `main` (`public/` unchanged). **Nothing deployed to Cloudflare, no spend.**
 - **Design sources read (in full):** [`SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md`](../architecture/providers/SOFTWARE_SUPPLY_CHAIN_AND_UPDATES.md), [`PROVISIONING_AND_BOOTSTRAP.md`](../architecture/providers/PROVISIONING_AND_BOOTSTRAP.md) (section 10, R-261), [`CLOUDFLARE_REFERENCE_DEPLOYMENT.md`](../architecture/providers/CLOUDFLARE_REFERENCE_DEPLOYMENT.md), [`CLIENTHOST_UPDATE_LIFECYCLE.md`](../architecture/client/CLIENTHOST_UPDATE_LIFECYCLE.md), [`ADR-0186`](../../decisions/ADR-0186-every-person-runs-their-own-relay.md), [`deploy/README.md`](../../deploy/README.md), [`REBUILD-AND-COMPARE.md`](../../deploy/REBUILD-AND-COMPARE.md), the first half of [`KEY-CEREMONY.md`](../../deploy/KEY-CEREMONY.md), `infra/cloudflare-home` and the relay status report ([`2026-10-28-relay-status.md`](2026-10-28-relay-status.md)). Excerpts only: ADR-0130 rule 2 (and, via the subagent below, the whole ADR), [`PROJECT_STEWARDSHIP_AND_CONTINUITY.md`](../constitution/PROJECT_STEWARDSHIP_AND_CONTINUITY.md) section 5, [`HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md`](../architecture/providers/HOME_ONBOARDING_TIERS_AND_PROVIDER_DIVERSITY.md) section 1.
 - **Read by a subagent, not by me (disclosed):** the design gate maps `infra/**` to five domains, so the commit trailer names all five. After building, I had a subagent read in full the 34 documents of those domains I had not read (constitution 12, discovery 5, metadata 5, providers 4, relay 2) plus ADR-0129, ADR-0130 and ADR-0043, and report what bears on this design and what it contradicts. I reviewed its findings (next section) and acted on them; I did not read those documents myself, so their detail may hold more than the findings list.
 
@@ -15,7 +15,7 @@
 
 How it meets PROVISIONING_AND_BOOTSTRAP section 10: (1) what is activated is a signed release pinned by digest (`release.lock` pins the manifest digest; the manifest pins the Worker's); (2) the template's first step is a verifier, there is no application build, a branch head is never deployed (`no_bundle`, and the deploy script stops if the verifier fails); (4) the verifier is itself in the signed manifest. The owner pins the root: it is in [`verify-chain.mjs`](../../infra/cloudflare-home/release/verify-chain.mjs), which the owner can replace for their own distribution.
 
-## Final deploy URL (provisional until the operator names the repository)
+## Final deploy URL
 
 `https://deploy.workers.cloudflare.com/?url=https://github.com/lonunjie/om-relay`
 
@@ -31,13 +31,13 @@ Cloudflare's button needs a **public github.com or gitlab.com repository with no
 6. **Copy added to the template README:** operator statement and no warranty, one account is one observer (METADATA_THREAT_MODEL wording), trust on first use for a workers.dev address, a lone relay is a single failure domain, passkey advice, stale clones hear of no advisory, delegation expiry does not stop a running relay. Not added: `export_migration_state()` for the provisioning method, the `OM_WAKE` default and usage/budget display (the relay reports quota itself).
 7. **Vendor naming:** HOME section 7 keeps vendor names out of the main flow; ADR-0186 decision 2 names Cloudflare for this option, which the onboarding session handles. The Git-account requirement belongs to that same page.
 
-## Decisions waiting for the operator
+## Decisions: status
 
-1. **Where the template repository lives.** Recommendation: a new small public repo `lonunjie/om-relay` (registry entry in `repos.toml`, custody-map entry, mirror later). A subdirectory of `lonunjie/om` is not workable (Cloudflare copies the whole repository, does not support monorepos); `om.lonunjie.org` is where ADR-0186 says it leaves. Nothing was created on GitHub.
-2. **Publishing the first signed release into that repository.** `build.mjs --sign-from-vault` produces it from a committed checkout; pushing it to the new repository is the operator's go-ahead (public, outward-facing).
+1. ~~Where the template repository lives.~~ **Done: `lonunjie/om-relay`** (the design says "a template repository" that is custodied and mirrored (PROVISIONING section 10 rule 4) but does not name or place it; separate from `om` is my reading, forced by Cloudflare's no-monorepo rule). Original reasoning: Recommendation: a new small public repo `lonunjie/om-relay` (registry entry in `repos.toml`, custody-map entry, mirror later). A subdirectory of `lonunjie/om` is not workable (Cloudflare copies the whole repository, does not support monorepos); `om.lonunjie.org` is where ADR-0186 says it leaves. Nothing was created on GitHub.
+2. ~~Publishing the first signed release.~~ **Done** from a clean worktree of om (the builder refuses a dirty tree). Original: `build.mjs --sign-from-vault` produces it from a committed checkout; pushing it to the new repository is the operator's go-ahead (public, outward-facing).
 3. ~~Fail closed on a malformed setup value?~~ **Done on the operator's "do everything" (2026-11-03):** the Worker closes creation when `OM_ADMISSION` is set but unusable, or when the template's `OM_ADMISSION_REQUIRED=1` finds no valid hash (D17). The app still checks `om.admission.v1`.
-4. **The licence of the template** (finding 1), and acceptance or waiver of D15 and D16 (finding 2).
-5. **Pushing the site-repository change** (below) to `main` is a production deploy: operator approval.
+4. **Still open: the licence of the template** (finding 1: the template carries MPL-2.0 like the source; the policy says AGPL), acceptance or waiver of D15 and D16 (finding 2), custody-map entry, mirror and public-release-gate declaration (findings 4 and 5).
+5. ~~Pushing the site-repository change~~ **Done** (`public/` unchanged, so visitors see no change). Original: (below) to `main` is a production deploy: operator approval.
 
 ## Deviations and gaps (recorded as D14..D18 in the relay status report; no ADR over audited text)
 
@@ -51,4 +51,4 @@ Cloudflare's button needs a **public github.com or gitlab.com repository with no
 
 ## Site repository (`lonunjie/om.lonunjie.org`)
 
-Prepared on the non-`main` branch `remove-deploy-button`: the README button and the `release/` folder are removed (a Pages preview only; `public/` is unchanged, so what visitors see does not change). **Not pushed to `main`.** The old button's `release/` copy is gone from the branch tip, not from history.
+The README button and the `release/` folder are removed (commit `593630b`, pushed to `main` on the operator's go-ahead; `public/` is unchanged, so what visitors see does not change). The old `release/` copy remains in git history.
