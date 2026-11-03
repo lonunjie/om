@@ -1018,5 +1018,6 @@
         "ux_accessibility_personalization"
       ]
     }
-  ]
+  ],
+  "design_gate_since": "7e07724"
 }

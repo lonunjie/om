@@ -1,5 +1,14 @@
 # OM Agent Instructions
 
+> **STOP. Read the design before you plan, write or change anything here (operator rule, 2026-11-03).** The design and the
+> constitution are complete and were audited several times; your job is to implement them, not to improve or extend them.
+> 1. Run `python3 tools/design_gate.py needs <the paths you will touch>` and read every document and ADR it lists, in full.
+> 2. Do not invent product, architecture, naming, UI patterns, tiers, defaults or spending. If the design is silent or looks
+>    wrong, write the question in a report and stop. Invent only when it is critical or clearly improves the system, say so
+>    plainly, and get the operator's yes first. An ADR "by delegation" never amends audited text.
+> 3. Say which design documents you read, and which you did not, in every plan and report.
+> Details: "Design gate" below. Last audit of drift: [`docs/reports/2026-11-03-return-to-the-audited-design.md`](docs/reports/2026-11-03-return-to-the-audited-design.md).
+
 OM is SeedLife's open-source, operatorless, end-to-end-encrypted messenger. This repository is the **single source of
 truth** for its design: documents, decisions, machine ledgers, specs and verification evidence. It is private on GitHub
 until the operator makes it public. Write everything as if a stranger will read it, because they will.

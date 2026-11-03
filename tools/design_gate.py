@@ -10,6 +10,8 @@ domains they implement. This tool turns that into three things:
                           Design-Departures: none | <ADR-nnnn / waiver / R-nnn ids>
                         A departure is anything shipped that differs from a normative doc; it must cite the record that
                         accepts it (an ADR or a waiver), never be silent.
+  audit                 every commit since `design_gate_since` that touched mapped code carries the trailers (catches --no-verify
+                        and clones without the hook; runs in `make check`)
   selfcheck             every tracked code file is covered by a rule; every rule's domains exist (runs in `make check`)
 
 The trailers are an attestation and an audit trail, not proof of reading: the rule is in AGENTS.md ("Design gate"),
@@ -111,6 +113,35 @@ def cmd_commit_msg(file: str) -> int:
     return 1
 
 
+def cmd_audit() -> int:
+    amap = load()
+    since = amap.get("design_gate_since")
+    if not since:
+        return 0
+    r = subprocess.run(["git", "log", "--no-merges", "--format=%H%x00%h%x00%B%x01", f"{since}..HEAD"], cwd=ROOT, capture_output=True, text=True)
+    if r.returncode != 0:
+        print("design_gate: cannot read history (shallow clone?); audit skipped")
+        return 0
+    bad = 0
+    for rec in r.stdout.split("\x01"):
+        if not rec.strip():
+            continue
+        full, short, msg = rec.strip("\n").split("\x00", 2)
+        files = subprocess.run(["git", "diff-tree", "--no-commit-id", "--name-only", "-r", full], cwd=ROOT, capture_output=True, text=True).stdout.split()
+        doms = domains_for(files, amap)
+        if not doms:
+            continue
+        read = TRAILER("Design-Read", msg)
+        have = {x.strip() for x in read.group(1).split(",")} if read else set()
+        dep = TRAILER("Design-Departures", msg)
+        if (set(doms) - have) or not dep:
+            print(f"design_gate: commit {short} changed design-bound code without Design-Read/Design-Departures trailers")
+            bad += 1
+    if bad == 0:
+        print("design_gate: audit OK (every design-bound commit since the gate carries its trailers)")
+    return 1 if bad else 0
+
+
 def tracked() -> list[str]:
     r = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True)
     return [x for x in r.stdout.splitlines() if x.startswith(CODE_ROOTS) and not (SKIP_PARTS & set(Path(x).parts))]
@@ -144,6 +175,8 @@ def main(argv: list[str]) -> int:
         return cmd_commit_msg(rest[0])
     if cmd == "selfcheck":
         return cmd_selfcheck()
+    if cmd == "audit":
+        return cmd_audit()
     print(__doc__)
     return 2
 

@@ -27,6 +27,7 @@ preflight-full: ## require Git history + Rust/Java/bootstrap tools used by full 
 
 design-gate: ## every code path maps to a design domain (machine/architecture_map.json code_paths)
 	$(PY) tools/design_gate.py selfcheck
+	$(PY) tools/design_gate.py audit
 
 hooks: ## install the design-gate commit-msg hook for this clone (shared by its worktrees)
 	git config core.hooksPath tools/hooks

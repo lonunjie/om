@@ -35,6 +35,22 @@ Most of the shipped product follows the audited text (first-contact cryptography
 4. **Keep the gate.** Every code commit lists the design domains it read and its departures ([`tools/design_gate.py`](../../tools/design_gate.py), `make hooks`). A departure with no accepting record blocks the commit.
 5. **Nothing else changes in the meantime**: no new features, no ADRs, no spending. The wake channel and the backup file stay as shipped, labelled.
 
-## 4. Where I (this session) went wrong, so it is on record
+## 4a. Decisions recorded on 2026-11-03
+
+- **ADR-0181 section 2.1:** the operator said yes; an erratum line in the ADR now says the audited invite text supersedes it.
+- **ADR-0184 (backup file):** delegated to the agent. Decision: **keep as a labelled beta feature and record it as an implementation deviation**, not an amendment of [`IMPORT_EXPORT_AND_USER_ESCAPE.md`](../architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md). Reason: it already works with any storage the person has, grants no authority, was asked for by the operator, and removing it would strand anyone who already saved a file; the audited archive format is locked behind `portability`, so nothing audited can replace it yet. It is replaced by the OM Portable Archive when that scope opens. Erratum line added to the ADR.
+- **Default Home in the signed build (commit 771e088):** the operator could not confirm a decision. Left as shipped (reverting changes what visitors see on a live site and needs the operator's approval); still open.
+- **What "Home" is.** In the design it is the Home-tier vocabulary introduced in the 2026-09-24 hardening review (finding F-06, ADR-0102): the small online service that holds a person's sealed mailbox (queue), key material, discovery descriptor and first-contact gate. The five tiers T0 to T4 are Homes. The design's generic words are "provider" and "relay". On 2026-11-02 the operator asked that people never see the word: the UI says "delivery service" and Settings says "Message delivery"; that was applied. Code, ADRs and docs still use "Home".
+
+## 5. UI/UX: first pass (not a full conformance review)
+
+The operator noted the UI did not follow the design guidelines. What I could establish in this pass:
+
+- **The agent brief has no provenance.** [`docs/ux-design/AGENT_UX_BRIEF.md`](../ux-design/AGENT_UX_BRIEF.md) says the audited source wins, but sections 4a and 6a were written by agents across web 0.0.4 to 0.0.7 (2026-11-02 and 03) and mix the operator's in-session instructions with agent choices; nothing says which is which. Keywords I searched for in `docs/architecture/ux/` and `docs/ux-design/specs/` and did **not** find: "golden", "slide-in" / "slides in". Found only in a spec or prototype document, not in the architecture UX documents: "pill", "settings search". A warning is now at the top of the brief.
+- **Audited features not shown.** The Omnibar (find-or-do) is a core audited surface ([`NAVIGATION_AND_OMNIBAR.md`](../architecture/ux/NAVIGATION_AND_OMNIBAR.md), ADR-0162); the brief says it is hidden because it is unbuilt. Calls, People, Spaces, Files are likewise absent. That is an unfinished build, not a decision, but the brief presents it as a rule.
+- **What does follow a decision:** the "delivery service, never Home" wording (operator, 2026-11-02) is in the shipped copy (`packages/om-ui/src/home/copy.ts`, `apps/web/src/copy/en.ts`); "Chats is the only root" and no tab bar are in [`UI_UX_SYSTEM.md`](../architecture/ux/UI_UX_SYSTEM.md) and [`NAVIGATION_AND_OMNIBAR.md`](../architecture/ux/NAVIGATION_AND_OMNIBAR.md).
+- **Not done:** reading [`UI_UX_SYSTEM.md`](../architecture/ux/UI_UX_SYSTEM.md), [`RECONCILED_INTERACTION_MODEL.md`](../architecture/ux/RECONCILED_INTERACTION_MODEL.md), [`NAVIGATION_AND_OMNIBAR.md`](../architecture/ux/NAVIGATION_AND_OMNIBAR.md), `MOBILE_SHELL_*`, [`INVITE_AND_EMPTY_STATE.md`](../ux-design/specs/INVITE_AND_EMPTY_STATE.md), [`DISCOVERY_AND_ONBOARDING.md`](../ux-design/specs/DISCOVERY_AND_ONBOARDING.md) and `ACCESSIBILITY_AND_INPUT.md` in full and comparing screenshots of each shipped screen. That is a separate review and should be done by an agent that has read them, with the operator ruling on each difference.
+
+## 6. Where I (this session) went wrong, so it is on record
 
 I wrote a delivery plan before reading the discovery design; proposed a Paid plan against the constitution; wrote an ADR for a wake channel the audited Cloudflare profile already permits, without citing that profile; and then proposed another ADR to patch the invite instead of asking why the invite lost its locator. The first three are corrected in the reports; the fourth is withdrawn here.

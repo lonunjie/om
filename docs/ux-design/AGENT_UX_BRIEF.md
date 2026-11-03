@@ -9,6 +9,13 @@ Precedence (from [`README.md`](README.md)): constitution / accepted ADRs / machi
 Journeys: [`SCREEN_MAP_AND_JOURNEYS.md`](SCREEN_MAP_AND_JOURNEYS.md). First run: [`specs/DISCOVERY_AND_ONBOARDING.md`](specs/DISCOVERY_AND_ONBOARDING.md)
 and [`specs/INVITE_AND_EMPTY_STATE.md`](specs/INVITE_AND_EMPTY_STATE.md). Words: [`specs/CONTENT_AND_MICROCOPY_VOICE.md`](specs/CONTENT_AND_MICROCOPY_VOICE.md).
 
+> **Provenance warning (2026-11-03).** Parts of this brief, notably 4a and 6a (web 0.0.4 to 0.0.7, 2026-11-02 and 2026-11-03: web-link invites,
+> "round everything", golden-section card, back arrow on the heading line, settings search, slide-in panes), were added by agents while building and are
+> **not backed by an audited UX document unless a source is cited**. Some record the operator's in-session direction; the brief does not say which. They are working
+> notes, not design. Where they disagree with `docs/architecture/ux/` or `docs/ux-design/specs/`, the audited document wins and the code should follow it. A
+> conformance review of the shipped UI against those documents is open (see [`docs/reports/2026-11-03-return-to-the-audited-design.md`](../reports/2026-11-03-return-to-the-audited-design.md), section 5). Do not add a
+> new decision here without a source: an audited document section, or the operator's words with the date.
+
 ## 1. The test every screen must pass
 
 > Bulletproof underneath; boringly easy on top. Could a person who cannot configure Wi-Fi use this correctly and securely?

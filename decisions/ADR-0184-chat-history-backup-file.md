@@ -1,5 +1,6 @@
 # ADR-0184 — Chat-history backup file (`OMB-1`): a password-sealed, history-only file; restoring grants no authority
 
+- **Erratum (operator delegated the decision to the agent, 2026-11-03): this is kept as a labelled beta feature and is an implementation deviation, not an amendment of audited text.** [`IMPORT_EXPORT_AND_USER_ESCAPE.md`](../docs/architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md) sections 7 to 10 stand as written; `OMB-1` is a narrow history-only file that grants no authority, outside the locked `portability` scope. When `portability` opens, the OM Portable Archive replaces it and this file is imported read-only. Until then the product makes no portability claim. See [`2026-11-03-return-to-the-audited-design`](../docs/reports/2026-11-03-return-to-the-audited-design.md).
 - **Status:** Accepted by operator delegation 2026-11-03 (operator: build chat backup as a saved file that works with any storage the person already has; the go-ahead covers the Core format and the reference client UI, not user-connected destinations)
 - **Date:** 2026-11-03
 - **Amends (adds a narrow, separately typed object; no change to the wire protocol):** [`IMPORT_EXPORT_AND_USER_ESCAPE.md`](../docs/architecture/ecosystem/IMPORT_EXPORT_AND_USER_ESCAPE.md) sections 7 to 10 (secure export, history without authority, read-only import)
