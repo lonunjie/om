@@ -189,7 +189,7 @@ export const verifyRelay = (dir, { roots = PINNED_ROOTS, threshold = PINNED_ROOT
 
   // 7. the admission value, where this environment shows it (Cloudflare may keep a secret from the build: then the running relay is the check)
   const adm = env.OM_ADMISSION;
-  if (typeof adm === "string" && adm.trim() !== "" && !adm.split(",").every((h) => HEX64.test(h.trim().toLowerCase()))) bad("OM_ADMISSION is not a list of 64-character hexadecimal values (a malformed value would leave your delivery service open to anyone)");
+  if (typeof adm === "string" && adm.trim() !== "" && !adm.split(",").every((h) => HEX64.test(h.trim().toLowerCase()))) bad("OM_ADMISSION is not a list of 64-character hexadecimal values (a malformed value would leave your delivery service unusable: it refuses to create anything)");
   info.admissionSeen = typeof adm === "string" && adm.trim() !== "";
   return { ok: errors.length === 0, errors, info };
 };
@@ -204,6 +204,6 @@ if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToP
   if (r.errors.some((e) => e.startsWith("signature: pq_") || e.startsWith("provenance: delegation: pq_"))) console.error("HINT: the post-quantum co-signature check needs Node 24 or newer (ML-DSA in node:crypto). This template asks for it in .node-version.");
   const i = r.info;
   console.log(`${r.ok ? "OK" : "FAILED"}: relay ${i.version ?? "?"}${r.ok ? ` signed (key ${i.keyId}, delegation v${i.delegationVersion}), commit ${i.commit}, worker sha256 ${i.workerSha256}` : ": nothing will be deployed"}`);
-  if (r.ok && !i.admissionSeen) console.log("NOTE: the setup value (OM_ADMISSION) is not visible to this step. After deploying, check that your relay's /.well-known/om-provider-capabilities lists om.admission.v1; if it does not, your relay is open to anyone.");
+  if (r.ok && !i.admissionSeen) console.log("NOTE: the setup value (OM_ADMISSION) is not visible to this step. After deploying, check that your relay's /.well-known/om-provider-capabilities lists om.admission.v1; if it does not, the setup value did not take: your relay then refuses to create anything (it fails closed) until you correct it.");
   process.exit(r.ok ? 0 : 1);
 }
