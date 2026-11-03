@@ -1,6 +1,7 @@
 // Where the app's messaging provider (a Home, home-api.md) lives. Two sources, in this order:
 //   1. a URL the user chose (stored in this browser; the Settings screen writes it with `saveRelayUrl`), then
-//   2. the deployment default baked in at build time (`VITE_OM_RELAY_URL`, part of the signed bundle manifest).
+//   2. a build-time URL (`VITE_OM_RELAY_URL`), which only dev/test bundles may set: a signed production build refuses it (ADR-0186,
+//      vite.config.ts), because nobody relies on a relay of ours.
 // With neither, the app runs unconnected and says so ("Not connected to a provider"); nothing is ever guessed or
 // hard-coded, and no vendor name appears here. A URL is validated before use (https only; plain http only for a loopback
 // host in a build that opted in, and such a build refuses to be a production build, see vite.config.ts).
