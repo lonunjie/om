@@ -2874,6 +2874,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0186-every-person-runs-their-own-relay.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -4331,6 +4338,13 @@
     },
     {
       "path": "docs/reports/2026-11-03-own-relay-onboarding-design-map.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-03-owner-admission-and-devices.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -7621,6 +7635,13 @@
     },
     {
       "path": "infra/cloudflare-home/src/util.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/cloudflare-home/test/admission.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
       "license": "MPL-2.0",

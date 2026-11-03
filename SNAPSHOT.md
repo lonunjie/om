@@ -8,11 +8,12 @@ Generated: **2026-10-11 PHT (UTC+08:00)**, after the operator accepted the `grou
 - **Review model:** Claude performs all reviews at the operator's direction (ADR-0167). Gates passed this way carry `pre_engineering_review_basis=operator_single_vendor_ADR-0167`, which is not vendor-independent review.
 - **Design:** `design_open=0`. Review findings F-14..F-19 are fixed (ADR-0168, ADR-0170); F-20..F-23 are resolved by ADR-0172.
 - **Verification:** 8 gates still have pre-engineering open. V-004, V-009 and V-019 passed pre-engineering on 2026-10-01 under the ADR-0167 model, which completes the evidence for `groups`; ADR-0177 (accepted 2026-10-11) unlocks it. V-006 passed pre-engineering the same day for the first-release web matrix; Windows Chrome/Edge is untested and carried pre-release (ADR-0172). V-018 is pre-release (ADR-0170). Pre-release items for groups stay open: the V-004 multi-client partition harness on two implementations, the V-009 corpus run by every implementation, the V-019 interoperable migration.
-- **Ledgers:** 420 requirements / 420 trace rows, 163 threats, 205 decisions / 185 indexed ADRs, 40 security invariants.
+- **Ledgers:** 420 requirements / 420 trace rows, 163 threats, 206 decisions / 186 indexed ADRs, 40 security invariants.
 - **Next:** build the `core_kernel`, `provider_reference`, `reference_client_ui` and `groups` crates/packages (web first, per [`ADR-0178`](decisions/ADR-0178-pwa-canonical-store-independent-distribution.md)) per [`ENGINEER_START_HERE.md`](docs/process/ENGINEER_START_HERE.md). V-006 pre-release: run the probe on Windows or drop Windows, publish the support matrix with regression tests.
 
 ## 2026-11-03 PHT — ADR-0185: Home wake channel
 
+- ADR-0186 (decided by the operator) records that every person, invited ones included, sets up their own relay in onboarding (Cloudflare first, named; R2 later), the build carries no default relay, and the deploy button moves from the website repo into onboarding. Amends the first-run default of ADR-0102. D-206.
 - ADR-0185 adds the optional Home API feature `om.relay.wake.v1` (hibernating per-queue WebSocket, sequence number only, receive capability in the first frame, polling as the fallback). Reference Home and adapter built and tested; the Worker is **deployed** to the default Home (2026-11-03, measured in the report). Web Push evaluated and not built. D-205, R-426..R-429, T-172..T-173. The report also records, for the first time, where the shipped single-default-Home departs from the tiers design.
 
 ## 2026-11-03 PHT — ADR-0184: chat-history backup file

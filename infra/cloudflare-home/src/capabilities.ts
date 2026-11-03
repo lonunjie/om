@@ -8,13 +8,17 @@ import { LIMITS } from "./limits";
 /** The optional wake channel is on unless the deployment sets OM_WAKE=0. */
 export const wakeOn = (env: Env): boolean => env.OM_WAKE !== "0";
 
+/** The hashes of the admission secrets this deployment accepts; empty means resource creation is open (a shared or test Home). */
+export const admissionHashes = (env: Env): readonly string[] =>
+  (env.OM_ADMISSION ?? "").split(",").map((h) => h.trim().toLowerCase()).filter((h) => /^[0-9a-f]{64}$/.test(h));
+
 export function capabilitiesDocument(env: Env): Record<string, unknown> {
   return {
     schema_version: 1,
     provider_id: env.OM_PROVIDER_ID ?? "om-reference-home",
     provider_kinds: ["relay", "key_material", "discovery_relay", "intro_gate"],
     durability_class: "durable",
-    features: Object.values(FEATURES).filter((f) => f !== FEATURES.relayWake || wakeOn(env)).sort(),
+    features: Object.values(FEATURES).filter((f) => (f !== FEATURES.relayWake || wakeOn(env)) && (f !== FEATURES.admission || admissionHashes(env).length > 0)).sort(),
     api_versions: ["1"],
     health: "healthy",
     limits: {

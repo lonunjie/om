@@ -13,6 +13,8 @@ export { Obj } from "./fields";
 export const FEATURES = {
   relayQueues: "om.relay.queues.v1",
   relayWake: "om.relay.wake.v1",
+  /** The Home lets only its owner create resources (queues, descriptors, key pools, intro services); see `admissionHash`. */
+  admission: "om.admission.v1",
   keysPool: "om.keys.pool.v1",
   keysAnonymousFetch: "om.keys.fetch-throttled.v1",
   discoveryPut: "om.discovery.put.v1",

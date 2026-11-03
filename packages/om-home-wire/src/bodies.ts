@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Semantic bodies of the OM Home API v1 (spec/cddl/home-api.cddl), plus the additive bodies of the optional features the
 // reference Home advertises (docs: see FEATURES). Every decoder checks the CDDL size bounds and rejects unknown keys.
+import { sha256, utf8 } from "./bytes";
 import { CborError, decode, encode, map, type CborValue } from "./cbor";
 import { Obj } from "./fields";
 import { API_MAJOR } from "./version";
@@ -345,4 +346,18 @@ export function decodeWakeEvent(b: Uint8Array): WakeEvent {
   const seq = o.uint(2);
   o.done();
   return { kind: k === 1 ? "ready" : "wake", seq };
+}
+
+// --- Owner admission (feature om.admission.v1) -------------------------------------------------------------------------------
+// A personal Home creates resources only for its owner. The owner's client generates a 32-byte random admission secret for
+// that one Home; the Home is deployed holding only `admissionHash(secret)` (hex), never the secret. Creating a queue,
+// publishing a descriptor or a key bundle, or issuing intro tickets then carries the secret in this header. Deposits, drains,
+// key fetches and first-contact submissions need none: they are authorised by their own capabilities and stay open to peers.
+export const ADMISSION_HEADER = "om-admission";
+export const ADMISSION_SECRET_BYTES = 32;
+
+/** `SHA-256("OM-RELAY-ADMISSION-v1" || secret)`, lowercase hex. A public value: safe to paste into a deployment form. */
+export async function admissionHash(secret: Uint8Array): Promise<string> {
+  const h = await sha256(utf8("OM-RELAY-ADMISSION-v1"), secret);
+  return Array.from(h, (x) => x.toString(16).padStart(2, "0")).join("");
 }

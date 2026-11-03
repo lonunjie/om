@@ -32,6 +32,8 @@ export interface HttpProviderOptions {
    * turns the channel off for this provider; the caller then polls on its timer exactly as before.
    */
   readonly webSocket?: WakeSocketFactory | false;
+  /** The owner's admission secret for this Home (om.admission.v1), 32 random bytes made for this Home only; absent for a Home that does not ask. */
+  readonly admission?: Uint8Array;
   /** Tuning of the wake channel (timers, socket cap); tests use short values. */
   readonly wake?: Pick<WakeHubOptions, "pingMs" | "pongMs" | "safetyMs" | "connectMs" | "maxSockets">;
 }
@@ -42,6 +44,8 @@ export interface HttpProvider extends Provider {
   /** Routes for new mailboxes at this Home (Provider.allocateRoutes, always present here). */
   allocateRoutes(count: number): Promise<readonly RouteOffer[]>;
   readonly baseUrl: string;
+  /** True once this Home refused to create a resource because it asks for the owner's admission secret and this client's was missing or wrong. */
+  admissionRefused(): boolean;
   reachability(): Reachability;
   /** Mailboxes this installation could not claim because another party already holds the queue (squatted). */
   lostMailboxes(): readonly string[];
@@ -75,7 +79,7 @@ const toSeconds = (t: number): number => (t > 100_000_000_000 ? Math.floor(t / 1
 
 export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
   const base = opts.config.baseUrl;
-  const http: HttpOptions = { fetch: opts.fetch ?? ((...a) => fetch(...a)), timeoutMs: opts.timeoutMs ?? 20_000 };
+  const http: HttpOptions = { fetch: opts.fetch ?? ((...a) => fetch(...a)), timeoutMs: opts.timeoutMs ?? 20_000, ...(opts.admission ? { admission: opts.admission } : {}) };
   let secretP: Promise<Uint8Array> | undefined;
   const secret = (): Promise<Uint8Array> => (secretP ??= installSecret(opts.secrets));
   let reach: Reachability = "unknown";
@@ -166,6 +170,8 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
 
   // ------------------------------------------------------------------------------------------ queues
 
+  let admissionDenied = false;
+
   /** First poll of an own mailbox claims the queue at the Home (idempotent for identical capabilities). */
   async function ensureQueue(mailbox: Uint8Array, mailboxHex: string): Promise<"ok" | "later" | "lost"> {
     if (ensured.has(mailboxHex)) return "ok";
@@ -177,7 +183,13 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     });
     if (isResult(r)) return "later";
     if (r.kind === "ok") { ensured.add(mailboxHex); return "ok"; }
-    if (r.error.name === "unauthorized") { lost.add(mailboxHex); return "lost"; }
+    if (r.error.name === "unauthorized") {
+      // A Home that asks for the owner's admission refuses a client without it for a reason that has nothing to do with another
+      // party holding the queue: say so (reported by `admissionRefused`) and keep the mailbox, instead of calling it squatted.
+      if ((await advertisedFeatures())?.includes(FEATURES.admission)) { admissionDenied = true; return "later"; }
+      lost.add(mailboxHex);
+      return "lost";
+    }
     return "later";
   }
 
@@ -330,6 +342,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
   return {
     baseUrl: base,
     reachability: () => reach,
+    admissionRefused: () => admissionDenied,
     lostMailboxes: () => [...lost],
     routeEntry: async (mailbox, expiresAt) => ({ relayUri: `${base}/`, capability: await depositCap(mailbox), priority: 0, expiresAt, transports: ["https"] }),
     async allocateRoutes(count) {

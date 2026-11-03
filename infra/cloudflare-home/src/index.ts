@@ -4,9 +4,9 @@
 // It never reads a network address or any identifying header, writes no log, and sets no cookie.
 import {
   CborError, HomeError, decodeAckRequest, decodeDepositRequest, decodeDescriptorPut, decodeDrainRequest, decodeIntroDrainRequest, decodeIntroTicketRequest, decodeKeyFetch,
-  decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, fromHex, decode, Obj, type HomeErrorName,
+  ADMISSION_HEADER, admissionHash, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, fromHex, decode, Obj, type HomeErrorName,
 } from "@om/home-wire";
-import { capabilitiesDocument, wakeOn } from "./capabilities";
+import { admissionHashes, capabilitiesDocument, wakeOn } from "./capabilities";
 import type { Env } from "./env";
 import { bearer, fail, fromReply, json, ok, preflight, readBody } from "./http";
 import { LIMITS } from "./limits";
@@ -42,6 +42,33 @@ function parse<T>(f: (b: Uint8Array) => T, b: Uint8Array): T {
   try { return f(b); } catch (e) { if (e instanceof CborError) throw new Bad("invalid_request"); throw e; }
 }
 
+/** Constant-time equality of two same-length hex strings. */
+function sameHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+
+/**
+ * Owner admission (om.admission.v1). Where the deployment lists admission hashes, creating a resource (queue, descriptor, key
+ * pool, intro service) needs the matching secret in the `om-admission` header; otherwise the answer is the same `unauthorized`
+ * as for any bad capability. Peers never need it: deposit, drain, fetch and first-contact submission use their own capabilities.
+ */
+async function admitted(request: Request, env: Env): Promise<boolean> {
+  const hashes = admissionHashes(env);
+  if (hashes.length === 0) return true;
+  const h = request.headers.get(ADMISSION_HEADER);
+  if (h === null) return false;
+  let secret: Uint8Array;
+  try { secret = fromBase64Url(h.trim()); } catch { return false; }
+  if (secret.length !== 32) return false;
+  const got = await admissionHash(secret);
+  let ok = false;
+  for (const want of hashes) ok = sameHex(got, want) || ok;
+  return ok;
+}
+
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -53,6 +80,7 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   // ----------------------------------------------------------------------------------------------- relay
   if (path === "/v1/relay/queues") {
+    if (!(await admitted(request, env))) return fail("unauthorized");
     const req = parse(decodeQueueCreate, await body(request, 1024));
     if (![req.receiveCap, req.depositCap, ...(req.adminCap ? [req.adminCap] : [])].every((c) => wellFormed(c, 16))) return fail("invalid_request");
     const prefix = hex(req.receiveCap.slice(0, 16));
@@ -103,6 +131,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (m === "GET") return fromReply(await stub.get());
     const cap = bearer(request);
     if (!cap) return fail("unauthorized");
+    if ((m === "PUT" || m === "DELETE") && !(await admitted(request, env))) return fail("unauthorized");
     if (m === "PUT") return fromReply(await stub.put(cap, parse(decodeDescriptorPut, await body(request, LIMITS.maxDescriptorBytes + 1024))));
     if (m === "DELETE") return fromReply(await stub.revoke(cap));
     return fail("invalid_request");
@@ -113,6 +142,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (bundle && m === "PUT") {
     const cap = bearer(request);
     if (!cap) return fail("unauthorized");
+    if (!(await admitted(request, env))) return fail("unauthorized");
     const device = fromHex(bundle[1] ?? "");
     return fromReply(await env.KEYS.get(env.KEYS.idFromName(`k:${bundle[1] ?? ""}`)).publish(cap, device, parse(decodeKeyPublish, await body(request, 4 * LIMITS.maxBundleBytes))));
   }
@@ -139,7 +169,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   // ----------------------------------------------------------------------------------------------- IntroGate
   if (path === "/v1/intro/tickets") {
     const cap = bearer(request);
-    if (!cap || !wellFormed(cap, 8)) return fail("unauthorized");
+    if (!cap || !wellFormed(cap, 8) || !(await admitted(request, env))) return fail("unauthorized");
     return fromReply(await introOf(env, cap).issueTickets(cap, parse(decodeIntroTicketRequest, await body(request, 1024))));
   }
   if (path === "/v1/intro/requests") {

@@ -2,7 +2,7 @@
 // One HTTP exchange with a Home, classified for Core's outbox: a definite typed answer, or a network failure whose
 // outcome is unknown. Bearer capabilities travel only in the Authorization header or the CBOR body; nothing here puts one
 // in a URL, sends a cookie, follows a redirect or leaks a referrer (ADR-0141).
-import { decodeHomeError, toBase64Url, type HomeErrorBody } from "@om/home-wire";
+import { ADMISSION_HEADER, decodeHomeError, toBase64Url, type HomeErrorBody } from "@om/home-wire";
 
 export type Exchange =
   | { readonly kind: "ok"; readonly status: number; readonly body: Uint8Array }
@@ -15,7 +15,16 @@ export type Exchange =
 export interface HttpOptions {
   readonly fetch: typeof fetch;
   readonly timeoutMs: number;
+  /** The owner's admission secret for THIS Home (feature om.admission.v1); sent only on the operations that create resources. */
+  readonly admission?: Uint8Array;
 }
+
+/** Operations that create or replace the owner's own resources; nothing a peer does needs the admission secret. */
+const needsAdmission = (url: string, method: string): boolean => {
+  if (method === "GET") return false;
+  const path = new URL(url).pathname;
+  return path === "/v1/relay/queues" || path === "/v1/intro/tickets" || path.startsWith("/v1/discovery/descriptors/") || path.startsWith("/v1/keys/bundles/");
+};
 
 export async function exchange(
   opts: HttpOptions,
@@ -25,6 +34,7 @@ export async function exchange(
   const headers: Record<string, string> = {};
   if (init.body !== undefined) headers["content-type"] = "application/cbor";
   if (init.bearer !== undefined) headers["authorization"] = `Bearer ${toBase64Url(init.bearer)}`;
+  if (opts.admission !== undefined && needsAdmission(url, init.method)) headers[ADMISSION_HEADER] = toBase64Url(opts.admission);
   let res: Response;
   try {
     res = await opts.fetch(url, {

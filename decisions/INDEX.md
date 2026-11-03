@@ -192,3 +192,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0183 — Open beta: which release gates are waived, which are not, and when each comes back](ADR-0183-open-beta-release-waivers.md)
 - [ADR-0184 — Chat-history backup file (OMB-1): a password-sealed, history-only file; restoring grants no authority](ADR-0184-chat-history-backup-file.md)
 - [ADR-0185 — Home wake channel (`om.relay.wake.v1`): event-driven delivery instead of a poll timer; optional, polling is the fallback](ADR-0185-home-wake-channel.md)
+- [ADR-0186 — Every person sets up their own relay; no built-in default relay; the deploy button belongs to onboarding](ADR-0186-every-person-runs-their-own-relay.md)
