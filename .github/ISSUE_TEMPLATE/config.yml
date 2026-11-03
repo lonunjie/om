@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Suggest an idea or ask a question
+    url: https://github.com/lonunjie/om/discussions
+    about: Ideas and questions live in Discussions.
   - name: Security problem
     url: https://github.com/lonunjie/om/security/advisories/new
     about: Report a vulnerability privately. Please do not open a public issue for it.

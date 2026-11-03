@@ -870,10 +870,10 @@ export const homeCopy: HomeCopy = {
 /** Settings > Lock: what protects this device and how to change it, without technical words. */
 export const helpCopy = {
   heading: "Help and feedback",
-  intro: "OM is in beta, so some things will go wrong, and your ideas shape what comes next. Reports are public on GitHub, where anyone can read and answer them.",
+  intro: "OM is in beta, so some things will go wrong, and your ideas shape what comes next. Reports and ideas are public on GitHub, where anyone can read and answer them.",
   actions: {
     problem: { title: "Report a problem", hint: "Something broke or looks wrong.", url: https("github.com/lonunjie/om/issues/new?template=bug.yml") },
-    idea: { title: "Suggest an idea", hint: "Something you wish OM did.", url: https("github.com/lonunjie/om/issues/new?template=idea.yml") },
+    idea: { title: "Suggest an idea", hint: "Something you wish OM did.", url: https("github.com/lonunjie/om/discussions/new?category=ideas") },
     browse: { title: "See what others reported", hint: "Check whether someone already said it.", url: https("github.com/lonunjie/om/issues") },
     security: { title: "Report a security problem", hint: "Tell us privately, not in public.", url: https("github.com/lonunjie/om/security/advisories/new") },
   },

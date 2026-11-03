@@ -8,7 +8,7 @@ import { HelpScreen, withVersion } from "./HelpScreen";
 afterEach(cleanup);
 
 describe("Settings > Help and feedback", () => {
-  it("offers a problem report, an idea, the list and a private security route, all on GitHub and opened in a new tab", async () => {
+  it("offers a problem report, an idea (in Discussions), the list and a private security route, all on GitHub and opened in a new tab", async () => {
     const { container } = render(<HelpScreen version="9.9.9" />);
     const links = screen.getAllByRole("link");
     expect(links).toHaveLength(4);
@@ -29,6 +29,7 @@ describe("Settings > Help and feedback", () => {
   it("adds the version only to the report forms, and nothing else about the person", () => {
     expect(withVersion("https://github.com/lonunjie/om/issues", "1.2.3")).toBe("https://github.com/lonunjie/om/issues");
     expect(withVersion("https://github.com/lonunjie/om/security/advisories/new", "1.2.3")).toBe("https://github.com/lonunjie/om/security/advisories/new");
-    expect(withVersion("https://github.com/lonunjie/om/issues/new?template=idea.yml", "1.2.3")).toBe("https://github.com/lonunjie/om/issues/new?template=idea.yml&version=1.2.3");
+    expect(withVersion("https://github.com/lonunjie/om/issues/new?template=bug.yml", "1.2.3")).toBe("https://github.com/lonunjie/om/issues/new?template=bug.yml&version=1.2.3");
+    expect(withVersion("https://github.com/lonunjie/om/discussions/new?category=ideas", "1.2.3")).toBe("https://github.com/lonunjie/om/discussions/new?category=ideas");
   });
 });
