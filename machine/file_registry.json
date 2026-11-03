@@ -7865,6 +7865,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "infra/cloudflare-home/test/two-homes.e2e.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "infra/cloudflare-home/test/wake-adapter.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
