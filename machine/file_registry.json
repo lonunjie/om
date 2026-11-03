@@ -4330,6 +4330,13 @@
       "authority": "working_record_non_normative"
     },
     {
+      "path": "docs/reports/2026-11-03-own-relay-onboarding-design-map.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
       "path": "docs/reports/2026-11-03-return-to-the-audited-design.md",
       "class": "report",
       "domain": "architecture_process",
