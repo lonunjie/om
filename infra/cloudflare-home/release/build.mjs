@@ -3,6 +3,7 @@
 // Builds the signed OM relay release as a ready-to-publish deploy template (the content of the per-user template repository).
 // Design: PROVISIONING_AND_BOOTSTRAP.md section 10 / R-261 (a template deploys a signed, digest-pinned release behind a verifier, never a branch head).
 // Usage: node build.mjs (--sign-from-vault | --sign-with-key-file <key>) [--out <dir>] [--delegation <file>] [--key-id <id>] [--builder-id <uri>] [--allow-dirty]
+//                       [--append-digest-log [file]]   after the release verifies, append its digests to the single-operator signed log (default deploy/release-log/relay-digests.jsonl)
 //                       [--test-roots-file <file>]       tests only (with --sign-with-key-file): JSON {roots,threshold[,pq]} replacing the pinned root
 //        node build.mjs --compare <template dir>          rebuilds the Worker from this checkout and compares it with <dir>/relay/worker.js
 // Signing is the web release's: the same pinned 2-of-3 offline root, the same root-signed delegation (apps/web/release-delegation.json), the same
@@ -15,6 +16,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cleanBuildEnv, pollutedKeys } from "../../../apps/web/build/clean-env.mjs";
 import { BUILD_TYPE, DEFAULT_BUILDER_ID, DEFAULT_REPO, provenanceLine, signProvenance } from "../../../apps/web/build/provenance.mjs";
+import { appendEntry } from "../../../apps/web/build/digest-log.mjs";
 import { RELEASE_KEY_ID, pemFromSecretText, pemFromVault, signManifest } from "../../../apps/web/build/sign.mjs";
 import { PINNED_PQ_ROOT, PINNED_ROOTS, PINNED_ROOT_THRESHOLD, PROVENANCE_FILE, SLSA_PREDICATE_TYPE, STATEMENT_TYPE } from "../../../apps/web/build/verify-release.mjs";
 import { LOCK_FILE, MANIFEST_FILE, MANIFEST_FORMAT, SUMS_FILE, WORKER_FILE, verifyRelay } from "./verify-relay.mjs";
@@ -127,4 +129,11 @@ try {
 
 const v = verifyRelay(dir, { roots: trust.roots, threshold: trust.threshold, pq: trust.pq });
 if (!v.ok) fail(`the release does not verify:\n  ${v.errors.join("\n  ")}`);
+if (flag("--append-digest-log")) {
+  // The relay has its own log file: its versions (0.2.0) are not the web release's (0.0.x), and the log refuses a duplicate version.
+  const next = args[args.indexOf("--append-digest-log") + 1];
+  const logFile = resolve(next && !next.startsWith("--") ? next : join(repoRoot, "deploy/release-log/relay-digests.jsonl"));
+  try { appendEntry(logFile, { version, commit, manifestSha256: sha(readFileSync(join(dir, MANIFEST_FILE))), sha256sumsSha256: sha(readFileSync(join(dir, SUMS_FILE))) }, pem, manifest.signature.keyId, manifest.delegation, trust); } catch (e) { fail(`digest log append failed: ${e.message}`); }
+  console.log(`relay release: digests appended to ${logFile} (single-operator log; commit it)`);
+}
 console.log(`relay release: signed om-relay-${version} (commit ${commit.slice(0, 12)}, worker sha256 ${v.info.workerSha256})\n  folder ${dir}`);

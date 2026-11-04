@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { ADMISSION_HEADER, admissionHash, encodeQueueCreate, toBase64Url } from "@om/home-wire";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { delegate, mkOnline, mkRoot, pinOf } from "../../../apps/web/build/testkit";
+import { verifyLog } from "../../../apps/web/build/digest-log.mjs";
 import { verifyRelay } from "../release/verify-relay.mjs";
 import { startHome, type Home } from "./harness";
 import { asBody, newCaps, rand, relay, sealed } from "./kit";
@@ -78,6 +79,23 @@ describe("signed relay release", () => {
     expect(r.stderr).toMatch(/FAIL: signature: root_threshold/);
     expect(r.stdout).toMatch(/FAILED.*nothing will be deployed/);
   });
+
+  it("--append-digest-log writes a signed, chained entry for this release into its own log, and refuses the same version twice", () => {
+    const log = join(tmp, "relay-digests.jsonl");
+    const build = () => spawnSync("node", [join(homeRoot, "release/build.mjs"), "--sign-with-key-file", join(tmp, "online.pem"), "--test-roots-file", join(tmp, "roots.json"), "--delegation", join(tmp, "delegation.json"), "--key-id", "online-1", "--allow-dirty", "--out", join(tmp, "out-log"), "--append-digest-log", log], { encoding: "utf8", env: cleanEnv() });
+    const first = build();
+    expect(first.status, first.stdout + first.stderr).toBe(0);
+    const v = verifyLog(log, { ...trust, now: Date.now() });
+    expect(v.errors).toEqual([]);
+    expect(v.entries).toHaveLength(1);
+    const version = (JSON.parse(readFileSync(join(homeRoot, "package.json"), "utf8")) as { version: string }).version;
+    const built = join(tmp, "out-log", `om-relay-${version}`);
+    const manifest = readFileSync(join(built, "relay-manifest.json"));
+    expect(v.entries[0]).toMatchObject({ version, manifestSha256: createHash("sha256").update(manifest).digest("hex"), sha256sumsSha256: createHash("sha256").update(readFileSync(join(built, "SHA256SUMS"))).digest("hex") });
+    const again = build();
+    expect(again.status).toBe(1);
+    expect(again.stderr).toMatch(/already logged/);
+  }, 120_000);
 
   it("the verifier CLI takes the folder as an argument (as the README says), with or without --min-version", () => {
     for (const extra of [[], ["--min-version", "0.1.0"]]) {

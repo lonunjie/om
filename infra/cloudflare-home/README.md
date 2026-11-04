@@ -46,6 +46,7 @@ Every person deploys their own copy (ADR-0186). The template repository content 
 ```sh
 cd /path/to/om
 node infra/cloudflare-home/release/build.mjs --sign-from-vault        # needs a clean tree; writes dist/relay-template/om-relay-<version>/
+# add --append-digest-log to also append the release to deploy/release-log/relay-digests.jsonl (commit that line)
 node infra/cloudflare-home/release/verify-relay.mjs dist/relay-template/om-relay-<version>
 node infra/cloudflare-home/release/build.mjs --compare dist/relay-template/om-relay-<version>    # rebuild from this checkout, compare bytes
 OM_HOME_BUNDLE=$PWD/dist/relay-template/om-relay-<version>/relay/worker.js pnpm exec vitest run infra/cloudflare-home   # the whole suite on the released bytes
