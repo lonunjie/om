@@ -79,6 +79,14 @@ describe("signed relay release", () => {
     expect(r.stdout).toMatch(/FAILED.*nothing will be deployed/);
   });
 
+  it("the verifier CLI takes the folder as an argument (as the README says), with or without --min-version", () => {
+    for (const extra of [[], ["--min-version", "0.1.0"]]) {
+      const r = spawnSync("node", [join(homeRoot, "release/verify-relay.mjs"), rel, ...extra], { encoding: "utf8" });
+      expect(r.stderr, extra.join(" ")).toMatch(/FAIL: signature: root_threshold/); // it read the release in `rel` (signed under a throwaway root), not its own folder
+      expect(r.stderr).not.toMatch(/unreadable/);
+    }
+  });
+
   it("an owner may rename the Worker; nothing else about the configuration may move", () => {
     const d = copyOf("renamed");
     json(d, "wrangler.json", (o) => { o["name"] = "my-own-relay"; o["$schema"] = "node_modules/wrangler/config-schema.json"; });

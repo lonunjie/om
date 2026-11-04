@@ -197,7 +197,7 @@ export const verifyRelay = (dir, { roots = PINNED_ROOTS, threshold = PINNED_ROOT
 if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const args = process.argv.slice(2);
   const mv = args.indexOf("--min-version");
-  const dir = resolve(args.find((a, i) => !a.startsWith("--") && i !== mv + 1) ?? dirname(fileURLToPath(import.meta.url)));
+  const dir = resolve(args.find((a, i) => !a.startsWith("--") && (mv < 0 || i !== mv + 1)) ?? dirname(fileURLToPath(import.meta.url)));
   const r = verifyRelay(dir, { minVersion: mv >= 0 ? args[mv + 1] : null });
   console.log("OM relay verification");
   for (const e of r.errors) console.error("FAIL:", e);
