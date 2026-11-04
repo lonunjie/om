@@ -32,7 +32,10 @@ sets up its side of each conversation and introduces itself through the approvin
 introduction to the contact (account update, field 4). Other devices verify the notice and advance their own head only
 along a verified descent (`KIND_ENROLLED = 11`, siblings only). A messaging device cannot offer or approve; revoke
 already removes a device. Transport and the host calls (`OpenQueue`, polling and acknowledging with an explicit
-capability) are in D24; the provider adapter implements them over the Home's existing queue endpoints.
+capability) are in D24. The adapter side (`packages/om-provider-http`, `packages/om-core-wasm` types) is written over the Home's
+existing queue endpoints but NOT committed: the design gate demands `Design-Read` for `constitution_governance` and
+`provider_deployment_supply_chain` for any change under `om-provider-http`, and those documents were not read. Until a
+reader of those domains commits it, a host cannot perform `open_queue` or poll a ceremony queue.
 
 Evidence: `tests/device_link.rs` (two Cores link, both send and receive with a third; revoke removes the device; bad or
 missing confirmation, unknown request, replay, expiry, refusal; a messaging device cannot offer; the ceremony key is on no
@@ -41,8 +44,8 @@ refused by the new device, which adopts no account and publishes nothing). The 1
 
 ## Not exercised
 
-The TypeScript adapter changes (`open_queue`, polling and acknowledging with a capability) type-check and the existing
-adapter and wasm tests pass, but they were not run against a real Home or the Cloudflare worker. The wasm artifact
+The uncommitted TypeScript adapter changes (`open_queue`, polling and acknowledging with a capability) type-check and the
+existing adapter and wasm tests pass, but they were not run against a real Home or the Cloudflare worker. The wasm artifact
 (`make core-wasm`) was not rebuilt.
 
 ## Open questions (design is silent; nothing here was decided beyond the operator's D24 ruling)
