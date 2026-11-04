@@ -6,13 +6,13 @@ import { asProfileId, webInviteLink, type DeviceVault, type ProfileExecutionCont
 import { type WasmCoreClient } from "@om/core-wasm";
 import { browserVaultEnv, createEncryptedKv, createWebDeviceVault, createWebPlatform } from "@om/web-platform";
 import {
-  OnboardingFlow, OnboardingFrame, ProfileProvider, RelaySetup, Text, ThemeProvider, UnlockVault, createActionRegistry, createMemoryKeyValue, createProfileScopedState,
+  DeviceNotices, OnboardingFlow, OnboardingFrame, ProfileProvider, RelaySetup, Text, ThemeProvider, UnlockVault, createActionRegistry, createMemoryKeyValue, createProfileScopedState,
   useActiveProfile, useCaptureContext, type ActionRegistry, type HomeSettingsServices, type OnboardingPlatform, type OnboardingResult, type RelaySetupServices,
 } from "@om/ui";
 import { InstallAffordance } from "../install/InstallAffordance";
 import { clearExpectedNewChat, clearPendingInvite, expectNewChat, useExpectedNewChat, usePendingInvite } from "../invite/pendingInvite";
 import { Landing } from "../landing/Landing";
-import { appStrings as t, onboardingCopy, scannerCopy, unlockCopy } from "../copy/en";
+import { appStrings as t, deviceScannerCopy, devicesCopy, onboardingCopy, scannerCopy, unlockCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { CHATS, navigate } from "../route/place";
 import { useQrScanner } from "../qr/Scanner";
@@ -183,7 +183,7 @@ function Profiles({ rt, vault, registry, drafts, platform, known: initial, conne
   if (pending !== null) {
     return (
       <Onboard
-        rt={rt} vault={vault} platform={platform} pending={pending} first={known.length === 0} {...(connected || relaySetup === undefined ? {} : { relaySetup })} onCancel={() => { setPending(null); navigate({ kind: "settings", page: "menu" }, { replace: true }); }}
+        rt={rt} vault={vault} platform={platform} pending={pending} first={known.length === 0} allowJoin={connected && known.length === 0} onJoinRestart={() => { setPending(null); begin(); }} {...(connected || relaySetup === undefined ? {} : { relaySetup })} onCancel={() => { setPending(null); navigate({ kind: "settings", page: "menu" }, { replace: true }); }}
         onDone={(result) => {
           if (result.safetyCodePending !== null) savePendingSafetyCode(pending.id, result.safetyCodePending);
           if (result.inviteAccepted) { clearPendingInvite(); expectNewChat([]); }
@@ -251,21 +251,26 @@ function Connected({ rt, vault, drafts, platform, onAddProfile, home, lockOpen, 
     () => (activeId === null ? null : { load: () => drafts.load(activeId), save: (conversation, text) => { drafts.set(activeId, conversation, text); }, loadSeen: () => drafts.loadSeen(activeId), saveSeen: (conversation, at) => { drafts.setSeen(activeId, conversation, at); } }),
     [drafts, activeId],
   );
-  if (activeId === null || ctx === null || lock === null || backup === null || draftSync === null) return <Text>{t.loading}</Text>;
+  const settingsServices = useMemo(() => (ctx === null ? null : { client: rt, registry, ctx }), [rt, registry, ctx]);
+  if (activeId === null || ctx === null || lock === null || backup === null || draftSync === null || settingsServices === null) return <Text>{t.loading}</Text>;
   const resolve = (): void => { clearPendingSafetyCode(activeId); setResolved((n) => n + 1); };
   return (
+    <>
+    <DeviceNotices services={settingsServices} copy={devicesCopy} />
     <Shell
-      key={activeId} services={{ client: rt, registry, ctx }} onAddProfile={onAddProfile} lock={lock} backup={backup} draftSync={draftSync} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
+      key={activeId} services={settingsServices} onAddProfile={onAddProfile} lock={lock} backup={backup} draftSync={draftSync} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
       incoming={{ token, newChatAfter, onAccepted: (known) => { clearPendingInvite(); expectNewChat(known); }, onDeclined: clearPendingInvite, onNewChatOpened: clearExpectedNewChat }}
       {...(pending === null ? {} : { safetyCode: { keyOperationId: pending, platform, onResolved: resolve } })}
     />
+    </>
   );
 }
 
-interface OnboardProps { readonly onCancel: () => void; readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly pending: { readonly id: ProfileId; readonly ctx: ProfileExecutionContext }; readonly first: boolean; readonly relaySetup?: RelaySetupServices; readonly onDone: (result: OnboardingResult) => void }
+interface OnboardProps { readonly onCancel: () => void; readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly platform: OnboardingPlatform; readonly pending: { readonly id: ProfileId; readonly ctx: ProfileExecutionContext }; readonly first: boolean; readonly allowJoin: boolean; readonly onJoinRestart: () => void; readonly relaySetup?: RelaySetupServices; readonly onDone: (result: OnboardingResult) => void }
 
-function Onboard({ rt, vault, platform, pending, first, relaySetup, onDone, onCancel }: OnboardProps) {
+function Onboard({ rt, vault, platform, pending, first, allowJoin, onJoinRestart, relaySetup, onDone, onCancel }: OnboardProps) {
   const { scanQr, dialog } = useQrScanner(scannerCopy);
+  const linkScan = useQrScanner(deviceScannerCopy);
   const token = usePendingInvite();
   // The very first run opens with the landing page; adding a further identity, or opening an invite link, goes straight into setup.
   // Setting up the delivery service restarts the app against it; the person has already seen the landing page by then.
@@ -278,10 +283,12 @@ function Onboard({ rt, vault, platform, pending, first, relaySetup, onDone, onCa
     <>
       <OnboardingFlow
         key={pending.id} client={rt} registry={registry} ctx={pending.ctx} vault={vault} platform={platform} copy={onboardingCopy}
-        renderQr={(payload) => <QrCode payload={payload} />} scanQr={scanQr} shareLink={shareLink} incomingInvite={first ? token : null} onIncomingInviteDeclined={clearPendingInvite}
+        renderQr={(payload) => <QrCode payload={payload} />} scanQr={scanQr} scanLinkQr={linkScan.scanQr} shareLink={shareLink} incomingInvite={first ? token : null} onIncomingInviteDeclined={clearPendingInvite}
+        allowJoin={allowJoin} onJoinRestart={onJoinRestart}
         skipWelcome onDone={onDone} {...(first ? {} : { addingIdentity: { backLabel: t.backToSettings, onBack: onCancel } })}
       />
       {dialog}
+      {linkScan.dialog}
     </>
   );
 }

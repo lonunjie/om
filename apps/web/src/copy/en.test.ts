@@ -1,7 +1,7 @@
 import type { AccountControlStateCode, DeviceCautionCode, DeviceRole, DeviceStateCode, LastSeenClass, LinkOfferState, LinkRequestState, RecoveryCustodianCode, RecoveryPolicyState, RecoveryRequestState, RecoveryScope } from "@om/platform-api";
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
 import { describe, expect, it } from "vitest";
-import { appStrings, backupCopy, conversationCopy, deviceScannerCopy, landingCopy, devicesCopy, homeCopy, linkThisDeviceCopy, onboardingCopy, recoveryCopy, scannerCopy, shellLabels, switcherLabels, unlockCopy } from "./en";
+import { appStrings, backupCopy, conversationCopy, deviceScannerCopy, landingCopy, devicesCopy, homeCopy, joinCopy, onboardingCopy, recoveryCopy, scannerCopy, shellLabels, switcherLabels, unlockCopy } from "./en";
 
 /** Every leaf must be a non-empty string; functions are called with sample arguments. */
 function leaves(v: unknown, path: string, out: [string, string][]): void {
@@ -47,7 +47,7 @@ const SCOPES = keys<RecoveryScope>({ identity: true, history: true, provider: tr
 describe("English copy catalog", () => {
   it("has a non-empty string for every key of every copy type", () => {
     const entries = [...all("conversation", conversationCopy), ...all("onboarding", onboardingCopy), ...all("shell", shellLabels), ...all("switcher", switcherLabels), ...all("app", appStrings), ...all("landing", landingCopy), ...all("scanner", scannerCopy), ...all("unlock", unlockCopy),
-      ...all("deviceScanner", deviceScannerCopy), ...all("devices", devicesCopy), ...all("linkThisDevice", linkThisDeviceCopy), ...all("recovery", recoveryCopy), ...all("home", homeCopy), ...all("backup", backupCopy)];
+      ...all("deviceScanner", deviceScannerCopy), ...all("devices", devicesCopy), ...all("join", joinCopy), ...all("recovery", recoveryCopy), ...all("home", homeCopy), ...all("backup", backupCopy)];
     expect(entries.length).toBeGreaterThan(200);
     expect(entries.filter(([, s]) => s.trim() === "").map(([p]) => p)).toEqual([]);
   });
@@ -67,14 +67,15 @@ describe("English copy catalog", () => {
   });
   it("words every device, link and recovery code", () => {
     const d = devicesCopy;
-    for (const o of [d.outcome, linkThisDeviceCopy.outcome, recoveryCopy.outcome]) { expect(has(o.rejected, REASONS)).toEqual([]); expect(has(o.needsAction, ACTIONS)).toEqual([]); }
+    for (const o of [d.outcome, joinCopy.outcome, recoveryCopy.outcome]) { expect(has(o.rejected, REASONS)).toEqual([]); expect(has(o.needsAction, ACTIONS)).toEqual([]); }
     expect(has(d.controlState, FROZEN)).toEqual([]);
     expect(has(d.role, ROLES)).toEqual([]);
     expect(has(d.state, DEVICE_STATES)).toEqual([]);
     expect(has(d.lastSeen, LAST_SEEN)).toEqual([]);
     expect(has(d.cautions, CAUTIONS)).toEqual([]);
     expect(has(d.link.requestState, LINK_STATES)).toEqual([]);
-    expect(has(linkThisDeviceCopy.state, OFFER_STATES)).toEqual([]);
+    expect(has(d.link.offerState, OFFER_STATES)).toEqual([]);
+    expect(has(joinCopy.state, LINK_STATES)).toEqual([]);
     expect(has(recoveryCopy.policy, POLICIES)).toEqual([]);
     expect(has(recoveryCopy.custodian, CUSTODIANS)).toEqual([]);
     expect(has(recoveryCopy.requestState, RECOVERY_STATES)).toEqual([]);
@@ -90,7 +91,7 @@ describe("English copy catalog", () => {
   const NAMING_ALLOWED = ["o.relay.cloudflare.", "h.advanced.add.relay.cloudflare."];
   const PROVIDER_NAMES = /\b(?:Google|Apple|Microsoft|Cloudflare|WebAuthn|PRF|IndexedDB)\b/;
   const MACHINE_CODES = /\b[a-z]+_[a-z_]+\b/;
-  const people = [...all("c", conversationCopy), ...all("o", onboardingCopy), ...all("a", appStrings), ...all("d", devicesCopy), ...all("l", linkThisDeviceCopy), ...all("r", recoveryCopy), ...all("b", backupCopy), ...all("h", homeCopy)];
+  const people = [...all("c", conversationCopy), ...all("o", onboardingCopy), ...all("a", appStrings), ...all("d", devicesCopy), ...all("l", joinCopy), ...all("r", recoveryCopy), ...all("b", backupCopy), ...all("h", homeCopy)];
   it("shows no provider names or raw machine codes to people", () => {
     const text = people.filter(([path]) => !NAMING_ALLOWED.some((a) => path.startsWith(a))).map(([, s]) => s).join("\n");
     expect(text).not.toMatch(PROVIDER_NAMES);

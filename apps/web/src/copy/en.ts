@@ -1,7 +1,7 @@
 // The only place user-visible English lives. Components take these as props; keys are machine reason codes, so a
 // missing code is a compile error. Wording rules: plain language, no provider names, honest about limits.
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
-import type { ConversationCopy, DevicesCopy, HomeCopy, LinkThisDeviceCopy, OmnibarCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, RecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
+import type { ConversationCopy, DevicesCopy, HomeCopy, JoinCopy, OmnibarCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, RecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
 
 const REJECT: Readonly<Record<RejectReason, string>> = {
   invalid: "That was not valid.",
@@ -211,7 +211,7 @@ const ORIGIN: Readonly<Record<ClientOriginChoiceCode, string>> = {
   independent_origin_active: "You are running OM from an address you control.",
 };
 
-export const onboardingCopy: OnboardingCopy = {
+const onboardingBase: OnboardingCopy = {
   frame: { brand: "OM", beta: "Beta", step: (n, total) => `Step ${String(n)} of ${String(total)}` },
   welcome: {
     heading: "Welcome to OM",
@@ -600,6 +600,7 @@ export const devicesCopy: DevicesCopy = {
     safety_freeze: "Safety Freeze is on. Your devices disagree about who is in control, so OM has paused device and recovery changes until enough of your devices agree. Messaging continues.",
     fork_detected: "Your account's security history split in two. OM has paused device and recovery changes until your devices settle it together.",
   },
+  noticesLabel: "New devices on your account",
   deviceLinkedNotice: (label, ms) => `A new device was added to your account: ${label}, ${timeFormat.format(ms)}. If this was not you, open it and remove it.`,
   linkRequestsHeading: "Devices asking to join",
   linkRequestRow: (label) => `${label} is asking to join your account`,
@@ -653,27 +654,33 @@ export const devicesCopy: DevicesCopy = {
   },
   pendingHeading: "Still in progress",
   pendingKind: {
-    RequestDeviceLink: "Opening a device link",
+    OfferDeviceLink: "Preparing a code for a new device",
     ApproveDeviceLink: "Approving a new device",
     RejectDeviceLink: "Turning down a new device",
     SuspendDevice: "Suspending a device",
     RevokeDevice: "Removing a device",
   },
   link: {
-    start: "Link a new device",
-    heading: "Link a new device",
-    body: "On the new device, choose to link it to an existing account. It will show a QR code and a link. Scan the code, or paste the link here.",
-    scan: "Scan its QR code",
-    scanNothing: "No code was found. Try again or paste the link.",
-    pasteLabel: "Link from the new device",
-    pasteHint: "It starts with om:link/",
-    open: "Continue",
-    parseError: {
-      empty: "Paste the link first.",
-      too_long: "That is too long to be a device link.",
-      malformed: "That does not look like an OM device link.",
-    },
+    start: "Add a device",
+    notControl: "A new device is added from a device that can manage your account. Open OM on one of those to add it.",
+    heading: "Add a device",
+    body: "Use the same OM account on a phone or computer you own. This device will show a code. On the new device, choose \u201cI already use OM\u201d and scan the code or type the link. You will both see the same security code before anything is linked.",
+    show: "Show the code and link",
     cancel: "Cancel",
+    qrLabel: "QR code that adds a device to your account",
+    qrBadge: "Adds a device to your account",
+    qrNotInvite: "This is not an invitation to chat. Do not share it or post it. Show it only to a device you are holding yourself.",
+    linkLabel: "Link to type on the new device",
+    expires: (ms) => `Works until ${timeFormat.format(ms)}. It only lasts a few minutes.`,
+    nextStep: "On the new device, choose \u201cI already use OM\u201d, then scan this code or type the link.",
+    offerState: {
+      waiting_for_scan: "Waiting for the new device",
+      awaiting_approval: "The new device has asked to join. Check the codes below.",
+      linked: "The new device is linked.",
+      rejected: "You turned this down. The device was not linked.",
+      expired: "This ran out of time. Show a new code to try again.",
+    },
+    tryAgain: "Show a new code",
     reviewHeading: "Check the new device",
     who: (label) => `${label} is asking to join your account.`,
     codeLabel: "Security code",
@@ -682,13 +689,12 @@ export const devicesCopy: DevicesCopy = {
     announce: "All your other devices will be told about this new device. That cannot be turned off.",
     approve: "The codes match. Link it",
     reject: "This is not my device",
-    expires: (ms) => `This request ends ${timeFormat.format(ms)}`,
     requestState: {
       awaiting_approval: "Waiting for your decision",
       pending_authorization: "Waiting for approval from your other devices",
       approved: "Linked",
       rejected: "Turned down",
-      expired: "This request ran out of time. Start again on the new device.",
+      expired: "This request ran out of time. Show a new code to try again.",
     },
     linked: "The new device is linked.",
     rejectedDone: "Turned down. The device was not linked.",
@@ -697,23 +703,51 @@ export const devicesCopy: DevicesCopy = {
   outcome: outcomeCopy("Not done."),
 };
 
-export const linkThisDeviceCopy: LinkThisDeviceCopy = {
+/** The new device's side of linking (deviation D24): reached from \u201cI already use OM\u201d on first run. */
+export const joinCopy: JoinCopy = {
   heading: "Link to your account",
-  body: "Use OM on a device you already have to scan this code or open this link. You will both see the same security code.",
-  start: "Show my link code",
-  linkLabel: "Link for your other device",
-  qrLabel: "QR code to link this device",
-  expires: (ms) => `Works until ${timeFormat.format(ms)}`,
-  codeLabel: "Security code",
-  codeHint: "Check that your other device shows exactly the same code before you approve there.",
-  state: {
-    waiting_for_scan: "Waiting for your other device",
-    awaiting_approval: "Approve this on your other device",
-    linked: "This device is linked.",
-    rejected: "Your other device turned this down.",
-    expired: "This ran out of time. Start again.",
+  body: "On your other device, open Settings, then Devices, then Add a device. Scan the code it shows, or type the link here.",
+  scan: "Scan the code",
+  scanNothing: "No code was found. Try again or type the link.",
+  pasteLabel: "Link from your other device",
+  pasteHint: "It starts with om:link/",
+  open: "Continue",
+  parseError: {
+    empty: "Type the link first.",
+    too_long: "That is too long to be a device link.",
+    malformed: "That does not look like an OM device link. An invitation to chat will not work here.",
   },
-  outcome: outcomeCopy("Not done."),
+  cancel: "Start over",
+  codeLabel: "Security code",
+  codeHint: "Your other device shows a code too. Approve there only if both codes are exactly the same.",
+  state: {
+    awaiting_approval: "Waiting for you to approve this on your other device.",
+    pending_authorization: "Waiting for approval from your other devices.",
+    approved: "Linked.",
+    rejected: "Your other device turned this down. Nothing was linked.",
+    expired: "This ran out of time. Start over and show a new code on your other device.",
+  },
+  joined: "You are linked. Opening OM.",
+  tryAgain: "Start over",
+  outcome: outcomeCopy("Could not start."),
+};
+
+/** First run, extended with \u201cI already use OM\u201d (deviation D24). Declared here because it uses the join copy, which uses the shared outcome wording. */
+export const onboardingCopy: OnboardingCopy = {
+  ...onboardingBase,
+  // "I already use OM" (deviation D24): offered only when this install can reach a delivery service for the linking ceremony.
+  join: {
+    choiceHeading: "How would you like to start?",
+    startNew: "Start new",
+    startNewHint: "Make a new OM account on this device.",
+    useExisting: "I already use OM",
+    useExistingHint: "Link this device to the account you already use on another device.",
+    protectHeading: "Secure this device first",
+    protectBody: "OM locks itself on this device before it joins your account.",
+    protectAction: "Next: Secure this device",
+    back: "Back",
+    link: joinCopy,
+  },
 };
 
 export const recoveryCopy: RecoveryCopy = {
@@ -793,8 +827,8 @@ export const recoveryCopy: RecoveryCopy = {
 
 export const deviceScannerCopy = {
   ...scannerCopy,
-  hint: "Hold your camera steady in front of the QR code on your new device. Nothing is recorded or saved.",
-  cameraFailed: "The camera could not start. You can paste the link from the new device instead.",
+  hint: "Hold your camera steady in front of the QR code on your other device. Nothing is recorded or saved.",
+  cameraFailed: "The camera could not start. You can type the link from your other device instead.",
 } as const;
 
 /** The landing page. Rendered twice from this one source: prerendered into index.html (for visitors and crawlers without JS) and in the app. */

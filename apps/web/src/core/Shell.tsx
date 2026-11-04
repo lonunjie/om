@@ -7,7 +7,8 @@ import {
   type IconName, type OmniEntry, useConversationDigests,
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
-import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, deviceScannerCopy, devicesCopy, scannerCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
+import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
+import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
 import { CopyNotice } from "../CopyNotice";
 import { CHATS, placeTitle, placeUrl, usePlace, type SettingsPage } from "../route/place";
@@ -67,7 +68,6 @@ export interface ShellProps {
 
 export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup, draftSync, safetyCode, invite, incoming }: ShellProps) {
   const inviteScan = useQrScanner(scannerCopy);
-  const deviceScan = useQrScanner(deviceScannerCopy);
   const { place, raw, go, back } = usePlace();
   const me = useActiveProfile();
   const mode = useLayoutMode();
@@ -298,7 +298,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
               <SubPage label={t.backToSettings} onBack={() => { back({ kind: "settings", page: "menu" }); }}>
                 {settings === "devices" ? (
                   <>
-                    <DevicesScreen services={services} copy={devicesCopy} scanQr={deviceScan.scanQr} linking="later" />
+                    <DevicesScreen services={services} copy={devicesCopy} showNotices={false} renderQr={(payload) => <QrCode payload={payload} />} />
                     {devicesExtra}
                   </>
                 ) : settings === "delivery" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} {...(invite === undefined ? {} : { copyText })} facts={<HomeFacts client={services.client} ctx={services.ctx} copy={onboardingCopy.home} alwaysOpen configured={home.current.baseUrl !== undefined} />} />
@@ -310,7 +310,6 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
             </div>
           )}
         />
-        {deviceScan.dialog}
         {inviteScan.dialog}
         {newChatSheet}
       </>

@@ -3,12 +3,12 @@ import { useMemo, useState } from "react";
 import type { DeviceVault, ProfileExecutionContext, ProfileId } from "@om/platform-api";
 import { HARNESS_MARKER, type Harness } from "@om/core-harness";
 import {
-  Button, OnboardingFlow, ProfileProvider, Text, ThemeProvider, createActionRegistry, createMemoryKeyValue, createProfileScopedState, useActiveProfile, useCaptureContext,
+  Button, DeviceNotices, OnboardingFlow, ProfileProvider, Text, ThemeProvider, createActionRegistry, createMemoryKeyValue, createProfileScopedState, useActiveProfile, useCaptureContext,
   type ActionRegistry, type OnboardingPlatform,
 } from "@om/ui";
 import { InstallAffordance } from "../install/InstallAffordance";
 import { Landing } from "../landing/Landing";
-import { appStrings as t, onboardingCopy, scannerCopy } from "../copy/en";
+import { appStrings as t, devicesCopy, onboardingCopy, scannerCopy } from "../copy/en";
 import { Shell } from "../core/Shell";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
@@ -64,23 +64,22 @@ function Gate({ harness, registry, vault, platform, initiallyOnboarded }: GatePr
       </>
     );
   }
-  return <Shell key={activeId} services={{ client: harness, registry, ctx }} devicesExtra={<DevNewDevice harness={harness} />} />;
+  return <><DeviceNotices services={{ client: harness, registry, ctx }} copy={devicesCopy} /><Shell key={activeId} services={{ client: harness, registry, ctx }} devicesExtra={<DevNewDevice harness={harness} />} /></>;
 }
 
-/** DEV ONLY: stands in for the screen of a second, new device so the link flow can be tried in one browser. */
+/** DEV ONLY: stands in for the screen of a second, NEW device (deviation D24) so "Add a device" can be tried in one browser. */
 function DevNewDevice({ harness }: { readonly harness: Harness }) {
-  const [offer, setOffer] = useState<{ readonly link: string; readonly verificationCode: string } | null>(null);
+  const [link, setLink] = useState("");
+  const [said, setSaid] = useState("");
   return (
     <aside className="om-dev-newdevice" aria-label="Dev harness: simulated new device">
       <p className="om-dev-newdevice__tag">DEV HARNESS ONLY: simulated new device</p>
-      <Button onClick={() => { setOffer(harness.simulateNewDeviceOffer("Simulated laptop")); }}>Simulate a new device asking to link</Button>
-      {offer ? (
-        <>
-          <QrCode payload={offer.link} />
-          <code translate="no">{offer.link}</code>
-          <p>New device shows code: <strong translate="no">{offer.verificationCode}</strong></p>
-        </>
-      ) : null}
+      <label>
+        Link shown by Add a device
+        <input type="text" value={link} onChange={(e) => { setLink(e.target.value); }} autoComplete="off" spellCheck={false} />
+      </label>
+      <Button onClick={() => { setSaid(harness.simulateNewDeviceRequest(link.trim(), "Simulated laptop") ? "Asked to join." : "No open offer for that link."); }}>Simulate a new device asking to join</Button>
+      <p role="status">{said}</p>
     </aside>
   );
 }
