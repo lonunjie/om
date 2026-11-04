@@ -108,12 +108,16 @@ export function RelaySetup({ services, copy, frame, platform, registry, ctx }: R
           <StepHeading id="om-onb-relay-h">{copy.heading}</StepHeading>
           {copy.why.map((line, i) => <Text as="p" key={i}>{line}</Text>)}
           <Text as="p">{copy.pick}</Text>
-          <div className="om-onb__actions">
-            <Button variant="primary" onClick={() => { setPhase("setup"); }}>{copy.ownFree}</Button>
-          </div>
-          <Text as="p" size="sm" tone="secondary">{copy.cloudflare.uses}</Text>
-          <section className="om-onb__later" aria-labelledby="om-onb-relay-later-h">
-            <Text as="h3" size="md" weight="bold" id="om-onb-relay-later-h">{copy.later.heading}</Text>
+          <section className="om-onb__easy" aria-labelledby="om-onb-relay-easy-h">
+            <Text as="h3" size="md" weight="bold" id="om-onb-relay-easy-h">{copy.easyHeading}</Text>
+            <div className="om-onb__actions">
+              <Button variant="primary" onClick={() => { setPhase("setup"); }}>{copy.ownFree}</Button>
+            </div>
+            <Text as="p" size="sm" tone="secondary">{copy.cloudflare.uses}</Text>
+          </section>
+          <section className="om-onb__later" aria-labelledby="om-onb-relay-advanced-h">
+            <Text as="h3" size="md" weight="bold" id="om-onb-relay-advanced-h">{copy.advancedHeading}</Text>
+            <Text as="p" size="sm" tone="secondary">{copy.advancedIntro}</Text>
             <ul>{copy.later.items.map((item) => <li key={item}>{item}</li>)}</ul>
           </section>
         </section>

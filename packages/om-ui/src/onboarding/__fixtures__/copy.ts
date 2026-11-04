@@ -70,9 +70,9 @@ export const testCopy: OnboardingCopy = {
     origin: rec(ORIGINS, (o) => `Origin: ${o}`),
   },
   relay: {
-    heading: "OM is different", why: ["You own your data, not us.", "Your own delivery service carries your messages."], pick: "Pick how you would like to set up your first delivery service. Come back here once this is set up.",
-    ownFree: "Set up my own, free", later: { heading: "Coming later", items: ["On my own server, as a container", "With an install script"] },
-    cloudflare: { uses: "Uses Cloudflare. You will create or sign in to a free Cloudflare account.", steps: ["Copy your setup value.", "Open Cloudflare setup and paste it.", "Come back and type the address."], addressExample: "Looks like https://om-relay.you.workers.dev", protect: "Protect that Cloudflare account with a passkey.", open: "Open Cloudflare setup", opensNewTab: "(opens in a new tab)", notReady: "Not ready yet." },
+    heading: "OM is different", why: ["You own your data, and you own your delivery service.", "So even when we are not around, your messages are yours."], pick: "Choose how to set up your delivery service. Come back here once it is set up.",
+    easyHeading: "Easy", ownFree: "Set up my own, free", advancedHeading: "Advanced", advancedIntro: "Set up your own server. These are coming later.", later: { items: ["On my own server, as a container", "With an install script"] },
+    cloudflare: { uses: "Two free accounts: Cloudflare, and GitHub or GitLab. You create or sign in to them on the next steps.", steps: ["Copy your setup value.", "Open Cloudflare setup and paste it.", "Come back and type the address."], addressExample: "Looks like https://om-relay.you.workers.dev", protect: "Protect that Cloudflare account with a passkey.", open: "Open Cloudflare setup", opensNewTab: "(opens in a new tab)", notReady: "Not ready yet." },
     setup: {
       heading: "Set up your delivery service", valueLabel: "Your setup value", valueNote: "It is not a secret.", preparing: "Making your setup value", prepareFailed: "Setup value failed", copy: "Copy setup value", copied: "Setup value copied",
       copyFailed: "Copy failed", addressLabel: "Address of your delivery service", addressHint: "Starts with https://", check: "Check and continue", checking: "Checking the address", saveFailed: "Not saved", notLocked: "Not locked", back: "Back",

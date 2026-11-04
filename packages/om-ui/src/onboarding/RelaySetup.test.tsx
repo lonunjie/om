@@ -52,7 +52,9 @@ describe("RelaySetup (first run, ADR-0186)", () => {
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual([copy.ownFree]);
     expect(screen.queryByRole("link")).toBeNull();
     for (const item of copy.later.items) expect(screen.getByText(item).closest("button")).toBeNull();
-    expect(screen.getByRole("heading", { name: copy.later.heading })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: copy.easyHeading })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: copy.advancedHeading })).toBeTruthy();
+    expect(screen.getByText(copy.advancedIntro)).toBeTruthy();
   });
 
   it("choosing it shows the setup value, copies it, and links to the setup in a new tab that cannot reach back", async () => {

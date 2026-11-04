@@ -356,19 +356,20 @@ export const onboardingCopy: OnboardingCopy = {
   relay: {
     heading: "OM is different",
     why: [
-      "You own your data, not us.",
-      "OM has no company server in the middle, and your chats stay on your devices.",
-      "A small delivery service of your own carries your messages. It holds each one, still locked, until the other person's device picks it up. It cannot read them.",
+      "You own your data, and you own your delivery service.",
+      "So even when we are not around, your messages are yours.",
     ],
-    pick: "Pick how you would like to set up your first delivery service. Come back here once this is set up.",
+    pick: "Choose how to set up your delivery service. Come back here once it is set up.",
+    easyHeading: "Easy",
     ownFree: "Set up my own, free",
+    advancedHeading: "Advanced",
+    advancedIntro: "Set up your own server. These are coming later.",
     later: {
-      heading: "Coming later",
       items: ["On my own server, as a container", "With an install script", "On a computer at home, through a tunnel", "On my own server, with open ports"],
     },
     // ADR-0186 decision 2: the only place a vendor is named. The copy test (en.test.ts) allows provider names in this group and nowhere else.
     cloudflare: {
-      uses: "Uses Cloudflare. You will create or sign in to a free Cloudflare account, and to a GitHub or GitLab account, which Cloudflare needs to copy the setup into.",
+      uses: "Two free accounts: Cloudflare, and GitHub or GitLab (Cloudflare needs it to copy the setup into). You create or sign in to them on the next steps.",
       steps: [
         "Copy your setup value below.",
         "Open Cloudflare setup. Create or sign in to a free Cloudflare account and a GitHub or GitLab account.",

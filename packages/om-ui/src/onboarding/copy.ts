@@ -151,9 +151,15 @@ export interface RelaySetupCopy {
   /** Why OM is different, as short sentences. */
   readonly why: readonly string[];
   readonly pick: string;
+  /** Heading of the group that holds the built choice. */
+  readonly easyHeading: string;
   readonly ownFree: string;
+  /** Heading of the group that lists choices not built yet. */
+  readonly advancedHeading: string;
+  /** Line under the Advanced heading: the choices are coming later. */
+  readonly advancedIntro: string;
   /** Choices that are listed and not built yet: plain text, never a control. */
-  readonly later: { readonly heading: string; readonly items: readonly string[] };
+  readonly later: { readonly items: readonly string[] };
   /** The only strings that may name a vendor. */
   readonly cloudflare: { readonly uses: string; readonly steps: readonly string[]; /** What the address looks like, so a person knows it when the setup shows it. */ readonly addressExample: string; /** R-164 (HOME_ONBOARDING 5): steer to a passkey or security key on the account, with the reason in one sentence. */ readonly protect: string; readonly open: string; readonly opensNewTab: string; readonly notReady: string };
   readonly setup: {

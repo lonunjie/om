@@ -11,13 +11,13 @@ test("without a delivery service first run stops at the setup page, and says so 
   await page.goto("/");
   await page.getByRole("button", { name: "Get started" }).click();
   await expect(page.getByRole("heading", { name: "OM is different" })).toBeVisible();
-  await expect(page.getByText("You own your data, not us.")).toBeVisible();
+  await expect(page.getByText("You own your data, and you own your delivery service.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Set up my own, free" })).toBeVisible();
   // The other ways are listed, not offered: no control for them exists.
-  await expect(page.getByText("Coming later")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Advanced" })).toBeVisible();
   await expect(page.getByRole("button", { name: /container|install script|tunnel|open ports/i })).toHaveCount(0);
   // The vendor is named where the choice is made, and only there.
-  await expect(page.getByText("Uses Cloudflare. You will create or sign in to a free Cloudflare account, and to a GitHub or GitLab account, which Cloudflare needs to copy the setup into.")).toBeVisible();
+  await expect(page.getByText("Two free accounts: Cloudflare, and GitHub or GitLab (Cloudflare needs it to copy the setup into). You create or sign in to them on the next steps.")).toBeVisible();
   // No test banner: this is not the loopback build, and the next step (the person's name) is not reachable.
   await expect(page.getByText("LOOPBACK")).toHaveCount(0);
   await expect(page.getByLabel("Your name")).toHaveCount(0);
