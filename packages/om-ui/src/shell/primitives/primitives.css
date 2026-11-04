@@ -5,11 +5,10 @@
   box-shadow: 0 0 0 5px var(--om-color-focus-halo);
 }
 
-:root { --om-hairline: color-mix(in srgb, var(--om-color-border) 35%, transparent); }
+:root { --om-hairline: var(--om-color-border-subtle); }
 
 /* Motion roles shared by every screen: arrival (what is new), travel (a place replaced another), working (still going). */
 @keyframes om-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-@keyframes om-slide-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
 @keyframes om-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
 .om-button,
@@ -21,22 +20,19 @@
   box-sizing: border-box;
   min-block-size: var(--om-target-min);
   min-inline-size: var(--om-target-min);
-  position: relative;
-  overflow: hidden;
   padding-inline: var(--om-space-5);
   border: 1px solid var(--om-color-border);
-  border-radius: var(--om-radius-pill); /* round ends, like the OM mark */
+  border-radius: var(--om-radius-md); /* corner radius comes from the theme tokens */
   background: var(--om-color-bg-surface);
   color: var(--om-color-text-primary);
   font: inherit;
   font-weight: var(--om-weight-medium);
   cursor: pointer;
-  transition: background-color var(--om-motion-instant) var(--om-ease-enter), transform var(--om-motion-quick) var(--om-ease-enter), filter var(--om-motion-quick) var(--om-ease-enter);
+  transition: background-color var(--om-motion-instant) var(--om-ease-enter), transform var(--om-motion-quick) var(--om-ease-enter);
 }
 
 .om-icon-button {
   padding-inline: 0;
-  border-radius: var(--om-radius-pill);
 }
 .om-icon-button[data-variant="primary"] {
   border-color: var(--om-color-accent);
@@ -49,37 +45,27 @@
   .om-button:not(:disabled):hover,
   .om-icon-button:not(:disabled):hover { background: var(--om-color-bg-sunken); }
   .om-button[data-variant="primary"]:not(:disabled):hover,
-  .om-icon-button[data-variant="primary"]:not(:disabled):hover { background: var(--om-color-accent); filter: brightness(1.08); }
-}
-
-/* Press circle: a soft disc grows from where the finger or pointer landed (the centre for a key press) and fades on release.
-   It explains "this was pressed"; it never delays the action. Reduced motion collapses the durations to ~0. */
-.om-button::after,
-.om-icon-button::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, currentColor 16%, transparent);
-  clip-path: circle(0 at var(--om-press-x, 50%) var(--om-press-y, 50%));
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--om-motion-standard) var(--om-ease-exit), clip-path 0s var(--om-motion-standard);
-}
-.om-button:not(:disabled):active::after,
-.om-icon-button:not(:disabled):active::after {
-  clip-path: circle(150% at var(--om-press-x, 50%) var(--om-press-y, 50%));
-  opacity: 1;
-  transition: clip-path var(--om-motion-standard) var(--om-ease-enter), opacity var(--om-motion-instant) linear;
+  .om-icon-button[data-variant="primary"]:not(:disabled):hover { background: var(--om-color-accent-hover); }
 }
 
 /* Press: the control answers the tap at once (formflow's rule: movement explains, never delays). */
 .om-button:not(:disabled):active,
 .om-icon-button:not(:disabled):active { transform: scale(0.97); transition-duration: var(--om-motion-instant); }
+.om-button[data-variant="primary"]:not(:disabled):active,
+.om-icon-button[data-variant="primary"]:not(:disabled):active { background: var(--om-color-accent-pressed); }
 
 .om-button[data-variant="primary"] {
   border-color: var(--om-color-accent);
   background: var(--om-color-accent);
   color: var(--om-color-accent-text);
+}
+
+/* Danger is red and only for a destructive consequence (DEFAULT_THEME_AND_COLOR_SEMANTICS.md s2); the words carry the meaning too. */
+.om-button[data-variant="danger"] {
+  border-color: var(--om-color-danger-fg);
+  background: var(--om-color-danger-bg);
+  color: var(--om-color-danger-fg);
+  font-weight: var(--om-weight-bold);
 }
 
 .om-button[data-variant="quiet"],

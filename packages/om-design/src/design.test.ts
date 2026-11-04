@@ -37,6 +37,27 @@ describe("OM Calm contrast (WCAG AA)", () => {
   });
 });
 
+describe("OM Calm is the audited palette", () => {
+  // docs/ux-design/tokens/om-theme-clear-v1.json is the canonical value set (operator ruling 2026-11-04); each audited key maps to one role.
+  const audited = JSON.parse(readFileSync(new URL("../../../docs/ux-design/tokens/om-theme-clear-v1.json", import.meta.url), "utf8")) as Record<"light" | "dark", Record<string, string>>;
+  const ROLE_OF: Readonly<Record<string, keyof typeof OM_CALM.light>> = {
+    "surface.base": "bg-canvas", "surface.subtle": "bg-sunken", "surface.raised": "bg-raised", "surface.overlay": "bg-overlay",
+    "text.primary": "text-primary", "text.secondary": "text-secondary", "text.tertiary": "text-muted",
+    "border.subtle": "border-subtle", "border.strong": "border",
+    "accent.primary": "accent", "accent.hover": "accent-hover", "accent.pressed": "accent-pressed", "accent.onPrimary": "accent-text", "accent.soft": "accent-soft",
+    "state.selected": "selection-bg", "status.info": "info-fg", "status.success": "success-fg", "status.warning": "warning-fg", "status.danger": "danger-fg",
+    "message.incoming.surface": "message-incoming", "message.outgoing.surface": "message-outgoing", "message.failed.surface": "message-failed",
+  };
+  for (const variant of ["light", "dark"] as const) {
+    it(`${variant}: every audited value is present under its role`, () => {
+      const wrong = Object.entries(ROLE_OF).filter(([key, role]) => audited[variant][key] !== OM_CALM[variant][role]).map(([key]) => key);
+      expect(wrong).toEqual([]);
+      // Keyboard focus is the audited violet, in the reserved set so a theme cannot take it away.
+      expect((variant === "light" ? RESERVED_LIGHT : RESERVED_DARK)["focus-ring"]).toBe(audited[variant]["state.focus"]);
+    });
+  }
+});
+
 describe("theme validator", () => {
   it("accepts built-in themes", () => {
     for (const t of BUILT_IN_THEMES) expect(validateTheme(t).ok).toBe(true);

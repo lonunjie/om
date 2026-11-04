@@ -64,8 +64,8 @@ export function MessageRequest({ services, request, copy, onIgnore, onResolved }
       {phase === "confirm_block" ? (
         <div role="group" aria-label={c.blockPrompt} className="om-request__confirm">
           <Text as="p">{c.blockPrompt}</Text>
-          <Button variant="primary" onClick={() => { void run("block"); }}>{c.blockConfirm}</Button>
-          <Button onClick={() => { setPhase("idle"); }}>{c.blockCancel}</Button>
+          <Button variant="primary" onClick={() => { setPhase("idle"); }}>{c.blockCancel}</Button>
+          <Button variant="danger" onClick={() => { void run("block"); }}>{c.blockConfirm}</Button>
         </div>
       ) : (
         <div className="om-request__actions">

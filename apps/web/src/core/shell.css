@@ -20,19 +20,18 @@
 a.om-menu__row { text-decoration: none; }
 .om-menu__row:active { background: var(--om-color-bg-sunken); }
 @media (hover: hover) { .om-menu__row:hover { background: var(--om-color-bg-sunken); } }
-.om-menu__row[aria-current="page"] { background: var(--om-color-bg-sunken); box-shadow: inset -3px 0 0 var(--om-color-accent); } /* the bar sits on the side the page opens from */
+.om-menu__row[aria-current="page"] { background: var(--om-color-selection-bg); box-shadow: inset 3px 0 0 var(--om-color-accent); } /* selection is a tint plus a bar, never colour alone */
 .om-menu__text { flex: 1 1 auto; min-inline-size: 0; display: grid; gap: 2px; }
 .om-menu__title { font-weight: var(--om-weight-medium); }
 .om-menu__hint { font-size: var(--om-text-sm-size); line-height: var(--om-text-sm-line); color: var(--om-color-text-secondary); }
 .om-menu__row > .om-icon { color: var(--om-color-text-muted); }
-.om-menu__icon { flex: none; display: grid; place-items: center; inline-size: 2.5rem; block-size: 2.5rem; border-radius: 50%; background: var(--om-color-bg-sunken); color: var(--om-color-accent); }
+.om-menu__icon { flex: none; display: grid; place-items: center; inline-size: 2.5rem; block-size: 2.5rem; border-radius: var(--om-radius-md); background: var(--om-color-accent-soft); color: var(--om-color-accent); }
 .om-menu__row[aria-current="page"] .om-menu__icon { background: var(--om-color-accent); color: var(--om-color-accent-text); }
 .om-menu__search { padding-block: var(--om-space-2); }
 .om-menu__none { color: var(--om-color-text-secondary); }
 
-/* Search: a round field, the same family as the buttons. */
-.om-search { display: flex; align-items: center; gap: var(--om-space-2); box-sizing: border-box; min-block-size: var(--om-target-min); padding-inline: var(--om-space-4); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-pill); background: var(--om-color-bg-surface); color: var(--om-color-text-secondary); transition: border-color var(--om-motion-quick) var(--om-ease-enter); }
-.om-search:focus-within { border-color: var(--om-color-accent); }
+/* Search: the same corner radius as the other controls. */
+.om-search { display: flex; align-items: center; gap: var(--om-space-2); box-sizing: border-box; min-block-size: var(--om-target-min); padding-inline: var(--om-space-4); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-md); background: var(--om-color-bg-surface); color: var(--om-color-text-secondary); transition: border-color var(--om-motion-quick) var(--om-ease-enter); }
 .om-search__input { flex: 1 1 auto; min-inline-size: 0; border: 0; background: transparent; color: var(--om-color-text-primary); font: inherit; outline: none; box-shadow: none; }
 .om-search__input:focus-visible { outline: none; box-shadow: none; } /* the whole field shows the focus ring */
 .om-search:has(:focus-visible) { outline: 3px solid var(--om-color-focus-ring); outline-offset: 2px; }
@@ -46,15 +45,9 @@ a.om-menu__row { text-decoration: none; }
 
 /* The signed-in person, in place of the word "Settings". */
 .om-me { gap: var(--om-space-2); max-inline-size: 100%; padding-inline: var(--om-space-2) var(--om-space-4); }
-.om-me__avatar { position: relative; display: inline-flex; flex: none; }
+.om-me__avatar { display: inline-flex; flex: none; }
 .om-me__name { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.om-me[aria-pressed="true"] { background: var(--om-color-bg-sunken); }
-/* Something there needs the person: a dot, with its own words in the button's name. */
-.om-dot, .om-me__dot { flex: none; inline-size: 0.625rem; block-size: 0.625rem; border-radius: 50%; background: var(--om-color-danger-fg, #c0392b); box-shadow: 0 0 0 2px var(--om-color-bg-surface); }
-.om-me__dot { position: absolute; inset-block-start: 0; inset-inline-end: 0; }
-.om-card--attention { border: 1px solid color-mix(in srgb, var(--om-color-danger-fg, #c0392b) 40%, transparent); }
-.om-card__line { display: flex; align-items: flex-start; gap: var(--om-space-2); margin: 0; }
-.om-card__line .om-dot { margin-block-start: 0.4rem; box-shadow: none; }
+.om-me[aria-pressed="true"] { background: var(--om-color-selection-bg); }
 
 /* An empty pane is a quiet picture, not a sentence. */
 .om-empty-art { color: var(--om-color-text-muted); opacity: 0.45; }
@@ -63,7 +56,10 @@ a.om-menu__row { text-decoration: none; }
 .om-lock { display: grid; gap: var(--om-space-4); }
 .om-lock h1 { margin: 0; }
 .om-lock__state { display: flex; gap: var(--om-space-3); padding: var(--om-space-4); border-radius: var(--om-radius-lg); background: var(--om-color-success-bg); color: var(--om-color-success-fg); }
-.om-lock__state[data-mode="none"], .om-lock__state[data-mode="device-shared"] { background: var(--om-color-danger-bg); color: var(--om-color-danger-fg); }
+/* Not locked is a caution (amber), not a failure; red is kept for failure and destructive actions. */
+.om-lock__state[data-mode="none"], .om-lock__state[data-mode="device-shared"] { background: var(--om-color-warning-bg); color: var(--om-color-warning-fg); }
+/* What a backup file holds is information, not a success. */
+.om-lock__state.om-backup__holds { background: var(--om-color-info-bg); color: var(--om-color-info-fg); }
 .om-lock__icon { flex: none; display: grid; place-items: center; inline-size: 2.5rem; block-size: 2.5rem; border-radius: 50%; background: color-mix(in srgb, currentColor 14%, transparent); }
 .om-lock__text { display: grid; gap: var(--om-space-1); min-inline-size: 0; }
 .om-lock__text .om-text { color: inherit; }

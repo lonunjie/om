@@ -28,9 +28,6 @@ export function OnboardingFrame({ copy, progress, stepKey, back, children }: Onb
         </span>
         {progress ? (
           <div className="om-onb__progress" role="group" aria-label={copy.step(progress.n, progress.total)}>
-            <span className="om-onb__dots" aria-hidden="true">
-              {Array.from({ length: progress.total }, (_, i) => <span key={i} className="om-onb__dot" data-state={i + 1 < progress.n ? "done" : i + 1 === progress.n ? "current" : "todo"} />)}
-            </span>
             <span className="om-onb__step-label">{copy.step(progress.n, progress.total)}</span>
           </div>
         ) : null}

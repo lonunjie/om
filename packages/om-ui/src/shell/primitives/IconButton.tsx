@@ -1,5 +1,4 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { pressOrigin } from "./press";
 import "./primitives.css";
 
 export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "aria-label"> {
@@ -8,11 +7,8 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
   readonly icon: ReactNode;
 }
 
-export const IconButton = ({ label, icon, className, type = "button", onPointerDown, ...rest }: IconButtonProps) => (
-  <button
-    {...rest} type={type} aria-label={label} className={className ? `om-icon-button ${className}` : "om-icon-button"}
-    onPointerDown={(e) => { pressOrigin(e); onPointerDown?.(e); }}
-  >
+export const IconButton = ({ label, icon, className, type = "button", ...rest }: IconButtonProps) => (
+  <button {...rest} type={type} aria-label={label} className={className ? `om-icon-button ${className}` : "om-icon-button"}>
     <span aria-hidden="true">{icon}</span>
   </button>
 );

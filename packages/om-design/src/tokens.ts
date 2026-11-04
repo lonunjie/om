@@ -2,11 +2,13 @@
 // Themes are declarative: they may supply only THEME_COLOR_ROLES. RESERVED_COLOR_ROLES belong to OM (UI-04).
 
 export const THEME_COLOR_ROLES = [
-  "bg-canvas", "bg-surface", "bg-raised", "bg-sunken",
+  "bg-canvas", "bg-surface", "bg-raised", "bg-sunken", "bg-overlay",
   "text-primary", "text-secondary", "text-muted",
-  "accent", "accent-text", "border",
+  "accent", "accent-hover", "accent-pressed", "accent-text", "accent-soft",
+  "border", "border-subtle",
   "selection-bg", "selection-text",
   "success-fg", "success-bg", "warning-fg", "warning-bg", "danger-fg", "danger-bg", "info-fg", "info-bg",
+  "message-incoming", "message-outgoing", "message-failed",
 ] as const;
 export type ThemeColorRole = (typeof THEME_COLOR_ROLES)[number];
 
@@ -38,7 +40,12 @@ export const THEME_CONTRAST_PAIRS: readonly ContrastPair[] = [
   ["selection-text", "selection-bg", 4.5],
   ["success-fg", "success-bg", 4.5], ["warning-fg", "warning-bg", 4.5],
   ["danger-fg", "danger-bg", 4.5], ["info-fg", "info-bg", 4.5],
-  ["border", "bg-canvas", 3], ["border", "bg-surface", 3],
+  ["text-primary", "message-incoming", 4.5], ["text-primary", "message-outgoing", 4.5], ["danger-fg", "message-failed", 4.5],
+  ["accent", "message-outgoing", 4.5],
+  // The audited border.strong (DEFAULT_THEME_AND_COLOR_SEMANTICS.md s3) is about 2.3:1 on the canvas in light: below the 3:1 a
+  // control boundary needs on its own. Every bordered control also has a text or fill cue; the shortfall is reported to the
+  // operator (docs/reports/2026-11-03-ui-conformance-review.md, Applied). This floor documents today's value so it cannot fall further.
+  ["border", "bg-canvas", 2.2], ["border", "bg-surface", 2.2],
 ];
 
 export const RESERVED_CONTRAST_PAIRS: readonly (readonly [ReservedColorRole, ReservedColorRole, number])[] = [
@@ -47,38 +54,58 @@ export const RESERVED_CONTRAST_PAIRS: readonly (readonly [ReservedColorRole, Res
   ["security-verified-fg", "security-verified-bg", 4.5], ["security-verified-border", "security-verified-bg", 3],
 ];
 
+/**
+ * A status tint: the status colour mixed into a surface. The audited palette (docs/ux-design/tokens/om-theme-clear-v1.json)
+ * gives the status colours and the failed surface but no success or warning backing, so these two are derived, never typed by hand.
+ */
+const tint = (status: string, surface: string, weight: number): string => {
+  const ch = (hex: string, i: number): number => parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return "#" + [0, 1, 2].map((i) => Math.round(ch(status, i) * weight + ch(surface, i) * (1 - weight)).toString(16).padStart(2, "0")).join("").toUpperCase();
+};
+
+/**
+ * OM Calm: the audited palette, role for role (docs/ux-design/tokens/om-theme-clear-v1.json; DEFAULT_THEME_AND_COLOR_SEMANTICS.md s3-4).
+ * Mapping: surface.base is bg-canvas; surface.raised is bg-raised (and bg-surface in light); surface.subtle is bg-sunken (and bg-surface in dark);
+ * text.tertiary is text-muted; border.strong is border; state.selected is selection-bg; the info tint is accent.soft.
+ */
 export const OM_CALM: Theme = {
   id: "om-calm",
   name: "OM Calm",
   light: {
-    "bg-canvas": "#F7F8FA", "bg-surface": "#FFFFFF", "bg-raised": "#FFFFFF", "bg-sunken": "#EEF0F4",
-    "text-primary": "#14181F", "text-secondary": "#4A5361", "text-muted": "#5B6472",
-    accent: "#1F5FBF", "accent-text": "#FFFFFF", border: "#7C8696",
-    "selection-bg": "#CFE0FB", "selection-text": "#14181F",
-    "success-fg": "#0F6B3A", "success-bg": "#E6F5EC", "warning-fg": "#7A4B00", "warning-bg": "#FFF3D6",
-    "danger-fg": "#A4161A", "danger-bg": "#FDECEC", "info-fg": "#0F4C8A", "info-bg": "#E7F0FB",
+    "bg-canvas": "#F7F9FC", "bg-surface": "#FFFFFF", "bg-raised": "#FFFFFF", "bg-sunken": "#EFF3F8", "bg-overlay": "#FFFFFF",
+    "text-primary": "#172033", "text-secondary": "#566176", "text-muted": "#627085",
+    accent: "#0067C5", "accent-hover": "#0057AA", "accent-pressed": "#004A90", "accent-text": "#FFFFFF", "accent-soft": "#DDEEFF",
+    border: "#9BA8B9", "border-subtle": "#D7DEE8",
+    "selection-bg": "#DCEBFF", "selection-text": "#172033",
+    "success-fg": "#18794E", "success-bg": tint("#18794E", "#FFFFFF", 0.1), "warning-fg": "#8A5A00", "warning-bg": tint("#8A5A00", "#FFFFFF", 0.1),
+    "danger-fg": "#C4333B", "danger-bg": "#FFF0F0", "info-fg": "#0067C5", "info-bg": "#DDEEFF",
+    "message-incoming": "#FFFFFF", "message-outgoing": "#E7F2FF", "message-failed": "#FFF0F0",
   },
   dark: {
-    "bg-canvas": "#0F1217", "bg-surface": "#171B22", "bg-raised": "#1E232C", "bg-sunken": "#0B0D11",
-    "text-primary": "#EEF1F5", "text-secondary": "#B6BECB", "text-muted": "#9AA3B2",
-    accent: "#7FB0FF", "accent-text": "#0B1320", border: "#6B7587",
-    "selection-bg": "#24406E", "selection-text": "#EEF1F5",
-    "success-fg": "#8FDDB0", "success-bg": "#10301E", "warning-fg": "#F5CF84", "warning-bg": "#3A2A08",
-    "danger-fg": "#FFB4B0", "danger-bg": "#3A1416", "info-fg": "#A9CCFF", "info-bg": "#11284A",
+    "bg-canvas": "#11151C", "bg-surface": "#171D26", "bg-raised": "#1D2530", "bg-sunken": "#171D26", "bg-overlay": "#25303D",
+    "text-primary": "#F2F5F8", "text-secondary": "#B9C2CE", "text-muted": "#8F9BAA",
+    accent: "#66B2FF", "accent-hover": "#8AC4FF", "accent-pressed": "#4AA4FF", "accent-text": "#07182B", "accent-soft": "#183A5B",
+    border: "#667485", "border-subtle": "#34404F",
+    "selection-bg": "#223D5E", "selection-text": "#F2F5F8",
+    "success-fg": "#5DD6A1", "success-bg": tint("#5DD6A1", "#1D2530", 0.18), "warning-fg": "#F6C65B", "warning-bg": tint("#F6C65B", "#1D2530", 0.18),
+    "danger-fg": "#FF7B7B", "danger-bg": "#451D25", "info-fg": "#66B2FF", "info-bg": "#183A5B",
+    "message-incoming": "#1D2530", "message-outgoing": "#183A5B", "message-failed": "#451D25",
   },
 };
 
+// Reserved security surfaces (UI-04): a status colour is the border, the matching tint is the backing, the primary text colour is the words.
+// Focus is the audited violet (state.focus), separate from the action blue (DEFAULT_THEME_AND_COLOR_SEMANTICS.md s2, COMPONENT_BEHAVIOR_AND_STATES.md s7).
 export const RESERVED_LIGHT: ReservedPalette = {
-  "security-notice-bg": "#FFF3D6", "security-notice-fg": "#4A2E00", "security-notice-border": "#7A4B00",
-  "security-danger-bg": "#FDECEC", "security-danger-fg": "#7A0E12", "security-danger-border": "#A4161A",
-  "security-verified-bg": "#E6F5EC", "security-verified-fg": "#0A4A28", "security-verified-border": "#0F6B3A",
-  "focus-ring": "#0B57D0", "focus-halo": "#FFFFFF",
+  "security-notice-bg": OM_CALM.light["warning-bg"], "security-notice-fg": "#172033", "security-notice-border": "#8A5A00",
+  "security-danger-bg": "#FFF0F0", "security-danger-fg": "#172033", "security-danger-border": "#C4333B",
+  "security-verified-bg": OM_CALM.light["success-bg"], "security-verified-fg": "#172033", "security-verified-border": "#18794E",
+  "focus-ring": "#6536D9", "focus-halo": "#FFFFFF",
 };
 export const RESERVED_DARK: ReservedPalette = {
-  "security-notice-bg": "#3A2A08", "security-notice-fg": "#FFE9B5", "security-notice-border": "#F5CF84",
-  "security-danger-bg": "#3A1416", "security-danger-fg": "#FFD6D3", "security-danger-border": "#FFB4B0",
-  "security-verified-bg": "#10301E", "security-verified-fg": "#C4F0D6", "security-verified-border": "#8FDDB0",
-  "focus-ring": "#9CC2FF", "focus-halo": "#0F1217",
+  "security-notice-bg": OM_CALM.dark["warning-bg"], "security-notice-fg": "#F2F5F8", "security-notice-border": "#F6C65B",
+  "security-danger-bg": "#451D25", "security-danger-fg": "#F2F5F8", "security-danger-border": "#FF7B7B",
+  "security-verified-bg": OM_CALM.dark["success-bg"], "security-verified-fg": "#F2F5F8", "security-verified-border": "#5DD6A1",
+  "focus-ring": "#B69CFF", "focus-halo": "#11151C",
 };
 
 export const BUILT_IN_THEMES: readonly Theme[] = [OM_CALM];

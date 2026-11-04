@@ -4421,14 +4421,14 @@
       "authority": "working_record_non_normative"
     },
     {
-      "path": "docs/reports/2026-11-04-v1-completion-plan.md",
+      "path": "docs/reports/2026-11-04-relayset-lineage-and-failover.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
       "authority": "working_record_non_normative"
     },
     {
-      "path": "docs/reports/2026-11-04-relayset-lineage-and-failover.md",
+      "path": "docs/reports/2026-11-04-v1-completion-plan.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -9273,13 +9273,6 @@
     },
     {
       "path": "packages/om-ui/src/shell/primitives/index.ts",
-      "class": "product_code",
-      "domain": "client_endpoint_distribution",
-      "license": "MPL-2.0",
-      "authority": "product_implementation"
-    },
-    {
-      "path": "packages/om-ui/src/shell/primitives/press.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

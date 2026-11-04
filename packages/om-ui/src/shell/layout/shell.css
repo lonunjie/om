@@ -29,10 +29,9 @@
   padding: 0;
 }
 
-/* Travel: on a phone the pane that opens slides in from the side it came from, so Back reads as going back. */
-.om-shell[data-layout="compact"] .om-shell__detail { animation: om-slide-in var(--om-motion-standard) var(--om-ease-enter) both; }
-.om-shell[data-layout="compact"][data-conversation-open="false"] .om-shell__list { animation: om-slide-back var(--om-motion-standard) var(--om-ease-enter) both; }
-@keyframes om-slide-back { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+/* Back on a touch screen follows the finger (MOTION_AND_PERFORMANCE.md, "Back gesture"): the open pane is dragged from its leading edge. */
+.om-shell__detail[data-dragging="true"] { transition: none; touch-action: pan-y; }
+.om-shell__detail[data-settling="true"] { transition: transform var(--om-motion-quick) var(--om-ease-move); }
 
 .om-shell__composer {
   grid-column: 1;

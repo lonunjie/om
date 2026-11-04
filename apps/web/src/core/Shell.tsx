@@ -127,7 +127,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
           aria-label={`${name}, ${t.settings}${attention ? `, ${t.settingsNeedsAttention}` : ""}`}
           onClick={() => { if (settings === null) go({ kind: "settings", page: "menu" }); else toChatsRoot(); }}
         >
-          <span className="om-me__avatar"><Avatar name={name} />{attention ? <span className="om-me__dot" aria-hidden="true" /> : null}</span>
+          <span className="om-me__avatar"><Avatar name={name} /></span>
           <span className="om-me__name">{name}</span>
         </Button>
       )}
@@ -333,8 +333,8 @@ function SettingsMenu({ page, onOpen, onAddProfile, hasHome, hasLock, hasBackup,
       </div>
       {onSafetyCode !== undefined && terms.length === 0 ? (
         <section className="om-page" aria-label={t.safetyCode.action}>
-          <div className="om-card om-card--attention">
-            <p className="om-card__line"><span className="om-dot" aria-hidden="true" /><Text as="span">{t.safetyCode.reminder}</Text></p>
+          <div className="om-card">
+            <Text as="p">{t.safetyCode.reminder}</Text>
             <Button variant="primary" onClick={onSafetyCode}><Icon name="shield" size={20} />{t.safetyCode.action}</Button>
           </div>
         </section>
