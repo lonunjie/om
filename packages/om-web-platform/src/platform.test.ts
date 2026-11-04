@@ -99,3 +99,66 @@ describe("probing is side-effect free", () => {
     for (const spy of Object.values(s)) expect(spy).not.toHaveBeenCalled();
   });
 });
+
+describe("voice-note recording and one-shot location", () => {
+  const stream = () => { const stops: string[] = []; return { stops, s: { getTracks: () => [{ stop: () => { stops.push("t"); } }] } }; };
+  class FakeRecorder {
+    mimeType = "audio/webm;codecs=opus";
+    ondataavailable: ((e: { data: { size: number; type: string; arrayBuffer(): Promise<ArrayBuffer> } }) => void) | null = null;
+    onstop: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    static isTypeSupported = (t: string): boolean => t === "audio/webm;codecs=opus";
+    start(): void { /* recording */ }
+    stop(): void {
+      this.ondataavailable?.({ data: { size: 3, type: this.mimeType, arrayBuffer: () => Promise.resolve(Uint8Array.of(1, 2, 3).buffer) } });
+      this.onstop?.();
+    }
+  }
+  const env = (st: ReturnType<typeof stream>, over: Partial<WebEnv> = {}): WebEnv => ({ navigator: { mediaDevices: { getUserMedia: () => Promise.resolve(st.s) } }, MediaRecorder: FakeRecorder, ...over });
+
+  it("asks for the microphone only when recording starts, returns the bytes and releases the microphone", async () => {
+    const st = stream();
+    const getUserMedia = vi.fn(() => Promise.resolve(st.s));
+    const p = createWebPlatform({ navigator: { mediaDevices: { getUserMedia } }, MediaRecorder: FakeRecorder });
+    const mic = p.microphone();
+    if (mic.state === "unavailable") throw new Error("expected api");
+    expect(getUserMedia).not.toHaveBeenCalled(); // probing never prompts
+    const rec = await mic.api.startRecording();
+    if (typeof rec === "string") throw new Error(rec);
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    const out = await rec.stop();
+    expect([...out.bytes]).toEqual([1, 2, 3]);
+    expect(out.mimeType).toBe("audio/webm");
+    expect(st.stops).toEqual(["t"]);
+  });
+
+  it("cancel drops the recording and releases the microphone; a refused prompt is `denied`", async () => {
+    const st = stream();
+    const mic = createWebPlatform(env(st)).microphone();
+    if (mic.state === "unavailable") throw new Error("expected api");
+    const rec = await mic.api.startRecording();
+    if (typeof rec === "string") throw new Error(rec);
+    rec.cancel();
+    expect(st.stops).toEqual(["t"]);
+    const denied = createWebPlatform({ navigator: { mediaDevices: { getUserMedia: () => Promise.reject(new Error("NotAllowedError")) } }, MediaRecorder: FakeRecorder }).microphone();
+    if (denied.state === "unavailable") throw new Error("expected api");
+    expect(await denied.api.startRecording()).toBe("denied");
+  });
+
+  it("without a recorder the microphone family is partial and recording says it failed, honestly", async () => {
+    const mic = createWebPlatform({ navigator: { mediaDevices: { getUserMedia: () => Promise.resolve({ getTracks: () => [] }) } } }).microphone();
+    expect(mic.state).toBe("partial");
+    if (mic.state === "unavailable") throw new Error("expected api");
+    expect(await mic.api.startRecording()).toBe("failed");
+  });
+
+  it("location is a single position in E7 degrees, never a watch; refusal is `denied`", async () => {
+    const ok = createWebPlatform({ navigator: { geolocation: { getCurrentPosition: (f: (p: { coords: { latitude: number; longitude: number; accuracy: number } }) => void) => { f({ coords: { latitude: 14.3583, longitude: 121.0, accuracy: 24.6 } }); } } } }).location();
+    if (ok.state === "unavailable") throw new Error("expected api");
+    expect(await ok.api.current()).toEqual({ latE7: 143583000, lonE7: 1210000000, accuracyM: 25 });
+    const no = createWebPlatform({ navigator: { geolocation: { getCurrentPosition: (_f: unknown, e: (x: { code: number }) => void) => { e({ code: 1 }); } } } }).location();
+    if (no.state === "unavailable") throw new Error("expected api");
+    expect(await no.api.current()).toBe("denied");
+    expect(createWebPlatform({}).location().state).toBe("unavailable");
+  });
+});

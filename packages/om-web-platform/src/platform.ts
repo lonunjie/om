@@ -1,10 +1,10 @@
 import type {
-  BackgroundPush, Capability, CapabilityEntry, CapabilityReport, ClipboardWriteResult, FamilyApis,
+  AudioRecording, LocationFix, BackgroundPush, Capability, CapabilityEntry, CapabilityReport, ClipboardWriteResult, FamilyApis,
   FamilyName, LocalContact, LocalContactsMode, LocalDiscoveryMode, PermissionState, PickedFile,
   PlatformAdapter,
 } from "@om/platform-api";
 import { FAMILY_NAMES, available, partial, unavailable } from "@om/platform-api";
-import type { FileInputLike, FileLike, WebEnv } from "./env";
+import type { BlobLike, FileInputLike, FileLike, MediaStreamLike, WebEnv } from "./env";
 import { browserEnv } from "./env";
 
 const isFn = (v: unknown): boolean => typeof v === "function";
@@ -43,6 +43,80 @@ async function mediaAccess(env: WebEnv, kind: "audio" | "video"): Promise<"grant
   } catch {
     return "denied";
   }
+}
+
+const RECORDER_TYPES = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg;codecs=opus"] as const;
+
+/** Starts a recording. The microphone permission prompt happens here, at the moment of need, and the track is stopped on every exit path. */
+async function startRecording(env: WebEnv): Promise<AudioRecording | "denied" | "failed"> {
+  const getUserMedia = env.navigator?.mediaDevices?.getUserMedia;
+  const Recorder = env.MediaRecorder;
+  if (getUserMedia === undefined || Recorder === undefined) return "failed";
+  let stream: MediaStreamLike;
+  try {
+    stream = await getUserMedia.call(env.navigator?.mediaDevices, { audio: true });
+  } catch {
+    return "denied";
+  }
+  const release = (): void => { for (const t of stream.getTracks()) t.stop(); };
+  try {
+    const mimeType = RECORDER_TYPES.find((t) => Recorder.isTypeSupported?.(t) === true);
+    const rec = mimeType === undefined ? new Recorder(stream) : new Recorder(stream, { mimeType });
+    const chunks: BlobLike[] = [];
+    let startedAt = Date.now();
+    let finish: ((r: { bytes: Uint8Array; mimeType: string; durationMs: number } | null) => void) | null = null;
+    rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    rec.onstop = () => {
+      release();
+      const durationMs = Date.now() - startedAt;
+      const type = (rec.mimeType !== "" ? rec.mimeType : (chunks[0]?.type ?? mimeType ?? "audio/webm")).split(";")[0] ?? "audio/webm";
+      void Promise.all(chunks.map((c) => c.arrayBuffer())).then((parts) => {
+        const bytes = new Uint8Array(parts.reduce((n, p) => n + p.byteLength, 0));
+        let off = 0;
+        for (const p of parts) { bytes.set(new Uint8Array(p), off); off += p.byteLength; }
+        finish?.({ bytes, mimeType: type, durationMs });
+      });
+    };
+    rec.onerror = () => { release(); finish?.(null); };
+    startedAt = Date.now();
+    rec.start();
+    let ended = false;
+    return {
+      stop: () => new Promise((resolve, reject) => {
+        if (ended) { reject(new Error("already ended")); return; }
+        ended = true;
+        finish = (r) => { if (r === null || r.bytes.length === 0) reject(new Error("nothing recorded")); else resolve(r); };
+        try { rec.stop(); } catch { release(); reject(new Error("could not stop")); }
+      }),
+      cancel: () => {
+        if (ended) return;
+        ended = true;
+        rec.ondataavailable = null; rec.onstop = null; rec.onerror = null;
+        try { rec.stop(); } catch { /* already stopped */ }
+        release();
+      },
+    };
+  } catch {
+    release();
+    return "failed";
+  }
+}
+
+const E7 = 10_000_000;
+
+function currentPosition(env: WebEnv): Promise<LocationFix | "denied" | "unavailable"> {
+  const geo = env.navigator?.geolocation;
+  if (geo === undefined) return Promise.resolve("unavailable");
+  return new Promise((resolve) => {
+    geo.getCurrentPosition(
+      (p) => {
+        const fix = { latE7: Math.round(p.coords.latitude * E7), lonE7: Math.round(p.coords.longitude * E7) };
+        resolve(Number.isFinite(p.coords.accuracy) && p.coords.accuracy >= 0 ? { ...fix, accuracyM: Math.round(p.coords.accuracy) } : fix);
+      },
+      (e) => { resolve(e.code === 1 ? "denied" : "unavailable"); },
+      { enableHighAccuracy: false, timeout: 15_000, maximumAge: 0 },
+    );
+  });
 }
 
 type Builders = { [K in FamilyName]: (env: WebEnv) => Capability<FamilyApis[K]> };
@@ -142,7 +216,12 @@ const builders: Builders = {
   microphone: (env) =>
     env.navigator?.mediaDevices?.getUserMedia === undefined
       ? unavailable("no_media_devices")
-      : available({ requestAccess: () => mediaAccess(env, "audio") }),
+      : env.MediaRecorder === undefined
+        ? partial({ requestAccess: () => mediaAccess(env, "audio"), startRecording: () => Promise.resolve("failed" as const) }, "no_media_recorder")
+        : available({ requestAccess: () => mediaAccess(env, "audio"), startRecording: () => startRecording(env) }),
+
+  location: (env) =>
+    env.navigator?.geolocation === undefined ? unavailable("no_geolocation") : available({ current: () => currentPosition(env) }),
 
   contactsLocal: (env) =>
     env.navigator?.contacts?.select === undefined
@@ -239,6 +318,7 @@ export function createWebPlatform(env: WebEnv = browserEnv()): PlatformAdapter {
     files: () => get("files"),
     camera: () => get("camera"),
     microphone: () => get("microphone"),
+    location: () => get("location"),
     contactsLocal: () => get("contactsLocal"),
     clipboard: () => get("clipboard"),
     secureSurface: () => get("secureSurface"),

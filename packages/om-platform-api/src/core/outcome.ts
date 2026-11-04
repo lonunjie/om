@@ -12,7 +12,9 @@ export type RejectReason =
   | "rate_limited"
   | "integrity_failure"
   | "unavailable"
-  | "not_found";
+  | "not_found"
+  /** One file is bigger than the delivery service takes. Said before anything is sent; an exact retry cannot succeed. */
+  | "too_large";
 
 export type UserActionCode = "authorize_with_device" | "confirm_security_change" | "reauthenticate" | "update_client";
 

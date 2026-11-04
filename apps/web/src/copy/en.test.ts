@@ -14,7 +14,7 @@ const all = (name: string, v: unknown): [string, string][] => { const o: [string
 
 // Exhaustive by type: adding a code upstream breaks compilation here until the copy and this list are updated.
 const keys = <K extends string>(r: Record<K, true>): readonly K[] => Object.keys(r) as K[];
-const REASONS = keys<RejectReason>({ invalid: true, unsupported: true, unauthorized: true, revoked: true, expired: true, stale_state: true, conflict: true, policy_denied: true, quota: true, rate_limited: true, integrity_failure: true, unavailable: true, not_found: true });
+const REASONS = keys<RejectReason>({ invalid: true, unsupported: true, unauthorized: true, revoked: true, expired: true, stale_state: true, conflict: true, policy_denied: true, quota: true, rate_limited: true, integrity_failure: true, unavailable: true, not_found: true, too_large: true });
 const NOTICES = keys<SecurityNoticeCode>({ safety_number_changed: true, device_added: true, unverified_contact: true, session_reset: true, integrity_failure: true });
 const ACTIONS = keys<UserActionCode>({ authorize_with_device: true, confirm_security_change: true, reauthenticate: true, update_client: true });
 const VAULT = keys<VaultErrorReason>({

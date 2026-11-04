@@ -30,6 +30,20 @@ export interface PickedFile {
 }
 export interface FilesApi { pick(options?: PickFilesOptions): Promise<readonly PickedFile[]> }
 export interface MediaAccessApi { requestAccess(): Promise<"granted" | "denied"> }
+/** A voice-note recording in progress (VOICE_NOTES_UX 3): the microphone is in use until `stop` or `cancel`. */
+export interface AudioRecording {
+  /** Ends capture, releases the microphone and answers what was recorded. */
+  stop(): Promise<{ readonly bytes: Uint8Array; readonly mimeType: string; readonly durationMs: number }>;
+  /** Ends capture, releases the microphone and drops everything recorded. */
+  cancel(): void;
+}
+/** The microphone, plus recording for a message attachment. Asking for access happens only inside `startRecording`, at the moment of need. */
+export interface MicrophoneApi extends MediaAccessApi {
+  startRecording(): Promise<AudioRecording | "denied" | "failed">;
+}
+/** One-shot position, in E7 degrees (degrees times ten million). No watching, no background location. */
+export interface LocationFix { readonly latE7: number; readonly lonE7: number; readonly accuracyM?: number }
+export interface LocationApi { current(): Promise<LocationFix | "denied" | "unavailable"> }
 export interface LocalContact { readonly name?: string; readonly tel: readonly string[] }
 export interface ContactsLocalApi { pick(): Promise<readonly LocalContact[]> }
 export type ClipboardWriteResult = "written" | "sensitive_unsupported" | "failed";
@@ -56,7 +70,8 @@ export interface FamilyApis {
   openExternal: OpenExternalApi;
   files: FilesApi;
   camera: MediaAccessApi;
-  microphone: MediaAccessApi;
+  microphone: MicrophoneApi;
+  location: LocationApi;
   contactsLocal: ContactsLocalApi;
   clipboard: ClipboardApi;
   secureSurface: SecureSurfaceApi;
@@ -75,7 +90,7 @@ export type FamilyName = keyof FamilyApis;
 
 export const FAMILY_NAMES = [
   "secureStorage", "biometrics", "push", "notifications", "backgroundExecution", "share",
-  "openExternal", "files", "camera", "microphone", "contactsLocal", "clipboard",
+  "openExternal", "files", "camera", "microphone", "location", "contactsLocal", "clipboard",
   "secureSurface", "backupExclusion", "inputPrivacy", "notificationRemoval", "localDiscovery",
   "callSystemIntegration", "networkHints", "windowSystem", "haptics", "externalTransport",
 ] as const satisfies readonly FamilyName[];

@@ -5,3 +5,4 @@ export * from "./views";
 export * from "./client";
 export * from "./invite";
 export * from "./devices";
+export * from "./attachments";

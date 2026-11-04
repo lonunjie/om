@@ -17,6 +17,7 @@ const REJECT: Readonly<Record<RejectReason, string>> = {
   integrity_failure: "A safety check failed, so this was stopped.",
   unavailable: "OM could not reach what it needs right now.",
   not_found: "OM could not find that anymore.",
+  too_large: "This file is too big to send right now.",
 };
 const withPrefix = (prefix: string): Readonly<Record<RejectReason, string>> =>
   Object.fromEntries(Object.entries(REJECT).map(([k, v]) => [k, `${prefix} ${v}`])) as Record<RejectReason, string>;
@@ -339,6 +340,7 @@ const onboardingBase: OnboardingCopy = {
       integrity_failure: "This invite link is damaged. Ask the person to send it again.",
       unavailable: "OM could not reach the service. Check your connection and try again.",
       not_found: "This invite was not found. It may have been used or cancelled. Ask the person to send a new one.",
+      too_large: "This invite is too big to use. Ask the person to send a new one.",
     },
     failed: "Something went wrong. Try again.",
     queued: "Still sending. Keep this page open.",

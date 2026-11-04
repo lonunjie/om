@@ -28,6 +28,22 @@ export interface FileInputLike {
   addEventListener(event: "change" | "cancel", handler: () => void): void;
 }
 export interface MediaStreamLike { getTracks(): readonly { stop(): void }[] }
+export interface BlobLike { readonly size: number; readonly type: string; arrayBuffer(): Promise<ArrayBuffer> }
+export interface MediaRecorderLike {
+  readonly mimeType: string;
+  ondataavailable: ((e: { readonly data: BlobLike }) => void) | null;
+  onstop: (() => void) | null;
+  onerror: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+export interface GeolocationLike {
+  getCurrentPosition(
+    ok: (p: { readonly coords: { readonly latitude: number; readonly longitude: number; readonly accuracy: number } }) => void,
+    fail: (e: { readonly code: number }) => void,
+    options?: { readonly enableHighAccuracy?: boolean; readonly timeout?: number; readonly maximumAge?: number },
+  ): void;
+}
 export type NotificationPermissionLike = "granted" | "denied" | "default";
 
 export interface WebEnv {
@@ -39,6 +55,7 @@ export interface WebEnv {
     readonly mediaDevices?: {
       readonly getUserMedia?: (c: { audio?: boolean; video?: boolean }) => Promise<MediaStreamLike>;
     };
+    readonly geolocation?: GeolocationLike;
     readonly serviceWorker?: { readonly ready: Promise<RegistrationLike> };
     readonly contacts?: {
       readonly select?: (
@@ -52,6 +69,7 @@ export interface WebEnv {
     readonly requestPermission?: () => Promise<NotificationPermissionLike>;
   };
   readonly PushManager?: unknown;
+  readonly MediaRecorder?: { new (stream: MediaStreamLike, options?: { mimeType?: string }): MediaRecorderLike; isTypeSupported?(type: string): boolean };
   readonly ServiceWorkerRegistration?: { readonly prototype: object };
   readonly PublicKeyCredential?: {
     readonly isUserVerifyingPlatformAuthenticatorAvailable?: () => Promise<boolean>;

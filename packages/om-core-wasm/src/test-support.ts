@@ -1,7 +1,7 @@
 // TEST ONLY: an in-memory provider (key material, introduction service, relay mailboxes) and an in-memory
 // EncryptedKv. Never import this from application code: tools/web_guard.py and the production bundle check refuse it.
 import type { EncryptedKv, KvGetResult, KvListResult, KvResult } from "@om/platform-api";
-import type { Inbound, MailboxKind, NetCall, NetResult, Provider, RouteOffer } from "./types";
+import type { BlobLimits, Inbound, MailboxKind, NetCall, NetResult, PerformExtra, Provider, RouteOffer } from "./types";
 
 export const TEST_PROVIDER_MARKER = "OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION";
 /** The test relay's name and capability shape: a fixed prefix plus the mailbox id, unlike the id itself. */
@@ -10,12 +10,49 @@ const TEST_RELAY_SCHEME = "https"; // composed, so the product-code lint for har
 export const TEST_RELAY_URI = `${TEST_RELAY_SCHEME}://${TEST_RELAY_HOST}/`;
 const CAP_PREFIX = "c4".repeat(16);
 
+/** The loopback store's own bounds, standing in for a Home's advertised `om.blob.spool.v1` limits. */
+export const TEST_BLOB_LIMITS: BlobLimits = { maxBlobBytes: 4 * 1024 * 1024, maxSpoolBytes: 32 * 1024 * 1024, maxBlobs: 64 };
+const BLOB_LABEL = "OM-BLOB-CIPHERTEXT-HASH-v1";
+
+/** DS-HASH of the ciphertext: SHA-256 over the CBOR array [label, bstr], as the spec and the Home compute it. */
+async function blobDigest(bytes: Uint8Array): Promise<string> {
+  const label = new TextEncoder().encode(BLOB_LABEL);
+  const n = bytes.length;
+  const head = n < 24 ? [0x40 | n] : n < 0x100 ? [0x58, n] : n < 0x10000 ? [0x59, n >> 8, n & 255] : [0x5a, (n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+  const lh = label.length < 24 ? [0x60 | label.length] : [0x78, label.length];
+  const all = new Uint8Array(1 + lh.length + label.length + head.length + n);
+  all[0] = 0x82;
+  all.set(lh, 1);
+  all.set(label, 1 + lh.length);
+  all.set(head, 1 + lh.length + label.length);
+  all.set(bytes, 1 + lh.length + label.length + head.length);
+  return toHexStr(new Uint8Array(await crypto.subtle.digest("SHA-256", all)));
+}
+const toHexStr = (b: Uint8Array): string => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+const fromHexStr = (h: string): Uint8Array => Uint8Array.from(h.match(/../g) ?? [], (x) => parseInt(x, 16));
+/** Canonical CBOR of the receipt `{0: readCap, 1: [locations], 2: digest, 3: expiresAt}` (see crates/om-core host.rs BlobReceipt). */
+function receiptCbor(readCap: Uint8Array, locations: readonly string[], digest: Uint8Array, expiresAt: number): Uint8Array {
+  const parts: number[][] = [[0xa4]];
+  const bstr = (b: Uint8Array): number[] => [...(b.length < 24 ? [0x40 | b.length] : [0x58, b.length]), ...b];
+  const tstr = (t: string): number[] => { const u = new TextEncoder().encode(t); return [...(u.length < 24 ? [0x60 | u.length] : u.length < 256 ? [0x78, u.length] : [0x79, u.length >> 8, u.length & 255]), ...u]; };
+  parts.push([0x00], bstr(readCap), [0x01, 0x80 | locations.length], ...locations.map(tstr), [0x02], bstr(digest), [0x03, 0x1a, (expiresAt >>> 24) & 255, (expiresAt >>> 16) & 255, (expiresAt >>> 8) & 255, expiresAt & 255]);
+  return Uint8Array.from(parts.flat());
+}
+
 export type Fault = "unavailable" | "timeout_after_effect" | "timeout_before_effect";
 
 export interface MemoryProvider extends Provider {
   allocateRoutes(count: number): Promise<readonly RouteOffer[]>;
   readonly marker: typeof TEST_PROVIDER_MARKER;
   inject(fault: Fault): void;
+  /** What the store advertises from now on (`null`: it holds no files). Default {@link TEST_BLOB_LIMITS}. */
+  setBlobLimits(limits: BlobLimits | null): void;
+  /** Every object the store holds, by locator: ciphertext only, for confinement assertions. */
+  blobs(): ReadonlyMap<string, Uint8Array>;
+  /** Make the store forget an object (expiry). */
+  expireBlobs(): void;
+  /** Flip one bit in every stored object (a faulty or hostile store). */
+  corruptBlobs(): void;
   /** Every byte string a relay ever received (acks do not remove them), for ciphertext-only assertions. */
   deposited(): readonly string[];
   /** Pending mailbox contents, by mailbox. */
@@ -33,11 +70,19 @@ export function createMemoryProvider(): MemoryProvider {
   const grants = new Map<string, Set<string>>(); // device id -> fetch capabilities its owner granted
   const boxes = new Map<string, { next: number; items: { seq: number; bytes: string }[] }>();
   const faults: Fault[] = [];
+  let blobLimits: BlobLimits | null = TEST_BLOB_LIMITS;
+  const objects = new Map<string, { owner: string; read: string; bytes: Uint8Array; digest: string }>(); // by locator (32 hex)
+  const puts = new Map<string, string>(); // requestId -> receipt hex (an exact retry answers alike)
   const log: string[] = []; // every deposit ever received: acks free relay storage, not this record of what it saw
   return {
     marker: TEST_PROVIDER_MARKER,
     inject: (f) => { faults.push(f); },
     deposited: () => [...log],
+    setBlobLimits: (l) => { blobLimits = l; },
+    blobs: () => new Map([...objects].map(([k, v]) => [k, v.bytes])),
+    expireBlobs: () => { objects.clear(); },
+    corruptBlobs: () => { for (const o of objects.values()) o.bytes[10] = (o.bytes[10] ?? 0) ^ 1; },
+    blobLimits: () => Promise.resolve(blobLimits),
     allocateRoutes(count): Promise<readonly RouteOffer[]> {
       const out: RouteOffer[] = [];
       for (let i = 0; i < count; i++) {
@@ -47,12 +92,38 @@ export function createMemoryProvider(): MemoryProvider {
       return Promise.resolve(out);
     },
     revokeAllInvites: () => { invites.clear(); },
-    perform(call: NetCall): Promise<NetResult> {
+    async perform(call: NetCall, extra?: PerformExtra): Promise<NetResult> {
       const fault = faults.shift();
-      if (fault === "unavailable") return Promise.resolve({ result: "err", error: { kind: "unavailable" } });
-      if (fault === "timeout_before_effect") return Promise.resolve({ result: "err", error: { kind: "timeout" } });
+      if (fault === "unavailable") return { result: "err", error: { kind: "unavailable" } };
+      if (fault === "timeout_before_effect") return { result: "err", error: { kind: "timeout" } };
       let r: NetResult = { result: "ok" };
       switch (call.call) {
+        case "put_blob": {
+          const bytes = extra?.ciphertext;
+          if (blobLimits === null) { r = { result: "err", error: { kind: "rejected", reason: "unsupported" } }; break; }
+          if (bytes === undefined || bytes.length !== call.length || (await blobDigest(bytes)) !== call.digest) { r = { result: "err", error: { kind: "rejected", reason: "integrity_failure" } }; break; }
+          if (bytes.length > blobLimits.maxBlobBytes) { r = { result: "err", error: { kind: "rejected", reason: "too_large" } }; break; }
+          const again = puts.get(call.requestId);
+          if (again !== undefined) { r = { result: "bytes", bytes: again }; break; }
+          if (objects.size >= (blobLimits.maxBlobs ?? 64)) { r = { result: "err", error: { kind: "rejected", reason: "quota" } }; break; }
+          const locator = call.ownerCap.slice(0, 32);
+          const readCap = `${locator}${"7e".repeat(16)}`;
+          objects.set(locator, { owner: call.ownerCap, read: readCap, bytes: bytes.slice(), digest: call.digest });
+          const receipt = toHexStr(receiptCbor(fromHexStr(readCap), [`${TEST_RELAY_URI}v1/blobs/${locator}`], fromHexStr(call.digest), Math.floor(Date.now() / 1000) + 7 * 86400));
+          puts.set(call.requestId, receipt);
+          r = { result: "bytes", bytes: receipt };
+          break;
+        }
+        case "get_blob": {
+          const hit = call.locations.map((l) => objects.get(l.slice(l.lastIndexOf("/") + 1))).find((o) => o !== undefined && o.read === call.readCap);
+          r = hit === undefined ? { result: "err", error: { kind: "not_found" } } : { result: "bytes", bytes: toHexStr(hit.bytes) };
+          break;
+        }
+        case "delete_blob": {
+          const locator = call.location.slice(call.location.lastIndexOf("/") + 1);
+          if (objects.get(locator)?.owner === call.ownerCap) objects.delete(locator);
+          break;
+        }
         case "publish_key_material": {
           const p = keys.get(call.deviceId) ?? { bundle: "", opks: [], pqopks: [] };
           p.bundle = call.bundle;
@@ -125,7 +196,7 @@ export function createMemoryProvider(): MemoryProvider {
           break;
         }
       }
-      return Promise.resolve(fault === "timeout_after_effect" ? { result: "err", error: { kind: "timeout" } } : r);
+      return fault === "timeout_after_effect" ? { result: "err", error: { kind: "timeout" } } : r;
     },
     poll(mailbox: string, after: number, _kind?: MailboxKind, _relayUri?: string, capability?: string): Promise<readonly Inbound[]> {
       return Promise.resolve((boxes.get(queueOf(mailbox, capability))?.items ?? []).filter((i) => i.seq > after));

@@ -3,15 +3,21 @@
 // identity), polls mailboxes, and fans changes out to observers and subscribers.
 import { captureProfileContext, isTerminalOutcome } from "@om/platform-api";
 import type {
+  AttachmentApi, AttachmentLimits, AttachmentMeta, AttachmentOpenResult, AttachmentPrepareResult, AttachmentRefusal,
   CoreClient, CoreIntent, CoreQuery, EncryptedKv, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   ProfileExecutionContext, ProfileId, QueryResult, Unsubscribe,
 } from "@om/platform-api";
 import { asProfileGeneration, asProfileId } from "@om/platform-api";
-import type { BackupHeader, BackupPlan, Commit, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, Record as CoreRecord } from "./types";
+import type { MessageId } from "@om/platform-api";
+import type { BackupHeader, BackupPlan, BlobLimits, Commit, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, Record as CoreRecord } from "./types";
 import { CoreCallError, CoreStorageError, fromHex, toHex } from "./types";
 import type { WasmCore } from "./wasm";
 
 const KEY_PREFIX = "core/";
+/** Sealed attachment bytes waiting for their upload, in the profile's encrypted store (never under `core/`, which is Core's own records). */
+const STAGE_PREFIX = "stage/";
+/** How long an advertised-limits answer is trusted before the Home is asked again. */
+const LIMITS_TTL_MS = 5 * 60_000;
 
 export interface CoreRuntimeOptions {
   readonly core: WasmCore;
@@ -54,6 +60,31 @@ export interface WasmCoreClient extends CoreClient {
    * (closed at once when `emergency`). Resolves with how many relationships had no other route and so stay on that Home.
    */
   retireHome(ctx: ProfileExecutionContext, relayUri: string, emergency?: boolean): Promise<number>;
+  /** Files: seal, stage, open. Always present on the real client; `limits()` is `null` until the Home advertises a file store. */
+  readonly attachments: AttachmentApi & {
+    /** Ask the Home again what it advertises and tell Core (also done lazily before `prepare`). */
+    refreshLimits(): Promise<AttachmentLimits | null>;
+    /** The ciphertext of an outgoing attachment again from its plaintext, staged under the same id (a host that lost its staged bytes). */
+    restage(ctx: ProfileExecutionContext, blobId: string, plaintext: Uint8Array): Promise<boolean>;
+  };
+}
+
+interface PrepareJson {
+  readonly prepared?: { readonly blobId: string; readonly ciphertext: string };
+  readonly refused?: { readonly error: string; readonly max?: number };
+  readonly commit: Commit | null;
+}
+interface OpenJson {
+  readonly opened?: { readonly plaintext: string; readonly mediaType: string; readonly filename?: string | null };
+  readonly refused?: { readonly error: string; readonly max?: number };
+  readonly call?: NetCallBlob;
+}
+type NetCallBlob = Extract<NetOp["call"], { call: "get_blob" }>;
+const REFUSALS: readonly string[] = ["too_large", "storage_full", "no_blob_store", "empty", "invalid", "not_found", "integrity_failure", "unsupported"];
+function refusalOf(r: { readonly error: string; readonly max?: number } | undefined): AttachmentRefusal {
+  if (r?.error === "too_large") return { error: "too_large", max: r.max ?? 0 };
+  const e = r?.error ?? "invalid";
+  return { error: (REFUSALS.includes(e) ? e : "invalid") as Exclude<AttachmentRefusal["error"], "too_large"> };
 }
 
 interface StepJson { readonly commit: Commit | null; readonly handle: OperationHandle | null }
@@ -99,6 +130,26 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     } catch { /* no routes: Core refuses what needs a mailbox as unavailable; nothing is invented */ }
   }
   const query = (q: CoreQuery): unknown => core.call({ cmd: "query", query: q });
+
+  // ---------------------------------------------------------------------------------------------- files
+  let limits: AttachmentLimits | null = null;
+  let limitsAt = 0;
+  async function refreshLimits(): Promise<AttachmentLimits | null> {
+    if (!provider.blobLimits) return limits;
+    let found: BlobLimits | null;
+    try { found = await provider.blobLimits(); } catch { return limits; } // could not find out: the last answer stays in force
+    limitsAt = Date.now();
+    limits = found === null ? null : { maxBlobBytes: found.maxBlobBytes, ...(found.maxSpoolBytes === undefined ? {} : { maxSpoolBytes: found.maxSpoolBytes }), ...(found.maxBlobs === undefined ? {} : { maxBlobs: found.maxBlobs }) };
+    core.call({ cmd: "set_blob_limits", limits: found === null ? null : { maxBlobBytes: found.maxBlobBytes, maxSpoolBytes: found.maxSpoolBytes ?? 0, maxBlobs: found.maxBlobs ?? 0 } });
+    return limits;
+  }
+  const ensureLimits = async (): Promise<void> => { if (limits === null || Date.now() - limitsAt > LIMITS_TTL_MS) await refreshLimits(); };
+  async function stage(profileId: ProfileId, blobId: string, ciphertext: Uint8Array): Promise<boolean> {
+    try { return (await opts.storage(profileId).put(STAGE_PREFIX + blobId, ciphertext)).ok; } catch { return false; }
+  }
+  async function unstage(profileId: ProfileId, blobId: string): Promise<void> {
+    try { await opts.storage(profileId).delete(STAGE_PREFIX + blobId); } catch { /* a leftover is sealed ciphertext and is swept with the profile */ }
+  }
 
   function emitQueries(profileId: string): void {
     for (const s of [...subscribers]) {
@@ -170,7 +221,16 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     inflight.add(id);
     try {
       let result: NetResult;
-      try { result = await provider.perform(op.call); } catch { result = { result: "err", error: { kind: "unavailable" } }; }
+      try {
+        if (op.call.call === "put_blob") {
+          const staged = await opts.storage(ctx.profileId).get(STAGE_PREFIX + op.call.blobId);
+          if (!staged.ok) result = { result: "err", error: { kind: "unavailable" } }; // the store could not be read now: retry, never reject
+          else if (staged.value === undefined) result = { result: "err", error: { kind: "rejected", reason: "not_found" } }; // the sealed bytes are gone: say so, do not upload nothing
+          else result = await provider.perform(op.call, { ciphertext: staged.value });
+        } else result = await provider.perform(op.call);
+      } catch { result = { result: "err", error: { kind: "unavailable" } }; }
+      // Once the store has the object (or definitely refused it) the staged copy has no further use.
+      if (op.call.call === "put_blob" && (result.result !== "err" || result.error.kind === "rejected")) await unstage(ctx.profileId, op.call.blobId);
       const progressed = !(result.result === "err" && (result.error.kind === "unavailable" || result.error.kind === "timeout"));
       await exclusive(async () => {
         const step = core.call({ cmd: "net_result", ctx, netId: op.id, result }) as StepJson;
@@ -230,6 +290,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       const ctx = await exclusive(() => Promise.resolve(core.call({ cmd: "open_profile", profileId, records }) as ProfileExecutionContext));
       emitQueries(profileId);
       openProfiles.add(profileId);
+      void refreshLimits();
       kick(profileId);
       return ctxOf(ctx);
     },
@@ -291,6 +352,37 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
         await commit(r.commit, ctx);
         return r.stuck;
       });
+    },
+    attachments: {
+      limits: () => limits,
+      refreshLimits,
+      async prepare(ctx, bytes, meta: AttachmentMeta): Promise<AttachmentPrepareResult> {
+        await ensureLimits();
+        return exclusive(async () => {
+          const r = core.call({ cmd: "prepare_attachment", ctx: ctxOf(ctx), plaintext: toHex(bytes), meta }) as PrepareJson;
+          await commit(r.commit, ctx); // the identities are durable before the sealed bytes are used
+          if (r.prepared === undefined) return { ok: false, refusal: refusalOf(r.refused) };
+          if (!(await stage(ctx.profileId, r.prepared.blobId, fromHex(r.prepared.ciphertext)))) return { ok: false, refusal: { error: "unavailable" } };
+          return { ok: true, blobId: r.prepared.blobId };
+        });
+      },
+      async restage(ctx, blobId, plaintext) {
+        const r = core.call({ cmd: "restage_attachment", ctx: ctxOf(ctx), blobId, plaintext: toHex(plaintext) }) as { ciphertext?: string };
+        return r.ciphertext !== undefined && (await stage(ctx.profileId, blobId, fromHex(r.ciphertext)));
+      },
+      async open(ctx, messageId: MessageId, index): Promise<AttachmentOpenResult> {
+        const plan = core.call({ cmd: "attachment_fetch", ctx: ctxOf(ctx), messageId, index }) as OpenJson;
+        if (plan.call === undefined) return { ok: false, refusal: refusalOf(plan.refused) };
+        let got: NetResult;
+        try { got = await provider.perform(plan.call); } catch { got = { result: "err", error: { kind: "unavailable" } }; }
+        if (got.result !== "bytes") {
+          const e = got.result === "err" ? got.error : { kind: "unavailable" as const };
+          return { ok: false, refusal: { error: e.kind === "not_found" ? "not_found" : "unavailable" } };
+        }
+        const o = core.call({ cmd: "open_attachment", ctx: ctxOf(ctx), messageId, index, ciphertext: got.bytes }) as OpenJson;
+        if (o.opened === undefined) return { ok: false, refusal: refusalOf(o.refused) };
+        return { ok: true, bytes: fromHex(o.opened.plaintext), mediaType: o.opened.mediaType, ...(o.opened.filename ? { filename: o.opened.filename } : {}) };
+      },
     },
     flush,
     async idle() {

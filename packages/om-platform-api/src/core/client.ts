@@ -1,6 +1,7 @@
 import type { ConversationId, OperationId, ProfileExecutionContext, ProfileId } from "./ids";
 import type { CoreIntent } from "./intents";
 import type { OutcomeClass } from "./outcome";
+import type { AttachmentApi } from "./attachments";
 import type { DevicesView, LinkOfferView, LinkRequestView, RecoveryStatusView } from "./devices";
 import type { ConfirmationView, ConversationSummary, ConversationView, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, RecoveryKeyView } from "./views";
 
@@ -57,4 +58,6 @@ export interface CoreClient {
   subscribe<Q extends CoreQuery>(selector: Q, listener: (result: QueryResult<Q>) => void): Unsubscribe;
   /** All operations for the profile reconstructed from the durable log (pending, committed, rejected). Used after restart. */
   pendingOperations(ctx: ProfileExecutionContext): Promise<readonly PendingOperationView[]>;
+  /** Files, voice notes and location cards need a delivery service that holds files; a client without one leaves this out. */
+  readonly attachments?: AttachmentApi;
 }

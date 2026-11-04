@@ -42,9 +42,38 @@ export interface ConversationSummary {
   readonly relationship: RelationshipStateCode;
 }
 
+/** Where an attachment's bytes are. "Stored for later" is a hand-over to a store with a lifetime, not delivery (ADR-0150). */
+export type AttachmentState = "uploading" | "stored_for_later" | "remote";
+/** Sender-authored display data (untrusted) except `size`. The store sees `size` plus a fixed 16 bytes: size is not hidden from it. */
+export interface AttachmentView {
+  readonly index: number;
+  readonly blobId: string;
+  readonly mediaType: string;
+  readonly size: number;
+  readonly filename?: string;
+  readonly width?: number;
+  readonly height?: number;
+  readonly durationMs?: number;
+  readonly state: AttachmentState;
+  /** Wall ms the store keeps our copy until (outgoing only; a display hint). */
+  readonly storedUntil?: number;
+}
+export interface VoiceNoteView { readonly attachmentIndex: number; /** Untrusted hint, 16..256 samples. */ readonly waveform?: readonly number[] }
+export interface LocationCardView {
+  readonly latE7: number;
+  readonly lonE7: number;
+  /** The canonical `geo:` token, the same text the message carries. */
+  readonly geo: string;
+  readonly accuracyM?: number;
+  readonly label?: string;
+}
+/** Present only while the message's extensions are valid for the message as it currently reads. */
+export interface PresentationView { readonly voiceNote?: VoiceNoteView; readonly locationCard?: LocationCardView }
+interface TimelineExtras { readonly attachments?: readonly AttachmentView[]; readonly presentation?: PresentationView }
+
 export type ConversationTimelineItem =
-  | { readonly direction: "outgoing"; readonly messageId: MessageId; readonly operationId: OperationId; readonly text: string; readonly sentAt: number; readonly delivery: DeliveryState }
-  | { readonly direction: "incoming"; readonly messageId: MessageId; readonly text: string; readonly sentAt: number };
+  | ({ readonly direction: "outgoing"; readonly messageId: MessageId; readonly operationId: OperationId; readonly text: string; readonly sentAt: number; readonly delivery: DeliveryState } & TimelineExtras)
+  | ({ readonly direction: "incoming"; readonly messageId: MessageId; readonly text: string; readonly sentAt: number } & TimelineExtras);
 
 export interface ConversationView { readonly summary: ConversationSummary; readonly timeline: readonly ConversationTimelineItem[] }
 

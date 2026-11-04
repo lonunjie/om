@@ -7956,6 +7956,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "infra/cloudflare-home/test/files.e2e.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
       "path": "infra/cloudflare-home/test/harness.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
@@ -8292,6 +8299,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-core-wasm/src/attachments.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-core-wasm/src/conformance.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8545,6 +8559,13 @@
     },
     {
       "path": "packages/om-platform-api/package.json",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-platform-api/src/core/attachments.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

@@ -26,6 +26,15 @@ export type NetCall =
   | { readonly call: "deposit"; readonly mailbox: string; readonly relayUri?: string; readonly bytes: string }
   /** `relayUri` names the Home that holds the mailbox (the route Core bound to it); absent for a legacy mailbox and for an introduction mailbox. */
   | { readonly call: "ack"; readonly mailbox: string; readonly seq: number; readonly kind?: MailboxKind; readonly relayUri?: string; readonly capability?: string }
+  /**
+   * Store one sealed attachment (`length` ciphertext bytes, handed to `perform` as `extra.ciphertext`). `ownerCap` and
+   * `requestId` are Core's choice and must be used as given. Answer `bytes` = the receipt (canonical CBOR `{0: read capability, 1: [locations], 2: digest the store computed, ? 3: expires_at}`, crates/om-core host.rs `BlobReceipt`).
+   */
+  | { readonly call: "put_blob"; readonly blobId: string; readonly ownerCap: string; readonly requestId: string; readonly digest: string; readonly length: number }
+  /** Fetch the ciphertext from the first of `locations` that answers, with `readCap` as the bearer; check it against `digest` and `length`; answer `bytes`. */
+  | { readonly call: "get_blob"; readonly locations: readonly string[]; readonly readCap: string; readonly digest: string; readonly length: number }
+  /** Remove a blob of ours from the store at `location`. Absent is success. */
+  | { readonly call: "delete_blob"; readonly blobId: string; readonly ownerCap: string; readonly location: string }
   /** Device-link ceremony (D24): make sure the short-lived queue exists at `relayUri` and answer its receive capability as `bytes` (hex). */
   | { readonly call: "open_queue"; readonly mailbox: string; readonly relayUri: string };
 
@@ -59,7 +68,13 @@ export interface Record { readonly key: string; readonly value: string }
  * `unavailable`, never as a definitive failure.
  */
 export interface Provider {
-  perform(call: NetCall): Promise<NetResult>;
+  /** `extra.ciphertext` carries the staged bytes of a `put_blob`; every other call ignores it. */
+  perform(call: NetCall, extra?: PerformExtra): Promise<NetResult>;
+  /**
+   * What the person's Home advertises for files (`om.blob.spool.v1`), or `null` when it holds none. A rejected promise
+   * means "could not find out": the last answer stays in force. Core refuses attachments until this answers.
+   */
+  blobLimits?(): Promise<BlobLimits | null>;
   poll(mailbox: string, after: number, kind?: MailboxKind, relayUri?: string, capability?: string): Promise<readonly Inbound[]>;
   /**
    * Allocates routes for `count` new mailboxes: a fresh random 16-byte `mailbox` id (hex) for Core to poll, and the
@@ -76,6 +91,11 @@ export interface Provider {
    */
   onWake?(listener: () => void): () => void;
 }
+
+export interface PerformExtra { readonly ciphertext?: Uint8Array }
+
+/** What the store advertises (maps to `set_blob_limits`). `maxBlobBytes` is the largest single ciphertext object. */
+export interface BlobLimits { readonly maxBlobBytes: number; readonly maxSpoolBytes?: number; readonly maxBlobs?: number }
 
 /** One new mailbox and the route to it (see Provider.allocateRoutes). */
 export interface RouteOffer {

@@ -17,6 +17,23 @@ interface IntentBase {
 }
 
 export interface SendMessage extends IntentBase { readonly kind: "SendMessage"; readonly conversationId: ConversationId; readonly draft: { readonly text: string } }
+/** Files the host prepared with `AttachmentApi.prepare` (optionally with text). Each is uploaded first; the message goes out once every one is stored. */
+export interface SendAttachments extends IntentBase {
+  readonly kind: "SendAttachments";
+  readonly conversationId: ConversationId;
+  readonly draft: { readonly text: string };
+  readonly attachments: readonly { readonly blobId: string; readonly voiceNote?: { readonly waveform?: string } }[];
+}
+/** One-shot static location (`om.location-card.v1`). Never live location. E7 = degrees times ten million. */
+export interface SendLocation extends IntentBase {
+  readonly kind: "SendLocation";
+  readonly conversationId: ConversationId;
+  readonly latE7: number;
+  readonly lonE7: number;
+  readonly accuracyM?: number;
+  readonly label?: string;
+  readonly note?: string;
+}
 export interface RetryDelivery extends IntentBase { readonly kind: "RetryDelivery"; readonly messageId: MessageId }
 export interface SwitchIdentityProfile extends IntentBase { readonly kind: "SwitchIdentityProfile"; readonly targetProfileId: ProfileId }
 export interface AcceptIntroduction extends IntentBase { readonly kind: "AcceptIntroduction"; readonly requestId: string }
@@ -56,7 +73,7 @@ export interface StartRecovery extends IntentBase { readonly kind: "StartRecover
 export interface VetoRecovery extends IntentBase { readonly kind: "VetoRecovery"; readonly requestId: string; readonly confirmation: ConfirmationToken }
 
 export type CoreIntent =
-  | SendMessage | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
+  | SendMessage | SendAttachments | SendLocation | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
   | RevokeInvite | StartCall | PinNavigationTarget | RestoreHistory
   | CreateIdentityProfile | ConfirmRecoveryKeyStored | IssueConfirmation | CreateInvite | AcceptInvitation
@@ -65,7 +82,7 @@ export type CoreIntent =
 export type CoreIntentKind = CoreIntent["kind"];
 
 export const INTENT_KINDS: readonly CoreIntentKind[] = [
-  "SendMessage", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
+  "SendMessage", "SendAttachments", "SendLocation", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
   "RevokeInvite", "StartCall", "PinNavigationTarget", "RestoreHistory",
   "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "IssueConfirmation", "CreateInvite", "AcceptInvitation",
