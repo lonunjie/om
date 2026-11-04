@@ -39,6 +39,9 @@ pub enum RejectReason {
     IntegrityFailure,
     Unavailable,
     NotFound,
+    /// One object is bigger than the store will take (an advertised limit, or `payload_too_large`). Said before
+    /// anything is sent; an exact retry cannot succeed, so it is not retryable.
+    TooLarge,
 }
 
 impl RejectReason {
@@ -85,6 +88,50 @@ impl OutcomeClass {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Draft {
     pub text: String,
+}
+
+/// One prepared attachment to send (`blob_id` from `Core::prepare_attachment`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttachmentInput {
+    pub blob_id: String,
+    /// Present on an audio attachment that is a voice note (`om.voice-note.v1`).
+    #[serde(default)]
+    pub voice_note: Option<VoiceNoteInput>,
+}
+
+/// An attachment sealed on this device. The host holds `ciphertext` (staged under `blob_id`) until Core's `PutBlob` for
+/// it is performed; Core keeps only the key, the digest and the capabilities, never the ciphertext. Valid to use only
+/// after the commit that came with it is durable.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreparedAttachment {
+    pub blob_id: String,
+    #[serde(with = "crate::host::hexs")]
+    pub ciphertext: Vec<u8>,
+    pub ciphertext_digest: String,
+    pub ciphertext_len: u64,
+}
+
+/// A fetched attachment after its digest and authentication checked out.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenedAttachment {
+    #[serde(with = "crate::host::hexs")]
+    pub plaintext: Vec<u8>,
+    pub media_type: String,
+    pub filename: Option<String>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    pub duration_ms: Option<u64>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoiceNoteInput {
+    /// 16..256 normalized amplitude samples, lower-case hex. A presentation hint only.
+    #[serde(default)]
+    pub waveform: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -154,6 +201,27 @@ pub enum IntentBody {
     },
     RetryDelivery {
         message_id: MessageId,
+    },
+    /// A message whose content is attachments the host prepared with `Core::prepare_attachment` (optionally with text).
+    /// The objects are uploaded first and the message goes out only once every one is stored.
+    SendAttachments {
+        conversation_id: ConversationId,
+        draft: Draft,
+        attachments: Vec<AttachmentInput>,
+    },
+    /// One-shot static location (`om.location-card.v1`): the point travels in the fallback text as a canonical `geo:`
+    /// token, so every client shows it; a new client also draws the card.
+    SendLocation {
+        conversation_id: ConversationId,
+        lat_e7: i32,
+        lon_e7: i32,
+        #[serde(default)]
+        accuracy_m: Option<u32>,
+        #[serde(default)]
+        label: Option<String>,
+        /// Text shown with the point (optional).
+        #[serde(default)]
+        note: Option<String>,
     },
     SwitchIdentityProfile {
         target_profile_id: ProfileId,
@@ -257,6 +325,8 @@ impl IntentBody {
         match self {
             IntentBody::SendMessage { .. } => "SendMessage",
             IntentBody::RetryDelivery { .. } => "RetryDelivery",
+            IntentBody::SendAttachments { .. } => "SendAttachments",
+            IntentBody::SendLocation { .. } => "SendLocation",
             IntentBody::SwitchIdentityProfile { .. } => "SwitchIdentityProfile",
             IntentBody::AcceptIntroduction { .. } => "AcceptIntroduction",
             IntentBody::BlockPerson { .. } => "BlockPerson",
@@ -502,12 +572,89 @@ pub enum TimelineItem {
         text: String,
         sent_at: u64,
         delivery: DeliveryState,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        attachments: Vec<AttachmentView>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        presentation: Option<PresentationView>,
     },
     Incoming {
         message_id: MessageId,
         text: String,
         sent_at: u64,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        attachments: Vec<AttachmentView>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        presentation: Option<PresentationView>,
     },
+}
+
+/// Where an attachment's bytes are. "Stored for later" is a hand-over to a store with a lifetime, not delivery
+/// (ADR-0150): a message can be delivered while its attachment is no longer there, and the reverse.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AttachmentState {
+    /// Ours, not yet stored by the BlobStore.
+    Uploading,
+    /// Ours, stored by the BlobStore until `stored_until`; the other person can fetch it until then.
+    StoredForLater,
+    /// Theirs (or our other device's): fetched only when the host asks for it.
+    Remote,
+}
+
+/// Everything here is sender-authored display data except `size` (which the fetched object is checked against).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttachmentView {
+    pub index: u32,
+    pub blob_id: String,
+    pub media_type: String,
+    /// Plaintext bytes. The store sees `size` plus a fixed 16 bytes, so size is NOT hidden from it.
+    pub size: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub filename: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub height: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
+    pub state: AttachmentState,
+    /// Wall ms the BlobStore said it keeps our copy until (outgoing only; a display hint).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stored_until: Option<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoiceNoteView {
+    pub attachment_index: u32,
+    /// Untrusted, bounded hint (16..256 samples); the client may regenerate it from the audio.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub waveform: Option<Vec<u8>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocationCardView {
+    pub lat_e7: i32,
+    pub lon_e7: i32,
+    /// The canonical `geo:` token, the same text the message carries.
+    pub geo: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accuracy_m: Option<u32>,
+    /// Sender-authored annotation; it never replaces showing the point.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+}
+
+/// V1 presentation of a message, present only while its extensions are valid for the message as it currently reads.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PresentationView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub voice_note: Option<VoiceNoteView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location_card: Option<LocationCardView>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

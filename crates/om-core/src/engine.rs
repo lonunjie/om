@@ -41,6 +41,8 @@ pub struct Core<R: RngCore + CryptoRng> {
     /// Routes the host's provider adapter allocated for mailboxes Core has not created yet. Memory only: an offer is
     /// worthless without the install secret the adapter holds, so nothing is lost by dropping them at restart.
     offers: Vec<RouteOffer>,
+    /// What the BlobStore advertised; memory only (the host supplies it again at start).
+    blob_limits: Option<BlobLimits>,
 }
 
 impl<R: RngCore + CryptoRng> Core<R> {
@@ -59,6 +61,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             next_commit: 1,
             staged: None,
             offers: vec![],
+            blob_limits: None,
         }
     }
 
@@ -96,6 +99,132 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 handle: None,
             },
         ))
+    }
+
+    /// The BlobStore's advertised limits (from `ProviderCapabilities.limits` of `om.blob.spool.v1`); `None` when the store
+    /// offers no blobs. Without them Core refuses attachments (typed `unsupported`) and never sends bytes inline.
+    pub fn set_blob_limits(&mut self, limits: Option<BlobLimits>) {
+        self.blob_limits = limits;
+    }
+
+    /// Seal an attachment on this device and persist its identities (BlobID, owner capability, request id, content key)
+    /// before any upload. The inner `Err` is the typed refusal ("too big to send right now", store full, no store): it is
+    /// decided here, before anything is sent. The `Prepared` bytes may be used only after `Step.commit` is durable.
+    pub fn prepare_attachment(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        plaintext: &[u8],
+        meta: crate::attach::Meta,
+    ) -> Result<(Result<PreparedAttachment, crate::attach::AttachError>, Step), CoreError> {
+        self.slot(ctx)?;
+        let (out, commit) = self.txn(&ctx.profile_id, |tx| {
+            Ok(tx.prepare_attachment(tx.blob_limits, plaintext, meta))
+        })?;
+        Ok((
+            out,
+            Step {
+                commit,
+                handle: None,
+            },
+        ))
+    }
+
+    /// The ciphertext of a prepared or outgoing attachment again, from its plaintext (sealing is deterministic under the
+    /// persisted key), so a host that lost its staged bytes needs only the original file. Refuses plaintext that does not
+    /// hash to the committed digest.
+    pub fn restage_attachment(
+        &self,
+        ctx: &ProfileExecutionContext,
+        blob_id: &str,
+        plaintext: &[u8],
+    ) -> Result<Vec<u8>, crate::attach::AttachError> {
+        use crate::attach::AttachError;
+        let st = &self.slot(ctx).map_err(|_| AttachError::NotFound)?.state.app;
+        let rec = st
+            .prepared
+            .get(blob_id)
+            .map(|p| &p.rec)
+            .or_else(|| {
+                st.relationships
+                    .values()
+                    .flat_map(|r| r.messages.iter())
+                    .flat_map(|m| m.attachments.iter())
+                    .find(|a| a.blob_id == blob_id && a.owner_cap.is_some())
+            })
+            .ok_or(AttachError::NotFound)?;
+        let r = crate::flows::rec_ref(rec).ok_or(AttachError::NotFound)?;
+        let ct = crate::attach::seal(&r.key, &r.blob_id, plaintext);
+        if plaintext.len() as u64 != r.plaintext_size
+            || crate::attach::ciphertext_digest(&ct) != r.ciphertext_digest
+        {
+            return Err(AttachError::IntegrityFailure);
+        }
+        Ok(ct)
+    }
+
+    fn attachment_rec(
+        &self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        index: usize,
+    ) -> Result<crate::attach::AttachmentRef, crate::attach::AttachError> {
+        use crate::attach::AttachError;
+        let st = &self.slot(ctx).map_err(|_| AttachError::NotFound)?.state.app;
+        st.relationships
+            .values()
+            .flat_map(|r| r.messages.iter())
+            .find(|m| m.id == message_id && !m.deleted)
+            .and_then(|m| m.attachments.get(index))
+            .and_then(crate::flows::rec_ref)
+            .ok_or(AttachError::NotFound)
+    }
+
+    /// The fetch for one attachment of a message: where to get the ciphertext and what it must hash to. Not an outbox
+    /// item and never run by Core itself; the host decides when (a tap, or its own auto-download policy).
+    pub fn attachment_fetch(
+        &self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        index: usize,
+    ) -> Result<NetCall, crate::attach::AttachError> {
+        use crate::attach::{AttachError, TAG_LEN};
+        let r = self.attachment_rec(ctx, message_id, index)?;
+        if r.plaintext_size > crate::attach::HARD_MAX_PLAINTEXT {
+            return Err(AttachError::TooLarge {
+                max: crate::attach::HARD_MAX_PLAINTEXT,
+            });
+        }
+        let read_cap = r.read_cap.clone().ok_or(AttachError::NotFound)?;
+        if r.locations.is_empty() {
+            return Err(AttachError::NotFound);
+        }
+        Ok(NetCall::GetBlob {
+            locations: r.locations,
+            read_cap,
+            digest: r.ciphertext_digest.to_vec(),
+            length: r.plaintext_size + TAG_LEN,
+        })
+    }
+
+    /// Verify the fetched bytes against the reference's digest and length, then decrypt. Plaintext exists only for bytes
+    /// that hash to the digest the (end-to-end authenticated) message committed to.
+    pub fn open_attachment(
+        &self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        index: usize,
+        ciphertext: &[u8],
+    ) -> Result<OpenedAttachment, crate::attach::AttachError> {
+        let r = self.attachment_rec(ctx, message_id, index)?;
+        let plaintext = r.open(ciphertext)?;
+        Ok(OpenedAttachment {
+            plaintext,
+            media_type: r.media_type,
+            filename: r.filename,
+            width: r.width,
+            height: r.height,
+            duration_ms: r.duration_ms,
+        })
     }
 
     /// How many unused route offers Core holds.
@@ -199,6 +328,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 changed: vec![],
                 open_profiles: &open,
                 offers: &mut self.offers,
+                blob_limits: self.blob_limits,
             };
             let v = f(&mut tx)?;
             tx.maintain_relays();
@@ -787,6 +917,8 @@ fn timeline_item(m: &Msg) -> TimelineItem {
             text: m.text.clone(),
             sent_at: m.sent_at,
             delivery: m.delivery.clone(),
+            attachments: crate::flows::attachment_views(m),
+            presentation: crate::flows::presentation(m),
         },
         // A message our own other device sent (self-sync): ours, with no operation on this device behind it.
         (None, true) => TimelineItem::Outgoing {
@@ -795,11 +927,15 @@ fn timeline_item(m: &Msg) -> TimelineItem {
             text: m.text.clone(),
             sent_at: m.sent_at,
             delivery: m.delivery.clone(),
+            attachments: crate::flows::attachment_views(m),
+            presentation: crate::flows::presentation(m),
         },
         _ => TimelineItem::Incoming {
             message_id: m.id.clone(),
             text: m.text.clone(),
             sent_at: m.sent_at,
+            attachments: crate::flows::attachment_views(m),
+            presentation: crate::flows::presentation(m),
         },
     }
 }
@@ -831,12 +967,16 @@ fn restored_item(m: &RestoredMsg) -> TimelineItem {
                     reason: RejectReason::Unavailable,
                 },
             },
+            attachments: vec![],
+            presentation: None,
         }
     } else {
         TimelineItem::Incoming {
             message_id: m.id.clone(),
             text: m.text.clone(),
             sent_at: m.sent_at,
+            attachments: vec![],
+            presentation: None,
         }
     }
 }

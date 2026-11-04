@@ -10,11 +10,13 @@
 //!
 //! This module is pure: no I/O, no state. The flows own persistence and the host performs the transfers.
 
+use crate::api::RejectReason;
 use crate::crypto::PROFILE_V1;
 use crate::crypto::cbor::V;
 use crate::crypto::kdf::hkdf_sha256;
 use crate::crypto::session::{aead_open, aead_seal};
 use crate::crypto::sig::{digest as digest_v, ds_hash};
+use serde::{Deserialize, Serialize};
 
 /// Registered label of `AttachmentRef.ciphertext_digest` (frozen).
 pub const LBL_CIPHERTEXT: &str = "OM-BLOB-CIPHERTEXT-HASH-v1";
@@ -29,7 +31,8 @@ pub const HARD_MAX_PLAINTEXT: u64 = 16 * 1024 * 1024 - TAG_LEN;
 const MAX_LOCATIONS: usize = 8;
 const MAX_LOCATION_BYTES: usize = 2048;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "error", rename_all = "snake_case")]
 pub enum AttachError {
     /// One object bigger than the store accepts (the advertised `max_blob_bytes`, or Core's own bound).
     TooLarge {
@@ -50,13 +53,32 @@ pub enum AttachError {
     Unsupported,
 }
 
+impl AttachError {
+    /// The typed refusal the person sees as words ("too big to send right now"); never a silent downgrade.
+    pub fn reject_reason(&self) -> RejectReason {
+        match self {
+            AttachError::TooLarge { .. } => RejectReason::TooLarge,
+            AttachError::StorageFull => RejectReason::Quota,
+            AttachError::NoBlobStore | AttachError::Unsupported => RejectReason::Unsupported,
+            AttachError::Empty | AttachError::Invalid => RejectReason::Invalid,
+            AttachError::NotFound => RejectReason::NotFound,
+            AttachError::IntegrityFailure => RejectReason::IntegrityFailure,
+        }
+    }
+}
+
 /// What the sender knows about a file besides its bytes. Untrusted display data on the receiving side.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Meta {
     pub media_type: String,
+    #[serde(default)]
     pub filename: Option<String>,
+    #[serde(default)]
     pub width: Option<u32>,
+    #[serde(default)]
     pub height: Option<u32>,
+    #[serde(default)]
     pub duration_ms: Option<u64>,
 }
 

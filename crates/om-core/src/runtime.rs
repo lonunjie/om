@@ -107,8 +107,49 @@ pub enum Fault {
     TimeoutBeforeEffect,
 }
 
+/// One object in the loopback BlobStore.
+struct StoredBlob {
+    owner_cap: Vec<u8>,
+    ciphertext: Vec<u8>,
+    digest: Vec<u8>,
+}
+
+/// What the loopback BlobStore enforces (the Home's defaults: 4 MiB per object, 32 MiB, 64 objects).
+#[derive(Clone, Copy)]
+pub struct StoreLimits {
+    pub max_blob_bytes: u64,
+    pub max_spool_bytes: u64,
+    pub max_blobs: usize,
+}
+
+impl Default for StoreLimits {
+    fn default() -> Self {
+        StoreLimits {
+            max_blob_bytes: 4 * 1024 * 1024,
+            max_spool_bytes: 32 * 1024 * 1024,
+            max_blobs: 64,
+        }
+    }
+}
+
+/// Posix seconds the loopback store reports as every blob's expiry (the test clock starts at 1_790_000_000 s).
+pub const LOOPBACK_BLOB_EXPIRY_S: u64 = 1_790_000_000 + 7 * 24 * 3600;
+const LOOPBACK_BLOB_BASE: &str = "https://blobs.loopback.test/v1/blobs/";
+
+fn blob_read_cap(owner_cap: &[u8]) -> Vec<u8> {
+    let mut c = owner_cap[..16].to_vec();
+    c.extend_from_slice(&crate::crypto::sha256(&[b"loopback-read-cap", owner_cap])[..16]);
+    c
+}
+
 #[derive(Default)]
 struct NetState {
+    /// Ciphertext the hosts staged (what a real host keeps on its own disk); consumed by `PutBlob`.
+    staged: BTreeMap<Vec<u8>, Vec<u8>>,
+    blobs: BTreeMap<Vec<u8>, StoredBlob>,
+    store_limits: StoreLimits,
+    /// Every `PutBlob` the store received, by object (the BlobStore-visible stream: ciphertext only).
+    blob_puts: u64,
     keys: BTreeMap<Vec<u8>, Published>,
     /// Fetch capabilities each device owner granted (relationship fetch capabilities).
     fetch_grants: BTreeMap<Vec<u8>, Vec<Vec<u8>>>,
@@ -130,6 +171,43 @@ impl LoopbackNetwork {
     /// Queue a fault for the next network call of any kind.
     pub fn inject(&self, f: Fault) {
         self.0.borrow_mut().faults.push(f);
+    }
+    /// Stage the ciphertext of a prepared attachment, as a real host does on its own disk.
+    pub fn stage_blob(&self, blob_id: &[u8], ciphertext: Vec<u8>) {
+        self.0
+            .borrow_mut()
+            .staged
+            .insert(blob_id.to_vec(), ciphertext);
+    }
+    pub fn set_store_limits(&self, l: StoreLimits) {
+        self.0.borrow_mut().store_limits = l;
+    }
+    pub fn blob_count(&self) -> usize {
+        self.0.borrow().blobs.len()
+    }
+    pub fn blob_put_count(&self) -> u64 {
+        self.0.borrow().blob_puts
+    }
+    /// Everything the BlobStore holds, as it sees it: ciphertext only.
+    pub fn blob_ciphertexts(&self) -> Vec<Vec<u8>> {
+        self.0
+            .borrow()
+            .blobs
+            .values()
+            .map(|b| b.ciphertext.clone())
+            .collect()
+    }
+    /// Flip one bit of every stored object (a store that serves altered bytes).
+    pub fn corrupt_blobs(&self) {
+        for b in self.0.borrow_mut().blobs.values_mut() {
+            if let Some(x) = b.ciphertext.first_mut() {
+                *x ^= 1;
+            }
+        }
+    }
+    /// Forget every stored object (the store's retention ran out).
+    pub fn expire_blobs(&self) {
+        self.0.borrow_mut().blobs.clear();
     }
     /// Take a loopback Home down (a vendor block, an outage): deposits to its routes fail, its mailboxes cannot be polled.
     pub fn block_home(&self, relay_uri: &str) {
@@ -311,6 +389,102 @@ impl LoopbackNetwork {
                     bytes: queue_receive_cap(mailbox),
                 }
             }
+            NetCall::PutBlob {
+                blob_id,
+                owner_cap,
+                digest,
+                length,
+                ..
+            } => 'put: {
+                let Some(ct) = s.staged.get(blob_id).cloned() else {
+                    break 'put NetResult::Err {
+                        error: NetError::Rejected {
+                            reason: crate::api::RejectReason::Invalid,
+                        },
+                    };
+                };
+                let rej = |reason| NetResult::Err {
+                    error: NetError::Rejected { reason },
+                };
+                if owner_cap.len() < 32 || ct.len() as u64 != *length {
+                    break 'put rej(crate::api::RejectReason::Invalid);
+                }
+                let loc = owner_cap[..16].to_vec();
+                let receipt = |loc: &[u8]| NetResult::Bytes {
+                    bytes: crate::host::BlobReceipt {
+                        read_cap: blob_read_cap(owner_cap),
+                        locations: vec![format!("{LOOPBACK_BLOB_BASE}{}", crate::crypto::hex(loc))],
+                        digest: digest.as_slice().try_into().unwrap_or([0; 32]),
+                        expires_at: Some(LOOPBACK_BLOB_EXPIRY_S),
+                    }
+                    .to_bytes(),
+                };
+                if let Some(old) = s.blobs.get(&loc) {
+                    // Same owner capability and the same bytes: an exact retry, answered as before.
+                    break 'put if old.owner_cap == *owner_cap && old.digest == *digest {
+                        receipt(&loc)
+                    } else {
+                        rej(crate::api::RejectReason::Invalid)
+                    };
+                }
+                let limits = s.store_limits;
+                if ct.len() as u64 > limits.max_blob_bytes {
+                    break 'put rej(crate::api::RejectReason::TooLarge);
+                }
+                if crate::attach::ciphertext_digest(&ct).as_slice() != digest.as_slice() {
+                    break 'put rej(crate::api::RejectReason::Invalid);
+                }
+                let used: u64 = s.blobs.values().map(|b| b.ciphertext.len() as u64).sum();
+                if s.blobs.len() >= limits.max_blobs
+                    || used + ct.len() as u64 > limits.max_spool_bytes
+                {
+                    break 'put rej(crate::api::RejectReason::Quota);
+                }
+                s.blob_puts += 1;
+                s.blobs.insert(
+                    loc.clone(),
+                    StoredBlob {
+                        owner_cap: owner_cap.clone(),
+                        ciphertext: ct,
+                        digest: digest.clone(),
+                    },
+                );
+                receipt(&loc)
+            }
+            NetCall::GetBlob {
+                locations,
+                read_cap,
+                ..
+            } => {
+                let found = locations
+                    .iter()
+                    .filter_map(|l| l.strip_prefix(LOOPBACK_BLOB_BASE))
+                    .filter_map(|h| crate::crypto::unhex(h).ok())
+                    .find_map(|loc| s.blobs.get(&loc));
+                match found {
+                    Some(b) if blob_read_cap(&b.owner_cap) == *read_cap => NetResult::Bytes {
+                        bytes: b.ciphertext.clone(),
+                    },
+                    _ => NetResult::Err {
+                        error: NetError::NotFound,
+                    },
+                }
+            }
+            NetCall::DeleteBlob { owner_cap, .. } => {
+                let loc = owner_cap.get(..16).unwrap_or_default().to_vec();
+                match s.blobs.get(&loc) {
+                    None => NetResult::Ok,
+                    Some(b) if b.owner_cap == *owner_cap => {
+                        s.blobs.remove(&loc);
+                        NetResult::Ok
+                    }
+                    Some(_) => NetResult::Err {
+                        error: NetError::Rejected {
+                            reason: crate::api::RejectReason::Unauthorized,
+                        },
+                    },
+                }
+            }
             NetCall::Ack {
                 mailbox,
                 seq,
@@ -452,6 +626,8 @@ pub struct Runtime {
     offer_rng: InsecureTestRng,
     /// The loopback Homes this person has, most preferred first (offers rotate over them); `[0]` is the ordinary case.
     pub homes: Vec<u8>,
+    /// What the host tells Core the BlobStore advertised (re-supplied after a restart, as a real host does at start).
+    pub blob_limits: Option<crate::host::BlobLimits>,
 }
 
 impl Runtime {
@@ -472,6 +648,57 @@ impl Runtime {
             open: vec![],
             offer_rng: InsecureTestRng::from_label(format!("{label}/offers").as_bytes()),
             homes: vec![0],
+            blob_limits: Some(crate::host::BlobLimits {
+                max_blob_bytes: 4 * 1024 * 1024,
+                max_spool_bytes: 32 * 1024 * 1024,
+                max_blobs: 64,
+            }),
+        }
+        .with_limits()
+    }
+
+    fn with_limits(mut self) -> Self {
+        self.core.set_blob_limits(self.blob_limits);
+        self
+    }
+
+    /// Tell Core what the store advertises (`None`: it offers no blobs).
+    pub fn set_blob_limits(&mut self, l: Option<crate::host::BlobLimits>) {
+        self.blob_limits = l;
+        self.core.set_blob_limits(l);
+    }
+
+    /// Seal an attachment through Core, commit it, and stage the ciphertext as a host would.
+    pub fn prepare_attachment(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        plaintext: &[u8],
+        meta: crate::attach::Meta,
+    ) -> Result<PreparedAttachment, crate::attach::AttachError> {
+        let (out, step) = self
+            .core
+            .prepare_attachment(ctx, plaintext, meta)
+            .expect("prepare");
+        assert!(self.settle(&step), "commit");
+        let p = out?;
+        self.net.stage_blob(
+            &crate::crypto::unhex(&p.blob_id).unwrap(),
+            p.ciphertext.clone(),
+        );
+        Ok(p)
+    }
+
+    /// What a host does when the person opens an attachment: take Core's fetch plan, perform it, hand the bytes back.
+    pub fn fetch_attachment(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        index: usize,
+    ) -> Result<OpenedAttachment, crate::attach::AttachError> {
+        let plan = self.core.attachment_fetch(ctx, message_id, index)?;
+        match self.net.perform(&plan) {
+            NetResult::Bytes { bytes } => self.core.open_attachment(ctx, message_id, index, &bytes),
+            _ => Err(crate::attach::AttachError::NotFound),
         }
     }
 
@@ -516,6 +743,7 @@ impl Runtime {
             move || c2.get(),
             home(),
         );
+        self.core.set_blob_limits(self.blob_limits);
         let open = self.open.clone();
         open.iter().map(|p| self.open(p)).collect()
     }

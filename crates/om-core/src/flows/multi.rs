@@ -1120,13 +1120,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if ev.kind != events::K_CREATE {
             return true;
         }
-        let Some(text) = ev
-            .body
-            .get(0)
-            .ok()
-            .and_then(events::plain_text)
-            .filter(|t| t.chars().count() <= MAX_MESSAGE_CHARS)
-        else {
+        let Some(parts) = super::blobs::read_create(ev) else {
             return false;
         };
         let id = format!("msg-{eid}");
@@ -1143,7 +1137,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             id,
             outgoing: true,
             operation_id: None,
-            text,
+            text: parts.text,
             sent_at: ev.clock.physical_ms,
             delivery: DeliveryState::Sent,
             envelope: None,
@@ -1153,6 +1147,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             deleted: false,
             queued_event: None,
             fan: vec![],
+            attachments: parts.attachments,
+            ext: parts.ext,
         });
         true
     }

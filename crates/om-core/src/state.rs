@@ -227,6 +227,47 @@ pub struct Msg {
     /// one, and our own other devices). Empty for a one-device-per-side conversation.
     #[serde(default)]
     pub fan: Vec<Fan>,
+    /// Attachments of a `message.create` (outgoing: with the secrets needed to upload and delete them).
+    #[serde(default)]
+    pub attachments: Vec<AttachRec>,
+    /// Canonical bytes (hex) of the create's key-23 extensions map, kept so the presentation is derived from what was
+    /// authenticated and re-checked against the message as it currently reads.
+    #[serde(default)]
+    pub ext: Option<Hex>,
+}
+
+/// One attachment of a message. `reference` is the canonical `attachment-ref` and contains the content key, so it is
+/// held like a secret; for an outgoing message it is completed (locations, read capability) when the BlobStore's receipt
+/// arrives, and only then is the message event built from it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttachRec {
+    pub blob_id: Hex,
+    pub reference: SecretHex,
+    /// Outgoing only: the owner capability the sender chose (it alone can delete) and the idempotency id of the put.
+    #[serde(default)]
+    pub owner_cap: Option<SecretHex>,
+    #[serde(default)]
+    pub request_id: Option<Hex>,
+    /// Outgoing only: the BlobStore stored it and its receipt is applied.
+    #[serde(default)]
+    pub stored: bool,
+    /// Outgoing only: where it is stored and until when (wall ms, the store's own word; a display hint).
+    #[serde(default)]
+    pub location: Option<String>,
+    #[serde(default)]
+    pub expires_ms: u64,
+    #[serde(default)]
+    pub ciphertext_len: u64,
+}
+
+/// An attachment the host prepared but no message uses yet. Nothing external has happened to it; it is dropped when
+/// unused for a day.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreparedBlob {
+    pub rec: AttachRec,
+    pub created_ms: u64,
 }
 
 /// One device's copy of a message (K5/K6: every eligible device of the recipient, plus our own other devices).
@@ -519,6 +560,18 @@ pub enum Purpose {
         conversation_id: String,
         message_id: String,
     },
+    /// Upload one attachment's ciphertext to the BlobStore (the host holds the bytes). The message is built and sent
+    /// only after every one of its blobs is stored.
+    PutBlob {
+        operation_id: OperationId,
+        conversation_id: String,
+        message_id: String,
+        blob_id: Hex,
+    },
+    /// Remove a blob of ours the BlobStore holds for a message that will never be sent. Best effort; it expires anyway.
+    DeleteBlob {
+        blob_id: Hex,
+    },
     /// A message copy for another device of the conversation (the peer's or our own).
     DepositFan {
         operation_id: OperationId,
@@ -616,6 +669,9 @@ pub struct AppState {
     /// Enrollment notices received for devices that joined our account (newest last, bounded).
     #[serde(default)]
     pub notices: Vec<NoticeRec>,
+    /// Attachments prepared but not yet sent, by BlobID (hex).
+    #[serde(default)]
+    pub prepared: BTreeMap<Hex, PreparedBlob>,
 }
 
 /// Where a device-link ceremony is, on either side.

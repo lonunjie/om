@@ -15,13 +15,16 @@ use crate::crypto::{self, PROFILE_V1, hex, hpke, unhex};
 use crate::events::{self, Hlc};
 use crate::host::{CoreError, MailboxKind, NetCall, NetError, NetResult};
 use crate::intro;
+use crate::present;
 use crate::relayset::{self, Lineage, Node, Offer, Record};
 use crate::route::{RelayEntry, RelaySet, RouteOffer};
 use crate::state::*;
 use std::sync::OnceLock;
 
+mod blobs;
 mod ceremony;
 mod multi;
+pub(crate) use blobs::{attachment_views, presentation, rec_ref};
 use ceremony::KIND_ENROLLED;
 pub use ceremony::{
     notice_views, offer_view, pending_requests, poll_targets as ceremony_poll_targets, request_view,
@@ -206,6 +209,8 @@ pub struct Tx<'a, R: RngCore + CryptoRng> {
     pub open_profiles: &'a [String],
     /// Single-use route offers from the host's provider adapter (see `crate::route`).
     pub offers: &'a mut Vec<RouteOffer>,
+    /// What the BlobStore advertised (see `NetCall::PutBlob`); `None` until the host supplies it.
+    pub blob_limits: Option<crate::host::BlobLimits>,
 }
 
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
@@ -382,6 +387,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .intros
             .retain(|_, i| i.reply_key.expires_at > now_s);
         self.st.app.confirmations.retain(|c| c.expires_at > now_ms);
+        self.expire_prepared();
         self.expire_ceremonies();
     }
 
@@ -678,6 +684,29 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 conversation_id,
                 draft,
             } => return self.send_message(op, conversation_id, &draft.text),
+            IntentBody::SendAttachments {
+                conversation_id,
+                draft,
+                attachments,
+            } => return self.send_attachments(op, conversation_id, &draft.text, attachments),
+            IntentBody::SendLocation {
+                conversation_id,
+                lat_e7,
+                lon_e7,
+                accuracy_m,
+                label,
+                note,
+            } => {
+                return self.send_location(
+                    op,
+                    conversation_id,
+                    *lat_e7,
+                    *lon_e7,
+                    *accuracy_m,
+                    label.as_deref(),
+                    note.as_deref(),
+                );
+            }
             IntentBody::RetryDelivery { message_id } => return self.retry_delivery(op, message_id),
             IntentBody::BlockPerson {
                 person_id, scope, ..
@@ -1113,13 +1142,33 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     fn send_message(&mut self, op: &OperationId, conv: &str, text: &str) -> Result<(), CoreError> {
-        let kind = "SendMessage";
+        self.compose(op, "SendMessage", conv, Some(text), vec![], None)
+    }
+
+    /// Compose an outgoing `message.create`: text, attachments and presentation extensions. A text-only message is built
+    /// and queued right here. A message with attachments gets its EventID and clock now, but its event is built only once
+    /// every blob is stored (the event carries the store's receipt); until then its uploads are in the outbox.
+    pub(super) fn compose(
+        &mut self,
+        op: &OperationId,
+        kind: &str,
+        conv: &str,
+        text: Option<&str>,
+        atts: Vec<AttachRec>,
+        ext: Option<present::Extensions>,
+    ) -> Result<(), CoreError> {
         let rejected = |reason| OutcomeClass::Rejected { reason };
         let Some(rel) = self.st.app.relationships.get(conv) else {
             self.record(op, kind, rejected(RejectReason::NotFound), None);
             return Ok(());
         };
-        if text.trim().is_empty() || text.chars().count() > MAX_MESSAGE_CHARS {
+        let text_ok = match text {
+            Some(t) => {
+                t.chars().count() <= MAX_MESSAGE_CHARS && (!t.trim().is_empty() || !atts.is_empty())
+            }
+            None => !atts.is_empty(),
+        };
+        if !text_ok {
             self.record(op, kind, rejected(RejectReason::Invalid), None);
             return Ok(());
         }
@@ -1158,24 +1207,33 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let mid = self.rand16();
         let message_id = format!("msg-{}", hex(&mid));
         // A canonical W0 ConversationEvent (message.create); the 1:1 session AEAD authenticates it. Its EventID,
-        // clock and bytes are fixed here, so queueing never changes what is eventually sent.
-        let payload = events::Header {
-            event_id: mid,
-            conversation_id: canon,
-            author_account: account,
-            author_device: device_id,
-            clock,
-            kind: events::K_CREATE,
-            body: events::message_create_body(text),
-        }
-        .encode();
-        if registry()
-            .check("ConversationEvent", &payload, false)
-            .is_err()
-        {
+        // clock and bytes are fixed here, so queueing never changes what is eventually sent. With attachments the bytes
+        // are completed later (locations and read capabilities), but the shape is checked now: nothing is uploaded for
+        // a message that could not be sent.
+        let refs: Option<Vec<V>> = atts
+            .iter()
+            .map(|a| blobs::rec_ref(a).map(|r| r.to_v()))
+            .collect();
+        let ext23 = ext.as_ref().and_then(present::extensions_value);
+        let payload = refs.map(|refs| {
+            events::Header {
+                event_id: mid,
+                conversation_id: canon,
+                author_account: account,
+                author_device: device_id,
+                clock,
+                kind: events::K_CREATE,
+                body: events::message_create_body_with(text, refs),
+            }
+            .encode_with(ext23.clone())
+        });
+        let Some(payload) =
+            payload.filter(|p| registry().check("ConversationEvent", p, false).is_ok())
+        else {
             self.record(op, kind, rejected(RejectReason::Invalid), None);
             return Ok(());
-        }
+        };
+        let has_atts = !atts.is_empty();
         let now = self.now_ms;
         let rel = self
             .st
@@ -1187,20 +1245,29 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             id: message_id.clone(),
             outgoing: true,
             operation_id: Some(op.clone()),
-            text: text.to_string(),
+            text: text.unwrap_or_default().to_string(),
             sent_at: now,
             delivery: DeliveryState::PendingNetwork,
             envelope: None,
-            digest: hex(&crypto::sha256(&[&payload])),
+            digest: if has_atts {
+                String::new()
+            } else {
+                hex(&crypto::sha256(&[&payload]))
+            },
             clock_ms: clock.physical_ms,
             clock_logical: clock.logical,
             deleted: false,
-            queued_event: Some(hex(&payload)),
+            queued_event: (!has_atts).then(|| hex(&payload)),
             fan: vec![],
+            attachments: atts,
+            ext: ext23.as_ref().map(|x| hex(&cbor::encode(x))),
         });
         rel.hlc_ms = clock.physical_ms;
         rel.hlc_logical = clock.logical;
-        if !queue {
+        if has_atts {
+            // Persisted with the message before the first upload leaves: the uploads are outbox entries.
+            self.enqueue_puts(op, conv, &message_id);
+        } else if !queue {
             // The ratchet advance and the outbox entry are one staged transaction: persisted before the first external effect.
             self.release_queued(conv)?;
         }
@@ -1396,6 +1463,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .is_some_and(|r| !r.outcome.is_terminal())
         {
             self.record(op, kind, OutcomeClass::PendingNetwork, Some(msg.id));
+            return Ok(());
+        }
+        if self.retry_uploads(op, &conv, &msg) {
             return Ok(());
         }
         match (&msg.delivery, &msg.envelope) {
@@ -1985,6 +2055,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 error: NetError::Timeout,
             } => match entry.call {
                 NetCall::Deposit { .. }
+                | NetCall::PutBlob { .. }
                 | NetCall::SubmitIntro { .. }
                 | NetCall::PutInvite { .. }
                 | NetCall::RevokeInvite { .. } => K::MaybeSent,
@@ -1994,6 +2065,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 error: NetError::NotFound,
             } => match entry.call {
                 NetCall::GetInvite { .. } => K::Terminal(RejectReason::NotFound),
+                NetCall::DeleteBlob { .. } => K::Done(None, vec![]), // already gone is success
                 NetCall::FetchKeyMaterial { .. } => K::Retry, // the peer may not have published yet
                 _ => K::Terminal(RejectReason::NotFound),
             },
@@ -2033,6 +2105,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     Some(conversation_id.clone()),
                     Some(message_id.clone()),
                 )),
+                Purpose::PutBlob {
+                    operation_id,
+                    conversation_id,
+                    message_id,
+                    ..
+                } => Some((
+                    operation_id.clone(),
+                    Some(conversation_id.clone()),
+                    Some(message_id.clone()),
+                )),
                 Purpose::DepositFan {
                     operation_id,
                     conversation_id,
@@ -2049,6 +2131,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 }
                 Purpose::PublishKeys
                 | Purpose::Ack
+                | Purpose::DeleteBlob { .. }
                 | Purpose::FetchDeviceKeys { .. }
                 | Purpose::DepositKeys { .. }
                 | Purpose::DepositAcs { .. }
@@ -2061,6 +2144,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         match k {
             K::Retry => {
                 self.note_no_progress(pos);
+                if self.delete_gave_up(pos) {
+                    self.st.app.outbox.remove(pos);
+                    return Ok(());
+                }
                 if let Some((op, ..)) = &info {
                     self.set_outcome(op, OutcomeClass::PendingNetwork);
                 }
@@ -2110,6 +2197,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     self.set_outcome(&op, OutcomeClass::Rejected { reason });
                     if let (Some(c), Some(m)) = (&conv, &msg) {
                         self.set_delivery(c, m, DeliveryState::Rejected { reason });
+                        if matches!(entry.purpose, Purpose::PutBlob { .. }) {
+                            // The message will not go out: no sibling upload keeps running, and when it can never be
+                            // retried what reached the store is removed.
+                            self.abort_puts(c, m, !reason.retryable());
+                        }
                     }
                     if matches!(
                         entry.purpose,
@@ -2148,7 +2240,19 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     ) -> Result<(), CoreError> {
         match entry.purpose {
             Purpose::PublishKeys => self.st.app.keys_published = true,
-            Purpose::Ack => {}
+            Purpose::Ack | Purpose::DeleteBlob { .. } => {}
+            Purpose::PutBlob {
+                operation_id,
+                conversation_id,
+                message_id,
+                blob_id,
+            } => self.on_blob_put(
+                &operation_id,
+                &conversation_id,
+                &message_id,
+                &blob_id,
+                bytes,
+            )?,
             Purpose::OpenCeremonyQueue { operation_id } => {
                 self.on_open_queue(&operation_id, bytes);
             }
@@ -3473,13 +3577,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         match ev.kind {
             events::K_CREATE => {
-                let Some(text) = ev
-                    .body
-                    .get(0)
-                    .ok()
-                    .and_then(events::plain_text)
-                    .filter(|t| t.chars().count() <= MAX_MESSAGE_CHARS)
-                else {
+                let Some(parts) = blobs::read_create(&ev) else {
                     return false;
                 };
                 let id = format!("msg-{eid}");
@@ -3497,7 +3595,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     id,
                     outgoing: false,
                     operation_id: None,
-                    text,
+                    text: parts.text,
                     sent_at: ev.clock.physical_ms,
                     delivery: DeliveryState::Delivered,
                     envelope: None,
@@ -3507,6 +3605,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     deleted: false,
                     queued_event: None,
                     fan: vec![],
+                    attachments: parts.attachments,
+                    ext: parts.ext,
                 });
                 true
             }

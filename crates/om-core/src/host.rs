@@ -196,6 +196,42 @@ pub enum NetCall {
         #[serde(default, with = "hexs", skip_serializing_if = "Vec::is_empty")]
         capability: Vec<u8>,
     },
+    /// BlobStore put of one attachment's ciphertext. The host holds the bytes (Core never keeps ciphertext in its state):
+    /// it stored them when `prepare_attachment` returned them, and `restage_attachment` rebuilds them from the plaintext.
+    /// `owner_cap` is the capability the sender chose for this object (read and delete); the answer is a
+    /// [`BlobReceipt`] as `Bytes`. `request_id` makes an exact retry idempotent. A put that exceeds the store's limit
+    /// answers `Rejected{too_large}`; a full store `Rejected{quota}`.
+    PutBlob {
+        #[serde(with = "hexs")]
+        blob_id: Vec<u8>,
+        #[serde(with = "hexs")]
+        owner_cap: Vec<u8>,
+        #[serde(with = "hexs")]
+        request_id: Vec<u8>,
+        /// `OM-BLOB-CIPHERTEXT-HASH-v1` over the ciphertext; the store must refuse bytes that do not hash to it.
+        #[serde(with = "hexs")]
+        digest: Vec<u8>,
+        length: u64,
+    },
+    /// Fetch one attachment's ciphertext from the first of `locations` that answers (all are `https`, from the sender).
+    /// Not an outbox item: the host performs it when the person (or its own auto-download policy) asks, hashes the
+    /// bytes against `digest` and hands them to `Core::open_attachment`, which verifies again before it decrypts.
+    GetBlob {
+        locations: Vec<String>,
+        #[serde(with = "hexs")]
+        read_cap: Vec<u8>,
+        #[serde(with = "hexs")]
+        digest: Vec<u8>,
+        length: u64,
+    },
+    /// Remove a blob of ours from the BlobStore that stored it (`location`). Absent is success.
+    DeleteBlob {
+        #[serde(with = "hexs")]
+        blob_id: Vec<u8>,
+        #[serde(with = "hexs")]
+        owner_cap: Vec<u8>,
+        location: String,
+    },
     /// Device-link ceremony (D24): make sure the short-lived queue `mailbox` exists at the Home `relay_uri` and answer
     /// its receive capability as `Bytes`, so the other device can drain it. Uses the queue endpoints a Home already has.
     OpenQueue {
@@ -203,6 +239,75 @@ pub enum NetCall {
         mailbox: Vec<u8>,
         relay_uri: String,
     },
+}
+
+/// What the adapter answers a `PutBlob` with (canonical CBOR as `NetResult::Bytes`):
+/// `{0: read capability (bstr 16..64), 1: [locations: tstr], 2: ciphertext digest the store computed (bstr 32),
+/// ? 3: expires_at (posix seconds)}`. Core compares the digest with its own and refuses anything else.
+pub struct BlobReceipt {
+    pub read_cap: Vec<u8>,
+    pub locations: Vec<String>,
+    pub digest: [u8; 32],
+    pub expires_at: Option<u64>,
+}
+
+impl BlobReceipt {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        use crate::crypto::cbor::{V, encode};
+        let mut m = vec![
+            (0, V::B(self.read_cap.clone())),
+            (
+                1,
+                V::A(self.locations.iter().map(|l| V::T(l.clone())).collect()),
+            ),
+            (2, V::B(self.digest.to_vec())),
+        ];
+        if let Some(e) = self.expires_at {
+            m.push((3, V::U(e)));
+        }
+        encode(&V::M(m))
+    }
+
+    pub fn from_bytes(b: &[u8]) -> Option<Self> {
+        let v = crate::crypto::cbor::decode(b).ok()?;
+        let read_cap = v.get(0).ok()?.b().ok()?.to_vec();
+        if !(16..=64).contains(&read_cap.len()) {
+            return None;
+        }
+        let locations: Vec<String> = v
+            .get(1)
+            .ok()?
+            .a()
+            .ok()?
+            .iter()
+            .map(|x| x.t().ok().map(str::to_string))
+            .collect::<Option<_>>()?;
+        Some(BlobReceipt {
+            read_cap,
+            locations,
+            digest: v.get(2).ok()?.b32().ok()?,
+            expires_at: match v.opt(3) {
+                None => None,
+                Some(e) => Some(e.u().ok()?),
+            },
+        })
+    }
+}
+
+/// What the store advertises for blobs (`ProviderCapabilities.limits` of `om.blob.spool.v1`), supplied by the host with
+/// `Core::set_blob_limits`. Until it is supplied Core has no BlobStore and refuses attachments (it never falls back to
+/// sending bytes inline).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlobLimits {
+    /// Largest single object in bytes (ciphertext, so plaintext + 16).
+    pub max_blob_bytes: u64,
+    /// Whole spool, bytes. 0: not advertised (no pre-check; the store's `quota` still answers).
+    #[serde(default)]
+    pub max_spool_bytes: u64,
+    /// Objects the spool holds. 0: not advertised.
+    #[serde(default)]
+    pub max_blobs: u32,
 }
 
 /// What a polled id names: a relay mailbox, or an invite's introduction service at the host's own Home.
