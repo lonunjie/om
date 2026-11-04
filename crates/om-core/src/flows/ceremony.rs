@@ -74,20 +74,71 @@ fn aad(role: u8) -> Vec<u8> {
     a
 }
 
+/// Profile-1 `SealedDeliveryEnvelope` ciphertext lengths (the Home's deposit check, D9): the buckets plus the AEAD tag.
+const BUCKETS: [usize; 5] = [1040, 4112, 16400, 65552, 131088];
+/// HPKE `enc` length of profile 1.
+const ENC_LEN: usize = 1120;
+const NONCE_LEN: usize = 24;
+const TAG_LEN: usize = 16;
+
+/// A ceremony message as the Home accepts a deposit: a structurally valid type-23, profile-1 envelope. The Home never
+/// opens it; the other device does, with the ceremony key. `enc` and the ids are random filler; the ciphertext field is
+/// the XChaCha20-Poly1305 nonce followed by the AEAD output over `len(4) || message || zeros`, sized so the whole field
+/// is exactly one profile-1 bucket. The real tag covers the padding, so any change is caught on open.
+fn wrap_envelope(
+    nonce: &[u8; 24],
+    aead_out: Vec<u8>,
+    filler: [u8; 32],
+    enc: Vec<u8>,
+    expires_s: u64,
+) -> Vec<u8> {
+    let mut ct = nonce.to_vec();
+    ct.extend_from_slice(&aead_out);
+    cbor::encode(&V::M(vec![
+        (0, V::U(23)),
+        (1, V::U(1)),
+        (2, V::U(1)),
+        (3, V::B(filler[..16].to_vec())),
+        (4, V::B(filler[16..].to_vec())),
+        (5, V::B(enc)),
+        (6, V::B(ct)),
+        (7, V::U(expires_s)),
+    ]))
+}
+
 fn open_msg(key: &[u8; 32], role: u8, bytes: &[u8]) -> Option<Vec<u8>> {
-    if bytes.len() < 24 + 16 || bytes.len() > MAX_MSG + 24 + 16 {
+    if bytes.len() > 140_000 {
         return None;
     }
-    let nonce: [u8; 24] = bytes[..24].try_into().ok()?;
-    XChaCha20Poly1305::new(key.into())
+    let v = cbor::decode(bytes).ok()?;
+    if v.get(0).ok()?.u().ok()? != 23
+        || v.get(1).ok()?.u().ok()? != 1
+        || v.get(2).ok()?.u().ok()? != 1
+        || v.get(5).ok()?.b().ok()?.len() != ENC_LEN
+    {
+        return None;
+    }
+    let ct = v.get(6).ok()?.b().ok()?;
+    if !BUCKETS.contains(&ct.len()) {
+        return None;
+    }
+    let nonce: [u8; 24] = ct[..NONCE_LEN].try_into().ok()?;
+    let frame = XChaCha20Poly1305::new(key.into())
         .decrypt(
             (&nonce).into(),
             Payload {
-                msg: &bytes[24..],
+                msg: &ct[NONCE_LEN..],
                 aad: &aad(role),
             },
         )
-        .ok()
+        .ok()?;
+    let n = u32::from_be_bytes(frame.get(..4)?.try_into().ok()?) as usize;
+    let body = frame.get(4..4 + n)?;
+    // Padding is zeros and nothing else: a longer or different tail is not a ceremony message.
+    if frame[4 + n..].iter().any(|b| *b != 0) {
+        return None;
+    }
+    Some(body.to_vec())
 }
 
 /// Six digits both devices derive from the request as the new device sent it.
@@ -180,24 +231,33 @@ fn recv_mailbox(b_recv: &[u8]) -> Vec<u8> {
 }
 
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
-    fn seal_msg(&mut self, key: &[u8; 32], role: u8, pt: &[u8]) -> Option<Vec<u8>> {
+    fn seal_msg(&mut self, key: &[u8; 32], role: u8, pt: &[u8], expires_s: u64) -> Option<Vec<u8>> {
         if pt.len() > MAX_MSG {
             return None;
         }
+        let bucket = BUCKETS
+            .iter()
+            .copied()
+            .find(|b| b - NONCE_LEN - TAG_LEN >= 4 + pt.len())?;
+        let mut frame = vec![0u8; bucket - NONCE_LEN - TAG_LEN];
+        frame[..4].copy_from_slice(&(pt.len() as u32).to_be_bytes());
+        frame[4..4 + pt.len()].copy_from_slice(pt);
         let mut nonce = [0u8; 24];
         self.rng.fill_bytes(&mut nonce);
         let ct = XChaCha20Poly1305::new(key.into())
             .encrypt(
                 (&nonce).into(),
                 Payload {
-                    msg: pt,
+                    msg: &frame,
                     aad: &aad(role),
                 },
             )
             .ok()?;
-        let mut out = nonce.to_vec();
-        out.extend_from_slice(&ct);
-        Some(out)
+        let mut filler = [0u8; 32];
+        self.rng.fill_bytes(&mut filler);
+        let mut enc = vec![0u8; ENC_LEN];
+        self.rng.fill_bytes(&mut enc);
+        Some(wrap_envelope(&nonce, ct, filler, enc, expires_s))
     }
 
     fn deposit_ceremony(&mut self, op: &str, cap: &[u8], uri: &str, bytes: Vec<u8>) {
@@ -423,7 +483,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (6, V::T(label.clone())),
         ]));
         let (k_req, _, k_code) = ceremony_keys(&parts.secret, &parts.a_cap, &parts.b_recv);
-        let Some(sealed) = self.seal_msg(&k_req, ROLE_REQ, &request) else {
+        let Some(sealed) = self.seal_msg(&k_req, ROLE_REQ, &request, expiry_s) else {
             return rej(Invalid);
         };
         let request_id = request_id_of(&device.device_id);
@@ -631,7 +691,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (0, V::U(M_REJECT)),
             (1, V::B(unhex(&req.nonce).unwrap_or_default())),
         ]));
-        if let Some(sealed) = self.seal_msg(&k_resp, ROLE_RESP, &msg) {
+        if let Some(sealed) = self.seal_msg(&k_resp, ROLE_RESP, &msg, offer.expires_at / 1000) {
             self.deposit_ceremony(
                 &offer.operation_id,
                 &offer.b_route.capability,
@@ -774,10 +834,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (7, V::U(roster.len() as u64)),
             (8, V::T(self.st.app.label.clone())),
         ]));
-        let mut sealed = vec![self.seal_msg(&k_resp, ROLE_RESP, &approval).ok_or(Quota)?];
+        let mut sealed = vec![
+            self.seal_msg(&k_resp, ROLE_RESP, &approval, offer.expires_at / 1000)
+                .ok_or(Quota)?,
+        ];
         for entry in &roster {
             let msg = cbor::encode(&V::M(vec![(0, V::U(M_ROSTER)), (1, V::B(entry.clone()))]));
-            sealed.push(self.seal_msg(&k_resp, ROLE_RESP, &msg).ok_or(Quota)?);
+            sealed.push(
+                self.seal_msg(&k_resp, ROLE_RESP, &msg, offer.expires_at / 1000)
+                    .ok_or(Quota)?,
+            );
         }
 
         self.st.app.acs_credentials.push(hex(&cred.body()));
@@ -789,6 +855,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 enrolled_at: now,
             },
         );
+        // The approving device tells its person too: a link is never silent anywhere.
+        self.st.app.notices.push(NoticeRec {
+            device_id: req.device_id.clone(),
+            label: req.label.clone(),
+            at: now,
+        });
+        while self.st.app.notices.len() > MAX_NOTICES {
+            self.st.app.notices.remove(0);
+        }
         for s in sealed {
             self.deposit_ceremony(
                 &offer.operation_id,
@@ -1273,7 +1348,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return true;
         };
         let (k_req, ..) = ceremony_keys(&secret, &a_cap, &b_recv);
-        if let Some(sealed) = self.seal_msg(&k_req, ROLE_REQ, &msg) {
+        if let Some(sealed) = self.seal_msg(&k_req, ROLE_REQ, &msg, join.expires_at / 1000) {
             self.deposit_ceremony(&join.operation_id, &a_cap, &join.relay_uri, sealed);
         }
         true
@@ -1580,4 +1655,61 @@ pub fn notice_views(st: &ProfileState) -> Vec<DeviceNoticeView> {
             at: n.at,
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn envelope_with_frame(key: &[u8; 32], frame: &[u8], bucket_frame: usize) -> Vec<u8> {
+        let mut padded = frame.to_vec();
+        padded.resize(bucket_frame, 0);
+        let nonce = [7u8; 24];
+        let ct = XChaCha20Poly1305::new(key.into())
+            .encrypt(
+                (&nonce).into(),
+                Payload {
+                    msg: &padded,
+                    aad: &aad(ROLE_REQ),
+                },
+            )
+            .unwrap();
+        wrap_envelope(&nonce, ct, [9u8; 32], vec![1u8; ENC_LEN], 1_790_000_300)
+    }
+
+    #[test]
+    fn padding_must_be_zeros_and_the_length_must_fit() {
+        let key = [3u8; 32];
+        let size = BUCKETS[0] - NONCE_LEN - TAG_LEN;
+        let mut good = 5u32.to_be_bytes().to_vec();
+        good.extend_from_slice(b"hello");
+        assert_eq!(
+            open_msg(&key, ROLE_REQ, &envelope_with_frame(&key, &good, size)),
+            Some(b"hello".to_vec())
+        );
+        // A byte after the message that is not zero: the AEAD is genuine, the padding is not.
+        let mut dirty = good.clone();
+        dirty.resize(size, 0);
+        dirty[size - 1] = 1;
+        assert_eq!(
+            open_msg(&key, ROLE_REQ, &envelope_with_frame(&key, &dirty, size)),
+            None
+        );
+        // A length that runs past the frame.
+        let mut long = 5000u32.to_be_bytes().to_vec();
+        long.extend_from_slice(b"hello");
+        assert_eq!(
+            open_msg(&key, ROLE_REQ, &envelope_with_frame(&key, &long, size)),
+            None
+        );
+        // The wrong role or key, and a ciphertext that is not a bucket length.
+        assert_eq!(
+            open_msg(&key, ROLE_RESP, &envelope_with_frame(&key, &good, size)),
+            None
+        );
+        assert_eq!(
+            open_msg(&key, ROLE_REQ, &envelope_with_frame(&key, &good, size - 8)),
+            None
+        );
+    }
 }

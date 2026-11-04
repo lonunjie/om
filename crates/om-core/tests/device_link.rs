@@ -488,3 +488,60 @@ fn every_other_device_gets_the_enrollment_notice() {
     let on_tablet: DevicesView = tablet.query(Query::GetDevices { ctx: t.clone() });
     assert_eq!(on_tablet.devices.len(), 3);
 }
+
+/// A Rust mirror of the Home's deposit check for profile 1 (`parseDeposit`, D9): a type-23 envelope whose fields are
+/// exactly the SealedDeliveryEnvelope ones, with the profile-1 `enc` length and a bucket-sized ciphertext.
+fn profile1_shape_ok(bytes: &[u8]) -> bool {
+    use om_core::crypto::cbor;
+    let Ok(v) = cbor::decode(bytes) else {
+        return false;
+    };
+    let u = |k| v.get(k).ok().and_then(|x| x.u().ok());
+    let b = |k| v.get(k).ok().and_then(|x| x.b().ok());
+    u(0) == Some(23)
+        && u(1) == Some(1)
+        && u(2) == Some(1)
+        && b(3).is_some_and(|x| x.len() == 16)
+        && b(4).is_some_and(|x| x.len() == 16)
+        && b(5).is_some_and(|x| x.len() == 1120)
+        && b(6).is_some_and(|x| [1040, 4112, 16400, 65552, 131088].contains(&x.len()))
+        && u(7).is_some()
+        && bytes.len() <= 133_000
+        && cbor::encode(&v) == bytes
+}
+
+#[test]
+fn every_ceremony_deposit_has_the_shape_the_home_accepts() {
+    let mut w = world();
+    let request_id = w.offer_and_ask();
+    let link = w.offer().unwrap().link;
+    assert_eq!(w.approve(&request_id, "ok"), Some(OutcomeClass::Committed));
+    w.settle();
+    w.settle();
+    // The two queues are named by the link: the request queue by its deposit capability, the response queue by the
+    // receive capability (the loopback's capabilities carry the queue id).
+    let raw = common::b64_decode(link.trim_start_matches("om:link/"));
+    let a_len = raw[21] as usize;
+    let a_queue = raw[22 + a_len - 16..22 + a_len].to_vec();
+    let b_len = raw[22 + a_len] as usize;
+    let b_cap = &raw[23 + a_len..23 + a_len + b_len];
+    let b_queue = b_cap[16..32].to_vec();
+    let ceremony: Vec<_> = w
+        .net
+        .deposit_log()
+        .into_iter()
+        .filter(|(q, _)| *q == a_queue || *q == b_queue)
+        .collect();
+    assert!(
+        ceremony.len() >= 3,
+        "a request, an approval and at least one handover"
+    );
+    for (_, bytes) in &ceremony {
+        assert!(profile1_shape_ok(bytes), "deposit shape");
+    }
+    // The same bytes are what the TypeScript `parseDeposit` must accept (see the report for the vector).
+    let first = &ceremony[0].1;
+    let hex: String = first.iter().map(|b| format!("{b:02x}")).collect();
+    println!("CEREMONY_REQUEST_VECTOR_LEN={} HEX={hex}", first.len());
+    std::fs::write(std::env::temp_dir().join("om-ceremony-vector.hex"), &hex).ok();
+}

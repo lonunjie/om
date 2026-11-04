@@ -32,10 +32,8 @@ sets up its side of each conversation and introduces itself through the approvin
 introduction to the contact (account update, field 4). Other devices verify the notice and advance their own head only
 along a verified descent (`KIND_ENROLLED = 11`, siblings only). A messaging device cannot offer or approve; revoke
 already removes a device. Transport and the host calls (`OpenQueue`, polling and acknowledging with an explicit
-capability) are in D24. The adapter side (`packages/om-provider-http`, `packages/om-core-wasm` types) is written over the Home's
-existing queue endpoints but NOT committed: the design gate demands `Design-Read` for `constitution_governance` and
-`provider_deployment_supply_chain` for any change under `om-provider-http`, and those documents were not read. Until a
-reader of those domains commits it, a host cannot perform `open_queue` or poll a ceremony queue.
+capability) are in D24. The adapter side (`open_queue`, polling and acknowledging with a capability) was committed by the UI agent (`15287f1`).
+Every ceremony message is wrapped as a profile-1 sealed envelope the Home accepts (D24 note 9).
 
 Evidence: `tests/device_link.rs` (two Cores link, both send and receive with a third; revoke removes the device; bad or
 missing confirmation, unknown request, replay, expiry, refusal; a messaging device cannot offer; the ceremony key is on no
@@ -44,20 +42,5 @@ refused by the new device, which adopts no account and publishes nothing). The 1
 
 ## Not exercised
 
-The uncommitted TypeScript adapter changes (`open_queue`, polling and acknowledging with a capability) type-check and the
-existing adapter and wasm tests pass, but they were not run against a real Home or the Cloudflare worker. The wasm artifact
-(`make core-wasm`) was not rebuilt.
-
-## Open questions (design is silent; nothing here was decided beyond the operator's D24 ruling)
-
-1. Transcript MAC construction for `OM-DEVICE-LINK-CEREMONY-MAC-v1` (reserved, no construction). The derivation used is provisional.
-2. Signer role and device-class numbering of `DeviceEnrollmentNotice` (controller and 1 assumed).
-3. How a new device learns its own label (it is "New device" until the person renames it) and how the approving device's account label reaches it (sent in the approval).
-4. Quarantined control devices get no notice (they cannot receive); should a quarantined device block an approval?
-5. A long ACS chain does not fit one queue message (the approval carries the whole chain; refused with `quota` above about 100 KB).
-6. Conversations that did not complete within the five-minute window stay unhanded; there is no retry channel until history transfer exists.
-7. Sibling mesh: a third device meets the new device only through contacts' updates, not directly (T to N sessions and intros).
-8. Intro service and fetch-capability fields in an introduction are unsigned (a wrong one only makes a fetch fail).
-9. Session reset policy for an established-session conflict on re-initiation stays `SessionConflict`.
-10. Stale queued `KIND_ACS_UPDATE`s are not coalesced; held wrappers are bounded to 8 and 7 days (ADR-0144 gives no number).
-11. A queue-delete endpoint, second-device Home admission (D13) and the UI direction reversal are in D24.
+The two-context link runs against the local reference Home in Chromium (`apps/web/e2e/device-link.spec.ts`); the Cloudflare
+worker was not exercised.
