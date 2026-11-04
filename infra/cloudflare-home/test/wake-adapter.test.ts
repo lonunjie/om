@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // The adapter's use of the wake channel (om.relay.wake.v1) against the real Home: an open socket replaces the timer, and any
 // failure or absence of the channel leaves ordinary polling exactly as it was.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";

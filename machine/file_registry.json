@@ -7679,7 +7679,7 @@
       "path": "infra/cloudflare-home/README.md",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
@@ -7784,182 +7784,182 @@
       "path": "infra/cloudflare-home/src/blobs.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/src/capabilities.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/src/descriptors.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/src/env.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/src/http.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/src/index.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/src/intro.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/src/keys.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/src/limits.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/src/mailbox.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/src/queue.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/src/rules.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/src/sql.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/src/util.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/admission.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/blobs.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/core.e2e.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/harness.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/kit.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/provider-adapter.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/relay.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/rules.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/serve.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/services.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/shared-runtime.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/smoke.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
@@ -7973,49 +7973,49 @@
       "path": "infra/cloudflare-home/test/tsconfig.json",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/two-homes.e2e.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/wake-adapter.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/wake-runtime.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/test/wake.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/tsconfig.json",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {
       "path": "infra/cloudflare-home/wrangler.jsonc",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "product_implementation"
     },
     {

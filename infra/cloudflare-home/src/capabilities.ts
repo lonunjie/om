@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // GET /.well-known/om-provider-capabilities (spec/protocol/provider-capabilities.logical.schema.json). Public, no secrets,
 // no per-user data: the same document for every caller.
 import { FEATURES, WAKE_AUTH_SECONDS } from "@om/home-wire";

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Operational limits of this Home. They are implementation parameters, never protocol constants (CLOUDFLARE_REFERENCE_DEPLOYMENT.md);
 // they are advertised in ProviderCapabilities.limits and every one fails with a typed `quota`, `payload_too_large` or `rate_limited`.
 

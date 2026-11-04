@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // KeyMaterialProvider (PC-K), descriptor store (PC-G01) and IntroGate (PC-G02) cases against the real Worker bundle.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {

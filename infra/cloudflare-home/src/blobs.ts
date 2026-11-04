@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Optional feature om.blob.spool.v1: a bounded temporary spool of client-side-encrypted blobs in one SQLite Durable Object
 // (STORAGE_AND_BLOB_ARCHITECTURE "Zero-payment personal bootstrap"; no R2, no card). The Home sees ciphertext, its length and
 // a digest, never a key, a name, a type or an identity. Creating a blob needs the owner's admission (the Worker checks it

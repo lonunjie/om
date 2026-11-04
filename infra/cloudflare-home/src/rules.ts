@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // The time-dependent decisions of the relay as pure functions of an explicit `now`, so they are tested without a clock.
 import { LIMITS } from "./limits";
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Real Core, one adapter, two profiles, and a poll timer of a full minute: with the wake channel the whole introduction and a
 // message still complete in seconds, and the Home is asked far less than a 200 ms timer would ask. Without the channel the
 // same timer needs minutes (the control case below uses a Home that does not offer it, at the same timer, and a short budget).

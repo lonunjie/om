@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // The HTTP provider adapter against the real reference Home (Worker bundle in workerd).
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { decode, encode, map, routeBinding, toHex, type CborValue } from "@om/home-wire";

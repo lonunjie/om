@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Item storage shared by the relay queue and the IntroGate accepted-request queue: durable, ordered by a per-queue
 // sequence, bounded by count and bytes, with explicit acknowledgement and a replay set that outlives the item.
 import { HomeError, quotaDetail } from "@om/home-wire";

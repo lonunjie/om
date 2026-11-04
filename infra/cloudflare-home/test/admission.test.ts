@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Owner admission (om.admission.v1): a personal Home creates resources only for the holder of the admission secret; peers
 // never need it. The Home holds only the secret's public hash (OM_ADMISSION).
 import { ADMISSION_HEADER, admissionHash, decodeHomeError, encodeQueueCreate, toBase64Url } from "@om/home-wire";

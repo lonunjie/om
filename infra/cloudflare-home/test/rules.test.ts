@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Time-dependent decisions with an explicit clock (workerd cannot be time-travelled), plus source-level privacy guards.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";

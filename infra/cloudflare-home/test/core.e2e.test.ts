@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // End to end: two real Core wasm profiles (separate installs, separate stores) exchange messages through the real
 // reference Home (the Worker bundle running in workerd), using only the HTTP provider adapter. Needs
 // `make core-wasm` for dist/om_wasm.wasm (skipped, loudly, if absent).

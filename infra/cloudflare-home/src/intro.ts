@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // IntroGate role (INVITES_INTROGATE_AND_SPAM.md section 5/6). One Durable Object per recipient service. The recipient (holder
 // of the service capability) issues narrow tickets; an unknown sender submits one sealed MessageRequest per use. The gate
 // rejects before any expensive work: ticket shape, expiry, use count, payload limit, queue quota and a per-service rate.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // The browser shape: ONE Core instance and ONE adapter (one install) serving two profiles, with background polling.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";

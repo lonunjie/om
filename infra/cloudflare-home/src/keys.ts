@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // KeyMaterialProvider role (ASYNC_KEY_MATERIAL.md, home-api.md section 3.3). One Durable Object per DeviceID. It stores the
 // device's signed bundle and its one-time prekeys as opaque bytes, hands them out under a fetch throttle, and never
 // decides whether a bundle is valid or fresh for a peer: clients verify signatures, the ACS binding and their own

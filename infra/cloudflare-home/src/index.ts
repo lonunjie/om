@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // OM reference Home on Cloudflare: Worker front door for the Home API v1 reference HTTP binding (spec/protocol/home-api.md).
 // The Worker routes by an opaque capability prefix or object id to a SQLite Durable Object and keeps nothing itself.
 // It never reads a network address or any identifying header, writes no log, and sets no cookie.

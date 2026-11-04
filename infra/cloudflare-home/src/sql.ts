@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Thin typed helpers over the Durable Object SQLite API. Every statement is parameterised; nothing is concatenated.
 
 type Bind = string | number | Uint8Array | null;

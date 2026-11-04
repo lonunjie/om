@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Boots the real Worker bundle (the same `wrangler deploy --dry-run` output a deploy would upload) in Miniflare/workerd with
 // SQLite Durable Objects. No Cloudflare account, token or network is involved.
 import { execFileSync } from "node:child_process";

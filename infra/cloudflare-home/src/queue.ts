@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // One Durable Object per relay queue (SQLite-backed). It stores sealed ciphertext it cannot open, behind separate deposit
 // and receive capabilities it holds only as hashes. It never learns who deposits, who drains, an AccountID or a name.
 import { DurableObject } from "cloudflare:workers";

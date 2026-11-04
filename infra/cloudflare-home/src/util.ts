@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { HomeError, encodeHomeError, HTTP_STATUS, sha256, toHex, type HomeErrorName } from "@om/home-wire";
 
 export type Reply =

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Feature om.relay.wake.v1 (PC-W01..): the optional wake channel of a queue. Raw WebSockets against the real Worker bundle,
 // independent of the reference adapter. The channel carries no content and no capability in its URL.
 import { request } from "node:http";

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Optional feature om.blob.spool.v1: the bounded encrypted blob spool of the reference Home (no R2, free baseline). Cases PC-S01..S13
 // run against the real Worker bundle in workerd. Ciphertext here is random bytes: the Home must not care what it holds.
 import { ADMISSION_HEADER, admissionHash, blobCiphertextDigest, encodeQueueCreate, quotaDetail, toBase64Url, toHex } from "@om/home-wire";

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Two people, each on their own Home (two separate workerd instances), complete invite -> IntroGate -> MessageRequest -> chat
 // with two real Core wasm profiles and the HTTP adapter (deviations D4 and D10; plan: docs/reports/2026-11-03-first-contact-across-homes-plan.md).
 // Conformance cases: DS-01 (a signed descriptor via two providers), DS-05 (the discovery provider is unavailable), PC-A05

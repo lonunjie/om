@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Descriptor store: signed ContactDescriptors and the introduction-service invite descriptors Core publishes. The body is
 // opaque to the Home (clients verify signatures and bindings; a stored descriptor is never authority). One Durable Object
 // per descriptor id. The first publish claims the id; a revoked id stays revoked (a tombstone) until the descriptor's own

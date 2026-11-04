@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // HTTP reference binding helpers (home-api.md section 3.1): bearer capabilities only in the Authorization header or the
 // frozen CBOR slot, responses never cacheable, no referrer, no cookies, and no read of any network-address header.
 import { HTTP_STATUS, fromBase64Url, type HomeErrorName } from "@om/home-wire";

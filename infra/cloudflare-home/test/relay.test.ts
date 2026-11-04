@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Provider conformance cases (docs/architecture/providers/PROVIDER_CONFORMANCE_SUITE.md) for the relay role, run against the
 // real Worker bundle in workerd. Case ids are those of the suite.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";

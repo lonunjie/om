@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Raw HTTP client for the conformance tests. It speaks the wire directly (not through @om/provider-http), so the Home is
 // tested independently of the reference adapter.
 import {
