@@ -1285,6 +1285,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/attach.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/backup.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1432,6 +1439,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/flows/blobs.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/flows/ceremony.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1461,6 +1475,13 @@
     },
     {
       "path": "crates/om-core/src/lib.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/present.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -1503,6 +1524,13 @@
     },
     {
       "path": "crates/om-core/tests/acs_forgery.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/attachments.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -4471,6 +4499,13 @@
     },
     {
       "path": "docs/reports/2026-11-03-ui-conformance-review.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-04-attachments-core-status.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
