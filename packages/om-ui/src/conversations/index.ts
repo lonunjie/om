@@ -10,3 +10,4 @@ export * from "./Composer";
 export * from "./MessageRequest";
 export * from "./StrangerPressure";
 export * from "./Avatar";
+export * from "./Attachments";

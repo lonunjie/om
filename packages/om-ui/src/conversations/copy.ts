@@ -1,4 +1,4 @@
-import type { RejectReason, RelationshipStateCode, SecurityNoticeCode, UserActionCode } from "@om/platform-api";
+import type { AttachmentRefusal, RejectReason, RelationshipStateCode, SecurityNoticeCode, UserActionCode } from "@om/platform-api";
 
 /** All user-visible strings for the conversation slice. Components contain no copy; callers supply (localized) text. */
 export interface ConversationCopy {
@@ -63,11 +63,63 @@ export interface ConversationCopy {
     readonly failed: string;
   };
   readonly notices: Readonly<Record<SecurityNoticeCode, string>>;
+  /** Files, voice notes and location cards: plain words, no jargon. */
+  readonly attachments: AttachmentCopy;
   readonly richText: {
     readonly opensExternally: string;
     readonly unsupported: string;
     readonly truncated: string;
     readonly attachment: string;
     readonly unsafeLink: string;
+  };
+}
+
+export interface AttachmentCopy {
+  /** Composer controls. Each names its own action (a voice note is not the Omnibar's voice command). */
+  readonly attach: string;
+  readonly recordVoice: string;
+  readonly shareLocation: string;
+  readonly removeStaged: (name: string) => string;
+  /** The tray of things waiting to be sent with the message. */
+  readonly tray: string;
+  /** "12 KB", "3.4 MB". */
+  readonly size: (bytes: number) => string;
+  /** The file is over what the delivery service takes: said before anything is sent. */
+  readonly tooBig: (maxBytes: number | null) => string;
+  /** Typed refusals from Core when a file is prepared or opened. */
+  readonly refusal: (r: AttachmentRefusal) => string;
+  /** On a message. */
+  readonly file: string;
+  readonly uploading: string;
+  readonly keptUntil: (when: string) => string;
+  readonly download: (name: string) => string;
+  readonly downloading: string;
+  readonly downloaded: string;
+  readonly formatDay: (epochMs: number) => string;
+  readonly voice: {
+    readonly recording: string;
+    readonly elapsed: (ms: number) => string;
+    readonly stop: string;
+    readonly discard: string;
+    readonly note: string;
+    readonly review: string;
+    readonly play: string;
+    readonly loading: string;
+    readonly denied: string;
+    readonly failed: string;
+    readonly nothing: string;
+    readonly duration: (ms: number) => string;
+  };
+  readonly location: {
+    readonly heading: string;
+    readonly asking: string;
+    readonly confirm: string;
+    readonly send: string;
+    readonly cancel: string;
+    readonly denied: string;
+    readonly unavailable: string;
+    readonly card: string;
+    readonly accuracy: (m: number) => string;
+    readonly point: (lat: string, lon: string) => string;
   };
 }

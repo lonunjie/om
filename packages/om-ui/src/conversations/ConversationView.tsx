@@ -8,6 +8,7 @@ import { Text } from "../shell/primitives/Text";
 import { VisuallyHidden } from "../shell/primitives/VisuallyHidden";
 import type { ConversationCopy } from "./copy";
 import { Avatar } from "./Avatar";
+import { MessageAttachments } from "./Attachments";
 import { DeliveryIndicator, RETRYABLE_REASONS, deliveryOf } from "./delivery";
 import { useConversationView } from "./hooks";
 import { SecurityNotices } from "./notices";
@@ -113,6 +114,7 @@ export function ConversationView({ services, conversationId, copy, richTextFor, 
                   <VisuallyHidden>{outgoing ? copy.view.outgoing : copy.view.incoming}</VisuallyHidden>
                   <div className="om-conv-view__bubble" data-state={delivery?.kind}>
                     <RichText doc={(richTextFor ?? ((i) => plainTextToRichText(i.text)))(item)} copy={copy.richText} />
+                    <MessageAttachments services={services} item={item} copy={copy.attachments} />
                   </div>
                   {lastOfRun || unsettled ? (
                     <span className="om-conv-view__foot">

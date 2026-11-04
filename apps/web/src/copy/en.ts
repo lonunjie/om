@@ -46,6 +46,18 @@ function sentAt(ms: number, now: Date = new Date()): string {
   if (then.toDateString() === now.toDateString()) return clockFormat.format(then);
   return (then.getFullYear() === now.getFullYear() ? timeFormat : withYearFormat).format(then);
 }
+const shortDay = new Intl.DateTimeFormat("en", { month: "short", day: "numeric" });
+/** "0:07", "12:03": a duration for a recording or a voice note. */
+const clock = (ms: number): string => { const s = Math.max(0, Math.round(ms / 1000)); return `${String(Math.floor(s / 60))}:${String(s % 60).padStart(2, "0")}`; };
+/** "12 KB", "3.4 MB": decimal units, one digit only when it helps. */
+function fileSize(bytes: number): string {
+  if (bytes < 1000) return `${String(bytes)} bytes`;
+  const units = ["KB", "MB", "GB"];
+  let v = bytes / 1000;
+  let u = 0;
+  while (v >= 1000 && u < units.length - 1) { v /= 1000; u += 1; }
+  return `${v >= 100 || Number.isInteger(v) ? String(Math.round(v)) : v.toFixed(1)} ${units[u] ?? "KB"}`;
+}
 const plural = (n: number, one: string, many: string): string => `${String(n)} ${n === 1 ? one : many}`;
 
 export const conversationCopy: ConversationCopy = {
@@ -110,6 +122,61 @@ export const conversationCopy: ConversationCopy = {
     failed: "Something went wrong. Try again.",
   },
   notices: NOTICE_LABELS,
+  attachments: {
+    attach: "Attach a file",
+    recordVoice: "Record a voice note",
+    shareLocation: "Share your location",
+    removeStaged: (name) => `Remove ${name}`,
+    tray: "Ready to send",
+    size: fileSize,
+    tooBig: (max) => (max === null ? "This file is too big to send right now." : `This file is too big to send right now. Files up to ${fileSize(max)} can be sent.`),
+    refusal: (r) => {
+      switch (r.error) {
+        case "too_large": return r.max > 0 ? `This file is too big to send right now. Files up to ${fileSize(r.max)} can be sent.` : "This file is too big to send right now.";
+        case "storage_full": return "Your delivery service has no room for files right now. Try again later.";
+        case "no_blob_store": return "Your delivery service does not hold files, so files cannot be sent yet.";
+        case "empty": return "That file is empty.";
+        case "invalid": return "That file cannot be sent.";
+        case "unsupported": return "This version of OM cannot send files here yet.";
+        case "not_found": return "This file is no longer available. Ask them to send it again.";
+        case "integrity_failure": return "This file arrived damaged, so OM did not open it. Ask them to send it again.";
+        case "unavailable": return "OM could not get the file right now. Check your connection and try again.";
+      }
+    },
+    file: "File",
+    uploading: "Uploading",
+    keptUntil: (when) => `Kept for them until ${when}`,
+    download: (name) => `Download ${name}`,
+    downloading: "Downloading",
+    downloaded: "Download started",
+    formatDay: (ms) => shortDay.format(new Date(ms)),
+    voice: {
+      recording: "Recording",
+      elapsed: clock,
+      stop: "Stop recording",
+      discard: "Discard",
+      note: "Voice note",
+      review: "Listen before you send",
+      play: "Play voice note",
+      loading: "Opening voice note",
+      denied: "OM needs your microphone to record. Allow it in your browser settings, then try again.",
+      failed: "Recording did not start. Try again.",
+      nothing: "Nothing was recorded.",
+      duration: clock,
+    },
+    location: {
+      heading: "Share your location?",
+      asking: "Finding where you are",
+      confirm: "This sends where you are right now, once. It does not follow you or update.",
+      send: "Send location",
+      cancel: "Cancel",
+      denied: "OM cannot see your location. Allow it in your browser settings, then try again.",
+      unavailable: "OM could not find your location. Try again.",
+      card: "Location",
+      accuracy: (m) => `About ${plural(m, "metre", "metres")}`,
+      point: (lat, lon) => `${lat}, ${lon}`,
+    },
+  },
   richText: {
     opensExternally: "(opens a website outside OM)",
     unsupported: "[content this version cannot show]",

@@ -85,6 +85,35 @@ const SPECS: Readonly<Record<string, Spec>> = {
     if (!c || typeof t !== "string" || t.trim() === "" || t.length > MAX_TEXT) return null;
     return { intent: (ctx, op) => ({ kind: "SendMessage", ctx, operationId: op, conversationId: asConversationId(c), draft: { text: t } }) };
   } },
+  "send-attachments": { destructive: false, parse: (p) => {
+    const c = id(p["conversationId"]); const t = p["text"]; const a = p["attachments"];
+    if (!exactly(p, ["conversationId", "text", "attachments"]) || !c || typeof t !== "string" || t.length > MAX_TEXT || !Array.isArray(a) || a.length < 1 || a.length > 8) return null;
+    const items: { blobId: string; voiceNote?: { waveform?: string } }[] = [];
+    for (const x of a as unknown[]) {
+      if (x === null || typeof x !== "object") return null;
+      const o = x as Rec;
+      const blobId = o["blobId"];
+      const voice = o["voiceNote"];
+      if (typeof blobId !== "string" || !/^[0-9a-f]{64}$/.test(blobId)) return null;
+      if (voice === undefined) { items.push({ blobId }); continue; }
+      const wf = voice !== null && typeof voice === "object" ? (voice as Rec)["waveform"] : undefined;
+      if (voice === null || typeof voice !== "object" || (wf !== undefined && (typeof wf !== "string" || !/^([0-9a-f]{2}){16,256}$/.test(wf)))) return null;
+      items.push({ blobId, voiceNote: wf === undefined ? {} : { waveform: wf } });
+    }
+    if (items.filter((i) => i.voiceNote !== undefined).length > 1) return null; // one voice note per message
+    return { intent: (ctx, op) => ({ kind: "SendAttachments", ctx, operationId: op, conversationId: asConversationId(c), draft: { text: t }, attachments: items }) };
+  } },
+  "send-location": { destructive: false, parse: (p) => {
+    const c = id(p["conversationId"]); const lat = p["latE7"]; const lon = p["lonE7"]; const acc = p["accuracyM"];
+    if (!exactly(p, ["conversationId", "latE7", "lonE7", "accuracyM", "label", "note"]) || !c) return null;
+    const inRange = (v: unknown, max: number): v is number => typeof v === "number" && Number.isInteger(v) && Math.abs(v) <= max;
+    if (!inRange(lat, 900_000_000) || !inRange(lon, 1_800_000_000)) return null;
+    if (acc !== undefined && !(typeof acc === "number" && Number.isInteger(acc) && acc >= 1 && acc <= 1_000_000)) return null;
+    const text = (v: unknown): string | undefined | null => (v === undefined ? undefined : typeof v === "string" && v.length <= 256 ? v : null);
+    const label = text(p["label"]); const note = text(p["note"]);
+    if (label === null || note === null) return null;
+    return { intent: (ctx, op) => ({ kind: "SendLocation", ctx, operationId: op, conversationId: asConversationId(c), latE7: lat, lonE7: lon, ...(acc === undefined ? {} : { accuracyM: acc }), ...(label === undefined ? {} : { label }), ...(note === undefined ? {} : { note }) }) };
+  } },
   "retry-message": { destructive: false, parse: (p) => {
     const m = id(p["messageId"]);
     if (m === null) return null;

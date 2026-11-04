@@ -9,6 +9,7 @@ import {
   DeviceNotices, OnboardingFlow, OnboardingFrame, ProfileProvider, RelaySetup, Text, ThemeProvider, UnlockVault, createActionRegistry, createMemoryKeyValue, createProfileScopedState,
   useActiveProfile, useCaptureContext, type ActionRegistry, type HomeSettingsServices, type OnboardingPlatform, type OnboardingResult, type RelaySetupServices,
 } from "@om/ui";
+import type { ComposerCapture } from "@om/ui";
 import { InstallAffordance } from "../install/InstallAffordance";
 import { clearExpectedNewChat, clearPendingInvite, expectNewChat, useExpectedNewChat, usePendingInvite } from "../invite/pendingInvite";
 import { Landing } from "../landing/Landing";
@@ -25,6 +26,7 @@ import { browserPollPace } from "./pollPace";
 import { createProfileRegistry, type ProfileRegistry } from "./registry";
 import { clearPendingSafetyCode, readPendingSafetyCode, savePendingSafetyCode } from "./safetyCode";
 import { Shell, type DraftSync } from "./Shell";
+import { composerCapture } from "./capture";
 import { createBackupServices, type BackupServices } from "./backupServices";
 import { createLockServices, type LockServices } from "./lockServices";
 import { readIdleMinutes, writeIdleMinutes, type IdleMinutes } from "./lockPrefs";
@@ -49,6 +51,7 @@ interface Ready {
   readonly registry: ProfileRegistry;
   readonly drafts: DraftStore;
   readonly platform: OnboardingPlatform;
+  readonly capture: ComposerCapture;
   readonly known: readonly ProfileId[];
 }
 
@@ -73,7 +76,8 @@ export function RealApp({ provider, banner, pollMs, home, relaySetup }: RealAppP
         const drafts = createDraftStore((id) => createEncryptedKv(vault, { indexedDB: env.indexedDB }, id));
         rt = await startCore({ vault, indexedDB: env.indexedDB, provider: provider ?? unavailableProvider, pollMs: pollMs ?? browserPollPace() });
         const known = await registry.list();
-        if (life.live) setBoot({ k: "ready", rt, vault, registry, drafts, platform: createWebPlatform(), known });
+        const platform = createWebPlatform();
+        if (life.live) setBoot({ k: "ready", rt, vault, registry, drafts, platform, capture: composerCapture(platform), known });
         else rt.dispose();
       } catch {
         rt?.dispose();
@@ -91,7 +95,7 @@ export function RealApp({ provider, banner, pollMs, home, relaySetup }: RealAppP
       {boot.k === "no_vault" ? <Notice heading={t.vaultUnavailable.heading} body={t.vaultUnavailable.body} /> : null}
       {boot.k === "failed" ? <Notice heading={t.coreFailed.heading} body={t.coreFailed.body} /> : null}
       {boot.k === "ready" ? (
-        <Profiles rt={boot.rt} vault={boot.vault} registry={boot.registry} drafts={boot.drafts} platform={boot.platform} known={boot.known} connected={provider !== null} {...(home === undefined ? {} : { home })} {...(relaySetup === undefined ? {} : { relaySetup })} />
+        <Profiles rt={boot.rt} vault={boot.vault} registry={boot.registry} drafts={boot.drafts} platform={boot.platform} capture={boot.capture} known={boot.known} connected={provider !== null} {...(home === undefined ? {} : { home })} {...(relaySetup === undefined ? {} : { relaySetup })} />
       ) : null}
       </div>
     </ThemeProvider>
@@ -113,10 +117,10 @@ function Notice({ heading, body }: { readonly heading: string; readonly body: st
   return <main className="om-dev-fail"><Text as="h1">{heading}</Text><Text as="p">{body}</Text></main>;
 }
 
-interface ProfilesProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly drafts: DraftStore; readonly platform: OnboardingPlatform; readonly known: readonly ProfileId[]; readonly connected: boolean; readonly home?: HomeHost; readonly relaySetup?: RelaySetupServices }
+interface ProfilesProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly drafts: DraftStore; readonly platform: OnboardingPlatform; readonly capture: ComposerCapture; readonly known: readonly ProfileId[]; readonly connected: boolean; readonly home?: HomeHost; readonly relaySetup?: RelaySetupServices }
 
 /** Which identities exist, which are unlocked, and which one is being created. */
-function Profiles({ rt, vault, registry, drafts, platform, known: initial, connected, home, relaySetup }: ProfilesProps) {
+function Profiles({ rt, vault, registry, drafts, platform, capture, known: initial, connected, home, relaySetup }: ProfilesProps) {
   const [known, setKnown] = useState<readonly ProfileId[]>(initial);
   const [open, setOpen] = useState<ReadonlySet<ProfileId>>(() => new Set());
   const [pending, setPending] = useState<{ readonly id: ProfileId; readonly ctx: ProfileExecutionContext } | null>(null);
@@ -211,17 +215,17 @@ function Profiles({ rt, vault, registry, drafts, platform, known: initial, conne
   return (
     <ProfileProvider client={rt} contexts={rt} store={store} {...(known[0] === undefined ? {} : { initialProfileId: known[0] })}>
       {connected ? null : <p role="status" className="om-notice-bar">{t.providerStatus.none}</p>}
-      <Connected rt={rt} vault={vault} drafts={drafts} platform={platform} onAddProfile={begin} lockOpen={lockOpen} idle={idle} setIdle={setIdle} {...(boundHome === undefined ? {} : { home: boundHome })} />
+      <Connected rt={rt} vault={vault} drafts={drafts} platform={platform} capture={capture} onAddProfile={begin} lockOpen={lockOpen} idle={idle} setIdle={setIdle} {...(boundHome === undefined ? {} : { home: boundHome })} />
     </ProfileProvider>
   );
 }
 
 interface ConnectedProps {
-  readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly drafts: DraftStore; readonly platform: OnboardingPlatform; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices;
+  readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly drafts: DraftStore; readonly platform: OnboardingPlatform; readonly capture: ComposerCapture; readonly onAddProfile: () => void; readonly home?: HomeSettingsServices;
   readonly lockOpen: () => Promise<void>; readonly idle: IdleMinutes; readonly setIdle: (minutes: IdleMinutes) => void;
 }
 
-function Connected({ rt, vault, drafts, platform, onAddProfile, home, lockOpen, idle, setIdle }: ConnectedProps) {
+function Connected({ rt, vault, drafts, platform, capture: composerTools, onAddProfile, home, lockOpen, idle, setIdle }: ConnectedProps) {
   const registry = useMemo(() => createActionRegistry(), []);
   const active = useActiveProfile();
   const capture = useCaptureContext();
@@ -258,7 +262,7 @@ function Connected({ rt, vault, drafts, platform, onAddProfile, home, lockOpen, 
     <>
     <DeviceNotices services={settingsServices} copy={devicesCopy} />
     <Shell
-      key={activeId} services={settingsServices} onAddProfile={onAddProfile} lock={lock} backup={backup} draftSync={draftSync} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
+      key={activeId} services={settingsServices} capture={composerTools} onAddProfile={onAddProfile} lock={lock} backup={backup} draftSync={draftSync} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
       incoming={{ token, newChatAfter, onAccepted: (known) => { clearPendingInvite(); expectNewChat(known); }, onDeclined: clearPendingInvite, onNewChatOpened: clearExpectedNewChat }}
       {...(pending === null ? {} : { safetyCode: { keyOperationId: pending, platform, onResolved: resolve } })}
     />

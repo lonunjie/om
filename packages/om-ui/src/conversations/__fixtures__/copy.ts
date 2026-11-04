@@ -1,7 +1,7 @@
 import type { RejectReason, SecurityNoticeCode, UserActionCode } from "@om/platform-api";
 import type { ConversationCopy } from "../copy";
 
-const REASONS: readonly RejectReason[] = ["invalid", "unsupported", "unauthorized", "revoked", "expired", "stale_state", "conflict", "policy_denied", "quota", "rate_limited", "integrity_failure", "unavailable", "not_found"];
+const REASONS: readonly RejectReason[] = ["invalid", "unsupported", "unauthorized", "revoked", "expired", "stale_state", "conflict", "policy_denied", "quota", "too_large", "rate_limited", "integrity_failure", "unavailable", "not_found"];
 const NOTICES: readonly SecurityNoticeCode[] = ["safety_number_changed", "device_added", "unverified_contact", "session_reset", "integrity_failure"];
 const ACTIONS: readonly UserActionCode[] = ["authorize_with_device", "confirm_security_change", "reauthenticate", "update_client"];
 const rec = <K extends string>(keys: readonly K[], f: (k: K) => string): Readonly<Record<K, string>> => Object.fromEntries(keys.map((k) => [k, f(k)])) as Record<K, string>;
@@ -21,5 +21,13 @@ export const testCopy: ConversationCopy = {
     blockCancel: "Cancel", blockPrompt: "Block this sender?", pending: "Pending", done: "Done", rejected: rec(REASONS, (r) => `Request rejected: ${r}`), failed: "Request failed",
   },
   notices: rec(NOTICES, (n) => `Notice: ${n}`),
+  attachments: {
+    attach: "Attach a file", recordVoice: "Record a voice note", shareLocation: "Share your location", removeStaged: (n) => `Remove ${n}`, tray: "Ready to send",
+    size: (b) => `${String(b)} bytes`, tooBig: (m) => (m === null ? "This file is too big to send right now." : `This file is too big to send right now. Up to ${String(m)} bytes.`),
+    refusal: (r) => (r.error === "too_large" ? `Too big: ${String(r.max)}` : `Refused: ${r.error}`),
+    file: "File", uploading: "Uploading", keptUntil: (w) => `Kept until ${w}`, download: (n) => `Download ${n}`.trim(), downloading: "Downloading", downloaded: "Download started", formatDay: (ms) => `day${String(ms)}`,
+    voice: { recording: "Recording", elapsed: (ms) => `${String(Math.round(ms / 1000))}s`, stop: "Stop recording", discard: "Discard", note: "Voice note", review: "Listen before you send", play: "Play voice note", loading: "Opening voice note", denied: "Microphone blocked", failed: "Recording failed", nothing: "Nothing recorded", duration: (ms) => `${String(Math.round(ms / 1000))}s` },
+    location: { heading: "Share your location?", asking: "Finding where you are", confirm: "This sends where you are right now, once.", send: "Send location", cancel: "Cancel", denied: "Location blocked", unavailable: "Location unavailable", card: "Location", accuracy: (m) => `About ${String(m)} m`, point: (a, o) => `${a}, ${o}` },
+  },
   richText: { opensExternally: "(opens external site)", unsupported: "[unsupported content]", truncated: "[content truncated]", attachment: "[attachment]", unsafeLink: "[link disabled]" },
 };

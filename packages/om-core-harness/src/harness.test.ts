@@ -177,3 +177,31 @@ describe("onboarding intents", () => {
     for (const c of [...home.observers, ...home.clientOriginChoice]) expect(c).toMatch(/^[a-z_]+$/);
   });
 });
+
+describe("files, voice notes and locations", () => {
+  it("prepare checks the advertised limit, send shows the attachment, open returns the bytes, and another profile cannot use the blob", async () => {
+    const h = createHarness({ clock: () => 1000, attachmentLimits: { maxBlobBytes: 100 } });
+    const a = h.seedProfile({ profileId: A, label: "A", conversations: [{ id: CA, personId: asPersonId("pa"), displayName: "Ann" }] });
+    const b = h.seedProfile({ profileId: B, label: "B", conversations: [{ id: CB, personId: asPersonId("pb"), displayName: "Bo" }] });
+    expect(h.attachments.limits()).toEqual({ maxBlobBytes: 100 });
+    expect(await h.attachments.prepare(a, new Uint8Array(85), { mediaType: "text/plain" })).toEqual({ ok: false, refusal: { error: "too_large", max: 84 } });
+    expect(await h.attachments.prepare(a, new Uint8Array(0), { mediaType: "text/plain" })).toEqual({ ok: false, refusal: { error: "empty" } });
+    const prep = await h.attachments.prepare(a, new Uint8Array([1, 2, 3]), { mediaType: "audio/webm", filename: "n.webm" });
+    if (!prep.ok) throw new Error("refused");
+    const op = (n: string) => asOperationId(n);
+    const foreign = await h.dispatch({ kind: "SendAttachments", ctx: b, operationId: op("x"), conversationId: CB, draft: { text: "" }, attachments: [{ blobId: prep.blobId }] });
+    let seen: OutcomeClass | null = null;
+    h.observe(b, foreign.operationId, (o) => { seen = o; });
+    expect(seen).toEqual({ kind: "Rejected", reason: "not_found" });
+    expect((await h.query({ kind: "GetConversationView", ctx: b, conversationId: CB })).timeline).toHaveLength(0); // not B's blob: rejected, nothing appears
+    await h.dispatch({ kind: "SendAttachments", ctx: a, operationId: op("y"), conversationId: CA, draft: { text: "listen" }, attachments: [{ blobId: prep.blobId, voiceNote: {} }] });
+    await h.dispatch({ kind: "SendLocation", ctx: a, operationId: op("z"), conversationId: CA, latE7: 10_000_000, lonE7: 20_000_000, accuracyM: 5 });
+    const { timeline } = await h.query({ kind: "GetConversationView", ctx: a, conversationId: CA });
+    expect(timeline[0]).toMatchObject({ text: "listen", attachments: [{ index: 0, size: 3, state: "stored_for_later", filename: "n.webm" }], presentation: { voiceNote: { attachmentIndex: 0 } } });
+    expect(timeline[1]?.presentation?.locationCard).toMatchObject({ latE7: 10_000_000, geo: "geo:1.0000000,2.0000000", accuracyM: 5 });
+    const first = timeline[0];
+    if (first === undefined) throw new Error("no message");
+    const opened = await h.attachments.open(a, first.messageId, 0);
+    expect(opened).toMatchObject({ ok: true, mediaType: "audio/webm" });
+  });
+});

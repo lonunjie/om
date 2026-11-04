@@ -83,3 +83,39 @@
 .om-request__unknown { display: block; font-size: var(--om-text-sm-size); color: var(--om-color-text-secondary); }
 .om-request__unverified { display: inline-block; align-self: flex-start; font-size: var(--om-text-sm-size); font-weight: var(--om-weight-bold); color: var(--om-color-warning-fg); background: var(--om-color-warning-bg); border-radius: var(--om-radius-md); padding: 0 var(--om-space-3); }
 .om-pressure { font-size: var(--om-text-sm-size); color: var(--om-color-text-secondary); padding-block: var(--om-space-2); }
+
+/* ---- files, voice notes and location cards (on a message) ---- */
+.om-attachments { display: grid; gap: var(--om-space-2); margin-block-start: var(--om-space-2); }
+.om-attachments:first-child { margin-block-start: 0; }
+.om-file, .om-voice, .om-loc { display: flex; flex-wrap: wrap; align-items: center; gap: var(--om-space-2); box-sizing: border-box; min-inline-size: 0; padding: var(--om-space-2); border: 1px solid var(--om-hairline); border-radius: var(--om-radius-md); background: var(--om-color-bg-surface); color: var(--om-color-text-primary); }
+.om-file__icon, .om-loc__icon { flex: none; display: inline-grid; place-items: center; color: var(--om-color-text-secondary); }
+.om-file__meta, .om-loc__meta { flex: 1 1 8rem; min-inline-size: 0; display: grid; gap: 2px; }
+.om-file__name, .om-loc__label { overflow-wrap: anywhere; font-weight: var(--om-weight-medium); }
+.om-file__detail, .om-loc__point, .om-loc__accuracy, .om-voice__detail, .om-voice__time { font-size: var(--om-text-sm-size); line-height: var(--om-text-sm-line); color: var(--om-color-text-secondary); }
+.om-file__action { flex: none; }
+.om-file__note { flex-basis: 100%; font-size: var(--om-text-sm-size); color: var(--om-color-text-secondary); }
+.om-file__note:empty { display: none; }
+.om-voice { flex-direction: column; align-items: stretch; }
+.om-voice__head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--om-space-2); }
+.om-voice__label { font-weight: var(--om-weight-medium); }
+.om-voice__wave { display: flex; align-items: center; gap: 2px; block-size: 1.75rem; }
+.om-voice__wave > span { flex: 1 1 0; min-inline-size: 2px; max-inline-size: 4px; border-radius: 2px; background: var(--om-color-text-muted); }
+.om-voice__audio, .om-staged__audio { inline-size: 100%; min-inline-size: 0; max-inline-size: 18rem; }
+
+/* ---- the tray, recording bar and location confirm (in the composer) ---- */
+.om-composer__tools { flex-basis: 100%; display: flex; gap: var(--om-space-1); }
+.om-staged { flex-basis: 100%; display: grid; gap: var(--om-space-2); margin: 0; padding: 0; list-style: none; }
+.om-staged__item { display: flex; align-items: center; flex-wrap: wrap; gap: var(--om-space-2); padding: var(--om-space-1) var(--om-space-2); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-md); background: var(--om-color-bg-surface); }
+.om-staged__meta { flex: 1 1 8rem; min-inline-size: 0; display: grid; }
+.om-staged__name { overflow-wrap: anywhere; font-weight: var(--om-weight-medium); }
+.om-staged__size { font-size: var(--om-text-sm-size); color: var(--om-color-text-secondary); }
+.om-recording, .om-location-confirm { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: var(--om-space-2); box-sizing: border-box; padding: var(--om-space-3); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-md); background: var(--om-color-bg-surface); }
+.om-recording__dot { flex: none; inline-size: 0.75rem; block-size: 0.75rem; border-radius: 50%; background: var(--om-color-danger-fg); animation: om-pulse 1.2s ease-in-out infinite; }
+.om-recording__label { font-weight: var(--om-weight-bold); }
+.om-recording__time { margin-inline-end: auto; font-variant-numeric: tabular-nums; color: var(--om-color-text-secondary); }
+.om-location-confirm { flex-direction: column; align-items: stretch; }
+.om-location-confirm > p { margin: 0; }
+.om-location-confirm__heading { font-weight: var(--om-weight-bold); }
+.om-location-confirm__point { font-variant-numeric: tabular-nums; }
+.om-location-confirm__actions { display: flex; flex-wrap: wrap; gap: var(--om-space-2); }
+.om-location-confirm:focus-visible { outline: 3px solid var(--om-color-focus-ring); outline-offset: 2px; }

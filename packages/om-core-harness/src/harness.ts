@@ -3,6 +3,7 @@ import {
   asMessageId, confirmationTarget, parseInviteLink, asProfileGeneration, captureProfileContext, isProfileExecutionContext, isTerminalOutcome,
 } from "@om/platform-api";
 import type {
+  AttachmentApi, AttachmentLimits, AttachmentView, LocationCardView, PresentationView,
   ConversationId, ConversationSummary, ConversationTimelineItem, ConversationView, CoreClient, CoreIntent, CoreQuery,
   DeliveryState, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, MessageId, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   PersonId, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, TerminalOutcome, Unsubscribe, UserActionCode,
@@ -30,7 +31,17 @@ export interface SeedConversation {
   readonly id: ConversationId;
   readonly personId: PersonId;
   readonly displayName: string;
-  readonly messages?: readonly { readonly text: string; readonly direction: "incoming" | "outgoing" }[];
+  readonly messages?: readonly SeedMessage[];
+}
+/** A seeded attachment: `bytes` stay in the harness's blob map so `attachments.open` can return them; the view shows `state: "remote"` for incoming and `stored_for_later` for outgoing. */
+export interface SeedAttachment { readonly filename?: string; readonly mediaType: string; readonly bytes: Uint8Array; readonly durationMs?: number }
+export interface SeedMessage {
+  readonly text: string;
+  readonly direction: "incoming" | "outgoing";
+  readonly attachments?: readonly SeedAttachment[];
+  /** Index into `attachments` of the voice note. */
+  readonly voiceNote?: number;
+  readonly locationCard?: Omit<LocationCardView, "geo">;
 }
 export interface SeedProfile {
   readonly profileId: ProfileId;
@@ -46,6 +57,8 @@ export interface SeedProfile {
 
 export interface Harness extends CoreClient {
   readonly marker: typeof HARNESS_MARKER;
+  /** Always present here: a pretend delivery service that holds plaintext in memory (limits come from `HarnessOptions.attachmentLimits`). */
+  readonly attachments: AttachmentApi;
   /** Registers a profile (generation fixed at seed) and returns its captured context. */
   seedProfile(seed: SeedProfile): ProfileExecutionContext;
   /** Fresh context for a seeded profile at its current generation (what a restarted UI would capture). */
@@ -68,7 +81,12 @@ export interface Harness extends CoreClient {
   simulateNewDeviceRequest(link: string, label: string): boolean;
 }
 
-export interface HarnessOptions { readonly clock?: () => number; readonly env?: HarnessEnv | undefined }
+export interface HarnessOptions {
+  readonly clock?: () => number;
+  readonly env?: HarnessEnv | undefined;
+  /** What the pretend delivery service accepts for files (default 4 MiB per file; `null`: it holds no files). */
+  readonly attachmentLimits?: AttachmentLimits | null;
+}
 
 interface MutableMessage {
   messageId: MessageId;
@@ -77,6 +95,8 @@ interface MutableMessage {
   text: string;
   sentAt: number;
   delivery: DeliveryState;
+  attachments?: AttachmentView[];
+  presentation?: PresentationView;
 }
 interface ConversationState { id: ConversationId; personId: PersonId; displayName: string; messages: MutableMessage[] }
 interface ProfileState {
@@ -129,6 +149,12 @@ export function createHarness(options: HarnessOptions = {}): Harness {
   const armedTimeouts = new Set<OperationId>();
   const armedUserActions = new Map<OperationId, UserActionCode>();
   const sim = createDeviceSim(clock);
+  const limits: AttachmentLimits | null = "attachmentLimits" in options ? (options.attachmentLimits ?? null) : { maxBlobBytes: 4 * 1024 * 1024 };
+  /** Pretend blob store: plaintext by blobId. Like a real one it holds each file once for every message that names it. */
+  const blobs = new Map<string, { readonly bytes: Uint8Array; readonly mediaType: string; readonly filename: string | undefined; readonly owner: ProfileId }>();
+  let blobSeq = 0;
+  const newBlobId = (): string => (++blobSeq).toString(16).padStart(64, "0");
+  const geoToken = (latE7: number, lonE7: number): string => `geo:${(latE7 / 1e7).toFixed(7)},${(lonE7 / 1e7).toFixed(7)}`;
   let observers = new Map<OperationId, Set<(o: OutcomeClass) => void>>();
   let subscribers = new Set<{ readonly selector: CoreQuery; readonly listener: (r: never) => void }>();
   let messageSeq = 0;
@@ -155,9 +181,10 @@ export function createHarness(options: HarnessOptions = {}): Harness {
   const handleOf = (rec: OpRecord): OperationHandle => ({ operationId: rec.operationId, profileId: rec.profileId });
 
   function view(m: MutableMessage): ConversationTimelineItem {
+    const extras = { ...(m.attachments ? { attachments: m.attachments } : {}), ...(m.presentation ? { presentation: m.presentation } : {}) };
     return m.direction === "outgoing" && m.operationId !== null
-      ? { direction: "outgoing", messageId: m.messageId, operationId: m.operationId, text: m.text, sentAt: m.sentAt, delivery: m.delivery }
-      : { direction: "incoming", messageId: m.messageId, text: m.text, sentAt: m.sentAt };
+      ? { direction: "outgoing", messageId: m.messageId, operationId: m.operationId, text: m.text, sentAt: m.sentAt, delivery: m.delivery, ...extras }
+      : { direction: "incoming", messageId: m.messageId, text: m.text, sentAt: m.sentAt, ...extras };
   }
   function summary(c: ConversationState): ConversationSummary {
     return { id: c.id, personId: c.personId, displayName: c.displayName, lastMessageAt: c.messages.at(-1)?.sentAt ?? null, notices: [], relationship: "active" };
@@ -301,6 +328,36 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         messageOwner.set(messageId, intent.ctx.profileId);
         return record(intent, armed ? { kind: "PendingReconciliation" } : { kind: "Committed" }, messageId);
       }
+      case "SendAttachments": {
+        const conv = conversationFor(intent.ctx, st, intent.conversationId);
+        if (!conv) return rejected("not_found");
+        const found = intent.attachments.map((a) => ({ a, blob: blobs.get(a.blobId) }));
+        if (found.some((f) => f.blob === undefined || f.blob.owner !== intent.ctx.profileId)) return rejected("not_found");
+        const messageId = asMessageId(`msg-${String(++messageSeq)}`);
+        const attachments = found.map(({ a, blob }, index): AttachmentView => ({
+          index, blobId: a.blobId, mediaType: blob?.mediaType ?? "application/octet-stream", size: blob?.bytes.length ?? 0, state: "stored_for_later",
+          storedUntil: clock() + 7 * 24 * 60 * 60 * 1000, ...(blob?.filename === undefined ? {} : { filename: blob.filename }),
+        }));
+        const voice = found.findIndex((f) => f.a.voiceNote !== undefined);
+        conv.messages.push({
+          messageId, operationId: intent.operationId, direction: "outgoing", text: intent.draft.text, sentAt: clock(), delivery: { state: "sent" }, attachments,
+          ...(voice < 0 ? {} : { presentation: { voiceNote: { attachmentIndex: voice } } }),
+        });
+        messageOwner.set(messageId, intent.ctx.profileId);
+        return record(intent, { kind: "Committed" }, messageId);
+      }
+      case "SendLocation": {
+        const conv = conversationFor(intent.ctx, st, intent.conversationId);
+        if (!conv) return rejected("not_found");
+        const messageId = asMessageId(`msg-${String(++messageSeq)}`);
+        const geo = geoToken(intent.latE7, intent.lonE7);
+        conv.messages.push({
+          messageId, operationId: intent.operationId, direction: "outgoing", text: intent.note ?? geo, sentAt: clock(), delivery: { state: "sent" },
+          presentation: { locationCard: { latE7: intent.latE7, lonE7: intent.lonE7, geo, ...(intent.accuracyM === undefined ? {} : { accuracyM: intent.accuracyM }), ...(intent.label === undefined ? {} : { label: intent.label }) } },
+        });
+        messageOwner.set(messageId, intent.ctx.profileId);
+        return record(intent, { kind: "Committed" }, messageId);
+      }
       case "RetryDelivery": {
         const owner = messageOwner.get(intent.messageId);
         if (owner !== undefined && owner !== intent.ctx.profileId) throw new ProfileAccessError("message belongs to another profile");
@@ -361,8 +418,29 @@ export function createHarness(options: HarnessOptions = {}): Harness {
     }
   }
 
+  const attachmentApi: AttachmentApi = {
+    limits: () => limits,
+    prepare: (ctx, bytes, meta) => settle(() => {
+      stateFor(ctx);
+      if (limits === null) return { ok: false, refusal: { error: "no_blob_store" } };
+      if (bytes.length === 0) return { ok: false, refusal: { error: "empty" } };
+      if (bytes.length + 16 > limits.maxBlobBytes) return { ok: false, refusal: { error: "too_large", max: limits.maxBlobBytes - 16 } };
+      const blobId = newBlobId();
+      blobs.set(blobId, { bytes: bytes.slice(), mediaType: meta.mediaType, filename: meta.filename, owner: ctx.profileId });
+      return { ok: true, blobId };
+    }),
+    open: (ctx, messageId, index) => settle(() => {
+      stateFor(ctx);
+      const att = [...stateFor(ctx).conversations.values()].flatMap((c) => c.messages).find((m) => m.messageId === messageId)?.attachments?.[index];
+      const blob = att === undefined ? undefined : blobs.get(att.blobId);
+      if (blob === undefined) return { ok: false, refusal: { error: "not_found" } };
+      return { ok: true, bytes: blob.bytes.slice(), mediaType: blob.mediaType, ...(blob.filename === undefined ? {} : { filename: blob.filename }) };
+    }),
+  };
+
   return {
     marker: HARNESS_MARKER,
+    attachments: attachmentApi,
 
     seedProfile(seed) {
       if (profiles.has(seed.profileId)) throw new HarnessError("profile already seeded");
@@ -379,7 +457,24 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         const messages: MutableMessage[] = (c.messages ?? []).map((m) => {
           const messageId = asMessageId(`msg-${String(++messageSeq)}`);
           messageOwner.set(messageId, seed.profileId);
-          return { messageId, operationId: null, direction: m.direction, text: m.text, sentAt: clock(), delivery: { state: "delivered" } };
+          const msg: MutableMessage = { messageId, operationId: null, direction: m.direction, text: m.text, sentAt: clock(), delivery: { state: "delivered" } };
+          if (m.attachments !== undefined) {
+            msg.attachments = m.attachments.map((a, index): AttachmentView => {
+              const blobId = newBlobId();
+              blobs.set(blobId, { bytes: a.bytes, mediaType: a.mediaType, filename: a.filename, owner: seed.profileId });
+              return {
+                index, blobId, mediaType: a.mediaType, size: a.bytes.length, state: m.direction === "incoming" ? "remote" : "stored_for_later",
+                ...(a.filename === undefined ? {} : { filename: a.filename }), ...(a.durationMs === undefined ? {} : { durationMs: a.durationMs }),
+              };
+            });
+          }
+          if (m.voiceNote !== undefined || m.locationCard !== undefined) {
+            msg.presentation = {
+              ...(m.voiceNote === undefined ? {} : { voiceNote: { attachmentIndex: m.voiceNote } }),
+              ...(m.locationCard === undefined ? {} : { locationCard: { ...m.locationCard, geo: geoToken(m.locationCard.latE7, m.locationCard.lonE7) } }),
+            };
+          }
+          return msg;
         });
         st.conversations.set(c.id, { id: c.id, personId: c.personId, displayName: c.displayName, messages });
       }

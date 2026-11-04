@@ -23,7 +23,9 @@ describe("Action Registry", () => {
 
   it("every intent-producing action emits a known CoreIntent kind", () => {
     const samples: Record<string, unknown> = {
-      "send-message": { conversationId: "c1", text: "x" }, "retry-message": { messageId: "m1" }, "switch-profile": { profileId: "p2" },
+      "send-message": { conversationId: "c1", text: "x" },
+      "send-attachments": { conversationId: "c1", text: "", attachments: [{ blobId: "a".repeat(64) }] },
+      "send-location": { conversationId: "c1", latE7: 515_000_000, lonE7: -1_000_000 }, "retry-message": { messageId: "m1" }, "switch-profile": { profileId: "p2" },
       "accept-introduction": { requestId: "r1" }, "share-contact": { personId: "u1", scope: "full" }, "clear-adaptive-navigation": {},
       "open-omnibar-result": { resultId: "x1" }, "create-profile": { label: "Me" }, "confirm-recovery-key-stored": { keyOperationId: "op-9" },
       "create-invite": {}, "accept-invitation": { link: "om:invite/AAAAAAAAAAAAAAAAAAAAAA" },
@@ -44,6 +46,30 @@ describe("Action Registry", () => {
     }
     expect(registry.resolve({ actionId: "create-profile", params: { label: " " }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
     expect(registry.resolve({ actionId: "confirm-recovery-key-stored", params: {}, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+  });
+
+  it("send-attachments and send-location are strict: anything off the shape synthesizes no intent", () => {
+    const blobId = "ab".repeat(32);
+    const ok = intentOf(registry.resolve({ actionId: "send-attachments", params: { conversationId: "c1", text: "see", attachments: [{ blobId }, { blobId: "cd".repeat(32), voiceNote: {} }] }, ctx, origin: "direct" }));
+    expect(ok).toMatchObject({ kind: "SendAttachments", draft: { text: "see" }, attachments: [{ blobId }, { voiceNote: {} }] });
+    const bad: unknown[] = [
+      { conversationId: "c1", text: "", attachments: [] },
+      { conversationId: "c1", text: "", attachments: Array.from({ length: 9 }, () => ({ blobId })) },
+      { conversationId: "c1", text: "", attachments: [{ blobId: "short" }] },
+      { conversationId: "c1", text: "", attachments: [{ blobId: blobId.toUpperCase() }] },
+      { conversationId: "c1", text: "", attachments: [{ blobId, extra: 1 }].map((x) => ({ blobId: x.blobId, voiceNote: 7 })) },
+      { conversationId: "c1", text: "", attachments: [{ blobId, voiceNote: {} }, { blobId, voiceNote: {} }] },
+      { conversationId: "c1", text: "", attachments: [{ blobId }], extra: true },
+      { conversationId: "c1", attachments: [{ blobId }] },
+      { conversationId: "../x", text: "", attachments: [{ blobId }] },
+    ];
+    for (const params of bad) expect(registry.resolve({ actionId: "send-attachments", params, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    const loc = intentOf(registry.resolve({ actionId: "send-location", params: { conversationId: "c1", latE7: 10, lonE7: 20, accuracyM: 12, label: "Here" }, ctx, origin: "direct" }));
+    expect(loc).toMatchObject({ kind: "SendLocation", latE7: 10, lonE7: 20, accuracyM: 12, label: "Here" });
+    for (const params of [
+      { conversationId: "c1", latE7: 900_000_001, lonE7: 0 }, { conversationId: "c1", latE7: 0, lonE7: 1_800_000_001 }, { conversationId: "c1", latE7: 1.5, lonE7: 0 },
+      { conversationId: "c1", latE7: 0, lonE7: 0, accuracyM: 0 }, { conversationId: "c1", latE7: 0, lonE7: 0, label: "x".repeat(257) }, { conversationId: "c1", latE7: 0, lonE7: 0, live: true },
+    ]) expect(registry.resolve({ actionId: "send-location", params, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
   });
 
   it("open-conversation is presentation plus a read-only query, no intent", () => {

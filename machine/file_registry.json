@@ -816,6 +816,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/src/core/capture.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/src/core/draftStore.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8880,6 +8887,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/conversations/Attachments.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/conversations/Avatar.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8923,6 +8937,13 @@
     },
     {
       "path": "packages/om-ui/src/conversations/__fixtures__/copy.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/conversations/attachments.test.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

@@ -7,6 +7,7 @@ import {
   type IconName, type OmniEntry, useConversationDigests,
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
+import type { ComposerCapture, StagedItem } from "@om/ui";
 import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
@@ -37,8 +38,12 @@ export interface DraftSync {
   readonly saveSeen?: (conversationId: ConversationId, at: number) => void;
 }
 
+const NO_STAGED: readonly StagedItem[] = [];
+
 export interface ShellProps {
   readonly services: ConversationServices;
+  /** What this device can attach or record. Each control is offered only where it exists. */
+  readonly capture?: ComposerCapture;
   /** Extra content under the Devices screen (dev harness only). */
   readonly devicesExtra?: ReactNode;
   /** Offers "Add identity" next to the profile switcher when provided. */
@@ -66,12 +71,14 @@ export interface ShellProps {
   };
 }
 
-export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup, draftSync, safetyCode, invite, incoming }: ShellProps) {
+export function Shell({ services, capture, devicesExtra, onAddProfile, home, lock, backup, draftSync, safetyCode, invite, incoming }: ShellProps) {
   const inviteScan = useQrScanner(scannerCopy);
   const { place, raw, go, back } = usePlace();
   const me = useActiveProfile();
   const mode = useLayoutMode();
   const [drafts, setDrafts] = useState<ReadonlyMap<ConversationId, string>>(() => new Map());
+  // Files and voice notes waiting to be sent. Memory only: they survive switching chats but never reach disk, and locking or switching identity drops them.
+  const [staged, setStaged] = useState<ReadonlyMap<ConversationId, readonly StagedItem[]>>(() => new Map());
   // Drafts saved on an earlier visit (or before a lock) come back; anything typed since this screen opened wins.
   useEffect(() => {
     if (draftSync === undefined) return;
@@ -361,6 +368,8 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
           <Composer
             key={selected} services={services} conversationId={selected} copy={conversationCopy} draft={drafts.get(selected) ?? ""}
             onDraftChange={(next) => { setDrafts((d) => new Map(d).set(selected, next)); draftSync?.save(selected, next); }}
+            {...(capture === undefined ? {} : { capture })} staged={staged.get(selected) ?? NO_STAGED}
+            onStagedChange={(next) => { setStaged((m) => new Map(m).set(selected, next)); }}
             trailing={<OmnibarTrigger variant="icon" copy={omnibarCopy} onOpen={openOmni} />}
           />
         )}
