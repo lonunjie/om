@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { parseInviteLink, type ConversationId, type IntroductionRequest, type OperationId } from "@om/platform-api";
 import {
-  AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode,
+  AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
   type IconName, type OmniEntry, useConversationDigests,
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
@@ -244,13 +244,22 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
     if (invite === undefined || !parseInviteLink(query).ok) return [];
     return [{ id: "use-link", kind: "action", label: t.omniActions.useLink, keywords: t.omniKeywords.useLink, run: () => { openNew("share", query.trim()); } }];
   }, [invite, openNew]);
+  // Search over what this device has already decrypted: built after unlock, in memory only, gone on lock or identity switch.
+  const localSearch = useLocalSearch(services);
+  // The search function is pinned while the Omnibar is open, so a message arriving meanwhile cannot move a result under the person's finger (NV-06).
+  const searchWhileOpen = useRef(localSearch.search);
+  if (!omniOpen) searchWhileOpen.current = localSearch.search;
+  const omniFound = useCallback((query: string): readonly OmniEntry[] => searchWhileOpen.current(query).map((hit, i): OmniEntry => ({
+    id: `found-${String(i)}`, kind: hit.kind, label: hit.snippet, detail: hit.displayName,
+    run: () => { go({ kind: "chats", chat: hit.conversationId }); },
+  })), [go]);
   const openOmni = (): void => { setOmniOpen(true); };
   const trigger = <OmnibarTrigger copy={omnibarCopy} shortcut={shortcut} onOpen={openOmni} />;
   const common = {
     destinations: [{ id: "chats", label: t.chats, icon: <Icon name="chat" size={20} /> }], activeDestination: settings === null && !savingCode ? "chats" : "",
     onDestinationChange: () => { if (place.kind !== "chats" || place.chat !== null) toChatsRoot(); }, labels: shellLabels, profileControl,
     omnibarTrigger: trigger,
-    omnibar: omniOpen ? <Omnibar entries={omniEntries} dynamic={omniDynamic} copy={omnibarCopy} onClose={() => { setOmniOpen(false); }} /> : undefined,
+    omnibar: omniOpen ? <Omnibar entries={omniEntries} dynamic={omniDynamic} found={omniFound} copy={omnibarCopy} onClose={() => { setOmniOpen(false); }} /> : undefined,
   } as const;
   // Starting a conversation is an action within Chats, so it is a sheet over the place, not another place (COMPONENT_BEHAVIOR_AND_STATES.md s8).
   const newChatSheet = newChat !== null && invite !== undefined ? (

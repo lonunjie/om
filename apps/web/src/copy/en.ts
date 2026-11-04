@@ -617,7 +617,7 @@ export const omnibarCopy: OmnibarCopy = {
   close: "Close Omnibar",
   results: "Results",
   suggested: "Suggested",
-  kinds: { conversation: "Chat", action: "Action", setting: "Setting" },
+  kinds: { conversation: "Chat", action: "Action", setting: "Setting", message: "Message", file: "File" },
   none: (query) => `Nothing matches “${query}”.`,
   count: (n) => (n === 0 ? "No results" : n === 1 ? "1 result" : `${String(n)} results`),
 };

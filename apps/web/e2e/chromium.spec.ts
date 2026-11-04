@@ -69,12 +69,14 @@ test.describe("service worker on the dev-signed production bundle", () => {
     await context.setOffline(false);
   });
 
-  test("security headers: strict CSP, Trusted Types, camera allowed for self only", async ({ request }) => {
+  test("security headers: strict CSP, Trusted Types, camera, microphone and location allowed for self only (each still needs the person's own permission)", async ({ request }) => {
     const res = await request.get(BUNDLE_URL + "/");
     const csp = res.headers()["content-security-policy"] ?? "";
     expect(csp).toContain("default-src 'none'");
     expect(csp).toContain("require-trusted-types-for 'script'");
     expect(res.headers()["permissions-policy"]).toContain("camera=(self)");
-    expect(res.headers()["permissions-policy"]).toContain("microphone=()");
+    expect(res.headers()["permissions-policy"]).toContain("microphone=(self)");
+    expect(res.headers()["permissions-policy"]).toContain("geolocation=(self)");
+    expect(res.headers()["permissions-policy"]).toContain("payment=()");
   });
 });

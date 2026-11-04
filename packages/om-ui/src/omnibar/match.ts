@@ -1,4 +1,4 @@
-export type OmniKind = "conversation" | "action" | "setting";
+export type OmniKind = "conversation" | "action" | "setting" | "message" | "file";
 
 /** One thing the Omnibar can open or do. The host builds these from local state; nothing here touches a network. */
 export interface OmniEntry {
@@ -15,7 +15,8 @@ export interface OmniEntry {
   readonly run: () => void;
 }
 
-const norm = (s: string): string => s.normalize("NFKD").replace(/\p{M}+/gu, "").toLowerCase();
+/** Case, accents and compatibility forms folded away, so "cafe" finds "Café". Shared by every local match. */
+export const norm = (s: string): string => s.normalize("NFKD").replace(/\p{M}+/gu, "").toLowerCase();
 
 /** Lower is better; null does not match. Exact, then prefix, then word prefix, then anywhere; every typed word must match. */
 export function scoreEntry(entry: OmniEntry, query: string): number | null {
@@ -35,7 +36,7 @@ export function scoreEntry(entry: OmniEntry, query: string): number | null {
   return total;
 }
 
-const KIND_ORDER: Readonly<Record<OmniKind, number>> = { conversation: 0, action: 1, setting: 2 };
+const KIND_ORDER: Readonly<Record<OmniKind, number>> = { conversation: 0, action: 1, setting: 2, message: 3, file: 3 };
 
 /**
  * Deterministic and local: what was typed decides first (a better match always wins), then a known conversation before an action before a

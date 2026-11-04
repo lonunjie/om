@@ -13,7 +13,7 @@ afterEach(cleanup);
 
 const copy: OmnibarCopy = {
   name: "Omnibar", triggerText: "Find or do…", openAction: "Open Omnibar", placeholder: "Find or do…", close: "Close Omnibar", results: "Results", suggested: "Suggested",
-  kinds: { conversation: "Chat", action: "Action", setting: "Setting" }, none: (q) => `Nothing matches ${q}`, count: (n) => `${String(n)} results`,
+  kinds: { conversation: "Chat", action: "Action", setting: "Setting", message: "Message", file: "File" }, none: (q) => `Nothing matches ${q}`, count: (n) => `${String(n)} results`,
 };
 const entry = (id: string, kind: OmniEntry["kind"], label: string, run: () => void = () => undefined, extra: Partial<OmniEntry> = {}): OmniEntry => ({ id, kind, label, run, ...extra });
 
@@ -158,3 +158,37 @@ describe("Sheet", () => {
     expect(document.activeElement).toBe(opener);
   });
 });
+
+describe("Omnibar local search hits", () => {
+  it("come after the fixed results (a typed name still lands on the chat first), are announced, and open on Enter or click", async () => {
+    const opened: string[] = [];
+    const found = (q: string): readonly OmniEntry[] => (q.trim() === "" ? [] : [
+      entry("f0", "message", "we met at the Sam café", () => { opened.push("f0"); }, { detail: "Sam" }),
+      entry("f1", "file", "sam-lease.pdf", () => { opened.push("f1"); }, { detail: "Sam" }),
+    ]);
+    render(<Host2 entries={[entry("c1", "conversation", "Sam", () => { opened.push("c1"); }, { suggested: true })]} found={found} />);
+    await userEvent.click(screen.getByRole("button", { name: /Omnibar/ }));
+    expect(screen.queryByText("we met at the Sam café")).toBeNull(); // nothing is searched before something is typed
+    await userEvent.type(screen.getByRole("combobox", { name: "Omnibar" }), "sam");
+    const options = screen.getAllByRole("option").map((o) => o.textContent);
+    expect(options).toEqual(["SamChat", "we met at the Sam caféSamMessage", "sam-lease.pdfSamFile"]);
+    expect(screen.getByRole("status").textContent).toBe("3 results");
+    expect(await axeResult(document.body)).toEqual([]);
+    await userEvent.keyboard("{Enter}");
+    expect(opened).toEqual(["c1"]);
+  });
+});
+
+function Host2({ entries, found }: { readonly entries: readonly OmniEntry[]; readonly found: (q: string) => readonly OmniEntry[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <OmnibarTrigger copy={copy} onOpen={() => { setOpen(true); }} />
+      {open ? <Omnibar entries={entries} found={found} copy={copy} onClose={() => { setOpen(false); }} /> : null}
+    </>
+  );
+}
+const axeResult = async (el: Element): Promise<string[]> => {
+  const r = await axe.run(el, { rules: { "color-contrast": { enabled: false }, region: { enabled: false } } });
+  return r.violations.map((v) => `${v.id}: ${v.help}`);
+};

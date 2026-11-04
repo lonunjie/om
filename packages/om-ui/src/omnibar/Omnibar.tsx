@@ -34,6 +34,11 @@ export interface OmnibarProps {
   readonly entries: readonly OmniEntry[];
   /** Results for what was typed that are not in the fixed list, for example a pasted invitation link. Computed on the device; they come first because they are explicit intent. */
   readonly dynamic?: (query: string) => readonly OmniEntry[];
+  /**
+   * Hits from the local search index (messages and file names), shown after the fixed results so a typed contact name still lands on the chat first.
+   * Computed on the device from memory only; it must be synchronous so a late arrival cannot move a result under the person's finger.
+   */
+  readonly found?: (query: string) => readonly OmniEntry[];
   readonly copy: OmnibarCopy;
   /** Called when the Omnibar should go away. The host stops rendering it. */
   readonly onClose: () => void;
@@ -44,7 +49,7 @@ export interface OmnibarProps {
  * local and deterministic: nothing typed here leaves the device, results are known before the first key, and the armed result never
  * moves under the person. On a compact screen it takes the lower zone from the composer; wide, it opens under the top bar.
  */
-export function Omnibar({ entries, dynamic, copy, onClose }: OmnibarProps) {
+export function Omnibar({ entries, dynamic, found, copy, onClose }: OmnibarProps) {
   const base = useId();
   const [query, setQuery] = useState("");
   const [armedId, setArmedId] = useState<string | null>(null);
@@ -52,7 +57,7 @@ export function Omnibar({ entries, dynamic, copy, onClose }: OmnibarProps) {
   const opener = useRef<Element | null>(typeof document === "undefined" ? null : document.activeElement);
   const restore = useRef(false);
 
-  const results = useMemo(() => [...(dynamic?.(query) ?? []), ...rankEntries(entries, query)], [entries, dynamic, query]);
+  const results = useMemo(() => [...(dynamic?.(query) ?? []), ...rankEntries(entries, query), ...(query.trim() === "" ? [] : (found?.(query) ?? []))], [entries, dynamic, found, query]);
   const armed = results.find((r) => r.id === armedId) ?? results[0];
   const optionId = (id: string): string => `${base}-${id}`;
 

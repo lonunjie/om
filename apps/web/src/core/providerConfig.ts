@@ -210,7 +210,7 @@ export async function resolveProviderConfig(env: ProviderEnv): Promise<ProviderC
  * is on screen: it opens when the page becomes visible and closes when it is hidden, where the slow poll takes over.
  */
 export function createHttpProviderFor(env: ProviderEnv, config: ProviderConfig, admission?: Uint8Array): HttpProvider {
-  const provider = createHttpProvider({ config, secrets: createIndexedDbSecretStore(env.indexedDB), ...(env.fetch === undefined ? {} : { fetch: env.fetch }), ...(admission === undefined ? {} : { admission }) });
+  const provider = createHttpProvider({ config, secrets: createIndexedDbSecretStore(env.indexedDB), ...(env.allowLoopbackHttp === true ? { allowLoopbackHttp: true } : {}), ...(env.fetch === undefined ? {} : { fetch: env.fetch }), ...(admission === undefined ? {} : { admission }) });
   if (typeof document === "undefined") return provider;
   const sync = (): void => { provider.setWakeActive(document.visibilityState === "visible"); };
   document.addEventListener("visibilitychange", sync);

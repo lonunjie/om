@@ -16,6 +16,10 @@ export interface OmnibarCopy {
     readonly conversation: string;
     readonly action: string;
     readonly setting: string;
+    /** A line found inside a conversation (local search). */
+    readonly message: string;
+    /** A file name found in a conversation (local search). */
+    readonly file: string;
   };
   readonly none: (query: string) => string;
   /** Said once when the results change, for assistive technology. */
