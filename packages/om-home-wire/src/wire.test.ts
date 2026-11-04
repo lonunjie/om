@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  CborError, HOME_ERROR_CODES, HomeError, decode, decodeAckRequest, decodeDepositRequest, decodeDrainResponse, decodeHomeError, decodeRelayEntry, decodeTicketParams, encode, encodeAckRequest,
+  BLOB_CIPHERTEXT_LABEL, CborError, HOME_ERROR_CODES, blobCiphertextDigest, blobLocator, blobLocatorPattern, blobMatches, decodeBlobPutRequest, decodeBlobPutResponse, encodeBlobDigestHeader, encodeBlobPutRequest, encodeBlobPutResponse, newBlobCap, parseBlobDigestHeader, HomeError, decode, decodeAckRequest, decodeDepositRequest, decodeDrainResponse, decodeHomeError, decodeRelayEntry, decodeTicketParams, encode, encodeAckRequest,
   decodeWakeAuth, decodeWakeEvent, encodeWakeAuth, encodeWakeEvent, parseWakeProtocols, wakeLabel,
   encodeDepositRequest, encodeDrainResponse, encodeHomeError, encodeRelayEntry, encodeTicketParams, fromHex, isRetryable, map, parseDeposit, routeBinding, toHex, type HomeErrorName,
 } from "./index";
@@ -142,5 +142,49 @@ describe("wake channel (om.relay.wake.v1)", () => {
     for (const bad of [null, "", "om.relay.wake.v1", wakeLabel(q), `om.relay.wake.v1, ${wakeLabel(q)}, ${wakeLabel(q)}`, "om.relay.wake.v1, om.q.xyz", `om.relay.wake.v1, om.q.${"0".repeat(64)}`]) {
       expect(parseWakeProtocols(bad), String(bad)).toBeUndefined();
     }
+  });
+});
+
+describe("blob spool bodies (feature om.blob.spool.v1)", () => {
+  it("the digest is SHA-256 over the canonical CBOR array [label, body] (DS-HASH), for every length class", async () => {
+    const { createHash } = await import("node:crypto");
+    for (const n of [1, 23, 24, 255, 256, 65535, 65536, 70000]) {
+      const body = new Uint8Array(n).map((_, i) => (i * 7 + n) & 255);
+      const viaCbor = new Uint8Array(createHash("sha256").update(encode([BLOB_CIPHERTEXT_LABEL, body])).digest());
+      expect(toHex(await blobCiphertextDigest(body)), `length ${String(n)}`).toBe(toHex(viaCbor));
+    }
+    expect(await blobMatches(new Uint8Array([1, 2, 3]), await blobCiphertextDigest(new Uint8Array([1, 2, 3])))).toBe(true);
+    expect(await blobMatches(new Uint8Array([1, 2, 3]), await blobCiphertextDigest(new Uint8Array([1, 2, 4])))).toBe(false);
+  });
+
+  it("the registered label is the one in the domain-separation registry", () => {
+    const reg = JSON.parse(readFileSync(new URL("../../../spec/registries/om-domain-separation.json", import.meta.url), "utf8")) as { labels?: { label: string }[]; entries?: { label: string }[] };
+    const all = JSON.stringify(reg);
+    expect(all).toContain(`"${BLOB_CIPHERTEXT_LABEL}"`);
+  });
+
+  it("round-trips the put request and response and rejects what the CDDL rejects", () => {
+    const cap = newBlobCap();
+    const req = decodeBlobPutRequest(encodeBlobPutRequest({ requestId: rid, cap, ciphertext: new Uint8Array(5).fill(9), retentionSeconds: 3600 }));
+    expect(req).toMatchObject({ retentionSeconds: 3600 });
+    expect(req.cap).toEqual(cap);
+    expect(decodeBlobPutRequest(encodeBlobPutRequest({ requestId: rid, cap, ciphertext: new Uint8Array(1) })).retentionSeconds).toBeUndefined();
+    const bad = (o: Partial<{ requestId: Uint8Array; cap: Uint8Array; ciphertext: Uint8Array }>) => () => decodeBlobPutRequest(encodeBlobPutRequest({ requestId: rid, cap, ciphertext: new Uint8Array(1), ...o }));
+    expect(bad({ requestId: new Uint8Array(15) })).toThrow(CborError);
+    expect(bad({ cap: new Uint8Array(31) })).toThrow(CborError); // a blob_cap needs 16 routing + 16 secret bytes at least
+    expect(bad({ ciphertext: new Uint8Array(0) })).toThrow(CborError);
+    expect(() => decodeBlobPutRequest(encode(map([[0, 1], [1, rid], [2, cap], [3, new Uint8Array(1)], [9, 1]])))).toThrow(CborError);
+    const res = decodeBlobPutResponse(encodeBlobPutResponse({ readCap: cap, digest: new Uint8Array(32).fill(3), expiresAt: 99 }));
+    expect(res).toMatchObject({ expiresAt: 99 });
+    expect(() => decodeBlobPutResponse(encodeBlobPutResponse({ readCap: cap, digest: new Uint8Array(31) }))).toThrow(CborError);
+  });
+
+  it("the locator is the routing prefix, and the digest header accepts exactly 32 bytes of base64url", () => {
+    const cap = newBlobCap();
+    expect(blobLocator(cap)).toBe(toHex(cap.slice(0, 16)));
+    expect(blobLocatorPattern.test(blobLocator(cap))).toBe(true);
+    const d = new Uint8Array(32).fill(5);
+    expect(parseBlobDigestHeader(encodeBlobDigestHeader(d))).toEqual(d);
+    for (const v of [null, "", "AAAA", "not base64 !", encodeBlobDigestHeader(new Uint8Array(33))]) expect(parseBlobDigestHeader(v)).toBeUndefined();
   });
 });

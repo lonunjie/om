@@ -8362,6 +8362,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-home-wire/src/blob.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-home-wire/src/bodies.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
