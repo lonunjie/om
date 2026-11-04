@@ -253,8 +253,8 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     return "later";
   }
 
-  async function drainPage(caps: Uint8Array, after: number): Promise<{ items: { seq: number; id: Uint8Array; bytes: Uint8Array }[]; next: number | undefined } | undefined> {
-    const r = await read(`${base}/v1/relay/drain`, { method: "POST", body: encodeDrainRequest({ requestId: crypto.getRandomValues(new Uint8Array(16)), cap: caps, after }) });
+  async function drainPage(caps: Uint8Array, after: number, t: Target = ownTarget): Promise<{ items: { seq: number; id: Uint8Array; bytes: Uint8Array }[]; next: number | undefined } | undefined> {
+    const r = await read(`${t.base}/v1/relay/drain`, { method: "POST", body: encodeDrainRequest({ requestId: crypto.getRandomValues(new Uint8Array(16)), cap: caps, after }) }, t);
     if (isResult(r) || r.kind !== "ok") return undefined;
     const page = decodeDrainResponse(r.body);
     const next = page.next ? Number(new DataView(page.next.buffer, page.next.byteOffset, page.next.byteLength).getBigUint64(0)) : undefined;
@@ -280,8 +280,44 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     return { items: out, ok: true };
   }
 
-  async function poll(mailboxHex: string, after: number, kind: MailboxKind = "relay"): Promise<readonly Inbound[]> {
+  /**
+   * A queue another install opened for a device-link ceremony (D24): drained with the receive capability the link carried,
+   * at the Home the link names. The existing queue endpoints, nothing new; no wake socket, no queue creation.
+   */
+  async function pollWithCapability(mailboxHex: string, after: number, relayUri: string | undefined, capability: string): Promise<readonly Inbound[]> {
+    const t = homeOf(relayUri);
+    if (!t || (await ready(t))) return [];
+    const cap = fromHex(capability);
+    const out: Inbound[] = [];
+    const ids = ackIds.get(mailboxHex) ?? new Map<number, Uint8Array>();
+    let cursor = after;
+    for (let i = 0; i < MAX_PAGES; i++) {
+      const page = await drainPage(cap, cursor, t);
+      if (!page) break;
+      for (const it of page.items) {
+        if (it.seq <= after) continue;
+        ids.set(it.seq, it.id);
+        out.push({ seq: it.seq, bytes: toHex(it.bytes) });
+      }
+      if (page.next === undefined) break;
+      cursor = page.next;
+    }
+    ackIds.set(mailboxHex, ids);
+    return out;
+  }
+
+  /** Make sure a ceremony queue exists at our own Home and answer its receive capability, so the other device can drain it. */
+  async function openQueue(c: Extract<NetCall, { call: "open_queue" }>): Promise<NetResult> {
+    const t = homeOf(c.relayUri);
+    if (!t || !t.own) return rejected("unsupported");
+    const mailbox = fromHex(c.mailbox);
+    if ((await ensureQueue(mailbox, c.mailbox)) !== "ok") return UNAVAILABLE;
+    return { result: "bytes", bytes: toHex((await mailboxCaps(await secret(), mailbox)).receive) };
+  }
+
+  async function poll(mailboxHex: string, after: number, kind: MailboxKind = "relay", relayUri?: string, capability?: string): Promise<readonly Inbound[]> {
     if (kind === "intro") return (await introDrain(mailboxHex, after)).items;
+    if (capability !== undefined && capability !== "") return pollWithCapability(mailboxHex, after, relayUri, capability);
     const mailbox = fromHex(mailboxHex);
     if ((await ensureQueue(mailbox, mailboxHex)) !== "ok") return [];
     // A live wake socket for this mailbox vouches that nothing newer exists: skip the request. Otherwise drain as always.
@@ -308,17 +344,21 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
   }
 
   /** Core acknowledges cumulatively ("everything up to seq is processed"); the Home acknowledges item ids. */
-  async function ack(mailboxHex: string, seq: number, kind: MailboxKind = "relay"): Promise<NetResult> {
+  async function ack(mailboxHex: string, seq: number, kind: MailboxKind = "relay", relayUri?: string, capability?: string): Promise<NetResult> {
     if (kind === "intro") return (await introDrain(mailboxHex, seq)).ok ? { result: "ok" } : UNAVAILABLE;
-    const mailbox = fromHex(mailboxHex);
-    const caps = await mailboxCaps(await secret(), mailbox);
+    // A ceremony queue another install opened is acknowledged with the capability its link carried, at the Home it names.
+    const explicit = capability !== undefined && capability !== "" ? fromHex(capability) : undefined;
+    const t = explicit ? homeOf(relayUri) : ownTarget;
+    if (!t) return rejected("unsupported");
+    if (explicit) { const not = await ready(t); if (not) return not; }
+    const caps = explicit ? { queueId: explicit.slice(0, 16), receive: explicit } : await mailboxCaps(await secret(), fromHex(mailboxHex));
     const known = ackIds.get(mailboxHex) ?? new Map<number, Uint8Array>();
     let ids = [...known.entries()].filter(([s]) => s <= seq).sort(([a], [b]) => a - b);
     if (ids.length === 0) {
       // After a restart the id cache is empty: re-read the window below `seq` to learn the ids (rare; bounded by ACK_WINDOW).
       let cursor = Math.max(0, seq - ACK_WINDOW);
       for (let i = 0; i < MAX_PAGES; i++) {
-        const page = await drainPage(caps.receive, cursor);
+        const page = await drainPage(caps.receive, cursor, t);
         if (!page) return UNAVAILABLE;
         for (const it of page.items) if (it.seq <= seq) known.set(it.seq, it.id);
         if (page.next === undefined || page.next >= seq) break;
@@ -328,10 +368,10 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     }
     for (let at = 0; at < ids.length; at += ACK_WINDOW) {
       const chunk = ids.slice(at, at + ACK_WINDOW);
-      const r = await mutate(`${base}/v1/relay/ack`, {
+      const r = await mutate(`${t.base}/v1/relay/ack`, {
         method: "POST",
         body: encodeAckRequest({ requestId: await requestId("ack", caps.queueId, ...chunk.map(([, id]) => id)), cap: caps.receive, itemIds: chunk.map(([, id]) => id) }),
-      });
+      }, undefined, t);
       if (isResult(r)) return r;
       if (r.kind === "home" && r.error.name !== "not_found") return mapError(r.error);
       for (const [s] of chunk) known.delete(s); // not_found means already acknowledged: the same end state
@@ -515,7 +555,8 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
       try {
         switch (call.call) {
           case "deposit": return await deposit(call.mailbox, call.bytes, call.relayUri);
-          case "ack": return await ack(call.mailbox, call.seq, call.kind);
+          case "ack": return await ack(call.mailbox, call.seq, call.kind, call.relayUri, call.capability);
+          case "open_queue": return await openQueue(call);
           case "publish_key_material": return await publishKeys(call);
           case "grant_key_fetch": return await grantKeyFetch(call);
           case "fetch_key_material": return await fetchKeys(call);
@@ -528,6 +569,6 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
         return UNAVAILABLE; // a local failure (secret store, bad hex): nothing was sent
       }
     },
-    poll: (mailbox, after, kind) => poll(mailbox, after, kind).catch(() => []),
+    poll: (mailbox, after, kind, relayUri, capability) => poll(mailbox, after, kind, relayUri, capability).catch(() => []),
   };
 }

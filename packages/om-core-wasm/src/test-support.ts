@@ -1,7 +1,7 @@
 // TEST ONLY: an in-memory provider (key material, introduction service, relay mailboxes) and an in-memory
 // EncryptedKv. Never import this from application code: tools/web_guard.py and the production bundle check refuse it.
 import type { EncryptedKv, KvGetResult, KvListResult, KvResult } from "@om/platform-api";
-import type { Inbound, NetCall, NetResult, Provider, RouteOffer } from "./types";
+import type { Inbound, MailboxKind, NetCall, NetResult, Provider, RouteOffer } from "./types";
 
 export const TEST_PROVIDER_MARKER = "OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION";
 /** The test relay's name and capability shape: a fixed prefix plus the mailbox id, unlike the id itself. */
@@ -20,6 +20,11 @@ export interface MemoryProvider extends Provider {
   deposited(): readonly string[];
   /** Pending mailbox contents, by mailbox. */
   revokeAllInvites(): void;
+}
+
+/** The queue a poll or ack addresses: the mailbox itself, or the one a ceremony receive capability names. */
+function queueOf(mailbox: string, capability?: string): string {
+  return capability !== undefined && capability !== "" ? capability.slice(32, 64) : mailbox;
 }
 
 export function createMemoryProvider(): MemoryProvider {
@@ -108,16 +113,22 @@ export function createMemoryProvider(): MemoryProvider {
           boxes.set(id, b);
           break;
         }
+        case "open_queue": {
+          // A ceremony queue: its receive capability names it, like a real Home's derived capability.
+          boxes.set(call.mailbox, boxes.get(call.mailbox) ?? { next: 0, items: [] });
+          r = { result: "bytes", bytes: `${"d5".repeat(16)}${call.mailbox}${"5d".repeat(16)}` };
+          break;
+        }
         case "ack": {
-          const b = boxes.get(call.mailbox);
+          const b = boxes.get(queueOf(call.mailbox, call.capability));
           if (b) b.items = b.items.filter((i) => i.seq > call.seq);
           break;
         }
       }
       return Promise.resolve(fault === "timeout_after_effect" ? { result: "err", error: { kind: "timeout" } } : r);
     },
-    poll(mailbox: string, after: number): Promise<readonly Inbound[]> {
-      return Promise.resolve((boxes.get(mailbox)?.items ?? []).filter((i) => i.seq > after));
+    poll(mailbox: string, after: number, _kind?: MailboxKind, _relayUri?: string, capability?: string): Promise<readonly Inbound[]> {
+      return Promise.resolve((boxes.get(queueOf(mailbox, capability))?.items ?? []).filter((i) => i.seq > after));
     },
   };
 }

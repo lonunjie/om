@@ -187,7 +187,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     const targets = core.call({ cmd: "poll_targets", ctx }) as PollTarget[];
     for (const t of targets) {
       let items: readonly Inbound[];
-      try { items = await provider.poll(t.mailbox, t.after, t.kind, t.relayUri); } catch { continue; }
+      try { items = await provider.poll(t.mailbox, t.after, t.kind, t.relayUri, t.capability); } catch { continue; }
       if (items.length === 0) continue;
       any = true;
       await exclusive(async () => {

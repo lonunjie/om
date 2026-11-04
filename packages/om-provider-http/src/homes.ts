@@ -56,11 +56,12 @@ export function createHomesProvider(offered: readonly HttpProvider[], draining: 
       switch (call.call) {
         case "deposit": return (call.relayUri === undefined ? first : homeFor(call.relayUri)).perform(call);
         case "ack": return (call.kind === "intro" ? first : homeFor(call.relayUri)).perform(call);
+        case "open_queue": return homeFor(call.relayUri).perform(call);
         default: return first.perform(call);
       }
     },
-    poll(mailbox: string, after: number, kind?: MailboxKind, relayUri?: string): Promise<readonly Inbound[]> {
-      return (kind === "intro" ? first : homeFor(relayUri)).poll(mailbox, after, kind, relayUri);
+    poll(mailbox: string, after: number, kind?: MailboxKind, relayUri?: string, capability?: string): Promise<readonly Inbound[]> {
+      return (kind === "intro" ? first : homeFor(relayUri)).poll(mailbox, after, kind, relayUri, capability);
     },
   };
 }

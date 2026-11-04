@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 import { describe, expect, it } from "vitest";
-import { HomeError, decodeDepositRequest, encodeHomeError, fromHex, toHex } from "@om/home-wire";
+import { HomeError, decodeAckRequest, decodeDepositRequest, decodeDrainRequest, encodeDrainResponse, encodeHomeError, fromHex, toHex } from "@om/home-wire";
 import { createHttpProvider, createIndexedDbSecretStore, createMemorySecretStore, parseProviderUrl, type HttpProvider } from "./index";
 
 const cfg = (u = "https://home.example"): { baseUrl: string } => {
@@ -201,6 +201,72 @@ describe("a peer's Home (cross-Home first contact and delivery)", () => {
     const { p, seen } = world();
     await p.perform({ call: "get_invite", inviteId: toHex(rand(16)) });
     expect(seen.every((s) => s.home === "https://home.example")).toBe(true);
+  });
+});
+
+describe("device-link ceremony queues (deviation D24)", () => {
+  const PEER = "https://peer.example";
+  const doc = (): Response => new Response(JSON.stringify({ schema_version: 1, provider_id: "peer", provider_kinds: ["relay"], api_versions: ["1"], features: [] }), { status: 200, headers: { "content-type": "application/json" } });
+  const item = { id: rand(16), bytes: rand(30), seq: 5 };
+  /** A stub of the existing device's Home (the peer, from the new device's side): records every request and serves one queued item. */
+  function world() {
+    const seen: { home: string; path: string; cap?: string; admission: boolean }[] = [];
+    const p = createHttpProvider({
+      config: cfg(), secrets: createMemorySecretStore(), admission: rand(32), timeoutMs: 1000,
+      fetch: (i, init) => {
+        const u = new URL(urlOf(i));
+        const h = new Headers(init?.headers);
+        const body = init?.body instanceof Uint8Array ? init.body : undefined;
+        let cap: string | undefined;
+        if (u.pathname === "/v1/relay/drain" && body) cap = toHex(decodeDrainRequest(body).cap);
+        if (u.pathname === "/v1/relay/ack" && body) cap = toHex(decodeAckRequest(body).cap);
+        seen.push({ home: u.origin, path: u.pathname, ...(cap ? { cap } : {}), admission: h.has("om-admission") });
+        if (u.pathname === "/.well-known/om-provider-capabilities") return Promise.resolve(doc());
+        if (u.pathname === "/v1/relay/drain") return Promise.resolve(new Response(encodeDrainResponse({ items: [item] }) as BodyInit, { status: 200, headers: { "content-type": "application/cbor" } }));
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+    });
+    return { p, seen };
+  }
+
+  it("opens a short-lived queue at its own Home and answers the receive capability the other device will present", async () => {
+    const { p, seen } = world();
+    const r = await p.perform({ call: "open_queue", mailbox: toHex(rand(16)), relayUri: "https://home.example/" });
+    expect(r.result).toBe("bytes");
+    expect(r.result === "bytes" && r.bytes).toMatch(/^[0-9a-f]{64,}$/);
+    expect(seen.map((s) => s.path)).toEqual(["/v1/relay/queues"]);
+  });
+
+  it("refuses to open a queue at any Home but its own, and sends nothing", async () => {
+    const { p, seen } = world();
+    expect(await p.perform({ call: "open_queue", mailbox: toHex(rand(16)), relayUri: `${PEER}/` })).toEqual({ result: "err", error: { kind: "rejected", reason: "unsupported" } });
+    expect(seen).toHaveLength(0);
+  });
+
+  it("drains and acknowledges another install's queue with the capability its link carried, at the Home the link names; it claims no queue and never sends the owner's admission", async () => {
+    const { p, seen } = world();
+    const capability = toHex(rand(48));
+    const got = await p.poll(toHex(rand(16)), 0, "relay", `${PEER}/`, capability);
+    expect(got).toEqual([{ seq: 5, bytes: toHex(item.bytes) }]);
+    // Acknowledge by that capability too (the item id was learned by the drain above).
+    const mailbox = toHex(rand(16));
+    const again = await p.poll(mailbox, 0, "relay", `${PEER}/`, capability);
+    expect(again).toHaveLength(1);
+    expect(await p.perform({ call: "ack", mailbox, seq: 5, relayUri: `${PEER}/`, capability })).toEqual({ result: "ok" });
+    expect(seen.every((s) => s.home === PEER)).toBe(true); // nothing went to the person's own Home
+    expect(seen.some((s) => s.path === "/v1/relay/queues")).toBe(false); // it never creates or claims the queue
+    expect(seen.some((s) => s.admission)).toBe(false);
+    const withCap = seen.filter((s) => s.cap !== undefined);
+    expect(withCap.length).toBeGreaterThanOrEqual(3);
+    expect(withCap.every((s) => s.cap === capability)).toBe(true);
+  });
+
+  it("fails closed: a malformed capability, an unreachable Home or a bad link polls nothing and acknowledges nothing", async () => {
+    const { p, seen } = world();
+    expect(await p.poll(toHex(rand(16)), 0, "relay", `${PEER}/`, "zz-not-hex")).toEqual([]);
+    expect(await p.poll(toHex(rand(16)), 0, "relay", "http://peer.example/", toHex(rand(48)))).toEqual([]);
+    expect(await p.perform({ call: "ack", mailbox: toHex(rand(16)), seq: 1, relayUri: "ftp://peer.example/", capability: toHex(rand(48)) })).toEqual({ result: "err", error: { kind: "rejected", reason: "unsupported" } });
+    expect(seen.some((s) => s.path === "/v1/relay/drain")).toBe(false);
   });
 });
 

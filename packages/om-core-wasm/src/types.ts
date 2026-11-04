@@ -25,7 +25,9 @@ export type NetCall =
    */
   | { readonly call: "deposit"; readonly mailbox: string; readonly relayUri?: string; readonly bytes: string }
   /** `relayUri` names the Home that holds the mailbox (the route Core bound to it); absent for a legacy mailbox and for an introduction mailbox. */
-  | { readonly call: "ack"; readonly mailbox: string; readonly seq: number; readonly kind?: MailboxKind; readonly relayUri?: string };
+  | { readonly call: "ack"; readonly mailbox: string; readonly seq: number; readonly kind?: MailboxKind; readonly relayUri?: string; readonly capability?: string }
+  /** Device-link ceremony (D24): make sure the short-lived queue exists at `relayUri` and answer its receive capability as `bytes` (hex). */
+  | { readonly call: "open_queue"; readonly mailbox: string; readonly relayUri: string };
 
 /** What a polled id names: a relay mailbox (the default), or an invite's introduction service at the host's own Home. */
 export type MailboxKind = "relay" | "intro";
@@ -46,7 +48,7 @@ export type NetResult =
 export interface NetOp { readonly id: number; readonly call: NetCall }
 export interface Inbound { readonly seq: number; readonly bytes: string }
 /** `relayUri` is the Home that holds a relay mailbox (the person may have several); absent for a legacy mailbox and for an introduction mailbox. */
-export interface PollTarget { readonly mailbox: string; readonly after: number; readonly kind?: MailboxKind; readonly relayUri?: string }
+export interface PollTarget { readonly mailbox: string; readonly after: number; readonly kind?: MailboxKind; readonly relayUri?: string; /** The receive capability (hex) to present when the queue is another install's (a device-link ceremony); absent for the host's own mailboxes. */ readonly capability?: string }
 export interface Write { readonly key: string; readonly value: string | null }
 export interface Commit { readonly id: number; readonly profileId: string; readonly writes: readonly Write[] }
 export interface Record { readonly key: string; readonly value: string }
@@ -58,7 +60,7 @@ export interface Record { readonly key: string; readonly value: string }
  */
 export interface Provider {
   perform(call: NetCall): Promise<NetResult>;
-  poll(mailbox: string, after: number, kind?: MailboxKind, relayUri?: string): Promise<readonly Inbound[]>;
+  poll(mailbox: string, after: number, kind?: MailboxKind, relayUri?: string, capability?: string): Promise<readonly Inbound[]>;
   /**
    * Allocates routes for `count` new mailboxes: a fresh random 16-byte `mailbox` id (hex) for Core to poll, and the
    * `relayUri` and deposit `capability` (hex) peers will use to reach it. Core binds its delivery keys to exactly
