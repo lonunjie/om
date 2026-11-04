@@ -3154,6 +3154,13 @@
       "authority": "canonical_normative"
     },
     {
+      "path": "deploy/release-log/relay-digests.jsonl",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
       "path": "deploy/site-stage.mjs",
       "class": "architecture_doc",
       "domain": "architecture_process",

@@ -12,3 +12,6 @@ makes an after-the-fact edit visible only to someone who kept an earlier copy. S
 Verify (no dependencies beyond Node 24): `cd apps/web && node build/digest-log.mjs verify ../../deploy/release-log/digests.jsonl`.
 Append: `node build/release.mjs --sign-from-vault --append-digest-log`, then commit the new line and any new `delegations/` file in the same change.
 Lines are never edited or removed; a wrong entry is superseded by a new release, not rewritten.
+
+Relay releases (the per-user deploy template, [`infra/cloudflare-home/release/build.mjs`](../../infra/cloudflare-home/release/build.mjs)) have their own file, [`relay-digests.jsonl`](relay-digests.jsonl), because their versions (0.2.0, ...) are not the web release's and the log refuses a duplicate version. Same format, same signer chain, same limits (single operator, not a transparency log); the digests are those of `relay-manifest.json` and `SHA256SUMS`.
+Verify: `cd apps/web && node build/digest-log.mjs verify ../../deploy/release-log/relay-digests.jsonl`. Append: `node infra/cloudflare-home/release/build.mjs --sign-from-vault --append-digest-log`, then commit the new line and any new `delegations/` file.
