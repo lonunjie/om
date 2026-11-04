@@ -76,4 +76,10 @@ Budget rule: `bin/lonunjie-usage gate <class>` (hq) before any big dispatch; pla
 | WP6a | Superseded by om-web **0.0.12** (includes WP4b): preview `https://146b4002.om-lonunjie.pages.dev`, branch `release/om-web-0.0.12-preview` (`359cf26`), 16 of 16 files match the signed manifest. At go-live re-run `release.mjs --sign-from-vault --append-digest-log` (the manifest rebuilds byte-identical), commit the release-log line, then push the site branch to `main`. |
 | Cross-browser | Firefox and WebKit: 24 passed, 2 skipped (live-relay) for the existing cross-browser set. |
 
-**Operator steps to go live, in order:** (1) review the 0.0.12 preview; (2) approve the push of `release/om-web-0.0.12-preview` to `main` of `lonunjie/om.lonunjie.org`; (3) merge `release/0.2.0` into `main` of `lonunjie/om-relay`; (4) upgrade the live Home from 0.1.1 to check migration v2, then run the first real template deploy on your own Cloudflare account (untested assumptions: `2026-11-03-relay-deploy-template.md`); (5) rule on D25 and D26.
+**Operator steps to go live, in order:** (1) review the 0.0.12 preview; (2) approve the push of `release/om-web-0.0.12-preview` to `main` of `lonunjie/om.lonunjie.org`; (3) merge `release/0.2.0` into `main` of `lonunjie/om-relay`; (4) upgrade the live Home from 0.1.1 to check migration v2, then run the first real template deploy on your own Cloudflare account (untested assumptions: [`2026-11-03-relay-deploy-template.md`](2026-11-03-relay-deploy-template.md)); (5) rule on D25 and D26.
+
+### Final status, 2026-11-04 night (operator go-ahead given)
+
+- **om-web 0.0.12 is live** on `main` of `lonunjie/om.lonunjie.org` (`af46b9d`): manifest, 16 of 16 files and CSP verified against the signed build at the live origin. It no longer carries a default delivery service (ADR-0186). Its onboarding steps now name the `OM_ADMISSION` box and say what to do when GitHub stalls (see [`2026-11-04-handoff-next-week.md`](2026-11-04-handoff-next-week.md); that GitHub guidance is unverified).
+- **Relay template 0.2.0 is on `main`** of `lonunjie/om-relay` (merge `c4587ea`). Not yet deployed to any account; the first real deploy and the live Home upgrade from 0.1.1 are next week's group A.
+- Steps (1) to (3) of the go-live list above are done; (4) and (5) remain with the operator.
