@@ -245,6 +245,7 @@ function AddBackup({ services, more, copy, copyText, onAdded }: AddProps) {
                 )}
               </div>
             ) : null}
+            {more.setup.deployUrl === undefined || value.k !== "ready" ? null : <Text as="p" size="sm" tone="secondary">{r.cloudflare.openAgain}</Text>}
             {copied === "done" ? <Text as="p" role="status">{r.setup.copied}</Text> : null}
             {copied === "failed" ? <Text as="p" role="alert">{r.setup.copyFailed}</Text> : null}
             {more.setup.deployUrl === undefined ? <Text as="p" role="note">{r.cloudflare.notReady}</Text> : null}

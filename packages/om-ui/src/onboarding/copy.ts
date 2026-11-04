@@ -178,7 +178,7 @@ export interface RelaySetupCopy {
   /** Choices that are listed and not built yet: plain text, never a control. */
   readonly later: { readonly items: readonly string[] };
   /** The only strings that may name a vendor. */
-  readonly cloudflare: { readonly uses: string; readonly steps: readonly string[]; /** What the address looks like, so a person knows it when the setup shows it. */ readonly addressExample: string; /** R-164 (HOME_ONBOARDING 5): steer to a passkey or security key on the account, with the reason in one sentence. */ readonly protect: string; readonly open: string; readonly opensNewTab: string; readonly notReady: string };
+  readonly cloudflare: { readonly uses: string; readonly steps: readonly string[]; /** What the address looks like, so a person knows it when the setup shows it. */ readonly addressExample: string; /** R-164 (HOME_ONBOARDING 5): steer to a passkey or security key on the account, with the reason in one sentence. */ readonly protect: string; readonly open: string; readonly opensNewTab: string; /** Said under the button: it can be used again when the person lands somewhere else or the page stops. */ readonly openAgain: string; readonly notReady: string };
   readonly setup: {
     readonly heading: string;
     readonly valueLabel: string;

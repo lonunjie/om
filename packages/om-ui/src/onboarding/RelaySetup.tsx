@@ -147,6 +147,7 @@ export function RelaySetup({ services, copy, frame, platform, registry, ctx }: R
             )}
           </div>
         ) : null}
+        {services.deployUrl === undefined || value.k !== "ready" ? null : <Text as="p" size="sm" tone="secondary">{copy.cloudflare.openAgain}</Text>}
         {copied === "done" ? <Text as="p" role="status" className="om-onb__copied">{s.copied}</Text> : null}
         {copied === "failed" ? <Text as="p" role="alert">{s.copyFailed}</Text> : null}
         {services.deployUrl === undefined ? <Text as="p" role="note">{copy.cloudflare.notReady}</Text> : null}

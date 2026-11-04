@@ -440,17 +440,19 @@ const onboardingBase: OnboardingCopy = {
     },
     // ADR-0186 decision 2: the only place a vendor is named. The copy test (en.test.ts) allows provider names in this group and nowhere else.
     cloudflare: {
-      uses: "Two free accounts: Cloudflare, and GitHub or GitLab (Cloudflare needs it to copy the setup into). You create or sign in to them on the next steps.",
+      uses: "Two free accounts: Cloudflare, and GitHub or GitLab (Cloudflare needs it to make a copy of the setup in your own account). You create or sign in to them on the next steps.",
       steps: [
         "Copy your setup value below.",
-        "Open Cloudflare setup. Create or sign in to a free Cloudflare account and a GitHub or GitLab account.",
-        "Paste your setup value when it asks, and wait for it to finish.",
+        "Open Cloudflare setup. Create or sign in to a free Cloudflare account. When it asks, connect a GitHub or GitLab account. If GitHub asks which repositories Cloudflare may use, choose all of them for now: Cloudflare has to make a new one for you.",
+        "Back on the Cloudflare page, find the box named OM_ADMISSION and paste your setup value there. Then press the button to deploy and wait for it to finish.",
+        "If you end up on GitHub or the page stops, open the Cloudflare setup link on this page again. It picks up where you left off.",
         "Come back to this tab and type the address it shows.",
       ],
       addressExample: "The address looks like https://om-relay.your-name.workers.dev",
       protect: "Protect that Cloudflare account with a passkey or security key if it offers one: whoever gets into the account can change your delivery service.",
       open: "Open Cloudflare setup",
       opensNewTab: "(opens in a new tab)",
+      openAgain: "Stuck, or sent to GitHub? Use the Cloudflare setup button again. It picks up where you left off.",
       notReady: "This way of setting up is not ready yet. If you already have a delivery service of your own, type its address below.",
     },
     setup: {

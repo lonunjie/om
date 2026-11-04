@@ -105,7 +105,9 @@ describe("English copy catalog", () => {
     expect(allowed.map(([, s]) => s).join("\n")).not.toMatch(MACHINE_CODES);
     // The choice itself, and everything around it, says "delivery service" and never the technical names.
     // (The example address is a real address shape, "om-relay" being the setup's default name; it is not prose.)
-    const relay = people.filter(([path]) => path.startsWith("o.relay.") && path !== "o.relay.cloudflare.addressExample");
+    // OM_ADMISSION is the literal name of the box on Cloudflare's deploy form (the person must match it letter for letter); it is a field
+    // name, not prose, so it is removed before the plain-words check. Operator test of the real flow, 2026-11-04.
+    const relay = people.filter(([path]) => path.startsWith("o.relay.") && path !== "o.relay.cloudflare.addressExample").map(([path, s]) => [path, s.replaceAll("OM_ADMISSION", "")] as const);
     expect(relay.map(([, s]) => s).join("\n")).not.toMatch(/\b(?:relay|Worker|Durable|admission|hash|SHA)\b/i);
     expect(relay.map(([, s]) => s).join("\n")).not.toMatch(/\bHome\b/); // "a computer at home" is plain speech; the technical name "Home" is not
     expect(onboardingCopy.relay.ownFree).toBe("Set up my own, free");
