@@ -7921,6 +7921,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "infra/cloudflare-home/test/__fixtures__/relay-0.1.1-worker.js",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
       "path": "infra/cloudflare-home/test/admission.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
@@ -8020,6 +8027,13 @@
     },
     {
       "path": "infra/cloudflare-home/test/two-homes.e2e.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/cloudflare-home/test/upgrade.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
       "license": "AGPL-3.0-or-later",

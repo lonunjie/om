@@ -10,11 +10,12 @@ store-and-forward Home. It is replaceable and never a protocol dependency (absol
 | Key material | `KeyPool`, one per DeviceID | `PUT /v1/keys/bundles/{device}`, `POST /v1/keys/fetch`, `DELETE /v1/keys/bundles/{device}/generations/{n}` |
 | Descriptor store | `DescriptorStore`, one per id | `PUT` / `GET` / `DELETE /v1/discovery/descriptors/{id}` |
 | IntroGate | `IntroGate`, one per recipient service | `POST /v1/intro/{tickets,requests,drain}` |
+| Blob spool (optional, `om.blob.spool.v1`) | `BlobSpool`, one per Home | `POST /v1/blobs`, `GET` / `DELETE /v1/blobs/{locator}` (owner admission to create; bounded to 32 MiB, 4 MiB each, 64 objects, 7 days; `OM_BLOB_SPOOL=0` turns it off) |
 | Capabilities | none | `GET /.well-known/om-provider-capabilities` |
 
 The wake channel ([`HOME_WAKE_CHANNEL.md`](../../docs/architecture/providers/HOME_WAKE_CHANNEL.md), ADR-0185) lets a connected client be told that a newer item exists instead of polling on a timer. It is optional and advertised; `OM_WAKE=0` in `wrangler.jsonc` `vars` turns it off. Sockets hibernate, so an idle queue costs only keepalive pings.
 
-Not implemented and not advertised: sponsorship, recovery records, blobs (so no R2, KV or Queues binding is needed).
+Not implemented and not advertised: sponsorship, recovery records, long-term blob storage (so no R2, KV or Queues binding is needed). The blob spool needs the Durable Object migration `v2` (`wrangler.jsonc`, and the template's [`wrangler.json`](release/template/wrangler.json), which a test keeps identical); migrations are append-only, so a relay deployed from release 0.1.x upgrades in place (`test/upgrade.test.ts`).
 
 ## Properties that matter
 

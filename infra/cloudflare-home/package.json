@@ -1,6 +1,6 @@
 {
   "name": "@om/cloudflare-home",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "OM reference Home on Cloudflare (Workers + SQLite Durable Objects): an untrusted store-and-forward relay, key-material store, descriptor store and IntroGate. provider_reference scope (ADR-0171). Replaceable; never a protocol dependency.",

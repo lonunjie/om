@@ -2,7 +2,7 @@
 
 This repository deploys one thing to **your own Cloudflare account**: the OM delivery service (relay) as a Worker with SQLite Durable
 Objects. It needs no payment method on the free plan. Nobody else runs it, sees into it, or can switch it off for you. It stores only
-sealed (end-to-end encrypted) objects it cannot open.
+sealed (end-to-end encrypted) objects it cannot open: messages and, for a few days at most, small encrypted files that are on their way to a contact (up to 32 MiB in total).
 
 You normally reach this page from the OM app's setup. If you came here directly, start in the app: it creates the one value you paste below.
 
@@ -46,6 +46,7 @@ The updater is manual in this version. A new signed release is a new version of 
 `SHA256SUMS`, `provenance.intoto.jsonl`, `release.lock`, `verify*.mjs`, [`wrangler.json`](wrangler.json), [`package.json`](../../../../package.json) and `pnpm-lock.yaml` with the new ones, run
 `node verify.mjs`, commit. `release.lock` also takes a `minVersion` floor that refuses older releases. An automatic, staged updater
 that checks independent transparency monitors is specified (CLIENTHOST_UPDATE_LIFECYCLE section 4) and not built yet.
+Taking release 0.2.0 over 0.1.x adds the temporary file storage (a second Durable Object migration, `v2`); your queues, messages and keys are kept.
 
 ## Limits you should know
 
@@ -69,7 +70,9 @@ that checks independent transparency monitors is specified (CLIENTHOST_UPDATE_LI
 This template (the verifier, the scripts and the configuration) is **AGPL-3.0-or-later** (see `LICENSE`): OM's reference relay and provisioning
 software stays open for anyone who runs it as a service. `relay/worker.js` is built from the OM source at the commit named in
 `relay-manifest.json` (`createdFrom.gitCommit`) in [lonunjie/om](https://github.com/lonunjie/om); that is its corresponding source, and
-`node infra/cloudflare-home/release/build.mjs --compare <this folder>` rebuilds it from there. It includes files that are covered by MPL-2.0
-([`infra/cloudflare-home`](https://github.com/lonunjie/om/tree/main/infra/cloudflare-home), [`packages/om-home-wire`](https://github.com/lonunjie/om/tree/main/packages/om-home-wire));
+`node infra/cloudflare-home/release/build.mjs --compare <this folder>` rebuilds it from there. The relay code
+([`infra/cloudflare-home`](https://github.com/lonunjie/om/tree/main/infra/cloudflare-home)) is AGPL-3.0-or-later too. The Worker also bundles the wire
+library [`packages/om-home-wire`](https://github.com/lonunjie/om/tree/main/packages/om-home-wire), and "verify-chain.mjs" is a copy of the web release verifier;
 those files stay under [MPL-2.0](https://www.mozilla.org/en-US/MPL/2.0/) and are combined into this larger work as MPL-2.0 section 3.3 allows.
-The file "verify-chain.mjs" is MPL-2.0 too. The OM protocol itself is independently implementable under Apache-2.0 artifacts: you do not need this code to interoperate.
+The OM protocol itself is independently implementable under Apache-2.0 artifacts: you do not need this code to interoperate.
+Releases already published keep the licence they were published under.
