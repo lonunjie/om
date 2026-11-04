@@ -92,3 +92,17 @@ describe("draft store", () => {
     expect((await createDraftStore(() => kv).load(alice)).size).toBe(0);
   });
 });
+
+describe("seen markers", () => {
+  it("are saved under their own key, only move forward, and come back after a reload", async () => {
+    const { kv, data } = fakeKv();
+    const s = createDraftStore(() => kv);
+    s.setSeen(alice, chat("c1"), 50);
+    s.setSeen(alice, chat("c1"), 20); // older: ignored
+    await s.flush();
+    expect([...data.keys()]).toEqual(["ui/seen/c1"]);
+    const again = createDraftStore(() => kv);
+    expect((await again.loadSeen(alice)).get(chat("c1"))).toBe(50);
+    expect((await again.load(alice)).size).toBe(0); // a marker is not a draft
+  });
+});

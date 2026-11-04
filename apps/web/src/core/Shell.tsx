@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, 
 import { parseInviteLink, type ConversationId, type IntroductionRequest, type OperationId } from "@om/platform-api";
 import {
   AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode,
-  type IconName, type OmniEntry,
+  type IconName, type OmniEntry, useConversationDigests,
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, deviceScannerCopy, devicesCopy, scannerCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
@@ -31,6 +31,9 @@ export interface SafetyCodeOffer {
 export interface DraftSync {
   readonly load: () => Promise<ReadonlyMap<ConversationId, string>>;
   readonly save: (conversationId: ConversationId, text: string) => void;
+  /** When each chat was last shown on this device, so the list can count what arrived since. Without it nothing is marked unread. */
+  readonly loadSeen?: () => Promise<ReadonlyMap<ConversationId, number>>;
+  readonly saveSeen?: (conversationId: ConversationId, at: number) => void;
 }
 
 export interface ShellProps {
@@ -77,10 +80,43 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
     return () => { live = false; };
   }, [draftSync]);
   const list = useConversationList(services);
+  // What each row shows beyond name and time: the latest message, and what has arrived since the chat was last shown here.
+  const chatIds = useMemo(() => (list.status === "ready" ? list.value.map((c) => c.id) : []), [list]);
+  const digests = useConversationDigests(services, chatIds);
+  const [seen, setSeenTimes] = useState<ReadonlyMap<ConversationId, number> | null>(null);
+  useEffect(() => {
+    if (draftSync?.loadSeen === undefined) return;
+    let live = true;
+    draftSync.loadSeen().then((saved) => { if (live) setSeenTimes(saved); }, () => { if (live) setSeenTimes(new Map()); });
+    return () => { live = false; };
+  }, [draftSync]);
   const chatsBeforeAccept = useRef<readonly string[]>([]);
   const selected = place.kind === "chats" ? (place.chat as ConversationId | null) : null;
   const settings: SettingsPage | null = place.kind === "settings" ? place.page : null;
   const savingCode = place.kind === "safety-code" && safetyCode !== undefined;
+  // The open chat is shown, so it is seen; a chat met for the first time starts as seen (history that was here before is not "new").
+  useEffect(() => {
+    if (seen === null || draftSync?.saveSeen === undefined) return;
+    const next = new Map(seen);
+    for (const id of chatIds) {
+      const d = digests.get(id);
+      if (d === undefined) continue;
+      const latest = d.lastSentAt ?? 0;
+      if (id === selected ? (next.get(id) ?? -1) < latest : !next.has(id)) { next.set(id, latest); draftSync.saveSeen(id, latest); }
+    }
+    if (next.size !== seen.size || [...next].some(([id, at]) => seen.get(id) !== at)) setSeenTimes(next);
+  }, [seen, digests, chatIds, selected, draftSync]);
+  const unread = useMemo(() => {
+    const out = new Map<ConversationId, number>();
+    if (seen === null) return out;
+    for (const [id, d] of digests) {
+      const mark = seen.get(id);
+      if (mark === undefined || id === selected) continue;
+      const n = d.incomingAt.filter((at) => at > mark).length;
+      if (n > 0) out.set(id, n);
+    }
+    return out;
+  }, [seen, digests, selected]);
   const select = (id: ConversationId): void => { go({ kind: "chats", chat: id }); };
   const toChats = (): void => { back(CHATS); };
 
@@ -306,7 +342,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
                 />
               </div>
             ) : null}
-            {list.status === "ready" && !emptyInviteFirst ? <ConversationList conversations={list.value} selectedId={selected} onSelect={select} copy={conversationCopy} /> : null}
+            {list.status === "ready" && !emptyInviteFirst ? <ConversationList conversations={list.value} selectedId={selected} onSelect={select} copy={conversationCopy} digests={digests} drafts={drafts} unread={unread} /> : null}
           </>
         }
         detail={

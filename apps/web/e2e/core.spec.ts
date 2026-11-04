@@ -49,20 +49,20 @@ test("two identities on the real Core: invite, introduction, messages both ways,
   await page.getByRole("option").click();
   await page.getByRole("textbox", { name: /message/i }).fill("hello from alice");
   await page.getByRole("button", { name: /send/i }).click();
-  await expect(page.getByText("hello from alice")).toBeVisible();
+  await expect(page.getByRole("log").getByText("hello from alice")).toBeVisible();
 
   // Bob receives it (polling) and replies.
   await asIdentity(page, me, "bob");
   await expect(page.getByRole("option")).toHaveCount(1, { timeout: 30_000 });
   await page.getByRole("option").click();
-  await expect(page.getByText("hello from alice")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("log").getByText("hello from alice")).toBeVisible({ timeout: 30_000 });
   await page.getByRole("textbox", { name: /message/i }).fill("hi alice, this is bob");
   await page.getByRole("button", { name: /send/i }).click();
 
   // Alice receives the reply.
   await asIdentity(page, me, "alice");
   await page.getByRole("option").click();
-  await expect(page.getByText("hi alice, this is bob")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("log").getByText("hi alice, this is bob")).toBeVisible({ timeout: 30_000 });
 
   // What a relay saw: only sealed wrappers (plus the one MessageRequest), never plaintext.
   const seen = await page.evaluate(() => (globalThis as unknown as { __OM_E2E_LOOPBACK__: { deposited: () => string[] } }).__OM_E2E_LOOPBACK__.deposited());
@@ -80,6 +80,6 @@ test("two identities on the real Core: invite, introduction, messages both ways,
   await reopen(page, 30_000);
   await expect(page.getByRole("option")).toHaveCount(1);
   await page.getByRole("option").click();
-  await expect(page.getByText("hello from alice")).toBeVisible();
-  await expect(page.getByText("hi alice, this is bob")).toBeVisible();
+  await expect(page.getByRole("log").getByText("hello from alice")).toBeVisible();
+  await expect(page.getByRole("log").getByText("hi alice, this is bob")).toBeVisible();
 });

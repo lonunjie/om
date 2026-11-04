@@ -240,7 +240,7 @@ function Connected({ rt, vault, drafts, platform, onAddProfile, home, lockOpen, 
   );
   const backup = useMemo<BackupServices | null>(() => (ctx === null ? null : createBackupServices({ rt, ctx })), [rt, ctx]);
   const draftSync = useMemo<DraftSync | null>(
-    () => (activeId === null ? null : { load: () => drafts.load(activeId), save: (conversation, text) => { drafts.set(activeId, conversation, text); } }),
+    () => (activeId === null ? null : { load: () => drafts.load(activeId), save: (conversation, text) => { drafts.set(activeId, conversation, text); }, loadSeen: () => drafts.loadSeen(activeId), saveSeen: (conversation, at) => { drafts.setSeen(activeId, conversation, at); } }),
     [drafts, activeId],
   );
   if (activeId === null || ctx === null || lock === null || backup === null || draftSync === null) return <Text>{t.loading}</Text>;

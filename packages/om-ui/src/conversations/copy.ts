@@ -7,6 +7,10 @@ export interface ConversationCopy {
     readonly empty: string;
     readonly noActivity: string;
     readonly unread: (count: number) => string;
+    /** Marks a preview that is the last thing you sent: "You:". */
+    readonly you: string;
+    /** Marks unsent text kept for this chat in place of the preview: "Draft:". */
+    readonly draft: string;
     readonly securityNotice: string;
   };
   readonly view: {

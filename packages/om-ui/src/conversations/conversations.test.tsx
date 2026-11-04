@@ -130,6 +130,25 @@ describe("ConversationList", () => {
   });
 });
 
+describe("ConversationList row detail", () => {
+  const row = (n: string, name: string) => ({ id: asConversationId(n), personId: asPersonId(`p-${n}`), displayName: name, lastMessageAt: 1, notices: [], relationship: "active" as const });
+  const digest = (lastText: string | null, lastFromMe: boolean) => ({ lastText, lastFromMe, lastDelivery: null, lastSentAt: 1, incomingAt: [] });
+
+  it("shows the latest message, who wrote it, and a draft in place of the preview", () => {
+    const rows = [row("a", "Ann"), row("b", "Bob"), row("c", "Cy")];
+    const digests = new Map([[rows[0]?.id ?? asConversationId("a"), digest("see you at six", false)], [rows[1]?.id ?? asConversationId("b"), digest("on my way", true)], [rows[2]?.id ?? asConversationId("c"), digest("old text", false)]]);
+    const drafts = new Map([[rows[2]?.id ?? asConversationId("c"), "half  a\nthought"]]);
+    render(<ConversationList conversations={rows} selectedId={null} onSelect={() => undefined} copy={testCopy} digests={digests} drafts={drafts} />);
+    const text = (name: RegExp): string => screen.getByRole("option", { name }).textContent;
+    expect(text(/Ann/)).toContain("see you at six");
+    expect(text(/Ann/)).not.toContain("You:");
+    expect(text(/Bob/)).toContain("You:");
+    expect(text(/Cy/)).toContain("Draft:");
+    expect(text(/Cy/)).toContain("half a thought");
+    expect(text(/Cy/)).not.toContain("old text");
+  });
+});
+
 describe("RichTextV1 hostile input", () => {
   const rt = (doc: unknown) => render(<RichText doc={doc} copy={testCopy.richText} />);
   const para = (...children: unknown[]) => ({ version: 1, blocks: [{ type: "paragraph", children }] });

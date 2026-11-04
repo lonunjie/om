@@ -83,5 +83,5 @@ test("a chat has an address that never reaches the host, and Back leaves it for 
   await tab.goto(link);
   // (the key in this browser opens by itself; on a phone the chat fills the screen, so there is no Settings button to wait for)
   await expect(tab.getByRole("textbox", { name: /message/i })).toBeVisible({ timeout: 60_000 });
-  await expect(tab.getByText("hello bob")).toBeVisible();
+  await expect(tab.getByRole("log").getByText("hello bob")).toBeVisible();
 });

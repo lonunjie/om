@@ -5,11 +5,14 @@
 import type { ConversationId, EncryptedKv, ProfileId } from "@om/platform-api";
 
 const PREFIX = "ui/draft/";
+/** When this device last showed each chat, so the list can count what arrived since. It is presentation only: never sent anywhere, never a read receipt. */
+const SEEN_PREFIX = "ui/seen/";
 const SAVE_AFTER_MS = 600;
 /** A draft this long is a pasted document, not a message; keeping it would only slow every save. */
 const MAX_DRAFT_CHARS = 20_000;
 
 export type Drafts = ReadonlyMap<ConversationId, string>;
+export type SeenTimes = ReadonlyMap<ConversationId, number>;
 
 export interface DraftStore {
   /** What was written and not sent for this identity; waits for the vault, so call it after unlock. */
@@ -20,9 +23,13 @@ export interface DraftStore {
   flush(): Promise<void>;
   /** Drops the identity's drafts from memory (after locking). They stay sealed on disk. */
   forget(profileId: ProfileId): void;
+  /** When each chat was last shown on this device (message time, ms); waits for the vault. */
+  loadSeen(profileId: ProfileId): Promise<SeenTimes>;
+  /** Records that a chat was shown up to this message time. Only moves forward. */
+  setSeen(profileId: ProfileId, conversationId: ConversationId, at: number): void;
 }
 
-interface Entry { drafts: Map<ConversationId, string>; dirty: Set<ConversationId>; loaded: Promise<void> | null }
+interface Entry { drafts: Map<ConversationId, string>; dirty: Set<ConversationId>; seen: Map<ConversationId, number>; seenDirty: Set<ConversationId>; loaded: Promise<void> | null }
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -34,7 +41,7 @@ export function createDraftStore(kvFor: (profileId: ProfileId) => EncryptedKv): 
 
   const entry = (profileId: ProfileId): Entry => {
     let e = entries.get(profileId);
-    if (e === undefined) { e = { drafts: new Map(), dirty: new Set(), loaded: null }; entries.set(profileId, e); }
+    if (e === undefined) { e = { drafts: new Map(), dirty: new Set(), seen: new Map(), seenDirty: new Set(), loaded: null }; entries.set(profileId, e); }
     return e;
   };
 
@@ -43,6 +50,13 @@ export function createDraftStore(kvFor: (profileId: ProfileId) => EncryptedKv): 
       const kv = kvFor(profileId);
       const listed = await kv.list();
       if (!listed.ok) return;
+      for (const key of listed.keys.filter((k) => k.startsWith(SEEN_PREFIX))) {
+        const id = key.slice(SEEN_PREFIX.length) as ConversationId;
+        if (e.seen.has(id)) continue;
+        const got = await kv.get(key);
+        const at = got.ok && got.value !== undefined ? Number(decoder.decode(got.value)) : NaN;
+        if (Number.isFinite(at)) e.seen.set(id, at);
+      }
       for (const key of listed.keys.filter((k) => k.startsWith(PREFIX))) {
         const id = key.slice(PREFIX.length) as ConversationId;
         if (e.dirty.has(id) || e.drafts.has(id)) continue; // what was typed since opening wins over what was saved
@@ -55,8 +69,14 @@ export function createDraftStore(kvFor: (profileId: ProfileId) => EncryptedKv): 
 
   const writePending = async (): Promise<void> => {
     for (const [profileId, e] of entries) {
-      if (e.dirty.size === 0) continue;
+      if (e.dirty.size === 0 && e.seenDirty.size === 0) continue;
       const kv = kvFor(profileId);
+      for (const id of [...e.seenDirty]) {
+        try {
+          const r = await kv.put(SEEN_PREFIX + id, encoder.encode(String(e.seen.get(id) ?? 0)));
+          if (r.ok) e.seenDirty.delete(id);
+        } catch { /* try again on the next change */ }
+      }
       for (const id of [...e.dirty]) {
         const text = e.drafts.get(id) ?? "";
         try {
@@ -88,6 +108,18 @@ export function createDraftStore(kvFor: (profileId: ProfileId) => EncryptedKv): 
     },
     flush,
     forget(profileId) { entries.delete(profileId); },
+    loadSeen(profileId) {
+      const e = entry(profileId);
+      e.loaded ??= readAll(profileId, e);
+      return e.loaded.then(() => new Map(e.seen));
+    },
+    setSeen(profileId, conversationId, at) {
+      const e = entry(profileId);
+      if ((e.seen.get(conversationId) ?? -1) >= at) return;
+      e.seen.set(conversationId, at);
+      e.seenDirty.add(conversationId);
+      timer ??= setTimeout(() => { timer = undefined; void flush(); }, SAVE_AFTER_MS);
+    },
   };
   return store;
 }

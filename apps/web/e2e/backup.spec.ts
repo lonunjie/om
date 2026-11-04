@@ -40,17 +40,17 @@ async function talk(page: Page): Promise<void> {
   await page.getByRole("option").click();
   await page.getByRole("textbox", { name: /message/i }).fill("hello from alice");
   await page.getByRole("button", { name: /send/i }).click();
-  await expect(page.getByText("hello from alice")).toBeVisible();
+  await expect(page.getByRole("log").getByText("hello from alice")).toBeVisible();
 
   await switchIdentity(page); // Bob
   await expect(page.getByRole("option")).toHaveCount(1, { timeout: 30_000 });
   await page.getByRole("option").click();
-  await expect(page.getByText("hello from alice")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("log").getByText("hello from alice")).toBeVisible({ timeout: 30_000 });
   await page.getByRole("textbox", { name: /message/i }).fill("hi alice, this is bob");
   await page.getByRole("button", { name: /send/i }).click();
   await switchIdentity(page); // Alice
   await page.getByRole("option").click();
-  await expect(page.getByText("hi alice, this is bob")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("log").getByText("hi alice, this is bob")).toBeVisible({ timeout: 30_000 });
 }
 
 async function openBackupPage(page: Page): Promise<void> {
@@ -127,8 +127,8 @@ test("save a backup file, restore it on a fresh install, read the history, canno
   await page2.getByRole("button", { name: /Settings/ }).click();
   await expect(page2.getByRole("option")).toHaveCount(1);
   await page2.getByRole("option").click();
-  await expect(page2.getByText("hello from alice")).toBeVisible();
-  await expect(page2.getByText("hi alice, this is bob")).toBeVisible();
+  await expect(page2.getByRole("log").getByText("hello from alice")).toBeVisible();
+  await expect(page2.getByRole("log").getByText("hi alice, this is bob")).toBeVisible();
   await expect(page2.getByText(/Restored from a backup file/).first()).toBeVisible();
   await expect(page2.getByRole("textbox", { name: /message/i })).toHaveCount(0); // history only: nothing to reply with
 
@@ -141,6 +141,6 @@ test("save a backup file, restore it on a fresh install, read the history, canno
   await reopen(page2, 30_000);
   await expect(page2.getByRole("option")).toHaveCount(1);
   await page2.getByRole("option").click();
-  await expect(page2.getByText("hello from alice")).toBeVisible();
+  await expect(page2.getByRole("log").getByText("hello from alice")).toBeVisible();
   await fresh.close();
 });

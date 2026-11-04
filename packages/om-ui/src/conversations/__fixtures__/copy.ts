@@ -7,7 +7,7 @@ const ACTIONS: readonly UserActionCode[] = ["authorize_with_device", "confirm_se
 const rec = <K extends string>(keys: readonly K[], f: (k: K) => string): Readonly<Record<K, string>> => Object.fromEntries(keys.map((k) => [k, f(k)])) as Record<K, string>;
 
 export const testCopy: ConversationCopy = {
-  list: { label: "Conversations", empty: "No conversations", noActivity: "No activity", unread: (n) => `${String(n)} unread`, securityNotice: "Security notice" },
+  list: { label: "Conversations", empty: "No conversations", noActivity: "No activity", unread: (n) => `${String(n)} unread`, you: "You:", draft: "Draft:", securityNotice: "Security notice" },
   view: { label: "Messages", empty: "No messages", loadFailed: "Could not load", incoming: "Received:", outgoing: "Sent:", retry: "Retry sending", back: "Back to conversations", formatTime: (ms) => `t${String(ms)}` },
   delivery: {
     pending: "Sending", pendingNetwork: "Waiting for network", pendingReconciliation: "Confirming delivery", sent: "Sent", delivered: "Delivered",

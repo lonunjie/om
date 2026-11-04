@@ -77,12 +77,12 @@ export async function inviteAndChat(browser: Browser, base: string): Promise<{ r
   await expect(async () => {
     await box.fill("hello bob");
     await alice.getByRole("button", { name: /send/i }).click();
-    await expect(alice.getByText("hello bob")).toBeVisible({ timeout: 3_000 });
+    await expect(alice.getByRole("log").getByText("hello bob")).toBeVisible({ timeout: 3_000 });
   }).toPass({ timeout: 60_000 });
-  await expect(bob.getByText("hello bob")).toBeVisible({ timeout: 60_000 });
+  await expect(bob.getByRole("log").getByText("hello bob")).toBeVisible({ timeout: 60_000 });
   await bob.getByRole("textbox", { name: /message/i }).fill("hi alice");
   await bob.getByRole("button", { name: /send/i }).click();
-  await expect(alice.getByText("hi alice")).toBeVisible({ timeout: 60_000 });
+  await expect(alice.getByRole("log").getByText("hi alice")).toBeVisible({ timeout: 60_000 });
   await shot(bob, "08-bob-chat");
   // With OM_SHOTS set, also look at the places a person reaches from Settings (addresses are in route/place.ts).
   if (SHOTS !== undefined) {

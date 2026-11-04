@@ -54,18 +54,18 @@ test("two identities talk through the configured reference Home; the Home sees o
   await page.getByRole("option").click();
   await page.getByRole("textbox", { name: /message/i }).fill("hello from alice");
   await page.getByRole("button", { name: /send/i }).click();
-  await expect(page.getByText("hello from alice")).toBeVisible();
+  await expect(page.getByRole("log").getByText("hello from alice")).toBeVisible();
 
   await asIdentity(page, me, "bob");
   await expect(page.getByRole("option")).toHaveCount(1, { timeout: 30_000 });
   await page.getByRole("option").click();
-  await expect(page.getByText("hello from alice")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("log").getByText("hello from alice")).toBeVisible({ timeout: 30_000 });
   await page.getByRole("textbox", { name: /message/i }).fill("hi alice, this is bob");
   await page.getByRole("button", { name: /send/i }).click();
 
   await asIdentity(page, me, "alice");
   await page.getByRole("option").click();
-  await expect(page.getByText("hi alice, this is bob")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("log").getByText("hi alice, this is bob")).toBeVisible({ timeout: 30_000 });
 
   // Reload: unlock both identities; the install keeps its right to its own mailboxes, so a new message still arrives.
   await page.reload();
@@ -76,7 +76,7 @@ test("two identities talk through the configured reference Home; the Home sees o
   await page.getByRole("button", { name: /send/i }).click();
   await asIdentity(page, after, "bob");
   await page.getByRole("option").click();
-  await expect(page.getByText("after the reload")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("log").getByText("after the reload")).toBeVisible({ timeout: 30_000 });
 
   // What the Home saw: requests to API paths only, no capability or query in any URL, and no plaintext in any body.
   expect(wire.length).toBeGreaterThan(15);

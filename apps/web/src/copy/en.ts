@@ -53,6 +53,8 @@ export const conversationCopy: ConversationCopy = {
     empty: "No conversations yet.",
     noActivity: "No messages yet",
     unread: (n) => `${String(n)} unread`,
+    you: "You:",
+    draft: "Draft:",
     securityNotice: "Security notice",
   },
   view: {
