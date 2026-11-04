@@ -7728,7 +7728,7 @@
       "path": "infra/cloudflare-home/package.json",
       "class": "architecture_doc",
       "domain": "architecture_process",
-      "license": "MPL-2.0",
+      "license": "AGPL-3.0-or-later",
       "authority": "canonical_normative"
     },
     {

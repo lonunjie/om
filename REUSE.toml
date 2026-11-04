@@ -17,9 +17,9 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "OM contributors"
 SPDX-License-Identifier = "MPL-2.0"
 
-# Reference provisioning and network-service code is AGPL-3.0-or-later (LICENSING_AND_CONTRIBUTION_POLICY.md section 1): the relay deploy template and its builder.
+# Reference relay (Home), provisioning and network-service code is AGPL-3.0-or-later (LICENSING_AND_CONTRIBUTION_POLICY.md section 1): the reference Home, the relay deploy template and its builder.
 [[annotations]]
-path = ["infra/cloudflare-home/release/**", "infra/cloudflare-home/test/template.test.ts"]
+path = ["infra/cloudflare-home/**"]
 precedence = "override"
 SPDX-FileCopyrightText = "OM contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
