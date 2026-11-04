@@ -319,6 +319,28 @@ pub struct Relationship {
     /// inviter's side until the Hello is out).
     #[serde(default)]
     pub pending_bind: Option<PendingBind>,
+    /// Sealed wrappers whose inner envelope came from a device the pinned peer head does not list yet (a newly linked
+    /// device). ADR-0144: indeterminate, not rejected. They wait here, unprocessed, until an authenticated peer head
+    /// refresh says what they are (K12, ONE_TO_ONE_SESSION_MANAGEMENT section 3).
+    #[serde(default)]
+    pub held: Vec<HeldWrapper>,
+    /// Wall time of the last head request sent for this relationship (rate limit; never authority).
+    #[serde(default)]
+    pub head_asked_ms: u64,
+    /// Our own head changed and the peer has not been sent it yet; retried until it is out.
+    #[serde(default)]
+    pub head_dirty: bool,
+    /// When we last served the peer a head update (rate limit for its requests).
+    #[serde(default)]
+    pub head_sent_ms: u64,
+}
+
+/// A sealed wrapper held while the peer's control head is refreshed.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HeldWrapper {
+    pub bytes: Hex,
+    pub since_ms: u64,
 }
 
 /// A conversation brought back from a backup file (ADR-0184). It is history only: no relationship, key, route or outbox
@@ -411,6 +433,10 @@ pub enum Purpose {
     },
     /// Our signed delivery-key record, sent after the peer's Hello (no user operation owns it).
     DepositKeys {
+        conversation_id: String,
+    },
+    /// Our AccountControl head, or a request for the peer's, sent inside the relationship (no user operation owns it).
+    DepositAcs {
         conversation_id: String,
     },
     /// Our next signed RelaySet version with the delivery keys of its routes, sent inside the relationship.

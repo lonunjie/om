@@ -20,6 +20,9 @@ use crate::route::{RelayEntry, RelaySet, RouteOffer};
 use crate::state::*;
 use std::sync::OnceLock;
 
+mod multi;
+use multi::{Inner, KIND_ACS_REQUEST, KIND_ACS_UPDATE};
+
 pub const INVITE_TTL_MS: u64 = 7 * 24 * 60 * 60 * 1000;
 pub const BUNDLE_TTL_S: u64 = 90 * 24 * 60 * 60;
 pub const MAX_MESSAGE_CHARS: usize = 8000;
@@ -726,6 +729,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         let _ = chain;
         self.st.app.acs_chain.push(hex(&signed));
+        // Every contact learns the new head (K7 on their side); a revocation reaches them to stop new envelopes.
+        self.broadcast_account_update();
         OutcomeClass::Committed
     }
 
@@ -1055,6 +1060,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     request_digest: inv.request_digest.clone(),
                     deadline_ms: self.now_ms + BOOTSTRAP_TTL_S * 1000,
                 }),
+                held: vec![],
+                head_asked_ms: 0,
+                head_dirty: false,
+                head_sent_ms: 0,
             },
         );
         self.st.app.intros.remove(request_id);
@@ -1238,34 +1247,47 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     /// TEST ONLY (`test-loopback`): enroll a second device as a MESSAGING device by a real, signed `link_messaging`
-    /// transition (the device-link ceremony transport is not built, so tests need a way to get a multi-device ACS).
+    /// transition (tests that do not run the device-link ceremony need a way to get a multi-device ACS).
     #[cfg(feature = "test-loopback")]
     pub fn debug_link_messaging_device(&mut self) -> Result<String, CoreError> {
+        let account = self.device()?.account_id;
+        let mut other = crate::crypto::store::Device::new(self.rng);
+        other.account_id = account;
+        self.debug_link_credential(&other.credential().body())
+    }
+
+    /// TEST ONLY (`test-loopback`): like [`Self::debug_link_messaging_device`] for a credential the test built (so the
+    /// test keeps the device and can act as it). The credential must name this account.
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_link_credential(&mut self, credential_body: &[u8]) -> Result<String, CoreError> {
         let (head, _, _) = self.acs_head().ok_or(CoreError::Invalid("no acs"))?;
         let (me_id, account) = {
             let d = self.device()?;
             (d.device_id, d.account_id)
         };
-        let mut other = crate::crypto::store::Device::new(self.rng);
-        other.account_id = account;
-        let cred = other.credential();
+        let cred = binding::Credential::from_body(credential_body)
+            .map_err(|_| CoreError::Invalid("credential"))?;
+        if cred.account_id != account {
+            return Err(CoreError::Invalid("credential of another account"));
+        }
         let mut child = head.clone();
         child.generation = head.generation + 1;
         child.previous = Some(head.hash());
-        child.messaging.insert(other.device_id);
-        child.credentials.push((other.device_id, cred.hash()));
+        child.messaging.insert(cred.device_id);
+        child.credentials.push((cred.device_id, cred.hash()));
         let signer = self.device()?.signer.clone();
         let signed = control::sign_acs(&child.body(), &[(&me_id, &signer)], self.rng);
-        self.st.app.acs_credentials.push(hex(&cred.body()));
+        self.st.app.acs_credentials.push(hex(credential_body));
         self.st.app.acs_chain.push(hex(&signed));
         self.st.app.device_meta.insert(
-            hex(&other.device_id),
+            hex(&cred.device_id),
             DeviceMeta {
                 label: "Test phone".into(),
                 enrolled_at: self.now_ms,
             },
         );
-        Ok(hex(&other.device_id))
+        self.broadcast_account_update();
+        Ok(hex(&cred.device_id))
     }
 
     fn retry_delivery(&mut self, op: &OperationId, message_id: &str) -> Result<(), CoreError> {
@@ -1671,6 +1693,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Run after every transition: close routes whose overlap ended, and give every active relationship a route at
     /// each of the person's other Homes the host has offered (a single-Home person is never affected).
     pub fn maintain_relays(&mut self) {
+        self.retry_dirty_heads();
         self.drop_closed_routes();
         if self.offers.is_empty() {
             return;
@@ -1910,6 +1933,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 Purpose::PublishKeys
                 | Purpose::Ack
                 | Purpose::DepositKeys { .. }
+                | Purpose::DepositAcs { .. }
                 | Purpose::DepositRelaySet { .. }
                 | Purpose::GrantKeyFetch { .. }
                 | Purpose::DepositBind { .. } => None,
@@ -2006,6 +2030,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 }
             }
             Purpose::DepositKeys { .. }
+            | Purpose::DepositAcs { .. }
             | Purpose::DepositRelaySet { .. }
             | Purpose::GrantKeyFetch { .. }
             | Purpose::DepositBind { .. } => {}
@@ -2242,6 +2267,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     request_digest: hex(&rk),
                     deadline_ms: route_expires * 1000,
                 }),
+                held: vec![],
+                head_asked_ms: 0,
+                head_dirty: false,
+                head_sent_ms: 0,
             },
         );
         self.enqueue(
@@ -2648,7 +2677,20 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 expires_at: wrapper_exp,
             },
         );
-        let accepted = self.process_inner(conv, &opened.inner_envelope, is_bootstrap);
+        let verdict = self.process_inner(conv, &opened.inner_envelope, is_bootstrap);
+        if verdict == Inner::Held {
+            // ADR-0144: indeterminate because the held peer head may be stale. No replay verdict is recorded (the exact
+            // wrapper may be processed again), the wrapper waits unprocessed, and a head refresh is asked for.
+            if let Some(rel) = self.st.app.relationships.get_mut(conv) {
+                rel.replay.remove(&rkey);
+            }
+            if !self.hold(conv, wrapper) {
+                self.count_failure(conv);
+            }
+            self.ask_head(conv);
+            return;
+        }
+        let accepted = verdict == Inner::Accepted;
         // 8. COMPLETE or REJECTED in the same transaction as the inner acceptance.
         if let Some(rel) = self.st.app.relationships.get_mut(conv) {
             if let Some(r) = rel.replay.get_mut(&rkey) {
@@ -2673,13 +2715,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Before the relationship is bound the payload is not a session envelope: the requester's bootstrap key admits
     /// exactly one thing, the inviter's Accept, and an unbound inviter admits exactly the requester's Bind
     /// (ADR-0181 section 3). Both are plain CBOR inside the sealed delivery and authenticate by their own signatures.
-    fn process_inner(&mut self, conv: &str, env: &[u8], via_bootstrap: bool) -> bool {
+    fn process_inner(&mut self, conv: &str, env: &[u8], via_bootstrap: bool) -> Inner {
         let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
-            return false;
+            return Inner::Rejected;
         };
         let env_id = hex(&crypto::sha256(&[env]));
         if rel.seen_envelopes.contains(&env_id) {
-            return true; // the same inner envelope under a fresh wrapper (sender retry): not an attack, no effect
+            return Inner::Accepted; // the same inner envelope under a fresh wrapper (sender retry): not an attack, no effect
         }
         let unbound_inviter =
             rel.state == RelState::AcceptedUnbound && rel.peer_account_id.is_empty();
@@ -2702,26 +2744,44 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             if ok && let Some(r) = self.st.app.relationships.get_mut(conv) {
                 r.seen_envelopes.push(env_id);
             }
-            return ok;
+            return ok.into();
         }
         let Ok(account) = h32(&rel.peer_account_id) else {
-            return false;
+            return Inner::Rejected;
         };
+        // K12 (ONE_TO_ONE_SESSION_MANAGEMENT section 3): an envelope from a device the held peer head does not list may
+        // come from a device linked after that head. That is not a verdict: hold it until the head is refreshed.
+        if rel.state == RelState::Active && self.sender_unknown(account, env) {
+            return Inner::Held;
+        }
         let Some(dev) = self.st.device.as_mut() else {
-            return false;
+            return Inner::Rejected;
         };
         // A payload that is not accepted must leave the cryptographic state untouched on every path
         // (audit M6): decrypting advances the ratchet, so snapshot first and restore on rejection.
         let snapshot = Some(dev.clone());
         // ADR-0137: the relationship context is mandatory and is checked before any session lookup or secret operation.
         let res = dev.decrypt(&RelationshipContext::new(account), env, self.rng);
-        let pt = match res {
-            Ok((_, pt, _)) => pt,
-            Err(_) => return false,
+        let (pt, sender) = match res {
+            Ok((ik, pt, _)) => {
+                let sender = dev
+                    .peer_devices
+                    .iter()
+                    .find(|d| d.0 == ik && d.1 == account)
+                    .map(|d| d.2);
+                match sender {
+                    Some(s) => (pt, s),
+                    None => {
+                        self.restore(snapshot);
+                        return Inner::Rejected;
+                    }
+                }
+            }
+            Err(_) => return Inner::Rejected,
         };
         let Ok(p) = cbor::decode(&pt) else {
             self.restore(snapshot);
-            return false;
+            return Inner::Rejected;
         };
         let kind = p.get(0).and_then(|x| x.u()).unwrap_or(0);
         let live = matches!(rel.state, RelState::Establishing | RelState::Active);
@@ -2733,12 +2793,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             KIND_KEYS => self.on_keys(conv, &p),
             KIND_RELAYSET => self.on_relayset(conv, &p),
             KIND_RELAYSET_ACK => self.on_relayset_ack(conv, &p),
-            events::OBJECT_TYPE => self.on_event(conv, &pt),
+            KIND_ACS_UPDATE => self.on_acs_update(conv, &p),
+            KIND_ACS_REQUEST => self.on_acs_request(conv, &p),
+            events::OBJECT_TYPE => self.on_event(conv, &pt, sender),
             _ => true, // unknown payload kinds from a newer client are ignored, not fatal
         };
         if !ok {
             self.restore(snapshot);
-            return false;
+            return Inner::Rejected;
         }
         if let Some(r) = self.st.app.relationships.get_mut(conv) {
             r.seen_envelopes.push(env_id);
@@ -2746,7 +2808,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 r.seen_envelopes.remove(0);
             }
         }
-        true
+        Inner::Accepted
     }
 
     /// The `(head, credentials)` of a peer's chain sent with its binding, refused above the first-contact cap before
@@ -3150,7 +3212,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// An authenticated inner payload that is a `ConversationEvent`: W0-valid, in this conversation, authored by the
     /// pinned peer endpoint, deduplicated by EventID, and applied as a state transition.
-    fn on_event(&mut self, conv: &str, bytes: &[u8]) -> bool {
+    fn on_event(&mut self, conv: &str, bytes: &[u8], sender: [u8; 16]) -> bool {
         if registry().check("ConversationEvent", bytes, false).is_err() {
             return false;
         }
@@ -3160,17 +3222,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(r) = self.st.app.relationships.get_mut(conv) else {
             return false;
         };
-        let (Some(canon), Ok(peer_account), Ok(peer_device)) = (
-            r.canon_id.as_deref(),
-            h32(&r.peer_account_id),
-            h16(&r.peer_device_id),
-        ) else {
+        let (Some(canon), Ok(peer_account)) = (r.canon_id.as_deref(), h32(&r.peer_account_id))
+        else {
             return false;
         };
-        // The event must name this conversation and be authored by the authenticated endpoint that carried it.
+        // The event must name this conversation and be authored by the authenticated endpoint that carried it: the
+        // device whose identity key opened the session envelope, which the held head lists as active (K12).
         if hex(&ev.conversation_id) != canon
             || ev.author_account != peer_account
-            || ev.author_device != peer_device
+            || ev.author_device != sender
         {
             return false;
         }

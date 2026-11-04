@@ -457,6 +457,26 @@ impl<R: RngCore + CryptoRng> Core<R> {
         ))
     }
 
+    /// TEST ONLY: link a credential the test built (see `Tx::debug_link_credential`).
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_link_credential(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        credential_body: &[u8],
+    ) -> Result<(String, Step), CoreError> {
+        self.slot(ctx)?;
+        let (id, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.debug_link_credential(credential_body)
+        })?;
+        Ok((
+            id,
+            Step {
+                commit,
+                handle: None,
+            },
+        ))
+    }
+
     /// TEST ONLY: deposit an arbitrary authenticated inner payload (see `Tx::debug_inject`).
     #[cfg(feature = "test-loopback")]
     pub fn debug_inject_payload(

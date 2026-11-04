@@ -212,12 +212,20 @@ impl Device {
         credential_bodies: Vec<Vec<u8>>,
     ) -> Result<(), Error> {
         let acs = Acs::from_body(&acs_body)?;
-        if let Some((_, old)) = self.peers.get(&acs.account_id)
-            && Acs::from_body(&old.acs_body)?.generation > acs.generation
-        {
-            return Err(Error::Binding(
-                "peer ACS head older than the stored head (K7)",
-            ));
+        if let Some((old_hash, old)) = self.peers.get(&acs.account_id) {
+            let old_gen = Acs::from_body(&old.acs_body)?.generation;
+            if old_gen > acs.generation {
+                return Err(Error::Binding(
+                    "peer ACS head older than the stored head (K7)",
+                ));
+            }
+            // Same generation, different state: two heads at one height are a fork, never a refresh. Descent from
+            // the stored head is the caller's check (it holds the chain); this layer refuses what is plainly not newer.
+            if old_gen == acs.generation && *old_hash != acs.hash() {
+                return Err(Error::Binding(
+                    "peer ACS head forks the stored head at the same generation (K7)",
+                ));
+            }
         }
         let p = TrustedPeer {
             acs_body,
