@@ -12,10 +12,7 @@ The Pages project keeps serving `public/` from git. For a release, the repo's `p
 `site/` of the signed release folder (bundle, `bundle-manifest.json`, `_headers`). Never edit a file in it: the service
 worker rejects any byte that differs from the manifest.
 
-The same repo is public, so it also hosts the "Deploy to Cloudflare" source: `release/` at the repo root holds the
-release folder's `site/` plus [`wrangler.toml`](cloudflare-pages/wrangler.toml) (Workers static assets variant), so the button URL is
-`https://deploy.workers.cloudflare.com/?url=https://github.com/lonunjie/om.lonunjie.org/tree/main/release`
-(button limits: [`cloudflare-pages/README.md`](cloudflare-pages/README.md)).
+The repo has no `release/` folder and no "Deploy to Cloudflare" source: ADR-0186 removed them (people set up their own delivery service from onboarding).
 
 ## Steps
 
@@ -23,7 +20,7 @@ release folder's `site/` plus [`wrangler.toml`](cloudflare-pages/wrangler.toml) 
    `ed25519-pkcs8-2026-10-28`; delegation v1 expires 2027-01-26; the PQ co-signature is required). Then
    `node verify.mjs --require-signed` inside the produced folder.
 2. Stage on a branch of `om.lonunjie.org` (never `main`): `node deploy/site-stage.mjs <release folder> <website repo>`
-   refuses an unverified folder, replaces `public/` with `site/`, and writes `release/` (`site/` + [`wrangler.toml`](cloudflare-pages/wrangler.toml)).
+   refuses an unverified folder, replaces `public/` with `site/` and writes nothing else.
 3. Push the branch. Pages builds a preview at `https://<hash>.om-lonunjie.pages.dev` (noindex).
 4. Verify on the preview URL: headers (CSP, Trusted Types, Permissions-Policy) equal `apps/web/csp.ts` output; the SW
    registers at scope `/`; manifest and icons load; the PWA installs; first load shows the landing with the beta banner;
