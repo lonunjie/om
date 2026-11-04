@@ -8,7 +8,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { E2E_ADMISSION_SECRET, LOCKED_RELAY } from "./admission-fixture.ts";
 import { addIdentity, noPasskeys, walkSetup } from "./helpers.ts";
 
-test.use({ baseURL: "http://localhost:4179", permissions: ["geolocation", "microphone"], geolocation: { latitude: 51.5007, longitude: -0.1246, accuracy: 20 } });
+// Permissions are granted by name only where the engine knows the name: Playwright's Firefox rejects "microphone" at context creation.
+// Geolocation is granted everywhere; the microphone, and the voice-note leg that needs it, only on Chromium (fake device flags in the config).
+test.use({ baseURL: "http://localhost:4179", permissions: ["geolocation"], geolocation: { latitude: 51.5007, longitude: -0.1246, accuracy: 20 } });
 
 const MARKER = "SEED-FILE-CONTENT-7f3a-do-not-leak";
 
@@ -22,7 +24,10 @@ async function asIdentity(page: Page, state: { who: Who }, who: Who): Promise<vo
   state.who = who;
 }
 
-test("files, a voice note and a location card cross a locked Home; oversize is refused plainly; search finds a message and a file", async ({ page }) => {
+test("files, a voice note and a location card cross a locked Home; oversize is refused plainly; search finds a message and a file", async ({ page, browserName }) => {
+  const voice = browserName === "chromium";
+  if (voice) await page.context().grantPermissions(["geolocation", "microphone"]);
+  else test.info().annotations.push({ type: "skipped part", description: `voice note: ${browserName} cannot pre-grant a microphone or supply a fake media stream in this setup (Chromium only)` });
   await noPasskeys(page);
   // The browser's own file dialog cannot be driven; without it OM uses an ordinary file input, which Playwright can.
   await page.addInitScript(() => { Object.defineProperty(window, "showOpenFilePicker", { value: undefined, configurable: true }); });
@@ -87,14 +92,16 @@ test("files, a voice note and a location card cross a locked Home; oversize is r
   await expect(tray).toBeHidden();
 
   // ---- a voice note: record, listen, then send ----
-  await page.getByRole("button", { name: "Record a voice note" }).click();
-  await expect(page.getByRole("group", { name: "Recording" })).toBeVisible();
-  await page.waitForTimeout(1500);
-  await page.getByRole("button", { name: "Stop recording" }).click();
-  await expect(tray).toContainText("Listen before you send");
-  await expect(tray.locator("audio")).toBeVisible();
-  await page.getByRole("button", { name: /send/i }).click();
-  await expect(log.getByText("Voice note")).toBeVisible({ timeout: 30_000 });
+  if (voice) {
+    await page.getByRole("button", { name: "Record a voice note" }).click();
+    await expect(page.getByRole("group", { name: "Recording" })).toBeVisible();
+    await page.waitForTimeout(1500);
+    await page.getByRole("button", { name: "Stop recording" }).click();
+    await expect(tray).toContainText("Listen before you send");
+    await expect(tray.locator("audio")).toBeVisible();
+    await page.getByRole("button", { name: /send/i }).click();
+    await expect(log.getByText("Voice note")).toBeVisible({ timeout: 30_000 });
+  }
 
   // ---- a location card: nothing is sent until confirmed ----
   await page.getByRole("button", { name: "Share your location" }).click();
@@ -123,8 +130,10 @@ test("files, a voice note and a location card cross a locked Home; oversize is r
   const [download] = await Promise.all([page.waitForEvent("download"), log.getByRole("button", { name: "Download note.txt" }).click()]);
   expect(download.suggestedFilename()).toBe("note.txt");
   expect(readFileSync(await download.path(), "utf8")).toBe(MARKER);
-  await log.getByRole("button", { name: "Play voice note" }).click();
-  await expect(log.locator("audio")).toBeVisible({ timeout: 30_000 });
+  if (voice) {
+    await log.getByRole("button", { name: "Play voice note" }).click();
+    await expect(log.locator("audio")).toBeVisible({ timeout: 30_000 });
+  }
   const card = log.getByRole("group", { name: "Location" });
   await expect(card).toBeVisible({ timeout: 30_000 });
   await expect(card).toContainText("51.5007, -0.1246");
@@ -146,7 +155,7 @@ test("files, a voice note and a location card cross a locked Home; oversize is r
 
   // ---- what the Home saw: sealed bytes with a digest header, no readable content, no capability in any URL ----
   const uploads = toHome.filter((w) => w.url.endsWith("/v1/blobs") && w.method === "POST");
-  expect(uploads.length).toBeGreaterThanOrEqual(2);
+  expect(uploads.length).toBeGreaterThanOrEqual(voice ? 2 : 1);
   for (const u of uploads) expect(u.digest ?? "").toMatch(/\S{20,}/);
   for (const w of toHome) {
     expect(w.url).not.toMatch(/[?#]/);

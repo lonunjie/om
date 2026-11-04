@@ -45,8 +45,8 @@ export default defineConfig({
   ],
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"], launchOptions: { args: cameraArgs } }, testIgnore: /(cross|live-relay|live-invite)\.spec\.ts/ },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] }, testMatch: /(cross|core|relay|invite-link|navigation|backup)\.spec\.ts/ },
-    { name: "webkit", use: { ...devices["Desktop Safari"] }, testMatch: /(cross|core|relay|invite-link|navigation|backup)\.spec\.ts/ },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] }, testMatch: /(cross|core|relay|invite-link|navigation|backup|backup-service|device-link|omnibar|attachments|search|lock|relay-setup|landing)\.spec\.ts/ },
+    { name: "webkit", use: { ...devices["Desktop Safari"] }, testMatch: /(cross|core|relay|invite-link|navigation|backup|backup-service|device-link|omnibar|attachments|search|lock|relay-setup|landing)\.spec\.ts/ },
     ...(live ? [{ name: "live-chromium", use: { ...devices["Desktop Chrome"] }, testMatch: /live-(relay|invite)\.spec\.ts/, timeout: 240_000 }] : []),
   ],
 });
