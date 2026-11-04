@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { flowReducer, initialFlow } from "./flow";
+import { choosingFlow, flowReducer, initialFlow } from "./flow";
 import type { FlowEvent, FlowState } from "./flow";
 import { groupMatches, pickVerifyIndices } from "./recovery";
 
@@ -18,6 +18,21 @@ describe("onboarding flow reducer", () => {
     expect(run(["start", "start"]).step).toBe("protect_device");
     const ready = run(["start", "device_protected"]);
     expect(run(["start", "device_protected"], ready)).toBe(ready);
+  });
+
+  it("offers the two choices first when the host can link: a new identity, or protect then join (D24)", () => {
+    expect(choosingFlow.step).toBe("choose");
+    expect(run(["choose_new"], choosingFlow).step).toBe("protect_device");
+    expect(run(["choose_join"], choosingFlow).step).toBe("join_protect");
+    expect(run(["choose_join", "vault_ready"], choosingFlow).step).toBe("join_link");
+    expect(run(["choose_join", "back_to_choice"], choosingFlow).step).toBe("choose");
+  });
+
+  it("the join path cannot skip protecting the device or reach the identity steps", () => {
+    expect(run(["vault_ready"], choosingFlow).step).toBe("choose");
+    expect(run(["choose_join", "device_protected"], choosingFlow).step).toBe("join_protect");
+    expect(run(["choose_join", "vault_ready", "choose_new", "start", "device_protected"], choosingFlow).step).toBe("join_link");
+    expect(run(["choose_join", "vault_ready", "back_to_choice"], choosingFlow).step).toBe("join_link"); // the vault exists: no way back to "Start new"
   });
 
   it("is pure: the input state is unchanged", () => {

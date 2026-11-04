@@ -1,4 +1,5 @@
 import type { HomeCopy } from "../home/copy";
+import type { JoinCopy } from "../devices/copy";
 import type {
   ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason,
 } from "@om/platform-api";
@@ -12,6 +13,22 @@ export interface OnboardingCopy {
   /** Page chrome shared by every step. */
   readonly frame: { readonly brand: string; readonly beta: string; readonly step: (n: number, total: number) => string };
   readonly welcome: { readonly heading: string; readonly body: string; readonly start: string };
+  /**
+   * "I already use OM" (deviation D24). Present only on a host that can link a device; without it first run is unchanged.
+   * The two choices are equal. The join path protects this device first (no name: the account already has one), then asks for the link.
+   */
+  readonly join?: {
+    readonly choiceHeading: string;
+    readonly startNew: string;
+    readonly startNewHint: string;
+    readonly useExisting: string;
+    readonly useExistingHint: string;
+    readonly protectHeading: string;
+    readonly protectBody: string;
+    readonly protectAction: string;
+    readonly back: string;
+    readonly link: JoinCopy;
+  };
   readonly protect: {
     readonly heading: string;
     /** Optional: the first page asks one question and says nothing more. */

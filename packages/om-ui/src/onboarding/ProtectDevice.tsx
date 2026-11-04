@@ -15,6 +15,11 @@ export interface ProtectDeviceProps {
   readonly copy: OnboardingCopy["protect"];
   /** Core created the identity; `keyOperationId` names the RecoveryKeyView to show next. */
   readonly onProtected: (keyOperationId: OperationId, wrapping: VaultWrappingInfo) => void;
+  /**
+   * Joining an account that already exists (deviation D24): the vault is made and NO identity is created here, because the
+   * other device's approval brings the account. Called instead of `onProtected`.
+   */
+  readonly onVaultReady?: (wrapping: VaultWrappingInfo) => void;
   /** Existing or corrupt vault data: the only way forward is the recovery flow, never overwrite or recreate. */
   readonly onExistingVault?: (reason: "already_exists" | "corrupt") => void;
   /** Test seam: how long the device prompt may stay open before the person is offered a way past it. */
@@ -35,7 +40,7 @@ const SLOW_PROMPT_MS = 6000;
 /** Core bounds a label at 64 characters. */
 const NAME_MAX = 64;
 
-export function ProtectDevice({ services, vault, copy, onProtected, onExistingVault, slowPromptMs = SLOW_PROMPT_MS, allowPassphrase = true }: ProtectDeviceProps) {
+export function ProtectDevice({ services, vault, copy, onProtected, onVaultReady, onExistingVault, slowPromptMs = SLOW_PROMPT_MS, allowPassphrase = true }: ProtectDeviceProps) {
   const [phase, setPhase] = useState<Phase>({ k: "idle" });
   const [usePassphrase, setUsePassphrase] = useState(false);
   const [pass, setPass] = useState("");
@@ -90,7 +95,12 @@ export function ProtectDevice({ services, vault, copy, onProtected, onExistingVa
       set({ k: "error", reason: "crypto_failed" });
       return;
     }
-    if (result.ok) { setPass(""); setPassConfirm(""); await createProfile(result.wrapping); return; }
+    if (result.ok) {
+      setPass(""); setPassConfirm("");
+      if (onVaultReady) { if (mounted.current) onVaultReady(result.wrapping); return; }
+      await createProfile(result.wrapping);
+      return;
+    }
     switch (result.reason) {
       case "needs_user_gesture": set({ k: "gesture", stage: result.stage ?? "enroll_create" }); break;
       case "already_exists":

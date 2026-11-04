@@ -13,3 +13,4 @@ export * from "./UnlockVault";
 export * from "./OnboardingFrame";
 export * from "./passphrase";
 export * from "./RelaySetup";
+export * from "./FirstRunChoice";

@@ -94,3 +94,8 @@
 .om-onb__later { display: flex; flex-direction: column; gap: var(--om-space-2); padding-block-start: var(--om-space-4); border-block-start: 1px solid var(--om-color-border); color: var(--om-color-text-secondary); }
 .om-onb__later ul, .om-onb__relay-steps { margin: 0; padding-inline-start: 1.25rem; display: flex; flex-direction: column; gap: var(--om-space-1); }
 .om-onb__actions > a.om-button { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+
+/* "Start new" and "I already use OM": two equal choices, each full width with its one-line hint under it (UX brief section 5). */
+.om-onb__choices { display: flex; flex-direction: column; gap: var(--om-space-2); }
+.om-onb__choices > .om-button { inline-size: 100%; min-block-size: 3rem; }
+.om-onb__choices > .om-button:not(:first-child) { margin-block-start: var(--om-space-3); }

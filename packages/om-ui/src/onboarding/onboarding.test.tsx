@@ -732,3 +732,68 @@ describe("asking for a name", () => {
     expect((await screen.findByRole("alert")).textContent).toBe("At most 64.");
   });
 });
+
+describe("I already use OM (deviation D24)", () => {
+  const kinds = async (r: Rig): Promise<string[]> => (await r.h.pendingOperations(r.ctx)).map((o) => o.intentKind);
+
+  it("shows two equal choices; Start new continues as before and creates the profile", async () => {
+    const r = rig();
+    const tp = makePlatform();
+    const { container } = render(ui(r, tp, { allowJoin: true }));
+    await screen.findByRole("heading", { name: "How do you want to begin" });
+    expect(screen.queryByRole("button", { name: "Get started" })).toBeNull();
+    expect(screen.getByRole("button", { name: "I already use OM" })).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+    await click("Start new");
+    await screen.findByRole("heading", { name: "Protect this device" });
+  });
+
+  it("joins: locks the device without asking a name or creating a profile, takes the link, shows the code and finishes when the other device approves", async () => {
+    const r = rig();
+    const tp = makePlatform();
+    const offer = r.h.simulateExistingDeviceOffer();
+    const { container } = render(ui(r, tp, { allowJoin: true }));
+    await click("I already use OM");
+    await screen.findByRole("heading", { name: "Lock this device first" });
+    expect(screen.queryByRole("textbox")).toBeNull();
+    await click("Lock this device");
+    await screen.findByRole("heading", { name: "Join with a link" });
+    expect(await kinds(r)).not.toContain("CreateProfile");
+    await userEvent.type(screen.getByRole("textbox", { name: "Link from your other device" }), offer.link);
+    await click("Continue");
+    expect(await screen.findByText(offer.verificationCode, { selector: "output" })).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+    expect(r.done).not.toHaveBeenCalled();
+    r.h.simulateExistingDeviceDecision(offer.link, "approve");
+    await waitFor(() => { expect(r.done).toHaveBeenCalledTimes(1); });
+    expect(r.done).toHaveBeenCalledWith({ safetyCodePending: null, inviteAccepted: false });
+  });
+
+  it("a refused request offers a fresh start through the host", async () => {
+    const r = rig();
+    const tp = makePlatform();
+    const offer = r.h.simulateExistingDeviceOffer();
+    const restart = vi.fn();
+    render(ui(r, tp, { allowJoin: true, onJoinRestart: restart }));
+    await click("I already use OM");
+    await click("Lock this device");
+    await userEvent.type(await screen.findByRole("textbox", { name: "Link from your other device" }), offer.link);
+    await click("Continue");
+    await screen.findByText(offer.verificationCode, { selector: "output" });
+    r.h.simulateExistingDeviceDecision(offer.link, "reject");
+    await userEvent.click(await screen.findByRole("button", { name: "Start again" }));
+    expect(restart).toHaveBeenCalledTimes(1);
+  });
+
+  it("the choice is absent without allowJoin, when adding an identity and with an incoming invitation", () => {
+    const tp = makePlatform();
+    render(ui(rig(), tp));
+    expect(screen.queryByRole("button", { name: "I already use OM" })).toBeNull();
+    cleanup();
+    render(ui(rig(), tp, { allowJoin: true, addingIdentity: { backLabel: "Back", onBack: () => undefined } }));
+    expect(screen.queryByRole("button", { name: "I already use OM" })).toBeNull();
+    cleanup();
+    render(ui(rig(), tp, { allowJoin: true, incomingInvite: "om:invite/AAAAAAAAAAAAAAAAAAAAAA" }));
+    expect(screen.queryByRole("button", { name: "I already use OM" })).toBeNull();
+  });
+});

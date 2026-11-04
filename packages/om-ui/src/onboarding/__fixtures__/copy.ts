@@ -2,6 +2,7 @@ import type {
   ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason,
 } from "@om/platform-api";
 import type { OnboardingCopy, UnlockCopy } from "../copy";
+import { testJoinCopy } from "../../devices/__fixtures__/copy";
 
 const rec = <K extends string>(keys: readonly K[], f: (k: K) => string): Readonly<Record<K, string>> => Object.fromEntries(keys.map((k) => [k, f(k)])) as Record<K, string>;
 const REASONS: readonly RejectReason[] = ["invalid", "unsupported", "unauthorized", "revoked", "expired", "stale_state", "conflict", "policy_denied", "quota", "rate_limited", "integrity_failure", "unavailable", "not_found"];
@@ -29,6 +30,10 @@ export const testUnlockCopy: UnlockCopy = {
 export const testCopy: OnboardingCopy = {
   frame: { brand: "OM", beta: "Beta", step: (n, total) => `Step ${String(n)} of ${String(total)}` },
   welcome: { heading: "Welcome", body: "Set up this device.", start: "Get started" },
+  join: {
+    choiceHeading: "How do you want to begin", startNew: "Start new", startNewHint: "First time using OM", useExisting: "I already use OM", useExistingHint: "Add this device to your account",
+    protectHeading: "Lock this device first", protectBody: "OM locks itself before it joins.", protectAction: "Lock this device", back: "Go back", link: testJoinCopy,
+  },
   protect: {
     heading: "Protect this device", body: "Your data is locked on this device.", action: "Protect this device", working: "Protecting",
     passkeyUser: { name: "me", displayName: "Me" }, defaultProfileLabel: "Me", resultHeading: "Protection chosen", moreOptions: "More options",
