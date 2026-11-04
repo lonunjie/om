@@ -64,6 +64,24 @@ fn mailbox_of_deposit(mailbox: &[u8], relay_uri: Option<&str>) -> Vec<u8> {
     }
 }
 
+/// TEST ONLY: while set, an approving Core leaves the enrollment notice out of the approval (the new device must refuse).
+/// Process-global, so a test that sets it lives in a test binary of its own.
+pub static TEST_OMIT_NOTICE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// The loopback's receive capability for a queue it opened (48 bytes, as a real Home's).
+fn queue_receive_cap(mailbox: &[u8]) -> Vec<u8> {
+    let mut cap = vec![0xD5; 16];
+    cap.extend_from_slice(mailbox);
+    cap.extend_from_slice(&[0x5D; 16]);
+    cap
+}
+
+fn receive_cap_queue(cap: &[u8]) -> Option<Vec<u8>> {
+    (cap.len() == 48 && cap[..16] == [0xD5; 16] && cap[32..] == [0x5D; 16])
+        .then(|| cap[16..32].to_vec())
+}
+
 pub const TEST_ONLY_MARKER: &str = "OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION";
 
 #[derive(Default)]
@@ -286,8 +304,25 @@ impl LoopbackNetwork {
                 m.items.push((seq, bytes.clone()));
                 NetResult::Ok
             }
-            NetCall::Ack { mailbox, seq, .. } => {
-                if let Some(m) = s.mailboxes.get_mut(mailbox) {
+            // A ceremony queue: the receive capability is derived from the mailbox, like a real Home's, and checked on poll.
+            NetCall::OpenQueue { mailbox, .. } => {
+                s.mailboxes.entry(mailbox.clone()).or_default();
+                NetResult::Bytes {
+                    bytes: queue_receive_cap(mailbox),
+                }
+            }
+            NetCall::Ack {
+                mailbox,
+                seq,
+                capability,
+                ..
+            } => {
+                let queue = if capability.is_empty() {
+                    Some(mailbox.clone())
+                } else {
+                    receive_cap_queue(capability)
+                };
+                if let Some(m) = queue.and_then(|q| s.mailboxes.get_mut(&q)) {
                     m.items.retain(|(q, _)| q > seq);
                 }
                 NetResult::Ok
@@ -543,9 +578,16 @@ impl Runtime {
     pub fn poll(&mut self, ctx: &ProfileExecutionContext) -> usize {
         let mut n = 0;
         for t in self.core.poll_targets(ctx).expect("poll targets") {
-            let items = self
-                .net
-                .poll_at(t.relay_uri.as_deref(), &t.mailbox, t.after);
+            // A queue opened for someone else is drained only with the capability its owner handed out, which names it.
+            let queue = if t.capability.is_empty() {
+                t.mailbox.clone()
+            } else {
+                match receive_cap_queue(&t.capability) {
+                    Some(q) => q,
+                    None => continue,
+                }
+            };
+            let items = self.net.poll_at(t.relay_uri.as_deref(), &queue, t.after);
             if items.is_empty() {
                 continue;
             }

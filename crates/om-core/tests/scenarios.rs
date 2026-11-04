@@ -632,7 +632,14 @@ fn destructive_and_unbuilt_intents_fail_closed() {
             reason: RejectReason::Unauthorized
         })
     );
-    rt.dispatch(&ctx, "unbuilt", IntentBody::OfferDeviceLink);
+    rt.dispatch(
+        &ctx,
+        "unbuilt",
+        IntentBody::ShareContact {
+            person_id: "p".into(),
+            scope: ShareScope::NameOnly,
+        },
+    );
     assert_eq!(
         rt.outcome(&ctx, "unbuilt"),
         Some(OutcomeClass::Rejected {
@@ -666,8 +673,9 @@ fn destructive_and_unbuilt_intents_fail_closed() {
     assert_eq!(
         rt.outcome(&ctx, "link"),
         Some(OutcomeClass::Rejected {
-            reason: RejectReason::Unsupported
-        })
+            reason: RejectReason::Conflict
+        }),
+        "a profile that already has an account never joins another"
     );
     rt.dispatch(
         &ctx,

@@ -20,7 +20,12 @@ use crate::route::{RelayEntry, RelaySet, RouteOffer};
 use crate::state::*;
 use std::sync::OnceLock;
 
+mod ceremony;
 mod multi;
+use ceremony::KIND_ENROLLED;
+pub use ceremony::{
+    notice_views, offer_view, pending_requests, poll_targets as ceremony_poll_targets, request_view,
+};
 use multi::{Inner, KIND_ACS_REQUEST, KIND_ACS_UPDATE};
 
 pub const INVITE_TTL_MS: u64 = 7 * 24 * 60 * 60 * 1000;
@@ -377,6 +382,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .intros
             .retain(|_, i| i.reply_key.expires_at > now_s);
         self.st.app.confirmations.retain(|c| c.expires_at > now_ms);
+        self.expire_ceremonies();
     }
 
     // ------------------------------------------------------------------------------------------ confirmations (M2)
@@ -628,6 +634,17 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         let rejected = |reason| OutcomeClass::Rejected { reason };
         let unsupported = rejected(RejectReason::Unsupported);
+        // A device that has asked to join an account is not a profile of its own until the approval verifies.
+        if self
+            .st
+            .app
+            .link_join
+            .as_ref()
+            .is_some_and(|j| j.state == LinkState::AwaitingApproval)
+        {
+            self.record(op, kind, rejected(RejectReason::Conflict), None);
+            return Ok(());
+        }
         let outcome = match &intent.body {
             IntentBody::CreateIdentityProfile { label } => self.create_identity(op, label),
             IntentBody::ConfirmRecoveryKeyStored { key_operation_id } => {
@@ -684,6 +701,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             IntentBody::ClearAdaptiveNavigation
             | IntentBody::OpenOmnibarResult { .. }
             | IntentBody::PinNavigationTarget { .. } => OutcomeClass::Committed,
+            IntentBody::OfferDeviceLink => self.offer_device_link(op),
+            IntentBody::RequestDeviceLink { link } => self.request_device_link(op, link),
+            IntentBody::ApproveDeviceLink { request_id, .. } => {
+                self.approve_device_link(request_id)
+            }
+            IntentBody::RejectDeviceLink { request_id } => self.reject_device_link(request_id),
             IntentBody::SuspendDevice { device_id, .. } => {
                 self.device_transition(device_id, control::Action::Suspend)
             }
@@ -696,10 +719,6 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             | IntentBody::ShareStaticLocation { .. }
             | IntentBody::StartCall { .. }
             | IntentBody::RestoreHistory { .. }
-            | IntentBody::OfferDeviceLink
-            | IntentBody::RequestDeviceLink { .. }
-            | IntentBody::ApproveDeviceLink { .. }
-            | IntentBody::RejectDeviceLink { .. }
             | IntentBody::StartRecovery { .. }
             | IntentBody::VetoRecovery { .. } => unsupported,
         };
@@ -2024,6 +2043,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     Some(conversation_id.clone()),
                     Some(message_id.clone()),
                 )),
+                Purpose::OpenCeremonyQueue { operation_id }
+                | Purpose::DepositCeremony { operation_id } => {
+                    Some((operation_id.clone(), None, None))
+                }
                 Purpose::PublishKeys
                 | Purpose::Ack
                 | Purpose::FetchDeviceKeys { .. }
@@ -2059,6 +2082,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             K::Terminal(reason) => {
                 self.st.app.outbox.remove(pos);
+                if let Purpose::OpenCeremonyQueue { operation_id }
+                | Purpose::DepositCeremony { operation_id } = &entry.purpose
+                {
+                    self.ceremony_failed(operation_id);
+                }
                 if let Purpose::FetchDeviceKeys {
                     conversation_id,
                     device_id,
@@ -2121,6 +2149,20 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         match entry.purpose {
             Purpose::PublishKeys => self.st.app.keys_published = true,
             Purpose::Ack => {}
+            Purpose::OpenCeremonyQueue { operation_id } => {
+                self.on_open_queue(&operation_id, bytes);
+            }
+            Purpose::DepositCeremony { operation_id } => {
+                if self
+                    .st
+                    .app
+                    .ops
+                    .get(&operation_id)
+                    .is_some_and(|o| o.outcome == OutcomeClass::PendingNetwork)
+                {
+                    self.set_outcome(&operation_id, OutcomeClass::Committed);
+                }
+            }
             Purpose::PutInvite { operation_id } | Purpose::RevokeInvite { operation_id } => {
                 self.set_outcome(&operation_id, OutcomeClass::Committed)
             }
@@ -2546,6 +2588,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .find(|b| b.mailbox == mailbox)
                 .map(|b| b.route.relay_uri.clone())
                 .filter(|u| u != delivery::CORE_ROUTE_URI);
+            let (relay_uri, capability) = match ceremony::ack_route(self.st, mailbox) {
+                Some((uri, cap)) => (Some(uri), cap),
+                None => (relay_uri, vec![]),
+            };
             if let Ok(m) = hb(mailbox) {
                 self.enqueue(
                     NetCall::Ack {
@@ -2553,6 +2599,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                         seq: cursor,
                         kind,
                         relay_uri,
+                        capability,
                     },
                     Purpose::Ack,
                 );
@@ -2562,6 +2609,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     fn inbound_one(&mut self, mailbox: &str, bytes: &[u8]) {
+        if self.on_ceremony_mailbox(mailbox, bytes) {
+            return;
+        }
         if let Some(op) = self
             .st
             .app
@@ -2960,6 +3010,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             // Head traffic is between accounts: a self-sync device has no head to give us (our own head is ours).
             KIND_ACS_UPDATE => !sibling && self.on_acs_update(conv, &p),
             KIND_ACS_REQUEST => !sibling && self.on_acs_request(conv, &p),
+            KIND_ENROLLED => sibling && self.on_enrolled(&p),
             events::OBJECT_TYPE => self.on_event(conv, &pt, sender, sibling),
             _ => true, // unknown payload kinds from a newer client are ignored, not fatal
         };

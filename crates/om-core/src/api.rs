@@ -656,14 +656,73 @@ pub enum AccountControlStateCode {
     ForkDetected,
 }
 
-/// `linkRequests` and `notices` are always empty in pass 1 (device linking is not implemented), so they are untyped here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LinkRequestState {
+    AwaitingApproval,
+    PendingAuthorization,
+    Approved,
+    Rejected,
+    Expired,
+}
+
+/// What a device sees about a device-link request: the approving device (it holds the request) and the asking device.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkRequestView {
+    pub request_id: String,
+    pub operation_id: OperationId,
+    pub device_label: String,
+    /// Derived by Core from the ceremony transcript; both devices show the same code.
+    pub verification_code: String,
+    pub expires_at: u64,
+    pub state: LinkRequestState,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LinkOfferState {
+    WaitingForScan,
+    AwaitingApproval,
+    Linked,
+    Rejected,
+    Expired,
+}
+
+/// What the device that offered a link shows while it waits for the other device (D24: the existing device offers).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkOfferView {
+    pub operation_id: OperationId,
+    pub link: String,
+    pub expires_at: u64,
+    pub verification_code: Option<String>,
+    pub state: LinkOfferState,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeviceNoticeCode {
+    DeviceLinked,
+}
+
+/// A non-suppressible notice that a device joined this account (DeviceEnrollmentNotice, ceremony `link_ceremony`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceNoticeView {
+    pub code: DeviceNoticeCode,
+    pub device_id: String,
+    pub label: String,
+    pub at: u64,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DevicesView {
     pub control_state: AccountControlStateCode,
     pub devices: Vec<DeviceSummary>,
-    pub link_requests: Vec<serde_json::Value>,
-    pub notices: Vec<serde_json::Value>,
+    pub link_requests: Vec<LinkRequestView>,
+    pub notices: Vec<DeviceNoticeView>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

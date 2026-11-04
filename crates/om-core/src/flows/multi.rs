@@ -107,17 +107,26 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     /// Our chain (the whole chain, or from the state the peer says it holds) with every credential, as an update.
-    fn acs_update_payload(&self, from: Option<[u8; 32]>) -> Option<Vec<u8>> {
+    fn acs_update_payload(&self, from: Option<[u8; 32]>, intros: &[Vec<u8>]) -> Option<Vec<u8>> {
         let (_, chain, creds) = self.acs_head()?;
         let states = chain_states(&chain)?;
         let start = from
             .and_then(|h| states.iter().position(|s| s.hash() == h))
             .unwrap_or(0);
-        Some(cbor::encode(&V::M(vec![
+        let mut fields = vec![
             (0, V::U(KIND_ACS_UPDATE)),
             (1, V::A(chain[start..].iter().cloned().map(V::B).collect())),
             (2, V::A(creds.into_iter().map(V::B).collect())),
-        ])))
+        ];
+        if !intros.is_empty() {
+            // Introductions of our other devices (field 4): decoded, so the receiver reads them as maps.
+            let list = intros
+                .iter()
+                .filter_map(|i| cbor::decode(i).ok())
+                .collect::<Vec<_>>();
+            fields.push((4, V::A(list)));
+        }
+        Some(cbor::encode(&V::M(fields)))
     }
 
     /// Tell every active contact our current head (after any change of our own AccountControlState). A relationship
@@ -133,20 +142,27 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .map(|r| r.id.clone())
             .collect();
         for conv in convs {
-            self.send_account_update(&conv, None);
+            self.send_account_update(&conv, None, &[]);
         }
     }
 
-    fn send_account_update(&mut self, conv: &str, from: Option<[u8; 32]>) {
-        let sent = self.acs_update_payload(from).is_some_and(|payload| {
-            self.send_control(
-                conv,
-                &payload,
-                Purpose::DepositAcs {
-                    conversation_id: conv.to_string(),
-                },
-            )
-        });
+    pub(super) fn send_account_update(
+        &mut self,
+        conv: &str,
+        from: Option<[u8; 32]>,
+        intros: &[Vec<u8>],
+    ) {
+        let sent = self
+            .acs_update_payload(from, intros)
+            .is_some_and(|payload| {
+                self.send_control(
+                    conv,
+                    &payload,
+                    Purpose::DepositAcs {
+                        conversation_id: conv.to_string(),
+                    },
+                )
+            });
         if let Some(rel) = self.st.app.relationships.get_mut(conv) {
             rel.head_dirty = !sent;
         }
@@ -167,7 +183,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .map(|r| r.id.clone())
             .collect();
         for conv in dirty {
-            self.send_account_update(&conv, None);
+            self.send_account_update(&conv, None, &[]);
         }
     }
 
@@ -184,7 +200,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return true; // answered a moment ago: not an attack, no effect
         }
         rel.head_sent_ms = now;
-        self.send_account_update(conv, Some(have));
+        self.send_account_update(conv, Some(have), &[]);
         true
     }
 

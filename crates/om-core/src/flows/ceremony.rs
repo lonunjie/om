@@ -1,0 +1,1583 @@
+//! The device-link ceremony (deviation D24, `docs/reports/2026-10-28-relay-status.md`).
+//!
+//! Who does what: the EXISTING device (an active control device) offers a link; the NEW device opens it on an empty
+//! profile, asks to join and shows a code; the existing device shows the same code and a person approves. Approval is
+//! the single `link_messaging` transition of the AccountControlState, signed by the approving device and re-verified
+//! as a successor of the head it came from, together with a `DeviceEnrollmentNotice` (ceremony `link_ceremony`) that
+//! the new device REQUIRES in the approval and every other device of the account receives.
+//!
+//! Transport: two short-lived queues on the existing device's own Home, driven only through ordinary Home calls
+//! (`Deposit`, drain/ack with an explicit capability, and `OpenQueue`, which is queue creation). The link carries the
+//! Home, the request queue's deposit capability, the response queue's receive capability and a one-time ceremony key.
+//! Every queue message is sealed under keys derived from that key and the two capabilities, so the Home sees only
+//! sizes and times. Core stays sans-IO: all of it is `NetCall`s.
+//!
+//! The construction of the transcript MAC is not specified (the label `OM-DEVICE-LINK-CEREMONY-MAC-v1` is reserved
+//! with no construction): the derivation below is provisional and recorded as a gap in D24.
+
+use super::*;
+use crate::crypto::binding::Credential;
+use crate::crypto::kdf::{hkdf_sha256, hmac_sha256};
+use crate::crypto::sig::{self, ROLE_CONTROLLER, ds_sig, signature_entry};
+use chacha20poly1305::XChaCha20Poly1305;
+use chacha20poly1305::aead::{Aead, KeyInit, Payload};
+
+pub(super) const LINK_PREFIX: &str = "om:link/";
+/// Reserved in `om-domain-separation.json` (status `reserved`, construction undefined): used provisionally.
+const LBL_CEREMONY: &str = "OM-DEVICE-LINK-CEREMONY-MAC-v1";
+const LBL_NOTICE_SIG: &str = "OM-DEVICE-ENROLLMENT-NOTICE-SIG-v1";
+/// Sent from the approving device to every other device of the account: `{0: 11, 1: signed notice, 2: [states], 3: [creds]}`.
+pub(super) const KIND_ENROLLED: u64 = 11;
+/// A ceremony lives this long from the offer, whatever happens (the link carries it; Core enforces it).
+pub const CEREMONY_TTL_MS: u64 = 5 * 60 * 1000;
+/// One queue message (plaintext) stays well under the Home's deposit limit (133,000 bytes).
+const MAX_MSG: usize = 100_000;
+const MAX_ROSTER: usize = 64;
+const MAX_NOTICES: usize = 32;
+const MAX_CHAIN_TAIL: usize = 4;
+const MAX_LINK_CHARS: usize = 256;
+const DEVICE_CLASS_MESSAGING: u64 = 1;
+const CEREMONY_LINK: u64 = 1;
+const ROLE_REQ: u8 = 1;
+const ROLE_RESP: u8 = 2;
+/// New device -> existing: the request / the introductions of the joined conversations.
+const M_REQUEST: u64 = 1;
+const M_INTRO: u64 = 4;
+/// Existing -> new: approval, refusal, one conversation handed over.
+const M_APPROVE: u64 = 2;
+const M_REJECT: u64 = 3;
+const M_ROSTER: u64 = 5;
+
+type Keys = ([u8; 32], [u8; 32], [u8; 32]);
+
+/// `(request key, response key, code key)`, from the one-time key and the two capabilities in the link.
+fn ceremony_keys(secret: &[u8], a_cap: &[u8], b_recv: &[u8]) -> Keys {
+    let transcript = ds_hash(
+        LBL_CEREMONY,
+        &cbor::encode(&V::A(vec![V::B(a_cap.to_vec()), V::B(b_recv.to_vec())])),
+    );
+    let derive = |purpose: &[u8]| {
+        let mut info = LBL_CEREMONY.as_bytes().to_vec();
+        info.push(0);
+        info.extend_from_slice(purpose);
+        info.extend_from_slice(&transcript);
+        let mut out = [0u8; 32];
+        hkdf_sha256(LBL_CEREMONY.as_bytes(), secret, &info, &mut out);
+        out
+    };
+    (derive(b"req"), derive(b"resp"), derive(b"code"))
+}
+
+fn aad(role: u8) -> Vec<u8> {
+    let mut a = LBL_CEREMONY.as_bytes().to_vec();
+    a.push(role);
+    a
+}
+
+fn open_msg(key: &[u8; 32], role: u8, bytes: &[u8]) -> Option<Vec<u8>> {
+    if bytes.len() < 24 + 16 || bytes.len() > MAX_MSG + 24 + 16 {
+        return None;
+    }
+    let nonce: [u8; 24] = bytes[..24].try_into().ok()?;
+    XChaCha20Poly1305::new(key.into())
+        .decrypt(
+            (&nonce).into(),
+            Payload {
+                msg: &bytes[24..],
+                aad: &aad(role),
+            },
+        )
+        .ok()
+}
+
+/// Six digits both devices derive from the request as the new device sent it.
+fn verification_code(code_key: &[u8; 32], request: &[u8]) -> String {
+    let m = hmac_sha256(code_key, request);
+    let n = u32::from_be_bytes([m[0], m[1], m[2], m[3]]) % 1_000_000;
+    format!("{n:06}")
+}
+
+fn request_id_of(device_id: &[u8]) -> String {
+    hex(device_id)
+}
+
+/// The link payload, before base64url: version, expiry (POSIX s, u32), key, request deposit cap, response receive cap, Home.
+fn encode_link(
+    expiry_s: u32,
+    secret: &[u8],
+    a_cap: &[u8],
+    b_recv: &[u8],
+    uri: &str,
+) -> Option<String> {
+    let mut v = vec![1u8];
+    v.extend_from_slice(&expiry_s.to_be_bytes());
+    v.extend_from_slice(secret);
+    v.push(u8::try_from(a_cap.len()).ok()?);
+    v.extend_from_slice(a_cap);
+    v.push(u8::try_from(b_recv.len()).ok()?);
+    v.extend_from_slice(b_recv);
+    v.extend_from_slice(uri.as_bytes());
+    Some(format!("{LINK_PREFIX}{}", b64url(&v)))
+}
+
+struct LinkParts {
+    expiry_s: u32,
+    secret: Vec<u8>,
+    a_cap: Vec<u8>,
+    b_recv: Vec<u8>,
+    uri: String,
+}
+
+fn decode_link(link: &str) -> Option<LinkParts> {
+    if link.len() > MAX_LINK_CHARS {
+        return None;
+    }
+    let token = link.strip_prefix(LINK_PREFIX)?;
+    if !(16..=200).contains(&token.len())
+        || !token
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return None;
+    }
+    let raw = unb64url(token)?;
+    let (&version, rest) = raw.split_first()?;
+    if version != 1 || rest.len() < 4 + 16 + 1 {
+        return None;
+    }
+    let expiry_s = u32::from_be_bytes(rest[..4].try_into().ok()?);
+    let secret = rest[4..20].to_vec();
+    let (a_len, rest) = rest[20..].split_first()?;
+    let a_len = usize::from(*a_len);
+    if rest.len() < a_len + 1 {
+        return None;
+    }
+    let a_cap = rest[..a_len].to_vec();
+    let (b_len, rest) = rest[a_len..].split_first()?;
+    let b_len = usize::from(*b_len);
+    if rest.len() <= b_len {
+        return None;
+    }
+    let b_recv = rest[..b_len].to_vec();
+    let uri = String::from_utf8(rest[b_len..].to_vec()).ok()?;
+    // The same shape rules as a relay entry: capability lengths, an allowed URI.
+    let entry = RelayEntry::new(&uri, &a_cap, 0)?;
+    if entry.is_legacy() || !(16..=64).contains(&b_recv.len()) {
+        return None;
+    }
+    Some(LinkParts {
+        expiry_s,
+        secret,
+        a_cap,
+        b_recv,
+        uri,
+    })
+}
+
+/// The id Core polls the new device's response queue under (the capability is what the Home checks).
+fn recv_mailbox(b_recv: &[u8]) -> Vec<u8> {
+    ds_hash(LBL_CEREMONY, b_recv)[..16].to_vec()
+}
+
+impl<R: RngCore + CryptoRng> Tx<'_, R> {
+    fn seal_msg(&mut self, key: &[u8; 32], role: u8, pt: &[u8]) -> Option<Vec<u8>> {
+        if pt.len() > MAX_MSG {
+            return None;
+        }
+        let mut nonce = [0u8; 24];
+        self.rng.fill_bytes(&mut nonce);
+        let ct = XChaCha20Poly1305::new(key.into())
+            .encrypt(
+                (&nonce).into(),
+                Payload {
+                    msg: pt,
+                    aad: &aad(role),
+                },
+            )
+            .ok()?;
+        let mut out = nonce.to_vec();
+        out.extend_from_slice(&ct);
+        Some(out)
+    }
+
+    fn deposit_ceremony(&mut self, op: &str, cap: &[u8], uri: &str, bytes: Vec<u8>) {
+        self.enqueue(
+            NetCall::Deposit {
+                mailbox: cap.to_vec(),
+                relay_uri: Some(uri.to_string()),
+                bytes,
+            },
+            Purpose::DepositCeremony {
+                operation_id: op.to_string(),
+            },
+        );
+    }
+
+    // ------------------------------------------------------------------------------------------ existing device: offer
+
+    /// `OfferDeviceLink`: only an active control device offers (a messaging device never links another). Two queues
+    /// at one of our Homes are allocated; the link exists once the response queue's receive capability is known.
+    pub(super) fn offer_device_link(&mut self, op: &OperationId) -> OutcomeClass {
+        use RejectReason::*;
+        let rej = |r| OutcomeClass::Rejected { reason: r };
+        if self
+            .st
+            .app
+            .link_join
+            .as_ref()
+            .is_some_and(|j| j.state == LinkState::AwaitingApproval)
+        {
+            return rej(Conflict);
+        }
+        let (Some((head, ..)), Some(me)) = (
+            self.acs_head(),
+            self.st.device.as_ref().map(|d| d.device_id),
+        ) else {
+            return rej(StaleState);
+        };
+        if !head.control.contains(&me) || head.quarantined.contains(&me) {
+            return rej(Unauthorized);
+        }
+        // Both queues at the same Home: the most preferred one.
+        let Some(uri) = self
+            .offers
+            .iter()
+            .filter(|o| o.is_valid())
+            .min_by_key(|o| o.priority)
+            .map(|o| o.relay_uri.clone())
+        else {
+            return rej(Unavailable);
+        };
+        let other: Vec<String> = self
+            .offers
+            .iter()
+            .filter(|o| o.relay_uri != uri)
+            .map(|o| o.relay_uri.clone())
+            .collect();
+        let (Some((a_mailbox, a_route)), Some((b_mailbox, b_route))) = (
+            self.take_route_excluding(&other),
+            self.take_route_excluding(&other),
+        ) else {
+            return rej(Unavailable);
+        };
+        // A new offer replaces an earlier one that nobody approved.
+        for o in self.st.app.link_offers.values_mut() {
+            if matches!(
+                o.state,
+                LinkState::Opening | LinkState::WaitingForScan | LinkState::AwaitingApproval
+            ) {
+                o.state = LinkState::Expired;
+            }
+        }
+        let secret = self.rand16();
+        self.st.app.link_offers.insert(
+            op.clone(),
+            LinkOffer {
+                operation_id: op.clone(),
+                secret: hex(&secret).into(),
+                a_mailbox: hex(&a_mailbox),
+                a_route,
+                b_mailbox: hex(&b_mailbox),
+                b_route: b_route.clone(),
+                b_recv: String::new(),
+                link: None,
+                created_ms: self.now_ms,
+                expires_at: self.now_ms + CEREMONY_TTL_MS,
+                state: LinkState::Opening,
+                request: None,
+                introduced: vec![],
+            },
+        );
+        self.enqueue(
+            NetCall::OpenQueue {
+                mailbox: b_mailbox.to_vec(),
+                relay_uri: b_route.relay_uri,
+            },
+            Purpose::OpenCeremonyQueue {
+                operation_id: op.clone(),
+            },
+        );
+        OutcomeClass::PendingNetwork
+    }
+
+    /// The response queue is open: its receive capability completes the link.
+    pub(super) fn on_open_queue(&mut self, op: &str, cap: Option<Vec<u8>>) {
+        let now_s = self.now_s();
+        let Some(o) = self.st.app.link_offers.get_mut(op) else {
+            return;
+        };
+        let secret = unhex(&o.secret).unwrap_or_default();
+        let a_cap = o.a_route.capability.clone();
+        let link = cap
+            .as_deref()
+            .filter(|c| (16..=64).contains(&c.len()))
+            .filter(|_| o.state == LinkState::Opening && o.expires_at / 1000 > now_s)
+            .and_then(|c| {
+                encode_link(
+                    u32::try_from(o.expires_at / 1000).ok()?,
+                    &secret,
+                    &a_cap,
+                    c,
+                    &o.b_route.relay_uri,
+                )
+                .filter(|l| l.len() <= MAX_LINK_CHARS && l.len() - LINK_PREFIX.len() <= 200)
+            });
+        match (link, cap) {
+            (Some(link), Some(cap)) => {
+                o.b_recv = hex(&cap);
+                o.link = Some(link);
+                o.state = LinkState::WaitingForScan;
+                self.set_outcome(&op.to_string(), OutcomeClass::Committed);
+            }
+            _ => {
+                // The Home gave nothing usable, or the link would not fit the link grammar: no ceremony.
+                o.state = LinkState::Expired;
+                self.set_outcome(
+                    &op.to_string(),
+                    OutcomeClass::Rejected {
+                        reason: RejectReason::Unavailable,
+                    },
+                );
+            }
+        }
+    }
+
+    /// A ceremony deposit or queue creation was refused for good: the ceremony ends, nothing is half adopted.
+    pub(super) fn ceremony_failed(&mut self, op: &str) {
+        if let Some(o) = self.st.app.link_offers.get_mut(op)
+            && matches!(o.state, LinkState::Opening | LinkState::WaitingForScan)
+        {
+            o.state = LinkState::Expired;
+        }
+        if let Some(j) = self.st.app.link_join.as_mut()
+            && j.operation_id == op
+            && j.state == LinkState::AwaitingApproval
+        {
+            j.state = LinkState::Failed;
+            j.secret = String::new().into();
+        }
+    }
+
+    /// Run with `expire_stale`: a ceremony past its deadline is over (the secrets are wiped).
+    pub(super) fn expire_ceremonies(&mut self) {
+        let now = self.now_ms;
+        for o in self.st.app.link_offers.values_mut() {
+            if o.expires_at <= now {
+                if matches!(
+                    o.state,
+                    LinkState::Opening | LinkState::WaitingForScan | LinkState::AwaitingApproval
+                ) {
+                    o.state = LinkState::Expired;
+                }
+                o.secret = String::new().into();
+            }
+        }
+        if let Some(j) = self.st.app.link_join.as_mut()
+            && j.expires_at <= now
+        {
+            if j.state == LinkState::AwaitingApproval {
+                j.state = if j.approved {
+                    LinkState::Failed
+                } else {
+                    LinkState::Expired
+                };
+            }
+            j.secret = String::new().into();
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------ new device: request
+
+    /// `RequestDeviceLink`: on a profile with no device and no account. The device keys are made here; nothing is
+    /// published and no account state exists until an approval verifies.
+    pub(super) fn request_device_link(&mut self, op: &OperationId, link: &str) -> OutcomeClass {
+        use RejectReason::*;
+        let rej = |r| OutcomeClass::Rejected { reason: r };
+        if self.st.device.is_some()
+            || !self.st.app.acs_chain.is_empty()
+            || self.st.app.link_join.is_some()
+        {
+            return rej(Conflict);
+        }
+        let now_s = self.now_s();
+        let Some(parts) = decode_link(link) else {
+            return rej(Invalid);
+        };
+        let expiry_s = u64::from(parts.expiry_s);
+        if expiry_s <= now_s {
+            return rej(Expired);
+        }
+        if expiry_s > now_s + CEREMONY_TTL_MS / 1000 + 60 {
+            return rej(Invalid); // the offering device never makes a longer ceremony
+        }
+        let device = crate::crypto::store::Device::new(self.rng);
+        let nonce = self.rand16();
+        let label = "New device".to_string();
+        let request = cbor::encode(&V::M(vec![
+            (0, V::U(M_REQUEST)),
+            (1, V::U(1)),
+            (2, V::B(device.device_id.to_vec())),
+            (3, V::B(device.signer.public())),
+            (4, V::B(device.ik().to_vec())),
+            (5, V::B(nonce.to_vec())),
+            (6, V::T(label.clone())),
+        ]));
+        let (k_req, _, k_code) = ceremony_keys(&parts.secret, &parts.a_cap, &parts.b_recv);
+        let Some(sealed) = self.seal_msg(&k_req, ROLE_REQ, &request) else {
+            return rej(Invalid);
+        };
+        let request_id = request_id_of(&device.device_id);
+        let code = verification_code(&k_code, &request);
+        self.st.app.link_join = Some(LinkJoin {
+            operation_id: op.clone(),
+            secret: hex(&parts.secret).into(),
+            relay_uri: parts.uri.clone(),
+            a_cap: hex(&parts.a_cap),
+            b_mailbox: hex(&recv_mailbox(&parts.b_recv)),
+            b_recv: hex(&parts.b_recv),
+            created_ms: self.now_ms,
+            expires_at: expiry_s * 1000,
+            label,
+            nonce: hex(&nonce),
+            request_id,
+            code,
+            state: LinkState::AwaitingApproval,
+            approved: false,
+            roster_expected: 0,
+            roster_done: 0,
+            approver: String::new(),
+        });
+        self.st.device = Some(device);
+        self.deposit_ceremony(op, &parts.a_cap, &parts.uri, sealed);
+        OutcomeClass::PendingNetwork
+    }
+
+    // ------------------------------------------------------------------------------------------ dispatch
+
+    /// A ceremony queue item. Returns `false` when the mailbox is not a ceremony queue of this profile.
+    pub(super) fn on_ceremony_mailbox(&mut self, mailbox: &str, bytes: &[u8]) -> bool {
+        let offer = self
+            .st
+            .app
+            .link_offers
+            .iter()
+            .find(|(_, o)| o.a_mailbox == mailbox)
+            .map(|(k, _)| k.clone());
+        if let Some(op) = offer {
+            self.on_link_inbound(&op, bytes);
+            return true;
+        }
+        if self
+            .st
+            .app
+            .link_join
+            .as_ref()
+            .is_some_and(|j| j.b_mailbox == mailbox)
+        {
+            self.on_join_inbound(bytes);
+            return true;
+        }
+        false
+    }
+
+    // ------------------------------------------------------------------------------------------ existing device: inbound
+
+    fn on_link_inbound(&mut self, op: &str, bytes: &[u8]) {
+        let Some(offer) = self.st.app.link_offers.get(op).cloned() else {
+            return;
+        };
+        if offer.expires_at <= self.now_ms {
+            return;
+        }
+        let secret = unhex(&offer.secret).unwrap_or_default();
+        let (k_req, _, k_code) = ceremony_keys(
+            &secret,
+            &offer.a_route.capability,
+            &unhex(&offer.b_recv).unwrap_or_default(),
+        );
+        let Some(pt) = open_msg(&k_req, ROLE_REQ, bytes) else {
+            return; // not sealed under this ceremony's key: dropped
+        };
+        let Ok(v) = cbor::decode(&pt) else { return };
+        match v.get(0).and_then(|x| x.u()) {
+            Ok(M_REQUEST) if offer.state == LinkState::WaitingForScan => {
+                self.on_link_request(op, &v, &pt, &k_code);
+            }
+            Ok(M_INTRO) if offer.state == LinkState::Linked => self.on_link_intro(op, &v),
+            _ => {}
+        }
+    }
+
+    /// The first well-formed request of the ceremony. Later requests are ignored: one offer, one device.
+    fn on_link_request(&mut self, op: &str, v: &V, pt: &[u8], k_code: &[u8; 32]) {
+        let (Ok(1), Ok(id), Ok(pk), Ok(ik), Ok(nonce), Ok(label)) = (
+            v.get(1).and_then(|x| x.u()),
+            v.get(2).and_then(|x| x.b()),
+            v.get(3).and_then(|x| x.b()),
+            v.get(4).and_then(|x| x.b()),
+            v.get(5).and_then(|x| x.b()),
+            v.get(6).and_then(|x| x.t()),
+        ) else {
+            return;
+        };
+        if id.len() != 16
+            || pk.len() != crate::crypto::sig::PK_LEN
+            || ik.len() != 32
+            || nonce.len() != 16
+        {
+            return;
+        }
+        let label = sanitize_label(label);
+        let label = if label.is_empty() {
+            "New device".to_string()
+        } else {
+            label
+        };
+        let rec = LinkRequestRec {
+            request_id: request_id_of(id),
+            device_id: hex(id),
+            signing_pk: hex(pk),
+            ik: hex(ik),
+            label,
+            nonce: hex(nonce),
+            code: verification_code(k_code, pt),
+            received_ms: self.now_ms,
+        };
+        if let Some(o) = self.st.app.link_offers.get_mut(op) {
+            o.request = Some(rec);
+            o.state = LinkState::AwaitingApproval;
+        }
+    }
+
+    /// The new device introduces itself into a conversation it was handed (its routes and key records, signed by it).
+    fn on_link_intro(&mut self, op: &str, v: &V) {
+        let (Some(offer), Ok(conv), Ok(intro_bytes)) = (
+            self.st.app.link_offers.get(op).cloned(),
+            v.get(1).and_then(|x| x.t()).map(String::from),
+            v.get(2).and_then(|x| x.b()).map(<[u8]>::to_vec),
+        ) else {
+            return;
+        };
+        let (Some(req), Ok(intro)) = (offer.request.as_ref(), cbor::decode(&intro_bytes)) else {
+            return;
+        };
+        // Only the device that was approved introduces itself, and only into a conversation we are in.
+        if intro.get(0).and_then(|x| x.b()).map(hex).ok().as_deref() != Some(req.device_id.as_str())
+            || offer.introduced.contains(&conv)
+            || self
+                .st
+                .app
+                .relationships
+                .get(&conv)
+                .is_none_or(|r| r.state != RelState::Active || r.blocked)
+        {
+            return;
+        }
+        self.sync_own_head();
+        if !self.adopt_intro(&conv, &intro, true) {
+            return;
+        }
+        if let Some(o) = self.st.app.link_offers.get_mut(op) {
+            o.introduced.push(conv.clone());
+        }
+        self.flush_waiting(&conv);
+        self.start_missing_sessions(&conv);
+        // The contact learns the new device's routes and where to fetch its keys, authenticated by our head.
+        self.send_account_update(&conv, None, &[intro_bytes]);
+    }
+
+    // ------------------------------------------------------------------------------------------ existing device: decide
+
+    /// `RejectDeviceLink`: tell the new device no, and end the ceremony.
+    pub(super) fn reject_device_link(&mut self, request_id: &str) -> OutcomeClass {
+        use RejectReason::*;
+        let rej = |r| OutcomeClass::Rejected { reason: r };
+        let Some(me) = self.st.device.as_ref().map(|d| d.device_id) else {
+            return rej(StaleState);
+        };
+        let Some((head, ..)) = self.acs_head() else {
+            return rej(StaleState);
+        };
+        if !head.control.contains(&me) || head.quarantined.contains(&me) {
+            return rej(Unauthorized);
+        }
+        let Some(offer) = self
+            .st
+            .app
+            .link_offers
+            .values()
+            .find(|o| {
+                o.state == LinkState::AwaitingApproval
+                    && o.request
+                        .as_ref()
+                        .is_some_and(|r| r.request_id == request_id)
+            })
+            .cloned()
+        else {
+            return rej(NotFound);
+        };
+        let (Some(req), secret) = (
+            offer.request.clone(),
+            unhex(&offer.secret).unwrap_or_default(),
+        ) else {
+            return rej(NotFound);
+        };
+        let (_, k_resp, _) = ceremony_keys(
+            &secret,
+            &offer.a_route.capability,
+            &unhex(&offer.b_recv).unwrap_or_default(),
+        );
+        let msg = cbor::encode(&V::M(vec![
+            (0, V::U(M_REJECT)),
+            (1, V::B(unhex(&req.nonce).unwrap_or_default())),
+        ]));
+        if let Some(sealed) = self.seal_msg(&k_resp, ROLE_RESP, &msg) {
+            self.deposit_ceremony(
+                &offer.operation_id,
+                &offer.b_route.capability,
+                &offer.b_route.relay_uri,
+                sealed,
+            );
+        }
+        if let Some(o) = self.st.app.link_offers.get_mut(&offer.operation_id) {
+            o.state = LinkState::Rejected;
+            o.secret = String::new().into();
+        }
+        OutcomeClass::Committed
+    }
+
+    /// `ApproveDeviceLink` (the confirmation nonce was spent by the caller). All or nothing: on any failure the
+    /// profile is exactly as it was before.
+    pub(super) fn approve_device_link(&mut self, request_id: &str) -> OutcomeClass {
+        let snapshot = self.st.clone();
+        match self.approve_inner(request_id) {
+            Ok(()) => OutcomeClass::Committed,
+            Err(reason) => {
+                *self.st = snapshot;
+                OutcomeClass::Rejected { reason }
+            }
+        }
+    }
+
+    fn approve_inner(&mut self, request_id: &str) -> Result<(), RejectReason> {
+        use RejectReason::*;
+        let (Some((head, chain, creds)), Some(me)) = (
+            self.acs_head(),
+            self.st.device.as_ref().map(|d| d.device_id),
+        ) else {
+            return Err(StaleState);
+        };
+        // Only an active control device approves (a messaging device never links another).
+        if !head.control.contains(&me) || head.quarantined.contains(&me) {
+            return Err(Unauthorized);
+        }
+        let now = self.now_ms;
+        let Some(offer) = self
+            .st
+            .app
+            .link_offers
+            .values()
+            .find(|o| {
+                o.request
+                    .as_ref()
+                    .is_some_and(|r| r.request_id == request_id)
+                    && matches!(o.state, LinkState::AwaitingApproval | LinkState::Expired)
+            })
+            .cloned()
+        else {
+            return Err(NotFound);
+        };
+        if offer.state != LinkState::AwaitingApproval || offer.expires_at <= now {
+            return Err(Expired);
+        }
+        let req = offer.request.clone().ok_or(NotFound)?;
+        let secret = unhex(&offer.secret).map_err(|_| Expired)?;
+        let b_recv = unhex(&offer.b_recv).map_err(|_| Invalid)?;
+        let (_, k_resp, _) = ceremony_keys(&secret, &offer.a_route.capability, &b_recv);
+
+        // The new device's credential, rebuilt from what it asked with; the account is ours.
+        let cred = Credential {
+            device_id: h16(&req.device_id).map_err(|_| Invalid)?,
+            account_id: head.account_id,
+            signing_pk: hb(&req.signing_pk).map_err(|_| Invalid)?,
+            ik: h32(&req.ik).map_err(|_| Invalid)?,
+        };
+        let known = head
+            .control
+            .iter()
+            .chain(&head.messaging)
+            .chain(&head.quarantined)
+            .chain(&head.revoked)
+            .chain(head.credentials.iter().map(|(d, _)| d))
+            .any(|d| *d == cred.device_id);
+        if known || head.messaging.len() >= 256 || head.credentials.len() >= 320 {
+            return Err(Conflict); // a DeviceID is never reused (terminal revocation); limits are the protocol's
+        }
+        let mut child = head.clone();
+        child.generation = head.generation + 1;
+        child.previous = Some(head.hash());
+        child.messaging.insert(cred.device_id);
+        child.credentials.push((cred.device_id, cred.hash()));
+        let mut creds_all = creds.clone();
+        creds_all.push(cred.body());
+        let signed = {
+            let dev = self.st.device.as_ref().ok_or(StaleState)?;
+            control::sign_acs(&child.body(), &[(&dev.device_id, &dev.signer)], self.rng)
+        };
+        // The approval is exactly one `link_messaging` transition authorized by the head it descends from.
+        let child =
+            control::verify_successor(&head, &signed, &creds_all).map_err(|_| Unauthorized)?;
+
+        // The non-suppressible notice: signed over the new head, for the new device and for every other device.
+        let notice = self.sign_notice(&child, &cred.device_id, me)?;
+        let mut chain_all = chain.clone();
+        chain_all.push(signed.clone());
+        let tail_from = chain_all.len().saturating_sub(MAX_CHAIN_TAIL);
+        let enrolled = cbor::encode(&V::M(vec![
+            (0, V::U(KIND_ENROLLED)),
+            (1, V::B(notice.clone())),
+            (
+                2,
+                V::A(chain_all[tail_from..].iter().cloned().map(V::B).collect()),
+            ),
+            (3, V::A(creds_all.iter().cloned().map(V::B).collect())),
+        ]));
+        if enrolled.len() > MAX_MSG {
+            return Err(Quota);
+        }
+        // Every other active device gets the notice, or nothing is approved.
+        let others: Vec<String> = head
+            .control
+            .iter()
+            .chain(&head.messaging)
+            .filter(|d| **d != me && !head.quarantined.contains(*d))
+            .map(|d| hex(d))
+            .collect();
+        for dev in &others {
+            if !self.deliver_enrolled(dev, &enrolled) {
+                return Err(Unavailable);
+            }
+        }
+
+        // The approval message and the roster (conversations handed over). Built before anything is committed, so a
+        // payload that does not fit refuses the approval instead of linking a device that cannot finish.
+        let roster = self.roster_entries();
+        let approval_notice = self.approval_notice(notice);
+        let approval = cbor::encode(&V::M(vec![
+            (0, V::U(M_APPROVE)),
+            (1, V::B(head.account_id.to_vec())),
+            (2, V::A(chain_all.iter().cloned().map(V::B).collect())),
+            (3, V::A(creds_all.iter().cloned().map(V::B).collect())),
+            (4, V::B(approval_notice)),
+            (5, V::B(me.to_vec())),
+            (6, V::B(unhex(&req.nonce).map_err(|_| Invalid)?)),
+            (7, V::U(roster.len() as u64)),
+            (8, V::T(self.st.app.label.clone())),
+        ]));
+        let mut sealed = vec![self.seal_msg(&k_resp, ROLE_RESP, &approval).ok_or(Quota)?];
+        for entry in &roster {
+            let msg = cbor::encode(&V::M(vec![(0, V::U(M_ROSTER)), (1, V::B(entry.clone()))]));
+            sealed.push(self.seal_msg(&k_resp, ROLE_RESP, &msg).ok_or(Quota)?);
+        }
+
+        self.st.app.acs_credentials.push(hex(&cred.body()));
+        self.st.app.acs_chain.push(hex(&signed));
+        self.st.app.device_meta.insert(
+            req.device_id.clone(),
+            DeviceMeta {
+                label: req.label.clone(),
+                enrolled_at: now,
+            },
+        );
+        for s in sealed {
+            self.deposit_ceremony(
+                &offer.operation_id,
+                &offer.b_route.capability,
+                &offer.b_route.relay_uri,
+                s,
+            );
+        }
+        if let Some(o) = self.st.app.link_offers.get_mut(&offer.operation_id) {
+            o.state = LinkState::Linked;
+        }
+        // Contacts learn the new head (K7 on their side); introductions follow when the new device sends them.
+        self.broadcast_account_update();
+        Ok(())
+    }
+
+    /// TEST ONLY (`test-loopback`): leave the notice out of the approval, to show the new device refuses it.
+    fn approval_notice(&self, notice: Vec<u8>) -> Vec<u8> {
+        #[cfg(feature = "test-loopback")]
+        if crate::runtime::TEST_OMIT_NOTICE.load(std::sync::atomic::Ordering::SeqCst) {
+            return Vec::new();
+        }
+        notice
+    }
+
+    /// A `DeviceEnrollmentNotice` for `device` at `child`, signed by the approving device. The notice's signer role is
+    /// not specified; this device signs as `controller`, as it does for the AccountControlState (recorded in D24).
+    fn sign_notice(
+        &mut self,
+        child: &Acs,
+        device: &[u8; 16],
+        me: [u8; 16],
+    ) -> Result<Vec<u8>, RejectReason> {
+        let body = cbor::encode(&V::M(vec![
+            (0, V::U(8)),
+            (1, V::U(1)),
+            (2, V::B(child.account_id.to_vec())),
+            (3, V::B(device.to_vec())),
+            (4, V::U(DEVICE_CLASS_MESSAGING)),
+            (5, V::U(child.generation)),
+            (6, digest(&child.hash())),
+            (7, V::B(me.to_vec())),
+            (8, V::U(CEREMONY_LINK)),
+            (9, V::U(self.now_s())),
+        ]));
+        registry()
+            .check_body("DeviceEnrollmentNotice", &body)
+            .map_err(|_| RejectReason::IntegrityFailure)?;
+        let rnd = arr32(self.rng);
+        let dev = self.st.device.as_ref().ok_or(RejectReason::StaleState)?;
+        let sg = dev.signer.sign_with(
+            &ds_sig(LBL_NOTICE_SIG, PROFILE_V1, ROLE_CONTROLLER, &me, &body),
+            rnd,
+        );
+        Ok(sig::envelope(
+            body,
+            vec![signature_entry(&me, PROFILE_V1, ROLE_CONTROLLER, sg)],
+        ))
+    }
+
+    /// Put `payload` into the session with our other device `dev`, through any active conversation that reaches it.
+    fn deliver_enrolled(&mut self, dev: &str, payload: &[u8]) -> bool {
+        let convs: Vec<String> = self
+            .st
+            .app
+            .relationships
+            .values()
+            .filter(|r| r.state == RelState::Active && !r.blocked)
+            .map(|r| r.id.clone())
+            .collect();
+        for conv in convs {
+            if !self.ensure_dev(&conv, dev, true) {
+                continue;
+            }
+            let purpose = Purpose::DepositAcs {
+                conversation_id: conv.clone(),
+            };
+            if self
+                .with_dev(&conv, dev, |tx| tx.send_control(&conv, payload, purpose))
+                .unwrap_or(false)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// The conversations handed to the new device: each one's relationship record without anything private to this
+    /// device (our keys, routes, session replay state, history), and our current signed routes as an introduction.
+    fn roster_entries(&mut self) -> Vec<Vec<u8>> {
+        let mut convs: Vec<Relationship> = self
+            .st
+            .app
+            .relationships
+            .values()
+            .filter(|r| r.state == RelState::Active && !r.blocked && r.canon_id.is_some())
+            .cloned()
+            .collect();
+        convs.sort_by(|a, b| a.id.cmp(&b.id));
+        let me = self.st.device.as_ref().map(|d| d.device_id);
+        let mut out = vec![];
+        for rel in convs.into_iter().take(MAX_ROSTER) {
+            let (Some(me), Some((signed, records))) = (me, self.current_set(&rel)) else {
+                continue;
+            };
+            let intro = cbor::encode(&V::M(vec![
+                (0, V::B(me.to_vec())),
+                (1, V::B(signed)),
+                (2, V::A(records.into_iter().map(V::B).collect())),
+            ]));
+            let mut stripped = rel.clone();
+            stripped.messages.clear();
+            stripped.seen_envelopes.clear();
+            stripped.replay.clear();
+            stripped.held.clear();
+            stripped.my_boxes.clear();
+            stripped.my_delivery.clear();
+            stripped.my_relays = RelaySet::default();
+            stripped.my_lineage = Lineage::default();
+            stripped.my_mailbox = String::new();
+            stripped.bootstrap = None;
+            stripped.pending_bind = None;
+            stripped.route_health.clear();
+            stripped.head_asked_ms = 0;
+            stripped.head_dirty = false;
+            stripped.head_sent_ms = 0;
+            stripped.hlc_ms = 0;
+            stripped.hlc_logical = 0;
+            stripped.equivocated.clear();
+            stripped.multi.waiting = false;
+            stripped.multi.in_view = false;
+            for d in stripped
+                .multi
+                .extra
+                .values_mut()
+                .chain(stripped.multi.siblings.values_mut())
+            {
+                d.fetching = false;
+                d.route_health.clear();
+            }
+            let Ok(json) = serde_json::to_vec(&stripped) else {
+                continue;
+            };
+            let entry = cbor::encode(&V::M(vec![
+                (1, V::T(rel.id.clone())),
+                (2, V::B(json)),
+                (3, V::B(intro)),
+            ]));
+            if entry.len() + 64 <= MAX_MSG {
+                out.push(entry);
+            }
+        }
+        out
+    }
+
+    /// Our current signed RelaySet (the effective node of our lineage, re-signed unchanged) and the signed key records
+    /// of its routes. Nothing is added to the lineage: this is what the peers already hold, for a new sibling.
+    fn current_set(&mut self, rel: &Relationship) -> Option<(Vec<u8>, Vec<Vec<u8>>)> {
+        let (head, ..) = self.acs_head()?;
+        let node = rel
+            .my_lineage
+            .effective(|s| Self::signer_ok(&head, s))?
+            .clone();
+        let previous = match &node.previous {
+            Some(p) => Some(h32(p).ok()?),
+            None => None,
+        };
+        let rec = Record::new(node.version, previous, node.entries.clone())?;
+        if hex(&rec.hash()) != node.hash {
+            return None;
+        }
+        let signed = self.sign_set(&rec)?;
+        let mut records = vec![];
+        for e in &rec.entries {
+            let binding = hex(&e.binding());
+            let key = rel
+                .my_delivery
+                .iter()
+                .filter(|k| k.public.route_binding == binding)
+                .max_by_key(|k| k.public.expires_at)?
+                .clone();
+            records.push(self.signed_key_record(&key).ok()?);
+        }
+        Some((signed, records))
+    }
+
+    // ------------------------------------------------------------------------------------------ new device: inbound
+
+    fn on_join_inbound(&mut self, bytes: &[u8]) {
+        let Some(join) = self.st.app.link_join.clone() else {
+            return;
+        };
+        if join.expires_at <= self.now_ms || !matches!(join.state, LinkState::AwaitingApproval) {
+            return;
+        }
+        let (Ok(secret), Ok(a_cap), Ok(b_recv)) =
+            (unhex(&join.secret), unhex(&join.a_cap), unhex(&join.b_recv))
+        else {
+            return;
+        };
+        let (_, k_resp, _) = ceremony_keys(&secret, &a_cap, &b_recv);
+        let Some(pt) = open_msg(&k_resp, ROLE_RESP, bytes) else {
+            return;
+        };
+        let Ok(v) = cbor::decode(&pt) else { return };
+        let nonce = unhex(&join.nonce).unwrap_or_default();
+        match v.get(0).and_then(|x| x.u()) {
+            Ok(M_REJECT) if !join.approved => {
+                if v.get(1).and_then(|x| x.b()).ok() == Some(nonce.as_slice()) {
+                    self.finish_join(LinkState::Rejected);
+                }
+            }
+            Ok(M_APPROVE) if !join.approved => {
+                if !self.on_approval(&v, &nonce) {
+                    // Anything short of a fully verified approval (including a missing notice) ends the ceremony.
+                    self.finish_join(LinkState::Failed);
+                }
+            }
+            Ok(M_ROSTER) if join.approved && join.roster_done < join.roster_expected => {
+                if let Ok(entry) = v.get(1).and_then(|x| x.b()) {
+                    let _ = self.adopt_roster(entry, &join);
+                }
+                if let Some(j) = self.st.app.link_join.as_mut() {
+                    j.roster_done += 1;
+                    if j.roster_done >= j.roster_expected {
+                        self.finish_join(LinkState::Linked);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn finish_join(&mut self, state: LinkState) {
+        if let Some(j) = self.st.app.link_join.as_mut() {
+            j.state = state;
+            j.secret = String::new().into();
+        }
+    }
+
+    /// Verify an approval completely before adopting any of it: the chain, our own entry in its head, the signed
+    /// notice. A failure leaves the profile as it was (no account, no keys published).
+    fn on_approval(&mut self, v: &V, nonce: &[u8]) -> bool {
+        let (Ok(account), Some(chain), Some(creds), Ok(notice), Ok(approver), Ok(echo), Ok(count)) = (
+            v.get(1).and_then(|x| x.b32()),
+            bytes_list(v.get(2)),
+            bytes_list(v.get(3)),
+            v.get(4).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            v.get(5).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            v.get(6).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            v.get(7).and_then(|x| x.u()),
+        ) else {
+            return false;
+        };
+        let label = v
+            .opt(8)
+            .and_then(|x| x.t().ok())
+            .map(sanitize_label)
+            .unwrap_or_default();
+        if echo != nonce
+            || chain.len() < 2
+            || chain.len() > 65
+            || creds.len() > 64
+            || chain.iter().chain(creds.iter()).any(|x| x.len() > 65_536)
+            || count > MAX_ROSTER as u64
+            || notice.is_empty()
+        {
+            return false;
+        }
+        let Ok(approver) = <[u8; 16]>::try_from(approver.as_slice()) else {
+            return false;
+        };
+        let Ok(head) = control::verify_chain(&chain, &creds) else {
+            return false;
+        };
+        let (Some(dev), true) = (self.st.device.as_ref(), head.account_id == account) else {
+            return false;
+        };
+        // Our own credential, rebuilt here with the account named by the chain, must be what the head commits to.
+        let mine = Credential {
+            device_id: dev.device_id,
+            account_id: head.account_id,
+            signing_pk: dev.signer.public(),
+            ik: dev.ik(),
+        };
+        if !head.messaging.contains(&dev.device_id)
+            || head.quarantined.contains(&dev.device_id)
+            || !head
+                .credentials
+                .iter()
+                .any(|(d, h)| *d == dev.device_id && *h == mine.hash())
+            || !head.control.contains(&approver)
+            || head.quarantined.contains(&approver)
+        {
+            return false;
+        }
+        // The notice: signed by the approving control device over this very head, naming this device.
+        let Some(approver_cred) = creds
+            .iter()
+            .filter_map(|c| Credential::from_body(c).ok())
+            .find(|c| {
+                c.device_id == approver
+                    && c.account_id == head.account_id
+                    && head
+                        .credentials
+                        .iter()
+                        .any(|(d, h)| *d == approver && *h == c.hash())
+            })
+        else {
+            return false;
+        };
+        if !notice_ok(&notice, &approver_cred, &head, &dev.device_id) {
+            return false;
+        }
+        // Verified: adopt the account state and make this a device of it.
+        let now_s = self.now_s();
+        let (acs_chain, acs_creds): (Vec<String>, Vec<String>) = (
+            chain.iter().map(|c| hex(c)).collect(),
+            creds.iter().map(|c| hex(c)).collect(),
+        );
+        let Some(dev) = self.st.device.as_mut() else {
+            return false;
+        };
+        dev.account_id = head.account_id;
+        dev.acs_generation = head.generation;
+        dev.bundle_expires_at = now_s + BUNDLE_TTL_S;
+        let up = dev.generate_one_time(ONE_TIME_KEYS, ONE_TIME_KEYS, self.rng);
+        let call = NetCall::PublishKeyMaterial {
+            device_id: dev.device_id.to_vec(),
+            bundle: up.bundle,
+            opks: up.opks,
+            pqopks: up.pqopks,
+        };
+        let my_id = hex(&dev.device_id);
+        self.st.app.acs_chain = acs_chain;
+        self.st.app.acs_credentials = acs_creds;
+        self.st.app.label = label;
+        self.st.app.created_at = self.now_ms;
+        self.st.app.device_meta.insert(
+            my_id,
+            DeviceMeta {
+                label: "This device".into(),
+                enrolled_at: self.now_ms,
+            },
+        );
+        for d in head.control.iter().chain(&head.messaging) {
+            let id = hex(d);
+            self.st.app.device_meta.entry(id).or_insert(DeviceMeta {
+                label: "Linked device".into(),
+                enrolled_at: self.now_ms,
+            });
+        }
+        self.enqueue(call, Purpose::PublishKeys);
+        self.sync_own_head();
+        if let Some(j) = self.st.app.link_join.as_mut() {
+            j.approved = true;
+            j.roster_expected = count as u32;
+            j.approver = hex(&approver);
+            if count == 0 {
+                self.finish_join(LinkState::Linked);
+            }
+        }
+        true
+    }
+
+    /// One conversation handed over: set up our side of it as a device of the account and introduce ourselves to the
+    /// approving device (which tells the contact). Fail closed per conversation: anything off skips it entirely.
+    fn adopt_roster(&mut self, entry: &[u8], join: &LinkJoin) -> bool {
+        let Ok(v) = cbor::decode(entry) else {
+            return false;
+        };
+        let (Ok(conv), Ok(json), Ok(intro_bytes)) = (
+            v.get(1).and_then(|x| x.t()).map(String::from),
+            v.get(2).and_then(|x| x.b()),
+            v.get(3).and_then(|x| x.b()),
+        ) else {
+            return false;
+        };
+        let (Ok(mut rel), Ok(intro)) = (
+            serde_json::from_slice::<Relationship>(json),
+            cbor::decode(intro_bytes),
+        ) else {
+            return false;
+        };
+        if conv.is_empty()
+            || conv.len() > 64
+            || rel.id != conv
+            || rel.state != RelState::Active
+            || rel.blocked
+            || self.st.app.relationships.contains_key(&conv)
+            || intro.get(0).and_then(|x| x.b()).map(hex).ok().as_deref()
+                != Some(join.approver.as_str())
+        {
+            return false;
+        }
+        // The peer's head is pinned exactly like a first contact's: K7, verified against its own credentials.
+        let (Ok(body), Some(creds)) = (
+            hb(&rel.peer_acs_body),
+            rel.peer_credentials
+                .iter()
+                .map(|c| unhex(c).ok())
+                .collect::<Option<Vec<_>>>(),
+        ) else {
+            return false;
+        };
+        if self
+            .st
+            .device
+            .as_mut()
+            .is_none_or(|d| d.trust_peer(body, creds).is_err())
+        {
+            return false;
+        }
+        let Some((mailbox, route)) = self.take_route() else {
+            return false;
+        };
+        let key = self.new_delivery_key(&route, DELIVERY_KEY_TTL_S);
+        let Ok(record) = self.signed_key_record(&key) else {
+            return false;
+        };
+        let Some(set) = Record::new(1, None, vec![route.clone()]) else {
+            return false;
+        };
+        let Some(signed_set) = self.sign_set(&set) else {
+            return false;
+        };
+        let Some(device_id) = self.st.device.as_ref().map(|d| d.device_id) else {
+            return false;
+        };
+        rel.my_mailbox = hex(&mailbox);
+        rel.my_relays = RelaySet::single(route.clone());
+        rel.my_boxes = vec![MyBox {
+            mailbox: hex(&mailbox),
+            route: route.clone(),
+            retired_at_ms: None,
+            drain_until_ms: 0,
+            retired_version: 0,
+            acked: false,
+            closed: false,
+        }];
+        rel.my_lineage = Lineage {
+            nodes: vec![Node::from_record(&set, &device_id)],
+            pending: vec![],
+        };
+        rel.my_delivery = vec![key];
+        rel.created_at = self.now_ms;
+        rel.messages = vec![];
+        // The approving device is a sibling in this conversation; its introduction is verified against our head.
+        rel.multi.siblings.remove(&join.approver);
+        self.st.app.relationships.insert(conv.clone(), rel);
+        self.sync_own_head();
+        if !self.adopt_intro(&conv, &intro, true) {
+            self.st.app.relationships.remove(&conv);
+            return false;
+        }
+        // Where peers fetch our key bundle for this conversation, and the capability that lets them.
+        let fetch_cap = arr32(self.rng);
+        self.enqueue(
+            NetCall::GrantKeyFetch {
+                device_id: device_id.to_vec(),
+                capability: fetch_cap.to_vec(),
+            },
+            Purpose::GrantKeyFetch {
+                conversation_id: conv.clone(),
+            },
+        );
+        let my_intro = cbor::encode(&V::M(vec![
+            (0, V::B(device_id.to_vec())),
+            (1, V::B(signed_set)),
+            (2, V::A(vec![V::B(record)])),
+            (3, V::T(route.relay_uri.clone())),
+            (4, V::B(fetch_cap.to_vec())),
+        ]));
+        let msg = cbor::encode(&V::M(vec![
+            (0, V::U(M_INTRO)),
+            (1, V::T(conv)),
+            (2, V::B(my_intro)),
+        ]));
+        let (Ok(secret), Ok(a_cap), Ok(b_recv)) =
+            (unhex(&join.secret), unhex(&join.a_cap), unhex(&join.b_recv))
+        else {
+            return true;
+        };
+        let (k_req, ..) = ceremony_keys(&secret, &a_cap, &b_recv);
+        if let Some(sealed) = self.seal_msg(&k_req, ROLE_REQ, &msg) {
+            self.deposit_ceremony(&join.operation_id, &a_cap, &join.relay_uri, sealed);
+        }
+        true
+    }
+
+    // ------------------------------------------------------------------------------------------ other devices: notice
+
+    /// A sibling sent the enrollment of a new device with the chain that lists it. Our own head advances only along a
+    /// verified descent, and the notice must verify against it before it is shown. `false` is a rejection.
+    pub(super) fn on_enrolled(&mut self, p: &V) -> bool {
+        let (Ok(notice), Some(chain), Some(creds)) = (
+            p.get(1).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            bytes_list(p.get(2)),
+            bytes_list(p.get(3)),
+        ) else {
+            return false;
+        };
+        if chain.is_empty()
+            || chain.len() > MAX_CHAIN_TAIL
+            || creds.len() > 64
+            || chain.iter().chain(creds.iter()).any(|x| x.len() > 65_536)
+        {
+            return false;
+        }
+        let Some((mut head, mut have, mut have_creds)) = self.acs_head() else {
+            return false;
+        };
+        // Extend our chain by the states that descend from our head, each verified as its parent's successor.
+        let mut all_creds = have_creds.clone();
+        for c in &creds {
+            if !all_creds.contains(c) {
+                all_creds.push(c.clone());
+            }
+        }
+        let mut extended = false;
+        for s in &chain {
+            let Some(state) = chain_head(s) else {
+                return false;
+            };
+            if state.generation <= head.generation {
+                continue; // we hold it already (a different state at our height is a fork and fails the notice below)
+            }
+            match control::verify_successor(&head, s, &all_creds) {
+                Ok(next) => {
+                    head = next;
+                    have.push(s.clone());
+                    extended = true;
+                }
+                Err(_) => return false,
+            }
+        }
+        if extended {
+            have_creds = all_creds;
+            self.st.app.acs_chain = have.iter().map(|c| hex(c)).collect();
+            self.st.app.acs_credentials = have_creds.iter().map(|c| hex(c)).collect();
+            self.sync_own_head();
+        }
+        let _ = have_creds;
+        // The notice must be over a state of our verified chain and signed by a control device of that state.
+        let Ok(body) = cbor::decode(&notice).and_then(|v| Ok(v.get(1)?.b()?.to_vec())) else {
+            return false;
+        };
+        let Ok(bv) = cbor::decode(&body) else {
+            return false;
+        };
+        let (Ok(device), Ok(by), Ok(at_hash)) = (
+            bv.get(3).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            bv.get(7).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            bv.get(6).and_then(|x| x.get(1)).and_then(|x| x.b32()),
+        ) else {
+            return false;
+        };
+        let (Ok(device), Ok(by)) = (
+            <[u8; 16]>::try_from(device.as_slice()),
+            <[u8; 16]>::try_from(by.as_slice()),
+        ) else {
+            return false;
+        };
+        let Some(state) = self
+            .st
+            .app
+            .acs_chain
+            .iter()
+            .filter_map(|c| unhex(c).ok().and_then(|c| chain_head(&c)))
+            .find(|s| s.hash() == at_hash)
+        else {
+            return false;
+        };
+        let Some(by_cred) = self
+            .st
+            .app
+            .acs_credentials
+            .iter()
+            .filter_map(|c| unhex(c).ok().and_then(|c| Credential::from_body(&c).ok()))
+            .find(|c| {
+                c.device_id == by
+                    && state
+                        .credentials
+                        .iter()
+                        .any(|(d, h)| *d == by && *h == c.hash())
+            })
+        else {
+            return false;
+        };
+        if !state.control.contains(&by) || !notice_ok(&notice, &by_cred, &state, &device) {
+            return false;
+        }
+        let key = hex(&device);
+        if !self.st.app.notices.iter().any(|n| n.device_id == key) {
+            let label = self
+                .st
+                .app
+                .device_meta
+                .get(&key)
+                .map(|m| m.label.clone())
+                .unwrap_or_else(|| "Linked device".into());
+            self.st
+                .app
+                .device_meta
+                .entry(key.clone())
+                .or_insert(DeviceMeta {
+                    label: label.clone(),
+                    enrolled_at: self.now_ms,
+                });
+            self.st.app.notices.push(NoticeRec {
+                device_id: key,
+                label,
+                at: self.now_ms,
+            });
+            while self.st.app.notices.len() > MAX_NOTICES {
+                self.st.app.notices.remove(0);
+            }
+        }
+        true
+    }
+}
+
+fn chain_head(signed: &[u8]) -> Option<Acs> {
+    let v = cbor::decode(signed).ok()?;
+    Acs::from_body(v.get(1).ok()?.b().ok()?).ok()
+}
+
+/// Is `notice` a `DeviceEnrollmentNotice` for `device`, ceremony `link_ceremony`, signed by `signer` over exactly `head`?
+fn notice_ok(notice: &[u8], signer: &Credential, head: &Acs, device: &[u8; 16]) -> bool {
+    let Ok(body) = sig::open_envelope(
+        notice,
+        LBL_NOTICE_SIG,
+        PROFILE_V1,
+        ROLE_CONTROLLER,
+        &signer.device_id,
+        &signer.signing_pk,
+    ) else {
+        return false;
+    };
+    if registry()
+        .check_body("DeviceEnrollmentNotice", &body)
+        .is_err()
+    {
+        return false;
+    }
+    let Ok(v) = cbor::decode(&body) else {
+        return false;
+    };
+    v.get(2).and_then(|x| x.b32()).ok() == Some(head.account_id)
+        && v.get(3).and_then(|x| x.b()).ok() == Some(device.as_slice())
+        && v.get(4).and_then(|x| x.u()).ok() == Some(DEVICE_CLASS_MESSAGING)
+        && v.get(5).and_then(|x| x.u()).ok() == Some(head.generation)
+        && v.get(6).and_then(|x| x.get(1)).and_then(|x| x.b32()).ok() == Some(head.hash())
+        && v.get(7).and_then(|x| x.b()).ok() == Some(signer.device_id.as_slice())
+        && v.get(8).and_then(|x| x.u()).ok() == Some(CEREMONY_LINK)
+        && head.messaging.contains(device)
+}
+
+// ---------------------------------------------------------------------------------------------- views and polling
+
+/// What the host should poll for the ceremony: the existing device's request queue (its own capability) while the
+/// ceremony runs, the new device's response queue (the capability from the link) until it ends.
+pub fn poll_targets(st: &ProfileState, now_ms: u64) -> Vec<crate::host::PollTarget> {
+    let mut out = vec![];
+    for o in st.app.link_offers.values() {
+        if o.expires_at > now_ms
+            && matches!(
+                o.state,
+                LinkState::WaitingForScan | LinkState::AwaitingApproval | LinkState::Linked
+            )
+            && let Ok(m) = unhex(&o.a_mailbox)
+        {
+            out.push(crate::host::PollTarget {
+                mailbox: m,
+                after: st.app.cursors.get(&o.a_mailbox).copied().unwrap_or(0),
+                kind: MailboxKind::Relay,
+                relay_uri: Some(o.a_route.relay_uri.clone()),
+                capability: vec![],
+            });
+        }
+    }
+    if let Some(j) = &st.app.link_join
+        && j.expires_at > now_ms
+        && j.state == LinkState::AwaitingApproval
+        && let (Ok(m), Ok(cap)) = (unhex(&j.b_mailbox), unhex(&j.b_recv))
+    {
+        out.push(crate::host::PollTarget {
+            mailbox: m,
+            after: st.app.cursors.get(&j.b_mailbox).copied().unwrap_or(0),
+            kind: MailboxKind::Relay,
+            relay_uri: Some(j.relay_uri.clone()),
+            capability: cap,
+        });
+    }
+    out
+}
+
+/// The Home and explicit capability for acknowledging a ceremony mailbox (`None`: not a ceremony mailbox).
+pub(super) fn ack_route(st: &ProfileState, mailbox: &str) -> Option<(String, Vec<u8>)> {
+    if let Some(o) = st.app.link_offers.values().find(|o| o.a_mailbox == mailbox) {
+        return Some((o.a_route.relay_uri.clone(), vec![]));
+    }
+    st.app
+        .link_join
+        .as_ref()
+        .filter(|j| j.b_mailbox == mailbox)
+        .map(|j| (j.relay_uri.clone(), unhex(&j.b_recv).unwrap_or_default()))
+}
+
+fn offer_state(o: &LinkOffer, now_ms: u64) -> Option<LinkOfferState> {
+    let live = o.expires_at > now_ms;
+    Some(match o.state {
+        LinkState::Opening => return None,
+        LinkState::WaitingForScan if live => LinkOfferState::WaitingForScan,
+        LinkState::AwaitingApproval if live => LinkOfferState::AwaitingApproval,
+        LinkState::Linked => LinkOfferState::Linked,
+        LinkState::Rejected => LinkOfferState::Rejected,
+        _ => LinkOfferState::Expired,
+    })
+}
+
+pub fn offer_view(st: &ProfileState, op: &str, now_ms: u64) -> Option<LinkOfferView> {
+    let o = st.app.link_offers.get(op)?;
+    Some(LinkOfferView {
+        operation_id: o.operation_id.clone(),
+        link: o.link.clone()?,
+        expires_at: o.expires_at,
+        verification_code: o.request.as_ref().map(|r| r.code.clone()),
+        state: offer_state(o, now_ms)?,
+    })
+}
+
+/// A request as the approving device holds it, or as the asking device made it.
+pub fn request_view(st: &ProfileState, op: &str, now_ms: u64) -> Option<LinkRequestView> {
+    if let Some(j) = st.app.link_join.as_ref().filter(|j| j.operation_id == op) {
+        let state = match j.state {
+            LinkState::Linked => LinkRequestState::Approved,
+            LinkState::Rejected | LinkState::Failed => LinkRequestState::Rejected,
+            LinkState::Expired => LinkRequestState::Expired,
+            _ if j.approved => LinkRequestState::Approved,
+            _ if j.expires_at <= now_ms => LinkRequestState::Expired,
+            _ => LinkRequestState::AwaitingApproval,
+        };
+        return Some(LinkRequestView {
+            request_id: j.request_id.clone(),
+            operation_id: j.operation_id.clone(),
+            device_label: j.label.clone(),
+            verification_code: j.code.clone(),
+            expires_at: j.expires_at,
+            state,
+        });
+    }
+    let o = st.app.link_offers.get(op)?;
+    let r = o.request.as_ref()?;
+    let state = match o.state {
+        LinkState::Linked => LinkRequestState::Approved,
+        LinkState::Rejected => LinkRequestState::Rejected,
+        LinkState::AwaitingApproval if o.expires_at > now_ms => LinkRequestState::AwaitingApproval,
+        _ => LinkRequestState::Expired,
+    };
+    Some(LinkRequestView {
+        request_id: r.request_id.clone(),
+        operation_id: o.operation_id.clone(),
+        device_label: r.label.clone(),
+        verification_code: r.code.clone(),
+        expires_at: o.expires_at,
+        state,
+    })
+}
+
+/// Requests an approving device still has to decide.
+pub fn pending_requests(st: &ProfileState, now_ms: u64) -> Vec<LinkRequestView> {
+    st.app
+        .link_offers
+        .keys()
+        .filter_map(|op| request_view(st, op, now_ms))
+        .filter(|r| r.state == LinkRequestState::AwaitingApproval)
+        .collect()
+}
+
+pub fn notice_views(st: &ProfileState) -> Vec<DeviceNoticeView> {
+    st.app
+        .notices
+        .iter()
+        .map(|n| DeviceNoticeView {
+            code: DeviceNoticeCode::DeviceLinked,
+            device_id: n.device_id.clone(),
+            label: n.label.clone(),
+            at: n.at,
+        })
+        .collect()
+}

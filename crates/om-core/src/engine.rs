@@ -354,7 +354,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     (&b.mailbox, MailboxKind::Relay, uri)
                 }),
         );
-        Ok(boxes
+        let mut targets: Vec<PollTarget> = boxes
             .into_iter()
             .filter_map(|(m, kind, uri)| {
                 Some(PollTarget {
@@ -362,9 +362,13 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     after: st.app.cursors.get(m).copied().unwrap_or(0),
                     kind,
                     relay_uri: uri.cloned(),
+                    capability: vec![],
                 })
             })
-            .collect())
+            .collect();
+        // A device-link ceremony's short-lived queues (D24), while it runs.
+        targets.extend(crate::flows::ceremony_poll_targets(st, now));
+        Ok(targets)
     }
 
     /// Relay items for one polled mailbox. Replays (sequence at or below the committed cursor) are ignored.
@@ -701,9 +705,18 @@ impl<R: RngCore + CryptoRng> Core<R> {
                         Ok(to(&v))
                     }
                     Query::GetHomeSummary { .. } => Ok(to(&self.home)),
-                    Query::GetDevices { .. } => Ok(to(&devices_view(st))),
-                    Query::GetLinkRequest { .. } | Query::GetLinkOffer { .. } => {
-                        Ok(serde_json::Value::Null)
+                    Query::GetDevices { .. } => Ok(to(&devices_view(st, self.clock.now_ms()))),
+                    Query::GetLinkRequest { operation_id, .. } => {
+                        let now = self.clock.now_ms();
+                        Ok(crate::flows::request_view(st, operation_id, now)
+                            .map(|v| to(&v))
+                            .unwrap_or(serde_json::Value::Null))
+                    }
+                    Query::GetLinkOffer { operation_id, .. } => {
+                        let now = self.clock.now_ms();
+                        Ok(crate::flows::offer_view(st, operation_id, now)
+                            .map(|v| to(&v))
+                            .unwrap_or(serde_json::Value::Null))
                     }
                     Query::GetRecoveryStatus { .. } => Ok(to(&recovery_status(st))),
                     Query::GetProfileList => Err(CoreError::Invalid("unreachable")),
@@ -857,7 +870,7 @@ fn conversation_list(st: &ProfileState) -> Vec<ConversationSummary> {
     v.into_iter().map(|(_, s)| s).collect()
 }
 
-fn devices_view(st: &ProfileState) -> DevicesView {
+fn devices_view(st: &ProfileState, now_ms: u64) -> DevicesView {
     let head = (|| {
         let chain: Vec<Vec<u8>> = st
             .app
@@ -877,8 +890,8 @@ fn devices_view(st: &ProfileState) -> DevicesView {
         return DevicesView {
             control_state: AccountControlStateCode::Normal,
             devices: vec![],
-            link_requests: vec![],
-            notices: vec![],
+            link_requests: crate::flows::pending_requests(st, now_ms),
+            notices: crate::flows::notice_views(st),
         };
     };
     use crate::control::{Action, PlanError, plan};
@@ -948,8 +961,8 @@ fn devices_view(st: &ProfileState) -> DevicesView {
             AccountControlStateCode::Normal
         },
         devices,
-        link_requests: vec![],
-        notices: vec![],
+        link_requests: crate::flows::pending_requests(st, now_ms),
+        notices: crate::flows::notice_views(st),
     }
 }
 

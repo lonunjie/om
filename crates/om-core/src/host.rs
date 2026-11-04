@@ -191,6 +191,17 @@ pub enum NetCall {
         /// and for an introduction mailbox, which live at the host's configured Home.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         relay_uri: Option<String>,
+        /// The receive capability to present when it is not the host's own (a device-link ceremony queue another
+        /// install opened); empty for every mailbox the host derives its capabilities for.
+        #[serde(default, with = "hexs", skip_serializing_if = "Vec::is_empty")]
+        capability: Vec<u8>,
+    },
+    /// Device-link ceremony (D24): make sure the short-lived queue `mailbox` exists at the Home `relay_uri` and answer
+    /// its receive capability as `Bytes`, so the other device can drain it. Uses the queue endpoints a Home already has.
+    OpenQueue {
+        #[serde(with = "hexs")]
+        mailbox: Vec<u8>,
+        relay_uri: String,
     },
 }
 
@@ -258,6 +269,9 @@ pub struct PollTarget {
     /// The Home that holds this mailbox (see `NetCall::Ack`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay_uri: Option<String>,
+    /// An explicit receive capability (see `NetCall::Ack`); empty for the host's own mailboxes.
+    #[serde(default, with = "hexs", skip_serializing_if = "Vec::is_empty")]
+    pub capability: Vec<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -526,6 +526,14 @@ pub enum Purpose {
         message_id: String,
         device_id: Hex,
     },
+    /// Device-link ceremony (D24): the existing device opens its response queue and learns the receive capability.
+    OpenCeremonyQueue {
+        operation_id: OperationId,
+    },
+    /// Device-link ceremony: a sealed message on the ceremony's request or response queue.
+    DepositCeremony {
+        operation_id: OperationId,
+    },
     /// The peer's other device's bundle, fetched to start a session with it (we hold its fetch capability).
     FetchDeviceKeys {
         conversation_id: String,
@@ -599,6 +607,105 @@ pub struct AppState {
     /// Core-issued destructive-intent confirmation nonces (M2): single use, expiring.
     #[serde(default)]
     pub confirmations: Vec<ConfirmationRec>,
+    /// Device-link ceremonies this (existing) device offered, by operation id (D24).
+    #[serde(default)]
+    pub link_offers: BTreeMap<OperationId, LinkOffer>,
+    /// The ceremony this (new) device is waiting on; while present, the profile is a device that has not joined yet.
+    #[serde(default)]
+    pub link_join: Option<LinkJoin>,
+    /// Enrollment notices received for devices that joined our account (newest last, bounded).
+    #[serde(default)]
+    pub notices: Vec<NoticeRec>,
+}
+
+/// Where a device-link ceremony is, on either side.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LinkState {
+    /// Existing device: the response queue is being opened, there is no link yet.
+    Opening,
+    WaitingForScan,
+    AwaitingApproval,
+    Linked,
+    Rejected,
+    Expired,
+    /// New device: the approval did not verify, or the ceremony was refused. Nothing was adopted.
+    Failed,
+}
+
+/// What the new device asked for, as the existing device holds it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkRequestRec {
+    pub request_id: Hex,
+    pub device_id: Hex,
+    pub signing_pk: Hex,
+    pub ik: Hex,
+    pub label: String,
+    pub nonce: Hex,
+    pub code: String,
+    pub received_ms: u64,
+}
+
+/// The existing device's side of a ceremony: two queues on its own Home (request: it drains; response: it deposits).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkOffer {
+    pub operation_id: OperationId,
+    /// The one-time ceremony key (16 bytes). Never leaves the two devices; absent from every log.
+    pub secret: SecretHex,
+    pub a_mailbox: Hex,
+    pub a_route: RelayEntry,
+    pub b_mailbox: Hex,
+    pub b_route: RelayEntry,
+    /// Receive capability of the response queue, handed to the new device in the link.
+    pub b_recv: Hex,
+    pub link: Option<String>,
+    pub created_ms: u64,
+    pub expires_at: u64,
+    pub state: LinkState,
+    pub request: Option<LinkRequestRec>,
+    /// The new device's introductions (one per conversation) have been received for these conversations.
+    #[serde(default)]
+    pub introduced: Vec<String>,
+}
+
+/// The new device's side of a ceremony.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkJoin {
+    pub operation_id: OperationId,
+    pub secret: SecretHex,
+    pub relay_uri: String,
+    /// Deposit capability of the request queue (from the link).
+    pub a_cap: Hex,
+    pub b_mailbox: Hex,
+    pub b_recv: Hex,
+    pub created_ms: u64,
+    pub expires_at: u64,
+    pub label: String,
+    pub nonce: Hex,
+    pub request_id: Hex,
+    pub code: String,
+    pub state: LinkState,
+    /// The approval verified; roster messages still expected (conversations handed over).
+    #[serde(default)]
+    pub approved: bool,
+    #[serde(default)]
+    pub roster_expected: u32,
+    #[serde(default)]
+    pub roster_done: u32,
+    /// The existing device's DeviceID, from the verified approval.
+    #[serde(default)]
+    pub approver: Hex,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoticeRec {
+    pub device_id: Hex,
+    pub label: String,
+    pub at: u64,
 }
 
 /// Admission accounting for requests arriving at invite mailboxes (ADR-0181 section 5). Wall-clock milliseconds,
