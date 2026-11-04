@@ -19,7 +19,7 @@ export interface RelaySetupInput {
 let connectedThisLoad = false;
 export const relayJustConnected = (): boolean => connectedThisLoad;
 
-const httpsOnly = (url: string | undefined): string | undefined => {
+export const httpsOnly = (url: string | undefined): string | undefined => {
   if (url === undefined || url === "") return undefined;
   try { const u = new URL(url); return u.protocol === "https:" && u.username === "" && u.password === "" ? u.href : undefined; } catch { return undefined; }
 };

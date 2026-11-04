@@ -959,6 +959,38 @@ export const homeCopy: HomeCopy = {
     item: (reference) => `Reference ${reference}`,
   },
   back: "Back to settings",
+  advanced: {
+    toggle: "Advanced",
+    listHeading: "Your delivery services",
+    listIntro: "OM can use more than one. If one stops working, your messages go through another, and the people you talk to switch by themselves.",
+    role: { main: "Main", backup: "Backup", leaving: "Moving away" },
+    add: {
+      toggle: "Add a backup delivery service",
+      intro: "A backup is a second delivery service of your own, set up the same way as the first. Your chats use both, so they keep working if the main one stops.",
+      relay: { cloudflare: onboardingCopy.relay.cloudflare, setup: onboardingCopy.relay.setup },
+      check: "Check and add",
+      cancel: "Cancel",
+      already: "You already have this delivery service in your list. Nothing was changed.",
+      full: "You already have as many delivery services as OM can keep track of. Nothing was added.",
+      added: "Added. OM will use it as a backup the next time it connects.",
+    },
+    move: {
+      heading: "Move to a different delivery service",
+      body: "First add the one you want to move to as a backup. Then move away from the one you are leaving. OM switches your chats to your other delivery service and keeps collecting from the old one for a while, so nothing sent to it in the meantime is lost.",
+      needBackup: "You need a second delivery service to move to. Add a backup first.",
+      action: "Move away from this one",
+      retry: "Try moving again",
+      confirmHeading: "Move away from this delivery service?",
+      confirmBody: "Your chats switch to your other delivery service. OM keeps collecting messages from this one for a while, so none are lost.",
+      confirmInvites: "Invitations you shared that nobody has accepted yet will stop working. Share a new one afterwards.",
+      yes: "Move away",
+      no: "Keep using it",
+      working: "Moving your chats.",
+      done: "OM is moving your chats to your other delivery service. Connect again to finish.",
+      stuck: (n) => `${plural(n, "chat", "chats")} can't move yet: ${n === 1 ? "it has" : "they have"} no other delivery service to use, so ${n === 1 ? "it stays" : "they stay"} on this one for now. Keep both running, give OM a few minutes to set up the other, then try moving again.`,
+      failed: "That did not work, and nothing was changed. Try again.",
+    },
+  },
 };
 
 /** Settings > Backup file: save the chats to a file, and read them back. Plain words; what a backup does and does not hold is said up front. */

@@ -3,6 +3,8 @@ import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
 import "../devices/devices.css";
 import type { HomeCopy } from "./copy";
+import { describeProbe as describe } from "./describe";
+import { MoreServices } from "./MoreServices";
 import type { HomeProbeResult, HomeSettingsServices } from "./services";
 
 export interface HomeScreenProps {
@@ -12,6 +14,8 @@ export interface HomeScreenProps {
   readonly refreshMs?: number;
   /** What a delivery service is and what it can and cannot see, shown under the current service (the host supplies the Core-backed facts). */
   readonly facts?: ReactNode;
+  /** Puts text on the clipboard (the host knows how); `false` when it could not. Without it the setup value for a backup is shown to select by hand. */
+  readonly copyText?: (text: string) => Promise<boolean>;
 }
 
 type Checked = { readonly k: "idle" } | { readonly k: "checking" } | { readonly k: "done"; readonly result: HomeProbeResult };
@@ -20,25 +24,11 @@ type Saved = "none" | "chosen" | "cleared" | "failed";
 /** An unhealthy Home cannot take messages now, so it is never offered for saving; a degraded or unknown one is, with its state shown. */
 const savable = (r: HomeProbeResult): r is Extract<HomeProbeResult, { kind: "ok" }> => r.kind === "ok" && r.health !== "unhealthy";
 
-/** Wording for everything a probe can say about an address (the same lines serve the current Home and a candidate). */
-function describe(copy: HomeCopy, r: HomeProbeResult): { readonly text: string; readonly problem: boolean } {
-  const c = copy.result;
-  switch (r.kind) {
-    case "invalid_url": return { text: copy.invalid[r.reason], problem: true };
-    case "ok": return { text: `${c.ok(r.providerId)} ${c.health[r.health]} ${copy.selfReported}`, problem: r.health !== "healthy" };
-    case "unreachable": return { text: c.unreachable, problem: true };
-    case "failing": return { text: c.failing(r.status), problem: true };
-    case "not_a_home": return { text: c.notAHome, problem: true };
-    case "wrong_version": return { text: c.wrongVersion(r.offered.join(", ")), problem: true };
-    case "no_mailbox": return { text: c.noMailbox, problem: true };
-  }
-}
-
 /**
  * Settings > Your Home. The user types an address, the host asks that address who it is, and only then can it be chosen.
  * A choice takes effect on reconnect, and there is deliberately no way to arrive here pre-filled from a link.
  */
-export function HomeScreen({ services, copy, refreshMs = 4000, facts }: HomeScreenProps) {
+export function HomeScreen({ services, copy, refreshMs = 4000, facts, copyText }: HomeScreenProps) {
   const { current } = services;
   const [text, setText] = useState("");
   const [checked, setChecked] = useState<Checked>({ k: "idle" });
@@ -82,6 +72,8 @@ export function HomeScreen({ services, copy, refreshMs = 4000, facts }: HomeScre
 
   const result = checked.k === "done" ? checked.result : undefined;
   const same = result?.kind === "ok" && result.baseUrl === current.baseUrl;
+  // With a backup in the list the two single-service controls below would drop or replace more than the person sees; moving is done in Advanced.
+  const several = (services.more?.services.length ?? 0) > 1;
   const nowText = now.k === "done" ? describe(copy, now.result) : undefined;
   const said = result === undefined ? undefined : describe(copy, result);
 
@@ -103,7 +95,7 @@ export function HomeScreen({ services, copy, refreshMs = 4000, facts }: HomeScre
             {nowText === undefined ? null : <Text as="p" role={nowText.problem ? "alert" : "status"} data-problem={nowText.problem ? "true" : undefined}>{nowText.text}</Text>}
           </>
         )}
-        {current.source === "chosen" ? (
+        {current.source === "chosen" && !several ? (
           <div className="om-settings__actions">
             <Button onClick={forget}>{current.hasDefault ? copy.useDefault : copy.disconnect}</Button>
           </div>
@@ -122,7 +114,7 @@ export function HomeScreen({ services, copy, refreshMs = 4000, facts }: HomeScre
         </section>
       )}
 
-      <section className="om-settings__group" aria-labelledby="om-home-change-h">
+      {several ? null : <section className="om-settings__group" aria-labelledby="om-home-change-h">
         <Text as="h2" size="lg" weight="bold" id="om-home-change-h">{copy.changeHeading}</Text>
         <Text as="p">{copy.changeBody}</Text>
         <form className="om-settings__form" onSubmit={(e) => { e.preventDefault(); check(); }}>
@@ -155,7 +147,9 @@ export function HomeScreen({ services, copy, refreshMs = 4000, facts }: HomeScre
             ) : null}
           </div>
         )}
-      </section>
+      </section>}
+
+      {services.more === undefined ? null : <MoreServices services={services} more={services.more} copy={copy} {...(copyText === undefined ? {} : { copyText })} />}
 
       {saved === "failed" ? <Text as="p" role="alert">{copy.saveFailed}</Text> : null}
       {saved === "chosen" || saved === "cleared" ? (

@@ -1,3 +1,4 @@
+import type { RelaySetupCopy } from "../onboarding/copy";
 import type { HomeUrlProblem, HomeProbeResult } from "./services";
 
 /** Wording for Settings > Message delivery. The user-facing word is "delivery service" (the code and docs keep "Home"); no infrastructure vocabulary reaches the user. */
@@ -50,4 +51,39 @@ export interface HomeCopy {
     readonly item: (reference: string) => string;
   };
   readonly back: string;
+  /** Advanced: the person's delivery services, a backup, and moving to a different one. Plain words only ("delivery service"); the vendor is named only inside `add.relay.cloudflare`. */
+  readonly advanced: {
+    readonly toggle: string;
+    readonly listHeading: string;
+    readonly listIntro: string;
+    readonly role: { readonly main: string; readonly backup: string; readonly leaving: string };
+    readonly add: {
+      readonly toggle: string;
+      readonly intro: string;
+      /** The same setup steps and fields as first run (`RelaySetupCopy`), so the one-tap setup is described once. */
+      readonly relay: Pick<RelaySetupCopy, "cloudflare" | "setup">;
+      readonly check: string;
+      readonly cancel: string;
+      readonly already: string;
+      readonly full: string;
+      readonly added: string;
+    };
+    readonly move: {
+      readonly heading: string;
+      readonly body: string;
+      readonly needBackup: string;
+      readonly action: string;
+      readonly retry: string;
+      readonly confirmHeading: string;
+      readonly confirmBody: string;
+      /** Only when leaving the main service: invitations made there and not yet accepted are collected at the new main service, which does not know them. */
+      readonly confirmInvites: string;
+      readonly yes: string;
+      readonly no: string;
+      readonly working: string;
+      readonly done: string;
+      readonly stuck: (chats: number) => string;
+      readonly failed: string;
+    };
+  };
 }

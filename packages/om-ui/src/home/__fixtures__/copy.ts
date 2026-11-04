@@ -1,4 +1,5 @@
 import type { HomeCopy } from "../copy";
+import { testCopy } from "../../onboarding/__fixtures__/copy";
 
 export const testHomeCopy: HomeCopy = {
   heading: "Your Home",
@@ -39,4 +40,36 @@ export const testHomeCopy: HomeCopy = {
   },
   lost: { heading: "Mailboxes held by someone else", body: (n) => `${String(n)} mailbox(es) cannot be used`, item: (r) => `Reference ${r}` },
   back: "Back",
+  advanced: {
+    toggle: "Advanced",
+    listHeading: "Your services",
+    listIntro: "More than one can be used.",
+    role: { main: "Main", backup: "Backup", leaving: "Moving away" },
+    add: {
+      toggle: "Add a backup",
+      intro: "A backup is a second service.",
+      relay: { cloudflare: testCopy.relay.cloudflare, setup: testCopy.relay.setup },
+      check: "Check and add",
+      cancel: "Cancel",
+      already: "Already in your list",
+      full: "No room for more",
+      added: "Added as a backup",
+    },
+    move: {
+      heading: "Move to a different service",
+      body: "Add a backup first.",
+      needBackup: "Add a backup first",
+      action: "Move away from this one",
+      retry: "Try moving again",
+      confirmHeading: "Move away?",
+      confirmBody: "Your chats switch.",
+      confirmInvites: "Unaccepted invitations stop working.",
+      yes: "Move away",
+      no: "Keep using it",
+      working: "Moving",
+      done: "Moving. Connect again to finish.",
+      stuck: (n) => `${String(n)} chat(s) cannot move yet`,
+      failed: "Move failed",
+    },
+  },
 };

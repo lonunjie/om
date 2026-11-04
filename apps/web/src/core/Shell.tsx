@@ -164,6 +164,14 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
 
   // An address that names nothing real (a chat that is not here, a step this host does not have) falls back to the root, not to an error.
   const chatGone = selected !== null && newChatAfter === null && list.status === "ready" && !list.value.some((c) => c.id === selected);
+  /** Copies a public line (the setup value for a backup delivery service) through the Action Registry like every platform capability. */
+  const copyText = async (text: string): Promise<boolean> => {
+    if (invite === undefined) return false;
+    const clipboard = invite.platform.clipboard();
+    const r = services.registry.resolve({ actionId: "copy-text", params: { sensitive: false }, ctx: services.ctx, origin: "direct" });
+    if (clipboard.state === "unavailable" || r.status !== "platform" || r.request.capability !== "Clipboard") return false;
+    return (await clipboard.api.write(text, { sensitive: false })) === "written";
+  };
   const noSuchPlace = (place.kind === "safety-code" && safetyCode === undefined) || (place.kind === "settings" && place.page === "delivery" && home === undefined) || (place.kind === "settings" && place.page === "lock" && lock === undefined) || (place.kind === "settings" && place.page === "backup" && backup === undefined) || chatGone;
   useEffect(() => { if (noSuchPlace) go(CHATS, { replace: true }); }, [noSuchPlace, go]);
   // The address bar shows the place's own address ("/index.html" and "/nope" become "/"), so what is shown can be copied and reopened.
@@ -293,7 +301,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
                     <DevicesScreen services={services} copy={devicesCopy} scanQr={deviceScan.scanQr} linking="later" />
                     {devicesExtra}
                   </>
-                ) : settings === "delivery" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} facts={<HomeFacts client={services.client} ctx={services.ctx} copy={onboardingCopy.home} alwaysOpen configured={home.current.baseUrl !== undefined} />} />
+                ) : settings === "delivery" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} {...(invite === undefined ? {} : { copyText })} facts={<HomeFacts client={services.client} ctx={services.ctx} copy={onboardingCopy.home} alwaysOpen configured={home.current.baseUrl !== undefined} />} />
                   : settings === "lock" && lock !== undefined ? <LockScreen services={lock} />
                   : settings === "backup" && backup !== undefined ? <BackupScreen services={backup} />
                   : settings === "help" ? <HelpScreen />

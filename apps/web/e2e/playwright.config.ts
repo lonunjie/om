@@ -2,7 +2,7 @@
 // Playwright cache (@playwright/test is pinned to the version that matches them), so nothing is downloaded.
 // Servers: the dev-harness build (4174) and a dev-signed production bundle with the service worker (4175).
 import { defineConfig, devices } from "@playwright/test";
-import { E2E_ADMISSION_HASH, LOCKED_RELAY } from "./admission-fixture.ts";
+import { E2E_ADMISSION_HASH, E2E_ADMISSION_HASH_2, LOCKED_RELAY, LOCKED_RELAY_2 } from "./admission-fixture.ts";
 import { writeQrY4m } from "./qr-video.ts";
 
 const HARNESS = "http://localhost:4174";
@@ -38,7 +38,9 @@ export default defineConfig({
     // A build with no relay of its own (as shipped) but allowed to reach the local reference Home: the first-run delivery-service setup page.
     // ... and a locked Home (it holds only the hash of the owner's admission secret), which is where that setup page connects.
     { command: "node ../../infra/cloudflare-home/test/serve.ts 8789", cwd: "..", url: `${LOCKED_RELAY}/healthz`, reuseExistingServer: true, env: { OM_ADMISSION: E2E_ADMISSION_HASH } },
-    { command: "pnpm exec vite preview --outDir dist-setup-e2e --port 4179 --strictPort", cwd: "..", url: SETUP_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: LOCKED_RELAY } },
+    // ... and a second locked Home, which is where the backup delivery service is added (apps/web/e2e/backup-service.spec.ts).
+    { command: "node ../../infra/cloudflare-home/test/serve.ts 8790", cwd: "..", url: `${LOCKED_RELAY_2}/healthz`, reuseExistingServer: true, env: { OM_ADMISSION: E2E_ADMISSION_HASH_2 } },
+    { command: "pnpm exec vite preview --outDir dist-setup-e2e --port 4179 --strictPort", cwd: "..", url: SETUP_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: `${LOCKED_RELAY} ${LOCKED_RELAY_2}` } },
     ...(live ? [{ command: "pnpm exec vite preview --outDir dist-live-relay --port 4178 --strictPort", cwd: "..", url: LIVE_APP, reuseExistingServer: true, env: { ...(/^http:\/\/(127\.0\.0\.1|localhost)(:\d{2,5})?$/.test(process.env["OM_LIVE_RELAY_URL"] ?? "") ? { OM_E2E_CONNECT_SRC: process.env["OM_LIVE_RELAY_URL"] ?? "" } : {}) } }] : []),
   ],
   projects: [

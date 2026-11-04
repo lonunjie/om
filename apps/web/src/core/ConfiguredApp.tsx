@@ -4,15 +4,14 @@
 // which restarts the Core against the new Home (the identities are locked again, so the user unlocks once more).
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { browserVaultEnv } from "@om/web-platform";
-import type { HttpProvider } from "@om/provider-http";
 import { Text } from "@om/ui";
 import { appStrings as t } from "../copy/en";
 import { createHomeSettings } from "./homeSettings";
-import { createHttpProviderFor, readAdmissionFor, resolveProviderChoice, type ProviderChoice, type ProviderEnv } from "./providerConfig";
+import { createHomesProviderFor, resolveHomeSet, type HomeSet, type HomesProvider, type ProviderChoice, type ProviderEnv } from "./providerConfig";
 import { RealApp } from "./RealApp";
 import { createRelaySetup } from "./relaySetup";
 
-type Resolved = { readonly k: "pending" } | { readonly k: "ready"; readonly provider: HttpProvider | null; readonly choice: ProviderChoice | null; readonly env: ProviderEnv | undefined };
+type Resolved = { readonly k: "pending" } | { readonly k: "ready"; readonly provider: HomesProvider | null; readonly choice: ProviderChoice | null; readonly set: HomeSet | null; readonly env: ProviderEnv | undefined };
 
 export function ConfiguredApp({ banner, pollMs }: { readonly banner?: ReactNode | undefined; readonly pollMs?: number | undefined }) {
   const [state, setState] = useState<Resolved>({ k: "pending" });
@@ -22,8 +21,9 @@ export function ConfiguredApp({ banner, pollMs }: { readonly banner?: ReactNode 
     const life = { live: true };
     void (async () => {
       const vault = browserVaultEnv("OM");
-      let provider: HttpProvider | null = null;
+      let provider: HomesProvider | null = null;
       let choice: ProviderChoice | null = null;
+      let set: HomeSet | null = null;
       let env: ProviderEnv | undefined;
       if (vault !== undefined) {
         env = {
@@ -32,18 +32,20 @@ export function ConfiguredApp({ banner, pollMs }: { readonly banner?: ReactNode 
           allowLoopbackHttp: import.meta.env.VITE_OM_ALLOW_LOOPBACK_RELAY === "1",
         };
         try {
-          choice = await resolveProviderChoice(env);
-          provider = choice === null ? null : createHttpProviderFor(env, choice.config, await readAdmissionFor(env, choice.config));
-        } catch { provider = null; choice = null; } // an unreadable config store means "not configured", never a guess
+          set = await resolveHomeSet(env);
+          const main = set?.homes[0];
+          choice = set === null || main === undefined ? null : { config: main.config, source: set.source };
+          provider = set === null ? null : await createHomesProviderFor(env, set);
+        } catch { provider = null; choice = null; set = null; } // an unreadable config store means "not configured", never a guess
       }
-      if (life.live) setState({ k: "ready", provider, choice, env });
+      if (life.live) setState({ k: "ready", provider, choice, set, env });
     })();
     return () => { life.live = false; };
   }, [generation]);
   // A replaced or unmounted provider closes its wake sockets and stops listening to the page.
   useEffect(() => () => { if (state.k === "ready") state.provider?.dispose(); }, [state]);
   const home = useMemo(
-    () => (state.k === "ready" && state.env !== undefined ? createHomeSettings({ env: state.env, choice: state.choice, provider: state.provider, reconnect }) : undefined),
+    () => (state.k === "ready" && state.env !== undefined ? createHomeSettings({ env: state.env, choice: state.choice, set: state.set, provider: state.provider, deployUrl: import.meta.env.VITE_OM_RELAY_DEPLOY_URL, reconnect }) : undefined),
     [state, reconnect],
   );
   const relaySetup = useMemo(

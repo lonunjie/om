@@ -18,6 +18,7 @@ import { CHATS, navigate } from "../route/place";
 import { useQrScanner } from "../qr/Scanner";
 import { startCore } from "./loadCore";
 import { relayJustConnected } from "./relaySetup";
+import type { HomeHost } from "./homeSettings";
 import { unavailableProvider, type ConfiguredProvider } from "./provider";
 import { createDraftStore, type DraftStore } from "./draftStore";
 import { browserPollPace } from "./pollPace";
@@ -37,7 +38,7 @@ export interface RealAppProps {
   /** Mailbox polling interval; tests and e2e use a short fixed one. Left out, OM slows down while nobody is looking (`pollPace.ts`). */
   readonly pollMs?: number;
   /** Settings > Your Home, when the host can change its Home (the production entry). */
-  readonly home?: HomeSettingsServices;
+  readonly home?: HomeHost;
   /** First-run page where a new install sets up its own delivery service; shown only when `provider` is `null` (ADR-0186). Left out, first run goes straight on. */
   readonly relaySetup?: RelaySetupServices;
 }
@@ -112,7 +113,7 @@ function Notice({ heading, body }: { readonly heading: string; readonly body: st
   return <main className="om-dev-fail"><Text as="h1">{heading}</Text><Text as="p">{body}</Text></main>;
 }
 
-interface ProfilesProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly drafts: DraftStore; readonly platform: OnboardingPlatform; readonly known: readonly ProfileId[]; readonly connected: boolean; readonly home?: HomeSettingsServices; readonly relaySetup?: RelaySetupServices }
+interface ProfilesProps { readonly rt: WasmCoreClient; readonly vault: DeviceVault; readonly registry: ProfileRegistry; readonly drafts: DraftStore; readonly platform: OnboardingPlatform; readonly known: readonly ProfileId[]; readonly connected: boolean; readonly home?: HomeHost; readonly relaySetup?: RelaySetupServices }
 
 /** Which identities exist, which are unlocked, and which one is being created. */
 function Profiles({ rt, vault, registry, drafts, platform, known: initial, connected, home, relaySetup }: ProfilesProps) {
@@ -138,6 +139,13 @@ function Profiles({ rt, vault, registry, drafts, platform, known: initial, conne
     for (const id of lockable) { rt.closeProfile(id); vault.lock(id); drafts.forget(id); }
     setOpen((o) => { const n = new Set(o); for (const id of lockable) n.delete(id); return n; });
   }, [rt, vault, drafts]);
+  /** Moving away from a delivery service is Core's `retire_home` for every unlocked identity; an identity that is locked right now moves when the person repeats it after unlocking. */
+  const retireHome = useCallback(async (relayUri: string): Promise<number> => {
+    let stuck = 0;
+    for (const id of openRef.current) stuck += await rt.retireHome(rt.contextFor(id), relayUri);
+    return stuck;
+  }, [rt]);
+  const boundHome = useMemo(() => home?.bindCore?.(retireHome) ?? home, [home, retireHome]);
   const setIdle = useCallback((minutes: IdleMinutes): void => { writeIdleMinutes(minutes); setIdleState(minutes); }, []);
 
   // Closing or hiding the tab can end the page without a lock: write drafts while the vault is still open.
@@ -203,7 +211,7 @@ function Profiles({ rt, vault, registry, drafts, platform, known: initial, conne
   return (
     <ProfileProvider client={rt} contexts={rt} store={store} {...(known[0] === undefined ? {} : { initialProfileId: known[0] })}>
       {connected ? null : <p role="status" className="om-notice-bar">{t.providerStatus.none}</p>}
-      <Connected rt={rt} vault={vault} drafts={drafts} platform={platform} onAddProfile={begin} lockOpen={lockOpen} idle={idle} setIdle={setIdle} {...(home === undefined ? {} : { home })} />
+      <Connected rt={rt} vault={vault} drafts={drafts} platform={platform} onAddProfile={begin} lockOpen={lockOpen} idle={idle} setIdle={setIdle} {...(boundHome === undefined ? {} : { home: boundHome })} />
     </ProfileProvider>
   );
 }
