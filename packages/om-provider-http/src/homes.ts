@@ -12,7 +12,7 @@
 //   * a draining Home (one the person is leaving, after `retireHome`) is still polled, acknowledged and deposited to until Core
 //     closes its routes, but is never offered again, so Core does not add a route there back.
 // With one Home and nothing draining it is exactly that Home.
-import type { Inbound, MailboxKind, NetCall, NetResult, RouteOffer } from "@om/core-wasm";
+import type { Inbound, MailboxKind, NetCall, NetResult, PerformExtra, RouteOffer } from "@om/core-wasm";
 import type { HttpProvider, Reachability } from "./provider";
 
 export function createHomesProvider(offered: readonly HttpProvider[], draining: readonly HttpProvider[] = []): HttpProvider {
@@ -52,8 +52,12 @@ export function createHomesProvider(offered: readonly HttpProvider[], draining: 
       }
       return out;
     },
-    perform(call: NetCall): Promise<NetResult> {
+    // Files live at the active Home; an object of ours is deleted at the Home whose address its location carries.
+    blobLimits: () => (first.blobLimits ? first.blobLimits() : Promise.resolve(null)),
+    perform(call: NetCall, extra?: PerformExtra): Promise<NetResult> {
       switch (call.call) {
+        case "delete_blob": return (homes.find((h) => call.location.includes(new URL(h.baseUrl).host)) ?? first).perform(call);
+        case "put_blob": return first.perform(call, extra);
         case "deposit": return (call.relayUri === undefined ? first : homeFor(call.relayUri)).perform(call);
         case "ack": return (call.kind === "intro" ? first : homeFor(call.relayUri)).perform(call);
         case "open_queue": return homeFor(call.relayUri).perform(call);

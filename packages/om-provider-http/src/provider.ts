@@ -19,11 +19,11 @@
 //
 // Failure classes follow Core's contract: `unavailable` = definitely not performed; `timeout` = may have been performed
 // (every mutating request carries a content-derived request_id, so Core's exact retry is idempotent at the Home).
-import type { Inbound, MailboxKind, NetCall, NetError, NetResult, Provider, RouteOffer } from "@om/core-wasm";
+import type { BlobLimits, Inbound, MailboxKind, NetCall, NetError, NetResult, PerformExtra, Provider, RouteOffer } from "@om/core-wasm";
 import {
-  API_MAJOR, decodeDescriptorGet, decodeDrainResponse, decodeKeyFetchResponse, encodeAckRequest, encodeDepositRequest, encodeDescriptorPut,
+  API_MAJOR, BLOB_DIGEST_HEADER, blobLocator, blobMatches, decodeBlobPutResponse, encodeBlobDigestHeader, encodeBlobPutRequest, decodeDescriptorGet, decodeDrainResponse, decodeKeyFetchResponse, encodeAckRequest, encodeDepositRequest, encodeDescriptorPut,
   encodeDrainRequest, encodeIntroTicketRequest, encodeKeyFetch, encodeKeyFetchGrant, encodeKeyPublish, encodeQueueCreate, encodeTicketParams, fromHex, toHex,
-  FEATURES, type HomeErrorBody, type RelayEntry,
+  FEATURES, encode, map, type HomeErrorBody, type RelayEntry,
 } from "@om/home-wire";
 import { exchange, type Exchange, type HttpOptions } from "./http";
 import { depositCap, descriptorPublishCap, installSecret, introServiceCap, keyPublishCap, mailboxCaps, requestId } from "./derive";
@@ -525,6 +525,108 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     return t.kind === "home" ? mapError(t.error) : { result: "ok" };
   }
 
+  // ------------------------------------------------------------------------------------------ blobs (om.blob.spool.v1)
+  //
+  // Files are sealed on the device (Core); the Home holds only ciphertext for a few days and never sees a name, a type or a key.
+  //   put_blob    -> POST   /v1/blobs            owner admission + `om-ciphertext-digest`; the capability goes in the CBOR body
+  //   get_blob    -> GET    /v1/blobs/{locator}  the read capability as bearer, at the Home the sender's reference names
+  //   delete_blob -> DELETE /v1/blobs/{locator}  the owner capability as bearer
+  // A reference carries https locations only (Core drops anything else). On a loopback Home reached over plain http, which only a
+  // test build allows, the location is written as https and read back as http here, so Core's rule stays as it is.
+
+  const [PLAIN, SECURE] = ["http", "https"] as const;
+  const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+  const BLOB_PATH = /^\/v1\/blobs\/([0-9a-f]{32})$/;
+  /** The name a peer is given for an object of ours: the Home's public address, always https. */
+  const locationOf = (locator: string): string => `${opts.allowLoopbackHttp === true && base.startsWith(`${PLAIN}:`) ? `${SECURE}:${base.slice(PLAIN.length + 1)}` : base}/v1/blobs/${locator}`;
+  /** Where a reference's location is fetched from (https as written, or the loopback Home's plain http in a test build), and its locator. */
+  function placeOf(location: string): { readonly origin: string; readonly locator: string } | undefined {
+    let u: URL;
+    try { u = new URL(location); } catch { return undefined; }
+    if (u.protocol !== "https:" || u.username !== "" || u.password !== "" || u.search !== "" || u.hash !== "") return undefined;
+    const m = BLOB_PATH.exec(u.pathname);
+    if (!m) return undefined;
+    const plain = opts.allowLoopbackHttp === true && LOOPBACK_HOSTS.has(u.hostname);
+    return { origin: plain ? `${PLAIN}://${u.host}` : u.origin, locator: m[1] ?? "" };
+  }
+
+  async function putBlob(c: Extract<NetCall, { call: "put_blob" }>, ciphertext: Uint8Array | undefined): Promise<NetResult> {
+    const ownerCap = fromHex(c.ownerCap);
+    const digest = fromHex(c.digest);
+    // The staged bytes must be exactly what Core sealed: Core committed to this digest and length before anything left.
+    if (ciphertext === undefined || ciphertext.length !== c.length || !(await blobMatches(ciphertext, digest))) return rejected("integrity_failure");
+    const r = await mutate(`${base}/v1/blobs`, {
+      method: "POST",
+      body: encodeBlobPutRequest({ requestId: fromHex(c.requestId), cap: ownerCap, ciphertext }),
+      headers: { [BLOB_DIGEST_HEADER]: encodeBlobDigestHeader(digest) },
+    });
+    if (isResult(r)) return r;
+    if (r.kind === "home") {
+      switch (r.error.name) {
+        case "payload_too_large": return rejected("too_large"); // this one file, not the spool: said before sending, in plain words
+        case "quota": return rejected("quota"); // the spool is full right now; the person's own retry may succeed later
+        case "not_found": return rejected("unsupported"); // this Home does not hold files
+        case "unauthorized": admissionDenied = true; return rejected("unauthorized");
+        default: return mapError(r.error);
+      }
+    }
+    let put: ReturnType<typeof decodeBlobPutResponse>;
+    try { put = decodeBlobPutResponse(r.body); } catch { return rejected("integrity_failure"); }
+    const locator = blobLocator(ownerCap);
+    // The Home must have stored the bytes we hashed, under the locator we chose: anything else is removed and refused.
+    if (toHex(put.digest) !== c.digest || toHex(put.readCap.slice(0, 16)) !== locator) {
+      void mutate(`${base}/v1/blobs/${locator}`, { method: "DELETE", bearer: ownerCap });
+      return rejected("integrity_failure");
+    }
+    const receipt = encode(map([[0, put.readCap], [1, [locationOf(locator)]], [2, put.digest], [3, put.expiresAt]]));
+    return { result: "bytes", bytes: toHex(receipt) };
+  }
+
+  async function getBlob(c: Extract<NetCall, { call: "get_blob" }>): Promise<NetResult> {
+    const readCap = fromHex(c.readCap);
+    const digest = fromHex(c.digest);
+    let unreachable = false;
+    for (const location of c.locations) {
+      const place = placeOf(location);
+      const t = place === undefined ? undefined : homeOf(place.origin);
+      if (place === undefined || t === undefined) continue;
+      const not = await ready(t);
+      if (not) { if (not === UNAVAILABLE) unreachable = true; continue; }
+      const r = await read(`${t.base}/v1/blobs/${place.locator}`, { method: "GET", bearer: readCap }, t);
+      if (isResult(r)) { unreachable = true; continue; }
+      if (r.kind === "home") continue; // not_found, expired, unauthorized: try the next location, else the object is gone
+      // Never hand bytes to Core that are not the object the message committed to (Core checks again before it decrypts).
+      if (r.body.length !== c.length || !(await blobMatches(r.body, digest))) return rejected("integrity_failure");
+      return { result: "bytes", bytes: toHex(r.body) };
+    }
+    return unreachable ? UNAVAILABLE : { result: "err", error: { kind: "not_found" } };
+  }
+
+  async function deleteBlob(c: Extract<NetCall, { call: "delete_blob" }>): Promise<NetResult> {
+    const place = placeOf(c.location);
+    const t = place === undefined ? undefined : homeOf(place.origin);
+    if (place === undefined || t === undefined || !t.own) return rejected("unsupported"); // only our own Home holds objects of ours
+    const r = await mutate(`${t.base}/v1/blobs/${place.locator}`, { method: "DELETE", bearer: fromHex(c.ownerCap) });
+    if (isResult(r)) return r;
+    if (r.kind === "home") return r.error.name === "not_found" ? { result: "ok" } : mapError(r.error);
+    return { result: "ok" };
+  }
+
+  /** What the Home advertises for files, read from its public capabilities document; null when it holds none. */
+  async function blobLimits(): Promise<BlobLimits | null> {
+    const r = await exchange(http, `${base}/.well-known/om-provider-capabilities`, { method: "GET" });
+    if (r.kind !== "ok") throw new Error("capabilities unavailable"); // could not find out: the caller keeps its last answer
+    let doc: { features?: unknown; limits?: Record<string, unknown> };
+    try { doc = JSON.parse(new TextDecoder().decode(r.body)) as typeof doc; } catch { throw new Error("capabilities unreadable"); }
+    if (!Array.isArray(doc.features) || !doc.features.includes(FEATURES.blobSpool)) return null;
+    const n = (k: string): number | undefined => { const v = doc.limits?.[k]; return typeof v === "number" && Number.isSafeInteger(v) && v > 0 ? v : undefined; };
+    const maxBlobBytes = n("max_blob_bytes");
+    if (maxBlobBytes === undefined) return null; // a feature without its bound is not usable: fail closed
+    const spool = n("max_blob_spool_bytes");
+    const count = n("max_blobs");
+    return { maxBlobBytes, ...(spool === undefined ? {} : { maxSpoolBytes: spool }), ...(count === undefined ? {} : { maxBlobs: count }) };
+  }
+
   // ------------------------------------------------------------------------------------------ Provider
 
   return {
@@ -551,7 +653,8 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     onWake: (listener) => hub.onWake(listener),
     wakeStats: () => hub.stats(),
     dispose: () => { hub.dispose(); },
-    async perform(call: NetCall): Promise<NetResult> {
+    blobLimits,
+    async perform(call: NetCall, extra?: PerformExtra): Promise<NetResult> {
       try {
         switch (call.call) {
           case "deposit": return await deposit(call.mailbox, call.bytes, call.relayUri);
@@ -564,6 +667,9 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
           case "put_invite": return await putInvite(call);
           case "get_invite": return await getInvite(call);
           case "revoke_invite": return await revokeInvite(call);
+          case "put_blob": return await putBlob(call, extra?.ciphertext);
+          case "get_blob": return await getBlob(call);
+          case "delete_blob": return await deleteBlob(call);
         }
       } catch {
         return UNAVAILABLE; // a local failure (secret store, bad hex): nothing was sent

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 import { describe, expect, it } from "vitest";
-import { HomeError, decodeAckRequest, decodeDepositRequest, decodeDrainRequest, encodeDrainResponse, encodeHomeError, fromHex, toHex } from "@om/home-wire";
+import { HomeError, blobCiphertextDigest, decode, decodeAckRequest, decodeDepositRequest, decodeDrainRequest, encodeBlobDigestHeader, encodeBlobPutResponse, encodeDrainResponse, encodeHomeError, fromHex, toBase64Url, toHex, type CborValue } from "@om/home-wire";
+import type { NetCall } from "@om/core-wasm";
 import { createHttpProvider, createIndexedDbSecretStore, createMemorySecretStore, parseProviderUrl, type HttpProvider } from "./index";
 
 const cfg = (u = "https://home.example"): { baseUrl: string } => {
@@ -325,3 +326,123 @@ describe("secret store", () => {
   });
 });
 
+
+describe("files (om.blob.spool.v1), stubbed Home", () => {
+  const typed = (e: HomeError, status = 400): Response => new Response(encodeHomeError(e) as BodyInit, { status, headers: { "content-type": "application/cbor" } });
+  const mk = (handler: (url: string, init: RequestInit) => Response | Promise<Response>, extra: { allowLoopbackHttp?: boolean; baseUrl?: string } = {}): HttpProvider => {
+    const config = parseProviderUrl(extra.baseUrl ?? "https://home.example", { allowLoopbackHttp: extra.allowLoopbackHttp === true });
+    if (!config) throw new Error("bad url");
+    return createHttpProvider({ config, secrets: createMemorySecretStore(), timeoutMs: 1000, admission: rand(32), ...(extra.allowLoopbackHttp ? { allowLoopbackHttp: true } : {}), fetch: async (i, init) => handler(urlOf(i), init ?? {}) });
+  };
+  const sealed = async (): Promise<{ ct: Uint8Array; call: Extract<NetCall, { call: "put_blob" }> }> => {
+    const ct = rand(300);
+    const ownerCap = rand(48);
+    return { ct, call: { call: "put_blob", blobId: toHex(rand(32)), ownerCap: toHex(ownerCap), requestId: toHex(rand(16)), digest: toHex(await blobCiphertextDigest(ct)), length: ct.length } };
+  };
+  const putReply = (call: { ownerCap: string; digest: string }, over: { digest?: Uint8Array; locator?: Uint8Array } = {}): Response =>
+    new Response(encodeBlobPutResponse({ readCap: Uint8Array.from([...(over.locator ?? fromHex(call.ownerCap).slice(0, 16)), ...rand(32)]), digest: over.digest ?? fromHex(call.digest), expiresAt: 1_900_000_000 }) as BodyInit, { status: 200, headers: { "content-type": "application/cbor" } });
+
+  it("put sends the digest header and the owner admission, and answers the receipt Core expects", async () => {
+    const { ct, call } = await sealed();
+    let seen: { url: string; headers: Record<string, string> } | undefined;
+    const p = mk((url, init) => { seen = { url, headers: init.headers as Record<string, string> }; return putReply(call); });
+    const r = await p.perform(call, { ciphertext: ct });
+    expect(seen?.url).toBe("https://home.example/v1/blobs");
+    expect(seen?.headers["om-ciphertext-digest"]).toBe(encodeBlobDigestHeader(fromHex(call.digest)));
+    expect(seen?.headers["om-admission"]).toBeDefined();
+    if (r.result !== "bytes") throw new Error(JSON.stringify(r));
+    const receipt = decode(fromHex(r.bytes));
+    const m = receipt as Map<number, CborValue>;
+    expect(m.get(2)).toEqual(fromHex(call.digest));
+    expect(m.get(1)).toEqual([`https://home.example/v1/blobs/${call.ownerCap.slice(0, 32)}`]);
+    expect((m.get(0) as Uint8Array).length).toBe(48);
+  });
+
+  it("maps payload_too_large to too_large, a full spool to quota, an absent feature to unsupported; a timeout stays unknown", async () => {
+    const { ct, call } = await sealed();
+    const cases: [HomeError, unknown][] = [
+      [new HomeError("payload_too_large"), { kind: "rejected", reason: "too_large" }],
+      [new HomeError("quota"), { kind: "rejected", reason: "quota" }],
+      [new HomeError("not_found"), { kind: "rejected", reason: "unsupported" }],
+      [new HomeError("unauthorized"), { kind: "rejected", reason: "unauthorized" }],
+      [new HomeError("retryable"), { kind: "unavailable" }],
+    ];
+    for (const [e, want] of cases) expect(await mk(() => typed(e)).perform(call, { ciphertext: ct }), e.errorName).toEqual({ result: "err", error: want });
+    let up = true;
+    const lost = mk((url) => (url.endsWith("capabilities") && up ? new Response("{}") : Promise.reject(new TypeError("reset"))));
+    expect(await lost.perform(call, { ciphertext: ct })).toEqual({ result: "err", error: { kind: "timeout" } });
+    up = false;
+    expect(await lost.perform(call, { ciphertext: ct })).toEqual({ result: "err", error: { kind: "unavailable" } });
+  });
+
+  it("never sends bytes that are not what Core sealed, and refuses a Home that stored something else (and removes it)", async () => {
+    const { ct, call } = await sealed();
+    let calls = 0;
+    const p = mk(() => { calls += 1; return putReply(call); });
+    expect(await p.perform(call)).toEqual({ result: "err", error: { kind: "rejected", reason: "integrity_failure" } }); // no staged bytes
+    expect(await p.perform(call, { ciphertext: ct.slice(1) })).toEqual({ result: "err", error: { kind: "rejected", reason: "integrity_failure" } });
+    expect(calls).toBe(0);
+    const methods: string[] = [];
+    const lying = mk((_url, init) => { methods.push(init.method ?? ""); return putReply(call, { digest: rand(32) }); });
+    expect(await lying.perform(call, { ciphertext: ct })).toEqual({ result: "err", error: { kind: "rejected", reason: "integrity_failure" } });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(methods).toEqual(["POST", "DELETE"]);
+  });
+
+  it("get tries locations in order with the read capability as bearer, and hands back only bytes that hash to the digest", async () => {
+    const ct = rand(200);
+    const digest = toHex(await blobCiphertextDigest(ct));
+    const readCap = rand(48);
+    const loc = (host: string): string => `https://${host}/v1/blobs/${toHex(readCap.slice(0, 16))}`;
+    const seen: string[] = [];
+    const p = mk((url, init) => {
+      seen.push(`${init.method ?? ""} ${url}`);
+      if (url.endsWith("/.well-known/om-provider-capabilities")) return new Response(JSON.stringify({ schema_version: 1, api_versions: ["1"] }));
+      if (url.startsWith("https://gone.example/")) return typed(new HomeError("not_found"), 404);
+      expect((init.headers as Record<string, string>)["authorization"]).toBe(`Bearer ${toBase64Url(readCap)}`);
+      return new Response(ct as BodyInit, { status: 200, headers: { "content-type": "application/octet-stream" } });
+    });
+    const call = { call: "get_blob", locations: [loc("gone.example"), loc("home.example")], readCap: toHex(readCap), digest, length: ct.length } as const;
+    expect(await p.perform(call)).toEqual({ result: "bytes", bytes: toHex(ct) });
+    expect(seen.some((s) => s.startsWith("GET https://gone.example/v1/blobs/"))).toBe(true);
+    // The object changed under the same name: refused, never passed on.
+    expect(await p.perform({ ...call, digest: toHex(rand(32)) })).toEqual({ result: "err", error: { kind: "rejected", reason: "integrity_failure" } });
+    expect(await p.perform({ ...call, length: ct.length + 1 })).toEqual({ result: "err", error: { kind: "rejected", reason: "integrity_failure" } });
+    // Every location gone: not found. A location that is not a blob address is never contacted.
+    const none = mk(() => typed(new HomeError("not_found"), 404));
+    expect(await none.perform({ ...call, locations: ["https://home.example/not-a-blob", "http://home.example/v1/blobs/" + toHex(readCap.slice(0, 16))] })).toEqual({ result: "err", error: { kind: "not_found" } });
+  });
+
+  it("delete uses the owner capability, treats absent as done, and only for an object at the person's own Home", async () => {
+    const ownerCap = rand(48);
+    const location = `https://home.example/v1/blobs/${toHex(ownerCap.slice(0, 16))}`;
+    let auth = "";
+    const p = mk((_u, init) => { auth = (init.headers as Record<string, string>)["authorization"] ?? ""; return new Response(null, { status: 200 }); });
+    expect(await p.perform({ call: "delete_blob", blobId: toHex(rand(32)), ownerCap: toHex(ownerCap), location })).toEqual({ result: "ok" });
+    expect(auth).toBe(`Bearer ${toBase64Url(ownerCap)}`);
+    const absent = mk(() => typed(new HomeError("not_found"), 404));
+    expect(await absent.perform({ call: "delete_blob", blobId: toHex(rand(32)), ownerCap: toHex(ownerCap), location })).toEqual({ result: "ok" });
+    expect(await p.perform({ call: "delete_blob", blobId: toHex(rand(32)), ownerCap: toHex(ownerCap), location: location.replace("home.example", "other.example") })).toEqual({ result: "err", error: { kind: "rejected", reason: "unsupported" } });
+  });
+
+  it("a loopback Home reached over plain http (a test build only) is named with https, so Core's rule stays as it is", async () => {
+    const { ct, call } = await sealed();
+    const p = mk(() => putReply(call), { allowLoopbackHttp: true, baseUrl: "http://127.0.0.1:8788" });
+    const r = await p.perform(call, { ciphertext: ct });
+    if (r.result !== "bytes") throw new Error(JSON.stringify(r));
+    expect((decode(fromHex(r.bytes)) as Map<number, CborValue>).get(1)).toEqual([`https://127.0.0.1:8788/v1/blobs/${call.ownerCap.slice(0, 32)}`]);
+    // And read back as http when fetching.
+    const seen: string[] = [];
+    const g = mk((url) => { seen.push(url); return new Response(ct as BodyInit); }, { allowLoopbackHttp: true, baseUrl: "http://127.0.0.1:8788" });
+    await g.perform({ call: "get_blob", locations: [`https://127.0.0.1:8788/v1/blobs/${call.ownerCap.slice(0, 32)}`], readCap: toHex(rand(48)), digest: call.digest, length: ct.length });
+    expect(seen).toEqual([`http://127.0.0.1:8788/v1/blobs/${call.ownerCap.slice(0, 32)}`]);
+  });
+
+  it("reads the advertised limits from the capabilities document; a Home without the feature holds no files; an unreachable Home keeps the last answer (rejects)", async () => {
+    const doc = (features: string[], limits: Record<string, number>): Response => new Response(JSON.stringify({ schema_version: 1, api_versions: ["1"], features, limits }));
+    expect(await mk(() => doc(["om.blob.spool.v1"], { max_blob_bytes: 4194304, max_blob_spool_bytes: 33554432, max_blobs: 64 })).blobLimits?.()).toEqual({ maxBlobBytes: 4194304, maxSpoolBytes: 33554432, maxBlobs: 64 });
+    expect(await mk(() => doc(["om.relay.queues.v1"], { max_blob_bytes: 4194304 })).blobLimits?.()).toBeNull();
+    expect(await mk(() => doc(["om.blob.spool.v1"], {})).blobLimits?.()).toBeNull(); // advertised without a bound: fail closed
+    await expect(mk(() => Promise.reject(new TypeError("down"))).blobLimits?.()).rejects.toThrow();
+  });
+});
