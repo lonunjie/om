@@ -2,13 +2,8 @@
 // code, the existing device approves, the new device is in and the old one tells the person. Two browser contexts (two
 // devices, two storages) on the real Core connected to the local reference Home; the only thing passed between them is the
 // link a person would scan or type.
-//
-// KNOWN GAP (the second test is fixme): the reference Home's deposit validator (`parseDeposit` in
-// packages/om-home-wire/src/sealed.ts, used by infra/cloudflare-home/src/queue.ts) accepts only a SealedDeliveryEnvelope
-// (type 23) or a MessageRequest (type 19). Core's ceremony messages are neither, so the Home answers `invalid_request` to the
-// new device's deposit and the person sees "Could not start". The Home (infra/, om-home-wire) needs a ceremony-message type
-// before the full ceremony can run against a real Home. The ceremony itself is covered end to end in the Rust Core tests
-// (crates/om-core/tests/device_link.rs) and at the services boundary here by the harness tests in packages/om-ui.
+// Core wraps every ceremony message in a structurally valid profile-1 SealedDeliveryEnvelope (D24 note), so the reference
+// Home accepts the deposits; it never opens them.
 import { expect, test, type Page } from "@playwright/test";
 import { newDevice } from "./invite-flow.ts";
 import { walkSetup } from "./helpers.ts";
@@ -54,7 +49,7 @@ test("the existing device shows a distinct device-link QR and link; the new devi
   expect(link).toMatch(/^om:link\//);
 });
 
-test.fixme("a second device joins with the code and link, after both show the same security code (needs a Home that accepts ceremony messages)", async ({ browser }) => {
+test("a second device joins with the code and link, after both show the same security code", async ({ browser }) => {
   const first = await newDevice(browser, BASE);
   const link = await existingDeviceShowsLink(first);
 
@@ -73,6 +68,6 @@ test.fixme("a second device joins with the code and link, after both show the sa
   await first.getByRole("button", { name: "The codes match. Link it" }).click();
   await expect(first.getByText("The new device is linked.").first()).toBeVisible({ timeout: 60_000 });
   await expect(second.getByRole("button", { name: "Settings" })).toBeVisible({ timeout: 60_000 });
-  await first.getByRole("button", { name: "Back to devices" }).click();
+  await first.getByRole("button", { name: "Back to devices" }).first().click();
   await expect(first.getByText(/A new device was added to your account/)).toBeVisible({ timeout: 30_000 });
 });
