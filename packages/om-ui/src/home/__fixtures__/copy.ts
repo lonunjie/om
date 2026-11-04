@@ -6,6 +6,8 @@ export const testHomeCopy: HomeCopy = {
   currentHeading: "Home in use",
   none: "No Home is set up",
   address: (u) => `Address: ${u}`,
+  showAddress: "Show address",
+  hideAddress: "Hide address",
   source: { chosen: "You chose this Home", default: "This app's default Home" },
   checkingCurrent: "Checking your Home",
   selfReported: "(says the Home itself)",

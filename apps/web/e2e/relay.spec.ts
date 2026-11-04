@@ -102,7 +102,10 @@ test("Settings shows the Home in use with what it says about itself, and refuses
   await page.getByRole("button", { name: "Settings" }).click();
   await page.getByRole("button", { name: /Message delivery/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Message delivery" })).toBeVisible();
+  await expect(page.getByText(`Address: ${RELAY}`)).toBeHidden(); // raw address stays behind a disclosure
+  await page.getByRole("button", { name: "Show address" }).click();
   await expect(page.getByText(`Address: ${RELAY}`)).toBeVisible();
+  await expect(page.getByText("Moving your delivery service is not available yet.").or(page.getByText("You can move your delivery service to a different host later."))).toBeVisible();
   await expect(page.getByText("This address answered and calls itself")).toBeVisible();
   await expect(page.getByText("It reports that it is working normally.")).toBeVisible();
   await page.getByLabel("Delivery service address").fill("http://home.example");

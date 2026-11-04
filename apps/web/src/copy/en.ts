@@ -930,6 +930,8 @@ export const homeCopy: HomeCopy = {
   currentHeading: "The delivery service you are using",
   none: "No delivery service is set up. Nothing leaves this device until you choose one.",
   address: (url) => `Address: ${url}`,
+  showAddress: "Show address",
+  hideAddress: "Hide address",
   source: { chosen: "You chose this delivery service.", default: "This is the delivery service that came with this version of OM." },
   checkingCurrent: "Checking how your delivery service is doing.",
   selfReported: "This is what the delivery service says about itself; OM cannot confirm who runs it.",

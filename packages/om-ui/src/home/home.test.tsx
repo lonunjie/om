@@ -42,7 +42,10 @@ describe("Home settings screen", () => {
     const { container } = render(<HomeScreen services={services} copy={testHomeCopy} />);
     expect(screen.getByRole("heading", { level: 1, name: "Your Home" })).toBeTruthy();
     expect(await screen.findByText(/Reachable: old-home\. Healthy\. \(says the Home itself\)/)).toBeTruthy();
-    expect(screen.getByText("Address: https://old.example")).toBeTruthy();
+    expect(screen.getByText("Address: https://old.example").hidden).toBe(true); // behind a disclosure
+    await userEvent.click(screen.getByRole("button", { name: "Show address" }));
+    expect(screen.getByText("Address: https://old.example").hidden).toBe(false);
+    expect(screen.getByRole("button", { name: "Hide address" }).getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText("You chose this Home")).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });

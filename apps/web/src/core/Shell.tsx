@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { parseInviteLink, type ConversationId, type IntroductionRequest, type OperationId } from "@om/platform-api";
 import {
-  AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode,
+  AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode,
   type IconName, type OmniEntry, useConversationDigests,
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
@@ -293,7 +293,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
                     <DevicesScreen services={services} copy={devicesCopy} scanQr={deviceScan.scanQr} linking="later" />
                     {devicesExtra}
                   </>
-                ) : settings === "delivery" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} />
+                ) : settings === "delivery" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} facts={<HomeFacts client={services.client} ctx={services.ctx} copy={onboardingCopy.home} alwaysOpen configured={home.current.baseUrl !== undefined} />} />
                   : settings === "lock" && lock !== undefined ? <LockScreen services={lock} />
                   : settings === "backup" && backup !== undefined ? <BackupScreen services={backup} />
                   : settings === "help" ? <HelpScreen />

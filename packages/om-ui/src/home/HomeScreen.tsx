@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
 import "../devices/devices.css";
@@ -10,6 +10,8 @@ export interface HomeScreenProps {
   readonly copy: HomeCopy;
   /** How often the in-memory list of lost mailboxes is re-read. */
   readonly refreshMs?: number;
+  /** What a delivery service is and what it can and cannot see, shown under the current service (the host supplies the Core-backed facts). */
+  readonly facts?: ReactNode;
 }
 
 type Checked = { readonly k: "idle" } | { readonly k: "checking" } | { readonly k: "done"; readonly result: HomeProbeResult };
@@ -36,11 +38,12 @@ function describe(copy: HomeCopy, r: HomeProbeResult): { readonly text: string; 
  * Settings > Your Home. The user types an address, the host asks that address who it is, and only then can it be chosen.
  * A choice takes effect on reconnect, and there is deliberately no way to arrive here pre-filled from a link.
  */
-export function HomeScreen({ services, copy, refreshMs = 4000 }: HomeScreenProps) {
+export function HomeScreen({ services, copy, refreshMs = 4000, facts }: HomeScreenProps) {
   const { current } = services;
   const [text, setText] = useState("");
   const [checked, setChecked] = useState<Checked>({ k: "idle" });
   const [saved, setSaved] = useState<Saved>("none");
+  const [showAddress, setShowAddress] = useState(false);
   const [now, setNow] = useState<Checked>(current.baseUrl === undefined ? { k: "idle" } : { k: "checking" });
   const [lost, setLost] = useState<readonly string[]>(() => services.lostMailboxes());
   const ticket = useRef(0);
@@ -91,7 +94,10 @@ export function HomeScreen({ services, copy, refreshMs = 4000 }: HomeScreenProps
         <Text as="h2" size="lg" weight="bold" id="om-home-now-h">{copy.currentHeading}</Text>
         {current.baseUrl === undefined ? <Text as="p">{copy.none}</Text> : (
           <>
-            <Text as="p" className="om-settings__name">{copy.address(current.baseUrl)}</Text>
+            <div className="om-home__address">
+              <Button variant="quiet" aria-expanded={showAddress} aria-controls="om-home-address" onClick={() => { setShowAddress((v) => !v); }}>{showAddress ? copy.hideAddress : copy.showAddress}</Button>
+              <Text as="p" id="om-home-address" hidden={!showAddress} className="om-settings__name">{copy.address(current.baseUrl)}</Text>
+            </div>
             <Text as="p" size="sm" tone="secondary">{current.source === "chosen" ? copy.source.chosen : copy.source.default}</Text>
             {now.k === "checking" ? <Text as="p" role="status">{copy.checkingCurrent}</Text> : null}
             {nowText === undefined ? null : <Text as="p" role={nowText.problem ? "alert" : "status"} data-problem={nowText.problem ? "true" : undefined}>{nowText.text}</Text>}
@@ -103,6 +109,8 @@ export function HomeScreen({ services, copy, refreshMs = 4000 }: HomeScreenProps
           </div>
         ) : null}
       </section>
+
+      {facts === undefined ? null : <section className="om-settings__group om-home__facts" aria-label={copy.currentHeading}>{facts}</section>}
 
       {lost.length === 0 ? null : (
         <section className="om-settings__group" aria-labelledby="om-home-lost-h" data-problem="true">

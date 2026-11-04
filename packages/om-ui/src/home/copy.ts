@@ -9,6 +9,9 @@ export interface HomeCopy {
   /** No Home at all: nothing leaves this device. */
   readonly none: string;
   readonly address: (url: string) => string;
+  /** The raw address is infrastructure detail: it stays behind this disclosure. */
+  readonly showAddress: string;
+  readonly hideAddress: string;
   readonly source: { readonly chosen: string; readonly default: string };
   readonly checkingCurrent: string;
   /** The Home's own words about itself; the app cannot vouch for them. */
