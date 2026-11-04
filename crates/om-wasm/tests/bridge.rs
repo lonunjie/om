@@ -186,3 +186,85 @@ fn backup_commands_round_trip_and_name_each_refusal() {
         "invalid"
     );
 }
+
+/// The host makes a returned commit durable (here: reports success) before the next call.
+fn finish(b: &mut Bridge<InsecureTestRng>, r: &Value) {
+    if let Some(id) = r["ok"]["commit"]["id"].as_u64() {
+        call(
+            b,
+            json!({ "cmd": "finish_commit", "commitId": id, "ok": true }),
+        );
+    }
+}
+
+#[test]
+fn attachments_are_prepared_refused_and_opened_through_the_bridge() {
+    let mut b = Bridge::new(
+        || InsecureTestRng::from_label(b"bridge-att"),
+        || 1_790_000_000_000,
+    );
+    call(&mut b, json!({ "cmd": "init", "home": home() }));
+    let ctx = call(
+        &mut b,
+        json!({ "cmd": "open_profile", "profileId": "me", "records": [] }),
+    )["ok"]
+        .clone();
+    let meta = json!({ "mediaType": "image/png" });
+    // No advertised store: a typed refusal, nothing else.
+    let r = call(
+        &mut b,
+        json!({ "cmd": "prepare_attachment", "ctx": ctx, "plaintext": "0102", "meta": meta }),
+    );
+    finish(&mut b, &r);
+    assert_eq!(r["ok"]["refused"], json!({ "error": "no_blob_store" }));
+    call(
+        &mut b,
+        json!({ "cmd": "set_blob_limits", "limits": { "maxBlobBytes": 1024 } }),
+    );
+    // Over the advertised limit: refused with the largest size, before anything is sealed.
+    let big = "00".repeat(2000);
+    let r = call(
+        &mut b,
+        json!({ "cmd": "prepare_attachment", "ctx": ctx, "plaintext": big, "meta": meta }),
+    );
+    finish(&mut b, &r);
+    assert_eq!(
+        r["ok"]["refused"],
+        json!({ "error": "too_large", "max": 1008 }),
+        "{}",
+        r.to_string().chars().take(300).collect::<String>()
+    );
+    // Within it: sealed, with a commit to make durable and ciphertext 16 bytes longer.
+    let r = call(
+        &mut b,
+        json!({ "cmd": "prepare_attachment", "ctx": ctx, "plaintext": "00".repeat(100), "meta": meta }),
+    );
+    finish(&mut b, &r);
+    let prepared = &r["ok"]["prepared"];
+    assert_eq!(prepared["ciphertextLen"], 116);
+    assert!(
+        r["ok"]["commit"]["writes"]
+            .as_array()
+            .is_some_and(|w| !w.is_empty())
+    );
+    // Core can reproduce the same ciphertext from the plaintext, and refuses other plaintext.
+    let again = call(
+        &mut b,
+        json!({ "cmd": "restage_attachment", "ctx": ctx, "blobId": prepared["blobId"], "plaintext": "00".repeat(100) }),
+    );
+    assert_eq!(again["ok"]["ciphertext"], prepared["ciphertext"]);
+    let wrong = call(
+        &mut b,
+        json!({ "cmd": "restage_attachment", "ctx": ctx, "blobId": prepared["blobId"], "plaintext": "01".repeat(100) }),
+    );
+    assert_eq!(
+        wrong["ok"]["refused"],
+        json!({ "error": "integrity_failure" })
+    );
+    // A message that does not exist has no attachment to fetch or open.
+    let f = call(
+        &mut b,
+        json!({ "cmd": "attachment_fetch", "ctx": ctx, "messageId": "msg-x", "index": 0 }),
+    );
+    assert_eq!(f["ok"]["refused"], json!({ "error": "not_found" }));
+}

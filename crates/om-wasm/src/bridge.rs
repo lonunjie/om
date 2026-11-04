@@ -3,9 +3,10 @@
 
 use om_core::Core;
 use om_core::api::{HomeSummary, Intent, ProfileExecutionContext, Query};
+use om_core::attach::Meta;
 use om_core::backup::BackupPlan;
 use om_core::crypto::rng::{self, CryptoRng, RngCore};
-use om_core::host::{Clock, CoreError, Inbound, NetResult, Record};
+use om_core::host::{BlobLimits, Clock, CoreError, Inbound, NetResult, Record};
 use om_core::route::RouteOffer;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -87,6 +88,38 @@ enum Command {
     },
     /// The Home (relay_uri) of each route offer Core still holds.
     OfferHomes,
+    /// What the BlobStore advertises (`om.blob.spool.v1` limits); `null` when it offers none. Without it attachments are
+    /// refused (`unsupported`), never sent inline.
+    SetBlobLimits {
+        limits: Option<BlobLimits>,
+    },
+    /// Seal an attachment on this device (`plaintext` hex). Answers `{prepared, commit}`, or `{refused}` with the typed
+    /// reason (`too_large` with the largest size, `storage_full`, `no_blob_store`, ...) before anything is sent. The host
+    /// stages `prepared.ciphertext` under `prepared.blobId` and uses it only after `commit` is durable.
+    PrepareAttachment {
+        ctx: ProfileExecutionContext,
+        plaintext: String,
+        meta: Meta,
+    },
+    /// The ciphertext of a prepared or outgoing attachment again from its plaintext (a host that lost its staged bytes).
+    RestageAttachment {
+        ctx: ProfileExecutionContext,
+        blob_id: String,
+        plaintext: String,
+    },
+    /// The fetch for one attachment of a message: `{call: get_blob ...}` for the host to perform and hash-check.
+    AttachmentFetch {
+        ctx: ProfileExecutionContext,
+        message_id: String,
+        index: usize,
+    },
+    /// Verify fetched bytes against the reference's digest and length, then decrypt: `{opened}` or `{refused}`.
+    OpenAttachment {
+        ctx: ProfileExecutionContext,
+        message_id: String,
+        index: usize,
+        ciphertext: String,
+    },
     /// The person stopped using one of their Homes: relationships with another route publish a RelaySet without it.
     /// Answers how many relationships had no other route and so stay on that Home.
     RetireHome {
@@ -207,6 +240,63 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             }
             Command::OfferHomes => Ok(json!(self.core()?.offer_homes())),
             Command::SupplyRoutes { routes } => Ok(json!(self.core()?.supply_routes(routes))),
+            Command::SetBlobLimits { limits } => {
+                self.core()?.set_blob_limits(limits);
+                Ok(Value::Null)
+            }
+            Command::PrepareAttachment {
+                ctx,
+                plaintext,
+                meta,
+            } => {
+                let (out, step) =
+                    self.core()?
+                        .prepare_attachment(&ctx, &unhex(&plaintext)?, meta)?;
+                Ok(match out {
+                    Ok(prepared) => {
+                        json!({ "prepared": enc(&prepared), "commit": enc(&step.commit) })
+                    }
+                    // A refusal can still carry a commit (housekeeping the same transition did); the host finishes it.
+                    Err(e) => json!({ "refused": enc(&e), "commit": enc(&step.commit) }),
+                })
+            }
+            Command::RestageAttachment {
+                ctx,
+                blob_id,
+                plaintext,
+            } => Ok(
+                match self
+                    .core()?
+                    .restage_attachment(&ctx, &blob_id, &unhex(&plaintext)?)
+                {
+                    Ok(ct) => json!({ "ciphertext": om_core::crypto::hex(&ct) }),
+                    Err(e) => json!({ "refused": enc(&e) }),
+                },
+            ),
+            Command::AttachmentFetch {
+                ctx,
+                message_id,
+                index,
+            } => Ok(
+                match self.core()?.attachment_fetch(&ctx, &message_id, index) {
+                    Ok(call) => json!({ "call": enc(&call) }),
+                    Err(e) => json!({ "refused": enc(&e) }),
+                },
+            ),
+            Command::OpenAttachment {
+                ctx,
+                message_id,
+                index,
+                ciphertext,
+            } => Ok(
+                match self
+                    .core()?
+                    .open_attachment(&ctx, &message_id, index, &unhex(&ciphertext)?)
+                {
+                    Ok(o) => json!({ "opened": enc(&o) }),
+                    Err(e) => json!({ "refused": enc(&e) }),
+                },
+            ),
             Command::RetireHome {
                 ctx,
                 relay_uri,
