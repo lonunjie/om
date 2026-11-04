@@ -26,12 +26,11 @@ to rebuild the app yourself and compare it with the published release.
 
 ## Status
 
-**Open beta.** The web app, the Rust core, the reference Home on Cloudflare and the deploy kit are built and in use. The
-release gates and which of them are waived for the beta are recorded in
-[`ADR-0183`](decisions/ADR-0183-open-beta-release-waivers.md); the live checklist is
-[`docs/reports/2026-10-29-open-beta-checklist.md`](docs/reports/2026-10-29-open-beta-checklist.md). Still to come: linking
-more devices, account recovery flows beyond the safety code, per-conversation records and a second independent Home. The
-protocol design is documented below and is the source of truth.
+**Open beta, live at <https://om.lonunjie.org>.** Every person sets up their own delivery service, the small online
+service that holds messages until the other person's device collects them ([ADR-0186](decisions/ADR-0186-every-person-runs-their-own-relay.md)).
+The deploy template is at <https://github.com/lonunjie/om-relay>. The Core is written in Rust and compiled to WebAssembly.
+Chats are end-to-end encrypted by design. No human cryptographer has audited OM, we make no security claims, and data may
+be lost during the beta ([`SECURITY.md`](SECURITY.md)). Beta waivers: [ADR-0183](decisions/ADR-0183-open-beta-release-waivers.md).
 
 ## Reading the design
 
