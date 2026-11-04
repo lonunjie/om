@@ -16,6 +16,7 @@ compile_error!(
 );
 
 pub mod api;
+pub mod attach;
 pub mod backup;
 pub mod control;
 pub mod crypto;
@@ -24,6 +25,7 @@ pub mod events;
 mod flows;
 pub mod host;
 pub mod intro;
+pub mod present;
 pub mod relayset;
 pub mod route;
 pub mod state;

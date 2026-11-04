@@ -105,7 +105,12 @@ pub struct Header {
 impl Header {
     /// Canonical W0 bytes. `endpoint_tiebreak` is the authenticated endpoint (device id), per ADR-0121.
     pub fn encode(&self) -> Vec<u8> {
-        cbor::encode(&V::M(vec![
+        self.encode_with(None)
+    }
+
+    /// As [`Self::encode`], with the key-23 `extensions` map (never empty; `None` omits the key).
+    pub fn encode_with(&self, extensions: Option<V>) -> Vec<u8> {
+        let mut m = vec![
             (0, V::U(OBJECT_TYPE)),
             (1, V::U(1)),
             (2, V::U(PROTOCOL_VERSION)),
@@ -130,12 +135,27 @@ impl Header {
             (8, V::U(self.kind)),
             (9, V::U(KIND_VERSION)),
             (11, self.body.clone()),
-        ]))
+        ];
+        if let Some(x) = extensions {
+            m.push((23, x));
+        }
+        cbor::encode(&V::M(m))
     }
 }
 
 pub fn message_create_body(text: &str) -> V {
     V::M(vec![(0, rich_text(text)), (1, V::A(vec![]))])
+}
+
+/// A `message.create` body with optional content and attachment references (inline bytes are never possible: the only
+/// carrier of attachment content is an `attachment-ref`).
+pub fn message_create_body_with(text: Option<&str>, attachments: Vec<V>) -> V {
+    let mut m = vec![];
+    if let Some(t) = text {
+        m.push((0, rich_text(t)));
+    }
+    m.push((1, V::A(attachments)));
+    V::M(m)
 }
 
 /// A parsed, structurally valid inbound event. Authorization (author, conversation) is checked by the caller.
@@ -150,6 +170,8 @@ pub struct Event {
     pub body: V,
     /// SHA-256 of the exact canonical bytes (equivocation detection).
     pub digest: [u8; 32],
+    /// Key 23 as received (registered presentation extensions are read from it by [`crate::present`]).
+    pub extensions: Option<V>,
 }
 
 /// Parse after the W0 registry check has passed. Returns `None` for anything the 1:1 profile does not accept.
@@ -158,10 +180,19 @@ pub fn parse(bytes: &[u8]) -> Option<Event> {
     if v.get(0).ok()?.u().ok()? != OBJECT_TYPE || v.get(2).ok()?.u().ok()? != PROTOCOL_VERSION {
         return None;
     }
-    // A required capability or a kind version this client does not implement is refused, never half-applied.
-    if v.opt(10).is_some() || v.get(9).ok()?.u().ok()? != KIND_VERSION || v.opt(23).is_some() {
+    // A required capability or a kind version this client does not implement is refused, never half-applied. Key 23 is
+    // accepted: the W0 registry check has already enforced every registered extension's owner, criticality and size, and
+    // `present::parse_extensions` refuses an unknown critical entry (ADR-0155).
+    if v.opt(10).is_some() || v.get(9).ok()?.u().ok()? != KIND_VERSION {
         return None;
     }
+    let extensions = match v.opt(23) {
+        None => None,
+        Some(x) => {
+            crate::present::parse_extensions(Some(x))?;
+            Some(x.clone())
+        }
+    };
     let principal = v.get(5).ok()?;
     if principal.get(0).ok()?.u().ok()? != PRINCIPAL_ACCOUNT {
         return None;
@@ -184,6 +215,7 @@ pub fn parse(bytes: &[u8]) -> Option<Event> {
         kind: v.get(8).ok()?.u().ok()?,
         body: v.get(11).ok()?.clone(),
         digest: sha256(&[bytes]),
+        extensions,
     })
 }
 
@@ -215,6 +247,70 @@ mod tests {
             plain_text(e.body.get(0).unwrap()).as_deref(),
             Some("héllo\nworld")
         );
+    }
+
+    #[test]
+    fn attachments_and_presentation_extensions_are_w0_valid_and_parse() {
+        use crate::attach::AttachmentRef;
+        use crate::present::{
+            Extensions, Location, Voice, extensions_value, geo_token, parse_extensions,
+        };
+        let r = AttachmentRef {
+            blob_id: [5; 32],
+            media_type: "audio/ogg".into(),
+            plaintext_size: 100,
+            ciphertext_digest: [6; 32],
+            key: [7; 32],
+            locations: vec!["https://home.example/v1/blobs/ab".into()],
+            filename: None,
+            width: None,
+            height: None,
+            duration_ms: Some(900),
+            read_cap: Some(vec![8; 48]),
+        };
+        let loc = Location {
+            lat_e7: 107_202_000,
+            lon_e7: 1_225_621_000,
+            accuracy_m: Some(10),
+            label: Some("Home".into()),
+        };
+        let ext = Extensions {
+            voice: Some(Voice {
+                attachment_index: 0,
+                waveform: Some(vec![3; 20]),
+            }),
+            location: Some(loc.clone()),
+        };
+        let text = format!("here {}", geo_token(loc.lat_e7, loc.lon_e7));
+        let h = Header {
+            event_id: [1; 16],
+            conversation_id: [2; 32],
+            author_account: [3; 32],
+            author_device: [4; 16],
+            clock: Hlc {
+                physical_ms: 1_790_000_000_000,
+                logical: 0,
+            },
+            kind: K_CREATE,
+            body: message_create_body_with(Some(&text), vec![r.to_v()]),
+        };
+        let bytes = h.encode_with(extensions_value(&ext));
+        om_codec::Registry::load()
+            .check("ConversationEvent", &bytes, false)
+            .expect("W0-valid ConversationEvent with attachment + key 23");
+        let e = parse(&bytes).unwrap();
+        assert_eq!(parse_extensions(e.extensions.as_ref()).unwrap(), ext);
+        let back = AttachmentRef::from_v(&e.body.get(1).unwrap().a().unwrap()[0]).unwrap();
+        assert_eq!(back, r);
+        // an attachment-only message (no content key) is valid too
+        let only = Header {
+            body: message_create_body_with(None, vec![r.to_v()]),
+            ..h
+        }
+        .encode();
+        om_codec::Registry::load()
+            .check("ConversationEvent", &only, false)
+            .expect("attachment-only");
     }
 
     #[test]

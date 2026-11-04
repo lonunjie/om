@@ -16,6 +16,9 @@ pub enum V {
     A(Vec<V>),
     /// Map with unsigned-integer keys; encoder sorts, decoder requires strictly ascending.
     M(Vec<(u64, V)>),
+    /// Map with text keys (only the ConversationEvent `extensions` map, key 23): sorted by encoded key (length, then
+    /// bytes), strictly ascending on decode.
+    TM(Vec<(String, V)>),
     Bool(bool),
     Null,
 }
@@ -39,6 +42,13 @@ fn head(out: &mut Vec<u8>, major: u8, n: u64) {
         out.push(m | 27);
         out.extend_from_slice(&n.to_be_bytes());
     }
+}
+
+/// RFC 8949 4.2.1 order of two text keys: their encodings compare bytewise, which is (length, then bytes).
+fn text_key_order(a: &str, b: &str) -> core::cmp::Ordering {
+    a.len()
+        .cmp(&b.len())
+        .then_with(|| a.as_bytes().cmp(b.as_bytes()))
 }
 
 pub fn encode(v: &V) -> Vec<u8> {
@@ -73,6 +83,19 @@ fn enc(v: &V, out: &mut Vec<u8>) {
             head(out, 5, m.len() as u64);
             for (k, x) in idx {
                 head(out, 0, *k);
+                enc(x, out);
+            }
+        }
+        V::TM(m) => {
+            let mut idx: Vec<&(String, V)> = m.iter().collect();
+            idx.sort_by(|a, b| text_key_order(&a.0, &b.0));
+            for w in idx.windows(2) {
+                assert!(w[0].0 != w[1].0, "duplicate CBOR map key {}", w[0].0);
+            }
+            head(out, 5, m.len() as u64);
+            for (k, x) in idx {
+                head(out, 3, k.len() as u64);
+                out.extend_from_slice(k.as_bytes());
                 enc(x, out);
             }
         }
@@ -179,6 +202,30 @@ fn dec(b: &[u8], at: &mut usize, depth: usize) -> Result<V, Error> {
             if n.saturating_mul(2) > remaining {
                 return Err(Error::Decode("cbor: map count exceeds input"));
             }
+            if n > 0 && b.get(*at).is_some_and(|x| x >> 5 == 3) {
+                let mut m: Vec<(String, V)> = Vec::with_capacity(n as usize);
+                for _ in 0..n {
+                    let (km, kn) = read_head(b, at)?;
+                    if km != 3 {
+                        return Err(Error::Decode("cbor: mixed map keys"));
+                    }
+                    let kb = take(
+                        b,
+                        at,
+                        usize::try_from(kn).map_err(|_| Error::Decode("cbor: len"))?,
+                    )?;
+                    let k = String::from_utf8(kb.to_vec())
+                        .map_err(|_| Error::Decode("cbor: invalid utf-8"))?;
+                    if let Some((last, _)) = m.last()
+                        && text_key_order(&k, last) != core::cmp::Ordering::Greater
+                    {
+                        return Err(Error::Decode("cbor: map keys unsorted or duplicate"));
+                    }
+                    let v = dec(b, at, depth + 1)?;
+                    m.push((k, v));
+                }
+                return Ok(V::TM(m));
+            }
             let mut m: Vec<(u64, V)> = Vec::with_capacity(n as usize);
             for _ in 0..n {
                 let (km, k) = read_head(b, at)?;
@@ -259,6 +306,12 @@ impl V {
         match self {
             V::M(m) => Ok(m),
             _ => Err(Error::Decode("cbor: expected map")),
+        }
+    }
+    pub fn tm(&self) -> Result<&[(String, V)], Error> {
+        match self {
+            V::TM(m) => Ok(m),
+            _ => Err(Error::Decode("cbor: expected text-key map")),
         }
     }
     pub fn is_null(&self) -> bool {
