@@ -66,3 +66,14 @@ Budget rule: `bin/lonunjie-usage gate <class>` (hq) before any big dispatch; pla
 2. WP7a (Sonnet): relay template release 0.2.0 with the spool (migration v2) and the AGPL headers; then the first real deploy on the operator's own Cloudflare account to test the untested assumptions in [`2026-11-03-relay-deploy-template.md`](2026-11-03-relay-deploy-template.md).
 3. Operator: approve the 0.0.11 preview, then the `main` push; the old default relay disappears from production with it (ADR-0186).
 4. Later: personal limits profile and `ProviderUsageState`, second reference Home (PR-013), recovery, signed-prekey rotation, groups (W1).
+
+### Update, later on 2026-11-04 (after the 5-hour reset)
+
+| WP | Result |
+|---|---|
+| WP4b | Done: attachments, voice notes, location cards and local search wired (wasm, Home adapter, UI), Chromium e2e green (`84cb29c` to `0954eee`). Deviations D25 (search index in memory, rebuilt at unlock) and D26 (Permissions-Policy allows microphone and geolocation for the app's own origin) are not yet operator-reviewed. Open: direct/LAN large-file transfer, opening a search hit goes to the chat not the message, Firefox/WebKit run of the new spec, no spool-full test against the real Home. |
+| WP7a | Done: relay template 0.2.0 (spool, migrations v1 and v2, upgrade test) built, signed, verified and staged on branch `release/0.2.0` of `lonunjie/om-relay` (`d1586b9`); `main` of the template repo untouched. |
+| WP6a | Superseded by om-web **0.0.12** (includes WP4b): preview `https://146b4002.om-lonunjie.pages.dev`, branch `release/om-web-0.0.12-preview` (`359cf26`), 16 of 16 files match the signed manifest. At go-live re-run `release.mjs --sign-from-vault --append-digest-log` (the manifest rebuilds byte-identical), commit the release-log line, then push the site branch to `main`. |
+| Cross-browser | Firefox and WebKit: 24 passed, 2 skipped (live-relay) for the existing cross-browser set. |
+
+**Operator steps to go live, in order:** (1) review the 0.0.12 preview; (2) approve the push of `release/om-web-0.0.12-preview` to `main` of `lonunjie/om.lonunjie.org`; (3) merge `release/0.2.0` into `main` of `lonunjie/om-relay`; (4) upgrade the live Home from 0.1.1 to check migration v2, then run the first real template deploy on your own Cloudflare account (untested assumptions: `2026-11-03-relay-deploy-template.md`); (5) rule on D25 and D26.
