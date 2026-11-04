@@ -151,7 +151,7 @@ Checked against the documents read. These are not necessarily wrong; they are un
 
 The Brief's statement that the Omnibar is hidden because it is unbuilt is accurate as a status, but it presents an unbuilt audited surface as if it were a rule (S4).
 
-## 6. Questions for the operator (nothing below has been changed)
+## 6. Questions for the operator (answered by operator rulings of 2026-11-04; see "Applied" at the end)
 
 1. **Omnibar and new-conversation action (S4, S5):** build now, or record a deferral? Without them the app has no way to start a second conversation.
 2. **Palette and focus colour (V1, V2):** is the audited OM Calm ([`om-theme-clear-v1.json`](../ux-design/tokens/om-theme-clear-v1.json), violet focus) canonical, or is the shipped palette accepted? ADR-0179's statement that the code matches the old palette is not borne out.
@@ -166,3 +166,17 @@ The Brief's statement that the Omnibar is hidden because it is unbuilt is accura
 ## 7. What I did not do
 
 I changed no product code, wrote no ADR, did not touch the stale `dist-*` folders, and did not deploy. The scratch build, the local Home and the preview server ran only for this review; screenshots and the two driver scripts are in the session scratchpad, with the screenshots copied to the shared notes folder.
+
+## Applied (2026-11-04)
+
+The operator ruled the audited design wins. Answers to section 6 and what was done (commits on `main`, trailers carry all four design domains, `Design-Departures: none`):
+
+1. Omnibar and new conversation (S4, S5): built (tap and Cmd/Ctrl+K; local, deterministic, no message search or learning yet) with the Sheet pattern and edge-swipe Back.
+2. Palette and focus (V1, V2): the audited OM Calm values replaced the shipped palette via tokens; a test compares the CSS to [`om-theme-clear-v1.json`](../ux-design/tokens/om-theme-clear-v1.json). Success and warning backings are derived tints. The audited `border.strong` is about 2.3:1 on the light canvas (below 3:1).
+3. Outgoing bubble (C3): tint. 4. Block confirmation and explainer (V4): red only for failure or destructive, green only for success or verified.
+5. Chat rows (L1): identity, latest message, time, unread, draft. The preview is built in TS from `GetConversationView`; Core's list has none and no Rust changed. Core keeps no read state: unread uses a local encrypted last-seen marker (deviation).
+6. Wide rail (S2): removed; the redundant "Chats" pill is gone. 7. Invite choices (F3): Share invite link, Scan QR code, Show my QR.
+8. Section 5: kept and recorded as deviations: name at setup, web-link invite fragment, Settings search, Lock, Backup, Help, per-device idle lock. Removed: golden-section card, brand header, red-dot and safety-code card styling, slide-in panes, "round everything".
+9. Delivery page (T5, F6): tier, observer, migration and origin facts added; raw address behind a disclosure. When an address is in use and Core's tier is still "none", the "not picked yet" line is omitted (Core does not derive the tier from the configured address; gap for a Core change).
+
+Still open: message search and learning in the Omnibar; tier and origin choices (the facts are shown, not yet choosable); `border.strong` contrast.
