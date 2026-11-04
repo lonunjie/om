@@ -6,15 +6,18 @@ import { Text } from "../shell/primitives/Text";
 import { SecurityNoticeBanner } from "../shell/theme/SecurityNoticeBanner";
 import type { DeviceActionCopy, DevicePendingKind, DevicesCopy } from "./copy";
 import { FocusHeading } from "./FocusHeading";
-import { LinkDeviceFlow, LinkReview } from "./LinkDeviceFlow";
+import { AddDevice } from "./AddDevice";
+import { LinkReview } from "./LinkReview";
 import { OperationStatus, outcomeText, useLiveQuery, useOperation, type SettingsServices } from "./operation";
 import "./devices.css";
 
 export interface DevicesScreenProps {
   readonly services: SettingsServices;
   readonly copy: DevicesCopy;
-  /** QR scanning slot (camera opens only from the click). Without it, pasting the link is the only path. */
-  readonly scanQr?: () => Promise<string | null>;
+  /** Draws the QR code for the link that adds a device (deviation D24: this device shows it, the new device scans or types it). */
+  readonly renderQr?: (payload: string) => ReactNode;
+  /** Whether this screen shows the enrollment notices itself. Off when the host shows them on every screen (`DeviceNotices`). Default true. */
+  readonly showNotices?: boolean;
   /** "later" while Core cannot link a device: never offer a flow that ends in "unsupported" (UX brief section 5). Default "available". */
   readonly linking?: "available" | "later";
 }
@@ -22,17 +25,17 @@ export interface DevicesScreenProps {
 type View =
   | { readonly kind: "list" }
   | { readonly kind: "device"; readonly id: DeviceId }
-  | { readonly kind: "link" }
+  | { readonly kind: "add" }
   | { readonly kind: "review"; readonly operationId: OperationId };
 
-const PENDING_KINDS: readonly DevicePendingKind[] = ["RequestDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "SuspendDevice", "RevokeDevice"];
+const PENDING_KINDS: readonly DevicePendingKind[] = ["OfferDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "SuspendDevice", "RevokeDevice"];
 const isPendingKind = (k: string): k is DevicePendingKind => (PENDING_KINDS as readonly string[]).includes(k);
 
 /**
  * Settings > Devices. Every state, allowed action and outcome comes from Core. List rows only open details:
  * security-critical actions run from their dedicated step, never from a list row (deep-link rule).
  */
-export function DevicesScreen({ services, copy, scanQr, linking = "available" }: DevicesScreenProps) {
+export function DevicesScreen({ services, copy, renderQr, showNotices = true, linking = "available" }: DevicesScreenProps) {
   const [view, setView] = useState<View>({ kind: "list" });
   const live = useLiveQuery(services, { kind: "GetDevices", ctx: services.ctx }, "devices");
   const toList = (): void => { setView({ kind: "list" }); };
@@ -43,8 +46,8 @@ export function DevicesScreen({ services, copy, scanQr, linking = "available" }:
 
   let body: ReactNode;
   switch (view.kind) {
-    case "link":
-      body = <LinkDeviceFlow services={services} copy={copy} onCancel={toList} onReview={(operationId) => { setView({ kind: "review", operationId }); }} {...(scanQr ? { scanQr } : {})} />;
+    case "add":
+      body = <AddDevice services={services} copy={copy} onClose={toList} {...(renderQr ? { renderQr } : {})} />;
       break;
     case "review":
       body = <LinkReview services={services} copy={copy} operationId={view.operationId} ops={ops} onDone={toList} />;
@@ -61,18 +64,18 @@ export function DevicesScreen({ services, copy, scanQr, linking = "available" }:
   return (
     <section className="om-settings om-devices" aria-labelledby="om-devices-h">
       <Text as="h1" size="xl" weight="bold" id="om-devices-h">{copy.heading}</Text>
-      <ControlBanners copy={copy} view={value} />
+      <ControlBanners copy={copy} view={value} notices={showNotices} />
       {body}
     </section>
   );
 }
 
 /** Reserved security surface: themes cannot hide these and there is deliberately no dismiss control (R-166, UI-04). */
-function ControlBanners({ copy, view }: { readonly copy: DevicesCopy; readonly view: DevicesView }) {
+function ControlBanners({ copy, view, notices }: { readonly copy: DevicesCopy; readonly view: DevicesView; readonly notices: boolean }) {
   return (
     <div className="om-devices__banners">
       {view.controlState === "normal" ? null : <SecurityNoticeBanner reasonCode={view.controlState} label={copy.controlState[view.controlState]} />}
-      {view.notices.map((n) => <SecurityNoticeBanner key={`${n.deviceId}-${String(n.at)}`} reasonCode={n.code} label={copy.deviceLinkedNotice(n.label, n.at)} />)}
+      {notices ? view.notices.map((n) => <SecurityNoticeBanner key={`${n.deviceId}-${String(n.at)}`} reasonCode={n.code} label={copy.deviceLinkedNotice(n.label, n.at)} />) : null}
     </div>
   );
 }
@@ -83,6 +86,8 @@ function DeviceList({ copy, view, ops, onOpen, linking }: { readonly copy: Devic
   const removed = view.devices.filter((d) => !d.isCurrent && d.state === "revoked");
   const incoming = view.linkRequests.filter((r) => r.state === "awaiting_approval" || r.state === "pending_authorization");
   const pending = ops.filter((o) => isPendingKind(o.intentKind) && !isTerminalOutcome(o.outcome));
+  // Core refuses an offer from a messaging-only or suspended device, so no flow is shown that would end in "unsupported" (UX brief section 5).
+  const canAdd = current.some((d) => d.role === "control" && d.state === "active") && view.controlState === "normal";
   return (
     <>
       {incoming.length > 0 ? (
@@ -115,11 +120,11 @@ function DeviceList({ copy, view, ops, onOpen, linking }: { readonly copy: Devic
       <DeviceGroup id="om-devices-current-h" heading={copy.currentHeading} devices={current} copy={copy} onOpen={onOpen} />
       <DeviceGroup id="om-devices-other-h" heading={copy.otherHeading} devices={others} copy={copy} onOpen={onOpen} empty={copy.noOtherDevices} />
       {removed.length > 0 ? <DeviceGroup id="om-devices-removed-h" heading={copy.removedHeading} devices={removed} copy={copy} onOpen={onOpen} /> : null}
-      {linking === "later" ? <Text as="p" tone="secondary">{copy.linkLater}</Text> : (
+      {linking === "later" ? <Text as="p" tone="secondary">{copy.linkLater}</Text> : canAdd ? (
         <div className="om-settings__actions">
-          <Button variant="primary" onClick={() => { onOpen({ kind: "link" }); }}>{copy.link.start}</Button>
+          <Button variant="primary" onClick={() => { onOpen({ kind: "add" }); }}>{copy.link.start}</Button>
         </div>
-      )}
+      ) : <Text as="p" tone="secondary">{copy.link.notControl}</Text>}
     </>
   );
 }

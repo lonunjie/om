@@ -1,5 +1,5 @@
 import type { RejectReason, UserActionCode } from "@om/platform-api";
-import type { DevicesCopy, LinkThisDeviceCopy, OutcomeCopy } from "../copy";
+import type { DevicesCopy, JoinCopy, OutcomeCopy } from "../copy";
 import type { RecoveryCopy } from "../../recovery/copy";
 
 const REASONS: readonly RejectReason[] = ["invalid", "unsupported", "unauthorized", "revoked", "expired", "stale_state", "conflict", "policy_denied", "quota", "rate_limited", "integrity_failure", "unavailable", "not_found"];
@@ -14,7 +14,7 @@ export const testOutcome: OutcomeCopy = {
 export const testDevicesCopy: DevicesCopy = {
   heading: "Devices", loading: "Loading devices", loadFailed: "Could not load",
   controlState: { control_conflict: "Control conflict", safety_freeze: "Safety Freeze is on", fork_detected: "Fork detected" },
-  deviceLinkedNotice: (label) => `New device linked: ${label}`,
+  deviceLinkedNotice: (label) => `New device linked: ${label}`, noticesLabel: "New devices",
   linkRequestsHeading: "Devices asking to link", linkRequestRow: (label) => `${label} wants to link`,
   currentHeading: "This device", otherHeading: "Other devices", noOtherDevices: "No other devices", linkLater: "Linking is not available yet", removedHeading: "Removed devices",
   role: { control: "Can manage account", messaging: "Messages only" },
@@ -29,24 +29,27 @@ export const testDevicesCopy: DevicesCopy = {
   suspend: { action: "Suspend this device", heading: (l) => `Suspend ${l}?`, consequences: ["Stops new keys now", "Not removed"], confirm: "Yes, suspend", cancel: "Keep it", done: "Suspended" },
   revoke: { action: "Remove permanently", heading: (l) => `Remove ${l} permanently?`, consequences: ["Can never come back", "Data already on it stays"], confirm: "Yes, remove permanently", cancel: "Keep it", done: "Removed" },
   pendingHeading: "Still in progress",
-  pendingKind: { RequestDeviceLink: "Opening link", ApproveDeviceLink: "Approving link", RejectDeviceLink: "Rejecting link", SuspendDevice: "Suspending", RevokeDevice: "Removing" },
+  pendingKind: { OfferDeviceLink: "Preparing link", ApproveDeviceLink: "Approving link", RejectDeviceLink: "Rejecting link", SuspendDevice: "Suspending", RevokeDevice: "Removing" },
   link: {
-    start: "Link a new device", heading: "Link a new device", body: "Open the offer from the new device", scan: "Scan QR code", scanNothing: "No code found",
-    pasteLabel: "Link from the new device", pasteHint: "Paste the om:link", open: "Continue", parseError: { empty: "Paste first", too_long: "Too long", malformed: "Not a device link" },
-    cancel: "Cancel", reviewHeading: "Check the new device", who: (l) => `${l} wants to join your account`, codeLabel: "Code", codeHint: "Must match the new device",
+    start: "Add a device", notControl: "Add devices from a device that manages your account", heading: "Add a device", body: "Show a link on this device",
+    show: "Show link and QR code", cancel: "Cancel", qrLabel: "QR code that adds a device", qrBadge: "Adds a device", qrNotInvite: "This is not an invitation",
+    linkLabel: "Link", expires: (ms) => `Expires ${String(ms)}`, nextStep: "On the new device choose I already use OM",
+    offerState: { waiting_for_scan: "Waiting for the new device", awaiting_approval: "The new device is asking", linked: "Device added", rejected: "Declined", expired: "Expired" },
+    tryAgain: "Try again",
+    reviewHeading: "Check the new device", who: (l) => `${l} wants to join your account`, codeLabel: "Code", codeHint: "Must match the new device",
     warning: "Only link a device you are holding", announce: "All your other devices will be told", approve: "The codes match, link it", reject: "Not mine, reject",
-    expires: (ms) => `Expires ${String(ms)}`,
     requestState: { awaiting_approval: "Waiting for your decision", pending_authorization: "Waiting for your other devices", approved: "Linked", rejected: "Rejected", expired: "Expired" },
     linked: "Device linked", rejectedDone: "Link rejected", done: "Done",
   },
   outcome: testOutcome,
 };
 
-export const testLinkThisDeviceCopy: LinkThisDeviceCopy = {
-  heading: "Link this device", body: "Show this to your other device", start: "Show link code", linkLabel: "Link", qrLabel: "QR code",
-  expires: (ms) => `Expires ${String(ms)}`, codeLabel: "Code", codeHint: "Check it matches",
-  state: { waiting_for_scan: "Waiting for scan", awaiting_approval: "Approve on your other device", linked: "Linked", rejected: "Rejected", expired: "Expired" },
-  outcome: testOutcome,
+export const testJoinCopy: JoinCopy = {
+  heading: "Join with a link", body: "Open the link from your other device", scan: "Scan QR code", scanNothing: "No code found",
+  pasteLabel: "Link from your other device", pasteHint: "Paste the om:link", open: "Continue", parseError: { empty: "Paste first", too_long: "Too long", malformed: "Not a device link" },
+  cancel: "Back", codeLabel: "Code", codeHint: "Check it matches",
+  state: { awaiting_approval: "Approve on your other device", pending_authorization: "Waiting for your other devices", approved: "Linked", rejected: "Declined", expired: "Expired" },
+  joined: "You are linked", tryAgain: "Start again", outcome: testOutcome,
 };
 
 export const testRecoveryCopy: RecoveryCopy = {

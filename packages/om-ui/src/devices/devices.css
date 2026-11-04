@@ -21,7 +21,11 @@
 .om-devices__digits { font: 700 2rem/1.2 ui-monospace, monospace; letter-spacing: 0.1em; }
 .om-devices__warning { margin: 0; font-weight: var(--om-weight-bold); }
 .om-devices__link { overflow-wrap: anywhere; }
-.om-devices__qr { margin: 0; }
+.om-devices__offer { display: flex; flex-direction: column; gap: var(--om-space-2); }
+/* A device-link code is framed differently from a contact invite: a dashed accent frame and a text tag (never colour alone), so the two cannot be mistaken (PRIVACY_SECURITY_INTERACTION_UX 8). */
+.om-devices__qr { display: flex; flex-direction: column; gap: var(--om-space-2); align-items: center; margin: 0; padding: var(--om-space-3); inline-size: fit-content; max-inline-size: 100%; border: 3px dashed var(--om-color-accent); border-radius: var(--om-radius-lg); background: var(--om-color-accent-soft); }
+.om-devices__qr-badge { align-self: stretch; text-align: center; font-weight: var(--om-weight-bold); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.875em; color: var(--om-color-text-primary); }
+.om-devices__notices { margin-block-end: var(--om-space-2); }
 [data-danger="true"] { font-weight: var(--om-weight-bold); }
 .om-home__service { display: flex; flex-direction: column; gap: var(--om-space-2); padding-block: var(--om-space-3); border-block-end: 1px solid var(--om-color-border-subtle, currentColor); }
 .om-home__service:last-child { border-block-end: 0; }

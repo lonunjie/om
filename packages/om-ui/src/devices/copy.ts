@@ -16,21 +16,34 @@ export interface OutcomeCopy {
 }
 
 export type FrozenControlState = Exclude<AccountControlStateCode, "normal">;
-export type DevicePendingKind = Extract<CoreIntentKind, "RequestDeviceLink" | "ApproveDeviceLink" | "RejectDeviceLink" | "SuspendDevice" | "RevokeDevice">;
+export type DevicePendingKind = Extract<CoreIntentKind, "OfferDeviceLink" | "ApproveDeviceLink" | "RejectDeviceLink" | "SuspendDevice" | "RevokeDevice">;
 export type LinkParseError = "empty" | "too_long" | "malformed";
 
-/** Existing-device side of linking: open the new device's offer, compare the code, approve or reject. */
+/**
+ * Existing-device side of linking (deviation D24, docs/reports/2026-10-28-relay-status.md): this device shows a link and a QR
+ * code for the new device, shows the same check code the new device shows, and a person approves or declines here.
+ * The design documents assumed the opposite direction (the new device offers, the existing one scans); the operator's
+ * D24 ruling of 2026-11-04 reversed it.
+ */
 export interface LinkCopy {
+  /** The button in the device list. */
   readonly start: string;
+  /** Shown in place of the button on a device that cannot add devices (a messaging-only device). */
+  readonly notControl: string;
   readonly heading: string;
   readonly body: string;
-  readonly scan: string;
-  readonly scanNothing: string;
-  readonly pasteLabel: string;
-  readonly pasteHint: string;
-  readonly open: string;
-  readonly parseError: Readonly<Record<LinkParseError, string>>;
+  readonly show: string;
   readonly cancel: string;
+  readonly qrLabel: string;
+  /** A visible tag on the code's frame, so a device-link code never looks like an invite code. */
+  readonly qrBadge: string;
+  /** Said under the code: this adds a device to your account, it is not an invitation, and it is for your own device only. */
+  readonly qrNotInvite: string;
+  readonly linkLabel: string;
+  readonly expires: (epochMs: number) => string;
+  readonly nextStep: string;
+  readonly offerState: Readonly<Record<LinkOfferState, string>>;
+  readonly tryAgain: string;
   readonly reviewHeading: string;
   readonly who: (deviceLabel: string) => string;
   readonly codeLabel: string;
@@ -40,24 +53,29 @@ export interface LinkCopy {
   readonly announce: string;
   readonly approve: string;
   readonly reject: string;
-  readonly expires: (epochMs: number) => string;
   readonly requestState: Readonly<Record<LinkRequestState, string>>;
   readonly linked: string;
   readonly rejectedDone: string;
   readonly done: string;
 }
 
-/** New-device side: show the offer, then the same code, then wait for the other device's decision. */
-export interface LinkThisDeviceCopy {
+/** New-device side (D24): type or scan the link from the other device, then show the same check code and wait for its decision. */
+export interface JoinCopy {
   readonly heading: string;
   readonly body: string;
-  readonly start: string;
-  readonly linkLabel: string;
-  readonly qrLabel: string;
-  readonly expires: (epochMs: number) => string;
+  readonly scan: string;
+  readonly scanNothing: string;
+  readonly pasteLabel: string;
+  readonly pasteHint: string;
+  readonly open: string;
+  readonly parseError: Readonly<Record<LinkParseError, string>>;
+  readonly cancel: string;
   readonly codeLabel: string;
   readonly codeHint: string;
-  readonly state: Readonly<Record<LinkOfferState, string>>;
+  /** Per state of the request: this device never approves itself, it waits for the other device. */
+  readonly state: Readonly<Record<LinkRequestState, string>>;
+  readonly joined: string;
+  readonly tryAgain: string;
   readonly outcome: OutcomeCopy;
 }
 
@@ -77,12 +95,14 @@ export interface DevicesCopy {
   readonly loadFailed: string;
   readonly controlState: Readonly<Record<FrozenControlState, string>>;
   readonly deviceLinkedNotice: (deviceLabel: string, epochMs: number) => string;
+  /** Accessible name of the strip that carries the enrollment notices. */
+  readonly noticesLabel: string;
   readonly linkRequestsHeading: string;
   readonly linkRequestRow: (deviceLabel: string) => string;
   readonly currentHeading: string;
   readonly otherHeading: string;
   readonly noOtherDevices: string;
-  /** Shown in place of the link button while Core cannot link a device yet (`linking="later"`). */
+  /** Shown in place of the add button while Core cannot link a device yet (`linking="later"`). */
   readonly linkLater: string;
   readonly removedHeading: string;
   readonly role: Readonly<Record<DeviceRole, string>>;
