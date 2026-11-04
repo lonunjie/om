@@ -28,7 +28,7 @@ test("two identities on the real Core: invite, introduction, messages both ways,
   // Alice: first run, then show her invite link.
   await onboard(page, { stopAt: "invite" });
   await expect(page.getByText("E2E LOOPBACK PROVIDER, NOT PRODUCTION")).toBeVisible();
-  await page.getByRole("button", { name: "Show as QR code" }).click();
+  await page.getByRole("button", { name: "Show my QR" }).click();
   const link = (await page.locator("code[translate=no]").first().textContent())?.trim() ?? "";
   expect(link).toMatch(/^https?:\/\/[^/]+\/#invite\/[A-Za-z0-9_-]+$/);
   await page.getByRole("button", { name: "Skip for now" }).click();

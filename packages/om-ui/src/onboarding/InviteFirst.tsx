@@ -26,17 +26,21 @@ export interface InviteFirstProps {
   readonly onSkip?: () => void;
   /** Bound on waiting for the provider before the step shows the honest "queued" state (default 15 s). */
   readonly settleTimeoutMs?: number;
+  /** Which choice takes focus first when this opens inside a sheet (a result chosen in the Omnibar). Default: share. */
+  readonly focusChoice?: "share" | "scan" | "qr";
+  /** Text to start the "have an invite" field with (a link typed into the Omnibar). */
+  readonly initialLink?: string;
 }
 
 /** How long an unconfirmed invite is watched in the background (the bounded wait only decides what the step says). */
 const LONG_WAIT_MS = 2 ** 31 - 1;
 
 /** Zero-contact empty state. Contacts come only from invitations; there is no address-book path here. */
-export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareLink, onAccepted, onSkip, settleTimeoutMs }: InviteFirstProps) {
+export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareLink, onAccepted, onSkip, settleTimeoutMs, focusChoice = "share", initialLink }: InviteFirstProps) {
   const [invite, setInvite] = useState<InviteView | null>(null);
   const [showQr, setShowQr] = useState(false);
   const [status, setStatus] = useState<{ readonly kind: "status" | "alert" | "done"; readonly text: string } | null>(null);
-  const [pasted, setPasted] = useState("");
+  const [pasted, setPasted] = useState(initialLink ?? "");
   const [busy, setBusy] = useState(false);
   const mounted = useRef(true);
   const inviteRef = useRef<InviteView | null>(null);
@@ -192,9 +196,10 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareL
       <StepHeading id="om-onb-invite-h">{copy.heading}</StepHeading>
       {copy.body ? <Text as="p">{copy.body}</Text> : null}
       <div className="om-onb__actions" role="group" aria-label={copy.heading} data-hidden-actions={hidden.join(" ")}>
-        <Button variant="primary" disabled={busy} onClick={run(share)}><Icon name="share" size={20} />{copy.share}</Button>
-        <Button disabled={busy} onClick={run(copyClick)}><Icon name="link" size={20} />{copy.copyLink}</Button>
-        {renderQr ? <Button disabled={busy} onClick={run(qr)}><Icon name="qr" size={20} />{copy.showQr}</Button> : null}
+        <Button variant="primary" disabled={busy} data-sheet-initial={focusChoice === "share" ? "" : undefined} onClick={run(share)}><Icon name="share" size={20} />{copy.share}</Button>
+        {scanQr && !hidden.includes("camera_unavailable") ? <Button disabled={busy} data-sheet-initial={focusChoice === "scan" ? "" : undefined} onClick={run(scan)}><Icon name="scan" size={20} />{copy.scan}</Button> : null}
+        {renderQr ? <Button disabled={busy} data-sheet-initial={focusChoice === "qr" ? "" : undefined} onClick={run(qr)}><Icon name="qr" size={20} />{copy.showQr}</Button> : null}
+        <Button variant="quiet" disabled={busy} onClick={run(copyClick)}><Icon name="link" size={20} />{copy.copyLink}</Button>
       </div>
       {status?.kind === "done" ? (
         <p className="om-onb__done" role="status"><span className="om-onb__done-mark" aria-hidden="true"><Icon name="check" size={20} /></span><VisuallyHidden>{status.text}</VisuallyHidden></p>
@@ -207,9 +212,8 @@ export function InviteFirst({ services, platform, copy, renderQr, scanQr, shareL
           {showQr && renderQr ? <figure className="om-onb__qr" aria-label={copy.qrLabel}>{renderQr(linkOf(invite))}</figure> : null}
         </div>
       ) : null}
-      <details className="om-onb__more">
+      <details className="om-onb__more" open={initialLink !== undefined && initialLink !== "" ? true : undefined}>
       <summary>{copy.haveInvite}</summary>
-      {scanQr && !hidden.includes("camera_unavailable") ? <div className="om-onb__actions"><Button disabled={busy} onClick={run(scan)}><Icon name="scan" size={20} />{copy.scan}</Button></div> : null}
       <form className="om-onb__accept" aria-labelledby="om-onb-accept-h" onSubmit={(e) => { e.preventDefault(); void acceptLink(pasted); }}>
         <Text as="h3" size="md" weight="bold" id="om-onb-accept-h">{copy.acceptHeading}</Text>
         <label className="om-onb__field">

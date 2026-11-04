@@ -27,7 +27,7 @@ test("two identities talk through the configured reference Home; the Home sees o
   await onboard(page, { stopAt: "invite" });
   await expect(page.getByText("E2E LOCAL RELAY, NOT PRODUCTION")).toBeVisible();
   await expect(page.getByText("Not connected to a delivery service")).toHaveCount(0);
-  await page.getByRole("button", { name: "Show as QR code" }).click();
+  await page.getByRole("button", { name: "Show my QR" }).click();
   const link = (await page.locator("code[translate=no]").first().textContent())?.trim() ?? "";
   expect(link).toMatch(/^https?:\/\/[^/]+\/#invite\/[A-Za-z0-9_-]+$/);
   await page.getByRole("button", { name: "Skip for now" }).click();

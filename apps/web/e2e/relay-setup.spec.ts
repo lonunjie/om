@@ -83,7 +83,7 @@ test("set up my own: setup value, new-tab link, typed address, then first run co
   await walkSetup(page, { stopAt: "invite" });
   await expect(page.getByText("Not connected to a delivery service")).toHaveCount(0);
   // Making an invite creates a mailbox at the locked Home: it only works with the admission secret kept for this address.
-  await page.getByRole("button", { name: "Show as QR code" }).click();
+  await page.getByRole("button", { name: "Show my QR" }).click();
   await expect(page.locator("code[translate=no]").first()).toContainText("/#invite/");
   expect(refused).toEqual([]);
   expect(wire.some((w) => w.startsWith("POST /v1/"))).toBe(true);

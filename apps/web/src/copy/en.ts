@@ -1,7 +1,7 @@
 // The only place user-visible English lives. Components take these as props; keys are machine reason codes, so a
 // missing code is a compile error. Wording rules: plain language, no provider names, honest about limits.
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
-import type { ConversationCopy, DevicesCopy, HomeCopy, LinkThisDeviceCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, RecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
+import type { ConversationCopy, DevicesCopy, HomeCopy, LinkThisDeviceCopy, OmnibarCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, RecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
 
 const REJECT: Readonly<Record<RejectReason, string>> = {
   invalid: "That was not valid.",
@@ -287,7 +287,7 @@ export const onboardingCopy: OnboardingCopy = {
   },
   invite: {
     heading: "Invite someone to chat",
-    share: "Share my invite",
+    share: "Share invite link",
     shareTitle: "Chat with me on OM",
     shareText: "Open this link to start a private chat with me.",
     shareFailed: "Sharing did not work. You can copy the link instead.",
@@ -297,9 +297,9 @@ export const onboardingCopy: OnboardingCopy = {
     sharedByCopy: "Link copied",
     linkLabel: "Your invite link",
     expires: (ms) => `Expires ${timeFormat.format(ms)}`,
-    showQr: "Show as QR code",
+    showQr: "Show my QR",
     qrLabel: "QR code for your invite",
-    scan: "Scan a QR code",
+    scan: "Scan QR code",
     scanDenied: "Camera access was not allowed. You can paste a link instead.",
     scanNothing: "No code was found. Try again or paste a link.",
     acceptHeading: "Accept an invitation",
@@ -452,6 +452,12 @@ export interface AppStrings {
   readonly backToChats: string;
   readonly backToSettings: string;
   readonly safetyCode: { readonly reminder: string; readonly action: string };
+  /** The new-conversation action beside the chat list (NAVIGATION_AND_OMNIBAR.md, default shell). */
+  readonly newConversation: { readonly action: string; readonly title: string; readonly close: string };
+  /** Omnibar results that are actions, not places. */
+  readonly omniActions: { readonly invite: string; readonly scan: string; readonly showQr: string; readonly useLink: string; readonly chats: string; readonly settings: string };
+  /** Words that also find an Omnibar action (not shown). */
+  readonly omniKeywords: { readonly invite: string; readonly scan: string; readonly showQr: string; readonly useLink: string; readonly chats: string; readonly settings: string };
 }
 
 export const appStrings: AppStrings = {
@@ -518,6 +524,31 @@ export const appStrings: AppStrings = {
     reminder: "If you lose this device, only your safety code can get your account back. Keep a paper copy; it takes a minute and shows only once.",
     action: "Save my safety code",
   },
+  newConversation: { action: "New conversation", title: "New conversation", close: "Close" },
+  omniActions: {
+    invite: "Invite someone to chat", scan: "Scan QR code", showQr: "Show my QR", useLink: "Use this invite link", chats: "Chats", settings: "Settings",
+  },
+  omniKeywords: {
+    invite: "new conversation message start add contact friend share link send",
+    scan: "camera invite code accept qr",
+    showQr: "invite code share my qr",
+    useLink: "accept invitation",
+    chats: "home conversations messages back",
+    settings: "preferences options account",
+  },
+};
+
+export const omnibarCopy: OmnibarCopy = {
+  name: "Omnibar",
+  triggerText: "Find or do…",
+  openAction: "Open Omnibar",
+  placeholder: "Find or do…",
+  close: "Close Omnibar",
+  results: "Results",
+  suggested: "Suggested",
+  kinds: { conversation: "Chat", action: "Action", setting: "Setting" },
+  none: (query) => `Nothing matches “${query}”.`,
+  count: (n) => (n === 0 ? "No results" : n === 1 ? "1 result" : `${String(n)} results`),
 };
 
 export const scannerCopy = {

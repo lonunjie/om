@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /// <reference types="node" />
 import { readFileSync } from "node:fs";
-import { cleanup, render, renderHook, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement, ReactNode } from "react";
 import axe from "axe-core";
@@ -62,13 +62,18 @@ describe("AppShell", () => {
     const tabs = screen.getByRole("tablist", { name: "Main" });
     expect(within(tabs).getAllByRole("tab")).toHaveLength(2);
   });
-  it("compact conversation hides tabs, list, and puts the omnibar trigger in the composer zone", () => {
+  it("compact conversation hides tabs, list and the profile control; the composer owns the lower zone (the trigger is its own slot)", () => {
     const { container } = render(shell(TWO, true));
     expect(screen.queryByRole("tablist")).toBeNull();
     expect(screen.queryByRole("region", { name: "Chat list" })).toBeNull();
     const composer = container.querySelector(".om-shell__composer");
-    expect(within(composer as HTMLElement).getByText("find")).toBeTruthy();
+    expect(within(composer as HTMLElement).getByLabelText("Message")).toBeTruthy();
+    expect(within(composer as HTMLElement).queryByText("find")).toBeNull(); // not drawn twice: the host puts it beside Send
     expect(screen.queryByText("profile")).toBeNull();
+  });
+  it("a compact page with no composer still offers the trigger in the lower zone", () => {
+    const { container } = render(shell(TWO, true, { composerZone: undefined }));
+    expect(within(container.querySelector(".om-shell__composer") as HTMLElement).getByText("find")).toBeTruthy();
   });
   it("arrow keys move between tabs", async () => {
     const onChange = vi.fn();
@@ -78,15 +83,66 @@ describe("AppShell", () => {
     expect(onChange).toHaveBeenCalledWith("people");
     expect(document.activeElement).toBe(screen.getByRole("tab", { name: "People" }));
   });
-  it("expanded shows a rail (no tablist) with both panes, trigger and profile", () => {
+  it("expanded with one destination has no rail: both panes under a top bar that holds the trigger and the identity control", () => {
     setEnv(BREAKPOINTS.expanded);
     const { container } = render(shell(ONE, false));
     expect(screen.queryByRole("tablist")).toBeNull();
-    expect(screen.getByRole("navigation", { name: "Main" })).toBeTruthy();
+    expect(screen.queryByRole("navigation", { name: "Main" })).toBeNull();
+    expect(container.querySelector(".om-shell__rail")).toBeNull();
     expect(screen.getByRole("region", { name: "Chat list" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "Conversation" })).toBeTruthy();
+    expect(container.querySelector(".om-shell__topbar")?.textContent).toBe("findprofile");
+  });
+  it("expanded with two destinations shows the rail, with the identity control in its footer", () => {
+    setEnv(BREAKPOINTS.expanded);
+    const { container } = render(shell(TWO, false));
+    expect(screen.getByRole("navigation", { name: "Main" })).toBeTruthy();
     expect(container.querySelector(".om-shell__rail-footer")?.textContent).toBe("profile");
     expect(container.querySelector(".om-shell__topbar")?.textContent).toBe("find");
+  });
+  describe("back that follows the finger", () => {
+    const touch = (type: string, x: number, y = 100, extra: Record<string, unknown> = {}): Event =>
+      Object.defineProperties(new Event(type, { bubbles: true }), Object.fromEntries(Object.entries({ pointerType: "touch", isPrimary: true, pointerId: 1, clientX: x, clientY: y, timeStamp: 0, ...extra }).map(([k, v]) => [k, { value: v }])));
+    const setup = (onBack: () => void) => {
+      const { container } = render(shell(ONE, true, { onBack }));
+      const pane = container.querySelector(".om-shell__detail") as HTMLElement;
+      pane.getBoundingClientRect = () => ({ left: 0, right: 400, width: 400, top: 0, bottom: 800, height: 800, x: 0, y: 0, toJSON: () => ({}) });
+      return pane;
+    };
+    it("moves the pane with the finger and goes back when released past a third of the width", () => {
+      const onBack = vi.fn();
+      const pane = setup(onBack);
+      act(() => { pane.dispatchEvent(touch("pointerdown", 10)); pane.dispatchEvent(touch("pointermove", 80)); });
+      expect(pane.getAttribute("data-dragging")).toBe("true");
+      expect(pane.style.transform).toBe("translateX(70px)");
+      act(() => { pane.dispatchEvent(touch("pointermove", 200)); pane.dispatchEvent(touch("pointerup", 200, 100, { timeStamp: 900 })); });
+      expect(onBack).toHaveBeenCalledOnce();
+      expect(pane.style.transform).toBe("");
+    });
+    it("puts the pane back, and loses nothing, when released early or cancelled", () => {
+      const onBack = vi.fn();
+      const pane = setup(onBack);
+      act(() => { pane.dispatchEvent(touch("pointerdown", 10)); pane.dispatchEvent(touch("pointermove", 60)); pane.dispatchEvent(touch("pointerup", 60, 100, { timeStamp: 900 })); });
+      expect(onBack).not.toHaveBeenCalled();
+      expect(pane.style.transform).toBe("");
+      act(() => { pane.dispatchEvent(touch("pointerdown", 10)); pane.dispatchEvent(touch("pointermove", 300)); pane.dispatchEvent(touch("pointercancel", 300)); });
+      expect(onBack).not.toHaveBeenCalled();
+      expect(pane.style.transform).toBe("");
+    });
+    it("ignores a drag that does not start at the leading edge, a vertical scroll and a mouse", () => {
+      const onBack = vi.fn();
+      const pane = setup(onBack);
+      act(() => { pane.dispatchEvent(touch("pointerdown", 150)); pane.dispatchEvent(touch("pointermove", 380)); pane.dispatchEvent(touch("pointerup", 380)); });
+      act(() => { pane.dispatchEvent(touch("pointerdown", 10)); pane.dispatchEvent(touch("pointermove", 20, 300)); pane.dispatchEvent(touch("pointermove", 300, 300)); pane.dispatchEvent(touch("pointerup", 300, 300)); });
+      act(() => { pane.dispatchEvent(touch("pointerdown", 10, 100, { pointerType: "mouse" })); pane.dispatchEvent(touch("pointermove", 380, 100, { pointerType: "mouse" })); pane.dispatchEvent(touch("pointerup", 380, 100, { pointerType: "mouse" })); });
+      expect(onBack).not.toHaveBeenCalled();
+      fireEvent.pointerUp(pane);
+    });
+  });
+  it("an open Omnibar marks the shell so the composer and reach zone step aside", () => {
+    const { container } = render(shell(ONE, false, { omnibar: <div role="dialog" aria-label="Omnibar" /> }));
+    expect(container.querySelector(".om-shell")?.getAttribute("data-omnibar")).toBe("open");
+    expect(screen.getByRole("dialog", { name: "Omnibar" })).toBeTruthy();
   });
   it("split uses panes plus the tab bar", () => {
     setEnv(BREAKPOINTS.split);

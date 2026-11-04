@@ -1,13 +1,13 @@
 // The connected application shell shared by the production Core composition and the dev/e2e entries: conversation
 // list, requests, conversation view, composer, Settings > Devices / Recovery. It only talks to a CoreClient.
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { ConversationId, IntroductionRequest, OperationId } from "@om/platform-api";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { parseInviteLink, type ConversationId, type IntroductionRequest, type OperationId } from "@om/platform-api";
 import {
-  AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, RecoveryScreen, StrangerPressure, Text, useActiveProfile, useLayoutMode,
-  type IconName,
+  AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode,
+  type IconName, type OmniEntry,
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
-import { appStrings as t, conversationCopy, onboardingCopy, deviceScannerCopy, devicesCopy, scannerCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
+import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, deviceScannerCopy, devicesCopy, scannerCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
 import { useQrScanner } from "../qr/Scanner";
 import { CopyNotice } from "../CopyNotice";
 import { CHATS, placeTitle, placeUrl, usePlace, type SettingsPage } from "../route/place";
@@ -84,6 +84,37 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
   const select = (id: ConversationId): void => { go({ kind: "chats", chat: id }); };
   const toChats = (): void => { back(CHATS); };
 
+  // Omnibar (find or do) and the new-conversation sheet. Both are local: nothing typed in the Omnibar leaves this device.
+  const [omniOpen, setOmniOpen] = useState(false);
+  const [newChat, setNewChat] = useState<{ readonly focus: "share" | "scan" | "qr"; readonly link: string | undefined } | null>(null);
+  const [acceptedAfter, setAcceptedAfter] = useState<readonly string[] | null>(null);
+  const chatIdsNow = useRef<readonly string[]>([]);
+  chatIdsNow.current = list.status === "ready" ? list.value.map((c) => c.id) : [];
+  const chatIdsAtOpen = useRef<readonly string[]>([]);
+  const openNew = useCallback((focus: "share" | "scan" | "qr", link?: string): void => {
+    chatIdsAtOpen.current = chatIdsNow.current;
+    setOmniOpen(false);
+    setNewChat({ focus, link });
+  }, []);
+  // Cmd/Ctrl+K opens the same Omnibar as the visible control (and closes it again).
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent): void => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "k") return;
+      e.preventDefault();
+      if (newChat === null) setOmniOpen((open) => !open);
+    };
+    globalThis.addEventListener("keydown", onKey);
+    return () => { globalThis.removeEventListener("keydown", onKey); };
+  }, [newChat]);
+  // A chat added from the sheet opens, like one added from an invitation link.
+  useEffect(() => {
+    if (acceptedAfter === null || list.status !== "ready") return;
+    const fresh = list.value.find((c) => !acceptedAfter.includes(c.id));
+    if (fresh === undefined) return;
+    go({ kind: "chats", chat: fresh.id });
+    setAcceptedAfter(null);
+  }, [acceptedAfter, list, go]);
+
   // An accepted invite adds its chat at once (it says it is waiting for the other person): open it so the person sees what happened.
   const newChatAfter = incoming?.newChatAfter ?? null;
   const newChatOpened = incoming?.onNewChatOpened;
@@ -133,28 +164,76 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
       )}
     </>
   );
+  const shortcut = typeof navigator !== "undefined" && /mac|iphone|ipad/i.test(navigator.platform) ? "\u2318K" : "Ctrl K";
+  const omniEntries = useMemo<readonly OmniEntry[]>(() => {
+    const out: OmniEntry[] = [];
+    if (list.status === "ready") list.value.forEach((c, i) => { out.push({ id: `chat-${c.id}`, kind: "conversation", label: c.displayName, suggested: i < 3, run: () => { go({ kind: "chats", chat: c.id }); } }); });
+    if (invite !== undefined) {
+      out.push({ id: "invite", kind: "action", label: t.omniActions.invite, keywords: t.omniKeywords.invite, suggested: true, run: () => { openNew("share"); } });
+      out.push({ id: "scan", kind: "action", label: t.omniActions.scan, keywords: t.omniKeywords.scan, suggested: true, run: () => { openNew("scan"); } });
+      out.push({ id: "qr", kind: "action", label: t.omniActions.showQr, keywords: t.omniKeywords.showQr, suggested: true, run: () => { openNew("qr"); } });
+    }
+    out.push({ id: "chats", kind: "action", label: t.omniActions.chats, keywords: t.omniKeywords.chats, run: () => { go(CHATS); } });
+    out.push({ id: "settings", kind: "setting", label: t.omniActions.settings, keywords: t.omniKeywords.settings, run: () => { go({ kind: "settings", page: "menu" }); } });
+    const pages: readonly { readonly page: SettingsPage; readonly title: string; readonly words: string; readonly on: boolean }[] = [
+      { page: "lock", title: t.settingsLock, words: t.settingsKeywords.lock, on: lock !== undefined },
+      { page: "devices", title: t.settingsDevices, words: t.settingsKeywords.devices, on: true },
+      { page: "recovery", title: t.settingsRecovery, words: t.settingsKeywords.recovery, on: true },
+      { page: "backup", title: t.settingsBackup, words: t.settingsKeywords.backup, on: backup !== undefined },
+      { page: "delivery", title: t.settingsHome, words: t.settingsKeywords.delivery, on: home !== undefined },
+      { page: "help", title: t.settingsHelp, words: t.settingsKeywords.help, on: true },
+    ];
+    for (const p of pages) if (p.on) out.push({ id: `settings-${p.page}`, kind: "setting", label: p.title, keywords: p.words, run: () => { go({ kind: "settings", page: p.page }); } });
+    if (onAddProfile !== undefined) out.push({ id: "add-profile", kind: "action", label: t.addProfile, keywords: t.settingsKeywords.addProfile, run: onAddProfile });
+    if (safetyCode !== undefined) out.push({ id: "safety-code", kind: "setting", label: t.safetyCode.action, keywords: t.settingsKeywords.recovery, run: () => { go({ kind: "safety-code" }); } });
+    return out;
+  }, [list, invite, lock, backup, home, onAddProfile, safetyCode, go, openNew]);
+  // A pasted invitation link is explicit intent: it is offered first and leads to the sheet with the link already in place.
+  const omniDynamic = useCallback((query: string): readonly OmniEntry[] => {
+    if (invite === undefined || !parseInviteLink(query).ok) return [];
+    return [{ id: "use-link", kind: "action", label: t.omniActions.useLink, keywords: t.omniKeywords.useLink, run: () => { openNew("share", query.trim()); } }];
+  }, [invite, openNew]);
+  const openOmni = (): void => { setOmniOpen(true); };
+  const trigger = <OmnibarTrigger copy={omnibarCopy} shortcut={shortcut} onOpen={openOmni} />;
   const common = {
     destinations: [{ id: "chats", label: t.chats, icon: <Icon name="chat" size={20} /> }], activeDestination: settings === null && !savingCode ? "chats" : "",
     onDestinationChange: () => { if (place.kind !== "chats" || place.chat !== null) toChatsRoot(); }, labels: shellLabels, profileControl,
+    omnibarTrigger: trigger,
+    omnibar: omniOpen ? <Omnibar entries={omniEntries} dynamic={omniDynamic} copy={omnibarCopy} onClose={() => { setOmniOpen(false); }} /> : undefined,
   } as const;
+  // Starting a conversation is an action within Chats, so it is a sheet over the place, not another place (COMPONENT_BEHAVIOR_AND_STATES.md s8).
+  const newChatSheet = newChat !== null && invite !== undefined ? (
+    <Sheet title={t.newConversation.title} closeLabel={t.newConversation.close} onClose={() => { setNewChat(null); }}>
+      <InviteFirst
+        services={services} platform={invite.platform} copy={onboardingCopy.invite} renderQr={invite.renderQr} scanQr={inviteScan.scanQr} {...(invite.shareLink ? { shareLink: invite.shareLink } : {})}
+        focusChoice={newChat.focus} {...(newChat.link === undefined ? {} : { initialLink: newChat.link })}
+        onAccepted={() => { setAcceptedAfter(chatIdsAtOpen.current); setNewChat(null); }}
+      />
+    </Sheet>
+  ) : null;
 
   if (savingCode) {
     return (
-      <AppShell
-        {...common}
-        conversationOpen
-        list={<Text>{t.loading}</Text>}
-        detail={(
-          <div className="om-page">
-            <SubPage label={t.backToChats} onBack={toChats}>
-              <RecoveryKeyStep
-                services={services} platform={safetyCode.platform} keyOperationId={safetyCode.keyOperationId} copy={onboardingCopy.recovery}
-                onConfirmed={() => { toChats(); safetyCode.onResolved(); }}
-              />
-            </SubPage>
-          </div>
-        )}
-      />
+      <>
+        <AppShell
+          {...common}
+          conversationOpen
+          onBack={toChats}
+          list={<Text>{t.loading}</Text>}
+          detail={(
+            <div className="om-page">
+              <SubPage label={t.backToChats} onBack={toChats}>
+                <RecoveryKeyStep
+                  services={services} platform={safetyCode.platform} keyOperationId={safetyCode.keyOperationId} copy={onboardingCopy.recovery}
+                  onConfirmed={() => { toChats(); safetyCode.onResolved(); }}
+                />
+              </SubPage>
+            </div>
+          )}
+        />
+        {inviteScan.dialog}
+        {newChatSheet}
+      </>
     );
   }
   if (settings !== null) {
@@ -163,6 +242,7 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
         <AppShell
           {...common}
           conversationOpen={settings !== "menu"}
+          onBack={() => { back({ kind: "settings", page: "menu" }); }}
           list={(
             <SettingsMenu
               page={settings} onOpen={(page) => { go({ kind: "settings", page }); }} onAddProfile={onAddProfile} hasHome={home !== undefined} hasLock={lock !== undefined} hasBackup={backup !== undefined}
@@ -187,6 +267,8 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
           )}
         />
         {deviceScan.dialog}
+        {inviteScan.dialog}
+        {newChatSheet}
       </>
     );
   }
@@ -196,9 +278,13 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
       <AppShell
         {...common}
         conversationOpen={selected !== null}
+        onBack={toChats}
         list={
           <>
-            <header className="om-page-head"><Text as="h1" size="xl" weight="bold">{t.chats}</Text></header>
+            <header className="om-page-head om-page-head--row">
+              <Text as="h1" size="xl" weight="bold">{t.chats}</Text>
+              {invite !== undefined && !emptyInviteFirst ? <Button variant="quiet" onClick={() => { openNew("share"); }}><Icon name="plus" size={20} />{t.newConversation.action}</Button> : null}
+            </header>
             {incoming?.token != null ? (
               <section className="om-page om-stack">
                 <AcceptInvite
@@ -232,10 +318,12 @@ export function Shell({ services, devicesExtra, onAddProfile, home, lock, backup
           <Composer
             key={selected} services={services} conversationId={selected} copy={conversationCopy} draft={drafts.get(selected) ?? ""}
             onDraftChange={(next) => { setDrafts((d) => new Map(d).set(selected, next)); draftSync?.save(selected, next); }}
+            trailing={<OmnibarTrigger variant="icon" copy={omnibarCopy} onOpen={openOmni} />}
           />
         )}
       />
       {inviteScan.dialog}
+      {newChatSheet}
       <LiveRegion>{selected === null ? "" : t.conversationOpened}</LiveRegion>
     </>
   );

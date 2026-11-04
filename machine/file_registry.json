@@ -557,6 +557,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/omnibar.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/playwright.config.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8950,6 +8957,48 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/omnibar/Omnibar.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/omnibar/copy.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/omnibar/index.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/omnibar/match.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/omnibar/omnibar.css",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/omnibar/omnibar.test.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/onboarding/AcceptInvite.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -9216,7 +9265,28 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/shell/layout/Sheet.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/shell/layout/sheet.css",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/shell/layout/shell.css",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/shell/layout/useEdgeSwipeBack.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

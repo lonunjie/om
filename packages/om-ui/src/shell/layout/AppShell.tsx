@@ -1,4 +1,5 @@
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEdgeSwipeBack } from "./useEdgeSwipeBack";
 import { BREAKPOINTS, minWidthQuery, type LayoutMode } from "@om/design";
 import { useMediaQuery } from "../theme/useMediaQuery";
 import { SkipLink } from "../primitives/SkipLink";
@@ -29,8 +30,13 @@ export interface AppShellProps {
   readonly list: ReactNode;
   readonly detail: ReactNode;
   readonly composerZone?: ReactNode;
+  /** The Omnibar's entry: in the lower reach zone on a compact list, in the top bar from 600 px. In a compact conversation it belongs inside the composer (Composer's `trailing` slot), so it is not drawn twice. */
   readonly omnibarTrigger?: ReactNode;
+  /** The open Omnibar (see `Omnibar`). While it is shown the composer and the lower reach zone are hidden on a compact screen: only one text entry at a time. */
+  readonly omnibar?: ReactNode;
   readonly profileControl?: ReactNode;
+  /** Goes back from the open pane (compact). With it, a touch drag from the leading edge follows the finger and goes back when released far enough. */
+  readonly onBack?: () => void;
   /** Mirrors the trailing reach zone to the leading side (user preference; not inferred). */
   readonly mirrored?: boolean;
 }
@@ -100,29 +106,34 @@ const Rail = ({ destinations, active, onChange, label, footer }: {
   </div>
 );
 
-// Adaptive shell: slots only. Compact root is Chats; expanded shows rail + list/detail panes.
+// Adaptive shell: slots only. Compact root is Chats; wide shows list + detail panes under a top bar (Omnibar, identity). A left rail
+// exists only once a second destination is exposed: a rail with one item adds chrome, not orientation (UI_UX_SYSTEM.md, Default compact shell).
 // DOM order (= focus order): list -> detail -> composer.
 export const AppShell = (p: AppShellProps) => {
   const mode = useLayoutMode();
   const compact = mode === "compact";
+  const detailPane = useRef<HTMLElement>(null);
+  const rail = mode === "expanded" && p.destinations.length >= 2;
   const showTabBar = p.destinations.length >= 2 && (mode === "split" || (compact && !p.conversationOpen));
   const showList = !compact || !p.conversationOpen;
   const showDetail = !compact || p.conversationOpen;
-  const triggerInComposer = compact && p.conversationOpen;
+  useEdgeSwipeBack(detailPane, compact && p.conversationOpen, p.onBack);
+  // A compact page with no composer (a Settings page) still needs a way to reach the Omnibar.
+  const triggerInComposer = compact && p.conversationOpen && !p.composerZone;
   const tabs = { destinations: p.destinations, active: p.activeDestination, onChange: p.onDestinationChange, label: p.labels.navigation };
   return (
-    <div className="om-shell" data-layout={mode} data-conversation-open={p.conversationOpen} data-mirrored={p.mirrored === true}>
+    <div className="om-shell" data-layout={mode} data-conversation-open={p.conversationOpen} data-mirrored={p.mirrored === true} data-omnibar={p.omnibar ? "open" : "closed"}>
       <SkipLink targetId="om-main">{p.labels.skipToContent}</SkipLink>
-      {mode === "expanded" ? <Rail {...tabs} footer={p.profileControl} /> : null}
-      {!compact && (p.omnibarTrigger || (mode === "split" && p.profileControl)) ? (
+      {rail ? <Rail {...tabs} footer={p.profileControl} /> : null}
+      {!compact && (p.omnibarTrigger || (!rail && p.profileControl)) ? (
         <div className="om-shell__topbar">
           {p.omnibarTrigger}
-          {mode === "split" ? p.profileControl : null}
+          {!rail ? p.profileControl : null}
         </div>
       ) : null}
       <main id="om-main" className="om-shell__panes" tabIndex={-1}>
         {showList ? <section className="om-shell__list" aria-label={p.labels.list}>{p.list}</section> : null}
-        {showDetail ? <section className="om-shell__detail" aria-label={p.labels.detail}>{p.detail}</section> : null}
+        {showDetail ? <section ref={detailPane} className="om-shell__detail" aria-label={p.labels.detail}>{p.detail}</section> : null}
         {p.composerZone || triggerInComposer ? (
           <div className="om-shell__composer">
             {p.composerZone}
@@ -137,6 +148,7 @@ export const AppShell = (p: AppShellProps) => {
         </div>
       ) : null}
       {showTabBar ? <TabBar {...tabs} /> : null}
+      {p.omnibar}
     </div>
   );
 };

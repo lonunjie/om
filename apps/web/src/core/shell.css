@@ -10,6 +10,7 @@
 /* The wide layout's unselected detail pane: a quiet centred prompt, not a stray line in the corner. */
 .om-page--empty { block-size: 100%; box-sizing: border-box; display: grid; place-items: center; text-align: center; }
 .om-stack { display: grid; gap: var(--om-space-3); }
+.om-page-head--row { display: flex; align-items: center; justify-content: space-between; gap: var(--om-space-3); }
 .om-page-head { padding: var(--om-space-4) max(var(--om-space-4), env(safe-area-inset-right)) var(--om-space-2) max(var(--om-space-4), env(safe-area-inset-left)); }
 .om-card { display: grid; gap: var(--om-space-3); padding: var(--om-space-4); border-radius: var(--om-radius-lg); background: var(--om-color-bg-raised); box-shadow: var(--om-elevation-1); animation: om-rise var(--om-motion-standard) var(--om-ease-enter) both; }
 .om-shell:not([data-layout="compact"]) .om-conv-view__back { display: none; }
@@ -46,8 +47,8 @@ a.om-menu__row { text-decoration: none; }
 /* The signed-in person, in place of the word "Settings". */
 .om-me { gap: var(--om-space-2); max-inline-size: 100%; padding-inline: var(--om-space-2) var(--om-space-4); }
 .om-me__avatar { display: inline-flex; flex: none; }
-.om-me__name { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .om-me[aria-pressed="true"] { background: var(--om-color-selection-bg); }
+.om-me__name { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* An empty pane is a quiet picture, not a sentence. */
 .om-empty-art { color: var(--om-color-text-muted); opacity: 0.45; }

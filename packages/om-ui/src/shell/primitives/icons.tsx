@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 
 export type IconName =
-  | "back" | "send" | "settings" | "chevron" | "plus" | "chat" | "share" | "link" | "qr" | "check" | "search" | "lock" | "devices" | "shield" | "delivery" | "userPlus" | "close" | "scan" | "download";
+  | "back" | "send" | "settings" | "chevron" | "plus" | "chat" | "share" | "link" | "qr" | "check" | "search" | "lock" | "devices" | "shield" | "delivery" | "userPlus" | "close" | "scan" | "download" | "omni";
 
 const PATHS: Readonly<Record<IconName, ReactNode>> = {
   back: <path d="M19 12H5M11 5l-7 7 7 7" />,
@@ -26,6 +26,8 @@ const PATHS: Readonly<Record<IconName, ReactNode>> = {
   userPlus: <><circle cx="10" cy="8" r="4" /><path d="M3 21c0-4 3-6 7-6M18 14v6M15 17h6" /></>,
   close: <path d="M6 6l12 12M18 6L6 18" />,
   download: <path d="M12 4v11M7 11l5 5 5-5M5 20h14" />,
+  // The Omnibar: a ring with a dot, deliberately not a magnifier (it finds and does).
+  omni: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="2.6" fill="currentColor" /></>,
 };
 
 export const Icon = ({ name, size = 22 }: { readonly name: IconName; readonly size?: number }) => (

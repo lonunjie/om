@@ -9,7 +9,7 @@ test("onboarding with a passphrase, QR code, Settings > Devices and Recovery", a
   console.log(`argon2id default cost, lock step: ${browserName} ${String(lockMs)} ms`); // desktop figure, not a phone figure
   expect(lockMs).toBeLessThan(45_000);
 
-  await page.getByRole("button", { name: "Show as QR code" }).click();
+  await page.getByRole("button", { name: "Show my QR" }).click();
   await expect(page.getByRole("figure", { name: "QR code for your invite" }).locator("svg path")).toBeVisible();
 
   await page.getByRole("button", { name: "Skip for now" }).click();

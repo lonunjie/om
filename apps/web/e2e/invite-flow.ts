@@ -34,7 +34,7 @@ export async function inviteAndChat(browser: Browser, base: string): Promise<{ r
   await shot(alice, "01-alice-ready");
   await alice.getByRole("button", { name: "Copy link" }).click();
   await expect(alice.getByText(/Link copied/)).toBeAttached(); // a green tick for the eye, the words for a screen reader
-  await alice.getByRole("button", { name: "Show as QR code" }).click();
+  await alice.getByRole("button", { name: "Show my QR" }).click();
   await shot(alice, "02-alice-link");
   const link = (await alice.locator("code[translate=no]").first().textContent())?.trim() ?? "";
   expect(link).toMatch(new RegExp(`^${base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/#invite/[A-Za-z0-9_-]{22,}$`));

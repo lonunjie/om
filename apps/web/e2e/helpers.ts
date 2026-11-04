@@ -42,7 +42,7 @@ export async function walkSetup(page: Page, o: OnboardOptions = {}): Promise<{ r
   return { lockMs };
 }
 
-/** The optional safety-code flow, from the "Save my safety code" reminder at the top of Settings (a dot on the profile button points there). */
+/** The optional safety-code flow, from the "Save my safety code" reminder at the top of Settings (the reminder card is the first thing in Settings). */
 export async function saveSafetyCode(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Settings" }).click();
   await page.getByRole("button", { name: "Save my safety code" }).click();

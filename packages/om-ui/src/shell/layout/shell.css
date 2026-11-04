@@ -30,7 +30,8 @@
 }
 
 /* Back on a touch screen follows the finger (MOTION_AND_PERFORMANCE.md, "Back gesture"): the open pane is dragged from its leading edge. */
-.om-shell__detail[data-dragging="true"] { transition: none; touch-action: pan-y; }
+.om-shell[data-layout="compact"] .om-shell__detail { touch-action: pan-y; }
+.om-shell__detail[data-dragging="true"] { transition: none; }
 .om-shell__detail[data-settling="true"] { transition: transform var(--om-motion-quick) var(--om-ease-move); }
 
 .om-shell__composer {
@@ -61,6 +62,10 @@
 .om-shell:not(:has(.om-shell__tabbar)) .om-shell__reach {
   padding-block-end: calc(var(--om-space-2) + env(safe-area-inset-bottom, 0px));
 }
+
+/* While the Omnibar is open on a compact screen it owns the lower zone: the composer and the reach zone step aside (one text entry at a time). */
+.om-shell[data-layout="compact"][data-omnibar="open"] .om-shell__composer,
+.om-shell[data-layout="compact"][data-omnibar="open"] .om-shell__reach { visibility: hidden; }
 
 .om-profile-switcher {
   display: flex;
@@ -161,7 +166,8 @@
 }
 
 @media (min-width: 900px) {
-  .om-shell {
+  /* A left rail exists only when two or more destinations are exposed; with one (the default) the top bar carries the Omnibar and the identity control. */
+  .om-shell:has(> .om-shell__rail) {
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas: "rail topbar" "rail panes";
@@ -172,6 +178,8 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    gap: var(--om-space-3);
+    overflow: auto;
     padding: var(--om-space-3) var(--om-space-2);
     border-inline-end: 1px solid var(--om-hairline);
     background: var(--om-color-bg-surface);
@@ -183,29 +191,13 @@
     gap: var(--om-space-1);
   }
 
-  /* The destination is a button and looks like one: a round outline with its icon, filled when it is the place you are in. */
   .om-shell__rail .om-shell__dest {
     flex-direction: row;
     justify-content: flex-start;
     gap: var(--om-space-2);
     padding-inline: var(--om-space-4);
-    border: 1px solid var(--om-color-border);
-    border-radius: var(--om-radius-pill);
-    color: var(--om-color-text-primary);
-    font-weight: var(--om-weight-medium);
-  }
-  .om-shell__rail .om-shell__dest[aria-current="page"] {
-    background: var(--om-color-bg-sunken);
-    border-color: var(--om-color-accent);
-    color: var(--om-color-accent);
-    box-shadow: none;
   }
   .om-shell__rail .om-shell__dest-icon { display: inline-flex; }
-
-  .om-shell__rail {
-    overflow: auto;
-    gap: var(--om-space-3);
-  }
 
   .om-shell__rail-footer {
     display: flex;

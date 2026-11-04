@@ -1,0 +1,12 @@
+/* A sheet rises from the bottom on a phone and sits centred on a wide screen. Tokens only; the arrival collapses under reduced motion. */
+.om-sheet { position: fixed; inset: 0; z-index: var(--om-z-modal); display: flex; flex-direction: column; justify-content: flex-end; }
+.om-sheet__scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--om-color-text-primary) 32%, transparent); }
+.om-sheet__panel { position: relative; display: flex; flex-direction: column; max-block-size: 92dvh; background: var(--om-color-bg-overlay); border-block-start: 1px solid var(--om-color-border-subtle); border-start-start-radius: var(--om-radius-lg); border-start-end-radius: var(--om-radius-lg); box-shadow: var(--om-elevation-3); animation: om-sheet-in var(--om-motion-standard) var(--om-ease-enter) both; outline: none; }
+.om-sheet__head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--om-space-3); padding: var(--om-space-2) max(var(--om-space-3), env(safe-area-inset-right)) var(--om-space-2) max(var(--om-space-4), env(safe-area-inset-left)); border-block-end: 1px solid var(--om-hairline); }
+.om-sheet__head > .om-text { min-inline-size: 0; overflow-wrap: anywhere; }
+.om-sheet__body { min-block-size: 0; overflow: auto; overscroll-behavior: contain; padding: var(--om-space-4) max(var(--om-space-4), env(safe-area-inset-right)) calc(var(--om-space-4) + env(safe-area-inset-bottom, 0px)) max(var(--om-space-4), env(safe-area-inset-left)); }
+@keyframes om-sheet-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@media (min-width: 600px) {
+  .om-sheet { justify-content: center; align-items: center; }
+  .om-sheet__panel { inline-size: min(32rem, calc(100% - 2 * var(--om-space-4))); border: 1px solid var(--om-color-border-subtle); border-radius: var(--om-radius-lg); }
+}

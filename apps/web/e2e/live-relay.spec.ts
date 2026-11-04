@@ -139,7 +139,7 @@ test("two fresh identities exchange messages through the LIVE Home with the prod
     // (A local Home, used to compare request counts, shows the loopback banner by design.)
     if (!/^http:\/\/(127\.0\.0\.1|localhost)/.test(HOME)) await expect(page.getByText("E2E LOCAL RELAY")).toHaveCount(0);
     await expect(page.getByText("Not connected to a delivery service")).toHaveCount(0);
-    await page.getByRole("button", { name: "Show as QR code" }).click();
+    await page.getByRole("button", { name: "Show my QR" }).click();
     const link = (await page.locator("code[translate=no]").first().textContent())?.trim() ?? "";
     expect(link).toMatch(/^https?:\/\/[^/]+\/#invite\/[A-Za-z0-9_-]+$/);
     await page.getByRole("button", { name: "Skip for now" }).click();

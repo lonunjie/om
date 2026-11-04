@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { KeyboardEvent, SyntheticEvent } from "react";
+import type { KeyboardEvent, ReactNode, SyntheticEvent } from "react";
 import type { ConversationId, CoreIntent, OperationHandle, OutcomeClass } from "@om/platform-api";
 import { Icon } from "../shell/primitives/icons";
 import { IconButton } from "../shell/primitives/IconButton";
@@ -19,6 +19,8 @@ export interface ComposerProps {
   readonly onDraftChange: (next: string) => void;
   readonly inputPrivacy?: InputPrivacy;
   readonly onSent?: (handle: OperationHandle) => void;
+  /** Controls placed immediately before Send, in the strong lower-trailing reach area (the Omnibar trigger; OMNIBAR_TRIGGER_AND_TRANSITION.md s2). */
+  readonly trailing?: ReactNode;
 }
 
 /** Clear the draft only for these; Rejected and NeedsUserAction leave it intact. */
@@ -28,7 +30,7 @@ const enterSends = (): boolean => typeof matchMedia === "function" && matchMedia
 
 const clearsDraft = (o: OutcomeClass): boolean => o.kind === "Committed" || o.kind === "PendingAuthorization" || o.kind === "PendingNetwork" || o.kind === "PendingReconciliation";
 
-export function Composer({ services, conversationId, copy, draft, onDraftChange, inputPrivacy = PRIVATE_DEFAULT, onSent }: ComposerProps) {
+export function Composer({ services, conversationId, copy, draft, onDraftChange, inputPrivacy = PRIVATE_DEFAULT, onSent, trailing }: ComposerProps) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -92,6 +94,7 @@ export function Composer({ services, conversationId, copy, draft, onDraftChange,
         value={draft} spellCheck={inputPrivacy.spellcheck} autoComplete={inputPrivacy.autocomplete} autoCorrect={inputPrivacy.autocomplete}
         onChange={(e) => { onDraftChange(e.target.value); }} onKeyDown={onKeyDown}
       />
+      {trailing}
       <IconButton type="submit" className="om-composer__send" data-variant="primary" label={copy.composer.send} icon={<Icon name="send" />} disabled={busy || draft.trim() === ""} />
       {notice === null ? null : <p className="om-composer__notice" role="alert">{notice}</p>}
     </form>

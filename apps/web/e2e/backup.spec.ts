@@ -24,7 +24,7 @@ async function switchIdentity(page: Page): Promise<void> {
 async function talk(page: Page): Promise<void> {
   await noPasskeys(page);
   await onboard(page, { stopAt: "invite", name: "Alice" });
-  await page.getByRole("button", { name: "Show as QR code" }).click();
+  await page.getByRole("button", { name: "Show my QR" }).click();
   const link = (await page.locator("code[translate=no]").first().textContent())?.trim() ?? "";
   await page.getByRole("button", { name: "Skip for now" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
