@@ -477,6 +477,24 @@ impl<R: RngCore + CryptoRng> Core<R> {
         ))
     }
 
+    /// TEST ONLY: adopt the introduction of one of our own other devices (see `Tx::debug_adopt_sibling_intro`).
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_adopt_sibling_intro(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        conversation_id: &str,
+        intro: &[u8],
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.debug_adopt_sibling_intro(conversation_id, intro)
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
+    }
+
     /// TEST ONLY: deposit an arbitrary authenticated inner payload (see `Tx::debug_inject`).
     #[cfg(feature = "test-loopback")]
     pub fn debug_inject_payload(
@@ -753,6 +771,14 @@ fn timeline_item(m: &Msg) -> TimelineItem {
         (Some(op), true) => TimelineItem::Outgoing {
             message_id: m.id.clone(),
             operation_id: op.clone(),
+            text: m.text.clone(),
+            sent_at: m.sent_at,
+            delivery: m.delivery.clone(),
+        },
+        // A message our own other device sent (self-sync): ours, with no operation on this device behind it.
+        (None, true) => TimelineItem::Outgoing {
+            message_id: m.id.clone(),
+            operation_id: format!("synced:{}", m.id),
             text: m.text.clone(),
             sent_at: m.sent_at,
             delivery: m.delivery.clone(),

@@ -1564,7 +1564,8 @@ fn initiator_binding_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &
         ),
     );
 
-    // Crossed initiation between bound peers still reaches the session rule (SessionConflict), not the binding.
+    // Crossed initiation between bound peers (K4): both initiated, neither has heard back. The lower EK_A wins on both
+    // devices, so exactly one session survives; the higher initiation is ignored, never a binding failure.
     let mut b = bob.clone();
     carol.trust_device(&b).unwrap();
     let mut cprov = Provider::default();
@@ -1578,19 +1579,38 @@ fn initiator_binding_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &
     )
     .unwrap();
     let env_c = send(&mut carol, rng);
-    let (ok, d) = expect_err(
-        b.decrypt(
-            &binding::RelationshipContext::new(carol.account_id),
-            &env_c,
-            rng,
-        ),
-        &Error::SessionConflict,
+    let env_b = send(&mut b, rng);
+    let ek_b = b.sessions.values().find(|s| s.initiator).unwrap().init_ek;
+    let ek_c = carol
+        .sessions
+        .values()
+        .find(|s| s.initiator)
+        .map(|s| s.init_ek)
+        .unwrap();
+    let rb = b.decrypt(
+        &binding::RelationshipContext::new(carol.account_id),
+        &env_c,
+        rng,
     );
+    let rc = carol.decrypt(
+        &binding::RelationshipContext::new(b.account_id),
+        &env_b,
+        rng,
+    );
+    let (b_wins, c_wins) = (ek_b < ek_c, ek_c < ek_b);
+    let ok = (b_wins && matches!(rb, Err(Error::CrossedInitiation)) && rc.is_ok())
+        || (c_wins && rb.is_ok() && matches!(rc, Err(Error::CrossedInitiation)));
     chk(
         out,
-        "initiator_crossed_initiation_between_bound_peers_reaches_session_rule",
+        "initiator_crossed_initiation_lower_ek_wins_on_both_devices",
         ok,
-        d,
+        format!(
+            "ek_b<ek_c={b_wins}; b.ok={} b.crossed={}; carol.ok={} carol.crossed={}",
+            rb.is_ok(),
+            matches!(rb, Err(Error::CrossedInitiation)),
+            rc.is_ok(),
+            matches!(rc, Err(Error::CrossedInitiation)),
+        ),
     );
 }
 

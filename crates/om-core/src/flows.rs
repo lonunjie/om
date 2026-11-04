@@ -277,12 +277,27 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         inner: &[u8],
         purpose: Purpose,
     ) -> u64 {
+        self.enqueue_sealed_for(conv, None, route, wrapper, inner, purpose)
+    }
+
+    /// As [`Self::enqueue_sealed`], for a deposit addressed to another device of the conversation: the failover must
+    /// stay inside that device's routes (`device` is its id, `None` for the first-contact peer device).
+    fn enqueue_sealed_for(
+        &mut self,
+        conv: &str,
+        device: Option<&str>,
+        route: &RelayEntry,
+        wrapper: Vec<u8>,
+        inner: &[u8],
+        purpose: Purpose,
+    ) -> u64 {
         let id = self.enqueue(deposit_call(route, wrapper), purpose);
         if let Some(e) = self.st.app.outbox.iter_mut().find(|e| e.id == id) {
             e.failover = Some(Failover {
                 conversation_id: conv.to_string(),
                 inner: hex(inner),
                 tried: vec![],
+                device: device.map(str::to_string),
             });
         }
         id
@@ -1064,6 +1079,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 head_asked_ms: 0,
                 head_dirty: false,
                 head_sent_ms: 0,
+                multi: Multi::default(),
             },
         );
         self.st.app.intros.remove(request_id);
@@ -1161,6 +1177,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             clock_logical: clock.logical,
             deleted: false,
             queued_event: Some(hex(&payload)),
+            fan: vec![],
         });
         rel.hlc_ms = clock.physical_ms;
         rel.hlc_logical = clock.logical;
@@ -1172,25 +1189,74 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         Ok(())
     }
 
-    /// Encrypt, seal and enqueue every queued outgoing event of `conv`, in order. Any failure aborts the whole staged
-    /// transaction, so a ratchet advance is never persisted without its outbox entry.
+    /// Encrypt, seal and enqueue every queued outgoing event of `conv`, in order: one copy for the first-contact peer
+    /// device (when the head lists it as active) and one for every other eligible device of the recipient and of
+    /// ourselves (K5/K6, self-sync). A copy that cannot be sealed yet waits (never dropped, never sent in the clear).
+    /// Any failure aborts the whole staged transaction, so a ratchet advance is never persisted without its outbox entry.
     fn release_queued(&mut self, conv: &str) -> Result<(), CoreError> {
         let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
             return Ok(());
         };
-        let Ok((pd, route)) = self.peer_target(&rel) else {
-            return Ok(()); // still no usable key: stay queued
+        if rel.multi.in_view {
+            return Ok(()); // a device-scoped step: the owner of the view releases afterwards
+        }
+        let primary = if self.primary_eligible(&rel) {
+            match self.peer_target(&rel) {
+                Ok(t) => Some(t),
+                Err(_) => return Ok(()), // still no usable key: stay queued
+            }
+        } else {
+            None
         };
         let peer_ik = h32(&rel.peer_ik)?;
         for m in rel.messages.iter().filter(|m| m.queued_event.is_some()) {
             let payload = hb(m.queued_event.as_deref().unwrap_or_default())?;
-            let (env, _) = self
-                .device()?
-                .encrypt(&peer_ik, &payload)
-                .map_err(|_| CoreError::Invalid("encrypt"))?;
-            let wrapper = self
-                .seal_to(&pd, &route, &env)
-                .map_err(|_| CoreError::Invalid("seal"))?;
+            let mut fan = vec![];
+            if let Some((pd, route)) = &primary {
+                let unconfirmed = self
+                    .st
+                    .device
+                    .as_ref()
+                    .is_some_and(|d| d.session_unconfirmed(&peer_ik));
+                let (env, _) = self
+                    .device()?
+                    .encrypt(&peer_ik, &payload)
+                    .map_err(|_| CoreError::Invalid("encrypt"))?;
+                let wrapper = self
+                    .seal_to(pd, route, &env)
+                    .map_err(|_| CoreError::Invalid("seal"))?;
+                if let Some(slot) = self
+                    .st
+                    .app
+                    .relationships
+                    .get_mut(conv)
+                    .and_then(|r| r.messages.iter_mut().find(|x| x.id == m.id))
+                {
+                    slot.envelope = Some(hex(&env));
+                }
+                self.enqueue_sealed(
+                    conv,
+                    route,
+                    wrapper,
+                    &env,
+                    Purpose::DepositMessage {
+                        operation_id: m.operation_id.clone().unwrap_or_default(),
+                        conversation_id: conv.to_string(),
+                        message_id: m.id.clone(),
+                    },
+                );
+                fan.push(Fan {
+                    device_id: rel.peer_device_id.clone(),
+                    sibling: false,
+                    state: FanState::Queued,
+                    // Kept while the session is unconfirmed, to re-send it if a crossed initiation is lost.
+                    event: unconfirmed.then(|| hex(&payload)),
+                });
+            }
+            fan.extend(self.fan_out(conv, m, &payload)?);
+            if fan.is_empty() {
+                continue; // nobody to send to yet: the event stays queued
+            }
             if let Some(slot) = self
                 .st
                 .app
@@ -1198,20 +1264,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .get_mut(conv)
                 .and_then(|r| r.messages.iter_mut().find(|x| x.id == m.id))
             {
-                slot.envelope = Some(hex(&env));
                 slot.queued_event = None;
+                slot.fan = fan;
             }
-            self.enqueue_sealed(
-                conv,
-                &route,
-                wrapper,
-                &env,
-                Purpose::DepositMessage {
-                    operation_id: m.operation_id.clone().unwrap_or_default(),
-                    conversation_id: conv.to_string(),
-                    message_id: m.id.clone(),
-                },
-            );
         }
         Ok(())
     }
@@ -1494,13 +1549,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (1, V::B(signed.to_vec())),
             (2, V::A(records.iter().cloned().map(V::B).collect())),
         ]));
-        self.send_control(
+        let primary = self.send_control(
             conv,
             &payload,
             Purpose::DepositRelaySet {
                 conversation_id: conv.to_string(),
             },
-        )
+        );
+        // Every other device of the conversation (the peer's and ours) learns the new routes too.
+        self.send_to_other_devices(conv, &payload, || Purpose::DepositRelaySet {
+            conversation_id: conv.to_string(),
+        });
+        primary
     }
 
     /// Encrypt `payload` in the relationship's session, seal it for the peer's best route and enqueue it.
@@ -1508,6 +1568,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(rel) = self.st.app.relationships.get(conv).cloned() else {
             return false;
         };
+        // K5: never encrypt to a device the pinned head does not list as active.
+        if !self.cur_device_eligible(&rel) {
+            return false;
+        }
         let (Ok((pd, route)), Ok(peer_ik)) = (self.peer_target(&rel), h32(&rel.peer_ik)) else {
             return false;
         };
@@ -1528,7 +1592,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.restore(snapshot);
             return false;
         };
-        self.enqueue_sealed(conv, &route, wrapper, &env, purpose);
+        let device = (rel.multi.in_view).then(|| rel.peer_device_id.clone());
+        self.enqueue_sealed_for(conv, device.as_deref(), &route, wrapper, &env, purpose);
         true
     }
 
@@ -1693,6 +1758,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// Run after every transition: close routes whose overlap ended, and give every active relationship a route at
     /// each of the person's other Homes the host has offered (a single-Home person is never affected).
     pub fn maintain_relays(&mut self) {
+        self.sync_own_head();
         self.retry_dirty_heads();
         self.drop_closed_routes();
         if self.offers.is_empty() {
@@ -1735,8 +1801,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return;
         };
         e.fails = 0;
+        // A deposit for another device of the conversation fails over inside that device's routes only.
+        match fo.device.clone() {
+            Some(dev) => {
+                let conv = fo.conversation_id.clone();
+                self.with_dev(&conv, &dev, |tx| {
+                    tx.failover_deposit(pos, fo, &uri, &mailbox)
+                });
+            }
+            None => self.failover_deposit(pos, fo, &uri, &mailbox),
+        }
+    }
+
+    fn failover_deposit(&mut self, pos: usize, fo: Failover, uri: &str, mailbox: &[u8]) {
         let now = self.now_ms;
-        let current = hex(&delivery::route_binding(&uri, &mailbox));
+        let current = hex(&delivery::route_binding(uri, mailbox));
         let Some(rel) = self.st.app.relationships.get_mut(&fo.conversation_id) else {
             return;
         };
@@ -1839,6 +1918,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(rel) = self.st.app.relationships.get_mut(conv) else {
             return false;
         };
+        if rel.multi.in_view {
+            // Only the first-contact device's ack can retire a route early. Another device's ack proves nothing about
+            // the rest, so the route stays open until the overlap bound (the safe direction).
+            return true;
+        }
         let Some(version) = p
             .get(1)
             .ok()
@@ -1930,8 +2014,19 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     Some(conversation_id.clone()),
                     Some(message_id.clone()),
                 )),
+                Purpose::DepositFan {
+                    operation_id,
+                    conversation_id,
+                    message_id,
+                    ..
+                } => Some((
+                    operation_id.clone(),
+                    Some(conversation_id.clone()),
+                    Some(message_id.clone()),
+                )),
                 Purpose::PublishKeys
                 | Purpose::Ack
+                | Purpose::FetchDeviceKeys { .. }
                 | Purpose::DepositKeys { .. }
                 | Purpose::DepositAcs { .. }
                 | Purpose::DepositRelaySet { .. }
@@ -1964,6 +2059,25 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             K::Terminal(reason) => {
                 self.st.app.outbox.remove(pos);
+                if let Purpose::FetchDeviceKeys {
+                    conversation_id,
+                    device_id,
+                } = &entry.purpose
+                {
+                    self.set_fetching(conversation_id, device_id, false);
+                }
+                if let Purpose::DepositFan {
+                    conversation_id,
+                    message_id,
+                    device_id,
+                    ..
+                } = &entry.purpose
+                    && self.fan_is_sibling(conversation_id, message_id, device_id)
+                {
+                    // A self-sync copy that the relay refuses never touches the user's delivery state.
+                    self.mark_fan(conversation_id, message_id, device_id, FanState::Sent);
+                    return Ok(());
+                }
                 if let Some((op, conv, msg)) = info {
                     self.set_outcome(&op, OutcomeClass::Rejected { reason });
                     if let (Some(c), Some(m)) = (&conv, &msg) {
@@ -2039,17 +2153,33 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 conversation_id,
                 message_id,
             } => {
-                self.set_delivery(&conversation_id, &message_id, DeliveryState::Sent);
-                if let Some(m) = self
-                    .st
-                    .app
-                    .relationships
-                    .get_mut(&conversation_id)
-                    .and_then(|r| r.messages.iter_mut().find(|m| m.id == message_id))
-                {
-                    m.envelope = None;
+                if let Some(r) = self.st.app.relationships.get_mut(&conversation_id) {
+                    let primary = r.peer_device_id.clone();
+                    if let Some(m) = r.messages.iter_mut().find(|m| m.id == message_id) {
+                        m.envelope = None;
+                        if let Some(f) = m.fan.iter_mut().find(|f| f.device_id == primary) {
+                            f.state = FanState::Sent;
+                        }
+                    }
                 }
-                self.set_outcome(&operation_id, OutcomeClass::Committed);
+                self.finish_copy(&conversation_id, &message_id, &operation_id);
+            }
+            Purpose::DepositFan {
+                operation_id,
+                conversation_id,
+                message_id,
+                device_id,
+            } => {
+                self.mark_fan(&conversation_id, &message_id, &device_id, FanState::Sent);
+                if !self.fan_is_sibling(&conversation_id, &message_id, &device_id) {
+                    self.finish_copy(&conversation_id, &message_id, &operation_id);
+                }
+            }
+            Purpose::FetchDeviceKeys {
+                conversation_id,
+                device_id,
+            } => {
+                self.on_device_keys(&conversation_id, &device_id, items);
             }
             Purpose::ResolveInvite {
                 operation_id,
@@ -2271,6 +2401,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 head_asked_ms: 0,
                 head_dirty: false,
                 head_sent_ms: 0,
+                multi: Multi::default(),
             },
         );
         self.enqueue(
@@ -2746,14 +2877,32 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             return ok.into();
         }
-        let Ok(account) = h32(&rel.peer_account_id) else {
+        let Ok(peer_account) = h32(&rel.peer_account_id) else {
             return Inner::Rejected;
         };
-        // K12 (ONE_TO_ONE_SESSION_MANAGEMENT section 3): an envelope from a device the held peer head does not list may
+        let Some(my_account) = self.st.device.as_ref().map(|d| d.account_id) else {
+            return Inner::Rejected;
+        };
+        // Who sent it, by the identity key on the envelope: a device of the peer's account, or one of ours (self-sync).
+        let sender_ik = Self::envelope_sender(env);
+        let known = sender_ik.and_then(|ik| {
+            self.st.device.as_ref().and_then(|d| {
+                d.peer_devices
+                    .iter()
+                    .find(|p| p.0 == ik && (p.1 == peer_account || p.1 == my_account))
+                    .copied()
+            })
+        });
+        // K12 (ONE_TO_ONE_SESSION_MANAGEMENT section 3): an envelope from a device the held head does not list may
         // come from a device linked after that head. That is not a verdict: hold it until the head is refreshed.
-        if rel.state == RelState::Active && self.sender_unknown(account, env) {
+        if known.is_none() && sender_ik.is_some() && rel.state == RelState::Active {
             return Inner::Held;
         }
+        let account = known.map_or(peer_account, |k| k.1);
+        let sibling = account == my_account && account != peer_account;
+        let unconfirmed_before = sender_ik
+            .zip(self.st.device.as_ref())
+            .is_some_and(|(ik, d)| d.session_unconfirmed(&ik));
         let Some(dev) = self.st.device.as_mut() else {
             return Inner::Rejected;
         };
@@ -2777,8 +2926,17 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     }
                 }
             }
+            // K4: both devices initiated and ours has the lower ephemeral key. The peer's initiation is ignored, not
+            // an integrity failure; the peer drops its own and answers on ours.
+            Err(crypto::Error::CrossedInitiation) => return Inner::Accepted,
             Err(_) => return Inner::Rejected,
         };
+        // Our initiation was unconfirmed and the session is no longer ours: the peer's initiation won (K4). (A plain
+        // reply also confirms the session, but then it is still the one we initiated.)
+        let replaced = unconfirmed_before
+            && sender_ik
+                .zip(self.st.device.as_ref())
+                .is_some_and(|(ik, d)| !d.session_is_initiator(&ik));
         let Ok(p) = cbor::decode(&pt) else {
             self.restore(snapshot);
             return Inner::Rejected;
@@ -2787,15 +2945,22 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let live = matches!(rel.state, RelState::Establishing | RelState::Active);
         let ok = match kind {
             // The Hello is the first session message after both bindings verified; it activates the requester.
-            KIND_HELLO => self.on_hello(conv, &p),
+            KIND_HELLO => !sibling && self.on_hello(conv, &p),
             // Nothing but the Hello is accepted while the relationship is not yet bound.
             _ if !live => false,
-            KIND_KEYS => self.on_keys(conv, &p),
-            KIND_RELAYSET => self.on_relayset(conv, &p),
-            KIND_RELAYSET_ACK => self.on_relayset_ack(conv, &p),
-            KIND_ACS_UPDATE => self.on_acs_update(conv, &p),
-            KIND_ACS_REQUEST => self.on_acs_request(conv, &p),
-            events::OBJECT_TYPE => self.on_event(conv, &pt, sender),
+            KIND_KEYS => self
+                .for_sender(conv, sender, sibling, |tx| tx.on_keys(conv, &p))
+                .unwrap_or(false),
+            KIND_RELAYSET => self
+                .for_sender(conv, sender, sibling, |tx| tx.on_relayset(conv, &p))
+                .unwrap_or(false),
+            KIND_RELAYSET_ACK => self
+                .for_sender(conv, sender, sibling, |tx| tx.on_relayset_ack(conv, &p))
+                .unwrap_or(false),
+            // Head traffic is between accounts: a self-sync device has no head to give us (our own head is ours).
+            KIND_ACS_UPDATE => !sibling && self.on_acs_update(conv, &p),
+            KIND_ACS_REQUEST => !sibling && self.on_acs_request(conv, &p),
+            events::OBJECT_TYPE => self.on_event(conv, &pt, sender, sibling),
             _ => true, // unknown payload kinds from a newer client are ignored, not fatal
         };
         if !ok {
@@ -2808,6 +2973,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 r.seen_envelopes.remove(0);
             }
         }
+        // The device answered (so the session it was sent on is confirmed), or its session replaced ours: copies sent
+        // on the lost one go again on the winner. Anything that waited for a session or route goes out now.
+        self.after_inbound(conv, sender, replaced);
         Inner::Accepted
     }
 
@@ -3212,13 +3380,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// An authenticated inner payload that is a `ConversationEvent`: W0-valid, in this conversation, authored by the
     /// pinned peer endpoint, deduplicated by EventID, and applied as a state transition.
-    fn on_event(&mut self, conv: &str, bytes: &[u8], sender: [u8; 16]) -> bool {
+    fn on_event(&mut self, conv: &str, bytes: &[u8], sender: [u8; 16], sibling: bool) -> bool {
         if registry().check("ConversationEvent", bytes, false).is_err() {
             return false;
         }
         let Some(ev) = events::parse(bytes) else {
             return false;
         };
+        if sibling {
+            return self.on_synced_event(conv, &ev, sender);
+        }
         let Some(r) = self.st.app.relationships.get_mut(conv) else {
             return false;
         };
@@ -3284,6 +3455,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     clock_logical: ev.clock.logical,
                     deleted: false,
                     queued_event: None,
+                    fan: vec![],
                 });
                 true
             }

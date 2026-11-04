@@ -223,6 +223,75 @@ pub struct Msg {
     /// Canonical event bytes of an outgoing message still waiting for the peer's established delivery key.
     #[serde(default)]
     pub queued_event: Option<Hex>,
+    /// Delivery of this message to the other devices of the conversation (the peer's devices besides the first-contact
+    /// one, and our own other devices). Empty for a one-device-per-side conversation.
+    #[serde(default)]
+    pub fan: Vec<Fan>,
+}
+
+/// One device's copy of a message (K5/K6: every eligible device of the recipient, plus our own other devices).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Fan {
+    pub device_id: Hex,
+    /// A device of our own account (self-sync) rather than of the peer's.
+    pub sibling: bool,
+    pub state: FanState,
+    /// Canonical event bytes, kept while the copy is waiting for a session or route, or until the device answered on
+    /// the session it was sent on (so an initiation that loses a crossed race can be re-sent on the winner).
+    #[serde(default)]
+    pub event: Option<Hex>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FanState {
+    /// No session or route for the device yet; sent the moment there is one (never dropped silently).
+    Waiting,
+    /// Sealed and in the outbox.
+    Queued,
+    /// The relay accepted the deposit.
+    Sent,
+}
+
+/// A device of a conversation other than the first-contact peer device: its own routes, delivery keys and fetch
+/// capability. The first-contact peer device stays in the `peer_*` fields of the relationship.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeerDev {
+    pub device_id: Hex,
+    pub ik: Hex,
+    pub relays: RelaySet,
+    pub lineage: Lineage,
+    pub delivery: Option<PeerDelivery>,
+    pub keys: Vec<PeerDelivery>,
+    pub route_health: BTreeMap<Hex, u64>,
+    /// Where and with what capability we fetch this device's key bundle, when we hold one (then we initiate).
+    #[serde(default)]
+    pub fetch_service: Option<String>,
+    #[serde(default)]
+    pub fetch_cap: Hex,
+    /// A bundle fetch for this device is in the outbox.
+    #[serde(default)]
+    pub fetching: bool,
+}
+
+/// Per-conversation multi-device state (additive to the first-contact fields of [`Relationship`]).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Multi {
+    /// The peer account's devices besides the first-contact one.
+    pub extra: BTreeMap<Hex, PeerDev>,
+    /// Our own account's other devices (self-sync targets).
+    pub siblings: BTreeMap<Hex, PeerDev>,
+    /// The capability with which we fetch the first-contact peer device's bundle (held by the inviter), if any.
+    pub primary_fetch_service: Option<String>,
+    pub primary_fetch_cap: Hex,
+    /// Some message has a copy waiting for a session or route.
+    pub waiting: bool,
+    /// In-memory only: the peer fields of the relationship currently hold another device's side (see `with_dev`).
+    #[serde(skip)]
+    pub in_view: bool,
 }
 
 /// A mailbox this install polls for one relationship, and the route peers deposit to for it (one per own RelayEntry).
@@ -333,6 +402,8 @@ pub struct Relationship {
     /// When we last served the peer a head update (rate limit for its requests).
     #[serde(default)]
     pub head_sent_ms: u64,
+    #[serde(default)]
+    pub multi: Multi,
 }
 
 /// A sealed wrapper held while the peer's control head is refreshed.
@@ -448,6 +519,18 @@ pub enum Purpose {
         conversation_id: String,
         message_id: String,
     },
+    /// A message copy for another device of the conversation (the peer's or our own).
+    DepositFan {
+        operation_id: OperationId,
+        conversation_id: String,
+        message_id: String,
+        device_id: Hex,
+    },
+    /// The peer's other device's bundle, fetched to start a session with it (we hold its fetch capability).
+    FetchDeviceKeys {
+        conversation_id: String,
+        device_id: Hex,
+    },
     Ack,
 }
 
@@ -472,6 +555,9 @@ pub struct Failover {
     pub inner: Hex,
     /// Route bindings already tried in this round.
     pub tried: Vec<Hex>,
+    /// The conversation device this deposit is addressed to (`None`: the first-contact peer device).
+    #[serde(default)]
+    pub device: Option<Hex>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

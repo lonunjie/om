@@ -239,6 +239,66 @@ impl Device {
         Ok(())
     }
 
+    /// Make `credential_body` usable for the account of `acs_body` without forgetting its other devices: the stored
+    /// credentials are merged, never replaced (a contact's account has several devices). A stored head that is newer
+    /// than the given one stays (K7) and must itself commit the credential.
+    pub fn trust_peer_device(
+        &mut self,
+        acs_body: &[u8],
+        credential_body: &[u8],
+    ) -> Result<(), Error> {
+        let acs = Acs::from_body(acs_body)?;
+        let mut creds = vec![credential_body.to_vec()];
+        let mut head = acs_body.to_vec();
+        if let Some((old_hash, old)) = self.peers.get(&acs.account_id) {
+            let old_acs = Acs::from_body(&old.acs_body)?;
+            if old_acs.generation > acs.generation {
+                head = old.acs_body.clone();
+            }
+            if *old_hash == acs.hash() || old_acs.generation > acs.generation {
+                for c in &old.credential_bodies {
+                    if !creds.contains(c) {
+                        creds.push(c.clone());
+                    }
+                }
+            }
+        }
+        self.trust_peer(head, creds)?;
+        // The credential must be usable at the head that is now trusted.
+        let cred = Credential::from_body(credential_body)?;
+        if self
+            .peer_devices
+            .iter()
+            .any(|d| d.0 == cred.ik && d.1 == acs.account_id && d.2 == cred.device_id)
+        {
+            Ok(())
+        } else {
+            Err(Error::Binding(
+                "credential is not committed by the trusted peer head",
+            ))
+        }
+    }
+
+    /// Is there a session with the device whose identity key is `ik`?
+    pub fn has_session(&self, ik: &[u8; 32]) -> bool {
+        self.sessions.contains_key(encode_ec(ik).as_slice())
+    }
+
+    /// The session with `ik` is one this device initiated.
+    pub fn session_is_initiator(&self, ik: &[u8; 32]) -> bool {
+        self.sessions
+            .get(encode_ec(ik).as_slice())
+            .is_some_and(|s| s.initiator)
+    }
+
+    /// We initiated the session with `ik` and have not heard back on it yet (its messages still carry the PQXDH
+    /// prefix). Such a session loses a crossed initiation to a lower EK_A (K4).
+    pub fn session_unconfirmed(&self, ik: &[u8; 32]) -> bool {
+        self.sessions
+            .get(encode_ec(ik).as_slice())
+            .is_some_and(|s| s.initiator && s.pending_init.is_some())
+    }
+
     /// Convenience for tests: trust `other`'s one-device account as it publishes itself.
     pub fn trust_device(&mut self, other: &Device) -> Result<(), Error> {
         self.trust_peer(other.acs().body(), vec![other.credential().body()])
@@ -425,7 +485,7 @@ impl Device {
         let vb = binding::verify_fetch_with_freshness(fetch, peer, &mut self.bundle_freshness)?;
         // The trusted PeerView that authorizes initiation is also installed as relationship
         // state, so replies can only be accepted with that peer's mandatory route context.
-        self.trust_peer(peer.acs_body.to_vec(), vec![peer.credential_body.to_vec()])?;
+        self.trust_peer_device(peer.acs_body, peer.credential_body)?;
         let est = pqxdh::initiate(&self.ik_secret, &vb, rng)?;
         let dr = SessionState::init_alice(&est.sk, est.ad.clone(), &vb.spk, rng);
         let kind = if vb.pq_one_time {
@@ -519,10 +579,18 @@ impl Device {
         binding::verify_initiator(&sender_ik, &self.peer_devices, relationship)?;
         match (self.sessions.get_mut(sender), init) {
             (Some(s), init) => {
-                if let Some(h) = &init
-                    && (s.initiator || h.ek_a != s.init_ek)
-                {
-                    return Err(Error::SessionConflict);
+                if let Some(h) = &init {
+                    // K4: both sides initiated and neither has heard back. The lower EK_A wins on both devices, so
+                    // exactly one session survives; the loser's messages are re-sent on it by the caller.
+                    if s.initiator && s.pending_init.is_some() && h.ek_a != s.init_ek {
+                        if h.ek_a < s.init_ek {
+                            return self.accept_initial(h, header, ct, &ctx, rng);
+                        }
+                        return Err(Error::CrossedInitiation);
+                    }
+                    if s.initiator || h.ek_a != s.init_ek {
+                        return Err(Error::SessionConflict);
+                    }
                 }
                 let (pt, keys) = s.dr.decrypt(header, ct, &ctx, rng)?;
                 s.pending_init = None; // [DR] §7.1: a reply has been received

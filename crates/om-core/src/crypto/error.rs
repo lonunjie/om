@@ -39,6 +39,9 @@ pub enum Error {
     NoSession,
     /// A different handshake for an existing session; multi-session policy belongs to V-003.
     SessionConflict,
+    /// ONE_TO_ONE_SESSION_MANAGEMENT K4: both devices initiated at once and this device's unconfirmed initiation has the
+    /// lower ephemeral key, so it wins; the peer's higher initiation is ignored (the peer drops its own on ours).
+    CrossedInitiation,
     NoPrekeysPublished,
     /// Sealed-delivery wrapper failed route, key, expiry, or padding validation.
     SealedDelivery(&'static str),
