@@ -60,7 +60,12 @@ export interface Harness extends CoreClient {
   /** Finishes an operation that is PendingAuthorization (other devices approved, or the recovery delay ran out). */
   resolveAuthorization(operationId: OperationId, outcome: TerminalOutcome): void;
   /** A new device outside this harness shows a link offer; returns the link and the code its screen would show. */
-  simulateNewDeviceOffer(label: string): { readonly link: string; readonly verificationCode: string };
+  /** An existing device outside every seeded profile offers a link (to test the new device's screens). */
+  simulateExistingDeviceOffer(): { readonly link: string; readonly verificationCode: string };
+  /** That device approves or rejects a request a seeded new device made. `false`: there was none. */
+  simulateExistingDeviceDecision(link: string, decision: "approve" | "reject"): boolean;
+  /** A new device outside every seeded profile opens a seeded existing device's offer (to test the existing device's screens). */
+  simulateNewDeviceRequest(link: string, label: string): boolean;
 }
 
 export interface HarnessOptions { readonly clock?: () => number; readonly env?: HarnessEnv | undefined }
@@ -251,7 +256,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
     return rec;
   }
 
-  function flushTouched(except: ProfileId): void {
+  function flushTouched(except?: ProfileId): void {
     const others = [...sim.touched].filter((p) => p !== except);
     sim.touched.clear();
     for (const p of others) notify(p);
@@ -410,7 +415,9 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       flushTouched(rec.profileId);
     },
 
-    simulateNewDeviceOffer: (label) => sim.simulateNewDeviceOffer(label),
+    simulateExistingDeviceOffer: () => sim.simulateExistingDeviceOffer(),
+    simulateExistingDeviceDecision: (link, decision) => { const ok = sim.simulateExistingDeviceDecision(link, decision); flushTouched(); return ok; },
+    simulateNewDeviceRequest: (link, label) => { const ok = sim.simulateNewDeviceRequest(link, label); flushTouched(); return ok; },
 
     simulateRestart() {
       observers = new Map();

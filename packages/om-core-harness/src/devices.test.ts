@@ -77,56 +77,69 @@ describe("devices via harness (DEV ONLY)", () => {
   });
 });
 
-describe("device linking via harness: NoSilentLink (DEV ONLY)", () => {
-  it("offer -> open on existing device -> same code on both -> explicit approval -> enrollment notice", async () => {
+describe("device linking via harness: NoSilentLink, D24 direction (DEV ONLY)", () => {
+  /** The existing device offers; the new (empty) profile asks. Returns the pieces both sides need. */
+  async function offerAndAsk(h: Harness, old: ProfileExecutionContext, fresh: ProfileExecutionContext) {
+    const offerOp = op();
+    expect(await run(h, { kind: "OfferDeviceLink", ctx: old, operationId: offerOp })).toEqual({ kind: "Committed" });
+    const offer = await h.query({ kind: "GetLinkOffer", ctx: old, operationId: offerOp });
+    if (!offer) throw new Error("no offer");
+    const askOp = op();
+    expect(await run(h, { kind: "RequestDeviceLink", ctx: fresh, operationId: askOp, link: offer.link })).toEqual({ kind: "Committed" });
+    return { offerOp, askOp, offer };
+  }
+
+  it("existing device offers -> new device asks -> same code on both -> explicit approval -> the new device is told, other devices get the notice", async () => {
     const { h, old, fresh } = setup();
     const offerOp = op();
-    expect(await run(h, { kind: "OfferDeviceLink", ctx: fresh, operationId: offerOp })).toEqual({ kind: "Committed" });
-    const offer = await h.query({ kind: "GetLinkOffer", ctx: fresh, operationId: offerOp });
+    expect(await run(h, { kind: "OfferDeviceLink", ctx: old, operationId: offerOp })).toEqual({ kind: "Committed" });
+    const offer = await h.query({ kind: "GetLinkOffer", ctx: old, operationId: offerOp });
     expect(offer).toMatchObject({ state: "waiting_for_scan", verificationCode: null });
     if (!offer) throw new Error("no offer");
-    expect(await h.query({ kind: "GetLinkOffer", ctx: old, operationId: offerOp })).toBeNull(); // not the other profile's offer
+    expect(await h.query({ kind: "GetLinkOffer", ctx: fresh, operationId: offerOp })).toBeNull(); // not the other profile's offer
 
-    const reqOp = op();
-    expect(await run(h, { kind: "RequestDeviceLink", ctx: old, operationId: reqOp, link: offer.link })).toEqual({ kind: "Committed" });
-    const request = await h.query({ kind: "GetLinkRequest", ctx: old, operationId: reqOp });
-    const shown = await h.query({ kind: "GetLinkOffer", ctx: fresh, operationId: offerOp });
+    const askOp = op();
+    expect(await run(h, { kind: "RequestDeviceLink", ctx: fresh, operationId: askOp, link: offer.link })).toEqual({ kind: "Committed" });
+    const theirs = await h.query({ kind: "GetLinkRequest", ctx: fresh, operationId: askOp });
+    const shown = await h.query({ kind: "GetLinkOffer", ctx: old, operationId: offerOp });
+    const request = await h.query({ kind: "GetLinkRequest", ctx: old, operationId: offerOp }); // Core keys the existing device's request by the OFFER
+    expect(theirs?.state).toBe("awaiting_approval");
     expect(request?.state).toBe("awaiting_approval");
-    expect(shown?.verificationCode).toMatch(/^\d{3} \d{3}$/);
+    expect(shown).toMatchObject({ state: "awaiting_approval", verificationCode: expect.stringMatching(/^\d{3} \d{3}$/) as string });
+    expect(theirs?.verificationCode).toBe(shown?.verificationCode);
     expect(request?.verificationCode).toBe(shown?.verificationCode);
-    // Opening the offer linked nothing.
+    // Asking linked nothing.
     expect((await h.query({ kind: "GetDevices", ctx: old })).devices).toHaveLength(3);
+    expect((await h.query({ kind: "GetDevices", ctx: old })).linkRequests).toEqual([expect.objectContaining({ operationId: offerOp })]);
     if (!request) throw new Error("no request");
 
     expect(await run(h, { kind: "ApproveDeviceLink", ctx: old, operationId: op(), requestId: request.requestId, confirmation: token })).toEqual({ kind: "Committed" });
     const after = await h.query({ kind: "GetDevices", ctx: old });
     expect(after.devices).toHaveLength(4);
-    expect(after.notices).toEqual([expect.objectContaining({ code: "device_linked", label: "New web browser" })]);
-    expect((await h.query({ kind: "GetLinkOffer", ctx: fresh, operationId: offerOp }))?.state).toBe("linked");
+    expect(after.notices).toEqual([expect.objectContaining({ code: "device_linked", label: "New device" })]);
+    expect((await h.query({ kind: "GetLinkOffer", ctx: old, operationId: offerOp }))?.state).toBe("linked");
+    expect((await h.query({ kind: "GetLinkRequest", ctx: fresh, operationId: askOp }))?.state).toBe("approved");
     // An offer is single use.
-    expect(await run(h, { kind: "RequestDeviceLink", ctx: old, operationId: op(), link: offer.link })).toEqual({ kind: "Rejected", reason: "conflict" });
+    expect(await run(h, { kind: "RequestDeviceLink", ctx: fresh, operationId: op(), link: offer.link })).toEqual({ kind: "Rejected", reason: "conflict" });
   });
 
   it("rejecting links nothing and tells the new device", async () => {
-    const { h, old } = setup();
-    const offer = h.simulateNewDeviceOffer("Stranger's laptop");
-    const reqOp = op();
-    await run(h, { kind: "RequestDeviceLink", ctx: old, operationId: reqOp, link: offer.link });
-    const request = await h.query({ kind: "GetLinkRequest", ctx: old, operationId: reqOp });
+    const { h, old, fresh } = setup();
+    const { offerOp, askOp } = await offerAndAsk(h, old, fresh);
+    const request = await h.query({ kind: "GetLinkRequest", ctx: old, operationId: offerOp });
     if (!request) throw new Error("no request");
-    expect(request).toMatchObject({ deviceLabel: "Stranger's laptop", verificationCode: offer.verificationCode });
     expect(await run(h, { kind: "RejectDeviceLink", ctx: old, operationId: op(), requestId: request.requestId })).toEqual({ kind: "Committed" });
     const v = await h.query({ kind: "GetDevices", ctx: old });
     expect(v.devices).toHaveLength(3);
     expect(v.notices).toEqual([]);
+    expect((await h.query({ kind: "GetLinkRequest", ctx: fresh, operationId: askOp }))?.state).toBe("rejected");
     expect(await run(h, { kind: "ApproveDeviceLink", ctx: old, operationId: op(), requestId: request.requestId, confirmation: token })).toEqual({ kind: "Rejected", reason: "conflict" });
   });
 
   it("uncertain network: the approval stays PendingReconciliation and links only once reconciled", async () => {
-    const { h, old } = setup();
-    const reqOp = op();
-    await run(h, { kind: "RequestDeviceLink", ctx: old, operationId: reqOp, link: h.simulateNewDeviceOffer("Laptop").link });
-    const request = await h.query({ kind: "GetLinkRequest", ctx: old, operationId: reqOp });
+    const { h, old, fresh } = setup();
+    const { offerOp } = await offerAndAsk(h, old, fresh);
+    const request = await h.query({ kind: "GetLinkRequest", ctx: old, operationId: offerOp });
     if (!request) throw new Error("no request");
     const approveOp = op();
     h.injectNetworkTimeoutAfterSend(approveOp);
@@ -140,31 +153,52 @@ describe("device linking via harness: NoSilentLink (DEV ONLY)", () => {
     expect((await h.query({ kind: "GetDevices", ctx: old })).notices).toHaveLength(1);
   });
 
-  it("Hardened: approval is PendingAuthorization; NeedsUserAction changes nothing; expired and malformed offers are refused", async () => {
+  it("Hardened: approval is PendingAuthorization; NeedsUserAction changes nothing; expired and malformed links are refused", async () => {
     let now = 5000;
-    const { h, old } = setup({ ...ACCOUNT, linkNeedsAuthorization: true }, () => now);
-    const reqOp = op();
-    await run(h, { kind: "RequestDeviceLink", ctx: old, operationId: reqOp, link: h.simulateNewDeviceOffer("Laptop").link });
-    const request = await h.query({ kind: "GetLinkRequest", ctx: old, operationId: reqOp });
+    const { h, old, fresh } = setup({ ...ACCOUNT, linkNeedsAuthorization: true }, () => now);
+    const { offerOp, askOp } = await offerAndAsk(h, old, fresh);
+    const request = await h.query({ kind: "GetLinkRequest", ctx: old, operationId: offerOp });
     if (!request) throw new Error("no request");
-    const askOp = op();
-    h.injectUserActionRequired(askOp, "reauthenticate");
-    expect(await run(h, { kind: "ApproveDeviceLink", ctx: old, operationId: askOp, requestId: request.requestId, confirmation: token })).toEqual({ kind: "NeedsUserAction", action: "reauthenticate" });
+    const askUser = op();
+    h.injectUserActionRequired(askUser, "reauthenticate");
+    expect(await run(h, { kind: "ApproveDeviceLink", ctx: old, operationId: askUser, requestId: request.requestId, confirmation: token })).toEqual({ kind: "NeedsUserAction", action: "reauthenticate" });
     const approveOp = op();
     expect(await run(h, { kind: "ApproveDeviceLink", ctx: old, operationId: approveOp, requestId: request.requestId, confirmation: token })).toEqual({ kind: "PendingAuthorization" });
-    expect((await h.query({ kind: "GetLinkRequest", ctx: old, operationId: reqOp }))?.state).toBe("pending_authorization");
+    expect((await h.query({ kind: "GetLinkRequest", ctx: old, operationId: offerOp }))?.state).toBe("pending_authorization");
+    expect((await h.query({ kind: "GetLinkRequest", ctx: fresh, operationId: askOp }))?.state).toBe("awaiting_approval"); // not linked until authorized
     h.resolveAuthorization(approveOp, { kind: "Committed" });
     expect((await h.query({ kind: "GetDevices", ctx: old })).devices).toHaveLength(4);
+    expect((await h.query({ kind: "GetLinkRequest", ctx: fresh, operationId: askOp }))?.state).toBe("approved");
 
-    const late = h.simulateNewDeviceOffer("Late");
+    const lateOp = op();
+    await run(h, { kind: "OfferDeviceLink", ctx: old, operationId: lateOp });
+    const late = await h.query({ kind: "GetLinkOffer", ctx: old, operationId: lateOp });
     now += 11 * 60 * 1000;
-    expect(await run(h, { kind: "RequestDeviceLink", ctx: old, operationId: op(), link: late.link })).toEqual({ kind: "Rejected", reason: "expired" });
-    expect(await run(h, { kind: "RequestDeviceLink", ctx: old, operationId: op(), link: "om:invite/AAAAAAAAAAAAAAAAAAAAAA" })).toEqual({ kind: "Rejected", reason: "invalid" });
+    const other = h.seedProfile({ profileId: asProfileId("another-new"), label: "Another" });
+    expect(await run(h, { kind: "RequestDeviceLink", ctx: other, operationId: op(), link: late?.link ?? "" })).toEqual({ kind: "Rejected", reason: "expired" });
+    expect(await run(h, { kind: "RequestDeviceLink", ctx: other, operationId: op(), link: "om:invite/AAAAAAAAAAAAAAAAAAAAAA" })).toEqual({ kind: "Rejected", reason: "invalid" });
   });
 
-  it("a messaging-only device cannot link another device", async () => {
+  it("a messaging-only device cannot offer a link", async () => {
     const { h, old } = setup({ devices: [{ id: "d-this", label: "Tablet", role: "messaging", current: true }, { id: "d-phone", label: "Phone", role: "control" }] });
-    expect(await run(h, { kind: "RequestDeviceLink", ctx: old, operationId: op(), link: h.simulateNewDeviceOffer("X").link })).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    expect(await run(h, { kind: "OfferDeviceLink", ctx: old, operationId: op() })).toEqual({ kind: "Rejected", reason: "unauthorized" });
+  });
+
+  it("simulated outside devices drive each side's screens", async () => {
+    const { h, old, fresh } = setup();
+    // An outside existing device offers; the seeded new profile asks; the outside device approves.
+    const outside = h.simulateExistingDeviceOffer();
+    const askOp = op();
+    expect(await run(h, { kind: "RequestDeviceLink", ctx: fresh, operationId: askOp, link: outside.link })).toEqual({ kind: "Committed" });
+    expect((await h.query({ kind: "GetLinkRequest", ctx: fresh, operationId: askOp }))).toMatchObject({ state: "awaiting_approval", verificationCode: outside.verificationCode });
+    expect(h.simulateExistingDeviceDecision(outside.link, "approve")).toBe(true);
+    expect((await h.query({ kind: "GetLinkRequest", ctx: fresh, operationId: askOp }))?.state).toBe("approved");
+    // The seeded existing device offers; an outside new device asks.
+    const offerOp = op();
+    await run(h, { kind: "OfferDeviceLink", ctx: old, operationId: offerOp });
+    const offer = await h.query({ kind: "GetLinkOffer", ctx: old, operationId: offerOp });
+    expect(h.simulateNewDeviceRequest(offer?.link ?? "", "Work laptop")).toBe(true);
+    expect((await h.query({ kind: "GetLinkRequest", ctx: old, operationId: offerOp }))).toMatchObject({ deviceLabel: "Work laptop", state: "awaiting_approval" });
   });
 });
 

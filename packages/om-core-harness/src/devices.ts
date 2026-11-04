@@ -1,5 +1,7 @@
 // DEV/TEST ONLY device, device-link and recovery simulation for the harness. It imitates Core outcomes so the UI can be
 // tested; it is not an AccountControlState implementation and enforces none of its cryptography.
+// Device linking follows deviation D24 (docs/reports/2026-10-28-relay-status.md): the EXISTING control device offers
+// (`OfferDeviceLink`) and later approves; the NEW device asks (`RequestDeviceLink`) and only waits.
 import { asDeviceId, parseDeviceLink } from "@om/platform-api";
 import type {
   AccountControlStateCode, CoreIntent, DeviceActionCode, DeviceCautionCode, DeviceId, DeviceNoticeView, DeviceRole, DeviceStateCode,
@@ -55,7 +57,8 @@ export type Staged =
 
 interface DeviceRec { id: DeviceId; label: string; role: DeviceRole; state: DeviceStateCode; current: boolean; enrolledAt: number; lastSeen: LastSeenClass; historySync: boolean }
 interface RequestRec { view: LinkRequestView; token: string }
-interface OfferRec { owner: ProfileId | null; operationId: OperationId | null; link: string; label: string; code: string; expiresAt: number; state: LinkOfferState }
+/** `owner` is the offering (existing) device's profile, or `null` for an offer made by a device outside every seeded profile. */
+interface OfferRec { owner: ProfileId | null; operationId: OperationId | null; link: string; code: string; expiresAt: number; state: LinkOfferState; request: RequestRec | null; joiner: ProfileId | null }
 type RecoveryRec = { -readonly [K in keyof RecoveryRequestView]: RecoveryRequestView[K] };
 interface AccountSim {
   devices: Map<DeviceId, DeviceRec>;
@@ -82,6 +85,8 @@ export function createDeviceSim(clock: () => number) {
   const accounts = new Map<ProfileId, AccountSim>();
   const offers = new Map<string, OfferRec>(); // by token; offers travel between accounts out of band (QR/link)
   let seq = 0;
+  /** The asking (new) device's own view of its request, by profile; an outside new device has none. */
+  const joins = new Map<ProfileId, { token: string; view: LinkRequestView }>();
   /** Profiles whose views changed during the last staged commit (besides the dispatching one). */
   const touched = new Set<ProfileId>();
 
@@ -160,8 +165,15 @@ export function createDeviceSim(clock: () => number) {
         notices: [...a.notices],
       };
     },
+    /** The existing device's request (its operation id is the OFFER's, as in Core) or the new device's own. */
     linkRequest(profileId: ProfileId, operationId: OperationId): LinkRequestView | null {
-      const r = [...account(profileId).requests.values()].find((x) => x.view.operationId === operationId);
+      const j = joins.get(profileId);
+      if (j?.view.operationId === operationId) {
+        if (j.view.state === "awaiting_approval" && clock() > j.view.expiresAt) j.view = { ...j.view, state: "expired" };
+        return j.view;
+      }
+      const a = accounts.get(profileId);
+      const r = a === undefined ? undefined : [...a.requests.values()].find((x) => x.view.operationId === operationId);
       if (!r) return null;
       expireIfDue(r);
       return r.view;
@@ -169,8 +181,8 @@ export function createDeviceSim(clock: () => number) {
     linkOffer(profileId: ProfileId, operationId: OperationId): LinkOfferView | null {
       const o = [...offers.values()].find((x) => x.owner === profileId && x.operationId === operationId);
       if (!o) return null;
-      const state = o.state === "waiting_for_scan" && clock() > o.expiresAt ? "expired" : o.state;
-      return { operationId, link: o.link, expiresAt: o.expiresAt, verificationCode: state === "waiting_for_scan" || state === "expired" ? null : o.code, state };
+      const state = (o.state === "waiting_for_scan" || o.state === "awaiting_approval") && clock() > o.expiresAt ? "expired" : o.state;
+      return { operationId, link: o.link, expiresAt: o.expiresAt, verificationCode: state === "waiting_for_scan" ? null : o.code, state };
     },
     recovery(profileId: ProfileId): RecoveryStatusView {
       const a = account(profileId);
@@ -186,14 +198,22 @@ export function createDeviceSim(clock: () => number) {
     },
   };
 
-  function newOffer(owner: ProfileId | null, operationId: OperationId | null, label: string): OfferRec {
+  function newOffer(owner: ProfileId | null, operationId: OperationId | null): OfferRec {
     const token = random(B64URL, 22);
-    const o: OfferRec = { owner, operationId, link: `om:link/${token}`, label, code: fakeCode(), expiresAt: clock() + LINK_TTL_MS, state: "waiting_for_scan" };
+    const o: OfferRec = { owner, operationId, link: `om:link/${token}`, code: fakeCode(), expiresAt: clock() + LINK_TTL_MS, state: "waiting_for_scan", request: null, joiner: null };
     offers.set(token, o);
     return o;
   }
-  const touch = (o: OfferRec): void => { if (o.owner !== null) touched.add(o.owner); };
+  const touch = (o: OfferRec): void => { if (o.owner !== null) touched.add(o.owner); if (o.joiner !== null) touched.add(o.joiner); };
   const offerOf = (r: RequestRec): OfferRec | undefined => offers.get(r.token);
+  /** The new device's own view follows the offer's state. */
+  function syncJoin(o: OfferRec): void {
+    const j = o.joiner === null ? undefined : joins.get(o.joiner);
+    if (!j) return;
+    const state: LinkRequestView["state"] = o.state === "linked" ? "approved" : o.state === "rejected" ? "rejected" : o.state === "expired" ? "expired" : "awaiting_approval";
+    j.view = { ...j.view, state };
+    touch(o);
+  }
 
   function link(a: AccountSim, r: RequestRec): void {
     const id = asDeviceId(`dev-${String(++seq)}`);
@@ -203,7 +223,7 @@ export function createDeviceSim(clock: () => number) {
     a.notices.push({ code: "device_linked", deviceId: id, label: r.view.deviceLabel, at });
     r.view = { ...r.view, state: "approved" };
     const o = offerOf(r);
-    if (o) { o.state = "linked"; touch(o); }
+    if (o) { o.state = "linked"; syncJoin(o); touch(o); }
   }
 
   const rejected = (reason: RejectReason): Staged => ({ kind: "rejected", reason });
@@ -216,23 +236,32 @@ export function createDeviceSim(clock: () => number) {
     if (!a) return null;
     switch (intent.kind) {
       case "OfferDeviceLink":
-        return effect({ kind: "Committed" }, () => { newOffer(profileId, intent.operationId, "New web browser"); });
+        // Only an active control device of the account offers; anything else would end at a screen that cannot finish.
+        if (!currentIsActiveController(a)) return rejected("unauthorized");
+        if (a.controlState !== "normal") return rejected("policy_denied");
+        return effect({ kind: "Committed" }, () => { newOffer(profileId, intent.operationId); });
       case "RequestDeviceLink": {
         const parsed = parseDeviceLink(intent.link);
         if (!parsed.ok) return rejected("invalid");
         const o = offers.get(parsed.token);
         if (!o) return rejected("not_found");
         if (o.owner === profileId) return rejected("invalid"); // a device cannot link itself
+        if (joins.has(profileId)) return rejected("conflict"); // one request per empty profile
         if (clock() > o.expiresAt) return rejected("expired");
-        if (o.state !== "waiting_for_scan") return rejected("conflict");
-        if (!currentIsActiveController(a)) return rejected("unauthorized"); // a messaging device cannot link another device
+        if (o.state !== "waiting_for_scan") return rejected("conflict"); // one offer, one device
         return effect({ kind: "Committed" }, () => {
           const requestId = `lr-${String(++seq)}`;
-          a.requests.set(requestId, {
-            token: parsed.token,
-            view: { requestId, operationId: intent.operationId, deviceLabel: o.label, verificationCode: o.code, expiresAt: o.expiresAt, state: "awaiting_approval" },
-          });
+          const view: LinkRequestView = { requestId, operationId: intent.operationId, deviceLabel: "New device", verificationCode: o.code, expiresAt: o.expiresAt, state: "awaiting_approval" };
+          joins.set(profileId, { token: parsed.token, view });
+          o.joiner = profileId;
           o.state = "awaiting_approval";
+          const owner = o.owner === null ? undefined : accounts.get(o.owner);
+          if (owner && o.operationId !== null) {
+            // As in Core, the existing device's request carries the OFFER's operation id.
+            const rec: RequestRec = { token: parsed.token, view: { ...view, operationId: o.operationId } };
+            owner.requests.set(requestId, rec);
+            o.request = rec;
+          }
           touch(o);
         });
       }
@@ -246,7 +275,7 @@ export function createDeviceSim(clock: () => number) {
         if (a.linkNeedsAuthorization) {
           return effect({ kind: "PendingAuthorization" }, () => { r.view = { ...r.view, state: "pending_authorization" }; }, (o) => {
             if (o.kind === "Committed") link(a, r);
-            else { r.view = { ...r.view, state: "rejected" }; const off = offerOf(r); if (off) { off.state = "rejected"; touch(off); } }
+            else { r.view = { ...r.view, state: "rejected" }; const off = offerOf(r); if (off) { off.state = "rejected"; syncJoin(off); touch(off); } }
           });
         }
         return effect({ kind: "Committed" }, () => { link(a, r); });
@@ -258,7 +287,7 @@ export function createDeviceSim(clock: () => number) {
         return effect({ kind: "Committed" }, () => {
           r.view = { ...r.view, state: "rejected" };
           const o = offerOf(r);
-          if (o) { o.state = "rejected"; touch(o); }
+          if (o) { o.state = "rejected"; syncJoin(o); touch(o); }
         });
       }
       case "SuspendDevice": {
@@ -309,10 +338,33 @@ export function createDeviceSim(clock: () => number) {
     queries,
     stage,
     touched,
-    /** A brand-new device (outside any seeded profile) shows this offer; returns what its screen would display. */
-    simulateNewDeviceOffer(label: string): { readonly link: string; readonly verificationCode: string } {
-      const o = newOffer(null, null, label);
+    /** An existing device outside every seeded profile offers a link (for tests of the NEW device's screens). */
+    simulateExistingDeviceOffer(): { readonly link: string; readonly verificationCode: string } {
+      const o = newOffer(null, null);
       return { link: o.link, verificationCode: o.code };
+    },
+    /** That outside existing device decides about the request a seeded new device made. Returns false when there is none. */
+    simulateExistingDeviceDecision(link: string, decision: "approve" | "reject"): boolean {
+      const parsed = parseDeviceLink(link);
+      const o = parsed.ok ? offers.get(parsed.token) : undefined;
+      if (!o || o.joiner === null || o.state !== "awaiting_approval") return false;
+      o.state = decision === "approve" ? "linked" : "rejected";
+      syncJoin(o);
+      return true;
+    },
+    /** A brand-new device outside every seeded profile opens an offer a seeded existing device made (for tests of the EXISTING device's screens). */
+    simulateNewDeviceRequest(link: string, label: string): boolean {
+      const parsed = parseDeviceLink(link);
+      const o = parsed.ok ? offers.get(parsed.token) : undefined;
+      const owner = o?.owner == null ? undefined : accounts.get(o.owner);
+      if (!o || !owner || o.state !== "waiting_for_scan" || o.operationId === null) return false;
+      const requestId = `lr-${String(++seq)}`;
+      const rec: RequestRec = { token: parsed.ok ? parsed.token : "", view: { requestId, operationId: o.operationId, deviceLabel: label, verificationCode: o.code, expiresAt: o.expiresAt, state: "awaiting_approval" } };
+      owner.requests.set(requestId, rec);
+      o.request = rec;
+      o.state = "awaiting_approval";
+      touch(o);
+      return true;
     },
     /** The StartRecovery operation behind an outgoing request (for resolving its authorization in tests). */
     recoveryOperation(profileId: ProfileId, requestId: string): OperationId | null {
