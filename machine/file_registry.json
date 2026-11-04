@@ -473,6 +473,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/backup-service.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/backup.spec.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -7767,6 +7774,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "infra/cloudflare-home/src/blobs.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "infra/cloudflare-home/src/capabilities.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
@@ -7859,6 +7873,13 @@
     },
     {
       "path": "infra/cloudflare-home/test/admission.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/cloudflare-home/test/blobs.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
       "license": "MPL-2.0",
@@ -8971,6 +8992,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/home/MoreServices.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/home/__fixtures__/copy.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8979,6 +9007,13 @@
     },
     {
       "path": "packages/om-ui/src/home/copy.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/home/describe.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

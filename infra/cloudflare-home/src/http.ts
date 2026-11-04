@@ -19,7 +19,7 @@ const BASE_HEADERS: Readonly<Record<string, string>> = {
 export const preflight = (): Response =>
   new Response(null, {
     status: 204,
-    headers: { ...BASE_HEADERS, "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS", "Access-Control-Allow-Headers": "authorization, content-type, om-admission", "Access-Control-Max-Age": "86400" },
+    headers: { ...BASE_HEADERS, "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS", "Access-Control-Allow-Headers": "authorization, content-type, om-admission, om-ciphertext-digest", "Access-Control-Max-Age": "86400" },
   });
 
 export function ok(body: Uint8Array, contentType = CBOR): Response {

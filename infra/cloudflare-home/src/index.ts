@@ -4,25 +4,29 @@
 // It never reads a network address or any identifying header, writes no log, and sets no cookie.
 import {
   CborError, HomeError, decodeAckRequest, decodeDepositRequest, decodeDescriptorPut, decodeDrainRequest, decodeIntroDrainRequest, decodeIntroTicketRequest, decodeKeyFetch, decodeKeyFetchGrant,
-  ADMISSION_HEADER, admissionHash, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, fromHex, decode, Obj, type HomeErrorName,
+  ADMISSION_HEADER, BLOB_DIGEST_HEADER, admissionHash, blobLocatorPattern, decodeBlobPutRequest, parseBlobDigestHeader, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, fromHex, decode, Obj, type HomeErrorName,
 } from "@om/home-wire";
-import { admissionConfigured, admissionHashes, capabilitiesDocument, wakeOn } from "./capabilities";
+import { admissionConfigured, admissionHashes, blobsOn, capabilitiesDocument, wakeOn } from "./capabilities";
 import type { Env } from "./env";
 import { bearer, fail, fromReply, json, ok, preflight, readBody } from "./http";
 import { LIMITS } from "./limits";
 import type { Reply } from "./util";
+import { BlobSpool } from "./blobs";
 import { DescriptorStore } from "./descriptors";
 import { IntroGate } from "./intro";
 import { KeyPool } from "./keys";
 import { MailboxQueue } from "./queue";
 
-export { DescriptorStore, IntroGate, KeyPool, MailboxQueue };
+export { BlobSpool, DescriptorStore, IntroGate, KeyPool, MailboxQueue };
 
 const hex = (b: Uint8Array): string => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 const queueOf = (env: Env, cap: Uint8Array): DurableObjectStub<MailboxQueue> => env.QUEUES.get(env.QUEUES.idFromName(`q:${hex(cap.slice(0, 16))}`));
 const introOf = (env: Env, cap: Uint8Array): DurableObjectStub<IntroGate> => env.INTRO.get(env.INTRO.idFromName(`i:${hex(cap.slice(0, 8))}`));
 
 const BODY_MAX = LIMITS.maxDepositBytes + 2048;
+const BLOB_BODY_MAX = LIMITS.maxBlobBytes + 2048;
+/** One spool for the whole Home: the spool quota is the Home's, and the owner is the only one who can create into it. */
+const spoolOf = (env: Env): DurableObjectStub<BlobSpool> | undefined => env.BLOBS?.get(env.BLOBS.idFromName("spool"));
 
 /** A capability carries its routing prefix (16 bytes for a queue, 8 for an IntroGate service) plus at least 16 secret bytes. */
 const wellFormed = (cap: Uint8Array, prefix: number): boolean => cap.length >= prefix + 16 && cap.length <= 96;
@@ -122,6 +126,31 @@ async function route(request: Request, env: Env): Promise<Response> {
     const admin = bearer(request);
     if (!admin || !wellFormed(admin, 16)) return fail("unauthorized");
     return fromReply(await queueOf(env, admin).revokeDepositCapability(admin, fromHex(revokeMatch[1] ?? "")));
+  }
+
+  // ----------------------------------------------------------------------------------------------- blob spool (om.blob.spool.v1)
+  if (path === "/v1/blobs" || path.startsWith("/v1/blobs/")) {
+    const spool = blobsOn(env) ? spoolOf(env) : undefined;
+    if (!spool) return fail("not_found"); // not offered here (no binding, switched off, or no owner admission)
+    if (path === "/v1/blobs") {
+      if (m !== "POST") return fail("invalid_request");
+      if (!(await admitted(request, env))) return fail("unauthorized"); // before the body is read: a stranger costs no memory
+      const expected = parseBlobDigestHeader(request.headers.get(BLOB_DIGEST_HEADER));
+      if (!expected) return fail("invalid_request");
+      const req = parse(decodeBlobPutRequest, await body(request, BLOB_BODY_MAX));
+      if (!wellFormed(req.cap, 16)) return fail("invalid_request");
+      return fromReply(await spool.put(req, expected));
+    }
+    const locator = path.slice("/v1/blobs/".length);
+    if (!blobLocatorPattern.test(locator)) return fail("not_found");
+    const cap = bearer(request);
+    if (!cap) return fail("unauthorized");
+    if (m === "GET") {
+      const r = await spool.get(fromHex(locator), cap);
+      return r.ok ? ok(r.body, "application/octet-stream") : fromReply(r);
+    }
+    if (m === "DELETE") return fromReply(await spool.remove(fromHex(locator), cap));
+    return fail("invalid_request");
   }
 
   // ----------------------------------------------------------------------------------------------- descriptors

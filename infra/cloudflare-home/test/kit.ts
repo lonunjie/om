@@ -2,7 +2,7 @@
 // Raw HTTP client for the conformance tests. It speaks the wire directly (not through @om/provider-http), so the Home is
 // tested independently of the reference adapter.
 import {
-  concat, decodeDepositCapabilityRecord, decodeDepositReceipt, decodeDrainResponse, decodeHomeError, decodeRotateResponse, encode, encodeAckRequest, encodeDepositRequest, encodeDrainRequest,
+  BLOB_DIGEST_HEADER, blobCiphertextDigest, concat, decodeBlobPutResponse, encodeBlobDigestHeader, encodeBlobPutRequest, newBlobCap, blobLocator, decodeDepositCapabilityRecord, decodeDepositReceipt, decodeDrainResponse, decodeHomeError, decodeRotateResponse, encode, encodeAckRequest, encodeDepositRequest, encodeDrainRequest,
   encodeMintRequest, encodeQueueCreate, encodeRotateRequest, map, toBase64Url, type HomeErrorBody, type RelayDrainResponse,
 } from "@om/home-wire";
 import type { Home } from "./harness";
@@ -73,3 +73,27 @@ export function errorOf<T>(r: Result<T>): HomeErrorBody {
   if (r.ok) throw new Error("expected a typed error, got success");
   return r.error;
 }
+
+/** The blob spool (feature om.blob.spool.v1) over raw HTTP. */
+export const blobs = {
+  /** `digest` defaults to the true digest of `ciphertext`; pass another value (or null for none) to test the check. */
+  put: async (home: Home, o: { cap?: Uint8Array; ciphertext: Uint8Array; requestId?: Uint8Array; retentionSeconds?: number; admission?: Record<string, string>; digest?: Uint8Array | null }) => {
+    const cap = o.cap ?? newBlobCap();
+    const digest = o.digest === undefined ? await blobCiphertextDigest(o.ciphertext) : o.digest;
+    const headers: Record<string, string> = { "content-type": "application/cbor", ...(o.admission ?? {}), ...(digest === null ? {} : { [BLOB_DIGEST_HEADER]: encodeBlobDigestHeader(digest) }) };
+    const body = encodeBlobPutRequest({ requestId: o.requestId ?? rand(16), cap, ciphertext: o.ciphertext, ...(o.retentionSeconds === undefined ? {} : { retentionSeconds: o.retentionSeconds }) });
+    const r = await call(home, "/v1/blobs", { method: "POST", headers, body: asBody(body) }, decodeBlobPutResponse);
+    return { cap, digest, result: r };
+  },
+  get: async (home: Home, locator: string, cap: Uint8Array) => {
+    const r = await home.fetch(`/v1/blobs/${locator}`, { headers: bearer(cap) });
+    const b = new Uint8Array(await r.arrayBuffer());
+    return r.status === 200 ? { ok: true as const, bytes: b, headers: r.headers, status: r.status } : { ok: false as const, error: decodeHomeError(b), headers: r.headers, status: r.status };
+  },
+  remove: async (home: Home, locator: string, cap: Uint8Array) => {
+    const r = await home.fetch(`/v1/blobs/${locator}`, { method: "DELETE", headers: bearer(cap) });
+    const b = new Uint8Array(await r.arrayBuffer());
+    return r.status < 300 ? { ok: true as const, status: r.status } : { ok: false as const, error: decodeHomeError(b), status: r.status };
+  },
+  locator: blobLocator,
+};

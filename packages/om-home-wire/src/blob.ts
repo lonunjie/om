@@ -15,7 +15,7 @@ import { API_MAJOR } from "./version";
 
 /** Registered label of AttachmentRef.ciphertext_digest (spec/registries/om-domain-separation.json). */
 export const BLOB_CIPHERTEXT_LABEL = "OM-BLOB-CIPHERTEXT-HASH-v1";
-/** Transport binding of the reference HTTP profile: the expected digest of a put (base64url of 32 bytes), and the stored digest of a get. */
+/** Transport binding of the reference HTTP profile: the digest the sender computed over the ciphertext, sent with a put (base64url of 32 bytes). The Home recomputes it and refuses a mismatch. */
 export const BLOB_DIGEST_HEADER = "om-ciphertext-digest";
 export const BLOB_ROUTING_BYTES = 16;
 const ID = 16;

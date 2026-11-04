@@ -29,6 +29,15 @@ export const LIMITS = {
   idempotencySeconds: 7 * DAY,
   rotateOverlapSeconds: DAY,
   rotateResultSeconds: 600,
+  /**
+   * Blob spool (feature om.blob.spool.v1), deliberately small: a free-plan Home keeps no card and no R2, so the spool is a
+   * temporary hand-over area for small attachments, not storage. 32 MiB holds a few photos for a week; one object is at most
+   * 4 MiB so a put stays well inside a Worker's 128 MB and a Durable Object's request budget. Larger files travel directly
+   * between the two devices or through a BlobStore the person enables (STORAGE_AND_BLOB_ARCHITECTURE). Operational values, never protocol constants.
+   */
+  maxBlobSpoolBytes: 32 * 1024 * 1024,
+  maxBlobBytes: 4 * 1024 * 1024,
+  maxBlobs: 64,
   /** Key pool. */
   maxOneTimePerKind: 100,
   maxBundleBytes: 65_536,
