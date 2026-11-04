@@ -45,3 +45,24 @@ The wording is right in spirit and matches ADR-0186 and the "operatorless" const
 | Later | Recovery, signed-prekey rotation, PQ epoch phase C, groups (W1), portability filters (ADR needed) | Sonnet high | post-beta |
 
 Routing note (2026-11-04): Haiku 5.5 completed a bounded copy change across six files with tests and trailers correctly, and answered design lookups with usable citations; it is used for copy, docs, registry and read-only research. Sonnet is used where code crosses modules or touches security.
+
+## 5. Status at the end of 2026-11-04 (hand-over for the next session)
+
+Budget rule: `bin/lonunjie-usage gate <class>` (hq) before any big dispatch; plan numbers come from the app's `get_usage` tool. At the end of the day the 5-hour window was at 91% (resets 18:30 Manila) and the week at 68%, so the rest waits for the reset.
+
+| WP | Result |
+|---|---|
+| WP0 | Done: page 1 (`87e2792`), README and UX brief (`e2e36ae`), memory sync (hq `bf452a8`). |
+| WP1 | Done: OM Calm palette and violet focus, Omnibar and new-conversation action, no one-item rail, chat-row previews, delivery-service facts page (`915eced` to `34eb535`). Open: Omnibar message search, desktop screenshots, tier and origin facts are shown but not yet choosable, `border.strong` contrast about 2.3:1 on light canvas. |
+| WP2 | Done in Core: peer ACS-head refresh, per-device fan-out, link ceremony D24 (`eeeb4d0`, `689c8b5`, `8ec3ec3`, `00dfac4`). Open: history snapshot to the new device (phase 5), independent non-Anthropic review, MAC construction and notice signer role (questions in [`2026-11-04-multi-device-core-status.md`](2026-11-04-multi-device-core-status.md)). |
+| WP5a | Done: backup delivery service and "move to a different one" in Settings (`3f9dca0`). |
+| WP5b | Done: adapter commit, first-run "I already use OM", Devices wiring, two-context link e2e on Chromium (`15287f1` to `5e810b6`). Open: Firefox and WebKit runs, V-006 real-phone checks. |
+| WP3a | Done: Home blob spool `om.blob.spool.v1`, undeployed (needs migration v2 and a new signed template release). Reference Home relicensed to AGPL-3.0-or-later (`2ac4088`, `e8b4bfe`). |
+| WP3b | Core attachment, voice-note and location-card paths done against a loopback store. Not wired: adapter, wasm commands, UI. |
+| WP6a | Release candidate om-web 0.0.11 signed and staged on the preview branch `release/om-web-0.0.11-preview` of `lonunjie/om.lonunjie.org`, preview `https://0e55a0e1.om-lonunjie.pages.dev`; 16 of 16 files match the manifest. **Not on `main`: the operator approves the production push.** |
+
+**Next, in order (each its own agent, gate first):**
+1. WP4b (Sonnet): wire attachments: wasm commands from the Core report, adapter `payload_too_large` to `too_large` plus `BlobReceipt`, UI (attach, voice note, location card), and local search worker (Omnibar message search). Needs the design-gate reading for apps, packages, crates.
+2. WP7a (Sonnet): relay template release 0.2.0 with the spool (migration v2) and the AGPL headers; then the first real deploy on the operator's own Cloudflare account to test the untested assumptions in [`2026-11-03-relay-deploy-template.md`](2026-11-03-relay-deploy-template.md).
+3. Operator: approve the 0.0.11 preview, then the `main` push; the old default relay disappears from production with it (ADR-0186).
+4. Later: personal limits profile and `ProviderUsageState`, second reference Home (PR-013), recovery, signed-prekey rotation, groups (W1).
