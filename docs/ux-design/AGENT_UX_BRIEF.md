@@ -83,18 +83,20 @@ other person, who sees a "Message request" that says what the name means. Setup 
 partner would read "Me". Share = share sheet, else copy; "Copy link" is always there. A slow Home never says "nothing was sent": the card keeps watching the same
 operation and finishes by itself.
 
-## 5. Adding a device (multi-device) — design, not yet buildable
+## 5. Adding a device (multi-device)
 
 Sources: [`MULTI_DEVICE_SYNC.md`](../architecture/crypto/MULTI_DEVICE_SYNC.md), [`ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md`](../architecture/client/ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE.md),
 [`ONE_TO_ONE_SESSION_MANAGEMENT.md`](../architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md). **There is no master phone**: every device is a first-class endpoint.
 
-- **New device, first screen:** two equal choices, "Start new" and "I already use OM" (the second is shown only when Core can do it; never show a flow that ends in `Rejected(unsupported)`).
-- **New device:** shows a QR and a link plus a short verification code (`LinkThisDevice`). It never approves itself.
-- **Existing device:** scan or paste, compare the code, then an explicit **Approve / Reject** (`LinkDeviceFlow`, `LinkReview`). Linking is never silent: every other device gets a non-suppressible notice, and Settings > Devices lists each device with enrolment time.
+- **New device, first screen:** two equal choices, "Start new" and "I already use OM" (the second is shown only when this install has a delivery service to carry the ceremony; never show a flow that ends in `Rejected(unsupported)`).
+- **Direction (deviation D24, [`relay-status`](../reports/2026-10-28-relay-status.md)):** the docs above assumed the new device shows the code; as built it is the other way round. The **existing** device (Settings > Devices > Add a device, `AddDevice`) shows the QR, the `om:link/...` text and a 5-minute expiry; the **new** device (first run "I already use OM", `JoinWithLink`) scans or types it. Both then show the same six-digit code.
+- **Device-link QR is not an invitation QR:** dashed accent frame, a text badge ("Adds a device to your account") and a "not an invitation" warning, so the two are told apart by more than colour. The QR plate itself stays light.
+- **New device:** protects itself first (no name asked, no profile created), then the link step, then waits. It never approves itself; only the existing device's decision (reported by Core) moves it on. A refused or expired request offers "Start over" (the host makes a fresh empty profile).
+- **Existing device:** compare the code, then an explicit **Approve / Reject** (`LinkReview`, Core confirmation nonce). Linking is never silent: every device gets a non-suppressible notice strip (`DeviceNotices`, no dismiss; Core never retires a notice yet), and Settings > Devices lists each device with enrolment time and revoke.
 - Adding a messaging device is light; promoting a control device is constitutional and needs its own friction.
 - Suspend, pending, contested/Safety Freeze and permanent removal are four different words and four different screens. Never promise to erase data a removed device already holds.
 - Account-private sync (drafts, mute, archive, theme) is a convenience: say plainly when another device cannot share it.
-- Status: the UI pieces exist in `packages/om-ui/src/devices`; **Core does not implement the ceremony yet** (see [`docs/reports/2026-11-02-multi-device-plan.md`](../reports/2026-11-02-multi-device-plan.md)).
+- Status (2026-11-04): wired end to end in the UI and Core; the full ceremony does **not** yet run against the reference Home, which rejects ceremony messages at deposit (see [`docs/reports/2026-11-02-multi-device-plan.md`](../reports/2026-11-02-multi-device-plan.md), phase 6).
 
 ## 6. Motion
 
@@ -124,7 +126,7 @@ Product screens share the same few rules, all from tokens (`om-ui` conversations
 - **Notes about weaker protection** are a calm info panel (`om-onb__notice`), not a heavy outlined box. A result note ("Link copied") sits directly under the buttons that caused it, never below a QR code.
 - **Message times:** today shows only the clock ("10:55 PM"); older adds the day, older than this year adds the year (`sentAt` in `copy/en.ts`).
 - **Reload / return:** a key kept in this browser opens by itself (`UnlockVault autoUnlock`); the person only sees the branded "Unlock" step when a password or a passkey prompt is needed. The unlock step uses `OnboardingFrame` like every first-run page.
-- **Unbuilt flows are not offered:** Settings > Devices shows a plain "not ready yet" note instead of "Link a new device" until Core can link (`DevicesScreen linking="later"`; flip it in `Shell.tsx` when phase 4 of the multi-device plan lands).
+- **Unbuilt flows are not offered:** "I already use OM" appears only on a first run that can reach a delivery service; "Add a device" only on an active control device whose control state is normal (otherwise a plain sentence says which device to use).
 - **Radius is a theme value (2026-11-04):** controls take their corners from the radius tokens, not a pill. There is no press circle; press feedback is the instant state change.
 - **Wayfinding:** a page opened from a menu has a round arrow, no words, on the heading's line (`SubPage` in `Shell.tsx`, like X's settings; phones only). A wide screen has no rail while Chats is the only destination: the top bar holds the Omnibar trigger and the identity control, and the identity control toggles Settings. **Chats is a place, not "back"**: it goes to `/` and never walks history through the Settings pages that were open. An empty pane is a quiet picture (cog, chat bubble), never a sentence ("Choose something to change" was filler and is gone).
 - **Who you are, not "Settings":** the profile control shows the person's initial and name; Settings opens from it. The unsaved safety code is a plain row in Settings, with no dot on the control and no card (the control's accessible name still says it needs attention).

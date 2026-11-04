@@ -67,7 +67,7 @@ test("add a backup delivery service, see both, then move away from the first", a
   await page.getByRole("button", { name: "Set up my own, free" }).click();
   await page.getByLabel("Address of your delivery service").fill(LOCKED_RELAY);
   await page.getByRole("button", { name: "Check and continue" }).click();
-  await expect(page.getByLabel("Your name")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Start new" })).toBeVisible({ timeout: 30_000 }); // connected: first run now offers "Start new" and "I already use OM" (D24)
   await walkSetup(page, { stopAt: "invite" });
   await page.getByRole("button", { name: "Skip for now" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
@@ -170,7 +170,7 @@ test("an install that stored one address before backups existed keeps it and its
   await page.reload();
   // No setup page: the stored service is the one in use.
   await page.getByRole("button", { name: "Get started" }).click();
-  await expect(page.getByLabel("Your name")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Start new" })).toBeVisible({ timeout: 30_000 }); // connected: first run now offers "Start new" and "I already use OM" (D24)
   await walkSetup(page, { stopAt: "invite" });
   await page.getByRole("button", { name: "Skip for now" }).click();
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();

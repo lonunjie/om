@@ -73,7 +73,7 @@ test("set up my own: setup value, new-tab link, typed address, then first run co
   await expect(page.getByRole("alert")).toBeVisible();
   await page.getByLabel("Address of your delivery service").fill(RELAY);
   await page.getByRole("button", { name: "Check and continue" }).click();
-  await expect(page.getByLabel("Your name")).toBeVisible({ timeout: 30_000 }); // the protect step: first run goes on without the landing page again
+  await expect(page.getByRole("button", { name: "Start new" })).toBeVisible({ timeout: 30_000 }); // connected: first run now offers "Start new" and "I already use OM" (D24)
   expect(wire).toContain("GET /.well-known/om-provider-capabilities");
 
   // Stored for this address only, and the pending secret is retired.

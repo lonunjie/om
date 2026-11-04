@@ -18,8 +18,17 @@ export async function onboard(page: Page, o: OnboardOptions = {}): Promise<{ rea
   return walkSetup(page, o);
 }
 
+/** Builds with a delivery service open first run on two equal choices (deviation D24); pick "Start new" when they are there. */
+export async function startNew(page: Page): Promise<void> {
+  const choice = page.getByRole("button", { name: "Start new" });
+  const name = page.getByLabel("Your name");
+  await expect(choice.or(name)).toBeVisible();
+  if (await choice.isVisible()) await choice.click();
+}
+
 /** The setup steps after the landing page: one tap on "Next: Secure your identity" lands on the ready state (invite first). */
 export async function walkSetup(page: Page, o: OnboardOptions = {}): Promise<{ readonly lockMs: number }> {
+  await startNew(page);
   if (o.passphrase !== undefined) {
     await page.getByText("More options").click();
     await page.getByLabel("Also add a password of my own").check();

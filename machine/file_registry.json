@@ -508,6 +508,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/device-link.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/helpers.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8957,6 +8964,20 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/devices/AddDevice.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/devices/DeviceNotices.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/devices/DevicesScreen.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8971,14 +8992,14 @@
       "authority": "product_implementation"
     },
     {
-      "path": "packages/om-ui/src/devices/LinkDeviceFlow.tsx",
+      "path": "packages/om-ui/src/devices/JoinWithLink.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
       "authority": "product_implementation"
     },
     {
-      "path": "packages/om-ui/src/devices/LinkThisDevice.tsx",
+      "path": "packages/om-ui/src/devices/LinkReview.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -9133,6 +9154,13 @@
     },
     {
       "path": "packages/om-ui/src/onboarding/AcceptInvite.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/onboarding/FirstRunChoice.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
