@@ -26,6 +26,8 @@ export interface ConversationViewProps {
   readonly footer?: ReactNode;
   /** With it the header shows a Back control (compact screens, where the conversation replaces the list). */
   readonly onBack?: () => void;
+  /** A message to bring into view and mark briefly (a search hit). Ignored if the message is not in this conversation. */
+  readonly focusMessageId?: MessageId | undefined;
 }
 
 /** Messages from one person within this gap read as one run: the time (and the tail of the bubble) is shown once. */
@@ -41,7 +43,7 @@ const scrollerOf = (el: HTMLElement): HTMLElement | null => {
   return null;
 };
 
-export function ConversationView({ services, conversationId, copy, richTextFor, footer, onBack }: ConversationViewProps) {
+export function ConversationView({ services, conversationId, copy, richTextFor, footer, onBack, focusMessageId }: ConversationViewProps) {
   const state = useConversationView(services, conversationId);
   const retrying = useRef(new Set<MessageId>());
   const [, rerender] = useState(0);
@@ -66,6 +68,23 @@ export function ConversationView({ services, conversationId, copy, richTextFor, 
     const calm = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView({ block: "end", behavior: first || calm ? "auto" : "smooth" });
   }, [count, newestOutgoing]);
+
+  // A search hit opens the chat at the exact message: scroll it to the middle, mark it for a moment (no motion if reduced), once per target.
+  const [marked, setMarked] = useState<MessageId | null>(null);
+  const shownFocus = useRef<MessageId | null>(null);
+  const hasFocus = focusMessageId !== undefined && timeline !== null && timeline.some((i) => i.messageId === focusMessageId);
+  useEffect(() => {
+    if (focusMessageId === undefined) { shownFocus.current = null; return; }
+    if (!hasFocus || shownFocus.current === focusMessageId) return;
+    shownFocus.current = focusMessageId;
+    const el = document.getElementById(`om-msg-${focusMessageId}`);
+    if (el === null) return;
+    const calm = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "center", behavior: calm ? "auto" : "smooth" });
+    setMarked(focusMessageId);
+    const t = setTimeout(() => { setMarked(null); }, 2400);
+    return () => { clearTimeout(t); setMarked(null); };
+  }, [focusMessageId, hasFocus]);
 
   if (state.status === "loading") return <div className="om-conv-view" aria-busy="true" />;
   if (state.status === "failed") return <div className="om-conv-view"><p role="alert">{copy.view.loadFailed}</p></div>;
@@ -110,7 +129,7 @@ export function ConversationView({ services, conversationId, copy, richTextFor, 
               // A message that is not settled (sending, waiting, refused) always says so, even in the middle of a run.
               const unsettled = delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered";
               return (
-                <li key={item.messageId} className="om-conv-view__item" data-direction={item.direction} data-joined={joinsPrev ? "true" : undefined} data-last={lastOfRun ? "true" : undefined}>
+                <li key={item.messageId} id={`om-msg-${item.messageId}`} className="om-conv-view__item" data-found={marked === item.messageId ? "true" : undefined} data-direction={item.direction} data-joined={joinsPrev ? "true" : undefined} data-last={lastOfRun ? "true" : undefined}>
                   <VisuallyHidden>{outgoing ? copy.view.outgoing : copy.view.incoming}</VisuallyHidden>
                   <div className="om-conv-view__bubble" data-state={delivery?.kind}>
                     <RichText doc={(richTextFor ?? ((i) => plainTextToRichText(i.text)))(item)} copy={copy.richText} />

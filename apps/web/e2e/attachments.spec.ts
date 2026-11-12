@@ -152,6 +152,7 @@ test("files, a voice note and a location card cross a locked Home; oversize is r
   await expect(file).toContainText("File");
   await file.click();
   await expect(log.getByText("note.txt")).toBeVisible();
+  await expect(log.locator('li[data-found="true"]')).toContainText("note.txt"); // the hit opened at that exact message
 
   // ---- what the Home saw: sealed bytes with a digest header, no readable content, no capability in any URL ----
   const uploads = toHome.filter((w) => w.url.endsWith("/v1/blobs") && w.method === "POST");

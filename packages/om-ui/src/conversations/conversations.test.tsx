@@ -288,4 +288,15 @@ describe("first contact states (ADR-0181)", () => {
     expect(view.container.querySelectorAll("[role='status']")).toHaveLength(1);
     expect(await axeViolations(view.container)).toEqual([]);
   });
+
+  it("a search hit opens at the exact message and marks it; an unknown message id is ignored", async () => {
+    const { services } = setup();
+    const view = await services.client.query({ kind: "GetConversationView", ctx: services.ctx, conversationId: CONV_A });
+    const target = view.timeline[0]!.messageId;
+    const { container, rerender } = render(<ConversationView services={services} conversationId={CONV_A} copy={testCopy} focusMessageId={target} />);
+    await screen.findByText("hello alice");
+    await waitFor(() => { expect(container.querySelector(`#om-msg-${target}`)?.getAttribute("data-found")).toBe("true"); });
+    rerender(<ConversationView services={services} conversationId={CONV_A} copy={testCopy} focusMessageId={"nope" as typeof target} />);
+    await waitFor(() => { expect(container.querySelector("[data-found]")).toBeNull(); });
+  });
 });

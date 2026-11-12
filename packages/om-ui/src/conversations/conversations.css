@@ -119,3 +119,6 @@
 .om-location-confirm__point { font-variant-numeric: tabular-nums; }
 .om-location-confirm__actions { display: flex; flex-wrap: wrap; gap: var(--om-space-2); }
 .om-location-confirm:focus-visible { outline: 3px solid var(--om-color-focus-ring); outline-offset: 2px; }
+
+/* A search hit: the message is tinted for a moment so the eye finds it. Static (no animation), so reduced motion needs nothing more. */
+.om-conv-view__item[data-found="true"] .om-conv-view__bubble { outline: 2px solid var(--om-color-focus-ring); outline-offset: 2px; }

@@ -1,7 +1,7 @@
 // The connected application shell shared by the production Core composition and the dev/e2e entries: conversation
 // list, requests, conversation view, composer, Settings > Devices / Recovery. It only talks to a CoreClient.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { parseInviteLink, type ConversationId, type IntroductionRequest, type OperationId } from "@om/platform-api";
+import { parseInviteLink, type ConversationId, type IntroductionRequest, type MessageId, type OperationId } from "@om/platform-api";
 import {
   AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
   type IconName, type OmniEntry, useConversationDigests,
@@ -98,7 +98,10 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
     return () => { live = false; };
   }, [draftSync]);
   const chatsBeforeAccept = useRef<readonly string[]>([]);
+  // A search hit names a message too; it is kept in memory only (never in the address) and dropped when the chat changes.
+  const [hitFocus, setHitFocus] = useState<{ readonly chat: string; readonly messageId: MessageId; readonly ctx: unknown } | null>(null);
   const selected = place.kind === "chats" ? (place.chat as ConversationId | null) : null;
+  useEffect(() => { if (hitFocus !== null && hitFocus.chat !== selected) setHitFocus(null); }, [hitFocus, selected]);
   const settings: SettingsPage | null = place.kind === "settings" ? place.page : null;
   const savingCode = place.kind === "safety-code" && safetyCode !== undefined;
   // The open chat is shown, so it is seen; a chat met for the first time starts as seen (history that was here before is not "new").
@@ -251,8 +254,8 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
   if (!omniOpen) searchWhileOpen.current = localSearch.search;
   const omniFound = useCallback((query: string): readonly OmniEntry[] => searchWhileOpen.current(query).map((hit, i): OmniEntry => ({
     id: `found-${String(i)}`, kind: hit.kind, label: hit.snippet, detail: hit.displayName,
-    run: () => { go({ kind: "chats", chat: hit.conversationId }); },
-  })), [go]);
+    run: () => { setHitFocus({ chat: hit.conversationId, messageId: hit.messageId, ctx: services.ctx }); go({ kind: "chats", chat: hit.conversationId }); },
+  })), [go, services.ctx]);
   const openOmni = (): void => { setOmniOpen(true); };
   const trigger = <OmnibarTrigger copy={omnibarCopy} shortcut={shortcut} onOpen={openOmni} />;
   const common = {
@@ -370,7 +373,7 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
         }
         detail={
           selected === null ? <div className="om-page om-page--empty"><span className="om-empty-art" aria-hidden="true"><Icon name="chat" size={72} /></span></div> : (
-            <ConversationView key={selected} services={services} conversationId={selected} copy={conversationCopy} onBack={toChats} />
+            <ConversationView key={selected} services={services} conversationId={selected} copy={conversationCopy} onBack={toChats} focusMessageId={hitFocus !== null && hitFocus.chat === selected && hitFocus.ctx === services.ctx ? hitFocus.messageId : undefined} />
           )
         }
         composerZone={selected === null || (list.status === "ready" && list.value.some((c) => c.id === selected && c.relationship === "restored")) ? undefined : (
