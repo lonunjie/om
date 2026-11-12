@@ -31,3 +31,12 @@ Agent group A (one Sonnet agent, reads PROVISIONING_AND_BOOTSTRAP and the Cloudf
 - Relay template `lonunjie/om-relay`: `main` now holds release 0.2.0 (merge `c4587ea`; branch `release/0.2.0` kept).
 - Web: see the last section of the completion plan for the 0.0.12 release and whether it was pushed to the site's `main`.
 - Haiku 5.5 verdict: reliable for copy edits, docs, memory, read-only design lookups and runbook execution with explicit checks; it stops honestly at the design gate. Not used for Core, crypto or multi-module code.
+
+## 4. Update 2026-11-13 (one session, Sonnet; budget at start: 1% of the 5-hour window, 13% of the week)
+
+- **Done:** search hit opens the chat at the exact message and marks it (`0b6a2d9`; unit test in `conversations.test.tsx`, Chromium e2e in `attachments.spec.ts`). Closes that item of group G.
+- **Design sources read (all four `apps/web` domains, in full):** `client_endpoint_distribution`, `discovery_first_contact`, `relay_reachability`, `ux_accessibility_personalization`. Not read: crypto, identity, storage, groups, time/ordering domains (the next Core work needs them).
+- **Cost of the design gate:** reading the four `apps/web` domains is about 70k tokens. Batch UI changes in one session so the reading is paid once; a one-line UI change does not justify a fresh session.
+- **Rule found while reading:** search/index results are bound to the originating `ProfileExecutionContext` (UI-10, R-332); any new search or notification entry point must carry the context and drop on profile change.
+- **Gotcha:** `pnpm exec vitest run` in `packages/om-ui` also picks up stale `dist/**/*.test.js` after `tsc -b`; run `vitest run src` instead.
+- **Still blocked on the operator, so not started:** group A (real deploy flow), group B (D25/D26 rulings), the non-Anthropic review of multi-device Core (ADR-0167). The product cannot honestly be called "ready for mass use" before these and the open items in groups C to G are done.
