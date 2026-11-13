@@ -1481,6 +1481,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/flows/recovery_watch.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/host.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1664,6 +1671,13 @@
     },
     {
       "path": "crates/om-core/tests/recovery_flow.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/recovery_observe.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",

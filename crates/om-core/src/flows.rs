@@ -24,6 +24,7 @@ use std::sync::OnceLock;
 mod blobs;
 mod ceremony;
 mod multi;
+mod recovery_watch;
 pub(crate) use blobs::{attachment_views, presentation, rec_ref};
 use ceremony::KIND_ENROLLED;
 pub use ceremony::{
@@ -31,6 +32,7 @@ pub use ceremony::{
     poll_targets as ceremony_poll_targets, request_view,
 };
 use multi::{Inner, KIND_ACS_REQUEST, KIND_ACS_UPDATE};
+pub(crate) use recovery_watch::request_views;
 
 pub const INVITE_TTL_MS: u64 = 7 * 24 * 60 * 60 * 1000;
 pub const BUNDLE_TTL_S: u64 = 90 * 24 * 60 * 60;
@@ -749,8 +751,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             | IntentBody::ShareStaticLocation { .. }
             | IntentBody::StartCall { .. }
             | IntentBody::RestoreHistory { .. }
-            | IntentBody::StartRecovery { .. }
-            | IntentBody::VetoRecovery { .. } => unsupported,
+            | IntentBody::StartRecovery { .. } => unsupported,
+            IntentBody::VetoRecovery { request_id, .. } => self.veto_recovery(request_id),
+            IntentBody::ConfirmRecovery { request_id, .. } => self.confirm_recovery(request_id),
         };
         let msg = None;
         self.record(op, kind, outcome, msg);
@@ -1436,6 +1439,39 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         );
         self.broadcast_account_update();
         Ok(hex(&cred.device_id))
+    }
+
+    /// TEST ONLY (`test-loopback`): like [`Self::debug_link_credential`] but the devices join as CONTROLLERS in one
+    /// transition, authorized as the real transition by this lone controller (the test keeps the devices).
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_link_controllers(
+        &mut self,
+        credential_bodies: &[Vec<u8>],
+    ) -> Result<(), CoreError> {
+        let (head, _, creds) = self.acs_head().ok_or(CoreError::Invalid("no acs"))?;
+        let (me_id, signer) = {
+            let d = self.device()?;
+            (d.device_id, d.signer.clone())
+        };
+        let mut child = head.clone();
+        child.generation = head.generation + 1;
+        child.previous = Some(head.hash());
+        let mut all = creds;
+        for body in credential_bodies {
+            let cred = binding::Credential::from_body(body)
+                .map_err(|_| CoreError::Invalid("credential"))?;
+            child.control.insert(cred.device_id);
+            child.credentials.push((cred.device_id, cred.hash()));
+            all.push(body.clone());
+        }
+        let signed = control::sign_acs(&child.body(), &[(&me_id, &signer)], self.rng);
+        control::verify_successor(&head, &signed, &all)
+            .map_err(|_| CoreError::Invalid("controller link not authorized"))?;
+        for body in credential_bodies {
+            self.st.app.acs_credentials.push(hex(body));
+        }
+        self.st.app.acs_chain.push(hex(&signed));
+        Ok(())
     }
 
     fn retry_delivery(&mut self, op: &OperationId, message_id: &str) -> Result<(), CoreError> {
@@ -2144,6 +2180,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 | Purpose::DepositAcs { .. }
                 | Purpose::DepositRelaySet { .. }
                 | Purpose::GrantKeyFetch { .. }
+                | Purpose::RecoveryFanout
                 | Purpose::DepositBind { .. } => None,
             }
         };
@@ -2247,7 +2284,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     ) -> Result<(), CoreError> {
         match entry.purpose {
             Purpose::PublishKeys => self.st.app.keys_published = true,
-            Purpose::Ack | Purpose::DeleteBlob { .. } => {}
+            Purpose::Ack | Purpose::DeleteBlob { .. } | Purpose::RecoveryFanout => {}
             Purpose::PutBlob {
                 operation_id,
                 conversation_id,

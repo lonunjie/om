@@ -540,6 +540,19 @@ pub fn open_veto(
     Ok(veto)
 }
 
+// ------------------------------------------------------------------------------------------ successor carrier
+
+/// What the recovering device hands a verifier alongside a `RecoveryRequest` to complete it: the recovery-signed
+/// successor `AccountControlState`, the rotated policy body it commits to, and the new device's `DeviceCredential`
+/// body. No design document or CDDL names a carrier for these (the request holds only the credential's digest), so
+/// this is Core's own in-memory shape until the Home work (Slice 4) decides; it is not a wire object.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SuccessorBundle {
+    pub child: Vec<u8>,
+    pub next_policy: Vec<u8>,
+    pub credential: Vec<u8>,
+}
+
 // ----------------------------------------------------------------------------------------------------- tests
 
 #[cfg(test)]

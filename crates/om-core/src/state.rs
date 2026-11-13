@@ -592,6 +592,8 @@ pub enum Purpose {
         conversation_id: String,
         device_id: Hex,
     },
+    /// A recovery veto (stub transport): nothing awaits its result.
+    RecoveryFanout,
     Ack,
 }
 
@@ -676,6 +678,58 @@ pub struct AppState {
     /// Attachments prepared but not yet sent, by BlobID (hex).
     #[serde(default)]
     pub prepared: BTreeMap<Hex, PreparedBlob>,
+    /// Recovery requests this verifier has observed, by request digest (hex), bounded. Additive: absent in older
+    /// records. The verifier-local interval lives here (ADR-0131/0147/0154).
+    #[serde(default)]
+    pub recovery_requests: BTreeMap<Hex, RecoveryObsRec>,
+}
+
+/// Where an observed recovery request stands for this verifier.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryObsState {
+    Waiting,
+    /// A valid veto by a live controller was observed: the request can never complete here.
+    Vetoed,
+    /// The account moved on (the parent head changed, the target was enrolled or revoked): dropped.
+    Stale,
+    /// The successor was verified and recorded.
+    Completed,
+}
+
+/// The recovery-signed successor the recovering device produced, with what a verifier needs to check it
+/// (`RECOVERY_AND_BACKUP_POLICY.md` 10.3): the signed child state, the rotated policy body and the new device's
+/// credential body. All hex.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoverySuccessorRec {
+    pub child: Hex,
+    pub next_policy: Hex,
+    pub credential: Hex,
+}
+
+/// One observed recovery request. `credited_ms` is the ONLY clock: monotonic time durably checkpointed by this
+/// verifier since it first saw the request. `first_seen_ms` is a wall-clock display hint, never authority.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveryObsRec {
+    pub digest: Hex,
+    /// The raw `signed-RecoveryRequest`.
+    pub request: Hex,
+    pub first_seen_ms: u64,
+    /// The host's boot session of the last credited reading, and that reading.
+    pub boot_session: Hex,
+    pub last_mono_ms: u64,
+    pub credited_ms: u64,
+    /// Raw `signed-RecoveryVeto`s that verified against the head (bounded).
+    #[serde(default)]
+    pub vetoes: Vec<Hex>,
+    /// This device signed one of them.
+    #[serde(default)]
+    pub own_veto: bool,
+    #[serde(default)]
+    pub successor: Option<RecoverySuccessorRec>,
+    pub state: RecoveryObsState,
 }
 
 /// Where a device-link ceremony is, on either side.

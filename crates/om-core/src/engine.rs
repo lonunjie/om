@@ -518,6 +518,76 @@ impl<R: RngCore + CryptoRng> Core<R> {
         })
     }
 
+    // ------------------------------------------------------------------------------------------ recovery (controller side)
+
+    /// Hand Core a `signed-RecoveryRequest` the host observed (transport is the host's: there is no Home endpoint yet).
+    /// The first valid observation starts this verifier's own interval; see `flows::recovery_watch`.
+    pub fn recovery_observe_request(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        signed_request: &[u8],
+        mono: &MonotonicSample,
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.observe_recovery_request(signed_request, mono)
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
+    }
+
+    /// Hand Core a `signed-RecoveryVeto` the host observed.
+    pub fn recovery_observe_veto(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        signed_veto: &[u8],
+        mono: &MonotonicSample,
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.observe_recovery_veto(signed_veto, mono)
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
+    }
+
+    /// Hand Core the recovery-signed successor for the tracked request `request_id` (its digest, hex).
+    pub fn recovery_observe_successor(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        request_id: &str,
+        bundle: &crate::recovery::SuccessorBundle,
+        mono: &MonotonicSample,
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.observe_recovery_successor(request_id, bundle, mono)
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
+    }
+
+    /// Credit the host's durable monotonic reading to every pending request (call it regularly and at start), drop
+    /// stale ones and apply a completion whose delay has run.
+    pub fn recovery_tick(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        mono: &MonotonicSample,
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| tx.recovery_tick(mono))?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
+    }
+
     pub fn pending_operations(
         &self,
         ctx: &ProfileExecutionContext,
@@ -609,6 +679,23 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 handle: None,
             },
         ))
+    }
+
+    /// TEST ONLY: link credentials the test built as controllers (see `Tx::debug_link_controllers`).
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_link_controllers(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        credential_bodies: &[Vec<u8>],
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.debug_link_controllers(credential_bodies)
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
     }
 
     /// TEST ONLY: adopt the introduction of one of our own other devices (see `Tx::debug_adopt_sibling_intro`).
@@ -851,7 +938,9 @@ impl<R: RngCore + CryptoRng> Core<R> {
                             .map(|v| to(&v))
                             .unwrap_or(serde_json::Value::Null))
                     }
-                    Query::GetRecoveryStatus { .. } => Ok(to(&recovery_status(st))),
+                    Query::GetRecoveryStatus { .. } => {
+                        Ok(to(&recovery_status(st, self.clock.now_ms())))
+                    }
                     Query::GetProfileList => Err(CoreError::Invalid("unreachable")),
                 }
             }
@@ -1112,7 +1201,7 @@ fn devices_view(st: &ProfileState, now_ms: u64) -> DevicesView {
 /// `on` only when the recovery key is confirmed stored AND the policy body Core keeps hashes to the commitment in the
 /// head AccountControlState (RECOVERY_AND_BACKUP_POLICY.md section 1); anything else, including a profile made before
 /// policies existed, is `pending`.
-fn recovery_status(st: &ProfileState) -> RecoveryStatusView {
+fn recovery_status(st: &ProfileState, now_ms: u64) -> RecoveryStatusView {
     let policy = st
         .app
         .recovery_policy
@@ -1174,6 +1263,14 @@ fn recovery_status(st: &ProfileState) -> RecoveryStatusView {
             _ => crate::recovery::DEFAULT_DELAY_SECONDS * 1000,
         },
         recovery_key_saved: st.app.recovery_key_saved,
-        requests: vec![],
+        requests: crate::flows::request_views(
+            &st.app,
+            now_ms,
+            match (&head, &policy) {
+                (Some(h), Some(p)) if committed => Some((h, p)),
+                _ => None,
+            },
+            st.device.as_ref().map(|d| d.device_id),
+        ),
     }
 }

@@ -673,6 +673,29 @@ pub fn sign_acs_recovery<R: RngCore + CryptoRng>(
     sig::envelope(body.to_vec(), entries)
 }
 
+/// Add a `controller` signature by `id` to an already signed state (the co-signing path of a recovery completion: the
+/// recovering device signed with the recovery method, a live controller now adds its own). Every signature covers the
+/// body alone, so appending never disturbs the others. Verification is still [`verify_recovery_successor`]'s job.
+pub fn cosign_acs<R: RngCore + CryptoRng>(
+    signed: &[u8],
+    id: &[u8; 16],
+    signer: &DeviceSigner,
+    rng: &mut R,
+) -> Result<Vec<u8>, Error> {
+    let v = cbor::decode(signed)?;
+    let body = v.get(1)?.b()?.to_vec();
+    let mut entries = v.get(2)?.a()?.to_vec();
+    if entries.is_empty() || entries.len() >= 16 {
+        return Err(Error::Binding("acs: 1..15 signatures to co-sign"));
+    }
+    let sg = signer.sign_with(
+        &ds_sig(LBL_ACS_SIG, PROFILE_V1, ROLE_CONTROLLER, id, &body),
+        arr32(rng),
+    );
+    entries.push(sig::signature_entry(id, PROFILE_V1, ROLE_CONTROLLER, sg));
+    Ok(sig::envelope(body, entries))
+}
+
 /// Verify a genesis state: generation 1, no parent, signed by every control device it names.
 pub fn verify_genesis(signed: &[u8], credentials: &[Vec<u8>]) -> Result<Acs, Error> {
     let (acs, _, who) = open_signed(signed, credentials, None)?;

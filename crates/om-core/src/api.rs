@@ -301,6 +301,12 @@ pub enum IntentBody {
         request_id: String,
         confirmation: ConfirmationToken,
     },
+    /// "That was me" on an incoming recovery request: this controller co-signs the recovering device's successor, which
+    /// completes the recovery at once (RECOVERY_AND_BACKUP_POLICY.md 10.3). `request_id` names an observed request.
+    ConfirmRecovery {
+        request_id: String,
+        confirmation: ConfirmationToken,
+    },
     /// Ask Core for a single-use confirmation nonce bound to a destructive intent kind and its target (M2,
     /// ADR-0181 section 8). The nonce is read back with `Query::GetConfirmation`.
     IssueConfirmation {
@@ -310,7 +316,7 @@ pub enum IntentBody {
 }
 
 /// The destructive intent kinds that need a Core-issued confirmation (mirrors `DESTRUCTIVE_INTENT_KINDS`).
-pub const DESTRUCTIVE_KINDS: [&str; 7] = [
+pub const DESTRUCTIVE_KINDS: [&str; 8] = [
     "BlockPerson",
     "SuspendDevice",
     "ChangePrivacyPolicy",
@@ -318,6 +324,7 @@ pub const DESTRUCTIVE_KINDS: [&str; 7] = [
     "RevokeDevice",
     "StartRecovery",
     "VetoRecovery",
+    "ConfirmRecovery",
 ];
 
 impl IntentBody {
@@ -351,6 +358,7 @@ impl IntentBody {
             IntentBody::RevokeDevice { .. } => "RevokeDevice",
             IntentBody::StartRecovery { .. } => "StartRecovery",
             IntentBody::VetoRecovery { .. } => "VetoRecovery",
+            IntentBody::ConfirmRecovery { .. } => "ConfirmRecovery",
             IntentBody::IssueConfirmation { .. } => "IssueConfirmation",
         }
     }
@@ -363,7 +371,8 @@ impl IntentBody {
             IntentBody::SuspendDevice { device_id, .. }
             | IntentBody::RevokeDevice { device_id, .. } => Some(device_id.clone()),
             IntentBody::ApproveDeviceLink { request_id, .. }
-            | IntentBody::VetoRecovery { request_id, .. } => Some(request_id.clone()),
+            | IntentBody::VetoRecovery { request_id, .. }
+            | IntentBody::ConfirmRecovery { request_id, .. } => Some(request_id.clone()),
             IntentBody::ChangePrivacyPolicy { policy, .. } => Some(code(policy)),
             IntentBody::StartRecovery {
                 scope, custodian, ..
@@ -381,7 +390,8 @@ impl IntentBody {
             | IntentBody::ApproveDeviceLink { confirmation, .. }
             | IntentBody::RevokeDevice { confirmation, .. }
             | IntentBody::StartRecovery { confirmation, .. }
-            | IntentBody::VetoRecovery { confirmation, .. } => Some(confirmation),
+            | IntentBody::VetoRecovery { confirmation, .. }
+            | IntentBody::ConfirmRecovery { confirmation, .. } => Some(confirmation),
             _ => None,
         }
     }
@@ -922,5 +932,43 @@ pub struct RecoveryStatusView {
     pub scopes: Vec<RecoveryScope>,
     pub activation_delay_ms: u64,
     pub recovery_key_saved: bool,
-    pub requests: Vec<serde_json::Value>,
+    pub requests: Vec<RecoveryRequestView>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryRequestDirection {
+    Incoming,
+    Outgoing,
+}
+
+/// `stale` is an addition to the platform's `waiting | completed | vetoed | cancelled`: the account moved on and the
+/// request was dropped (a device was enrolled or revoked meanwhile, or the parent head moved).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryRequestStateCode {
+    Waiting,
+    Completed,
+    Vetoed,
+    Cancelled,
+    Stale,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveryRequestView {
+    /// Hex of the request digest (`OM-RECOVERY-REQUEST-HASH-v1`); what `VetoRecovery` / `ConfirmRecovery` name.
+    pub request_id: String,
+    pub operation_id: Option<String>,
+    pub direction: RecoveryRequestDirection,
+    pub scope: RecoveryScope,
+    pub custodian: RecoveryCustodianCode,
+    /// Wall-clock display hint of this verifier's first observation.
+    pub started_at: u64,
+    /// This verifier's own earliest completion: now + (delay - credited monotonic time). Never a Home or request time.
+    pub activates_at: Option<u64>,
+    pub state: RecoveryRequestStateCode,
+    pub can_stop: bool,
+    /// The delay has run with no veto, and no recovery-signed successor is held yet to apply.
+    pub ready: bool,
 }

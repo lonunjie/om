@@ -239,6 +239,32 @@ pub enum NetCall {
         mailbox: Vec<u8>,
         relay_uri: String,
     },
+    /// STUB (recovery, work group E): deliver a `signed-RecoveryRequest` to every route of the account's Home(s)
+    /// (`RecoveryRequestFanout` in `home-api.cddl`). No Home implements it yet, so the stock adapters answer
+    /// `Rejected{unsupported}`; Core never relies on it. The recovering device is Slice 4.
+    RecoveryRequestFanout {
+        #[serde(with = "hexs")]
+        bytes: Vec<u8>,
+    },
+    /// STUB (recovery, work group E): deliver a `signed-RecoveryVeto` the same way. The Home API freezes no veto
+    /// endpoint yet (see the recovery slice 3 report), so this is Core's intent only; adapters answer
+    /// `Rejected{unsupported}` and the outbox drops it.
+    RecoveryVetoFanout {
+        #[serde(with = "hexs")]
+        bytes: Vec<u8>,
+    },
+}
+
+/// A durable monotonic reading the HOST supplies with every recovery observation (ADR-0131/0147/0154). `boot_session`
+/// is an opaque 1..=32 byte id of the current boot of the host's monotonic clock, `elapsed_ms` the milliseconds that
+/// clock has run in that boot. Core credits only growth inside one boot session; the gap between sessions (downtime)
+/// is never credited, and a reading that goes backwards credits nothing. Wall clocks are not an input here.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonotonicSample {
+    #[serde(with = "hexs")]
+    pub boot_session: Vec<u8>,
+    pub elapsed_ms: u64,
 }
 
 /// What the adapter answers a `PutBlob` with (canonical CBOR as `NetResult::Bytes`):

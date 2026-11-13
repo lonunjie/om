@@ -490,6 +490,14 @@ impl LoopbackNetwork {
                     },
                 }
             }
+            // No Home serves recovery fan-out yet (stub transport): refused, and Core drops the outbox entry.
+            NetCall::RecoveryRequestFanout { .. } | NetCall::RecoveryVetoFanout { .. } => {
+                NetResult::Err {
+                    error: NetError::Rejected {
+                        reason: RejectReason::Unsupported,
+                    },
+                }
+            }
             NetCall::Ack {
                 mailbox,
                 seq,
@@ -721,6 +729,53 @@ impl Runtime {
             })
             .collect();
         self.core.supply_routes(offers);
+    }
+
+    /// Recovery observations as a host would hand them in (see `Core::recovery_observe_*`): `session` names the host's
+    /// boot of its monotonic clock and `mono_ms` is that clock's reading.
+    pub fn recovery_observe_request(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        signed: &[u8],
+        mono: &MonotonicSample,
+    ) {
+        let step = self
+            .core
+            .recovery_observe_request(ctx, signed, mono)
+            .expect("observe request");
+        self.settle(&step);
+    }
+
+    pub fn recovery_observe_veto(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        signed: &[u8],
+        mono: &MonotonicSample,
+    ) {
+        let step = self
+            .core
+            .recovery_observe_veto(ctx, signed, mono)
+            .expect("observe veto");
+        self.settle(&step);
+    }
+
+    pub fn recovery_observe_successor(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        request_id: &str,
+        bundle: &crate::recovery::SuccessorBundle,
+        mono: &MonotonicSample,
+    ) {
+        let step = self
+            .core
+            .recovery_observe_successor(ctx, request_id, bundle, mono)
+            .expect("observe successor");
+        self.settle(&step);
+    }
+
+    pub fn recovery_tick(&mut self, ctx: &ProfileExecutionContext, mono: &MonotonicSample) {
+        let step = self.core.recovery_tick(ctx, mono).expect("recovery tick");
+        self.settle(&step);
     }
 
     pub fn tick(&self, ms: u64) {

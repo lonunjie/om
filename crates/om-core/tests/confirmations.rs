@@ -223,6 +223,13 @@ fn every_destructive_kind_checks_the_nonce_including_the_unbuilt_ones() {
             "VetoRecovery",
             IntentBody::VetoRecovery {
                 request_id: "r".into(),
+                confirmation: bare.clone(),
+            },
+        ),
+        (
+            "ConfirmRecovery",
+            IntentBody::ConfirmRecovery {
+                request_id: "r".into(),
                 confirmation: bare,
             },
         ),

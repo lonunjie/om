@@ -163,3 +163,17 @@ the HKDF has no salt; `verify_recovery_successor` takes the rotated `next_policy
 
 **Remains.** Slice 3 (controller side: observation records, `VetoRecovery`, co-sign, `RecoveryStatusView.requests`, injected `NetCall::RecoveryRequestFanout` stub); `verify_chain` cannot replay a completed recovery link yet (needs policy and request per link); Slice 4 (G2/G3, Home endpoints, UI entry).
 No test yet for a legacy profile reporting `pending`. `om-core-wasm` `vitest run src` fails on an unrelated stale `dist` test file; `src/conformance.test.ts` and `src/ui.test.tsx` pass.
+
+## Slice 3 built (2026-11-13)
+
+**Design sources read:** same as "Slices 1 and 2 built" above (all six Core domains and the listed ADRs; ADRs 0131, 0147, 0154, 0161, 0168 only through the documents' summaries). Code by a worker subagent, reviewed, tested and committed by this session.
+
+**Built.** `flows/recovery_watch.rs`: persisted observation record per request (first observation, boot session, credited monotonic ms, vetoes, successor; bounded at 8). Verifier-local interval: only growth within one boot session is credited
+(`host::MonotonicSample`); downtime, a new session's first reading and backwards readings credit nothing; lost state restarts. Engine entries `recovery_observe_request/veto/successor`, `recovery_tick`.
+`VetoRecovery` signs and records a veto (live controllers only); new intent `ConfirmRecovery` ("That was me") adds this controller's co-signature and verifies an immediate completion; `RecoveryStatusView.requests` has `activatesAt`, `state` (incl. `stale`), `canStop`, `ready`.
+Stub net calls `RecoveryRequestFanout` and `RecoveryVetoFanout` (Home does not implement them). 204 om-core tests pass; wasm, om-ui, apps/web, harness and tsc green.
+
+**Choices the design is silent on:** the successor travels in memory as `recovery::SuccessorBundle {child, next_policy, credential}` (no CDDL carrier); a veto fan-out call was added because the Home API freezes no veto endpoint;
+a veto arriving before its request is ignored (needs Home redelivery); a completed recovery is stored as `Completed` on the observation and NOT appended to `acs_chain`, because `verify_chain` cannot replay a recovery link, so this device still acts as controller afterwards, the policy is not rotated and contacts are not notified.
+
+**Remains (Slice 4, plus):** `verify_chain` support for recovery links (needs policy and request per link) so completion enters the chain; G2/G3 (Home endpoints for fan-out and RecoveryRecord put/get, recovering-device intent with key and locator entry, restricted recovery state, wasm ingest, UI entry, e2e); operator ruling on the N>=4 co-sign case; test for `VetoRecovery` by a quarantined self.
