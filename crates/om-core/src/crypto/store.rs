@@ -106,9 +106,11 @@ pub struct Device {
     pub epoch: u64,
     pub next_id: u32,
     pub spk: SignedEc,
-    pub prev_spk: Option<SignedEc>,
     pub last_resort: SignedPq,
-    pub prev_last_resort: Option<SignedPq>,
+    /// Every previous epoch still inside its overlap, oldest first (G2): each is kept until the `expires_at` of the
+    /// bundle it published has passed (`retire_previous`). Persisted at keys 4/6/21 (the newest) and 22 (the older
+    /// ones), so state written with a single previous slot loads as a one-element list.
+    pub prev: Vec<PrevEpoch>,
     pub opks: BTreeMap<u32, [u8; 32]>,
     pub pqopks: BTreeMap<u32, [u8; 64]>,
     pub ledger: LastResortLedger,
@@ -128,9 +130,22 @@ pub struct Device {
     pub one_time_epoch: BTreeMap<u32, u64>,
     /// Wall-clock seconds at which the current signed prekeys were made (key 20); 0 = not recorded yet. Never lowered.
     pub rotation_at: u64,
-    /// `expires_at` of the bundle the previous epoch published (key 21); 0 = unknown. The previous epoch's secrets
-    /// are kept until it has passed (`retire_previous`).
-    pub prev_expires_at: u64,
+}
+
+/// A signed-prekey epoch that has been superseded but can still receive first messages.
+#[derive(Clone, PartialEq, Eq)]
+pub struct PrevEpoch {
+    pub spk: SignedEc,
+    pub last_resort: SignedPq,
+    /// `expires_at` of the bundle this epoch published; once it has passed nothing can legitimately initiate against
+    /// the epoch and its secrets are deleted.
+    pub expires_at: u64,
+}
+
+impl PrevEpoch {
+    pub fn epoch(&self) -> u64 {
+        self.spk.epoch
+    }
 }
 
 impl core::fmt::Debug for Device {
@@ -202,13 +217,12 @@ impl Device {
                 epoch: 1,
                 secret: arr32(rng),
             },
-            prev_spk: None,
             last_resort: SignedPq {
                 id: 2,
                 epoch: 1,
                 seed: arr64(rng),
             },
-            prev_last_resort: None,
+            prev: vec![],
             opks: BTreeMap::new(),
             pqopks: BTreeMap::new(),
             ledger: LastResortLedger::default(),
@@ -219,7 +233,6 @@ impl Device {
             bundle_expires_at: BUNDLE_EXPIRES,
             one_time_epoch: BTreeMap::new(),
             rotation_at: 0,
-            prev_expires_at: 0,
         }
     }
 
@@ -455,7 +468,7 @@ impl Device {
     /// New signed-prekey generation (ASYNC_KEY_MATERIAL section 6, ADR-0140): fresh EC and ML-KEM signed-prekey secrets
     /// with fresh key ids, generation + 1 (never lowered), a new bundle that expires at `expires_at`, and a fresh
     /// one-time batch signed under the new generation. The previous epoch stays acceptable ([PQXDH] section 3.2) with
-    /// its own ledger until `retire_previous`; a still-held older epoch is retired now (one previous slot).
+    /// its own ledger until `retire_previous`; older previous epochs stay too, each until its own bundle has expired.
     pub fn rotate_signed_prekeys<R: RngCore + CryptoRng>(
         &mut self,
         now: u64,
@@ -464,15 +477,11 @@ impl Device {
         n_pq: usize,
         rng: &mut R,
     ) -> Upload {
-        if self.prev_spk.is_some() {
-            self.expire_previous();
-        }
-        // Every secret still held belongs to the epoch that is about to become the previous one.
+        // Every untagged secret still held belongs to the epoch that is about to become a previous one.
         let old = self.epoch;
         for id in self.opks.keys().chain(self.pqopks.keys()) {
             self.one_time_epoch.entry(*id).or_insert(old);
         }
-        self.drop_one_time_below(old);
         self.epoch += 1;
         let (a, b) = (self.alloc_id(), self.alloc_id());
         let spk = SignedEc {
@@ -485,9 +494,11 @@ impl Device {
             epoch: self.epoch,
             seed: arr64(rng),
         };
-        self.prev_spk = Some(std::mem::replace(&mut self.spk, spk));
-        self.prev_last_resort = Some(std::mem::replace(&mut self.last_resort, lr));
-        self.prev_expires_at = self.bundle_expires_at;
+        self.prev.push(PrevEpoch {
+            spk: std::mem::replace(&mut self.spk, spk),
+            last_resort: std::mem::replace(&mut self.last_resort, lr),
+            expires_at: self.bundle_expires_at,
+        });
         self.bundle_expires_at = expires_at;
         self.rotation_at = self.rotation_at.max(now);
         self.generate_one_time(n_ec, n_pq, rng)
@@ -509,32 +520,27 @@ impl Device {
         }
     }
 
-    /// End of grace period: delete the previous epoch's secrets, and with them its ledger.
+    /// End of grace period for every previous epoch: delete their secrets, and with them their ledgers.
     pub fn expire_previous(&mut self) {
-        if let Some(p) = self.prev_spk.take() {
-            self.ledger.drop_epoch(p.epoch);
+        for p in std::mem::take(&mut self.prev) {
+            self.ledger.drop_epoch(p.epoch());
         }
-        self.prev_last_resort = None;
-        self.prev_expires_at = 0;
         self.drop_one_time_below(self.epoch);
     }
 
-    /// Retire the previous epoch once its own bundle has expired (nothing can legitimately initiate against it any
-    /// more): its signed prekeys, ledger and unused one-time secrets are deleted. Returns whether it did.
+    /// Retire every previous epoch whose own bundle has expired (nothing can legitimately initiate against it any
+    /// more): its signed prekeys, ledger and unused one-time secrets are deleted, whatever the order in which
+    /// the epochs were rotated. Returns whether any epoch was retired.
     pub fn retire_previous(&mut self, now: u64) -> bool {
-        if self.prev_spk.is_none() && self.prev_last_resort.is_none() {
-            return false;
+        let (gone, keep): (Vec<_>, Vec<_>) = std::mem::take(&mut self.prev)
+            .into_iter()
+            .partition(|p| now > p.expires_at);
+        self.prev = keep;
+        for p in &gone {
+            self.ledger.drop_epoch(p.epoch());
+            self.drop_one_time_of(p.epoch());
         }
-        let until = if self.prev_expires_at == 0 {
-            self.bundle_expires_at
-        } else {
-            self.prev_expires_at
-        };
-        if now <= until {
-            return false;
-        }
-        self.expire_previous();
-        true
+        !gone.is_empty()
     }
 
     /// Epoch a one-time secret was generated under.
@@ -543,13 +549,21 @@ impl Device {
     }
 
     fn drop_one_time_below(&mut self, epoch: u64) {
+        self.drop_one_time_where(|e| e < epoch);
+    }
+
+    fn drop_one_time_of(&mut self, epoch: u64) {
+        self.drop_one_time_where(|e| e == epoch);
+    }
+
+    fn drop_one_time_where(&mut self, f: impl Fn(u64) -> bool) {
         use zeroize::Zeroize;
         let stale: Vec<u32> = self
             .opks
             .keys()
             .chain(self.pqopks.keys())
             .copied()
-            .filter(|id| self.one_time_epoch_of(*id) < epoch)
+            .filter(|id| f(self.one_time_epoch_of(*id)))
             .collect();
         for id in stale {
             if let Some(mut k) = self.opks.remove(&id) {
@@ -708,9 +722,8 @@ impl Device {
         ctx: &[u8],
         rng: &mut R,
     ) -> Result<([u8; 32], Vec<u8>, MsgKeys), Error> {
-        let spk = [Some(&self.spk), self.prev_spk.as_ref()]
-            .into_iter()
-            .flatten()
+        let spk = std::iter::once(&self.spk)
+            .chain(self.prev.iter().map(|p| &p.spk))
             .find(|k| k.id == h.spk_id)
             .ok_or(Error::UnknownSignedPrekey)?
             .clone();
@@ -720,9 +733,8 @@ impl Device {
             .filter(|_| self.one_time_epoch_of(h.pq_id) == spk.epoch)
         {
             (*k, PqKind::OneTime)
-        } else if let Some(k) = [Some(&self.last_resort), self.prev_last_resort.as_ref()]
-            .into_iter()
-            .flatten()
+        } else if let Some(k) = std::iter::once(&self.last_resort)
+            .chain(self.prev.iter().map(|p| &p.last_resort))
             .find(|k| k.id == h.pq_id && k.epoch == spk.epoch)
         {
             (k.seed, PqKind::LastResort)
@@ -795,8 +807,30 @@ impl Device {
             if self.rotation_at != 0 {
                 m.push((20, V::U(self.rotation_at)));
             }
-            if self.prev_expires_at != 0 {
-                m.push((21, V::U(self.prev_expires_at)));
+            if let Some(n) = self.prev.last() {
+                m.push((21, V::U(n.expires_at)));
+            }
+            // Older previous epochs (newest is keys 4/6/21, so state with one previous slot reads as one element).
+            if self.prev.len() > 1 {
+                let older = self.prev[..self.prev.len() - 1]
+                    .iter()
+                    .map(|p| {
+                        V::A(vec![
+                            V::A(vec![
+                                V::U(p.spk.id as u64),
+                                V::U(p.spk.epoch),
+                                V::B(p.spk.secret.to_vec()),
+                            ]),
+                            V::A(vec![
+                                V::U(p.last_resort.id as u64),
+                                V::U(p.last_resort.epoch),
+                                V::B(p.last_resort.seed.to_vec()),
+                            ]),
+                            V::U(p.expires_at),
+                        ])
+                    })
+                    .collect();
+                m.push((22, V::A(older)));
             }
         }
         v
@@ -822,9 +856,15 @@ impl Device {
             (1, V::B(self.ik_secret.to_vec())),
             (2, V::U(self.next_id as u64)),
             (3, ec(&self.spk)),
-            (4, self.prev_spk.as_ref().map(ec).unwrap_or(V::Null)),
+            (4, self.prev.last().map(|p| ec(&p.spk)).unwrap_or(V::Null)),
             (5, pq(&self.last_resort)),
-            (6, self.prev_last_resort.as_ref().map(pq).unwrap_or(V::Null)),
+            (
+                6,
+                self.prev
+                    .last()
+                    .map(|p| pq(&p.last_resort))
+                    .unwrap_or(V::Null),
+            ),
             (
                 7,
                 V::A(
@@ -1010,6 +1050,36 @@ impl Device {
                 return Err(Error::Decode("device: one-time epoch"));
             }
         }
+        let bundle_expires_at = v
+            .opt(18)
+            .map(|x| x.u())
+            .transpose()?
+            .unwrap_or(BUNDLE_EXPIRES);
+        let mut prev = vec![];
+        for e in v.opt(22).map(|x| x.a()).transpose()?.unwrap_or(&[]) {
+            let a = e.a()?;
+            if a.len() != 3 {
+                return Err(Error::Decode("device: previous epoch"));
+            }
+            prev.push(PrevEpoch {
+                spk: ec(&a[0])?,
+                last_resort: pq(&a[1])?,
+                expires_at: a[2].u()?,
+            });
+        }
+        // Newest previous epoch: keys 4/6/21. Key 21 absent or 0 (unknown) reads as the current bundle's expiry.
+        match (opt(v.get(4)?), opt(v.get(6)?)) {
+            (Some(s), Some(l)) => prev.push(PrevEpoch {
+                spk: ec(s)?,
+                last_resort: pq(l)?,
+                expires_at: match v.opt(21).map(|x| x.u()).transpose()?.unwrap_or(0) {
+                    0 => bundle_expires_at,
+                    t => t,
+                },
+            }),
+            (None, None) => {}
+            _ => return Err(Error::Decode("device: previous epoch")),
+        }
         let did = v.get(12)?.b()?;
         let sg = v.get(13)?.a()?;
         if did.len() != 16 || sg.len() != 2 {
@@ -1027,9 +1097,8 @@ impl Device {
             epoch: v.get(15)?.u()?,
             next_id: v.get(2)?.u32()?,
             spk: ec(v.get(3)?)?,
-            prev_spk: opt(v.get(4)?).map(ec).transpose()?,
             last_resort: pq(v.get(5)?)?,
-            prev_last_resort: opt(v.get(6)?).map(pq).transpose()?,
+            prev,
             opks,
             pqopks,
             ledger: LastResortLedger::from_cbor(v.get(9)?)?,
@@ -1037,14 +1106,9 @@ impl Device {
             peers,
             bundle_freshness,
             peer_devices: vec![],
-            bundle_expires_at: v
-                .opt(18)
-                .map(|x| x.u())
-                .transpose()?
-                .unwrap_or(BUNDLE_EXPIRES),
+            bundle_expires_at,
             one_time_epoch,
             rotation_at: v.opt(20).map(|x| x.u()).transpose()?.unwrap_or(0),
-            prev_expires_at: v.opt(21).map(|x| x.u()).transpose()?.unwrap_or(0),
         }
         .reindexed()
     }

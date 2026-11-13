@@ -123,8 +123,7 @@ Built by a worker subagent, reviewed by diff stat and re-run tests: `cargo test 
 `om-core-wasm` (23 passed, 16 skipped; the one failing file is a stale `dist` copy, as noted in the handoff gotchas); `cloudflare-home` 146 passed
 (`test/blobs.test.ts` PC-S08 failed once under full-suite load and passes alone, 14/14); `tsc -b apps/web` clean. Deviation D28 in the relay status table.
 
-Remaining: **G2 literal overlap** (one previous-epoch slot, so a second rotation retires the epoch before it at once; a list of previous epochs
-is needed to keep each until its bundle's `expires_at`); a typed compromise-rotation intent (entry point today is `Tx::rotate_prekeys`); an idle device
+Remaining: a typed compromise-rotation intent (entry point today is `Tx::rotate_prekeys`); an idle device
 rotates at its next activity (no timer); a live check against the deployed Home (the `prekeys` generation column is added in place).
 
 ### Split commit (committing session)
@@ -146,3 +145,64 @@ The four held files were committed after reading the five domains in full (`cons
 `7902df63-ec10-42f4-bd36-c6fd6387842d`; no binding, variable or migration change (the `gen` column is added in place on first use). Live: capabilities healthy
 with the same features, and `DELETE /v1/keys/bundles/{device}/generations/{n}` with a forged capability answers 401 (route present). A real rotation against
 the live Home has not been run; that waits for a device 7 days old.
+
+### G2 literal overlap closed (2026-11-13, later session)
+
+`Device.prev` is now a list of previous epochs (signed prekeys, last-resort secret, the epoch's bundle `expires_at`), oldest first. A rotation appends
+instead of retiring the epoch before it; `retire_previous(now)` retires each epoch whose own `expires_at` has passed (its ledger and epoch-tagged
+one-time secrets with it); `accept_initial` accepts any retained epoch. Persistence: the newest previous epoch stays at keys 4/6/21 and older ones are
+key 22, so single-slot state loads as a one-element list (key 21 absent reads as the current bundle's expiry, as before). No new labels or derivations.
+Tests: `two_rotations_keep_each_epoch_until_its_own_bundle_expires`, `several_previous_epochs_survive_a_restart_and_old_single_slot_state_loads_as_a_list`,
+and the updated rotation/overlap tests in `crates/om-core/tests/prekey_rotation.rs`.
+
+Design sources read (this session, in full): every document that `python3 tools/design_gate.py needs crates/om-core/src/crypto/store.rs crates/om-core/src/flows.rs`
+lists for the six domains `crypto_1to1`, `discovery_first_contact`, `identity_control_recovery`, `metadata_privacy`, `relay_reachability` and `time_ordering_events`
+(all documents named, including `EVENT_MODEL`, `MESSENGER_BASELINE_V1`, `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION` and `SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION`), and the
+ADRs it lists (ADR-0002/0003/0004/0008/0010 to 0012/0019 to 0022/0025 to 0030/0033/0040/0063/0065 to 0067/0072/0073/0075/0076/0087/0088/0098/0105 to 0107/0111/0118 to 0121/0124/0126 to 0130/0140/0157/0159).
+Not read: documents the map does not list for these paths.
+
+Conflict check of the G2 change against them: none found. `ASYNC_KEY_MATERIAL` section 6 step 5 and ADR-0140 section 5.5 (delete unused one-time material when a
+generation is retired), the last-resort ledger "retained through that prekey epoch's acceptance overlap" (`ONE_TO_ONE_SESSION_MANAGEMENT`), K11 (no prekey secrets in backups; an
+old-prekey message gets an authenticated reset) and the time rules (the bundle `expires_at` is wall-clock class; retirement only deletes secrets, it never authorizes
+anything, and a clock that jumps forward can at worst retire early, which K11 repairs) all agree with keeping each previous epoch until its own `expires_at`.
+Cost note: with a 90-day bundle and 7-day rotation, up to about 13 previous epochs are retained at once, each with its unused one-time secrets and its own ledger.
+
+Remaining: a typed compromise-rotation intent (entry point today is `Tx::rotate_prekeys`); an idle device
+rotates at its next activity (no timer); a live check against the deployed Home (the `prekeys` generation column is added in place).
+
+### Split commit (committing session)
+
+The hook also demands `constitution_governance` and `provider_deployment_supply_chain` for the four files under `infra/cloudflare-home` and
+`packages/om-provider-http`, which this session did not read. So commit 7cb9eb2 holds the Core, wasm types, relay-status D28 row and report. **Still uncommitted
+in the working tree** (tested green): `infra/cloudflare-home/src/keys.ts` (Home drops lower-generation one-time items), `infra/cloudflare-home/test/key-rotation.test.ts`,
+`packages/om-provider-http/src/provider.ts` and `provider.test.ts` (`revoke_key_generation` DELETE). Until they land, the TS adapter does not know the new
+`NetCall` and the deployed Home keeps stale items, so the first rotation (7 days after a device's keys were created) could fail its revoke step and
+first contact could fail until old items drain. Next step: a session that reads those two domains in full commits those four files with
+`Design-Read: constitution_governance, provider_deployment_supply_chain, relay_reachability, metadata_privacy, discovery_first_contact` and
+`Design-Departures: D28`, then deploys the Home per [`2026-10-28-relay-status.md`](2026-10-28-relay-status.md).
+
+### Committed and deployed (2026-11-13)
+
+The four held files were committed after reading the five domains in full (`constitution_governance`, `provider_deployment_supply_chain`, `relay_reachability`,
+`metadata_privacy`, `discovery_first_contact`, with their listed ADRs), trailers `Design-Departures: D28`. Tests re-run: `key-rotation.test.ts` 1/1,
+`provider.test.ts` 29/29. `om-home-lonunjie` deployed with a `cf-mint` token (Workers Scripts Write, 900 s, never printed or stored), version
+`7902df63-ec10-42f4-bd36-c6fd6387842d`; no binding, variable or migration change (the `gen` column is added in place on first use). Live: capabilities healthy
+with the same features, and `DELETE /v1/keys/bundles/{device}/generations/{n}` with a forged capability answers 401 (route present). A real rotation against
+the live Home has not been run; that waits for a device 7 days old.
+
+### G2 literal overlap closed (2026-11-13, later session)
+
+`Device.prev` is now a list of previous epochs (signed prekeys, last-resort secret, the epoch's bundle `expires_at`), oldest first. A rotation appends
+instead of retiring the epoch before it; `retire_previous(now)` retires each epoch whose own `expires_at` has passed (its ledger and epoch-tagged
+one-time secrets with it); `accept_initial` accepts any retained epoch. Persistence: the newest previous epoch stays at keys 4/6/21 and older ones are
+key 22, so single-slot state loads as a one-element list (key 21 absent reads as the current bundle's expiry, as before). No new labels or derivations.
+Tests: `two_rotations_keep_each_epoch_until_its_own_bundle_expires`, `several_previous_epochs_survive_a_restart_and_old_single_slot_state_loads_as_a_list`,
+and the updated rotation/overlap tests in `crates/om-core/tests/prekey_rotation.rs`.
+
+Design sources read this session: in full, `ASYNC_KEY_MATERIAL.md`, `ONE_TO_ONE_SESSION_MANAGEMENT.md`, `CANONICAL_ENCODING.md`, `TIME_AND_EXPIRY_SEMANTICS.md`;
+`CRYPTOGRAPHY_AND_AGILITY.md`, `PRODUCTION_CRYPTO_INTEGRATION_GATE.md` and `MULTI_DEVICE_SYNC.md` only in part (opening sections and a keyword search for prekey/epoch/rotation);
+`EVENT_MODEL.md`, `MESSENGER_BASELINE_V1.md` and the listed ADRs not read (this report's extract of ADR-0140/0118/0120 was relied on).
+
+Remaining: a typed compromise-rotation intent was **not** added. It needs a new `IntentBody` variant plus its codec, wasm and TS types and UI contract, which is
+more than a small change over `Tx::rotate_prekeys`; the entry point is still that method. Also still open: an idle device rotates at its next activity (no timer);
+a live check against the deployed Home.

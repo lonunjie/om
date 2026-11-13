@@ -116,12 +116,17 @@ fn generation_strictly_increases_and_every_key_id_is_fresh() {
         assert_eq!(vb.spk_id, bob.spk.id);
     }
     assert_eq!(bob.epoch, 4);
-    // After three rotations the first-generation one-time secrets are gone (one previous slot only).
+    // Every previous epoch is still inside its overlap (G2), so all three are kept ...
+    assert_eq!(bob.prev.len(), 3);
+    assert!(bob.opks.keys().any(|i| bob.one_time_epoch_of(*i) == 1));
+    // ... until their own bundles have expired; then only the current epoch's secrets remain.
+    assert!(bob.retire_previous(NOW + 90 * DAY * 2));
+    assert!(bob.prev.is_empty());
     assert!(
         bob.opks
             .keys()
             .chain(bob.pqopks.keys())
-            .all(|i| bob.one_time_epoch_of(*i) >= 3)
+            .all(|i| bob.one_time_epoch_of(*i) == bob.epoch)
     );
 }
 
@@ -136,7 +141,7 @@ fn old_generation_first_message_is_accepted_in_the_overlap_and_rejected_after_re
     let old_epoch = bob.epoch;
     let up = bob.rotate_signed_prekeys(NOW + 500, NOW + 500 + 90 * DAY, 3, 3, &mut r);
     prov.publish(&bob, up);
-    assert_eq!(bob.prev_expires_at, old_expires);
+    assert_eq!(bob.prev.last().map(|p| p.expires_at), Some(old_expires));
     // Not yet: the old bundle is still valid for peers, so nothing is deleted.
     assert!(!bob.retire_previous(old_expires));
     assert!(
@@ -145,7 +150,7 @@ fn old_generation_first_message_is_accepted_in_the_overlap_and_rejected_after_re
     );
     // Past the old bundle's own expires_at nothing can legitimately initiate against it.
     assert!(bob.retire_previous(old_expires + 1));
-    assert!(bob.prev_spk.is_none() && bob.prev_last_resort.is_none());
+    assert!(bob.prev.is_empty());
     assert_eq!(bob.ledger.count(old_epoch), 0);
     assert!(
         bob.opks
@@ -158,6 +163,98 @@ fn old_generation_first_message_is_accepted_in_the_overlap_and_rejected_after_re
         Err(Error::UnknownSignedPrekey)
     );
     assert!(!bob.retire_previous(old_expires + 2), "idempotent");
+}
+
+#[test]
+fn two_rotations_keep_each_epoch_until_its_own_bundle_expires() {
+    let mut r = rng("rot-two");
+    let (mut bob, mut prov) = published_bob(&mut r, 30 * DAY);
+    let (e1, exp1) = (bob.epoch, bob.bundle_expires_at);
+    let (a1, env1) = first_message(&mut bob, &mut prov, b"g1", &mut r);
+    let (a1b, env1b) = first_message(&mut bob, &mut prov, b"g1b", &mut r);
+    let up = bob.rotate_signed_prekeys(NOW + 8 * DAY, NOW + 8 * DAY + 30 * DAY, 3, 3, &mut r);
+    prov.publish(&bob, up);
+    let (e2, exp2) = (bob.epoch, bob.bundle_expires_at);
+    let (a2, env2) = first_message(&mut bob, &mut prov, b"g2", &mut r);
+    let up = bob.rotate_signed_prekeys(NOW + 16 * DAY, NOW + 16 * DAY + 30 * DAY, 3, 3, &mut r);
+    prov.publish(&bob, up);
+    assert_eq!(
+        bob.prev.len(),
+        2,
+        "the second rotation keeps the first previous epoch"
+    );
+    assert!(exp1 < exp2 && exp2 < bob.bundle_expires_at);
+    // The oldest unexpired epoch still takes a first message, and so does the one after it.
+    assert!(
+        accepts(&mut bob, &a1, &env1, &mut r).is_ok(),
+        "generation 1"
+    );
+    assert!(
+        accepts(&mut bob, &a2, &env2, &mut r).is_ok(),
+        "generation 2"
+    );
+    // Nothing retires while a bundle is still valid.
+    assert!(!bob.retire_previous(exp1));
+    assert_eq!(bob.prev.len(), 2);
+    // After generation 1's own expires_at only generation 1 goes: ledger and one-time secrets with it.
+    assert!(bob.retire_previous(exp1 + 1));
+    assert_eq!(bob.prev.len(), 1);
+    assert_eq!(bob.prev[0].epoch(), e2);
+    assert!(
+        bob.opks
+            .keys()
+            .chain(bob.pqopks.keys())
+            .all(|i| bob.one_time_epoch_of(*i) != e1),
+        "generation 1 one-time secrets deleted"
+    );
+    assert_eq!(bob.ledger.count(e1), 0);
+    assert_eq!(
+        accepts(&mut bob, &a1b, &env1b, &mut r),
+        Err(Error::UnknownSignedPrekey),
+        "rejected after its expires_at"
+    );
+    // Generation 2 is untouched until its own expiry; then only the current epoch remains.
+    assert!(bob.retire_previous(exp2 + 1));
+    assert!(bob.prev.is_empty());
+}
+
+#[test]
+fn several_previous_epochs_survive_a_restart_and_old_single_slot_state_loads_as_a_list() {
+    let mut r = rng("rot-restart");
+    let (mut bob, mut prov) = published_bob(&mut r, 30 * DAY);
+    let (a1, env1) = first_message(&mut bob, &mut prov, b"g1", &mut r);
+    for step in 1..=2u64 {
+        let up = bob.rotate_signed_prekeys(
+            NOW + step * 8 * DAY,
+            NOW + step * 8 * DAY + 30 * DAY,
+            3,
+            3,
+            &mut r,
+        );
+        prov.publish(&bob, up);
+    }
+    let mut back = Device::from_bytes(&bob.to_bytes()).unwrap();
+    assert!(back == bob, "round trip");
+    assert_eq!(back.prev.len(), 2);
+    assert!(accepts(&mut back, &a1, &env1, &mut r).is_ok());
+    // State written with a single previous slot (no key 22) is a one-element list; key 21 absent reads as the
+    // current bundle's expiry.
+    let mut v = bob.to_cbor();
+    if let cbor::V::M(m) = &mut v {
+        m.retain(|(k, _)| *k != 22 && *k != 21);
+    }
+    let old = Device::from_cbor(&v).unwrap();
+    assert_eq!(old.prev.len(), 1);
+    assert_eq!(old.prev[0].epoch(), bob.epoch - 1);
+    assert_eq!(old.prev[0].expires_at, old.bundle_expires_at);
+    // Single-slot state with key 21 keeps its own expiry.
+    let mut v = bob.to_cbor();
+    if let cbor::V::M(m) = &mut v {
+        m.retain(|(k, _)| *k != 22);
+    }
+    let old = Device::from_cbor(&v).unwrap();
+    assert_eq!(old.prev.len(), 1);
+    assert_eq!(old.prev[0].expires_at, bob.prev.last().unwrap().expires_at);
 }
 
 #[test]
