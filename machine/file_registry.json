@@ -14394,6 +14394,48 @@
       "domain": "groups",
       "license": "MPL-2.0",
       "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/groups/binding.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/groups/fake.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/groups/journal.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/groups/mls.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/groups/store.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/groups_loopback.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
     }
   ]
 }

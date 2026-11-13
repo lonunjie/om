@@ -82,6 +82,14 @@ impl core::fmt::Display for GroupError {
 }
 impl std::error::Error for GroupError {}
 
+pub mod binding;
+pub mod journal;
+pub mod mls;
+pub mod store;
+
+#[cfg(any(test, feature = "test-loopback"))]
+pub mod fake;
+
 type R<T> = Result<T, GroupError>;
 const BAD: GroupError = GroupError("malformed");
 

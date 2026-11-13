@@ -688,6 +688,19 @@ pub struct AppState {
     /// absent in older records.
     #[serde(default)]
     pub groups: BTreeMap<Hex, crate::groups::GroupRec>,
+    /// Group crypto state (slice 2): this device's MLS engine snapshot, an OM-owned tagged record. Absent in older
+    /// records.
+    #[serde(default)]
+    pub group_crypto: Option<crate::groups::store::GroupCryptoRec>,
+    /// ConversationID (hex) -> the MLS `group_id` (hex), which is random and unrelated to it.
+    #[serde(default)]
+    pub group_mls_ids: BTreeMap<Hex, Hex>,
+    /// The ADR-0163 commit journal, by intent id (hex). Terminal entries are pruned to a short tail.
+    #[serde(default)]
+    pub group_journal: BTreeMap<Hex, crate::groups::journal::JournalEntry>,
+    /// ConversationID (hex) -> the last accepted Commit's `mls_commit_hash` (hex): the idempotency marker.
+    #[serde(default)]
+    pub group_accepted: BTreeMap<Hex, Hex>,
 }
 
 /// Where an observed recovery request stands for this verifier.
