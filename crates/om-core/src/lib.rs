@@ -20,6 +20,7 @@ pub mod attach;
 pub mod backup;
 pub mod control;
 pub mod crypto;
+pub mod direct;
 pub mod engine;
 pub mod events;
 mod flows;
