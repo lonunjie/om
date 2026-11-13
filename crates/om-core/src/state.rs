@@ -684,6 +684,10 @@ pub struct AppState {
     /// records. The verifier-local interval lives here (ADR-0131/0147/0154).
     #[serde(default)]
     pub recovery_requests: BTreeMap<Hex, RecoveryObsRec>,
+    /// Ordinary groups (scope `groups`, ADR-0177): the head `GroupControlState` per ConversationID (hex). Additive:
+    /// absent in older records.
+    #[serde(default)]
+    pub groups: BTreeMap<Hex, crate::groups::GroupRec>,
 }
 
 /// Where an observed recovery request stands for this verifier.

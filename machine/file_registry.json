@@ -14380,6 +14380,20 @@
       "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "executable_guardrail"
+    },
+    {
+      "path": "crates/om-core/src/groups.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/groups.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
     }
   ]
 }

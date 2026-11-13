@@ -23,6 +23,7 @@ pub mod crypto;
 pub mod engine;
 pub mod events;
 mod flows;
+pub mod groups;
 pub mod host;
 pub mod intro;
 pub mod present;
