@@ -200,3 +200,18 @@ Per-file domains (`design_gate.py needs <file>`):
 
 **Why the four read-only-domain UI files were not committed alone:** they import `RecoveryRequestState` with `stale` (`om-platform-api/src/core/devices.ts`) and the `ConfirmRecovery` destructive kind (`intents.ts`), both in the unread-domain group, so at HEAD they fail tsc and their tests. A green commit needs those two files too, which need identity, crypto, metadata and time_ordering. Smallest committable set: the UI files + `devices.ts` + `intents.ts` + the other core-side mirrors that depend on them; its unread domains are the four above. `provider.ts` additionally needs constitution and provider.
 Suggested order for a later session: read identity_control_recovery, crypto_1to1, metadata_privacy, time_ordering_events (~460 KB), commit everything except `provider.ts` with Design-Read listing the eight domains, then read constitution and provider docs for `provider.ts`.
+
+## TS mirrors committed (2026-11-13, third attempt, commit 336c610)
+
+**Design sources read this session, in full:** all ten domains from `design_gate.py needs` on the 11 files: `client_endpoint_distribution`, `constitution_governance`, `crypto_1to1`, `discovery_first_contact`, `identity_control_recovery`, `metadata_privacy`, `provider_deployment_supply_chain`, `relay_reachability`, `time_ordering_events`, `ux_accessibility_personalization` (every listed document and ADR). The commit carries `Design-Read` for those ten and `Design-Departures: none`.
+
+**Review against Core (1afadd8):** the mirrors match `RecoveryRequestView` (`requestId`, `activatesAt`, `state` incl. `stale`, `canStop`, `ready`), `ConfirmRecovery` (destructive, confirmation target `requestId`) and the two stub `NetCall`s (`recovery_request_fanout`, `recovery_veto_fanout`, answered `rejected(unsupported)` by the test host and HTTP provider). No code changes were needed.
+
+**Verified:** vitest in om-ui, apps/web, om-core-harness, om-platform-api, om-provider-http (104 src tests pass; its `dist` stale suite fails as before), `pnpm exec tsc -b apps/web`, wasm `conformance.test.ts` and `ui.test.tsx`. No UI behaviour changed beyond one copy string, so no Chromium e2e was run.
+
+## Slice 4 planning note (not built)
+
+- **G2 Home endpoints:** `RecoveryRequestFanout` and `RecoveryVetoFanout` need Home API operations (the frozen home-api has fan-out for requests via `fanout_recovery_request`/`drain_recovery_requests` per IMPLEMENTATION_INTERFACES, but no veto endpoint; adding one is a design question, likely an ADR), plus RecoveryRecord put/get. Until then adapters answer `rejected(unsupported)`.
+- **G3 recovering device:** an intent that takes the recovery key and record locator, a restricted recovery state before the device is enrolled, wasm ingest of the Home responses, UI entry, and an e2e.
+- **Core follow-ups:** `verify_chain` replay of recovery links (so completion enters `acs_chain`, rotates the policy and notifies contacts), operator ruling on the N>=4 co-sign case, a test for `VetoRecovery` by a quarantined self, and a veto-before-request redelivery path.
+- Reading needed before building: `identity_control_recovery`, `provider_deployment_supply_chain` (Home API), `relay_reachability`, `ux_accessibility_personalization`.
