@@ -177,3 +177,7 @@ Stub net calls `RecoveryRequestFanout` and `RecoveryVetoFanout` (Home does not i
 a veto arriving before its request is ignored (needs Home redelivery); a completed recovery is stored as `Completed` on the observation and NOT appended to `acs_chain`, because `verify_chain` cannot replay a recovery link, so this device still acts as controller afterwards, the policy is not rotated and contacts are not notified.
 
 **Remains (Slice 4, plus):** `verify_chain` support for recovery links (needs policy and request per link) so completion enters the chain; G2/G3 (Home endpoints for fan-out and RecoveryRecord put/get, recovering-device intent with key and locator entry, restricted recovery state, wasm ingest, UI entry, e2e); operator ruling on the N>=4 co-sign case; test for `VetoRecovery` by a quarantined self.
+
+**Slice 3 commit scope (1afadd8):** Rust Core only. The TypeScript mirrors (11 files under `apps/web` and `packages/om-core-harness`, `om-core-wasm`, `om-platform-api`, `om-provider-http`, `om-ui`) are verified green by the worker
+(vitest, tsc) but left UNCOMMITTED in the working tree: they map to `client_endpoint_distribution`, `constitution_governance`, `provider_deployment_supply_chain` and `ux_accessibility_personalization`, which no session has read for this work.
+A session that reads those four domains (about 40 documents) commits them with `git add apps packages`; `git diff` shows them.
