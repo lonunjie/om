@@ -126,3 +126,14 @@ Built by a worker subagent, reviewed by diff stat and re-run tests: `cargo test 
 Remaining: **G2 literal overlap** (one previous-epoch slot, so a second rotation retires the epoch before it at once; a list of previous epochs
 is needed to keep each until its bundle's `expires_at`); a typed compromise-rotation intent (entry point today is `Tx::rotate_prekeys`); an idle device
 rotates at its next activity (no timer); a live check against the deployed Home (the `prekeys` generation column is added in place).
+
+### Split commit (committing session)
+
+The hook also demands `constitution_governance` and `provider_deployment_supply_chain` for the four files under `infra/cloudflare-home` and
+`packages/om-provider-http`, which this session did not read. So commit 7cb9eb2 holds the Core, wasm types, relay-status D28 row and report. **Still uncommitted
+in the working tree** (tested green): `infra/cloudflare-home/src/keys.ts` (Home drops lower-generation one-time items), `infra/cloudflare-home/test/key-rotation.test.ts`,
+`packages/om-provider-http/src/provider.ts` and `provider.test.ts` (`revoke_key_generation` DELETE). Until they land, the TS adapter does not know the new
+`NetCall` and the deployed Home keeps stale items, so the first rotation (7 days after a device's keys were created) could fail its revoke step and
+first contact could fail until old items drain. Next step: a session that reads those two domains in full commits those four files with
+`Design-Read: constitution_governance, provider_deployment_supply_chain, relay_reachability, metadata_privacy, discovery_first_contact` and
+`Design-Departures: D28`, then deploys the Home per [`2026-10-28-relay-status.md`](2026-10-28-relay-status.md).
