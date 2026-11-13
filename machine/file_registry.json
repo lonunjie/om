@@ -1439,6 +1439,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/direct.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/engine.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1671,6 +1678,13 @@
     },
     {
       "path": "crates/om-core/tests/devices.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/direct_transfer.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -4681,6 +4695,13 @@
     },
     {
       "path": "docs/reports/2026-11-04-v1-completion-plan.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-13-direct-transfer.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
