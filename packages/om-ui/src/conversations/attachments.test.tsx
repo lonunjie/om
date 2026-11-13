@@ -84,7 +84,8 @@ describe("attaching files", () => {
     const readBytes = vi.spyOn(big, "bytes");
     render(<Screen services={make(h)} capture={{ files: files(big) }} />);
     await userEvent.click(await screen.findByRole("button", { name: "Attach a file" }));
-    expect((await screen.findByRole("alert")).textContent).toBe("This file is too big to send right now. Up to 100 bytes.");
+    // Core says it may still go straight to them, but this host has no way to do that: say both, promise nothing.
+    expect((await screen.findByRole("alert")).textContent).toBe("Too big for the service, not sent. Up to 100. Straight to them: not available here yet.");
     expect(readBytes).not.toHaveBeenCalled();
     expect(screen.queryByRole("list", { name: "Ready to send" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Retry sending" })).toBeNull();
@@ -278,5 +279,83 @@ describe("opening what someone sent", () => {
     expect(card.textContent).toContain("51.5000, -0.1000");
     expect(card.textContent).toContain("About 10 m");
     expect(card.querySelector("img, iframe")).toBeNull();
+  });
+});
+
+describe("a file too big for the delivery service, sent straight to them", () => {
+  const LIMITS = { attachmentLimits: { maxBlobBytes: 116 } } as const;
+
+  it("with a way to send it, the refusal says so, the file waits in the tray and goes in a message of its own: waiting, nothing kept for later, then taken back", async () => {
+    const { h, make } = setup([], LIMITS);
+    const services = { ...make(h), directChannel: true };
+    const { container } = render(<Screen services={services} capture={{ files: files(picked("film.mov", 500)) }} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Attach a file" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Too big for the service, not sent. Up to 100. Send it straight to them while they are online.");
+    const tray = await screen.findByRole("list", { name: "Ready to send" });
+    expect(within(tray).getByText(/500 bytes · Send it straight to them/)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    const log = await screen.findByRole("log");
+    await waitFor(() => { expect(within(log).getByText(/500 bytes · Waiting for them/)).toBeTruthy(); });
+    expect(within(log).queryByText(/Kept until/)).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+    await userEvent.click(within(log).getByRole("button", { name: "Take it back" }));
+    await waitFor(() => { expect(within(log).getByText(/No longer offered/)).toBeTruthy(); });
+    expect(within(log).queryByRole("button", { name: "Take it back" })).toBeNull();
+    expect(await h.query({ kind: "GetDirectOffers", ctx: services.ctx })).toMatchObject([{ state: "not_offered", size: 500 }]);
+  });
+
+  it("a file that fits the service is untouched by all this; a file too big for anything is refused outright", async () => {
+    const { h, make } = setup([], { attachmentLimits: { maxBlobBytes: 116 } });
+    const services = { ...make(h), directChannel: true };
+    render(<Screen services={services} capture={{ files: files(picked("ok.txt", 50), picked("enormous.bin", 17 * 1024 * 1024)) }} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Attach a file" }));
+    const tray = await screen.findByRole("list", { name: "Ready to send" });
+    expect(within(tray).getByText("ok.txt")).toBeTruthy();
+    expect(within(tray).queryByText("enormous.bin")).toBeNull();
+    expect((await screen.findByRole("alert")).textContent).toBe("This file is too big to send right now. Up to 100 bytes.");
+  });
+
+  it("a straight-to-them file cannot share a message with ordinary files", async () => {
+    const { h, make } = setup([], LIMITS);
+    render(<Screen services={{ ...make(h), directChannel: true }} capture={{ files: files(picked("small.txt", 50), picked("film.mov", 500)) }} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Attach a file" }));
+    await screen.findByRole("list", { name: "Ready to send" });
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Straight-to-them files go alone.");
+    expect(await h.query({ kind: "GetDirectOffers", ctx: make(h).ctx })).toEqual([]);
+  });
+
+  const seeded = (state: "waiting_for_recipient" | "transferring" | "delivered_locally" | "not_offered" | "remote_direct", direct: boolean) => {
+    const { h, make } = setup([{ direction: state === "remote_direct" ? "incoming" : "outgoing", text: "big", attachments: [{ filename: "film.mov", mediaType: "video/mp4", bytes: bytes(500) }] }], LIMITS);
+    // The harness shows seeded files as remote or stored; show the state under test the way Core reports it.
+    const client: CoreClient = {
+      ...h,
+      query: async (q: { readonly kind: string }) => {
+        const r: unknown = await h.query(q as never);
+        if (q.kind !== "GetConversationView") return r;
+        const v = r as { timeline: { attachments?: { state: string }[] }[] };
+        return { ...v, timeline: v.timeline.map((t) => ({ ...t, attachments: t.attachments?.map((a) => ({ ...a, state })) })) };
+      },
+    } as unknown as CoreClient;
+    return { services: { ...make(client), directChannel: direct } };
+  };
+
+  it.each([
+    ["waiting_for_recipient", true, /Waiting for them/],
+    ["waiting_for_recipient", false, /Not sent: no way to send straight to them here\./],
+    ["transferring", true, /Sending now/],
+    ["delivered_locally", true, /They have it/],
+    ["not_offered", true, /No longer offered/],
+    ["remote_direct", true, /Available while they are online/],
+    ["remote_direct", false, /cannot receive here yet/],
+  ] as const)("states plainly: %s (way to send: %s)", async (state, direct, words) => {
+    const { services } = seeded(state, direct);
+    const { container } = render(<Screen services={services} capture={{}} />);
+    const log = await screen.findByRole("log");
+    await waitFor(() => { expect(within(log).getByText(words)).toBeTruthy(); });
+    // Never a download for a direct file here, and never a withdraw for one that is not ours or no longer waiting.
+    expect(within(log).queryByRole("button", { name: /Download/ })).toBeNull();
+    expect(!!within(log).queryByRole("button", { name: "Take it back" })).toBe(state === "waiting_for_recipient" || state === "transferring");
+    expect(await axeViolations(container)).toEqual([]);
   });
 });

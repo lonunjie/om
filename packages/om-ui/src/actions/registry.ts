@@ -103,6 +103,29 @@ const SPECS: Readonly<Record<string, Spec>> = {
     if (items.filter((i) => i.voiceNote !== undefined).length > 1) return null; // one voice note per message
     return { intent: (ctx, op) => ({ kind: "SendAttachments", ctx, operationId: op, conversationId: asConversationId(c), draft: { text: t }, attachments: items }) };
   } },
+  "send-attachments-direct": { destructive: false, parse: (p) => {
+    const c = id(p["conversationId"]); const t = p["text"]; const a = p["attachments"];
+    if (!exactly(p, ["conversationId", "text", "attachments"]) || !c || typeof t !== "string" || t.length > MAX_TEXT || !Array.isArray(a) || a.length < 1 || a.length > 8) return null;
+    const items: { blobId: string; voiceNote?: { waveform?: string } }[] = [];
+    for (const x of a as unknown[]) {
+      if (x === null || typeof x !== "object") return null;
+      const o = x as Rec;
+      const blobId = o["blobId"];
+      const voice = o["voiceNote"];
+      if (typeof blobId !== "string" || !/^[0-9a-f]{64}$/.test(blobId)) return null;
+      if (voice === undefined) { items.push({ blobId }); continue; }
+      const wf = voice !== null && typeof voice === "object" ? (voice as Rec)["waveform"] : undefined;
+      if (voice === null || typeof voice !== "object" || (wf !== undefined && (typeof wf !== "string" || !/^([0-9a-f]{2}){16,256}$/.test(wf)))) return null;
+      items.push({ blobId, voiceNote: wf === undefined ? {} : { waveform: wf } });
+    }
+    if (items.filter((i) => i.voiceNote !== undefined).length > 1) return null; // one voice note per message
+    return { intent: (ctx, op) => ({ kind: "SendAttachmentsDirect", ctx, operationId: op, conversationId: asConversationId(c), draft: { text: t }, attachments: items }) };
+  } },
+  "withdraw-direct-offer": { destructive: false, parse: (p) => {
+    const m = id(p["messageId"]);
+    if (!exactly(p, ["messageId"]) || m === null) return null;
+    return { intent: (ctx, op) => ({ kind: "WithdrawDirectOffer", ctx, operationId: op, messageId: asMessageId(m) }) };
+  } },
   "send-location": { destructive: false, parse: (p) => {
     const c = id(p["conversationId"]); const lat = p["latE7"]; const lon = p["lonE7"]; const acc = p["accuracyM"];
     if (!exactly(p, ["conversationId", "latE7", "lonE7", "accuracyM", "label", "note"]) || !c) return null;

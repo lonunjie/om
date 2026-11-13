@@ -96,6 +96,34 @@ export interface AttachmentCopy {
   readonly downloading: string;
   readonly downloaded: string;
   readonly formatDay: (epochMs: number) => string;
+  /**
+   * A file too big for the delivery service can be offered to go straight to the other person while they are online.
+   * Without a way to do that on this device (`ConversationServices.directChannel` unset) every state says so plainly
+   * instead of promising it (2026-11-14 decision: say what is true, never "waiting" for something that cannot happen).
+   */
+  readonly direct: {
+    /** Refused before anything was sent: over what the delivery service takes. `limit` null: no limit known. */
+    readonly tooBigNotSent: (limit: number | null) => string;
+    /** Said when a way to send it straight to them exists. */
+    readonly offer: string;
+    /** The tray button that sends such a file straight to them. */
+    readonly send: string;
+    /** Said when no way exists on this device. */
+    readonly unavailable: string;
+    /** A file that goes straight to them cannot share a message with ordinary files. */
+    readonly alone: string;
+    /** Outgoing states. */
+    readonly waiting: string;
+    readonly waitingNoWay: string;
+    readonly sending: string;
+    readonly delivered: string;
+    readonly notOffered: string;
+    readonly withdraw: string;
+    readonly withdrawing: string;
+    /** Incoming. */
+    readonly availableWhileOnline: string;
+    readonly cannotGet: string;
+  };
   readonly voice: {
     readonly recording: string;
     readonly elapsed: (ms: number) => string;

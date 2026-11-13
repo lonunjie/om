@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode, SyntheticEvent } from "react";
-import type { AudioRecording, ConversationId, CoreIntent, FilesApi, LocationApi, LocationFix, MicrophoneApi, OperationHandle, OutcomeClass } from "@om/platform-api";
+import type { AttachmentPlanView, AudioRecording, ConversationId, CoreIntent, FilesApi, LocationApi, LocationFix, MicrophoneApi, OperationHandle, OutcomeClass } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
 import { IconButton } from "../shell/primitives/IconButton";
@@ -30,6 +30,8 @@ export interface StagedItem {
   readonly bytes: Uint8Array;
   /** Set once Core has sealed it, so a retry of the same Send does not seal it again. */
   readonly blobId?: string;
+  /** Too big for the delivery service: it goes straight to the other person while they are online, in a message of its own. */
+  readonly direct?: boolean;
 }
 
 export interface ComposerProps {
@@ -135,7 +137,20 @@ export function Composer({ services, conversationId, copy, draft, onDraftChange,
     let refused: string | null = null;
     for (const f of picked) {
       if (next.length >= MAX_STAGED) break;
-      if (tooBig(f.size)) { refused = att.tooBig(maxFile()); continue; }
+      if (tooBig(f.size)) {
+        // Core says whether a file this big may still go straight to them; we only offer it where this host can do that.
+        const plan: AttachmentPlanView | null = await services.client.query({ kind: "PlanAttachment", ctx: services.ctx, size: f.size }).catch(() => null);
+        if (!alive()) return;
+        if (plan?.kind !== "offer_direct") { refused = att.tooBig(maxFile()); continue; }
+        if (services.directChannel !== true) { refused = `${att.direct.tooBigNotSent(maxFile())} ${att.direct.unavailable}`; continue; }
+        try {
+          const bytes = await f.bytes();
+          if (!alive()) return;
+          next.push({ id: `s${String(++stagedSeq)}`, kind: "file", name: safeFileName(f.name, att.file), mediaType: f.mimeType === "" ? "application/octet-stream" : f.mimeType, size: bytes.length, bytes, direct: true });
+          refused = `${att.direct.tooBigNotSent(maxFile())} ${att.direct.offer}`;
+        } catch { refused = att.refusal({ error: "unavailable" }); }
+        continue;
+      }
       try {
         const bytes = await f.bytes();
         if (!alive()) return;
@@ -251,13 +266,16 @@ export function Composer({ services, conversationId, copy, draft, onDraftChange,
     setNotice(null);
     try {
       let resolved = tray;
+      const direct = tray.some((i) => i.direct === true);
+      if (direct && (tray.some((i) => i.direct !== true) || services.directChannel !== true)) { setNotice(tray.some((i) => i.direct !== true) ? att.direct.alone : att.direct.unavailable); return; }
       if (tray.length > 0) {
         const api = services.client.attachments;
         if (api === undefined) { setNotice(att.refusal({ error: "unsupported" })); return; }
+        if (direct && api.prepareDirect === undefined) { setNotice(att.refusal({ error: "unsupported" })); return; }
         // Seal each once: a later retry reuses the blob Core already holds.
         for (const item of tray) {
           if (item.blobId !== undefined) continue;
-          const r = await api.prepare(services.ctx, item.bytes, { mediaType: item.mediaType, ...(item.kind === "file" ? { filename: item.name } : {}), ...(item.durationMs === undefined ? {} : { durationMs: item.durationMs }) });
+          const r = await (direct && api.prepareDirect !== undefined ? api.prepareDirect.bind(api) : api.prepare.bind(api))(services.ctx, item.bytes, { mediaType: item.mediaType, ...(item.kind === "file" ? { filename: item.name } : {}), ...(item.durationMs === undefined ? {} : { durationMs: item.durationMs }) });
           if (!alive()) return;
           if (!r.ok) {
             // A file the service will not take can never be sent as it is, so it leaves the tray; anything else stays for another try.
@@ -274,7 +292,7 @@ export function Composer({ services, conversationId, copy, draft, onDraftChange,
       if (intent === null) {
         const r = resolved.length === 0
           ? resolveIntent(services, "send-message", { conversationId, text })
-          : resolveIntent(services, "send-attachments", {
+          : resolveIntent(services, direct ? "send-attachments-direct" : "send-attachments", {
             conversationId, text,
             attachments: resolved.map((i) => ({ blobId: i.blobId ?? "", ...(i.kind === "voice" ? { voiceNote: {} } : {}) })),
           });
@@ -320,7 +338,7 @@ export function Composer({ services, conversationId, copy, draft, onDraftChange,
               <span className="om-staged__icon" aria-hidden="true"><Icon name={item.kind === "voice" ? "mic" : "file"} size={18} /></span>
               <span className="om-staged__meta">
                 <bdi className="om-staged__name">{item.kind === "voice" ? att.voice.review : item.name}</bdi>
-                <span className="om-staged__size">{item.durationMs === undefined ? att.size(item.size) : `${att.voice.duration(item.durationMs)} · ${att.size(item.size)}`}</span>
+                <span className="om-staged__size">{item.durationMs === undefined ? att.size(item.size) : `${att.voice.duration(item.durationMs)} · ${att.size(item.size)}`}{item.direct === true ? ` · ${att.direct.send}` : ""}</span>
               </span>
               {item.kind === "voice" ? <VoicePreview item={item} label={att.voice.review} /> : null}
               <IconButton className="om-staged__remove" label={att.removeStaged(item.kind === "voice" ? att.voice.note : item.name)} icon={<Icon name="close" size={18} />} disabled={busy} onClick={() => { setItems(itemsRef.current.filter((i) => i.id !== item.id)); }} />

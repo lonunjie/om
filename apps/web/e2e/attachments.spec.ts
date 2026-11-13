@@ -116,7 +116,9 @@ test("files, a voice note and a location card cross a locked Home; oversize is r
   const uploadsBefore = toHome.filter((w) => w.url.endsWith("/v1/blobs")).length;
   const [chooser2] = await Promise.all([page.waitForEvent("filechooser"), page.getByRole("button", { name: "Attach a file" }).click()]);
   await chooser2.setFiles({ name: "huge.bin", mimeType: "application/octet-stream", buffer: Buffer.alloc(5 * 1024 * 1024, 1) });
-  await expect(page.getByRole("alert")).toContainText("This file is too big to send right now.");
+  // Core says it may go straight to them; the web app has no way to do that yet, and says so instead of promising it.
+  await expect(page.getByRole("alert")).toContainText("too big to send with your delivery service, so it was not sent");
+  await expect(page.getByRole("alert")).toContainText("Sending a file straight to them is not available on this device yet.");
   await expect(tray).toBeHidden();
   await expect(page.getByRole("button", { name: /retry/i })).toHaveCount(0);
   expect(toHome.filter((w) => w.url.endsWith("/v1/blobs")).length).toBe(uploadsBefore);

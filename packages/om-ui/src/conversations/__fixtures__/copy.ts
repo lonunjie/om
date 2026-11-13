@@ -26,6 +26,11 @@ export const testCopy: ConversationCopy = {
     size: (b) => `${String(b)} bytes`, tooBig: (m) => (m === null ? "This file is too big to send right now." : `This file is too big to send right now. Up to ${String(m)} bytes.`),
     refusal: (r) => (r.error === "too_large" ? `Too big: ${String(r.max)}` : `Refused: ${r.error}`),
     file: "File", uploading: "Uploading", keptUntil: (w) => `Kept until ${w}`, download: (n) => `Download ${n}`.trim(), downloading: "Downloading", downloaded: "Download started", formatDay: (ms) => `day${String(ms)}`,
+    direct: {
+      tooBigNotSent: (l) => `Too big for the service, not sent. Up to ${String(l)}.`, offer: "Send it straight to them while they are online.", send: "Send it straight to them", unavailable: "Straight to them: not available here yet.",
+      alone: "Straight-to-them files go alone.", waiting: "Waiting for them", waitingNoWay: "Not sent: no way to send straight to them here.", sending: "Sending now", delivered: "They have it", notOffered: "No longer offered",
+      withdraw: "Take it back", withdrawing: "Taking it back", availableWhileOnline: "Available while they are online", cannotGet: "Offered by them; cannot receive here yet.",
+    },
     voice: { recording: "Recording", elapsed: (ms) => `${String(Math.round(ms / 1000))}s`, stop: "Stop recording", discard: "Discard", note: "Voice note", review: "Listen before you send", play: "Play voice note", loading: "Opening voice note", denied: "Microphone blocked", failed: "Recording failed", nothing: "Nothing recorded", duration: (ms) => `${String(Math.round(ms / 1000))}s` },
     location: { heading: "Share your location?", asking: "Finding where you are", confirm: "This sends where you are right now, once.", send: "Send location", cancel: "Cancel", denied: "Location blocked", unavailable: "Location unavailable", card: "Location", accuracy: (m) => `About ${String(m)} m`, point: (a, o) => `${a}, ${o}` },
   },

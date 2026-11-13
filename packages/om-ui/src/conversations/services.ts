@@ -6,6 +6,11 @@ export interface ConversationServices {
   readonly client: CoreClient;
   readonly registry: ActionRegistry;
   readonly ctx: ProfileExecutionContext;
+  /**
+   * True only when this host can carry a file straight to the other person's device (a channel and a driver exist).
+   * Unset today: the web app has none, so the UI never offers or promises it.
+   */
+  readonly directChannel?: boolean;
 }
 
 export type ResolvedIntent = { readonly status: "intent"; readonly intent: CoreIntent } | { readonly status: "blocked"; readonly result: ActionResult };

@@ -25,6 +25,7 @@ describe("Action Registry", () => {
     const samples: Record<string, unknown> = {
       "send-message": { conversationId: "c1", text: "x" },
       "send-attachments": { conversationId: "c1", text: "", attachments: [{ blobId: "a".repeat(64) }] },
+      "send-attachments-direct": { conversationId: "c1", text: "", attachments: [{ blobId: "a".repeat(64) }] }, "withdraw-direct-offer": { messageId: "m1" },
       "send-location": { conversationId: "c1", latE7: 515_000_000, lonE7: -1_000_000 }, "retry-message": { messageId: "m1" }, "switch-profile": { profileId: "p2" },
       "accept-introduction": { requestId: "r1" }, "share-contact": { personId: "u1", scope: "full" }, "clear-adaptive-navigation": {},
       "open-omnibar-result": { resultId: "x1" }, "create-profile": { label: "Me" }, "confirm-recovery-key-stored": { keyOperationId: "op-9" },
@@ -46,6 +47,16 @@ describe("Action Registry", () => {
     }
     expect(registry.resolve({ actionId: "create-profile", params: { label: " " }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
     expect(registry.resolve({ actionId: "confirm-recovery-key-stored", params: {}, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+  });
+
+  it("direct offers: SendAttachmentsDirect is as strict as SendAttachments, and withdrawing needs exactly a message id", () => {
+    const blobId = "ab".repeat(32);
+    expect(intentOf(registry.resolve({ actionId: "send-attachments-direct", params: { conversationId: "c1", text: "big", attachments: [{ blobId }] }, ctx, origin: "direct" }))).toMatchObject({ kind: "SendAttachmentsDirect", draft: { text: "big" }, attachments: [{ blobId }] });
+    expect(intentOf(registry.resolve({ actionId: "withdraw-direct-offer", params: { messageId: "m1" }, ctx, origin: "direct" }))).toMatchObject({ kind: "WithdrawDirectOffer", messageId: "m1" });
+    for (const params of [{ conversationId: "c1", text: "", attachments: [] }, { conversationId: "c1", text: "", attachments: [{ blobId: "short" }] }, { conversationId: "c1", text: "" }]) {
+      expect(registry.resolve({ actionId: "send-attachments-direct", params, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    }
+    for (const params of [{}, { messageId: "m1", extra: 1 }, { messageId: 5 }]) expect(registry.resolve({ actionId: "withdraw-direct-offer", params, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
   });
 
   it("send-attachments and send-location are strict: anything off the shape synthesizes no intent", () => {

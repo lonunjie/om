@@ -3,7 +3,7 @@ import type { AttachmentRefusal, AttachmentView, ConversationTimelineItem, Locat
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
 import type { AttachmentCopy } from "./copy";
-import type { ConversationServices } from "./services";
+import { resolveIntent, type ConversationServices } from "./services";
 import "./conversations.css";
 
 /** The name a sender chose is untrusted display text: keep it to one line segment, never a path. */
@@ -52,16 +52,41 @@ function useOpen(services: ConversationServices, messageId: MessageId, index: nu
   return { state, run, available: api !== undefined };
 }
 
-function storedText(a: AttachmentView, copy: AttachmentCopy): string | null {
-  if (a.state === "uploading") return copy.uploading;
-  if (a.state === "stored_for_later") return a.storedUntil === undefined ? null : copy.keptUntil(copy.formatDay(a.storedUntil));
-  return null;
+function storedText(a: AttachmentView, copy: AttachmentCopy, channel: boolean): string | null {
+  const d = copy.direct;
+  switch (a.state) {
+    case "uploading": return copy.uploading;
+    case "stored_for_later": return a.storedUntil === undefined ? null : copy.keptUntil(copy.formatDay(a.storedUntil));
+    // With no way to send straight to them on this device, "waiting" would promise something that cannot happen.
+    case "waiting_for_recipient": return channel ? d.waiting : d.waitingNoWay;
+    case "transferring": return d.sending;
+    case "delivered_locally": return d.delivered;
+    case "not_offered": return d.notOffered;
+    case "remote_direct": return channel ? d.availableWhileOnline : d.cannotGet;
+    case "remote": return null;
+  }
+}
+
+/** Takes a direct offer back (the file is no longer served; the message stays). Always offered while the file is still ours to take back. */
+function useWithdraw(services: ConversationServices, messageId: MessageId): { readonly busy: boolean; readonly run: () => void } {
+  const [busy, setBusy] = useState(false);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const run = (): void => {
+    if (busy) return;
+    const r = resolveIntent(services, "withdraw-direct-offer", { messageId });
+    if (r.status !== "intent") return;
+    setBusy(true);
+    void services.client.dispatch(r.intent).catch(() => undefined).finally(() => { if (alive.current) setBusy(false); });
+  };
+  return { busy, run };
 }
 
 function FileChip({ services, messageId, a, copy }: { readonly services: ConversationServices; readonly messageId: MessageId; readonly a: AttachmentView; readonly copy: AttachmentCopy }) {
   const { state, run, available } = useOpen(services, messageId, a.index);
   const name = safeFileName(a.filename, copy.file);
-  const status = storedText(a, copy);
+  const status = storedText(a, copy, services.directChannel === true);
+  const withdraw = useWithdraw(services, messageId);
   const download = async () => {
     const r = await run();
     if (r?.ok) saveBytes(r.bytes, safeFileName(r.filename ?? a.filename, copy.file));
@@ -78,6 +103,9 @@ function FileChip({ services, messageId, a, copy }: { readonly services: Convers
           <Icon name="download" size={18} /> {state.status === "busy" ? copy.downloading : copy.download("").trim()}
         </Button>
       ) : null}
+      {a.state === "waiting_for_recipient" || a.state === "transferring" ? (
+        <Button variant="quiet" className="om-file__action" disabled={withdraw.busy} onClick={withdraw.run}>{withdraw.busy ? copy.direct.withdrawing : copy.direct.withdraw}</Button>
+      ) : null}
       <span className="om-file__note" role="status">
         {state.status === "done" ? copy.downloaded : state.status === "failed" ? copy.refusal(state.refusal) : ""}
       </span>
@@ -90,7 +118,7 @@ function VoiceNote({ services, messageId, a, waveform, copy }: { readonly servic
   const { state, run, available } = useOpen(services, messageId, a.index);
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => () => { if (url !== null) URL.revokeObjectURL(url); }, [url]);
-  const status = storedText(a, copy);
+  const status = storedText(a, copy, services.directChannel === true);
   const play = async () => {
     const r = await run();
     if (r?.ok && typeof URL.createObjectURL === "function") setUrl(URL.createObjectURL(new Blob([r.bytes as Uint8Array<ArrayBuffer>], { type: r.mediaType.startsWith("audio/") ? r.mediaType : "audio/webm" })));
