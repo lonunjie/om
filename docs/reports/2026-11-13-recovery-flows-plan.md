@@ -124,3 +124,19 @@ are this report's section 2 source), the six crypto, then the other four domains
 0131, 0137, 0138, 0141, 0147, 0154, 0168). Get the operator's answer to G1 first (one yes/no), then build Slice 1 and 2 (about
 600 lines of Rust plus tests), commit with `Design-Read` for all six domains. Slice 3 follows if the window allows. Run the full
 checks listed in the task (cargo test -p om-core, wasm conformance, vitest, tsc, e2e where the UI changed).
+
+## G1 answered (2026-11-13, operator: "Yes, add the label")
+
+New registry label `OM-RECOVERY-AUTH-KEY-SEED-v1` (kdf): HKDF-SHA256 from RecoveryRoot, info = label || recovery_rotation_epoch (uint, big-endian 8 bytes),
+64-byte output = 32-byte Ed25519 seed followed by 32-byte ML-DSA-65 seed; the `recovery-method` commitment is the composite
+public key. This is a gap answer, not a change to audited text. It is added to the non-Anthropic review list (ADR-0167): the construction follows the
+existing `OM-RECOVERY-*` HKDF pattern but is new key derivation and has had no independent review.
+
+### Reading ledger update (same session, after the G1 answer)
+
+Additionally read in full: METADATA_THREAT_MODEL, TIME_AND_EXPIRY_SEMANTICS, EVENT_MODEL. Still unread: SPACES_ROOMS_COMMUNITIES_AND_PUBLICATION,
+MESSENGER_BASELINE_V1, SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION and every listed ADR (about 85k tokens). At 67% of the context the build of
+Slices 1 and 2 would not fit after them, so no code was written; a Core commit needs `Design-Read` for all six domains, and the commit hook requires it.
+The registry label `OM-RECOVERY-AUTH-KEY-SEED-v1` is not yet added to [`spec/registries/om-domain-separation.json`](../../spec/registries/om-domain-separation.json) (that goes in with the code, Slice 1).
+Key time rule learned from TIME_AND_EXPIRY_SEMANTICS and RECOVERY section on ADR-0131/0154: the recovery delay is a durable verifier-local monotonic lower bound
+(boot-session segments, no credit for unmeasured downtime); web verifiers may add bounded wall-clock gap credit only under Recommended and only with a final veto sweep.
