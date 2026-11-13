@@ -24,6 +24,10 @@ export class KeyPool extends DurableObject<Env> {
     super(ctx, env);
     this.sql = ctx.storage.sql;
     this.sql.exec(SCHEMA);
+    // One-time rows remember the generation of the bundle that was current when they were published (0 = unknown, older Homes).
+    if (!all<{ name: string }>(this.sql, "SELECT name FROM pragma_table_info('prekeys')").some((c) => c.name === "gen")) {
+      this.sql.exec("ALTER TABLE prekeys ADD COLUMN gen INTEGER NOT NULL DEFAULT 0");
+    }
   }
 
   private get hard(): boolean {
@@ -54,19 +58,25 @@ export class KeyPool extends DurableObject<Env> {
       }
       const facts = readBundleFacts(req.bundle);
       const now = nowSeconds();
+      let dropBelow = 0;
       if (facts) {
         if (facts.deviceId.length !== deviceId.length || facts.deviceId.some((b, i) => b !== deviceId[i])) throw new HomeError("invalid_request", { hint: "bundle is for another device" });
         if (facts.expiresAt + LIMITS.skewSeconds < now) throw new HomeError("expired");
         if (facts.generation < metaNumber(this.sql, "highest_generation")) throw new HomeError("stale_generation");
+        // One-time items of a lower generation can never verify under a higher one, and one unverifiable item fails a whole
+        // client fetch, so a newly published higher generation drops them (availability aid, deviation D28).
+        if (facts.generation > metaNumber(this.sql, "highest_generation")) dropBelow = facts.generation;
         setMeta(this.sql, "highest_generation", facts.generation);
         setMeta(this.sql, "bundle_generation", facts.generation);
       }
+      if (dropBelow > 0) run(this.sql, "DELETE FROM prekeys WHERE gen < ?", dropBelow);
+      const gen = facts?.generation ?? 0;
       const ec = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM prekeys WHERE kind = 1")?.n ?? 0;
       const pq = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM prekeys WHERE kind = 2")?.n ?? 0;
       if (ec + req.opks.length > LIMITS.maxOneTimePerKind || pq + req.pqopks.length > LIMITS.maxOneTimePerKind) throw new HomeError("quota", { detail: quotaDetail(4, this.hard) });
       setMeta(this.sql, "bundle", req.bundle);
-      for (const k of req.opks) run(this.sql, "INSERT INTO prekeys (kind, item) VALUES (1, ?)", k);
-      for (const k of req.pqopks) run(this.sql, "INSERT INTO prekeys (kind, item) VALUES (2, ?)", k);
+      for (const k of req.opks) run(this.sql, "INSERT INTO prekeys (kind, item, gen) VALUES (1, ?, ?)", k, gen);
+      for (const k of req.pqopks) run(this.sql, "INSERT INTO prekeys (kind, item, gen) VALUES (2, ?, ?)", k, gen);
       run(this.sql, "DELETE FROM ops WHERE expires_at < ?", now);
       run(this.sql, "INSERT INTO ops (request_id, fp, expires_at) VALUES (?, ?, ?)", rid, fp, now + LIMITS.idempotencySeconds);
       return new Uint8Array(0);

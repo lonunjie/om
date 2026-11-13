@@ -271,6 +271,22 @@ describe("device-link ceremony queues (deviation D24)", () => {
   });
 });
 
+describe("revoke_key_generation", () => {
+  it("is a DELETE of that generation under the device's bundle, authorised by the owner's key-publish capability", async () => {
+    const seen: { url: string; init: RequestInit }[] = [];
+    const p = createHttpProvider({
+      config: cfg(), secrets: createMemorySecretStore(),
+      fetch: (i, init) => { seen.push({ url: urlOf(i), init: init ?? {} }); return Promise.resolve(new Response(null, { status: 204 })); },
+    });
+    const dev = toHex(rand(16));
+    expect(await p.perform({ call: "revoke_key_generation", deviceId: dev, generation: 3 })).toEqual({ result: "ok" });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.url.endsWith(`/v1/keys/bundles/${dev}/generations/3`)).toBe(true);
+    expect(seen[0]?.init.method).toBe("DELETE");
+    expect((seen[0]?.init.headers as Record<string, string>)["authorization"]).toMatch(/^Bearer [A-Za-z0-9_-]{40,}$/);
+  });
+});
+
 describe("request hygiene", () => {
   it("bearer capabilities are in the Authorization header or the body, never in a URL; no cookies, no redirects, no referrer", async () => {
     const seen: { url: string; init: RequestInit }[] = [];

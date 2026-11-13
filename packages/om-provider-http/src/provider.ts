@@ -5,6 +5,7 @@
 // docs/reports/2026-10-28-relay-status.md):
 //   deposit / poll / ack            -> POST /v1/relay/deposit | drain | ack   (+ /v1/relay/queues on first poll)
 //   publish_key_material            -> PUT  /v1/keys/bundles/{device}         (feature om.keys.pool.v1)
+//   revoke_key_generation           -> DELETE /v1/keys/bundles/{device}/generations/{n}  (best effort, after a signed-prekey rotation)
 //   fetch_key_material              -> POST /v1/keys/fetch
 //   put_invite / get_invite / revoke_invite -> PUT | GET | DELETE /v1/discovery/descriptors/{id}
 //                                              (+ POST | DELETE /v1/intro/tickets[/{id}]: the invite's single-use ticket, om.intro.v1)
@@ -428,6 +429,16 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     return r.kind === "home" ? mapError(r.error) : { result: "ok" };
   }
 
+  /** Best-effort cleanup after a signed-prekey rotation: the owner asks its own Home to delete the older generation (idempotent). */
+  async function revokeKeyGeneration(c: Extract<NetCall, { call: "revoke_key_generation" }>): Promise<NetResult> {
+    const r = await mutate(`${base}/v1/keys/bundles/${c.deviceId}/generations/${c.generation}`, {
+      method: "DELETE",
+      bearer: await keyPublishCap(await secret(), fromHex(c.deviceId)),
+    });
+    if (isResult(r)) return r;
+    return r.kind === "home" ? mapError(r.error) : { result: "ok" };
+  }
+
   /** The device owner lets the holder of `capability` fetch this device's bundle: the grant is made at the owner's own Home. */
   async function grantKeyFetch(c: Extract<NetCall, { call: "grant_key_fetch" }>): Promise<NetResult> {
     const device = fromHex(c.deviceId);
@@ -661,6 +672,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
           case "ack": return await ack(call.mailbox, call.seq, call.kind, call.relayUri, call.capability);
           case "open_queue": return await openQueue(call);
           case "publish_key_material": return await publishKeys(call);
+          case "revoke_key_generation": return await revokeKeyGeneration(call);
           case "grant_key_fetch": return await grantKeyFetch(call);
           case "fetch_key_material": return await fetchKeys(call);
           case "submit_intro": return await submitIntro(call);
