@@ -1488,6 +1488,48 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/groups.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/groups/binding.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/groups/fake.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/groups/journal.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/groups/mls.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/groups/store.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/host.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1652,6 +1694,20 @@
       "path": "crates/om-core/tests/first_contact_limits.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/groups.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/groups_loopback.rs",
+      "class": "product_code",
+      "domain": "groups",
       "license": "MPL-2.0",
       "authority": "product_implementation"
     },
@@ -4631,14 +4687,21 @@
       "authority": "working_record_non_normative"
     },
     {
-      "path": "docs/reports/2026-11-13-multi-device-phase5-status.md",
+      "path": "docs/reports/2026-11-13-groups-plan.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
       "authority": "working_record_non_normative"
     },
     {
-      "path": "docs/reports/2026-11-13-groups-plan.md",
+      "path": "docs/reports/2026-11-13-limits-profile.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-13-multi-device-phase5-status.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -14380,62 +14443,6 @@
       "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "executable_guardrail"
-    },
-    {
-      "path": "crates/om-core/src/groups.rs",
-      "class": "product_code",
-      "domain": "groups",
-      "license": "MPL-2.0",
-      "authority": "product_implementation"
-    },
-    {
-      "path": "crates/om-core/tests/groups.rs",
-      "class": "product_code",
-      "domain": "groups",
-      "license": "MPL-2.0",
-      "authority": "product_implementation"
-    },
-    {
-      "path": "crates/om-core/src/groups/binding.rs",
-      "class": "product_code",
-      "domain": "groups",
-      "license": "MPL-2.0",
-      "authority": "product_implementation"
-    },
-    {
-      "path": "crates/om-core/src/groups/fake.rs",
-      "class": "product_code",
-      "domain": "groups",
-      "license": "MPL-2.0",
-      "authority": "product_implementation"
-    },
-    {
-      "path": "crates/om-core/src/groups/journal.rs",
-      "class": "product_code",
-      "domain": "groups",
-      "license": "MPL-2.0",
-      "authority": "product_implementation"
-    },
-    {
-      "path": "crates/om-core/src/groups/mls.rs",
-      "class": "product_code",
-      "domain": "groups",
-      "license": "MPL-2.0",
-      "authority": "product_implementation"
-    },
-    {
-      "path": "crates/om-core/src/groups/store.rs",
-      "class": "product_code",
-      "domain": "groups",
-      "license": "MPL-2.0",
-      "authority": "product_implementation"
-    },
-    {
-      "path": "crates/om-core/tests/groups_loopback.rs",
-      "class": "product_code",
-      "domain": "groups",
-      "license": "MPL-2.0",
-      "authority": "product_implementation"
     }
   ]
 }
