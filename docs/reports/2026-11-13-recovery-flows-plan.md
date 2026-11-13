@@ -181,3 +181,6 @@ a veto arriving before its request is ignored (needs Home redelivery); a complet
 **Slice 3 commit scope (1afadd8):** Rust Core only. The TypeScript mirrors (11 files under `apps/web` and `packages/om-core-harness`, `om-core-wasm`, `om-platform-api`, `om-provider-http`, `om-ui`) are verified green by the worker
 (vitest, tsc) but left UNCOMMITTED in the working tree: they map to `client_endpoint_distribution`, `constitution_governance`, `provider_deployment_supply_chain` and `ux_accessibility_personalization`, which no session has read for this work.
 A session that reads those four domains (about 40 documents) commits them with `git add apps packages`; `git diff` shows them.
+
+**Handoff for the 11 TS mirror files.** Backup patch: `recovery-slice3-ts-mirrors.patch` in the shared side-session notes folder (`git apply` from `om/`). Domains to read in full before committing them (from `design_gate.py needs apps packages`):
+`client_endpoint_distribution`, `constitution_governance`, `provider_deployment_supply_chain`, `ux_accessibility_personalization`, plus the six Core domains (already listed above). Then verify (`pnpm exec vitest run src` in om-ui, apps/web, om-core-harness, om-platform-api; `pnpm exec tsc -b apps/web`) and commit with `Design-Read` listing all ten domains.
