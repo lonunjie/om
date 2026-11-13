@@ -629,6 +629,10 @@ pub struct AppState {
     pub created_at: u64,
     pub recovery_key: Option<RecoveryKeyRec>,
     pub recovery_key_saved: bool,
+    /// The public RecoveryPolicy body (hex) whose hash the genesis commits to (ACS key 10). Absent on a profile made
+    /// before recovery policies existed, which stays `pending`.
+    #[serde(default)]
+    pub recovery_policy: Option<Hex>,
     pub invites: BTreeMap<OperationId, InviteRec>,
     pub accepted_invites: BTreeSet<Hex>,
     pub intros: BTreeMap<String, IntroRec>,

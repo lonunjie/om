@@ -1109,11 +1109,57 @@ fn devices_view(st: &ProfileState, now_ms: u64) -> DevicesView {
     }
 }
 
-/// Pass 1 reports `pending`: a recovery key is generated and shown once, but the RecoveryPolicy commitment in the
-/// AccountControlState and the recovery flow that would use it are not implemented yet, so Core must not claim `on`.
+/// `on` only when the recovery key is confirmed stored AND the policy body Core keeps hashes to the commitment in the
+/// head AccountControlState (RECOVERY_AND_BACKUP_POLICY.md section 1); anything else, including a profile made before
+/// policies existed, is `pending`.
 fn recovery_status(st: &ProfileState) -> RecoveryStatusView {
+    let policy = st
+        .app
+        .recovery_policy
+        .as_deref()
+        .and_then(|h| crate::crypto::unhex(h).ok())
+        .and_then(|b| crate::recovery::RecoveryPolicy::from_body(&b).ok());
+    let head = (|| {
+        let unhex_all = |v: &[String]| -> Option<Vec<Vec<u8>>> {
+            v.iter().map(|c| crate::crypto::unhex(c).ok()).collect()
+        };
+        crate::control::verify_chain(
+            &unhex_all(&st.app.acs_chain)?,
+            &unhex_all(&st.app.acs_credentials)?,
+        )
+        .ok()
+    })();
+    let committed = match (&policy, &head) {
+        (Some(p), Some(h)) => {
+            h.recovery_commitment == Some(p.hash())
+                && p.state == crate::recovery::STATE_ON
+                && p.recovery_key().is_some()
+        }
+        _ => false,
+    };
+    let on = committed && st.app.recovery_key_saved;
+    let scopes = match &policy {
+        Some(p) if committed => {
+            let mut v = vec![RecoveryScope::Identity];
+            if p.recovers.contains(&crate::recovery::TARGET_HISTORY) {
+                v.push(RecoveryScope::History);
+            }
+            if p.recovers
+                .contains(&crate::recovery::TARGET_PROVIDER_METADATA)
+                || p.recovers.contains(&crate::recovery::TARGET_RELATIONSHIPS)
+            {
+                v.push(RecoveryScope::Provider);
+            }
+            v
+        }
+        _ => vec![RecoveryScope::Identity],
+    };
     RecoveryStatusView {
-        policy: RecoveryPolicyState::Pending,
+        policy: if on {
+            RecoveryPolicyState::On
+        } else {
+            RecoveryPolicyState::Pending
+        },
         custodians: if st.app.recovery_key_saved {
             vec![RecoveryCustodianView {
                 code: RecoveryCustodianCode::RecoveryKey,
@@ -1122,8 +1168,11 @@ fn recovery_status(st: &ProfileState) -> RecoveryStatusView {
         } else {
             vec![]
         },
-        scopes: vec![RecoveryScope::Identity],
-        activation_delay_ms: 72 * 60 * 60 * 1000,
+        scopes,
+        activation_delay_ms: match &policy {
+            Some(p) if committed => p.delay_seconds * 1000,
+            _ => crate::recovery::DEFAULT_DELAY_SECONDS * 1000,
+        },
         recovery_key_saved: st.app.recovery_key_saved,
         requests: vec![],
     }

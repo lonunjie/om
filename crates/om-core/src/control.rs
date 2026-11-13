@@ -15,8 +15,9 @@
 use crate::crypto::binding::{Acs, Credential};
 use crate::crypto::cbor;
 use crate::crypto::rng::{CryptoRng, RngCore, arr32};
-use crate::crypto::sig::{self, DeviceSigner, ROLE_CONTROLLER, ds_sig};
+use crate::crypto::sig::{self, DeviceSigner, ROLE_CONTROLLER, ROLE_RECOVERY, ds_sig};
 use crate::crypto::{Error, PROFILE_V1};
+use crate::recovery::{self, RecoveryPolicy};
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -567,6 +568,21 @@ pub fn open_signed(
     credentials: &[Vec<u8>],
     authority: Option<&Acs>,
 ) -> Result<OpenedAcs, Error> {
+    let (acs, body, who, _) = open_signed_with(signed, credentials, authority, None)?;
+    Ok((acs, body, who))
+}
+
+type OpenedRecoveryAcs = (Acs, Vec<u8>, BTreeSet<[u8; 16]>, bool);
+
+/// [`open_signed`] that additionally accepts ONE `recovery`-role signature (signer = AccountID) verified under
+/// `recovery_key`, the parent's committed recovery method. Returns whether it was present. Without a `recovery_key`
+/// a recovery-role entry is refused, so no other path ever counts a recovery signature.
+fn open_signed_with(
+    signed: &[u8],
+    credentials: &[Vec<u8>],
+    authority: Option<&Acs>,
+    recovery_key: Option<&[u8]>,
+) -> Result<OpenedRecoveryAcs, Error> {
     let v = cbor::decode(signed)?;
     let body = v.get(1)?.b()?.to_vec();
     let acs = Acs::from_body(&body)?;
@@ -575,17 +591,30 @@ pub fn open_signed(
         .map(|c| Credential::from_body(c))
         .collect::<Result<_, _>>()?;
     let mut who = BTreeSet::new();
+    let mut recovery_signed = false;
     let entries = v.get(2)?.a()?;
     if entries.is_empty() || entries.len() > 16 {
         return Err(Error::Binding("acs: 1..16 signatures required"));
     }
     for e in entries {
-        let id: [u8; 16] = e
-            .get(0)?
-            .b()?
+        let signer = e.get(0)?.b()?;
+        let role = e.get(2)?.u()?;
+        if let (ROLE_RECOVERY, Some(pk)) = (role, recovery_key) {
+            if e.get(1)?.u()? != PROFILE_V1 || signer != acs.account_id || recovery_signed {
+                return Err(Error::Binding("acs recovery signature profile/signer"));
+            }
+            sig::verify(
+                pk,
+                &ds_sig(LBL_ACS_SIG, PROFILE_V1, ROLE_RECOVERY, signer, &body),
+                e.get(3)?.b()?,
+            )?;
+            recovery_signed = true;
+            continue;
+        }
+        let id: [u8; 16] = signer
             .try_into()
             .map_err(|_| Error::Binding("acs signer id"))?;
-        if e.get(1)?.u()? != PROFILE_V1 || e.get(2)?.u()? != ROLE_CONTROLLER {
+        if e.get(1)?.u()? != PROFILE_V1 || role != ROLE_CONTROLLER {
             return Err(Error::Binding("acs signature profile/role"));
         }
         // The signer's key must be the credential the authority state commits to (digest check), for this account.
@@ -610,7 +639,38 @@ pub fn open_signed(
             return Err(Error::Binding("acs: duplicate signer"));
         }
     }
-    Ok((acs, body, who))
+    Ok((acs, body, who, recovery_signed))
+}
+
+/// Sign `body` as the recovery method (role `recovery`) and, optionally, also as co-signing controllers.
+pub fn sign_acs_recovery<R: RngCore + CryptoRng>(
+    body: &[u8],
+    account_id: &[u8; 32],
+    recovery: &DeviceSigner,
+    cosigners: &[(&[u8; 16], &DeviceSigner)],
+    rng: &mut R,
+) -> Vec<u8> {
+    let mut entries: Vec<_> = cosigners
+        .iter()
+        .map(|(id, s)| {
+            let sg = s.sign_with(
+                &ds_sig(LBL_ACS_SIG, PROFILE_V1, ROLE_CONTROLLER, *id, body),
+                arr32(rng),
+            );
+            sig::signature_entry(*id, PROFILE_V1, ROLE_CONTROLLER, sg)
+        })
+        .collect();
+    let sg = recovery.sign_with(
+        &ds_sig(LBL_ACS_SIG, PROFILE_V1, ROLE_RECOVERY, account_id, body),
+        arr32(rng),
+    );
+    entries.push(sig::signature_entry(
+        account_id,
+        PROFILE_V1,
+        ROLE_RECOVERY,
+        sg,
+    ));
+    sig::envelope(body.to_vec(), entries)
 }
 
 /// Verify a genesis state: generation 1, no parent, signed by every control device it names.
@@ -657,6 +717,182 @@ pub fn verify_successor(
         _ => Err(Error::Binding(
             "acs: transition not authorized by the parent",
         )),
+    }
+}
+
+/// What the host credits this verifier for one pending recovery request (ADR-0131/0147/0154): the durable monotonic
+/// elapsed lower bound since THIS verifier first observed the request, and every `signed-RecoveryVeto` it has seen.
+/// Wall clocks, Home timestamps and request fields are never time authority: the host owns `elapsed_seconds`.
+#[derive(Clone, Copy, Debug)]
+pub struct RecoveryObservation<'a> {
+    pub elapsed_seconds: u64,
+    pub vetoes: &'a [Vec<u8>],
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(clippy::large_enum_variant)]
+pub enum RecoveryVerdict {
+    /// The successor is authorized. `immediate` = a current controller co-signed (no delay was needed).
+    Complete { child: Acs, immediate: bool },
+    /// Recovery alone, no veto, but this verifier's own interval has not run its full delay yet.
+    Pending { remaining_seconds: u64 },
+}
+
+/// Verify a recovery successor (RECOVERY_AND_BACKUP_POLICY.md 10.3/10.4, ACCOUNT_CONTINUITY_AND_CONTROL.md 4.1):
+/// `child_signed` is signed by the recovery method of `parent`'s committed `policy` (role `recovery`) and optionally
+/// co-signed by current, non-quarantined parent controllers; `request_signed` is the `RecoveryRequest` it completes and
+/// `next_policy` the rotated policy the child commits to. Everything is checked against the PARENT, then
+/// [`authorize`] decides with `Ctx.recovery`: one vote toward the parent majority, a veto aborts, recovery alone only
+/// after the full delay, never a fork bridge, a freeze only co-signed (and never as a completion).
+pub fn verify_recovery_successor(
+    parent: &Acs,
+    child_signed: &[u8],
+    credentials: &[Vec<u8>],
+    policy: &RecoveryPolicy,
+    next_policy: &RecoveryPolicy,
+    request_signed: &[u8],
+    observation: &RecoveryObservation,
+) -> Result<RecoveryVerdict, Error> {
+    let bad = |m: &'static str| Err(Error::Binding(m));
+    // 1. The policy is the one the parent commits to, and it is on.
+    if parent.recovery_commitment != Some(policy.hash()) {
+        return bad("recovery: policy does not match the parent's commitment");
+    }
+    let Some(key) = policy.recovery_key() else {
+        return bad("recovery: policy has no usable recovery key method");
+    };
+    if policy.state != recovery::STATE_ON {
+        return bad("recovery: policy is not on");
+    }
+    if safety_frozen(parent) {
+        return bad("recovery: a recovery completion never resolves a safety freeze");
+    }
+    // 2. The request: signed by the recovery method, bound to this account, epoch and parent state.
+    let req = recovery::open_request(request_signed, key)?;
+    if req.account_id != parent.account_id {
+        return bad("recovery: request is for another account");
+    }
+    if req.recovery_epoch != policy.epoch() {
+        return bad("recovery: request epoch is not the policy epoch");
+    }
+    if req.parent_state_hash != parent.hash() {
+        return bad("recovery: request is bound to another parent state (stale)");
+    }
+    // 3. The target device is fresh: not enrolled, quarantined or revoked by any transition (V-002, ID-06).
+    let t = req.new_device_id;
+    if parent.control.contains(&t)
+        || parent.messaging.contains(&t)
+        || parent.quarantined.contains(&t)
+        || parent.revoked.contains(&t)
+        || parent.credentials.iter().any(|(d, _)| *d == t)
+    {
+        return bad("recovery: target device was already enrolled or revoked (stale target)");
+    }
+    // 4. The child: descends from the parent, signed by the recovery method plus any co-signing controllers.
+    let (child, _, cosigners, recovery_signed) =
+        open_signed_with(child_signed, credentials, Some(parent), Some(key))?;
+    if !recovery_signed {
+        return bad("recovery: the successor carries no recovery signature");
+    }
+    if child.account_id != parent.account_id || child.previous != Some(parent.hash()) {
+        return bad("acs: not a descendant of the trusted head");
+    }
+    // 5. The target's credential is the one the request names, and the child commits to exactly it.
+    let cred_known = credentials.iter().any(|c| {
+        Credential::from_body(c).is_ok_and(|c| {
+            c.device_id == t
+                && c.account_id == parent.account_id
+                && c.hash() == req.new_device_credential
+        })
+    });
+    if !cred_known || child.credentials != vec![(t, req.new_device_credential)] {
+        return bad("recovery: successor does not commit to the requested device credential");
+    }
+    // 6. Shape: the new device is the sole controller; every earlier controller and messaging device is revoked.
+    let mut revoked = parent.revoked.clone();
+    revoked.extend(parent.control.iter().chain(parent.messaging.iter()));
+    if child.control != BTreeSet::from([t])
+        || !child.quarantined.is_empty()
+        || !child.messaging.is_empty()
+        || child.revoked != revoked
+        || child.key_epochs.iter().any(|(d, _)| *d != t)
+        || child.transparency != parent.transparency
+        || child.constitutional != parent.constitutional
+        || child.min_profile != parent.min_profile
+    {
+        return bad("recovery: successor is not the sole-controller recovery shape");
+    }
+    // 7. The commitment rotates: next epoch, same rules, a usable key; the child commits to exactly that policy.
+    let Some(next_epoch) = policy.epoch().checked_add(1) else {
+        return bad("recovery: epoch overflow");
+    };
+    if child.recovery_commitment != Some(next_policy.hash())
+        || next_policy.epoch() != next_epoch
+        || next_policy.state != recovery::STATE_ON
+        || next_policy.recovery_key().is_none()
+        || next_policy.recovers != policy.recovers
+        || next_policy.delay_seconds != policy.delay_seconds
+        || next_policy.rotate_custody_on_veto != policy.rotate_custody_on_veto
+        || next_policy.notify_contacts_on_completion != policy.notify_contacts_on_completion
+    {
+        return bad("recovery: successor does not rotate the policy commitment to the next epoch");
+    }
+    // 8. Vetoes: only a valid veto of THIS request by a live parent controller counts.
+    let digest = req.digest();
+    let live = |d: &[u8; 16]| parent.control.contains(d) && !parent.quarantined.contains(d);
+    let veto = observation.vetoes.iter().any(|raw| {
+        let Ok(id) = recovery::veto_signer(raw) else {
+            return false;
+        };
+        if !live(&id) {
+            return false;
+        }
+        let Some(cred) = credentials
+            .iter()
+            .filter_map(|c| Credential::from_body(c).ok())
+            .find(|c| {
+                c.device_id == id
+                    && c.account_id == parent.account_id
+                    && parent
+                        .credentials
+                        .iter()
+                        .any(|(d, h)| *d == id && *h == c.hash())
+            })
+        else {
+            return false;
+        };
+        recovery::open_veto(raw, &id, &cred.signing_pk).is_ok_and(|v| {
+            v.account_id == parent.account_id
+                && v.recovery_epoch == policy.epoch()
+                && v.request_digest == digest
+        })
+    });
+    // 9. The V-002 authorization relation with the recovery vote.
+    let (pm, cm) = (
+        model_of(parent).ok_or(Error::Binding("acs: unknown profile"))?,
+        model_of(&child).ok_or(Error::Binding("acs: unknown profile"))?,
+    );
+    let ctx = Ctx {
+        signers: cosigners.iter().map(hex16).collect(),
+        recovery: Some(Recovery {
+            elapsed: observation.elapsed_seconds,
+            delay: policy.delay_seconds,
+            veto,
+        }),
+        ..Ctx::default()
+    };
+    match authorize(&pm, &cm, &ctx) {
+        Verdict::Accept(_) => Ok(RecoveryVerdict::Complete {
+            child,
+            immediate: !cosigners.is_empty(),
+        }),
+        Verdict::Pending(_) => Ok(RecoveryVerdict::Pending {
+            remaining_seconds: policy
+                .delay_seconds
+                .saturating_sub(observation.elapsed_seconds),
+        }),
+        Verdict::Reject(_) if veto => bad("recovery: RecoveryVeto observed"),
+        Verdict::Reject(_) => bad("recovery: transition not authorized by the parent"),
     }
 }
 

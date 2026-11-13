@@ -128,6 +128,11 @@ fn onboarding_creates_identity_and_a_display_once_recovery_key() {
     );
     let rs: RecoveryStatusView = rt.query(Query::GetRecoveryStatus { ctx: ctx.clone() });
     assert!(!rs.recovery_key_saved);
+    assert_eq!(
+        rs.policy,
+        RecoveryPolicyState::Pending,
+        "a policy is committed but the key is not confirmed stored"
+    );
     rt.dispatch(
         &ctx,
         "c2",
@@ -145,9 +150,11 @@ fn onboarding_creates_identity_and_a_display_once_recovery_key() {
     assert!(rs.recovery_key_saved);
     assert_eq!(
         rs.policy,
-        RecoveryPolicyState::Pending,
-        "pass 1 must not claim recovery is on"
+        RecoveryPolicyState::On,
+        "the committed policy matches and the key is stored"
     );
+    assert_eq!(rs.custodians.len(), 1);
+    assert_eq!(rs.activation_delay_ms, 72 * 3600 * 1000);
     // A second identity in the same profile, or an invalid label, is refused.
     rt.dispatch(
         &ctx,

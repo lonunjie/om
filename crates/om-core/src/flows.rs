@@ -817,9 +817,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let mut device = crate::crypto::store::Device::new(self.rng);
         device.bundle_expires_at = now_s + BUNDLE_TTL_S;
         let up = device.generate_one_time(ONE_TIME_KEYS, ONE_TIME_KEYS, self.rng);
+        // The RecoveryRoot is generated first: the genesis commits to the default RecoveryPolicy whose method key is
+        // derived from it (OM-RECOVERY-AUTH-KEY-SEED-v1). The root is then shown once as the recovery key and wiped.
+        let root = crate::recovery::RecoveryRoot::generate(self.rng);
+        let policy = crate::recovery::RecoveryPolicy::default_for(root.auth_public_key(0), 0);
+        let mut genesis_acs = device.acs();
+        genesis_acs.recovery_commitment = Some(policy.hash());
         // The genesis AccountControlState is signed by the genesis control device (role `controller`).
         let genesis = control::sign_acs(
-            &device.acs().body(),
+            &genesis_acs.body(),
             &[(&device.device_id, &device.signer)],
             self.rng,
         );
@@ -839,9 +845,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             pqopks: up.pqopks,
         };
         self.st.device = Some(device);
-        let mut root = arr32(self.rng);
-        let groups = recovery_groups(&root);
-        zeroize::Zeroize::zeroize(&mut root);
+        let groups = recovery_groups(root.expose());
+        drop(root);
+        self.st.app.recovery_policy = Some(hex(&policy.body()));
         self.st.app.label = label.to_string();
         self.st.app.created_at = self.now_ms;
         self.st.app.recovery_key = Some(RecoveryKeyRec {

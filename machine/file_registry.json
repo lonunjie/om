@@ -1509,6 +1509,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/recovery.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/relayset.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1650,6 +1657,13 @@
     },
     {
       "path": "crates/om-core/tests/prekeys.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/recovery_flow.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -4597,6 +4611,13 @@
     },
     {
       "path": "docs/reports/2026-11-13-multi-device-phase5-status.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-13-recovery-flows-plan.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -14317,13 +14338,6 @@
       "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "executable_guardrail"
-    },
-    {
-      "path": "docs/reports/2026-11-13-recovery-flows-plan.md",
-      "class": "report",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "working_record_non_normative"
     }
   ]
 }

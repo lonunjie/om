@@ -140,3 +140,26 @@ Slices 1 and 2 would not fit after them, so no code was written; a Core commit n
 The registry label `OM-RECOVERY-AUTH-KEY-SEED-v1` is not yet added to [`spec/registries/om-domain-separation.json`](../../spec/registries/om-domain-separation.json) (that goes in with the code, Slice 1).
 Key time rule learned from TIME_AND_EXPIRY_SEMANTICS and RECOVERY section on ADR-0131/0154: the recovery delay is a durable verifier-local monotonic lower bound
 (boot-session segments, no credit for unmeasured downtime); web verifiers may add bounded wall-clock gap credit only under Recommended and only with a final veto sweep.
+
+## Slices 1 and 2 built (2026-11-13)
+
+**Design sources read (committing session, in full):** all six Core domains for `recovery.rs`, `state.rs`, `api.rs` per `design_gate.py needs`:
+crypto_1to1 (6 docs), discovery_first_contact (5), identity_control_recovery (7), metadata_privacy (6), relay_reachability (3), time_ordering_events (5),
+and the listed ADRs 0002-0004, 0008, 0010-0012, 0019-0022, 0025-0030, 0033, 0040, 0063, 0065-0067, 0072-0073, 0075-0076, 0087-0088, 0098, 0105-0107, 0111,
+0118-0121, 0124, 0126-0130, 0140, 0157, 0159. **Not read:** ADRs 0131, 0147, 0154, 0161, 0168 (cited by the documents, taken from their summaries) and documents outside the mapped domains.
+The code was written by a worker subagent from the plan and reviewed, tested and committed by this session.
+
+**Built.**
+- Slice 1: `crates/om-core/src/recovery.rs` (RecoveryRoot, G1 key derivation `OM-RECOVERY-AUTH-KEY-SEED-v1`, RecoveryPolicy encode/hash, RecoveryRequest/RecoveryVeto sign/verify/digest, bounded decode).
+  Genesis commits the policy hash; the shown recovery key is the RecoveryRoot; `GetRecoveryStatus` is `on` only if the stored policy matches the committed hash, old profiles stay `pending`.
+- Slice 2: `control::verify_recovery_successor` (recovery signature against the committed policy, request binding, stale target, veto, verifier-local elapsed from the host, sole-controller child shape, commitment rotation, then `authorize` with `Ctx.recovery`).
+- Registry: `OM-RECOVERY-AUTH-KEY-SEED-v1` added to `om-domain-separation.json`.
+
+**Non-Anthropic review list (ADR-0167), new item:** `OM-RECOVERY-AUTH-KEY-SEED-v1` (HKDF-SHA256 from RecoveryRoot, no salt, info = label || epoch, 64 bytes = Ed25519 seed || ML-DSA-65 seed) is new key derivation without independent review, together with the recovery-role signature framing below.
+
+**Choices the design is silent on (record, confirm before wire freeze of any of it):** the recovery-role signature signer field is the AccountID, over `OM-ACS-SIG-v1` with role 2;
+the HKDF has no salt; `verify_recovery_successor` takes the rotated `next_policy` body as an input; any intervening transition makes a request stale (stricter than V-002 wording).
+**Possible design conflict:** with N >= 4 controllers, the recovery vote plus one co-signer is below the majority, so `authorize` rejects it instead of falling back to the delay path, while RECOVERY section 10.3 says one co-sign completes immediately. Needs an operator ruling.
+
+**Remains.** Slice 3 (controller side: observation records, `VetoRecovery`, co-sign, `RecoveryStatusView.requests`, injected `NetCall::RecoveryRequestFanout` stub); `verify_chain` cannot replay a completed recovery link yet (needs policy and request per link); Slice 4 (G2/G3, Home endpoints, UI entry).
+No test yet for a legacy profile reporting `pending`. `om-core-wasm` `vitest run src` fails on an unrelated stale `dist` test file; `src/conformance.test.ts` and `src/ui.test.tsx` pass.

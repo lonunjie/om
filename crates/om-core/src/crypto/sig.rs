@@ -24,6 +24,7 @@ pub const SIG_LEN: usize = ED_SIG + MLDSA_SIG;
 
 /// Signature roles (om-crypto-profiles.json `signature_roles`).
 pub const ROLE_CONTROLLER: u64 = 1;
+pub const ROLE_RECOVERY: u64 = 2;
 pub const ROLE_DEVICE: u64 = 3;
 pub const ROLE_INTRO_IDENTITY: u64 = 4;
 

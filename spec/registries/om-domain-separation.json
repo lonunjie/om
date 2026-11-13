@@ -272,6 +272,14 @@
       "status": "frozen"
     },
     {
+      "label": "OM-RECOVERY-AUTH-KEY-SEED-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256 from RecoveryRoot (no salt); info = label || recovery_rotation_epoch (uint, big-endian 8 bytes); output 64 bytes = 32-byte Ed25519 seed || 32-byte ML-DSA-65 seed; the RecoveryPolicy method commitment is the composite public key",
+      "object": "recovery signing key pair that signs RecoveryRequest (role recovery) and the recovery-role signature of a recovery successor AccountControlState",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
       "label": "OM-RECOVERY-RELATIONSHIP-SNAPSHOT-KEY-v1",
       "use": "kdf",
       "construction": "normal profile: HKDF-SHA256 from RecoveryRoot, info = label || recovery_scope_id, output 32 bytes; Maximum Privacy may instead use an independent RelationshipRecoveryKey not derived from/wrapped by RecoveryRoot",
