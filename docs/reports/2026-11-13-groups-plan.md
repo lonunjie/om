@@ -265,3 +265,18 @@ python3 tools/design_gate.py needs Cargo.toml Cargo.lock crates/om-core/Cargo.to
 ```
 
 The [`core_guard.py`](../../tools/core_guard.py) change and the `engine` alias in the tests are independent of ADR-0187 and could be committed alone.
+
+## Slice 2b committed (2026-11-14): design read in full, checks, commits
+
+**Design sources read (this session, in full with the Read tool):** [`AGENTS.md`](../../AGENTS.md) "Design gate"; [`ADR-0187`](../../decisions/ADR-0187-mls-engine-on-wasm-unforked-openmls-with-host-entropy-and-clock.md); [`2026-11-14-mls-wasm-decision.md`](2026-11-14-mls-wasm-decision.md); the `design_gate.py needs` output for both commit groups (identical): the six domains `crypto_1to1`, `discovery_first_contact`, `identity_control_recovery`, `metadata_privacy`, `relay_reachability`, `time_ordering_events`, so all 30 documents and all 47 ADRs they list (including the full [`CRYPTOGRAPHY_AND_AGILITY.md`](../architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md), which the earlier session had read with cut lines); also [`OPERATORLESS_CORE_AND_ECOSYSTEM.md`](../constitution/OPERATORLESS_CORE_AND_ECOSYSTEM.md), [`PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md`](../constitution/PROJECT_PHILOSOPHY_AND_ANTI_CAPTURE.md), ADR-0177, ADR-0178. **Not read:** the `groups` architecture documents outside the lists above (GROUP_CHAT_ARCHITECTURE, GROUP_COMMIT_AND_STATE_CONVERGENCE) and the other constitution documents; no claim is made about them.
+
+**Checks against the text (no contradiction found):**
+- Room context extension code point `0xF04D`: no registry entry exists (grep of `spec/`, `machine/`, decisions). ADR-0128 rule 7 only says the ConversationID travels inside the encrypted GroupContext extension. **Open item, not invented:** an allocation (or an ADR choosing one) is needed before any group ships. It sits in RFC 9420's private-use range.
+- MLS private keys in the snapshot (K11, RECOVERY_AND_BACKUP_POLICY section 8, ADR-0120): `backup::collect` builds the archive field by field from relationships and restored chats and never reads `AppState.group_crypto`; the recovery record is likewise a whitelist. The snapshot lives only in local `AppState` like device keys. Verified by reading both paths, not by a new test.
+- Shims: `getrandom-0.4.3` differs from the registry copy by one `cfg` condition in `src/error.rs` (plus a link rewrite in CHANGELOG.md by `om_docs fmt`); `web-time` is a 203-line clean-room `SystemTime` over `om_host.now_ms`, one `unsafe extern` block, no hashing, RNG or cipher code.
+- Entropy route: `getrandom` 0.2, 0.3 and 0.4 all end in `om_host.random_fill`, the same route as Core's `OsRng` (PRODUCTION_CRYPTO_INTEGRATION_GATE section 2 forbids a custom generator; none is written).
+- Not an audited-text amendment: D-g9 is an engineering decision; ADR-0187 stays proposed, so commit 2 cites `ADR-0187 (proposed)`.
+
+**Results:** `cargo test -p om-core --locked` 275 passed, 0 failed; with `--features groups-openmls` 281 passed, 0 failed; `cargo clippy -D warnings` clean for om-core (both feature states) and om-wasm wasm32 (both); `cargo fmt --check` clean; `make core-wasm` (om_wasm.wasm sha256 3d3420a8...), `make core-guard`, `make core-check` OK; `vitest run src` in om-platform-api 9 passed; `tsc -b apps/web` clean; `om_docs.py fmt` 0 rewrites; `make check` OK.
+
+**Commits:** `1d2d675` (recovery slice 4 TS mirrors, `Design-Departures: none`) then `16a9466` (the engine, `Design-Departures: ADR-0187 (proposed)`), both with `Design-Read` of the six domains above.
