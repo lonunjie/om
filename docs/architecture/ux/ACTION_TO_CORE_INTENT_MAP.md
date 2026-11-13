@@ -23,6 +23,8 @@ The names below are conceptual typed intents. Implementation APIs may use differ
 | `send-message` | `SendMessage(conversation_id, compose_intent)` | Core creates canonical event/session material at send time |
 | `retry-message` | `RetryDelivery(message_or_event_id)` | retry same logical object; Core decides eligibility |
 | `attach-media` | PlatformAdapter picker/camera → local stage → `PrepareAttachment` as needed | file picker/camera is platform-owned |
+| `send-attachments-direct` | `SendAttachmentsDirect(conversation_id, attachments)` | oversize file offered straight to the other person; the message is sent at once and only the file waits (G-O1); shown only when the host reports a direct channel |
+| `withdraw-direct-offer` | `WithdrawDirectOffer(message_id)` | takes an unserved direct offer back; Core decides state |
 | `download-attachment` | `FetchAttachment(blob_id, policy)` | BlobID/ciphertext rules remain Core/storage authority |
 | `edit-message` | `EditMessage(target_event_id, rich_text)` | authorization/expiry checked by Core |
 | `delete-message` | typed local-delete or canonical delete/redaction intent according to requested scope | UI must label scope honestly |
