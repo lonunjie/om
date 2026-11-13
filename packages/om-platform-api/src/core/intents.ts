@@ -24,6 +24,18 @@ export interface SendAttachments extends IntentBase {
   readonly draft: { readonly text: string };
   readonly attachments: readonly { readonly blobId: string; readonly voiceNote?: { readonly waveform?: string } }[];
 }
+/**
+ * A file too big for the delivery service, offered to be sent while the other person is online. The files were prepared with
+ * `AttachmentApi.prepareDirect`. The message goes out at once; only the file waits.
+ */
+export interface SendAttachmentsDirect extends IntentBase {
+  readonly kind: "SendAttachmentsDirect";
+  readonly conversationId: ConversationId;
+  readonly draft: { readonly text: string };
+  readonly attachments: readonly { readonly blobId: string; readonly voiceNote?: { readonly waveform?: string } }[];
+}
+/** Take a direct offer back: nothing is served any more. The message stays and says the file was taken back. */
+export interface WithdrawDirectOffer extends IntentBase { readonly kind: "WithdrawDirectOffer"; readonly messageId: MessageId }
 /** One-shot static location (`om.location-card.v1`). Never live location. E7 = degrees times ten million. */
 export interface SendLocation extends IntentBase {
   readonly kind: "SendLocation";
@@ -76,7 +88,7 @@ export interface VetoRecovery extends IntentBase { readonly kind: "VetoRecovery"
 export interface ConfirmRecovery extends IntentBase { readonly kind: "ConfirmRecovery"; readonly requestId: string; readonly confirmation: ConfirmationToken }
 
 export type CoreIntent =
-  | SendMessage | SendAttachments | SendLocation | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
+  | SendMessage | SendAttachments | SendAttachmentsDirect | WithdrawDirectOffer | SendLocation | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
   | RevokeInvite | StartCall | PinNavigationTarget | RestoreHistory
   | CreateIdentityProfile | ConfirmRecoveryKeyStored | IssueConfirmation | CreateInvite | AcceptInvitation
@@ -85,7 +97,7 @@ export type CoreIntent =
 export type CoreIntentKind = CoreIntent["kind"];
 
 export const INTENT_KINDS: readonly CoreIntentKind[] = [
-  "SendMessage", "SendAttachments", "SendLocation", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
+  "SendMessage", "SendAttachments", "SendAttachmentsDirect", "WithdrawDirectOffer", "SendLocation", "RetryDelivery", "SwitchIdentityProfile", "AcceptIntroduction", "BlockPerson", "ShareContact",
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
   "RevokeInvite", "StartCall", "PinNavigationTarget", "RestoreHistory",
   "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "IssueConfirmation", "CreateInvite", "AcceptInvitation",

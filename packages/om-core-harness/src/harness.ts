@@ -3,7 +3,7 @@ import {
   asMessageId, confirmationTarget, parseInviteLink, asProfileGeneration, captureProfileContext, isProfileExecutionContext, isTerminalOutcome,
 } from "@om/platform-api";
 import type {
-  AttachmentApi, AttachmentLimits, AttachmentView, LocationCardView, PresentationView,
+  AttachmentApi, AttachmentLimits, AttachmentState, AttachmentView, DirectOfferView, LocationCardView, PresentationView,
   ConversationId, ConversationSummary, ConversationTimelineItem, ConversationView, CoreClient, CoreIntent, CoreQuery,
   DeliveryState, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, MessageId, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   PersonId, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, TerminalOutcome, Unsubscribe, UserActionCode,
@@ -87,6 +87,10 @@ export interface HarnessOptions {
   /** What the pretend delivery service accepts for files (default 4 MiB per file; `null`: it holds no files). */
   readonly attachmentLimits?: AttachmentLimits | null;
 }
+
+/** The largest file Core seals in one piece (16 MiB). */
+const HARD_MAX_PLAINTEXT = 16 * 1024 * 1024 - 16;
+const DIRECT_STATES: readonly AttachmentState[] = ["waiting_for_recipient", "transferring", "delivered_locally", "not_offered"];
 
 interface MutableMessage {
   messageId: MessageId;
@@ -229,6 +233,24 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         case "GetRecoveryStatus":
           stateFor(q.ctx);
           return sim.queries.recovery(q.ctx.profileId);
+        case "PlanAttachment": {
+          stateFor(q.ctx);
+          if (q.size === 0) return { kind: "empty" };
+          if (limits !== null && q.size + 16 <= limits.maxBlobBytes) return { kind: "spool" };
+          return q.size > HARD_MAX_PLAINTEXT ? { kind: "too_large", limit: HARD_MAX_PLAINTEXT } : { kind: "offer_direct", limit: limits === null ? 0 : limits.maxBlobBytes - 16 };
+        }
+        case "GetDirectOffers": {
+          const st = stateFor(q.ctx);
+          const offers: DirectOfferView[] = [];
+          for (const conv of st.conversations.values()) {
+            for (const m of conv.messages) {
+              for (const a of m.attachments ?? []) {
+                if (m.direction === "outgoing" && DIRECT_STATES.includes(a.state)) offers.push({ conversationId: conv.id, messageId: m.messageId, blobId: a.blobId, size: a.size, state: a.state, expiresAt: m.sentAt + 7 * 24 * 60 * 60 * 1000, needsFile: false });
+              }
+            }
+          }
+          return offers;
+        }
         case "GetConversationView": {
           const st = stateFor(q.ctx);
           const conv = conversationFor(q.ctx, st, q.conversationId);
@@ -349,6 +371,27 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         messageOwner.set(messageId, intent.ctx.profileId);
         return record(intent, { kind: "Committed" }, messageId);
       }
+      case "SendAttachmentsDirect": {
+        const conv = conversationFor(intent.ctx, st, intent.conversationId);
+        if (!conv) return rejected("not_found");
+        const found = intent.attachments.map((a) => ({ a, blob: blobs.get(a.blobId) }));
+        if (found.some((f) => f.blob === undefined || f.blob.owner !== intent.ctx.profileId)) return rejected("not_found");
+        const messageId = asMessageId(`msg-${String(++messageSeq)}`);
+        // The message goes at once; only the file waits (nothing is stored anywhere, so nothing "kept until").
+        const attachments = found.map(({ a, blob }, index): AttachmentView => ({
+          index, blobId: a.blobId, mediaType: blob?.mediaType ?? "application/octet-stream", size: blob?.bytes.length ?? 0, state: "waiting_for_recipient",
+          ...(blob?.filename === undefined ? {} : { filename: blob.filename }),
+        }));
+        conv.messages.push({ messageId, operationId: intent.operationId, direction: "outgoing", text: intent.draft.text, sentAt: clock(), delivery: { state: "sent" }, attachments });
+        messageOwner.set(messageId, intent.ctx.profileId);
+        return record(intent, { kind: "Committed" }, messageId);
+      }
+      case "WithdrawDirectOffer": {
+        const msg = [...st.conversations.values()].flatMap((c) => c.messages).find((m) => m.messageId === intent.messageId);
+        if (msg?.attachments === undefined || !msg.attachments.some((a) => a.state === "waiting_for_recipient" || a.state === "transferring")) return rejected("not_found");
+        msg.attachments = msg.attachments.map((a) => (a.state === "waiting_for_recipient" || a.state === "transferring" ? { ...a, state: "not_offered" } : a));
+        return record(intent, { kind: "Committed" });
+      }
       case "SendLocation": {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
         if (!conv) return rejected("not_found");
@@ -428,6 +471,15 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       if (limits === null) return { ok: false, refusal: { error: "no_blob_store" } };
       if (bytes.length === 0) return { ok: false, refusal: { error: "empty" } };
       if (bytes.length + 16 > limits.maxBlobBytes) return { ok: false, refusal: { error: "too_large", max: limits.maxBlobBytes - 16 } };
+      const blobId = newBlobId();
+      blobs.set(blobId, { bytes: bytes.slice(), mediaType: meta.mediaType, filename: meta.filename, owner: ctx.profileId });
+      return { ok: true, blobId };
+    }),
+    prepareDirect: (ctx, bytes, meta) => settle(() => {
+      stateFor(ctx);
+      if (bytes.length === 0) return { ok: false, refusal: { error: "empty" } };
+      if (bytes.length > HARD_MAX_PLAINTEXT) return { ok: false, refusal: { error: "too_large", max: HARD_MAX_PLAINTEXT } };
+      if (limits !== null && bytes.length + 16 <= limits.maxBlobBytes) return { ok: false, refusal: { error: "invalid" } }; // it fits the delivery service: the ordinary path
       const blobId = newBlobId();
       blobs.set(blobId, { bytes: bytes.slice(), mediaType: meta.mediaType, filename: meta.filename, owner: ctx.profileId });
       return { ok: true, blobId };

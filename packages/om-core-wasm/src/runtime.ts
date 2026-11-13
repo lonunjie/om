@@ -9,7 +9,7 @@ import type {
 } from "@om/platform-api";
 import { asProfileGeneration, asProfileId } from "@om/platform-api";
 import type { MessageId } from "@om/platform-api";
-import type { BackupHeader, BackupPlan, BlobLimits, Commit, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, Record as CoreRecord } from "./types";
+import type { BackupHeader, BackupPlan, BlobLimits, Commit, DirectFetchProgress, DirectFrame, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, Record as CoreRecord } from "./types";
 import { CoreCallError, CoreStorageError, fromHex, toHex } from "./types";
 import type { WasmCore } from "./wasm";
 
@@ -66,6 +66,24 @@ export interface WasmCoreClient extends CoreClient {
     refreshLimits(): Promise<AttachmentLimits | null>;
     /** The ciphertext of an outgoing attachment again from its plaintext, staged under the same id (a host that lost its staged bytes). */
     restage(ctx: ProfileExecutionContext, blobId: string, plaintext: Uint8Array): Promise<boolean>;
+    /**
+     * After a restart a direct offer shows `needsFile` and serves nothing; hand the original file back to serve it again.
+     * False when the file is not the one that was offered, or the offer is over.
+     */
+    arm(ctx: ProfileExecutionContext, blobId: string, plaintext: Uint8Array): Promise<boolean>;
+  };
+  /**
+   * The two ends of a direct transfer, as frames for a host-supplied channel (the host driver is not built: no transport is
+   * chosen yet). Sender: `serve` each frame received, `pump` while the channel drains. Receiver: `fetchStart`, feed each
+   * frame to `fetchHandle` and send what it returns, then `fetchOpen` when the progress says `complete`.
+   */
+  readonly direct: {
+    serve(ctx: ProfileExecutionContext, frame: DirectFrame): Promise<readonly DirectFrame[]>;
+    pump(ctx: ProfileExecutionContext, buffered: number): readonly DirectFrame[];
+    fetchStart(ctx: ProfileExecutionContext, messageId: MessageId, index: number): DirectFrame | null;
+    fetchHandle(ctx: ProfileExecutionContext, messageId: MessageId, index: number, frame: DirectFrame): readonly DirectFrame[];
+    fetchProgress(ctx: ProfileExecutionContext, messageId: MessageId, index: number): DirectFetchProgress | null;
+    fetchOpen(ctx: ProfileExecutionContext, messageId: MessageId, index: number): AttachmentOpenResult;
   };
 }
 
@@ -366,6 +384,19 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
           return { ok: true, blobId: r.prepared.blobId };
         });
       },
+      async prepareDirect(ctx, bytes, meta: AttachmentMeta): Promise<AttachmentPrepareResult> {
+        await ensureLimits();
+        return exclusive(async () => {
+          const r = core.call({ cmd: "prepare_direct_attachment", ctx: ctxOf(ctx), plaintext: toHex(bytes), meta }) as PrepareJson;
+          await commit(r.commit, ctx); // the identities are durable before the offer is used; nothing is staged: Core holds the object
+          if (r.prepared === undefined) return { ok: false, refusal: refusalOf(r.refused) };
+          return { ok: true, blobId: r.prepared.blobId };
+        });
+      },
+      arm(ctx, blobId, plaintext) {
+        const r = core.call({ cmd: "arm_direct_offer", ctx: ctxOf(ctx), blobId, plaintext: toHex(plaintext) }) as { armed?: boolean };
+        return Promise.resolve(r.armed === true);
+      },
       async restage(ctx, blobId, plaintext) {
         const r = core.call({ cmd: "restage_attachment", ctx: ctxOf(ctx), blobId, plaintext: toHex(plaintext) }) as { ciphertext?: string };
         return r.ciphertext !== undefined && (await stage(ctx.profileId, blobId, fromHex(r.ciphertext)));
@@ -380,6 +411,31 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
           return { ok: false, refusal: { error: e.kind === "not_found" ? "not_found" : "unavailable" } };
         }
         const o = core.call({ cmd: "open_attachment", ctx: ctxOf(ctx), messageId, index, ciphertext: got.bytes }) as OpenJson;
+        if (o.opened === undefined) return { ok: false, refusal: refusalOf(o.refused) };
+        return { ok: true, bytes: fromHex(o.opened.plaintext), mediaType: o.opened.mediaType, ...(o.opened.filename ? { filename: o.opened.filename } : {}) };
+      },
+    },
+    direct: {
+      serve: (ctx, frame) => exclusive(async () => {
+        const r = core.call({ cmd: "direct_serve", ctx: ctxOf(ctx), frame }) as { frames: DirectFrame[]; commit: Commit | null };
+        await commit(r.commit, ctx); // the one durable effect of serving is "delivered"
+        return r.frames;
+      }),
+      pump: (ctx, buffered) => core.call({ cmd: "direct_pump", ctx: ctxOf(ctx), buffered }) as DirectFrame[],
+      fetchStart(ctx, messageId, index) {
+        const r = core.call({ cmd: "direct_fetch_start", ctx: ctxOf(ctx), messageId, index }) as { frame?: DirectFrame };
+        return r.frame ?? null;
+      },
+      fetchHandle(ctx, messageId, index, frame) {
+        const r = core.call({ cmd: "direct_fetch_handle", ctx: ctxOf(ctx), messageId, index, frame }) as { frames?: DirectFrame[] };
+        return r.frames ?? [];
+      },
+      fetchProgress(ctx, messageId, index) {
+        const r = core.call({ cmd: "direct_fetch_progress", ctx: ctxOf(ctx), messageId, index }) as { state: DirectFetchProgress["state"]; held: number } | null;
+        return r === null ? null : { state: r.state, held: r.held };
+      },
+      fetchOpen(ctx, messageId, index): AttachmentOpenResult {
+        const o = core.call({ cmd: "direct_fetch_open", ctx: ctxOf(ctx), messageId, index }) as OpenJson;
         if (o.opened === undefined) return { ok: false, refusal: refusalOf(o.refused) };
         return { ok: true, bytes: fromHex(o.opened.plaintext), mediaType: o.opened.mediaType, ...(o.opened.filename ? { filename: o.opened.filename } : {}) };
       },

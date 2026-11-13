@@ -3,7 +3,7 @@ import type { CoreIntent } from "./intents";
 import type { OutcomeClass } from "./outcome";
 import type { AttachmentApi } from "./attachments";
 import type { DevicesView, HistoryTransferView, LinkOfferView, LinkRequestView, RecoveryStatusView } from "./devices";
-import type { ConfirmationView, ConversationSummary, ConversationView, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, RecoveryKeyView } from "./views";
+import type { AttachmentPlanView, ConfirmationView, DirectOfferView, ConversationSummary, ConversationView, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, RecoveryKeyView } from "./views";
 
 export interface GetConversationView { readonly kind: "GetConversationView"; readonly ctx: ProfileExecutionContext; readonly conversationId: ConversationId }
 export interface GetConversationList { readonly kind: "GetConversationList"; readonly ctx: ProfileExecutionContext }
@@ -24,9 +24,14 @@ export interface GetRecoveryStatus { readonly kind: "GetRecoveryStatus"; readonl
 export interface GetConfirmation { readonly kind: "GetConfirmation"; readonly ctx: ProfileExecutionContext; readonly operationId: OperationId }
 /** Whether first-contact requests from strangers are currently being dropped. */
 export interface GetIntroductionLoad { readonly kind: "GetIntroductionLoad"; readonly ctx: ProfileExecutionContext }
+/** How a file of `size` bytes may travel, before anything is sealed or sent. */
+export interface PlanAttachment { readonly kind: "PlanAttachment"; readonly ctx: ProfileExecutionContext; readonly size: number }
+/** The direct offers of this profile, newest last. */
+export interface GetDirectOffers { readonly kind: "GetDirectOffers"; readonly ctx: ProfileExecutionContext }
 export type CoreQuery =
   | GetConversationView | GetConversationList | GetProfileList | GetIntroductions | GetRecoveryKey | GetInvite | GetHomeSummary
-  | GetDevices | GetLinkRequest | GetLinkOffer | GetHistoryTransfer | GetRecoveryStatus | GetConfirmation | GetIntroductionLoad;
+  | GetDevices | GetLinkRequest | GetLinkOffer | GetHistoryTransfer | GetRecoveryStatus | GetConfirmation | GetIntroductionLoad
+  | PlanAttachment | GetDirectOffers;
 
 export interface QueryResultMap {
   GetConversationView: ConversationView;
@@ -44,6 +49,8 @@ export interface QueryResultMap {
   GetRecoveryStatus: RecoveryStatusView;
   GetConfirmation: ConfirmationView | null;
   GetIntroductionLoad: IntroductionLoad;
+  PlanAttachment: AttachmentPlanView;
+  GetDirectOffers: readonly DirectOfferView[];
 }
 export type QueryResult<Q extends CoreQuery> = QueryResultMap[Q["kind"]];
 

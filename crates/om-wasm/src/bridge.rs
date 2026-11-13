@@ -6,6 +6,7 @@ use om_core::api::{HomeSummary, Intent, ProfileExecutionContext, Query};
 use om_core::attach::Meta;
 use om_core::backup::BackupPlan;
 use om_core::crypto::rng::{self, CryptoRng, RngCore};
+use om_core::direct::{DirectFrame, ErrorCode, FetchState, TRANSFER_ID_LEN};
 use om_core::host::{BlobLimits, Clock, CoreError, Inbound, NetResult, Record};
 use om_core::route::RouteOffer;
 use serde::Deserialize;
@@ -119,6 +120,54 @@ enum Command {
         message_id: String,
         index: usize,
         ciphertext: String,
+    },
+    /// Seal a file too big for the delivery service so it can be offered directly (`plaintext` hex). Answers
+    /// `{prepared, commit}` or `{refused}`. Nothing is stored; the sealed object is held by Core for serving.
+    PrepareDirectAttachment {
+        ctx: ProfileExecutionContext,
+        plaintext: String,
+        meta: Meta,
+    },
+    /// After a restart: hand the original file back so a persisted offer can be served again (`{armed: true}` or `{refused}`).
+    ArmDirectOffer {
+        ctx: ProfileExecutionContext,
+        blob_id: String,
+        plaintext: String,
+    },
+    /// One frame from the other person's device (the sender side). Answers `{frames, commit}`.
+    DirectServe {
+        ctx: ProfileExecutionContext,
+        frame: Value,
+    },
+    /// Frames the sender may send now, given how many bytes the channel still has buffered.
+    DirectPump {
+        ctx: ProfileExecutionContext,
+        buffered: usize,
+    },
+    /// The first frame of a fetch of a direct attachment (the receiver side): `{frame}` or `{refused}`.
+    DirectFetchStart {
+        ctx: ProfileExecutionContext,
+        message_id: String,
+        index: usize,
+    },
+    /// One frame from the sender; answers the frames to send back.
+    DirectFetchHandle {
+        ctx: ProfileExecutionContext,
+        message_id: String,
+        index: usize,
+        frame: Value,
+    },
+    /// `{state: idle|requested|receiving|complete|failed, held}` or `null` when no fetch is open.
+    DirectFetchProgress {
+        ctx: ProfileExecutionContext,
+        message_id: String,
+        index: usize,
+    },
+    /// Decrypt a completed direct fetch: `{opened}` or `{refused}`.
+    DirectFetchOpen {
+        ctx: ProfileExecutionContext,
+        message_id: String,
+        index: usize,
     },
     /// The person stopped using one of their Homes: relationships with another route publish a RelaySet without it.
     /// Answers how many relationships had no other route and so stay on that Home.
@@ -297,6 +346,104 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                     Err(e) => json!({ "refused": enc(&e) }),
                 },
             ),
+            Command::PrepareDirectAttachment {
+                ctx,
+                plaintext,
+                meta,
+            } => {
+                let (out, step) =
+                    self.core()?
+                        .prepare_direct_attachment(&ctx, &unhex(&plaintext)?, meta)?;
+                Ok(match out {
+                    Ok(prepared) => {
+                        json!({ "prepared": enc(&prepared), "commit": enc(&step.commit) })
+                    }
+                    Err(e) => json!({ "refused": enc(&e), "commit": enc(&step.commit) }),
+                })
+            }
+            Command::ArmDirectOffer {
+                ctx,
+                blob_id,
+                plaintext,
+            } => Ok(
+                match self
+                    .core()?
+                    .arm_direct_offer(&ctx, &blob_id, &unhex(&plaintext)?)
+                {
+                    Ok(()) => json!({ "armed": true }),
+                    Err(e) => json!({ "refused": enc(&e) }),
+                },
+            ),
+            Command::DirectServe { ctx, frame } => {
+                let frame = frame_from_json(&frame)?;
+                let (frames, step) = self.core()?.direct_serve(&ctx, &frame)?;
+                Ok(json!({
+                    "frames": frames.iter().map(frame_to_json).collect::<Vec<_>>(),
+                    "commit": enc(&step.commit),
+                }))
+            }
+            Command::DirectPump { ctx, buffered } => {
+                let frames = self.core()?.direct_pump(&ctx, buffered)?;
+                Ok(json!(frames.iter().map(frame_to_json).collect::<Vec<_>>()))
+            }
+            Command::DirectFetchStart {
+                ctx,
+                message_id,
+                index,
+            } => Ok(
+                match self.core()?.direct_fetch_start(&ctx, &message_id, index) {
+                    Ok(f) => json!({ "frame": frame_to_json(&f) }),
+                    Err(e) => json!({ "refused": enc(&e) }),
+                },
+            ),
+            Command::DirectFetchHandle {
+                ctx,
+                message_id,
+                index,
+                frame,
+            } => {
+                let frame = frame_from_json(&frame)?;
+                Ok(
+                    match self
+                        .core()?
+                        .direct_fetch_handle(&ctx, &message_id, index, &frame)
+                    {
+                        Ok(frames) => {
+                            json!({ "frames": frames.iter().map(frame_to_json).collect::<Vec<_>>() })
+                        }
+                        Err(e) => json!({ "refused": enc(&e) }),
+                    },
+                )
+            }
+            Command::DirectFetchProgress {
+                ctx,
+                message_id,
+                index,
+            } => Ok(
+                match self.core()?.direct_fetch_progress(&ctx, &message_id, index) {
+                    None => Value::Null,
+                    Some((state, held)) => {
+                        let (name, error) = match state {
+                            FetchState::Idle => ("idle", None),
+                            FetchState::Requested => ("requested", None),
+                            FetchState::Receiving => ("receiving", None),
+                            FetchState::Complete => ("complete", None),
+                            FetchState::Failed(e) => ("failed", Some(enc(&e))),
+                        };
+                        json!({ "state": name, "held": held, "error": error })
+                    }
+                },
+            ),
+            Command::DirectFetchOpen {
+                ctx,
+                message_id,
+                index,
+            } => Ok(
+                match self.core()?.direct_fetch_open(&ctx, &message_id, index) {
+                    Ok(o) => json!({ "opened": enc(&o) }),
+                    Err(e) => json!({ "refused": enc(&e) }),
+                },
+            ),
             Command::RetireHome {
                 ctx,
                 relay_uri,
@@ -320,6 +467,104 @@ fn err(code: &str, message: &str) -> Value {
 
 fn unhex(s: &str) -> Result<Vec<u8>, CoreError> {
     om_core::crypto::unhex(s).map_err(|_| CoreError::Invalid("hex"))
+}
+
+fn hex_array<const N: usize>(v: &Value, key: &str) -> Result<[u8; N], CoreError> {
+    let bytes = unhex(
+        v.get(key)
+            .and_then(Value::as_str)
+            .ok_or(CoreError::Invalid("frame"))?,
+    )?;
+    bytes.try_into().map_err(|_| CoreError::Invalid("frame"))
+}
+
+/// JSON shape of a direct-transfer frame: `{kind, ...}` with bytes as hex and camelCase keys (no wire codec: the host
+/// maps its channel's records to this).
+fn frame_to_json(f: &DirectFrame) -> Value {
+    use om_core::crypto::hex;
+    match f {
+        DirectFrame::FetchBlob {
+            request_id,
+            read_cap,
+            blob_id,
+            digest,
+        } => json!({ "kind": "fetch_blob", "requestId": hex(request_id), "readCap": hex(read_cap),
+            "blobId": hex(blob_id), "digest": hex(digest) }),
+        DirectFrame::Begin {
+            transfer_id,
+            total_bytes,
+            sha256,
+        } => json!({ "kind": "begin", "transferId": hex(transfer_id), "totalBytes": total_bytes,
+            "sha256": hex(sha256) }),
+        DirectFrame::Chunk {
+            transfer_id,
+            offset,
+            bytes,
+        } => {
+            json!({ "kind": "chunk", "transferId": hex(transfer_id), "offset": offset, "bytes": hex(bytes) })
+        }
+        DirectFrame::End { transfer_id } => {
+            json!({ "kind": "end", "transferId": hex(transfer_id) })
+        }
+        DirectFrame::Ack {
+            transfer_id,
+            offset,
+        } => json!({ "kind": "ack", "transferId": hex(transfer_id), "offset": offset }),
+        DirectFrame::Error { id, code } => {
+            json!({ "kind": "error", "id": hex(id), "code": *code as u16 })
+        }
+    }
+}
+
+fn frame_from_json(v: &Value) -> Result<DirectFrame, CoreError> {
+    let bad = CoreError::Invalid("frame");
+    let u64_of = |k: &str| {
+        v.get(k)
+            .and_then(Value::as_u64)
+            .ok_or(CoreError::Invalid("frame"))
+    };
+    Ok(match v.get("kind").and_then(Value::as_str).ok_or(bad)? {
+        "fetch_blob" => DirectFrame::FetchBlob {
+            request_id: hex_array::<TRANSFER_ID_LEN>(v, "requestId")?,
+            read_cap: unhex(
+                v.get("readCap")
+                    .and_then(Value::as_str)
+                    .ok_or(CoreError::Invalid("frame"))?,
+            )?,
+            blob_id: hex_array(v, "blobId")?,
+            digest: hex_array(v, "digest")?,
+        },
+        "begin" => DirectFrame::Begin {
+            transfer_id: hex_array(v, "transferId")?,
+            total_bytes: u64_of("totalBytes")?,
+            sha256: hex_array(v, "sha256")?,
+        },
+        "chunk" => DirectFrame::Chunk {
+            transfer_id: hex_array(v, "transferId")?,
+            offset: u64_of("offset")?,
+            bytes: unhex(
+                v.get("bytes")
+                    .and_then(Value::as_str)
+                    .ok_or(CoreError::Invalid("frame"))?,
+            )?,
+        },
+        "end" => DirectFrame::End {
+            transfer_id: hex_array(v, "transferId")?,
+        },
+        "ack" => DirectFrame::Ack {
+            transfer_id: hex_array(v, "transferId")?,
+            offset: u64_of("offset")?,
+        },
+        "error" => DirectFrame::Error {
+            id: hex_array(v, "id")?,
+            code: match u64_of("code")? {
+                1 => ErrorCode::Unavailable,
+                3 => ErrorCode::Integrity,
+                _ => ErrorCode::Protocol,
+            },
+        },
+        _ => return Err(CoreError::Invalid("frame")),
+    })
 }
 
 fn core_err(e: &CoreError) -> Value {

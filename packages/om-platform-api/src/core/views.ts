@@ -43,7 +43,38 @@ export interface ConversationSummary {
 }
 
 /** Where an attachment's bytes are. "Stored for later" is a hand-over to a store with a lifetime, not delivery (ADR-0150). */
-export type AttachmentState = "uploading" | "stored_for_later" | "remote";
+export type AttachmentState =
+  | "uploading" | "stored_for_later" | "remote"
+  /** Theirs, offered straight from the sender's device: fetchable only while the sender is online; nothing is stored for later. */
+  | "remote_direct"
+  /** Ours, too big for the delivery service: waiting to be sent while the other person is online. */
+  | "waiting_for_recipient"
+  /** Ours: being sent to the other person right now. */
+  | "transferring"
+  /** Ours: the other person's device has it. That device only; not a copy kept anywhere else (AT-06). */
+  | "delivered_locally"
+  /** Ours: no longer offered (taken back, or it lapsed unfetched). */
+  | "not_offered";
+
+/** How a file may travel, decided before anything is sealed or sent (`PlanAttachment`). `limit` is a byte count. */
+export type AttachmentPlanView =
+  | { readonly kind: "spool" }
+  /** Too big for the delivery service: not sent that way. It can be offered straight to the other person while they are online. `limit`: the largest file the service takes (0: none is set up). */
+  | { readonly kind: "offer_direct"; readonly limit: number }
+  | { readonly kind: "too_large"; readonly limit: number }
+  | { readonly kind: "empty" };
+
+/** One direct offer of this profile (`GetDirectOffers`, newest last). `needsFile` is true after a restart until the host hands the file back; nothing is served meanwhile. */
+export interface DirectOfferView {
+  readonly conversationId: string;
+  readonly messageId: string;
+  readonly blobId: string;
+  readonly size: number;
+  readonly state: AttachmentState;
+  /** Wall ms after which the offer lapses. */
+  readonly expiresAt: number;
+  readonly needsFile: boolean;
+}
 /** Sender-authored display data (untrusted) except `size`. The store sees `size` plus a fixed 16 bytes: size is not hidden from it. */
 export interface AttachmentView {
   readonly index: number;

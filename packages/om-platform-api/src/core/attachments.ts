@@ -38,6 +38,12 @@ export interface AttachmentApi {
   /** The advertised limits, or `null` when the delivery service holds no files (then every `prepare` is refused). */
   limits(): AttachmentLimits | null;
   prepare(ctx: ProfileExecutionContext, bytes: Uint8Array, meta: AttachmentMeta): Promise<AttachmentPrepareResult>;
+  /**
+   * Seal a file that is too big for the delivery service so it can be offered straight to the other person
+   * (`SendAttachmentsDirect`). Nothing is stored anywhere; Core holds the sealed object while this app runs. Refused with a
+   * typed reason when the file would fit the delivery service (use `prepare`) or cannot be sent at all.
+   */
+  prepareDirect?(ctx: ProfileExecutionContext, bytes: Uint8Array, meta: AttachmentMeta): Promise<AttachmentPrepareResult>;
   /** Fetch from the sender's store, check the digest, decrypt. Resolves with a typed refusal, never partial content. */
   open(ctx: ProfileExecutionContext, messageId: MessageId, index: number): Promise<AttachmentOpenResult>;
 }

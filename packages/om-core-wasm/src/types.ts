@@ -100,6 +100,21 @@ export interface Provider {
 
 export interface PerformExtra { readonly ciphertext?: Uint8Array }
 
+/**
+ * One record of a direct transfer between two devices (bytes are lower-case hex). The host maps whatever ordered, reliable
+ * channel it has to these; there is no wire codec here and no transport in this package.
+ */
+export type DirectFrame =
+  | { readonly kind: "fetch_blob"; readonly requestId: string; readonly readCap: string; readonly blobId: string; readonly digest: string }
+  | { readonly kind: "begin"; readonly transferId: string; readonly totalBytes: number; readonly sha256: string }
+  | { readonly kind: "chunk"; readonly transferId: string; readonly offset: number; readonly bytes: string }
+  | { readonly kind: "end"; readonly transferId: string }
+  | { readonly kind: "ack"; readonly transferId: string; readonly offset: number }
+  | { readonly kind: "error"; readonly id: string; readonly code: 1 | 2 | 3 };
+
+/** Where a direct fetch stands (`null` from the runtime when none is open). */
+export interface DirectFetchProgress { readonly state: "idle" | "requested" | "receiving" | "complete" | "failed"; readonly held: number }
+
 /** What the store advertises (maps to `set_blob_limits`). `maxBlobBytes` is the largest single ciphertext object. */
 export interface BlobLimits { readonly maxBlobBytes: number; readonly maxSpoolBytes?: number; readonly maxBlobs?: number }
 

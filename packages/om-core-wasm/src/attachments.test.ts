@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { asConversationId, asOperationId, asProfileId } from "@om/platform-api";
 import type { ConversationTimelineItem, HomeSummary, MessageId, OutcomeClass, ProfileExecutionContext, ProfileId } from "@om/platform-api";
 import { createCoreRuntime, instantiateCore } from "./index";
+import type { DirectFrame } from "./index";
 import type { WasmCoreClient } from "./index";
 import { createMemoryKv, createMemoryProvider, type MemoryKv, type MemoryProvider } from "./test-support";
 
@@ -176,5 +177,84 @@ describe.skipIf(!present)("attachments through the real Core and the loopback st
     const loc = view.timeline.find((t) => t.presentation?.locationCard !== undefined);
     expect(loc?.presentation?.locationCard).toMatchObject({ latE7: 143_583_000, lonE7: 1_210_000_000, geo: expect.stringContaining("geo:") as string });
     expect(loc?.text).toContain("geo:14.3583000,121.0000000");
+  });
+
+  describe("direct transfer of a file too big for the delivery service", () => {
+    const BIG = 3000; // over a 1 KiB spool bound: offered directly (the plan says so before anything is sealed)
+
+    async function offered(): Promise<{ alice: Party; bob: Party; aConv: string; bConv: string; file: Uint8Array; blobId: string; messageId: MessageId; bobMessageId: MessageId; provider: MemoryProvider }> {
+      const provider = createMemoryProvider();
+      provider.setBlobLimits({ maxBlobBytes: 1024 });
+      const { alice, bob, aConv, bConv } = await connect(provider);
+      const file = bytesOf(BIG, 5);
+      expect(await alice.rt.query({ kind: "PlanAttachment", ctx: alice.ctx, size: BIG })).toEqual({ kind: "offer_direct", limit: expect.any(Number) as number });
+      expect(await alice.rt.attachments.prepare(alice.ctx, file, { mediaType: "video/mp4" })).toEqual({ ok: false, refusal: { error: "too_large", max: expect.any(Number) as number } });
+      const prep = await alice.rt.attachments.prepareDirect?.(alice.ctx, file, { mediaType: "video/mp4", filename: "clip.mp4" });
+      if (!prep?.ok) throw new Error(JSON.stringify(prep));
+      await alice.rt.dispatch({ kind: "SendAttachmentsDirect", ctx: alice.ctx, operationId: op("d1"), conversationId: asConversationId(aConv), draft: { text: "big one" }, attachments: [{ blobId: prep.blobId }] });
+      await settle(alice, bob);
+      expect(await outcome(alice, "d1")).toEqual({ kind: "Committed" });
+      expect(provider.blobs().size).toBe(0); // nothing was stored anywhere
+      const mine = (await lastItem(alice, aConv)) as { messageId: MessageId };
+      const theirs = (await lastItem(bob, bConv)) as { messageId: MessageId };
+      return { alice, bob, aConv, bConv, file, blobId: prep.blobId, messageId: mine.messageId, bobMessageId: theirs.messageId, provider };
+    }
+
+    /** A loopback channel: frames move between the two Cores until neither has anything more to say. */
+    async function transfer(alice: Party, bob: Party, messageId: MessageId, drop?: number): Promise<void> {
+      const first = bob.rt.direct.fetchStart(bob.ctx, messageId, 0);
+      if (first === null) throw new Error("no fetch");
+      let toAlice: DirectFrame[] = [first];
+      let chunks = 0;
+      for (let round = 0; round < 400; round++) {
+        const toBob: DirectFrame[] = [];
+        for (const f of toAlice) toBob.push(...(await alice.rt.direct.serve(alice.ctx, f)));
+        toBob.push(...alice.rt.direct.pump(alice.ctx, 0));
+        toAlice = [];
+        for (const f of toBob) {
+          if (f.kind === "chunk" && drop !== undefined && ++chunks > drop) return;
+          toAlice.push(...bob.rt.direct.fetchHandle(bob.ctx, messageId, 0, f));
+        }
+        if (toAlice.length === 0 && toBob.length === 0) return;
+      }
+    }
+
+    it("the message goes at once and says so: waiting for them, then delivered; the file arrives equal and nothing is stored", async () => {
+      const { alice, bob, aConv, bConv, file, bobMessageId, messageId, blobId } = await offered();
+      expect((await lastItem(alice, aConv))?.attachments?.[0]?.state).toBe("waiting_for_recipient");
+      expect((await lastItem(bob, bConv))?.attachments?.[0]?.state).toBe("remote_direct");
+      expect(await alice.rt.query({ kind: "GetDirectOffers", ctx: alice.ctx })).toEqual([expect.objectContaining({ messageId, blobId, size: BIG, state: "waiting_for_recipient", needsFile: false })]);
+      await transfer(alice, bob, bobMessageId);
+      expect(bob.rt.direct.fetchProgress(bob.ctx, bobMessageId, 0)?.state).toBe("complete");
+      const opened = bob.rt.direct.fetchOpen(bob.ctx, bobMessageId, 0);
+      if (!opened.ok) throw new Error(JSON.stringify(opened));
+      expect(Array.from(opened.bytes)).toEqual(Array.from(file));
+      expect(opened.filename).toBe("clip.mp4");
+      expect((await lastItem(alice, aConv))?.attachments?.[0]?.state).toBe("delivered_locally");
+    });
+
+    it("a dropped channel resumes from what the receiver holds; a restart shows the offer as needing its file, and only the same file re-arms it", async () => {
+      const { alice, bob, file, blobId, bobMessageId } = await offered();
+      await transfer(alice, bob, bobMessageId, 0); // everything after the handshake is lost
+      const held = bob.rt.direct.fetchProgress(bob.ctx, bobMessageId, 0);
+      expect(held?.state).not.toBe("complete");
+      const alice2 = await boot(alice.kv, createMemoryProvider(), alice.id);
+      const [offer] = await alice2.rt.query({ kind: "GetDirectOffers", ctx: alice2.ctx });
+      expect(offer).toMatchObject({ needsFile: true, state: "waiting_for_recipient" });
+      expect(await alice2.rt.attachments.arm(alice2.ctx, blobId, bytesOf(BIG, 6))).toBe(false);
+      expect(await alice2.rt.attachments.arm(alice2.ctx, blobId, file)).toBe(true);
+      expect((await alice2.rt.query({ kind: "GetDirectOffers", ctx: alice2.ctx }))[0]?.needsFile).toBe(false);
+    });
+
+    it("taking the offer back serves nothing and says so; the message stays", async () => {
+      const { alice, bob, aConv, bConv, messageId, bobMessageId } = await offered();
+      await alice.rt.dispatch({ kind: "WithdrawDirectOffer", ctx: alice.ctx, operationId: op("w1"), messageId });
+      await settle(alice, bob);
+      expect(await outcome(alice, "w1")).toEqual({ kind: "Committed" });
+      expect((await lastItem(alice, aConv))?.attachments?.[0]?.state).toBe("not_offered");
+      await transfer(alice, bob, bobMessageId);
+      expect(bob.rt.direct.fetchProgress(bob.ctx, bobMessageId, 0)?.state).not.toBe("complete");
+      expect((await lastItem(bob, bConv))?.text).toBe("big one");
+    });
   });
 });
