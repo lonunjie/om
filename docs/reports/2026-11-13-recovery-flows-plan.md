@@ -153,7 +153,7 @@ The code was written by a worker subagent from the plan and reviewed, tested and
 - Slice 1: `crates/om-core/src/recovery.rs` (RecoveryRoot, G1 key derivation `OM-RECOVERY-AUTH-KEY-SEED-v1`, RecoveryPolicy encode/hash, RecoveryRequest/RecoveryVeto sign/verify/digest, bounded decode).
   Genesis commits the policy hash; the shown recovery key is the RecoveryRoot; `GetRecoveryStatus` is `on` only if the stored policy matches the committed hash, old profiles stay `pending`.
 - Slice 2: `control::verify_recovery_successor` (recovery signature against the committed policy, request binding, stale target, veto, verifier-local elapsed from the host, sole-controller child shape, commitment rotation, then `authorize` with `Ctx.recovery`).
-- Registry: `OM-RECOVERY-AUTH-KEY-SEED-v1` added to `om-domain-separation.json`.
+- Registry: `OM-RECOVERY-AUTH-KEY-SEED-v1` added to [`om-domain-separation.json`](../../spec/registries/om-domain-separation.json).
 
 **Non-Anthropic review list (ADR-0167), new item:** `OM-RECOVERY-AUTH-KEY-SEED-v1` (HKDF-SHA256 from RecoveryRoot, no salt, info = label || epoch, 64 bytes = Ed25519 seed || ML-DSA-65 seed) is new key derivation without independent review, together with the recovery-role signature framing below.
 
