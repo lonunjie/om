@@ -14,3 +14,5 @@ pub mod bridge;
 
 #[allow(unsafe_code)]
 mod abi;
+#[cfg(feature = "groups-openmls")]
+mod groups_selftest;

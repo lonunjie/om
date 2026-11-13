@@ -23,5 +23,13 @@ serde_json = "1"
 # documented "custom" backend (selected in .cargo/config.toml).
 getrandom = "0.3"
 
+# getrandom 0.2 (pulled by rand_core 0.6 under the OpenMLS provider) needs the same host route: feature `custom` and one
+# registration in abi.rs. Only present with `groups-openmls`.
+getrandom02 = { package = "getrandom", version = "0.2", features = ["custom"], optional = true }
+
+[features]
+# Links the OpenMLS engine (ADR-0187, proposed delegated draft) into the module. Off by default.
+groups-openmls = ["om-core/groups-openmls", "dep:getrandom02"]
+
 [dev-dependencies]
 om-core = { path = "../om-core", features = ["insecure-test-rng", "test-loopback"] }

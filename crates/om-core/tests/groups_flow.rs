@@ -5,7 +5,6 @@
 
 use om_core::crypto::rng::insecure_test_rng::InsecureTestRng;
 use om_core::crypto::sig::DeviceSigner;
-use om_core::groups::fake::{FakeGroupCrypto, FakeLoader};
 use om_core::groups::flow::*;
 use om_core::groups::mls::{CryptoEnv, GroupCrypto};
 use om_core::route::RelaySet;
@@ -13,7 +12,7 @@ use om_core::state::{AppState, RelState, Relationship};
 
 struct Dev {
     app: AppState,
-    eng: FakeGroupCrypto,
+    eng: engine::Eng,
     signer: DeviceSigner,
     rng: InsecureTestRng,
     account: Vec<u8>,
@@ -24,7 +23,7 @@ impl Dev {
         let mut rng = InsecureTestRng::from_label(&[b'f', tag]);
         Dev {
             app: AppState::default(),
-            eng: FakeGroupCrypto::new(&[tag; 16]),
+            eng: engine::new(&[tag; 16]),
             signer: DeviceSigner::generate(&mut rng),
             rng,
             account: vec![account; 32],
@@ -46,6 +45,23 @@ impl Dev {
             key_package: om_core::crypto::hex(&kp.bytes),
             pk: om_core::crypto::hex(&self.signer.public()),
         }
+    }
+}
+
+/// The engine under test: the TEST-ONLY fake by default; stock OpenMLS with `--features groups-openmls`
+/// (which depends on the proposed ADR-0187). The scenarios are identical; fake-only tests are `cfg`-gated.
+#[cfg(not(feature = "groups-openmls"))]
+mod engine {
+    pub use om_core::groups::fake::{FakeGroupCrypto as Eng, FakeLoader as Loader};
+    pub fn new(id: &[u8]) -> Eng {
+        Eng::new(id)
+    }
+}
+#[cfg(feature = "groups-openmls")]
+mod engine {
+    pub use om_core::groups::openmls::{OpenMlsGroupCrypto as Eng, OpenMlsLoader as Loader};
+    pub fn new(id: &[u8]) -> Eng {
+        Eng::new(id).expect("engine")
     }
 }
 
@@ -320,7 +336,24 @@ fn invite_accept_add_welcome_then_text_both_ways() {
         )
         .unwrap();
     pump(&mut devs, 0, rep.clone());
+    // The fake decrypts a replay and Core dedupes by message id; a real MLS engine refuses the replayed ciphertext
+    // itself (its message key was already consumed), which is the stronger behaviour. Either way nothing is stored twice.
+    #[cfg(not(feature = "groups-openmls"))]
     pump(&mut devs, 0, rep);
+    #[cfg(feature = "groups-openmls")]
+    for o in rep.out {
+        let Target::Device { device, .. } = &o.to else {
+            continue;
+        };
+        let from = devs[0].id();
+        for d in devs.iter_mut().filter(|d| d.id() == *device) {
+            assert!(
+                d.app
+                    .group_receive(ctx!(d), Sender::Device(from.clone()), o.wire.clone())
+                    .is_err()
+            );
+        }
+    }
     assert_eq!(texts(&devs[1], &conv).len(), 3);
 }
 
@@ -747,7 +780,11 @@ fn records_round_trip_and_older_records_still_load() {
     // an engine restored from the stored record still sends
     let mut d = Dev::new(0xa1, 1);
     d.app = back;
-    d.eng = d.app.group_crypto_open::<FakeLoader>().unwrap().unwrap();
+    d.eng = d
+        .app
+        .group_crypto_open::<engine::Loader>()
+        .unwrap()
+        .unwrap();
     let rep = d
         .app
         .group_do(

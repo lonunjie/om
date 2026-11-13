@@ -35,6 +35,17 @@ mod host {
         unsafe { random_fill_raw(dest, len) };
         Ok(())
     }
+
+    /// getrandom 0.2 "custom" backend, needed only by the OpenMLS provider tree (ADR-0187, a proposed delegated draft):
+    /// the same host import. Absent unless the `groups-openmls` feature is on.
+    #[cfg(feature = "groups-openmls")]
+    fn random_fill_02(dest: &mut [u8]) -> Result<(), getrandom02::Error> {
+        // SAFETY: `dest` is a valid, exclusively borrowed writable slice; the host writes only within it.
+        unsafe { random_fill_raw(dest.as_mut_ptr(), dest.len()) };
+        Ok(())
+    }
+    #[cfg(feature = "groups-openmls")]
+    getrandom02::register_custom_getrandom!(random_fill_02);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -90,4 +101,11 @@ pub extern "C" fn om_call(len: u32) -> u32 {
         *o = response;
         o.len() as u32
     })
+}
+
+/// Link-and-run proof of the OpenMLS engine (ADR-0187, proposed). Returns 0 on success. Not product ABI; gated.
+#[cfg(feature = "groups-openmls")]
+#[unsafe(no_mangle)]
+pub extern "C" fn om_groups_selftest() -> u32 {
+    crate::groups_selftest::run()
 }

@@ -12,12 +12,32 @@ use om_codec::{Value, encode};
 use om_core::crypto::rng::insecure_test_rng::InsecureTestRng;
 use om_core::crypto::sig::DeviceSigner;
 use om_core::groups::binding::*;
-use om_core::groups::fake::{FAKE_TAG, FakeGroupCrypto, FakeLoader};
 use om_core::groups::journal::*;
 use om_core::groups::mls::*;
 use om_core::groups::store::{GroupCryptoRec, STORE_VERSION};
 use om_core::groups::*;
 use om_core::state::AppState;
+
+/// The engine under test: the TEST-ONLY fake by default; stock OpenMLS with `--features groups-openmls`
+/// (which depends on the proposed ADR-0187). The scenarios are identical; fake-only tests are `cfg`-gated.
+#[cfg(not(feature = "groups-openmls"))]
+mod engine {
+    pub use om_core::groups::fake::{
+        FAKE_TAG as TAG, FakeGroupCrypto as Eng, FakeLoader as Loader,
+    };
+    pub fn new(id: &[u8]) -> Eng {
+        Eng::new(id)
+    }
+}
+#[cfg(feature = "groups-openmls")]
+mod engine {
+    pub use om_core::groups::openmls::{
+        OPENMLS_TAG as TAG, OpenMlsGroupCrypto as Eng, OpenMlsLoader as Loader,
+    };
+    pub fn new(id: &[u8]) -> Eng {
+        Eng::new(id).expect("engine")
+    }
+}
 
 const ADMIN: u8 = 0xa0;
 const MEMBER: u8 = 0xa1;
@@ -45,7 +65,7 @@ fn p_val(p: &Principal) -> Value {
 /// A device: its own state, engine, signer and deterministic RNG.
 struct Dev {
     app: AppState,
-    eng: FakeGroupCrypto,
+    eng: engine::Eng,
     signer: DeviceSigner,
     rng: InsecureTestRng,
     id: Vec<u8>,
@@ -56,7 +76,7 @@ impl Dev {
         let mut rng = InsecureTestRng::from_label(&[b'g', tag]);
         Dev {
             app: AppState::default(),
-            eng: FakeGroupCrypto::new(&id16(tag)),
+            eng: engine::new(&id16(tag)),
             signer: DeviceSigner::generate(&mut rng),
             rng,
             id: id16(tag),
@@ -275,7 +295,11 @@ fn a_second_open_intent_for_the_group_is_refused() {
 fn reboot(d: &mut Dev) {
     let json = serde_json::to_string(&d.app).unwrap();
     d.app = serde_json::from_str(&json).unwrap();
-    d.eng = d.app.group_crypto_open::<FakeLoader>().unwrap().unwrap();
+    d.eng = d
+        .app
+        .group_crypto_open::<engine::Loader>()
+        .unwrap()
+        .unwrap();
 }
 
 #[test]
@@ -327,7 +351,7 @@ fn crash_after_intent_only_asks_for_a_fresh_prepare_and_lost_prepared_state_fail
         vec![Recovery::Prepare(e.intent_id.clone())]
     );
     // Prepare, then lose the engine's prepared state (restore the engine from before the prepare).
-    let old_engine = a1.eng.clone();
+    let old_engine = <engine::Loader as GroupCryptoLoader>::restore(&a1.eng.snapshot()).unwrap();
     a1.app
         .group_journal_prepare(
             &e.intent_id,
@@ -640,6 +664,9 @@ fn a_binding_that_breaks_the_adr_0176_rules_is_never_built() {
     assert_eq!(binding_body(&x).unwrap_err().0, "state_unchanged");
 }
 
+// Fake-only: it pins reproducible randomness and Core's clock, which the stock OpenMLS engine cannot take per call
+// (ADR-0187 decision 3); tests/groups_openmls.rs covers the real engine's equivalents.
+#[cfg(not(feature = "groups-openmls"))]
 #[test]
 fn the_engine_takes_its_randomness_and_clock_from_core() {
     // identical RNG streams give identical KeyPackages; an expired KeyPackage is refused by Core's clock
@@ -683,26 +710,32 @@ fn storage_record_is_versioned_tagged_and_checked() {
     let (a1, _b1, _b2) = world();
     let rec = a1.app.group_crypto.clone().unwrap();
     assert_eq!(rec.version, STORE_VERSION);
-    assert_eq!(rec.engine, FAKE_TAG);
+    assert_eq!(rec.engine, engine::TAG);
     let json = serde_json::to_value(&rec).unwrap();
     assert!(json["snapshotHash"].is_string());
-    assert!(rec.open::<FakeLoader>().is_ok());
+    assert!(rec.open::<engine::Loader>().is_ok());
 
     // a newer OM record version is refused, not guessed
     let mut newer = rec.clone();
     newer.version = STORE_VERSION + 1;
-    assert_eq!(newer.open::<FakeLoader>().err().unwrap().0, "store_too_new");
+    assert_eq!(
+        newer.open::<engine::Loader>().err().unwrap().0,
+        "store_too_new"
+    );
     // another engine's record is refused
     let mut other = rec.clone();
-    other.engine = "openmls-0.9".into();
+    other.engine = "other-engine-v1".into();
     assert_eq!(
-        other.open::<FakeLoader>().err().unwrap().0,
+        other.open::<engine::Loader>().err().unwrap().0,
         "engine_mismatch"
     );
     // a corrupted blob is noticed before an engine sees it
     let mut bad = rec.clone();
     bad.snapshot.replace_range(0..2, "00");
-    assert_eq!(bad.open::<FakeLoader>().err().unwrap().0, "record_corrupt");
+    assert_eq!(
+        bad.open::<engine::Loader>().err().unwrap().0,
+        "record_corrupt"
+    );
     // an extra field written by a later version is ignored (additive), a missing optional field is not needed
     let mut j = json.clone();
     j["futureField"] = serde_json::json!({"x": 1});
@@ -727,7 +760,7 @@ fn records_written_before_this_slice_still_load() {
     let old: AppState = serde_json::from_value(j).unwrap();
     assert!(old.group_crypto.is_none() && old.group_journal.is_empty());
     assert!(old.group(&CONV).unwrap().is_some(), "slice 1 head survives");
-    assert!(old.group_crypto_open::<FakeLoader>().unwrap().is_none());
+    assert!(old.group_crypto_open::<engine::Loader>().unwrap().is_none());
     // and a default state round-trips
     let d: AppState =
         serde_json::from_str(&serde_json::to_string(&AppState::default()).unwrap()).unwrap();

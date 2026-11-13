@@ -1,0 +1,20 @@
+# OM plumbing shim, NOT the upstream `web-time` crate and contains no cryptography (ADR-0187, proposed).
+# It replaces `web-time` 1.1 through `[patch.crates-io]` in the workspace manifest. Upstream's browser backend imports
+# wasm-bindgen glue; this one reads the clock through the same `om_host.now_ms` import om-wasm already has.
+[package]
+name = "web-time"
+version = "1.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+description = "OM shim: std::time for wasm32-unknown-unknown backed by the om_host.now_ms host import (no wasm-bindgen)"
+
+[features]
+# OpenMLS enables the upstream `serde` feature; here SystemTime always has the std-compatible serde form.
+serde = ["dep:serde"]
+
+[dependencies]
+serde = { version = "1", optional = true }
+
+[dev-dependencies]
+serde_json = "1"

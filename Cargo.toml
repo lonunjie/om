@@ -3,7 +3,7 @@
 resolver = "3"
 members = ["crates/om-codec", "crates/om-core", "crates/om-wasm"]
 # Verification prototypes are standalone evidence crates with their own manifests and lockfiles.
-exclude = ["verification"]
+exclude = ["verification", "third_party/openmls-wasm-shims/web-time", "third_party/openmls-wasm-shims/getrandom-0.4.3"]
 
 [workspace.package]
 edition = "2024"
@@ -28,3 +28,10 @@ panic = "abort"
 opt-level = 2
 [profile.test.package."*"]
 opt-level = 2
+
+# ADR-0187 (proposed by delegated draft, not accepted): two plumbing shims so stock OpenMLS 0.9.0 builds into the Core
+# wasm module with only the om_host.random_fill and om_host.now_ms imports. No cryptography in either. Both apply only
+# where the `groups-openmls` feature is on; revert by deleting these two lines and third_party/openmls-wasm-shims.
+[patch.crates-io]
+web-time = { path = "third_party/openmls-wasm-shims/web-time" }
+getrandom = { path = "third_party/openmls-wasm-shims/getrandom-0.4.3" }

@@ -8,6 +8,9 @@
 * The built wasm artifact, if present, carries none of the test-only markers. `--wasm FILE...` scans exactly those
   files instead (the release script passes the wasm asset inside the site folder it is about to sign).
 * No `unsafe` outside the single audited ABI module of om-wasm.
+* Every `.wasm` scanned imports only `om_host.random_fill` and `om_host.now_ms` (ADR-0187, proposed: the narrow ABI as a
+  mechanical check; any `__wbindgen_*` import fails). The OpenMLS plumbing shims under `third_party/openmls-wasm-shims`
+  may contain `unsafe` only in the one `om_host.now_ms` import declaration of `web-time/src/lib.rs`.
 """
 from __future__ import annotations
 
@@ -31,6 +34,62 @@ TEST_MARKERS = [
     b"LoopbackNetwork",
 ]
 UNSAFE = re.compile(r"\bunsafe\b")
+ALLOWED_IMPORTS = {("om_host", "random_fill"), ("om_host", "now_ms")}
+SHIMS = "third_party/openmls-wasm-shims"
+# the only `unsafe` in the shims we wrote: the host-import declaration (the vendored getrandom copy is upstream code,
+# compared with upstream by the shim README, and is not scanned line by line)
+SHIM_UNSAFE_OK = {f"{SHIMS}/web-time/src/lib.rs": 1}
+
+
+def wasm_imports(blob: bytes) -> list[tuple[str, str]]:
+    """The (module, name) pairs of a wasm binary's import section (LEB128 parse, no tooling needed)."""
+    def leb(i: int) -> tuple[int, int]:
+        n = shift = 0
+        while True:
+            b = blob[i]
+            i += 1
+            n |= (b & 0x7F) << shift
+            shift += 7
+            if not b & 0x80:
+                return n, i
+
+    def name(i: int) -> tuple[str, int]:
+        n, i = leb(i)
+        return blob[i : i + n].decode("utf-8", "replace"), i + n
+
+    out: list[tuple[str, str]] = []
+    i = 8
+    while i < len(blob):
+        sec, i = blob[i], i + 1
+        size, i = leb(i)
+        if sec == 2:
+            j = i
+            count, j = leb(j)
+            for _ in range(count):
+                mod, j = name(j)
+                nm, j = name(j)
+                kind, j = blob[j], j + 1
+                if kind == 0:
+                    _, j = leb(j)
+                elif kind == 1:
+                    j += 1
+                    flag, j = leb(j)
+                    _, j = leb(j)
+                    if flag & 1:
+                        _, j = leb(j)
+                elif kind == 2:
+                    flag, j = leb(j)
+                    _, j = leb(j)
+                    if flag & 1:
+                        _, j = leb(j)
+                elif kind == 3:
+                    j += 2
+                else:
+                    _, j = leb(j)
+                out.append((mod, nm))
+            return out
+        i += size
+    return out
 
 
 def main(argv: list[str]) -> int:
@@ -61,6 +120,14 @@ def main(argv: list[str]) -> int:
             code = line.split("//", 1)[0]
             if UNSAFE.search(code) and "forbid(unsafe_code)" not in code and '"unsafe_code"' not in code and "deny(unsafe_code" not in code:
                 errs.append(f"{rel}:{n}: unsafe outside the audited ABI module")
+    shims = ROOT / SHIMS
+    for rs in sorted(shims.rglob("*.rs")) if shims.exists() else []:
+        rel = rs.relative_to(ROOT).as_posix()
+        if "/getrandom-0.4.3/" in rel:
+            continue
+        hits = sum(1 for line in rs.read_text(encoding="utf-8").splitlines() if UNSAFE.search(line.split("//", 1)[0]))
+        if hits > SHIM_UNSAFE_OK.get(rel, 0):
+            errs.append(f"{rel}: {hits} `unsafe` use(s), allowed {SHIM_UNSAFE_OK.get(rel, 0)} (the om_host.now_ms declaration)")
     explicit = argv[argv.index("--wasm") + 1 :] if "--wasm" in argv else None
     if explicit is not None and not explicit:
         errs.append("--wasm needs at least one file")
@@ -76,6 +143,12 @@ def main(argv: list[str]) -> int:
         for m in TEST_MARKERS:
             if m in blob:
                 errs.append(f"{wasm}: contains test-only marker {m.decode()}")
+        try:
+            extra = sorted(set(wasm_imports(blob)) - ALLOWED_IMPORTS)
+        except (IndexError, ValueError):
+            extra = [("?", "unparseable import section")]
+        for mod, nm in extra:
+            errs.append(f"{wasm}: import {mod}.{nm} is not on the allow-list (only om_host.random_fill and om_host.now_ms)")
     for e in errs:
         print("ERROR: core guard:", e, file=sys.stderr)
     print(f"core guard: {'FAILED' if errs else 'OK'} ({len(errs)} error(s)){'' if scanned else ' [wasm artifact not built; marker scan skipped]'}")

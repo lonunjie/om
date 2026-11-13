@@ -7,9 +7,11 @@
 //!
 //! Boundary rules (CRYPTOGRAPHY_AND_AGILITY, ADR-0118, G2 in the groups plan):
 //!
-//! * Core supplies the randomness and the clock on every call through [`CryptoEnv`]. An engine must not read the
-//!   OS RNG or the system clock itself, so a host that supplies entropy and time (wasm, tests) stays in control and
-//!   a test is reproducible.
+//! * Randomness and time: [`CryptoEnv`] carries Core's RNG and clock on every call, and the test-only fake draws
+//!   from it, so its tests are reproducible. The real engine (stock OpenMLS) cannot be handed a per-call generator, so
+//!   it draws entropy and reads the clock from the host by the same route Core's own `OsRng` uses (on wasm: the
+//!   `om_host.random_fill` and `om_host.now_ms` imports) and ignores `CryptoEnv`. It never invents a generator. This
+//!   rewording of D-g9 is proposed by ADR-0187 (a delegated draft, not accepted).
 //! * Everything crossing the trait is opaque bytes (KeyPackages, Commits, Welcomes) or plain integers. A library's
 //!   serialization of its own state leaves only through [`GroupCrypto::snapshot`] and is stored by
 //!   [`super::store`] as an opaque, versioned, engine-tagged blob; it is never the canonical format.
@@ -19,9 +21,8 @@
 //!   again after a restore, which is what makes a crash retry replay identical bytes (ADR-0163 rule 4).
 //! * No application message is produced under a pending epoch; that is Core policy, enforced by the journal.
 //!
-//! No implementation of this trait lives in this file. The production engine (OpenMLS 0.9.0, ADR-0177) is blocked on
-//! the operator's wasm decision (groups plan, "Slice 2 dependency gate"); the only implementation today is
-//! [`super::fake::FakeGroupCrypto`], which is test-only.
+//! Implementations: [`super::fake::FakeGroupCrypto`] (test-only) and, with the `groups-openmls` feature,
+//! [`super::openmls::OpenMlsGroupCrypto`] (OpenMLS 0.9.0, ADR-0177; depends on the proposed ADR-0187).
 
 use crate::crypto::rng::RngCore;
 
@@ -40,9 +41,9 @@ pub type MlsResult<T> = Result<T, MlsError>;
 
 /// Everything non-deterministic an engine may use, supplied by Core on each call.
 pub struct CryptoEnv<'a> {
-    /// Core's RNG (the host's entropy). The engine draws every random byte from here.
+    /// Core's RNG (the host's entropy). The fake draws from here; the real engine uses the host directly (see above).
     pub rng: &'a mut dyn RngCore,
-    /// Core's clock, milliseconds since the Unix epoch, as the host reports it (KeyPackage lifetimes).
+    /// Core's clock, milliseconds since the Unix epoch, as the host reports it (the fake's KeyPackage lifetimes).
     pub now_ms: u64,
 }
 

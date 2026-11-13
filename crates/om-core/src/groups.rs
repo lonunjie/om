@@ -91,6 +91,10 @@ pub mod store;
 #[cfg(any(test, feature = "test-loopback"))]
 pub mod fake;
 
+/// The OpenMLS engine (ADR-0187, a proposed delegated draft, not accepted). Off unless `groups-openmls` is on.
+#[cfg(feature = "groups-openmls")]
+pub mod openmls;
+
 type R<T> = Result<T, GroupError>;
 const BAD: GroupError = GroupError("malformed");
 

@@ -1537,6 +1537,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/groups/openmls.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/groups/store.rs",
       "class": "product_code",
       "domain": "groups",
@@ -1747,6 +1754,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/tests/groups_openmls.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/tests/peer_head.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1853,6 +1867,13 @@
     },
     {
       "path": "crates/om-wasm/src/bridge.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-wasm/src/groups_selftest.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -10656,6 +10677,356 @@
       "domain": "groups",
       "license": "Apache-2.0",
       "authority": "normative_wire_schema"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/README.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/CHANGELOG.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/Cargo.toml",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/LICENSE-APACHE",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/LICENSE-MIT",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/README.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/SECURITY.md",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/benches/buffer.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/build.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/apple_other.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/custom.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/efi_rng.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/esp_idf.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/extern_impl.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/fuchsia.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/getentropy.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/getrandom.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/hermit.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/linux_android_with_fallback.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/linux_raw.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/netbsd.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/rdrand.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/rndr.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/solaris.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/solid.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/unsupported.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/use_file.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/vxworks.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/wasi_p1.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/wasi_p2_3.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/wasm_js.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/windows.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/backends/windows_legacy.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/error.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/error_std_impls.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/lib.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/sys_rng.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/util.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/utils/get_errno.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/utils/lazy_bool.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/utils/lazy_ptr.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/utils/sanitizer.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/src/utils/sys_fill_exact.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/tests/mod.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/getrandom-0.4.3/tests/sys_rng.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/web-time/Cargo.toml",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/web-time/LICENSE-APACHE",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/web-time/LICENSE-MIT",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
+    },
+    {
+      "path": "third_party/openmls-wasm-shims/web-time/src/lib.rs",
+      "class": "architecture_doc",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "canonical_normative"
     },
     {
       "path": "tools/build_manifest.py",
