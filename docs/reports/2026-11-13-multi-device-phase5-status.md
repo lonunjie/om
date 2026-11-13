@@ -26,7 +26,12 @@ The earlier paragraph that listed documents as not read is superseded. The opera
 - **time_ordering_events: read in full** by this session: EVENT_MODEL, TIME_AND_EXPIRY_SEMANTICS, MESSENGER_BASELINE_V1, SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION; ADR-0008, 0076, 0087, 0088, 0121, 0157.
 - **discovery_first_contact and relay_reachability: read in full** by this session (DISCOVERY_FABRIC, INVITES_INTROGATE_AND_SPAM, CONTACT_SHARING, INTRODUCTION_AND_SERVICE_ACCOUNTS,
   KEY_TRANSPARENCY_AND_DIRECTORY, RELAY_AND_DELIVERY_ARCHITECTURE, REACHABILITY_AND_OBJECT_REPAIR; ADR-0004, 0019, 0020, 0021, 0025, 0033, 0040, 0012, 0022, 0075).
-- Not read by this work: the `client_endpoint_distribution` and `ux_accessibility_personalization` documents (they gate only the two `apps/web` files); see the web commit.
+- **client_endpoint_distribution and ux_accessibility_personalization: read in full** by this session, for the `apps/web` files only (the nine client/ecosystem documents PWA_NATIVE_AND_CLIENT_DISTRIBUTION_STRATEGY, PWA_REFERENCE_CLIENT, CLIENT_AND_EXTENSION_ARCHITECTURE,
+  DEVICE_VAULT_CLIENT_HOST_AND_MIGRATION, MULTI_IDENTITY_AND_PROFILE_ISOLATION, CLIENTHOST_UPDATE_LIFECYCLE, NOTIFICATIONS_AND_PUSH, ENDPOINT_COERCION_AND_PLATFORM_LEAKAGE,
+  PLUGIN_AND_APP_EXTENSION_ARCHITECTURE; the twelve ux, overview and research documents PRODUCT_AND_UX_PRINCIPLES, UI_UX_SYSTEM, UI_CORE_PLATFORM_CONTRACT, ACCESSIBILITY_AND_INPUT, MOTION_AND_PERFORMANCE,
+  THEMES_FONTS_AND_PERSONALIZATION, SECURITY_PRIVACY_PROFILES, RECONCILED_INTERACTION_MODEL, ACTION_TO_CORE_INTENT_MAP, NAVIGATION_AND_OMNIBAR, VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS,
+  CURRENT_UI_REFERENCES_20260929; and ADR-0007, 0037, 0038, 0044, 0045, 0051 to 0060, 0068, 0077, 0103, 0115, 0129, 0130, 0159, 0162). The copy lines match them: plain words, no crypto vocabulary,
+  migration to a new device as a device add with history transfer (DEVICE_VAULT section 6, PWA strategy "PWA-to-native migration"), and `ApproveDeviceLink` stays a Core-confirmed destructive intent (UI_CORE_PLATFORM_CONTRACT UI-11).
 
 **Check of the staged work against what was read: no departure found beyond D24 and D27.**
 - ADR-0157 section 2 and MULTI_DEVICE_SYNC: `DeviceHistorySnapshot` is implementation-private, carries a 32-byte `codec_id` plus `codec_major` inside the sealed frame, unknown pairs ignored whole. Matches.
@@ -86,5 +91,5 @@ or messaging, not quarantined, not revoked); the receiver re-checks its own head
 
 ## Committed
 
-Core, packages, docs and machine files: one commit with `Design-Read` for the six Core domains and `Design-Departures: D24, D27`. The two `apps/web` files (link copy and e2e) follow in a separate commit because the gate adds the client and UX domains for them.
+Core, packages, docs and machine files: one commit with `Design-Read` for the six Core domains and `Design-Departures: D24, D27`. The `apps/web` files (link copy, e2e) and the one-line `om-ui` lint fix follow in a second commit, `Design-Read: client_endpoint_distribution, discovery_first_contact, relay_reachability, ux_accessibility_personalization`, because the gate adds the client and UX domains for them.
 Re-run results (2026-11-13): `cargo test -p om-core` (170 passed), wasm conformance (4), `packages/om-ui` `vitest run src` (250), `apps/web` `vitest run src` (138), `tsc -b apps/web` clean, Chromium `device-link.spec.ts` (3 passed).

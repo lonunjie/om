@@ -292,7 +292,9 @@ describe("first contact states (ADR-0181)", () => {
   it("a search hit opens at the exact message and marks it; an unknown message id is ignored", async () => {
     const { services } = setup();
     const view = await services.client.query({ kind: "GetConversationView", ctx: services.ctx, conversationId: CONV_A });
-    const target = view.timeline[0]!.messageId;
+    const first = view.timeline[0];
+    if (first === undefined) throw new Error("the fixture conversation has no message");
+    const target = first.messageId;
     const { container, rerender } = render(<ConversationView services={services} conversationId={CONV_A} copy={testCopy} focusMessageId={target} />);
     await screen.findByText("hello alice");
     await waitFor(() => { expect(container.querySelector(`#om-msg-${target}`)?.getAttribute("data-found")).toBe("true"); });
