@@ -7,6 +7,10 @@ use om_core::attach::Meta;
 use om_core::backup::BackupPlan;
 use om_core::crypto::rng::{self, CryptoRng, RngCore};
 use om_core::direct::{DirectFrame, ErrorCode, FetchState, TRANSFER_ID_LEN};
+use om_core::groups::flow::{
+    DeviceRelease, GroupEvent, GroupIntent, GroupQuery, GroupReply, GroupView, GroupWire, Sender,
+    Target,
+};
 use om_core::host::{BlobLimits, Clock, CoreError, Inbound, NetResult, Record};
 use om_core::route::RouteOffer;
 use serde::Deserialize;
@@ -169,6 +173,27 @@ enum Command {
         message_id: String,
         index: usize,
     },
+    /// Whether this build links a group engine (`true` only with `groups-openmls` here; test builds use a fake).
+    GroupsAvailable,
+    /// Ordinary groups (ADR-0177), one typed step of the person (create, invite, accept, decline, leave, remove,
+    /// text, commit published or accepted). Answers `{reply: {events, out}, commit}` or `{refused: code}`. `groups_unavailable`
+    /// when this build does not link a group engine. The wire in `out` is Core-internal JSON (groups plan Q2), not a
+    /// frozen format; the host carries each item as the `to` says and hands the answer to `group_receive`.
+    GroupDo {
+        ctx: ProfileExecutionContext,
+        intent: GroupIntentJson,
+    },
+    /// Something that arrived for groups: `from` is what the transport authenticated (`{relationship}` or `{device}`).
+    GroupReceive {
+        ctx: ProfileExecutionContext,
+        from: GroupFromJson,
+        wire: GroupWire,
+    },
+    /// Typed groups queries: `groups`, `group`, `invites`, `messages`.
+    GroupQuery {
+        ctx: ProfileExecutionContext,
+        query: GroupQueryJson,
+    },
     /// The person stopped using one of their Homes: relationships with another route publish a RelaySet without it.
     /// Answers how many relationships had no other route and so stay on that Home.
     RetireHome {
@@ -177,6 +202,199 @@ enum Command {
         #[serde(default)]
         emergency: bool,
     },
+}
+
+/// The typed group intent as JSON: `kind` plus camelCase fields, byte strings as hex.
+#[derive(Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+enum GroupIntentJson {
+    Create {
+        name: String,
+        relationship_ids: Vec<String>,
+    },
+    Invite {
+        conversation_id: String,
+        relationship_id: String,
+    },
+    Accept {
+        invite_id: String,
+        #[serde(default)]
+        siblings: Vec<DeviceRelease>,
+    },
+    Decline {
+        invite_id: String,
+    },
+    Leave {
+        conversation_id: String,
+    },
+    Remove {
+        conversation_id: String,
+        account: String,
+    },
+    SendText {
+        conversation_id: String,
+        text: String,
+    },
+    CommitPublished {
+        intent_id: String,
+    },
+    CommitAccepted {
+        intent_id: String,
+    },
+}
+
+impl GroupIntentJson {
+    fn into_intent(self) -> Result<GroupIntent, CoreError> {
+        Ok(match self {
+            Self::Create {
+                name,
+                relationship_ids,
+            } => GroupIntent::Create {
+                name,
+                relationship_ids,
+            },
+            Self::Invite {
+                conversation_id,
+                relationship_id,
+            } => GroupIntent::Invite {
+                conversation_id: unhex(&conversation_id)?,
+                relationship_id,
+            },
+            Self::Accept {
+                invite_id,
+                siblings,
+            } => GroupIntent::Accept {
+                invite_id,
+                siblings,
+            },
+            Self::Decline { invite_id } => GroupIntent::Decline { invite_id },
+            Self::Leave { conversation_id } => GroupIntent::Leave {
+                conversation_id: unhex(&conversation_id)?,
+            },
+            Self::Remove {
+                conversation_id,
+                account,
+            } => GroupIntent::Remove {
+                conversation_id: unhex(&conversation_id)?,
+                account: unhex(&account)?,
+            },
+            Self::SendText {
+                conversation_id,
+                text,
+            } => GroupIntent::SendText {
+                conversation_id: unhex(&conversation_id)?,
+                text,
+            },
+            Self::CommitPublished { intent_id } => GroupIntent::CommitPublished { intent_id },
+            Self::CommitAccepted { intent_id } => GroupIntent::CommitAccepted { intent_id },
+        })
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum GroupFromJson {
+    Relationship(String),
+    Device(String),
+}
+
+#[derive(Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+enum GroupQueryJson {
+    Groups,
+    Group { conversation_id: String },
+    Invites,
+    Messages { conversation_id: String },
+}
+
+fn group_event_json(e: &GroupEvent) -> Value {
+    use om_core::crypto::hex;
+    match e {
+        GroupEvent::Created { conversation_id } => {
+            json!({ "kind": "created", "conversationId": hex(conversation_id) })
+        }
+        GroupEvent::InviteSent { invite_id } => {
+            json!({ "kind": "invite_sent", "inviteId": invite_id })
+        }
+        GroupEvent::InviteReceived { invite_id } => {
+            json!({ "kind": "invite_received", "inviteId": invite_id })
+        }
+        GroupEvent::InviteAccepted { invite_id } => {
+            json!({ "kind": "invite_accepted", "inviteId": invite_id })
+        }
+        GroupEvent::InviteDeclined { invite_id } => {
+            json!({ "kind": "invite_declined", "inviteId": invite_id })
+        }
+        GroupEvent::CommitPrepared { intent_id } => {
+            json!({ "kind": "commit_prepared", "intentId": intent_id })
+        }
+        GroupEvent::AdmitBlocked { invite_id, reason } => {
+            json!({ "kind": "admit_blocked", "inviteId": invite_id, "reason": reason })
+        }
+        GroupEvent::MemberAdded {
+            conversation_id,
+            account,
+        } => {
+            json!({ "kind": "member_added", "conversationId": hex(conversation_id), "account": hex(account) })
+        }
+        GroupEvent::MemberRemoved {
+            conversation_id,
+            account,
+        } => {
+            json!({ "kind": "member_removed", "conversationId": hex(conversation_id), "account": hex(account) })
+        }
+        GroupEvent::Joined { conversation_id } => {
+            json!({ "kind": "joined", "conversationId": hex(conversation_id) })
+        }
+        GroupEvent::NoLongerMember { conversation_id } => {
+            json!({ "kind": "no_longer_member", "conversationId": hex(conversation_id) })
+        }
+        GroupEvent::MessageSent {
+            conversation_id,
+            id,
+        } => json!({ "kind": "message_sent", "conversationId": hex(conversation_id), "id": id }),
+        GroupEvent::MessageReceived {
+            conversation_id,
+            id,
+            sender_account,
+        } => {
+            json!({ "kind": "message_received", "conversationId": hex(conversation_id), "id": id,
+                "senderAccount": hex(sender_account) })
+        }
+        GroupEvent::Dropped(reason) => json!({ "kind": "dropped", "reason": reason }),
+    }
+}
+
+fn group_reply_json(r: &GroupReply) -> Value {
+    use om_core::crypto::hex;
+    json!({
+        "events": r.events.iter().map(group_event_json).collect::<Vec<_>>(),
+        "out": r.out.iter().map(|o| json!({
+            "to": match &o.to {
+                Target::Relationship(id) => json!({ "relationship": id }),
+                Target::Device { account, device } =>
+                    json!({ "device": hex(device), "account": hex(account) }),
+            },
+            "wire": serde_json::to_value(&o.wire).unwrap_or(Value::Null),
+        })).collect::<Vec<_>>(),
+    })
+}
+
+fn group_view_json(v: &GroupView) -> Value {
+    match v {
+        GroupView::Groups(g) => json!({ "kind": "groups", "groups": g }),
+        GroupView::Group(d) => json!({ "kind": "group", "group": d }),
+        GroupView::Invites(i) => json!({ "kind": "invites", "invites": i }),
+        GroupView::Messages(m) => json!({ "kind": "messages", "messages": m }),
+    }
 }
 
 pub struct HostClock<F: Fn() -> u64>(pub F);
@@ -220,6 +438,27 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
         self.core
             .as_mut()
             .ok_or(CoreError::Invalid("not initialised"))
+    }
+
+    fn group_result(
+        &mut self,
+        f: impl FnOnce(
+            &mut Core<R>,
+        ) -> Result<
+            (
+                Result<GroupReply, om_core::groups::GroupError>,
+                om_core::host::Step,
+            ),
+            CoreError,
+        >,
+    ) -> Result<Value, CoreError> {
+        let (out, step) = f(self.core()?)?;
+        Ok(match out {
+            Ok(r) => {
+                json!({ "reply": group_reply_json(&r), "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null) })
+            }
+            Err(e) => json!({ "refused": e.0 }),
+        })
     }
 
     fn run(&mut self, cmd: Command) -> Result<Value, CoreError> {
@@ -444,6 +683,34 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                     Err(e) => json!({ "refused": enc(&e) }),
                 },
             ),
+            Command::GroupsAvailable => Ok(json!(Core::<R>::groups_available())),
+            Command::GroupDo { ctx, intent } => {
+                let intent = intent.into_intent()?;
+                self.group_result(|c| c.group_do(&ctx, intent))
+            }
+            Command::GroupReceive { ctx, from, wire } => {
+                let from = match from {
+                    GroupFromJson::Relationship(id) => Sender::Relationship(id),
+                    GroupFromJson::Device(d) => Sender::Device(unhex(&d)?),
+                };
+                self.group_result(|c| c.group_receive(&ctx, from, wire))
+            }
+            Command::GroupQuery { ctx, query } => {
+                let q = match query {
+                    GroupQueryJson::Groups => GroupQuery::Groups,
+                    GroupQueryJson::Invites => GroupQuery::Invites,
+                    GroupQueryJson::Group { conversation_id } => GroupQuery::Group {
+                        conversation_id: unhex(&conversation_id)?,
+                    },
+                    GroupQueryJson::Messages { conversation_id } => GroupQuery::Messages {
+                        conversation_id: unhex(&conversation_id)?,
+                    },
+                };
+                Ok(match self.core()?.group_query(&ctx, q)? {
+                    Ok(v) => group_view_json(&v),
+                    Err(e) => json!({ "refused": e.0 }),
+                })
+            }
             Command::RetireHome {
                 ctx,
                 relay_uri,

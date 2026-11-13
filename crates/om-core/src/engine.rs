@@ -9,6 +9,11 @@ use crate::api::*;
 use crate::backup::{self, BackupPlan};
 use crate::crypto::rng::{CryptoRng, RngCore};
 use crate::flows::Tx;
+use crate::groups::GroupError;
+use crate::groups::flow::{
+    GroupCtx, GroupIntent, GroupQuery, GroupReply, GroupView, GroupWire, Sender,
+};
+use crate::groups::mls::GroupCrypto;
 use crate::host::*;
 use crate::route::{MAX_OFFERS, RouteOffer};
 use crate::state::*;
@@ -49,6 +54,41 @@ pub struct Core<R: RngCore + CryptoRng> {
     /// Direct fetches in progress, by (profile, message, attachment index). Memory only (resume state is
     /// transport-local, ADR-0158 section 8): after a restart the fetch starts again.
     direct_fetches: BTreeMap<(ProfileId, String, usize), crate::direct::DirectFetch>,
+    /// The MLS engine of each open profile's device (ordinary groups, ADR-0177). Memory only and a cache of
+    /// `AppState.group_crypto`: it is dropped whenever a transition fails or the host does not make it durable, and
+    /// rebuilt from the committed snapshot on next use.
+    group_engines: BTreeMap<ProfileId, Box<dyn GroupCrypto>>,
+}
+
+/// A new engine for this device, or the one stored in `app` (the loader is chosen by the build: the real OpenMLS engine
+/// with `groups-openmls`, the test-only fake in test builds, otherwise groups are unavailable).
+fn group_engine_open(
+    device_id: &[u8],
+    stored: Option<&crate::groups::store::GroupCryptoRec>,
+) -> Result<Box<dyn GroupCrypto>, GroupError> {
+    #[cfg(feature = "groups-openmls")]
+    {
+        use crate::groups::openmls::{OpenMlsGroupCrypto, OpenMlsLoader};
+        match stored {
+            Some(r) => Ok(Box::new(r.open::<OpenMlsLoader>()?)),
+            None => Ok(Box::new(
+                OpenMlsGroupCrypto::new(device_id).map_err(|e| GroupError(e.0))?,
+            )),
+        }
+    }
+    #[cfg(all(not(feature = "groups-openmls"), any(test, feature = "test-loopback")))]
+    {
+        use crate::groups::fake::{FakeGroupCrypto, FakeLoader};
+        match stored {
+            Some(r) => Ok(Box::new(r.open::<FakeLoader>()?)),
+            None => Ok(Box::new(FakeGroupCrypto::new(device_id))),
+        }
+    }
+    #[cfg(not(any(feature = "groups-openmls", test, feature = "test-loopback")))]
+    {
+        let _ = (device_id, stored);
+        Err(GroupError("groups_unavailable"))
+    }
 }
 
 impl<R: RngCore + CryptoRng> Core<R> {
@@ -70,6 +110,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             blob_limits: None,
             direct_senders: BTreeMap::new(),
             direct_fetches: BTreeMap::new(),
+            group_engines: BTreeMap::new(),
         }
     }
 
@@ -107,6 +148,111 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 handle: None,
             },
         ))
+    }
+
+    /// Whether this build can run ordinary groups at all (the real engine is linked, or a test build).
+    pub fn groups_available() -> bool {
+        cfg!(any(
+            feature = "groups-openmls",
+            test,
+            feature = "test-loopback"
+        ))
+    }
+
+    fn group_engine_take(&mut self, profile: &str) -> Result<Box<dyn GroupCrypto>, GroupError> {
+        if let Some(e) = self.group_engines.remove(profile) {
+            return Ok(e);
+        }
+        let st = &self
+            .profiles
+            .get(profile)
+            .ok_or(GroupError("unknown_profile"))?
+            .state;
+        let dev = st.device.as_ref().ok_or(GroupError("no_identity"))?;
+        group_engine_open(&dev.device_id, st.app.group_crypto.as_ref())
+    }
+
+    /// Run one ordinary-groups transition (ADR-0177) as a staged transaction: the typed intent of the person, or what
+    /// arrived from a relationship or a device. The inner `Err` is a typed refusal (nothing changed, nothing to
+    /// commit); the `Step.commit` of a success must be durable before any `Outbound` of the reply is sent.
+    pub fn group_do(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        intent: GroupIntent,
+    ) -> Result<(Result<GroupReply, GroupError>, Step), CoreError> {
+        self.group_step(ctx, |app, gctx| app.group_do(gctx, intent))
+    }
+
+    /// See [`Core::group_do`]; `from` is what the transport authenticated (a relationship or a member device).
+    pub fn group_receive(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        from: Sender,
+        wire: GroupWire,
+    ) -> Result<(Result<GroupReply, GroupError>, Step), CoreError> {
+        self.group_step(ctx, |app, gctx| app.group_receive(gctx, from, wire))
+    }
+
+    fn group_step(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        f: impl FnOnce(&mut AppState, &mut GroupCtx<'_>) -> Result<GroupReply, GroupError>,
+    ) -> Result<(Result<GroupReply, GroupError>, Step), CoreError> {
+        self.slot(ctx)?;
+        let profile = ctx.profile_id.clone();
+        let mut engine = match self.group_engine_take(&profile) {
+            Ok(e) => e,
+            Err(e) => return Ok((Err(e), Step::default())),
+        };
+        let mut refused: Option<GroupError> = None;
+        let res = self.txn(&profile, |tx| {
+            let now_ms = tx.now_ms;
+            let st = &mut *tx.st;
+            let dev = st
+                .device
+                .as_ref()
+                .ok_or(CoreError::Invalid("no identity"))?;
+            let mut gctx = GroupCtx {
+                engine: &mut *engine,
+                rng: &mut *tx.rng,
+                now_ms,
+                signer: &dev.signer,
+                my_account: dev.account_id.to_vec(),
+            };
+            match f(&mut st.app, &mut gctx) {
+                Ok(r) => Ok(r),
+                Err(e) => {
+                    refused = Some(e);
+                    Err(CoreError::Invalid("group_refused"))
+                }
+            }
+        });
+        match res {
+            Ok((reply, commit)) => {
+                self.group_engines.insert(profile, engine);
+                Ok((
+                    Ok(reply),
+                    Step {
+                        commit,
+                        handle: None,
+                    },
+                ))
+            }
+            // The engine may have moved past the state that was discarded: it is rebuilt from the committed snapshot.
+            Err(e) => match refused {
+                Some(r) => Ok((Err(r), Step::default())),
+                None => Err(e),
+            },
+        }
+    }
+
+    /// Answer a typed groups query from the profile's state.
+    pub fn group_query(
+        &self,
+        ctx: &ProfileExecutionContext,
+        q: GroupQuery,
+    ) -> Result<Result<GroupView, GroupError>, CoreError> {
+        Ok(self.slot(ctx)?.state.app.group_query(q))
     }
 
     /// The BlobStore's advertised limits (from `ProviderCapabilities.limits` of `om.blob.spool.v1`); `None` when the store
@@ -641,6 +787,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             self.staged = None;
         }
         self.profiles.remove(profile_id);
+        self.group_engines.remove(profile_id);
     }
 
     pub fn context_for(&self, profile_id: &str) -> Result<ProfileExecutionContext, CoreError> {
@@ -731,6 +878,8 @@ impl<R: RngCore + CryptoRng> Core<R> {
         match self.staged.take() {
             Some(s) if s.id == commit_id => {
                 if !ok {
+                    // the engine ran ahead of what the host kept: reload it from the committed snapshot
+                    self.group_engines.remove(&s.profile);
                     return Ok(Released {
                         profile_id: s.profile,
                         changed_operations: vec![],

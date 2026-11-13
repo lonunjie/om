@@ -132,6 +132,9 @@ def main(argv: list[str]) -> int:
     if explicit is not None and not explicit:
         errs.append("--wasm needs at least one file")
     wasms = [Path(a) for a in explicit] if explicit else [ROOT / "packages/om-core-wasm/dist/om_wasm.wasm"]
+    if not explicit:
+        # the groups variant (ADR-0187, proposed) is scanned like the shipped module whenever it has been built
+        wasms += [p for p in [ROOT / "packages/om-core-wasm/dist/om_wasm_groups.wasm"] if p.exists()]
     scanned = 0
     for wasm in wasms:
         if not wasm.exists():

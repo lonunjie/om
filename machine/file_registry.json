@@ -1740,6 +1740,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/tests/groups_core.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/tests/groups_flow.rs",
       "class": "product_code",
       "domain": "groups",
@@ -1890,6 +1897,13 @@
       "path": "crates/om-wasm/tests/bridge.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-wasm/tests/groups_bridge.rs",
+      "class": "product_code",
+      "domain": "groups",
       "license": "MPL-2.0",
       "authority": "product_implementation"
     },
