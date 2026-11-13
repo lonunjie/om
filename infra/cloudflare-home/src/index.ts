@@ -4,12 +4,13 @@
 // It never reads a network address or any identifying header, writes no log, and sets no cookie.
 import {
   CborError, HomeError, decodeAckRequest, decodeDepositRequest, decodeDescriptorPut, decodeDrainRequest, decodeIntroDrainRequest, decodeIntroTicketRequest, decodeKeyFetch, decodeKeyFetchGrant,
-  ADMISSION_HEADER, BLOB_DIGEST_HEADER, admissionHash, blobLocatorPattern, decodeBlobPutRequest, parseBlobDigestHeader, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, fromHex, decode, Obj, type HomeErrorName,
+  ADMISSION_HEADER, BLOB_DIGEST_HEADER, USAGE_PATH, quotaDetail, type UsageStateName, admissionHash, blobLocatorPattern, decodeBlobPutRequest, parseBlobDigestHeader, fromBase64Url, decodeKeyPublish, decodeMintRequest, decodeQueueCreate, decodeRotateRequest, parseWakeProtocols, encodeKeyFetchResponse, decodeKeyFetchResponse, fromHex, decode, Obj, type HomeErrorName,
 } from "@om/home-wire";
 import { admissionConfigured, admissionHashes, blobsOn, capabilitiesDocument, wakeOn } from "./capabilities";
 import type { Env } from "./env";
-import { bearer, fail, fromReply, json, ok, preflight, readBody } from "./http";
+import { bearer, fail, fromReply, json, ok, preflight, privateJson, readBody } from "./http";
 import { LIMITS } from "./limits";
+import { UsageMeter, ceilings, classify, usageDocument, usageOn, type UsageSnapshot } from "./usage";
 import type { Reply } from "./util";
 import { BlobSpool } from "./blobs";
 import { DescriptorStore } from "./descriptors";
@@ -17,7 +18,7 @@ import { IntroGate } from "./intro";
 import { KeyPool } from "./keys";
 import { MailboxQueue } from "./queue";
 
-export { BlobSpool, DescriptorStore, IntroGate, KeyPool, MailboxQueue };
+export { BlobSpool, DescriptorStore, IntroGate, KeyPool, MailboxQueue, UsageMeter };
 
 const hex = (b: Uint8Array): string => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 const queueOf = (env: Env, cap: Uint8Array): DurableObjectStub<MailboxQueue> => env.QUEUES.get(env.QUEUES.idFromName(`q:${hex(cap.slice(0, 16))}`));
@@ -73,13 +74,44 @@ async function admitted(request: Request, env: Env): Promise<boolean> {
   return ok;
 }
 
-async function route(request: Request, env: Env): Promise<Response> {
+/** What the usage counter is told about a request: the Durable Object calls it causes besides the meter's own (see usage.ts). */
+const routedCalls = (request: Request, path: string): number => (request.method !== "OPTIONS" && path.startsWith("/v1/") ? 1 : 0);
+
+/** Work that adds to what the Home holds. At `hard` these are shed with a typed `quota`; drains, acks, rotations, reads and revocations never are. */
+function addsWork(request: Request, path: string): boolean {
+  return request.method === "POST" && (path === "/v1/relay/queues" || path === "/v1/relay/deposit" || path === "/v1/intro/requests" || path === "/v1/blobs");
+}
+
+interface Counted { readonly state: UsageStateName; readonly snapshot: UsageSnapshot | undefined }
+
+/** Counts this request in the usage meter (personal profile only). A meter that cannot answer is `unknown`, and unknown never sheds: the free plan's own hard stop is the backstop, and a counter fault must not strand a person's mail. */
+async function count(request: Request, env: Env): Promise<Counted | undefined> {
+  if (!usageOn(env) || env.USAGE === undefined) return undefined;
+  try {
+    const snapshot = await env.USAGE.get(env.USAGE.idFromName("meter")).note(1 + routedCalls(request, new URL(request.url).pathname));
+    return { state: classify(snapshot, ceilings(env)), snapshot };
+  } catch {
+    return { state: "unknown", snapshot: undefined };
+  }
+}
+
+async function route(request: Request, env: Env, counted: Counted | undefined): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
   const m = request.method;
 
   if (m === "OPTIONS") return preflight();
   if (path === "/.well-known/om-provider-capabilities") return m === "GET" ? json(capabilitiesDocument(env)) : fail("invalid_request");
+  if (counted?.state === "hard" && addsWork(request, path)) return fail("quota", { detail: quotaDetail(3, true) });
+  if (path === USAGE_PATH) {
+    // Owner-only: the admin capability of any queue this Home holds. Never public, never in a URL.
+    if (!usageOn(env)) return fail("not_found");
+    if (m !== "GET") return fail("invalid_request");
+    const admin = bearer(request);
+    if (!admin || !wellFormed(admin, 16)) return fail("unauthorized");
+    const r = await queueOf(env, admin).adminCheck(admin);
+    return r.ok ? privateJson(usageDocument(env, counted?.snapshot)) : fromReply(r);
+  }
   if (path === "/" || path === "/healthz") return m === "GET" ? ok(new TextEncoder().encode("OM reference Home\n"), "text/plain; charset=utf-8") : fail("invalid_request");
 
   // ----------------------------------------------------------------------------------------------- relay
@@ -242,7 +274,7 @@ function ticketPrefix(b: Uint8Array): Uint8Array | undefined {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
-      return await route(request, env);
+      return await route(request, env, await count(request, env));
     } catch (e) {
       if (e instanceof Bad) return fail(e.code);
       if (e instanceof HomeError) return fail(e.errorName);

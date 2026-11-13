@@ -3,7 +3,8 @@
 // no per-user data: the same document for every caller.
 import { FEATURES, WAKE_AUTH_SECONDS } from "@om/home-wire";
 import type { Env } from "./env";
-import { LIMITS } from "./limits";
+import { LIMITS, limitsOf, profileOf } from "./limits";
+import { usageOn } from "./usage";
 
 /** The optional wake channel is on unless the deployment sets OM_WAKE=0. */
 export const wakeOn = (env: Env): boolean => env.OM_WAKE !== "0";
@@ -25,26 +26,27 @@ export const admissionHashes = (env: Env): readonly string[] =>
 export const admissionConfigured = (env: Env): boolean => (env.OM_ADMISSION ?? "").trim() !== "" || env.OM_ADMISSION_REQUIRED === "1";
 
 export function capabilitiesDocument(env: Env): Record<string, unknown> {
+  const L = limitsOf(env);
   return {
     schema_version: 1,
     provider_id: env.OM_PROVIDER_ID ?? "om-reference-home",
     provider_kinds: ["relay", "key_material", "discovery_relay", "intro_gate", ...(blobsOn(env) ? ["blob"] : [])],
     durability_class: "durable",
-    features: Object.values(FEATURES).filter((f) => (f !== FEATURES.relayWake || wakeOn(env)) && (f !== FEATURES.admission || admissionHashes(env).length > 0) && (f !== FEATURES.blobSpool || blobsOn(env))).sort(),
+    features: Object.values(FEATURES).filter((f) => (f !== FEATURES.relayWake || wakeOn(env)) && (f !== FEATURES.admission || admissionHashes(env).length > 0) && (f !== FEATURES.blobSpool || blobsOn(env)) && (f !== FEATURES.relayUsage || usageOn(env))).sort(),
     api_versions: ["1"],
     health: "healthy",
     limits: {
       max_deposit_bytes: LIMITS.maxDepositBytes,
-      max_queue_items: LIMITS.maxQueueItems,
-      max_queue_bytes: LIMITS.maxQueueBytes,
+      max_queue_items: L.maxQueueItems,
+      max_queue_bytes: L.maxQueueBytes,
       max_retention_seconds: LIMITS.maxRetentionSeconds,
       drain_page_items: LIMITS.drainPageItems,
       idempotency_horizon_seconds: LIMITS.idempotencySeconds,
       rotate_overlap_seconds: LIMITS.rotateOverlapSeconds,
-      max_deposit_capabilities: LIMITS.maxDepositCapabilities,
+      max_deposit_capabilities: L.maxDepositCapabilities,
       max_descriptor_bytes: LIMITS.maxDescriptorBytes,
       max_ticket_uses: LIMITS.maxTicketUses,
-      ...(blobsOn(env) ? { max_blob_spool_bytes: LIMITS.maxBlobSpoolBytes, max_blob_bytes: LIMITS.maxBlobBytes, max_blobs: LIMITS.maxBlobs, blob_default_retention_seconds: LIMITS.defaultRetentionSeconds } : {}),
+      ...(blobsOn(env) ? { max_blob_spool_bytes: L.maxBlobSpoolBytes, max_blob_bytes: LIMITS.maxBlobBytes, max_blobs: L.maxBlobs, blob_default_retention_seconds: LIMITS.defaultRetentionSeconds } : {}),
       ...(wakeOn(env) ? { wake_sockets_per_queue: LIMITS.maxWakeSockets, wake_auth_seconds: WAKE_AUTH_SECONDS } : {}),
     },
     abuse_controls: {
@@ -64,6 +66,6 @@ export function capabilitiesDocument(env: Env): Record<string, unknown> {
       authority: "none: a stored object is never account, device or relationship authority",
       bearer_capabilities: "carried in the request body or Authorization header only, never in a URL, cookie or log",
     },
-    cost_state: { hard_free_tier_limits: env.OM_HARD_FREE_TIER === "1" },
+    cost_state: { hard_free_tier_limits: env.OM_HARD_FREE_TIER === "1", ...(profileOf(env) === "personal" ? { limits_profile: "personal" } : {}) },
   };
 }

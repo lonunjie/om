@@ -10,3 +10,4 @@ export { createIndexedDbSecretStore, createMemorySecretStore } from "./secrets";
 export type { SecretStore } from "./secrets";
 export { adoptAdmission, pendingAdmissionHash, readAdmission } from "./admission";
 export type { WakeSocketFactory, WakeStats } from "./wake";
+export { UNKNOWN_USAGE, parseUsageState, zeroCostSafe, type ProviderUsageState } from "@om/home-wire";

@@ -8,6 +8,8 @@ export * from "./route";
 export * from "./sealed";
 export * from "./bundle";
 export * from "./blob";
+export * from "./usage";
+import { USAGE_FEATURE } from "./usage";
 export { Obj } from "./fields";
 
 /** Optional-feature ids a Home advertises in ProviderCapabilities.features (home-api.md section 1). */
@@ -25,4 +27,6 @@ export const FEATURES = {
   introGate: "om.intro.v1",
   /** A bounded encrypted blob spool (put, get, delete by capability); offered only where the Home has owner admission (docs/reports/2026-11-04-attachments-home-status.md). */
   blobSpool: "om.blob.spool.v1",
+  /** The usage read of the personal limits profile (admin capability; see usage.ts). */
+  relayUsage: USAGE_FEATURE,
 } as const;

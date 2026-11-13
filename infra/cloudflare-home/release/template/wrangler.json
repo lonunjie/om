@@ -17,11 +17,13 @@
       { "name": "KEYS", "class_name": "KeyPool" },
       { "name": "DESCRIPTORS", "class_name": "DescriptorStore" },
       { "name": "INTRO", "class_name": "IntroGate" },
-      { "name": "BLOBS", "class_name": "BlobSpool" }
+      { "name": "BLOBS", "class_name": "BlobSpool" },
+      { "name": "USAGE", "class_name": "UsageMeter" }
     ]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["MailboxQueue", "KeyPool", "DescriptorStore", "IntroGate"] },
-    { "tag": "v2", "new_sqlite_classes": ["BlobSpool"] }
+    { "tag": "v2", "new_sqlite_classes": ["BlobSpool"] },
+    { "tag": "v3", "new_sqlite_classes": ["UsageMeter"] }
   ]
 }

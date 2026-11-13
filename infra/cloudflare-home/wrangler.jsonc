@@ -22,13 +22,16 @@
       { "name": "KEYS", "class_name": "KeyPool" },
       { "name": "DESCRIPTORS", "class_name": "DescriptorStore" },
       { "name": "INTRO", "class_name": "IntroGate" },
-      { "name": "BLOBS", "class_name": "BlobSpool" }
+      { "name": "BLOBS", "class_name": "BlobSpool" },
+      { "name": "USAGE", "class_name": "UsageMeter" }
     ]
   },
   // SQLite-backed Durable Objects are available on the Workers Free plan; no R2, KV or Queues binding is needed.
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["MailboxQueue", "KeyPool", "DescriptorStore", "IntroGate"] },
     // v2 adds the optional blob spool (om.blob.spool.v1). A deployment that predates it keeps working: the feature is only offered where BLOBS is bound.
-    { "tag": "v2", "new_sqlite_classes": ["BlobSpool"] }
+    { "tag": "v2", "new_sqlite_classes": ["BlobSpool"] },
+    // v3 adds the usage counter of the personal limits profile (OM_PROFILE=personal). Unused, and not advertised, under the default profile.
+    { "tag": "v3", "new_sqlite_classes": ["UsageMeter"] }
   ]
 }

@@ -41,13 +41,13 @@ export interface Enqueued { readonly id: Uint8Array; readonly seq: number; reado
  * object under an already-seen delivery tuple is `invalid_request` (the sealed-delivery replay rule). Count and byte
  * quotas apply only to new items, so a retry never fails for lack of room.
  */
-export function enqueue(sql: SqlStorage, input: { bytes: Uint8Array; fp: string; tupleKey: string | undefined; expiresAt: number; capHash: string | undefined; hard: boolean }): Enqueued {
+export function enqueue(sql: SqlStorage, input: { bytes: Uint8Array; fp: string; tupleKey: string | undefined; expiresAt: number; capHash: string | undefined; hard: boolean; maxItems?: number; maxBytes?: number }): Enqueued {
   const prior = one<{ item_id: Uint8Array; seq: number }>(sql, "SELECT item_id, seq FROM seen WHERE fp = ?", input.fp);
   if (prior) return { id: new Uint8Array(prior.item_id), seq: prior.seq, duplicate: true };
   if (input.tupleKey !== undefined && one(sql, "SELECT 1 AS x FROM seen WHERE tuple_key = ?", input.tupleKey)) throw new HomeError("invalid_request", { hint: "replayed delivery id" });
   const u = usage(sql);
-  if (u.items >= LIMITS.maxQueueItems) throw new HomeError("quota", { detail: quotaDetail(1, input.hard) });
-  if (u.bytes + input.bytes.length > LIMITS.maxQueueBytes) throw new HomeError("quota", { detail: quotaDetail(2, input.hard) });
+  if (u.items >= (input.maxItems ?? LIMITS.maxQueueItems)) throw new HomeError("quota", { detail: quotaDetail(1, input.hard) });
+  if (u.bytes + input.bytes.length > (input.maxBytes ?? LIMITS.maxQueueBytes)) throw new HomeError("quota", { detail: quotaDetail(2, input.hard) });
   const seq = metaNumber(sql, "next_seq", 1);
   const id = new Uint8Array(16);
   crypto.getRandomValues(id);

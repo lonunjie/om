@@ -4,6 +4,7 @@ import type { IntroGate } from "./intro";
 import type { KeyPool } from "./keys";
 import type { BlobSpool } from "./blobs";
 import type { MailboxQueue } from "./queue";
+import type { UsageMeter } from "./usage";
 
 /** Bindings. No secrets: a Home holds only hashes of the capabilities it was handed. */
 export interface Env {
@@ -13,6 +14,13 @@ export interface Env {
   readonly INTRO: DurableObjectNamespace<IntroGate>;
   /** The blob spool (om.blob.spool.v1). Absent in a deployment whose configuration predates it: the feature is then neither advertised nor served. */
   readonly BLOBS?: DurableObjectNamespace<BlobSpool>;
+  /** The self-kept usage counter of the personal profile (one object for the whole Home). Absent: the usage read is neither advertised nor served and nothing is shed. */
+  readonly USAGE?: DurableObjectNamespace<UsageMeter>;
+  /** `personal` selects the personal limits profile (smaller limits, usage counter, deposits shed at `hard`). Unset or `default`: the ordinary limits. */
+  readonly OM_PROFILE?: string;
+  /** Positive integers overriding the usage ceilings of USAGE_CONFIG (requests per UTC day). */
+  readonly OM_USAGE_CEILING_WORKER?: string;
+  readonly OM_USAGE_CEILING_DO?: string;
   /** Public name in ProviderCapabilities.provider_id (default "om-reference-home"). */
   readonly OM_PROVIDER_ID?: string;
   /** Free-plan guard: `1` declares that exhausting a limit is a hard stop (reported in quota details). */

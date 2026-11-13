@@ -8089,6 +8089,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "infra/cloudflare-home/src/usage.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
       "path": "infra/cloudflare-home/src/util.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
@@ -8223,6 +8230,13 @@
     },
     {
       "path": "infra/cloudflare-home/test/upgrade.test.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/cloudflare-home/test/usage.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
       "license": "AGPL-3.0-or-later",
@@ -8712,6 +8726,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-home-wire/src/usage.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-home-wire/src/version.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8979,6 +9000,13 @@
     },
     {
       "path": "packages/om-provider-http/src/secrets.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-provider-http/src/usage.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

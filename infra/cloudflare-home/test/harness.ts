@@ -27,7 +27,7 @@ export interface Home {
   dispose(): Promise<void>;
 }
 
-export async function startHome(opts: { persist?: string; port?: number; vars?: Record<string, string>; bundle?: string; blobs?: false } = {}): Promise<Home> {
+export async function startHome(opts: { persist?: string; port?: number; vars?: Record<string, string>; bundle?: string; blobs?: false; usage?: false } = {}): Promise<Home> {
   const code = readFileSync(opts.bundle ?? bundle(), "utf8");
   const mf = new Miniflare({
     modules: [{ type: "ESModule", path: "index.js", contents: code }],
@@ -41,6 +41,7 @@ export async function startHome(opts: { persist?: string; port?: number; vars?: 
       DESCRIPTORS: { className: "DescriptorStore", useSQLite: true },
       INTRO: { className: "IntroGate", useSQLite: true },
       // A bundle released before the blob spool (OM_HOME_BUNDLE=<older worker.js>) has no such class; the Home then runs without it.
+      ...(opts.usage !== false && /\bclass UsageMeter\b|\bUsageMeter = class\b/.test(code) ? { USAGE: { className: "UsageMeter", useSQLite: true } } : {}),
       ...(opts.blobs !== false && /\bBlobSpool = class\b|\bclass BlobSpool\b/.test(code) ? { BLOBS: { className: "BlobSpool", useSQLite: true } } : {}),
     },
     ...(opts.persist ? { durableObjectsPersist: opts.persist } : {}),

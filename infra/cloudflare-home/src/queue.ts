@@ -8,7 +8,7 @@ import {
 } from "@om/home-wire";
 import type { Env } from "./env";
 import { fail } from "./http";
-import { LIMITS } from "./limits";
+import { LIMITS, limitsOf } from "./limits";
 import { depositCapStatus, receiveStatus, sealedExpiry } from "./rules";
 import { MAILBOX_SCHEMA, ack, cursorOf, enqueue, nextExpiry, page, purgeExpired } from "./mailbox";
 import { metaNumber, metaString, one, run, setMeta } from "./sql";
@@ -132,7 +132,7 @@ export class MailboxQueue extends DurableObject<Env> {
         run(this.sql, "UPDATE dcaps SET tokens = ?, tokens_at = ? WHERE hash = ?", t.tokens, now, cap.hash);
       }
       purgeExpired(this.sql, now);
-      const q = enqueue(this.sql, { bytes, fp: wrapperFp, tupleKey, expiresAt, capHash: cap.hash, hard: this.hard });
+      const q = enqueue(this.sql, { bytes, fp: wrapperFp, tupleKey, expiresAt, capHash: cap.hash, hard: this.hard, maxItems: limitsOf(this.env).maxQueueItems, maxBytes: limitsOf(this.env).maxQueueBytes });
       if (!q.duplicate) this.wake(q.seq);
       const out = encodeDepositReceipt({ itemId: q.id, seq: q.seq });
       await this.remember(req.requestId, fp, out, LIMITS.idempotencySeconds);
@@ -284,6 +284,11 @@ export class MailboxQueue extends DurableObject<Env> {
     if (!this.exists() || admin === undefined || admin !== (await capHash(cap))) throw new HomeError("unauthorized");
   }
 
+  /** True admin proof only; used to gate reads that are for the queue's owner (the usage read). */
+  adminCheck(adminCap: Uint8Array): Promise<Reply> {
+    return reply(async () => { await this.adminAuth(adminCap); return new Uint8Array(0); });
+  }
+
   mint(adminCap: Uint8Array, req: MintDepositCapabilityRequest): Promise<Reply> {
     return reply(async () => {
       await this.adminAuth(adminCap);
@@ -292,7 +297,7 @@ export class MailboxQueue extends DurableObject<Env> {
       if (done) return done;
       const count = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM dcaps WHERE revoked = 0")?.n ?? 0;
       const rows = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM dcaps")?.n ?? 0; // revoked tombstones count too
-      if (count >= LIMITS.maxDepositCapabilities || rows >= LIMITS.maxCapabilityRows) throw new HomeError("quota", { detail: quotaDetail(4, this.hard) });
+      if (count >= limitsOf(this.env).maxDepositCapabilities || rows >= LIMITS.maxCapabilityRows) throw new HomeError("quota", { detail: quotaDetail(4, this.hard) });
       const now = nowSeconds();
       const cap = concat(adminCapPrefix(adminCap), randomBytes(32));
       const id = randomBytes(16);

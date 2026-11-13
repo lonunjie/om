@@ -29,11 +29,12 @@ const readConfig = (file: string, comments: boolean): Config => {
 
 describe("migrations are append-only (upgrade from 0.1.1)", () => {
   for (const [file, comments] of [["wrangler.jsonc", true], ["release/template/wrangler.json", false]] as const) {
-    it(`${file}: v1 is exactly what 0.1.1 shipped, v2 only adds BlobSpool, a fresh deploy applies v1 then v2`, () => {
+    it(`${file}: v1 is exactly what 0.1.1 shipped, v2 only adds BlobSpool, v3 only adds UsageMeter, a fresh deploy applies v1, v2, v3`, () => {
       const m = readConfig(file, comments).migrations;
       expect(m.slice(0, MIGRATIONS_0_1_1.length)).toEqual(MIGRATIONS_0_1_1); // the applied history is unchanged
-      expect(m.map((x) => x.tag)).toEqual(["v1", "v2"]); // ordered, unique
+      expect(m.map((x) => x.tag)).toEqual(["v1", "v2", "v3"]); // ordered, unique
       expect(m[1]).toEqual({ tag: "v2", new_sqlite_classes: ["BlobSpool"] });
+      expect(m[2]).toEqual({ tag: "v3", new_sqlite_classes: ["UsageMeter"] });
       for (const x of m) for (const destructive of ["deleted_classes", "renamed_classes", "transferred_classes", "new_classes"] as const) expect(x, `${x.tag} ${destructive}`).not.toHaveProperty(destructive); // nothing that drops, moves or makes a non-SQLite class
     });
 

@@ -10,7 +10,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { HomeError, blobCiphertextDigest, concat, encodeBlobPutResponse, equalBytes, quotaDetail, utf8, type BlobPutRequest } from "@om/home-wire";
 import type { Env } from "./env";
-import { LIMITS } from "./limits";
+import { LIMITS, limitsOf } from "./limits";
 import { all, one, run } from "./sql";
 import { capHash, fingerprint, nowSeconds, randomBytes, reply, type Reply } from "./util";
 
@@ -116,7 +116,7 @@ export class BlobSpool extends DurableObject<Env> {
       const got = await blobCiphertextDigest(req.ciphertext);
       if (!equalBytes(got, expected)) throw new HomeError("invalid_request", { hint: "ciphertext digest mismatch" });
       const u = this.usage();
-      if (u.count >= LIMITS.maxBlobs || u.bytes + len > LIMITS.maxBlobSpoolBytes) throw new HomeError("quota", { detail: quotaDetail(4, this.hard) });
+      if (u.count >= limitsOf(this.env).maxBlobs || u.bytes + len > limitsOf(this.env).maxBlobSpoolBytes) throw new HomeError("quota", { detail: quotaDetail(4, this.hard) });
       const readCap = await this.readCapFor(id, ownerHash);
       const row: BlobRow = { id, owner_hash: ownerHash, read_hash: await capHash(readCap), len, chunks: Math.ceil(len / CHUNK), digest: got, expires_at: now + ttl };
       this.ctx.storage.transactionSync(() => {

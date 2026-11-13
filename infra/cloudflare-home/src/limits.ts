@@ -2,6 +2,8 @@
 // Operational limits of this Home. They are implementation parameters, never protocol constants (CLOUDFLARE_REFERENCE_DEPLOYMENT.md);
 // they are advertised in ProviderCapabilities.limits and every one fails with a typed `quota`, `payload_too_large` or `rate_limited`.
 
+import type { Env } from "./env";
+
 export const DAY = 86_400;
 
 export const LIMITS = {
@@ -59,3 +61,42 @@ export const LIMITS = {
   submitBurst: 20,
   submitRefillPerSecond: 2,
 } as const;
+
+export type Limits = { readonly [K in keyof typeof LIMITS]: number };
+
+/**
+ * The `personal` profile (OM_PROFILE=personal): one owner and a handful of mailboxes, so queue items, queue bytes, deposit
+ * capabilities and the blob spool are smaller than the multi-person defaults above. Only these keys differ; everything else is
+ * LIMITS. Operational values, never protocol constants; advertised in ProviderCapabilities.limits.
+ */
+export const PERSONAL_LIMITS: Partial<Limits> = {
+  maxQueueItems: 128,
+  maxQueueBytes: 8 * 1024 * 1024,
+  maxDepositCapabilities: 16,
+  maxBlobSpoolBytes: 16 * 1024 * 1024,
+  maxBlobs: 32,
+};
+
+/**
+ * Usage ceilings the Home measures itself against under the personal profile (per UTC day, the reset of the free-plan request
+ * allowances). CHECK THESE AGAINST CLOUDFLARE'S PUBLISHED FREE-PLAN NUMBERS ON THE DAY THEY ARE DEPLOYED: they are copied from
+ * the plan as last known (Workers 100,000 requests/day; Durable Objects 100,000 requests/day) and Cloudflare changes them. A
+ * deployment may override either with OM_USAGE_CEILING_WORKER / OM_USAGE_CEILING_DO (positive integers).
+ * `soft` from softRatio of a ceiling, `hard` from hardRatio (new deposits are shed below the real limit so drains and acks still fit).
+ */
+export const USAGE_CONFIG = {
+  workerRequestsPerDay: 100_000,
+  durableObjectRequestsPerDay: 100_000,
+  softRatio: 0.8,
+  hardRatio: 0.95,
+} as const;
+
+export type ProfileName = "default" | "personal";
+
+/** `personal` selects the personal profile. Unset, empty or `default` is the default profile. Any other value is a typo and gets the stricter personal profile, never silently the looser one. */
+export const profileOf = (env: Env): ProfileName => {
+  const p = (env.OM_PROFILE ?? "").trim().toLowerCase();
+  return p === "" || p === "default" ? "default" : "personal";
+};
+
+export const limitsOf = (env: Env): Limits => (profileOf(env) === "personal" ? { ...LIMITS, ...PERSONAL_LIMITS } : LIMITS);

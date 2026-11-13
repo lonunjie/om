@@ -30,6 +30,11 @@ export function json(value: unknown): Response {
   return new Response(JSON.stringify(value), { status: 200, headers: { ...BASE_HEADERS, "Content-Type": "application/json", "Cache-Control": "public, max-age=300" } });
 }
 
+/** A JSON answer that is for one caller only: never cached, unlike the public capabilities document. */
+export function privateJson(value: unknown): Response {
+  return new Response(JSON.stringify(value), { status: 200, headers: { ...BASE_HEADERS, "Content-Type": "application/json" } });
+}
+
 export function fail(name: HomeErrorName, opts: { retryAfterSeconds?: number; detail?: Uint8Array } = {}): Response {
   const headers: Record<string, string> = { ...BASE_HEADERS, "Content-Type": CBOR };
   if (opts.retryAfterSeconds !== undefined && (name === "rate_limited" || name === "retryable")) headers["Retry-After"] = String(opts.retryAfterSeconds);

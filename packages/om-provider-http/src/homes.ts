@@ -34,6 +34,12 @@ export function createHomesProvider(offered: readonly HttpProvider[], draining: 
     lostMailboxes: () => homes.flatMap((h) => [...h.lostMailboxes()]),
     routeEntry: (mailbox, expiresAt) => first.routeEntry(mailbox, expiresAt),
     capabilities: () => first.capabilities(),
+    // The most conservative state over every Home held (unknown > hard > soft > healthy): one question, one safe answer.
+    async usageState(mailbox) {
+      const rank = { healthy: 0, soft: 1, hard: 2, unknown: 3 } as const;
+      const all = await Promise.all(homes.map((h) => h.usageState(mailbox)));
+      return all.reduce((a, b) => (rank[b.state] > rank[a.state] ? b : a));
+    },
     setWakeActive: (active) => { for (const h of homes) h.setWakeActive(active); },
     onWake(listener) {
       const offs = homes.map((h) => h.onWake(listener));

@@ -24,7 +24,7 @@ import type { BlobLimits, Inbound, MailboxKind, NetCall, NetError, NetResult, Pe
 import {
   API_MAJOR, BLOB_DIGEST_HEADER, blobLocator, blobMatches, decodeBlobPutResponse, encodeBlobDigestHeader, encodeBlobPutRequest, decodeDescriptorGet, decodeDrainResponse, decodeKeyFetchResponse, encodeAckRequest, encodeDepositRequest, encodeDescriptorPut,
   encodeDrainRequest, encodeIntroTicketRequest, encodeKeyFetch, encodeKeyFetchGrant, encodeKeyPublish, encodeQueueCreate, encodeTicketParams, fromHex, toHex,
-  FEATURES, encode, map, type HomeErrorBody, type RelayEntry,
+  FEATURES, UNKNOWN_USAGE, USAGE_PATH, encode, map, parseUsageState, type HomeErrorBody, type ProviderUsageState, type RelayEntry,
 } from "@om/home-wire";
 import { exchange, type Exchange, type HttpOptions } from "./http";
 import { depositCap, descriptorPublishCap, installSecret, introServiceCap, keyPublishCap, mailboxCaps, requestId } from "./derive";
@@ -67,6 +67,13 @@ export interface HttpProvider extends Provider {
   lostMailboxes(): readonly string[];
   /** The spec's RelayEntry (route object) for a mailbox's deposit capability at this Home. */
   routeEntry(mailbox: Uint8Array, expiresAt: number): Promise<RelayEntry>;
+  /**
+   * ProviderUsageState of this Home (IMPLEMENTATION_INTERFACES "ProviderUsageState"), read with the owner's admin capability for
+   * `mailbox` (default: a mailbox this install already holds here). `unknown` when the Home does not offer the read (feature
+   * om.relay.usage.v1), no mailbox is held yet, the Home cannot be reached, or the answer is not exactly the expected shape.
+   * Never throws. Under a hard zero-cost requirement an `unknown` state is not safe (`zeroCostSafe` of @om/home-wire).
+   */
+  usageState(mailbox?: string): Promise<ProviderUsageState>;
   /** The Home's public ProviderCapabilities document, or undefined if it cannot be fetched. */
   capabilities(): Promise<Readonly<Record<string, unknown>> | undefined>;
   /**
@@ -638,6 +645,19 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
     return { maxBlobBytes, ...(spool === undefined ? {} : { maxSpoolBytes: spool }), ...(count === undefined ? {} : { maxBlobs: count }) };
   }
 
+  async function usageState(mailboxHex?: string): Promise<ProviderUsageState> {
+    try {
+      if (!(await advertisedFeatures())?.includes(FEATURES.relayUsage)) return UNKNOWN_USAGE;
+      const mailbox = mailboxHex ?? [...ensured][0];
+      if (mailbox === undefined) return UNKNOWN_USAGE;
+      const r = await read(`${base}${USAGE_PATH}`, { method: "GET", bearer: (await mailboxCaps(await secret(), fromHex(mailbox))).admin });
+      if (isResult(r) || r.kind !== "ok") return UNKNOWN_USAGE;
+      return parseUsageState(JSON.parse(new TextDecoder().decode(r.body)));
+    } catch {
+      return UNKNOWN_USAGE;
+    }
+  }
+
   // ------------------------------------------------------------------------------------------ Provider
 
   return {
@@ -655,6 +675,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
       }
       return out;
     },
+    usageState,
     async capabilities() {
       const r = await exchange(http, `${base}/.well-known/om-provider-capabilities`, { method: "GET" });
       if (r.kind !== "ok") return undefined;

@@ -12,7 +12,7 @@ import {
   type IntroTicketRequest, type IntroductionTicket, type RelayDrainRequest,
 } from "@om/home-wire";
 import type { Env } from "./env";
-import { LIMITS } from "./limits";
+import { LIMITS, limitsOf } from "./limits";
 import { MAILBOX_SCHEMA, cursorOf, enqueue, nextExpiry, page, purgeExpired } from "./mailbox";
 import { metaNumber, metaString, one, run, setMeta } from "./sql";
 import { capHash, fingerprint, nowSeconds, reply, takeToken, type Reply } from "./util";
@@ -135,7 +135,7 @@ export class IntroGate extends DurableObject<Env> {
       purgeExpired(this.sql, now);
       const pending = one<{ n: number }>(this.sql, "SELECT COUNT(*) AS n FROM items")?.n ?? 0;
       if (!retry && pending >= LIMITS.maxPendingRequests) throw new HomeError("quota", { detail: quotaDetail(1, this.hard) });
-      const q = enqueue(this.sql, { bytes: request, fp, tupleKey: undefined, expiresAt: Math.min(ticket.expires_at, now + LIMITS.maxRetentionSeconds), capHash: undefined, hard: this.hard });
+      const q = enqueue(this.sql, { bytes: request, fp, tupleKey: undefined, expiresAt: Math.min(ticket.expires_at, now + LIMITS.maxRetentionSeconds), capHash: undefined, hard: this.hard, maxItems: limitsOf(this.env).maxQueueItems, maxBytes: limitsOf(this.env).maxQueueBytes });
       if (!retry) {
         run(this.sql, "INSERT INTO uses (ticket_id, fp) VALUES (?, ?)", mr.ticketId, fp);
         run(this.sql, "UPDATE tickets SET used = used + 1 WHERE id = ?", mr.ticketId);
