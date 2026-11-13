@@ -50,6 +50,7 @@ describe.each(subjects)("CoreClient contract: %s", (_name, make) => {
     expect(await client.query({ kind: "GetProfileList" })).toEqual([{ id: PID, label: "Me" }]);
     const devices = await client.query({ kind: "GetDevices", ctx });
     expect(Object.keys(devices.devices[0] ?? {}).sort()).toEqual(["actions", "cautions", "enrolledAt", "id", "isCurrent", "label", "lastSeen", "role", "state"]);
+    expect(await client.query({ kind: "GetHistoryTransfer", ctx })).toBeNull();
     expect(Object.keys(devices).sort()).toEqual(["controlState", "devices", "linkRequests", "notices"]);
     expect(shape(await client.query({ kind: "GetHomeSummary", ctx }))).toEqual({ tier: "string", observers: expect.anything() as unknown, migrationAvailable: "boolean", clientOriginChoice: expect.anything() as unknown });
     expect(Object.keys(await client.query({ kind: "GetRecoveryStatus", ctx })).sort()).toEqual(["activationDelayMs", "custodians", "policy", "recoveryKeySaved", "requests", "scopes"]);

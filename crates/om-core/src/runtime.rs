@@ -69,6 +69,11 @@ fn mailbox_of_deposit(mailbox: &[u8], relay_uri: Option<&str>) -> Vec<u8> {
 pub static TEST_OMIT_NOTICE: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
+/// TEST ONLY: while set, an approving Core labels its history snapshot with a codec this implementation does not know
+/// (the new device must ignore every chunk whole). Process-global: its test lives in a binary of its own.
+pub static TEST_FOREIGN_HISTORY_CODEC: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 /// The loopback's receive capability for a queue it opened (48 bytes, as a real Home's).
 fn queue_receive_cap(mailbox: &[u8]) -> Vec<u8> {
     let mut cap = vec![0xD5; 16];

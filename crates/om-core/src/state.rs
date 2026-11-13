@@ -724,6 +724,9 @@ pub struct LinkOffer {
     /// The new device's introductions (one per conversation) have been received for these conversations.
     #[serde(default)]
     pub introduced: Vec<String>,
+    /// History chunks (`DeviceHistorySnapshot`, multi-device phase 5) deposited for the new device at approval.
+    #[serde(default)]
+    pub history_sent: u32,
 }
 
 /// The new device's side of a ceremony.
@@ -754,6 +757,16 @@ pub struct LinkJoin {
     /// The existing device's DeviceID, from the verified approval.
     #[serde(default)]
     pub approver: Hex,
+    /// History chunks the approval announced, how many arrived, how many were ignored whole (unknown codec or
+    /// invalid), and how many messages they added.
+    #[serde(default)]
+    pub history_expected: u32,
+    #[serde(default)]
+    pub history_done: u32,
+    #[serde(default)]
+    pub history_ignored: u32,
+    #[serde(default)]
+    pub history_messages: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

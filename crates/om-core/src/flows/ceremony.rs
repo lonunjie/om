@@ -47,6 +47,16 @@ const M_INTRO: u64 = 4;
 const M_APPROVE: u64 = 2;
 const M_REJECT: u64 = 3;
 const M_ROSTER: u64 = 5;
+/// Existing -> new: one chunk of the `DeviceHistorySnapshot` (multi-device phase 5).
+const M_HISTORY: u64 = 6;
+/// The 32-byte random `codec_id` of this implementation's `DeviceHistorySnapshot` codec family, chosen once and never
+/// reassigned to incompatible semantics (ADR-0156/0157, MULTI_DEVICE_SYNC "ADR-0156/0157 implementation namespacing").
+const HISTORY_CODEC_ID: &str = "c3cb99a3a24d06c6178626672c4557d746938b453380526711411f7e6fb3794e";
+const HISTORY_CODEC_MAJOR: u64 = 1;
+/// Encoded body of one chunk stays under this, so a chunk fits the 64 KiB profile-1 bucket with room for framing.
+const HISTORY_CHUNK_BODY: usize = 50_000;
+/// A snapshot is bounded (the newest messages win): the ceremony window and the Home's queue are small.
+pub const HISTORY_MAX_CHUNKS: usize = 32;
 
 type Keys = ([u8; 32], [u8; 32], [u8; 32]);
 
@@ -346,6 +356,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 state: LinkState::Opening,
                 request: None,
                 introduced: vec![],
+                history_sent: 0,
             },
         );
         self.enqueue(
@@ -506,6 +517,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             roster_expected: 0,
             roster_done: 0,
             approver: String::new(),
+            history_expected: 0,
+            history_done: 0,
+            history_ignored: 0,
+            history_messages: 0,
         });
         self.st.device = Some(device);
         self.deposit_ceremony(op, &parts.a_cap, &parts.uri, sealed);
@@ -834,6 +849,20 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (7, V::U(roster.len() as u64)),
             (8, V::T(self.st.app.label.clone())),
         ]));
+        // Same-owner history for the new device: the approval is the explicit account authorization, and only a
+        // device the new head lists as active is eligible (a revoked or quarantined one never gets a snapshot).
+        let history = if history_eligible(&child, &cred.device_id) {
+            self.history_chunks(&k_resp, offer.expires_at / 1000)
+        } else {
+            vec![]
+        };
+        let approval = {
+            let mut v = cbor::decode(&approval).map_err(|_| Invalid)?;
+            if let V::M(m) = &mut v {
+                m.push((9, V::U(history.len() as u64)));
+            }
+            cbor::encode(&v)
+        };
         let mut sealed = vec![
             self.seal_msg(&k_resp, ROLE_RESP, &approval, offer.expires_at / 1000)
                 .ok_or(Quota)?,
@@ -846,6 +875,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             );
         }
 
+        sealed.extend(history.iter().cloned());
         self.st.app.acs_credentials.push(hex(&cred.body()));
         self.st.app.acs_chain.push(hex(&signed));
         self.st.app.device_meta.insert(
@@ -874,6 +904,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         if let Some(o) = self.st.app.link_offers.get_mut(&offer.operation_id) {
             o.state = LinkState::Linked;
+            o.history_sent = history.len() as u32;
         }
         // Contacts learn the new head (K7 on their side); introductions follow when the new device sends them.
         self.broadcast_account_update();
@@ -1056,7 +1087,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some(join) = self.st.app.link_join.clone() else {
             return;
         };
-        if join.expires_at <= self.now_ms || !matches!(join.state, LinkState::AwaitingApproval) {
+        let history_pending =
+            join.state == LinkState::Linked && join.history_done < join.history_expected;
+        if join.expires_at <= self.now_ms
+            || !(matches!(join.state, LinkState::AwaitingApproval) || history_pending)
+        {
             return;
         }
         let (Ok(secret), Ok(a_cap), Ok(b_recv)) =
@@ -1082,6 +1117,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     self.finish_join(LinkState::Failed);
                 }
             }
+            Ok(M_HISTORY) if join.approved && join.history_done < join.history_expected => {
+                self.on_history_chunk(&v);
+            }
             Ok(M_ROSTER) if join.approved && join.roster_done < join.roster_expected => {
                 if let Ok(entry) = v.get(1).and_then(|x| x.b()) {
                     let _ = self.adopt_roster(entry, &join);
@@ -1100,7 +1138,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     fn finish_join(&mut self, state: LinkState) {
         if let Some(j) = self.st.app.link_join.as_mut() {
             j.state = state;
-            j.secret = String::new().into();
+            // Chunks of a history snapshot may still follow a completed link; the key stays until they are in.
+            if !(state == LinkState::Linked && j.history_done < j.history_expected) {
+                j.secret = String::new().into();
+            }
         }
     }
 
@@ -1118,6 +1159,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ) else {
             return false;
         };
+        let history_expected = v.opt(9).and_then(|x| x.u().ok()).unwrap_or(0);
         let label = v
             .opt(8)
             .and_then(|x| x.t().ok())
@@ -1221,6 +1263,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if let Some(j) = self.st.app.link_join.as_mut() {
             j.approved = true;
             j.roster_expected = count as u32;
+            j.history_expected = history_expected.min(HISTORY_MAX_CHUNKS as u64) as u32;
             j.approver = hex(&approver);
             if count == 0 {
                 self.finish_join(LinkState::Linked);
@@ -1486,6 +1529,210 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 }
 
+/// May `device` receive same-owner history at `head`? Only an active device of the account: listed as a messaging or
+/// control device and neither quarantined nor revoked (MULTI_DEVICE_SYNC "Revocation": a revoked device cannot obtain
+/// new `DeviceHistorySnapshot`s; ACCOUNT_CONTINUITY_AND_CONTROL: quarantine stops future secrets).
+pub fn history_eligible(head: &Acs, device: &[u8; 16]) -> bool {
+    (head.messaging.contains(device) || head.control.contains(device))
+        && !head.quarantined.contains(device)
+        && !head.revoked.contains(device)
+}
+
+/// The progress of the latest history transfer, from whichever side this profile was on.
+pub fn history_view(st: &ProfileState) -> Option<HistoryTransferView> {
+    if let Some(j) = st.app.link_join.as_ref().filter(|j| j.history_expected > 0) {
+        return Some(HistoryTransferView {
+            role: HistoryRole::Receiver,
+            chunks_total: j.history_expected,
+            chunks_done: j.history_done,
+            chunks_ignored: j.history_ignored,
+            messages_added: j.history_messages,
+        });
+    }
+    st.app
+        .link_offers
+        .values()
+        .filter(|o| o.history_sent > 0)
+        .max_by_key(|o| o.created_ms)
+        .map(|o| HistoryTransferView {
+            role: HistoryRole::Sender,
+            chunks_total: o.history_sent,
+            chunks_done: o.history_sent,
+            chunks_ignored: 0,
+            messages_added: 0,
+        })
+}
+
+impl<R: RngCore + CryptoRng> Tx<'_, R> {
+    /// The snapshot as sealed queue messages: this device's history (what an ADR-0184 backup keeps: text and delivery
+    /// facts, never a key, route, session or attachment secret), newest first, in chunks that each carry the codec
+    /// namespace inside the sealed frame. Chunking is implementation-private. Over the bound the oldest are left out.
+    fn history_chunks(&mut self, k_resp: &[u8; 32], expires_s: u64) -> Vec<Vec<u8>> {
+        let Ok(archive) = crate::backup::collect(&self.st.app, self.now_ms) else {
+            return vec![];
+        };
+        // Every message, newest first, with the chat it belongs to.
+        // The position inside the chat breaks ties between messages of one millisecond, so order survives the trip.
+        let mut keyed: Vec<(u64, usize, usize, &crate::backup::ArchivedMsg)> = archive
+            .chats
+            .iter()
+            .enumerate()
+            .flat_map(|(i, c)| {
+                c.messages
+                    .iter()
+                    .enumerate()
+                    .map(move |(j, m)| (m.sent_at, j, i, m))
+            })
+            .collect();
+        keyed.sort_by_key(|k| std::cmp::Reverse((k.0, k.1)));
+        let all: Vec<(usize, &crate::backup::ArchivedMsg)> =
+            keyed.into_iter().map(|(_, _, i, m)| (i, m)).collect();
+        let mut groups: Vec<Vec<(usize, &crate::backup::ArchivedMsg)>> = vec![];
+        let mut size = usize::MAX;
+        for item in all {
+            let cost = item.1.text.len() + item.1.id.len() + 160;
+            if size == usize::MAX || size + cost > HISTORY_CHUNK_BODY {
+                if groups.len() >= HISTORY_MAX_CHUNKS {
+                    break;
+                }
+                groups.push(vec![]);
+                size = 0;
+            }
+            size += cost;
+            if let Some(g) = groups.last_mut() {
+                g.push(item);
+            }
+        }
+        let mut out = vec![];
+        for (index, group) in groups.iter().enumerate() {
+            let mut chats: Vec<crate::backup::ArchivedChat> = vec![];
+            for (ci, m) in group.iter().rev() {
+                let src = &archive.chats[*ci];
+                match chats.iter_mut().find(|c| c.id == src.id) {
+                    Some(c) => c.messages.push((*m).clone()),
+                    None => chats.push(crate::backup::ArchivedChat {
+                        messages: vec![(*m).clone()],
+                        ..src.clone()
+                    }),
+                }
+            }
+            let body = crate::backup::encode_body(&crate::backup::HistoryArchive {
+                exported_at_ms: archive.exported_at_ms,
+                owner_label: archive.owner_label.clone(),
+                chats,
+            });
+            #[allow(unused_mut)]
+            let mut codec_id = unhex(HISTORY_CODEC_ID).unwrap_or_default();
+            #[cfg(feature = "test-loopback")]
+            if crate::runtime::TEST_FOREIGN_HISTORY_CODEC.load(std::sync::atomic::Ordering::SeqCst)
+            {
+                codec_id = vec![0x5a; 32];
+            }
+            let msg = cbor::encode(&V::M(vec![
+                (0, V::U(M_HISTORY)),
+                (1, V::B(codec_id)),
+                (2, V::U(HISTORY_CODEC_MAJOR)),
+                (3, V::U(index as u64)),
+                (4, V::B(body)),
+            ]));
+            match self.seal_msg(k_resp, ROLE_RESP, &msg, expires_s) {
+                Some(sealed) => out.push(sealed),
+                None => return vec![], // all or nothing: a partial snapshot is not announced
+            }
+        }
+        out
+    }
+
+    /// One chunk on the new device. Counted either way; a chunk whose `(codec_id, codec_major)` is not ours, or that is
+    /// malformed, is ignored whole and none of it is interpreted. A device that is no longer active at its own head
+    /// takes nothing.
+    fn on_history_chunk(&mut self, v: &V) {
+        let me = self.st.device.as_ref().map(|d| d.device_id);
+        let active = match (self.acs_head(), me) {
+            (Some((head, _, _)), Some(me)) => history_eligible(&head, &me),
+            _ => false,
+        };
+        let known = v.get(1).and_then(|x| x.b()).ok() == unhex(HISTORY_CODEC_ID).ok().as_deref()
+            && v.get(2).and_then(|x| x.u()).ok() == Some(HISTORY_CODEC_MAJOR);
+        let added = if active && known {
+            v.get(4)
+                .and_then(|x| x.b())
+                .ok()
+                .and_then(|b| crate::backup::decode_body(b).ok())
+                .map(|a| self.merge_history(a))
+        } else {
+            None
+        };
+        if let Some(j) = self.st.app.link_join.as_mut() {
+            j.history_done += 1;
+            match added {
+                Some(n) => j.history_messages += n,
+                None => j.history_ignored += 1,
+            }
+            if j.history_done >= j.history_expected && j.state == LinkState::Linked {
+                j.secret = String::new().into();
+            }
+        }
+    }
+
+    /// Union by EventID (the message id): a message already here is never replaced; chats this device holds live get
+    /// the older messages in time order; the others become read-only restored history. Messages that never left the
+    /// device they were written on (or were refused) stay there. Returns the messages added.
+    fn merge_history(&mut self, archive: crate::backup::HistoryArchive) -> u32 {
+        let mut added = 0u32;
+        let mut rest = vec![];
+        for chat in archive.chats {
+            let Some(rel) = self.st.app.relationships.get_mut(&chat.id) else {
+                rest.push(chat);
+                continue;
+            };
+            let known: std::collections::BTreeSet<String> =
+                rel.messages.iter().map(|m| m.id.clone()).collect();
+            for m in chat.messages {
+                if known.contains(&m.id) || !(m.delivery == 1 || m.delivery == 2) {
+                    continue;
+                }
+                rel.messages.push(Msg {
+                    id: m.id,
+                    outgoing: m.outgoing,
+                    operation_id: None,
+                    text: m.text,
+                    sent_at: m.sent_at,
+                    delivery: if m.delivery == 2 {
+                        DeliveryState::Delivered
+                    } else {
+                        DeliveryState::Sent
+                    },
+                    envelope: None,
+                    digest: m.digest,
+                    clock_ms: m.clock_ms,
+                    clock_logical: m.clock_logical,
+                    deleted: false,
+                    queued_event: None,
+                    fan: vec![],
+                    attachments: vec![],
+                    ext: None,
+                });
+                added += 1;
+            }
+            rel.messages
+                .sort_by_key(|m| (m.sent_at, m.clock_ms, m.clock_logical));
+        }
+        if !rest.is_empty() {
+            let probe = crate::backup::HistoryArchive {
+                chats: rest,
+                ..archive
+            };
+            let mut staged = self.st.app.clone();
+            if let Ok(s) = crate::backup::apply_import(&mut staged, probe, self.now_ms) {
+                added += s.messages_added;
+                self.st.app = staged;
+            }
+        }
+        added
+    }
+}
+
 fn chain_head(signed: &[u8]) -> Option<Acs> {
     let v = cbor::decode(signed).ok()?;
     Acs::from_body(v.get(1).ok()?.b().ok()?).ok()
@@ -1547,7 +1794,8 @@ pub fn poll_targets(st: &ProfileState, now_ms: u64) -> Vec<crate::host::PollTarg
     }
     if let Some(j) = &st.app.link_join
         && j.expires_at > now_ms
-        && j.state == LinkState::AwaitingApproval
+        && (j.state == LinkState::AwaitingApproval
+            || (j.state == LinkState::Linked && j.history_done < j.history_expected))
         && let (Ok(m), Ok(cap)) = (unhex(&j.b_mailbox), unhex(&j.b_recv))
     {
         out.push(crate::host::PollTarget {
@@ -1660,6 +1908,50 @@ pub fn notice_views(st: &ProfileState) -> Vec<DeviceNoticeView> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn head_with(control: &[u8], messaging: &[u8], quarantined: &[u8], revoked: &[u8]) -> Acs {
+        let set = |ids: &[u8]| ids.iter().map(|b| [*b; 16]).collect();
+        Acs {
+            account_id: [9; 32],
+            generation: 3,
+            control: set(control),
+            quarantined: set(quarantined),
+            messaging: set(messaging),
+            revoked: set(revoked),
+            credentials: vec![],
+            previous: None,
+            constitutional: (1, None),
+            recovery_commitment: None,
+            min_profile: 1,
+            key_epochs: vec![],
+            transparency: None,
+        }
+    }
+
+    #[test]
+    fn only_an_active_device_may_receive_history() {
+        let head = head_with(&[1], &[2, 3, 4], &[3], &[4]);
+        assert!(history_eligible(&head, &[1; 16]), "a control device");
+        assert!(
+            history_eligible(&head, &[2; 16]),
+            "an active messaging device"
+        );
+        assert!(
+            !history_eligible(&head, &[3; 16]),
+            "a quarantined device gets nothing new"
+        );
+        assert!(
+            !history_eligible(&head, &[4; 16]),
+            "a revoked device gets nothing new"
+        );
+        assert!(
+            !history_eligible(&head, &[5; 16]),
+            "an unknown device gets nothing"
+        );
+        // Revoked wins even if a malformed head also lists the device as active.
+        let both = head_with(&[1], &[2], &[], &[2]);
+        assert!(!history_eligible(&both, &[2; 16]));
+    }
 
     fn envelope_with_frame(key: &[u8; 32], frame: &[u8], bucket_frame: usize) -> Vec<u8> {
         let mut padded = frame.to_vec();

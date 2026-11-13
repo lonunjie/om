@@ -468,6 +468,10 @@ pub enum Query {
     GetRecoveryStatus {
         ctx: ProfileExecutionContext,
     },
+    /// Progress of the same-owner history transfer of the latest device link (`null` when none was announced).
+    GetHistoryTransfer {
+        ctx: ProfileExecutionContext,
+    },
     /// The nonce an `IssueConfirmation` operation produced (`null` once spent, expired or unknown).
     GetConfirmation {
         ctx: ProfileExecutionContext,
@@ -493,6 +497,7 @@ impl Query {
             | Query::GetLinkRequest { ctx, .. }
             | Query::GetLinkOffer { ctx, .. }
             | Query::GetRecoveryStatus { ctx }
+            | Query::GetHistoryTransfer { ctx }
             | Query::GetConfirmation { ctx, .. }
             | Query::GetIntroductionLoad { ctx } => Some(ctx),
         }
@@ -845,6 +850,28 @@ pub struct LinkOfferView {
     pub expires_at: u64,
     pub verification_code: Option<String>,
     pub state: LinkOfferState,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HistoryRole {
+    /// This device produced the snapshot for a newly linked device.
+    Sender,
+    /// This device is the newly linked one and receives it.
+    Receiver,
+}
+
+/// Progress of a `DeviceHistorySnapshot` transfer (MULTI_DEVICE_SYNC "History transfer"). Counts only: no content.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryTransferView {
+    pub role: HistoryRole,
+    pub chunks_total: u32,
+    /// Receiver: chunks processed (including ignored ones). Sender: equal to `chunks_total` once deposited.
+    pub chunks_done: u32,
+    /// Receiver: chunks ignored whole (a codec this implementation does not know, or malformed).
+    pub chunks_ignored: u32,
+    pub messages_added: u32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

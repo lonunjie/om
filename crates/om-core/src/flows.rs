@@ -27,7 +27,8 @@ mod multi;
 pub(crate) use blobs::{attachment_views, presentation, rec_ref};
 use ceremony::KIND_ENROLLED;
 pub use ceremony::{
-    notice_views, offer_view, pending_requests, poll_targets as ceremony_poll_targets, request_view,
+    history_view, notice_views, offer_view, pending_requests,
+    poll_targets as ceremony_poll_targets, request_view,
 };
 use multi::{Inner, KIND_ACS_REQUEST, KIND_ACS_UPDATE};
 

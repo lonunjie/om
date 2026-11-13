@@ -48,3 +48,16 @@ Agent group A (one Sonnet agent, reads PROVISIONING_AND_BOOTSTRAP and the Cloudf
 - **Needs the operator:** `border.strong` contrast conflict (audited 2.3:1 versus the 3:1 component-boundary rule, VS-01; an amendment needs a short ADR), group A (real deploy flow), D25/D26 rulings, non-Anthropic review of multi-device Core (ADR-0167).
 - **Next after phase 5, in order:** recovery flows (group E), signed-prekey rotation, then groups (group F), then direct/LAN large-file transfer (group G). Each needs its Core design domains read first; budget the reading (about 70k tokens per domain set).
 - **Budget on 2026-11-13:** about 6% of the 5-hour window and 14% of the week at the last check; budget was never the constraint.
+
+## 5. Update 2026-11-13 (second session, Sonnet; multi-device phase 5)
+
+- **Done:** history snapshot to a newly linked device (Core, wasm query, TS types, copy, Chromium two-context e2e). Report:
+  [`2026-11-13-multi-device-phase5-status.md`](2026-11-13-multi-device-phase5-status.md); deviation D27 in the relay status. Group C is done except the items below.
+- **Still open in group C:** transcript MAC construction (design silent, needs the design owner); device-link e2e on Firefox and WebKit (the new history test
+  was run on Chromium only); drafts and ADR-0148 preferences sync; a Devices-screen line reading `GetHistoryTransfer` ("copying older chats", and that the
+  oldest were left out when over the bound); a live check of the queue quota on the Cloudflare Home; the non-Anthropic review of multi-device Core (ADR-0167).
+- **Answered from the design:** notice signer role is `controller` (registry), a quarantined device does not block an approval (section 12 says "active devices").
+- **Gotchas:** a long text message (8 KB) is not accepted by `SendMessage` in the loopback tests, use about 1.5 KB; from inside a chat on a phone-sized screen
+  there is no Settings button, e2e reaches Devices with `page.goto("/settings/devices")`; the design gate for `crates/` plus `apps/web` is about 14 domains, so
+  batch Core and web work in one session.
+

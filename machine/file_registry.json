@@ -1565,6 +1565,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/tests/common/history_world.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/tests/common/mod.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1573,6 +1580,20 @@
     },
     {
       "path": "crates/om-core/tests/confirmations.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/device_history.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/device_history_unknown_codec.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -4547,6 +4568,13 @@
       "authority": "working_record_non_normative"
     },
     {
+      "path": "docs/reports/2026-11-04-handoff-next-week.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
       "path": "docs/reports/2026-11-04-multi-device-core-status.md",
       "class": "report",
       "domain": "architecture_process",
@@ -4562,6 +4590,13 @@
     },
     {
       "path": "docs/reports/2026-11-04-v1-completion-plan.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-13-multi-device-phase5-status.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -14282,13 +14317,6 @@
       "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "executable_guardrail"
-    },
-    {
-      "path": "docs/reports/2026-11-04-handoff-next-week.md",
-      "class": "report",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "working_record_non_normative"
     }
   ]
 }

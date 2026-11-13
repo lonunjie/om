@@ -2,7 +2,7 @@ import type { ConversationId, OperationId, ProfileExecutionContext, ProfileId } 
 import type { CoreIntent } from "./intents";
 import type { OutcomeClass } from "./outcome";
 import type { AttachmentApi } from "./attachments";
-import type { DevicesView, LinkOfferView, LinkRequestView, RecoveryStatusView } from "./devices";
+import type { DevicesView, HistoryTransferView, LinkOfferView, LinkRequestView, RecoveryStatusView } from "./devices";
 import type { ConfirmationView, ConversationSummary, ConversationView, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, RecoveryKeyView } from "./views";
 
 export interface GetConversationView { readonly kind: "GetConversationView"; readonly ctx: ProfileExecutionContext; readonly conversationId: ConversationId }
@@ -17,6 +17,8 @@ export interface GetDevices { readonly kind: "GetDevices"; readonly ctx: Profile
 export interface GetLinkRequest { readonly kind: "GetLinkRequest"; readonly ctx: ProfileExecutionContext; readonly operationId: OperationId }
 /** The offer produced by an OfferDeviceLink operation. */
 export interface GetLinkOffer { readonly kind: "GetLinkOffer"; readonly ctx: ProfileExecutionContext; readonly operationId: OperationId }
+/** Progress of the same-owner history transfer of the latest device link (`null` when none was announced). */
+export interface GetHistoryTransfer { readonly kind: "GetHistoryTransfer"; readonly ctx: ProfileExecutionContext }
 export interface GetRecoveryStatus { readonly kind: "GetRecoveryStatus"; readonly ctx: ProfileExecutionContext }
 /** The nonce an `IssueConfirmation` operation produced (`null` once expired or unknown). */
 export interface GetConfirmation { readonly kind: "GetConfirmation"; readonly ctx: ProfileExecutionContext; readonly operationId: OperationId }
@@ -24,7 +26,7 @@ export interface GetConfirmation { readonly kind: "GetConfirmation"; readonly ct
 export interface GetIntroductionLoad { readonly kind: "GetIntroductionLoad"; readonly ctx: ProfileExecutionContext }
 export type CoreQuery =
   | GetConversationView | GetConversationList | GetProfileList | GetIntroductions | GetRecoveryKey | GetInvite | GetHomeSummary
-  | GetDevices | GetLinkRequest | GetLinkOffer | GetRecoveryStatus | GetConfirmation | GetIntroductionLoad;
+  | GetDevices | GetLinkRequest | GetLinkOffer | GetHistoryTransfer | GetRecoveryStatus | GetConfirmation | GetIntroductionLoad;
 
 export interface QueryResultMap {
   GetConversationView: ConversationView;
@@ -38,6 +40,7 @@ export interface QueryResultMap {
   GetDevices: DevicesView;
   GetLinkRequest: LinkRequestView | null;
   GetLinkOffer: LinkOfferView | null;
+  GetHistoryTransfer: HistoryTransferView | null;
   GetRecoveryStatus: RecoveryStatusView;
   GetConfirmation: ConfirmationView | null;
   GetIntroductionLoad: IntroductionLoad;

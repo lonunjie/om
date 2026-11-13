@@ -223,6 +223,9 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         case "GetLinkOffer":
           stateFor(q.ctx);
           return sim.queries.linkOffer(q.ctx.profileId, q.operationId);
+        case "GetHistoryTransfer":
+          stateFor(q.ctx);
+          return null; // the simulator has no second device to transfer history to
         case "GetRecoveryStatus":
           stateFor(q.ctx);
           return sim.queries.recovery(q.ctx.profileId);

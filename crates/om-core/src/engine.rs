@@ -836,6 +836,9 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     }
                     Query::GetHomeSummary { .. } => Ok(to(&self.home)),
                     Query::GetDevices { .. } => Ok(to(&devices_view(st, self.clock.now_ms()))),
+                    Query::GetHistoryTransfer { .. } => Ok(crate::flows::history_view(st)
+                        .map(|v| to(&v))
+                        .unwrap_or(serde_json::Value::Null)),
                     Query::GetLinkRequest { operation_id, .. } => {
                         let now = self.clock.now_ms();
                         Ok(crate::flows::request_view(st, operation_id, now)

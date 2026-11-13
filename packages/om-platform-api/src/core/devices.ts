@@ -56,6 +56,17 @@ export interface LinkOfferView {
   readonly state: LinkOfferState;
 }
 
+/** Progress of a `DeviceHistorySnapshot` transfer to a newly linked device. Counts only, never content. */
+export interface HistoryTransferView {
+  /** `sender`: this device produced the snapshot; `receiver`: this is the newly linked device. */
+  readonly role: "sender" | "receiver";
+  readonly chunksTotal: number;
+  readonly chunksDone: number;
+  /** Receiver: chunks ignored whole (a codec this implementation does not know). */
+  readonly chunksIgnored: number;
+  readonly messagesAdded: number;
+}
+
 export interface DevicesView {
   readonly controlState: AccountControlStateCode;
   readonly devices: readonly DeviceSummary[];
