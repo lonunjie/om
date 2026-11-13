@@ -6,3 +6,4 @@ export * from "./client";
 export * from "./invite";
 export * from "./devices";
 export * from "./attachments";
+export * from "./groups";

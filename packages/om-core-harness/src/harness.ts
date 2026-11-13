@@ -9,6 +9,9 @@ import type {
   PersonId, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, TerminalOutcome, Unsubscribe, UserActionCode,
 } from "@om/platform-api";
 import { createDeviceSim, type SeedDevices } from "./devices";
+import { createGroupSim, type GroupSim } from "./groups";
+
+export type { GroupSim } from "./groups";
 
 export type { SeedDevice, SeedDevices, SeedIncomingRecovery, SeedRecovery } from "./devices";
 
@@ -59,6 +62,8 @@ export interface Harness extends CoreClient {
   readonly marker: typeof HARNESS_MARKER;
   /** Always present here: a pretend delivery service that holds plaintext in memory (limits come from `HarnessOptions.attachmentLimits`). */
   readonly attachments: AttachmentApi;
+  /** Always present here: simulated ordinary groups for UI tests (no engine, no wire; the other people are played by `simulate*`). */
+  readonly groups: GroupSim;
   /** Registers a profile (generation fixed at seed) and returns its captured context. */
   seedProfile(seed: SeedProfile): ProfileExecutionContext;
   /** Fresh context for a seeded profile at its current generation (what a restarted UI would capture). */
@@ -493,9 +498,12 @@ export function createHarness(options: HarnessOptions = {}): Harness {
     }),
   };
 
+  const groups = createGroupSim({ stateFor, hasRelationship: (ctx, id) => stateFor(ctx).conversations.has(id), clock });
+
   return {
     marker: HARNESS_MARKER,
     attachments: attachmentApi,
+    groups,
 
     seedProfile(seed) {
       if (profiles.has(seed.profileId)) throw new HarnessError("profile already seeded");

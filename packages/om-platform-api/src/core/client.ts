@@ -2,6 +2,7 @@ import type { ConversationId, OperationId, ProfileExecutionContext, ProfileId } 
 import type { CoreIntent } from "./intents";
 import type { OutcomeClass } from "./outcome";
 import type { AttachmentApi } from "./attachments";
+import type { GroupApi } from "./groups";
 import type { DevicesView, HistoryTransferView, LinkOfferView, LinkRequestView, RecoveryStatusView } from "./devices";
 import type { AttachmentPlanView, ConfirmationView, DirectOfferView, ConversationSummary, ConversationView, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, RecoveryKeyView } from "./views";
 
@@ -70,4 +71,6 @@ export interface CoreClient {
   pendingOperations(ctx: ProfileExecutionContext): Promise<readonly PendingOperationView[]>;
   /** Files, voice notes and location cards need a delivery service that holds files; a client without one leaves this out. */
   readonly attachments?: AttachmentApi;
+  /** Ordinary groups (ADR-0177). Absent on a client with no group support; present but `available() === false` on a build without the engine. */
+  readonly groups?: GroupApi;
 }

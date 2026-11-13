@@ -10,7 +10,8 @@
     "./om_wasm.wasm": "./dist/om_wasm.wasm"
   },
   "scripts": {
-    "build:wasm": "node build.mjs"
+    "build:wasm": "node build.mjs",
+    "build:wasm:groups": "node build.mjs --groups"
   },
   "dependencies": {
     "@om/platform-api": "workspace:*"

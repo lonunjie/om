@@ -4,7 +4,7 @@
 import { captureProfileContext, isTerminalOutcome } from "@om/platform-api";
 import type {
   AttachmentApi, AttachmentLimits, AttachmentMeta, AttachmentOpenResult, AttachmentPrepareResult, AttachmentRefusal,
-  CoreClient, CoreIntent, CoreQuery, EncryptedKv, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
+  CoreClient, CoreIntent, CoreQuery, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   ProfileExecutionContext, ProfileId, QueryResult, Unsubscribe,
 } from "@om/platform-api";
 import { asProfileGeneration, asProfileId } from "@om/platform-api";
@@ -73,6 +73,12 @@ export interface WasmCoreClient extends CoreClient {
     arm(ctx: ProfileExecutionContext, blobId: string, plaintext: Uint8Array): Promise<boolean>;
   };
   /**
+   * Ordinary groups (ADR-0177), typed. Real only when the module was built with `groups-openmls` (ADR-0187, proposed):
+   * the shipped module is not, and `available()` is then false. The group wire in each step's `out` is Core-internal
+   * JSON (groups plan Q2): the host carries it, never reads it.
+   */
+  readonly groups: GroupApi;
+  /**
    * The two ends of a direct transfer, as frames for a host-supplied channel (the host driver is not built: no transport is
    * chosen yet). Sender: `serve` each frame received, `pump` while the channel drains. Receiver: `fetchStart`, feed each
    * frame to `fetchHandle` and send what it returns, then `fetchOpen` when the progress says `complete`.
@@ -105,6 +111,7 @@ function refusalOf(r: { readonly error: string; readonly max?: number } | undefi
   return { error: (REFUSALS.includes(e) ? e : "invalid") as Exclude<AttachmentRefusal["error"], "too_large"> };
 }
 
+interface GroupJson { readonly refused?: string; readonly reply?: { readonly events: readonly GroupEvent[]; readonly out: readonly GroupOutbound[] }; readonly commit?: Commit | null }
 interface StepJson { readonly commit: Commit | null; readonly handle: OperationHandle | null }
 interface ReleasedJson { readonly profileId: string; readonly changedOperations: readonly string[] }
 
@@ -302,6 +309,18 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
 
   // ---------------------------------------------------------------------------------------------- client
 
+  /** One group command: the typed refusal or `{reply, commit}`. */
+  const groupCall = (cmd: Record<string, unknown>): Promise<GroupJson> => Promise.resolve(core.call(cmd) as GroupJson);
+  async function groupStep(r: GroupJson, ctx: ProfileExecutionContext): Promise<GroupStep> {
+    if (r.refused !== undefined || r.reply === undefined) return { ok: false, refused: r.refused ?? "invalid" };
+    await commit(r.commit ?? null, ctx); // the step is durable before any outbound is handed to the host
+    return { ok: true, events: r.reply.events, out: r.reply.out };
+  }
+  const groupView = (cmd: Record<string, unknown>): Record<string, unknown> => {
+    const v = core.call(cmd) as Record<string, unknown>;
+    return v["refused"] === undefined ? v : {};
+  };
+
   const client: WasmCoreClient = {
     async openProfile(profileId) {
       const records = await readRecords(profileId);
@@ -439,6 +458,16 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
         if (o.opened === undefined) return { ok: false, refusal: refusalOf(o.refused) };
         return { ok: true, bytes: fromHex(o.opened.plaintext), mediaType: o.opened.mediaType, ...(o.opened.filename ? { filename: o.opened.filename } : {}) };
       },
+    },
+    groups: {
+      available: () => core.call({ cmd: "groups_available" }) === true,
+      do: (ctx, intent) => exclusive(async () => groupStep(await groupCall({ cmd: "group_do", ctx: ctxOf(ctx), intent }), ctx)),
+      receive: (ctx, from, wire) => exclusive(async () => groupStep(await groupCall({ cmd: "group_receive", ctx: ctxOf(ctx), from, wire }), ctx)),
+      list: (ctx) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "groups" } }) as { groups?: GroupSummaryView[] }).groups ?? [],
+      get: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "group", conversationId } }) as { group?: GroupDetailView }).group ?? null,
+      invites: (ctx) => ((groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "invites" } }) as { invites?: (GroupInviteView & { releases?: unknown; intentId?: unknown })[] }).invites ?? [])
+        .map(({ releases: _r, intentId: _i, ...rest }) => rest),
+      messages: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "messages", conversationId } }) as { messages?: GroupMessageView[] }).messages ?? [],
     },
     flush,
     async idle() {
