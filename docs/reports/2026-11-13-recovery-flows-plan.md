@@ -184,3 +184,19 @@ A session that reads those four domains (about 40 documents) commits them with `
 
 **Handoff for the 11 TS mirror files.** Backup patch: `recovery-slice3-ts-mirrors.patch` in the shared side-session notes folder (`git apply` from `om/`). Domains to read in full before committing them (from `design_gate.py needs apps packages`):
 `client_endpoint_distribution`, `constitution_governance`, `provider_deployment_supply_chain`, `ux_accessibility_personalization`, plus the six Core domains (already listed above). Then verify (`pnpm exec vitest run src` in om-ui, apps/web, om-core-harness, om-platform-api; `pnpm exec tsc -b apps/web`) and commit with `Design-Read` listing all ten domains.
+
+## TS mirrors: reading ledger and per-file split (2026-11-13, second attempt)
+
+**Design sources read this session, in full:** `client_endpoint_distribution`, `ux_accessibility_personalization`, `discovery_first_contact`, `relay_reachability` (all listed docs and ADRs). **Not read:** `identity_control_recovery`, `crypto_1to1`, `metadata_privacy`, `time_ordering_events`, `constitution_governance`, `provider_deployment_supply_chain` (about 720 KB). Nothing was committed from the TS mirrors.
+
+Per-file domains (`design_gate.py needs <file>`):
+
+| Files | Domains | Unread among them |
+|---|---|---|
+| `apps/web/src/copy/en.ts`, `en.test.ts` | client_endpoint, discovery, relay, ux | none |
+| `packages/om-ui/src/actions/registry.test.ts`, `devices/__fixtures__/copy.ts` | client_endpoint, discovery, ux | none |
+| `om-core-harness` `devices.ts`, `harness.ts`; `om-core-wasm` `test-support.ts`, `types.ts`; `om-platform-api` `core/devices.ts`, `core/intents.ts` | crypto_1to1, discovery, identity, metadata, relay, time_ordering | crypto_1to1, identity, metadata, time_ordering |
+| `packages/om-provider-http/src/provider.ts` | constitution, discovery, metadata, provider, relay | constitution, metadata, provider |
+
+**Why the four read-only-domain UI files were not committed alone:** they import `RecoveryRequestState` with `stale` (`om-platform-api/src/core/devices.ts`) and the `ConfirmRecovery` destructive kind (`intents.ts`), both in the unread-domain group, so at HEAD they fail tsc and their tests. A green commit needs those two files too, which need identity, crypto, metadata and time_ordering. Smallest committable set: the UI files + `devices.ts` + `intents.ts` + the other core-side mirrors that depend on them; its unread domains are the four above. `provider.ts` additionally needs constitution and provider.
+Suggested order for a later session: read identity_control_recovery, crypto_1to1, metadata_privacy, time_ordering_events (~460 KB), commit everything except `provider.ts` with Design-Read listing the eight domains, then read constitution and provider docs for `provider.ts`.
