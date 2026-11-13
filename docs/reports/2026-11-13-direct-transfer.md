@@ -131,3 +131,52 @@ A third session was asked to read the six domains in full (about 360 KB of docum
 Residual, unchanged: a message with an `expiry` can outlive its direct offer's use only as far as the 7-day lapse; the offer never extends a message's `expiry`.
 
 Commit carries `Design-Read` for all six domains and `Design-Departures: none`. The earlier "hold if the operator rejects G-O1" condition is cleared: the operator approved G-O1.
+
+## Wasm/TS/UI status (2026-11-14; code built and tested, NOT committed)
+
+### Design sources read
+
+Read in full by this session: AGENTS.md "Design gate"; this report (all of it); [`2026-11-04-attachments-core-status.md`](2026-11-04-attachments-core-status.md); [`AGENT_UX_BRIEF.md`](../ux-design/AGENT_UX_BRIEF.md) (sections 7 words, 8 accessibility, 9 definition of done in particular); the code it touches (`crates/om-wasm/src/bridge.rs`, `packages/om-core-wasm/src`, `packages/om-platform-api/src/core`, the harness, `packages/om-ui/src/conversations`, the Action Registry, `apps/web/src/copy/en.ts`). **Not read (the committing session must read them before committing):** every document and ADR that `python3 tools/design_gate.py needs` prints for the paths below (domains `client_endpoint_distribution`, `crypto_1to1`, `discovery_first_contact`, `identity_control_recovery`, `metadata_privacy`, `relay_reachability`, `time_ordering_events`, `ux_accessibility_personalization`); in particular `CONTENT_AND_MICROCOPY_VOICE`, `UI_CORE_PLATFORM_CONTRACT`, `ACCESSIBILITY_AND_INPUT` and `PRODUCT_AND_UX_PRINCIPLES` were not re-read for the new copy, which rests on the brief's section 7 and the existing copy tests.
+
+### What was built (all uncommitted)
+
+- **Wasm bridge** (`crates/om-wasm/src/bridge.rs`): commands `prepare_direct_attachment`, `arm_direct_offer`, `direct_serve` (answers `{frames, commit}`; the commit is the one durable effect, "delivered"), `direct_pump`, `direct_fetch_start`, `direct_fetch_handle`, `direct_fetch_progress`, `direct_fetch_open`. The two intents and two queries need no command: they pass through `dispatch` and `query`. `DirectFrame` has a JSON shape written in the bridge only (`{kind: fetch_blob|begin|chunk|end|ack|error, ...}`, bytes as hex, camelCase); `om-core` is untouched and there is still no wire codec.
+- **TS binding** (`packages/om-core-wasm`): `DirectFrame`, `DirectFetchProgress` types; `attachments.prepareDirect` and `attachments.arm`; a `direct` object (`serve`, `pump`, `fetchStart`, `fetchHandle`, `fetchProgress`, `fetchOpen`) for a future host driver. No channel and no driver.
+- **Type mirrors** (`packages/om-platform-api`): five new `AttachmentState` values, `AttachmentPlanView`, `DirectOfferView`, intents `SendAttachmentsDirect` and `WithdrawDirectOffer` (in `INTENT_KINDS`), queries `PlanAttachment` and `GetDirectOffers` (in `QueryResultMap`), optional `AttachmentApi.prepareDirect`. Harness (`packages/om-core-harness`): the same intents, queries and `prepareDirect`, so UI tests run against it.
+- **UI** (`packages/om-ui`, copy in `apps/web/src/copy/en.ts`): Action Registry actions `send-attachments-direct` (as strict as `send-attachments`) and `withdraw-direct-offer`; `ConversationServices.directChannel?: boolean`; Composer asks Core (`PlanAttachment`) for a file over the service's ceiling and says it was not sent; file chips show the five states and a "Take it back" button while an offer waits or transfers; `AttachmentCopy.direct` strings.
+
+### Decisions (please review)
+
+- **U1, conservative wording when no direct channel exists (the case today).** There is no transport (D1) and no host driver, so the web app leaves `directChannel` unset and the UI never offers or promises sending straight to them. A too-big file is refused before it is read or sent, with: "This file is too big to send with your delivery service, so it was not sent. It takes files up to N. Sending a file straight to them is not available on this device yet." An outgoing offer in state `waiting_for_recipient` reads "Not sent. Sending straight to them is not available on this device yet." (never "waiting" for something that cannot happen); an incoming `remote_direct` reads "They offered this file straight from their device. This device cannot receive it yet." and has no download button. With `directChannel: true` (a future host) the same file is staged, the refusal adds "You can send it straight to them while they are online. Nothing is kept for later.", the tray labels it, and the states read "Waiting for them to be online", "Sending to them now", "They have it. Only their device holds it; nothing is kept for later.", "No longer offered", "Available while they are online".
+- **U2:** the web copy for "too big" changed from "This file is too big to send right now." to the delivery-service wording above only when Core's plan is `offer_direct`; a file over Core's own 16 MiB ceiling, or a failed plan query, keeps the old words. The Chromium e2e expectation was updated accordingly.
+- **U3:** a file sent straight to them goes in a message of its own (Core's `SendAttachmentsDirect` takes only direct-prepared files); mixing is refused with a plain sentence. A voice note is never direct.
+- **U4:** "Take it back" is offered whether or not a channel exists (withdrawing is always safe).
+- **U5:** the copy says "device", never "channel", "transport", "peer", "LAN" or "WAN"; "delivery service" is the glossed term. The sentence "Only their device holds it; nothing is kept for later" is the plain form of AT-06 / G-O4 (`delivered_locally` is that device only).
+- No new crypto, no new label, no ADR needed; nothing departs from a read normative text, but see "Not read" above.
+
+### Tests and checks
+
+- `make core-wasm` (release wasm build and the core guard) passes; `make core-check` passes, including `cargo clippy -p om-wasm --target wasm32-unknown-unknown -D warnings`, run with `export PATH=/opt/homebrew/opt/rustup/bin:$PATH`.
+- `packages/om-core-wasm`: 3 new tests through the real wasm Core over a loopback frame channel (6 KB-class file refused for the spool, planned `offer_direct`, message at once, `remote_direct`/`waiting_for_recipient`, transfer equal, `delivered_locally`, nothing stored; a channel that drops after the handshake, restart shows `needsFile`, only the same file re-arms; withdraw serves nothing). The drop test checks the handshake and re-arm, not a byte-exact mid-file resume (the Rust suite `direct_engine` pins that). All 24 tests of the package pass (`pnpm exec vitest run --exclude 'dist/**'`; a bare `src` filter also matches a stale `dist/` copy of `ui.test.js`, which fails to resolve an import: pre-existing, ignored build output).
+- `packages/om-ui` (conversations and actions: 67 pass, 11 of them new: direct offer end to end with axe, over-ceiling file, mixing refusal, seven state renderings with axe, registry strictness), `packages/om-platform-api` (9), `packages/om-core-harness` (29), `apps/web` (360 pass, 2 skipped; the copy tests, including the voice rules, pass).
+- `pnpm exec tsc -b apps/web` clean. Chromium e2e `attachments` spec passes (oversize now shows the new words). `python3 tools/om_docs.py fmt` (0 unresolved links) and `make check` pass.
+- Existing failures not from this change: `pnpm lint` reports one error in `packages/om-provider-http/src/provider.ts:441` and `pnpm typecheck` fails in `infra/cloudflare-home` (`cloudflare:workers` types); both reproduce without these edits.
+
+### What remains
+
+1. A transport and a host driver (D1, `local_delivery`): something that sets `directChannel`, maps a channel to `DirectFrame`, calls `direct.serve`/`pump` on the sender and `fetchStart`/`fetchHandle`/`fetchOpen` on the receiver, re-arms offers with `attachments.arm` at start (the UI does not keep the file, so after a restart an offer shows no "needs the file" prompt yet) and a download button for `remote_direct`.
+2. `GetDirectOffers` is typed and in the harness but no screen uses it (no "files I am offering" list, no expiry text, no `needsFile` prompt).
+3. The Action Registry and `ACTION_TO_CORE_INTENT_MAP` document: the two new actions are not yet listed there (docs not touched).
+4. Brief update: section 7/9 of [`AGENT_UX_BRIEF.md`](../ux-design/AGENT_UX_BRIEF.md) is unchanged; add the U1 wording rule there when the committing session has read the voice document.
+5. Firefox/WebKit e2e not run.
+
+### For the committing session(s)
+
+Two path groups; the domains differ, so split into two commits if preferred:
+
+```
+python3 tools/design_gate.py needs crates/om-wasm packages/om-core-wasm packages/om-platform-api packages/om-core-harness
+python3 tools/design_gate.py needs packages/om-ui apps/web
+```
+
+The first prints `client_endpoint_distribution`, `crypto_1to1`, `discovery_first_contact`, `identity_control_recovery`, `metadata_privacy`, `relay_reachability`, `time_ordering_events` (read in full by the fourth session for the Rust side except `client_endpoint_distribution`); the second additionally `ux_accessibility_personalization`. Run each and read what it prints before committing; trailers `Design-Read: <the printed domain ids>` and `Design-Departures: none` (hold if the operator rejects U1). Files: `crates/om-wasm/src/bridge.rs`; `packages/om-core-wasm/src/{attachments.test.ts,index.ts,runtime.ts,types.ts}`; `packages/om-platform-api/src/core/{attachments,client,intents,views}.ts`; `packages/om-core-harness/src/harness.ts`; `packages/om-ui/src/actions/{registry.ts,registry.test.ts}`; `packages/om-ui/src/conversations/{Attachments.tsx,Composer.tsx,copy.ts,services.ts,attachments.test.tsx,__fixtures__/copy.ts}`; `apps/web/src/copy/en.ts`; `apps/web/e2e/attachments.spec.ts`.
