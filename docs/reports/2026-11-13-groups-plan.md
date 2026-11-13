@@ -95,3 +95,9 @@ read roughly 40 percent of it, which is why no code was committed (rule: a domai
   2. Then commit with `Design-Read: crypto_1to1, discovery_first_contact, identity_control_recovery, metadata_privacy, relay_reachability, time_ordering_events` and `Design-Departures: none` (slice 1 amends nothing).
   3. Build slice 1 as listed above. Existing Core to extend: `crates/om-core/src/state.rs` (`AppState` persistence), `control.rs` (ACS verification, reused for member eligibility), `crates/om-codec/src/schema.rs` (check that objects 28 to 31 decode; the large-body note at line 320 already names the group objects).
   4. Gotchas carried from earlier sessions: `pnpm exec vitest run src` (not bare `vitest run`) in `packages/om-ui`; long messages (8 KB) are refused by `SendMessage` in loopback tests, use about 1.5 KB; the design gate for `crates/` plus `apps/web` is about 14 domains, so batch Core and web work in one session.
+
+## Coordinating-session rulings (2026-11-13, from the design and the constitution; operator may overrule)
+
+- **G1:** confirmed. No interim non-MLS group mode: [`CRYPTOGRAPHY_AND_AGILITY.md`](../architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md) "per conversation type" rule 5 forbids a parallel pairwise-fanout group mode. Slice 1 is the typed `GroupControlState` model (validators, reducer, persistence, `tests/groups.rs`), with no messaging.
+- **G7:** the provisional member cap of 32 stands as a policy constant (not wire), so it can change without a protocol change.
+- **G3:** decide at slice 3, after reading ADR-0128 and the Home API documents. Constitution direction: no OM-run service, so KeyPackages travel on the person's own delivery service (an additive Home endpoint, or the 1:1 channel), never a directory. Needs an ADR only if it changes audited text.

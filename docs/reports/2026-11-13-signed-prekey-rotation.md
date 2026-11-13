@@ -199,9 +199,9 @@ key 22, so single-slot state loads as a one-element list (key 21 absent reads as
 Tests: `two_rotations_keep_each_epoch_until_its_own_bundle_expires`, `several_previous_epochs_survive_a_restart_and_old_single_slot_state_loads_as_a_list`,
 and the updated rotation/overlap tests in `crates/om-core/tests/prekey_rotation.rs`.
 
-Design sources read this session: in full, `ASYNC_KEY_MATERIAL.md`, `ONE_TO_ONE_SESSION_MANAGEMENT.md`, `CANONICAL_ENCODING.md`, `TIME_AND_EXPIRY_SEMANTICS.md`;
-`CRYPTOGRAPHY_AND_AGILITY.md`, `PRODUCTION_CRYPTO_INTEGRATION_GATE.md` and `MULTI_DEVICE_SYNC.md` only in part (opening sections and a keyword search for prekey/epoch/rotation);
-`EVENT_MODEL.md`, `MESSENGER_BASELINE_V1.md` and the listed ADRs not read (this report's extract of ADR-0140/0118/0120 was relied on).
+Design sources read this session: in full, [`ASYNC_KEY_MATERIAL.md`](../architecture/crypto/ASYNC_KEY_MATERIAL.md), [`ONE_TO_ONE_SESSION_MANAGEMENT.md`](../architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md), [`CANONICAL_ENCODING.md`](../architecture/crypto/CANONICAL_ENCODING.md), [`TIME_AND_EXPIRY_SEMANTICS.md`](../architecture/events/TIME_AND_EXPIRY_SEMANTICS.md);
+[`CRYPTOGRAPHY_AND_AGILITY.md`](../architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md), [`PRODUCTION_CRYPTO_INTEGRATION_GATE.md`](../architecture/crypto/PRODUCTION_CRYPTO_INTEGRATION_GATE.md) and [`MULTI_DEVICE_SYNC.md`](../architecture/crypto/MULTI_DEVICE_SYNC.md) only in part (opening sections and a keyword search for prekey/epoch/rotation);
+[`EVENT_MODEL.md`](../architecture/events/EVENT_MODEL.md), [`MESSENGER_BASELINE_V1.md`](../architecture/events/MESSENGER_BASELINE_V1.md) and the listed ADRs not read (this report's extract of ADR-0140/0118/0120 was relied on).
 
 Remaining: a typed compromise-rotation intent was **not** added. It needs a new `IntentBody` variant plus its codec, wasm and TS types and UI contract, which is
 more than a small change over `Tx::rotate_prekeys`; the entry point is still that method. Also still open: an idle device rotates at its next activity (no timer);
