@@ -3175,6 +3175,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0187-mls-engine-on-wasm-unforked-openmls-with-host-entropy-and-clock.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -4758,6 +4765,13 @@
     },
     {
       "path": "docs/reports/2026-11-13-signed-prekey-rotation.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-14-mls-wasm-decision.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
