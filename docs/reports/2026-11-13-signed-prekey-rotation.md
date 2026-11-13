@@ -137,3 +137,12 @@ in the working tree** (tested green): `infra/cloudflare-home/src/keys.ts` (Home 
 first contact could fail until old items drain. Next step: a session that reads those two domains in full commits those four files with
 `Design-Read: constitution_governance, provider_deployment_supply_chain, relay_reachability, metadata_privacy, discovery_first_contact` and
 `Design-Departures: D28`, then deploys the Home per [`2026-10-28-relay-status.md`](2026-10-28-relay-status.md).
+
+### Committed and deployed (2026-11-13)
+
+The four held files were committed after reading the five domains in full (`constitution_governance`, `provider_deployment_supply_chain`, `relay_reachability`,
+`metadata_privacy`, `discovery_first_contact`, with their listed ADRs), trailers `Design-Departures: D28`. Tests re-run: `key-rotation.test.ts` 1/1,
+`provider.test.ts` 29/29. `om-home-lonunjie` deployed with a `cf-mint` token (Workers Scripts Write, 900 s, never printed or stored), version
+`7902df63-ec10-42f4-bd36-c6fd6387842d`; no binding, variable or migration change (the `gen` column is added in place on first use). Live: capabilities healthy
+with the same features, and `DELETE /v1/keys/bundles/{device}/generations/{n}` with a forged capability answers 401 (route present). A real rotation against
+the live Home has not been run; that waits for a device 7 days old.
