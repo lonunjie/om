@@ -294,6 +294,15 @@ pub enum IntentBody {
     RequestDeviceLink {
         link: String,
     },
+    /// On a profile with no device and no account: the person who lost every device enters the recovery key (as shown
+    /// at creation, groups of four, any case, spaces or dashes) and the Home address. Core checks the key's checksum
+    /// and keeps it, with the address, in the restricted recovery state (RECOVERY_AND_BACKUP_POLICY.md 10.3). It
+    /// grants no authority and sends nothing; fetching the RecoveryRecord and requesting recovery need Home
+    /// operations the Home API does not provide yet.
+    BeginRecovery {
+        recovery_key: String,
+        home: String,
+    },
     ApproveDeviceLink {
         request_id: String,
         confirmation: ConfirmationToken,
@@ -368,6 +377,7 @@ impl IntentBody {
             IntentBody::AcceptInvitation { .. } => "AcceptInvitation",
             IntentBody::OfferDeviceLink => "OfferDeviceLink",
             IntentBody::RequestDeviceLink { .. } => "RequestDeviceLink",
+            IntentBody::BeginRecovery { .. } => "BeginRecovery",
             IntentBody::ApproveDeviceLink { .. } => "ApproveDeviceLink",
             IntentBody::RejectDeviceLink { .. } => "RejectDeviceLink",
             IntentBody::RevokeDevice { .. } => "RevokeDevice",
@@ -1005,6 +1015,20 @@ pub struct RecoveryStatusView {
     pub activation_delay_ms: u64,
     pub recovery_key_saved: bool,
     pub requests: Vec<RecoveryRequestView>,
+    /// Set only on a recovering device that has entered its key (`BeginRecovery`): the restricted recovery state.
+    /// Absent otherwise, so existing readers are unaffected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovering: Option<RecoveringView>,
+}
+
+/// The restricted recovery state of a device that has entered a recovery key but has no account yet.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveringView {
+    /// The Home address the person entered.
+    pub home: String,
+    /// The device cannot send as the identity (always true here); the record and the request are still to come.
+    pub restricted: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

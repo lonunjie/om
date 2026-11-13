@@ -101,8 +101,52 @@ impl World {
             .map(|v| unhex(v.as_str().unwrap()).unwrap())
             .collect()
     }
+    fn links(&self) -> Vec<control::RecoveryLinkEvidence> {
+        let h = |v: &serde_json::Value, k: &str| unhex(v[k].as_str().unwrap()).unwrap();
+        self.app()["recoveryLinks"]
+            .as_array()
+            .map(|a| a.as_slice())
+            .unwrap_or_default()
+            .iter()
+            .map(|l| control::RecoveryLinkEvidence {
+                child_hash: h(l, "childHash").try_into().unwrap(),
+                policy: h(l, "policy"),
+                next_policy: h(l, "nextPolicy"),
+                request: h(l, "request"),
+                elapsed_seconds: l["elapsedSeconds"].as_u64().unwrap(),
+            })
+            .collect()
+    }
     fn head(&self) -> Acs {
-        control::verify_chain(&self.hexes("acsChain"), &self.hexes("acsCredentials")).unwrap()
+        control::verify_chain_with(
+            &self.hexes("acsChain"),
+            &self.hexes("acsCredentials"),
+            &self.links(),
+        )
+        .unwrap()
+    }
+    /// Rewrite the stored app state with `f`, then reopen the profile (a restart over the edited record).
+    fn rewrite(&mut self, f: impl FnOnce(&mut serde_json::Value)) {
+        let rec = self
+            .rt
+            .store
+            .records("p")
+            .into_iter()
+            .find(|r| r.key == "state")
+            .unwrap();
+        let v = om_core::crypto::cbor::decode(&rec.value).unwrap();
+        let mut app: serde_json::Value =
+            serde_json::from_slice(v.get(1).unwrap().b().unwrap()).unwrap();
+        f(&mut app);
+        let new = om_core::crypto::cbor::encode(&om_core::crypto::cbor::V::M(vec![
+            (0, v.get(0).unwrap().clone()),
+            (
+                1,
+                om_core::crypto::cbor::V::B(serde_json::to_vec(&app).unwrap()),
+            ),
+        ]));
+        self.rt.store.replace_record("p", "state", new);
+        self.ctx = self.rt.restart().remove(0);
     }
     fn policy(&self) -> RecoveryPolicy {
         RecoveryPolicy::from_body(&unhex(self.app()["recoveryPolicy"].as_str().unwrap()).unwrap())
@@ -695,4 +739,267 @@ fn a_bad_successor_is_ignored() {
     b.child[10] ^= 1; // corrupted signature
     w.rt.recovery_observe_successor(&w.ctx, &id, &b, &mono(1, DELAY_MS));
     assert!(w.rec(&id)["successor"].is_null());
+}
+
+// ------------------------------------------------------------------------------- slice 4: chain, ruling, tests
+
+#[test]
+fn a_cosigned_completion_enters_the_chain_rotates_the_policy_and_replays() {
+    let mut w = world("obs-chain-cosign");
+    let before = w.head();
+    let req = w.request();
+    let id = World::digest(&req, &w.policy());
+    w.observe(&req, &mono(1, 0));
+    let b = w.bundle();
+    let next = b.next_policy.clone();
+    w.rt.recovery_observe_successor(&w.ctx, &id, &b, &mono(1, 60));
+    assert_eq!(w.confirm(&id), Some(OutcomeClass::Committed));
+    // The successor is the new head of the chain; the new device is the sole controller; the policy rotated.
+    assert_eq!(w.hexes("acsChain").len(), 2);
+    let head = w.head();
+    assert_eq!(head.previous, Some(before.hash()));
+    assert_eq!(head.control, BTreeSet::from([w.new_dev.device_id]));
+    assert!(head.revoked.is_superset(&before.control));
+    assert_eq!(
+        unhex(w.app()["recoveryPolicy"].as_str().unwrap()).unwrap(),
+        next
+    );
+    assert_eq!(head.recovery_commitment, Some(w.policy().hash()));
+    assert_eq!(w.policy().epoch(), 1);
+    // The link is only replayable with this verifier's own evidence.
+    assert!(control::verify_chain(&w.hexes("acsChain"), &w.hexes("acsCredentials")).is_err());
+    assert_eq!(w.app()["recoveryLinks"].as_array().unwrap().len(), 1);
+    // It survives a restart (the status query re-verifies the stored chain).
+    w.ctx = w.rt.restart().remove(0);
+    assert_eq!(w.head().hash(), head.hash());
+    assert_eq!(
+        state_of(&w.status(), &id),
+        RecoveryRequestStateCode::Completed
+    );
+    // This device is no longer a controller: it can neither stop nor confirm anything (nothing is waiting either).
+    assert_eq!(w.veto(&id), rejected(RejectReason::Unauthorized));
+}
+
+#[test]
+fn a_completion_after_the_delay_also_enters_the_chain() {
+    let mut w = world("obs-chain-delay");
+    let req = w.request();
+    let id = World::digest(&req, &w.policy());
+    w.observe(&req, &mono(1, 0));
+    w.tick(&mono(1, DELAY_MS));
+    let b = w.bundle();
+    w.rt.recovery_observe_successor(&w.ctx, &id, &b, &mono(1, DELAY_MS + 1));
+    assert_eq!(w.rec(&id)["state"], "completed");
+    assert_eq!(w.hexes("acsChain").len(), 2);
+    assert_eq!(w.head().control, BTreeSet::from([w.new_dev.device_id]));
+    assert_eq!(w.links()[0].elapsed_seconds, 72 * 3600);
+}
+
+#[test]
+fn a_tampered_link_evidence_makes_the_chain_unverifiable_not_wrongly_verified() {
+    let mut w = world("obs-chain-tamper");
+    let req = w.request();
+    let id = World::digest(&req, &w.policy());
+    w.observe(&req, &mono(1, 0));
+    let b = w.bundle();
+    w.rt.recovery_observe_successor(&w.ctx, &id, &b, &mono(1, 60));
+    assert_eq!(w.confirm(&id), Some(OutcomeClass::Committed));
+    let mut ev = w.links();
+    ev[0].request[3] ^= 1;
+    assert!(
+        control::verify_chain_with(&w.hexes("acsChain"), &w.hexes("acsCredentials"), &ev).is_err()
+    );
+    // An empty evidence list (a peer's view) refuses the recovery link too.
+    assert!(
+        control::verify_chain_with(&w.hexes("acsChain"), &w.hexes("acsCredentials"), &[]).is_err()
+    );
+}
+
+#[test]
+fn n4_controllers_one_cosign_is_below_the_majority_and_is_refused_ruling_a() {
+    // RECOVERY 10.3 "one co-sign completes immediately" and 10.4 "one vote toward floor(N/2)+1" cannot both hold for
+    // N = 4 (recovery + one co-signer = 2 < 3). Coordinating ruling (a): keep the majority rule, reject, record it.
+    let mut w = world("obs-n4");
+    let _others = w.more_controllers(3);
+    let req = w.request();
+    let id = World::digest(&req, &w.policy());
+    w.observe(&req, &mono(1, 0));
+    let b = w.bundle();
+    w.rt.recovery_observe_successor(&w.ctx, &id, &b, &mono(1, 0));
+    assert_eq!(w.confirm(&id), rejected(RejectReason::Conflict));
+    assert_eq!(w.rec(&id)["state"], "waiting");
+    assert_eq!(w.hexes("acsChain").len(), 2); // genesis + the controller link only: nothing recovered
+    // It falls to the delay path: after the full verifier-local interval, with no veto, it completes (RECOVERY 10.3/10.7).
+    w.tick(&mono(1, DELAY_MS));
+    assert_eq!(w.rec(&id)["state"], "completed");
+    assert_eq!(w.hexes("acsChain").len(), 3);
+}
+
+#[test]
+fn a_veto_by_a_quarantined_self_is_refused() {
+    let mut w = world("obs-quarantined-self");
+    let devs = w.more_controllers(2);
+    let req = w.request();
+    let id = World::digest(&req, &w.policy());
+    w.observe(&req, &mono(1, 0));
+    // The two other controllers (a majority of three) quarantine this device.
+    let head = w.head();
+    let me = *head
+        .control
+        .iter()
+        .find(|c| devs.iter().all(|d| d.device_id != **c))
+        .unwrap();
+    let mut child = head.clone();
+    child.generation += 1;
+    child.previous = Some(head.hash());
+    child.quarantined.insert(me);
+    let signed = control::sign_acs(
+        &child.body(),
+        &[
+            (&devs[0].device_id, &devs[0].signer),
+            (&devs[1].device_id, &devs[1].signer),
+        ],
+        &mut w.rng,
+    );
+    assert!(control::verify_successor(&head, &signed, &w.hexes("acsCredentials")).is_ok());
+    w.rewrite(|app| {
+        app["acsChain"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!(om_core::crypto::hex(&signed)));
+    });
+    assert_eq!(w.veto(&id), rejected(RejectReason::Unauthorized));
+    assert_eq!(w.confirm(&id), rejected(RejectReason::Unauthorized));
+}
+
+#[test]
+fn a_veto_before_its_request_is_dropped_and_counts_when_the_host_redelivers_it() {
+    // Decision (recorded in the plan report): a veto naming a request this verifier has not tracked is ignored with no
+    // state; the Home redelivers (RecoveryVetoFanout is idempotent), so the veto counts once the request is observed.
+    let mut w = world("obs-veto-first");
+    let other = w.second_controller();
+    let req = w.request();
+    let id = World::digest(&req, &w.policy());
+    let v = w.veto_by(&other, &req);
+    w.rt.recovery_observe_veto(&w.ctx, &v, &mono(1, 0));
+    assert_eq!(w.tracked(), 0);
+    w.observe(&req, &mono(1, 1));
+    assert_eq!(w.rec(&id)["state"], "waiting");
+    w.rt.recovery_observe_veto(&w.ctx, &v, &mono(1, 2)); // redelivery
+    assert_eq!(w.rec(&id)["state"], "vetoed");
+}
+
+#[test]
+fn a_profile_without_a_matching_stored_policy_reports_pending() {
+    let mut w = world("obs-legacy");
+    let ok: RecoveryStatusView = w.status();
+    // The recovery key is not yet confirmed stored, so even a fresh profile is pending until it is.
+    assert_eq!(ok.policy, RecoveryPolicyState::Pending);
+    let op = "stored";
+    let out = w.intent(
+        op,
+        IntentBody::ConfirmRecoveryKeyStored {
+            key_operation_id: "create".into(),
+        },
+    );
+    assert_eq!(out, Some(OutcomeClass::Committed));
+    assert_eq!(w.status().policy, RecoveryPolicyState::On);
+    // A profile made before recovery policies existed has no stored policy body: pending, however saved the key is.
+    w.rewrite(|app| {
+        app.as_object_mut().unwrap().remove("recoveryPolicy");
+    });
+    let legacy = w.status();
+    assert_eq!(legacy.policy, RecoveryPolicyState::Pending);
+    assert!(legacy.recovery_key_saved);
+    // A stored policy that the head does not commit to (another epoch) is pending as well.
+    let other = RecoveryPolicy::default_for(w.root.auth_public_key(1), 1).body();
+    w.rewrite(|app| app["recoveryPolicy"] = serde_json::json!(om_core::crypto::hex(&other)));
+    assert_eq!(w.status().policy, RecoveryPolicyState::Pending);
+}
+
+// ------------------------------------------------------------------------------- recovering device (BeginRecovery)
+
+#[test]
+fn begin_recovery_keeps_the_checked_key_in_a_restricted_state_with_no_authority() {
+    // Person A made an identity and saved the recovery key; on a new device they type it back (lower case, spaces).
+    let net = LoopbackNetwork::default();
+    let mut a = Runtime::new("begin-a", &net);
+    let actx = a.open("p");
+    a.dispatch(
+        &actx,
+        "create",
+        IntentBody::CreateIdentityProfile { label: "Me".into() },
+    );
+    let key: RecoveryKeyView = a
+        .query::<Option<RecoveryKeyView>>(Query::GetRecoveryKey {
+            ctx: actx.clone(),
+            key_operation_id: "create".into(),
+        })
+        .unwrap();
+    let typed = key.groups.join(" ").to_lowercase();
+
+    let mut b = Runtime::new("begin-b", &net);
+    let ctx = b.open("q");
+    let begin = |b: &mut Runtime, op: &str, k: &str, home: &str| {
+        b.dispatch(
+            &ctx,
+            op,
+            IntentBody::BeginRecovery {
+                recovery_key: k.into(),
+                home: home.into(),
+            },
+        );
+        b.outcome(&ctx, op)
+    };
+    let bad = Some(OutcomeClass::Rejected {
+        reason: RejectReason::Invalid,
+    });
+    // A wrong check, a short key and a non-URL are refused with no state.
+    let mut wrong = key.groups.clone();
+    wrong[0] = if wrong[0].starts_with('A') {
+        "BBBB".into()
+    } else {
+        "AAAA".into()
+    };
+    assert_eq!(
+        begin(&mut b, "o1", &wrong.join(" "), "https://home.example"),
+        bad
+    );
+    assert_eq!(
+        begin(
+            &mut b,
+            "o2",
+            &key.groups[..13].join(" "),
+            "https://home.example"
+        ),
+        bad
+    );
+    assert_eq!(begin(&mut b, "o3", &typed, "not a url"), bad);
+    let st: RecoveryStatusView = b.query(Query::GetRecoveryStatus { ctx: ctx.clone() });
+    assert!(st.recovering.is_none());
+    // The right key and a Home address: the restricted recovery state, no authority, still pending.
+    assert_eq!(
+        begin(&mut b, "o4", &typed, "https://home.example"),
+        Some(OutcomeClass::Committed)
+    );
+    let st: RecoveryStatusView = b.query(Query::GetRecoveryStatus { ctx: ctx.clone() });
+    assert_eq!(
+        st.recovering,
+        Some(RecoveringView {
+            home: "https://home.example".into(),
+            restricted: true
+        })
+    );
+    assert_eq!(st.policy, RecoveryPolicyState::Pending);
+    // The root is kept for the request to come; a second attempt conflicts.
+    assert_eq!(
+        begin(&mut b, "o5", &typed, "https://home.example"),
+        Some(OutcomeClass::Rejected {
+            reason: RejectReason::Conflict
+        })
+    );
+    // It survives a restart.
+    let ctx2 = b.restart().remove(0);
+    let st: RecoveryStatusView = b.query(Query::GetRecoveryStatus { ctx: ctx2 });
+    assert!(st.recovering.is_some());
 }

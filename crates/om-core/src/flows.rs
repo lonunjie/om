@@ -191,6 +191,32 @@ fn recovery_groups(root: &[u8; 32]) -> Vec<String> {
         .collect()
 }
 
+/// The inverse of [`recovery_groups`]: the 32-byte RecoveryRoot from what the person typed (case, spaces and dashes
+/// ignored), or `None` unless it is exactly 56 base32 characters whose 3-byte check matches.
+pub(crate) fn parse_recovery_key(text: &str) -> Option<[u8; 32]> {
+    const A: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    let chars: Vec<char> = text
+        .chars()
+        .filter(|c| !c.is_whitespace() && *c != '-')
+        .map(|c| c.to_ascii_uppercase())
+        .collect();
+    if chars.len() != 56 {
+        return None;
+    }
+    let mut bits = Vec::with_capacity(280);
+    for c in chars {
+        let v = A.find(c)? as u8;
+        (0..5).rev().for_each(|i| bits.push(v >> i & 1));
+    }
+    let raw: Vec<u8> = bits
+        .chunks(8)
+        .map(|b| b.iter().fold(0u8, |n, x| n << 1 | x))
+        .collect();
+    let root: [u8; 32] = raw[..32].try_into().ok()?;
+    let chk = crypto::sha256(&[b"OM-RECOVERY-KEY-DISPLAY-CHECK", &root]);
+    (raw[32..35] == chk[..3]).then_some(root)
+}
+
 // ---------------------------------------------------------------------------------------------- transaction
 
 /// The deposit call for `route`. A legacy (pass 2) destination carries no `relay_uri`: its capability is the bare
@@ -614,7 +640,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .iter()
             .map(|c| unhex(c).ok())
             .collect::<Option<_>>()?;
-        let head = control::verify_chain(&chain, &creds).ok()?;
+        let head = control::verify_chain_with(&chain, &creds, &self.st.app.link_evidence()).ok()?;
         Some((head, chain, creds))
     }
 
@@ -808,6 +834,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             | IntentBody::PinNavigationTarget { .. } => OutcomeClass::Committed,
             IntentBody::OfferDeviceLink => self.offer_device_link(op),
             IntentBody::RequestDeviceLink { link } => self.request_device_link(op, link),
+            IntentBody::BeginRecovery { recovery_key, home } => {
+                self.begin_recovery(op, recovery_key, home)
+            }
             IntentBody::ApproveDeviceLink { request_id, .. } => {
                 self.approve_device_link(request_id)
             }

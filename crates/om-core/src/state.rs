@@ -721,6 +721,14 @@ pub struct AppState {
     /// records. The verifier-local interval lives here (ADR-0131/0147/0154).
     #[serde(default)]
     pub recovery_requests: BTreeMap<Hex, RecoveryObsRec>,
+    /// Evidence for each completed recovery link in `acs_chain` (policy, request and the interval THIS verifier
+    /// credited), so the chain can be replayed. Local, never sent to a peer. Additive.
+    #[serde(default)]
+    pub recovery_links: Vec<RecoveryLinkRec>,
+    /// Set on a profile that has no device or account yet and is waiting to recover one with a recovery key: the
+    /// restricted recovery state (RECOVERY_AND_BACKUP_POLICY.md 10.3). Additive.
+    #[serde(default)]
+    pub recovery_join: Option<RecoveryJoinRec>,
     /// Ordinary groups (scope `groups`, ADR-0177): the head `GroupControlState` per ConversationID (hex). Additive:
     /// absent in older records.
     #[serde(default)]
@@ -742,6 +750,48 @@ pub struct AppState {
     /// Additive: absent in older records.
     #[serde(default)]
     pub direct_offers: BTreeMap<Hex, DirectOfferRec>,
+}
+
+/// The restricted state of a recovering device before any account is known to it. It holds the RecoveryRoot (the
+/// secret that signs the request later) and the Home address the person gave; it holds no authority and cannot send.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveryJoinRec {
+    pub operation_id: OperationId,
+    pub root: SecretHex,
+    pub home: String,
+    pub started_ms: u64,
+}
+
+/// Stored evidence of one completed recovery link (see `control::RecoveryLinkEvidence`). All hex.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecoveryLinkRec {
+    pub child_hash: Hex,
+    pub policy: Hex,
+    pub next_policy: Hex,
+    pub request: Hex,
+    pub elapsed_seconds: u64,
+}
+
+impl AppState {
+    /// The stored recovery-link evidence in the form `control::verify_chain_with` takes (undecodable entries dropped,
+    /// which can only make the chain fail to verify).
+    pub fn link_evidence(&self) -> Vec<crate::control::RecoveryLinkEvidence> {
+        let h = |s: &str| crate::crypto::unhex(s).ok();
+        self.recovery_links
+            .iter()
+            .filter_map(|l| {
+                Some(crate::control::RecoveryLinkEvidence {
+                    child_hash: h(&l.child_hash)?.try_into().ok()?,
+                    policy: h(&l.policy)?,
+                    next_policy: h(&l.next_policy)?,
+                    request: h(&l.request)?,
+                    elapsed_seconds: l.elapsed_seconds,
+                })
+            })
+            .collect()
+    }
 }
 
 /// Where an observed recovery request stands for this verifier.

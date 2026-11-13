@@ -8,9 +8,10 @@
 //! Home timestamps, wall clocks and request fields are never read as time. Transport is injected: nothing here
 //! fetches a request; the host hands observations in.
 //!
-//! A completed recovery is recorded on the observation (`Completed`) and the verified successor is kept there. It is
-//! NOT appended to `acs_chain`: `control::verify_chain` cannot replay a recovery link yet (it needs the policy and
-//! request per link), so extending the chain would make the head unverifiable.
+//! A completed recovery is appended to `acs_chain` together with the evidence (`RecoveryLinkRec`: policy, request and
+//! this verifier's credited interval) that `control::verify_chain_with` replays; the recovery policy rotates to the
+//! child's and contacts get the new head through the ordinary account update. The evidence is local: a peer that
+//! receives the chain has no such evidence and does not accept the link (see the slice 4 status report).
 
 use super::*;
 use crate::crypto::binding::Credential;
@@ -346,9 +347,58 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
     }
 
-    /// Record a verified completion: the request is `Completed`, the signed successor is kept, every other waiting
-    /// request is dropped (the parent head it was bound to is superseded).
+    /// Record a verified completion: the signed successor joins `acs_chain` (with the evidence that lets this verifier
+    /// replay it), the recovery policy rotates to the child's, the new device's credential is kept, the request is
+    /// `Completed` and every other waiting request is dropped (the parent head it was bound to is superseded).
+    /// Contacts are told the new head by the ordinary account-update path. If the extended chain does not verify,
+    /// nothing changes.
     fn finish_recovery(&mut self, digest: &str, held: RecoverySuccessorRec) {
+        let Some(policy_hex) = self.st.app.recovery_policy.clone() else {
+            return;
+        };
+        let Some(rec) = self.st.app.recovery_requests.get(digest) else {
+            return;
+        };
+        let Ok(child) = unhex(&held.child) else {
+            return;
+        };
+        let Some(child_hash) = cbor::decode(&child)
+            .ok()
+            .and_then(|v| Acs::from_body(v.get(1).ok()?.b().ok()?).ok())
+            .map(|a| a.hash())
+        else {
+            return;
+        };
+        let link = RecoveryLinkRec {
+            child_hash: hex(&child_hash),
+            policy: policy_hex,
+            next_policy: held.next_policy.clone(),
+            request: rec.request.clone(),
+            elapsed_seconds: rec.credited_ms / 1000,
+        };
+        // Extend, re-verify the whole chain, and roll back if it does not hold.
+        let before = (
+            self.st.app.acs_chain.clone(),
+            self.st.app.acs_credentials.clone(),
+            self.st.app.recovery_links.clone(),
+        );
+        self.st.app.acs_chain.push(held.child.clone());
+        if !self.st.app.acs_credentials.contains(&held.credential) {
+            self.st.app.acs_credentials.push(held.credential.clone());
+        }
+        self.st.app.recovery_links.push(link);
+        let Some((head, _, _)) = self.acs_head().filter(|(h, _, _)| h.hash() == child_hash) else {
+            (
+                self.st.app.acs_chain,
+                self.st.app.acs_credentials,
+                self.st.app.recovery_links,
+            ) = before;
+            return;
+        };
+        self.st.app.recovery_policy = Some(held.next_policy.clone());
+        if let Some(dev) = self.st.device.as_mut() {
+            dev.acs_generation = head.generation;
+        }
         for (d, r) in self.st.app.recovery_requests.iter_mut() {
             if d == digest {
                 r.state = RecoveryObsState::Completed;
@@ -357,6 +407,40 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 r.state = RecoveryObsState::Stale;
             }
         }
+        self.broadcast_account_update();
+    }
+
+    /// `BeginRecovery`: on a profile with no device, account, ceremony or earlier attempt, keep the entered RecoveryRoot
+    /// and Home address as the restricted recovery state. Only the key's own checksum is checked here: whether it
+    /// belongs to an account is learned from the RecoveryRecord, which needs a Home operation that does not exist yet.
+    pub(super) fn begin_recovery(
+        &mut self,
+        op: &OperationId,
+        key: &str,
+        home: &str,
+    ) -> OutcomeClass {
+        let rejected = |reason| OutcomeClass::Rejected { reason };
+        if self.st.device.is_some()
+            || !self.st.app.acs_chain.is_empty()
+            || self.st.app.link_join.is_some()
+            || self.st.app.recovery_join.is_some()
+        {
+            return rejected(RejectReason::Conflict);
+        }
+        let home = home.trim();
+        let url_ok = (home.starts_with("https://") || home.starts_with("http://"))
+            && home.len() <= 256
+            && !home.chars().any(|c| c.is_control() || c.is_whitespace());
+        let Some(root) = super::parse_recovery_key(key).filter(|_| url_ok) else {
+            return rejected(RejectReason::Invalid);
+        };
+        self.st.app.recovery_join = Some(RecoveryJoinRec {
+            operation_id: op.clone(),
+            root: hex(&root).into(),
+            home: home.to_string(),
+            started_ms: self.now_ms,
+        });
+        OutcomeClass::Committed
     }
 
     /// `VetoRecovery`: this device, a live controller, signs a `RecoveryVeto` for the request and queues it for

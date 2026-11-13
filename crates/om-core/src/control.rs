@@ -919,9 +919,35 @@ pub fn verify_recovery_successor(
     }
 }
 
+/// What a verifier kept when it accepted a recovery link, so the same verifier can replay its own chain later
+/// (the link needs the policy, the request and the interval it credited; none of them are in the chain).
+/// `elapsed_seconds` is this verifier's own durable monotonic interval (ADR-0131/0147/0154), recorded at acceptance:
+/// it is local evidence, never something a peer sends. A recovery link with no evidence cannot be verified here.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RecoveryLinkEvidence {
+    /// `Acs::hash()` of the recovery successor this evidence is for.
+    pub child_hash: [u8; 32],
+    /// The `RecoveryPolicy` body the parent committed to, and the rotated one the child commits to.
+    pub policy: Vec<u8>,
+    pub next_policy: Vec<u8>,
+    pub request: Vec<u8>,
+    pub elapsed_seconds: u64,
+}
+
 /// Verify a whole chain `[genesis, child1, ...]` and return the head. Every link must descend from the previous
-/// one and be authorized by its parent; the credentials must cover every signer along the way.
+/// one and be authorized by its parent; the credentials must cover every signer along the way. A recovery link
+/// is rejected: use [`verify_chain_with`].
 pub fn verify_chain(chain: &[Vec<u8>], credentials: &[Vec<u8>]) -> Result<Acs, Error> {
+    verify_chain_with(chain, credentials, &[])
+}
+
+/// [`verify_chain`] that also replays recovery links for which this verifier holds `links` evidence. A link with
+/// evidence must verify as a COMPLETE recovery (delay run or controller co-signed, no veto); anything else fails.
+pub fn verify_chain_with(
+    chain: &[Vec<u8>],
+    credentials: &[Vec<u8>],
+    links: &[RecoveryLinkEvidence],
+) -> Result<Acs, Error> {
     let (first, rest) = chain
         .split_first()
         .ok_or(Error::Binding("acs: empty chain"))?;
@@ -930,7 +956,31 @@ pub fn verify_chain(chain: &[Vec<u8>], credentials: &[Vec<u8>]) -> Result<Acs, E
     }
     let mut head = verify_genesis_in(first, credentials)?;
     for s in rest {
-        head = verify_successor(&head, s, credentials)?;
+        let child_hash = Acs::from_body(cbor::decode(s)?.get(1)?.b()?)?.hash();
+        head = match links.iter().find(|l| l.child_hash == child_hash) {
+            None => verify_successor(&head, s, credentials)?,
+            Some(l) => {
+                let policy = RecoveryPolicy::from_body(&l.policy)?;
+                let next = RecoveryPolicy::from_body(&l.next_policy)?;
+                match verify_recovery_successor(
+                    &head,
+                    s,
+                    credentials,
+                    &policy,
+                    &next,
+                    &l.request,
+                    &RecoveryObservation {
+                        elapsed_seconds: l.elapsed_seconds,
+                        vetoes: &[],
+                    },
+                )? {
+                    RecoveryVerdict::Complete { child, .. } => child,
+                    RecoveryVerdict::Pending { .. } => {
+                        return Err(Error::Binding("recovery: link is not a complete recovery"));
+                    }
+                }
+            }
+        };
     }
     Ok(head)
 }
