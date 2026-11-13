@@ -14317,6 +14317,13 @@
       "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "executable_guardrail"
+    },
+    {
+      "path": "docs/reports/2026-11-13-recovery-flows-plan.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
     }
   ]
 }

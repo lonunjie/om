@@ -61,3 +61,8 @@ Agent group A (one Sonnet agent, reads PROVISIONING_AND_BOOTSTRAP and the Cloudf
   there is no Settings button, e2e reaches Devices with `page.goto("/settings/devices")`; the design gate for `crates/` plus `apps/web` is about 14 domains, so
   batch Core and web work in one session.
 
+
+## 6. Update 2026-11-13 (third session, Sonnet; recovery flows, group E)
+
+- **No code.** Design reading and mapping only; plan, gaps G1 to G3 (the recovery signing-key derivation is unspecified and needs the
+  operator's yes) and the slice list are in [`2026-11-13-recovery-flows-plan.md`](2026-11-13-recovery-flows-plan.md). Group E needs a fresh context for the gate reading.
