@@ -756,7 +756,7 @@ export const devicesCopy: DevicesCopy = {
     who: (label) => `${label} is asking to join your account.`,
     codeLabel: "Security code",
     codeHint: "The new device shows a code too. Link it only if both codes are exactly the same.",
-    warning: "Only link a device you are holding yourself. A linked device can read your new messages.",
+    warning: "Only link a device you are holding yourself. A linked device can read your new messages. It will not have your older chats yet.",
     announce: "All your other devices will be told about this new device. That cannot be turned off.",
     approve: "The codes match. Link it",
     reject: "This is not my device",
@@ -794,7 +794,7 @@ export const joinCopy: JoinCopy = {
   state: {
     awaiting_approval: "Waiting for you to approve this on your other device.",
     pending_authorization: "Waiting for approval from your other devices.",
-    approved: "Linked.",
+    approved: "Linked. This device starts with new messages; your older chats are not copied over yet.",
     rejected: "Your other device turned this down. Nothing was linked.",
     expired: "This ran out of time. Start over and show a new code on your other device.",
   },
