@@ -13,13 +13,19 @@
 
 use super::*;
 use crate::attach::{self, AttachError, AttachmentRef, Meta};
+use crate::direct;
 use crate::host::{BlobLimits, BlobReceipt};
 use crate::present::{self, Extensions, Location, Voice};
+use std::collections::BTreeMap;
 
 /// A prepared attachment nobody sent is forgotten after this long. Nothing external happened to it.
 const PREPARED_TTL_MS: u64 = DAY_MS;
 /// Prepared attachments held at once (bounded).
 const MAX_PREPARED: usize = 2 * attach::MAX_ATTACHMENTS;
+/// A direct offer lapses after this long (the spool's default retention, so both routes read the same).
+const DIRECT_OFFER_TTL_MS: u64 = DEFAULT_STORE_MS;
+/// Live direct offers at once (bounded).
+const MAX_DIRECT_OFFERS: usize = 16;
 /// A delete that makes no progress this many times is given up on; the blob expires on its own.
 const DELETE_GIVE_UP: u32 = 10;
 /// Used for a receipt that names no expiry: the spool's default retention (a display hint, not authority).
@@ -57,6 +63,7 @@ pub(super) fn read_create(ev: &events::Event) -> Option<CreateParts> {
             location: None,
             expires_ms: 0,
             ciphertext_len: 0,
+            direct: false,
         });
     }
     if content.is_none() && attachments.is_empty() {
@@ -106,7 +113,10 @@ pub(crate) fn presentation(m: &Msg) -> Option<PresentationView> {
 }
 
 /// The attachments of a message as the UI sees them.
-pub(crate) fn attachment_views(m: &Msg) -> Vec<AttachmentView> {
+pub(crate) fn attachment_views(
+    m: &Msg,
+    offers: &BTreeMap<Hex, DirectOfferRec>,
+) -> Vec<AttachmentView> {
     m.attachments
         .iter()
         .enumerate()
@@ -122,10 +132,21 @@ pub(crate) fn attachment_views(m: &Msg) -> Vec<AttachmentView> {
                 width: r.width,
                 height: r.height,
                 duration_ms: r.duration_ms,
-                state: match (outgoing, rec.stored) {
-                    (true, true) => AttachmentState::StoredForLater,
-                    (true, false) => AttachmentState::Uploading,
-                    (false, _) => AttachmentState::Remote,
+                state: if rec.direct {
+                    match offers.get(&rec.blob_id).map(|o| o.status) {
+                        Some(DirectStatus::Waiting) => AttachmentState::WaitingForRecipient,
+                        Some(DirectStatus::Delivered) => AttachmentState::DeliveredLocally,
+                        _ => AttachmentState::NotOffered,
+                    }
+                } else {
+                    match (outgoing, rec.stored) {
+                        (true, true) => AttachmentState::StoredForLater,
+                        (true, false) => AttachmentState::Uploading,
+                        (false, _) if r.locations.is_empty() && r.read_cap.is_some() => {
+                            AttachmentState::RemoteDirect
+                        }
+                        (false, _) => AttachmentState::Remote,
+                    }
                 },
                 stored_until: (outgoing && rec.stored).then_some(rec.expires_ms),
             })
@@ -232,6 +253,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     location: None,
                     expires_ms: 0,
                     ciphertext_len: ct_len,
+                    direct: false,
                 },
                 created_ms: self.now_ms,
             },
@@ -244,7 +266,209 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         })
     }
 
+    /// Seal a file that is too big for the delivery service so it can be offered directly. Core has already refused the
+    /// spool path for it (`plan_size`, ruled behaviour: refuse before sending, say so, offer); a file that fits the
+    /// spool is `Invalid` here, it goes the ordinary way. Nothing leaves the device. The read capability is a random
+    /// 32-byte value Core mints now; it travels only inside the sealed message. The sealed object goes to the returned
+    /// sender (memory only; `Core::arm_direct_offer` rebuilds it from the file after a restart).
+    pub fn prepare_direct_attachment(
+        &mut self,
+        limits: Option<BlobLimits>,
+        plaintext: &[u8],
+        meta: Meta,
+    ) -> Result<(PreparedAttachment, direct::DirectSender), AttachError> {
+        match direct::plan_size(limits, plaintext.len() as u64) {
+            direct::SizePlan::Refused(e) => return Err(e),
+            direct::SizePlan::Spool => return Err(AttachError::Invalid),
+            direct::SizePlan::OfferDirect { .. } => {}
+        }
+        if !attach::valid_media_type(&meta.media_type)
+            || [meta.width, meta.height]
+                .iter()
+                .flatten()
+                .any(|d| !(1..=65535).contains(d))
+            || meta.duration_ms == Some(0) && meta.media_type.starts_with("audio/")
+        {
+            return Err(AttachError::Invalid);
+        }
+        let live = self
+            .st
+            .app
+            .direct_offers
+            .values()
+            .filter(|o| o.status.is_live())
+            .count();
+        if self.st.app.prepared.len() >= MAX_PREPARED || live >= MAX_DIRECT_OFFERS {
+            return Err(AttachError::StorageFull);
+        }
+        let (key, blob_id, read_cap) = (arr32(self.rng), arr32(self.rng), arr32(self.rng));
+        let ct = attach::seal(&key, &blob_id, plaintext);
+        let digest = attach::ciphertext_digest(&ct);
+        let ct_len = ct.len() as u64;
+        let r = AttachmentRef {
+            blob_id,
+            media_type: meta.media_type,
+            plaintext_size: plaintext.len() as u64,
+            ciphertext_digest: digest,
+            key,
+            locations: vec![],
+            filename: meta.filename.as_deref().and_then(attach::clean_filename),
+            width: meta.width,
+            height: meta.height,
+            duration_ms: meta.duration_ms,
+            read_cap: Some(read_cap.to_vec()),
+        };
+        let id = hex(&blob_id);
+        self.st.app.prepared.insert(
+            id.clone(),
+            PreparedBlob {
+                rec: AttachRec {
+                    blob_id: id.clone(),
+                    reference: hex(&cbor::encode(&r.to_v())).into(),
+                    owner_cap: None,
+                    request_id: None,
+                    stored: false,
+                    location: None,
+                    expires_ms: 0,
+                    ciphertext_len: ct_len,
+                    direct: true,
+                },
+                created_ms: self.now_ms,
+            },
+        );
+        let sender = direct::DirectSender::new(blob_id, digest, read_cap.to_vec(), ct)?;
+        Ok((
+            PreparedAttachment {
+                blob_id: id,
+                ciphertext_digest: hex(&digest),
+                ciphertext_len: ct_len,
+                ciphertext: vec![],
+            },
+            sender,
+        ))
+    }
+
     // ------------------------------------------------------------------------------------------ intents
+
+    pub(super) fn send_attachments_direct(
+        &mut self,
+        op: &OperationId,
+        conv: &str,
+        text: &str,
+        inputs: &[AttachmentInput],
+    ) -> Result<(), CoreError> {
+        let kind = "SendAttachmentsDirect";
+        let reject =
+            |s: &mut Self, reason| s.record(op, kind, OutcomeClass::Rejected { reason }, None);
+        if inputs.is_empty() || inputs.len() > attach::MAX_ATTACHMENTS {
+            reject(self, RejectReason::Invalid);
+            return Ok(());
+        }
+        let mut recs: Vec<AttachRec> = vec![];
+        for input in inputs {
+            let Some(p) = self.st.app.prepared.get(&input.blob_id) else {
+                reject(self, RejectReason::NotFound);
+                return Ok(());
+            };
+            // Direct files only, no voice notes (their presentation is bound to the ordinary path), no repeats.
+            if !p.rec.direct
+                || input.voice_note.is_some()
+                || recs.iter().any(|r| r.blob_id == input.blob_id)
+            {
+                reject(self, RejectReason::Invalid);
+                return Ok(());
+            }
+            recs.push(p.rec.clone());
+        }
+        let text = text.trim();
+        let ids: Vec<Hex> = recs.iter().map(|r| r.blob_id.clone()).collect();
+        self.compose(
+            op,
+            kind,
+            conv,
+            (!text.is_empty()).then_some(text),
+            recs,
+            None,
+        )?;
+        let Some(mid) = self
+            .st
+            .app
+            .ops
+            .get(op)
+            .filter(|o| !matches!(o.outcome, OutcomeClass::Rejected { .. }))
+            .and_then(|o| o.message_id.clone())
+        else {
+            return Ok(());
+        };
+        let now = self.now_ms;
+        for id in ids {
+            self.st.app.prepared.remove(&id);
+            self.st.app.direct_offers.insert(
+                id,
+                DirectOfferRec {
+                    conversation_id: conv.to_string(),
+                    message_id: mid.clone(),
+                    created_ms: now,
+                    expires_ms: now + DIRECT_OFFER_TTL_MS,
+                    status: DirectStatus::Waiting,
+                },
+            );
+        }
+        Ok(())
+    }
+
+    pub(super) fn withdraw_direct_offer(
+        &mut self,
+        op: &OperationId,
+        message_id: &str,
+    ) -> Result<(), CoreError> {
+        let kind = "WithdrawDirectOffer";
+        let mut found = false;
+        for o in self
+            .st
+            .app
+            .direct_offers
+            .values_mut()
+            .filter(|o| o.message_id == message_id)
+        {
+            found = true;
+            if o.status.is_live() {
+                o.status = DirectStatus::Withdrawn;
+            }
+        }
+        let outcome = if found {
+            OutcomeClass::Committed
+        } else {
+            OutcomeClass::Rejected {
+                reason: RejectReason::NotFound,
+            }
+        };
+        self.record(op, kind, outcome, Some(message_id.to_string()));
+        Ok(())
+    }
+
+    /// An offer nobody fetched in time lapses; a finished one is forgotten after a month.
+    pub(super) fn expire_direct_offers(&mut self) {
+        let now = self.now_ms;
+        for o in self.st.app.direct_offers.values_mut() {
+            if o.status.is_live() && o.expires_ms <= now {
+                o.status = DirectStatus::Expired;
+            }
+        }
+        self.st
+            .app
+            .direct_offers
+            .retain(|_, o| o.status.is_live() || o.expires_ms + 30 * DAY_MS > now);
+    }
+
+    /// A fetch that finished with the exact bytes: the offer is delivered (local receipt only).
+    pub(crate) fn direct_delivered(&mut self, blob_id: &str) {
+        if let Some(o) = self.st.app.direct_offers.get_mut(blob_id)
+            && o.status.is_live()
+        {
+            o.status = DirectStatus::Delivered;
+        }
+    }
 
     pub(super) fn send_attachments(
         &mut self,

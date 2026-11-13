@@ -391,6 +391,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .retain(|_, i| i.reply_key.expires_at > now_s);
         self.st.app.confirmations.retain(|c| c.expires_at > now_ms);
         self.expire_prepared();
+        self.expire_direct_offers();
         self.expire_ceremonies();
     }
 
@@ -754,6 +755,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 draft,
                 attachments,
             } => return self.send_attachments(op, conversation_id, &draft.text, attachments),
+            IntentBody::SendAttachmentsDirect {
+                conversation_id,
+                draft,
+                attachments,
+            } => {
+                return self.send_attachments_direct(op, conversation_id, &draft.text, attachments);
+            }
+            IntentBody::WithdrawDirectOffer { message_id } => {
+                return self.withdraw_direct_offer(op, message_id);
+            }
             IntentBody::SendLocation {
                 conversation_id,
                 lat_e7,
@@ -1306,7 +1317,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.record(op, kind, rejected(RejectReason::Invalid), None);
             return Ok(());
         };
-        let has_atts = !atts.is_empty();
+        // Only an attachment that goes through a store holds the event back; a direct one is final here (its reference
+        // already carries the read capability and no locations).
+        let has_atts = atts.iter().any(|a| !a.direct);
         let now = self.now_ms;
         let rel = self
             .st

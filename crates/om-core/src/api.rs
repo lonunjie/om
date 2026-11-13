@@ -209,6 +209,19 @@ pub enum IntentBody {
         draft: Draft,
         attachments: Vec<AttachmentInput>,
     },
+    /// A file too big for the delivery service, offered to be sent while the other person is online. The attachments
+    /// were prepared with `Core::prepare_direct_attachment` (so Core already refused the spool path and said so). The
+    /// message itself goes out at once through the ordinary sealed path; only the file waits (decision G-O1 of
+    /// `2026-11-13-direct-transfer.md`).
+    SendAttachmentsDirect {
+        conversation_id: ConversationId,
+        draft: Draft,
+        attachments: Vec<AttachmentInput>,
+    },
+    /// Take a direct offer back: nothing is served any more. The message stays, and says the file was withdrawn.
+    WithdrawDirectOffer {
+        message_id: MessageId,
+    },
     /// One-shot static location (`om.location-card.v1`): the point travels in the fallback text as a canonical `geo:`
     /// token, so every client shows it; a new client also draws the card.
     SendLocation {
@@ -333,6 +346,8 @@ impl IntentBody {
             IntentBody::SendMessage { .. } => "SendMessage",
             IntentBody::RetryDelivery { .. } => "RetryDelivery",
             IntentBody::SendAttachments { .. } => "SendAttachments",
+            IntentBody::SendAttachmentsDirect { .. } => "SendAttachmentsDirect",
+            IntentBody::WithdrawDirectOffer { .. } => "WithdrawDirectOffer",
             IntentBody::SendLocation { .. } => "SendLocation",
             IntentBody::SwitchIdentityProfile { .. } => "SwitchIdentityProfile",
             IntentBody::AcceptIntroduction { .. } => "AcceptIntroduction",
@@ -491,6 +506,15 @@ pub enum Query {
     GetIntroductionLoad {
         ctx: ProfileExecutionContext,
     },
+    /// How a file of `size` plaintext bytes may travel, before anything is sealed or sent (`AttachmentPlanView`).
+    PlanAttachment {
+        ctx: ProfileExecutionContext,
+        size: u64,
+    },
+    /// The direct offers of this profile, newest last (`DirectOfferView[]`).
+    GetDirectOffers {
+        ctx: ProfileExecutionContext,
+    },
 }
 
 impl Query {
@@ -509,7 +533,9 @@ impl Query {
             | Query::GetRecoveryStatus { ctx }
             | Query::GetHistoryTransfer { ctx }
             | Query::GetConfirmation { ctx, .. }
-            | Query::GetIntroductionLoad { ctx } => Some(ctx),
+            | Query::GetIntroductionLoad { ctx }
+            | Query::PlanAttachment { ctx, .. }
+            | Query::GetDirectOffers { ctx } => Some(ctx),
         }
     }
 }
@@ -614,6 +640,52 @@ pub enum AttachmentState {
     StoredForLater,
     /// Theirs (or our other device's): fetched only when the host asks for it.
     Remote,
+    /// Theirs, and offered directly: it can be fetched only while the sender is online (nothing is stored for later).
+    RemoteDirect,
+    /// Ours, too big for the delivery service: waiting to be sent while the other person is online.
+    WaitingForRecipient,
+    /// Ours: being sent to the other person right now.
+    Transferring,
+    /// Ours: the other person's device has it. This is that device only, not a copy kept anywhere else.
+    DeliveredLocally,
+    /// Ours: no longer offered (taken back, or not fetched in time).
+    NotOffered,
+}
+
+/// How a file may travel, decided before anything is sealed or sent.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+pub enum AttachmentPlanView {
+    /// Through the delivery service, as usual.
+    Spool,
+    /// Too big for the delivery service: not sent that way. It can be offered to go straight to the other person while
+    /// they are online. `limit` is the largest file the service takes (0: none is set up).
+    OfferDirect {
+        limit: u64,
+    },
+    /// Cannot be sent at all; `limit` is the largest file OM can send (0 for an empty file).
+    TooLarge {
+        limit: u64,
+    },
+    Empty,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectOfferView {
+    pub conversation_id: String,
+    pub message_id: String,
+    pub blob_id: String,
+    pub size: u64,
+    pub state: AttachmentState,
+    /// Wall ms after which the offer lapses.
+    pub expires_at: u64,
+    /// True after a restart until the host hands the file back (`Core::arm_direct_offer`): nothing is served meanwhile.
+    pub needs_file: bool,
 }
 
 /// Everything here is sender-authored display data except `size` (which the fetched object is checked against).

@@ -259,6 +259,43 @@ pub struct AttachRec {
     pub expires_ms: u64,
     #[serde(default)]
     pub ciphertext_len: u64,
+    /// Outgoing only: the object is offered directly (no BlobStore copy): it has no owner capability, is never put to a
+    /// store, and its reference carries a read capability and no locations. Its offer is in `AppState.direct_offers`.
+    #[serde(default)]
+    pub direct: bool,
+}
+
+/// Where a direct offer stands. Local receipt is not durability (AT-06): `Delivered` means the other person's device
+/// acknowledged the last byte, nothing more.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DirectStatus {
+    /// Offered; served whenever the recipient asks while this device is online.
+    Waiting,
+    Delivered,
+    /// The person took it back; nothing is served any more.
+    Withdrawn,
+    /// Not fetched in time.
+    Expired,
+}
+
+impl DirectStatus {
+    pub fn is_live(self) -> bool {
+        self == DirectStatus::Waiting
+    }
+}
+
+/// The persisted side of a direct offer, keyed by BlobID. It holds no secret and no bytes: the sealed object is rebuilt
+/// from the person's original file (`Core::arm_direct_offer`) after a restart, and the reference with the key and read
+/// capability lives in the message.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectOfferRec {
+    pub conversation_id: String,
+    pub message_id: String,
+    pub created_ms: u64,
+    pub expires_ms: u64,
+    pub status: DirectStatus,
 }
 
 /// An attachment the host prepared but no message uses yet. Nothing external has happened to it; it is dropped when
@@ -701,6 +738,10 @@ pub struct AppState {
     /// ConversationID (hex) -> the last accepted Commit's `mls_commit_hash` (hex): the idempotency marker.
     #[serde(default)]
     pub group_accepted: BTreeMap<Hex, Hex>,
+    /// Direct-transfer offers by BlobID (hex): large files offered while the other person is online (group G).
+    /// Additive: absent in older records.
+    #[serde(default)]
+    pub direct_offers: BTreeMap<Hex, DirectOfferRec>,
 }
 
 /// Where an observed recovery request stands for this verifier.

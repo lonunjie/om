@@ -43,6 +43,12 @@ pub struct Core<R: RngCore + CryptoRng> {
     offers: Vec<RouteOffer>,
     /// What the BlobStore advertised; memory only (the host supplies it again at start).
     blob_limits: Option<BlobLimits>,
+    /// Direct offers being served, by (profile, BlobID hex). Memory only: they hold the sealed object, which is rebuilt
+    /// from the person's file after a restart (`arm_direct_offer`); what must survive is `AppState.direct_offers`.
+    direct_senders: BTreeMap<(ProfileId, String), crate::direct::DirectSender>,
+    /// Direct fetches in progress, by (profile, message, attachment index). Memory only (resume state is
+    /// transport-local, ADR-0158 section 8): after a restart the fetch starts again.
+    direct_fetches: BTreeMap<(ProfileId, String, usize), crate::direct::DirectFetch>,
 }
 
 impl<R: RngCore + CryptoRng> Core<R> {
@@ -62,6 +68,8 @@ impl<R: RngCore + CryptoRng> Core<R> {
             staged: None,
             offers: vec![],
             blob_limits: None,
+            direct_senders: BTreeMap::new(),
+            direct_fetches: BTreeMap::new(),
         }
     }
 
@@ -149,7 +157,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     .values()
                     .flat_map(|r| r.messages.iter())
                     .flat_map(|m| m.attachments.iter())
-                    .find(|a| a.blob_id == blob_id && a.owner_cap.is_some())
+                    .find(|a| a.blob_id == blob_id && (a.owner_cap.is_some() || a.direct))
             })
             .ok_or(AttachError::NotFound)?;
         let r = crate::flows::rec_ref(rec).ok_or(AttachError::NotFound)?;
@@ -225,6 +233,359 @@ impl<R: RngCore + CryptoRng> Core<R> {
             height: r.height,
             duration_ms: r.duration_ms,
         })
+    }
+
+    // ------------------------------------------------------------------------------------------ direct transfer
+    //
+    // Sans-IO like the rest: the host owns the ordered byte channel (and decides when one exists), maps it to
+    // `DirectFrame`, and feeds frames in. Core never opens a channel and never learns whether the other person is
+    // online. The message is sent at once through the ordinary sealed path; only the file waits (decision G-O1).
+
+    /// How a file of `size` bytes may travel. Pure; nothing is sealed or sent.
+    pub fn plan_attachment(&self, size: u64) -> AttachmentPlanView {
+        use crate::attach::AttachError;
+        match crate::direct::plan_size(self.blob_limits, size) {
+            crate::direct::SizePlan::Spool => AttachmentPlanView::Spool,
+            crate::direct::SizePlan::OfferDirect { spool_max } => {
+                AttachmentPlanView::OfferDirect { limit: spool_max }
+            }
+            crate::direct::SizePlan::Refused(AttachError::TooLarge { max }) => {
+                AttachmentPlanView::TooLarge { limit: max }
+            }
+            crate::direct::SizePlan::Refused(_) => AttachmentPlanView::Empty,
+        }
+    }
+
+    /// Seal a file the delivery service will not take and start serving it (only once a message offers it, see
+    /// `IntentBody::SendAttachmentsDirect`). The returned `ciphertext` is empty: Core holds the sealed object.
+    pub fn prepare_direct_attachment(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        plaintext: &[u8],
+        meta: crate::attach::Meta,
+    ) -> Result<(Result<PreparedAttachment, crate::attach::AttachError>, Step), CoreError> {
+        self.slot(ctx)?;
+        let (out, commit) = self.txn(&ctx.profile_id, |tx| {
+            Ok(tx.prepare_direct_attachment(tx.blob_limits, plaintext, meta))
+        })?;
+        let out = out.map(|(p, sender)| {
+            self.direct_senders
+                .insert((ctx.profile_id.clone(), p.blob_id.clone()), sender);
+            p
+        });
+        Ok((
+            out,
+            Step {
+                commit,
+                handle: None,
+            },
+        ))
+    }
+
+    fn build_direct_sender(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        blob_id: &str,
+        ciphertext: Vec<u8>,
+    ) -> Result<(), crate::attach::AttachError> {
+        use crate::attach::AttachError;
+        let st = &self.slot(ctx).map_err(|_| AttachError::NotFound)?.state.app;
+        let rec = st
+            .prepared
+            .get(blob_id)
+            .map(|p| &p.rec)
+            .or_else(|| {
+                st.relationships
+                    .values()
+                    .flat_map(|r| r.messages.iter())
+                    .flat_map(|m| m.attachments.iter())
+                    .find(|a| a.blob_id == blob_id && a.direct)
+            })
+            .ok_or(AttachError::NotFound)?;
+        let r = crate::flows::rec_ref(rec).ok_or(AttachError::NotFound)?;
+        let cap = r.read_cap.clone().ok_or(AttachError::NotFound)?;
+        let sender =
+            crate::direct::DirectSender::new(r.blob_id, r.ciphertext_digest, cap, ciphertext)?;
+        self.direct_senders
+            .insert((ctx.profile_id.clone(), blob_id.to_string()), sender);
+        Ok(())
+    }
+
+    /// After a restart: hand the original file back so a still-live offer is served again. Refuses a file that is not
+    /// the one that was offered (digest and size), and an offer that was withdrawn, delivered or lapsed.
+    pub fn arm_direct_offer(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        blob_id: &str,
+        plaintext: &[u8],
+    ) -> Result<(), crate::attach::AttachError> {
+        use crate::attach::AttachError;
+        let now = self.clock.now_ms();
+        let live = self
+            .slot(ctx)
+            .map_err(|_| AttachError::NotFound)?
+            .state
+            .app
+            .direct_offers
+            .get(blob_id)
+            .is_some_and(|o| o.status.is_live() && o.expires_ms > now);
+        if !live {
+            return Err(AttachError::NotFound);
+        }
+        let ct = self.restage_attachment(ctx, blob_id, plaintext)?;
+        self.build_direct_sender(ctx, blob_id, ct)
+    }
+
+    /// Drop senders whose offer is no longer live and record the ones that finished. The only durable effect of serving.
+    fn direct_reconcile(&mut self, profile: &str) -> Result<Option<Commit>, CoreError> {
+        use crate::direct::OfferState;
+        let now = self.clock.now_ms();
+        let Some(slot) = self.profiles.get(profile) else {
+            return Ok(None);
+        };
+        let offers = &slot.state.app.direct_offers;
+        let mut delivered = vec![];
+        let mut drop_keys = vec![];
+        for (k, s) in self.direct_senders.iter().filter(|(k, _)| k.0 == profile) {
+            let live = offers
+                .get(&k.1)
+                .is_some_and(|o| o.status.is_live() && o.expires_ms > now);
+            if s.state() == OfferState::Delivered
+                && offers.get(&k.1).is_some_and(|o| o.status.is_live())
+            {
+                delivered.push(k.1.clone());
+            }
+            if !live || matches!(s.state(), OfferState::Delivered | OfferState::Withdrawn) {
+                drop_keys.push(k.clone());
+            }
+        }
+        for k in drop_keys {
+            if let Some(mut s) = self.direct_senders.remove(&k) {
+                s.withdraw();
+            }
+        }
+        if delivered.is_empty() {
+            return Ok(None);
+        }
+        let ((), commit) = self.txn(profile, |tx| {
+            for id in &delivered {
+                tx.direct_delivered(id);
+            }
+            Ok(())
+        })?;
+        Ok(commit)
+    }
+
+    /// One frame from the other person's channel. Answers with the frames to send back; a refused request gets the one
+    /// uniform `unavailable` (no oracle: unknown, withdrawn, lapsed, not armed and a wrong capability look the same).
+    pub fn direct_serve(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        frame: &crate::direct::DirectFrame,
+    ) -> Result<(Vec<crate::direct::DirectFrame>, Step), CoreError> {
+        use crate::direct::{DirectFrame, ErrorCode};
+        self.slot(ctx)?;
+        let mut stale = self.direct_reconcile(&ctx.profile_id)?;
+        let mut fresh = [0u8; crate::direct::TRANSFER_ID_LEN];
+        self.rng.fill_bytes(&mut fresh);
+        let profile = ctx.profile_id.clone();
+        let out = match frame {
+            DirectFrame::FetchBlob {
+                request_id,
+                blob_id,
+                ..
+            } => match self
+                .direct_senders
+                .get_mut(&(profile.clone(), crate::crypto::hex(blob_id)))
+            {
+                Some(s) => s.handle(frame, fresh),
+                None => vec![DirectFrame::Error {
+                    id: *request_id,
+                    code: ErrorCode::Unavailable,
+                }],
+            },
+            DirectFrame::Ack { .. } | DirectFrame::Error { .. } => self
+                .direct_senders
+                .iter_mut()
+                .filter(|(k, _)| k.0 == profile)
+                .flat_map(|(_, s)| s.handle(frame, fresh))
+                .collect(),
+            _ => vec![DirectFrame::Error {
+                id: fresh,
+                code: ErrorCode::Protocol,
+            }],
+        };
+        let commit = match self.direct_reconcile(&profile)? {
+            Some(c) => Some(c),
+            None => stale.take(),
+        };
+        Ok((
+            out,
+            Step {
+                commit,
+                handle: None,
+            },
+        ))
+    }
+
+    /// The next chunks to send, given how many bytes the channel still buffers (backpressure is the sender's:
+    /// 262,144 high, 65,536 low).
+    pub fn direct_pump(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        buffered: usize,
+    ) -> Result<Vec<crate::direct::DirectFrame>, CoreError> {
+        self.slot(ctx)?;
+        Ok(self
+            .direct_senders
+            .iter_mut()
+            .filter(|(k, _)| k.0 == ctx.profile_id)
+            .flat_map(|(_, s)| s.pump(buffered))
+            .collect())
+    }
+
+    /// Start (or, after a dropped channel, resume) the direct fetch of one attachment: the request to send. The held
+    /// bytes of an earlier attempt are kept in memory and the sender continues from them.
+    pub fn direct_fetch_start(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        index: usize,
+    ) -> Result<crate::direct::DirectFrame, crate::attach::AttachError> {
+        use crate::attach::AttachError;
+        let r = self.attachment_rec(ctx, message_id, index)?;
+        if !r.locations.is_empty() {
+            return Err(AttachError::NotFound); // a stored object: the ordinary fetch
+        }
+        let mut rid = [0u8; crate::direct::TRANSFER_ID_LEN];
+        self.rng.fill_bytes(&mut rid);
+        let key = (ctx.profile_id.clone(), message_id.to_string(), index);
+        if !self.direct_fetches.contains_key(&key) {
+            self.direct_fetches
+                .insert(key.clone(), crate::direct::DirectFetch::new(&r, rid)?);
+        }
+        self.direct_fetches
+            .get_mut(&key)
+            .and_then(|f| f.request(rid))
+            .ok_or(AttachError::NotFound)
+    }
+
+    /// One frame from the sender's channel for an attachment; the frames to send back (acks, errors).
+    pub fn direct_fetch_handle(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        index: usize,
+        frame: &crate::direct::DirectFrame,
+    ) -> Result<Vec<crate::direct::DirectFrame>, crate::attach::AttachError> {
+        self.direct_fetches
+            .get_mut(&(ctx.profile_id.clone(), message_id.to_string(), index))
+            .map(|f| f.handle(frame))
+            .ok_or(crate::attach::AttachError::NotFound)
+    }
+
+    /// Where a direct fetch stands and how many contiguous bytes are held.
+    pub fn direct_fetch_progress(
+        &self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        index: usize,
+    ) -> Option<(crate::direct::FetchState, u64)> {
+        self.direct_fetches
+            .get(&(ctx.profile_id.clone(), message_id.to_string(), index))
+            .map(|f| (f.state(), f.held()))
+    }
+
+    /// Decrypt a completed direct fetch (digest checked before decryption) and forget it.
+    pub fn direct_fetch_open(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        index: usize,
+    ) -> Result<OpenedAttachment, crate::attach::AttachError> {
+        let r = self.attachment_rec(ctx, message_id, index)?;
+        let key = (ctx.profile_id.clone(), message_id.to_string(), index);
+        let plaintext = self
+            .direct_fetches
+            .get(&key)
+            .ok_or(crate::attach::AttachError::NotFound)?
+            .open()?;
+        self.direct_fetches.remove(&key);
+        Ok(OpenedAttachment {
+            plaintext,
+            media_type: r.media_type,
+            filename: r.filename,
+            width: r.width,
+            height: r.height,
+            duration_ms: r.duration_ms,
+        })
+    }
+
+    /// A transfer open right now shows as `Transferring` (memory only; the stored state is `Waiting`).
+    fn overlay_transfers(
+        &self,
+        ctx: &ProfileExecutionContext,
+        mut item: TimelineItem,
+    ) -> TimelineItem {
+        if let TimelineItem::Outgoing { attachments, .. } = &mut item {
+            for a in attachments
+                .iter_mut()
+                .filter(|a| a.state == AttachmentState::WaitingForRecipient)
+            {
+                if self
+                    .direct_senders
+                    .get(&(ctx.profile_id.clone(), a.blob_id.clone()))
+                    .is_some_and(|s| s.state() == crate::direct::OfferState::Transferring)
+                {
+                    a.state = AttachmentState::Transferring;
+                }
+            }
+        }
+        item
+    }
+
+    fn direct_offer_views(
+        &self,
+        ctx: &ProfileExecutionContext,
+        st: &ProfileState,
+    ) -> Vec<DirectOfferView> {
+        let mut out: Vec<DirectOfferView> = st
+            .app
+            .direct_offers
+            .iter()
+            .map(|(id, o)| {
+                let armed = self
+                    .direct_senders
+                    .get(&(ctx.profile_id.clone(), id.clone()));
+                let size = st
+                    .app
+                    .relationships
+                    .get(&o.conversation_id)
+                    .and_then(|r| r.messages.iter().find(|m| m.id == o.message_id))
+                    .and_then(|m| m.attachments.iter().find(|a| &a.blob_id == id))
+                    .and_then(crate::flows::rec_ref)
+                    .map_or(0, |r| r.plaintext_size);
+                let live = o.status.is_live();
+                DirectOfferView {
+                    conversation_id: o.conversation_id.clone(),
+                    message_id: o.message_id.clone(),
+                    blob_id: id.clone(),
+                    size,
+                    state: match (o.status, armed.map(|s| s.state())) {
+                        (DirectStatus::Waiting, Some(crate::direct::OfferState::Transferring)) => {
+                            AttachmentState::Transferring
+                        }
+                        (DirectStatus::Waiting, _) => AttachmentState::WaitingForRecipient,
+                        (DirectStatus::Delivered, _) => AttachmentState::DeliveredLocally,
+                        _ => AttachmentState::NotOffered,
+                    },
+                    expires_at: o.expires_ms,
+                    needs_file: live && armed.is_none(),
+                }
+            })
+            .collect();
+        out.sort_by_key(|v| (v.expires_at, v.blob_id.clone()));
+        out
     }
 
     /// How many unused route offers Core holds.
@@ -827,6 +1188,8 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 let st = &self.slot(ctx)?.state;
                 match q {
                     Query::GetConversationList { .. } => Ok(to(&conversation_list(st))),
+                    Query::PlanAttachment { size, .. } => Ok(to(&self.plan_attachment(*size))),
+                    Query::GetDirectOffers { .. } => Ok(to(&self.direct_offer_views(ctx, st))),
                     Query::GetConversationView {
                         conversation_id, ..
                     } => {
@@ -849,7 +1212,12 @@ impl<R: RngCore + CryptoRng> Core<R> {
                                 .messages
                                 .iter()
                                 .filter(|m| !m.deleted)
-                                .map(timeline_item)
+                                .map(|m| {
+                                    self.overlay_transfers(
+                                        ctx,
+                                        timeline_item(m, &st.app.direct_offers),
+                                    )
+                                })
                                 .collect(),
                         }))
                     }
@@ -1001,7 +1369,7 @@ fn summary(r: &Relationship) -> ConversationSummary {
     }
 }
 
-fn timeline_item(m: &Msg) -> TimelineItem {
+fn timeline_item(m: &Msg, offers: &BTreeMap<Hex, DirectOfferRec>) -> TimelineItem {
     match (&m.operation_id, m.outgoing) {
         (Some(op), true) => TimelineItem::Outgoing {
             message_id: m.id.clone(),
@@ -1009,7 +1377,7 @@ fn timeline_item(m: &Msg) -> TimelineItem {
             text: m.text.clone(),
             sent_at: m.sent_at,
             delivery: m.delivery.clone(),
-            attachments: crate::flows::attachment_views(m),
+            attachments: crate::flows::attachment_views(m, offers),
             presentation: crate::flows::presentation(m),
         },
         // A message our own other device sent (self-sync): ours, with no operation on this device behind it.
@@ -1019,14 +1387,14 @@ fn timeline_item(m: &Msg) -> TimelineItem {
             text: m.text.clone(),
             sent_at: m.sent_at,
             delivery: m.delivery.clone(),
-            attachments: crate::flows::attachment_views(m),
+            attachments: crate::flows::attachment_views(m, offers),
             presentation: crate::flows::presentation(m),
         },
         _ => TimelineItem::Incoming {
             message_id: m.id.clone(),
             text: m.text.clone(),
             sent_at: m.sent_at,
-            attachments: crate::flows::attachment_views(m),
+            attachments: crate::flows::attachment_views(m, offers),
             presentation: crate::flows::presentation(m),
         },
     }
