@@ -3,6 +3,8 @@ import type { RejectReason } from "@om/platform-api";
 
 export type NetCall =
   | { readonly call: "publish_key_material"; readonly deviceId: string; readonly bundle: string; readonly opks: readonly string[]; readonly pqopks: readonly string[] }
+  /** Best-effort deletion of an older signed-prekey generation's bundle and one-time items, queued ahead of a rotation's publish. */
+  | { readonly call: "revoke_key_generation"; readonly deviceId: string; readonly generation: number }
   /**
    * `service` is the Home that holds the device's key pool (the peer's, from the accepted relationship) and `capability`
    * the per-relationship fetch capability the peer issued (hex). Both are absent only for a peer from before fetch

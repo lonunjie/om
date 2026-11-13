@@ -85,3 +85,44 @@ ADR-0118 section 6; ADR-0120 K11.
 Everything above: no code was changed or committed except this report. The next session must read the six domains itself (about 140k tokens;
 that is why this one ran out) or, if the operator accepts it, rely on this extract for the design questions and read the domains the hook demands
 before committing. The operator's yes is wanted on G1 (numbers) and G3 (Home-side behaviour) before slice 3.
+
+## Decisions (coordinating session, 2026-11-13) and build brief
+
+Approved: G1 as proposed (rotate at 7 days of signed-prekey age, at 3/4 of the 4096 last-resort cap, within 7 days of `expires_at`, or on an explicit
+compromise intent; constants are policy, not wire). G2 as proposed (keep `prev_*` until the old bundle's `expires_at` has passed, then
+`expire_previous` and delete that epoch's one-time secrets). G3: option (b), the Home drops one-time items below a newly published higher generation,
+plus best-effort (a) a revoke call; record it as a deviation in the relay status table with the passage it departs from
+([`ASYNC_KEY_MATERIAL.md`](../architecture/crypto/ASYNC_KEY_MATERIAL.md) section 6 step 2, provider keeps what was published) and cite it in `Design-Departures`. G4: a new label or derivation means stop and report.
+
+Build brief (a fresh session; read this report, then the six domains named in the commit hook, then only the files below):
+
+1. `crates/om-core/src/crypto/store.rs`: epoch-tag `opks`/`pqopks` (new persistence key; absent = current epoch); persist `rotation_at`; make
+   `rotate_signed_prekeys` return a full `Upload` (new bundle, fresh one-time batch signed under `g+1`); add `retire_previous(now)` per G2.
+2. `crates/om-core/src/flows.rs` `maintain_prekeys` (~507): schedule per G1; one durable commit holding new secrets plus the `PublishKeys` outbox entry
+   before any send; a retry re-sends identical bytes; never a second rotation while one is pending; never lower the epoch; a backwards clock never rotates.
+3. Provider: `infra/cloudflare-home/src/keys.ts` `publish` deletes `prekeys` rows whose generation is below the published one (needs the generation of an
+   item: read it from the item's signed context or store it per row); mirror in `runtime.rs` loopback; optional `NetCall::RevokeKeyGeneration` in `host.rs`
+   with `packages/om-provider-http/src/provider.ts` and `packages/om-core-wasm` types.
+4. Tests as listed in plan item 4 (Rust, in `tests/prekeys.rs` or a new `tests/prekey_rotation.rs`), plus a Home test for the drop.
+5. Verify: `cargo test -p om-core`; wasm conformance in `packages/om-core-wasm`; `pnpm exec vitest run src` in touched TS packages; `pnpm exec tsc -b apps/web`.
+   Add the deviation row to [`docs/reports/2026-10-28-relay-status.md`](2026-10-28-relay-status.md); update this report's "What remains"; commit with the six-domain `Design-Read` and
+   `Design-Departures: <deviation id>`; push.
+
+## Implementation status (2026-11-13, uncommitted)
+
+Built: slices 1 to 4 (store epoch tags, `rotation_at`, `prev_expires_at`, `rotate_signed_prekeys` returning a full `Upload`, `retire_previous`;
+`maintain_signed_prekeys` on every intent and inbound batch; `NetCall::RevokeKeyGeneration`; Home, loopback and toy-provider drop of lower-generation
+one-time items, deviation D28; TS provider and wasm types; `tests/prekey_rotation.rs`, `infra/cloudflare-home/test/key-rotation.test.ts`). Not built: a typed
+compromise intent (`Tx::rotate_prekeys` is the entry point). Open: one `prev_*` slot means a second rotation retires the epoch before it at once, so the
+overlap is at most one rotation interval, not the old bundle's full `expires_at` (needs a list of previous epochs to honour G2 literally). Remaining: the
+operator's review of D28, then commit with the six-domain `Design-Read` and `Design-Departures: D28`, and push.
+
+## Result (committing session)
+
+Built by a worker subagent, reviewed by diff stat and re-run tests: `cargo test -p om-core` 214 passed; `vitest run src` in `om-provider-http` (106) and
+`om-core-wasm` (23 passed, 16 skipped; the one failing file is a stale `dist` copy, as noted in the handoff gotchas); `cloudflare-home` 146 passed
+(`test/blobs.test.ts` PC-S08 failed once under full-suite load and passes alone, 14/14); `tsc -b apps/web` clean. Deviation D28 in the relay status table.
+
+Remaining: **G2 literal overlap** (one previous-epoch slot, so a second rotation retires the epoch before it at once; a list of previous epochs
+is needed to keep each until its bundle's `expires_at`); a typed compromise-rotation intent (entry point today is `Tx::rotate_prekeys`); an idle device
+rotates at its next activity (no timer); a live check against the deployed Home (the `prekeys` generation column is added in place).

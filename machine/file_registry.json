@@ -1663,6 +1663,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/tests/prekey_rotation.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/tests/prekeys.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -8055,6 +8062,13 @@
     },
     {
       "path": "infra/cloudflare-home/test/harness.ts",
+      "class": "product_code",
+      "domain": "provider_deployment_supply_chain",
+      "license": "AGPL-3.0-or-later",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "infra/cloudflare-home/test/key-rotation.test.ts",
       "class": "product_code",
       "domain": "provider_deployment_supply_chain",
       "license": "AGPL-3.0-or-later",

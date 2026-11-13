@@ -34,6 +34,14 @@ use std::collections::{BTreeMap, BTreeSet};
 pub const NOW: u64 = 1_790_000_000;
 pub const BUNDLE_EXPIRES: u64 = 4_102_444_800;
 
+/// Signed-prekey rotation policy (ASYNC_KEY_MATERIAL section 9 lists it as policy, not wire; approved 2026-11-13,
+/// `docs/reports/2026-11-13-signed-prekey-rotation.md` G1): rotate when the current signed prekey is this old, ...
+pub const SPK_MAX_AGE_S: u64 = 7 * 24 * 60 * 60;
+/// ... when the bundle is within this long of its own `expires_at`, ...
+pub const ROTATE_BEFORE_EXPIRY_S: u64 = 7 * 24 * 60 * 60;
+/// ... or when the current epoch's last-resort ledger holds this many accepted handshakes (3/4 of the 4096 cap).
+pub const LEDGER_ROTATE_AT: usize = crate::crypto::ledger::LAST_RESORT_ACCEPT_LIMIT / 4 * 3;
+
 #[derive(Clone, PartialEq, Eq)]
 pub struct SignedEc {
     pub id: u32,
@@ -115,6 +123,14 @@ pub struct Device {
     /// `expires_at` (POSIX seconds) stamped into the AsyncKeyBundles this device signs. Persisted at key 18;
     /// absent in older state, which means `BUNDLE_EXPIRES`.
     pub bundle_expires_at: u64,
+    /// Epoch of every one-time secret that was generated under an epoch below the current one (key 19). An id that
+    /// is absent belongs to the current epoch, which is also what state written before rotation existed means.
+    pub one_time_epoch: BTreeMap<u32, u64>,
+    /// Wall-clock seconds at which the current signed prekeys were made (key 20); 0 = not recorded yet. Never lowered.
+    pub rotation_at: u64,
+    /// `expires_at` of the bundle the previous epoch published (key 21); 0 = unknown. The previous epoch's secrets
+    /// are kept until it has passed (`retire_previous`).
+    pub prev_expires_at: u64,
 }
 
 impl core::fmt::Debug for Device {
@@ -201,6 +217,9 @@ impl Device {
             bundle_freshness: BundleFreshness::default(),
             peer_devices: vec![],
             bundle_expires_at: BUNDLE_EXPIRES,
+            one_time_epoch: BTreeMap::new(),
+            rotation_at: 0,
+            prev_expires_at: 0,
         }
     }
 
@@ -433,9 +452,27 @@ impl Device {
         self.generate_one_time_for_pool([0x11; 16], n_ec, n_pq, rng)
     }
 
-    /// New signed-prekey epoch: fresh EC signed prekey and ML-KEM signed (last-resort) prekey. The
-    /// previous epoch stays acceptable for a grace period ([PQXDH] §3.2) with its own ledger.
-    pub fn rotate_signed_prekeys<R: RngCore + CryptoRng>(&mut self, rng: &mut R) -> Upload {
+    /// New signed-prekey generation (ASYNC_KEY_MATERIAL section 6, ADR-0140): fresh EC and ML-KEM signed-prekey secrets
+    /// with fresh key ids, generation + 1 (never lowered), a new bundle that expires at `expires_at`, and a fresh
+    /// one-time batch signed under the new generation. The previous epoch stays acceptable ([PQXDH] section 3.2) with
+    /// its own ledger until `retire_previous`; a still-held older epoch is retired now (one previous slot).
+    pub fn rotate_signed_prekeys<R: RngCore + CryptoRng>(
+        &mut self,
+        now: u64,
+        expires_at: u64,
+        n_ec: usize,
+        n_pq: usize,
+        rng: &mut R,
+    ) -> Upload {
+        if self.prev_spk.is_some() {
+            self.expire_previous();
+        }
+        // Every secret still held belongs to the epoch that is about to become the previous one.
+        let old = self.epoch;
+        for id in self.opks.keys().chain(self.pqopks.keys()) {
+            self.one_time_epoch.entry(*id).or_insert(old);
+        }
+        self.drop_one_time_below(old);
         self.epoch += 1;
         let (a, b) = (self.alloc_id(), self.alloc_id());
         let spk = SignedEc {
@@ -450,9 +487,25 @@ impl Device {
         };
         self.prev_spk = Some(std::mem::replace(&mut self.spk, spk));
         self.prev_last_resort = Some(std::mem::replace(&mut self.last_resort, lr));
-        Upload {
-            bundle: self.signed_bundle(rng),
-            ..Default::default()
+        self.prev_expires_at = self.bundle_expires_at;
+        self.bundle_expires_at = expires_at;
+        self.rotation_at = self.rotation_at.max(now);
+        self.generate_one_time(n_ec, n_pq, rng)
+    }
+
+    /// Is a rotation due at wall-clock `now` (policy above)? A clock that went backwards reads as age 0, so it never
+    /// rotates early. Nothing is due until the rotation clock has been stamped (`stamp_rotation_clock`).
+    pub fn rotation_due(&self, now: u64) -> bool {
+        self.rotation_at != 0
+            && (now.saturating_sub(self.rotation_at) >= SPK_MAX_AGE_S
+                || self.ledger.count(self.epoch) >= LEDGER_ROTATE_AT
+                || now.saturating_add(ROTATE_BEFORE_EXPIRY_S) >= self.bundle_expires_at)
+    }
+
+    /// State from before rotation existed has no rotation time: start the age clock now (never rotate on a guess).
+    pub fn stamp_rotation_clock(&mut self, now: u64) {
+        if self.rotation_at == 0 {
+            self.rotation_at = now;
         }
     }
 
@@ -462,6 +515,51 @@ impl Device {
             self.ledger.drop_epoch(p.epoch);
         }
         self.prev_last_resort = None;
+        self.prev_expires_at = 0;
+        self.drop_one_time_below(self.epoch);
+    }
+
+    /// Retire the previous epoch once its own bundle has expired (nothing can legitimately initiate against it any
+    /// more): its signed prekeys, ledger and unused one-time secrets are deleted. Returns whether it did.
+    pub fn retire_previous(&mut self, now: u64) -> bool {
+        if self.prev_spk.is_none() && self.prev_last_resort.is_none() {
+            return false;
+        }
+        let until = if self.prev_expires_at == 0 {
+            self.bundle_expires_at
+        } else {
+            self.prev_expires_at
+        };
+        if now <= until {
+            return false;
+        }
+        self.expire_previous();
+        true
+    }
+
+    /// Epoch a one-time secret was generated under.
+    pub fn one_time_epoch_of(&self, id: u32) -> u64 {
+        self.one_time_epoch.get(&id).copied().unwrap_or(self.epoch)
+    }
+
+    fn drop_one_time_below(&mut self, epoch: u64) {
+        use zeroize::Zeroize;
+        let stale: Vec<u32> = self
+            .opks
+            .keys()
+            .chain(self.pqopks.keys())
+            .copied()
+            .filter(|id| self.one_time_epoch_of(*id) < epoch)
+            .collect();
+        for id in stale {
+            if let Some(mut k) = self.opks.remove(&id) {
+                k.zeroize();
+            }
+            if let Some(mut k) = self.pqopks.remove(&id) {
+                k.zeroize();
+            }
+            self.one_time_epoch.remove(&id);
+        }
     }
 
     pub fn peer_view<'a>(acs_body: &'a [u8], cred_body: &'a [u8]) -> PeerView<'a> {
@@ -616,7 +714,11 @@ impl Device {
             .find(|k| k.id == h.spk_id)
             .ok_or(Error::UnknownSignedPrekey)?
             .clone();
-        let (pq_seed, kind) = if let Some(k) = self.pqopks.get(&h.pq_id) {
+        let (pq_seed, kind) = if let Some(k) = self
+            .pqopks
+            .get(&h.pq_id)
+            .filter(|_| self.one_time_epoch_of(h.pq_id) == spk.epoch)
+        {
             (*k, PqKind::OneTime)
         } else if let Some(k) = [Some(&self.last_resort), self.prev_last_resort.as_ref()]
             .into_iter()
@@ -628,7 +730,13 @@ impl Device {
             return Err(Error::UnknownOrConsumedPqPrekey);
         };
         let opk = match h.opk_id {
-            Some(id) => Some(*self.opks.get(&id).ok_or(Error::UnknownOrConsumedEcPrekey)?),
+            Some(id) => Some(
+                *self
+                    .opks
+                    .get(&id)
+                    .filter(|_| self.one_time_epoch_of(id) == spk.epoch)
+                    .ok_or(Error::UnknownOrConsumedEcPrekey)?,
+            ),
             None => None,
         };
         // ADR-0131 rule 2: only initiations that consume NO one-time key use the ledger.
@@ -643,9 +751,11 @@ impl Device {
         // Success: delete used one-time private keys (forward secrecy + single use) or record the ledger.
         if kind == PqKind::OneTime {
             self.pqopks.remove(&h.pq_id);
+            self.one_time_epoch.remove(&h.pq_id);
         }
         if let Some(id) = h.opk_id {
             self.opks.remove(&id);
+            self.one_time_epoch.remove(&id);
         }
         if ledgered {
             self.ledger.record(spk.epoch, hid);
@@ -671,6 +781,23 @@ impl Device {
             && let V::M(m) = &mut v
         {
             m.push((18, V::U(self.bundle_expires_at)));
+        }
+        if let V::M(m) = &mut v {
+            let tags: Vec<V> = self
+                .one_time_epoch
+                .iter()
+                .filter(|(id, _)| self.opks.contains_key(id) || self.pqopks.contains_key(id))
+                .map(|(id, e)| V::A(vec![V::U(*id as u64), V::U(*e)]))
+                .collect();
+            if !tags.is_empty() {
+                m.push((19, V::A(tags)));
+            }
+            if self.rotation_at != 0 {
+                m.push((20, V::U(self.rotation_at)));
+            }
+            if self.prev_expires_at != 0 {
+                m.push((21, V::U(self.prev_expires_at)));
+            }
         }
         v
     }
@@ -876,6 +1003,13 @@ impl Device {
                 return Err(Error::Decode("device: duplicate bundle freshness"));
             }
         }
+        let mut one_time_epoch = BTreeMap::new();
+        for e in v.opt(19).map(|x| x.a()).transpose()?.unwrap_or(&[]) {
+            let a = e.a()?;
+            if a.len() != 2 || one_time_epoch.insert(a[0].u32()?, a[1].u()?).is_some() {
+                return Err(Error::Decode("device: one-time epoch"));
+            }
+        }
         let did = v.get(12)?.b()?;
         let sg = v.get(13)?.a()?;
         if did.len() != 16 || sg.len() != 2 {
@@ -908,6 +1042,9 @@ impl Device {
                 .map(|x| x.u())
                 .transpose()?
                 .unwrap_or(BUNDLE_EXPIRES),
+            one_time_epoch,
+            rotation_at: v.opt(20).map(|x| x.u()).transpose()?.unwrap_or(0),
+            prev_expires_at: v.opt(21).map(|x| x.u()).transpose()?.unwrap_or(0),
         }
         .reindexed()
     }
@@ -961,6 +1098,14 @@ impl Provider {
                 acs_body: vec![],
                 cred_body: vec![],
             });
+        // deviation D28 (mirrors the reference Home): one-time items of a lower generation can never verify under a
+        // higher one, so publishing a higher generation drops them instead of breaking every later fetch.
+        if binding::bundle_generation_unverified(&up.bundle)
+            > binding::bundle_generation_unverified(&e.bundle)
+        {
+            e.opks.clear();
+            e.pqopks.clear();
+        }
         e.bundle = up.bundle;
         e.acs_body = d.acs().body();
         e.cred_body = d.credential().body();

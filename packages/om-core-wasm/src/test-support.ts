@@ -124,6 +124,7 @@ export function createMemoryProvider(): MemoryProvider {
           if (objects.get(locator)?.owner === call.ownerCap) objects.delete(locator);
           break;
         }
+        case "revoke_key_generation": break; // best effort; the next publish replaces the pool anyway
         case "publish_key_material": {
           const p = keys.get(call.deviceId) ?? { bundle: "", opks: [], pqopks: [] };
           p.bundle = call.bundle;

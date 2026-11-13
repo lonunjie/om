@@ -1232,6 +1232,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         dev.account_id = head.account_id;
         dev.acs_generation = head.generation;
         dev.bundle_expires_at = now_s + BUNDLE_TTL_S;
+        dev.rotation_at = now_s;
         let up = dev.generate_one_time(ONE_TIME_KEYS, ONE_TIME_KEYS, self.rng);
         let call = NetCall::PublishKeyMaterial {
             device_id: dev.device_id.to_vec(),

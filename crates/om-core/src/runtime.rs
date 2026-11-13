@@ -92,9 +92,14 @@ pub const TEST_ONLY_MARKER: &str = "OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION";
 #[derive(Default)]
 struct Published {
     bundle: Vec<u8>,
-    opks: Vec<Vec<u8>>,
-    pqopks: Vec<Vec<u8>>,
+    /// The signed-prekey generation of the stored bundle (0 when the bundle is opaque).
+    generation: u64,
+    /// One-time items with the generation of the bundle that was current when they were published.
+    opks: Vec<(u64, Vec<u8>)>,
+    pqopks: Vec<(u64, Vec<u8>)>,
 }
+
+use crate::crypto::binding::bundle_generation_unverified as bundle_generation;
 
 #[derive(Default)]
 struct Mailbox {
@@ -250,6 +255,15 @@ impl LoopbackNetwork {
             .map(|(d, p)| (d.clone(), p.opks.len(), p.pqopks.len()))
             .collect()
     }
+    /// The signed-prekey generation of the bundle the key-material provider holds, per published device.
+    pub fn key_generations(&self) -> Vec<(Vec<u8>, u64)> {
+        self.0
+            .borrow()
+            .keys
+            .iter()
+            .map(|(d, p)| (d.clone(), p.generation))
+            .collect()
+    }
     /// Hostile introduction service: exchange the descriptors stored under two invite ids.
     pub fn swap_invites(&self, a: &[u8], b: &[u8]) {
         let mut s = self.0.borrow_mut();
@@ -290,9 +304,29 @@ impl LoopbackNetwork {
                 pqopks,
             } => {
                 let p = s.keys.entry(device_id.clone()).or_default();
+                let generation = bundle_generation(bundle);
+                // Deviation D28: one-time items of a lower generation can never verify under a higher one, so a
+                // newly published higher generation drops them.
+                if generation > p.generation {
+                    p.opks.retain(|(g, _)| *g >= generation);
+                    p.pqopks.retain(|(g, _)| *g >= generation);
+                }
+                p.generation = p.generation.max(generation);
                 p.bundle = bundle.clone();
-                p.opks.extend(opks.iter().cloned());
-                p.pqopks.extend(pqopks.iter().cloned());
+                p.opks.extend(opks.iter().map(|o| (generation, o.clone())));
+                p.pqopks
+                    .extend(pqopks.iter().map(|o| (generation, o.clone())));
+                NetResult::Ok
+            }
+            NetCall::RevokeKeyGeneration {
+                device_id,
+                generation,
+            } => {
+                if let Some(p) = s.keys.get_mut(device_id)
+                    && p.generation == *generation
+                {
+                    *p = Published::default();
+                }
                 NetResult::Ok
             }
             NetCall::GrantKeyFetch {
@@ -328,10 +362,10 @@ impl LoopbackNetwork {
                 Some(p) => {
                     let mut out = vec![p.bundle.clone()];
                     if !p.opks.is_empty() {
-                        out.push(p.opks.remove(0));
+                        out.push(p.opks.remove(0).1);
                     }
                     if !p.pqopks.is_empty() {
-                        out.push(p.pqopks.remove(0));
+                        out.push(p.pqopks.remove(0).1);
                     }
                     NetResult::Many { items: out }
                 }

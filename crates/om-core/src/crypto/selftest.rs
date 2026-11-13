@@ -14,7 +14,7 @@ use crate::crypto::pqxdh::{self, PqKind};
 use crate::crypto::rng::{CryptoRng, RngCore, arr32};
 use crate::crypto::session::{self, SessionState};
 use crate::crypto::sig::{self, ROLE_DEVICE, ds_hash, ds_sig};
-use crate::crypto::store::{Device, MemVault, NOW, Provider};
+use crate::crypto::store::{BUNDLE_EXPIRES, Device, MemVault, NOW, Provider};
 use crate::crypto::{Error, PROFILE_V1};
 
 #[derive(Clone, Debug)]
@@ -308,7 +308,7 @@ fn binding_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
     // Signed-prekey freshness is global across provider pools. Once generation 2 is accepted, replay
     // of a still-valid generation 1 bundle is rejected even if a provider retained it.
     let old = up_a.bundle;
-    let new_up = bob.rotate_signed_prekeys(rng);
+    let new_up = bob.rotate_signed_prekeys(NOW, BUNDLE_EXPIRES, 0, 0, rng);
     let newer = binding::verify_fetch_with_freshness(
         std::slice::from_ref(&new_up.bundle),
         &current_view,
@@ -638,7 +638,7 @@ fn otk_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
     a9.start_session(&f8, &view, rng).unwrap();
     let env9 = a9.encrypt(&bob_ik, b"nine").unwrap().0;
     let old_epoch = bob.epoch;
-    let up = bob.rotate_signed_prekeys(rng);
+    let up = bob.rotate_signed_prekeys(NOW, BUNDLE_EXPIRES, 0, 0, rng);
     prov.publish(&bob, up);
     let ok = bob
         .decrypt(
@@ -828,7 +828,7 @@ fn ledger_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng: &mut R) {
         "PQ one-time handshake does not touch the exhausted allowance",
     );
     let old = bob.epoch;
-    let up = bob.rotate_signed_prekeys(rng);
+    let up = bob.rotate_signed_prekeys(NOW, BUNDLE_EXPIRES, 0, 0, rng);
     prov.publish(&bob, up);
     let (acs2, cred2) = prov.view(&did);
     let view2 = Device::peer_view(&acs2, &cred2);
@@ -1173,7 +1173,7 @@ fn adr0140_persistence_checks<R: RngCore + CryptoRng>(out: &mut Vec<Check>, rng:
         format!("provider A={}; provider B={}", r1.is_ok(), r2.is_ok()),
     );
 
-    let mut third = bob.rotate_signed_prekeys(rng);
+    let mut third = bob.rotate_signed_prekeys(NOW, BUNDLE_EXPIRES, 0, 0, rng);
     let r3 = alice.start_session(&[third.bundle.clone()], &view, rng);
     let before = alice.bundle_freshness.floors.len();
     let serialized = alice.to_bytes();

@@ -501,19 +501,80 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         ))
     }
 
+    /// Signed-prekey rotation and retirement (ASYNC_KEY_MATERIAL sections 4, 6, 7; ADR-0140; policy in
+    /// `crypto::store`: 7 days of age, 3/4 of the last-resort ledger cap, 7 days before the bundle expires). Runs on
+    /// every intent and inbound batch, so no timer is needed.
+    ///
+    /// Rotation is one state transition: the new secrets, the epoch and the `PublishKeys` outbox entry (new bundle plus
+    /// a fresh one-time batch signed under generation + 1) are staged together, so nothing is sent before they are
+    /// durable and a crash replays the outbox entry with identical bytes (same request id at the Home). While a
+    /// publish is owed no second rotation starts; a retry never touches the epoch, which only ever grows; a clock that
+    /// runs backwards reads as age 0. The previous epoch is retired (secrets, ledger and one-time secrets deleted) once
+    /// its own bundle has expired.
+    fn maintain_signed_prekeys(&mut self) {
+        let now = self.now_s();
+        let Some(dev) = self.st.device.as_mut() else {
+            return;
+        };
+        dev.retire_previous(now);
+        dev.stamp_rotation_clock(now);
+        let due = dev.rotation_due(now);
+        if due {
+            self.rotate_prekeys();
+        }
+    }
+
+    fn publish_pending(&self) -> bool {
+        self.st
+            .app
+            .outbox
+            .iter()
+            .any(|e| matches!(e.purpose, Purpose::PublishKeys))
+    }
+
+    /// Rotate now (the due-check is the caller's, or an explicit suspected-compromise decision: there is no typed
+    /// intent for it yet). Refused while a publish is still owed or before the first publish.
+    pub fn rotate_prekeys(&mut self) {
+        if !self.st.app.keys_published || self.publish_pending() {
+            return;
+        }
+        let now = self.now_s();
+        let Some(dev) = self.st.device.as_mut() else {
+            return;
+        };
+        let old_generation = dev.epoch;
+        let up = dev.rotate_signed_prekeys(
+            now,
+            now + BUNDLE_TTL_S,
+            ONE_TIME_KEYS,
+            ONE_TIME_KEYS,
+            self.rng,
+        );
+        let device_id = dev.device_id.to_vec();
+        // Best effort (ASYNC_KEY_MATERIAL section 6 step 2): ask the Home to delete the old generation first.
+        self.enqueue(
+            NetCall::RevokeKeyGeneration {
+                device_id: device_id.clone(),
+                generation: old_generation,
+            },
+            Purpose::RevokeKeyGeneration,
+        );
+        let call = NetCall::PublishKeyMaterial {
+            device_id,
+            bundle: up.bundle,
+            opks: up.opks,
+            pqopks: up.pqopks,
+        };
+        self.enqueue(call, Purpose::PublishKeys);
+    }
+
     /// One-time prekey replenishment. A fetch pops one item of each kind at the provider, so the local private
     /// inventory (which only shrinks when a handshake consumes an item) tracks it closely; when it runs low a new
-    /// batch is generated and queued for the key-material provider. The signed bundle and its epoch are unchanged.
-    /// Signed-prekey rotation and bundle expiry renewal change the epoch and the provider's pool and are not built.
+    /// batch is generated and queued for the key-material provider. The signed bundle and its epoch are unchanged;
+    /// signed-prekey rotation runs first (`maintain_signed_prekeys`).
     fn maintain_prekeys(&mut self) {
-        if !self.st.app.keys_published
-            || self
-                .st
-                .app
-                .outbox
-                .iter()
-                .any(|e| matches!(e.purpose, Purpose::PublishKeys))
-        {
+        self.maintain_signed_prekeys();
+        if !self.st.app.keys_published || self.publish_pending() {
             return;
         }
         let Some(dev) = self.st.device.as_mut() else {
@@ -625,6 +686,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let op = &intent.operation_id;
         let kind = intent.body.kind();
         self.expire_stale();
+        self.maintain_signed_prekeys();
         // UI-11 (M2): a destructive intent runs only with a confirmation nonce that Core issued for exactly this
         // intent kind and target in this profile, unspent and unexpired. Anything else is `unauthorized`, and the
         // nonce is spent either way.
@@ -819,6 +881,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let now_s = self.now_s();
         let mut device = crate::crypto::store::Device::new(self.rng);
         device.bundle_expires_at = now_s + BUNDLE_TTL_S;
+        device.rotation_at = now_s;
         let up = device.generate_one_time(ONE_TIME_KEYS, ONE_TIME_KEYS, self.rng);
         // The RecoveryRoot is generated first: the genesis commits to the default RecoveryPolicy whose method key is
         // derived from it (OM-RECOVERY-AUTH-KEY-SEED-v1). The root is then shown once as the recovery key and wiped.
@@ -2108,7 +2171,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 error: NetError::NotFound,
             } => match entry.call {
                 NetCall::GetInvite { .. } => K::Terminal(RejectReason::NotFound),
-                NetCall::DeleteBlob { .. } => K::Done(None, vec![]), // already gone is success
+                NetCall::DeleteBlob { .. } | NetCall::RevokeKeyGeneration { .. } => {
+                    K::Done(None, vec![]) // already gone is success
+                }
                 NetCall::FetchKeyMaterial { .. } => K::Retry, // the peer may not have published yet
                 _ => K::Terminal(RejectReason::NotFound),
             },
@@ -2173,6 +2238,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     Some((operation_id.clone(), None, None))
                 }
                 Purpose::PublishKeys
+                | Purpose::RevokeKeyGeneration
                 | Purpose::Ack
                 | Purpose::DeleteBlob { .. }
                 | Purpose::FetchDeviceKeys { .. }
@@ -2284,7 +2350,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     ) -> Result<(), CoreError> {
         match entry.purpose {
             Purpose::PublishKeys => self.st.app.keys_published = true,
-            Purpose::Ack | Purpose::DeleteBlob { .. } | Purpose::RecoveryFanout => {}
+            Purpose::Ack
+            | Purpose::DeleteBlob { .. }
+            | Purpose::RevokeKeyGeneration
+            | Purpose::RecoveryFanout => {}
             Purpose::PutBlob {
                 operation_id,
                 conversation_id,

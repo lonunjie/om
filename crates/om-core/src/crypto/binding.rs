@@ -356,6 +356,15 @@ pub fn sign_item(
     ]))
 }
 
+/// The signed-prekey generation a stored AsyncKeyBundle names, read WITHOUT verifying anything: an availability aid
+/// for a provider (it never decides validity or freshness, PC-K05). 0 when the bytes are not a bundle.
+pub fn bundle_generation_unverified(bundle: &[u8]) -> u64 {
+    cbor::decode(bundle)
+        .and_then(|o| cbor::decode(o.get(1)?.b()?))
+        .and_then(|b| b.get(6)?.u())
+        .unwrap_or(0)
+}
+
 fn generation_core_hash(b: &V) -> Result<[u8; 32], Error> {
     let core = V::A(vec![
         V::B(b.get(2)?.b()?.to_vec()),

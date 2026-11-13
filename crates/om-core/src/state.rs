@@ -594,6 +594,8 @@ pub enum Purpose {
     },
     /// A recovery veto (stub transport): nothing awaits its result.
     RecoveryFanout,
+    /// Best-effort deletion of the previous signed-prekey generation at the Home, queued ahead of the rotation's publish.
+    RevokeKeyGeneration,
     Ack,
 }
 

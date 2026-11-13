@@ -119,6 +119,14 @@ pub enum NetCall {
         #[serde(with = "hexs_vec")]
         pqopks: Vec<Vec<u8>>,
     },
+    /// KeyMaterialProvider revokeGeneration (ASYNC_KEY_MATERIAL section 6 step 2): best-effort deletion of an older
+    /// signed-prekey generation's bundle and one-time items, queued ahead of the rotation's publish. Idempotent; the
+    /// provider keeping them is never evidence they are safe (PC-K06).
+    RevokeKeyGeneration {
+        #[serde(with = "hexs")]
+        device_id: Vec<u8>,
+        generation: u64,
+    },
     /// KeyMaterialProvider fetch: `[signed bundle, popped one-time items...]`.
     /// `service` is the Home that holds the device's pool (from the peer's accepted relationship) and `capability`
     /// the fetch capability the peer issued for this relationship.
