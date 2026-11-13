@@ -70,3 +70,45 @@ Design-Departures: none
 ```
 
 `none` holds only if the operator accepts that direct blob transfer (not LAN discovery, rendezvous or framing codec) is `core_kernel` blob work; if not, cite `local_delivery` as unauthorized and hold the commit.
+
+## Wiring status (2026-11-13, engine slice; code built and tested, NOT committed)
+
+### Design sources read
+
+Read in full by this session: AGENTS.md "Design gate", this report (all of it), `crates/om-core/src/direct.rs`, and the engine, state, API and attachment-flow code it touches (`engine.rs`, `state.rs`, `api.rs`, `flows.rs` compose, `flows/blobs.rs`). **Not read (the committing session must read them before committing):** the 30 documents and ADRs of the six domains printed by the command below. This session did not re-read them; the design decisions below rest on the report's own earlier reading and on the committed "Check of the decisions against the text".
+
+### What was built (files, all uncommitted)
+
+- `crates/om-core/src/state.rs`: `AppState.direct_offers: BTreeMap<Hex, DirectOfferRec>` (`#[serde(default)]`; a record without it loads, tested), `DirectStatus` (`waiting`, `delivered`, `withdrawn`, `expired`), `AttachRec.direct` (serde default false). An outgoing direct attachment has no owner capability and is never put to a store, so every upload, quota and delete path ignores it.
+- `crates/om-core/src/api.rs`: intents `SendAttachmentsDirect` and `WithdrawDirectOffer`; queries `PlanAttachment {size}` (`AttachmentPlanView`: `spool`, `offer_direct{limit}`, `too_large{limit}`, `empty`) and `GetDirectOffers` (`DirectOfferView`, with `needsFile`); `AttachmentState` gains `remote_direct`, `waiting_for_recipient`, `transferring`, `delivered_locally`, `not_offered`.
+- `crates/om-core/src/flows/blobs.rs`, `flows.rs`: `Tx::prepare_direct_attachment` (refuses anything `plan_size` does not call `OfferDirect`; mints a random 32-byte read capability, no new label), the two intents, expiry (7 days, same as the spool default; finished offers forgotten after 30), `compose` holds an event back only for store-bound attachments.
+- `crates/om-core/src/engine.rs`: sans-IO host entry points `plan_attachment`, `prepare_direct_attachment`, `arm_direct_offer`, `direct_serve`, `direct_pump`, `direct_fetch_start`, `direct_fetch_handle`, `direct_fetch_progress`, `direct_fetch_open`. Serving state and fetch state are memory only; the only durable effect of serving is `Delivered` (a `Step` with a commit).
+- `crates/om-core/tests/direct_engine.rs` (5 tests) and [`machine/file_registry.json`](../../machine/file_registry.json) (registers it).
+
+### Decisions
+
+- **G-O1, message-before-offer ordering (the open question 2 above): the conservative option is that the message is sent immediately and only the file waits.** Reasons: (1) the person confirms the offer by sending (two steps: Core refuses and says so, then `SendAttachmentsDirect`), so nothing is sent without an explicit choice; (2) holding the message until the other person is online would need Core to learn presence, which is metadata the design does not give Core and the metadata threat model argues against; (3) the message then rides the ordinary sealed, ordered path with an event built at once (the same as a text message), so it never depends on a transport. Consequence, stated to the person in words: the recipient sees the file as available only while the sender is online (`remote_direct`), and the sender sees `waiting_for_recipient`. This is a reading of silent design text; if the operator prefers "hold the message", it is a change in `send_attachments_direct` only.
+- G-O2: a file that fits the spool is not a direct candidate (`prepare_direct_attachment` returns `Invalid`); direct is offered only for "too big" (D8 unchanged).
+- G-O3: persisted state holds no secret and no bytes. After a restart the offer shows `needsFile: true` and nothing is served (uniform `unavailable`) until the host hands the original file back (`arm_direct_offer`, which rebuilds the sealed object deterministically and refuses a different file). Expired, withdrawn and delivered offers cannot be armed.
+- G-O4: `delivered_locally` means that device's receipt only (AT-06); it is a separate state from `stored_for_later` and never implies another device or an offline recipient can fetch.
+- G-O5: receiver resume covers a dropped channel (held prefix kept in memory, the sender continues from it); after a process restart the receiver starts the fetch again, as ADR-0158 treats resume state as transport-local.
+- No ADR needed; nothing departs from a read normative text. D1 (no WAN transport) and the `local_delivery` authorization finding are unchanged.
+
+### Tests and checks (this session)
+
+`cargo test -p om-core` all suites pass (new: `direct_engine` 5: refuse-before-send and plan, message-at-once plus 6 MiB transfer with a drop after 5 chunks, resume, `transferring` and `delivered_locally` surviving a restart; offer surviving restart, served only from the same file, uniform refusal before arming; withdraw and lapse; old state without the field loads). `cargo clippy -p om-core --all-targets -- -D warnings` clean, `cargo fmt` applied, `cargo build --workspace` builds (`om-wasm` compiles against the new enums), `python3 tools/om_docs.py fmt` 0 unresolved, `make check` passes. **Not run:** `cargo clippy -p om-wasm --target wasm32-unknown-unknown` fails in this environment before and after the change (the `wasm32-unknown-unknown` std is not installed for the active toolchain: "can't find crate for core"), so wasm conformance was not verified; no TypeScript was touched, so `tsc` was not run.
+
+### What remains
+
+1. **wasm bridge commands** (`crates/om-wasm`, `packages/om-core-wasm`): `plan_attachment`, `prepare_direct_attachment`, `arm_direct_offer`, `direct_serve`, `direct_pump`, `direct_fetch_*`, with a `DirectFrame` JSON shape (bytes as hex like `hexs`; no CBOR codec). Then the TS mirrors in `packages/om-platform-api` (`views.ts`: the five new `AttachmentState` values, `AttachmentPlanView`, `DirectOfferView`; `intents.ts`: the two intents; the query kinds) and the harness. Needs the wasm target installed to verify.
+2. **UI copy** (separate slice, per the voice rules): "Too big to send through the delivery service, so it was not sent. Send it straight to them when they are online?"; waiting: "Waiting for them to be online"; sending: "Sending to them now"; done: "They have it. Only their device holds it, nothing is kept for later."; not offered: "No longer offered"; recipient: "Available while they are online".
+3. The host driver that supplies the channel and re-arms offers at start (needs a transport: D1, `local_delivery`), a V-003 test of LAN receipt followed by provider backfill, and the `LanFrameV1` codec.
+4. Receiver partial bytes across a process restart (host-held prefix handed back); a sender-side check that the channel belongs to the conversation (today the read capability, relationship-scoped, is the gate).
+
+### For the committing session
+
+```
+python3 tools/design_gate.py needs crates/om-core/src crates/om-core/tests
+```
+
+Read the printed domains (`crypto_1to1`, `discovery_first_contact`, `identity_control_recovery`, `metadata_privacy`, `relay_reachability`, `time_ordering_events`), then commit `crates/om-core/src/{api,engine,flows,state}.rs`, `crates/om-core/src/flows/blobs.rs`, `crates/om-core/tests/direct_engine.rs` and [`machine/file_registry.json`](../../machine/file_registry.json) with `Design-Read: crypto_1to1, discovery_first_contact, identity_control_recovery, metadata_privacy, relay_reachability, time_ordering_events` and `Design-Departures: none` (hold if the operator rejects G-O1).
