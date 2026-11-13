@@ -219,3 +219,49 @@ This part does not depend on the open A/B/C question: no `openmls`, no Cargo dep
 - **Q2:** the group wire (`GroupWire`: Invite, Accept, Decline, Welcome, Commit, LeaveRequest, App) stays Core-internal JSON until an ADR freezes object types and delivery kinds. **Recorded as open**; no group release and no second implementation may rely on it.
 - **G9:** stays open (signed intent envelope, ACS-validated device-to-account mapping, MLS credentials instead of the released `pk`).
 - **A/B/C wasm question:** answered as a proposal only, in the delegated draft [`ADR-0187`](../../decisions/ADR-0187-mls-engine-on-wasm-unforked-openmls-with-host-entropy-and-clock.md) with evidence in [`2026-11-14-mls-wasm-decision.md`](2026-11-14-mls-wasm-decision.md): stock OpenMLS in the Core module with two plumbing shims (neither contains cryptography). Slice 2's real engine waits for the operator to accept or change it.
+
+## Slice 2b build status (2026-11-14): the real engine, built and green, NOT committed
+
+**Everything here depends on ADR-0187, which is a proposed delegated draft and is not accepted.** It is built so that reverting is mechanical (list under "Revert").
+
+**Design sources read this session:** [`AGENTS.md`](../../AGENTS.md) "Design gate"; [`ADR-0187`](../../decisions/ADR-0187-mls-engine-on-wasm-unforked-openmls-with-host-entropy-and-clock.md) and [`2026-11-14-mls-wasm-decision.md`](2026-11-14-mls-wasm-decision.md) in full; this plan from the slice 2 gate to the end in full, and the top (lines 1 to 127) only as a skim; `groups/mls.rs`, `groups/store.rs`, the head of `groups/fake.rs`, both loopback test files in part, the V-004 prototype `lib.rs` (API usage), the OpenMLS, `openmls_memory_storage`, `web-time` and `getrandom` 0.4.3 sources where cited. **Not read this session:** the 30 documents and 47 ADRs of the six `crates/` domains and the `groups` documents (so no code commit may claim them from this session).
+
+**Files (all uncommitted):**
+- New `crates/om-core/src/groups/openmls.rs` (`OpenMlsGroupCrypto`, `OpenMlsLoader`, tag `openmls-0.9`), behind the new off-by-default `groups-openmls` feature of `om-core`; not part of `production`.
+- New `crates/om-core/tests/groups_openmls.rs` (7 engine-level tests, feature-gated).
+- Edited `crates/om-core/tests/groups_loopback.rs` and `groups_flow.rs`: an `engine` alias module picks the fake by default and OpenMLS with the feature, so the same scenarios run against both (3 devices, 2 accounts). Three fake-only spots are `cfg`-gated or adjusted: the "randomness and clock from Core" test (fake only), one string (`engine_mismatch` now uses a neutral tag), the `a1.eng.clone()` (now snapshot and restore), and the replay check in `groups_flow` (the real engine refuses a replayed ciphertext itself).
+- Edited `groups.rs` (cfg `mod openmls`), `groups/mls.rs` (comments only: the D-g9 wording ADR-0187 asks for), root [`Cargo.toml`](../../Cargo.toml) (`[patch.crates-io]` for `web-time` and `getrandom`, `exclude` of the two shim directories), `Cargo.lock`, [`crates/om-core/Cargo.toml`](../../crates/om-core/Cargo.toml) (pins `=0.9.0`, `=0.6.0`, `js` only on wasm32), [`crates/om-wasm/Cargo.toml`](../../crates/om-wasm/Cargo.toml) (feature `groups-openmls`, `getrandom` 0.2 `custom`), `crates/om-wasm/src/abi.rs` (getrandom 0.2 registration to the same `random_fill`; one gated export `om_groups_selftest`), `crates/om-wasm/src/lib.rs`, new `crates/om-wasm/src/groups_selftest.rs`, [`tools/core_guard.py`](../../tools/core_guard.py), [`machine/file_registry.json`](../../machine/file_registry.json) (53 entries, mostly the vendored copy).
+- New `third_party/openmls-wasm-shims/` with a README: `web-time/` (a small clean-room shim, `SystemTime` over `om_host.now_ms`, std-compatible serde, upstream MIT and Apache-2.0 texts kept) and `getrandom-0.4.3/` (full upstream copy, one `cfg` condition in `src/error.rs`, both licence texts kept).
+
+**Decisions (engineering; all within ADR-0187):**
+- Entropy and time are the host's, by the same route as Core: `getrandom` 0.2, 0.3, 0.4 all end in `om_host.random_fill`, `SystemTime` in `om_host.now_ms`. `CryptoEnv` is unused by the real engine. The 0.3 and 0.4 custom backends share the symbol `__getrandom_v03_custom` that `om-wasm` already defines, so only 0.2 needed a new registration.
+- Storage: the engine snapshot is an OM-owned length-prefixed record (magic `OMMLSv01`, format 1, device id, signature public key, the library store copied in sorted key order, pending Commit and Welcome bytes); wrapped by the existing `GroupCryptoRec` (hash, engine tag, version). Equal state gives equal bytes (tested). The library's own persistence code and `serde_json` of the store are not the format. The snapshot contains MLS private keys (the fake's did not); it lives in `AppState` like device keys. Whether `AppState` is encrypted at rest on every host is outside this slice.
+- `inspect_commit` reads a Commit on a scratch copy of the store (your own pending Commit is recognised from the held bytes; a competing pending Commit is cleared on the copy only).
+- Group creation: ratchet tree in the Welcome, `max_past_epochs(0)` (slice 4 owns the window), suite fixed to the v1 suite, Room context carried as a private-use GroupContext extension `0xF04D` that every KeyPackage declares. **The code point is a placeholder and has no registry entry; it needs one before a group ships.**
+- Guard: [`tools/core_guard.py`](../../tools/core_guard.py) now parses every scanned `.wasm` import section and fails any import other than `om_host.random_fill` and `om_host.now_ms` (tested on both real modules and a hand-made module with a `wbg.x` import); it also caps `unsafe` in the shim directory (one, in `web-time/src/lib.rs`).
+
+**Gate results (rustup toolchain, `--locked`, `--features om-core/production`):**
+
+| | bytes |
+|---|---|
+| `om_wasm.wasm` without the feature (current HEAD; the 4,213,013 in the dependency gate is stale) | 4,626,193 |
+| with `groups-openmls` (engine linked and exercised by `om_groups_selftest`) | 6,784,341 |
+| delta | +2,158,148 (+46.7 percent, 1.47x; budget was about 3x) |
+
+Imports of both modules: exactly `om_host.random_fill` and `om_host.now_ms`. Run under Node 24 with only those two host functions, `om_groups_selftest` returned 0 (two engines: create, KeyPackage, Add, Welcome, application message, snapshot restore, Remove) using 640 entropy bytes and 10 clock reads. No third import, no licence problem (MIT, MPL-2.0, Apache-2.0, BSD, ISC as in the gate), no stop condition hit. The full `cargo build -p om-wasm --target wasm32-unknown-unknown --release` without the feature is unchanged in behaviour. Only the first-load cost (compressed size, time to instantiate) and run time on a phone are not measured.
+
+**Tests:** `cargo test -p om-core --features groups-openmls` all green (groups_loopback 14 and groups_flow 7 against OpenMLS, groups_openmls 7, plus everything else); `cargo test -p om-core` default green (loopback 15, flow 7 with the fake); `cargo test` of the `web-time` shim (serde form equals std, with `--features serde`) green; `cargo clippy -p om-core --all-targets -- -D warnings` clean with and without the feature; `cargo clippy -p om-wasm --target wasm32-unknown-unknown -- -D warnings` clean with and without; `cargo fmt --all` applied; `python3 tools/om_docs.py fmt`; `make check` OK.
+
+**Not tested / not done:** a snapshot written on native restored on wasm and the reverse (ADR-0187 asks for it; only the serde form of the time type is pinned natively); KeyPackage expiry through the host clock (the fake test is not portable; the engine maps a lifetime error to `key_package_expired` untested); `Cargo.lock` gains about 1,100 lines and `ctutils` moves 0.4.6 to 0.4.8 (forced by the new tree); `om-wasm`'s `api.rs`/bridge does not call the engine yet (the `om_groups_selftest` export is the only caller, gated); past-epoch window (slice 4); the extension code point registry; G9, Q1, Q2 unchanged.
+
+**`cargo-deny` exception (note only, no tool set up):** when `cargo-deny` is added, its duplicate-crypto ban needs one named exception for the OpenMLS provider tree: second copies of `ed25519-dalek`, `x25519-dalek`, `chacha20poly1305`, plus `aes-gcm`, `p256`, `p384`, `k256`, `ml-dsa`, `x-wing`; licence allow-list MIT, Apache-2.0, BSD-3-Clause, ISC, MPL-2.0 (`r-efi` through its MIT option, never linked).
+
+**Revert:** delete `crates/om-core/src/groups/openmls.rs`, `tests/groups_openmls.rs`, `crates/om-wasm/src/groups_selftest.rs`, `third_party/openmls-wasm-shims/`; remove the `groups-openmls` feature and optional deps from both manifests, the `[patch.crates-io]` block and the two `exclude` entries; undo the `engine` alias edits in the two test files, the abi.rs additions, the `cfg mod` line, the [`core_guard.py`](../../tools/core_guard.py) import check (which is worth keeping) and the file-registry entries; `cargo update` to regenerate the lock.
+
+**Exact command for the committing session** (it maps the same six `crates/` domains; read all of them, then check D-g9 as reworded and the ADR-0187 decisions against the text, and commit with `Design-Departures: ADR-0187` only once the operator accepts it, otherwise do not commit the engine):
+
+```sh
+python3 tools/design_gate.py needs Cargo.toml Cargo.lock crates/om-core/Cargo.toml crates/om-core/src/groups.rs crates/om-core/src/groups/openmls.rs crates/om-core/src/groups/mls.rs crates/om-core/tests/groups_flow.rs crates/om-core/tests/groups_loopback.rs crates/om-core/tests/groups_openmls.rs crates/om-wasm tools/core_guard.py third_party
+```
+
+The [`core_guard.py`](../../tools/core_guard.py) change and the `engine` alias in the tests are independent of ADR-0187 and could be committed alone.
