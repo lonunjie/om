@@ -40,3 +40,11 @@ Agent group A (one Sonnet agent, reads PROVISIONING_AND_BOOTSTRAP and the Cloudf
 - **Rule found while reading:** search/index results are bound to the originating `ProfileExecutionContext` (UI-10, R-332); any new search or notification entry point must carry the context and drop on profile change.
 - **Gotcha:** `pnpm exec vitest run` in `packages/om-ui` also picks up stale `dist/**/*.test.js` after `tsc -b`; run `vitest run src` instead.
 - **Still blocked on the operator, so not started:** group A (real deploy flow), group B (D25/D26 rulings), the non-Anthropic review of multi-device Core (ADR-0167). The product cannot honestly be called "ready for mass use" before these and the open items in groups C to G are done.
+
+### 4a. State at the end of the 2026-11-13 thread (for the next session)
+
+- **In flight:** session `local_c40b6d0e-feb1-4717-82c0-eab067865d79` (multi-device phase 5, `DeviceHistorySnapshot`) was implementing with about 16 uncommitted files in `crates/om-core` and elsewhere; `origin/main` was at `7cd5a0a`. Do not touch those files while it runs. When it finishes, check its diff, run the `om-core` tests and the two-context link e2e, and read its report before building on it. If it died, its working tree is the starting point; `git status` shows what it left.
+- **Done today:** `0b6a2d9` (search hit opens the exact message), `7cd5a0a` (device-link copy says the new device starts with new messages only; update it when phase 5 lands).
+- **Needs the operator:** `border.strong` contrast conflict (audited 2.3:1 versus the 3:1 component-boundary rule, VS-01; an amendment needs a short ADR), group A (real deploy flow), D25/D26 rulings, non-Anthropic review of multi-device Core (ADR-0167).
+- **Next after phase 5, in order:** recovery flows (group E), signed-prekey rotation, then groups (group F), then direct/LAN large-file transfer (group G). Each needs its Core design domains read first; budget the reading (about 70k tokens per domain set).
+- **Budget on 2026-11-13:** about 6% of the 5-hour window and 14% of the week at the last check; budget was never the constraint.
