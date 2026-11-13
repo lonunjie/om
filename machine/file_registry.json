@@ -1516,6 +1516,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/groups/flow.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/groups/journal.rs",
       "class": "product_code",
       "domain": "groups",
@@ -1720,6 +1727,13 @@
     },
     {
       "path": "crates/om-core/tests/groups.rs",
+      "class": "product_code",
+      "domain": "groups",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/groups_flow.rs",
       "class": "product_code",
       "domain": "groups",
       "license": "MPL-2.0",

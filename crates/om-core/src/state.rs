@@ -746,6 +746,18 @@ pub struct AppState {
     /// ConversationID (hex) -> the last accepted Commit's `mls_commit_hash` (hex): the idempotency marker.
     #[serde(default)]
     pub group_accepted: BTreeMap<Hex, Hex>,
+    /// Group invitations in both directions by invite id (hex) (slice 3). Additive.
+    #[serde(default)]
+    pub group_invites: BTreeMap<Hex, crate::groups::flow::GroupInviteRec>,
+    /// ConversationID (hex) -> device id (hex) -> its account and device public key, as this device learned them. Additive.
+    #[serde(default)]
+    pub group_devices: BTreeMap<Hex, BTreeMap<Hex, crate::groups::flow::GroupDeviceRec>>,
+    /// ConversationID (hex) -> the group's text messages as this device holds them. Additive.
+    #[serde(default)]
+    pub group_msgs: BTreeMap<Hex, Vec<crate::groups::flow::GroupMsg>>,
+    /// Groups this person has asked to leave and whose removing Commit has not arrived: sending is refused. Additive.
+    #[serde(default)]
+    pub group_leaving: BTreeSet<Hex>,
     /// Direct-transfer offers by BlobID (hex): large files offered while the other person is online (group G).
     /// Additive: absent in older records.
     #[serde(default)]

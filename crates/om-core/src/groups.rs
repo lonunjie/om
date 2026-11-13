@@ -83,6 +83,7 @@ impl core::fmt::Display for GroupError {
 impl std::error::Error for GroupError {}
 
 pub mod binding;
+pub mod flow;
 pub mod journal;
 pub mod mls;
 pub mod store;

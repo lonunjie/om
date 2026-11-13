@@ -86,6 +86,45 @@ fn next_secret(old: &str, commit: &[u8]) -> String {
     hex(&sha256(&[b"FAKE-EPOCH", old.as_bytes(), commit]))
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct FApp {
+    group_id: String,
+    epoch: u64,
+    sender: String,
+    nonce: String,
+    body: String,
+    mac: String,
+}
+
+/// Test-only keystream; NOT a cipher.
+fn app_xor(secret: &str, epoch: u64, sender: &str, nonce: &str, data: &[u8]) -> Vec<u8> {
+    let mut ks = Vec::new();
+    let mut i = 0u32;
+    while ks.len() < data.len() {
+        ks.extend(sha256(&[
+            b"FAKE-APP-KS",
+            secret.as_bytes(),
+            &epoch.to_be_bytes(),
+            sender.as_bytes(),
+            nonce.as_bytes(),
+            &i.to_be_bytes(),
+        ]));
+        i += 1;
+    }
+    data.iter().zip(ks).map(|(a, b)| a ^ b).collect()
+}
+
+fn app_mac(secret: &str, epoch: u64, sender: &str, nonce: &str, body: &[u8]) -> String {
+    hex(&sha256(&[
+        b"FAKE-APP-MAC",
+        secret.as_bytes(),
+        &epoch.to_be_bytes(),
+        sender.as_bytes(),
+        nonce.as_bytes(),
+        body,
+    ]))
+}
+
 fn frame(kind: &str, body: &impl Serialize) -> Vec<u8> {
     let mut v = format!("FAKE-MLS-{kind}\0").into_bytes();
     v.extend(serde_json::to_vec(body).expect("fake message serializes"));
@@ -391,6 +430,57 @@ impl GroupCrypto for FakeGroupCrypto {
                 still_member: true,
             },
         ))
+    }
+
+    fn encrypt_application(
+        &mut self,
+        env: &mut CryptoEnv<'_>,
+        group_id: &[u8],
+        plaintext: &[u8],
+    ) -> MlsResult<Vec<u8>> {
+        let me = self.me();
+        let g = self.g(group_id)?;
+        if g.pending.is_some() {
+            return Err(E("commit_pending"));
+        }
+        let nonce = hex(&crate::crypto::rng::fill(env.rng, 8));
+        let (epoch, secret) = (g.epoch, g.secret.clone());
+        let body = app_xor(&secret, epoch, &me, &nonce, plaintext);
+        let mac = app_mac(&secret, epoch, &me, &nonce, &body);
+        Ok(frame(
+            "APP",
+            &FApp {
+                group_id: hex(group_id),
+                epoch,
+                sender: me,
+                nonce,
+                body: hex(&body),
+                mac,
+            },
+        ))
+    }
+
+    fn decrypt_application(&mut self, group_id: &[u8], ciphertext: &[u8]) -> MlsResult<Decrypted> {
+        let m: FApp = unframe("APP", ciphertext)?;
+        let g = self.g(group_id)?;
+        if m.group_id != hex(group_id) {
+            return Err(E("malformed"));
+        }
+        if m.epoch != g.epoch {
+            return Err(E("wrong_epoch"));
+        }
+        if !g.members.contains(&m.sender) {
+            return Err(E("not_a_member"));
+        }
+        let body = unhex(&m.body).map_err(|_| E("malformed"))?;
+        if m.mac != app_mac(&g.secret, m.epoch, &m.sender, &m.nonce, &body) {
+            return Err(E("bad_mac"));
+        }
+        Ok(Decrypted {
+            plaintext: app_xor(&g.secret, m.epoch, &m.sender, &m.nonce, &body),
+            sender: unhex(&m.sender).map_err(|_| E("malformed"))?,
+            epoch: m.epoch,
+        })
     }
 
     fn epoch(&self, group_id: &[u8]) -> MlsResult<u64> {

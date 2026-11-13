@@ -83,6 +83,16 @@ pub struct CommitInfo {
     pub committer: Vec<u8>,
 }
 
+/// An application message opened by [`GroupCrypto::decrypt_application`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Decrypted {
+    pub plaintext: Vec<u8>,
+    /// DeviceID of the sending leaf.
+    pub sender: Vec<u8>,
+    /// The epoch the message was sent in (its authorization epoch, ADR-0121).
+    pub epoch: u64,
+}
+
 /// One MLS client. See the module documentation for the contract.
 pub trait GroupCrypto {
     /// Stable engine tag stored beside the snapshot (for example `"openmls-0.9"`); selects the loader on restore.
@@ -147,6 +157,19 @@ pub trait GroupCrypto {
         env: &mut CryptoEnv<'_>,
         welcome: &[u8],
     ) -> MlsResult<(Vec<u8>, EpochInfo)>;
+
+    /// Encrypt one application message under the current merged epoch (one MLS ciphertext; Core wraps it per
+    /// recipient device). Refused `commit_pending` while a Commit of this client is pending (ADR-0163 rule 6).
+    fn encrypt_application(
+        &mut self,
+        env: &mut CryptoEnv<'_>,
+        group_id: &[u8],
+        plaintext: &[u8],
+    ) -> MlsResult<Vec<u8>>;
+
+    /// Open an application message. Refused `wrong_epoch` unless it is for the current merged epoch (this engine
+    /// keeps no past-epoch window yet, slice 4), `unknown_group` when this client is not (or no longer) a member.
+    fn decrypt_application(&mut self, group_id: &[u8], ciphertext: &[u8]) -> MlsResult<Decrypted>;
 
     /// The merged epoch of the group.
     fn epoch(&self, group_id: &[u8]) -> MlsResult<u64>;
