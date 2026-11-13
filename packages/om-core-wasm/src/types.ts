@@ -36,7 +36,11 @@ export type NetCall =
   /** Remove a blob of ours from the store at `location`. Absent is success. */
   | { readonly call: "delete_blob"; readonly blobId: string; readonly ownerCap: string; readonly location: string }
   /** Device-link ceremony (D24): make sure the short-lived queue exists at `relayUri` and answer its receive capability as `bytes` (hex). */
-  | { readonly call: "open_queue"; readonly mailbox: string; readonly relayUri: string };
+  | { readonly call: "open_queue"; readonly mailbox: string; readonly relayUri: string }
+  /** STUB (recovery): deliver a signed RecoveryRequest (`bytes`, hex) to the account's Home(s). No Home serves it yet: answer `rejected` `unsupported`. */
+  | { readonly call: "recovery_request_fanout"; readonly bytes: string }
+  /** STUB (recovery): deliver a signed RecoveryVeto (`bytes`, hex) the same way. Answer `rejected` `unsupported`. */
+  | { readonly call: "recovery_veto_fanout"; readonly bytes: string };
 
 /** What a polled id names: a relay mailbox (the default), or an invite's introduction service at the host's own Home. */
 export type MailboxKind = "relay" | "intro";

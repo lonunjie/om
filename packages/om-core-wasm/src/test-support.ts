@@ -190,6 +190,8 @@ export function createMemoryProvider(): MemoryProvider {
           r = { result: "bytes", bytes: `${"d5".repeat(16)}${call.mailbox}${"5d".repeat(16)}` };
           break;
         }
+        case "recovery_request_fanout":
+        case "recovery_veto_fanout": r = { result: "err", error: { kind: "rejected", reason: "unsupported" } }; break;
         case "ack": {
           const b = boxes.get(queueOf(call.mailbox, call.capability));
           if (b) b.items = b.items.filter((i) => i.seq > call.seq);

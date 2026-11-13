@@ -78,7 +78,8 @@ export type RecoveryPolicyState = "on" | "pending" | "off_explicit";
 export type RecoveryCustodianCode = "synced_passkey" | "recovery_key" | "trusted_contacts" | "spare_device";
 /** Identity, history and provider recovery stay distinct (RECOVERY_AND_BACKUP_POLICY.md §2). */
 export type RecoveryScope = "identity" | "history" | "provider";
-export type RecoveryRequestState = "waiting" | "completed" | "vetoed" | "cancelled";
+/** `stale`: the account moved on (a device was enrolled or revoked, the head changed) and the request was dropped. */
+export type RecoveryRequestState = "waiting" | "completed" | "vetoed" | "cancelled" | "stale";
 
 export interface RecoveryCustodianView {
   readonly code: RecoveryCustodianCode;
@@ -100,6 +101,8 @@ export interface RecoveryRequestView {
   readonly state: RecoveryRequestState;
   /** Core accepts VetoRecovery for it now. */
   readonly canStop: boolean;
+  /** Waiting, and this verifier's own interval has run: only a successor to apply is missing. */
+  readonly ready?: boolean;
 }
 
 export interface RecoveryStatusView {

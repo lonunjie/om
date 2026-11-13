@@ -670,6 +670,9 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
           case "put_blob": return await putBlob(call, extra?.ciphertext);
           case "get_blob": return await getBlob(call);
           case "delete_blob": return await deleteBlob(call);
+          // No Home endpoint exists for recovery fan-out yet (stub): refused, Core drops it.
+          case "recovery_request_fanout":
+          case "recovery_veto_fanout": return rejected("unsupported");
         }
       } catch {
         return UNAVAILABLE; // a local failure (secret store, bad hex): nothing was sent

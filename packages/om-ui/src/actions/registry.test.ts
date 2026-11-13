@@ -93,7 +93,7 @@ describe("Action Registry", () => {
   });
 
   it("destructive actions need a registry-issued confirmation bound to action, params and context (UI-11)", () => {
-    expect(DESTRUCTIVE_INTENT_KINDS).toEqual(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery"]);
+    expect(DESTRUCTIVE_INTENT_KINDS).toEqual(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery"]);
     const actions: [string, unknown][] = [
       ["block-person", block], ["suspend-device", { deviceId: "d1" }], ["change-privacy-policy", { policy: "maximum" }],
       ["approve-device-link", { requestId: "lr-1" }], ["finalize-device-revocation", { deviceId: "d1" }],

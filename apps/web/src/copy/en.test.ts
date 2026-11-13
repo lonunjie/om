@@ -41,7 +41,7 @@ const LINK_STATES = keys<LinkRequestState>({ awaiting_approval: true, pending_au
 const OFFER_STATES = keys<LinkOfferState>({ waiting_for_scan: true, awaiting_approval: true, linked: true, rejected: true, expired: true });
 const POLICIES = keys<RecoveryPolicyState>({ on: true, pending: true, off_explicit: true });
 const CUSTODIANS = keys<RecoveryCustodianCode>({ synced_passkey: true, recovery_key: true, trusted_contacts: true, spare_device: true });
-const RECOVERY_STATES = keys<RecoveryRequestState>({ waiting: true, completed: true, vetoed: true, cancelled: true });
+const RECOVERY_STATES = keys<RecoveryRequestState>({ waiting: true, completed: true, vetoed: true, cancelled: true, stale: true });
 const SCOPES = keys<RecoveryScope>({ identity: true, history: true, provider: true });
 
 describe("English copy catalog", () => {

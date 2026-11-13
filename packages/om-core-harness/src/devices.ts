@@ -328,6 +328,14 @@ export function createDeviceSim(clock: () => number) {
         if (r.direction === "incoming" && !currentIsActiveController(a)) return rejected("unauthorized");
         return effect({ kind: "Committed" }, () => { r.state = r.direction === "incoming" ? "vetoed" : "cancelled"; });
       }
+      case "ConfirmRecovery": {
+        // "That was me": a live controller co-signs, which completes an incoming recovery at once.
+        const r = a.recoveries.get(intent.requestId);
+        if (!r || r.direction !== "incoming") return rejected("not_found");
+        if (r.state !== "waiting") return rejected("conflict");
+        if (!currentIsActiveController(a)) return rejected("unauthorized");
+        return effect({ kind: "Committed" }, () => { r.state = "completed"; });
+      }
       default:
         return null;
     }

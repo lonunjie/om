@@ -128,7 +128,7 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** Same lifetime and capacity as Core (`CONFIRMATION_TTL_MS`, `MAX_CONFIRMATIONS`). */
 const CONFIRMATION_TTL_MS = 5 * 60 * 1000;
 const MAX_CONFIRMATIONS = 16;
-const DESTRUCTIVE_KINDS: ReadonlySet<string> = new Set(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery"]);
+const DESTRUCTIVE_KINDS: ReadonlySet<string> = new Set(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery"]);
 const B32 = "ABCDEFGHIJKLMNPQRSTUVWXYZ23456789";
 const B64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
 const randomChars = (alphabet: string, n: number): string =>

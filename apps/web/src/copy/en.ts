@@ -853,7 +853,7 @@ export const recoveryCopy: RecoveryCopy = {
   review: "Review it",
   requestsHeading: "Recoveries",
   direction: { incoming: "On another device", outgoing: "Started on this device" },
-  requestState: { waiting: "Waiting", completed: "Finished", vetoed: "Stopped", cancelled: "Cancelled" },
+  requestState: { waiting: "Waiting", completed: "Finished", vetoed: "Stopped", cancelled: "Cancelled", stale: "No longer valid" },
   started: (ms) => `Started ${timeFormat.format(ms)}`,
   activatesAt: (ms) => `Can finish ${timeFormat.format(ms)} unless it is stopped`,
   activatesUnknown: "OM cannot say yet when this can finish.",

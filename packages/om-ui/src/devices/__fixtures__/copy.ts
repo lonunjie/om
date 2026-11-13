@@ -62,7 +62,7 @@ export const testRecoveryCopy: RecoveryCopy = {
   delay: (ms) => `Delay ${String(ms)}`, recoveryKeySaved: "Key saved", recoveryKeyNone: "No key", recoveryKeyOnce: "The key cannot be shown again",
   incomingAlert: "Someone is recovering your account", review: "Review", requestsHeading: "Recoveries",
   direction: { incoming: "On another device", outgoing: "Started here" },
-  requestState: { waiting: "Waiting", completed: "Completed", vetoed: "Stopped", cancelled: "Cancelled" },
+  requestState: { waiting: "Waiting", completed: "Completed", vetoed: "Stopped", cancelled: "Cancelled", stale: "No longer valid" },
   started: (ms) => `Started ${String(ms)}`, activatesAt: (ms) => `Completes ${String(ms)}`, activatesUnknown: "Completion time not known yet",
   stopIncoming: "Stop this recovery", cancelOutgoing: "Cancel my recovery",
   pendingHeading: "Still in progress", pendingKind: { StartRecovery: "Starting recovery", VetoRecovery: "Stopping recovery" },
