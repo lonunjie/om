@@ -1,6 +1,6 @@
 # Ordinary groups (work group F, scope `groups`, ADR-0177): design reading, gaps and slice plan (2026-11-13)
 
-Status: **no code written.** This session read the groups design, found that the first slice the brief suggested (a group text message over
+Status: **slice 1 is written, tested and uncommitted (see "What remains").** The first session read the groups design, found that the first slice the brief suggested (a group text message over
 the existing pairwise sealed-sender fan-out) is **forbidden by audited text**, and stopped at the design gate instead of improvising. What is
 here is what the next session needs so it does not re-derive it: what the design specifies, the gaps and the operator decisions they need,
 and a slice list whose first slice is allowed by the design.
@@ -85,16 +85,32 @@ read roughly 40 percent of it, which is why no code was committed (rule: a domai
 5. **Leave, remove, device add and revoke (reductions).** ACS-driven removals, the coordinator, `sequencing_timeout`, direct reductions, same-parent ordering, `SUPERSEDED` branches and recovery Commit (ADR-0173), journal restart tests.
 6. **Roles, admission, invite links, disappearing timer, `GroupHistoryBundle`** (GH-01 to GH-15), then wasm query/intent surface, TypeScript mirrors and the UI (New group, roster, "invited" state, human-sentence system messages). Pre-release items of ADR-0177 item 2 (multi-client partition harness, V-009 corpus run, V-019) stay open and block any public group release.
 
-## What remains (handoff)
+## What remains (handoff, updated 2026-11-13 evening)
 
-- **Nothing is built.** `git status` was clean at start; this report and its file-registry line are the only change.
-- **Operator decisions needed before building beyond slice 1:** G1 (confirm no interim pairwise mode), G3 (how KeyPackages travel), G7 (member cap).
-- **Next session, exact steps:**
-  1. Read, in this order, the unread parts of the six `crates/` domains: ADR-0128 (the group rules), ADR-0121, ADR-0122, ADR-0157, ADR-0163, ADR-0126; then `discovery_first_contact` (5), `relay_reachability` (3), `metadata_privacy` (6), the four unread identity documents,
-     and ADR-0129/0130/0140 and the older ADRs. Batch it: about 90k tokens. Then read [`spec/registries/om-room-capabilities.json`](../../spec/registries/om-room-capabilities.json), [`spec/protocol/group-control-transition.logical.schema.json`](../../spec/protocol/group-control-transition.logical.schema.json) and the V-004 vectors.
-  2. Then commit with `Design-Read: crypto_1to1, discovery_first_contact, identity_control_recovery, metadata_privacy, relay_reachability, time_ordering_events` and `Design-Departures: none` (slice 1 amends nothing).
-  3. Build slice 1 as listed above. Existing Core to extend: `crates/om-core/src/state.rs` (`AppState` persistence), `control.rs` (ACS verification, reused for member eligibility), `crates/om-codec/src/schema.rs` (check that objects 28 to 31 decode; the large-body note at line 320 already names the group objects).
-  4. Gotchas carried from earlier sessions: `pnpm exec vitest run src` (not bare `vitest run`) in `packages/om-ui`; long messages (8 KB) are refused by `SendMessage` in loopback tests, use about 1.5 KB; the design gate for `crates/` plus `apps/web` is about 14 domains, so batch Core and web work in one session.
+**Slice 1 is written and green but NOT committed**, because the commit hook needs a `Design-Read` trailer for all six domains and the six-domain reading is not finished. Committing it without reading would make the trailer false. The code sits in the working tree of `om/` (untracked or modified, nothing staged):
+
+- `crates/om-core/src/groups.rs` (new): typed state, intent, binding, bundle structure; the ADR-0176 section 3 validators with the frozen verdict names; state hash chain; `genesis`; `apply` reducer for `member.admit/remove/leave`, `profile.set`, `role.define/assign`; `GroupRec` and `AppState::group*` persistence; the ADR-0173 ordering key.
+- `crates/om-core/tests/groups.rs` (new): replays all 86 non-scenario cases of `v004-group-wire-semantic.json.gz`, reducer tests, persistence, a proptest over random intent sequences.
+- `crates/om-core/src/lib.rs` (+`pub mod groups;`), `crates/om-core/src/state.rs` (+`AppState.groups`, serde default, additive), `machine/file_registry.json` (two lines, domain `groups`).
+- Verified: `cargo test -p om-core` all green (13 new tests), `cargo clippy -p om-core --all-targets` clean, `cargo fmt`, `make check` OK. No wasm/TS touched.
+
+**Design sources read this session (in full):** ADR-0128, 0121, 0157, 0126, 0173, 0174, 0176, 0177; `GROUP_COMMIT_AND_STATE_CONVERGENCE.md`; `spec/cddl/group.cddl`; `om-room-capabilities.json`; `group-control-transition.logical.schema.json`; the V-004 reference checker `verification/prototypes/v004-group-wire/semantic.py` and the semantic corpus. **Not read this session:** every document of the six `crates/` domains (the 28 documents `design_gate.py needs crates/om-core/src/groups.rs` lists, about 360 KB), `GROUP_CHAT_ARCHITECTURE.md`, `SCOPED_PERMISSIONS_...md`, and the other ADRs on that list (0011, 0063, 0065, 0067, 0072, 0073, 0107, 0118 to 0120, 0140, 0004, 0019 to 0021, 0025, 0033, 0040, 0002, 0003, 0010, 0026 to 0030, 0066, 0105, 0106, 0111, 0127, 0159, 0098, 0124, 0129, 0130, 0012, 0022, 0075, 0008, 0076, 0087, 0088). Reading them is about 120k tokens: do it in a fresh session with nothing else loaded.
+
+**Next session, exact steps:**
+1. `python3 tools/design_gate.py needs crates/om-core/src/groups.rs crates/om-core/tests/groups.rs crates/om-core/src/state.rs crates/om-core/src/lib.rs`, read every listed document and ADR in full (batch with `cat`, about 28 KB per call), plus `GROUP_CHAT_ARCHITECTURE.md` and `SCOPED_PERMISSIONS_AND_CONVERSATION_ORGANIZATION.md`. While reading, check the decisions below against the text; if one contradicts audited text, fix the code or stop and ask.
+2. `git status` (stage only the five files above), `cargo test -p om-core`, `make check`, commit with `Design-Read: crypto_1to1, discovery_first_contact, identity_control_recovery, metadata_privacy, relay_reachability, time_ordering_events` and `Design-Departures: none`, push to `origin main`.
+3. Then slice 2 (MLS runtime, G2), after the operator's go on the OpenMLS dependency check.
+
+**Decisions taken in slice 1 where the design is silent (verify while reading, overrule if the text says otherwise):**
+- **D-g1** Capabilities and the operation map are read from `om-room-capabilities.json` at build time (`include_str!`); `requires` with a `basis:` marker means alternatives, otherwise all listed capabilities are needed.
+- **D-g2** Genesis: Admin role holds every W1 `room` capability (including the protected ones, held by the creator as sole 1-of-1 governance principal); Member holds `room.post/reply/react/upload/pin` and cannot invite or admit. Defaults: `join_rule` invite_only, `new_device_policy` automatic, `history_policy` since_join, `security_profile` 1, `sequencing_timeout` 300, `past_epoch_window` 2.
+- **D-g3** Ceiling (ADR-0128 rule 10): union over the actor's roles of `grantable_scope` (else `grants`); protected capabilities stay in it only for a governance principal with `approval_threshold <= 1` (a quorum path belongs to the governance slice).
+- **D-g4** Removing or leaving drops the member's invites (state rule 10), removes it from governance and clamps the threshold; it is refused (`last_member`, `governance_would_empty`) when no member or no governance principal would remain. `coordinator_succession` holds device ids with no account mapping in the state, so it is not pruned here: coordinator replacement and pruning belong to the reductions slice.
+- **D-g5** Set arrays: the codec enforces sorted sets for some fields; the reducer and genesis emit canonical (ascending by encoded element) order via `normalize()`, a decoded state keeps its wire order so its hash stays the wire hash.
+- **D-g6** `member.admit` follows the registry (`room.manage_admission`). ADR-0128 rule 5 and slice 3 say "a member holding `room.invite`" adds after acceptance: the two disagree for the invite-then-add flow; settle at slice 3. An admit carrying a `join_ref` (link path) is refused `unsupported_operation`: the text does not say whether it counts a use.
+- **D-g7** Reducer refuses kinds 2 (Space), 4 (ACS evidence) and 5 (invite) and every operation outside the six; validators exist for all sixteen. `reducing` is not recomputed for `role.*`, `admission.set`, `security_policy.set`, `governance.set` (T-161 open, ADR-0177 item 3).
+- **D-g8** Member cap: `PRODUCT_MEMBER_CAP = 32` (ruling G7) enforced in the reducer as `group_full`; the wire cap 512 stays in the validator.
+- Not in slice 1 (by design): signature envelopes for objects 28 to 31 (the device signer arrives with MLS), bundle admission gates and the `scenario/*` vectors (need Room and ACS context), `intent_hash`/binding hash use beyond the helper functions.
 
 ## Coordinating-session rulings (2026-11-13, from the design and the constitution; operator may overrule)
 
