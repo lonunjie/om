@@ -115,6 +115,16 @@ export interface RecoveryStatusView {
   /** A recovery key exists. It is display-once and can never be shown again. */
   readonly recoveryKeySaved: boolean;
   readonly requests: readonly RecoveryRequestView[];
+  /** Set only on a recovering device that has entered its key (`BeginRecovery`): the restricted recovery state. */
+  readonly recovering?: RecoveringView;
+}
+
+/** A device that entered a recovery key but has no account yet: it cannot send as the identity. */
+export interface RecoveringView {
+  /** The Home address the person entered. */
+  readonly home: string;
+  /** Always true for now: the record and the request are still to come. */
+  readonly restricted: boolean;
 }
 
 // Strict `om:link/` grammar for device-link offers. Parsing never fetches or resolves anything.
