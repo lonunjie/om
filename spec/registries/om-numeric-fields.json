@@ -6638,6 +6638,59 @@
         }
       ]
     },
+    "GroupAccountHead": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "account_control_head",
+          "type": {
+            "signed": "AccountControlHead"
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "account_state",
+          "type": {
+            "bstr": [
+              1,
+              65536
+            ]
+          },
+          "req": true,
+          "note": "canonical body of the AccountControlState the head names"
+        },
+        {
+          "key": 3,
+          "name": "credentials",
+          "type": {
+            "array": {
+              "bstr": [
+                1,
+                65536
+              ]
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": true,
+          "note": "bodies of the DeviceCredentials the state lists"
+        }
+      ]
+    },
     "FrameBodyCommit": {
       "fields": [
         {
@@ -6742,6 +6795,21 @@
             ]
           },
           "req": true
+        },
+        {
+          "key": 4,
+          "name": "account_heads",
+          "type": {
+            "array": {
+              "ref": "GroupAccountHead"
+            },
+            "n": [
+              1,
+              512
+            ]
+          },
+          "req": false,
+          "note": "signed head of every account the Welcome names (D44 ruling); verified by chain, never by a directory lookup"
         }
       ]
     },

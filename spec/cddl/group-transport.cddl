@@ -39,6 +39,7 @@ frame-body-welcome = {
   1: bstr,                                  ; MLS Welcome (ratchet tree inside)
   2: bstr .cbor signed-GroupControlState,   ; type 28 head
   3: [1*512 group-member-route],
+  ? 4: [1*512 group-account-head],          ; signed head of every account the Welcome names
 }
 frame-body-admit-request = { 0: opaque-id16, 1: [1*16 group-release], 2: bstr .cbor signed-AccountControlHead }
 frame-body-route-update = { 0: [1*512 bstr .cbor signed-GroupRouteRecord] }
@@ -51,6 +52,12 @@ group-release = {
 }
 group-release-evidence = { 0: device-id, 1: bstr .cbor signed-DeviceCredential, 2: bstr .cbor signed-GroupRouteRecord }
 group-member-route = { 0: device-id, 1: bstr .cbor signed-DeviceCredential, 2: bstr .cbor signed-GroupRouteRecord }
+group-account-head = {
+  0: account-id,
+  1: bstr .cbor signed-AccountControlHead,  ; type 2, role controller
+  2: bstr .size (1..65536),                 ; canonical body of the AccountControlState the head names
+  3: [1*64 bstr .size (1..65536)],          ; bodies of the DeviceCredentials that state lists
+}
 
 ; ---- ConversationEvent kinds 15 to 17 (relationship lane, 1:1 conversation; required_capabilities ["om.group.v1"]) ----
 ; The frozen W0 rules (events.cddl) and the W1 rule (group.cddl ConversationEventW1) are unchanged; a decoder that

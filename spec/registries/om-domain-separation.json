@@ -662,6 +662,14 @@
       "object": "GroupRouteRecord",
       "wave": "W1",
       "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-MLS-LEAF-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "MLS leaf attestation: a device (role device) signs its DeviceID and the dedicated MLS leaf signature key; carried in the BasicCredential, no registered object type",
+      "wave": "W1",
+      "status": "frozen"
     }
   ]
 }

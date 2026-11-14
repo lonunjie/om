@@ -138,6 +138,13 @@ def frame(kind, body):
 
 FRAMES = {k: frame(k, b) for k, b in BODIES.items()}
 FRAMES["commit-without-added-devices"] = frame("commit", BODY_COMMIT_MIN)
+# a Welcome that also carries the signed head of every account it names (D44 ruling): optional field 4
+ACCOUNT_HEAD = M([0, B(v4.ACC_B)], [1, HEAD_BYTES], [2, B(det("account-state-body", 400))],
+                 [3, [B(det("credential-body-0", 300))]])
+BODY_WELCOME_HEADS = M([0, INVITE_ID], [1, B(det("mls-welcome", 2400))], [2, B(py_enc(GCS_ENV))],
+                       [3, [M([0, B(v4.DEV[0])], [1, cred_bytes(v4.DEV[0])], [2, route_bytes(route("m0", v4.DEV[0]))])]],
+                       [4, [ACCOUNT_HEAD]])
+FRAMES["welcome-with-account-heads"] = frame("welcome", BODY_WELCOME_HEADS)
 FRAME_MIN = FRAMES["leave_request"]
 
 # ------------------------------------------------------------------ relationship-lane events (kinds 15 to 17)
