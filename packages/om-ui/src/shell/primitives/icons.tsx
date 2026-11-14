@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 
 export type IconName =
-  | "back" | "send" | "settings" | "chevron" | "plus" | "chat" | "share" | "link" | "qr" | "check" | "search" | "lock" | "devices" | "shield" | "delivery" | "userPlus" | "close" | "scan" | "download" | "omni" | "attach" | "mic" | "pin" | "file" | "play";
+  | "back" | "send" | "settings" | "chevron" | "plus" | "chat" | "share" | "link" | "qr" | "check" | "search" | "lock" | "devices" | "shield" | "delivery" | "userPlus" | "close" | "scan" | "download" | "omni" | "attach" | "mic" | "pin" | "file" | "play" | "users";
 
 const PATHS: Readonly<Record<IconName, ReactNode>> = {
   back: <path d="M19 12H5M11 5l-7 7 7 7" />,
@@ -31,6 +31,7 @@ const PATHS: Readonly<Record<IconName, ReactNode>> = {
   pin: <><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z" /><circle cx="12" cy="10" r="2.4" /></>,
   file: <><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4" /></>,
   play: <path d="M8 5l11 7-11 7z" />,
+  users: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.7a3.5 3.5 0 0 1 0 6.6M18.5 14.4c1.9.8 3 2.7 3 5.6" /></>,
   // The Omnibar: a ring with a dot, deliberately not a magnifier (it finds and does).
   omni: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="2.6" fill="currentColor" /></>,
 };

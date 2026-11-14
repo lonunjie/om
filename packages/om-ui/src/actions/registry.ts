@@ -1,10 +1,10 @@
 // Action Registry (ADR-0159): semantic UI action id -> typed CoreIntent | query | presentation op | platform capability.
 // It has no canonical-state authority and no generic execute(name, args) path: unknown ids are rejected.
 import {
-  asConversationId, asDeviceId, asMessageId, canonicalInviteLink, confirmationTarget, parseDeviceLink, parseInviteLink, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
+  asConversationId, asDeviceId, asGroupId, asMessageId, canonicalInviteLink, confirmationTarget, parseDeviceLink, parseInviteLink, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
 } from "@om/platform-api";
 import type {
-  ConfirmationToken, CoreIntent, CoreQuery, OperationId, PrivacyPolicyLevel, ProfileExecutionContext, RecoveryCustodianCode, RecoveryScope,
+  ConfirmationToken, CoreIntent, CoreQuery, GroupIntent, OperationId, PrivacyPolicyLevel, ProfileExecutionContext, RecoveryCustodianCode, RecoveryScope,
 } from "@om/platform-api";
 
 export type PresentationOp =
@@ -19,6 +19,8 @@ export type RejectCode = "unknown_action" | "invalid_params" | "invalid_context"
 
 export type ActionResult =
   | { readonly status: "intent"; readonly intent: CoreIntent }
+  /** A typed step of the groups path (`client.groups.do`), not a CoreIntent: it has no OperationId, the step itself is durable. Direct (user-gesture) origin only. */
+  | { readonly status: "group"; readonly intent: GroupIntent }
   | { readonly status: "presentation"; readonly op: PresentationOp; readonly query?: CoreQuery }
   | { readonly status: "platform"; readonly request: PlatformRequest }
   | { readonly status: "needs_confirmation"; readonly actionId: string }
@@ -61,6 +63,7 @@ export interface RegistryOptions { readonly newOperationId?: () => OperationId }
 type Rec = Readonly<Record<string, unknown>>;
 type Built = { readonly intent: (ctx: ProfileExecutionContext, op: OperationId, confirmation: ConfirmationToken) => CoreIntent }
   | { readonly presentation: PresentationOp; readonly query?: CoreQuery }
+  | { readonly group: GroupIntent }
   | { readonly platform: PlatformRequest };
 interface Spec { readonly destructive: boolean; readonly parse: (p: Rec, ctx: ProfileExecutionContext) => Built | null }
 
@@ -84,6 +87,45 @@ const SPECS: Readonly<Record<string, Spec>> = {
     const c = id(p["conversationId"]); const t = p["text"];
     if (!c || typeof t !== "string" || t.trim() === "" || t.length > MAX_TEXT) return null;
     return { intent: (ctx, op) => ({ kind: "SendMessage", ctx, operationId: op, conversationId: asConversationId(c), draft: { text: t } }) };
+  } },
+  // Ordinary groups (ADR-0177). They go to `client.groups.do`, never to the generic CoreIntent path. A person's own tap is the only origin:
+  // a suggestion (Omnibar, learned rank) cannot start, answer or leave a group. Leave and remove are consequential: the screen states the scope first.
+  "group-create": { destructive: false, parse: (p) => {
+    const name = p["name"]; const rel = p["relationshipIds"];
+    if (!exactly(p, ["name", "relationshipIds"]) || typeof name !== "string" || name.length > 64 || !Array.isArray(rel) || rel.length < 1 || rel.length > 31) return null;
+    const ids: string[] = [];
+    for (const r of rel as unknown[]) { const v = id(r); if (v === null || ids.includes(v)) return null; ids.push(v); }
+    return { group: { kind: "create", name: name.trim(), relationshipIds: ids.map(asConversationId) } };
+  } },
+  "group-invite": { destructive: false, parse: (p) => {
+    const g = id(p["conversationId"]); const r = id(p["relationshipId"]);
+    if (!exactly(p, ["conversationId", "relationshipId"]) || g === null || r === null) return null;
+    return { group: { kind: "invite", conversationId: asGroupId(g), relationshipId: asConversationId(r) } };
+  } },
+  "group-accept": { destructive: false, parse: (p) => {
+    const i = id(p["inviteId"]);
+    if (!exactly(p, ["inviteId"]) || i === null) return null;
+    return { group: { kind: "accept", inviteId: i } };
+  } },
+  "group-decline": { destructive: false, parse: (p) => {
+    const i = id(p["inviteId"]);
+    if (!exactly(p, ["inviteId"]) || i === null) return null;
+    return { group: { kind: "decline", inviteId: i } };
+  } },
+  "group-leave": { destructive: false, parse: (p) => {
+    const g = id(p["conversationId"]);
+    if (!exactly(p, ["conversationId"]) || g === null) return null;
+    return { group: { kind: "leave", conversationId: asGroupId(g) } };
+  } },
+  "group-remove-member": { destructive: false, parse: (p) => {
+    const g = id(p["conversationId"]); const a = id(p["account"]);
+    if (!exactly(p, ["conversationId", "account"]) || g === null || a === null) return null;
+    return { group: { kind: "remove", conversationId: asGroupId(g), account: a } };
+  } },
+  "group-send-text": { destructive: false, parse: (p) => {
+    const g = id(p["conversationId"]); const t = p["text"];
+    if (!exactly(p, ["conversationId", "text"]) || g === null || typeof t !== "string" || t.trim() === "" || t.length > MAX_TEXT) return null;
+    return { group: { kind: "send_text", conversationId: asGroupId(g), text: t } };
   } },
   "send-attachments": { destructive: false, parse: (p) => {
     const c = id(p["conversationId"]); const t = p["text"]; const a = p["attachments"];
@@ -269,6 +311,7 @@ export function createActionRegistry(options: RegistryOptions = {}): ActionRegis
       const { spec, built } = p;
       if ("presentation" in built) return built.query ? { status: "presentation", op: built.presentation, query: built.query } : { status: "presentation", op: built.presentation };
       if ("platform" in built) return { status: "platform", request: built.platform };
+      if ("group" in built) return req.origin === "direct" ? { status: "group", intent: built.group } : { status: "rejected", code: "suggestion_cannot_confirm" };
       let token: ConfirmationToken | undefined;
       if (spec.destructive) {
         if (req.origin === "suggestion") return req.confirmation ? { status: "rejected", code: "suggestion_cannot_confirm" } : { status: "needs_confirmation", actionId: req.actionId };

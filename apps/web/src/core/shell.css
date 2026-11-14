@@ -105,3 +105,4 @@ a.om-menu__row { text-decoration: none; }
 .om-qr { display: block; inline-size: min(100%, 18rem); block-size: auto; background: #fff; border-radius: var(--om-radius-md); } /* a QR code needs a white field in every theme */
 .om-scan { position: fixed; inset: 0; z-index: var(--om-z-modal); display: grid; align-content: center; justify-items: center; gap: var(--om-space-3); padding: var(--om-space-4); background: var(--om-color-bg-canvas); }
 .om-scan__video { inline-size: min(100%, 28rem); max-block-size: 60dvh; background: #000; border-radius: var(--om-radius-md); object-fit: cover; }
+.om-page-head__actions { display: flex; align-items: center; gap: var(--om-space-2); flex-wrap: wrap; justify-content: flex-end; }

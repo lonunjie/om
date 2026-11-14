@@ -4,6 +4,7 @@ export * from "./omnibar/index";
 export * from "./App";
 export * from "./profile/index";
 export * from "./conversations/index";
+export * from "./groups/index";
 export * from "./onboarding/index";
 export * from "./devices/index";
 export * from "./recovery/index";

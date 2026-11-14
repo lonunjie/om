@@ -1,0 +1,24 @@
+/* Groups reuse the conversation look (conversations.css); only what a group adds is here. Tokens only. */
+.om-group-people { margin-inline-start: auto; flex: none; display: inline-flex; align-items: center; gap: var(--om-space-1); }
+.om-group-sender { display: block; margin-block-end: var(--om-space-1); padding-inline: var(--om-space-2); font-size: var(--om-text-sm-size); color: var(--om-color-text-secondary); font-weight: 600; overflow-wrap: anywhere; }
+.om-group-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.om-group-paused { margin: 0; padding: var(--om-space-2) var(--om-space-4); background: var(--om-color-bg-sunken); color: var(--om-color-text-secondary); font-size: var(--om-text-sm-size); }
+.om-group-mark { display: inline-flex; vertical-align: middle; margin-inline-end: var(--om-space-1); color: var(--om-color-text-secondary); }
+.om-group-form { display: grid; gap: var(--om-space-4); }
+.om-group-form__field { display: grid; gap: var(--om-space-1); }
+.om-group-form__input { box-sizing: border-box; min-block-size: var(--om-target-min); padding: 0 var(--om-space-4); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-lg); background: var(--om-color-bg-canvas); color: var(--om-color-text-primary); font: inherit; }
+.om-group-form__people { display: grid; gap: 0; margin: 0; padding: 0; border: 0; }
+.om-group-form__people legend { padding: 0 0 var(--om-space-2); font-weight: 600; }
+.om-group-form__person { display: flex; align-items: center; gap: var(--om-space-3); min-block-size: var(--om-target-min); border-block-end: 1px solid var(--om-hairline); cursor: pointer; }
+.om-group-form__person input { inline-size: 1.25rem; block-size: 1.25rem; flex: none; }
+.om-group-form__problem { margin: 0; color: var(--om-color-danger-fg); font-size: var(--om-text-sm-size); }
+.om-group-members { display: grid; gap: var(--om-space-4); }
+.om-group-members__list, .om-group-members__candidates { list-style: none; margin: 0; padding: 0; display: grid; }
+.om-group-members__candidates { display: flex; flex-wrap: wrap; gap: var(--om-space-2); }
+.om-group-members__row { display: flex; align-items: center; gap: var(--om-space-3); min-block-size: var(--om-target-min); padding-block: var(--om-space-2); border-block-end: 1px solid var(--om-hairline); }
+.om-group-members__who { flex: 1 1 auto; min-inline-size: 0; display: grid; }
+.om-group-members__name { overflow-wrap: anywhere; font-weight: 600; }
+.om-group-members__sub { color: var(--om-color-text-secondary); font-size: var(--om-text-sm-size); }
+.om-group-members__row[data-status="invited"] .om-group-members__name { font-weight: 400; }
+.om-group-members__add { display: grid; gap: var(--om-space-2); }
+.om-group-invite__said { margin: 0; }

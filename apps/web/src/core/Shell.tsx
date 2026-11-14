@@ -1,14 +1,15 @@
 // The connected application shell shared by the production Core composition and the dev/e2e entries: conversation
 // list, requests, conversation view, composer, Settings > Devices / Recovery. It only talks to a CoreClient.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { parseInviteLink, type ConversationId, type IntroductionRequest, type MessageId, type OperationId } from "@om/platform-api";
+import { asConversationId, asGroupId, parseInviteLink, type ConversationId, type ConversationSummary, type IntroductionRequest, type MessageId, type OperationId } from "@om/platform-api";
 import {
   AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
   type IconName, type OmniEntry, useConversationDigests,
+  GroupChat, GroupComposer, GroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroups,
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import type { ComposerCapture, StagedItem } from "@om/ui";
-import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels } from "../copy/en";
+import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
 import { CopyNotice } from "../CopyNotice";
@@ -88,8 +89,35 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
   }, [draftSync]);
   const list = useConversationList(services);
   // What each row shows beyond name and time: the latest message, and what has arrived since the chat was last shown here.
-  const chatIds = useMemo(() => (list.status === "ready" ? list.value.map((c) => c.id) : []), [list]);
-  const digests = useConversationDigests(services, chatIds);
+  const groups = useGroups(services);
+  const groupApi = groupApiOf(services);
+  const oneToOneIds = useMemo(() => (list.status === "ready" ? list.value.map((c) => c.id) : []), [list]);
+  const chatDigests = useConversationDigests(services, oneToOneIds);
+  // Groups sit in the same list as chats (they are conversations with more people). Their rows are read from the group views, newest first.
+  const groupRows = useMemo(() => {
+    const rows: ConversationSummary[] = [];
+    const digs = new Map<ConversationId, ReturnType<typeof digestOfGroup>>();
+    const marks = new Map<ConversationId, string>();
+    if (groupApi === null) return { rows, digs, marks };
+    for (const g of groups.groups) {
+      const id = asConversationId(g.conversationId);
+      let messages: ReturnType<typeof groupApi.messages> = [];
+      try { messages = groupApi.messages(services.ctx, g.conversationId); } catch { /* stale context */ }
+      const d = digestOfGroup(messages);
+      digs.set(id, d);
+      marks.set(id, groupsCopy.list.mark(g.members));
+      rows.push({ id, personId: id as unknown as ConversationSummary["personId"], displayName: g.name, lastMessageAt: d.lastSentAt, notices: [], relationship: "active" });
+    }
+    return { rows, digs, marks };
+  }, [groupApi, groups.groups, services.ctx]);
+  const digests = useMemo(() => (groupRows.digs.size === 0 ? chatDigests : new Map([...chatDigests, ...groupRows.digs])), [chatDigests, groupRows]);
+  const chatRows = useMemo<readonly ConversationSummary[] | null>(() => {
+    if (list.status !== "ready") return null;
+    if (groupRows.rows.length === 0) return list.value;
+    return [...list.value, ...groupRows.rows].sort((a, b) => (b.lastMessageAt ?? 0) - (a.lastMessageAt ?? 0));
+  }, [list, groupRows]);
+  const chatIds = useMemo(() => (chatRows === null ? [] : chatRows.map((c) => c.id)), [chatRows]);
+  const selectedIsGroup = (id: ConversationId | null): boolean => id !== null && groupRows.marks.has(id);
   const [seen, setSeenTimes] = useState<ReadonlyMap<ConversationId, number> | null>(null);
   useEffect(() => {
     if (draftSync?.loadSeen === undefined) return;
@@ -132,6 +160,8 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
 
   // Omnibar (find or do) and the new-conversation sheet. Both are local: nothing typed in the Omnibar leaves this device.
   const [omniOpen, setOmniOpen] = useState(false);
+  const [newGroupOpen, setNewGroupOpen] = useState(false);
+  const [groupTick, setGroupTick] = useState(0);
   const [newChat, setNewChat] = useState<{ readonly focus: "share" | "scan" | "qr"; readonly link: string | undefined } | null>(null);
   const [acceptedAfter, setAcceptedAfter] = useState<readonly string[] | null>(null);
   const chatIdsNow = useRef<readonly string[]>([]);
@@ -173,7 +203,7 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
   }, [newChatAfter, list, newChatOpened, go]);
 
   // An address that names nothing real (a chat that is not here, a step this host does not have) falls back to the root, not to an error.
-  const chatGone = selected !== null && newChatAfter === null && list.status === "ready" && !list.value.some((c) => c.id === selected);
+  const chatGone = selected !== null && newChatAfter === null && chatRows !== null && !chatRows.some((c) => c.id === selected);
   /** Copies a public line (the setup value for a backup delivery service) through the Action Registry like every platform capability. */
   const copyText = async (text: string): Promise<boolean> => {
     if (invite === undefined) return false;
@@ -221,11 +251,16 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
   const shortcut = typeof navigator !== "undefined" && /mac|iphone|ipad/i.test(navigator.platform) ? "\u2318K" : "Ctrl K";
   const omniEntries = useMemo<readonly OmniEntry[]>(() => {
     const out: OmniEntry[] = [];
-    if (list.status === "ready") list.value.forEach((c, i) => { out.push({ id: `chat-${c.id}`, kind: "conversation", label: c.displayName, suggested: i < 3, run: () => { go({ kind: "chats", chat: c.id }); } }); });
+    if (chatRows !== null) chatRows.forEach((c, i) => { out.push({ id: `chat-${c.id}`, kind: "conversation", label: c.displayName, suggested: i < 3, run: () => { go({ kind: "chats", chat: c.id }); } }); });
     if (invite !== undefined) {
       out.push({ id: "invite", kind: "action", label: t.omniActions.invite, keywords: t.omniKeywords.invite, suggested: true, run: () => { openNew("share"); } });
       out.push({ id: "scan", kind: "action", label: t.omniActions.scan, keywords: t.omniKeywords.scan, suggested: true, run: () => { openNew("scan"); } });
       out.push({ id: "qr", kind: "action", label: t.omniActions.showQr, keywords: t.omniKeywords.showQr, suggested: true, run: () => { openNew("qr"); } });
+    }
+    if (groups.available) {
+      // UI-10: the entry is bound to the profile it was made for; run after a switch and it does nothing.
+      const made = services.ctx;
+      out.push({ id: "new-group", kind: "action", label: groupsCopy.newGroup.action, keywords: groupsKeywords, run: () => { if (made === services.ctx) { setOmniOpen(false); setNewGroupOpen(true); } } });
     }
     out.push({ id: "chats", kind: "action", label: t.omniActions.chats, keywords: t.omniKeywords.chats, run: () => { go(CHATS); } });
     out.push({ id: "settings", kind: "setting", label: t.omniActions.settings, keywords: t.omniKeywords.settings, run: () => { go({ kind: "settings", page: "menu" }); } });
@@ -241,7 +276,7 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
     if (onAddProfile !== undefined) out.push({ id: "add-profile", kind: "action", label: t.addProfile, keywords: t.settingsKeywords.addProfile, run: onAddProfile });
     if (safetyCode !== undefined) out.push({ id: "safety-code", kind: "setting", label: t.safetyCode.action, keywords: t.settingsKeywords.recovery, run: () => { go({ kind: "safety-code" }); } });
     return out;
-  }, [list, invite, lock, backup, home, onAddProfile, safetyCode, go, openNew]);
+  }, [chatRows, groups.available, services.ctx, invite, lock, backup, home, onAddProfile, safetyCode, go, openNew]);
   // A pasted invitation link is explicit intent: it is offered first and leads to the sheet with the link already in place.
   const omniDynamic = useCallback((query: string): readonly OmniEntry[] => {
     if (invite === undefined || !parseInviteLink(query).ok) return [];
@@ -334,7 +369,7 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
       </>
     );
   }
-  const emptyInviteFirst = list.status === "ready" && list.value.length === 0 && invite !== undefined && incoming?.token == null;
+  const emptyInviteFirst = list.status === "ready" && list.value.length === 0 && groups.groups.length === 0 && groups.invites.length === 0 && invite !== undefined && incoming?.token == null;
   return (
     <>
       <AppShell
@@ -345,8 +380,12 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
           <>
             <header className="om-page-head om-page-head--row">
               <Text as="h1" size="xl" weight="bold">{t.chats}</Text>
-              {invite !== undefined && !emptyInviteFirst ? <Button variant="quiet" onClick={() => { openNew("share"); }}><Icon name="plus" size={20} />{t.newConversation.action}</Button> : null}
+              <span className="om-page-head__actions">
+                {groups.available ? <Button variant="quiet" onClick={() => { setNewGroupOpen(true); }}><Icon name="users" size={20} />{groupsCopy.newGroup.action}</Button> : null}
+                {invite !== undefined && !emptyInviteFirst ? <Button variant="quiet" onClick={() => { openNew("share"); }}><Icon name="plus" size={20} />{t.newConversation.action}</Button> : null}
+              </span>
             </header>
+            {groups.available ? <GroupInvites services={services} copy={groupsCopy} invites={groups.invites} chats={list.status === "ready" ? list.value : []} onAnswered={groups.refresh} /> : null}
             {incoming?.token != null ? (
               <section className="om-page om-stack">
                 <AcceptInvite
@@ -368,15 +407,27 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
                 />
               </div>
             ) : null}
-            {list.status === "ready" && !emptyInviteFirst ? <ConversationList conversations={list.value} selectedId={selected} onSelect={select} copy={conversationCopy} digests={digests} drafts={drafts} unread={unread} /> : null}
+            {chatRows !== null && !emptyInviteFirst ? <ConversationList conversations={chatRows} selectedId={selected} onSelect={select} copy={conversationCopy} digests={digests} drafts={drafts} unread={unread} marks={groupRows.marks} /> : null}
           </>
         }
         detail={
-          selected === null ? <div className="om-page om-page--empty"><span className="om-empty-art" aria-hidden="true"><Icon name="chat" size={72} /></span></div> : (
+          selected === null ? <div className="om-page om-page--empty"><span className="om-empty-art" aria-hidden="true"><Icon name="chat" size={72} /></span></div> : selectedIsGroup(selected) ? (
+            <GroupChat
+              key={selected} services={services} copy={groupsCopy} groupId={asGroupId(selected)} chats={list.status === "ready" ? list.value : []}
+              onBack={toChats} onLeft={() => { groups.refresh(); toChats(); }} refreshKey={groupTick} onChanged={groups.refresh}
+            />
+          ) : (
             <ConversationView key={selected} services={services} conversationId={selected} copy={conversationCopy} onBack={toChats} focusMessageId={hitFocus !== null && hitFocus.chat === selected && hitFocus.ctx === services.ctx ? hitFocus.messageId : undefined} />
           )
         }
-        composerZone={selected === null || (list.status === "ready" && list.value.some((c) => c.id === selected && c.relationship === "restored")) ? undefined : (
+        composerZone={selected !== null && selectedIsGroup(selected) ? (
+          <GroupComposer
+            key={selected} services={services} copy={groupsCopy} groupId={asGroupId(selected)} draft={drafts.get(selected) ?? ""}
+            onDraftChange={(next) => { setDrafts((d) => new Map(d).set(selected, next)); draftSync?.save(selected, next); }}
+            onSent={() => { setGroupTick((n) => n + 1); groups.refresh(); }}
+            trailing={<OmnibarTrigger variant="icon" copy={omnibarCopy} onOpen={openOmni} />}
+          />
+        ) : selected === null || (list.status === "ready" && list.value.some((c) => c.id === selected && c.relationship === "restored")) ? undefined : (
           <Composer
             key={selected} services={services} conversationId={selected} copy={conversationCopy} draft={drafts.get(selected) ?? ""}
             onDraftChange={(next) => { setDrafts((d) => new Map(d).set(selected, next)); draftSync?.save(selected, next); }}
@@ -388,6 +439,11 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
       />
       {inviteScan.dialog}
       {newChatSheet}
+      {newGroupOpen && list.status === "ready" ? (
+        <Sheet title={groupsCopy.newGroup.action} closeLabel={groupsCopy.newGroup.close} onClose={() => { setNewGroupOpen(false); }}>
+          <NewGroup services={services} copy={groupsCopy} chats={list.value} onCreated={() => { groups.refresh(); setNewGroupOpen(false); }} />
+        </Sheet>
+      ) : null}
       <LiveRegion>{selected === null ? "" : t.conversationOpened}</LiveRegion>
     </>
   );

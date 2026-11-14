@@ -2,11 +2,13 @@ import { useId, useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { ConversationId, ConversationSummary } from "@om/platform-api";
 import { Avatar } from "./Avatar";
+import { Icon } from "../shell/primitives/icons";
 import { VisuallyHidden } from "../shell/primitives/VisuallyHidden";
 import type { ConversationCopy } from "./copy";
 import { DeliveryIndicator, type DeliveryDisplay } from "./delivery";
 import type { ConversationDigest } from "./hooks";
 import "./conversations.css";
+import "../groups/groups.css";
 
 export interface ConversationListProps {
   readonly conversations: readonly ConversationSummary[];
@@ -20,10 +22,12 @@ export interface ConversationListProps {
   readonly digests?: ReadonlyMap<ConversationId, ConversationDigest>;
   /** Unsent text per chat: shown after "Draft:" in place of the latest message. */
   readonly drafts?: ReadonlyMap<ConversationId, string>;
+  /** Rows that are groups, with their accessible name ("Group, 3 people"): they get a small people marker next to the name. */
+  readonly marks?: ReadonlyMap<ConversationId, string>;
 }
 
 /** Single-select listbox; focus stays on the listbox and `aria-activedescendant` tracks the active row. */
-export function ConversationList({ conversations, selectedId, onSelect, copy, unread, lastDelivery, digests, drafts }: ConversationListProps) {
+export function ConversationList({ conversations, selectedId, onSelect, copy, unread, lastDelivery, digests, drafts, marks }: ConversationListProps) {
   const base = useId();
   const [activeIndex, setActive] = useState(() => Math.max(0, conversations.findIndex((c) => c.id === selectedId)));
   if (conversations.length === 0) return <p className="om-conv-list__empty">{copy.list.empty}</p>;
@@ -67,7 +71,7 @@ export function ConversationList({ conversations, selectedId, onSelect, copy, un
             <Avatar name={c.displayName} />
             <span className="om-conv-list__main">
               <span className="om-conv-list__top">
-                <span className="om-conv-list__name">{c.displayName}</span>
+                <span className="om-conv-list__name">{marks?.has(c.id) ? <span className="om-group-mark"><Icon name="users" size={16} /><VisuallyHidden>{marks.get(c.id)}</VisuallyHidden></span> : null}{c.displayName}</span>
                 <span className="om-conv-list__meta">
                   {c.notices.length > 0 ? <span className="om-conv-list__notice" data-security-notice="true"><span aria-hidden="true">!</span><VisuallyHidden>{copy.list.securityNotice}</VisuallyHidden></span> : null}
                   {c.lastMessageAt === null ? null : <span className="om-conv-list__time">{copy.view.formatTime(c.lastMessageAt)}</span>}

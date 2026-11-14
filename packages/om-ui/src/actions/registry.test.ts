@@ -171,6 +171,17 @@ describe("Action Registry", () => {
       .toEqual({ status: "needs_confirmation", actionId: "start-recovery" });
   });
 
+  it("group actions yield typed group intents, only from a person's own tap, and are strict about shape", () => {
+    const r = registry.resolve({ actionId: "group-create", params: { name: " Book club ", relationshipIds: ["c1", "c2"] }, ctx, origin: "direct" });
+    expect(r).toMatchObject({ status: "group", intent: { kind: "create", relationshipIds: ["c1", "c2"] } });
+    expect(registry.resolve({ actionId: "group-leave", params: { conversationId: "g1" }, ctx, origin: "direct" })).toMatchObject({ status: "group", intent: { kind: "leave", conversationId: "g1" } });
+    expect(registry.resolve({ actionId: "group-remove-member", params: { conversationId: "g1", account: "ab" }, ctx, origin: "direct" })).toMatchObject({ status: "group", intent: { kind: "remove", account: "ab" } });
+    expect(registry.resolve({ actionId: "group-leave", params: { conversationId: "g1" }, ctx, origin: "suggestion" })).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
+    for (const params of [{}, { name: "x", relationshipIds: [] }, { name: "x", relationshipIds: ["c1", "c1"] }, { name: "x".repeat(65), relationshipIds: ["c1"] }, { name: "x", relationshipIds: Array.from({ length: 32 }, (_, i) => `c${String(i)}`) }]) {
+      expect(registry.resolve({ actionId: "group-create", params, ctx, origin: "direct" }).status).toBe("rejected");
+    }
+  });
+
   it("platform actions map to capabilities, not intents", () => {
     expect(registry.resolve({ actionId: "copy-text", params: { sensitive: true }, ctx, origin: "direct" }))
       .toEqual({ status: "platform", request: { capability: "Clipboard", purpose: "write", sensitive: true } });

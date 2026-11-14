@@ -54,6 +54,10 @@ export function mountDev(root: HTMLElement): void {
       },
     },
   });
+  // Groups have no engine or wire in this build, so the harness plays the other people: one invitation is waiting for Work, and the
+  // e2e tests (and a person trying the screens) answer and send as the others through this handle.
+  harness.groups.simulateInvite(harness.contextFor(WORK), asConversationId("c-ana"), "Book club");
+  (globalThis as { __omDevGroups?: unknown }).__omDevGroups = { sim: harness.groups, ctx: () => harness.contextFor(WORK) };
   r.render(
     <StrictMode>
       <DevApp harness={harness} vault={createWebDeviceVault(vaultEnv)} platform={createWebPlatform()} pendingProfileId={PENDING} onboarded={[WORK]} />

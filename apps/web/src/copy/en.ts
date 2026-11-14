@@ -1,7 +1,7 @@
 // The only place user-visible English lives. Components take these as props; keys are machine reason codes, so a
 // missing code is a compile error. Wording rules: plain language, no provider names, honest about limits.
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
-import type { ConversationCopy, DevicesCopy, HomeCopy, JoinCopy, OmnibarCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, RecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
+import type { ConversationCopy, DevicesCopy, GroupsCopy, HomeCopy, JoinCopy, OmnibarCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, RecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
 
 const REJECT: Readonly<Record<RejectReason, string>> = {
   invalid: "That was not valid.",
@@ -548,6 +548,66 @@ export interface AppStrings {
   /** Words that also find an Omnibar action (not shown). */
   readonly omniKeywords: { readonly invite: string; readonly scan: string; readonly showQr: string; readonly useLink: string; readonly chats: string; readonly settings: string };
 }
+
+/**
+ * Ordinary groups. Plain words: people, not members of a cryptographic group; nothing about keys, epochs or devices. Every claim is one the
+ * design makes: nobody is added without saying yes; a later joiner sees only what is said after they join (history policy "since join");
+ * group messages can be shown to others as proof of who wrote them (MLS gives no deniability, GROUP_CHAT_ARCHITECTURE, ADR-0138);
+ * leaving or removing never erases what people already hold (GROUPS_AND_SPACES_UX 13). Nothing here says anything about quantum safety.
+ */
+const GROUP_REFUSED: Readonly<Record<string, string>> = {
+  not_authorized: "You are not allowed to do that in this group.",
+  group_full: "This group is full.",
+  relationship_not_active: "You can only add people you are already chatting with.",
+  already_member: "They are already in this group or have been invited.",
+  unknown_group: "This group is not here anymore.",
+  unknown_invite: "That invitation is not here anymore.",
+  unknown_relationship: "You can only add people you are already chatting with.",
+  not_a_member: "That person is not in this group.",
+  invalid_name: "Give the group a different name.",
+  empty_message: "Write something to send.",
+  commit_in_flight: "The group is being updated. Try again in a moment.",
+  group_leaving: "You are leaving this group, so you cannot send to it.",
+  journal_busy: "The group is being updated. Try again in a moment.",
+  groups_unavailable: "Groups are not available on this device yet.",
+};
+export const groupsCopy: GroupsCopy = {
+  list: { mark: (n) => `Group, ${String(n)} ${n === 1 ? "person" : "people"}`, noActivity: "No messages yet" },
+  newGroup: {
+    action: "New group", close: "Close", nameLabel: "Group name (optional)", namePlaceholder: "For example, Family",
+    unnamed: (names) => { const n = Array.from(names); return n.length === 0 ? "New group" : n.length === 1 ? (n[0] ?? "") : `${n.slice(0, -1).join(", ")} and ${n[n.length - 1] ?? ""}`; },
+    pick: "Choose people", nobody: "Groups are made from people you already chat with. Invite someone first, then come back.",
+    selected: (n) => `${String(n)} chosen`, create: "Create group", creating: "Creating…",
+    consent: "Each person gets an invitation and is only added if they say yes.",
+  },
+  invites: {
+    heading: "Group invitations",
+    from: (who, group) => (who === "" ? `You are invited to ${group}` : `${who} invited you to ${group}`),
+    hint: "If you join, everyone in the group can see that you are in it. You will see only what is said after you join.",
+    join: "Join", decline: "No thanks", joining: "Joining…", declined: "Invitation declined. Nobody in the group was told.", joined: "You joined the group.",
+  },
+  chat: {
+    label: "Group messages", back: "Back to chats", people: (n) => `${String(n)} ${n === 1 ? "person" : "people"}`, openPeople: (g) => `People in ${g}`,
+    empty: "No messages yet. Say hello.", incoming: "From someone in the group", outgoing: "You said", formatTime: (ms) => new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(new Date(ms)),
+    composerLabel: "Message the group", placeholder: "Message", send: "Send", sendFailed: "That was not sent. Try again.",
+    paused: "The group is being updated. You can write again in a moment.", notMember: "You are not in this group.", loadFailed: "This group could not be opened.",
+  },
+  members: {
+    title: (g) => `People in ${g}`, close: "Close", listLabel: "People in this group", you: "You", someone: (n) => `Someone ${String(n)}`,
+    roles: { admin: "Admin", member: "Member" }, invited: "Invited, no answer yet",
+    removeShort: "Remove", remove: (n) => `Remove ${n} from the group`,
+    removeAsk: (n, g) => `Remove ${n} from ${g}?`, removeConfirm: "Remove", removeKeep: "Keep them",
+    add: "Add someone", addNobody: "Everyone you chat with is already here.", addLabel: (n) => `Invite ${n}`, adding: "Inviting…",
+    leave: "Leave group", leaveAsk: (g) => `Leave ${g}?`, leaveConfirm: "Leave", leaveStay: "Stay",
+    leaveNote: "You will stop getting new messages. People in the group keep the messages they already have, including yours.",
+    removeNote: "They will stop getting new messages. They keep the messages they already received.",
+    historyNote: "People who join later see only what is said after they join.",
+    proofNote: "Anyone in a group can show its messages to others as proof of who wrote them.",
+  },
+  refused: (code) => GROUP_REFUSED[code] ?? "That did not work. Try again in a moment.",
+  done: { created: (g) => `Group ${g} created.`, invited: "Invitation sent.", removed: "Removed from the group.", left: "You left the group." },
+};
+export const groupsKeywords = "group chat people team family friends create start";
 
 export const appStrings: AppStrings = {
   chats: "Chats",
