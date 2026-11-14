@@ -55,3 +55,4 @@ openmls = { version = "=0.9.0", optional = true, features = ["fork-resolution", 
 # Test builds enable the test-only providers (never reachable from a normal or wasm build).
 om-core = { path = ".", features = ["insecure-test-rng", "test-loopback"] }
 proptest = { version = "1", default-features = false, features = ["std"] }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }

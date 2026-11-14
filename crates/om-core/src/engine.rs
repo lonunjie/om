@@ -10,6 +10,8 @@ use crate::backup::{self, BackupPlan};
 use crate::crypto::rng::{CryptoRng, RngCore};
 use crate::flows::Tx;
 use crate::groups::GroupError;
+use crate::groups::carriage::Sealed;
+use crate::groups::carry::CarryEnv;
 use crate::groups::flow::{
     GroupCtx, GroupIntent, GroupQuery, GroupReply, GroupView, GroupWire, Sender,
 };
@@ -19,6 +21,21 @@ use crate::route::{MAX_OFFERS, RouteOffer};
 use crate::state::*;
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
+
+/// One relationship-lane event handed to the group flow: the relationship and the flow's answer.
+pub type LanePumped = (String, Result<GroupReply, GroupError>);
+
+/// A removal means every remaining device owes the Room a fresh route (ADR-0189 1.3).
+fn note_removals(app: &mut AppState, r: &GroupReply) {
+    for e in &r.events {
+        if let crate::groups::flow::GroupEvent::MemberRemoved {
+            conversation_id, ..
+        } = e
+        {
+            app.carry_note_removal(conversation_id);
+        }
+    }
+}
 
 struct Slot {
     state: ProfileState,
@@ -180,7 +197,10 @@ impl<R: RngCore + CryptoRng> Core<R> {
         ctx: &ProfileExecutionContext,
         intent: GroupIntent,
     ) -> Result<(Result<GroupReply, GroupError>, Step), CoreError> {
-        self.group_step(ctx, |app, gctx| app.group_do(gctx, intent))
+        self.group_step(ctx, |app, gctx| {
+            app.group_do(gctx, intent)
+                .inspect(|r| note_removals(app, r))
+        })
     }
 
     /// See [`Core::group_do`]; `from` is what the transport authenticated (a relationship or a member device).
@@ -190,14 +210,17 @@ impl<R: RngCore + CryptoRng> Core<R> {
         from: Sender,
         wire: GroupWire,
     ) -> Result<(Result<GroupReply, GroupError>, Step), CoreError> {
-        self.group_step(ctx, |app, gctx| app.group_receive(gctx, from, wire))
+        self.group_step(ctx, |app, gctx| {
+            app.group_receive(gctx, from, wire)
+                .inspect(|r| note_removals(app, r))
+        })
     }
 
-    fn group_step(
+    fn group_step<T>(
         &mut self,
         ctx: &ProfileExecutionContext,
-        f: impl FnOnce(&mut AppState, &mut GroupCtx<'_>) -> Result<GroupReply, GroupError>,
-    ) -> Result<(Result<GroupReply, GroupError>, Step), CoreError> {
+        f: impl FnOnce(&mut AppState, &mut GroupCtx<'_>) -> Result<T, GroupError>,
+    ) -> Result<(Result<T, GroupError>, Step), CoreError> {
         self.slot(ctx)?;
         let profile = ctx.profile_id.clone();
         let mut engine = match self.group_engine_take(&profile) {
@@ -244,6 +267,218 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 None => Err(e),
             },
         }
+    }
+
+    /// Group carriage (ADR-0189, Package 2a). Send an Invite, Accept or Decline the flow produced (`Outbound` with
+    /// `Target::Relationship`) as a kind 15, 16 or 17 event on the relationship. Nothing is queued on a refusal.
+    pub fn group_lane_send(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        relationship_id: &str,
+        wire: &GroupWire,
+    ) -> Result<(Result<(), GroupError>, Step), CoreError> {
+        self.slot(ctx)?;
+        let mut refused: Option<GroupError> = None;
+        let res = self.txn(&ctx.profile_id, |tx| {
+            let now_s = tx.now_ms / 1000;
+            let body = {
+                let st = &mut *tx.st;
+                let dev = st
+                    .device
+                    .as_ref()
+                    .ok_or(CoreError::Invalid("no identity"))?;
+                let mut env = CarryEnv {
+                    signer: &dev.signer,
+                    device_id: dev.device_id,
+                    account_id: dev.account_id,
+                    rng: &mut *tx.rng,
+                    offers: &mut *tx.offers,
+                    now_s,
+                };
+                st.app.carry_lane_body(&mut env, wire)
+            };
+            let body = match body {
+                Ok(b) => b,
+                Err(e) => {
+                    refused = Some(e);
+                    return Err(CoreError::Invalid("group_refused"));
+                }
+            };
+            match tx.group_lane_queue(relationship_id, &body)? {
+                Ok(()) => Ok(()),
+                Err(e) => {
+                    refused = Some(e);
+                    Err(CoreError::Invalid("group_refused"))
+                }
+            }
+        });
+        match res {
+            Ok(((), commit)) => Ok((
+                Ok(()),
+                Step {
+                    commit,
+                    handle: None,
+                },
+            )),
+            Err(e) => match refused {
+                Some(r) => Ok((Err(r), Step::default())),
+                None => Err(e),
+            },
+        }
+    }
+
+    /// Hand every verified relationship-lane event that arrived to the group flow, oldest first, as the host would
+    /// call `group_receive(Sender::Relationship(..), wire)`. Returns one result per event.
+    pub fn group_lane_pump(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<(Vec<LanePumped>, Step), CoreError> {
+        self.slot(ctx)?;
+        if self.slot(ctx)?.state.app.group_carriage.lane_in.is_empty() {
+            return Ok((vec![], Step::default()));
+        }
+        let (out, step) = self.group_step(ctx, |app, gctx| {
+            let mut all = vec![];
+            for item in app.carry_lane_take() {
+                let r = app.group_receive(
+                    gctx,
+                    Sender::Relationship(item.relationship_id.clone()),
+                    item.wire,
+                );
+                all.push((item.relationship_id, r));
+            }
+            Ok(all)
+        })?;
+        Ok((out.unwrap_or_default(), step))
+    }
+
+    /// Seal a flow `Outbound` that travels on the device lane (Welcome, App) to its destination devices' per-Room
+    /// routes. The host deposits each `Sealed.wrapper` at `Sealed.entry`.
+    pub fn group_frame_send(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        out: &crate::groups::flow::Outbound,
+    ) -> Result<(Result<Vec<Sealed>, GroupError>, Step), CoreError> {
+        self.slot(ctx)?;
+        let mut refused: Option<GroupError> = None;
+        let res = self.txn(&ctx.profile_id, |tx| {
+            let now_s = tx.now_ms / 1000;
+            let st = &mut *tx.st;
+            let dev = st
+                .device
+                .as_ref()
+                .ok_or(CoreError::Invalid("no identity"))?;
+            let mut env = CarryEnv {
+                signer: &dev.signer,
+                device_id: dev.device_id,
+                account_id: dev.account_id,
+                rng: &mut *tx.rng,
+                offers: &mut *tx.offers,
+                now_s,
+            };
+            match st.app.carry_frame_out(&mut env, out) {
+                Ok(v) => Ok(v),
+                Err(e) => {
+                    refused = Some(e);
+                    Err(CoreError::Invalid("group_refused"))
+                }
+            }
+        });
+        match res {
+            Ok((v, commit)) => Ok((
+                Ok(v),
+                Step {
+                    commit,
+                    handle: None,
+                },
+            )),
+            Err(e) => match refused {
+                Some(r) => Ok((Err(r), Step::default())),
+                None => Err(e),
+            },
+        }
+    }
+
+    /// Open a sealed wrapper that arrived at one of this device's per-Room routes and apply it (Welcome, App, Commit
+    /// are wired in 2a). A drop leaves the profile exactly as it was.
+    pub fn group_frame_receive(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        wrapper: &[u8],
+    ) -> Result<(Result<GroupReply, GroupError>, Step), CoreError> {
+        self.group_step(ctx, |app, gctx| {
+            let now_s = gctx.now_ms / 1000;
+            app.carry_frame_in(gctx, now_s, wrapper)
+                .inspect(|r| note_removals(app, r))
+        })
+    }
+
+    /// Replace this device's route for the Room after a removal (ADR-0189 1.3): returns the fresh signed
+    /// `GroupRouteRecord`, to send as a `route_update` to the new roster.
+    pub fn group_route_replace(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        conversation_id: &[u8],
+    ) -> Result<(Result<Vec<u8>, GroupError>, Step), CoreError> {
+        self.slot(ctx)?;
+        let mut refused: Option<GroupError> = None;
+        let room = crate::crypto::hex(conversation_id);
+        let res = self.txn(&ctx.profile_id, |tx| {
+            let now_s = tx.now_ms / 1000;
+            let st = &mut *tx.st;
+            let dev = st
+                .device
+                .as_ref()
+                .ok_or(CoreError::Invalid("no identity"))?;
+            let mut env = CarryEnv {
+                signer: &dev.signer,
+                device_id: dev.device_id,
+                account_id: dev.account_id,
+                rng: &mut *tx.rng,
+                offers: &mut *tx.offers,
+                now_s,
+            };
+            match st.app.carry_route_replace(&mut env, &room) {
+                Ok(v) => Ok(v),
+                Err(e) => {
+                    refused = Some(e);
+                    Err(CoreError::Invalid("group_refused"))
+                }
+            }
+        });
+        match res {
+            Ok((v, commit)) => Ok((
+                Ok(v),
+                Step {
+                    commit,
+                    handle: None,
+                },
+            )),
+            Err(e) => match refused {
+                Some(r) => Ok((Err(r), Step::default())),
+                None => Err(e),
+            },
+        }
+    }
+
+    /// Retired per-Room routes whose overlap has ended are dropped; the returned entries are the deposit capabilities
+    /// the host revokes (`DELETE /v1/relay/deposit-capabilities/{id}`).
+    pub fn group_routes_expire(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<(Vec<crate::route::RelayEntry>, Step), CoreError> {
+        self.slot(ctx)?;
+        let (revoke, commit) = self.txn(&ctx.profile_id, |tx| {
+            let now_s = tx.now_ms / 1000;
+            Ok(tx.st.app.carry_routes_expire(now_s))
+        })?;
+        Ok((
+            revoke,
+            Step {
+                commit,
+                handle: None,
+            },
+        ))
     }
 
     /// Answer a typed groups query from the profile's state.
@@ -1360,7 +1595,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                             timeline: rel
                                 .messages
                                 .iter()
-                                .filter(|m| !m.deleted)
+                                .filter(|m| !m.deleted && !m.lane)
                                 .map(|m| {
                                     self.overlay_transfers(
                                         ctx,
@@ -1507,7 +1742,7 @@ fn summary(r: &Relationship) -> ConversationSummary {
         id: r.id.clone(),
         person_id: r.person_id.clone(),
         display_name: r.display_name.clone(),
-        last_message_at: r.messages.last().map(|m| m.sent_at),
+        last_message_at: r.messages.iter().rev().find(|m| !m.lane).map(|m| m.sent_at),
         notices,
         relationship: match r.state {
             RelState::AwaitingAcceptance => RelationshipStateCode::AwaitingAcceptance,
@@ -1598,7 +1833,12 @@ fn conversation_list(st: &ProfileState) -> Vec<ConversationSummary> {
         .values()
         .map(|r| {
             (
-                r.messages.last().map(|m| m.sent_at).unwrap_or(r.created_at),
+                r.messages
+                    .iter()
+                    .rev()
+                    .find(|m| !m.lane)
+                    .map(|m| m.sent_at)
+                    .unwrap_or(r.created_at),
                 summary(r),
             )
         })

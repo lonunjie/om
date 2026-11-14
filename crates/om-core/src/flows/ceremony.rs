@@ -1713,6 +1713,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     fan: vec![],
                     attachments: vec![],
                     ext: None,
+                    lane: false,
                 });
                 added += 1;
             }

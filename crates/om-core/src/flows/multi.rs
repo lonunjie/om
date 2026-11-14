@@ -1149,6 +1149,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             fan: vec![],
             attachments: parts.attachments,
             ext: parts.ext,
+            lane: false,
         });
         true
     }

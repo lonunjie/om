@@ -382,7 +382,7 @@ pub fn collect(app: &AppState, exported_at_ms: u64) -> Result<HistoryArchive, Ba
         let messages: Vec<ArchivedMsg> = r
             .messages
             .iter()
-            .filter(|m| !m.deleted)
+            .filter(|m| !m.deleted && !m.lane)
             .map(|m| ArchivedMsg {
                 id: m.id.clone(),
                 outgoing: m.outgoing,

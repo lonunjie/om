@@ -23,6 +23,7 @@ use std::sync::OnceLock;
 
 mod blobs;
 mod ceremony;
+mod group_lane;
 mod multi;
 mod recovery_watch;
 pub(crate) use blobs::{attachment_views, presentation, rec_ref};
@@ -1376,6 +1377,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             fan: vec![],
             attachments: atts,
             ext: ext23.as_ref().map(|x| hex(&cbor::encode(x))),
+            lane: false,
         });
         rel.hlc_ms = clock.physical_ms;
         rel.hlc_logical = clock.logical;
@@ -3691,6 +3693,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// An authenticated inner payload that is a `ConversationEvent`: W0-valid, in this conversation, authored by the
     /// pinned peer endpoint, deduplicated by EventID, and applied as a state transition.
     fn on_event(&mut self, conv: &str, bytes: &[u8], sender: [u8; 16], sibling: bool) -> bool {
+        // Kinds 15 to 17 (group lane, ADR-0189) are valid only to a W1 decoder: they never reach the W0 check below.
+        if crate::groups::carriage::is_lane_event(bytes) {
+            return self.on_group_lane(conv, bytes, sender, sibling);
+        }
         if registry().check("ConversationEvent", bytes, false).is_err() {
             return false;
         }
@@ -3762,6 +3768,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     fan: vec![],
                     attachments: parts.attachments,
                     ext: parts.ext,
+                    lane: false,
                 });
                 true
             }

@@ -110,6 +110,12 @@ impl Header {
 
     /// As [`Self::encode`], with the key-23 `extensions` map (never empty; `None` omits the key).
     pub fn encode_with(&self, extensions: Option<V>) -> Vec<u8> {
+        self.encode_full(extensions, None)
+    }
+
+    /// As [`Self::encode_with`], with the key-10 `required_capabilities` set (kinds 15 to 17 carry `["om.group.v1"]`,
+    /// ADR-0189 section 1.1). Written in key order, so the bytes stay canonical.
+    pub fn encode_full(&self, extensions: Option<V>, required_capabilities: Option<V>) -> Vec<u8> {
         let mut m = vec![
             (0, V::U(OBJECT_TYPE)),
             (1, V::U(1)),
@@ -134,8 +140,11 @@ impl Header {
             ),
             (8, V::U(self.kind)),
             (9, V::U(KIND_VERSION)),
-            (11, self.body.clone()),
         ];
+        if let Some(c) = required_capabilities {
+            m.push((10, c));
+        }
+        m.push((11, self.body.clone()));
         if let Some(x) = extensions {
             m.push((23, x));
         }
@@ -176,6 +185,16 @@ pub struct Event {
 
 /// Parse after the W0 registry check has passed. Returns `None` for anything the 1:1 profile does not accept.
 pub fn parse(bytes: &[u8]) -> Option<Event> {
+    parse_with(bytes, false)
+}
+
+/// As [`parse`] for the group relationship lane (kinds 15 to 17): the one required capability it accepts is
+/// `["om.group.v1"]` (key 10), because this client implements groups. Any other capability set is still refused.
+pub fn parse_group_lane(bytes: &[u8]) -> Option<Event> {
+    parse_with(bytes, true)
+}
+
+fn parse_with(bytes: &[u8], group_lane: bool) -> Option<Event> {
     let v = cbor::decode(bytes).ok()?;
     if v.get(0).ok()?.u().ok()? != OBJECT_TYPE || v.get(2).ok()?.u().ok()? != PROTOCOL_VERSION {
         return None;
@@ -183,7 +202,14 @@ pub fn parse(bytes: &[u8]) -> Option<Event> {
     // A required capability or a kind version this client does not implement is refused, never half-applied. Key 23 is
     // accepted: the W0 registry check has already enforced every registered extension's owner, criticality and size, and
     // `present::parse_extensions` refuses an unknown critical entry (ADR-0155).
-    if v.opt(10).is_some() || v.get(9).ok()?.u().ok()? != KIND_VERSION {
+    let caps_ok = match v.opt(10) {
+        None => true,
+        Some(c) => {
+            group_lane
+                && matches!(c.a().ok()?, [x] if x.t().ok()? == crate::groups::carriage::CAP_GROUP)
+        }
+    };
+    if !caps_ok || v.get(9).ok()?.u().ok()? != KIND_VERSION {
         return None;
     }
     let extensions = match v.opt(23) {

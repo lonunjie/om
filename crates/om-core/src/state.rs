@@ -234,6 +234,10 @@ pub struct Msg {
     /// authenticated and re-checked against the message as it currently reads.
     #[serde(default)]
     pub ext: Option<Hex>,
+    /// A group relationship-lane event (kinds 15 to 17, ADR-0189): sent and delivered like a message but never shown
+    /// in the timeline, and never counted as the last message.
+    #[serde(default)]
+    pub lane: bool,
 }
 
 /// One attachment of a message. `reference` is the canonical `attachment-ref` and contains the content key, so it is
@@ -755,6 +759,9 @@ pub struct AppState {
     /// ConversationID (hex) -> the group's text messages as this device holds them. Additive.
     #[serde(default)]
     pub group_msgs: BTreeMap<Hex, Vec<crate::groups::flow::GroupMsg>>,
+    /// Group carriage (ADR-0189): this device's per-Room routes, other devices' verified routes and the lane inbox.
+    #[serde(default)]
+    pub group_carriage: crate::groups::carriage::GroupCarriageRec,
     /// Groups this person has asked to leave and whose removing Commit has not arrived: sending is refused. Additive.
     #[serde(default)]
     pub group_leaving: BTreeSet<Hex>,

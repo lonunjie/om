@@ -1209,7 +1209,8 @@ impl AppState {
             return Ok(());
         };
         let st = GroupState::decode(&un(state)?)?;
-        if h(&st.conversation_id) != inv.conversation_id {
+        // The invitation no longer carries the ConversationID (ADR-0189 1.1): the Welcome's state names it.
+        if !inv.conversation_id.is_empty() && h(&st.conversation_id) != inv.conversation_id {
             return err("wrong_conversation");
         }
         let me = Principal::account(ctx.my_account.clone());
@@ -1232,7 +1233,9 @@ impl AppState {
             self.group_register(&st.conversation_id, &un(d)?, &un(a)?, &un(pk)?);
         }
         self.group_crypto_save(&*ctx.engine);
-        self.group_invites.get_mut(invite_id).expect("found").state = InviteState::Done;
+        let done = self.group_invites.get_mut(invite_id).expect("found");
+        done.state = InviteState::Done;
+        done.conversation_id = h(&st.conversation_id);
         rep.events.push(GroupEvent::Joined {
             conversation_id: st.conversation_id,
         });
