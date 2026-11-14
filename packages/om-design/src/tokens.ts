@@ -42,10 +42,9 @@ export const THEME_CONTRAST_PAIRS: readonly ContrastPair[] = [
   ["danger-fg", "danger-bg", 4.5], ["info-fg", "info-bg", 4.5],
   ["text-primary", "message-incoming", 4.5], ["text-primary", "message-outgoing", 4.5], ["danger-fg", "message-failed", 4.5],
   ["accent", "message-outgoing", 4.5],
-  // The audited border.strong (DEFAULT_THEME_AND_COLOR_SEMANTICS.md s3) is about 2.3:1 on the canvas in light: below the 3:1 a
-  // control boundary needs on its own. Every bordered control also has a text or fill cue; the shortfall is reported to the
-  // operator (docs/reports/2026-11-03-ui-conformance-review.md, Applied). This floor documents today's value so it cannot fall further.
-  ["border", "bg-canvas", 2.2], ["border", "bg-surface", 2.2],
+  // border.strong is a component boundary, so it needs 3:1 against every surface it sits on (VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md
+  // "Contrast and focus", VS-01). The audited values failed this (light 2.29:1 on the canvas); ADR-0188 sets the nearest values that pass.
+  ...(["bg-canvas", "bg-surface", "bg-raised", "bg-sunken", "bg-overlay"] as const).map((bg): ContrastPair => ["border", bg, 3]),
 ];
 
 export const RESERVED_CONTRAST_PAIRS: readonly (readonly [ReservedColorRole, ReservedColorRole, number])[] = [
@@ -75,7 +74,7 @@ export const OM_CALM: Theme = {
     "bg-canvas": "#F7F9FC", "bg-surface": "#FFFFFF", "bg-raised": "#FFFFFF", "bg-sunken": "#EFF3F8", "bg-overlay": "#FFFFFF",
     "text-primary": "#172033", "text-secondary": "#566176", "text-muted": "#627085",
     accent: "#0067C5", "accent-hover": "#0057AA", "accent-pressed": "#004A90", "accent-text": "#FFFFFF", "accent-soft": "#DDEEFF",
-    border: "#9BA8B9", "border-subtle": "#D7DEE8",
+    border: "#7D8EA4", "border-subtle": "#D7DEE8",
     "selection-bg": "#DCEBFF", "selection-text": "#172033",
     "success-fg": "#18794E", "success-bg": tint("#18794E", "#FFFFFF", 0.1), "warning-fg": "#8A5A00", "warning-bg": tint("#8A5A00", "#FFFFFF", 0.1),
     "danger-fg": "#C4333B", "danger-bg": "#FFF0F0", "info-fg": "#0067C5", "info-bg": "#DDEEFF",
@@ -85,7 +84,7 @@ export const OM_CALM: Theme = {
     "bg-canvas": "#11151C", "bg-surface": "#171D26", "bg-raised": "#1D2530", "bg-sunken": "#171D26", "bg-overlay": "#25303D",
     "text-primary": "#F2F5F8", "text-secondary": "#B9C2CE", "text-muted": "#8F9BAA",
     accent: "#66B2FF", "accent-hover": "#8AC4FF", "accent-pressed": "#4AA4FF", "accent-text": "#07182B", "accent-soft": "#183A5B",
-    border: "#667485", "border-subtle": "#34404F",
+    border: "#6A798A", "border-subtle": "#34404F",
     "selection-bg": "#223D5E", "selection-text": "#F2F5F8",
     "success-fg": "#5DD6A1", "success-bg": tint("#5DD6A1", "#1D2530", 0.18), "warning-fg": "#F6C65B", "warning-bg": tint("#F6C65B", "#1D2530", 0.18),
     "danger-fg": "#FF7B7B", "danger-bg": "#451D25", "info-fg": "#66B2FF", "info-bg": "#183A5B",

@@ -28,6 +28,14 @@ describe("OM Calm contrast (WCAG AA)", () => {
       expect(contrastRatio(p["focus-ring"], p["focus-halo"])).toBeGreaterThanOrEqual(3);
     }
   });
+  it("border.strong is a component boundary: 3:1 against every themable background in both variants (ADR-0188, VS-01)", () => {
+    expect(THEME_CONTRAST_PAIRS.filter(([fg]) => fg === "border").every(([, , min]) => min >= 3)).toBe(true);
+    for (const theme of [OM_CALM.light, OM_CALM.dark]) {
+      for (const bg of ["bg-canvas", "bg-surface", "bg-raised", "bg-sunken", "bg-overlay"] as const) {
+        expect(contrastRatio(theme.border, theme[bg])).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
   it("focus ring has 3:1 against every themable background in both variants", () => {
     for (const [theme, reserved] of [[OM_CALM.light, RESERVED_LIGHT], [OM_CALM.dark, RESERVED_DARK]] as const) {
       for (const bg of ["bg-canvas", "bg-surface", "bg-raised", "bg-sunken"] as const) {

@@ -1,8 +1,8 @@
 # ADR-0187 — The MLS engine on wasm: unforked OpenMLS in the existing Core module, with entropy and time through the existing host imports
 
-- **Status:** **proposed (delegated draft).** Written by a delegate of the coordinating session on 2026-11-14 for the operator to review later. Not accepted. Nothing in `crates/` or [`Cargo.toml`](../Cargo.toml) changes until the operator accepts it or chooses another option. An ADR by delegation never amends audited text (AGENTS "Design gate" rule 6); this one does not, see "Does not amend".
+- **Status:** **Accepted** by the operator on 2026-11-14 (option A2, the size budget and the `cargo-deny` exception as proposed below; recorded in "Operator confirmation"). Drafted earlier the same day by a delegate of the coordinating session; the operator's confirmation replaces the delegation, so this is no longer an ADR by delegation. It still does not amend audited text, see "Does not amend".
 - **Date:** 2026-11-14
-- **Decides (if accepted):** how `groups` (ADR-0177) gets a real `GroupCrypto` engine in the PWA, which is the canonical client (ADR-0178)
+- **Decides:** how `groups` (ADR-0177) gets a real `GroupCrypto` engine in the PWA, which is the canonical client (ADR-0178)
 - **Evidence:** [`2026-11-14-mls-wasm-decision.md`](../docs/reports/2026-11-14-mls-wasm-decision.md); the question and the failed dependency gate are in [`2026-11-13-groups-plan.md`](../docs/reports/2026-11-13-groups-plan.md) ("Slice 2 dependency gate")
 - **Amends:** nothing. **Does not amend:** [`CRYPTOGRAPHY_AND_AGILITY.md`](../docs/architecture/crypto/CRYPTOGRAPHY_AND_AGILITY.md), [`PRODUCTION_CRYPTO_INTEGRATION_GATE.md`](../docs/architecture/crypto/PRODUCTION_CRYPTO_INTEGRATION_GATE.md), ADR-0107, ADR-0118, ADR-0177, ADR-0178, any wire object, any CryptoProfile, the v1 MLS suite.
 
@@ -35,7 +35,7 @@ The "narrow ABI, no wasm-bindgen" form of `om-wasm` is an engineering convention
 - **D, a separate wasm module (`om-groups-wasm`) behind `GroupCrypto`.** Passes the text, and its isolation and lazy loading are real benefits. Three costs the draft brief did not count: (1) Core cannot call another module from inside Rust, so `om-wasm` gains an additive host import and an adapter, so "unchanged" is not literally true; (2) the engine snapshot, which holds MLS private keys, would cross the JS bridge between the two memories, against the rule "do not expose raw private keys to JS" ([`ENGINEERING_REPOSITORY_LAYOUT.md`](../docs/process/ENGINEERING_REPOSITORY_LAYOUT.md) "Core-to-UI API"); (3) a second signed asset, a second guard surface and version-skew checks between two modules. It also does not remove the wasm-bindgen imports or the entropy question: stock OpenMLS in a separate module still needs the same shims or glue. Not chosen now; the trait boundary keeps it available later (see "Revisit").
 - **A2 (chosen): stock `openmls` 0.9.0, `openmls_rust_crypto` 0.6.0 and `hpke-rs` unmodified, in the existing `om-wasm` module, with two plumbing shims.** A probe (report, "Evidence") built exactly this for `wasm32-unknown-unknown` under the existing `custom` cfg. The module's only imports were `om_host.random_fill` and `om_host.now_ms`, the two Core already has. It ran under Node, created a KeyPackage and a group and produced an Add Commit, drawing entropy and time only through those imports.
 
-## Decision (proposed)
+## Decision
 
 1. **Option A2.** The `groups` engine is `openmls` 0.9.0 with the V-004 feature set, pinned and `--locked`, behind the existing `GroupCrypto` and `GroupCryptoLoader` traits, linked into `om-wasm`. No OpenMLS, RustCrypto, HPKE or any other cryptographic crate is forked, patched or reimplemented. No OM-written crypto provider, no OM generator.
 2. **Two plumbing shims, no cryptography in either**, as `[patch.crates-io]` entries in the workspace, each with a header naming what it replaces and why:
@@ -60,13 +60,22 @@ The "narrow ABI, no wasm-bindgen" form of `om-wasm` is an engineering convention
 
 Nowhere new. No service, origin, account or maintainer gains any power. The two shims route to the host entropy and clock Core already trusts. OM does not become the maintainer of a crypto fork.
 
-## What the operator must confirm
+## What the operator was asked to confirm
 
 1. **Accept A2** (stock OpenMLS in the Core module, two plumbing shims) rather than D, B or a fork. If the operator wants the engine isolated in its own module for size or isolation, accept D instead; the engine, shims and guard are the same, and the added cost is the bridge and the key-bytes-through-JS point above.
 2. **Accept that the real engine uses host entropy directly**, the same source and route as Core, and that D-g9's "Core supplies the RNG on every call" is reworded to say so.
 3. **A size budget** for `om_wasm.wasm` (and PWA first-load) to compare against the measured result.
 4. **The `cargo-deny` exception** for the OpenMLS provider tree.
 5. Optional: file the `getrandom` cfg fix upstream (it is a bug report, not an OM dependency on anyone).
+
+## Operator confirmation (2026-11-14)
+
+The operator, who said "make the best decisions", confirmed this ADR on 2026-11-14:
+
+1. A2 accepted over D, B and a fork.
+2. Host entropy used directly by the engine; D-g9 reworded accordingly.
+3. Size budget: accepted as this ADR proposes. The measured figures of [`2026-11-14-groups-driver-status.md`](../docs/reports/2026-11-14-groups-driver-status.md) (production-optimised `om_wasm.wasm` and the separate `om_wasm_groups.wasm`, which loads only where groups ship) are the recorded baseline, and the fallback to option D under "Revisit" stays the answer if a later measurement breaches them.
+4. The `cargo-deny` duplicate-crypto exception for the OpenMLS provider tree: accepted as described in Decision 5, to be added when `cargo-deny` is added.
 
 ## Revisit
 

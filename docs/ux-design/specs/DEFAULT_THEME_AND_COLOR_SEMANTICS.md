@@ -75,7 +75,7 @@ Red is protected for failure and destructive risk. Themes cannot casually reuse 
 | `text.secondary` | `#566176` | readable secondary text |
 | `text.tertiary` | `#627085` | readable small metadata; not a disabled color |
 | `border.subtle` | `#D7DEE8` | decorative grouping; not sole state cue |
-| `border.strong` | `#9BA8B9` | controls/states needing stronger boundary |
+| `border.strong` | `#7D8EA4` | controls/states needing stronger boundary (amended by ADR-0188; was `#9BA8B9`, 2.29:1, below the 3:1 component-boundary floor) |
 | `accent.primary` | `#0067C5` | interactive/action family |
 | `accent.hover` | `#0057AA` | pointer hover |
 | `accent.pressed` | `#004A90` | active/pressed |
@@ -99,7 +99,8 @@ Selected WCAG 2.x contrast checks against `surface.base`:
 - focus: ~6.5:1;
 - success: ~5.1:1;
 - warning: ~5.6:1;
-- danger: ~5.1:1.
+- danger: ~5.1:1;
+- border.strong: ~3.2:1 (component boundary, ADR-0188).
 
 White on `accent.primary`: ~5.6:1.
 
@@ -115,7 +116,7 @@ White on `accent.primary`: ~5.6:1.
 | `text.secondary` | `#B9C2CE` | clear secondary foreground |
 | `text.tertiary` | `#8F9BAA` | metadata |
 | `border.subtle` | `#34404F` | low-attention separator |
-| `border.strong` | `#667485` | stronger boundary |
+| `border.strong` | `#6A798A` | stronger boundary (amended by ADR-0188; was `#667485`, 2.81:1 on `surface.overlay`) |
 | `accent.primary` | `#66B2FF` | interactive/action family |
 | `accent.hover` | `#8AC4FF` | hover |
 | `accent.pressed` | `#4AA4FF` | pressed |

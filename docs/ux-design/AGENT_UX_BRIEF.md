@@ -148,6 +148,7 @@ Product screens share the same few rules, all from tokens (`om-ui` conversations
 Plain, warm, short; "protect my chats", "safety code", "password", "delivery service" glossed once. No crypto or infrastructure vocabulary for normal users, no vendor names, **except** the first-run delivery-service setup, which names Cloudflare (ADR-0186 decision 2: "they better know it's Cloudflare"). That exception is the copy group `onboardingCopy.relay.cloudflare` only; `apps/web/src/copy/en.test.ts` allows provider names in that path and nowhere else.
 All strings come from copy objects (`apps/web/src/copy/en.ts`, typed by `packages/om-ui/src/*/copy.ts`), none inline in components.
 State is never conveyed by colour, motion, sound or haptics alone.
+Sending a file straight to the other person (direct transfer, G-O1 and U1 accepted by the operator 2026-11-14, [`2026-11-13-direct-transfer.md`](../reports/2026-11-13-direct-transfer.md)) follows [`CONTENT_AND_MICROCOPY_VOICE.md`](specs/CONTENT_AND_MICROCOPY_VOICE.md) (object/state, what it means, safe next action; "delivery service"; no jargon): never offer or promise a direct send the device cannot do (say "not available on this device yet"), never say "waiting" for something that cannot happen, and say that nothing is kept for later. The exact strings are the copy group in `apps/web/src/copy/en.ts`.
 
 ## 8. Accessibility (release-blocking)
 

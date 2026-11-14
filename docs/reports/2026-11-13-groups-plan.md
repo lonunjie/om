@@ -330,3 +330,7 @@ Suggested commits: (1) Core and bridge (`engine.rs`, `groups_core.rs`, `bridge.r
 **Results (this session):** `cargo test -p om-core --locked` default and `--features groups-openmls`, and `cargo test -p om-wasm --locked`: 0 failed; `make core-wasm` (om_wasm.wasm sha256 a10a9f80...), `make core-guard`, `make core-check` OK; `build:wasm:groups` builds (om_wasm_groups.wasm 8b8bd728...); vitest `--dir src`: om-platform-api 9, om-core-wasm 26, om-core-harness 32 passed; `tsc -b apps/web` clean; `om_docs.py fmt` 0 rewrites; `make check` OK.
 
 **Commits:** `f471434` (Core and bridge, [`core_guard.py`](../../tools/core_guard.py), two registry entries) then `6908b66` (TypeScript, four registry entries); both `Design-Read` of the six domains, `Design-Departures: ADR-0187 (proposed)`.
+
+## Update 2026-11-14: ADR-0187 accepted
+
+The operator confirmed [`ADR-0187`](../../decisions/ADR-0187-mls-engine-on-wasm-unforked-openmls-with-host-entropy-and-clock.md) on 2026-11-14 (Status: Accepted; it is no longer "by delegation"), including the size budget and the `cargo-deny` duplicate-crypto exception. Earlier entries in this plan that say "proposed", "delegated draft" or "not accepted" are the record at the time they were written and are left as written; commits cited there with `ADR-0187 (proposed)` stand, and later commits cite `ADR-0187`.

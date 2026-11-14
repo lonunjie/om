@@ -193,4 +193,5 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0184 — Chat-history backup file (OMB-1): a password-sealed, history-only file; restoring grants no authority](ADR-0184-chat-history-backup-file.md)
 - [ADR-0185 — Home wake channel (`om.relay.wake.v1`): event-driven delivery instead of a poll timer; optional, polling is the fallback](ADR-0185-home-wake-channel.md)
 - [ADR-0186 — Every person sets up their own relay; no built-in default relay; the deploy button belongs to onboarding](ADR-0186-every-person-runs-their-own-relay.md)
-- [ADR-0187 — The MLS engine on wasm: unforked OpenMLS in the existing Core module, entropy and time through the existing host imports (proposed, delegated draft)](ADR-0187-mls-engine-on-wasm-unforked-openmls-with-host-entropy-and-clock.md)
+- [ADR-0187 — The MLS engine on wasm: unforked OpenMLS in the existing Core module, entropy and time through the existing host imports (accepted by the operator 2026-11-14)](ADR-0187-mls-engine-on-wasm-unforked-openmls-with-host-entropy-and-clock.md)
+- [ADR-0188 — `border.strong` meets 3:1: the OM Calm component boundary is darkened to the nearest passing value](ADR-0188-border-strong-meets-3-to-1.md)

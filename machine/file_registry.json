@@ -3224,6 +3224,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0188-border-strong-meets-3-to-1.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",

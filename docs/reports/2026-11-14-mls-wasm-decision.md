@@ -1,6 +1,6 @@
 # MLS on wasm: options A, B, C, D and the evidence for the choice (2026-11-14)
 
-Status: evidence for the proposed ADR [`ADR-0187`](../../decisions/ADR-0187-mls-engine-on-wasm-unforked-openmls-with-host-entropy-and-clock.md) (delegated draft, not accepted). Docs only: no file under `crates/`, no Cargo change, no wasm config change was made. The probe below was built and run in a scratch directory outside the repository.
+Status: evidence for the ADR [`ADR-0187`](../../decisions/ADR-0187-mls-engine-on-wasm-unforked-openmls-with-host-entropy-and-clock.md) (accepted by the operator 2026-11-14; it was a delegated draft when this report was written). Docs only: no file under `crates/`, no Cargo change, no wasm config change was made. The probe below was built and run in a scratch directory outside the repository.
 
 ## Design sources read
 
@@ -48,7 +48,7 @@ Not measured: the size of `om_wasm.wasm` with the engine linked (baseline 4,213,
 | B wasm-bindgen glue | fits text; weaker narrow-ABI convention | none | glue and second cfg | fallback only |
 | C native-only | fails ADR-0178 | none | none | rejected |
 | D separate module | fits; extra bridge and key bytes through JS; second asset | none | additive host import + adapter | not now; revisit if size demands |
-| **A2 stock engine + two plumbing shims in the Core module** | fits; fewest new trusted pieces; one signed module | **none** (shims contain no crypto) | engine linked in, shims, allow-list guard | **proposed** |
+| **A2 stock engine + two plumbing shims in the Core module** | fits; fewest new trusted pieces; one signed module | **none** (shims contain no crypto) | engine linked in, shims, allow-list guard | **accepted** (operator, 2026-11-14) |
 
 ## What D means for the entropy requirement (the brief's question)
 

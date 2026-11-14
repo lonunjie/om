@@ -68,3 +68,7 @@ and UI-11's Core-issued nonce covers a named list (`BlockPerson`, `SuspendDevice
 
 `Design-Read: client_endpoint_distribution, discovery_first_contact, relay_reachability, ux_accessibility_personalization` (all four domains read in full, see above).
 `Design-Departures: D30, D31` (relay-status convention: ids from the deviation tables; recorded in this report, operator review pending).
+
+## Update 2026-11-14: ADR-0187 accepted
+
+The operator accepted [`ADR-0187`](../../decisions/ADR-0187-mls-engine-on-wasm-unforked-openmls-with-host-entropy-and-clock.md) on 2026-11-14; read any "proposed" wording above as superseded.
