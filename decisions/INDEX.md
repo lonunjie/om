@@ -196,3 +196,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0187 — The MLS engine on wasm: unforked OpenMLS in the existing Core module, entropy and time through the existing host imports (accepted by the operator 2026-11-14)](ADR-0187-mls-engine-on-wasm-unforked-openmls-with-host-entropy-and-clock.md)
 - [ADR-0188 — `border.strong` meets 3:1: the OM Calm component boundary is darkened to the nearest passing value](ADR-0188-border-strong-meets-3-to-1.md)
 - [ADR-0189 — Group carriage over sealed delivery, when a committer accepts its own Commit, and Room defaults by protection profile (accepted by operator delegation 2026-11-14)](ADR-0189-group-carriage-own-commit-acceptance-and-room-defaults.md)
+- [ADR-0190 — How a contact verifies a recovery-only successor: evidence travels, time never does (accepted by operator delegation 2026-11-14)](ADR-0190-contact-side-recovery-verification.md)
