@@ -2,7 +2,7 @@
 """V-004 group wire freeze: build the W1 registry overlay directory.
 
 Copies spec/registries/ and merges spec/registries/om-w1-event-bodies.json into om-numeric-fields.json (the merge
-rule is stated in that file). Both strict codecs read the result through OM_REG. Nothing in the repository's
+rule is stated in that file: dispatch tables extended, 'enum_values' made W1-valid). Both strict codecs read the result through OM_REG. Nothing in the repository's
 spec/registries is modified. Usage: overlay.py OUT_DIR
 """
 import json
@@ -27,6 +27,15 @@ def build(dst: Path) -> Path:
             if kind in t and t[kind] != name:
                 raise SystemExit(f"overlay conflicts with {target}[{kind}]: {t[kind]} vs {name}")
             t[kind] = name
+    # enum values the overlay enables for a W1 decoder: lift their later-wave marker (ADR-0168 F-16 marks them W1)
+    for enum, vals in ov.get("enum_values", {}).items():
+        waves = nf["enum_value_waves"][enum]
+        for v in vals:
+            if waves.get(v) != "W1":
+                raise SystemExit(f"overlay enables {enum}[{v}] but it is not marked W1 in enum_value_waves")
+            del waves[v]
+        if not waves:
+            del nf["enum_value_waves"][enum]
     (dst / "om-numeric-fields.json").write_text(json.dumps(nf, indent=2, ensure_ascii=False) + "\n")
     return dst
 

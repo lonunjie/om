@@ -1,0 +1,64 @@
+; OM later-wave W1 `groups` carriage wire freeze (ADR-0189, 2026-11-14).
+; Object types 32 GroupRouteRecord and 33 GroupTransportFrame, and the ConversationEvent kinds 15 to 17 of the
+; relationship lane (group.invite, group.accept, group.decline). Fields: spec/registries/om-numeric-fields.json
+; (and om-w1-event-bodies.json for the kind-to-body table); label OM-GROUP-ROUTE-SIG-v1: om-domain-separation.json.
+; Reuses common.cddl (opaque-id16, device-id, signature, extensions, digest), delivery.cddl (delivery-key-material,
+; relay-entry), account.cddl (signed-AccountControlHead, signed-DeviceCredential) and group.cddl
+; (signed-GroupControlState, signed-GroupControlIntent, signed-GroupCommitBinding, event-common via events.cddl).
+; The signed object (GroupRouteRecord) uses SignedEnvelope with signature role device. GroupTransportFrame is unsigned:
+; the sealed delivery envelope and the MLS layer authenticate it (ADR-0189 sections 1.2 and 1.3).
+; CDDL cannot express: deterministic encoding, and the cross-field rules of ADR-0189, which the semantic validators
+; enforce: route_binding equals the digest over the first relay entry; the frame_kind and body structure agree; the
+; kind 15 to 17 events carry required_capabilities ["om.group.v1"]; roster, freshness and invite-state rules.
+
+signed-GroupRouteRecord = { 1: bstr .cbor GroupRouteRecord, 2: [1*16 signature] }
+GroupRouteRecord = {
+  0: 32, 1: 1,
+  2: device-id,                             ; the destination device
+  3: delivery-key-material,                 ; fresh per Room; route_binding over the first relay entry
+  4: [1*4 relay-entry],
+  ? 23: extensions,
+}
+
+GroupTransportFrame = {
+  0: 33, 1: 1,
+  2: 1..6,                                  ; frame_kind: commit, leave_request, app, welcome, admit_request, route_update
+  3: bstr .size (1..131000),                ; body, per kind below
+  ? 23: extensions,
+}
+frame-body-commit = {
+  0: bstr .cbor signed-GroupControlIntent,  ; type 29 envelope
+  1: bstr .cbor signed-GroupCommitBinding,  ; type 30 envelope
+  2: bstr,                                  ; MLS Commit
+  ? 3: [1*64 group-release-evidence],       ; devices this Commit adds
+}
+frame-body-leave-request = { 0: bstr .cbor signed-GroupControlIntent }
+frame-body-app = bstr                       ; MLS PrivateMessage; nothing else
+frame-body-welcome = {
+  0: opaque-id16,                           ; invite_id
+  1: bstr,                                  ; MLS Welcome (ratchet tree inside)
+  2: bstr .cbor signed-GroupControlState,   ; type 28 head
+  3: [1*512 group-member-route],
+}
+frame-body-admit-request = { 0: opaque-id16, 1: [1*16 group-release], 2: bstr .cbor signed-AccountControlHead }
+frame-body-route-update = { 0: [1*512 bstr .cbor signed-GroupRouteRecord] }
+
+group-release = {
+  0: device-id,
+  1: bstr,                                  ; MLS KeyPackage, released for this Room only
+  2: bstr .cbor signed-DeviceCredential,    ; type 7
+  3: bstr .cbor signed-GroupRouteRecord,
+}
+group-release-evidence = { 0: device-id, 1: bstr .cbor signed-DeviceCredential, 2: bstr .cbor signed-GroupRouteRecord }
+group-member-route = { 0: device-id, 1: bstr .cbor signed-DeviceCredential, 2: bstr .cbor signed-GroupRouteRecord }
+
+; ---- ConversationEvent kinds 15 to 17 (relationship lane, 1:1 conversation; required_capabilities ["om.group.v1"]) ----
+; The frozen W0 rules (events.cddl) and the W1 rule (group.cddl ConversationEventW1) are unchanged; a decoder that
+; carries groups uses ConversationEventGroupCarriage.
+ConversationEventGroupCarriage = ConversationEventW1 / event-group-invite / event-group-accept / event-group-decline
+event-group-invite = { event-common, 8: 15, 11: body-group-invite }
+event-group-accept = { event-common, 8: 16, 11: body-group-accept }
+event-group-decline = { event-common, 8: 17, 11: body-group-decline }
+body-group-invite = { 0: opaque-id16, 1: tstr .size (1..256), ? 2: 1..512 }   ; invite_id, room name, member count
+body-group-accept = { 0: opaque-id16, 1: [1*16 group-release], 2: bstr .cbor signed-AccountControlHead }
+body-group-decline = { 0: opaque-id16 }

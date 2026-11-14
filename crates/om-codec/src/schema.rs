@@ -12,6 +12,8 @@ use std::collections::HashMap;
 pub const FIELDS_JSON: &str = include_str!("../../../spec/registries/om-numeric-fields.json");
 pub const TYPES_JSON: &str = include_str!("../../../spec/registries/om-object-types.json");
 pub const PROFILE_JSON: &str = include_str!("../../../spec/registries/om-cbor-profile.json");
+pub const W1_EVENT_BODIES_JSON: &str =
+    include_str!("../../../spec/registries/om-w1-event-bodies.json");
 pub const CRYPTO_JSON: &str = include_str!("../../../spec/registries/om-crypto-profiles.json");
 
 #[derive(Debug, Clone)]
@@ -149,10 +151,54 @@ fn parse_fields(a: &J) -> Vec<Field> {
 
 impl Registry {
     pub fn load() -> Registry {
-        let src = |_file: &str, embedded: &str| -> String { embedded.to_string() };
-        let f: J = serde_json::from_str(&src("om-numeric-fields.json", FIELDS_JSON)).unwrap();
-        let t: J = serde_json::from_str(&src("om-object-types.json", TYPES_JSON)).unwrap();
-        let p: J = serde_json::from_str(&src("om-cbor-profile.json", PROFILE_JSON)).unwrap();
+        Self::from_json(
+            serde_json::from_str(FIELDS_JSON).unwrap(),
+            serde_json::from_str(TYPES_JSON).unwrap(),
+            serde_json::from_str(PROFILE_JSON).unwrap(),
+        )
+    }
+
+    /// The registry a later-wave `groups` decoder uses: the W0 numeric-fields registry with the additive W1
+    /// event-body overlay (om-w1-event-bodies.json) merged in, as `verification/prototypes/v004-group-wire/overlay.py`
+    /// does for the prototype codecs. A kind-to-struct pair that names an existing kind with a different struct is an error.
+    pub fn load_w1() -> Registry {
+        let mut f: J = serde_json::from_str(FIELDS_JSON).unwrap();
+        let ov: J = serde_json::from_str(W1_EVENT_BODIES_JSON).unwrap();
+        for (target, table) in ov["dispatch"].as_object().unwrap() {
+            let (st, field) = target.split_once('.').unwrap();
+            let fields = f["structs"][st]["fields"].as_array_mut().unwrap();
+            let fld = fields.iter_mut().find(|x| x["name"] == field).unwrap();
+            let t = fld["type"]["dispatch"]["table"].as_object_mut().unwrap();
+            for (kind, name) in table.as_object().unwrap() {
+                if let Some(old) = t.get(kind) {
+                    assert_eq!(old, name, "overlay conflicts with {target}[{kind}]");
+                }
+                t.insert(kind.clone(), name.clone());
+            }
+        }
+        // enum values the overlay enables for a W1 decoder: lift their later-wave marker (ADR-0168 F-16 marks them W1)
+        if let Some(ev) = ov["enum_values"].as_object() {
+            for (e, vals) in ev {
+                let waves = f["enum_value_waves"][e].as_object_mut().unwrap();
+                for v in vals.as_array().unwrap() {
+                    let v = v.as_str().unwrap();
+                    assert_eq!(
+                        waves.get(v).and_then(|w| w.as_str()),
+                        Some("W1"),
+                        "{e}[{v}] is not marked W1"
+                    );
+                    waves.remove(v);
+                }
+            }
+        }
+        Self::from_json(
+            f,
+            serde_json::from_str(TYPES_JSON).unwrap(),
+            serde_json::from_str(PROFILE_JSON).unwrap(),
+        )
+    }
+
+    fn from_json(f: J, t: J, p: J) -> Registry {
         let common = parse_fields(&f["common_top_level_fields"]);
         let mut structs = HashMap::new();
         for (name, s) in f["structs"].as_object().unwrap() {
@@ -243,7 +289,7 @@ impl Registry {
         if let Some(ex) = f.get("extensions").and_then(|x| x.as_array()) {
             known_ext.extend(ex.iter().map(|e| e["name"].as_str().unwrap().to_string()));
         }
-        let c: J = serde_json::from_str(&src("om-crypto-profiles.json", CRYPTO_JSON)).unwrap();
+        let c: J = serde_json::from_str(CRYPTO_JSON).unwrap();
         let akb = f["structs"]["AsyncKeyBundle"]["fields"].as_array().unwrap();
         let mut bundle_required = HashMap::new();
         for prof in c["profiles"].as_array().unwrap() {
