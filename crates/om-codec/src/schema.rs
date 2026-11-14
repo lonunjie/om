@@ -403,6 +403,27 @@ impl Registry {
     }
 }
 
+impl Registry {
+    /// Decode + validate bytes as one registered non-top-level struct (for example the `FrameBody*` structs, whose
+    /// bytes travel inside a `GroupTransportFrame` bstr, ADR-0189 and the Q1 ruling of 2026-11-14). No grammar change:
+    /// the struct's own field table is applied exactly as it is when the struct is nested in an object. `max_bytes`
+    /// bounds the whole input.
+    pub fn check_struct(&self, name: &str, bytes: &[u8], max_bytes: usize) -> Result<Value, Class> {
+        if !self.structs.contains_key(name) {
+            return Err("unknown_type");
+        }
+        let mut lim = self.lim;
+        lim.max_string = lim.max_string.max(max_bytes as u64);
+        let v = decode(bytes, lim, max_bytes)?;
+        Cx {
+            r: self,
+            lenient: false,
+        }
+        .strukt(&v, name, None)?;
+        Ok(v)
+    }
+}
+
 struct Cx<'a> {
     r: &'a Registry,
     lenient: bool,
