@@ -12,6 +12,8 @@ import type { MessageId } from "@om/platform-api";
 import type { BackupHeader, BackupPlan, BlobLimits, Commit, DirectFetchProgress, DirectFrame, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, Record as CoreRecord } from "./types";
 import { CoreCallError, CoreStorageError, fromHex, toHex } from "./types";
 import type { WasmCore } from "./wasm";
+import { createGroupDriver } from "./groups-driver";
+import type { CommitAcceptance, GroupCarriage, GroupDriver } from "./groups-driver";
 
 const KEY_PREFIX = "core/";
 /** Sealed attachment bytes waiting for their upload, in the profile's encrypted store (never under `core/`, which is Core's own records). */
@@ -31,6 +33,12 @@ export interface CoreRuntimeOptions {
   readonly retryMs?: number;
   /** Poll open profiles' mailboxes at this interval while autoDrain is on (default 0 = only after changes). A function is asked again before every poll and returns the wait in ms, so the host can slow down while nobody is looking (a non-positive answer means 5 s). */
   readonly pollMs?: number | (() => number);
+  /**
+   * The host driver for groups (ADR-0177). Given, `client.groups` carries each step's wires over `carriage` and reports Commits
+   * (see `createGroupDriver`); with a null `carriage`, or none given at all, the host cannot carry a group wire and groups are
+   * unavailable even when the module has the engine. Absent, `client.groups` is the bare engine (tests that carry wires by hand).
+   */
+  readonly groupDriver?: { readonly carriage: GroupCarriage | null; readonly acceptance?: CommitAcceptance };
 }
 
 export interface WasmCoreClient extends CoreClient {
@@ -321,6 +329,24 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     return v["refused"] === undefined ? v : {};
   };
 
+  const groupEngine: GroupApi = {
+    available: () => core.call({ cmd: "groups_available" }) === true,
+    do: (ctx, intent) => exclusive(async () => groupStep(await groupCall({ cmd: "group_do", ctx: ctxOf(ctx), intent }), ctx)),
+    receive: (ctx, from, wire) => exclusive(async () => groupStep(await groupCall({ cmd: "group_receive", ctx: ctxOf(ctx), from, wire }), ctx)),
+    list: (ctx) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "groups" } }) as { groups?: GroupSummaryView[] }).groups ?? [],
+    get: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "group", conversationId } }) as { group?: GroupDetailView }).group ?? null,
+    invites: (ctx) => ((groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "invites" } }) as { invites?: (GroupInviteView & { releases?: unknown; intentId?: unknown })[] }).invites ?? [])
+      .map(({ releases: _r, intentId: _i, ...rest }) => rest),
+    messages: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "messages", conversationId } }) as { messages?: GroupMessageView[] }).messages ?? [],
+  };
+  const groupDriver: GroupDriver | undefined = opts.groupDriver === undefined ? undefined : createGroupDriver({
+    engine: groupEngine,
+    storage: opts.storage,
+    contextFor: (profileId) => { const c = core.call({ cmd: "context_for", profileId }) as { profileId: string; generation: string }; return captureProfileContext(asProfileId(c.profileId), asProfileGeneration(c.generation)); },
+    carriage: opts.groupDriver.carriage,
+    ...(opts.groupDriver.acceptance === undefined ? {} : { acceptance: opts.groupDriver.acceptance }),
+  });
+
   const client: WasmCoreClient = {
     async openProfile(profileId) {
       const records = await readRecords(profileId);
@@ -329,6 +355,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       openProfiles.add(profileId);
       void refreshLimits();
       kick(profileId);
+      if (groupDriver !== undefined) void groupDriver.flush(ctxOf(ctx)); // what a previous run still owed over the group carriage
       return ctxOf(ctx);
     },
     closeProfile(profileId) {
@@ -459,26 +486,18 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
         return { ok: true, bytes: fromHex(o.opened.plaintext), mediaType: o.opened.mediaType, ...(o.opened.filename ? { filename: o.opened.filename } : {}) };
       },
     },
-    groups: {
-      available: () => core.call({ cmd: "groups_available" }) === true,
-      do: (ctx, intent) => exclusive(async () => groupStep(await groupCall({ cmd: "group_do", ctx: ctxOf(ctx), intent }), ctx)),
-      receive: (ctx, from, wire) => exclusive(async () => groupStep(await groupCall({ cmd: "group_receive", ctx: ctxOf(ctx), from, wire }), ctx)),
-      list: (ctx) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "groups" } }) as { groups?: GroupSummaryView[] }).groups ?? [],
-      get: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "group", conversationId } }) as { group?: GroupDetailView }).group ?? null,
-      invites: (ctx) => ((groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "invites" } }) as { invites?: (GroupInviteView & { releases?: unknown; intentId?: unknown })[] }).invites ?? [])
-        .map(({ releases: _r, intentId: _i, ...rest }) => rest),
-      messages: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "messages", conversationId } }) as { messages?: GroupMessageView[] }).messages ?? [],
-    },
+    groups: groupDriver ?? groupEngine,
     flush,
     async idle() {
       for (let i = 0; i < 100; i++) {
         const pending = [tail, ...draining.values()];
         await Promise.all(pending);
-        if (draining.size === 0) { await tail; return; }
+        if (draining.size === 0) { await tail; await groupDriver?.idle(); return; }
       }
     },
     dispose() {
       disposed = true;
+      groupDriver?.dispose();
       wakeOff?.();
       for (const t of timers) { clearTimeout(t); clearInterval(t); }
       timers.clear();

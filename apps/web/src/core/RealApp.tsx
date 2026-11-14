@@ -17,7 +17,7 @@ import { appStrings as t, deviceScannerCopy, devicesCopy, onboardingCopy, scanne
 import { QrCode } from "../qr/QrCode";
 import { CHATS, navigate } from "../route/place";
 import { useQrScanner } from "../qr/Scanner";
-import { startCore } from "./loadCore";
+import { startCore, type StartGroups } from "./loadCore";
 import { relayJustConnected } from "./relaySetup";
 import type { HomeHost } from "./homeSettings";
 import { unavailableProvider, type ConfiguredProvider } from "./provider";
@@ -43,6 +43,8 @@ export interface RealAppProps {
   readonly home?: HomeHost;
   /** First-run page where a new install sets up its own delivery service; shown only when `provider` is `null` (ADR-0186). Left out, first run goes straight on. */
   readonly relaySetup?: RelaySetupServices;
+  /** Group carriage for a build with the groups module (`VITE_OM_GROUPS=1`); left out, groups are unavailable. Only the e2e build passes one. */
+  readonly groups?: StartGroups;
 }
 
 interface Ready {
@@ -62,7 +64,7 @@ const shareLink = (coreLink: string): string => webInviteLink(coreLink, globalTh
 
 const newProfileId = (): ProfileId => asProfileId("p-" + Array.from(globalThis.crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join(""));
 
-export function RealApp({ provider, banner, pollMs, home, relaySetup }: RealAppProps) {
+export function RealApp({ provider, banner, pollMs, home, relaySetup, groups }: RealAppProps) {
   const [boot, setBoot] = useState<Boot>({ k: "loading" });
   useEffect(() => {
     const life = { live: true };
@@ -74,7 +76,7 @@ export function RealApp({ provider, banner, pollMs, home, relaySetup }: RealAppP
         const vault = createWebDeviceVault(env);
         const registry = createProfileRegistry(env.indexedDB);
         const drafts = createDraftStore((id) => createEncryptedKv(vault, { indexedDB: env.indexedDB }, id));
-        rt = await startCore({ vault, indexedDB: env.indexedDB, provider: provider ?? unavailableProvider, pollMs: pollMs ?? browserPollPace() });
+        rt = await startCore({ vault, indexedDB: env.indexedDB, provider: provider ?? unavailableProvider, pollMs: pollMs ?? browserPollPace(), ...(groups === undefined ? {} : { groups }) });
         const known = await registry.list();
         const platform = createWebPlatform();
         if (life.live) setBoot({ k: "ready", rt, vault, registry, drafts, platform, capture: composerCapture(platform), known });
@@ -85,7 +87,7 @@ export function RealApp({ provider, banner, pollMs, home, relaySetup }: RealAppP
       }
     })();
     return () => { life.live = false; rt?.dispose(); };
-  }, [provider, pollMs]);
+  }, [provider, pollMs, groups]);
 
   return (
     <ThemeProvider>

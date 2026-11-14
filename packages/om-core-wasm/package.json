@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./test-support": "./src/test-support.ts",
-    "./om_wasm.wasm": "./dist/om_wasm.wasm"
+    "./om_wasm.wasm": "./dist/om_wasm.wasm",
+    "./om_wasm_groups.wasm": "./dist/om_wasm_groups.wasm"
   },
   "scripts": {
     "build:wasm": "node build.mjs",

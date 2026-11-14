@@ -8,6 +8,7 @@ import { writeQrY4m } from "./qr-video.ts";
 const HARNESS = "http://localhost:4174";
 const BUNDLE = "http://localhost:4175";
 const CORE = "http://localhost:4176";
+const GROUPS_APP = "http://localhost:4180";
 const RELAY_APP = "http://localhost:4177";
 const RELAY = "http://127.0.0.1:8788";
 const LIVE_APP = "http://localhost:4178";
@@ -32,6 +33,8 @@ export default defineConfig({
     { command: "pnpm exec vite preview --outDir dist-e2e --port 4175 --strictPort", cwd: "..", url: BUNDLE, reuseExistingServer: true },
     // The real Core (om_wasm.wasm) with the in-page TEST loopback provider; never a production build.
     { command: "pnpm exec vite preview --outDir dist-core-e2e --port 4176 --strictPort", cwd: "..", url: CORE, reuseExistingServer: true },
+    // The real Core WITH the groups engine module (VITE_OM_GROUPS=1, ADR-0187 accepted) and an in-page group carriage; never a production build.
+    { command: "pnpm exec vite preview --outDir dist-groups-e2e --port 4180 --strictPort", cwd: "..", url: GROUPS_APP, reuseExistingServer: true },
     // The real Core in the production entry, connected to the local reference Home (the Worker bundle in workerd).
     { command: "node ../../infra/cloudflare-home/test/serve.ts 8788", cwd: "..", url: `${RELAY}/healthz`, reuseExistingServer: true },
     { command: "pnpm exec vite preview --outDir dist-relay-e2e --port 4177 --strictPort", cwd: "..", url: RELAY_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: RELAY } },

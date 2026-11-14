@@ -3,7 +3,9 @@
 // bundle check refuses the loopback marker and the test-support module, so this can never ship.
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { createMemoryProvider, TEST_PROVIDER_MARKER } from "@om/core-wasm/test-support";
+import { acceptAfterDelivery } from "@om/core-wasm";
+import { createClientPairCarriage, createMemoryProvider, TEST_PROVIDER_MARKER } from "@om/core-wasm/test-support";
+import type { StartGroups } from "../core/loadCore";
 import { RealApp } from "../core/RealApp";
 import { appStrings } from "../copy/en";
 import "./dev.css";
@@ -13,11 +15,15 @@ export function mountE2eCore(root: HTMLElement): void {
   const provider = createMemoryProvider();
   // Lets the browser test assert what a relay would have seen (ciphertext only); absent from every production bundle.
   (globalThis as unknown as { __OM_E2E_LOOPBACK__: { deposited: () => readonly string[] } }).__OM_E2E_LOOPBACK__ = { deposited: () => provider.deposited() };
+  // Groups: only in a build made with VITE_OM_GROUPS=1. The carriage is an in-page loopback between the two identities (the real
+  // one is not specified yet, groups plan Q2), and the Commit policy is "accepted once handed over" (not the design's rule: test only).
+  const groups: StartGroups | undefined = import.meta.env.VITE_OM_GROUPS === "1" ? { carriage: (client) => createClientPairCarriage(client), acceptance: acceptAfterDelivery } : undefined;
   createRoot(root).render(
     <StrictMode>
       <RealApp
         provider={provider}
         pollMs={400}
+        {...(groups === undefined ? {} : { groups })}
         banner={<div className="om-dev-banner" role="note">E2E LOOPBACK PROVIDER, NOT PRODUCTION ({TEST_PROVIDER_MARKER}). {appStrings.providerStatus.loopback}</div>}
       />
     </StrictMode>,

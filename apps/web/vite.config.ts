@@ -69,7 +69,8 @@ const config: UserConfig = {
 // without the explicit dev-bundle switch would ship a harness or the in-page TEST loopback provider as if it were
 // the product, so it does not build at all. VITE_OM_RELAY_URL is on the list since ADR-0186: a signed build never carries
 // a relay; every person sets up their own in onboarding.
-const TEST_FLAGS = ["VITE_OM_DEV_HARNESS", "VITE_OM_E2E_CORE", "VITE_OM_ALLOW_LOOPBACK_RELAY", "VITE_OM_RELAY_URL"] as const;
+// VITE_OM_GROUPS is on the list: ADR-0187 is accepted, but no product carriage for group wires exists yet (groups plan Q2), so no signed build ships the groups module.
+const TEST_FLAGS = ["VITE_OM_DEV_HARNESS", "VITE_OM_E2E_CORE", "VITE_OM_ALLOW_LOOPBACK_RELAY", "VITE_OM_RELAY_URL", "VITE_OM_GROUPS"] as const;
 
 export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), "VITE_OM_"), ...process.env };
