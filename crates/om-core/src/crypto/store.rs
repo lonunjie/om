@@ -727,28 +727,30 @@ impl Device {
             .find(|k| k.id == h.spk_id)
             .ok_or(Error::UnknownSignedPrekey)?
             .clone();
+        // Every copy of one-time private key material is held in a zeroizing wrapper (it wipes on
+        // every exit, error paths included), and the buffers removed from the maps are wiped explicitly.
         let (pq_seed, kind) = if let Some(k) = self
             .pqopks
             .get(&h.pq_id)
             .filter(|_| self.one_time_epoch_of(h.pq_id) == spk.epoch)
         {
-            (*k, PqKind::OneTime)
+            (zeroize::Zeroizing::new(*k), PqKind::OneTime)
         } else if let Some(k) = std::iter::once(&self.last_resort)
             .chain(self.prev.iter().map(|p| &p.last_resort))
             .find(|k| k.id == h.pq_id && k.epoch == spk.epoch)
         {
-            (k.seed, PqKind::LastResort)
+            (zeroize::Zeroizing::new(k.seed), PqKind::LastResort)
         } else {
             return Err(Error::UnknownOrConsumedPqPrekey);
         };
-        let opk = match h.opk_id {
-            Some(id) => Some(
+        let opk: Option<zeroize::Zeroizing<[u8; 32]>> = match h.opk_id {
+            Some(id) => Some(zeroize::Zeroizing::new(
                 *self
                     .opks
                     .get(&id)
                     .filter(|_| self.one_time_epoch_of(id) == spk.epoch)
                     .ok_or(Error::UnknownOrConsumedEcPrekey)?,
-            ),
+            )),
             None => None,
         };
         // ADR-0131 rule 2: only initiations that consume NO one-time key use the ledger.
@@ -757,16 +759,20 @@ impl Device {
         if ledgered {
             self.ledger.check(spk.epoch, &hid)?;
         }
-        let (sk, ad) = pqxdh::respond(&self.ik_secret, &spk.secret, opk.as_ref(), &pq_seed, h)?;
+        let (sk, ad) = pqxdh::respond(&self.ik_secret, &spk.secret, opk.as_deref(), &pq_seed, h)?;
         let mut dr = SessionState::init_bob(&sk, ad, &spk.secret);
         let (pt, keys) = dr.decrypt(header, ct, ctx, rng)?;
         // Success: delete used one-time private keys (forward secrecy + single use) or record the ledger.
         if kind == PqKind::OneTime {
-            self.pqopks.remove(&h.pq_id);
+            if let Some(mut gone) = self.pqopks.remove(&h.pq_id) {
+                zeroize::Zeroize::zeroize(&mut gone);
+            }
             self.one_time_epoch.remove(&h.pq_id);
         }
         if let Some(id) = h.opk_id {
-            self.opks.remove(&id);
+            if let Some(mut gone) = self.opks.remove(&id) {
+                zeroize::Zeroize::zeroize(&mut gone);
+            }
             self.one_time_epoch.remove(&id);
         }
         if ledgered {

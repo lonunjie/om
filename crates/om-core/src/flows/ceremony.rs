@@ -521,6 +521,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             history_done: 0,
             history_ignored: 0,
             history_messages: 0,
+            history_seen: vec![],
         });
         self.st.device = Some(device);
         self.deposit_ceremony(op, &parts.a_cap, &parts.uri, sealed);
@@ -1431,92 +1432,24 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         {
             return false;
         }
-        let Some((mut head, mut have, mut have_creds)) = self.acs_head() else {
+        let Some((head, have, have_creds)) = self.acs_head() else {
             return false;
         };
-        // Extend our chain by the states that descend from our head, each verified as its parent's successor.
-        let mut all_creds = have_creds.clone();
-        for c in &creds {
-            if !all_creds.contains(c) {
-                all_creds.push(c.clone());
-            }
-        }
-        let mut extended = false;
-        for s in &chain {
-            let Some(state) = chain_head(s) else {
-                return false;
-            };
-            if state.generation <= head.generation {
-                continue; // we hold it already (a different state at our height is a fork and fails the notice below)
-            }
-            match control::verify_successor(&head, s, &all_creds) {
-                Ok(next) => {
-                    head = next;
-                    have.push(s.clone());
-                    extended = true;
-                }
-                Err(_) => return false,
-            }
-        }
-        if extended {
-            have_creds = all_creds;
-            self.st.app.acs_chain = have.iter().map(|c| hex(c)).collect();
-            self.st.app.acs_credentials = have_creds.iter().map(|c| hex(c)).collect();
+        let Some(staged) = stage_enrollment(head, have, have_creds, &chain, &creds, &notice) else {
+            return false;
+        };
+        let Some(device) = notice_device(&notice) else {
+            return false;
+        };
+        // Commit: head, credentials and notice together, only after the whole staged chain verified.
+        if staged.extended {
+            self.st.app.acs_chain = staged.chain.iter().map(|c| hex(c)).collect();
+            self.st.app.acs_credentials = staged.creds.iter().map(|c| hex(c)).collect();
             self.sync_own_head();
         }
-        let _ = have_creds;
         if let Some(h) = p.opt(4).and_then(|x| x.b().ok()) {
             // a messaging device keeps the head a control device signed (ignored unless it is our tip's)
             self.st.app.carry_head_adopt(h);
-        }
-        // The notice must be over a state of our verified chain and signed by a control device of that state.
-        let Ok(body) = cbor::decode(&notice).and_then(|v| Ok(v.get(1)?.b()?.to_vec())) else {
-            return false;
-        };
-        let Ok(bv) = cbor::decode(&body) else {
-            return false;
-        };
-        let (Ok(device), Ok(by), Ok(at_hash)) = (
-            bv.get(3).and_then(|x| x.b()).map(<[u8]>::to_vec),
-            bv.get(7).and_then(|x| x.b()).map(<[u8]>::to_vec),
-            bv.get(6).and_then(|x| x.get(1)).and_then(|x| x.b32()),
-        ) else {
-            return false;
-        };
-        let (Ok(device), Ok(by)) = (
-            <[u8; 16]>::try_from(device.as_slice()),
-            <[u8; 16]>::try_from(by.as_slice()),
-        ) else {
-            return false;
-        };
-        let Some(state) = self
-            .st
-            .app
-            .acs_chain
-            .iter()
-            .filter_map(|c| unhex(c).ok().and_then(|c| chain_head(&c)))
-            .find(|s| s.hash() == at_hash)
-        else {
-            return false;
-        };
-        let Some(by_cred) = self
-            .st
-            .app
-            .acs_credentials
-            .iter()
-            .filter_map(|c| unhex(c).ok().and_then(|c| Credential::from_body(&c).ok()))
-            .find(|c| {
-                c.device_id == by
-                    && state
-                        .credentials
-                        .iter()
-                        .any(|(d, h)| *d == by && *h == c.hash())
-            })
-        else {
-            return false;
-        };
-        if !state.control.contains(&by) || !notice_ok(&notice, &by_cred, &state, &device) {
-            return false;
         }
         let key = hex(&device);
         if !self.st.app.notices.iter().any(|n| n.device_id == key) {
@@ -1546,6 +1479,133 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         true
     }
+}
+
+/// The result of verifying an enrollment notice against a staged chain: the chain and credentials to commit, and
+/// whether the chain grew.
+pub(super) struct StagedEnrollment {
+    pub chain: Vec<Vec<u8>>,
+    pub creds: Vec<Vec<u8>>,
+    pub extended: bool,
+}
+
+/// Verify `chain` (states that descend from `head`) and the single `notice` against a STAGED
+/// copy, touching no durable state. Every device a previously unseen state newly lists is an enrollment that needs a
+/// notice, and one notice covers one enrollment, so a missing, extra or mismatched enrollment transition is refused.
+pub(super) fn stage_enrollment(
+    mut head: Acs,
+    mut have: Vec<Vec<u8>>,
+    have_creds: Vec<Vec<u8>>,
+    chain: &[Vec<u8>],
+    creds: &[Vec<u8>],
+    notice: &[u8],
+) -> Option<StagedEnrollment> {
+    let mut all_creds = have_creds.clone();
+    for c in creds {
+        if !all_creds.contains(c) {
+            all_creds.push(c.clone());
+        }
+    }
+    // Extend by the states that descend from our head, each verified as its parent's successor. Every device a
+    // previously unseen state newly lists is an enrollment that needs its own notice.
+    let mut required: Vec<([u8; 32], [u8; 16])> = vec![];
+    let mut extended = false;
+    for s in chain {
+        let state = chain_head(s)?;
+        if state.generation <= head.generation {
+            continue; // we hold it already (a different state at our height is a fork and fails the notice below)
+        }
+        let Ok(next) = control::verify_successor(&head, s, &all_creds) else {
+            return None;
+        };
+        for d in next.messaging.iter().chain(&next.control) {
+            let known = head.messaging.contains(d)
+                || head.control.contains(d)
+                || head.quarantined.contains(d)
+                || head.revoked.contains(d);
+            if !known && !required.contains(&(next.hash(), *d)) {
+                required.push((next.hash(), *d));
+            }
+        }
+        head = next;
+        have.push(s.clone());
+        extended = true;
+    }
+    // The notice must be over a state of the staged chain and signed by a control device of that state.
+    let Ok(body) = cbor::decode(notice).and_then(|v| Ok(v.get(1)?.b()?.to_vec())) else {
+        return None;
+    };
+    let Ok(bv) = cbor::decode(&body) else {
+        return None;
+    };
+    let (Ok(device), Ok(by), Ok(at_hash)) = (
+        bv.get(3).and_then(|x| x.b()).map(<[u8]>::to_vec),
+        bv.get(7).and_then(|x| x.b()).map(<[u8]>::to_vec),
+        bv.get(6).and_then(|x| x.get(1)).and_then(|x| x.b32()),
+    ) else {
+        return None;
+    };
+    let (Ok(device), Ok(by)) = (
+        <[u8; 16]>::try_from(device.as_slice()),
+        <[u8; 16]>::try_from(by.as_slice()),
+    ) else {
+        return None;
+    };
+    // One notice covers one enrollment: a missing, extra or mismatched enrollment transition refuses the whole.
+    if required.iter().any(|r| *r != (at_hash, device)) {
+        return None;
+    }
+    let state = have
+        .iter()
+        .filter_map(|c| chain_head(c))
+        .find(|s| s.hash() == at_hash)?;
+    let by_cred = all_creds
+        .iter()
+        .filter_map(|c| Credential::from_body(c).ok())
+        .find(|c| {
+            c.device_id == by
+                && state
+                    .credentials
+                    .iter()
+                    .any(|(d, h)| *d == by && *h == c.hash())
+        })?;
+    if !state.control.contains(&by) || !notice_ok(notice, &by_cred, &state, &device) {
+        return None;
+    }
+    // Only credentials some state of the chain lists are kept.
+    if extended {
+        let listed: Vec<[u8; 32]> = have
+            .iter()
+            .filter_map(|c| chain_head(c))
+            .flat_map(|s| s.credentials.into_iter().map(|(_, h)| h))
+            .collect();
+        all_creds.retain(|c| {
+            have_creds.contains(c)
+                || Credential::from_body(c).is_ok_and(|c| listed.contains(&c.hash()))
+        });
+    }
+    Some(StagedEnrollment {
+        chain: have,
+        creds: all_creds,
+        extended,
+    })
+}
+
+/// The index a history chunk may be counted under: its own field 3, inside `0..expected`, not yet seen.
+/// Anything else is a replay, a stray or a malformed frame and changes nothing.
+fn history_index(v: &V, expected: u32, seen: &[u32]) -> Option<u32> {
+    v.get(3)
+        .and_then(|x| x.u())
+        .ok()
+        .and_then(|i| u32::try_from(i).ok())
+        .filter(|i| *i < expected && !seen.contains(i))
+}
+
+/// The device a (structurally parsed) notice announces.
+fn notice_device(notice: &[u8]) -> Option<[u8; 16]> {
+    let body = cbor::decode(notice).ok()?.get(1).ok()?.b().ok()?.to_vec();
+    let bv = cbor::decode(&body).ok()?;
+    <[u8; 16]>::try_from(bv.get(3).ok()?.b().ok()?).ok()
 }
 
 /// May `device` receive same-owner history at `head`? Only an active device of the account: listed as a messaging or
@@ -1662,7 +1722,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         out
     }
 
-    /// One chunk on the new device. Counted either way; a chunk whose `(codec_id, codec_major)` is not ours, or that is
+    /// One chunk on the new device. Counted once per index, either way; a chunk whose `(codec_id, codec_major)` is not ours, or that is
     /// malformed, is ignored whole and none of it is interpreted. A device that is no longer active at its own head
     /// takes nothing.
     fn on_history_chunk(&mut self, v: &V) {
@@ -1673,6 +1733,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         let known = v.get(1).and_then(|x| x.b()).ok() == unhex(HISTORY_CODEC_ID).ok().as_deref()
             && v.get(2).and_then(|x| x.u()).ok() == Some(HISTORY_CODEC_MAJOR);
+        // The transfer is this ceremony (the frame opened under its key), the total is the count
+        // the verified approval announced, and the index is the chunk's own field 3. A frame without an index, with
+        // an index outside `0..total`, or whose index was already counted changes nothing.
+        let (expected, seen) = match self.st.app.link_join.as_ref() {
+            Some(j) => (j.history_expected, j.history_seen.clone()),
+            None => return,
+        };
+        let Some(index) = history_index(v, expected, &seen) else {
+            return;
+        };
         let added = if active && known {
             v.get(4)
                 .and_then(|x| x.b())
@@ -1683,11 +1753,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             None
         };
         if let Some(j) = self.st.app.link_join.as_mut() {
-            j.history_done += 1;
+            j.history_seen.push(index);
+            j.history_done = j.history_seen.len() as u32;
             match added {
                 Some(n) => j.history_messages += n,
                 None => j.history_ignored += 1,
             }
+            // Complete only when every index is present.
             if j.history_done >= j.history_expected && j.state == LinkState::Linked {
                 j.secret = String::new().into();
             }
@@ -2032,5 +2104,203 @@ mod tests {
             open_msg(&key, ROLE_REQ, &envelope_with_frame(&key, &good, size - 8)),
             None
         );
+    }
+
+    // ---- enrollment notice and history chunk negative tests -------------------------------------------------------------
+
+    use crate::crypto::cbor::{self, V};
+    use crate::crypto::rng::insecure_test_rng::InsecureTestRng;
+    use crate::crypto::store::Device;
+
+    struct Fx {
+        rng: InsecureTestRng,
+        ctl: Device,
+        states: Vec<Acs>,
+        signed: Vec<Vec<u8>>,
+        creds: Vec<Vec<u8>>,
+        new_devs: Vec<Device>,
+    }
+
+    impl Fx {
+        fn new() -> Fx {
+            let mut rng = InsecureTestRng::from_label(b"f01");
+            let ctl = Device::new(&mut rng);
+            let g = ctl.acs();
+            let signed = control::sign_acs(&g.body(), &[(&ctl.device_id, &ctl.signer)], &mut rng);
+            Fx {
+                creds: vec![ctl.credential().body()],
+                signed: vec![signed],
+                states: vec![g],
+                ctl,
+                rng,
+                new_devs: vec![],
+            }
+        }
+        /// Append a state enrolling `n` new messaging devices at once.
+        fn enroll(&mut self, n: usize) {
+            let head = self.states.last().unwrap().clone();
+            let mut child = head.clone();
+            child.generation += 1;
+            child.previous = Some(head.hash());
+            for _ in 0..n {
+                let mut d = Device::new(&mut self.rng);
+                d.account_id = head.account_id;
+                child.messaging.insert(d.device_id);
+                child.credentials.push((d.device_id, d.credential().hash()));
+                self.creds.push(d.credential().body());
+                self.new_devs.push(d);
+            }
+            let signed = control::sign_acs(
+                &child.body(),
+                &[(&self.ctl.device_id, &self.ctl.signer)],
+                &mut self.rng,
+            );
+            self.signed.push(signed);
+            self.states.push(child);
+        }
+        fn notice(&mut self, state: usize, device: [u8; 16], signer: &Device) -> Vec<u8> {
+            let child = &self.states[state];
+            let body = cbor::encode(&V::M(vec![
+                (0, V::U(8)),
+                (1, V::U(1)),
+                (2, V::B(child.account_id.to_vec())),
+                (3, V::B(device.to_vec())),
+                (4, V::U(DEVICE_CLASS_MESSAGING)),
+                (5, V::U(child.generation)),
+                (6, digest(&child.hash())),
+                (7, V::B(signer.device_id.to_vec())),
+                (8, V::U(CEREMONY_LINK)),
+                (9, V::U(1_790_000_000)),
+            ]));
+            let sg = signer.signer.sign_with(
+                &ds_sig(
+                    LBL_NOTICE_SIG,
+                    PROFILE_V1,
+                    ROLE_CONTROLLER,
+                    &signer.device_id,
+                    &body,
+                ),
+                [5; 32],
+            );
+            sig::envelope(
+                body,
+                vec![signature_entry(
+                    &signer.device_id,
+                    PROFILE_V1,
+                    ROLE_CONTROLLER,
+                    sg,
+                )],
+            )
+        }
+        fn stage(&self, have: usize, upto: usize, notice: &[u8]) -> Option<StagedEnrollment> {
+            stage_enrollment(
+                self.states[have - 1].clone(),
+                self.signed[..have].to_vec(),
+                self.creds.clone(),
+                &self.signed[have..upto],
+                &self.creds,
+                notice,
+            )
+        }
+    }
+
+    #[test]
+    fn one_enrollment_with_its_notice_stages() {
+        let mut f = Fx::new();
+        f.enroll(1);
+        let b = f.new_devs[0].device_id;
+        let ctl = f.ctl.clone();
+        let n = f.notice(1, b, &ctl);
+        let staged = f.stage(1, 2, &n).expect("verified");
+        assert!(staged.extended);
+        assert_eq!(staged.chain.len(), 2);
+    }
+
+    #[test]
+    fn a_bad_notice_stages_nothing() {
+        let mut f = Fx::new();
+        f.enroll(1);
+        let b = f.new_devs[0].device_id;
+        // signed by a device the state does not list as a controller
+        let stranger = f.new_devs[0].clone();
+        let n = f.notice(1, b, &stranger);
+        assert!(f.stage(1, 2, &n).is_none());
+        // a notice for a device the successor did not enroll
+        let ctl = f.ctl.clone();
+        let n = f.notice(1, [7; 16], &ctl);
+        assert!(f.stage(1, 2, &n).is_none());
+        // garbage
+        assert!(f.stage(1, 2, &[1, 2, 3]).is_none());
+    }
+
+    #[test]
+    fn a_missing_notice_for_an_unseen_enrollment_refuses() {
+        let mut f = Fx::new();
+        f.enroll(1);
+        f.enroll(1);
+        let ctl = f.ctl.clone();
+        let (b, c) = (f.new_devs[0].device_id, f.new_devs[1].device_id);
+        // two successors, one notice: refused whichever one it covers
+        let n_c = f.notice(2, c, &ctl);
+        assert!(f.stage(1, 3, &n_c).is_none(), "B has no notice");
+        let n_b = f.notice(1, b, &ctl);
+        assert!(f.stage(1, 3, &n_b).is_none(), "C has no notice");
+        // a notice for an already held state does not excuse an unseen enrollment
+        assert!(f.stage(2, 3, &n_b).is_none());
+    }
+
+    #[test]
+    fn two_devices_in_one_successor_need_two_notices() {
+        let mut f = Fx::new();
+        f.enroll(2);
+        let ctl = f.ctl.clone();
+        let n = f.notice(1, f.new_devs[0].device_id, &ctl);
+        assert!(f.stage(1, 2, &n).is_none());
+    }
+
+    #[test]
+    fn a_replay_of_a_held_enrollment_is_accepted_but_changes_nothing() {
+        let mut f = Fx::new();
+        f.enroll(1);
+        f.enroll(1);
+        let ctl = f.ctl.clone();
+        let c = f.new_devs[1].device_id;
+        let n = f.notice(2, c, &ctl);
+        let staged = f.stage(3, 3, &n).expect("held chain, valid notice");
+        assert!(!staged.extended);
+        assert_eq!(staged.chain, f.signed);
+    }
+
+    #[test]
+    fn a_history_chunk_counts_only_its_own_new_index_inside_the_total() {
+        let chunk = |i: Option<u64>| {
+            let mut m = vec![(0, V::U(1))];
+            if let Some(i) = i {
+                m.push((3, V::U(i)));
+            }
+            V::M(m)
+        };
+        assert_eq!(history_index(&chunk(Some(0)), 3, &[]), Some(0));
+        assert_eq!(
+            history_index(&chunk(Some(2)), 3, &[0]),
+            Some(2),
+            "out of order"
+        );
+        assert_eq!(history_index(&chunk(Some(0)), 3, &[0]), None, "replayed");
+        assert_eq!(
+            history_index(&chunk(Some(3)), 3, &[]),
+            None,
+            "outside total"
+        );
+        assert_eq!(history_index(&chunk(Some(u64::MAX)), 3, &[]), None);
+        assert_eq!(history_index(&chunk(None), 3, &[]), None, "no index");
+        // n replays of one frame never reach the total (truncated transfer stays incomplete)
+        let mut seen: Vec<u32> = vec![];
+        for _ in 0..5 {
+            if let Some(i) = history_index(&chunk(Some(1)), 5, &seen) {
+                seen.push(i);
+            }
+        }
+        assert_eq!(seen, vec![1]);
     }
 }

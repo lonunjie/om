@@ -960,6 +960,10 @@ pub struct LinkJoin {
     pub history_ignored: u32,
     #[serde(default)]
     pub history_messages: u32,
+    /// Chunk indices already counted: each index counts once, so a replayed frame cannot stand
+    /// in for a withheld one, and the missing set (`0..history_expected` minus this) stays known.
+    #[serde(default)]
+    pub history_seen: Vec<u32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
