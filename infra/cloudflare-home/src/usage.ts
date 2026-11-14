@@ -3,7 +3,12 @@
 // per UTC day, so the figure is the Home's accounting and needs no Cloudflare analytics token (which the Home must not hold).
 // What is counted: every request the Worker front door receives (shed ones too) is one Worker request; the Durable Object
 // calls made for it are counted too (the meter's own call, plus the one routed call; the usage read adds its admin check).
-// Not counted: WebSocket messages after the upgrade, and the extra per-device calls of one key fetch (decision D3, limits report).
+// A key fetch is the one request that fans out: the front door counts it as one Worker request and the meter's own call, and the
+// per-device Durable Object calls it then really makes are charged after the fact (`charge`, plus the charge call itself), so a
+// 64-device fetch is not metered as a 1-device one and a fetch that fails on its first device is charged for that one call only.
+// A charge that cannot be recorded is dropped (fail open, like `unknown`): the free plan's own hard stop is the backstop.
+// Not counted: WebSocket messages after the upgrade. (Decision D3 of the limits report charged a fixed two calls per request and
+// so undercounted batched key fetches; superseded by the above, see the limits report.)
 import { DurableObject } from "cloudflare:workers";
 import type { UsageMetric, UsageStateName } from "@om/home-wire";
 import type { Env } from "./env";
@@ -69,5 +74,12 @@ export class UsageMeter extends DurableObject<Env> {
     run(this.sql, "INSERT INTO usage_day (day, worker, durable) VALUES (?, 1, ?) ON CONFLICT(day) DO UPDATE SET worker = worker + 1, durable = durable + excluded.durable", day, durableCalls);
     run(this.sql, "DELETE FROM usage_day WHERE day < ?", day - 7);
     return this.snapshot(day);
+  }
+
+  /** Adds Durable Object calls a request made after it was noted (the per-device fan-out of a key fetch). Counts no Worker request. */
+  charge(durableCalls: number): void {
+    if (!Number.isSafeInteger(durableCalls) || durableCalls <= 0) return;
+    const day = this.today();
+    run(this.sql, "INSERT INTO usage_day (day, worker, durable) VALUES (?, 0, ?) ON CONFLICT(day) DO UPDATE SET durable = durable + excluded.durable", day, durableCalls);
   }
 }

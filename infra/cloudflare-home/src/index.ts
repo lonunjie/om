@@ -74,8 +74,19 @@ async function admitted(request: Request, env: Env): Promise<boolean> {
   return ok;
 }
 
-/** What the usage counter is told about a request: the Durable Object calls it causes besides the meter's own (see usage.ts). */
-const routedCalls = (request: Request, path: string): number => (request.method !== "OPTIONS" && path.startsWith("/v1/") ? 1 : 0);
+const KEY_FETCH_PATH = "/v1/keys/fetch";
+
+/**
+ * What the usage counter is told about a request up front: the Durable Object calls it causes besides the meter's own (see usage.ts).
+ * A key fetch fans out to one Durable Object per requested device, so it is told none here and charged what it really made (`chargeCalls`).
+ */
+const routedCalls = (request: Request, path: string): number => (request.method !== "OPTIONS" && path.startsWith("/v1/") && path !== KEY_FETCH_PATH ? 1 : 0);
+
+/** Charges the meter for Durable Object calls a request made after it was counted, plus this charge's own call. A meter that cannot answer is ignored (fail open, as in `count`). */
+async function chargeCalls(env: Env, made: number): Promise<void> {
+  if (made <= 0 || !usageOn(env) || env.USAGE === undefined) return;
+  try { await env.USAGE.get(env.USAGE.idFromName("meter")).charge(made + 1); } catch { /* unknown never sheds */ }
+}
 
 /** Work that adds to what the Home holds. At `hard` these are shed with a typed `quota`; drains, acks, rotations, reads and revocations never are. */
 function addsWork(request: Request, path: string): boolean {
@@ -222,17 +233,23 @@ async function route(request: Request, env: Env, counted: Counted | undefined): 
     if (!cap) return fail("unauthorized");
     return fromReply(await env.KEYS.get(env.KEYS.idFromName(`k:${gen[1] ?? ""}`)).revokeGeneration(cap, Number(gen[2])));
   }
-  if (path === "/v1/keys/fetch") {
+  if (path === KEY_FETCH_PATH) {
     const req = parse(decodeKeyFetch, await body(request, 4096));
     // One flat list: for each requested device, its signed bundle then the one-time items consumed for this fetch.
     const items: Uint8Array[] = [];
-    for (const d of req.devices) {
-      if (d.length !== 16) return fail("invalid_request");
-      const r: Reply = await env.KEYS.get(env.KEYS.idFromName(`k:${hex(d)}`)).fetchItems(req.cap);
-      if (!r.ok) return fromReply(r);
-      items.push(...decodeKeyFetchResponse(r.body).items);
+    let made = 0; // per-device Durable Object calls actually issued, counted before each so a failing one is charged too
+    try {
+      for (const d of req.devices) {
+        if (d.length !== 16) return fail("invalid_request");
+        made++;
+        const r: Reply = await env.KEYS.get(env.KEYS.idFromName(`k:${hex(d)}`)).fetchItems(req.cap);
+        if (!r.ok) return fromReply(r);
+        items.push(...decodeKeyFetchResponse(r.body).items);
+      }
+      return ok(encodeKeyFetchResponse({ items }));
+    } finally {
+      await chargeCalls(env, made);
     }
-    return ok(encodeKeyFetchResponse({ items }));
   }
 
   // ----------------------------------------------------------------------------------------------- IntroGate
