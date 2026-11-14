@@ -3238,6 +3238,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0189-group-carriage-own-commit-acceptance-and-room-defaults.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",
@@ -4813,13 +4820,6 @@
       "authority": "working_record_non_normative"
     },
     {
-      "path": "docs/reports/2026-11-14-relay-setup-walkthrough.md",
-      "class": "report",
-      "domain": "architecture_process",
-      "license": "CC-BY-SA-4.0",
-      "authority": "working_record_non_normative"
-    },
-    {
       "path": "docs/reports/2026-11-13-recovery-flows-plan.md",
       "class": "report",
       "domain": "architecture_process",
@@ -4856,6 +4856,13 @@
     },
     {
       "path": "docs/reports/2026-11-14-mls-wasm-decision.md",
+      "class": "report",
+      "domain": "architecture_process",
+      "license": "CC-BY-SA-4.0",
+      "authority": "working_record_non_normative"
+    },
+    {
+      "path": "docs/reports/2026-11-14-relay-setup-walkthrough.md",
       "class": "report",
       "domain": "architecture_process",
       "license": "CC-BY-SA-4.0",
@@ -10824,6 +10831,13 @@
       "domain": "provider_deployment_supply_chain",
       "license": "Apache-2.0",
       "authority": "normative_registry"
+    },
+    {
+      "path": "spec/registries/om-mls-extensions.json",
+      "class": "spec_artifact",
+      "domain": "groups",
+      "license": "Apache-2.0",
+      "authority": "normative_logical_schema"
     },
     {
       "path": "spec/registries/om-numeric-fields.json",

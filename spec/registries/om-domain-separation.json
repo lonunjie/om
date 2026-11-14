@@ -654,6 +654,14 @@
       "object": "chat-history backup file (OMB-1): 16-byte wrong-password check",
       "wave": "W1",
       "status": "frozen"
+    },
+    {
+      "label": "OM-GROUP-ROUTE-SIG-v1",
+      "use": "signature",
+      "construction": "DS-SIG",
+      "object": "GroupRouteRecord",
+      "wave": "W1",
+      "status": "frozen"
     }
   ]
 }

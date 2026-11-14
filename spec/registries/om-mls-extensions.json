@@ -1,0 +1,22 @@
+{
+  "status": "Status: W1 registry (ADR-0189). Ids are permanent once assigned: never renamed, reused or removed. New OM MLS extensions need a row here.",
+  "registry": "om-mls-extensions",
+  "registry_version": 1,
+  "rules": [
+    "OM uses only values in the RFC 9420 private-use range 0xF000 to 0xFFFF for MLS extension types; they are meaningful to OM Rooms only.",
+    "A critical extension must be declared in every KeyPackage's capabilities; a client refuses a group or Add that lacks it.",
+    "Extension content never appears in a clear relay header (ADR-0128 rule 7)."
+  ],
+  "extensions": [
+    {
+      "id": "0xF04D",
+      "name": "om.room_context",
+      "carrier": "MLS GroupContext extension",
+      "critical": true,
+      "wave": "W1",
+      "content": "CBOR {0: 1 (version), 1: conversation_id (bstr 32)}",
+      "adr": "ADR-0189 section 1.5",
+      "status": "frozen"
+    }
+  ]
+}

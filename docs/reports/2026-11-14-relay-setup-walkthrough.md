@@ -1,7 +1,7 @@
 # Relay setup walkthrough: a fresh Cloudflare and GitHub account
 
 - **Date:** 2026-11-14. **Status:** a script for the operator to follow; nothing here has been run yet. Everything about what Cloudflare and GitHub show is **unverified** until you record it.
-- **Why:** the "Set up my own, free" flow stalled when the person's Cloudflare GitHub app allowed only selected repositories ([`2026-11-04-handoff-next-week.md`](2026-11-04-handoff-next-week.md) section 1). The app now asks for both accounts first (deviation D30 in [`2026-10-28-relay-status.md`](2026-10-28-relay-status.md)). This walkthrough checks whether that is enough and what each screen really says.
+- **Why:** the "Set up my own, free" flow stalled when the person's Cloudflare GitHub app allowed only selected repositories ([`2026-11-04-handoff-next-week.md`](2026-11-04-handoff-next-week.md) section 1). The app now asks for both accounts first (deviation D35 in [`2026-10-28-relay-status.md`](2026-10-28-relay-status.md)). This walkthrough checks whether that is enough and what each screen really says.
 
 ## What to record at every screen
 
@@ -40,4 +40,4 @@ For each numbered screen below write, in a scratch note (screenshots stay in the
 
 ## After the run
 
-Record the findings in the relay status report (D30, "What is left"), update `onboardingCopy.relay.cloudflare` to match what was seen, and, if the box description did not show, shorten the template description so it begins with "OM setup value" (a new template release).
+Record the findings in the relay status report (D35, "What is left"), update `onboardingCopy.relay.cloudflare` to match what was seen, and, if the box description did not show, shorten the template description so it begins with "OM setup value" (a new template release).
