@@ -88,6 +88,7 @@ pub mod carry;
 pub mod flow;
 pub mod journal;
 pub mod mls;
+pub mod room;
 pub mod store;
 
 #[cfg(any(test, feature = "test-loopback"))]
@@ -357,8 +358,13 @@ impl RoleDef {
             grantable_scope: v.get(3).map(text_set).transpose()?,
         })
     }
-    fn value(&self) -> Value {
-        let texts = |x: &[String]| set_sorted(x.iter().map(|s| Value::Text(s.clone())).collect());
+    pub(crate) fn value(&self) -> Value {
+        // a CDDL set is ordered by its encoded bytes (shorter text first); a grant appended later must land in place
+        let texts = |x: &[String]| {
+            let mut v: Vec<Value> = x.iter().map(|s| Value::Text(s.clone())).collect();
+            v.sort_by_key(encode);
+            set_sorted(v)
+        };
         let mut m = vec![
             (0, Value::Bytes(self.id.clone())),
             (1, Value::Text(self.display_name.clone())),
@@ -1024,6 +1030,9 @@ pub struct GenesisParams {
     pub admin_role_id: Vec<u8>,
     pub member_role_id: Vec<u8>,
     pub name: String,
+    /// The protection profile the Room starts from (ADR-0189 section 3): 1 Recommended, 2 Hardened, 3 Maximum
+    /// Privacy. Applied at creation only.
+    pub protection: u64,
 }
 
 /// The consumer default (SCOPED_PERMISSIONS: 1-of-1 governance held by the creator; Admin and Member are role
@@ -1032,13 +1041,18 @@ pub struct GenesisParams {
 /// cannot invite, so adding people is an admin act until a role says otherwise.
 pub fn genesis(p: &GenesisParams) -> R<GroupState> {
     let reg = caps();
-    let member_caps = [
+    let bundle = room::bundle(p.protection)?;
+    let mut member_caps = vec![
         "room.post",
         "room.reply",
         "room.react",
         "room.upload",
         "room.pin",
     ];
+    // Recommended: anyone in the group can add people (ADR-0189 section 3, "Who can add people").
+    if bundle.members_may_invite {
+        member_caps.push("room.invite");
+    }
     let s = GroupState {
         conversation_id: p.conversation_id.clone(),
         state_version: 1,
@@ -1074,12 +1088,12 @@ pub fn genesis(p: &GenesisParams) -> R<GroupState> {
             protected_operations: None,
         },
         policy: Policy {
-            join_rule: 1,
-            new_device_policy: 1,
-            history_policy: 1,
+            join_rule: bundle.join_rule,
+            new_device_policy: bundle.new_device_policy,
+            history_policy: bundle.history_policy,
             history_window_seconds: None,
             disappearing_timer: None,
-            security_profile: 1,
+            security_profile: bundle.security_profile,
             sequencing_timeout: 300,
             past_epoch_window: 2,
         },
@@ -1295,6 +1309,50 @@ pub fn apply(
             if let Some(m) = next.membership.iter_mut().find(|m| m.principal == who) {
                 m.role_ids = roles;
             }
+        }
+        op::ADMISSION_SET => {
+            if !capability || !authorized_by_capability(parent, actor, name) {
+                return err("not_authorized");
+            }
+            let rule = u(req(args, 0)?)?;
+            if !(1..=3).contains(&rule) {
+                return err("join_rule_invalid");
+            }
+            next.policy.join_rule = rule;
+        }
+        op::SECURITY_POLICY_SET => {
+            if !capability || !authorized_by_capability(parent, actor, name) {
+                return err("not_authorized");
+            }
+            if let Some(v) = opt(args, 0, u)? {
+                next.policy.new_device_policy = v;
+            }
+            if let Some(v) = opt(args, 1, u)? {
+                next.policy.history_policy = v;
+                if v != 2 {
+                    next.policy.history_window_seconds = None;
+                }
+            }
+            if let Some(v) = opt(args, 2, u)? {
+                next.policy.history_window_seconds = Some(v);
+            }
+            if let Some(v) = opt(args, 3, u)? {
+                // 4 to 65535 are reserved (ADR-0189 section 3): a receiver does not guess what they mean
+                if !(1..=3).contains(&v) {
+                    return err("security_profile_reserved");
+                }
+                next.policy.security_profile = v;
+            }
+        }
+        op::DISAPPEARING_TIMER_SET => {
+            if !capability || !authorized_by_capability(parent, actor, name) {
+                return err("not_authorized");
+            }
+            // 0 turns it off (the CDDL says `uint`; absent in the state means off)
+            next.policy.disappearing_timer = match u(req(args, 0)?)? {
+                0 => None,
+                n => Some(n),
+            };
         }
         _ => return err("unsupported_operation"),
     }

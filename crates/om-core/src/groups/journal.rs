@@ -103,6 +103,14 @@ pub struct JournalEntry {
     pub publish_attempts: u32,
     /// Why a terminal failure happened (a stable code).
     pub reason: Option<String>,
+    /// The acting device's `signed-GroupControlIntent` the Commit frame carries (ADR-0189 1.4(a)).
+    #[serde(default)]
+    pub signed_intent: Option<String>,
+    /// Set by the same Core step that stored the candidate: how many device-lane frames of this Commit are in the
+    /// Core outbox. `Some` is G10 condition 1 (ADR-0189 section 2): the exact bytes, the binding, the intent and every
+    /// destination's frames are durable together. Absent for an entry a flow-level caller drives by hand.
+    #[serde(default)]
+    pub queued: Option<u32>,
 }
 
 /// What Core must do to publish: the exact prepared bytes.
@@ -120,6 +128,8 @@ pub enum CommitPlan {
     Add(Vec<Vec<u8>>),
     /// `member.remove` / `member.leave`: remove these device leaves.
     Remove(Vec<Vec<u8>>),
+    /// A policy or role change: no membership change, a self-update Commit (admission, security policy, roles).
+    Update,
 }
 
 /// What restart reconciliation says to do with an open entry.
@@ -269,6 +279,8 @@ impl crate::state::AppState {
             candidate: None,
             publish_attempts: 0,
             reason: None,
+            signed_intent: None,
+            queued: None,
         };
         self.group_journal.insert(id, e.clone());
         Ok(e)
@@ -303,7 +315,15 @@ impl crate::state::AppState {
         let next = apply(&head, &intent, &actor, head.mls_epoch_ref + 1)?;
         match (intent.operation, plan) {
             (op::MEMBER_ADMIT, CommitPlan::Add(_))
-            | (op::MEMBER_REMOVE | op::MEMBER_LEAVE, CommitPlan::Remove(_)) => {}
+            | (op::MEMBER_REMOVE | op::MEMBER_LEAVE, CommitPlan::Remove(_))
+            | (
+                op::ROLE_DEFINE
+                | op::ROLE_ASSIGN
+                | op::ADMISSION_SET
+                | op::SECURITY_POLICY_SET
+                | op::DISAPPEARING_TIMER_SET,
+                CommitPlan::Update,
+            ) => {}
             _ => return err("plan_mismatch"),
         }
         if mls(engine.epoch(&group_id))? != e.parent_epoch {
@@ -312,6 +332,7 @@ impl crate::state::AppState {
         let prepared = mls(match plan {
             CommitPlan::Add(kps) => engine.add_commit(env, &group_id, kps),
             CommitPlan::Remove(devs) => engine.remove_commit(env, &group_id, devs),
+            CommitPlan::Update => engine.update_commit(env, &group_id),
         })?;
         let built = (|| -> R<(Vec<u8>, Vec<u8>)> {
             if prepared.resulting_epoch != e.parent_epoch + 1 {

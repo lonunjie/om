@@ -289,6 +289,24 @@ impl GroupCrypto for OpenMlsGroupCrypto {
         Ok(p)
     }
 
+    fn update_commit(
+        &mut self,
+        _env: &mut CryptoEnv<'_>,
+        group_id: &[u8],
+    ) -> MlsResult<PreparedCommit> {
+        let mut g = self.load(group_id)?;
+        if self.pending.contains_key(group_id) || g.pending_commit().is_some() {
+            return Err(E("commit_pending"));
+        }
+        let bundle = g
+            .self_update(&self.provider, &self.signer, LeafNodeParameters::default())
+            .map_err(|_| E("update_failed"))?;
+        let commit = bundle.into_commit();
+        let p = self.prepared(group_id, &commit, None, &g)?;
+        self.hold(group_id, &p);
+        Ok(p)
+    }
+
     fn pending(&self, group_id: &[u8]) -> MlsResult<Option<PreparedCommit>> {
         self.load(group_id)?;
         Ok(self.pending.get(group_id).map(|h| PreparedCommit {

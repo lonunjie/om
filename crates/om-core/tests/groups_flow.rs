@@ -519,7 +519,7 @@ fn unsolicited_welcome_is_dropped_and_declining_changes_nothing() {
 }
 
 #[test]
-fn a_plain_member_cannot_invite() {
+fn under_recommended_a_plain_member_can_invite_and_only_admins_admit() {
     let (mut devs, conv, _) = invited_and_accepted();
     let id = commit_id(&devs[0]);
     let d = &mut devs[0];
@@ -536,11 +536,11 @@ fn a_plain_member_cannot_invite() {
         .group_do(ctx!(d), GroupIntent::CommitAccepted { intent_id: id })
         .unwrap();
     pump(&mut devs, 0, rep);
-    // B was admitted with the Member role (D-g2): it lacks room.invite
+    // B was admitted with the Member role (D-g2). Recommended (ADR-0189 section 3): anyone in the group can add
+    // people, so B may invite; admitting (the Add itself) stays with room.manage_admission.
     let r = with_rel(&mut devs[1], 3, RelState::Active);
     let d = &mut devs[1];
-    let e = d
-        .app
+    d.app
         .group_do(
             ctx!(d),
             GroupIntent::Invite {
@@ -548,8 +548,7 @@ fn a_plain_member_cannot_invite() {
                 relationship_id: r,
             },
         )
-        .unwrap_err();
-    assert_eq!(e.0, "not_authorized");
+        .unwrap();
 }
 
 #[test]

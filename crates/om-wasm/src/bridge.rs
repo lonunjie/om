@@ -370,6 +370,28 @@ fn group_event_json(e: &GroupEvent) -> Value {
                 "senderAccount": hex(sender_account) })
         }
         GroupEvent::Dropped(reason) => json!({ "kind": "dropped", "reason": reason }),
+        GroupEvent::Held(reason) => json!({ "kind": "held", "reason": reason }),
+        GroupEvent::PolicyChanged {
+            conversation_id,
+            by_account,
+            changes,
+        } => json!({
+            "kind": "policy_changed",
+            "conversationId": hex(conversation_id),
+            "byAccount": hex(by_account),
+            "changes": changes,
+        }),
+        GroupEvent::RoomSettingBlocked {
+            conversation_id,
+            reason,
+        } => json!({
+            "kind": "room_setting_blocked",
+            "conversationId": hex(conversation_id),
+            "reason": reason,
+        }),
+        GroupEvent::CommitSuperseded { intent_id } => {
+            json!({ "kind": "commit_superseded", "intentId": intent_id })
+        }
     }
 }
 
@@ -394,6 +416,7 @@ fn group_view_json(v: &GroupView) -> Value {
         GroupView::Group(d) => json!({ "kind": "group", "group": d }),
         GroupView::Invites(i) => json!({ "kind": "invites", "invites": i }),
         GroupView::Messages(m) => json!({ "kind": "messages", "messages": m }),
+        GroupView::Notices(n) => json!({ "kind": "notices", "notices": n }),
     }
 }
 
@@ -686,6 +709,23 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::GroupsAvailable => Ok(json!(Core::<R>::groups_available())),
             Command::GroupDo { ctx, intent } => {
                 let intent = intent.into_intent()?;
+                if matches!(intent, GroupIntent::CommitAccepted { .. }) {
+                    // Acceptance is Core's (ADR-0189 section 2): the host cannot report it. Until Package 3 gives the
+                    // bridge `group_settle` itself, this old command runs one settle pass and returns what it produced.
+                    return self.group_result(|c| {
+                        let (r, step) = c.group_settle(&ctx)?;
+                        Ok((
+                            r.map(|v| {
+                                v.into_iter().fold(GroupReply::default(), |mut a, b| {
+                                    a.events.extend(b.events);
+                                    a.out.extend(b.out);
+                                    a
+                                })
+                            }),
+                            step,
+                        ))
+                    });
+                }
                 self.group_result(|c| c.group_do(&ctx, intent))
             }
             Command::GroupReceive { ctx, from, wire } => {

@@ -205,9 +205,27 @@ fn group_flow_runs_through_core_with_real_devices_and_survives_a_restart() {
     })
     .unwrap();
     p[0].ctx = p[0].rt.restart().remove(0);
-    let rep = p[0]
-        .dob(GroupIntent::CommitAccepted { intent_id: id })
-        .unwrap();
+    // Core accepts its own Commit (G10): durable in the journal and the outbox, parent canonical, nothing better
+    // received. The restart above lost nothing, and no host report is involved.
+    let (reps, step) = p[0].rt.core.group_settle(&p[0].ctx).unwrap();
+    assert!(p[0].rt.settle(&step));
+    let mut rep = GroupReply::default();
+    for r in reps.unwrap() {
+        rep.events.extend(r.events);
+        rep.out.extend(r.out);
+    }
+    assert_eq!(
+        p[0].rt
+            .core
+            .group_settle(&p[0].ctx)
+            .unwrap()
+            .0
+            .unwrap()
+            .len(),
+        0,
+        "settling twice does nothing more"
+    );
+    let _ = id;
     let ev = pump(&mut p, 0, rep);
     assert!(
         ev.iter()

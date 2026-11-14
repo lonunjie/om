@@ -192,6 +192,41 @@ pub fn open_state(
     Ok((who, body))
 }
 
+/// `DS-SIG` label of a signed `GroupControlIntent` (object type 29, role `device`, ADR-0176).
+pub const LBL_INTENT_SIG: &str = "OM-GROUP-INTENT-SIG-v1";
+
+/// A `signed-GroupControlIntent`: the canonical intent body signed by the acting device (role `device`). This is the
+/// envelope a Commit frame and a LeaveRequest frame carry (ADR-0189 1.4(a)); the flow's bare intent body is what it
+/// wraps.
+pub fn sign_intent(
+    signer: &DeviceSigner,
+    device_id: &[u8; 16],
+    body: &[u8],
+    rnd: [u8; 32],
+) -> Vec<u8> {
+    let s = signer.sign_with(
+        &ds_sig(LBL_INTENT_SIG, PROFILE_V1, ROLE_DEVICE, device_id, body),
+        rnd,
+    );
+    envelope(
+        body.to_vec(),
+        vec![signature_entry(device_id, PROFILE_V1, ROLE_DEVICE, s)],
+    )
+}
+
+/// Verify a `signed-GroupControlIntent` against the key the caller holds for the device that signed it. Returns the
+/// signer and the intent body.
+pub fn open_intent(
+    signed: &[u8],
+    pk_of: impl Fn(&[u8; 16]) -> Option<Vec<u8>>,
+) -> R<([u8; 16], Vec<u8>)> {
+    let who = envelope_signer(signed).ok_or(GroupError("malformed"))?;
+    let pk = pk_of(&who).ok_or(GroupError("intent_signer_unknown"))?;
+    let body = open_envelope(signed, LBL_INTENT_SIG, PROFILE_V1, ROLE_DEVICE, &who, &pk)
+        .map_err(|_| GroupError("bad_signature"))?;
+    Ok((who, body))
+}
+
 /// The body of a `signed-*` envelope, without verifying its signature (the caller verifies or compares the body).
 pub fn envelope_body(signed: &[u8]) -> R<Vec<u8>> {
     let v = c(cbor::decode(signed))?;
@@ -628,6 +663,66 @@ pub struct LaneIn {
     pub wire: super::flow::GroupWire,
 }
 
+/// Wrappers held per profile while a member's account head is missing or stale (ADR-0144 precedent: bounded).
+pub const MAX_PENDING: usize = 8;
+/// A held wrapper is dropped after this long without the head arriving (ADR-0144 `HELD_TTL`: a week).
+pub const PENDING_TTL_S: u64 = 7 * 24 * 60 * 60;
+/// Frames waiting in the Core-owned outbox (a bound, not a wire limit).
+pub const MAX_OUTBOX: usize = 256;
+
+/// A Welcome or a Commit with added devices that could not be verified yet because the head of an account it names is
+/// missing or stale (report D37). Kept as the opaque sealed wrapper, so nothing is trusted or decoded twice; retried
+/// when a head arrives; never accepted unverified.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingFrame {
+    /// The sealed wrapper (hex), exactly as it arrived at the route.
+    pub wrapper: String,
+    pub since_s: u64,
+    /// Relationships whose head refresh may supply what is missing (the existing K7 request is sent for each).
+    pub refresh: Vec<String>,
+    /// Accounts (hex) with no relationship to this device: nothing in the design says where to anchor their head
+    /// (report, question Q5). Such a frame stays held until it expires.
+    pub unanchored: Vec<String>,
+}
+
+/// Where an outbox frame goes.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OutTarget {
+    Relationship(String),
+    Device { account: String, device: String },
+}
+
+/// One frame the Core owns until the host deposits it (G10 condition 1: the Commit and every destination's frames are
+/// durable here, in order, before the Commit is accepted).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutItem {
+    pub id: u64,
+    /// The journal intent that produced it, if any.
+    pub intent_id: Option<String>,
+    pub to: OutTarget,
+    pub wire: super::flow::GroupWire,
+}
+
+impl OutItem {
+    pub fn to_outbound(&self) -> Option<super::flow::Outbound> {
+        use super::flow::{Outbound, Target};
+        let to = match &self.to {
+            OutTarget::Relationship(r) => Target::Relationship(r.clone()),
+            OutTarget::Device { account, device } => Target::Device {
+                account: crate::crypto::unhex(account).ok()?,
+                device: crate::crypto::unhex(device).ok()?,
+            },
+        };
+        Some(Outbound {
+            to,
+            wire: self.wire.clone(),
+        })
+    }
+}
+
 /// Persisted in `AppState.group_carriage` (additive, serde default).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -645,6 +740,19 @@ pub struct GroupCarriageRec {
     /// Rooms where a member or device was removed: every remaining device owes a fresh route (ADR-0189 1.3).
     #[serde(default)]
     pub replace_owed: Vec<String>,
+    /// The newest controller-signed `AccountControlHead` of this account that a control device gave this device (hex).
+    /// A messaging-only device cannot sign one, so it keeps the one it was handed with the enrollment notice and
+    /// presents it in an Accept (ADR-0189 1.4(b); report D36). Verified against the own chain before use.
+    #[serde(default)]
+    pub head_cache: Option<String>,
+    /// Frames held until an account head arrives (D37).
+    #[serde(default)]
+    pub pending: Vec<PendingFrame>,
+    /// Frames this Core owns until the host reports them deposited, oldest first.
+    #[serde(default)]
+    pub outbox: Vec<OutItem>,
+    #[serde(default)]
+    pub next_out: u64,
 }
 
 impl GroupCarriageRec {

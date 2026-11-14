@@ -480,7 +480,26 @@ impl Party {
     fn dob(&mut self, intent: GroupIntent) -> Result<GroupReply, GroupError> {
         let (out, step): (_, Step) = self.rt.core.group_do(&self.ctx, intent).unwrap();
         assert!(self.rt.settle(&step));
-        out
+        let mut rep = out?;
+        for r in self.settle_commits() {
+            rep.events.extend(r.events);
+            rep.out.extend(r.out);
+        }
+        Ok(rep)
+    }
+    /// What the host driver does after every durable step: let Core accept its own Commits (G10, ADR-0189 section 2).
+    /// There is no report of acceptance and no relay acknowledgement in this loop.
+    fn settle_commits(&mut self) -> Vec<GroupReply> {
+        let mut all = vec![];
+        loop {
+            let (r, step) = self.rt.core.group_settle(&self.ctx).unwrap();
+            assert!(self.rt.settle(&step));
+            let r = r.unwrap();
+            if r.is_empty() {
+                return all;
+            }
+            all.extend(r);
+        }
     }
     fn state(&self) -> serde_json::Value {
         self.rt.core.debug_app_state(&self.ctx).unwrap()
@@ -517,7 +536,9 @@ impl Party {
     fn pump_lane(&mut self) -> Vec<GroupReply> {
         let (out, step) = self.rt.core.group_lane_pump(&self.ctx).unwrap();
         assert!(self.rt.settle(&step));
-        out.into_iter().map(|(_, r)| r.unwrap()).collect()
+        let mut all: Vec<GroupReply> = out.into_iter().map(|(_, r)| r.unwrap()).collect();
+        all.extend(self.settle_commits());
+        all
     }
     fn seal(&mut self, o: &Outbound) -> Result<Vec<Sealed>, GroupError> {
         self.rt.supply_routes(4);
@@ -590,22 +611,19 @@ fn accepted() -> ([Party; 2], String, String) {
     (p, id, intent)
 }
 
-/// The Add is published and accepted (G10 is package 2b: the host reports it here); Alice's Welcome comes out.
+/// Alice's Core accepted its own Add by itself (G10): its Welcome is in the Core outbox, after the Commit.
 fn welcomed() -> ([Party; 2], String, Vec<Sealed>) {
-    let (mut p, id, intent) = accepted();
-    p[0].dob(GroupIntent::CommitPublished {
-        intent_id: intent.clone(),
-    })
-    .unwrap();
-    let rep = p[0]
-        .dob(GroupIntent::CommitAccepted { intent_id: intent })
-        .unwrap();
-    let w = rep
-        .out
-        .iter()
+    let (mut p, id, _intent) = accepted();
+    let w = p[0]
+        .rt
+        .core
+        .group_outbox(&p[0].ctx)
+        .unwrap()
+        .into_iter()
         .find(|o| matches!(o.wire, GroupWire::Welcome { .. }))
         .expect("a Welcome")
-        .clone();
+        .to_outbound()
+        .unwrap();
     assert!(matches!(w.to, Target::Relationship(_)));
     let sealed = p[0].seal(&w).unwrap();
     (p, id, sealed)

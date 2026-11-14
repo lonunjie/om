@@ -112,6 +112,7 @@ fn world() -> GroupState {
         admin_role_id: id16(ADMIN),
         member_role_id: id16(MEMBER),
         name: "Book club".into(),
+        protection: 1,
     })
     .unwrap()
 }
@@ -189,7 +190,12 @@ fn admit_chains_the_hash_and_the_new_member_gets_member_capabilities() {
     assert_eq!(s2.previous_state_hash.as_deref(), Some(g.hash().as_slice()));
     assert_eq!(s2.mls_epoch_ref, 1);
     assert!(s2.capabilities_of(&acct(2)).contains("room.post"));
-    assert!(!s2.capabilities_of(&acct(2)).contains("room.invite"));
+    // Recommended (ADR-0189 section 3): anyone in the group can add people (invite), only admins admit
+    assert!(s2.capabilities_of(&acct(2)).contains("room.invite"));
+    assert!(
+        !s2.capabilities_of(&acct(2))
+            .contains("room.manage_admission")
+    );
     // a Member cannot admit: room.manage_admission is not in the Member role
     assert_eq!(
         admit(&s2, &acct(2), 3, 0x33, &[MEMBER]).unwrap_err().0,
@@ -375,7 +381,13 @@ fn role_edits_are_grants_inside_the_actors_ceiling() {
 #[test]
 fn unsupported_operations_and_evidence_kinds_are_refused_not_approximated() {
     let g = world();
-    let i = intent(&g, op::ADMISSION_SET, 1, m(vec![(0, Value::Uint(3))])).unwrap();
+    let i = intent(
+        &g,
+        op::GOVERNANCE_SET,
+        1,
+        m(vec![(1, Value::Array(vec![bytes(id16(0xd1))]))]),
+    )
+    .unwrap();
     assert_eq!(
         apply(&g, &i, &acct(CREATOR), 1).unwrap_err().0,
         "unsupported_operation"

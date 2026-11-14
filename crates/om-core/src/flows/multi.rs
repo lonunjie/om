@@ -73,7 +73,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     /// Ask the peer for its head. Rate limited per relationship; a no-op when no route to the peer exists yet.
-    pub(super) fn ask_head(&mut self, conv: &str) {
+    pub(crate) fn ask_head(&mut self, conv: &str) {
         let now = self.now_ms;
         let Some(rel) = self.st.app.relationships.get(conv) else {
             return;

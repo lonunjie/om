@@ -762,6 +762,12 @@ pub struct AppState {
     /// Group carriage (ADR-0189): this device's per-Room routes, other devices' verified routes and the lane inbox.
     #[serde(default)]
     pub group_carriage: crate::groups::carriage::GroupCarriageRec,
+    /// ConversationID (hex) -> announced changes of the Room's settings, oldest first (bounded). Additive.
+    #[serde(default)]
+    pub group_notices: BTreeMap<Hex, Vec<crate::groups::room::Notice>>,
+    /// ConversationID (hex) -> Room settings still to be carried out, one Commit at a time. Additive.
+    #[serde(default)]
+    pub group_room_queue: BTreeMap<Hex, Vec<crate::groups::room::Setting>>,
     /// Groups this person has asked to leave and whose removing Commit has not arrived: sending is refused. Additive.
     #[serde(default)]
     pub group_leaving: BTreeSet<Hex>,

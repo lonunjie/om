@@ -197,10 +197,164 @@ impl<R: RngCore + CryptoRng> Core<R> {
         ctx: &ProfileExecutionContext,
         intent: GroupIntent,
     ) -> Result<(Result<GroupReply, GroupError>, Step), CoreError> {
+        if matches!(intent, GroupIntent::CommitAccepted { .. }) {
+            // G10 (ADR-0189 section 2): acceptance of an own Commit is Core's judgment, never a host report.
+            return Ok((Err(GroupError("acceptance_is_core_owned")), Step::default()));
+        }
         self.group_step(ctx, |app, gctx| {
-            app.group_do(gctx, intent)
-                .inspect(|r| note_removals(app, r))
+            let r = app.group_do(gctx, intent)?;
+            note_removals(app, &r);
+            app.carry_outbox_add(&r)?;
+            Ok(r)
         })
+    }
+
+    /// G10: after the host made a step's `Step.commit` durable, accept every own Commit whose three conditions hold
+    /// (ADR-0189 section 2) and release its Welcome. The host calls this after each group step and at start-up (it also
+    /// finishes a Commit whose step committed just before a crash). Returns one reply per Commit finished.
+    pub fn group_settle(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<(Result<Vec<GroupReply>, GroupError>, Step), CoreError> {
+        let open = self.slot(ctx)?.state.app.group_journal.values().any(|e| {
+            e.queued.is_some()
+                && matches!(
+                    e.state,
+                    crate::groups::journal::JournalState::CandidatePrepared
+                        | crate::groups::journal::JournalState::PublishedUnconfirmed
+                )
+        });
+        if !open {
+            return Ok((Ok(vec![]), Step::default()));
+        }
+        self.group_step(ctx, |app, gctx| {
+            let reps = app.group_settle(gctx)?;
+            for r in &reps {
+                note_removals(app, r);
+            }
+            Ok(reps)
+        })
+    }
+
+    /// The frames this Core owns until the host deposits them, oldest first (a Commit before any frame of its new
+    /// epoch). Seal each with [`Core::group_frame_send`] and report it with [`Core::group_outbox_done`].
+    pub fn group_outbox(
+        &self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<Vec<crate::groups::carriage::OutItem>, CoreError> {
+        Ok(self.slot(ctx)?.state.app.group_carriage.outbox.clone())
+    }
+
+    /// The host deposited these outbox frames (transport progress only; never acceptance).
+    pub fn group_outbox_done(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        ids: &[u64],
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let ((), commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.st.app.carry_outbox_done(ids);
+            Ok(())
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
+    }
+
+    /// Retry the frames held for a missing account head (report D37), after dropping the expired ones. The host calls
+    /// this after each poll that may have brought a head. A frame that now verifies is applied.
+    pub fn group_pending_retry(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<(Result<Vec<GroupReply>, GroupError>, Step), CoreError> {
+        if self.slot(ctx)?.state.app.group_carriage.pending.is_empty() {
+            return Ok((Ok(vec![]), Step::default()));
+        }
+        self.group_step(ctx, |app, gctx| {
+            let now_s = gctx.now_ms / 1000;
+            let reps = app.carry_pending_retry(gctx, now_s);
+            for r in &reps {
+                note_removals(app, r);
+            }
+            Ok(reps)
+        })
+    }
+
+    /// Ask, through the existing K7 head request, each relationship whose head a held frame is waiting for (rate
+    /// limited per relationship). Frames that wait for an account with no relationship cannot be helped (question Q5).
+    pub fn group_pending_refresh(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let ((), commit) = self.txn(&ctx.profile_id, |tx| {
+            for rel in tx.st.app.carry_pending_wants() {
+                tx.ask_head(&rel);
+            }
+            Ok(())
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
+    }
+
+    /// After a removal: mint this device's fresh route for the Room and return the sealed `route_update` frames for
+    /// the rest of the roster (ADR-0189 1.3). The host deposits them and later revokes what
+    /// [`Core::group_routes_expire`] returns.
+    pub fn group_route_update(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        conversation_id: &[u8],
+    ) -> Result<(Result<Vec<Sealed>, GroupError>, Step), CoreError> {
+        self.slot(ctx)?;
+        let mut refused: Option<GroupError> = None;
+        let room = crate::crypto::hex(conversation_id);
+        let res = self.txn(&ctx.profile_id, |tx| {
+            let now_s = tx.now_ms / 1000;
+            let st = &mut *tx.st;
+            let dev = st
+                .device
+                .as_ref()
+                .ok_or(CoreError::Invalid("no identity"))?;
+            let mut env = CarryEnv {
+                signer: &dev.signer,
+                device_id: dev.device_id,
+                account_id: dev.account_id,
+                rng: &mut *tx.rng,
+                offers: &mut *tx.offers,
+                now_s,
+            };
+            let r = (|| {
+                let outs = st.app.carry_route_update_out(&mut env, &room)?;
+                let mut sealed = vec![];
+                for o in &outs {
+                    sealed.extend(st.app.carry_frame_out(&mut env, o)?);
+                }
+                Ok(sealed)
+            })();
+            match r {
+                Ok(v) => Ok(v),
+                Err(e) => {
+                    refused = Some(e);
+                    Err(CoreError::Invalid("group_refused"))
+                }
+            }
+        });
+        match res {
+            Ok((v, commit)) => Ok((
+                Ok(v),
+                Step {
+                    commit,
+                    handle: None,
+                },
+            )),
+            Err(e) => match refused {
+                Some(r) => Ok((Err(r), Step::default())),
+                None => Err(e),
+            },
+        }
     }
 
     /// See [`Core::group_do`]; `from` is what the transport authenticated (a relationship or a member device).
@@ -211,8 +365,10 @@ impl<R: RngCore + CryptoRng> Core<R> {
         wire: GroupWire,
     ) -> Result<(Result<GroupReply, GroupError>, Step), CoreError> {
         self.group_step(ctx, |app, gctx| {
-            app.group_receive(gctx, from, wire)
-                .inspect(|r| note_removals(app, r))
+            let r = app.group_receive(gctx, from, wire)?;
+            note_removals(app, &r);
+            app.carry_outbox_add(&r)?;
+            Ok(r)
         })
     }
 
@@ -340,11 +496,13 @@ impl<R: RngCore + CryptoRng> Core<R> {
         let (out, step) = self.group_step(ctx, |app, gctx| {
             let mut all = vec![];
             for item in app.carry_lane_take() {
-                let r = app.group_receive(
-                    gctx,
-                    Sender::Relationship(item.relationship_id.clone()),
-                    item.wire,
-                );
+                let r = app
+                    .group_receive(
+                        gctx,
+                        Sender::Relationship(item.relationship_id.clone()),
+                        item.wire,
+                    )
+                    .and_then(|r| app.carry_outbox_add(&r).map(|()| r));
                 all.push((item.relationship_id, r));
             }
             Ok(all)
@@ -408,8 +566,10 @@ impl<R: RngCore + CryptoRng> Core<R> {
     ) -> Result<(Result<GroupReply, GroupError>, Step), CoreError> {
         self.group_step(ctx, |app, gctx| {
             let now_s = gctx.now_ms / 1000;
-            app.carry_frame_in(gctx, now_s, wrapper)
-                .inspect(|r| note_removals(app, r))
+            let r = app.carry_frame_in(gctx, now_s, wrapper)?;
+            note_removals(app, &r);
+            app.carry_outbox_add(&r)?;
+            Ok(r)
         })
     }
 

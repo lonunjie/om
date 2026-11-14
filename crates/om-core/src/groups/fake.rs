@@ -317,6 +317,14 @@ impl GroupCrypto for FakeGroupCrypto {
         self.prepare(env, group_id, Vec::new(), &[], removes)
     }
 
+    fn update_commit(
+        &mut self,
+        env: &mut CryptoEnv<'_>,
+        group_id: &[u8],
+    ) -> MlsResult<PreparedCommit> {
+        self.prepare(env, group_id, Vec::new(), &[], Vec::new())
+    }
+
     fn pending(&self, group_id: &[u8]) -> MlsResult<Option<PreparedCommit>> {
         Ok(self.g(group_id)?.pending.as_ref().map(to_prepared))
     }

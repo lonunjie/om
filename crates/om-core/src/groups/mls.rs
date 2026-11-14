@@ -130,6 +130,15 @@ pub trait GroupCrypto {
         devices: &[Vec<u8>],
     ) -> MlsResult<PreparedCommit>;
 
+    /// Create a pending Commit that changes no membership: a self-update of this client's own leaf. It carries the
+    /// transitions that change Room policy or roles without adding or removing anyone (ADR-0189 section 3). Refused
+    /// while another Commit is pending.
+    fn update_commit(
+        &mut self,
+        env: &mut CryptoEnv<'_>,
+        group_id: &[u8],
+    ) -> MlsResult<PreparedCommit>;
+
     /// The pending Commit, byte for byte, if one exists (also after a snapshot restore).
     fn pending(&self, group_id: &[u8]) -> MlsResult<Option<PreparedCommit>>;
 

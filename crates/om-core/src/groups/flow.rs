@@ -25,7 +25,8 @@
 use super::binding::KIND_COORDINATOR_SEQUENCED;
 use super::journal::{CommitPlan, ReceiveOutcome};
 use super::mls::{CryptoEnv, GroupCrypto, MlsError};
-use super::{GenesisParams, GroupError, GroupState, Intent, Principal, R, err, genesis, op};
+use super::room::{self, Change, Notice, Setting};
+use super::{GenesisParams, GroupError, GroupState, Intent, Principal, R, apply, err, genesis, op};
 use crate::crypto::rng::{RngCore, fill};
 use crate::crypto::sig::DeviceSigner;
 use crate::crypto::{hex, unhex};
@@ -36,6 +37,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 /// Live invitations a person may hold at once (Incoming, not yet answered): a bound, not a design number.
 const MAX_OPEN_INCOMING: usize = 16;
+/// Announced Room-setting changes kept per Room.
+const MAX_NOTICES: usize = 64;
 
 fn mls<T>(r: Result<T, MlsError>) -> R<T> {
     r.map_err(|e| GroupError(e.0))
@@ -123,6 +126,22 @@ pub enum GroupIntent {
         name: String,
         relationship_ids: Vec<String>,
     },
+    /// Create a Room from a protection profile (1 Recommended, 2 Hardened, 3 Maximum Privacy). `Create` is
+    /// Recommended: one-tap join, anyone can add people, no history for new members, disappearing messages off.
+    CreateWithProtection {
+        name: String,
+        relationship_ids: Vec<String>,
+        protection: u64,
+    },
+    /// Change one Room setting, or move the whole Room to a protection profile (one Commit per field that differs, one
+    /// after another). Tightening needs only `room.manage_security_policy` (or the admission or role capability the
+    /// field needs); anything that makes the Room less strict is refused with `loosening_needs_confirmation` unless
+    /// `confirmed` is true, and every member is told what changed and who changed it (ADR-0189 section 3).
+    RoomSetting {
+        conversation_id: Vec<u8>,
+        setting: Setting,
+        confirmed: bool,
+    },
     Invite {
         conversation_id: Vec<u8>,
         relationship_id: String,
@@ -159,9 +178,17 @@ pub enum GroupIntent {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GroupQuery {
     Groups,
-    Group { conversation_id: Vec<u8> },
+    /// The announced changes of a Room's settings, oldest first.
+    Notices {
+        conversation_id: Vec<u8>,
+    },
+    Group {
+        conversation_id: Vec<u8>,
+    },
     Invites,
-    Messages { conversation_id: Vec<u8> },
+    Messages {
+        conversation_id: Vec<u8>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -189,11 +216,26 @@ pub struct GroupDetail {
     pub summary: GroupSummary,
     pub people: Vec<MemberView>,
     pub can_send: bool,
+    pub protection: ProtectionView,
+}
+
+/// The Room's current protection fields in codes (the client words them; `custom` shows "Custom").
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProtectionView {
+    pub profile: u64,
+    pub custom: bool,
+    pub join_rule: u64,
+    pub new_device_policy: u64,
+    pub history_policy: u64,
+    pub members_may_invite: bool,
+    pub disappearing_timer: Option<u64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GroupView {
     Groups(Vec<GroupSummary>),
+    Notices(Vec<Notice>),
     Group(Box<GroupDetail>),
     Invites(Vec<GroupInviteRec>),
     Messages(Vec<GroupMsg>),
@@ -251,6 +293,25 @@ pub enum GroupEvent {
     },
     /// Something arrived that nothing of ours precedes or authorizes; nothing changed.
     Dropped(&'static str),
+    /// A frame names a device of an account whose head this device lacks or holds stale: it is kept (bounded,
+    /// expiring) and retried when a head arrives. Nothing was accepted (report D37).
+    Held(&'static str),
+    /// A Room setting changed (also on this device): who, and what, with each loosening marked. Never silent.
+    PolicyChanged {
+        conversation_id: Vec<u8>,
+        by_account: Vec<u8>,
+        changes: Vec<Change>,
+    },
+    /// A queued Room setting could not be carried out (for example the person lost the capability meanwhile).
+    RoomSettingBlocked {
+        conversation_id: Vec<u8>,
+        reason: &'static str,
+    },
+    /// This device's own Commit lost a same-parent race, or its parent moved (GROUP_COMMIT section 3.2 rule 3): the
+    /// branch is `SUPERSEDED`, nothing of it was merged, and a still-applicable intent is revalidated by the caller.
+    CommitSuperseded {
+        intent_id: String,
+    },
 }
 
 // ---- wire (Core-internal, not frozen) ----------------------------------------------------------------------------
@@ -291,11 +352,24 @@ pub enum GroupWire {
         intent: String,
         /// `(device, account, pk)` of devices this Commit adds.
         added: Vec<(String, String, String)>,
+        /// The acting device's `signed-GroupControlIntent` (type 29) the frame carries (ADR-0189 1.4(a)); absent in
+        /// the flow-level tests that drive the flow without carriage.
+        #[serde(default)]
+        signed_intent: Option<String>,
     },
     /// To a member device that can commit a reduction for the sender: a self-leave (never self-committed).
     LeaveRequest {
         conversation_id: String,
         intent: String,
+        /// The leaver's `signed-GroupControlIntent`.
+        #[serde(default)]
+        signed: Option<String>,
+    },
+    /// To a roster device: this device's fresh per-Room route after a removal (ADR-0189 1.3). Handled by the
+    /// carriage layer, never by the flow.
+    RouteUpdate {
+        conversation_id: String,
+        routes: Vec<String>,
     },
     /// One MLS application ciphertext; delivery wraps it once per recipient device.
     App {
@@ -480,6 +554,7 @@ impl AppState {
             commit: c.commit.clone(),
             intent: e.intent_body.clone(),
             added,
+            signed_intent: e.signed_intent.clone(),
         };
         Ok(self
             .group_dir(conv)
@@ -504,8 +579,29 @@ impl AppState {
         body: &[u8],
         plan: &CommitPlan,
         actor: &[u8],
+        signed: Option<Vec<u8>>,
     ) -> R<String> {
         let e = self.group_journal_begin(body, actor)?;
+        // The intent travels as the signed envelope of the acting device (ADR-0189 1.4(a)): this device signs its own
+        // (admit, remove); a leave is forwarded as the leaver signed it.
+        let signed = match signed {
+            Some(s) => s,
+            None => {
+                let rnd = crate::crypto::rng::arr32(&mut *ctx.rng);
+                super::carriage::sign_intent(
+                    ctx.signer,
+                    ctx.engine
+                        .device_id()
+                        .try_into()
+                        .map_err(|_| GroupError("record_corrupt"))?,
+                    body,
+                    rnd,
+                )
+            }
+        };
+        if let Some(j) = self.group_journal.get_mut(&e.intent_id) {
+            j.signed_intent = Some(h(&signed));
+        }
         let ok = self.group_journal_prepare(
             &e.intent_id,
             plan,
@@ -532,7 +628,17 @@ impl AppState {
             GroupIntent::Create {
                 name,
                 relationship_ids,
-            } => self.group_create(ctx, &name, &relationship_ids, &mut rep)?,
+            } => self.group_create(ctx, &name, &relationship_ids, room::RECOMMENDED, &mut rep)?,
+            GroupIntent::CreateWithProtection {
+                name,
+                relationship_ids,
+                protection,
+            } => self.group_create(ctx, &name, &relationship_ids, protection, &mut rep)?,
+            GroupIntent::RoomSetting {
+                conversation_id,
+                setting,
+                confirmed,
+            } => self.group_room_setting(ctx, &conversation_id, setting, confirmed, &mut rep)?,
             GroupIntent::Invite {
                 conversation_id,
                 relationship_id,
@@ -568,8 +674,10 @@ impl AppState {
         ctx: &mut GroupCtx<'_>,
         name: &str,
         rels: &[String],
+        protection: u64,
         rep: &mut GroupReply,
     ) -> R<()> {
+        room::bundle(protection)?; // reserved values are refused before anything is created
         // Every chosen person must be eligible before anything is created.
         let mut accounts = BTreeSet::new();
         for r in rels {
@@ -591,6 +699,7 @@ impl AppState {
             admin_role_id: rand16(ctx.rng),
             member_role_id: rand16(ctx.rng),
             name: name.to_string(),
+            protection,
         })?;
         mls(ctx.engine.create_group(env!(ctx), &gid, &conv))?;
         self.group_install_genesis(&g)?;
@@ -774,8 +883,13 @@ impl AppState {
             .iter()
             .map(|r| un(&r.key_package))
             .collect::<R<Vec<_>>>()?;
-        let id =
-            self.group_prepare_intent(ctx, &body, &CommitPlan::Add(kps), &ctx.my_account.clone())?;
+        let id = self.group_prepare_intent(
+            ctx,
+            &body,
+            &CommitPlan::Add(kps),
+            &ctx.my_account.clone(),
+            None,
+        )?;
         let added = inv
             .releases
             .iter()
@@ -827,6 +941,17 @@ impl AppState {
             wire: GroupWire::LeaveRequest {
                 conversation_id: h(conv),
                 intent: h(&body),
+                signed: {
+                    let rnd = crate::crypto::rng::arr32(&mut *ctx.rng);
+                    let dev: [u8; 16] = ctx
+                        .engine
+                        .device_id()
+                        .try_into()
+                        .map_err(|_| GroupError("record_corrupt"))?;
+                    Some(h(&super::carriage::sign_intent(
+                        ctx.signer, &dev, &body, rnd,
+                    )))
+                },
             },
         });
         Ok(())
@@ -855,7 +980,7 @@ impl AppState {
         );
         {
             let (me, dev) = (ctx.my_account.clone(), ctx.engine.device_id().to_vec());
-            self.group_reduce(ctx, conv, &body, account, &me, &dev, rep)
+            self.group_reduce(ctx, conv, &body, account, &me, &dev, None, rep)
         }
     }
 
@@ -870,13 +995,14 @@ impl AppState {
         account: &[u8],
         actor: &[u8],
         actor_device: &[u8],
+        signed: Option<Vec<u8>>,
         rep: &mut GroupReply,
     ) -> R<()> {
         let devs = self.group_devices_of(conv, account);
         if devs.is_empty() {
             return err("unknown_member_devices");
         }
-        let id = self.group_prepare_intent(ctx, body, &CommitPlan::Remove(devs), actor)?;
+        let id = self.group_prepare_intent(ctx, body, &CommitPlan::Remove(devs), actor, signed)?;
         let my_dev = ctx.engine.device_id().to_vec();
         rep.out
             .extend(self.group_commit_wires(conv, &my_dev, &id, actor_device, vec![])?);
@@ -899,7 +1025,8 @@ impl AppState {
         let conv = un(&e.conversation_id)?;
         let before = self.group_state(&conv)?;
         let after = self.group_journal_accept(intent_id, &mut *ctx.engine)?;
-        self.group_after_change(&conv, &before, &after, rep);
+        let actor = un(&e.actor_account)?;
+        self.group_after_change(&conv, &before, &after, &actor, ctx.now_ms, rep);
         // An accepted Add releases the Welcome over the 1:1 (the head state and the directory travel with it).
         let inv = self
             .group_invites
@@ -931,6 +1058,202 @@ impl AppState {
                 },
             });
         }
+        // a queued Room setting goes on with its next Commit now that the journal is free
+        if let Err(x) = self.group_room_advance(ctx, &conv, rep) {
+            rep.events.push(GroupEvent::RoomSettingBlocked {
+                conversation_id: conv.clone(),
+                reason: x.0,
+            });
+        }
+        self.group_admit_waiting(ctx, &conv, rep);
+        Ok(())
+    }
+
+    /// An accepted invitation whose Add could not be prepared because another Commit was open (`journal_busy`) is
+    /// admitted now that the journal is free: one Commit at a time, each accepted at once (ADR-0189 section 2).
+    fn group_admit_waiting(&mut self, ctx: &mut GroupCtx<'_>, conv: &[u8], rep: &mut GroupReply) {
+        let key = h(conv);
+        if self
+            .group_journal
+            .values()
+            .any(|e| e.conversation_id == key && !e.state.is_terminal())
+        {
+            return;
+        }
+        let waiting = self
+            .group_invites
+            .values()
+            .find(|i| {
+                i.dir == InviteDir::Outgoing
+                    && i.state == InviteState::Accepted
+                    && i.conversation_id == key
+                    && i.intent_id.is_none()
+            })
+            .map(|i| i.id.clone());
+        if let Some(id) = waiting
+            && let Err(x) = self.group_admit(ctx, &id, rep)
+        {
+            rep.events.push(GroupEvent::AdmitBlocked {
+                invite_id: id,
+                reason: x.0,
+            });
+        }
+    }
+
+    /// The next step of a Room setting, from the state `g`: the single operation and its arguments, or `None` when `g`
+    /// already satisfies the setting.
+    fn room_next_op(g: &GroupState, s: &Setting) -> R<Option<(u64, Value)>> {
+        let policy_args = |a: Vec<(u64, Value)>| (op::SECURITY_POLICY_SET, m(a));
+        let role = |want: bool| -> R<(u64, Value)> {
+            let mut r = room::member_role(g)
+                .cloned()
+                .ok_or(GroupError("no_member_role"))?;
+            r.grants.retain(|c| c != "room.invite");
+            if want {
+                r.grants.push("room.invite".into());
+            }
+            Ok((op::ROLE_DEFINE, m(vec![(0, r.value())])))
+        };
+        let p = &g.policy;
+        Ok(match s {
+            Setting::Protection(x) => {
+                let b = room::bundle(*x)?;
+                if p.join_rule != b.join_rule {
+                    Some((op::ADMISSION_SET, m(vec![(0, Value::Uint(b.join_rule))])))
+                } else {
+                    let mut a = vec![];
+                    if p.new_device_policy != b.new_device_policy {
+                        a.push((0, Value::Uint(b.new_device_policy)));
+                    }
+                    if p.history_policy != b.history_policy {
+                        a.push((1, Value::Uint(b.history_policy)));
+                    }
+                    if p.security_profile != b.security_profile {
+                        a.push((3, Value::Uint(b.security_profile)));
+                    }
+                    if !a.is_empty() {
+                        Some(policy_args(a))
+                    } else if room::members_may_invite(g) != b.members_may_invite {
+                        Some(role(b.members_may_invite)?)
+                    } else {
+                        None
+                    }
+                }
+            }
+            Setting::JoinRule(v) => {
+                (p.join_rule != *v).then(|| (op::ADMISSION_SET, m(vec![(0, Value::Uint(*v))])))
+            }
+            Setting::NewDevicePolicy(v) => {
+                (p.new_device_policy != *v).then(|| policy_args(vec![(0, Value::Uint(*v))]))
+            }
+            Setting::HistoryPolicy(v) => {
+                if *v == 2 {
+                    return err("history_window_required");
+                }
+                (p.history_policy != *v).then(|| policy_args(vec![(1, Value::Uint(*v))]))
+            }
+            Setting::MembersMayInvite(x) => (room::members_may_invite(g) != *x)
+                .then(|| role(*x))
+                .transpose()?,
+            Setting::DisappearingTimer(t) => (p.disappearing_timer != *t).then(|| {
+                (
+                    op::DISAPPEARING_TIMER_SET,
+                    m(vec![(0, Value::Uint(t.unwrap_or(0)))]),
+                )
+            }),
+        })
+    }
+
+    /// Change a Room setting (see [`GroupIntent::RoomSetting`]). The whole sequence is simulated against the state
+    /// first: anything that would loosen the Room is refused without confirmation, and nothing is started unless every
+    /// step would be authorized.
+    fn group_room_setting(
+        &mut self,
+        ctx: &mut GroupCtx<'_>,
+        conv: &[u8],
+        setting: Setting,
+        confirmed: bool,
+        rep: &mut GroupReply,
+    ) -> R<()> {
+        let g = self.group_state(conv)?;
+        let me = Principal::account(ctx.my_account.clone());
+        if g.member(&me).is_none() {
+            return err("not_a_member");
+        }
+        let mut cur = g.clone();
+        for _ in 0..6 {
+            let Some((operation, args)) = Self::room_next_op(&cur, &setting)? else {
+                break;
+            };
+            let body = intent_body(&cur, &[0u8; 16], operation, 1, args);
+            cur = apply(&cur, &Intent::decode(&body)?, &me, cur.mls_epoch_ref + 1)?;
+        }
+        if Self::room_next_op(&cur, &setting)?.is_some() {
+            return err("setting_not_reachable");
+        }
+        let loosens = room::diff(&g, &cur).iter().any(|c| c.loosened);
+        if loosens && !confirmed {
+            return Err(room::needs_confirmation());
+        }
+        // D39: Core collects no governance quorum yet, so a loosening under a quorum is refused, never made alone.
+        if loosens && g.governance.approval_threshold > 1 {
+            return err("quorum_not_supported");
+        }
+        self.group_room_queue
+            .entry(h(conv))
+            .or_default()
+            .push(setting);
+        self.group_room_advance(ctx, conv, rep)
+    }
+
+    /// Prepare the next Commit of the queued Room settings of `conv`, if the journal is free. A setting the Room
+    /// already satisfies leaves the queue.
+    fn group_room_advance(
+        &mut self,
+        ctx: &mut GroupCtx<'_>,
+        conv: &[u8],
+        rep: &mut GroupReply,
+    ) -> R<()> {
+        let key = h(conv);
+        let Some(queue) = self.group_room_queue.get(&key).cloned() else {
+            return Ok(());
+        };
+        if self
+            .group_journal
+            .values()
+            .any(|e| e.conversation_id == key && !e.state.is_terminal())
+        {
+            return Ok(());
+        }
+        let g = self.group_state(conv)?;
+        let mut keep = vec![];
+        let mut next = None;
+        for s in queue {
+            match Self::room_next_op(&g, &s)? {
+                Some(o) if next.is_none() => {
+                    next = Some(o);
+                    keep.push(s);
+                }
+                Some(_) => keep.push(s),
+                None => {}
+            }
+        }
+        if keep.is_empty() {
+            self.group_room_queue.remove(&key);
+        } else {
+            self.group_room_queue.insert(key, keep);
+        }
+        let Some((operation, args)) = next else {
+            return Ok(());
+        };
+        let body = intent_body(&g, &rand16(ctx.rng), operation, 1, args);
+        let me = ctx.my_account.clone();
+        let id = self.group_prepare_intent(ctx, &body, &CommitPlan::Update, &me, None)?;
+        let my_dev = ctx.engine.device_id().to_vec();
+        rep.out
+            .extend(self.group_commit_wires(conv, &my_dev, &id, &my_dev, vec![])?);
+        rep.events
+            .push(GroupEvent::CommitPrepared { intent_id: id });
         Ok(())
     }
 
@@ -940,8 +1263,27 @@ impl AppState {
         conv: &[u8],
         before: &GroupState,
         after: &GroupState,
+        by: &[u8],
+        now_ms: u64,
         rep: &mut GroupReply,
     ) {
+        // Every change of a Room setting is announced to every member and kept as a Room notice: never silent.
+        let changes = room::diff(before, after);
+        if !changes.is_empty() {
+            let log = self.group_notices.entry(h(conv)).or_default();
+            log.push(Notice {
+                at_ms: now_ms,
+                by_account: h(by),
+                changes: changes.clone(),
+            });
+            let over = log.len().saturating_sub(MAX_NOTICES);
+            log.drain(..over);
+            rep.events.push(GroupEvent::PolicyChanged {
+                conversation_id: conv.to_vec(),
+                by_account: by.to_vec(),
+                changes,
+            });
+        }
         let acc = |g: &GroupState| -> BTreeSet<Vec<u8>> {
             g.membership
                 .iter()
@@ -1135,6 +1477,7 @@ impl AppState {
                     commit,
                     intent,
                     added,
+                    ..
                 },
                 Sender::Device(_),
             ) => self.group_commit_in(
@@ -1152,6 +1495,7 @@ impl AppState {
                 GroupWire::LeaveRequest {
                     conversation_id,
                     intent,
+                    signed,
                 },
                 Sender::Device(dev),
             ) => {
@@ -1173,7 +1517,10 @@ impl AppState {
                     rep.events.push(GroupEvent::Dropped("not_own_leave"));
                     return Ok(rep);
                 }
-                self.group_reduce(ctx, &conv, &body, &account, &account, &dev, &mut rep)?;
+                let signed = signed.as_deref().map(un).transpose()?;
+                self.group_reduce(
+                    ctx, &conv, &body, &account, &account, &dev, signed, &mut rep,
+                )?;
             }
             (
                 GroupWire::App {
@@ -1274,7 +1621,14 @@ impl AppState {
             env!(ctx),
         )?;
         match out {
-            ReceiveOutcome::Applied { still_member, .. } => {
+            ReceiveOutcome::Applied {
+                still_member,
+                superseded,
+                ..
+            } => {
+                if let Some(intent_id) = superseded {
+                    rep.events.push(GroupEvent::CommitSuperseded { intent_id });
+                }
                 if !still_member {
                     self.groups.remove(&h(conv));
                     self.group_devices.remove(&h(conv));
@@ -1294,7 +1648,7 @@ impl AppState {
                         self.group_register(conv, &un(d)?, &a, &un(k)?);
                     }
                 }
-                self.group_after_change(conv, &before, &after, rep);
+                self.group_after_change(conv, &before, &after, &account, ctx.now_ms, rep);
             }
             ReceiveOutcome::Duplicate | ReceiveOutcome::OwnCandidate(_) | ReceiveOutcome::Loses => {
             }
@@ -1386,6 +1740,12 @@ impl AppState {
                 }
                 Ok(GroupView::Groups(v))
             }
+            GroupQuery::Notices { conversation_id } => Ok(GroupView::Notices(
+                self.group_notices
+                    .get(&h(&conversation_id))
+                    .cloned()
+                    .unwrap_or_default(),
+            )),
             GroupQuery::Group { conversation_id } => {
                 let g = self.group_state(&conversation_id)?;
                 let mut people: Vec<MemberView> = g
@@ -1416,6 +1776,15 @@ impl AppState {
                     people,
                     can_send: self.group_may_send(&conversation_id)
                         && !self.group_leaving.contains(&h(&conversation_id)),
+                    protection: ProtectionView {
+                        profile: g.policy.security_profile,
+                        custom: room::custom(&g),
+                        join_rule: g.policy.join_rule,
+                        new_device_policy: g.policy.new_device_policy,
+                        history_policy: g.policy.history_policy,
+                        members_may_invite: room::members_may_invite(&g),
+                        disappearing_timer: g.policy.disappearing_timer,
+                    },
                 })))
             }
             GroupQuery::Invites => Ok(GroupView::Invites(

@@ -805,6 +805,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
         // The non-suppressible notice: signed over the new head, for the new device and for every other device.
         let notice = self.sign_notice(&child, &cred.device_id, me)?;
+        // A controller-signed head of the new tip, for the account's messaging devices to cache (groups, D36).
+        let head_sig = {
+            let dev = self.st.device.as_ref().ok_or(StaleState)?;
+            self.st
+                .app
+                .carry_sign_head_for_peers(&dev.signer, &dev.device_id, &child, self.rng)
+        };
         let mut chain_all = chain.clone();
         chain_all.push(signed.clone());
         let tail_from = chain_all.len().saturating_sub(MAX_CHAIN_TAIL);
@@ -817,6 +824,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             ),
             (3, V::A(creds_all.iter().cloned().map(V::B).collect())),
         ]));
+        let enrolled = with_head(enrolled, 4, head_sig.as_deref());
         if enrolled.len() > MAX_MSG {
             return Err(Quota);
         }
@@ -860,6 +868,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             let mut v = cbor::decode(&approval).map_err(|_| Invalid)?;
             if let V::M(m) = &mut v {
                 m.push((9, V::U(history.len() as u64)));
+                if let Some(h) = &head_sig {
+                    m.push((10, V::B(h.clone())));
+                }
             }
             cbor::encode(&v)
         };
@@ -1261,6 +1272,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         self.enqueue(call, Purpose::PublishKeys);
         self.sync_own_head();
+        if let Some(h) = v.opt(10).and_then(|x| x.b().ok()) {
+            self.st.app.carry_head_adopt(h); // the approver's signed head of this tip (groups, D36)
+        }
         if let Some(j) = self.st.app.link_join.as_mut() {
             j.approved = true;
             j.roster_expected = count as u32;
@@ -1451,6 +1465,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.sync_own_head();
         }
         let _ = have_creds;
+        if let Some(h) = p.opt(4).and_then(|x| x.b().ok()) {
+            // a messaging device keeps the head a control device signed (ignored unless it is our tip's)
+            self.st.app.carry_head_adopt(h);
+        }
         // The notice must be over a state of our verified chain and signed by a control device of that state.
         let Ok(body) = cbor::decode(&notice).and_then(|v| Ok(v.get(1)?.b()?.to_vec())) else {
             return false;
@@ -1733,6 +1751,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         added
     }
+}
+
+/// `payload` (a canonical map) with the controller-signed head added under `key` when there is one.
+fn with_head(payload: Vec<u8>, key: u64, head: Option<&[u8]>) -> Vec<u8> {
+    let (Some(h), Ok(V::M(mut m))) = (head, cbor::decode(&payload)) else {
+        return payload;
+    };
+    m.push((key, V::B(h.to_vec())));
+    cbor::encode(&V::M(m))
 }
 
 fn chain_head(signed: &[u8]) -> Option<Acs> {

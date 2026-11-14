@@ -117,6 +117,7 @@ fn create(a1: &mut Dev) -> GroupState {
         admin_role_id: id16(ADMIN),
         member_role_id: id16(MEMBER),
         name: "Book club".into(),
+        protection: 1,
     })
     .unwrap();
     a1.app.group_install_genesis(&g).unwrap();
