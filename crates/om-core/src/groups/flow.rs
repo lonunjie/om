@@ -72,7 +72,8 @@ pub enum InviteState {
 }
 
 /// One device's release for a group: its KeyPackage and the device public key its signatures verify under.
-/// (Real engines carry the ACS-bound credential in the KeyPackage; verifying it against the ACS head is a gap.)
+/// The fields are claims, never authority: `group_admit` proves the KeyPackage's own leaf (DeviceID, signature key)
+/// against the invitee's validated head and refuses a release that disagrees.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceRelease {
@@ -870,7 +871,21 @@ impl AppState {
             .find(|r| r.display_name == "Member")
             .map(|r| r.id.clone())
             .ok_or(GroupError("no_member_role"))?;
-        let who = Principal::account(un(&inv.peer_account)?);
+        // Before any Commit is prepared, every released KeyPackage's own leaf must be proven by
+        // the invitee account's validated current head; the release's `device` and `pk` only have to agree with it.
+        let invitee = un(&inv.peer_account)?;
+        let eps = inv
+            .releases
+            .iter()
+            .map(|r| mls(ctx.engine.key_package_endpoint(&un(&r.key_package)?)))
+            .collect::<R<Vec<_>>>()?;
+        let bound = self.group_bind(&eps, Some(&invitee))?;
+        for (r, b) in inv.releases.iter().zip(&bound) {
+            if un(&r.device)? != b.device || un(&r.pk)? != b.pk {
+                return err("release_mismatch");
+            }
+        }
+        let who = Principal::account(invitee);
         let args = m(vec![
             (0, p_val(&who)),
             (1, Value::Bytes(rand16(ctx.rng))),
@@ -890,10 +905,9 @@ impl AppState {
             &ctx.my_account.clone(),
             None,
         )?;
-        let added = inv
-            .releases
+        let added = bound
             .iter()
-            .map(|r| (r.device.clone(), inv.peer_account.clone(), r.pk.clone()))
+            .map(|b| (h(&b.device), h(&b.account), h(&b.pk)))
             .collect();
         let my_dev = ctx.engine.device_id().to_vec();
         rep.out
@@ -1568,6 +1582,18 @@ impl AppState {
         {
             return err("welcome_state_mismatch");
         }
+        // Every leaf of the group this Welcome joins must be proven by a head this device
+        // validated; the directory the sender supplies is only compared against that proof.
+        let eps = mls(ctx.engine.welcome_endpoints(&un(welcome)?))?;
+        let bound = self.group_bind(&eps, None)?;
+        for (d, a, pk) in directory {
+            let ok = bound
+                .iter()
+                .any(|b| h(&b.device) == *d && h(&b.account) == *a && h(&b.pk) == *pk);
+            if !ok {
+                return err("directory_mismatch");
+            }
+        }
         let (gid, info) = mls(ctx.engine.process_welcome(env!(ctx), &un(welcome)?))?;
         if info.epoch != st.mls_epoch_ref {
             // leave nothing half-installed: the engine joined, so drop its state again via a fresh save only on success
@@ -1576,8 +1602,8 @@ impl AppState {
         self.groups
             .insert(h(&st.conversation_id), super::GroupRec::of(&st));
         self.group_bind_mls_id(&st.conversation_id, &gid)?;
-        for (d, a, pk) in directory {
-            self.group_register(&st.conversation_id, &un(d)?, &un(a)?, &un(pk)?);
+        for b in &bound {
+            self.group_register(&st.conversation_id, &b.device, &b.account, &b.pk);
         }
         self.group_crypto_save(&*ctx.engine);
         let done = self.group_invites.get_mut(invite_id).expect("found");
@@ -1610,6 +1636,38 @@ impl AppState {
             return Ok(());
         };
         let (account, pk) = (un(&act.account)?, un(&rec.pk)?);
+        // Read the Commit before applying it. Every leaf it adds must be proven by a validated
+        // head (the `added` list is compared, never trusted), and a new committer leaf must keep the committer's key.
+        let ci = mls(ctx.engine.inspect_commit(&self.group_mls_id(conv)?, commit))?;
+        if let Some(leaf) = &ci.committer_leaf
+            && (leaf.device != committer || pk.len() < 32 || leaf.signature_key != pk[..32])
+        {
+            rep.events
+                .push(GroupEvent::Dropped("committer_leaf_unbound"));
+            return Ok(());
+        }
+        let bound = if ci.added.is_empty() {
+            vec![]
+        } else {
+            match self.group_bind(&ci.added, None) {
+                Ok(b) => b,
+                Err(_) => {
+                    rep.events
+                        .push(GroupEvent::Dropped("added_endpoint_unbound"));
+                    return Ok(());
+                }
+            }
+        };
+        let claimed: BTreeSet<&String> = added.iter().map(|(d, _, _)| d).collect();
+        let proven: BTreeSet<String> = bound.iter().map(|b| h(&b.device)).collect();
+        if claimed.len() != added.len()
+            || (!added.is_empty() && claimed.iter().any(|d| !proven.contains(*d)))
+            || (!bound.is_empty() && added.len() != bound.len())
+        {
+            rep.events
+                .push(GroupEvent::Dropped("added_endpoint_unbound"));
+            return Ok(());
+        }
         let before = self.group_state(conv)?;
         let out = self.group_receive_commit(
             signed,
@@ -1639,13 +1697,16 @@ impl AppState {
                     return Ok(());
                 }
                 let after = self.group_state(conv)?;
-                for (d, a, k) in added {
+                for b in &bound {
                     // only an account the Commit's own state change added may gain devices
-                    let a = un(a)?;
-                    if before.member(&Principal::account(a.clone())).is_none()
-                        && after.member(&Principal::account(a.clone())).is_some()
+                    if before
+                        .member(&Principal::account(b.account.clone()))
+                        .is_none()
+                        && after
+                            .member(&Principal::account(b.account.clone()))
+                            .is_some()
                     {
-                        self.group_register(conv, &un(d)?, &a, &un(k)?);
+                        self.group_register(conv, &b.device, &b.account, &b.pk);
                     }
                 }
                 self.group_after_change(conv, &before, &after, &account, ctx.now_ms, rep);

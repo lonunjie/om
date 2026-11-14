@@ -10,23 +10,35 @@ use om_core::groups::mls::{CryptoEnv, GroupCrypto};
 use om_core::route::RelaySet;
 use om_core::state::{AppState, RelState, Relationship};
 
+mod group_heads;
+
 struct Dev {
     app: AppState,
     eng: engine::Eng,
     signer: DeviceSigner,
     rng: InsecureTestRng,
     account: Vec<u8>,
+    /// Head view knobs for the endpoint binding tests (see `refresh_heads`).
+    messaging: bool,
+    revoked: Vec<Vec<u8>>,
+    quarantined: Vec<Vec<u8>>,
+    unpinned: Vec<u8>,
 }
 
 impl Dev {
     fn new(tag: u8, account: u8) -> Self {
         let mut rng = InsecureTestRng::from_label(&[b'f', tag]);
+        let signer = DeviceSigner::generate(&mut rng);
         Dev {
             app: AppState::default(),
-            eng: engine::new(&[tag; 16]),
-            signer: DeviceSigner::generate(&mut rng),
+            eng: engine::with_signer(&[tag; 16], &signer),
+            signer,
             rng,
             account: vec![account; 32],
+            messaging: false,
+            revoked: vec![],
+            quarantined: vec![],
+            unpinned: vec![],
         }
     }
     fn id(&self) -> Vec<u8> {
@@ -56,12 +68,18 @@ mod engine {
     pub fn new(id: &[u8]) -> Eng {
         Eng::new(id)
     }
+    pub fn with_signer(id: &[u8], s: &om_core::crypto::sig::DeviceSigner) -> Eng {
+        Eng::with_signature_key(id, &s.public()[..32])
+    }
 }
 #[cfg(feature = "groups-openmls")]
 mod engine {
     pub use om_core::groups::openmls::{OpenMlsGroupCrypto as Eng, OpenMlsLoader as Loader};
     pub fn new(id: &[u8]) -> Eng {
         Eng::new(id).expect("engine")
+    }
+    pub fn with_signer(id: &[u8], s: &om_core::crypto::sig::DeviceSigner) -> Eng {
+        Eng::with_signing_seed(id, &s.ed_seed).expect("engine")
     }
 }
 
@@ -99,8 +117,54 @@ fn with_rel(d: &mut Dev, peer: u8, st: RelState) -> String {
     id
 }
 
+/// Give every device its own account's head and pin the other accounts' heads on its relationships. All devices of
+/// an account are control devices of one head unless a device is `messaging`; per observer, `revoked` devices are
+/// listed as revoked, `quarantined` as quarantined, and an account in `unpinned` is not pinned at all.
+fn refresh_heads(devs: &mut [Dev]) {
+    let mut accounts: Vec<Vec<u8>> = devs.iter().map(|d| d.account.clone()).collect();
+    accounts.sort();
+    accounts.dedup();
+    for i in 0..devs.len() {
+        let obs = &devs[i];
+        let heads: Vec<group_heads::Head> = accounts
+            .iter()
+            .filter(|a| !obs.unpinned.contains(&a[0]) || **a == obs.account)
+            .map(|a| {
+                let of = |pred: &dyn Fn(&Dev) -> bool| -> Vec<group_heads::Dev> {
+                    devs.iter()
+                        .filter(|d| &d.account == a && pred(d))
+                        .map(|d| (d.id(), d.signer.public()))
+                        .collect()
+                };
+                let revoked = |d: &Dev| obs.revoked.contains(&d.id());
+                let quar = |d: &Dev| obs.quarantined.contains(&d.id());
+                group_heads::head_with(
+                    a,
+                    &of(&|d| !d.messaging && !revoked(d) && !quar(d)),
+                    &of(&|d| d.messaging && !revoked(d) && !quar(d)),
+                    &of(&|d| revoked(d)),
+                    &of(&|d| quar(d) && !revoked(d)),
+                )
+            })
+            .collect();
+        let own = heads.iter().find(|h| h.account == obs.account).unwrap();
+        let peers: Vec<&group_heads::Head> = heads.iter().collect();
+        let (own, peers) = (
+            group_heads::Head {
+                account: own.account.clone(),
+                acs: own.acs.clone(),
+                creds: own.creds.clone(),
+            },
+            peers,
+        );
+        let d = &mut devs[i];
+        group_heads::install(&mut d.app, &own, &peers);
+    }
+}
+
 /// Deliver every outbound of `rep` (and, recursively, what the receivers answer); return all events by device index.
 fn pump(devs: &mut [Dev], from: usize, rep: GroupReply) -> Vec<(usize, GroupEvent)> {
+    refresh_heads(devs);
     let mut ev: Vec<(usize, GroupEvent)> = rep.events.into_iter().map(|e| (from, e)).collect();
     for o in rep.out {
         let targets: Vec<(usize, Sender)> = match &o.to {
@@ -810,4 +874,387 @@ fn records_round_trip_and_older_records_still_load() {
             && old.group_msgs.is_empty()
             && old.group_leaving.is_empty()
     );
+}
+
+// ---- an MLS leaf is admitted only when a validated head proves it --------------------------------
+
+/// A invited B (B1 and B2 hold the invitation); nothing accepted yet. Returns the devices and the invitation id.
+fn offered(configure: impl FnOnce(&mut [Dev])) -> (Vec<Dev>, String) {
+    let mut devs = vec![Dev::new(0xa1, 1), Dev::new(0xb1, 2), Dev::new(0xb2, 2)];
+    configure(&mut devs);
+    let ra = with_rel(&mut devs[0], 2, RelState::Active);
+    with_rel(&mut devs[1], 1, RelState::Active);
+    with_rel(&mut devs[2], 1, RelState::Active);
+    let d = &mut devs[0];
+    let rep = d
+        .app
+        .group_do(
+            ctx!(d),
+            GroupIntent::Create {
+                name: "Book club".into(),
+                relationship_ids: vec![ra],
+            },
+        )
+        .unwrap();
+    let ev = pump(&mut devs, 0, rep);
+    let inv = ev
+        .iter()
+        .find_map(|(i, e)| match e {
+            GroupEvent::InviteReceived { invite_id } if *i == 1 => Some(invite_id.clone()),
+            _ => None,
+        })
+        .unwrap();
+    (devs, inv)
+}
+
+/// Deliver an Accept carrying `releases` to A, as if B1 sent it, under A's current view of B's head.
+fn accept_arrives(devs: &mut [Dev], inv: &str, releases: Vec<DeviceRelease>) -> Vec<GroupEvent> {
+    refresh_heads(devs);
+    let d = &mut devs[0];
+    // rewind a refused attempt so each case starts from the same offered invitation
+    d.app.group_invites.get_mut(inv).unwrap().state = InviteState::Offered;
+    d.app
+        .group_receive(
+            ctx!(d),
+            Sender::Relationship("rel-2".into()),
+            GroupWire::Accept {
+                invite_id: inv.to_string(),
+                releases,
+            },
+        )
+        .unwrap()
+        .events
+}
+
+fn blocked(ev: &[GroupEvent], why: &str) -> bool {
+    ev.iter()
+        .any(|e| matches!(e, GroupEvent::AdmitBlocked { reason, .. } if *reason == why))
+}
+
+fn nothing_prepared(d: &Dev, inv: &str) {
+    assert!(d.app.group_journal.is_empty(), "no Commit was prepared");
+    assert_eq!(d.app.group_invites[inv].state, InviteState::Accepted);
+}
+
+#[test]
+fn endpoint_binding_a_leaf_no_head_proves_for_the_invitee_is_refused() {
+    let (mut devs, inv) = offered(|_| {});
+    // a collaborator's own client: B1's DeviceID, a signing key that is not B1's
+    let mut imposter = engine::new(&[0xb1; 16]);
+    let kp = imposter
+        .key_package(&mut CryptoEnv {
+            rng: &mut devs[1].rng,
+            now_ms: NOW,
+        })
+        .unwrap();
+    let release = DeviceRelease {
+        device: om_core::crypto::hex(&[0xb1; 16]),
+        key_package: om_core::crypto::hex(&kp.bytes),
+        pk: om_core::crypto::hex(&devs[1].signer.public()),
+    };
+    let ev = accept_arrives(&mut devs, &inv, vec![release]);
+    assert!(blocked(&ev, "endpoint_unbound"), "{ev:?}");
+    nothing_prepared(&devs[0], &inv);
+}
+
+#[test]
+fn endpoint_binding_revoked_and_quarantined_devices_are_refused() {
+    for quarantine in [false, true] {
+        let (mut devs, inv) = offered(|_| {});
+        let b2 = devs[2].id();
+        if quarantine {
+            devs[0].quarantined.push(b2);
+        } else {
+            devs[0].revoked.push(b2);
+        }
+        let releases = vec![devs[1].release(), devs[2].release()];
+        let ev = accept_arrives(&mut devs, &inv, releases);
+        assert!(blocked(&ev, "endpoint_unbound"), "{ev:?}");
+        nothing_prepared(&devs[0], &inv);
+    }
+}
+
+#[test]
+fn endpoint_binding_swapped_duplicate_wrong_account_and_unlisted_are_refused() {
+    let (mut devs, inv) = offered(|_| {});
+    // swapped: B2's KeyPackage under B1's DeviceID
+    let mut r = devs[2].release();
+    r.device = om_core::crypto::hex(&devs[1].id());
+    let ev = accept_arrives(&mut devs, &inv, vec![r]);
+    assert!(blocked(&ev, "release_mismatch"), "{ev:?}");
+    // swapped the other way: B1's key under B2's claimed pk
+    let mut r = devs[1].release();
+    r.pk = om_core::crypto::hex(&devs[2].signer.public());
+    let ev = accept_arrives(&mut devs, &inv, vec![r]);
+    assert!(blocked(&ev, "release_mismatch"), "{ev:?}");
+    // duplicate: the same KeyPackage released twice
+    let r = devs[1].release();
+    let ev = accept_arrives(&mut devs, &inv, vec![r.clone(), r]);
+    assert!(blocked(&ev, "endpoint_duplicate"), "{ev:?}");
+    // wrong account: a device of the inviter's own account released as the invitee's
+    let r = devs[0].release();
+    let ev = accept_arrives(&mut devs, &inv, vec![r]);
+    assert!(blocked(&ev, "endpoint_unbound"), "{ev:?}");
+    // unlisted: a client no head of B lists, whatever it claims
+    let mut stranger = Dev::new(0xb3, 2);
+    let r = stranger.release();
+    let ev = accept_arrives(&mut devs, &inv, vec![r]);
+    assert!(blocked(&ev, "endpoint_unbound"), "{ev:?}");
+    nothing_prepared(&devs[0], &inv);
+}
+
+#[test]
+fn endpoint_binding_the_honest_path_still_passes_with_a_messaging_only_device() {
+    let (mut devs, inv) = offered(|d| d[2].messaging = true);
+    let siblings = vec![devs[2].release()];
+    let d = &mut devs[1];
+    let rep = d
+        .app
+        .group_do(
+            ctx!(d),
+            GroupIntent::Accept {
+                invite_id: inv.clone(),
+                siblings,
+            },
+        )
+        .unwrap();
+    devs[2].app.group_invites.get_mut(&inv).unwrap().state = InviteState::Accepted;
+    let ev = pump(&mut devs, 1, rep);
+    assert!(
+        ev.iter()
+            .any(|(_, e)| matches!(e, GroupEvent::CommitPrepared { .. }))
+    );
+    let id = commit_id(&devs[0]);
+    let d = &mut devs[0];
+    d.app
+        .group_do(
+            ctx!(d),
+            GroupIntent::CommitPublished {
+                intent_id: id.clone(),
+            },
+        )
+        .unwrap();
+    let rep = d
+        .app
+        .group_do(ctx!(d), GroupIntent::CommitAccepted { intent_id: id })
+        .unwrap();
+    let ev = pump(&mut devs, 0, rep);
+    let conv = conv_of(&devs[0]);
+    for i in [1, 2] {
+        assert!(has(
+            &ev,
+            i,
+            &GroupEvent::Joined {
+                conversation_id: conv.clone()
+            }
+        ));
+    }
+    let d = &mut devs[1];
+    let rep = d
+        .app
+        .group_do(
+            ctx!(d),
+            GroupIntent::SendText {
+                conversation_id: conv.clone(),
+                text: "hi from the messaging device's account".into(),
+            },
+        )
+        .unwrap();
+    pump(&mut devs, 1, rep);
+    assert_eq!(texts(&devs[0], &conv).len(), 1);
+}
+
+#[test]
+fn endpoint_binding_a_welcome_with_a_leaf_no_validated_head_proves_is_refused() {
+    let (mut devs, inv) = offered(|_| {});
+    let siblings = vec![devs[2].release()];
+    let d = &mut devs[1];
+    let rep = d
+        .app
+        .group_do(
+            ctx!(d),
+            GroupIntent::Accept {
+                invite_id: inv.clone(),
+                siblings,
+            },
+        )
+        .unwrap();
+    devs[2].app.group_invites.get_mut(&inv).unwrap().state = InviteState::Accepted;
+    pump(&mut devs, 1, rep);
+    let id = commit_id(&devs[0]);
+    let d = &mut devs[0];
+    d.app
+        .group_do(
+            ctx!(d),
+            GroupIntent::CommitPublished {
+                intent_id: id.clone(),
+            },
+        )
+        .unwrap();
+    let rep = d
+        .app
+        .group_do(ctx!(d), GroupIntent::CommitAccepted { intent_id: id })
+        .unwrap();
+    // B1 holds no head for A (the inviter's leaf is unproven), B2 has the head of B's own account only
+    devs[1].unpinned.push(1);
+    refresh_heads(&mut devs);
+    let welcome = rep
+        .out
+        .iter()
+        .find(|o| matches!(o.wire, GroupWire::Welcome { .. }))
+        .unwrap()
+        .wire
+        .clone();
+    let d = &mut devs[1];
+    let e = d
+        .app
+        .group_receive(ctx!(d), Sender::Relationship("rel-1".into()), welcome)
+        .unwrap_err();
+    assert_eq!(e.0, "endpoint_unbound");
+    assert!(
+        d.app
+            .group_query(GroupQuery::Groups)
+            .map(|v| matches!(v, GroupView::Groups(g) if g.is_empty()))
+            .unwrap()
+    );
+    assert_eq!(d.app.group_invites[&inv].state, InviteState::Accepted);
+}
+
+/// A, B1, B2 are in the Room; A then invites C (its own account, one device) and C accepts; returns the Add reply.
+fn adding_c(b_knows_c: bool) -> (Vec<Dev>, Vec<u8>, Vec<(usize, GroupEvent)>) {
+    let (mut devs, inv) = offered(|_| {});
+    let siblings = vec![devs[2].release()];
+    let d = &mut devs[1];
+    let rep = d
+        .app
+        .group_do(
+            ctx!(d),
+            GroupIntent::Accept {
+                invite_id: inv.clone(),
+                siblings,
+            },
+        )
+        .unwrap();
+    devs[2].app.group_invites.get_mut(&inv).unwrap().state = InviteState::Accepted;
+    pump(&mut devs, 1, rep);
+    let conv = conv_of(&devs[0]);
+    for _ in 0..1 {
+        let id = commit_id(&devs[0]);
+        let d = &mut devs[0];
+        d.app
+            .group_do(
+                ctx!(d),
+                GroupIntent::CommitPublished {
+                    intent_id: id.clone(),
+                },
+            )
+            .unwrap();
+        let rep = d
+            .app
+            .group_do(ctx!(d), GroupIntent::CommitAccepted { intent_id: id })
+            .unwrap();
+        pump(&mut devs, 0, rep);
+    }
+    devs.push(Dev::new(0xc1, 3));
+    let rc = with_rel(&mut devs[0], 3, RelState::Active);
+    with_rel(&mut devs[3], 1, RelState::Active);
+    with_rel(&mut devs[3], 2, RelState::Active);
+    if b_knows_c {
+        with_rel(&mut devs[1], 3, RelState::Active);
+        with_rel(&mut devs[2], 3, RelState::Active);
+    }
+    let d = &mut devs[0];
+    let rep = d
+        .app
+        .group_do(
+            ctx!(d),
+            GroupIntent::Invite {
+                conversation_id: conv.clone(),
+                relationship_id: rc,
+            },
+        )
+        .unwrap();
+    let ev = pump(&mut devs, 0, rep);
+    let inv_c = ev
+        .iter()
+        .find_map(|(i, e)| match e {
+            GroupEvent::InviteReceived { invite_id } if *i == 3 => Some(invite_id.clone()),
+            _ => None,
+        })
+        .unwrap();
+    let d = &mut devs[3];
+    let rep = d
+        .app
+        .group_do(
+            ctx!(d),
+            GroupIntent::Accept {
+                invite_id: inv_c,
+                siblings: vec![],
+            },
+        )
+        .unwrap();
+    // the prepared Add reaches the roster devices here
+    let add_events = pump(&mut devs, 3, rep);
+    let id = devs[0]
+        .app
+        .group_invites
+        .values()
+        .filter(|i| {
+            i.dir == InviteDir::Outgoing && i.peer_account == om_core::crypto::hex(&[3; 32])
+        })
+        .find_map(|i| i.intent_id.clone())
+        .unwrap();
+    let d = &mut devs[0];
+    d.app
+        .group_do(
+            ctx!(d),
+            GroupIntent::CommitPublished {
+                intent_id: id.clone(),
+            },
+        )
+        .unwrap();
+    let rep = d
+        .app
+        .group_do(ctx!(d), GroupIntent::CommitAccepted { intent_id: id })
+        .unwrap();
+    pump(&mut devs, 0, rep);
+    (devs, conv, add_events)
+}
+
+#[test]
+fn endpoint_binding_an_incoming_commit_adding_an_unproven_leaf_is_dropped() {
+    let (devs, conv, ev) = adding_c(false);
+    for i in [1, 2] {
+        assert!(
+            ev.iter()
+                .any(|(j, e)| *j == i && matches!(e, GroupEvent::Dropped("added_endpoint_unbound"))),
+            "{ev:?}"
+        );
+        // never applied: still at the epoch before the Add of C
+        assert_eq!(
+            devs[i]
+                .eng
+                .epoch(&devs[i].app.group_mls_id(&conv).unwrap())
+                .unwrap(),
+            1
+        );
+    }
+}
+
+#[test]
+fn endpoint_binding_an_incoming_commit_adding_a_proven_leaf_is_applied() {
+    let (devs, conv, ev) = adding_c(true);
+    assert!(
+        !ev.iter().any(|(_, e)| matches!(e, GroupEvent::Dropped(_))),
+        "{ev:?}"
+    );
+    for i in [1, 2] {
+        assert_eq!(
+            devs[i]
+                .eng
+                .epoch(&devs[i].app.group_mls_id(&conv).unwrap())
+                .unwrap(),
+            2
+        );
+    }
 }

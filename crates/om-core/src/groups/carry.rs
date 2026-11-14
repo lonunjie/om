@@ -187,11 +187,16 @@ impl AppState {
         let body = cg::envelope_body(signed)?;
         let cred = Credential::from_body(&body).map_err(|_| GroupError("malformed"))?;
         let hb = hex(&body);
-        let mine = self.acs_credentials.contains(&hb);
+        let mine = self.acs_credentials.contains(&hb)
+            && self
+                .carry_own_tip()
+                .is_ok_and(|t| super::endpoint::active_in(&t, &cred));
         let theirs = rel
             .and_then(|r| self.relationships.get(r))
             .is_some_and(|r| {
-                r.peer_credentials.contains(&hb) && hex(&cred.account_id) == r.peer_account_id
+                r.peer_credentials.contains(&hb)
+                    && hex(&cred.account_id) == r.peer_account_id
+                    && Self::rel_active(r, &cred)
             });
         if mine || theirs {
             Ok(cred)
@@ -200,8 +205,17 @@ impl AppState {
         }
     }
 
+    /// Whether the head pinned on `r` lists `cred` as an active device credential (not revoked, not
+    /// quarantined, committed by hash).
+    fn rel_active(r: &crate::state::Relationship, cred: &Credential) -> bool {
+        unhex(&r.peer_acs_body)
+            .ok()
+            .and_then(|b| Acs::from_body(&b).ok())
+            .is_some_and(|a| super::endpoint::active_in(&a, cred))
+    }
+
     /// The tip of this account's own validated chain.
-    fn carry_own_tip(&self) -> R<Acs> {
+    pub(super) fn carry_own_tip(&self) -> R<Acs> {
         self.acs_chain
             .last()
             .and_then(|h| unhex(h).ok())
@@ -857,7 +871,14 @@ impl AppState {
         let cred = Credential::from_body(&body).map_err(|_| GroupError("malformed"))?;
         let hb = hex(&body);
         if self.acs_credentials.contains(&hb) {
-            return Ok(Trust::Ok(cred));
+            return if self
+                .carry_own_tip()
+                .is_ok_and(|t| super::endpoint::active_in(&t, &cred))
+            {
+                Ok(Trust::Ok(cred))
+            } else {
+                err("credential_not_committed")
+            };
         }
         let own = self
             .acs_credentials
@@ -874,8 +895,15 @@ impl AppState {
             .values()
             .filter(|r| r.peer_account_id == acct && r.state == RelState::Active && !r.blocked)
             .collect();
-        if rels.iter().any(|r| r.peer_credentials.contains(&hb)) {
+        if rels
+            .iter()
+            .any(|r| r.peer_credentials.contains(&hb) && Self::rel_active(r, &cred))
+        {
             return Ok(Trust::Ok(cred));
+        }
+        // The head commits the body but lists the device as revoked or quarantined: refused for good, not held.
+        if rels.iter().any(|r| r.peer_credentials.contains(&hb)) {
+            return err("credential_not_active");
         }
         if rels.is_empty() {
             Ok(Trust::Hold {

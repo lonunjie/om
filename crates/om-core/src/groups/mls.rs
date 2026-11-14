@@ -75,6 +75,15 @@ pub struct EpochInfo {
     pub still_member: bool,
 }
 
+/// One MLS leaf as the engine reads it: the DeviceID its credential names and the signature public key its leaf is
+/// signed with. Core compares both against an ACS-committed `DeviceCredential` before it admits or accepts the leaf;
+/// nothing a peer merely asserts about a leaf is authority.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Endpoint {
+    pub device: Vec<u8>,
+    pub signature_key: Vec<u8>,
+}
+
 /// What an engine can say about a Commit without applying it: enough for Core to bind it before it merges.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CommitInfo {
@@ -82,6 +91,10 @@ pub struct CommitInfo {
     pub resulting_epoch: u64,
     /// DeviceIDs of the committing leaf.
     pub committer: Vec<u8>,
+    /// The leaves this Commit adds, read from the KeyPackages inside it.
+    pub added: Vec<Endpoint>,
+    /// The committer's new leaf when the Commit carries an update path (it may change the leaf's credential and key).
+    pub committer_leaf: Option<Endpoint>,
 }
 
 /// An application message opened by [`GroupCrypto::decrypt_application`].
@@ -101,6 +114,17 @@ pub trait GroupCrypto {
 
     /// The DeviceID this client acts as (its credential identity).
     fn device_id(&self) -> &[u8];
+
+    /// The signature public key of this client's leaf. Core requires it to equal the Ed25519 half of the device's
+    /// ACS-committed `DeviceCredential.signing_public_key` (the same device key, never an independent one).
+    fn signature_key(&self) -> Vec<u8>;
+
+    /// Parse and validate a KeyPackage and report the leaf it would add. Fails `key_package_invalid` / `key_package_expired`.
+    fn key_package_endpoint(&self, key_package: &[u8]) -> MlsResult<Endpoint>;
+
+    /// Every leaf of the group a Welcome would join (read from its ratchet tree) without joining it. Fails
+    /// `welcome_invalid`, `no_matching_key_package` or `welcome_rejected`.
+    fn welcome_endpoints(&self, welcome: &[u8]) -> MlsResult<Vec<Endpoint>>;
 
     /// Generate one single-use KeyPackage. Its private half stays inside the engine until a Welcome consumes it.
     fn key_package(&mut self, env: &mut CryptoEnv<'_>) -> MlsResult<KeyPackage>;

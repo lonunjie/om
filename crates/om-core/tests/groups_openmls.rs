@@ -101,7 +101,13 @@ fn receivers_apply_a_commit_and_a_removed_device_learns_it() {
         ),
         (1, 2, vec![0xa1; 16])
     );
-    assert_eq!(a.e.inspect_commit(GID, &p.commit).unwrap(), info);
+    // the author reads its own pending Commit without the update-path leaf (Core made it; nothing to prove)
+    let own = a.e.inspect_commit(GID, &p.commit).unwrap();
+    assert_eq!(
+        (own.from_epoch, own.resulting_epoch, own.committer),
+        (1, 2, vec![0xa1; 16])
+    );
+    assert!(own.added.is_empty());
     assert_eq!(
         a.e.add_commit(env!(a), GID, &[]).unwrap_err().0,
         "commit_pending"

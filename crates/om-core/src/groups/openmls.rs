@@ -29,7 +29,7 @@
 //!   point is an engineering placeholder: it needs a registry entry before any group ships (report, "What remains").
 
 use super::mls::{
-    CommitInfo, CryptoEnv, Decrypted, EpochInfo, GroupCrypto, GroupCryptoLoader,
+    CommitInfo, CryptoEnv, Decrypted, Endpoint, EpochInfo, GroupCrypto, GroupCryptoLoader,
     KeyPackage as OmKeyPackage, MlsError, MlsResult, PreparedCommit,
 };
 use crate::crypto::sha256;
@@ -84,6 +84,27 @@ impl OpenMlsGroupCrypto {
         let provider = OpenMlsRustCrypto::default();
         let signer =
             SignatureKeyPair::new(CS.signature_algorithm()).map_err(|_| E("keygen_failed"))?;
+        signer
+            .store(provider.storage())
+            .map_err(|_| E("keygen_failed"))?;
+        Ok(OpenMlsGroupCrypto {
+            device: device_id.to_vec(),
+            provider,
+            signer,
+            pending: BTreeMap::new(),
+        })
+    }
+
+    /// A new client whose leaf signature key is the Ed25519 key of `ed_seed`, the same seed as the device's own
+    /// signing key, so the leaf key is one an ACS-committed `DeviceCredential` names. Core uses
+    /// this constructor; [`Self::new`] (an independent random key) is for engine-level tests only.
+    pub fn with_signing_seed(device_id: &[u8], ed_seed: &[u8; 32]) -> MlsResult<Self> {
+        let provider = OpenMlsRustCrypto::default();
+        let public = ed25519_dalek::SigningKey::from_bytes(ed_seed)
+            .verifying_key()
+            .to_bytes()
+            .to_vec();
+        let signer = SignatureKeyPair::from_raw(CS.signature_algorithm(), ed_seed.to_vec(), public);
         signer
             .store(provider.storage())
             .map_err(|_| E("keygen_failed"))?;
@@ -197,6 +218,43 @@ impl GroupCrypto for OpenMlsGroupCrypto {
 
     fn device_id(&self) -> &[u8] {
         &self.device
+    }
+
+    fn signature_key(&self) -> Vec<u8> {
+        self.signer.to_public_vec()
+    }
+
+    fn key_package_endpoint(&self, key_package: &[u8]) -> MlsResult<Endpoint> {
+        let kp = self.parse_kp(key_package)?;
+        Ok(Endpoint {
+            device: Self::ident(kp.leaf_node().credential()),
+            signature_key: kp.leaf_node().signature_key().as_slice().to_vec(),
+        })
+    }
+
+    fn welcome_endpoints(&self, welcome: &[u8]) -> MlsResult<Vec<Endpoint>> {
+        let m = MlsMessageIn::tls_deserialize_exact(welcome).map_err(|_| E("welcome_invalid"))?;
+        let MlsMessageBodyIn::Welcome(w) = m.extract() else {
+            return Err(E("welcome_invalid"));
+        };
+        let cfg = MlsGroupJoinConfig::builder()
+            .use_ratchet_tree_extension(true)
+            .max_past_epochs(0)
+            .build();
+        // On a scratch copy of the store, so no KeyPackage of ours is consumed by reading.
+        let scratch = self.scratch();
+        let staged =
+            StagedWelcome::new_from_welcome(&scratch, &cfg, w, None).map_err(|e| match e {
+                WelcomeError::NoMatchingKeyPackage => E("no_matching_key_package"),
+                _ => E("welcome_rejected"),
+            })?;
+        Ok(staged
+            .members()
+            .map(|m| Endpoint {
+                device: Self::ident(&m.credential),
+                signature_key: m.signature_key.clone(),
+            })
+            .collect())
     }
 
     fn key_package(&mut self, _env: &mut CryptoEnv<'_>) -> MlsResult<OmKeyPackage> {
@@ -346,6 +404,8 @@ impl GroupCrypto for OpenMlsGroupCrypto {
                 from_epoch: epoch,
                 resulting_epoch: h.resulting_epoch,
                 committer: self.device.clone(),
+                added: vec![],
+                committer_leaf: None,
             });
         }
         let scratch = self.scratch();
@@ -370,10 +430,24 @@ impl GroupCrypto for OpenMlsGroupCrypto {
             .map_err(|_| E("not_a_commit"))?;
         let committer = Self::ident(processed.credential());
         match processed.into_content() {
-            ProcessedMessageContent::StagedCommitMessage(_) => Ok(CommitInfo {
+            ProcessedMessageContent::StagedCommitMessage(sc) => Ok(CommitInfo {
                 from_epoch,
                 resulting_epoch: from_epoch + 1,
                 committer,
+                added: sc
+                    .add_proposals()
+                    .map(|a| {
+                        let leaf = a.add_proposal().key_package().leaf_node();
+                        Endpoint {
+                            device: Self::ident(leaf.credential()),
+                            signature_key: leaf.signature_key().as_slice().to_vec(),
+                        }
+                    })
+                    .collect(),
+                committer_leaf: sc.update_path_leaf_node().map(|leaf| Endpoint {
+                    device: Self::ident(leaf.credential()),
+                    signature_key: leaf.signature_key().as_slice().to_vec(),
+                }),
             }),
             _ => Err(E("not_a_commit")),
         }

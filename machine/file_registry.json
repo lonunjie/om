@@ -1551,6 +1551,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/groups/endpoint.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/groups/fake.rs",
       "class": "product_code",
       "domain": "groups",
@@ -1776,6 +1783,13 @@
     },
     {
       "path": "crates/om-core/tests/first_contact_limits.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/group_heads/mod.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",

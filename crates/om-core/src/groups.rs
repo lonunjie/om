@@ -85,6 +85,7 @@ impl std::error::Error for GroupError {}
 pub mod binding;
 pub mod carriage;
 pub mod carry;
+pub mod endpoint;
 pub mod flow;
 pub mod journal;
 pub mod mls;
