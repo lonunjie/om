@@ -202,3 +202,10 @@ Committer review (2026-11-14): the builder's proposals were checked against ADR-
 ### Verification (builder, working tree, uncommitted)
 
 `cargo test -p om-core` and `cargo test -p om-core --features groups-openmls` (no failures, including the 7 new tests), `cargo test -p om-wasm`, `cargo fmt`, `cargo clippy -p om-core -p om-wasm --all-targets` (0 warnings, default features; also clean with `--features groups-openmls` for om-core) and `make check` all pass. Committer re-ran all of these with the added test (8 in `groups_carriage_2b.rs`).
+
+## Operator-delegated rulings on the 2b questions (2026-11-14)
+
+Basis: easy by default, strongest security as opt-in, fail closed, no new authority or metadata, no change to audited text.
+
+1. **"Floor" (ADR-0128 rule 8, GROUP_CHAT).** The floor is the cryptographic and authority baseline (MLS properties, signed control, no silent downgrade of those), not a Room's chosen privacy profile. A Room's profile may be loosened only by the explicit, confirmed, announced action ADR-0189 describes (marked `loosened` to every member); it is never silent. Core keeps its current behaviour. Where a Room's governance threshold is above 1 the existing `quorum_not_supported` refusal stays (fail closed) until quorum collection is built (D39).
+2. **D44 (anchoring the head of an account with no relationship).** The inviter's Welcome release evidence carries the signed account head for every account it names. The receiver verifies it by chain descent from the head it pinned in the Invite from the inviter's account, never by a directory lookup (no new metadata, no new authority). A head that does not verify leaves the Welcome held until it expires (current behaviour). Implementation belongs in package 3 together with `admit_request` (D43).
