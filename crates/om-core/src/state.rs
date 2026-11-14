@@ -964,6 +964,10 @@ pub struct LinkJoin {
     /// in for a withheld one, and the missing set (`0..history_expected` minus this) stays known.
     #[serde(default)]
     pub history_seen: Vec<u32>,
+    /// The ceremony ended (its time ran out) with chunk indices still missing: an explicit, final degraded end state.
+    /// Nothing is retried; the device keeps what arrived and the person is told the history is partial.
+    #[serde(default)]
+    pub history_degraded: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -972,6 +976,11 @@ pub struct NoticeRec {
     pub device_id: Hex,
     pub label: String,
     pub at: u64,
+    /// The signed `DeviceEnrollmentNotice` (hex) this record was made from: a device that later approves a link hands
+    /// it to a sibling that missed that enrollment (one notice per enrollment). Empty for a record made before this
+    /// field existed.
+    #[serde(default)]
+    pub signed: String,
 }
 
 /// Admission accounting for requests arriving at invite mailboxes (ADR-0181 section 5). Wall-clock milliseconds,

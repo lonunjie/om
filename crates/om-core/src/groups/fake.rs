@@ -24,7 +24,7 @@ struct FKeyPackage {
     device: String,
     nonce: String,
     not_after: u64,
-    /// The leaf signature public key (hex).
+    /// The leaf as `hex(signature key)|hex(attestation)`.
     #[serde(default)]
     sig: String,
 }
@@ -81,6 +81,8 @@ struct Snapshot {
     device: String,
     #[serde(default)]
     sig: String,
+    #[serde(default)]
+    att: String,
     /// kp reference (hex) -> the KeyPackage bytes (hex), single use.
     key_packages: BTreeMap<String, String>,
     groups: BTreeMap<String, FGroup>,
@@ -91,6 +93,7 @@ struct Snapshot {
 pub struct FakeGroupCrypto {
     device: Vec<u8>,
     sig: Vec<u8>,
+    att: Vec<u8>,
     key_packages: BTreeMap<String, String>,
     groups: BTreeMap<String, FGroup>,
 }
@@ -151,18 +154,20 @@ fn unframe<T: for<'de> Deserialize<'de>>(kind: &str, bytes: &[u8]) -> MlsResult<
 }
 
 impl FakeGroupCrypto {
+    /// A client with a dedicated leaf key derived from its DeviceID (never the device's own key).
     pub fn new(device_id: &[u8]) -> Self {
-        Self::with_signature_key(device_id, &sha256(&[b"FAKE-LEAF-SIG", device_id]))
-    }
-
-    /// A client whose leaf signature key is `key` (Core passes the Ed25519 half of the device's own signing key).
-    pub fn with_signature_key(device_id: &[u8], key: &[u8]) -> Self {
         FakeGroupCrypto {
             device: device_id.to_vec(),
-            sig: key.to_vec(),
+            sig: sha256(&[b"FAKE-LEAF-SIG", device_id]).to_vec(),
+            att: vec![],
             key_packages: BTreeMap::new(),
             groups: BTreeMap::new(),
         }
+    }
+
+    /// This client's leaf as stored in a KeyPackage or a group: `hex(key)|hex(attestation)`.
+    fn leaf(&self) -> String {
+        format!("{}|{}", hex(&self.sig), hex(&self.att))
     }
 
     fn g(&self, id: &[u8]) -> MlsResult<&FGroup> {
@@ -265,6 +270,16 @@ fn to_prepared(p: &FPending) -> PreparedCommit {
     }
 }
 
+/// Parse `hex(key)|hex(attestation)` (a value without `|` has no attestation).
+fn parse_leaf(device: &str, leaf: &str) -> MlsResult<Endpoint> {
+    let (k, a) = leaf.split_once('|').unwrap_or((leaf, ""));
+    Ok(Endpoint {
+        device: unhex(device).map_err(|_| E("malformed"))?,
+        signature_key: unhex(k).map_err(|_| E("malformed"))?,
+        attestation: unhex(a).map_err(|_| E("malformed"))?,
+    })
+}
+
 impl GroupCrypto for FakeGroupCrypto {
     fn engine_tag(&self) -> &'static str {
         FAKE_TAG
@@ -278,12 +293,18 @@ impl GroupCrypto for FakeGroupCrypto {
         self.sig.clone()
     }
 
+    fn set_attestation(&mut self, attestation: Vec<u8>) -> MlsResult<()> {
+        self.att = attestation;
+        Ok(())
+    }
+
+    fn attestation(&self) -> Vec<u8> {
+        self.att.clone()
+    }
+
     fn key_package_endpoint(&self, key_package: &[u8]) -> MlsResult<Endpoint> {
         let kp: FKeyPackage = unframe("KP", key_package).map_err(|_| E("key_package_invalid"))?;
-        Ok(Endpoint {
-            device: unhex(&kp.device).map_err(|_| E("key_package_invalid"))?,
-            signature_key: unhex(&kp.sig).map_err(|_| E("key_package_invalid"))?,
-        })
+        parse_leaf(&kp.device, &kp.sig).map_err(|_| E("key_package_invalid"))
     }
 
     fn welcome_endpoints(&self, welcome: &[u8]) -> MlsResult<Vec<Endpoint>> {
@@ -298,11 +319,8 @@ impl GroupCrypto for FakeGroupCrypto {
         w.members
             .iter()
             .map(|m| {
-                Ok(Endpoint {
-                    device: unhex(m).map_err(|_| E("welcome_invalid"))?,
-                    signature_key: unhex(w.keys.get(m).ok_or(E("welcome_invalid"))?)
-                        .map_err(|_| E("welcome_invalid"))?,
-                })
+                parse_leaf(m, w.keys.get(m).ok_or(E("welcome_invalid"))?)
+                    .map_err(|_| E("welcome_invalid"))
             })
             .collect()
     }
@@ -312,7 +330,7 @@ impl GroupCrypto for FakeGroupCrypto {
             device: self.me(),
             nonce: hex(&crate::crypto::rng::fill(env.rng, 16)),
             not_after: env.now_ms + KP_LIFETIME_MS,
-            sig: hex(&self.sig),
+            sig: self.leaf(),
         };
         let bytes = frame("KP", &kp);
         let reference = sha256(&[&bytes]);
@@ -334,7 +352,7 @@ impl GroupCrypto for FakeGroupCrypto {
             FGroup {
                 epoch: 0,
                 members: vec![self.me()],
-                keys: BTreeMap::from([(self.me(), hex(&self.sig))]),
+                keys: BTreeMap::from([(self.me(), self.leaf())]),
                 secret: hex(&sha256(&[b"FAKE-GENESIS", group_id, context_ext])),
                 ctx_ext: hex(context_ext),
                 pending: None,
@@ -419,12 +437,7 @@ impl GroupCrypto for FakeGroupCrypto {
             added: c
                 .adds
                 .iter()
-                .map(|a| {
-                    Ok(Endpoint {
-                        device: unhex(&a.device).map_err(|_| E("malformed"))?,
-                        signature_key: unhex(&a.sig).map_err(|_| E("malformed"))?,
-                    })
-                })
+                .map(|a| parse_leaf(&a.device, &a.sig))
                 .collect::<MlsResult<_>>()?,
             committer_leaf: None,
         })
@@ -608,6 +621,7 @@ impl GroupCrypto for FakeGroupCrypto {
             format: FORMAT,
             device: self.me(),
             sig: hex(&self.sig),
+            att: hex(&self.att),
             key_packages: self.key_packages.clone(),
             groups: self.groups.clone(),
         })
@@ -633,6 +647,7 @@ impl GroupCryptoLoader for FakeLoader {
         Ok(FakeGroupCrypto {
             device: unhex(&s.device).map_err(|_| E("snapshot_corrupt"))?,
             sig: unhex(&s.sig).map_err(|_| E("snapshot_corrupt"))?,
+            att: unhex(&s.att).map_err(|_| E("snapshot_corrupt"))?,
             key_packages: s.key_packages,
             groups: s.groups,
         })

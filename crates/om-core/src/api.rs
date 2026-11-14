@@ -964,6 +964,19 @@ pub struct HistoryTransferView {
     /// Receiver: chunks ignored whole (a codec this implementation does not know, or malformed).
     pub chunks_ignored: u32,
     pub messages_added: u32,
+    /// Receiver: chunk indices not yet counted (`chunks_total` minus those counted).
+    pub chunks_missing: u32,
+    pub state: HistoryTransferState,
+}
+
+/// Where a history transfer stands. `Degraded` is the explicit end state of a transfer whose time ran out with chunk
+/// indices missing: the device keeps what arrived, nothing more will come, and the UI says the history is partial.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HistoryTransferState {
+    InProgress,
+    Complete,
+    Degraded,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

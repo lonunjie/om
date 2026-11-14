@@ -75,13 +75,16 @@ pub struct EpochInfo {
     pub still_member: bool,
 }
 
-/// One MLS leaf as the engine reads it: the DeviceID its credential names and the signature public key its leaf is
-/// signed with. Core compares both against an ACS-committed `DeviceCredential` before it admits or accepts the leaf;
-/// nothing a peer merely asserts about a leaf is authority.
+/// One MLS leaf as the engine reads it: the DeviceID its credential names, the signature public key its leaf is
+/// signed with (a key dedicated to MLS, never the device's own key) and the device-signed attestation of that key
+/// carried in the credential. Core verifies the attestation against an ACS-committed `DeviceCredential` before it
+/// admits or accepts the leaf; nothing a peer merely asserts about a leaf is authority.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Endpoint {
     pub device: Vec<u8>,
     pub signature_key: Vec<u8>,
+    /// The device's signature over (DeviceID, `signature_key`); empty when the leaf carries none (it then never binds).
+    pub attestation: Vec<u8>,
 }
 
 /// What an engine can say about a Commit without applying it: enough for Core to bind it before it merges.
@@ -115,9 +118,17 @@ pub trait GroupCrypto {
     /// The DeviceID this client acts as (its credential identity).
     fn device_id(&self) -> &[u8];
 
-    /// The signature public key of this client's leaf. Core requires it to equal the Ed25519 half of the device's
-    /// ACS-committed `DeviceCredential.signing_public_key` (the same device key, never an independent one).
+    /// The signature public key of this client's leaf: a key generated inside the engine for MLS only. The engine
+    /// never holds the device's own signing key. Core has the device sign it (see `groups::endpoint`) and hands the
+    /// result back through [`Self::set_attestation`].
     fn signature_key(&self) -> Vec<u8>;
+
+    /// Store the device-signed attestation of [`Self::signature_key`]. It is carried in the BasicCredential of every
+    /// KeyPackage and group this client makes from now on (a credential already in a group is unchanged).
+    fn set_attestation(&mut self, attestation: Vec<u8>) -> MlsResult<()>;
+
+    /// The attestation stored, empty if none.
+    fn attestation(&self) -> Vec<u8>;
 
     /// Parse and validate a KeyPackage and report the leaf it would add. Fails `key_package_invalid` / `key_package_expired`.
     fn key_package_endpoint(&self, key_package: &[u8]) -> MlsResult<Endpoint>;

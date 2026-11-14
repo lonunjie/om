@@ -10,7 +10,8 @@
 //! What it is, in OM terms:
 //!
 //! * One value is one MLS client = one DeviceIdentity. The credential is OpenMLS' `BasicCredential` whose identity
-//!   is the DeviceID bytes (so `members` and `committer` are DeviceIDs, as the trait says). The suite is the v1 suite
+//!   is the DeviceID plus the device-signed attestation of the leaf's dedicated signature key (so `members` and
+//!   `committer` are DeviceIDs, as the trait says). The leaf key is generated here and is not the device's key. The suite is the v1 suite
 //!   `MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`; there is no other and no choice (CRYPTOGRAPHY_AND_AGILITY).
 //! * **Randomness and time (ADR-0187 decision 3).** The stock library cannot be handed a per-call generator, so
 //!   [`CryptoEnv::rng`] and [`CryptoEnv::now_ms`] are *not consumed* by this engine. The library draws entropy from
@@ -47,10 +48,34 @@ const CS: Ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed2551
 /// Private-use MLS extension type carrying Core's encrypted Room context (ConversationID). Placeholder, see module docs.
 pub const OM_CONTEXT_EXT: u16 = 0xF04D;
 /// Snapshot format written by this build.
-const FORMAT: u32 = 1;
+const FORMAT: u32 = 2;
 const MAGIC: &[u8; 8] = b"OMMLSv01";
 
 const E: fn(&'static str) -> MlsError = MlsError;
+
+/// The BasicCredential identity: one length byte, the DeviceID, then the device-signed attestation of the leaf key
+/// (the rest). The attestation is empty only for an engine-level test client.
+fn identity(device: &[u8], attestation: &[u8]) -> Vec<u8> {
+    let mut v = vec![device.len() as u8];
+    v.extend_from_slice(device);
+    v.extend_from_slice(attestation);
+    v
+}
+
+/// Split a credential's identity into (DeviceID, attestation); both empty if it is not in the form above.
+fn split_identity(c: &Credential) -> (Vec<u8>, Vec<u8>) {
+    let Ok(b) = BasicCredential::try_from(c.clone()) else {
+        return (vec![], vec![]);
+    };
+    let id = b.identity();
+    match id.split_first() {
+        Some((n, rest)) if rest.len() >= *n as usize => {
+            let (d, a) = rest.split_at(*n as usize);
+            (d.to_vec(), a.to_vec())
+        }
+        _ => (vec![], vec![]),
+    }
+}
 
 /// Pending Commit bytes kept beside the library's pending-commit state.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -65,6 +90,8 @@ pub struct OpenMlsGroupCrypto {
     device: Vec<u8>,
     provider: OpenMlsRustCrypto,
     signer: SignatureKeyPair,
+    /// The device's signature over (DeviceID, leaf key), carried in the credential; empty until Core sets it.
+    attestation: Vec<u8>,
     pending: BTreeMap<Vec<u8>, Held>,
 }
 
@@ -79,7 +106,9 @@ fn caps() -> Capabilities {
 }
 
 impl OpenMlsGroupCrypto {
-    /// A new client for `device_id` with a fresh signature key (entropy from the host, see the module docs).
+    /// A new client for `device_id` with a fresh signature key dedicated to MLS (entropy from the host, see the
+    /// module docs). The device's own signing key never enters the engine: Core has the device sign this leaf key and
+    /// stores the result with [`GroupCrypto::set_attestation`].
     pub fn new(device_id: &[u8]) -> MlsResult<Self> {
         let provider = OpenMlsRustCrypto::default();
         let signer =
@@ -91,34 +120,14 @@ impl OpenMlsGroupCrypto {
             device: device_id.to_vec(),
             provider,
             signer,
-            pending: BTreeMap::new(),
-        })
-    }
-
-    /// A new client whose leaf signature key is the Ed25519 key of `ed_seed`, the same seed as the device's own
-    /// signing key, so the leaf key is one an ACS-committed `DeviceCredential` names. Core uses
-    /// this constructor; [`Self::new`] (an independent random key) is for engine-level tests only.
-    pub fn with_signing_seed(device_id: &[u8], ed_seed: &[u8; 32]) -> MlsResult<Self> {
-        let provider = OpenMlsRustCrypto::default();
-        let public = ed25519_dalek::SigningKey::from_bytes(ed_seed)
-            .verifying_key()
-            .to_bytes()
-            .to_vec();
-        let signer = SignatureKeyPair::from_raw(CS.signature_algorithm(), ed_seed.to_vec(), public);
-        signer
-            .store(provider.storage())
-            .map_err(|_| E("keygen_failed"))?;
-        Ok(OpenMlsGroupCrypto {
-            device: device_id.to_vec(),
-            provider,
-            signer,
+            attestation: vec![],
             pending: BTreeMap::new(),
         })
     }
 
     fn cred(&self) -> CredentialWithKey {
         CredentialWithKey {
-            credential: BasicCredential::new(self.device.clone()).into(),
+            credential: BasicCredential::new(identity(&self.device, &self.attestation)).into(),
             signature_key: self.signer.to_public_vec().into(),
         }
     }
@@ -153,10 +162,19 @@ impl OpenMlsGroupCrypto {
             })
     }
 
+    /// The DeviceID a credential names (empty when the credential is not one of ours).
     fn ident(c: &Credential) -> Vec<u8> {
-        BasicCredential::try_from(c.clone())
-            .map(|b| b.identity().to_vec())
-            .unwrap_or_default()
+        split_identity(c).0
+    }
+
+    /// The leaf as Core reads it: the DeviceID and attestation of the credential, and the leaf's signature key.
+    fn endpoint(c: &Credential, key: &[u8]) -> Endpoint {
+        let (device, attestation) = split_identity(c);
+        Endpoint {
+            device,
+            signature_key: key.to_vec(),
+            attestation,
+        }
     }
 
     fn prepared(
@@ -224,12 +242,24 @@ impl GroupCrypto for OpenMlsGroupCrypto {
         self.signer.to_public_vec()
     }
 
+    fn set_attestation(&mut self, attestation: Vec<u8>) -> MlsResult<()> {
+        if self.device.len() > 255 || attestation.len() > 8192 {
+            return Err(E("attestation_invalid"));
+        }
+        self.attestation = attestation;
+        Ok(())
+    }
+
+    fn attestation(&self) -> Vec<u8> {
+        self.attestation.clone()
+    }
+
     fn key_package_endpoint(&self, key_package: &[u8]) -> MlsResult<Endpoint> {
         let kp = self.parse_kp(key_package)?;
-        Ok(Endpoint {
-            device: Self::ident(kp.leaf_node().credential()),
-            signature_key: kp.leaf_node().signature_key().as_slice().to_vec(),
-        })
+        Ok(Self::endpoint(
+            kp.leaf_node().credential(),
+            kp.leaf_node().signature_key().as_slice(),
+        ))
     }
 
     fn welcome_endpoints(&self, welcome: &[u8]) -> MlsResult<Vec<Endpoint>> {
@@ -250,10 +280,7 @@ impl GroupCrypto for OpenMlsGroupCrypto {
             })?;
         Ok(staged
             .members()
-            .map(|m| Endpoint {
-                device: Self::ident(&m.credential),
-                signature_key: m.signature_key.clone(),
-            })
+            .map(|m| Self::endpoint(&m.credential, &m.signature_key))
             .collect())
     }
 
@@ -438,16 +465,12 @@ impl GroupCrypto for OpenMlsGroupCrypto {
                     .add_proposals()
                     .map(|a| {
                         let leaf = a.add_proposal().key_package().leaf_node();
-                        Endpoint {
-                            device: Self::ident(leaf.credential()),
-                            signature_key: leaf.signature_key().as_slice().to_vec(),
-                        }
+                        Self::endpoint(leaf.credential(), leaf.signature_key().as_slice())
                     })
                     .collect(),
-                committer_leaf: sc.update_path_leaf_node().map(|leaf| Endpoint {
-                    device: Self::ident(leaf.credential()),
-                    signature_key: leaf.signature_key().as_slice().to_vec(),
-                }),
+                committer_leaf: sc
+                    .update_path_leaf_node()
+                    .map(|leaf| Self::endpoint(leaf.credential(), leaf.signature_key().as_slice())),
             }),
             _ => Err(E("not_a_commit")),
         }
@@ -581,6 +604,7 @@ impl GroupCrypto for OpenMlsGroupCrypto {
         put_u32(&mut w, FORMAT);
         put_bytes(&mut w, &self.device);
         put_bytes(&mut w, &self.signer.to_public_vec());
+        put_bytes(&mut w, &self.attestation);
         // the library store, copied key by key in sorted order so equal states give equal bytes
         let sorted: BTreeMap<Vec<u8>, Vec<u8>> = self
             .provider
@@ -657,11 +681,14 @@ impl GroupCryptoLoader for OpenMlsLoader {
         if r.take(8)? != MAGIC {
             return Err(E("snapshot_corrupt"));
         }
-        if r.u32()? > FORMAT {
+        let format = r.u32()?;
+        if format > FORMAT {
             return Err(E("snapshot_too_new"));
         }
         let device = r.bytes()?;
         let sig_pk = r.bytes()?;
+        // format 1 had no attestation: such a client never binds until Core attests it again
+        let attestation = if format >= 2 { r.bytes()? } else { vec![] };
         let provider = OpenMlsRustCrypto::default();
         let n = r.u32()?;
         {
@@ -697,6 +724,7 @@ impl GroupCryptoLoader for OpenMlsLoader {
             device,
             provider,
             signer,
+            attestation,
             pending,
         })
     }

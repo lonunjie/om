@@ -64,6 +64,13 @@ fn mailbox_of_deposit(mailbox: &[u8], relay_uri: Option<&str>) -> Vec<u8> {
     }
 }
 
+// TEST ONLY (`test-loopback`): what a Welcome's sender does with the account heads it would carry, per test thread:
+// 0 normal, 1 leave them out, 2 corrupt each signed head. Per-thread, so tests that set it do not disturb others.
+#[cfg(feature = "test-loopback")]
+thread_local! {
+    pub static TEST_ROOM_HEADS: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
+}
+
 /// TEST ONLY: while set, an approving Core leaves the enrollment notice out of the approval (the new device must refuse).
 /// Process-global, so a test that sets it lives in a test binary of its own.
 pub static TEST_OMIT_NOTICE: std::sync::atomic::AtomicBool =

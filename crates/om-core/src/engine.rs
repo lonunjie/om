@@ -81,7 +81,6 @@ pub struct Core<R: RngCore + CryptoRng> {
 /// with `groups-openmls`, the test-only fake in test builds, otherwise groups are unavailable).
 fn group_engine_open(
     device_id: &[u8],
-    ed_seed: &[u8; 32],
     stored: Option<&crate::groups::store::GroupCryptoRec>,
 ) -> Result<Box<dyn GroupCrypto>, GroupError> {
     #[cfg(feature = "groups-openmls")]
@@ -90,8 +89,7 @@ fn group_engine_open(
         match stored {
             Some(r) => Ok(Box::new(r.open::<OpenMlsLoader>()?)),
             None => Ok(Box::new(
-                OpenMlsGroupCrypto::with_signing_seed(device_id, ed_seed)
-                    .map_err(|e| GroupError(e.0))?,
+                OpenMlsGroupCrypto::new(device_id).map_err(|e| GroupError(e.0))?,
             )),
         }
     }
@@ -100,17 +98,12 @@ fn group_engine_open(
         use crate::groups::fake::{FakeGroupCrypto, FakeLoader};
         match stored {
             Some(r) => Ok(Box::new(r.open::<FakeLoader>()?)),
-            None => Ok(Box::new(FakeGroupCrypto::with_signature_key(
-                device_id,
-                &ed25519_dalek::SigningKey::from_bytes(ed_seed)
-                    .verifying_key()
-                    .to_bytes(),
-            ))),
+            None => Ok(Box::new(FakeGroupCrypto::new(device_id))),
         }
     }
     #[cfg(not(any(feature = "groups-openmls", test, feature = "test-loopback")))]
     {
-        let _ = (device_id, ed_seed, stored);
+        let _ = (device_id, stored);
         Err(GroupError("groups_unavailable"))
     }
 }
@@ -193,11 +186,21 @@ impl<R: RngCore + CryptoRng> Core<R> {
             .ok_or(GroupError("unknown_profile"))?
             .state;
         let dev = st.device.as_ref().ok_or(GroupError("no_identity"))?;
-        group_engine_open(
-            &dev.device_id,
-            &dev.signer.ed_seed,
-            st.app.group_crypto.as_ref(),
-        )
+        let mut engine = group_engine_open(&dev.device_id, st.app.group_crypto.as_ref())?;
+        // The MLS leaf key is dedicated to MLS and generated inside the engine; the device signs it once, so the
+        // credential of every KeyPackage and group names a key an ACS-committed device credential attests.
+        if engine.attestation().is_empty() {
+            let mut rnd = [0u8; 32];
+            self.rng.fill_bytes(&mut rnd);
+            let att = crate::groups::endpoint::attest_leaf(
+                &dev.signer,
+                &dev.device_id,
+                &engine.signature_key(),
+                rnd,
+            );
+            engine.set_attestation(att).map_err(|e| GroupError(e.0))?;
+        }
+        Ok(engine)
     }
 
     /// Run one ordinary-groups transition (ADR-0177) as a staged transaction: the typed intent of the person, or what

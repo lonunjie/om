@@ -352,6 +352,40 @@ pub struct DeviceEvidence {
     pub route: Vec<u8>,
 }
 
+/// `group-account-head`: the signed head of one account a Welcome names, with the state body it commits to and the
+/// credentials that state lists. The receiver verifies it itself (see `carry_room_head`); nothing here is authority.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AccountHead {
+    pub account: [u8; 32],
+    /// `signed-AccountControlHead` (type 2, role `controller`).
+    pub head: Vec<u8>,
+    /// The canonical body of the `AccountControlState` the head names.
+    pub state: Vec<u8>,
+    /// Bodies of the `DeviceCredential`s the state lists.
+    pub credentials: Vec<Vec<u8>>,
+}
+
+fn head_v(h: &AccountHead) -> V {
+    V::M(vec![
+        (0, V::B(h.account.to_vec())),
+        (1, V::B(h.head.clone())),
+        (2, V::B(h.state.clone())),
+        (3, V::A(h.credentials.iter().cloned().map(V::B).collect())),
+    ])
+}
+
+fn account_head(v: &V) -> R<AccountHead> {
+    Ok(AccountHead {
+        account: c(c(v.get(0))?.b32())?,
+        head: c(c(v.get(1))?.b())?.to_vec(),
+        state: c(c(v.get(2))?.b())?.to_vec(),
+        credentials: c(c(v.get(3))?.a())?
+            .iter()
+            .map(|x| Ok(c(x.b())?.to_vec()))
+            .collect::<R<_>>()?,
+    })
+}
+
 /// A decoded, strictly checked frame body.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FrameBody {
@@ -370,6 +404,8 @@ pub enum FrameBody {
         welcome: Vec<u8>,
         state: Vec<u8>,
         routes: Vec<DeviceEvidence>,
+        /// The signed head of every account the Welcome names (ruling on D44); may be empty for a two-account Room.
+        heads: Vec<AccountHead>,
     },
     AdmitRequest {
         invite_id: [u8; 16],
@@ -438,12 +474,19 @@ pub fn encode_frame(body: &FrameBody) -> R<Vec<u8>> {
             welcome,
             state,
             routes,
-        } => cbor::encode(&V::M(vec![
-            (0, V::B(invite_id.to_vec())),
-            (1, V::B(welcome.clone())),
-            (2, V::B(state.clone())),
-            (3, V::A(routes.iter().map(ev_v).collect())),
-        ])),
+            heads,
+        } => {
+            let mut m = vec![
+                (0, V::B(invite_id.to_vec())),
+                (1, V::B(welcome.clone())),
+                (2, V::B(state.clone())),
+                (3, V::A(routes.iter().map(ev_v).collect())),
+            ];
+            if !heads.is_empty() {
+                m.push((4, V::A(heads.iter().map(head_v).collect())));
+            }
+            cbor::encode(&V::M(m))
+        }
         FrameBody::AdmitRequest {
             invite_id,
             releases,
@@ -548,6 +591,10 @@ pub fn decode_frame(bytes: &[u8]) -> R<FrameBody> {
             welcome: nonempty(c(c(b.get(1))?.b())?)?,
             state: c(c(b.get(2))?.b())?.to_vec(),
             routes: arr(3)?.iter().map(evidence).collect::<R<_>>()?,
+            heads: match b.opt(4) {
+                None => vec![],
+                Some(a) => c(a.a())?.iter().map(account_head).collect::<R<_>>()?,
+            },
         },
         FK_ADMIT_REQUEST => FrameBody::AdmitRequest {
             invite_id: bytes16(c(b.get(0))?)?,
@@ -745,6 +792,14 @@ pub struct GroupCarriageRec {
     /// presents it in an Accept (ADR-0189 1.4(b); report D36). Verified against the own chain before use.
     #[serde(default)]
     pub head_cache: Option<String>,
+    /// The signed head of each account this device holds no relationship head for, as a Welcome carried it and this
+    /// device verified it (account hex). Used only to prove those accounts' leaves; the newest generation wins.
+    #[serde(default)]
+    pub room_heads: BTreeMap<String, RoomHead>,
+    /// The signed head each peer's Accept carried (account hex -> hex), kept so a later Welcome can name that account
+    /// with evidence. Used only while it still names the head pinned on the relationship.
+    #[serde(default)]
+    pub peer_heads: BTreeMap<String, String>,
     /// Frames held until an account head arrives (D37).
     #[serde(default)]
     pub pending: Vec<PendingFrame>,
@@ -753,6 +808,13 @@ pub struct GroupCarriageRec {
     pub outbox: Vec<OutItem>,
     #[serde(default)]
     pub next_out: u64,
+}
+
+/// A verified head of an account the device has no relationship head for: the state body and its credential bodies.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RoomHead {
+    pub state: String,
+    pub credentials: Vec<String>,
 }
 
 impl GroupCarriageRec {

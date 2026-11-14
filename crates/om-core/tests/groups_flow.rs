@@ -69,7 +69,7 @@ mod engine {
         Eng::new(id)
     }
     pub fn with_signer(id: &[u8], s: &om_core::crypto::sig::DeviceSigner) -> Eng {
-        Eng::with_signature_key(id, &s.public()[..32])
+        super::attested(Eng::new(id), id, s)
     }
 }
 #[cfg(feature = "groups-openmls")]
@@ -79,11 +79,19 @@ mod engine {
         Eng::new(id).expect("engine")
     }
     pub fn with_signer(id: &[u8], s: &om_core::crypto::sig::DeviceSigner) -> Eng {
-        Eng::with_signing_seed(id, &s.ed_seed).expect("engine")
+        super::attested(new(id), id, s)
     }
 }
 
 const NOW: u64 = 1_800_000_000_000;
+
+/// The engine with the attestation Core's own engine opening would give it: the device signs its dedicated leaf key.
+fn attested(mut e: engine::Eng, id: &[u8], s: &DeviceSigner) -> engine::Eng {
+    let did: [u8; 16] = id.try_into().expect("16-byte device id");
+    let att = om_core::groups::endpoint::attest_leaf(s, &did, &e.signature_key(), [7; 32]);
+    e.set_attestation(att).expect("attestation");
+    e
+}
 
 macro_rules! ctx {
     ($d:expr) => {
@@ -1257,4 +1265,115 @@ fn endpoint_binding_an_incoming_commit_adding_a_proven_leaf_is_applied() {
             2
         );
     }
+}
+
+// ---- the MLS leaf key is dedicated and attested by the device --------------------------------------
+
+/// A client of B1's DeviceID whose leaf key is attested by `by` (a signer) over `key_of`'s leaf key.
+fn attested_imposter(by: &DeviceSigner, key_of: Option<&engine::Eng>) -> engine::Eng {
+    let mut e = engine::new(&[0xb1; 16]);
+    let key = key_of.map_or_else(|| e.signature_key(), |k| k.signature_key());
+    let att = om_core::groups::endpoint::attest_leaf(by, &[0xb1; 16], &key, [9; 32]);
+    e.set_attestation(att).unwrap();
+    e
+}
+
+fn released(devs: &mut [Dev], e: &mut engine::Eng) -> DeviceRelease {
+    let kp = e
+        .key_package(&mut CryptoEnv {
+            rng: &mut devs[1].rng,
+            now_ms: NOW,
+        })
+        .unwrap();
+    DeviceRelease {
+        device: om_core::crypto::hex(&[0xb1; 16]),
+        key_package: om_core::crypto::hex(&kp.bytes),
+        pk: om_core::crypto::hex(&devs[1].signer.public()),
+    }
+}
+
+#[test]
+fn leaf_attestation_wrong_or_absent_is_refused_and_the_honest_one_binds() {
+    let (mut devs, inv) = offered(|_| {});
+    // absent: B1's DeviceID with a leaf key nobody attested
+    let mut bare = engine::new(&[0xb1; 16]);
+    assert!(bare.attestation().is_empty());
+    let r = released(&mut devs, &mut bare);
+    let ev = accept_arrives(&mut devs, &inv, vec![r]);
+    assert!(blocked(&ev, "endpoint_unbound"), "absent: {ev:?}");
+    // wrong signer: B2's device key attests B1's leaf
+    let b2 = devs[2].signer.clone();
+    let other = engine::new(&[0xb9; 16]);
+    let mut e = attested_imposter(&b2, None);
+    let r = released(&mut devs, &mut e);
+    let ev = accept_arrives(&mut devs, &inv, vec![r]);
+    assert!(blocked(&ev, "endpoint_unbound"), "wrong signer: {ev:?}");
+    // wrong key: B1's own attestation, but over some other leaf key
+    let b1 = devs[1].signer.clone();
+    let mut e = attested_imposter(&b1, Some(&other));
+    let r = released(&mut devs, &mut e);
+    let ev = accept_arrives(&mut devs, &inv, vec![r]);
+    assert!(blocked(&ev, "endpoint_unbound"), "wrong key: {ev:?}");
+    nothing_prepared(&devs[0], &inv);
+    // the engine never holds the device key: its leaf key differs from the device's Ed25519 key
+    assert_ne!(
+        devs[1].eng.signature_key(),
+        devs[1].signer.public()[..32].to_vec()
+    );
+    // the honest release binds
+    let r = devs[1].release();
+    let ev = accept_arrives(&mut devs, &inv, vec![r]);
+    assert!(!blocked(&ev, "endpoint_unbound"), "honest: {ev:?}");
+}
+
+#[test]
+fn a_commit_by_a_member_revoked_since_it_was_made_is_refused_at_apply_time() {
+    let (mut devs, conv, _) = invited_and_accepted();
+    let id = commit_id(&devs[0]);
+    let d = &mut devs[0];
+    d.app
+        .group_do(
+            ctx!(d),
+            GroupIntent::CommitPublished {
+                intent_id: id.clone(),
+            },
+        )
+        .unwrap();
+    let rep = d
+        .app
+        .group_do(ctx!(d), GroupIntent::CommitAccepted { intent_id: id })
+        .unwrap();
+    pump(&mut devs, 0, rep);
+    // B1 leaves; A1 answers with the removing Commit, but B2 has learned A1 was revoked in the meantime
+    let a1 = devs[0].id();
+    devs[2].revoked.push(a1);
+    let d = &mut devs[1];
+    let rep = d
+        .app
+        .group_do(
+            ctx!(d),
+            GroupIntent::Leave {
+                conversation_id: conv.clone(),
+            },
+        )
+        .unwrap();
+    let before = devs[2]
+        .eng
+        .epoch(&devs[2].app.group_mls_id(&conv).unwrap())
+        .unwrap();
+    let ev = pump(&mut devs, 1, rep);
+    assert!(
+        ev.iter()
+            .any(|(i, e)| *i == 2 && matches!(e, GroupEvent::Dropped("committer_not_authorized"))),
+        "{ev:?}"
+    );
+    assert_eq!(
+        devs[2]
+            .eng
+            .epoch(&devs[2].app.group_mls_id(&conv).unwrap())
+            .unwrap(),
+        before,
+        "refused: the epoch did not move"
+    );
+    assert!(!devs[2].app.groups.is_empty());
 }

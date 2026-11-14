@@ -424,6 +424,13 @@ impl AppState {
                     return err("accept_unknown_invite");
                 }
                 self.carry_check_peer_head(rel, head)?;
+                if let Some(acct) = self
+                    .relationships
+                    .get(rel)
+                    .map(|r| r.peer_account_id.clone())
+                {
+                    self.group_carriage.peer_heads.insert(acct, hex(head));
+                }
                 let mut out = vec![];
                 let mut learned = vec![];
                 for r in releases {
@@ -722,6 +729,7 @@ impl AppState {
                 return err("member_evidence_missing");
             }
         }
+        let heads = self.carry_heads_for(env, directory)?;
         let mut rnd = [0u8; 32];
         env.rng.fill_bytes(&mut rnd);
         let signed_state = cg::sign_state(env.signer, &env.device_id, &st.encode(), rnd);
@@ -730,6 +738,7 @@ impl AppState {
             welcome: un(welcome)?,
             state: signed_state,
             routes,
+            heads,
         })?;
         let mut sealed = vec![];
         for r in &inv.releases {
@@ -752,6 +761,127 @@ impl AppState {
             self.group_carriage.peers.entry(conv).or_default().extend(m);
         }
         Ok(sealed)
+    }
+
+    /// The signed head of every account the directory names that this device can evidence: its own (a control device
+    /// signs one, a messaging device presents the cached one) and each peer whose Accept head is still the head pinned
+    /// on the relationship. An account this device cannot evidence is left out; the receiver then holds the Welcome.
+    fn carry_heads_for<Rg: RngCore + CryptoRng>(
+        &self,
+        env: &mut CarryEnv<'_, Rg>,
+        directory: &[(String, String, String)],
+    ) -> R<Vec<cg::AccountHead>> {
+        let mut accounts: Vec<String> = directory.iter().map(|(_, a, _)| a.clone()).collect();
+        accounts.sort();
+        accounts.dedup();
+        let mut out = vec![];
+        for a in accounts {
+            let account: [u8; 32] = un(&a)?.try_into().map_err(|_| GroupError("malformed"))?;
+            if account == env.account_id {
+                let tip = self.carry_own_tip()?;
+                let Ok(head) = self.carry_own_head(env) else {
+                    continue;
+                };
+                out.push(cg::AccountHead {
+                    account,
+                    head,
+                    state: tip.body(),
+                    credentials: self
+                        .acs_credentials
+                        .iter()
+                        .filter_map(|h| unhex(h).ok())
+                        .collect(),
+                });
+                continue;
+            }
+            let Some(rel) = self
+                .relationships
+                .values()
+                .find(|r| r.peer_account_id == a && r.state == RelState::Active && !r.blocked)
+            else {
+                continue;
+            };
+            let (Some(head), Some(pinned)) = (
+                self.group_carriage
+                    .peer_heads
+                    .get(&a)
+                    .and_then(|h| unhex(h).ok()),
+                unhex(&rel.peer_acs_body).ok(),
+            ) else {
+                continue;
+            };
+            // only a head that still names the pinned state is evidence of it
+            if self.carry_check_peer_head(&rel.id, &head).is_err() {
+                continue;
+            }
+            out.push(cg::AccountHead {
+                account,
+                head,
+                state: pinned,
+                credentials: rel
+                    .peer_credentials
+                    .iter()
+                    .filter_map(|h| unhex(h).ok())
+                    .collect(),
+            });
+        }
+        #[cfg(feature = "test-loopback")]
+        match crate::runtime::TEST_ROOM_HEADS.with(|m| m.get()) {
+            1 => out.clear(),
+            2 => {
+                for h in &mut out {
+                    if let Some(b) = h.head.last_mut() {
+                        *b ^= 1;
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(out)
+    }
+
+    /// Verify the signed head of an account this device holds no head for. The state body must be the one the head
+    /// names (hash), name the account, and be signed for by a control device (not quarantined) whose credential the
+    /// state commits to by hash; the credentials kept are only those the state lists. An account this device already
+    /// holds a head for is never replaced from here: its own head, or the relationship's, stays the authority.
+    fn carry_room_head(&self, h: &cg::AccountHead) -> Option<super::carriage::RoomHead> {
+        if self
+            .group_heads()
+            .iter()
+            .any(|(a, _)| a.account_id == h.account)
+        {
+            return None;
+        }
+        let acs = Acs::from_body(&h.state).ok()?;
+        if acs.account_id != h.account || h.credentials.len() > 64 {
+            return None;
+        }
+        let creds: Vec<Credential> = h
+            .credentials
+            .iter()
+            .filter_map(|b| Credential::from_body(b).ok())
+            .filter(|c| {
+                acs.credentials
+                    .iter()
+                    .any(|(d, x)| *d == c.device_id && *x == c.hash())
+            })
+            .collect();
+        let (account, generation, state_hash) = cg::open_account_head(&h.head, |d| {
+            if !acs.control.contains(d) || acs.quarantined.contains(d) {
+                return None;
+            }
+            creds
+                .iter()
+                .find(|c| &c.device_id == d)
+                .map(|c| c.signing_pk.clone())
+        })
+        .ok()?;
+        (account == h.account && generation == acs.generation && state_hash == acs.hash()).then(
+            || super::carriage::RoomHead {
+                state: hex(&h.state),
+                credentials: creds.iter().map(|c| hex(&c.body())).collect(),
+            },
+        )
     }
 
     // ------------------------------------------------------------------------------------------ outbox and G10
@@ -906,6 +1036,16 @@ impl AppState {
             return err("credential_not_active");
         }
         if rels.is_empty() {
+            // no head of ours for this account: a head the Welcome carried and this device verified may prove it
+            if self.group_carriage.room_heads.get(&acct).is_some_and(|rh| {
+                rh.credentials.contains(&hb)
+                    && unhex(&rh.state)
+                        .ok()
+                        .and_then(|b| Acs::from_body(&b).ok())
+                        .is_some_and(|a| super::endpoint::active_in(&a, &cred))
+            }) {
+                return Ok(Trust::Ok(cred));
+            }
             Ok(Trust::Hold {
                 refresh: vec![],
                 unanchored: vec![acct],
@@ -1041,7 +1181,10 @@ impl AppState {
                 welcome,
                 state,
                 routes,
-            } => self.carry_welcome_in(gctx, &held, &room, invite_id, welcome, state, routes),
+                heads,
+            } => {
+                self.carry_welcome_in(gctx, &held, &room, invite_id, welcome, state, routes, heads)
+            }
             FrameBody::App(ct) => {
                 let wire = GroupWire::App {
                     conversation_id: room,
@@ -1192,6 +1335,7 @@ impl AppState {
         welcome: Vec<u8>,
         state: Vec<u8>,
         routes: Vec<DeviceEvidence>,
+        heads: Vec<cg::AccountHead>,
     ) -> R<GroupReply> {
         let now_s = held.now_s;
         let id = hex(&invite_id);
@@ -1211,6 +1355,22 @@ impl AppState {
             .is_some_and(|r| r.state == RelState::Active && !r.blocked);
         if !rel_ok {
             return err("relationship_not_active");
+        }
+        // Heads the Welcome carries for accounts this device holds no head for: each is verified here, and one that
+        // does not verify is simply not used (the Welcome then stays held for that account until it expires).
+        let own = self.carry_own_tip().ok().map(|t| t.account_id);
+        let mut added_heads = vec![];
+        for h in &heads {
+            if Some(h.account) == own {
+                continue;
+            }
+            if let Some(rh) = self.carry_room_head(h) {
+                let k = hex(&h.account);
+                if !self.group_carriage.room_heads.contains_key(&k) {
+                    self.group_carriage.room_heads.insert(k.clone(), rh);
+                    added_heads.push(k);
+                }
+            }
         }
         let (mut verified, mut dir) = (vec![], vec![]);
         let (mut refresh, mut unanchored) = (vec![], vec![]);
@@ -1234,6 +1394,9 @@ impl AppState {
             }
         }
         if !refresh.is_empty() || !unanchored.is_empty() {
+            for k in &added_heads {
+                self.group_carriage.room_heads.remove(k);
+            }
             refresh.sort();
             refresh.dedup();
             unanchored.sort();
@@ -1268,6 +1431,11 @@ impl AppState {
             GroupEvent::Joined { conversation_id } => Some(hex(conversation_id)),
             _ => None,
         });
+        if conv.is_none() {
+            for k in &added_heads {
+                self.group_carriage.room_heads.remove(k);
+            }
+        }
         if let Some(conv) = conv {
             self.group_carriage.rekey(room, &conv);
             for (e, rec) in &verified {

@@ -65,6 +65,10 @@ export interface HistoryTransferView {
   /** Receiver: chunks ignored whole (a codec this implementation does not know). */
   readonly chunksIgnored: number;
   readonly messagesAdded: number;
+  /** Receiver: chunk indices not yet counted. */
+  readonly chunksMissing: number;
+  /** `degraded`: the transfer's time ran out with chunks missing; the history is partial and nothing more will come. */
+  readonly state: "in_progress" | "complete" | "degraded";
 }
 
 export interface DevicesView {

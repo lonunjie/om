@@ -1637,10 +1637,25 @@ impl AppState {
         };
         let (account, pk) = (un(&act.account)?, un(&rec.pk)?);
         // Read the Commit before applying it. Every leaf it adds must be proven by a validated
-        // head (the `added` list is compared, never trusted), and a new committer leaf must keep the committer's key.
+        // head (the `added` list is compared, never trusted), and a new committer leaf must be attested by the committer's device.
         let ci = mls(ctx.engine.inspect_commit(&self.group_mls_id(conv)?, commit))?;
+        // The authors are re-checked now, against the heads as they are at apply time: a device revoked or quarantined
+        // since the Commit was created (or since it joined) is refused, and so is one no validated head lists.
+        if !self.group_device_authorized(&un(&rec.account)?, committer, &pk)
+            || !self.group_device_authorized(&account, actor_device, &un(&act.pk)?)
+        {
+            rep.events
+                .push(GroupEvent::Dropped("committer_not_authorized"));
+            return Ok(());
+        }
         if let Some(leaf) = &ci.committer_leaf
-            && (leaf.device != committer || pk.len() < 32 || leaf.signature_key != pk[..32])
+            && (leaf.device != committer
+                || !super::endpoint::leaf_attested(
+                    &pk,
+                    &leaf.device,
+                    &leaf.signature_key,
+                    &leaf.attestation,
+                ))
         {
             rep.events
                 .push(GroupEvent::Dropped("committer_leaf_unbound"));

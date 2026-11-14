@@ -646,9 +646,11 @@ fn a_messaging_only_device_joins_a_room() {
     assert_eq!(phone.pending(), 0);
 }
 
-/// D37: a Welcome naming a member whose account head this device cannot anchor (no relationship with that account)
-/// is held, never accepted unverified, bounded and expiring. Question Q5 in the report: nothing here anchors it.
-fn held_welcome_trio(tag: &str) -> Vec<P> {
+/// Alice invites Bob, then Carol, who has never met Bob. `heads`: what Alice's Welcome carries for the accounts it names
+/// (0 their signed heads, 1 nothing, 2 a corrupted head). With 0 Carol joins a three-account Room; otherwise the
+/// Welcome is held, never accepted unverified, bounded and expiring (D37, D44).
+fn welcome_trio(tag: &str, heads: u8) -> Vec<P> {
+    om_core::runtime::TEST_ROOM_HEADS.with(|m| m.set(heads));
     let net = LoopbackNetwork::default();
     let mut ps = vec![
         mk(&net, &format!("alice-{tag}"), "Alice"),
@@ -702,6 +704,15 @@ fn held_welcome_trio(tag: &str) -> Vec<P> {
     let c0 = ps[0].ctx.clone();
     let step = ps[0].rt.core.group_outbox_done(&c0, &done).unwrap();
     assert!(ps[0].rt.settle(&step));
+    if heads == 0 {
+        assert!(
+            !held,
+            "the Welcome names Bob with his signed head: nothing to hold"
+        );
+        assert_eq!(ps[2].groups(), 1, "Carol joined");
+        assert_eq!(ps[2].pending(), 0);
+        return ps;
+    }
     assert!(held, "the Welcome is held, not accepted");
     assert_eq!(ps[2].groups(), 0, "nothing was accepted unverified");
     assert_eq!(ps[2].pending(), 1);
@@ -709,8 +720,35 @@ fn held_welcome_trio(tag: &str) -> Vec<P> {
 }
 
 #[test]
+fn a_three_account_room_joins_on_the_heads_the_welcome_carries() {
+    let ps = welcome_trio("d44a", 0);
+    let conv = ps[2].conv();
+    assert_eq!(
+        ps[2].detail(&conv).summary.members,
+        3,
+        "Alice, Bob and Carol"
+    );
+    assert_eq!(ps[2].pending(), 0);
+}
+
+/// A head that does not verify, or none at all, leaves the Welcome held until it expires.
+#[test]
+fn a_welcome_whose_head_does_not_verify_is_held_until_it_expires() {
+    for heads in [1u8, 2] {
+        let mut ps = welcome_trio(&format!("d44b{heads}"), heads);
+        ps[2].pending_retry();
+        assert_eq!(ps[2].groups(), 0);
+        assert_eq!(ps[2].pending(), 1);
+        ps[2].rt.tick((cg::PENDING_TTL_S + 1) * 1000);
+        ps[2].pending_retry();
+        assert_eq!(ps[2].pending(), 0, "an expired frame is dropped");
+        assert_eq!(ps[2].groups(), 0);
+    }
+}
+
+#[test]
 fn a_welcome_naming_an_unanchored_account_is_held_and_then_expires() {
-    let mut ps = held_welcome_trio("d37a");
+    let mut ps = welcome_trio("d37a", 1);
     // a refresh asks the relationships it has; Bob is not one, so the Welcome stays held
     ps[2].pending_refresh();
     settle_every(&mut ps);
@@ -727,7 +765,7 @@ fn a_welcome_naming_an_unanchored_account_is_held_and_then_expires() {
 /// D37: the missing head arrives (Carol and Bob meet, so Carol can anchor Bob's account) and the held Welcome applies.
 #[test]
 fn a_held_welcome_applies_once_the_missing_head_arrives() {
-    let mut ps = held_welcome_trio("d37b");
+    let mut ps = welcome_trio("d37b", 1);
     connect(&mut ps, 1, 2);
     ps[2].pending_refresh();
     settle_every(&mut ps);

@@ -453,6 +453,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     LinkState::Expired
                 };
             }
+            mark_history_degraded(j);
             j.secret = String::new().into();
         }
     }
@@ -522,6 +523,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             history_ignored: 0,
             history_messages: 0,
             history_seen: vec![],
+            history_degraded: false,
         });
         self.st.device = Some(device);
         self.deposit_ceremony(op, &parts.a_cap, &parts.uri, sealed);
@@ -806,6 +808,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
         // The non-suppressible notice: signed over the new head, for the new device and for every other device.
         let notice = self.sign_notice(&child, &cred.device_id, me)?;
+        let notice_hex = hex(&notice);
         // A controller-signed head of the new tip, for the account's messaging devices to cache (groups, D36).
         let head_sig = {
             let dev = self.st.device.as_ref().ok_or(StaleState)?;
@@ -816,7 +819,22 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let mut chain_all = chain.clone();
         chain_all.push(signed.clone());
         let tail_from = chain_all.len().saturating_sub(MAX_CHAIN_TAIL);
-        let enrolled = cbor::encode(&V::M(vec![
+        // A sibling may have missed earlier enrollments: the payload carries the notice of every enrollment the tail
+        // covers, in chain order (key 5), and the newest enrollment's notice in the usual slot (key 1).
+        let prior: Vec<V> = chain_all[tail_from..chain_all.len() - 1]
+            .iter()
+            .filter_map(|s| chain_head(s))
+            .filter_map(|st| {
+                self.st
+                    .app
+                    .notices
+                    .iter()
+                    .filter_map(|n| unhex(&n.signed).ok())
+                    .find(|n| notice_state(n) == Some(st.hash()))
+            })
+            .map(V::B)
+            .collect();
+        let mut enrolled_map = vec![
             (0, V::U(KIND_ENROLLED)),
             (1, V::B(notice.clone())),
             (
@@ -824,7 +842,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 V::A(chain_all[tail_from..].iter().cloned().map(V::B).collect()),
             ),
             (3, V::A(creds_all.iter().cloned().map(V::B).collect())),
-        ]));
+        ];
+        if !prior.is_empty() {
+            enrolled_map.push((5, V::A(prior)));
+        }
+        let enrolled = cbor::encode(&V::M(enrolled_map));
         let enrolled = with_head(enrolled, 4, head_sig.as_deref());
         if enrolled.len() > MAX_MSG {
             return Err(Quota);
@@ -902,6 +924,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             device_id: req.device_id.clone(),
             label: req.label.clone(),
             at: now,
+            signed: notice_hex,
         });
         while self.st.app.notices.len() > MAX_NOTICES {
             self.st.app.notices.remove(0);
@@ -1435,12 +1458,29 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let Some((head, have, have_creds)) = self.acs_head() else {
             return false;
         };
-        let Some(staged) = stage_enrollment(head, have, have_creds, &chain, &creds, &notice) else {
+        // The ordered notices: earlier enrollments first (key 5), the newest in the usual slot (key 1).
+        let mut notices = match p.opt(5) {
+            None => vec![],
+            Some(v) => match bytes_list(Ok(v)) {
+                Some(l) if l.len() < MAX_CHAIN_TAIL => l,
+                _ => return false,
+            },
+        };
+        notices.push(notice);
+        // States this device already held before this payload: a prior notice over one of them is verified but is no
+        // news (for example this device's own enrollment).
+        let held: Vec<[u8; 32]> = have
+            .iter()
+            .filter_map(|c| chain_head(c))
+            .map(|a| a.hash())
+            .collect();
+        let Some(staged) = stage_enrollment(head, have, have_creds, &chain, &creds, &notices)
+        else {
             return false;
         };
-        let Some(device) = notice_device(&notice) else {
+        if notices.iter().any(|n| notice_device(n).is_none()) {
             return false;
-        };
+        }
         // Commit: head, credentials and notice together, only after the whole staged chain verified.
         if staged.extended {
             self.st.app.acs_chain = staged.chain.iter().map(|c| hex(c)).collect();
@@ -1451,30 +1491,39 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             // a messaging device keeps the head a control device signed (ignored unless it is our tip's)
             self.st.app.carry_head_adopt(h);
         }
-        let key = hex(&device);
-        if !self.st.app.notices.iter().any(|n| n.device_id == key) {
-            let label = self
-                .st
-                .app
-                .device_meta
-                .get(&key)
-                .map(|m| m.label.clone())
-                .unwrap_or_else(|| "Linked device".into());
-            self.st
-                .app
-                .device_meta
-                .entry(key.clone())
-                .or_insert(DeviceMeta {
-                    label: label.clone(),
-                    enrolled_at: self.now_ms,
+        for (i, notice) in notices.iter().enumerate() {
+            let Some(device) = notice_device(notice) else {
+                continue;
+            };
+            if i + 1 < notices.len() && notice_state(notice).is_some_and(|h| held.contains(&h)) {
+                continue;
+            }
+            let key = hex(&device);
+            if !self.st.app.notices.iter().any(|n| n.device_id == key) {
+                let label = self
+                    .st
+                    .app
+                    .device_meta
+                    .get(&key)
+                    .map(|m| m.label.clone())
+                    .unwrap_or_else(|| "Linked device".into());
+                self.st
+                    .app
+                    .device_meta
+                    .entry(key.clone())
+                    .or_insert(DeviceMeta {
+                        label: label.clone(),
+                        enrolled_at: self.now_ms,
+                    });
+                self.st.app.notices.push(NoticeRec {
+                    device_id: key,
+                    label,
+                    at: self.now_ms,
+                    signed: hex(notice),
                 });
-            self.st.app.notices.push(NoticeRec {
-                device_id: key,
-                label,
-                at: self.now_ms,
-            });
-            while self.st.app.notices.len() > MAX_NOTICES {
-                self.st.app.notices.remove(0);
+                while self.st.app.notices.len() > MAX_NOTICES {
+                    self.st.app.notices.remove(0);
+                }
             }
         }
         true
@@ -1489,16 +1538,18 @@ pub(super) struct StagedEnrollment {
     pub extended: bool,
 }
 
-/// Verify `chain` (states that descend from `head`) and the single `notice` against a STAGED
-/// copy, touching no durable state. Every device a previously unseen state newly lists is an enrollment that needs a
-/// notice, and one notice covers one enrollment, so a missing, extra or mismatched enrollment transition is refused.
+/// Verify `chain` (states that descend from `head`) and the ordered `notices` against a STAGED copy, touching no
+/// durable state. Every device a previously unseen state newly lists is an enrollment that needs its own notice, and
+/// one notice covers one enrollment: a sibling that missed several enrollments gets the whole ordered list, one notice
+/// per unseen enrollment, and the whole list is verified before anything is applied. A missing notice, or any notice
+/// that does not verify against its state of the staged chain, refuses the whole payload.
 pub(super) fn stage_enrollment(
     mut head: Acs,
     mut have: Vec<Vec<u8>>,
     have_creds: Vec<Vec<u8>>,
     chain: &[Vec<u8>],
     creds: &[Vec<u8>],
-    notice: &[u8],
+    notices: &[Vec<u8>],
 ) -> Option<StagedEnrollment> {
     let mut all_creds = have_creds.clone();
     for c in creds {
@@ -1531,45 +1582,55 @@ pub(super) fn stage_enrollment(
         have.push(s.clone());
         extended = true;
     }
-    // The notice must be over a state of the staged chain and signed by a control device of that state.
-    let Ok(body) = cbor::decode(notice).and_then(|v| Ok(v.get(1)?.b()?.to_vec())) else {
-        return None;
-    };
-    let Ok(bv) = cbor::decode(&body) else {
-        return None;
-    };
-    let (Ok(device), Ok(by), Ok(at_hash)) = (
-        bv.get(3).and_then(|x| x.b()).map(<[u8]>::to_vec),
-        bv.get(7).and_then(|x| x.b()).map(<[u8]>::to_vec),
-        bv.get(6).and_then(|x| x.get(1)).and_then(|x| x.b32()),
-    ) else {
-        return None;
-    };
-    let (Ok(device), Ok(by)) = (
-        <[u8; 16]>::try_from(device.as_slice()),
-        <[u8; 16]>::try_from(by.as_slice()),
-    ) else {
-        return None;
-    };
-    // One notice covers one enrollment: a missing, extra or mismatched enrollment transition refuses the whole.
-    if required.iter().any(|r| *r != (at_hash, device)) {
+    // Every notice must be over a state of the staged chain and signed by a control device of that state.
+    if notices.is_empty() || notices.len() > MAX_CHAIN_TAIL {
         return None;
     }
-    let state = have
-        .iter()
-        .filter_map(|c| chain_head(c))
-        .find(|s| s.hash() == at_hash)?;
-    let by_cred = all_creds
-        .iter()
-        .filter_map(|c| Credential::from_body(c).ok())
-        .find(|c| {
-            c.device_id == by
-                && state
-                    .credentials
-                    .iter()
-                    .any(|(d, h)| *d == by && *h == c.hash())
-        })?;
-    if !state.control.contains(&by) || !notice_ok(notice, &by_cred, &state, &device) {
+    let mut covered: Vec<([u8; 32], [u8; 16])> = vec![];
+    for notice in notices {
+        let Ok(body) = cbor::decode(notice).and_then(|v| Ok(v.get(1)?.b()?.to_vec())) else {
+            return None;
+        };
+        let Ok(bv) = cbor::decode(&body) else {
+            return None;
+        };
+        let (Ok(device), Ok(by), Ok(at_hash)) = (
+            bv.get(3).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            bv.get(7).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            bv.get(6).and_then(|x| x.get(1)).and_then(|x| x.b32()),
+        ) else {
+            return None;
+        };
+        let (Ok(device), Ok(by)) = (
+            <[u8; 16]>::try_from(device.as_slice()),
+            <[u8; 16]>::try_from(by.as_slice()),
+        ) else {
+            return None;
+        };
+        let state = have
+            .iter()
+            .filter_map(|c| chain_head(c))
+            .find(|s| s.hash() == at_hash)?;
+        let by_cred = all_creds
+            .iter()
+            .filter_map(|c| Credential::from_body(c).ok())
+            .find(|c| {
+                c.device_id == by
+                    && state
+                        .credentials
+                        .iter()
+                        .any(|(d, h)| *d == by && *h == c.hash())
+            })?;
+        if !state.control.contains(&by) || !notice_ok(notice, &by_cred, &state, &device) {
+            return None;
+        }
+        if covered.contains(&(at_hash, device)) {
+            return None; // one notice per enrollment, never repeated
+        }
+        covered.push((at_hash, device));
+    }
+    // Each unseen enrollment must have its own verified notice.
+    if required.iter().any(|r| !covered.contains(r)) {
         return None;
     }
     // Only credentials some state of the chain lists are kept.
@@ -1601,6 +1662,19 @@ fn history_index(v: &V, expected: u32, seen: &[u32]) -> Option<u32> {
         .filter(|i| *i < expected && !seen.contains(i))
 }
 
+/// The hash of the control state a (structurally parsed) notice is over.
+fn notice_state(notice: &[u8]) -> Option<[u8; 32]> {
+    let body = cbor::decode(notice).ok()?.get(1).ok()?.b().ok()?.to_vec();
+    cbor::decode(&body)
+        .ok()?
+        .get(6)
+        .ok()?
+        .get(1)
+        .ok()?
+        .b32()
+        .ok()
+}
+
 /// The device a (structurally parsed) notice announces.
 fn notice_device(notice: &[u8]) -> Option<[u8; 16]> {
     let body = cbor::decode(notice).ok()?.get(1).ok()?.b().ok()?.to_vec();
@@ -1617,16 +1691,37 @@ pub fn history_eligible(head: &Acs, device: &[u8; 16]) -> bool {
         && !head.revoked.contains(device)
 }
 
+/// A transfer whose time ran out with indices still missing ends degraded, once and for good (the caller runs this
+/// when the ceremony is over). A complete or never-approved transfer is untouched.
+pub(super) fn mark_history_degraded(j: &mut crate::state::LinkJoin) {
+    if j.approved && j.history_expected > 0 && j.history_done < j.history_expected {
+        j.history_degraded = true;
+    }
+}
+
+/// The receiver's view of its transfer: counts and an explicit state, never content.
+pub(super) fn receiver_view(j: &crate::state::LinkJoin) -> HistoryTransferView {
+    HistoryTransferView {
+        role: HistoryRole::Receiver,
+        chunks_total: j.history_expected,
+        chunks_done: j.history_done,
+        chunks_ignored: j.history_ignored,
+        messages_added: j.history_messages,
+        chunks_missing: j.history_expected.saturating_sub(j.history_done),
+        state: if j.history_degraded {
+            HistoryTransferState::Degraded
+        } else if j.history_done >= j.history_expected {
+            HistoryTransferState::Complete
+        } else {
+            HistoryTransferState::InProgress
+        },
+    }
+}
+
 /// The progress of the latest history transfer, from whichever side this profile was on.
 pub fn history_view(st: &ProfileState) -> Option<HistoryTransferView> {
     if let Some(j) = st.app.link_join.as_ref().filter(|j| j.history_expected > 0) {
-        return Some(HistoryTransferView {
-            role: HistoryRole::Receiver,
-            chunks_total: j.history_expected,
-            chunks_done: j.history_done,
-            chunks_ignored: j.history_ignored,
-            messages_added: j.history_messages,
-        });
+        return Some(receiver_view(j));
     }
     st.app
         .link_offers
@@ -1639,6 +1734,8 @@ pub fn history_view(st: &ProfileState) -> Option<HistoryTransferView> {
             chunks_done: o.history_sent,
             chunks_ignored: 0,
             messages_added: 0,
+            chunks_missing: 0,
+            state: HistoryTransferState::Complete,
         })
 }
 
@@ -2193,13 +2290,21 @@ mod tests {
             )
         }
         fn stage(&self, have: usize, upto: usize, notice: &[u8]) -> Option<StagedEnrollment> {
+            self.stage_all(have, upto, &[notice.to_vec()])
+        }
+        fn stage_all(
+            &self,
+            have: usize,
+            upto: usize,
+            notices: &[Vec<u8>],
+        ) -> Option<StagedEnrollment> {
             stage_enrollment(
                 self.states[have - 1].clone(),
                 self.signed[..have].to_vec(),
                 self.creds.clone(),
                 &self.signed[have..upto],
                 &self.creds,
-                notice,
+                notices,
             )
         }
     }
@@ -2269,6 +2374,102 @@ mod tests {
         let staged = f.stage(3, 3, &n).expect("held chain, valid notice");
         assert!(!staged.extended);
         assert_eq!(staged.chain, f.signed);
+    }
+
+    #[test]
+    fn a_sibling_that_missed_several_enrollments_catches_up_with_the_whole_notice_list() {
+        let mut f = Fx::new();
+        f.enroll(1);
+        f.enroll(1);
+        f.enroll(1);
+        let ctl = f.ctl.clone();
+        let d: Vec<[u8; 16]> = f.new_devs.iter().map(|x| x.device_id).collect();
+        let n: Vec<Vec<u8>> = (0..3).map(|i| f.notice(i + 1, d[i], &ctl)).collect();
+        // the full ordered list stages the whole chain in one step
+        let staged = f
+            .stage_all(1, 4, &n)
+            .expect("every enrollment has its notice");
+        assert!(staged.extended);
+        assert_eq!(staged.chain.len(), 4);
+        // order does not matter, but each notice is used once
+        let rev: Vec<Vec<u8>> = n.iter().rev().cloned().collect();
+        assert!(f.stage_all(1, 4, &rev).is_some());
+        let mut dup = n.clone();
+        dup.push(n[0].clone());
+        assert!(f.stage_all(1, 4, &dup).is_none(), "a repeated notice");
+        // fail closed: one notice short, or one bad notice, refuses the whole list
+        assert!(
+            f.stage_all(1, 4, &n[..2]).is_none(),
+            "newest enrollment has no notice"
+        );
+        assert!(
+            f.stage_all(1, 4, &n[1..]).is_none(),
+            "oldest enrollment has no notice"
+        );
+        let stranger = f.new_devs[0].clone();
+        let bad = f.notice(2, d[1], &stranger);
+        assert!(
+            f.stage_all(1, 4, &[n[0].clone(), bad, n[2].clone()])
+                .is_none()
+        );
+        assert!(
+            f.stage_all(1, 4, &[n[0].clone(), vec![1, 2, 3], n[2].clone()])
+                .is_none()
+        );
+        // a sibling that already holds the first two needs only the third
+        assert!(f.stage_all(3, 4, &n[2..]).is_some());
+    }
+
+    #[test]
+    fn a_transfer_that_ends_with_missing_indices_is_degraded_and_says_so() {
+        let mut j = LinkJoin {
+            operation_id: Default::default(),
+            secret: String::new().into(),
+            relay_uri: String::new(),
+            a_cap: String::new(),
+            b_mailbox: String::new(),
+            b_recv: String::new(),
+            created_ms: 0,
+            expires_at: 0,
+            label: String::new(),
+            nonce: String::new(),
+            request_id: String::new(),
+            code: String::new(),
+            state: LinkState::Linked,
+            approved: true,
+            roster_expected: 0,
+            roster_done: 0,
+            approver: String::new(),
+            history_expected: 3,
+            history_done: 2,
+            history_ignored: 0,
+            history_messages: 4,
+            history_seen: vec![0, 2],
+            history_degraded: false,
+        };
+        let live = receiver_view(&j);
+        assert_eq!(live.state, HistoryTransferState::InProgress);
+        assert_eq!(live.chunks_missing, 1);
+        mark_history_degraded(&mut j);
+        let end = receiver_view(&j);
+        assert_eq!(end.state, HistoryTransferState::Degraded);
+        assert_eq!(
+            (end.chunks_done, end.chunks_total, end.chunks_missing),
+            (2, 3, 1)
+        );
+        assert_eq!(end.messages_added, 4, "what arrived is kept");
+        // a complete transfer is never marked, and an unapproved ceremony has no transfer to degrade
+        let mut done = j.clone();
+        done.history_degraded = false;
+        done.history_seen.push(1);
+        done.history_done = 3;
+        mark_history_degraded(&mut done);
+        assert_eq!(receiver_view(&done).state, HistoryTransferState::Complete);
+        let mut unapproved = j.clone();
+        unapproved.history_degraded = false;
+        unapproved.approved = false;
+        mark_history_degraded(&mut unapproved);
+        assert!(!unapproved.history_degraded);
     }
 
     #[test]
