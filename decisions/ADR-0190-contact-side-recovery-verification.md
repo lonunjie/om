@@ -187,3 +187,13 @@ RecoveryDossierEntry = {
   3: signed-RecoveryRequest,
 }
 ```
+
+## Operator-delegated rulings on the open questions (2026-11-14)
+
+Basis: easy by default, strongest security opt-in, fail closed, design wins over code, no change to audited text.
+
+1. **First contact with an already-recovered account:** the first-contact rules apply as for any new contact (the contact has no earlier trust to protect); the relationship is marked unverified as usual. The wait applies only to contacts that already trusted the account before the recovery.
+2. **Gap-credit web contact with no live device to answer the final veto sweep:** fall back to the strict timer (fail closed); never shorten the wait on the strength of a sweep nobody can answer.
+3. **RecoveryRoot-authenticated notice:** counts as the identity acting through its own recovery authority, not as a messaging device sending as the identity; it grants no messaging rights and carries no read access.
+4. **`notify_contacts_on_completion`:** the design wins; the default is `true`, so contacts see the notice RECOVERY_AND_BACKUP_POLICY section 1 describes. The code default changes in the implementing work.
+5. **ADR-0165 change class:** treat the new object type as an additive W1 change, and run the full protocol-evolution steps (registries, CDDL in `spec/`, two-codec vectors) before the Core work starts.
