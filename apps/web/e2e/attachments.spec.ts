@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { E2E_ADMISSION_SECRET, LOCKED_RELAY } from "./admission-fixture.ts";
-import { addIdentity, noPasskeys, walkSetup } from "./helpers.ts";
+import { addIdentity, chooseOwnRelay, noPasskeys, walkSetup } from "./helpers.ts";
 
 // Permissions are granted by name only where the engine knows the name: Playwright's Firefox rejects "microphone" at context creation.
 // Geolocation is granted everywhere; the microphone, and the voice-note leg that needs it, only on Chromium (fake device flags in the config).
@@ -47,7 +47,7 @@ test("files, a voice note and a location card cross a locked Home; oversize is r
     };
   }), E2E_ADMISSION_SECRET.toString("hex"));
   await page.getByRole("button", { name: "Get started" }).click();
-  await page.getByRole("button", { name: "Set up my own, free" }).click();
+  await chooseOwnRelay(page);
   await page.getByLabel("Address of your delivery service").fill(LOCKED_RELAY);
   await page.getByRole("button", { name: "Check and continue" }).click();
   await expect(page.getByRole("button", { name: "Start new" })).toBeVisible({ timeout: 30_000 });

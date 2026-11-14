@@ -163,6 +163,27 @@ export interface OnboardingCopy {
  * Wording for `RelaySetup`. The person-facing word is "delivery service". The vendor is named only in `cloudflare` (ADR-0186
  * decision 2: "they better know it's Cloudflare"); the copy test allows provider names in that group and nowhere else.
  */
+export interface RelayAccountsCopy {
+  readonly heading: string;
+  readonly intro: string;
+  /** Each account is one short step with its own confirmation button. */
+  readonly cloudflare: RelayAccountStepCopy;
+  readonly git: RelayAccountStepCopy & { /** Advice for a person who does not want to share all their repositories with Cloudflare. */ readonly shareAdvice: string };
+  /** Said once, honestly: these sign-up screens belong to other companies and have been tried only partly. */
+  readonly unverified: string;
+  readonly confirm: string;
+  /** Visible and spoken state of a confirmed step (state is never colour alone). */
+  readonly confirmed: string;
+  readonly next: string;
+  readonly nextWaiting: string;
+  readonly back: string;
+}
+
+export interface RelayAccountStepCopy {
+  readonly heading: string;
+  readonly body: string;
+}
+
 export interface RelaySetupCopy {
   readonly heading: string;
   /** Why OM is different, as short sentences. */
@@ -178,7 +199,7 @@ export interface RelaySetupCopy {
   /** Choices that are listed and not built yet: plain text, never a control. */
   readonly later: { readonly items: readonly string[] };
   /** The only strings that may name a vendor. */
-  readonly cloudflare: { readonly uses: string; readonly steps: readonly string[]; /** What the address looks like, so a person knows it when the setup shows it. */ readonly addressExample: string; /** R-164 (HOME_ONBOARDING 5): steer to a passkey or security key on the account, with the reason in one sentence. */ readonly protect: string; readonly open: string; readonly opensNewTab: string; /** Said under the button: it can be used again when the person lands somewhere else or the page stops. */ readonly openAgain: string; readonly notReady: string };
+  readonly cloudflare: { readonly uses: string; readonly steps: readonly string[]; /** What the address looks like, so a person knows it when the setup shows it. */ readonly addressExample: string; /** R-164 (HOME_ONBOARDING 5): steer to a passkey or security key on the account, with the reason in one sentence. */ readonly protect: string; readonly open: string; readonly opensNewTab: string; /** Said under the button: it can be used again when the person lands somewhere else or the page stops. */ readonly openAgain: string; readonly notReady: string; /** The page before the setup link: the two accounts the person needs first, each with its own short step. */ readonly accounts: RelayAccountsCopy };
   readonly setup: {
     readonly heading: string;
     readonly valueLabel: string;

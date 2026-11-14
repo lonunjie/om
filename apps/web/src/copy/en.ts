@@ -456,11 +456,11 @@ const onboardingBase: OnboardingCopy = {
     },
     // ADR-0186 decision 2: the only place a vendor is named. The copy test (en.test.ts) allows provider names in this group and nowhere else.
     cloudflare: {
-      uses: "Two free accounts: Cloudflare, and GitHub or GitLab (Cloudflare needs it to make a copy of the setup in your own account). You create or sign in to them on the next steps.",
+      uses: "Two free accounts: Cloudflare, and GitHub or GitLab (Cloudflare needs it to make a copy of the setup in your own account). You check on the next step that you have them.",
       steps: [
-        "Copy your setup value below.",
-        "Open Cloudflare setup. Create or sign in to a free Cloudflare account. When it asks, connect a GitHub or GitLab account. If GitHub asks which repositories Cloudflare may use, choose all of them for now: Cloudflare has to make a new one for you.",
-        "Back on the Cloudflare page, find the box named OM_ADMISSION and paste your setup value there. Then press the button to deploy and wait for it to finish.",
+        "Copy your OM setup value below.",
+        "Open Cloudflare setup, signed in to your Cloudflare account. When it asks, connect your GitHub or GitLab account. If GitHub asks which repositories Cloudflare may use, choose all of them: Cloudflare has to add a new one for you, and the setup may stop if you chose only some. If you would rather not share all of yours, use a new GitHub account made just for this.",
+        "Back on the Cloudflare page, find the box named OM setup value and paste your value there. Cloudflare may show the box by its short name, OM_ADMISSION: it is the same box. Then press the button to deploy and wait for it to finish.",
         "If you end up on GitHub or the page stops, open the Cloudflare setup link on this page again. It picks up where you left off.",
         "Come back to this tab and type the address it shows.",
       ],
@@ -469,6 +469,25 @@ const onboardingBase: OnboardingCopy = {
       open: "Open Cloudflare setup",
       opensNewTab: "(opens in a new tab)",
       openAgain: "Stuck, or sent to GitHub? Use the Cloudflare setup button again. It picks up where you left off.",
+      accounts: {
+        heading: "Before you start",
+        intro: "You need two free accounts, signed in, before the next step. Each takes a few minutes. You can make them in another tab and come back here.",
+        cloudflare: {
+          heading: "1. A Cloudflare account",
+          body: "Cloudflare will run your delivery service. Make a free account at cloudflare.com, or sign in if you already have one. Stay signed in.",
+        },
+        git: {
+          heading: "2. A GitHub or GitLab account",
+          body: "Cloudflare makes a copy of the setup in this account. Make a free account at github.com, or sign in if you already have one. GitLab may work too, but we have not tried it, so pick GitHub if you are unsure. Stay signed in.",
+          shareAdvice: "Do not want to share your repositories (GitHub's word for projects) with Cloudflare? Make a new free GitHub account just for this, and let Cloudflare see all of its repositories. Nothing else is in it, so nothing else is shared.",
+        },
+        unverified: "These sign-up pages belong to other companies and may look different from what we describe. We have not yet walked through every screen ourselves.",
+        confirm: "I have it",
+        confirmed: "Confirmed",
+        next: "Continue",
+        nextWaiting: "Press I have it for both accounts to continue.",
+        back: "Back",
+      },
       notReady: "This way of setting up is not ready yet. If you already have a delivery service of your own, type its address below.",
     },
     setup: {

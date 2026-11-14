@@ -5,7 +5,7 @@
 // Rust scenarios and infra/cloudflare-home/test/two-homes.e2e.test.ts (V-020), which run Core and the same adapter against two real Homes.
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { E2E_ADMISSION_SECRET, E2E_ADMISSION_SECRET_2, LOCKED_RELAY, LOCKED_RELAY_2 } from "./admission-fixture.ts";
-import { noPasskeys, reopen, walkSetup } from "./helpers.ts";
+import { chooseOwnRelay, noPasskeys, reopen, walkSetup } from "./helpers.ts";
 
 test.use({ baseURL: "http://localhost:4179" });
 
@@ -64,7 +64,7 @@ test("add a backup delivery service, see both, then move away from the first", a
   await page.goto("/");
   await seedPending(page, hex(E2E_ADMISSION_SECRET));
   await page.getByRole("button", { name: "Get started" }).click();
-  await page.getByRole("button", { name: "Set up my own, free" }).click();
+  await chooseOwnRelay(page);
   await page.getByLabel("Address of your delivery service").fill(LOCKED_RELAY);
   await page.getByRole("button", { name: "Check and continue" }).click();
   await expect(page.getByRole("button", { name: "Start new" })).toBeVisible({ timeout: 30_000 }); // connected: first run now offers "Start new" and "I already use OM" (D24)

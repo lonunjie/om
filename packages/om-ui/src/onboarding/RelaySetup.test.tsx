@@ -42,7 +42,14 @@ function mount(over: { probe?: HomeProbeResult; deployUrl?: string | undefined; 
   return { services, written, done, connect, probe };
 }
 
-const pickOwn = async (): Promise<void> => { await userEvent.click(screen.getByRole("button", { name: copy.ownFree })); };
+const a = copy.cloudflare.accounts;
+const choose = async (): Promise<void> => { await userEvent.click(screen.getByRole("button", { name: copy.ownFree })); };
+/** Page one, then the accounts page with both confirmations, then the setup page. */
+const pickOwn = async (): Promise<void> => {
+  await choose();
+  for (const b of screen.getAllByRole("button", { name: a.confirm })) await userEvent.click(b);
+  await userEvent.click(screen.getByRole("button", { name: a.next }));
+};
 
 describe("RelaySetup (first run, ADR-0186)", () => {
   it("page one says why OM is different, offers the built way as a button and lists the others as plain text, not controls", () => {
@@ -55,6 +62,44 @@ describe("RelaySetup (first run, ADR-0186)", () => {
     expect(screen.getByRole("heading", { name: copy.easyHeading })).toBeTruthy();
     expect(screen.getByRole("heading", { name: copy.advancedHeading })).toBeTruthy();
     expect(screen.getByText(copy.advancedIntro)).toBeTruthy();
+  });
+
+  it("choosing it first asks for the two accounts, each its own step with its own confirmation, and says what is unverified", async () => {
+    mount();
+    await choose();
+    expect(screen.getByRole("heading", { name: a.heading })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: a.cloudflare.heading })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: a.git.heading })).toBeTruthy();
+    for (const line of [a.intro, a.cloudflare.body, a.git.body, a.git.shareAdvice, a.unverified]) expect(screen.getByText(line)).toBeTruthy();
+    expect(screen.queryByRole("link")).toBeNull(); // nothing leaves the app before both are confirmed
+    expect(screen.queryByText(HEX)).toBeNull();
+    const confirms = screen.getAllByRole<HTMLButtonElement>("button", { name: a.confirm });
+    expect(confirms).toHaveLength(2);
+    const next = screen.getByRole<HTMLButtonElement>("button", { name: a.next });
+    expect(next.disabled).toBe(true);
+    expect(next.getAttribute("aria-describedby")).toBeTruthy();
+    await userEvent.click(confirms[0]!);
+    expect(confirms[0]!.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getAllByText(a.confirmed)).toHaveLength(1); // state is words, not colour
+    expect(next.disabled).toBe(true);
+    await userEvent.click(confirms[1]!);
+    expect(next.disabled).toBe(false);
+    await userEvent.click(confirms[0]!); // taking it back blocks Continue again
+    expect(next.disabled).toBe(true);
+    await userEvent.click(confirms[0]!);
+    await userEvent.click(next);
+    expect(await screen.findByText(HEX)).toBeTruthy();
+  });
+
+  it("Back from the accounts page returns to page one, and Back from the setup page returns to the accounts, confirmations kept", async () => {
+    mount();
+    await choose();
+    await userEvent.click(screen.getByRole("button", { name: a.back }));
+    expect(screen.getByRole("heading", { name: copy.heading })).toBeTruthy();
+    await pickOwn();
+    await userEvent.click(await screen.findByRole("button", { name: copy.setup.back }));
+    expect(screen.getByRole("heading", { name: a.heading })).toBeTruthy();
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: a.next }).disabled).toBe(false);
   });
 
   it("choosing it shows the setup value, copies it, and links to the setup in a new tab that cannot reach back", async () => {
@@ -134,19 +179,20 @@ describe("RelaySetup (first run, ADR-0186)", () => {
     expect(r.done).not.toHaveBeenCalled();
   });
 
-  it("the check button waits for an address; Back returns to page one", async () => {
+  it("the check button waits for an address", async () => {
     mount();
     await pickOwn();
     expect((await screen.findByRole<HTMLButtonElement>("button", { name: copy.setup.check })).disabled).toBe(true);
-    await userEvent.click(screen.getByRole("button", { name: copy.setup.back }));
-    expect(screen.getByRole("heading", { name: copy.heading })).toBeTruthy();
   });
 
-  it("both pages are free of axe violations", async () => {
+  it("all three pages are free of axe violations", async () => {
     mount();
     const bad = async (): Promise<string[]> => (await axe.run(document.body, { rules: { "color-contrast": { enabled: false }, region: { enabled: false } } })).violations.map((v) => `${v.id}: ${v.help}`);
     expect(await bad()).toEqual([]);
-    await pickOwn();
+    await choose();
+    expect(await bad()).toEqual([]);
+    for (const b of screen.getAllByRole("button", { name: a.confirm })) await userEvent.click(b);
+    await userEvent.click(screen.getByRole("button", { name: a.next }));
     await screen.findByText(HEX);
     expect(await bad()).toEqual([]);
   });

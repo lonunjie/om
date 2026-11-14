@@ -5,7 +5,7 @@
 import { createHash } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { E2E_ADMISSION_HASH, E2E_ADMISSION_SECRET, LOCKED_RELAY } from "./admission-fixture.ts";
-import { noPasskeys, walkSetup } from "./helpers.ts";
+import { chooseOwnRelay, noPasskeys, walkSetup } from "./helpers.ts";
 
 test.use({ baseURL: "http://localhost:4179" });
 
@@ -51,7 +51,7 @@ test("set up my own: setup value, new-tab link, typed address, then first run co
   await page.getByRole("button", { name: "Get started" }).click();
   await expect(page.getByRole("heading", { name: "OM is different" })).toBeVisible();
   expect(wire).toEqual([]); // nothing is asked of any address before the person has typed one
-  await page.getByRole("button", { name: "Set up my own, free" }).click();
+  await chooseOwnRelay(page);
 
   const shown = (await page.getByText(/^[0-9a-f]{64}$/).textContent()) ?? "";
   expect(shown).toBe(E2E_ADMISSION_HASH);

@@ -9,6 +9,14 @@ export async function noPasskeys(page: Page): Promise<void> {
   });
 }
 
+/** "Set up my own, free" opens a page asking for the two accounts first: press "I have it" for both and continue (2026-11-14, D30). */
+export async function chooseOwnRelay(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Set up my own, free" }).click();
+  await expect(page.getByRole("heading", { name: "Before you start" })).toBeVisible();
+  for (const b of await page.getByRole("button", { name: "I have it" }).all()) await b.click();
+  await page.getByRole("button", { name: "Continue" }).click();
+}
+
 export interface OnboardOptions { readonly passphrase?: string; readonly stopAt?: "protected" | "invite"; readonly name?: string }
 
 /** Walks first run on the dev harness. Returns how long the "Next: Secure your identity" step took (Argon2id shows up here). */

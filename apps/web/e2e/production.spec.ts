@@ -2,7 +2,7 @@
 // stops at the page where a person sets up their own and goes no further until one has answered. Nothing is queued, created or
 // guessed in the meantime. (The setup that does continue is relay-setup.spec.ts; a connected app is relay.spec.ts.)
 import { expect, test } from "@playwright/test";
-import { BUNDLE_URL, noPasskeys } from "./helpers.ts";
+import { BUNDLE_URL, chooseOwnRelay, noPasskeys } from "./helpers.ts";
 
 test.use({ baseURL: BUNDLE_URL });
 
@@ -17,11 +17,11 @@ test("without a delivery service first run stops at the setup page, and says so 
   await expect(page.getByRole("heading", { name: "Advanced" })).toBeVisible();
   await expect(page.getByRole("button", { name: /container|install script|tunnel|open ports/i })).toHaveCount(0);
   // The vendor is named where the choice is made, and only there.
-  await expect(page.getByText("Two free accounts: Cloudflare, and GitHub or GitLab (Cloudflare needs it to copy the setup into). You create or sign in to them on the next steps.")).toBeVisible();
+  await expect(page.getByText("Two free accounts: Cloudflare, and GitHub or GitLab (Cloudflare needs it to make a copy of the setup in your own account). You check on the next step that you have them.")).toBeVisible();
   // No test banner: this is not the loopback build, and the next step (the person's name) is not reachable.
   await expect(page.getByText("LOOPBACK")).toHaveCount(0);
   await expect(page.getByLabel("Your name")).toHaveCount(0);
-  await page.getByRole("button", { name: "Set up my own, free" }).click();
+  await chooseOwnRelay(page);
   await expect(page.getByRole("heading", { name: "Set up your delivery service" })).toBeVisible();
   await expect(page.getByText(/^[0-9a-f]{64}$/)).toBeVisible();
   // The production build carries the one-click setup link (the person's own template deployment), which opens in a new tab.
@@ -37,6 +37,6 @@ test("without a delivery service first run stops at the setup page, and says so 
   const value = (await page.getByText(/^[0-9a-f]{64}$/).textContent()) ?? "";
   await page.reload();
   await page.getByRole("button", { name: "Get started" }).click();
-  await page.getByRole("button", { name: "Set up my own, free" }).click();
+  await chooseOwnRelay(page);
   await expect(page.getByText(value)).toBeVisible();
 });

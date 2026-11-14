@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ProfileExecutionContext } from "@om/platform-api";
 import type { ActionRegistry } from "../actions/registry";
 import type { HomeProbeResult } from "../home/services";
@@ -52,11 +52,13 @@ function describe(copy: RelaySetupCopy, r: HomeProbeResult): string {
 /**
  * First run, before anything is created (ADR-0186): there is no built-in delivery service, so the person sets up their own.
  * Page one says why OM is different and lists the ways; only "Set up my own, free" is built. Choosing it shows the setup value
- * the setup asks for and a link that opens in a new tab; the person comes back, types the address, and the host probes,
+ * the setup asks for and a link that opens in a new tab; before that, a page asks the person to make sure they have both accounts
+ * (each its own step with an "I have it" confirmation, so nobody reaches the vendor's page without them); the person comes back, types the address, and the host probes,
  * stores it and carries on. Nothing is stored before the address has answered as a delivery service.
  */
 export function RelaySetup({ services, copy, frame, platform, registry, ctx }: RelaySetupProps) {
-  const [phase, setPhase] = useState<"choose" | "setup">("choose");
+  const [phase, setPhase] = useState<"choose" | "accounts" | "setup">("choose");
+  const [have, setHave] = useState<{ readonly cloudflare: boolean; readonly git: boolean }>({ cloudflare: false, git: false });
   const [value, setValue] = useState<Value>({ k: "loading" });
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<"idle" | "checking">("idle");
@@ -111,7 +113,7 @@ export function RelaySetup({ services, copy, frame, platform, registry, ctx }: R
           <section className="om-onb__easy" aria-labelledby="om-onb-relay-easy-h">
             <Text as="h3" size="md" weight="bold" id="om-onb-relay-easy-h">{copy.easyHeading}</Text>
             <div className="om-onb__actions">
-              <Button variant="primary" onClick={() => { setPhase("setup"); }}>{copy.ownFree}</Button>
+              <Button variant="primary" onClick={() => { setPhase("accounts"); }}>{copy.ownFree}</Button>
             </div>
             <Text as="p" size="sm" tone="secondary">{copy.cloudflare.uses}</Text>
           </section>
@@ -120,6 +122,36 @@ export function RelaySetup({ services, copy, frame, platform, registry, ctx }: R
             <Text as="p" size="sm" tone="secondary">{copy.advancedIntro}</Text>
             <ul>{copy.later.items.map((item) => <li key={item}>{item}</li>)}</ul>
           </section>
+        </section>
+      </OnboardingFrame>
+    );
+  }
+  if (phase === "accounts") {
+    const a = copy.cloudflare.accounts;
+    const step = (key: "cloudflare" | "git", body: readonly string[], heading: string): ReactNode => (
+      <section className="om-onb__easy" aria-labelledby={`om-onb-relay-${key}-h`}>
+        <Text as="h3" size="md" weight="bold" id={`om-onb-relay-${key}-h`}>{heading}</Text>
+        {body.map((line) => <Text as="p" key={line}>{line}</Text>)}
+        <div className="om-onb__actions">
+          <Button aria-pressed={have[key]} onClick={() => { setHave((h) => ({ ...h, [key]: !h[key] })); }}>{a.confirm}</Button>
+        </div>
+        {have[key] ? <Text as="p" role="status" className="om-onb__copied">{a.confirmed}</Text> : null}
+      </section>
+    );
+    const ready = have.cloudflare && have.git;
+    return (
+      <OnboardingFrame copy={frame} stepKey="relay-accounts">
+        <section className="om-onb__step" aria-labelledby="om-onb-relay-accounts-h">
+          <StepHeading id="om-onb-relay-accounts-h">{a.heading}</StepHeading>
+          <Text as="p">{a.intro}</Text>
+          {step("cloudflare", [a.cloudflare.body], a.cloudflare.heading)}
+          {step("git", [a.git.body, a.git.shareAdvice], a.git.heading)}
+          <Text as="p" size="sm" tone="secondary">{a.unverified}</Text>
+          {ready ? null : <Text as="p" size="sm" tone="secondary" id="om-onb-relay-accounts-wait">{a.nextWaiting}</Text>}
+          <div className="om-onb__actions">
+            <Button variant="primary" disabled={!ready} aria-describedby={ready ? undefined : "om-onb-relay-accounts-wait"} onClick={() => { setPhase("setup"); }}>{a.next}</Button>
+            <Button variant="quiet" onClick={() => { setPhase("choose"); }}>{a.back}</Button>
+          </div>
         </section>
       </OnboardingFrame>
     );
@@ -165,7 +197,7 @@ export function RelaySetup({ services, copy, frame, platform, registry, ctx }: R
           {said === undefined ? null : <Text as="p" role={said.problem ? "alert" : "status"} data-problem={said.problem ? "true" : undefined}>{said.text}</Text>}
           <div className="om-onb__actions">
             <Button type="submit" variant="primary" disabled={busy === "checking" || text.trim() === ""}>{s.check}</Button>
-            <Button variant="quiet" onClick={() => { ticket.current++; setBusy("idle"); setSaid(undefined); setPhase("choose"); }}>{s.back}</Button>
+            <Button variant="quiet" onClick={() => { ticket.current++; setBusy("idle"); setSaid(undefined); setPhase("accounts"); }}>{s.back}</Button>
           </div>
         </form>
       </section>
