@@ -140,3 +140,65 @@ Results: `cargo test -p om-core`, `cargo test -p om-core --features groups-openm
 
 - **2b (rulings first):** items (a) and (b) above (D36, D37). Then **G10 and Room defaults:** `commit_accepted` as the three conditions of ADR-0189 section 2 replacing the host's `CommitAccepted` report (the tests still report it by hand, marked in `welcomed()`); Room defaults per protection profile. Commit out needs the **signed `GroupControlIntent` envelope** (label `OM-GROUP-INTENT-SIG-v1`), which Core does not produce yet: the flow's `Commit.intent` is the body and the actor is vouched for by the committer's binding. Same for LeaveRequest out.
 - **3 (host and driver):** the host side of the device lane: depositing a `Sealed.wrapper` at `Sealed.entry`, polling the per-Room mailbox of each `MyRoute` (`mailbox`) and handing wrappers to `group_frame_receive`, revoking returned capabilities (`group_routes_expire`), and `route_update` and admit-request wiring. The lane itself rides the existing 1:1 delivery, so Invite, Accept and Decline need only `group_lane_send` after a flow step and `group_lane_pump` after each poll. The TypeScript `GroupCarriage` port and the wasm bridge methods for the new `Core::group_*` calls are not written. A route offer must be available before an Accept, a Welcome or an App frame (`no_route_offer` otherwise); the driver should top the pool up as it does for 1:1.
+
+## Package 2b: messaging-only join, pending Welcomes, Core-owned commit acceptance, Room defaults, signed intents
+
+Built by a builder-only session in `crates/om-core` (plus two match arms in `crates/om-wasm/src/bridge.rs` so the crate compiles). Committed by a separate committer session after the design gate. No ADR was written or changed: D36 needed no new authority, and D37 stays inside ADR-0144's held-wrapper precedent.
+
+### Design sources read, and not read (builder)
+
+Read: this report (Package 1, Q1 to Q4 rulings, 2a, the 2a rulings); [`ADR-0189`](../../decisions/ADR-0189-group-carriage-own-commit-acceptance-and-room-defaults.md); ADR-0177; ADR-0187; [`GROUP_CHAT_ARCHITECTURE.md`](../architecture/groups/GROUP_CHAT_ARCHITECTURE.md); [`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](../architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md); [`ACCOUNT_CONTINUITY_AND_CONTROL.md`](../architecture/identity/ACCOUNT_CONTINUITY_AND_CONTROL.md); [`AGENT_ARCHITECTURE_RULES.md`](../process/AGENT_ARCHITECTURE_RULES.md); the 2a code (`carriage.rs`, `carry.rs`, `flow.rs`, `engine.rs`, the ceremony and multi-device flows).
+
+Not read in full: [`MULTI_DEVICE_SYNC.md`](../architecture/crypto/MULTI_DEVICE_SYNC.md) and [`ONE_TO_ONE_SESSION_MANAGEMENT.md`](../architecture/crypto/ONE_TO_ONE_SESSION_MANAGEMENT.md) were only searched with grep; the other documents the gate lists for the changed paths (the six domains below) were not read by the builder. The committer then read all six domains' documents and ADRs, ADR-0177, 0187, 0189, GROUP_CHAT, GROUP_COMMIT, SECURITY_PRIVACY_PROFILES and AGENT_ARCHITECTURE_RULES in full.
+
+### What was built
+
+| Scope item | State |
+|---|---|
+| 1. D36 messaging-only join | Done, no ADR. A device that holds no controller key cannot sign an `AccountControlHead`, so the approver of a device link now also signs a controller head over the new tip and sends it in the enrollment/approval payload; the new device validates it and caches it (`head_cache`). `carry_own_head` uses the controller head if present, else the cache, else fails closed with `no_controller_head`. The messaging-only device signs only what a device may sign (credential evidence is the controller's head). Test: `a_messaging_only_device_joins_a_room`. |
+| 2. D37 pending store | Done for accounts the device has a relationship with: a Welcome or Commit naming a device whose head is missing or stale is held (`MAX_PENDING` 8, `PENDING_TTL_S` 7 days), `group_pending_refresh` asks for the head through the existing relationship-bound `ask_head`, `group_pending_retry` re-runs every held frame on a copy of the state and keeps the result only on success. Nothing is accepted unverified. For an account with no relationship there is no anchor: held until it expires (question Q5). Test: `a_welcome_naming_an_unanchored_account_is_held_and_then_expires`. Test for the head arriving: `a_held_welcome_applies_once_the_missing_head_arrives`. |
+| 3. G10 `commit_accepted` | Done. `Core::group_settle` accepts an own Commit once it is durable, its parent is still the canonical tip and no better commit was received; no timer, no relay acknowledgement or order. A lost race is `CommitSuperseded`. `Core::group_do(CommitAccepted)` now refuses with `acceptance_is_core_owned`; the tests' manual acceptance is gone. Frames for the device lane are queued in a Core-owned outbox (`group_outbox`, `group_outbox_done`). |
+| 4. Room profile defaults | Done as Core state and intents. New `crates/om-core/src/groups/room.rs` (Recommended, Hardened, Maximum Privacy bundles, `Setting`, `diff`, `Notice`). `Create` is Recommended (one-tap join, members can add, no history for new members, disappearing off); `CreateWithProtection` and `RoomSetting` change them. Tightening needs no confirmation; any loosening is refused with `loosening_needs_confirmation` unless `confirmed`; every change is stored as a Notice and emitted as `PolicyChanged` on every member's device with `by_account` and `loosened`. New reducer ops ADMISSION_SET, SECURITY_POLICY_SET, DISAPPEARING_TIMER_SET, and an MLS update-commit (`CommitPlan::Update`, fake and OpenMLS `self_update`). |
+| 5. Signed `GroupControlIntent` (type 29) | Done for Commit and LeaveRequest out and in (role `device`, label `OM-GROUP-INTENT-SIG-v1`, verified against the directory key). Route updates are wired out and in (`group_route_update`). `admit_request` is not wired (Q5). |
+
+Bug found and fixed on the way: `RoleDef::value` did not order its grant set by encoded bytes, so adding `room.invite` to a role produced a state the strict codec refuses (`set_order`). It now sorts.
+
+Results (in the working tree): see "Verification" at the end of this section.
+
+### Files changed (exact, uncommitted)
+
+New: `crates/om-core/src/groups/room.rs`, `crates/om-core/tests/groups_carriage_2b.rs` (8 tests, with and without `groups-openmls`). Both registered with `python3 tools/om_registry.py sync`.
+
+Changed: `crates/om-core/src/engine.rs`, `crates/om-core/src/flows/ceremony.rs`, `crates/om-core/src/flows/multi.rs`, `crates/om-core/src/groups.rs`, `crates/om-core/src/groups/carriage.rs`, `crates/om-core/src/groups/carry.rs`, `crates/om-core/src/groups/fake.rs`, `crates/om-core/src/groups/flow.rs`, `crates/om-core/src/groups/journal.rs`, `crates/om-core/src/groups/mls.rs`, `crates/om-core/src/groups/openmls.rs`, `crates/om-core/src/state.rs`, `crates/om-core/tests/groups.rs`, `crates/om-core/tests/groups_carriage.rs`, `crates/om-core/tests/groups_core.rs`, `crates/om-core/tests/groups_flow.rs`, `crates/om-core/tests/groups_loopback.rs`, `crates/om-wasm/src/bridge.rs` (JSON arms for the new events and the Notices view, and the old `commit_accepted` command now runs one `group_settle` pass; no new bridge API), [`machine/file_registry.json`](../../machine/file_registry.json), and this report.
+
+### Design gate output for the committer
+
+`python3 tools/design_gate.py needs <changed files>` lists six domains, each with its documents and ADRs: `crypto_1to1`, `discovery_first_contact`, `identity_control_recovery`, `metadata_privacy`, `relay_reachability`, `time_ordering_events`. The committer reads every document and ADR it prints (run the command again for the full list) and writes `Design-Read:` with those six ids and `Design-Departures:` per the D-numbers below.
+
+### Deviations confirmed by the committer (D38 to D44, in the relay-status table)
+
+Committer review (2026-11-14): the builder's proposals were checked against ADR-0189, ADR-0128, ADR-0177 decision 3, GROUP_COMMIT 3.2 and the 1:1 session-management passages. D42 is dropped as a design deviation (an engineering transition, listed under Package 3). Q5 became D44. Added in review: a fail-closed guard, `quorum_not_supported`, so a loosening is refused when the Room's governance threshold is above 1 (Core collects no quorum), and the missing D37 test (`a_held_welcome_applies_once_the_missing_head_arrives`).
+
+- **D38 (T-161):** policy and role ops are sequenced as non-reducing; ADR-0177 decision 3 (recomputing `reducing`) is open.
+- **D39:** no quorum collected on loosening; refused above threshold 1.
+- **D40:** a lane Accept with a stale pinned head is dropped, not held.
+- **D41:** a Commit before its Welcome is dropped; no ordering buffer.
+- **D43:** `admit_request` not wired (depends on D44).
+- **D44:** no anchor for the head of an account with no relationship to the receiver (was Q5).
+
+### Questions for the operator (the audited text is not amended)
+
+- **Floor (D39):** ADR-0128 rule 8, the capability registry and GROUP_CHAT say governance never lowers an established floor. ADR-0189 section 3 allows loosening the privacy-profile fields with explicit confirmation and an announcement. Does "floor" include the privacy profile of a Room? Core follows ADR-0189 (confirmed, announced loosening) until ruled.
+- **Q5/D44:** how does a receiver anchor the head of an account it has no relationship with (Welcome carries the signed head, or a directory fetch)?
+
+### What Package 3 needs
+
+- The host calls `group_settle` after every durable step and at start-up; drains `group_outbox` (deposit each `Sealed.wrapper`) then `group_outbox_done`; calls `group_pending_refresh` and `group_pending_retry` after each poll; calls `group_route_update` after a removal.
+- wasm and TypeScript bridge: the new APIs (`group_settle`, `group_outbox`, `group_outbox_done`, `group_pending_retry`, `group_pending_refresh`, `group_route_update`), the new intents (`CreateWithProtection`, `RoomSetting`), the `Notices` query, the new events (`held`, `policy_changed`, `room_setting_blocked`, `commit_superseded`), and `CommitAccepted` removed.
+- Driver: route-offer top-up (`supply_routes`), polling per-Room mailboxes, and the end-to-end test with a real relay.
+- Remove the `commit_accepted` shim (former D42) from the bridge and TypeScript; own-device head sync on later chain advances (D36); admit_request once D44 is ruled; a frame ordering buffer (D41); governance quorum collection (D39).
+- UI copy for the three profiles and the loosening confirmation (from the UX brief; none was written here).
+
+### Verification (builder, working tree, uncommitted)
+
+`cargo test -p om-core` and `cargo test -p om-core --features groups-openmls` (no failures, including the 7 new tests), `cargo test -p om-wasm`, `cargo fmt`, `cargo clippy -p om-core -p om-wasm --all-targets` (0 warnings, default features; also clean with `--features groups-openmls` for om-core) and `make check` all pass. Committer re-ran all of these with the added test (8 in `groups_carriage_2b.rs`).
