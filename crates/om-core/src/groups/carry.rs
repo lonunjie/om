@@ -393,9 +393,7 @@ impl AppState {
         {
             return Ok(());
         }
-        if self.group_carriage.lane_in.len() >= cg::MAX_LANE_IN {
-            return err("lane_full");
-        }
+        cg::lane_has_room(&self.group_carriage.lane_in, rel)?;
         let wire = match &body {
             LaneBody::Invite {
                 invite_id,
@@ -466,6 +464,7 @@ impl AppState {
             relationship_id: rel.to_string(),
             event_id: eid,
             wire,
+            received_s: now_s,
         });
         Ok(())
     }
@@ -503,6 +502,34 @@ impl AppState {
             return err("head_mismatch");
         }
         Ok(())
+    }
+
+    /// The held Invites, oldest first, as a person may be told of them without the group engine: who sent each (the
+    /// relationship, which the client names as it names the chat), the Room name, and when it arrived. Nothing here is
+    /// secret and nothing has touched group state. An Invite held twice (same relationship and `invite_id`) is listed once.
+    pub fn carry_held_invitations(&self) -> Vec<cg::HeldInvitation> {
+        let mut out: Vec<cg::HeldInvitation> = vec![];
+        for x in &self.group_carriage.lane_in {
+            let GroupWire::Invite {
+                invite_id, name, ..
+            } = &x.wire
+            else {
+                continue;
+            };
+            if out
+                .iter()
+                .any(|h| h.relationship_id == x.relationship_id && &h.invite_id == invite_id)
+            {
+                continue;
+            }
+            out.push(cg::HeldInvitation {
+                relationship_id: x.relationship_id.clone(),
+                invite_id: invite_id.clone(),
+                group_name: name.clone(),
+                received_s: x.received_s,
+            });
+        }
+        out
     }
 
     /// Take what the lane has queued, oldest first. The host feeds each to `group_receive` as

@@ -254,6 +254,15 @@ enum Command {
     GroupCarriageStatus {
         ctx: ProfileExecutionContext,
     },
+    /// `{invitations: [{relationshipId, inviteId, groupName, receivedS}], overflow: {invites, replies}}`: the group invitations
+    /// held without the group engine (base module too) and what could not be kept. Read-only; never accepts anything.
+    GroupHeldInvitations {
+        ctx: ProfileExecutionContext,
+    },
+    /// The person read the overflow notice: clears its counters. Answers `{commit}`.
+    GroupLaneOverflowAck {
+        ctx: ProfileExecutionContext,
+    },
     /// The person stopped using one of their Homes: relationships with another route publish a RelaySet without it.
     /// Answers how many relationships had no other route and so stay on that Home.
     RetireHome {
@@ -947,6 +956,17 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                     "outbox": st.outbox,
                     "pending": st.pending,
                 }))
+            }
+            Command::GroupHeldInvitations { ctx } => {
+                let h = self.core()?.group_held_invitations(&ctx)?;
+                Ok(json!({
+                    "invitations": serde_json::to_value(&h.invitations).unwrap_or(Value::Null),
+                    "overflow": serde_json::to_value(h.overflow).unwrap_or(Value::Null),
+                }))
+            }
+            Command::GroupLaneOverflowAck { ctx } => {
+                let step = self.core()?.group_lane_overflow_ack(&ctx)?;
+                Ok(json!({ "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null) }))
             }
             Command::GroupReceive { ctx, from, wire } => {
                 let from = match from {

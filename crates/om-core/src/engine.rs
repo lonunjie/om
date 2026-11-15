@@ -42,6 +42,13 @@ pub struct GroupCarriageStatus {
     pub pending: usize,
 }
 
+/// Held group invitations and what could not be kept (see [`Core::group_held_invitations`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HeldInvitations {
+    pub invitations: Vec<crate::groups::carriage::HeldInvitation>,
+    pub overflow: crate::groups::carriage::LaneOverflow,
+}
+
 /// A removal means every remaining device owes the Room a fresh route (ADR-0189 1.3).
 fn note_removals(app: &mut AppState, r: &GroupReply) {
     for e in &r.events {
@@ -700,6 +707,36 @@ impl<R: RngCore + CryptoRng> Core<R> {
             route_owed: rec.replace_owed.clone(),
             outbox: rec.outbox.len(),
             pending: rec.pending.len(),
+        })
+    }
+
+    /// The group Invitations this device holds that no group engine has seen yet, and any it could not keep (report D70, D71).
+    /// Read-only and available on the base module, which has no group engine: the person can be told, and the invitation
+    /// stays where it is until the groups module is loaded and the lane is pumped. Never accepts anything.
+    pub fn group_held_invitations(
+        &self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<HeldInvitations, CoreError> {
+        let app = &self.slot(ctx)?.state.app;
+        Ok(HeldInvitations {
+            invitations: app.carry_held_invitations(),
+            overflow: app.group_carriage.lane_overflow,
+        })
+    }
+
+    /// The person has read the overflow notice: clear the counters. Held invitations are untouched.
+    pub fn group_lane_overflow_ack(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let ((), commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.st.app.group_carriage.lane_overflow = Default::default();
+            Ok(())
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
         })
     }
 

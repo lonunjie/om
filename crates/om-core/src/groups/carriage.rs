@@ -60,8 +60,17 @@ pub const ROUTE_OVERLAP_S: u64 = 3600;
 pub const ROUTE_TTL_S: u64 = 30 * 24 * 60 * 60;
 /// Wrapper lifetime of a sealed frame (the 1:1 default, `WRAPPER_TTL_S`).
 pub const FRAME_WRAPPER_TTL_S: u64 = 7 * 24 * 60 * 60;
-/// Verified inbound lane events a device holds until the host pumps them.
-pub const MAX_LANE_IN: usize = 64;
+/// Verified inbound lane events a device holds until the host pumps them (ADR-0189 section 1.1; report D71).
+///
+/// A device that has not loaded the group module holds an Invite until the person opens groups, which may be weeks. An Invite is
+/// small (a name of at most 256 characters and two ids, well under 1 KiB as stored), and the base module keeps no Accept (it knows
+/// no outgoing invitation), so 256 events are about a quarter of a megabyte at most: enough for a person invited by many contacts
+/// while away, and not a growing store. The earlier bound of 64 dropped silently; a drop is now counted and shown (see
+/// [`LaneOverflow`]).
+pub const MAX_LANE_IN: usize = 256;
+/// How many held lane events one contact may have (report D71). A contact that floods invitations fills its own share and then
+/// overflows, instead of crowding out everyone else (AGENT_ARCHITECTURE_RULES: limits are enforced at the recipient).
+pub const MAX_LANE_PER_RELATIONSHIP: usize = 32;
 
 pub const FK_COMMIT: u64 = 1;
 pub const FK_LEAVE_REQUEST: u64 = 2;
@@ -708,6 +717,51 @@ pub struct LaneIn {
     pub relationship_id: String,
     pub event_id: String,
     pub wire: super::flow::GroupWire,
+    /// When this device received it (local wall clock, seconds; display only, never an authority). `0` for an event held
+    /// before this field existed.
+    #[serde(default)]
+    pub received_s: u64,
+}
+
+/// A verified group Invitation this device holds before the group module is loaded (report D70, D71).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HeldInvitation {
+    pub relationship_id: String,
+    pub invite_id: String,
+    pub group_name: String,
+    /// Local receipt time in seconds; `0` when unknown (held by an older build).
+    pub received_s: u64,
+}
+
+/// Lane events that could not be kept because the queue was full, since the person last acknowledged it (report D71).
+/// Nothing is ever dropped without being counted here. `invites` are Invites (the person can ask to be invited again);
+/// `replies` are Accepts or Declines (the inviter can invite again).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LaneOverflow {
+    pub invites: u32,
+    pub replies: u32,
+}
+
+impl LaneOverflow {
+    pub fn is_empty(&self) -> bool {
+        self.invites == 0 && self.replies == 0
+    }
+}
+
+/// May one more lane event of `relationship` be held? `Err("lane_full")` when either bound is reached.
+pub fn lane_has_room(lane: &[LaneIn], relationship: &str) -> R<()> {
+    if lane.len() >= MAX_LANE_IN
+        || lane
+            .iter()
+            .filter(|x| x.relationship_id == relationship)
+            .count()
+            >= MAX_LANE_PER_RELATIONSHIP
+    {
+        return err("lane_full");
+    }
+    Ok(())
 }
 
 /// Wrappers held per profile while a member's account head is missing or stale (ADR-0144 precedent: bounded).
@@ -784,6 +838,9 @@ pub struct GroupCarriageRec {
     /// Verified inbound relationship-lane events, oldest first, not yet pumped.
     #[serde(default)]
     pub lane_in: Vec<LaneIn>,
+    /// Lane events dropped because the queue was full, until the person acknowledges (report D71).
+    #[serde(default)]
+    pub lane_overflow: LaneOverflow,
     /// Rooms where a member or device was removed: every remaining device owes a fresh route (ADR-0189 1.3).
     #[serde(default)]
     pub replace_owed: Vec<String>,
@@ -1042,4 +1099,56 @@ pub fn parse_lane_event(bytes: &[u8]) -> R<(events::Event, LaneBody)> {
         _ => return drop_("event_invalid"),
     };
     Ok((ev, body))
+}
+
+#[cfg(test)]
+mod lane_bound_tests {
+    use super::*;
+    use crate::groups::flow::GroupWire;
+
+    fn held(rel: &str, n: usize) -> Vec<LaneIn> {
+        (0..n)
+            .map(|i| LaneIn {
+                relationship_id: rel.into(),
+                event_id: format!("e-{rel}-{i}"),
+                wire: GroupWire::Decline {
+                    invite_id: "00".into(),
+                },
+                received_s: 0,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn one_contact_fills_only_its_own_share() {
+        let lane = held("a", MAX_LANE_PER_RELATIONSHIP);
+        assert_eq!(lane_has_room(&lane, "a"), err("lane_full"));
+        assert!(
+            lane_has_room(&lane, "b").is_ok(),
+            "others are not crowded out"
+        );
+    }
+
+    #[test]
+    fn the_whole_queue_is_bounded() {
+        let mut lane = vec![];
+        for r in 0..(MAX_LANE_IN / MAX_LANE_PER_RELATIONSHIP) {
+            lane.extend(held(&format!("r{r}"), MAX_LANE_PER_RELATIONSHIP));
+        }
+        assert_eq!(lane.len(), MAX_LANE_IN);
+        assert_eq!(lane_has_room(&lane, "new"), err("lane_full"));
+        lane.pop();
+        assert!(lane_has_room(&lane, "new").is_ok());
+    }
+
+    #[test]
+    fn old_state_without_the_new_fields_still_loads() {
+        let l: LaneIn = serde_json::from_str(
+            r#"{"relationshipId":"r","eventId":"e","wire":{"t":"decline","invite_id":"00"}}"#,
+        )
+        .unwrap();
+        assert_eq!(l.received_s, 0);
+        let rec: GroupCarriageRec = serde_json::from_str("{}").unwrap();
+        assert!(rec.lane_overflow.is_empty());
+    }
 }

@@ -263,6 +263,12 @@ fn carriage_commands_answer_typed_shapes_and_protection_intents_work() {
     assert_eq!(st["outbox"], 0);
     assert!(st["mailboxes"].as_array().unwrap().is_empty());
     assert!(st["routeOwed"].as_array().unwrap().is_empty());
+    // the held-invitation query is part of the base module: typed and empty, and acknowledging an empty overflow changes nothing
+    let h = s[0].step(json!({ "cmd": "group_held_invitations", "ctx": s[0].ctx }));
+    assert!(h["invitations"].as_array().unwrap().is_empty(), "{h}");
+    assert_eq!(h["overflow"], json!({ "invites": 0, "replies": 0 }), "{h}");
+    let ack = s[0].step(json!({ "cmd": "group_lane_overflow_ack", "ctx": s[0].ctx }));
+    assert!(ack.get("refused").is_none(), "{ack}");
     s[0].step(json!({ "cmd": "group_outbox_done", "ctx": s[0].ctx, "ids": [] }));
     s[0].step(json!({ "cmd": "group_pending_refresh", "ctx": s[0].ctx }));
     let rt = s[0].step(json!({ "cmd": "group_pending_retry", "ctx": s[0].ctx }));

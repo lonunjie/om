@@ -613,9 +613,109 @@ fn an_invite_before_the_group_module_is_held_durably_and_never_applied() {
     }
     // Pumping later turns it into a pending invitation, still not accepted.
     let reps = p[1].pump_lane();
-    assert!(events(&reps).iter().any(|e| matches!(e, GroupEvent::InviteReceived { .. })));
+    assert!(
+        events(&reps)
+            .iter()
+            .any(|e| matches!(e, GroupEvent::InviteReceived { .. }))
+    );
     assert_eq!(p[1].groups(), 0, "no auto-accept");
-    assert!(p[1].state()["groupCarriage"]["laneIn"].as_array().is_some_and(Vec::is_empty));
+    assert!(
+        p[1].state()["groupCarriage"]["laneIn"]
+            .as_array()
+            .is_some_and(Vec::is_empty)
+    );
+}
+
+/// The held Invite can be listed without the group engine: who sent it, the Room name and when it arrived; nothing secret.
+#[test]
+fn a_held_invitation_is_listed_without_the_group_engine() {
+    let mut p = connected();
+    let rel = p[0].rel.clone();
+    let rep = p[0]
+        .dob(GroupIntent::Create {
+            name: "Book club".into(),
+            relationship_ids: vec![rel],
+        })
+        .unwrap();
+    p[0].send_lane(&rep);
+    deliver(&mut p);
+    let h = p[1].rt.core.group_held_invitations(&p[1].ctx).unwrap();
+    assert_eq!(h.invitations.len(), 1);
+    assert_eq!(
+        h.invitations[0].relationship_id, p[1].rel,
+        "the 1:1 it came over"
+    );
+    assert_eq!(h.invitations[0].group_name, "Book club");
+    assert!(h.invitations[0].received_s > 0, "local receipt time");
+    assert!(h.overflow.is_empty());
+    // Listing changes nothing: still held, nothing joined.
+    assert_eq!(
+        p[1].state()["groupCarriage"]["laneIn"]
+            .as_array()
+            .map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(p[1].groups(), 0);
+    // After the lane is pumped (the module is loaded) it is an ordinary pending invitation and no longer "held".
+    p[1].pump_lane();
+    assert!(
+        p[1].rt
+            .core
+            .group_held_invitations(&p[1].ctx)
+            .unwrap()
+            .invitations
+            .is_empty()
+    );
+}
+
+/// A full queue is never a silent drop: the loss is counted, shown through the query, survives until acknowledged, and what was
+/// already held is kept untouched.
+#[test]
+fn a_full_lane_counts_what_it_could_not_keep_and_keeps_what_it_has() {
+    let mut p = connected();
+    let rel = p[0].rel.clone();
+    let extra = 3;
+    for i in 0..(MAX_LANE_PER_RELATIONSHIP + extra) {
+        let rep = p[0]
+            .dob(GroupIntent::Create {
+                name: format!("Room {i}"),
+                relationship_ids: vec![rel.clone()],
+            })
+            .unwrap();
+        p[0].send_lane(&rep);
+    }
+    deliver(&mut p);
+    let h = p[1].rt.core.group_held_invitations(&p[1].ctx).unwrap();
+    assert_eq!(
+        h.invitations.len(),
+        MAX_LANE_PER_RELATIONSHIP,
+        "the first ones are kept, in order"
+    );
+    assert_eq!(h.invitations[0].group_name, "Room 0");
+    assert_eq!(
+        h.overflow.invites, extra as u32,
+        "the rest are counted, not lost without a trace"
+    );
+    assert_eq!(h.overflow.replies, 0);
+    // It is persisted, and clearing it is the person's own act (it survives a pump).
+    assert_eq!(
+        p[1].state()["groupCarriage"]["laneOverflow"]["invites"],
+        extra
+    );
+    p[1].pump_lane();
+    let h = p[1].rt.core.group_held_invitations(&p[1].ctx).unwrap();
+    assert!(h.invitations.is_empty());
+    assert_eq!(h.overflow.invites, extra as u32);
+    let step = p[1].rt.core.group_lane_overflow_ack(&p[1].ctx).unwrap();
+    assert!(p[1].rt.settle(&step));
+    assert!(
+        p[1].rt
+            .core
+            .group_held_invitations(&p[1].ctx)
+            .unwrap()
+            .overflow
+            .is_empty()
+    );
 }
 
 /// Bob accepts: the Accept (kind 16) carries his release, credential, per-Room route and his head; Alice prepares the Add.

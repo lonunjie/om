@@ -109,13 +109,20 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return true;
         }
         let before = self.st.app.group_carriage.clone();
-        if self
-            .st
-            .app
-            .carry_lane_in(conv, &ev.event_id, body, now_s)
-            .is_err()
-        {
+        let invite = matches!(body, LaneBody::Invite { .. });
+        if let Err(e) = self.st.app.carry_lane_in(conv, &ev.event_id, body, now_s) {
             self.st.app.group_carriage = before;
+            // A full queue is never a silent drop (report D71): the event is accepted so it is not replayed, and the loss is
+            // counted so the person is told. Any other drop is a verification result, not a loss.
+            if e.0 == "lane_full" {
+                let o = &mut self.st.app.group_carriage.lane_overflow;
+                let n = if invite {
+                    &mut o.invites
+                } else {
+                    &mut o.replies
+                };
+                *n = n.saturating_add(1);
+            }
         }
         true
     }
