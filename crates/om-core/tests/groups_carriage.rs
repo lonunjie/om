@@ -589,6 +589,35 @@ fn invited() -> ([Party; 2], String) {
     (p, id)
 }
 
+/// A device that has not loaded the group engine (the base module) never loses an Invite: it is verified, kept in the
+/// persisted AppState lane queue, shows nowhere and joins nothing, and the group flow sees it only when the lane is pumped.
+#[test]
+fn an_invite_before_the_group_module_is_held_durably_and_never_applied() {
+    let mut p = connected();
+    let rel = p[0].rel.clone();
+    let rep = p[0]
+        .dob(GroupIntent::Create {
+            name: "Book club".into(),
+            relationship_ids: vec![rel],
+        })
+        .unwrap();
+    p[0].send_lane(&rep);
+    deliver(&mut p);
+    // Not pumped yet: the held Invite is in the persisted state, and nothing group-related exists for Bob.
+    let held = p[1].state()["groupCarriage"]["laneIn"].clone();
+    assert_eq!(held.as_array().map(Vec::len), Some(1), "the Invite is held");
+    assert_eq!(p[1].groups(), 0);
+    match p[1].view(GroupQuery::Invites) {
+        GroupView::Invites(i) => assert!(i.is_empty(), "held, not accepted and not listed"),
+        _ => unreachable!(),
+    }
+    // Pumping later turns it into a pending invitation, still not accepted.
+    let reps = p[1].pump_lane();
+    assert!(events(&reps).iter().any(|e| matches!(e, GroupEvent::InviteReceived { .. })));
+    assert_eq!(p[1].groups(), 0, "no auto-accept");
+    assert!(p[1].state()["groupCarriage"]["laneIn"].as_array().is_some_and(Vec::is_empty));
+}
+
 /// Bob accepts: the Accept (kind 16) carries his release, credential, per-Room route and his head; Alice prepares the Add.
 fn accepted() -> ([Party; 2], String, String) {
     let (mut p, id) = invited();
