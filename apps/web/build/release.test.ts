@@ -59,8 +59,16 @@ describe("production build hygiene (audit H1)", () => {
       return d;
     };
     const env = { ...process.env } as Record<string, string | undefined>;
-    it("passes a site with a clean Core wasm", () => {
-      expect(siteProblems(site({ "index.html": "<html></html>", "assets/om_wasm-1.wasm": "\0asm om_host random_fill" }), repoRoot, env)).toEqual([]);
+    const both = (lazy: boolean) => site({
+      "index.html": "<html></html>", "assets/om_wasm-1.wasm": "\0asm om_host random_fill", "assets/om_wasm_groups-1.wasm": "\0asm om_host random_fill groups",
+      "bundle-manifest.json": JSON.stringify({ files: [{ path: "assets/om_wasm-1.wasm" }, { path: "assets/om_wasm_groups-1.wasm", ...(lazy ? { lazy: true } : {}) }] }),
+    });
+    it("passes a site with a clean Core wasm and a lazy groups module (ADR-0187)", () => {
+      expect(siteProblems(both(true), repoRoot, env)).toEqual([]);
+    });
+    it("refuses a site whose groups module is missing or not marked lazy", () => {
+      expect(siteProblems(both(false), repoRoot, env).join()).toMatch(/not listed as a lazy file/);
+      expect(siteProblems(site({ "index.html": "x", "assets/om_wasm-1.wasm": "\0asm om_host random_fill" }), repoRoot, env).join()).toMatch(/groups module/);
     });
     it.each(["InsecureTestRng", "OM-TEST-LOOPBACK-NOT-FOR-PRODUCTION", "debug_inject", "LoopbackNetwork"])("flags a Core wasm carrying %s", (marker) => {
       const p = siteProblems(site({ "assets/om_wasm-1.wasm": `\0asm ${marker}` }), repoRoot, env);

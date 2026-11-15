@@ -13,6 +13,7 @@ const RELAY_APP = "http://localhost:4177";
 const RELAY = "http://127.0.0.1:8788";
 const LIVE_APP = "http://localhost:4178";
 const SETUP_APP = "http://localhost:4179";
+const PROD_APP = "http://localhost:4181";
 // Opt-in (OM_LIVE_RELAY=1): the production build against the LIVE reference Home. Never part of the hermetic run.
 const live = process.env["OM_LIVE_RELAY"] === "1";
 const cameraArgs = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-video-capture=${writeQrY4m()}`];
@@ -33,8 +34,10 @@ export default defineConfig({
     { command: "pnpm exec vite preview --outDir dist-e2e --port 4175 --strictPort", cwd: "..", url: BUNDLE, reuseExistingServer: true },
     // The real Core (om_wasm.wasm) with the in-page TEST loopback provider; never a production build.
     { command: "pnpm exec vite preview --outDir dist-core-e2e --port 4176 --strictPort", cwd: "..", url: CORE, reuseExistingServer: true },
-    // The real Core WITH the groups engine module (VITE_OM_GROUPS=1, ADR-0187 accepted) and the real group carriage over the local reference Home; never a production build.
+    // The real Core, with the groups module fetched on demand (ADR-0187) and the real group carriage over the local reference Home; a dev-marked bundle only because the local Home needs the loopback flags.
     { command: "pnpm exec vite preview --outDir dist-groups-e2e --port 4180 --strictPort", cwd: "..", url: GROUPS_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: RELAY } },
+    // The plain production build (`pnpm build`: no test flag, no dev marking): starts on the verified base Core module and never fetches the groups module at first load.
+    { command: "pnpm exec vite preview --outDir dist --port 4181 --strictPort", cwd: "..", url: PROD_APP, reuseExistingServer: true },
     // The real Core in the production entry, connected to the local reference Home (the Worker bundle in workerd).
     { command: "node ../../infra/cloudflare-home/test/serve.ts 8788", cwd: "..", url: `${RELAY}/healthz`, reuseExistingServer: true },
     { command: "pnpm exec vite preview --outDir dist-relay-e2e --port 4177 --strictPort", cwd: "..", url: RELAY_APP, reuseExistingServer: true, env: { OM_E2E_CONNECT_SRC: RELAY } },

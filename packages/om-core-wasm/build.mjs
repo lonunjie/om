@@ -8,7 +8,10 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "../..");
-const env = { ...process.env, PATH: `/opt/homebrew/opt/rustup/bin:${process.env.PATH ?? ""}` };
+// OM_WASM_TARGET_DIR and OM_WASM_OUT_DIR let the reproducibility check build into scratch directories (a cold, separate target dir per build).
+const targetDir = process.env.OM_WASM_TARGET_DIR ?? join(root, "target");
+const outDir = process.env.OM_WASM_OUT_DIR ?? join(here, "dist");
+const env = { ...process.env, PATH: `/opt/homebrew/opt/rustup/bin:${process.env.PATH ?? ""}`, ...(process.env.OM_WASM_TARGET_DIR === undefined ? {} : { CARGO_TARGET_DIR: targetDir }) };
 // `om-core/production` is the R-072 marker: it turns a test-only feature (insecure RNG, loopback provider) into a
 // compile error, so the shipped artifact is built under that guard rather than by convention.
 // `--groups` builds the variant with the OpenMLS engine (`groups-openmls`, ADR-0187, a proposed delegated draft) to
@@ -16,10 +19,10 @@ const env = { ...process.env, PATH: `/opt/homebrew/opt/rustup/bin:${process.env.
 const groups = process.argv.includes("--groups");
 const features = groups ? "om-core/production,groups-openmls" : "om-core/production";
 execFileSync("cargo", ["build", "-p", "om-wasm", "--target", "wasm32-unknown-unknown", "--release", "--locked", "--features", features], { cwd: root, env, stdio: "inherit" });
-mkdirSync(join(here, "dist"), { recursive: true });
+mkdirSync(outDir, { recursive: true });
 const name = groups ? "om_wasm_groups.wasm" : "om_wasm.wasm";
-const out = join(here, "dist", name);
-copyFileSync(join(root, "target/wasm32-unknown-unknown/release/om_wasm.wasm"), out);
+const out = join(outDir, name);
+copyFileSync(join(targetDir, "wasm32-unknown-unknown/release/om_wasm.wasm"), out);
 const sha256 = createHash("sha256").update(readFileSync(out)).digest("hex");
-writeFileSync(join(here, `dist/${name}.sha256`), `${sha256}  ${name}\n`);
+writeFileSync(join(outDir, `${name}.sha256`), `${sha256}  ${name}\n`);
 console.log(`${name} ${sha256}`);

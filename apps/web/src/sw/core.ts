@@ -89,6 +89,7 @@ export const createShell = (deps: ShellDeps) => {
     const cache = await storage.open(cacheName);
     try {
       for (const f of manifest.files) {
+        if (f.lazy === true) continue; // loaded on demand and verified by the page (D65): the install stays the size of the base bundle
         const r = await fetchFn(f.path);
         if (!r.ok) throw new Error(`fetch failed: ${f.path}`);
         await cache.put(f.path, await plain(r));

@@ -2,10 +2,14 @@
 export const MANIFEST_FORMAT = "om.web-bundle/1";
 export const MANIFEST_PATH = "bundle-manifest.json";
 
+/** The one file a manifest may mark `lazy` (the groups module, D65). */
+export const GROUPS_WASM_PATH = /^assets\/om_wasm_groups-[A-Za-z0-9_-]+\.wasm$/;
 export interface BundleFile {
   readonly path: string;
   readonly sha256: string;
   readonly bytes: number;
+  /** Loaded on demand and verified by the page, so the service worker does not fetch it at install (the groups module, D65). Covered by the signature. */
+  readonly lazy?: true;
 }
 export interface BundleSignature {
   readonly alg: string;
@@ -62,6 +66,7 @@ export const parseManifest = (text: string): BundleManifest => {
   const seen = new Set<string>();
   for (const f of files as unknown[]) {
     if (!isRecord(f) || !safePath(f["path"]) || typeof f["sha256"] !== "string" || !HEX64.test(f["sha256"])) throw new Error("manifest: bad file entry");
+    if (f["lazy"] !== undefined && (f["lazy"] !== true || !GROUPS_WASM_PATH.test(f["path"]))) throw new Error("manifest: bad lazy flag"); // only the groups module may skip the install (fail closed)
     if (typeof f["bytes"] !== "number" || !Number.isSafeInteger(f["bytes"]) || f["bytes"] < 0) throw new Error("manifest: bad file size");
     if (f["path"] === MANIFEST_PATH || seen.has(f["path"])) throw new Error("manifest: duplicate or self-referencing path");
     seen.add(f["path"]);

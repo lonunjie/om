@@ -23,6 +23,7 @@ export const verifyLoadedBundle = async (
   listPaths?: () => Promise<readonly string[]>,
 ): Promise<BundleVerdict> => {
   for (const f of manifest.files) {
+    if (f.lazy === true) continue; // not staged: the page verifies it against the same digest when it loads it
     let res: FileResponse | undefined;
     try {
       res = await fetchFn(f.path);

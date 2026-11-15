@@ -10,3 +10,6 @@ interface ImportMetaEnv {
   /** "1" only for `pnpm build:relay-e2e`: allows a plain-http loopback Home URL. A production build refuses it. */
   readonly VITE_OM_ALLOW_LOOPBACK_RELAY?: string;
 }
+
+/** Compiled in by vite.config.ts: the digests of the two Core modules of this build (null when a module was not built). */
+declare const __OM_WASM_MODULES__: unknown;

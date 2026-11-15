@@ -78,6 +78,9 @@ try {
   // Never reuse a stale dist/om_wasm.wasm: rebuild it now, under the om-core/production compile guard (R-072).
   const w = spawnSync("pnpm", ["--filter", "@om/core-wasm", "build:wasm"], { cwd: repoRoot, stdio: "inherit", env: buildEnv });
   if (w.status !== 0) fail("core wasm build failed");
+  // The groups module is a second signed asset (ADR-0187): rebuilt now as well, so both come from this checkout.
+  const wg = spawnSync("pnpm", ["--filter", "@om/core-wasm", "build:wasm:groups"], { cwd: repoRoot, stdio: "inherit", env: buildEnv });
+  if (wg.status !== 0) fail("groups wasm build failed");
   const b = spawnSync("pnpm", ["exec", "vite", "build", "--outDir", site, "--emptyOutDir"], { cwd: webRoot, stdio: "inherit", env: buildEnv });
   if (b.status !== 0) fail("vite build failed");
   // Nothing is signed until the built site carries no harness, test provider or test-only wasm marker.

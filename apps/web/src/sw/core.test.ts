@@ -52,6 +52,16 @@ describe("service worker shell", () => {
     expect(await r.shell.respond("/bundle-manifest.json", false)).toBeUndefined();
     expect([...r.caches.values()].every((c) => !c.m.has("api/v1/messages"))).toBe(true);
   });
+  it("does not fetch the lazy groups module at install: the install stays the size of the base bundle (D65)", async () => {
+    const r = rig();
+    const groups = "assets/om_wasm_groups-Ab1.wasm";
+    await r.publish("1.0.0", { ...V1, "assets/om_wasm-Cd2.wasm": "base", [groups]: "groups engine" });
+    await r.shell.stage();
+    await r.shell.activate();
+    expect(r.fetched).not.toContain(groups);
+    expect(r.fetched).toContain("assets/om_wasm-Cd2.wasm");
+    expect(await r.shell.respond("/" + groups, false)).toBeUndefined(); // goes to the network; the page verifies it
+  });
   it("caches a redirected response as a plain one, so a navigation can be answered with it", async () => {
     const r = rig();
     await r.publish("1.0.0", V1);

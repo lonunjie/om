@@ -1,5 +1,6 @@
 // Reproducible bundle-manifest generation: pure function over (path, bytes) pairs; no clocks, no randomness.
 import { sha256Hex } from "../src/update/hash.ts";
+import { isLazyPath } from "../src/update/modules.ts";
 import { MANIFEST_FORMAT, MANIFEST_PATH, type BundleManifest } from "../src/update/manifest.ts";
 
 /** Files that are host configuration, not served content (Pages consumes `_headers`; it is never fetchable). */
@@ -18,7 +19,7 @@ const byCodepoint = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 
 
 export const buildManifest = async (input: BuildInput): Promise<BundleManifest> => {
   const entries = input.files.filter((f) => f.path !== MANIFEST_PATH && !UNSERVED.has(f.path)).toSorted((a, b) => byCodepoint(a.path, b.path));
-  const files = await Promise.all(entries.map(async (f) => ({ path: f.path, sha256: await sha256Hex(f.data), bytes: f.data.byteLength })));
+  const files = await Promise.all(entries.map(async (f) => ({ path: f.path, sha256: await sha256Hex(f.data), bytes: f.data.byteLength, ...(isLazyPath(f.path) ? { lazy: true as const } : {}) })));
   return {
     format: MANIFEST_FORMAT,
     version: input.version,

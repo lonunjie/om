@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import react from "@vitejs/plugin-react";
 import { build as viteBuild, defineConfig, loadEnv, type Plugin, type UserConfig } from "vite";
 import { landingPlugin } from "./build/landing.ts";
+import { moduleTable } from "./build/modules-table.ts";
 import { bundleManifestPlugin } from "./build/plugin.ts";
 import { SECURITY_HEADERS, cspHeader, headersFile } from "./csp.ts";
 import { isRootPinned } from "./src/update/release-key.ts";
@@ -54,8 +55,9 @@ function localRelayCsp(): Record<string, string> {
 }
 
 const config: UserConfig = {
-  plugins: [react(), landingPlugin(), emitHeaders(), serviceWorker(version), bundleManifestPlugin({ version, dev })],
-  define: { __OM_DEV_BUNDLE__: JSON.stringify(dev), __OM_VERSION__: JSON.stringify(version) },
+  plugins: [react(), landingPlugin(), emitHeaders(), serviceWorker(version), bundleManifestPlugin({ version, dev, modules: moduleTable(version) })],
+  // __OM_WASM_MODULES__: the digests of the two Core modules, compiled into the bundle (covered by the manifest signature; see src/update/modules.ts).
+  define: { __OM_DEV_BUNDLE__: JSON.stringify(dev), __OM_VERSION__: JSON.stringify(version), __OM_WASM_MODULES__: JSON.stringify(moduleTable(version)) },
   build: {
     target: "es2023",
     sourcemap: false,
@@ -69,10 +71,9 @@ const config: UserConfig = {
 // without the explicit dev-bundle switch would ship a harness or the in-page TEST loopback provider as if it were
 // the product, so it does not build at all. VITE_OM_RELAY_URL is on the list since ADR-0186: a signed build never carries
 // a relay; every person sets up their own in onboarding.
-// VITE_OM_GROUPS is on the list: ADR-0187 and ADR-0189 are accepted and the carriage is built (sealed delivery over the person's Home), but the groups module (om_wasm_groups.wasm)
-// is not yet a signed second asset: its digest is not in the release manifest, release-delegation.json does not cover it and the reproducible-build check does not rebuild it.
-// Until that path exists no signed build ships the module (the open items are listed in the groups carriage report, package 3a).
-const TEST_FLAGS = ["VITE_OM_DEV_HARNESS", "VITE_OM_E2E_CORE", "VITE_OM_ALLOW_LOOPBACK_RELAY", "VITE_OM_RELAY_URL", "VITE_OM_GROUPS"] as const;
+// VITE_OM_GROUPS left this list when the groups module became a signed, lazily loaded second asset (ADR-0187; deviations D65 to D69). It no longer exists as a flag:
+// groups ship in every build and the module is fetched, verified and loaded only when a person first uses groups.
+const TEST_FLAGS = ["VITE_OM_DEV_HARNESS", "VITE_OM_E2E_CORE", "VITE_OM_ALLOW_LOOPBACK_RELAY", "VITE_OM_RELAY_URL"] as const;
 
 export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), "VITE_OM_"), ...process.env };
