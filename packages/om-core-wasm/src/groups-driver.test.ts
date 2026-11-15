@@ -49,6 +49,8 @@ function scripted(over: { steps?: GroupStep[]; lane?: (rel: string, wire: GroupW
     pendingRefresh: () => { c.calls.push("refresh"); return Promise.resolve(); },
     pendingRetry: () => { c.calls.push("retry"); return Promise.resolve(empty); },
     routeUpdate: (_c: ProfileExecutionContext, room: string): Promise<FrameSend> => { c.calls.push(`route_update:${room}`); c.routeOwed = c.routeOwed.filter((r) => r !== room); return Promise.resolve({ ok: true, sealed: [{ device: "d9", wrapper: "wr1", entry }] }); },
+    held: () => ({ invitations: [], overflow: { invites: 0, replies: 0 } }),
+    ackHeldOverflow: () => Promise.resolve(),
     routesExpire: () => { c.calls.push("expire"); return Promise.resolve([] as { relayUri: string; capability: string }[]); },
   };
   return c;

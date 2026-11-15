@@ -30,10 +30,10 @@ async function settle(...ps: Omit<Party, "rel">[]): Promise<void> {
 }
 
 /** Two people with an active 1:1 relationship (the first-contact flow), on the given module. */
-async function connect(file: string): Promise<[Party, Party]> {
+async function connect(file: string, fileB: string = file): Promise<[Party, Party]> {
   const provider = createMemoryProvider();
   const a = await boot(file, provider, asProfileId("alice"));
-  const b = await boot(file, provider, asProfileId("bob"));
+  const b = await boot(fileB, provider, asProfileId("bob"));
   await a.rt.dispatch({ kind: "CreateIdentityProfile", ctx: a.ctx, operationId: op("a-create"), label: "Alice" });
   await b.rt.dispatch({ kind: "CreateIdentityProfile", ctx: b.ctx, operationId: op("b-create"), label: "Bob" });
   await settle(a, b);
@@ -126,5 +126,30 @@ describe.skipIf(!existsSync(WITH_GROUPS))("groups through two real wasm Cores wi
     const leave = must(await bob.rt.groups.do(bob.ctx, { kind: "leave", conversationId: conv }));
     expect(has(await pump(p, devs, 1, leave), 0, "commit_prepared")).toBe(true);
     expect(await bob.rt.groups.do(bob.ctx, { kind: "send_text", conversationId: conv, text: "late" })).toMatchObject({ ok: false });
+  });
+});
+
+describe.skipIf(!existsSync(SHIPPED) || !existsSync(WITH_GROUPS))("an invitation reaches a device that has not loaded the groups module (D70)", () => {
+  it("is listed by the base module without the engine, with no secret, and is never accepted", async () => {
+    const [alice, bob] = await connect(WITH_GROUPS, SHIPPED);
+    expect(bob.rt.groups.available()).toBe(false);
+    const created = must(await alice.rt.groups.do(alice.ctx, { kind: "create", name: "Book club", relationshipIds: [alice.rel] }));
+    const invite = created.out[0];
+    if (invite === undefined || !("relationship" in invite.to)) throw new Error("no invite on the lane");
+    const lane = alice.rt.groups as unknown as { laneSend: (ctx: ProfileExecutionContext, rel: string, wire: unknown) => Promise<{ ok: boolean }> };
+    expect(await lane.laneSend(alice.ctx, alice.rel, invite.wire)).toEqual({ ok: true });
+    await settle(alice, bob);
+    const held = bob.rt.groups.held?.(bob.ctx);
+    expect(held?.invitations).toHaveLength(1);
+    expect(held?.invitations[0]).toMatchObject({ relationshipId: bob.rel, groupName: "Book club" });
+    expect(held?.invitations[0]?.receivedMs).toBeGreaterThan(0);
+    expect(Object.keys(held?.invitations[0] ?? {}).sort()).toEqual(["groupName", "inviteId", "receivedMs", "relationshipId"]);
+    expect(held?.overflow).toEqual({ invites: 0, replies: 0 });
+    // Nothing joined, nothing listed as a group invitation, and the engine-less module still refuses every step.
+    expect(bob.rt.groups.invites(bob.ctx)).toEqual([]);
+    expect(await bob.rt.groups.do(bob.ctx, { kind: "accept", inviteId: held?.invitations[0]?.inviteId ?? "" })).toEqual({ ok: false, refused: "groups_unavailable" });
+    // Acknowledging the (empty) overflow is durable and leaves the held invitation alone.
+    await bob.rt.groups.ackHeldOverflow?.(bob.ctx);
+    expect(bob.rt.groups.held?.(bob.ctx).invitations).toHaveLength(1);
   });
 });

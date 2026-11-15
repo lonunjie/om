@@ -131,4 +131,18 @@ describe("English copy catalog", () => {
     expect(text).not.toMatch(/\bHome\b/);
     expect(text).toMatch(/delivery service/);
   });
+  it("held group invitations are worded as a calm entry, say nothing was joined, and use no jargon", () => {
+    const h = groupsCopy.held;
+    expect(h.title(1)).toBe("You have a group invitation");
+    expect(h.title(3)).toBe("You have 3 group invitations");
+    expect(h.from("Ana", "Book club")).toBe("Ana invited you to Book club");
+    expect(h.from("", "Book club")).toBe("You are invited to Book club"); // the inviter is unknown on this screen: still a sentence
+    expect(h.overflow.title).toBe("Some group invitations couldn't be kept");
+    expect(h.overflow.invites).toBe("Ask them to invite you again.");
+    expect(h.body).toMatch(/not in the group yet/);
+    expect(h.body).toMatch(/nobody there has been told anything/);
+    const text = all("g.held", h).map(([, v]) => v).join("\n");
+    expect(text).not.toMatch(/\b(?:module|wasm|queue|lane|verified|relay|MLS|epoch|Welcome|Commit)\b/i);
+    expect(text).not.toMatch(/!/); // calm: no exclamation, no alarm
+  });
 });

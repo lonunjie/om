@@ -5,7 +5,7 @@
 import { asGroupId } from "@om/platform-api";
 import type {
   ConversationId, GroupApi, GroupDetailView, GroupEvent, GroupId, GroupIntent, GroupInviteView, GroupMemberView, GroupMessageView, GroupNoticeView, GroupProtectionView,
-  GroupRoomSetting, GroupSettingChange, GroupStep, GroupSummaryView, ProfileExecutionContext, ProfileId,
+  GroupRoomSetting, GroupSettingChange, GroupStep, GroupSummaryView, HeldGroupInvitation, HeldGroupInvitations, HeldGroupOverflow, ProfileExecutionContext, ProfileId,
 } from "@om/platform-api";
 
 const SELF = "acct-self";
@@ -48,11 +48,21 @@ function applySetting(p: Policy, s: GroupRoomSetting): Policy | null {
   return { ...p, timer: s.disappearing_timer };
 }
 interface Invite { id: string; groupId: GroupId; groupName: string; dir: "outgoing" | "incoming"; state: GroupInviteView["state"]; relationshipId: ConversationId; peerAccount: string; createdMs: number }
-interface Store { groups: Map<GroupId, Group>; invites: Map<string, Invite> }
+interface Store { groups: Map<GroupId, Group>; invites: Map<string, Invite>; held: Invite[]; overflow: HeldGroupOverflow }
 
 export interface GroupSim extends GroupApi {
+  held(ctx: ProfileExecutionContext): HeldGroupInvitations;
+  ackHeldOverflow(ctx: ProfileExecutionContext): Promise<void>;
   /** Someone with an active 1:1 invites this person to a group; returns the invitation id. */
   simulateInvite(ctx: ProfileExecutionContext, relationshipId: ConversationId, name: string): string;
+  /**
+   * The device has (`true`, the default) or has not (`false`) loaded the group module. Without it every group view is empty and every
+   * step is refused `groups_unavailable`, and an invitation that arrives is held (see `held`); loading the module hands the held
+   * invitations to the group flow as ordinary pending invitations, never accepted.
+   */
+  setModuleLoaded(loaded: boolean): void;
+  /** Invitations that were lost because the held queue was full (what the real Core counts). */
+  simulateHeldOverflow(ctx: ProfileExecutionContext, invites: number, replies?: number): void;
   /** The other person answers an invitation this person sent. `false`: no such outgoing invitation. */
   simulateAnswer(ctx: ProfileExecutionContext, inviteId: string, answer: "accept" | "decline"): boolean;
   /** A member sends a text. `false`: not a group or not a member. */
@@ -81,7 +91,7 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
   const store = (ctx: ProfileExecutionContext): Store => {
     opts.stateFor(ctx);
     let s = stores.get(ctx.profileId);
-    if (!s) { s = { groups: new Map(), invites: new Map() }; stores.set(ctx.profileId, s); }
+    if (!s) { s = { groups: new Map(), invites: new Map(), held: [], overflow: { invites: 0, replies: 0 } }; stores.set(ctx.profileId, s); }
     return s;
   };
   const acct = (rel: ConversationId): string => `acct-${rel}`;
@@ -93,11 +103,14 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
     s.invites.set(inv.id, inv);
     return inv;
   };
+  let loaded = true;
+  const none = (): Promise<GroupStep> => Promise.resolve(refuse("groups_unavailable"));
   const selfIn = (g: Group): boolean => g.members.some((m) => m.account === SELF && m.status === "member");
 
   return {
-    available: () => true,
+    available: () => loaded,
     do(ctx, intent: GroupIntent) {
+      if (!loaded) return none();
       const s = store(ctx);
       const g = "conversationId" in intent ? s.groups.get(intent.conversationId) : undefined;
       switch (intent.kind) {
@@ -173,22 +186,39 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
       }
     },
     receive: () => Promise.resolve(refuse("no_transport")),
-    list: (ctx) => [...store(ctx).groups.values()].map(summary),
+    list: (ctx) => (loaded ? [...store(ctx).groups.values()].map(summary) : []),
     get(ctx, id): GroupDetailView | null {
-      const g = store(ctx).groups.get(id);
+      const g = loaded ? store(ctx).groups.get(id) : undefined;
       if (!g) return null;
       const people: GroupMemberView[] = g.members.map((m) => ({ account: m.account, roles: m.account === SELF || m === g.members[0] ? ["admin"] : ["member"], status: m.status }));
       return { summary: summary(g), people, canSend: selfIn(g), protection: protectionOf(g.policy) };
     },
-    invites: (ctx) => [...store(ctx).invites.values()].map((i): GroupInviteView => ({ id: i.id, conversationId: i.groupId, groupName: i.groupName, dir: i.dir, state: i.state, relationshipId: i.relationshipId, peerAccount: i.peerAccount, createdMs: i.createdMs })),
+    invites: (ctx) => (loaded ? [...store(ctx).invites.values()] : []).map((i): GroupInviteView => ({ id: i.id, conversationId: i.groupId, groupName: i.groupName, dir: i.dir, state: i.state, relationshipId: i.relationshipId, peerAccount: i.peerAccount, createdMs: i.createdMs })),
     messages: (ctx, id) => [...(store(ctx).groups.get(id)?.messages ?? [])],
     notices: (ctx, id) => [...(store(ctx).groups.get(id)?.notices ?? [])],
     onEvents: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    settle: (ctx) => { store(ctx); return Promise.resolve(done([])); },
+    settle: (ctx) => { store(ctx); return loaded ? Promise.resolve(done([])) : none(); },
+    held(ctx): HeldGroupInvitations {
+      const s = store(ctx);
+      const invitations: HeldGroupInvitation[] = loaded ? [] : s.held.map((i) => ({ relationshipId: i.relationshipId, inviteId: i.id, groupName: i.groupName, receivedMs: i.createdMs }));
+      return { invitations, overflow: { ...s.overflow } };
+    },
+    ackHeldOverflow(ctx) { store(ctx).overflow = { invites: 0, replies: 0 }; return Promise.resolve(); },
+    setModuleLoaded(next) {
+      loaded = next;
+      if (!next) return;
+      for (const s of stores.values()) { for (const i of s.held) s.invites.set(i.id, i); s.held = []; } // the lane is pumped: pending, not accepted
+    },
+    simulateHeldOverflow(ctx, invites, replies = 0) { store(ctx).overflow = { invites, replies }; },
 
     simulateInvite(ctx, relationshipId, name) {
       const s = store(ctx);
       if (!opts.hasRelationship(ctx, relationshipId)) throw new Error("unknown relationship");
+      if (!loaded) {
+        const inv: Invite = { id: hex(16), groupId: asGroupId(hex(16)), groupName: name, dir: "incoming", state: "offered", relationshipId, peerAccount: acct(relationshipId), createdMs: opts.clock() };
+        s.held.push(inv);
+        return inv.id;
+      }
       return newInvite(s, { groupId: asGroupId(hex(16)), groupName: name, dir: "incoming", state: "offered", relationshipId, peerAccount: acct(relationshipId) }).id;
     },
     simulateAnswer(ctx, inviteId, answer) {

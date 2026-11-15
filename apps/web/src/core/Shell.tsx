@@ -5,7 +5,7 @@ import { asConversationId, asGroupId, parseInviteLink, type ConversationId, type
 import {
   AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
   type IconName, type OmniEntry, useConversationDigests,
-  GroupChat, GroupComposer, GroupInvites, GroupStatus, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups,
+  GroupChat, GroupComposer, GroupInvites, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import type { ComposerCapture, StagedItem } from "@om/ui";
@@ -94,6 +94,8 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   const list = useConversationList(services);
   // What each row shows beyond name and time: the latest message, and what has arrived since the chat was last shown here.
   const groups = useGroups(services);
+  // Invitations held before this device has the group files (D70): listed by a base-module query, never accepted.
+  const heldGroups = useHeldGroupInvites(services);
   const groupApi = groupApiOf(services);
   // What the group carriage reports in the background (held, undeliverable, blocked), shown as honest states; a driver-less build reports nothing.
   const groupEvents = useGroupEvents(services, () => { groups.refresh(); });
@@ -170,6 +172,8 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   const [groupsGateOpen, setGroupsGateOpen] = useState(false);
   // Groups are offered when this device has them, or can get them on first use. Without the module the first tap fetches it; with it, it opens the sheet.
   const groupsOffered = groups.available || groupsSetup !== undefined;
+  // Once the groups are ready the held invitations become ordinary pending ones: the loader has done its job.
+  useEffect(() => { if (groups.available) setGroupsGateOpen(false); }, [groups.available]);
   const startNewGroup = (): void => { if (groups.available) setNewGroupOpen(true); else setGroupsGateOpen(true); };
   // The app restarts onto the groups module after its first load: take the person back to the sheet they asked for.
   useEffect(() => { if (groups.available && takeOpenNewGroup()) setNewGroupOpen(true); }, [groups.available]);
@@ -381,7 +385,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
       </>
     );
   }
-  const emptyInviteFirst = list.status === "ready" && list.value.length === 0 && groups.groups.length === 0 && groups.invites.length === 0 && invite !== undefined && incoming?.token == null;
+  const emptyInviteFirst = list.status === "ready" && list.value.length === 0 && groups.groups.length === 0 && groups.invites.length === 0 && heldGroups.held.invitations.length === 0 && heldGroups.held.overflow.invites === 0 && heldGroups.held.overflow.replies === 0 && invite !== undefined && incoming?.token == null;
   return (
     <>
       <AppShell
@@ -397,6 +401,10 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
                 {invite !== undefined && !emptyInviteFirst ? <Button variant="quiet" onClick={() => { openNew("share"); }}><Icon name="plus" size={20} />{t.newConversation.action}</Button> : null}
               </span>
             </header>
+            <HeldGroupInvites
+              copy={groupsCopy} chats={list.status === "ready" ? list.value : []} groupsReady={groups.available || groupsSetup === undefined}
+              held={heldGroups.held} onOpen={() => { setGroupsGateOpen(true); }} onAcknowledge={heldGroups.acknowledge}
+            />
             {groups.available ? <GroupInvites services={services} copy={groupsCopy} invites={groups.invites} chats={list.status === "ready" ? list.value : []} onAnswered={groups.refresh} /> : null}
             {groups.available ? (
               <GroupStatus

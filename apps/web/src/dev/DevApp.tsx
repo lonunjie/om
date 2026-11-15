@@ -10,6 +10,7 @@ import { InstallAffordance } from "../install/InstallAffordance";
 import { Landing } from "../landing/Landing";
 import { appStrings as t, devicesCopy, onboardingCopy, scannerCopy } from "../copy/en";
 import { Shell } from "../core/Shell";
+import type { GroupsSetup } from "../core/GroupsGate";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
 import "./dev.css";
@@ -64,7 +65,7 @@ function Gate({ harness, registry, vault, platform, initiallyOnboarded }: GatePr
       </>
     );
   }
-  return <><DeviceNotices services={{ client: harness, registry, ctx }} copy={devicesCopy} /><Shell key={activeId} services={{ client: harness, registry, ctx }} devicesExtra={<DevNewDevice harness={harness} />} /></>;
+  return <><DeviceNotices services={{ client: harness, registry, ctx }} copy={devicesCopy} /><Shell key={activeId} services={{ client: harness, registry, ctx }} groupsSetup={devGroupsSetup(harness)} devicesExtra={<DevNewDevice harness={harness} />} /></>;
 }
 
 /** DEV ONLY: stands in for the screen of a second, NEW device (deviation D24) so "Add a device" can be tried in one browser. */
@@ -82,4 +83,12 @@ function DevNewDevice({ harness }: { readonly harness: Harness }) {
       <p role="status">{said}</p>
     </aside>
   );
+}
+
+/** DEV ONLY: the harness has no module to fetch, so "getting groups ready" just marks the simulated module as loaded (the real app restarts onto it). One object per harness: the gate runs it once. */
+const setups = new WeakMap<Harness, GroupsSetup>();
+function devGroupsSetup(harness: Harness): GroupsSetup {
+  let s = setups.get(harness);
+  if (s === undefined) { s = { enable: () => { harness.groups.setModuleLoaded(true); return Promise.resolve({ ok: true as const }); } }; setups.set(harness, s); }
+  return s;
 }

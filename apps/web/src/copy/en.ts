@@ -639,6 +639,22 @@ export const groupsCopy: GroupsCopy = {
     join: "Join", decline: "No thanks", joining: "Joining…", declined: "Invitation declined. Nobody in the group was told.", joined: "You joined the group.",
     waiting: { title: (g) => `Waiting to join ${g}`, body: "You said yes. You will be in the group once someone there finishes adding you." },
   },
+  held: {
+    heading: "Group invitations waiting",
+    title: (n) => (n === 1 ? "You have a group invitation" : `You have ${String(n)} group invitations`),
+    from: (who, group) => (who === "" ? `You are invited to ${group}` : `${who} invited you to ${group}`),
+    received: (ms) => `Received ${sentAt(ms)}`,
+    body: "You are not in the group yet, and nobody there has been told anything. Open the invitation to see it and choose whether to join.",
+    open: (n) => (n === 1 ? "Open invitation" : "Open invitations"),
+    more: (n) => `and ${String(n)} more`,
+    overflow: {
+      title: "Some group invitations couldn't be kept",
+      invites: "Ask them to invite you again.",
+      repliesTitle: "Some answers to group invitations couldn't be kept",
+      replies: "If someone you invited has not joined, invite them again.",
+      dismiss: "Got it",
+    },
+  },
   chat: {
     label: "Group messages", back: "Back to chats", people: (n) => `${String(n)} ${n === 1 ? "person" : "people"}`, openPeople: (g) => `People in ${g}`,
     empty: "No messages yet. Say hello.", incoming: "From someone in the group", outgoing: "You said", formatTime: (ms) => new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(new Date(ms)),

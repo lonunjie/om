@@ -47,6 +47,31 @@ export interface GroupsCopy {
     /** An accepted invitation whose add is not done yet. */
     readonly waiting: { readonly title: (group: string) => string; readonly body: string };
   };
+  /**
+   * Invitations a device holds before it has the group files (D70): a calm entry, never an acceptance. Tapping it gets the groups
+   * ready and the ordinary invitation card then offers Join. `overflow` says, without alarm, that some could not be kept.
+   */
+  readonly held: {
+    readonly heading: string;
+    readonly title: (n: number) => string;
+    readonly from: (inviter: string, group: string) => string;
+    /** "Received Tuesday, 10:55 AM": when this device got it. */
+    readonly received: (epochMs: number) => string;
+    /** Said once: nothing was accepted, nobody was told. */
+    readonly body: string;
+    readonly open: (n: number) => string;
+    /** Invitations beyond the ones listed. */
+    readonly more: (n: number) => string;
+    readonly overflow: {
+      readonly title: string;
+      /** What the person can do: ask to be invited again. */
+      readonly invites: string;
+      /** An answer (yes or no) that did not get kept; the person who invited can invite again. */
+      readonly repliesTitle: string;
+      readonly replies: string;
+      readonly dismiss: string;
+    };
+  };
   readonly chat: {
     readonly label: string;
     readonly back: string;

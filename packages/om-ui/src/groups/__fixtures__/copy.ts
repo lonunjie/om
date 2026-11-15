@@ -16,6 +16,12 @@ export const groupsTestCopy: GroupsCopy = {
     join: "Join", decline: "No thanks", joining: "Joining", declined: "Declined", joined: "Joined",
     waiting: { title: (g) => `Waiting to join ${g}`, body: "You said yes." },
   },
+  held: {
+    heading: "Group invitations waiting", title: (n) => (n === 1 ? "You have a group invitation" : `You have ${String(n)} group invitations`),
+    from: (who, group) => (who === "" ? `You are invited to ${group}` : `${who} invited you to ${group}`), received: (ms) => `Received t${String(ms)}`,
+    body: "You are not in the group yet.", open: (n) => (n === 1 ? "Open invitation" : "Open invitations"), more: (n) => `and ${String(n)} more`,
+    overflow: { title: "Some group invitations couldn't be kept", invites: "Ask them to invite you again.", repliesTitle: "Some answers couldn't be kept", replies: "Invite them again.", dismiss: "Got it" },
+  },
   chat: {
     label: "Group messages", back: "Back", people: (n) => `${String(n)} people`, openPeople: (g) => `People in ${g}`, empty: "No messages yet", incoming: "From", outgoing: "You said",
     formatTime: (ms) => `t${String(ms)}`, composerLabel: "Message the group", placeholder: "Message", send: "Send", sendFailed: "Not sent", paused: "Updating", notMember: "Not in this group", loadFailed: "Could not open",

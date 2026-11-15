@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ConversationSummary, GroupDetailView, GroupEvent, GroupId, GroupInviteView, GroupMessageView, GroupNoticeView, GroupSummaryView } from "@om/platform-api";
+import type { ConversationSummary, GroupDetailView, GroupEvent, GroupId, GroupInviteView, GroupMessageView, GroupNoticeView, GroupSummaryView, HeldGroupInvitations } from "@om/platform-api";
 import type { ConversationDigest } from "../conversations/hooks";
 import { groupApiOf } from "./services";
 import type { ConversationServices } from "../conversations/services";
@@ -35,6 +35,40 @@ export function useGroups(s: ConversationServices): GroupsState {
     try { return { groups: api.list(s.ctx), invites: api.invites(s.ctx) }; } catch { return { groups: NONE, invites: NONE }; } // a stale context after a profile switch
   }, [api, s.ctx, tick]);
   return { available: api !== null, groups: data.groups, invites: data.invites, refresh };
+}
+
+export interface HeldGroupState {
+  readonly held: HeldGroupInvitations;
+  /** The person read the overflow notice. */
+  readonly acknowledge: () => void;
+}
+const NO_HELD: HeldGroupInvitations = { invitations: [], overflow: { invites: 0, replies: 0 } };
+
+/**
+ * Invitations held before the group module is loaded, read through the base-module query (it works whether or not groups are
+ * available; a client without one reports nothing). Re-read on the same calm interval as the group views.
+ */
+export function useHeldGroupInvites(s: ConversationServices): HeldGroupState {
+  const api = s.client.groups;
+  const has = api?.held !== undefined;
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!has) return;
+    const id = setInterval(() => { setTick((n) => n + 1); }, POLL_MS);
+    return () => { clearInterval(id); };
+  }, [has]);
+  const held = useMemo(() => {
+    // `tick` is a re-read trigger, not an input.
+    // eslint-disable-next-line @typescript-eslint/no-meaningless-void-operator
+    void tick;
+    try { return api?.held?.(s.ctx) ?? NO_HELD; } catch { return NO_HELD; } // a stale context after a profile switch
+  }, [api, s.ctx, tick]);
+  const acknowledge = useCallback(() => {
+    const done = (): void => { setTick((n) => n + 1); };
+    const p = api?.ackHeldOverflow?.(s.ctx);
+    if (p !== undefined) void p.then(done, done);
+  }, [api, s.ctx]);
+  return { held, acknowledge };
 }
 
 export interface GroupChatData {

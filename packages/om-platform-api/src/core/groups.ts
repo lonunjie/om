@@ -136,6 +136,29 @@ export interface GroupInviteView {
   readonly peerAccount: string;
   readonly createdMs: number;
 }
+/**
+ * A group invitation a device holds before it has the group module (ADR-0189 section 1.1; D70). Core verified it and keeps it durably;
+ * nothing has been accepted and nothing about the person has reached the group. Names are the client's to resolve: the inviter is
+ * the contact of `relationshipId`, as the 1:1 chat shows them.
+ */
+export interface HeldGroupInvitation {
+  readonly relationshipId: ConversationId;
+  readonly inviteId: string;
+  readonly groupName: string;
+  /** When this device received it (local clock, display only), or `null` when unknown. */
+  readonly receivedMs: number | null;
+}
+/** What could not be kept because the held queue was full, until the person acknowledges the notice (D71). */
+export interface HeldGroupOverflow {
+  /** Invitations lost: the person can ask to be invited again. */
+  readonly invites: number;
+  /** Answers (accept or decline) lost: the person who invited can invite again. */
+  readonly replies: number;
+}
+export interface HeldGroupInvitations {
+  readonly invitations: readonly HeldGroupInvitation[];
+  readonly overflow: HeldGroupOverflow;
+}
 export interface GroupMessageView {
   readonly id: string;
   readonly senderAccount: string;
@@ -167,6 +190,14 @@ export interface GroupApi {
    * and releases its Welcome. The driver calls it after every durable step and at start-up.
    */
   settle(ctx: ProfileExecutionContext): Promise<GroupStep>;
+  /**
+   * Group invitations held before the group module is loaded, and what could not be kept. A base-module query: it works when
+   * `available()` is false (that is its point) and is empty once the module has taken the invitations in. Absent on a client
+   * with no Core behind it.
+   */
+  held?(ctx: ProfileExecutionContext): HeldGroupInvitations;
+  /** The person read the overflow notice: clears it (durable when this resolves). */
+  ackHeldOverflow?(ctx: ProfileExecutionContext): Promise<void>;
   /**
    * Events that happened in the background (a frame arrived, a Commit settled, a Room setting changed, a frame was held), so a
    * screen can tell the person. Present on a client with a host driver; the state itself is always read through the views.

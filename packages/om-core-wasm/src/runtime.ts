@@ -7,7 +7,7 @@ import type {
   CoreClient, CoreIntent, CoreQuery, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   ProfileExecutionContext, ProfileId, QueryResult, Unsubscribe,
 } from "@om/platform-api";
-import { asProfileGeneration, asProfileId } from "@om/platform-api";
+import { asConversationId, asProfileGeneration, asProfileId } from "@om/platform-api";
 import type { MessageId } from "@om/platform-api";
 import type { BackupHeader, BackupPlan, BlobLimits, Commit, DirectFetchProgress, DirectFrame, ImportSummary, Inbound, NetOp, NetResult, PollTarget, Provider, Record as CoreRecord } from "./types";
 import { CoreCallError, CoreStorageError, fromHex, toHex } from "./types";
@@ -348,6 +348,14 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     messages: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "messages", conversationId } }) as { messages?: GroupMessageView[] }).messages ?? [],
     notices: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "notices", conversationId } }) as { notices?: GroupNoticeView[] }).notices ?? [],
     settle: (ctx) => exclusive(async () => groupStep(await groupCall({ cmd: "group_settle", ctx: ctxOf(ctx) }), ctx)),
+    held: (ctx) => {
+      const r = core.call({ cmd: "group_held_invitations", ctx: ctxOf(ctx) }) as { invitations?: { relationshipId: string; inviteId: string; groupName: string; receivedS: number }[]; overflow?: { invites: number; replies: number } };
+      return {
+        invitations: (r.invitations ?? []).map((i) => ({ relationshipId: asConversationId(i.relationshipId), inviteId: i.inviteId, groupName: i.groupName, receivedMs: i.receivedS > 0 ? i.receivedS * 1000 : null })),
+        overflow: { invites: r.overflow?.invites ?? 0, replies: r.overflow?.replies ?? 0 },
+      };
+    },
+    ackHeldOverflow: (ctx) => exclusive(async () => { await kvCommit(core.call({ cmd: "group_lane_overflow_ack", ctx: ctxOf(ctx) }) as { commit?: Commit | null }, ctx); }),
     outbox: (ctx) => (core.call({ cmd: "group_outbox", ctx: ctxOf(ctx) }) as { items: GroupOutItem[] }).items,
     status: (ctx) => core.call({ cmd: "group_carriage_status", ctx: ctxOf(ctx) }) as GroupCarriageStatus,
     frameSend: (ctx, to, wire) => exclusive(async () => frames(core.call({ cmd: "group_frame_send", ctx: ctxOf(ctx), to, wire }) as never, ctx)),

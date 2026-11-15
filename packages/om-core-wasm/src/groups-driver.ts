@@ -15,7 +15,7 @@
 // It never reads a wire, never decides anything about a group and never builds one. Nothing here is a transport of its own:
 // the carriage is the sealed delivery the provider already offers (deposit, poll, acknowledge).
 import type {
-  EncryptedKv, GroupApi, GroupEvent, GroupId, GroupIntent, GroupSender, GroupStep, GroupTarget, GroupWire, ProfileExecutionContext, ProfileId,
+  EncryptedKv, GroupApi, GroupEvent, GroupId, GroupIntent, GroupSender, GroupStep, GroupTarget, GroupWire, HeldGroupInvitations, ProfileExecutionContext, ProfileId,
 } from "@om/platform-api";
 import type { Provider } from "./types";
 
@@ -39,6 +39,8 @@ export type FrameSend = { readonly ok: true; readonly sealed: readonly SealedFra
 
 /** The low-level Core calls the driver needs; `createCoreRuntime` implements them over the wasm module (each one durable before it resolves). */
 export interface GroupCore extends GroupApi {
+  held(ctx: ProfileExecutionContext): HeldGroupInvitations;
+  ackHeldOverflow(ctx: ProfileExecutionContext): Promise<void>;
   outbox(ctx: ProfileExecutionContext): readonly GroupOutItem[];
   status(ctx: ProfileExecutionContext): GroupCarriageStatus;
   frameSend(ctx: ProfileExecutionContext, to: GroupTarget, wire: GroupWire): Promise<FrameSend>;
@@ -319,6 +321,9 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
       return run(ctx, () => core.do(ctx, intent));
     },
     receive: (ctx, from: GroupSender, wire) => (available() ? run(ctx, () => core.receive(ctx, from, wire)) : Promise.resolve(refused("groups_unavailable"))),
+    // Base-module queries: they work whether or not the group engine is present (that is their point).
+    held: (ctx) => core.held(ctx),
+    ackHeldOverflow: (ctx) => core.ackHeldOverflow(ctx),
     list: (ctx) => (available() ? core.list(ctx) : []),
     get: (ctx, id: GroupId) => (available() ? core.get(ctx, id) : null),
     invites: (ctx) => (available() ? core.invites(ctx) : []),

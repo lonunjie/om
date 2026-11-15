@@ -276,4 +276,8 @@ Read in full before committing: AGENTS "Design gate", AGENT_ARCHITECTURE_RULES, 
 - The signed release build by the release step (the unsigned build and `pnpm repro` are verified; signing is not run here).
 - Real-phone measurement of first load and of the module fetch.
 - Firefox and WebKit runs of the production-boot and groups specs (Chromium only so far).
-- D70: held-invitation query and queue bound (needs a Core change and a base module rebuild).
+- Open: the real-relay restart path of a held invitation is not observed in e2e (the dev harness and the real-Core loader are); the held entry does not show the member count.
+
+## Held invitations (D70, D71)
+
+Built and verified: a base-module Core query lists group Invitations held before the group module is loaded (Room name, the 1:1 it came over, local receipt time; nothing secret, nothing accepted). The Chats list shows "You have a group invitation" and its one action opens the existing loader sheet, after which the ordinary card asks Join or No thanks. The held queue is bounded at 256 events and 32 per contact; a full queue is counted (persisted, shown until read) instead of dropped silently, and held entries are never evicted. Checks: Rust tests (with and without `groups-openmls`), fmt, clippy, vitest, the groups-held, groups and groups-protection Chromium specs, size budget (+2,196,213 raw / +658,981 gzip, within limits). The base module has a new digest.

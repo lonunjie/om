@@ -10,7 +10,7 @@ import { asConversationId, asGroupId, asOperationId, asPersonId, asProfileId } f
 import { createHarness } from "@om/core-harness";
 import { createActionRegistry } from "../actions/registry";
 import { useConversationList, type ConversationServices } from "../conversations/index";
-import { GroupChat, GroupComposer, GroupInvites, GroupStatus, NO_STATES, NewGroup, groupApiOf, reduceGroupStates, runGroupAction, useGroupEvents, useGroups } from "./index";
+import { GroupChat, GroupComposer, GroupInvites, GroupStatus, HeldGroupInvites, NO_STATES, NewGroup, groupApiOf, reduceGroupStates, runGroupAction, useGroupEvents, useGroups, useHeldGroupInvites } from "./index";
 import { PROTECTION_LEVELS, bundleOf } from "./protection";
 import { groupsTestCopy as copy } from "./__fixtures__/copy";
 
@@ -302,7 +302,7 @@ describe("groups UI on the loopback harness", () => {
 
 describe("protection levels mirror the Core bundle table", () => {
   it("each level preview equals what Core's bundle() sets", () => {
-    const src = readFileSync(resolve(process.cwd(), "../../crates/om-core/src/groups/room.rs"), "utf8");
+    const src = readFileSync(resolve(__dirname, "../../../../crates/om-core/src/groups/room.rs"), "utf8");
     const arm = (name: string): string => {
       const m = new RegExp(`${name} => Bundle \\{([^}]*)\\}`).exec(src);
       if (!m) throw new Error(`no bundle arm for ${name}`);
@@ -321,4 +321,80 @@ describe("protection levels mirror the Core bundle table", () => {
       });
     }
   });
+});
+
+/** Invitations held before the group module is loaded (D70, D71): a calm entry that opens the loader and never accepts. */
+function HeldScreen({ services, onOpen }: { readonly services: ConversationServices; readonly onOpen: () => void }) {
+  const groups = useGroups(services);
+  const held = useHeldGroupInvites(services);
+  const list = useConversationList(services);
+  const chats = list.status === "ready" ? list.value : [];
+  return (
+    <div>
+      <HeldGroupInvites copy={copy} chats={chats} held={held.held} groupsReady={groups.available} onOpen={onOpen} onAcknowledge={held.acknowledge} />
+      <GroupInvites services={services} copy={copy} invites={groups.invites} chats={chats} onAnswered={groups.refresh} />
+    </div>
+  );
+}
+
+describe("held group invitations (the group module is not loaded)", () => {
+  it("shows a calm entry naming the inviter as the chat does, opens the loader on tap, and accepts nothing", async () => {
+    const { h, services } = setup();
+    h.groups.setModuleLoaded(false);
+    h.groups.simulateInvite(services.ctx, ANA, "Book club");
+    let opened = 0;
+    const { container } = render(<HeldScreen services={services} onOpen={() => { opened++; }} />);
+    expect(await screen.findByText("You have a group invitation")).toBeTruthy();
+    expect(screen.getByText("Ana invited you to Book club")).toBeTruthy();
+    expect(screen.getByText("You are not in the group yet.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Join" })).toBeNull(); // joining is asked only where the group is ready
+    expect(await axeViolations(container)).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Open invitation" }));
+    expect(opened).toBe(1);
+    expect(h.groups.invites(services.ctx)).toEqual([]); // still nothing accepted or even listed as a group invitation
+  });
+
+  it("once the module is ready the held entry gives way to the ordinary invitation card, where Join is asked", async () => {
+    const { h, services } = setup();
+    h.groups.setModuleLoaded(false);
+    h.groups.simulateInvite(services.ctx, ANA, "Book club");
+    render(<HeldScreen services={services} onOpen={() => { h.groups.setModuleLoaded(true); }} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Open invitation" }));
+    expect(await screen.findByRole("button", { name: "Join" }, { timeout: 4000 })).toBeTruthy();
+    expect(screen.queryByText("You have a group invitation")).toBeNull();
+    expect(h.groups.list(services.ctx)).toEqual([]); // loading the module joined nothing
+  }, 10000);
+
+  it("names a few invitations and counts the rest", async () => {
+    const { h, services } = setup();
+    h.groups.setModuleLoaded(false);
+    for (const n of ["One", "Two", "Three", "Four", "Five"]) h.groups.simulateInvite(services.ctx, n === "Two" ? BEN : ANA, n);
+    render(<HeldScreen services={services} onOpen={() => undefined} />);
+    expect(await screen.findByText("You have 5 group invitations")).toBeTruthy();
+    expect(screen.getByText("Ben invited you to Two")).toBeTruthy();
+    expect(screen.getByText("and 2 more")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open invitations" })).toBeTruthy();
+  });
+
+  it("says plainly when invitations could not be kept, and the notice stays until the person reads it", async () => {
+    const { h, services } = setup();
+    h.groups.setModuleLoaded(false);
+    h.groups.simulateHeldOverflow(services.ctx, 2);
+    const { container } = render(<HeldScreen services={services} onOpen={() => undefined} />);
+    expect(await screen.findByText("Some group invitations couldn't be kept")).toBeTruthy();
+    expect(screen.getByText("Ask them to invite you again.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Open invitation/ })).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Got it" }));
+    await waitFor(() => { expect(screen.queryByText("Some group invitations couldn't be kept")).toBeNull(); });
+    expect(h.groups.held(services.ctx).overflow).toEqual({ invites: 0, replies: 0 });
+  });
+
+  it("shows nothing when nothing is held, and the overflow notice still shows after the module is ready", async () => {
+    const { h, services } = setup();
+    const { container } = render(<HeldScreen services={services} onOpen={() => undefined} />);
+    await waitFor(() => { expect(container.querySelector("section")).toBeNull(); });
+    h.groups.simulateHeldOverflow(services.ctx, 0, 1);
+    await waitFor(() => { expect(screen.queryByText("Some answers couldn't be kept")).toBeTruthy(); }, { timeout: 4000 });
+  }, 10000);
 });
