@@ -15248,6 +15248,83 @@
       "domain": "architecture_process",
       "license": "Apache-2.0",
       "authority": "executable_guardrail"
+    },
+    {
+      "path": "apps/web/build/check-groups-module.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/modules-table.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/size-budget.d.mts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/size-budget.json",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/size-budget.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/size-budget.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/e2e/production-boot.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/GroupsGate.test.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/core/GroupsGate.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/update/modules.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/src/update/modules.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
     }
   ]
 }

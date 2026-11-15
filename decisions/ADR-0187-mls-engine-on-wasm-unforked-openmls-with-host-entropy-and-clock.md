@@ -77,6 +77,10 @@ The operator, who said "make the best decisions", confirmed this ADR on 2026-11-
 3. Size budget: accepted as this ADR proposes. The measured figures of [`2026-11-14-groups-driver-status.md`](../docs/reports/2026-11-14-groups-driver-status.md) (production-optimised `om_wasm.wasm` and the separate `om_wasm_groups.wasm`, which loads only where groups ship) are the recorded baseline, and the fallback to option D under "Revisit" stays the answer if a later measurement breaches them.
 4. The `cargo-deny` duplicate-crypto exception for the OpenMLS provider tree: accepted as described in Decision 5, to be added when `cargo-deny` is added.
 
+### Clarification of the budget number (2026-11-15)
+
+The operator delegated the ruling ("decide") and the budget in item 3 is clarified, not changed: the baseline stays as recorded, and the v1 limit enforced by `pnpm check:size-budget` is that baseline plus 5 percent headroom ([`apps/web/build/size-budget.json`](../apps/web/build/size-budget.json), `headroomPercent: 5`), because the first signed build measured 1.2 percent (raw) and 0.8 percent (gzip) over the bare baseline. The decision itself (A2, the groups module loaded only where groups ship, the fallback to option D on a breach) is untouched. Recorded as D68 in [`2026-10-28-relay-status.md`](../docs/reports/2026-10-28-relay-status.md).
+
 ## Revisit
 
 Switch to D (same engine, same shims, a separate module with an additive host import) only if the measured size breaches the budget or a reviewer rules that the snapshot must not share a memory with the UI-facing bridge. The `GroupCrypto` boundary is designed so that this is an adapter change, not a redesign.

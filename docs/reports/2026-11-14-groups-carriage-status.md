@@ -256,3 +256,24 @@ Read in full: AGENTS "Design gate", AGENT_ARCHITECTURE_RULES, every document and
 - Route-update and lane outbox follow-up (retry after a route update, D56) is not built.
 - `Provider.revokeDeposit` still has no HTTP implementation.
 - Group views have no display names, so other members show as "Someone" in notices.
+
+## Second wasm: the signed lazy groups module (2026-11-15)
+
+### Design sources read, and not read (committer)
+
+Read in full before committing: AGENTS "Design gate", AGENT_ARCHITECTURE_RULES, every document the design gate printed for the changed files, ADR-0177, ADR-0187, ADR-0189, the gate ADRs (including ADR-0128, 0129, 0130, 0159, 0162), the supply-chain documents and CLIENTHOST_UPDATE_LIFECYCLE. Not read: `design-drops` material beyond the notes for this package, and no external review was consulted. Nothing in this package amends audited text; the departures are D65 to D70 in [`2026-10-28-relay-status.md`](2026-10-28-relay-status.md).
+
+### What landed
+
+- A second signed asset, `om_wasm_groups.wasm` (the base Core plus the group engine), marked `lazy` in the bundle manifest (`om.web-bundle/1`, optional field, D65). The service worker and the loaded-bundle check skip a lazy file, so first load costs the base module only. Review fix: the manifest parser accepts `lazy` only on the groups module path and only as `true`, so a manifest can never skip the install check of any other file.
+- The page verifies the module against digests compiled into the bundle (D66): length and SHA-256 of the bytes, and, when fetching, a served manifest of the same version that lists both modules with those digests. Any other result is a refusal and nothing is instantiated.
+- Restart onto the module (D67), offline start from the kept and re-verified copy, base start otherwise (D69). A calm waiting sheet with retry (`GroupsGate`).
+- Size budget enforced at the ADR-0187 baseline plus 5 percent (D68, operator ruling, recorded in ADR-0187 as a clarification of the budget number). `VITE_OM_GROUPS` is no longer a test flag: production serves groups.
+- Invitations before first use: the base Core already verifies kinds 15 to 17 and keeps them in its persisted lane queue, never applying them; a Rust test pins it. The visible "You have a group invitation" entry needs a Core query (D70, question 9 in the notes); no eager load.
+
+### What remains
+
+- The signed release build by the release step (the unsigned build and `pnpm repro` are verified; signing is not run here).
+- Real-phone measurement of first load and of the module fetch.
+- Firefox and WebKit runs of the production-boot and groups specs (Chromium only so far).
+- D70: held-invitation query and queue bound (needs a Core change and a base module rebuild).
