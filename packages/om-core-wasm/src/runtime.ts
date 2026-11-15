@@ -4,7 +4,7 @@
 import { captureProfileContext, isTerminalOutcome } from "@om/platform-api";
 import type {
   AttachmentApi, AttachmentLimits, AttachmentMeta, AttachmentOpenResult, AttachmentPrepareResult, AttachmentRefusal,
-  CoreClient, CoreIntent, CoreQuery, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
+  CoreClient, CoreIntent, CoreQuery, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   ProfileExecutionContext, ProfileId, QueryResult, Unsubscribe,
 } from "@om/platform-api";
 import { asProfileGeneration, asProfileId } from "@om/platform-api";
@@ -13,7 +13,7 @@ import type { BackupHeader, BackupPlan, BlobLimits, Commit, DirectFetchProgress,
 import { CoreCallError, CoreStorageError, fromHex, toHex } from "./types";
 import type { WasmCore } from "./wasm";
 import { createGroupDriver } from "./groups-driver";
-import type { CommitAcceptance, GroupCarriage, GroupDriver } from "./groups-driver";
+import type { FrameSend, GroupCarriageStatus, GroupCore, GroupDriver, GroupOutItem, SealedFrame } from "./groups-driver";
 
 const KEY_PREFIX = "core/";
 /** Sealed attachment bytes waiting for their upload, in the profile's encrypted store (never under `core/`, which is Core's own records). */
@@ -34,11 +34,12 @@ export interface CoreRuntimeOptions {
   /** Poll open profiles' mailboxes at this interval while autoDrain is on (default 0 = only after changes). A function is asked again before every poll and returns the wait in ms, so the host can slow down while nobody is looking (a non-positive answer means 5 s). */
   readonly pollMs?: number | (() => number);
   /**
-   * The host driver for groups (ADR-0177). Given, `client.groups` carries each step's wires over `carriage` and reports Commits
-   * (see `createGroupDriver`); with a null `carriage`, or none given at all, the host cannot carry a group wire and groups are
-   * unavailable even when the module has the engine. Absent, `client.groups` is the bare engine (tests that carry wires by hand).
+   * The host driver for groups (ADR-0177, ADR-0189). Given, `client.groups` is the driver: it settles Core's own Commits, deposits
+   * and polls the sealed group frames through `provider`, and carries Invite, Accept and Decline over the 1:1 (see `createGroupDriver`).
+   * Pass it whenever the module has the group engine, so `groups.available()` is true exactly when the groups module is present.
+   * Absent, `client.groups` is the bare engine (tests that carry wires by hand).
    */
-  readonly groupDriver?: { readonly carriage: GroupCarriage | null; readonly acceptance?: CommitAcceptance };
+  readonly groupDriver?: { readonly retryMs?: number };
 }
 
 export interface WasmCoreClient extends CoreClient {
@@ -298,6 +299,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       let moved = false;
       for (const op of ops) if (await runOp(ctx, op)) moved = true;
       if (await pollOnce(ctx)) moved = true;
+      if (groupDriver !== undefined && (await groupDriver.flush(ctx))) moved = true; // group frames, the 1:1 lane, held frames, route updates
       if (!moved) {
         if ((core.call({ cmd: "net_ops", ctx }) as NetOp[]).length > 0) scheduleRetry(profileId);
         return;
@@ -329,7 +331,13 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     return v["refused"] === undefined ? v : {};
   };
 
-  const groupEngine: GroupApi = {
+  const kvCommit = async (r: { readonly commit?: Commit | null }, ctx: ProfileExecutionContext): Promise<void> => { await commit(r.commit ?? null, ctx); };
+  const frames = async (r: { readonly sealed?: readonly SealedFrame[]; readonly refused?: string; readonly commit?: Commit | null }, ctx: ProfileExecutionContext): Promise<FrameSend> => {
+    if (r.refused !== undefined || r.sealed === undefined) return { ok: false, refused: r.refused ?? "invalid" };
+    await kvCommit(r, ctx); // durable before a wrapper is deposited
+    return { ok: true, sealed: r.sealed };
+  };
+  const groupCore: GroupCore = {
     available: () => core.call({ cmd: "groups_available" }) === true,
     do: (ctx, intent) => exclusive(async () => groupStep(await groupCall({ cmd: "group_do", ctx: ctxOf(ctx), intent }), ctx)),
     receive: (ctx, from, wire) => exclusive(async () => groupStep(await groupCall({ cmd: "group_receive", ctx: ctxOf(ctx), from, wire }), ctx)),
@@ -338,13 +346,37 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     invites: (ctx) => ((groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "invites" } }) as { invites?: (GroupInviteView & { releases?: unknown; intentId?: unknown })[] }).invites ?? [])
       .map(({ releases: _r, intentId: _i, ...rest }) => rest),
     messages: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "messages", conversationId } }) as { messages?: GroupMessageView[] }).messages ?? [],
+    notices: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "notices", conversationId } }) as { notices?: GroupNoticeView[] }).notices ?? [],
+    settle: (ctx) => exclusive(async () => groupStep(await groupCall({ cmd: "group_settle", ctx: ctxOf(ctx) }), ctx)),
+    outbox: (ctx) => (core.call({ cmd: "group_outbox", ctx: ctxOf(ctx) }) as { items: GroupOutItem[] }).items,
+    status: (ctx) => core.call({ cmd: "group_carriage_status", ctx: ctxOf(ctx) }) as GroupCarriageStatus,
+    frameSend: (ctx, to, wire) => exclusive(async () => frames(core.call({ cmd: "group_frame_send", ctx: ctxOf(ctx), to, wire }) as never, ctx)),
+    outboxDone: (ctx, ids) => exclusive(async () => { await kvCommit(core.call({ cmd: "group_outbox_done", ctx: ctxOf(ctx), ids }) as { commit?: Commit | null }, ctx); }),
+    laneSend: (ctx, relationshipId, wire) => exclusive(async () => {
+      const r = core.call({ cmd: "group_lane_send", ctx: ctxOf(ctx), relationshipId, wire }) as { refused?: string; commit?: Commit | null };
+      if (r.refused !== undefined) return { ok: false as const, refused: r.refused };
+      await kvCommit(r, ctx);
+      return { ok: true as const };
+    }),
+    lanePump: (ctx) => exclusive(async () => groupStep(await groupCall({ cmd: "group_lane_pump", ctx: ctxOf(ctx) }), ctx)),
+    frameReceive: (ctx, wrapper) => exclusive(async () => groupStep(await groupCall({ cmd: "group_frame_receive", ctx: ctxOf(ctx), wrapper }), ctx)),
+    pendingRefresh: (ctx) => exclusive(async () => { await kvCommit(core.call({ cmd: "group_pending_refresh", ctx: ctxOf(ctx) }) as { commit?: Commit | null }, ctx); }),
+    pendingRetry: (ctx) => exclusive(async () => groupStep(await groupCall({ cmd: "group_pending_retry", ctx: ctxOf(ctx) }), ctx)),
+    routeUpdate: (ctx, conversationId) => exclusive(async () => frames(core.call({ cmd: "group_route_update", ctx: ctxOf(ctx), conversationId }) as never, ctx)),
+    routesExpire: (ctx) => exclusive(async () => {
+      const r = core.call({ cmd: "group_routes_expire", ctx: ctxOf(ctx) }) as { revoke: { relayUri: string; capability: string }[]; commit?: Commit | null };
+      await kvCommit(r, ctx);
+      return r.revoke;
+    }),
   };
   const groupDriver: GroupDriver | undefined = opts.groupDriver === undefined ? undefined : createGroupDriver({
-    engine: groupEngine,
+    core: groupCore,
+    provider,
     storage: opts.storage,
     contextFor: (profileId) => { const c = core.call({ cmd: "context_for", profileId }) as { profileId: string; generation: string }; return captureProfileContext(asProfileId(c.profileId), asProfileGeneration(c.generation)); },
-    carriage: opts.groupDriver.carriage,
-    ...(opts.groupDriver.acceptance === undefined ? {} : { acceptance: opts.groupDriver.acceptance }),
+    topUp: topUpRoutes,
+    wake: (profileId) => { kick(asProfileId(profileId)); },
+    ...(opts.groupDriver.retryMs === undefined ? {} : { retryMs: opts.groupDriver.retryMs }),
   });
 
   const client: WasmCoreClient = {
@@ -355,7 +387,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       openProfiles.add(profileId);
       void refreshLimits();
       kick(profileId);
-      if (groupDriver !== undefined) void groupDriver.flush(ctxOf(ctx)); // what a previous run still owed over the group carriage
+      if (groupDriver !== undefined) void groupDriver.flush(ctxOf(ctx)); // start-up: settle, then what a previous run still owed over the group carriage
       return ctxOf(ctx);
     },
     closeProfile(profileId) {
@@ -486,7 +518,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
         return { ok: true, bytes: fromHex(o.opened.plaintext), mediaType: o.opened.mediaType, ...(o.opened.filename ? { filename: o.opened.filename } : {}) };
       },
     },
-    groups: groupDriver ?? groupEngine,
+    groups: groupDriver ?? groupCore,
     flush,
     async idle() {
       for (let i = 0; i < 100; i++) {

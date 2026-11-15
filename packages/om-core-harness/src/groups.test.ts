@@ -56,7 +56,7 @@ describe("simulated groups (same typed surface as the real Core)", () => {
     expect(r.events.map((e) => e.kind)).toEqual(["invite_accepted", "joined"]);
     expect(h.groups.list(a)[0]).toMatchObject({ name: "Chess", members: 2 });
     expect(await h.groups.do(a, { kind: "accept", inviteId: id })).toEqual({ ok: false, refused: "unknown_invite" });
-    expect(await h.groups.do(a, { kind: "commit_accepted", intentId: "x" })).toEqual({ ok: false, refused: "unknown_intent" });
+    expect(await h.groups.do(a, { kind: "commit_published", intentId: "x" })).toEqual({ ok: false, refused: "unknown_intent" });
   });
 
   it("groups belong to their profile; a foreign or stale context fails closed", async () => {

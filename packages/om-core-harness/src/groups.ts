@@ -51,7 +51,7 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
       const s = store(ctx);
       const g = "conversationId" in intent ? s.groups.get(intent.conversationId) : undefined;
       switch (intent.kind) {
-        case "create": {
+        case "create": case "create_with_protection": {
           for (const r of intent.relationshipIds) if (!opts.hasRelationship(ctx, r)) return Promise.resolve(refuse("unknown_relationship"));
           if (intent.name.trim() === "") return Promise.resolve(refuse("invalid_name"));
           const id = asGroupId(hex(16));
@@ -100,7 +100,9 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
           g.messages.push({ id, senderAccount: SELF, senderDevice: "dev-self", epoch: g.epoch, text: intent.text, atMs: opts.clock(), outgoing: true });
           return Promise.resolve(done([{ kind: "message_sent", conversationId: g.id, id }]));
         }
-        case "commit_published": case "commit_accepted":
+        case "room_setting":
+          return Promise.resolve(refuse("unsupported")); // the simulation has no Room policy to change
+        case "commit_published":
           return Promise.resolve(refuse("unknown_intent")); // the simulation commits at once: there is never a prepared Commit
       }
     },
@@ -110,10 +112,12 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
       const g = store(ctx).groups.get(id);
       if (!g) return null;
       const people: GroupMemberView[] = g.members.map((m) => ({ account: m.account, roles: m.account === SELF || m === g.members[0] ? ["admin"] : ["member"], status: m.status }));
-      return { summary: summary(g), people, canSend: selfIn(g) };
+      return { summary: summary(g), people, canSend: selfIn(g), protection: { profile: 1, custom: false, joinRule: 1, newDevicePolicy: 1, historyPolicy: 1, membersMayInvite: true, disappearingTimer: null } };
     },
     invites: (ctx) => [...store(ctx).invites.values()].map((i): GroupInviteView => ({ id: i.id, conversationId: i.groupId, groupName: i.groupName, dir: i.dir, state: i.state, relationshipId: i.relationshipId, peerAccount: i.peerAccount, createdMs: i.createdMs })),
     messages: (ctx, id) => [...(store(ctx).groups.get(id)?.messages ?? [])],
+    notices: (ctx) => { store(ctx); return []; },
+    settle: (ctx) => { store(ctx); return Promise.resolve(done([])); },
 
     simulateInvite(ctx, relationshipId, name) {
       const s = store(ctx);

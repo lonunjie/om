@@ -240,5 +240,5 @@ export function createMemoryKv(): MemoryKv {
 }
 
 // The in-process group carriages (loopback between profiles); test and e2e only, like the provider above.
-export { createGroupLoopback, createClientPairCarriage } from "./groups-loopback";
-export type { GroupLoopback } from "./groups-loopback";
+export { createGroupFaults } from "./groups-loopback";
+export type { GroupFaults } from "./groups-loopback";

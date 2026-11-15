@@ -1,11 +1,12 @@
-import type { ConversationId, Brand, ProfileExecutionContext } from "./ids";
+import type { ConversationId, Brand, ProfileExecutionContext, ProfileId } from "./ids";
 
 /**
  * Ordinary groups (scope `groups`, ADR-0177): the typed steps a client drives and the views it renders.
  *
- * The wire between two devices (`GroupWire`) is Core-internal JSON that the host only carries, never reads or builds: which
- * 1:1 object type and delivery kind carry it is an open design question (groups plan, Q2). Do not persist it, parse it
- * or treat it as a protocol; no second implementation may rely on it. The engine behind it needs ADR-0187 (proposed).
+ * The wire between two devices (`GroupWire`) is Core-internal JSON that the host only carries, never reads or builds. On the
+ * network it is Core that seals it (ADR-0189): Invite, Accept and Decline as events on the 1:1, everything else as sealed
+ * `GroupTransportFrame`s to a per-Room route; the host driver only deposits and polls what Core made. Do not persist a
+ * `GroupWire` yourself, parse it or treat it as a protocol; no second implementation may rely on it.
  */
 
 /** The random ConversationID of a group (hex). Unrelated to any 1:1 conversation id. */
@@ -28,10 +29,24 @@ export type GroupIntent =
   /** `account` is the AccountID (hex) of the person to remove. */
   | { readonly kind: "remove"; readonly conversationId: GroupId; readonly account: string }
   | { readonly kind: "send_text"; readonly conversationId: GroupId; readonly text: string }
-  /** The host reports that the prepared Commit was published to its group. */
+  /** The host reports that the prepared Commit was published to its group (progress only: Core accepts its own Commit itself, ADR-0189 section 2). */
   | { readonly kind: "commit_published"; readonly intentId: string }
-  /** The ordering profile accepted the candidate Commit. */
-  | { readonly kind: "commit_accepted"; readonly intentId: string };
+  /** Create a Room from a protection level (1 Recommended, 2 Hardened, 3 Maximum Privacy). `create` is Recommended. */
+  | { readonly kind: "create_with_protection"; readonly name: string; readonly relationshipIds: readonly ConversationId[]; readonly protection: GroupProtectionLevel }
+  /** Change one Room setting. Anything that loosens the Room is refused `loosening_needs_confirmation` unless `confirmed` (ADR-0189 section 3). */
+  | { readonly kind: "room_setting"; readonly conversationId: GroupId; readonly setting: GroupRoomSetting; readonly confirmed?: boolean };
+
+/** 1 Recommended, 2 Hardened, 3 Maximum Privacy (`group-policy.security_profile`). */
+export type GroupProtectionLevel = 1 | 2 | 3;
+
+/** One Room setting: a whole protection level, or one field by its code (see `GroupProtectionView`). `disappearing_timer` is seconds, `null` off. */
+export type GroupRoomSetting =
+  | { readonly protection: GroupProtectionLevel }
+  | { readonly join_rule: number }
+  | { readonly new_device_policy: number }
+  | { readonly history_policy: number }
+  | { readonly members_may_invite: boolean }
+  | { readonly disappearing_timer: number | null };
 
 export type GroupIntentKind = GroupIntent["kind"];
 
@@ -39,7 +54,7 @@ export type GroupIntentKind = GroupIntent["kind"];
 export type GroupEvent =
   | { readonly kind: "created"; readonly conversationId: GroupId }
   | { readonly kind: "invite_sent" | "invite_received" | "invite_accepted" | "invite_declined"; readonly inviteId: string }
-  /** A Commit was prepared: publish it, then report `commit_published` and `commit_accepted` with this id. */
+  /** A Commit was prepared and is durable; the driver carries it and Core accepts it itself (ADR-0189 section 2). Progress only. */
   | { readonly kind: "commit_prepared"; readonly intentId: string }
   /** The person accepted but the Add cannot be prepared yet (for example `not_authorized`); the invitation stays accepted. */
   | { readonly kind: "admit_blocked"; readonly inviteId: string; readonly reason: string }
@@ -48,7 +63,22 @@ export type GroupEvent =
   | { readonly kind: "message_sent"; readonly conversationId: GroupId; readonly id: string }
   | { readonly kind: "message_received"; readonly conversationId: GroupId; readonly id: string; readonly senderAccount: string }
   /** Something arrived that nothing of ours precedes or authorizes; nothing changed. */
-  | { readonly kind: "dropped"; readonly reason: string };
+  | { readonly kind: "dropped"; readonly reason: string }
+  /** A frame names a device whose account head is missing or stale: it is kept (bounded, expiring) and retried; nothing was accepted. */
+  | { readonly kind: "held"; readonly reason: string }
+  /** A Room setting changed (on this device too): who and what; every loosening is marked. Never silent. */
+  | { readonly kind: "policy_changed"; readonly conversationId: GroupId; readonly byAccount: string; readonly changes: readonly GroupSettingChange[] }
+  /** A queued Room setting could not be carried out (for example the person lost the capability meanwhile). */
+  | { readonly kind: "room_setting_blocked"; readonly conversationId: GroupId; readonly reason: string }
+  /** This device's own Commit lost a same-parent race or its parent moved: nothing of it was merged. */
+  | { readonly kind: "commit_superseded"; readonly intentId: string }
+  /** A relay refused a deposit for good, so that frame will not arrive ("could not deliver"); never silent. The wording is for the client. */
+  | { readonly kind: "undeliverable"; readonly count: number };
+
+/** One visible difference between two states of a Room (`field`: join_rule, new_device_policy, history_policy, members_may_invite, disappearing_timer, security_profile). */
+export interface GroupSettingChange { readonly field: string; readonly from: string; readonly to: string; readonly loosened: boolean }
+/** One announced change of a Room's settings, kept so it is never silent. */
+export interface GroupNoticeView { readonly atMs: number; readonly byAccount: string; readonly changes: readonly GroupSettingChange[] }
 
 /** Where an outbound goes: over the 1:1 relationship (the host fans out to the person's devices), or to one member device. */
 export type GroupTarget =
@@ -78,11 +108,22 @@ export interface GroupMemberView {
   /** An invited person is shown, but is not in the group. */
   readonly status: "member" | "invited";
 }
+/** The Room's protection fields in codes (the client words them; `custom` shows "Custom"). */
+export interface GroupProtectionView {
+  readonly profile: number;
+  readonly custom: boolean;
+  readonly joinRule: number;
+  readonly newDevicePolicy: number;
+  readonly historyPolicy: number;
+  readonly membersMayInvite: boolean;
+  readonly disappearingTimer: number | null;
+}
 export interface GroupDetailView {
   readonly summary: GroupSummaryView;
   readonly people: readonly GroupMemberView[];
   /** False while a Commit is unmerged or this person is leaving. */
   readonly canSend: boolean;
+  readonly protection: GroupProtectionView;
 }
 export interface GroupInviteView {
   readonly id: string;
@@ -119,4 +160,16 @@ export interface GroupApi {
   get(ctx: ProfileExecutionContext, conversationId: GroupId): GroupDetailView | null;
   invites(ctx: ProfileExecutionContext): readonly GroupInviteView[];
   messages(ctx: ProfileExecutionContext, conversationId: GroupId): readonly GroupMessageView[];
+  /** The announced changes of a Room's settings, oldest first. */
+  notices(ctx: ProfileExecutionContext, conversationId: GroupId): readonly GroupNoticeView[];
+  /**
+   * Host drivers only (the UI never calls it): Core accepts every own Commit whose three conditions hold (ADR-0189 section 2)
+   * and releases its Welcome. The driver calls it after every durable step and at start-up.
+   */
+  settle(ctx: ProfileExecutionContext): Promise<GroupStep>;
+  /**
+   * Events that happened in the background (a frame arrived, a Commit settled, a Room setting changed, a frame was held), so a
+   * screen can tell the person. Present on a client with a host driver; the state itself is always read through the views.
+   */
+  onEvents?(listener: (profileId: ProfileId, events: readonly GroupEvent[]) => void): () => void;
 }

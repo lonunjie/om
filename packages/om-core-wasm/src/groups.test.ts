@@ -104,8 +104,8 @@ describe.skipIf(!existsSync(WITH_GROUPS))("groups through two real wasm Cores wi
     const prepared = ev2.find((x) => x.who === 0 && x.e.kind === "commit_prepared")?.e;
     if (prepared?.kind !== "commit_prepared") throw new Error("no commit prepared");
     expect(alice.rt.groups.get(alice.ctx, conv)?.canSend).toBe(false);
-    must(await alice.rt.groups.do(alice.ctx, { kind: "commit_published", intentId: prepared.intentId }));
-    const welcome = must(await alice.rt.groups.do(alice.ctx, { kind: "commit_accepted", intentId: prepared.intentId }));
+    expect(prepared.intentId).not.toBe("");
+    const welcome = must(await alice.rt.groups.settle(alice.ctx)); // Core accepts its own Commit (ADR-0189 section 2): there is no host report
     const dir = welcome.out[0]?.wire["directory"] as [string, string, string][];
     const aliceDev = dir.map((d) => d[0]).find((d) => d !== bobDev) ?? "";
     const devs: readonly [string, string] = [aliceDev, bobDev];
