@@ -234,3 +234,25 @@ Read in full: AGENTS "Design gate", AGENT_ARCHITECTURE_RULES, every document and
 - Copy for: the profiles, the loosening confirmation, joining and waiting states, a held frame, a superseded Commit, `admit_blocked`, a Room too large for one Welcome, a changed safety code, and `undeliverable` ("could not deliver").
 - Still open in Core: own-device head sync (D36), `admit_request` (D43), the frame ordering buffer (D41), governance quorum (D39).
 
+## Package 3b: protection-level UI
+
+### Design sources read, and not read (committer)
+
+Read in full: AGENTS "Design gate", AGENT_ARCHITECTURE_RULES, every document and ADR that `tools/design_gate.py needs` printed for the changed paths (domains `client_endpoint_distribution`, `discovery_first_contact`, `identity_control_recovery`, `metadata_privacy`, `relay_reachability`, `time_ordering_events`, `ux_accessibility_personalization`, plus `crypto_1to1` from the earlier gate set), GROUP_CHAT_ARCHITECTURE, GROUP_COMMIT_AND_STATE_CONVERGENCE, GROUPS_AND_SPACES_UX, SECURITY_PRIVACY_PROFILES, CONTENT_AND_MICROCOPY_VOICE, ADR-0177, ADR-0187, ADR-0189. Not read: nothing on those lists.
+
+### What landed
+
+- New group has a collapsed Protection choice (Recommended pre-selected). The default stays one tap; another level uses `create_with_protection`.
+- Room settings: tighten at once with the cost named; loosen only after a confirmation that names what changes. Refusals (`quorum_not_supported`, `not_authorized`) are shown in plain words and nothing changes.
+- Policy-change notices appear in the timeline, with the words "Less strict" on a loosening. Held, undeliverable, setting-blocked and admit-blocked states are shown honestly; a superseded Commit stays silent.
+- Action registry: `group-create` takes an optional `protection`; `group-room-setting` is direct-origin only and accepts only what a screen offers.
+- Devices screen: a degraded history transfer has its own line.
+- Deviations D59 to D64 are recorded in the relay-status table. Review fixes: the held-state title now reads "Waiting for a group update" (it is not about joining); a unit test pins the UI bundle table to the Core table.
+
+### Known gaps
+
+- The new flows run against the harness sim only; the real-Core e2e (`groups-live`) is not extended and `onEvents` from the real driver was not observed live.
+- Second signed wasm path for `om_wasm_groups.wasm` (manifest digest, skew check, release delegation) is still open, as is `VITE_OM_GROUPS` in `TEST_FLAGS`.
+- Route-update and lane outbox follow-up (retry after a route update, D56) is not built.
+- `Provider.revokeDeposit` still has no HTTP implementation.
+- Group views have no display names, so other members show as "Someone" in notices.
