@@ -14,7 +14,7 @@ if (!existsSync(wasm)) {
   process.exit(1);
 }
 
-// A build with the groups module (VITE_OM_GROUPS=1, dev and e2e bundles only: ADR-0187 accepted, but no product carriage yet) needs the engine variant too.
+// A build with the groups module (VITE_OM_GROUPS=1, dev and e2e bundles only until the groups module ships as its own signed asset) needs the engine variant too.
 if (process.env.VITE_OM_GROUPS === "1") {
   const groups = fileURLToPath(new URL("../../../packages/om-core-wasm/dist/om_wasm_groups.wasm", import.meta.url));
   if (!existsSync(groups)) {

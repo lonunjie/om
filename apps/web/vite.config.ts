@@ -69,7 +69,9 @@ const config: UserConfig = {
 // without the explicit dev-bundle switch would ship a harness or the in-page TEST loopback provider as if it were
 // the product, so it does not build at all. VITE_OM_RELAY_URL is on the list since ADR-0186: a signed build never carries
 // a relay; every person sets up their own in onboarding.
-// VITE_OM_GROUPS is on the list: ADR-0187 is accepted, but no product carriage for group wires exists yet (groups plan Q2), so no signed build ships the groups module.
+// VITE_OM_GROUPS is on the list: ADR-0187 and ADR-0189 are accepted and the carriage is built (sealed delivery over the person's Home), but the groups module (om_wasm_groups.wasm)
+// is not yet a signed second asset: its digest is not in the release manifest, release-delegation.json does not cover it and the reproducible-build check does not rebuild it.
+// Until that path exists no signed build ships the module (the open items are listed in the groups carriage report, package 3a).
 const TEST_FLAGS = ["VITE_OM_DEV_HARNESS", "VITE_OM_E2E_CORE", "VITE_OM_ALLOW_LOOPBACK_RELAY", "VITE_OM_RELAY_URL", "VITE_OM_GROUPS"] as const;
 
 export default defineConfig(({ mode }) => {
