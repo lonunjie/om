@@ -17,7 +17,8 @@ import { appStrings as t, deviceScannerCopy, devicesCopy, onboardingCopy, scanne
 import { QrCode } from "../qr/QrCode";
 import { CHATS, navigate } from "../route/place";
 import { useQrScanner } from "../qr/Scanner";
-import { startCore } from "./loadCore";
+import { prepareGroups, rememberOpenNewGroup, startCore } from "./loadCore";
+import type { GroupsSetup } from "./GroupsGate";
 import { relayJustConnected } from "./relaySetup";
 import type { HomeHost } from "./homeSettings";
 import { unavailableProvider, type ConfiguredProvider } from "./provider";
@@ -227,6 +228,14 @@ interface ConnectedProps {
 
 function Connected({ rt, vault, drafts, platform, capture: composerTools, onAddProfile, home, lockOpen, idle, setIdle }: ConnectedProps) {
   const registry = useMemo(() => createActionRegistry(), []);
+  // Without the groups module on this device, the first use fetches and verifies it and restarts the app onto it (ADR-0187).
+  const groupsSetup = useMemo<GroupsSetup | undefined>(() => (rt.groups.available() ? undefined : {
+    enable: async () => {
+      const r = await prepareGroups();
+      if (r.ok) { rememberOpenNewGroup(); globalThis.location.reload(); }
+      return r;
+    },
+  }), [rt]);
   const active = useActiveProfile();
   const capture = useCaptureContext();
   const activeId = active?.id ?? null;
@@ -262,7 +271,7 @@ function Connected({ rt, vault, drafts, platform, capture: composerTools, onAddP
     <>
     <DeviceNotices services={settingsServices} copy={devicesCopy} />
     <Shell
-      key={activeId} services={settingsServices} capture={composerTools} onAddProfile={onAddProfile} lock={lock} backup={backup} draftSync={draftSync} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
+      key={activeId} services={settingsServices} {...(groupsSetup === undefined ? {} : { groupsSetup })} capture={composerTools} onAddProfile={onAddProfile} lock={lock} backup={backup} draftSync={draftSync} invite={{ platform, renderQr: (payload) => <QrCode payload={payload} />, shareLink }} {...(home === undefined ? {} : { home })}
       incoming={{ token, newChatAfter, onAccepted: (known) => { clearPendingInvite(); expectNewChat(known); }, onDeclined: clearPendingInvite, onNewChatOpened: clearExpectedNewChat }}
       {...(pending === null ? {} : { safetyCode: { keyOperationId: pending, platform, onResolved: resolve } })}
     />

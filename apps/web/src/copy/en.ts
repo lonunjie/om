@@ -600,6 +600,19 @@ const duration = (seconds: number): string => {
   const [n, unit] = seconds % 604800 === 0 ? [seconds / 604800, "week"] : seconds % 86400 === 0 ? [seconds / 86400, "day"] : seconds % 3600 === 0 ? [seconds / 3600, "hour"] : [Math.max(1, Math.round(seconds / 60)), "minute"];
   return `${String(n)} ${unit}${n === 1 ? "" : "s"}`;
 };
+/** The wait and the failure when groups are loaded for the first time on a device (the module is fetched on demand, ADR-0187). */
+export const groupsLoadCopy = {
+  title: "Getting groups ready",
+  loading: "Getting groups ready",
+  loadingNote: "This happens once on this device. Your chats stay as they are.",
+  failedHeading: "Groups could not start",
+  failed: {
+    unavailable: "The group files could not be downloaded. Check your connection and try again.",
+    refused: "The group files did not match this version of OM, so OM did not use them. Reload the page to get the current version, then try again.",
+  },
+  retry: "Try again",
+  close: "Close",
+} as const;
 export const groupsCopy: GroupsCopy = {
   list: { mark: (n) => `Group, ${String(n)} ${n === 1 ? "person" : "people"}`, noActivity: "No messages yet" },
   newGroup: {

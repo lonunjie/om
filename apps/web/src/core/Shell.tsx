@@ -9,7 +9,7 @@ import {
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import type { ComposerCapture, StagedItem } from "@om/ui";
-import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords } from "../copy/en";
+import { appStrings as t, conversationCopy, omnibarCopy, onboardingCopy, devicesCopy, scannerCopy, homeCopy, recoveryCopy, shellLabels, switcherLabels, groupsCopy, groupsKeywords, groupsLoadCopy } from "../copy/en";
 import { QrCode } from "../qr/QrCode";
 import { useQrScanner } from "../qr/Scanner";
 import { CopyNotice } from "../CopyNotice";
@@ -20,6 +20,8 @@ import { HelpScreen } from "./HelpScreen";
 import { BackupScreen } from "./BackupScreen";
 import type { BackupServices } from "./backupServices";
 import { LockScreen } from "./LockScreen";
+import { GroupsGate, type GroupsSetup } from "./GroupsGate";
+import { takeOpenNewGroup } from "./loadCore";
 import type { LockServices } from "./lockServices";
 
 /** The display-once safety code Core still holds: setup did not ask for it (ADR-0111), so the shell offers it on the user's time. */
@@ -43,6 +45,8 @@ const NO_STAGED: readonly StagedItem[] = [];
 
 export interface ShellProps {
   readonly services: ConversationServices;
+  /** Present while this device has not loaded the groups module: groups are then offered, and the first use fetches it (ADR-0187). */
+  readonly groupsSetup?: GroupsSetup;
   /** What this device can attach or record. Each control is offered only where it exists. */
   readonly capture?: ComposerCapture;
   /** Extra content under the Devices screen (dev harness only). */
@@ -72,7 +76,7 @@ export interface ShellProps {
   };
 }
 
-export function Shell({ services, capture, devicesExtra, onAddProfile, home, lock, backup, draftSync, safetyCode, invite, incoming }: ShellProps) {
+export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfile, home, lock, backup, draftSync, safetyCode, invite, incoming }: ShellProps) {
   const inviteScan = useQrScanner(scannerCopy);
   const { place, raw, go, back } = usePlace();
   const me = useActiveProfile();
@@ -163,6 +167,12 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
   // Omnibar (find or do) and the new-conversation sheet. Both are local: nothing typed in the Omnibar leaves this device.
   const [omniOpen, setOmniOpen] = useState(false);
   const [newGroupOpen, setNewGroupOpen] = useState(false);
+  const [groupsGateOpen, setGroupsGateOpen] = useState(false);
+  // Groups are offered when this device has them, or can get them on first use. Without the module the first tap fetches it; with it, it opens the sheet.
+  const groupsOffered = groups.available || groupsSetup !== undefined;
+  const startNewGroup = (): void => { if (groups.available) setNewGroupOpen(true); else setGroupsGateOpen(true); };
+  // The app restarts onto the groups module after its first load: take the person back to the sheet they asked for.
+  useEffect(() => { if (groups.available && takeOpenNewGroup()) setNewGroupOpen(true); }, [groups.available]);
   const [groupTick, setGroupTick] = useState(0);
   const [newChat, setNewChat] = useState<{ readonly focus: "share" | "scan" | "qr"; readonly link: string | undefined } | null>(null);
   const [acceptedAfter, setAcceptedAfter] = useState<readonly string[] | null>(null);
@@ -259,10 +269,10 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
       out.push({ id: "scan", kind: "action", label: t.omniActions.scan, keywords: t.omniKeywords.scan, suggested: true, run: () => { openNew("scan"); } });
       out.push({ id: "qr", kind: "action", label: t.omniActions.showQr, keywords: t.omniKeywords.showQr, suggested: true, run: () => { openNew("qr"); } });
     }
-    if (groups.available) {
+    if (groupsOffered) {
       // UI-10: the entry is bound to the profile it was made for; run after a switch and it does nothing.
       const made = services.ctx;
-      out.push({ id: "new-group", kind: "action", label: groupsCopy.newGroup.action, keywords: groupsKeywords, run: () => { if (made === services.ctx) { setOmniOpen(false); setNewGroupOpen(true); } } });
+      out.push({ id: "new-group", kind: "action", label: groupsCopy.newGroup.action, keywords: groupsKeywords, run: () => { if (made === services.ctx) { setOmniOpen(false); startNewGroup(); } } });
     }
     out.push({ id: "chats", kind: "action", label: t.omniActions.chats, keywords: t.omniKeywords.chats, run: () => { go(CHATS); } });
     out.push({ id: "settings", kind: "setting", label: t.omniActions.settings, keywords: t.omniKeywords.settings, run: () => { go({ kind: "settings", page: "menu" }); } });
@@ -278,7 +288,7 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
     if (onAddProfile !== undefined) out.push({ id: "add-profile", kind: "action", label: t.addProfile, keywords: t.settingsKeywords.addProfile, run: onAddProfile });
     if (safetyCode !== undefined) out.push({ id: "safety-code", kind: "setting", label: t.safetyCode.action, keywords: t.settingsKeywords.recovery, run: () => { go({ kind: "safety-code" }); } });
     return out;
-  }, [chatRows, groups.available, services.ctx, invite, lock, backup, home, onAddProfile, safetyCode, go, openNew]);
+  }, [chatRows, groupsOffered, services.ctx, invite, lock, backup, home, onAddProfile, safetyCode, go, openNew]);
   // A pasted invitation link is explicit intent: it is offered first and leads to the sheet with the link already in place.
   const omniDynamic = useCallback((query: string): readonly OmniEntry[] => {
     if (invite === undefined || !parseInviteLink(query).ok) return [];
@@ -383,7 +393,7 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
             <header className="om-page-head om-page-head--row">
               <Text as="h1" size="xl" weight="bold">{t.chats}</Text>
               <span className="om-page-head__actions">
-                {groups.available ? <Button variant="quiet" onClick={() => { setNewGroupOpen(true); }}><Icon name="users" size={20} />{groupsCopy.newGroup.action}</Button> : null}
+                {groupsOffered ? <Button variant="quiet" onClick={startNewGroup}><Icon name="users" size={20} />{groupsCopy.newGroup.action}</Button> : null}
                 {invite !== undefined && !emptyInviteFirst ? <Button variant="quiet" onClick={() => { openNew("share"); }}><Icon name="plus" size={20} />{t.newConversation.action}</Button> : null}
               </span>
             </header>
@@ -454,6 +464,7 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
           <NewGroup services={services} copy={groupsCopy} chats={list.value} onCreated={() => { groups.refresh(); setNewGroupOpen(false); }} />
         </Sheet>
       ) : null}
+      {groupsGateOpen && groupsSetup !== undefined ? <GroupsGate setup={groupsSetup} copy={groupsLoadCopy} onClose={() => { setGroupsGateOpen(false); }} /> : null}
       <LiveRegion>{selected === null ? "" : t.conversationOpened}</LiveRegion>
     </>
   );

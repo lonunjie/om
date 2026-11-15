@@ -1,8 +1,8 @@
 // Groups on the real Core WITH the OpenMLS engine module, in a real browser: two identities in one browser (the profile switcher),
 // each its own vault, over the REAL carriage (ADR-0189) on the local reference Home (the Worker bundle in workerd, the dev relay
 // harness): Invite and Accept travel as events on the 1:1, the Welcome and every message as sealed frames deposited at per-Room routes
-// and polled from per-Room mailboxes. The build refuses to be a production build (VITE_OM_GROUPS needs the dev bundle switch until the
-// groups module ships as its own signed asset). The Home only ever sees sealed objects; the test checks that on the wire.
+// and polled from per-Room mailboxes. The groups module is a lazily loaded signed asset (ADR-0187): the page does not fetch it at first load, fetches
+// and verifies it when a person first uses groups, then restarts onto it. The bundle is dev-marked only because the local Home needs the loopback flags. The Home only ever sees sealed objects; the test checks that on the wire.
 import { expect, test, type Page } from "@playwright/test";
 import { noPasskeys, onboard, walkSetup, addIdentity } from "./helpers.ts";
 
@@ -23,6 +23,8 @@ async function asIdentity(page: Page, state: { who: Who }, who: Who): Promise<vo
 test("groups on the real Core: invite over the 1:1, join, a message each way between two identities, through the real carriage", async ({ page }) => {
   const wire: { url: string; body: Buffer | null }[] = [];
   page.on("request", (r) => { if (r.url().startsWith(RELAY)) wire.push({ url: r.url(), body: r.postDataBuffer() }); });
+  const wasmFetched: string[] = [];
+  page.on("request", (r) => { if (r.url().endsWith(".wasm")) wasmFetched.push(r.url()); });
   await noPasskeys(page);
   await onboard(page, { stopAt: "invite" });
   await expect(page.getByText("E2E LOCAL RELAY, NOT PRODUCTION")).toBeVisible();
@@ -40,7 +42,12 @@ test("groups on the real Core: invite over the 1:1, join, a message each way bet
   await expect(page.getByRole("option")).toHaveCount(1, { timeout: 30_000 });
 
   // Alice makes a group with Bob. Bob is shown as invited, not added: he has not said yes.
+  expect(wasmFetched.filter((u) => /om_wasm_groups/.test(u))).toEqual([]); // first load costs the base module only
+  expect(wasmFetched.filter((u) => /om_wasm-/.test(u)).length).toBeGreaterThan(0);
   await page.getByRole("button", { name: "New group" }).click();
+  // First use on this device: the module is fetched, checked against the release digest, kept, and the app restarts onto it; the sheet then opens.
+  await expect(page.getByRole("dialog", { name: "New group" })).toBeVisible({ timeout: 60_000 });
+  expect(wasmFetched.filter((u) => /om_wasm_groups/.test(u)).length).toBeGreaterThan(0);
   const make = page.getByRole("dialog", { name: "New group" });
   await make.getByLabel("Group name (optional)").fill("Lunch club");
   await make.getByRole("checkbox").first().check();
