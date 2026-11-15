@@ -190,8 +190,14 @@ fn group_flow_runs_as_json_commands_between_two_cores() {
         .as_str()
         .unwrap()
         .to_string();
-    s[0].intent(json!({ "kind": "commit_published", "intentId": intent_id }));
-    let rep = s[0].intent(json!({ "kind": "commit_accepted", "intentId": intent_id }));
+    // Acceptance is Core's (ADR-0189 section 2): the host cannot report it, and `commit_accepted` is no command any more.
+    let _ = intent_id;
+    let r = call(
+        &mut s[0].b,
+        json!({ "cmd": "group_do", "ctx": s[0].ctx, "intent": { "kind": "commit_accepted", "intentId": "x" } }),
+    );
+    assert!(r.get("err").is_some(), "the old command is gone: {r}");
+    let rep = s[0].step(json!({ "cmd": "group_settle", "ctx": s[0].ctx }));
     assert_eq!(rep["reply"]["out"][0]["wire"]["t"], "welcome");
     let dir = rep["reply"]["out"][0]["wire"]["directory"]
         .as_array()
@@ -242,4 +248,57 @@ fn group_flow_runs_as_json_commands_between_two_cores() {
         json!({ "cmd": "group_receive", "ctx": s[0].ctx, "from": { "device": "00" }, "wire": { "t": "nope" } }),
     );
     assert!(r.get("err").is_some(), "{r}");
+}
+
+#[test]
+fn carriage_commands_answer_typed_shapes_and_protection_intents_work() {
+    let mut s = connected();
+    let rel = s[0].rel.clone();
+    // nothing owed yet: every carriage command answers a typed empty result
+    let rep = s[0].step(json!({ "cmd": "group_settle", "ctx": s[0].ctx }));
+    assert_eq!(rep["reply"]["events"].as_array().unwrap().len(), 0, "{rep}");
+    let ob = s[0].step(json!({ "cmd": "group_outbox", "ctx": s[0].ctx }));
+    assert_eq!(ob["items"].as_array().unwrap().len(), 0, "{ob}");
+    let st = s[0].step(json!({ "cmd": "group_carriage_status", "ctx": s[0].ctx }));
+    assert_eq!(st["outbox"], 0);
+    assert!(st["mailboxes"].as_array().unwrap().is_empty());
+    assert!(st["routeOwed"].as_array().unwrap().is_empty());
+    s[0].step(json!({ "cmd": "group_outbox_done", "ctx": s[0].ctx, "ids": [] }));
+    s[0].step(json!({ "cmd": "group_pending_refresh", "ctx": s[0].ctx }));
+    let rt = s[0].step(json!({ "cmd": "group_pending_retry", "ctx": s[0].ctx }));
+    assert_eq!(rt["reply"]["out"].as_array().unwrap().len(), 0, "{rt}");
+    let pump = s[0].step(json!({ "cmd": "group_lane_pump", "ctx": s[0].ctx }));
+    assert_eq!(pump["pumped"].as_array().unwrap().len(), 0, "{pump}");
+    let ex = s[0].step(json!({ "cmd": "group_routes_expire", "ctx": s[0].ctx }));
+    assert!(ex["revoke"].as_array().unwrap().is_empty(), "{ex}");
+    // drops and unknowns are typed refusals that change nothing
+    let r = s[0].step(json!({ "cmd": "group_frame_receive", "ctx": s[0].ctx, "wrapper": "00ff" }));
+    assert!(r["refused"].is_string(), "{r}");
+    let r =
+        s[0].step(json!({ "cmd": "group_route_update", "ctx": s[0].ctx, "conversationId": "00" }));
+    assert!(r["refused"].is_string(), "{r}");
+    let r = s[0].step(
+        json!({ "cmd": "group_lane_send", "ctx": s[0].ctx, "relationshipId": "nope",
+        "wire": { "t": "decline", "invite_id": "00" } }),
+    );
+    assert!(r["refused"].is_string(), "{r}");
+
+    // a Room made with a protection profile, its settings and the announced notices
+    let rep = s[0].intent(json!({ "kind": "create_with_protection", "name": "Tight", "relationshipIds": [rel], "protection": 2 }));
+    assert!(events(&rep).iter().any(|e| e["kind"] == "created"), "{rep}");
+    let conv = s[0].query(json!({ "kind": "groups" }))["ok"]["groups"][0]["conversationId"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let g = s[0].query(json!({ "kind": "group", "conversationId": conv }));
+    assert_eq!(g["ok"]["group"]["protection"]["profile"], 2, "{g}");
+    let n = s[0].query(json!({ "kind": "notices", "conversationId": conv }));
+    assert_eq!(n["ok"]["kind"], "notices", "{n}");
+    // loosening needs an explicit confirmation; tightening does not
+    let r = call(
+        &mut s[0].b,
+        json!({ "cmd": "group_do", "ctx": s[0].ctx, "intent": { "kind": "room_setting", "conversationId": conv,
+            "setting": { "protection": 1 } } }),
+    );
+    assert_eq!(r["ok"]["refused"], "loosening_needs_confirmation", "{r}");
 }

@@ -7,10 +7,12 @@ use om_core::attach::Meta;
 use om_core::backup::BackupPlan;
 use om_core::crypto::rng::{self, CryptoRng, RngCore};
 use om_core::direct::{DirectFrame, ErrorCode, FetchState, TRANSFER_ID_LEN};
+use om_core::groups::carriage::Sealed;
 use om_core::groups::flow::{
-    DeviceRelease, GroupEvent, GroupIntent, GroupQuery, GroupReply, GroupView, GroupWire, Sender,
-    Target,
+    DeviceRelease, GroupEvent, GroupIntent, GroupQuery, GroupReply, GroupView, GroupWire, Outbound,
+    Sender, Target,
 };
+use om_core::groups::room::Setting;
 use om_core::host::{BlobLimits, Clock, CoreError, Inbound, NetResult, Record};
 use om_core::route::RouteOffer;
 use serde::Deserialize;
@@ -189,10 +191,68 @@ enum Command {
         from: GroupFromJson,
         wire: GroupWire,
     },
-    /// Typed groups queries: `groups`, `group`, `invites`, `messages`.
+    /// Typed groups queries: `groups`, `group`, `invites`, `messages`, `notices`.
     GroupQuery {
         ctx: ProfileExecutionContext,
         query: GroupQueryJson,
+    },
+    /// ADR-0189 section 2 (G10): Core accepts every own Commit whose three conditions hold. The host calls this after
+    /// every durable group step and at start-up. Answers `{reply, commit}` (one merged reply) or `{refused}`.
+    GroupSettle {
+        ctx: ProfileExecutionContext,
+    },
+    /// The frames Core owns until they are deposited, oldest first: `{items: [{id, intentId, to, wire}]}`.
+    GroupOutbox {
+        ctx: ProfileExecutionContext,
+    },
+    /// The frames with these ids were deposited (transport progress only, never acceptance). Answers `{commit}`.
+    GroupOutboxDone {
+        ctx: ProfileExecutionContext,
+        ids: Vec<u64>,
+    },
+    /// Ask, through the existing head request, for the account heads that held frames wait for. Answers `{commit}`.
+    GroupPendingRefresh {
+        ctx: ProfileExecutionContext,
+    },
+    /// Retry held frames (after a poll that may have brought a head). Answers `{reply, commit}` or `{refused}`.
+    GroupPendingRetry {
+        ctx: ProfileExecutionContext,
+    },
+    /// After a removal: a fresh route for the Room and the sealed `route_update` frames. Answers `{sealed, commit}`.
+    GroupRouteUpdate {
+        ctx: ProfileExecutionContext,
+        conversation_id: String,
+    },
+    /// Send an Invite, Accept or Decline (relationship lane) as an event on the 1:1. Answers `{commit}` or `{refused}`.
+    GroupLaneSend {
+        ctx: ProfileExecutionContext,
+        relationship_id: String,
+        wire: GroupWire,
+    },
+    /// Hand every verified lane event that arrived to the group flow. Answers `{reply, pumped, commit}`.
+    GroupLanePump {
+        ctx: ProfileExecutionContext,
+    },
+    /// Seal one outbox item (or a Welcome or App `out`) to its destination devices' per-Room routes. Answers
+    /// `{sealed: [{device, wrapper, entry}], commit}` or `{refused}`; the host deposits each wrapper at its entry.
+    GroupFrameSend {
+        ctx: ProfileExecutionContext,
+        to: GroupToJson,
+        wire: GroupWire,
+    },
+    /// A sealed wrapper that arrived at one of this device's per-Room routes. Answers `{reply, commit}` or `{refused}`
+    /// (a refusal is a drop that changed nothing).
+    GroupFrameReceive {
+        ctx: ProfileExecutionContext,
+        wrapper: String,
+    },
+    /// Retired routes whose overlap ended are dropped: `{revoke: [relay entries], commit}`.
+    GroupRoutesExpire {
+        ctx: ProfileExecutionContext,
+    },
+    /// `{mailboxes: [{mailbox, relayUri}], routeOwed: [room], outbox, pending}`: what the host watches for the device lane.
+    GroupCarriageStatus {
+        ctx: ProfileExecutionContext,
     },
     /// The person stopped using one of their Homes: relationships with another route publish a RelaySet without it.
     /// Answers how many relationships had no other route and so stay on that Home.
@@ -215,6 +275,17 @@ enum GroupIntentJson {
     Create {
         name: String,
         relationship_ids: Vec<String>,
+    },
+    CreateWithProtection {
+        name: String,
+        relationship_ids: Vec<String>,
+        protection: u64,
+    },
+    RoomSetting {
+        conversation_id: String,
+        setting: Setting,
+        #[serde(default)]
+        confirmed: bool,
     },
     Invite {
         conversation_id: String,
@@ -242,9 +313,6 @@ enum GroupIntentJson {
     CommitPublished {
         intent_id: String,
     },
-    CommitAccepted {
-        intent_id: String,
-    },
 }
 
 impl GroupIntentJson {
@@ -256,6 +324,24 @@ impl GroupIntentJson {
             } => GroupIntent::Create {
                 name,
                 relationship_ids,
+            },
+            Self::CreateWithProtection {
+                name,
+                relationship_ids,
+                protection,
+            } => GroupIntent::CreateWithProtection {
+                name,
+                relationship_ids,
+                protection,
+            },
+            Self::RoomSetting {
+                conversation_id,
+                setting,
+                confirmed,
+            } => GroupIntent::RoomSetting {
+                conversation_id: unhex(&conversation_id)?,
+                setting,
+                confirmed,
             },
             Self::Invite {
                 conversation_id,
@@ -290,9 +376,16 @@ impl GroupIntentJson {
                 text,
             },
             Self::CommitPublished { intent_id } => GroupIntent::CommitPublished { intent_id },
-            Self::CommitAccepted { intent_id } => GroupIntent::CommitAccepted { intent_id },
         })
     }
+}
+
+/// Where a frame goes, as the `to` of a group `out` item: a relationship or one member device.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum GroupToJson {
+    Relationship { relationship: String },
+    Device { device: String, account: String },
 }
 
 #[derive(Deserialize)]
@@ -313,6 +406,7 @@ enum GroupQueryJson {
     Group { conversation_id: String },
     Invites,
     Messages { conversation_id: String },
+    Notices { conversation_id: String },
 }
 
 fn group_event_json(e: &GroupEvent) -> Value {
@@ -407,6 +501,30 @@ fn group_reply_json(r: &GroupReply) -> Value {
             },
             "wire": serde_json::to_value(&o.wire).unwrap_or(Value::Null),
         })).collect::<Vec<_>>(),
+    })
+}
+
+fn sealed_json(v: &[Sealed]) -> Value {
+    use om_core::crypto::hex;
+    Value::Array(
+        v.iter()
+            .map(|s| {
+                json!({
+                    "device": hex(&s.device),
+                    "wrapper": hex(&s.wrapper),
+                    "entry": serde_json::to_value(&s.entry).unwrap_or(Value::Null),
+                })
+            })
+            .collect(),
+    )
+}
+
+/// One merged reply out of several (settle and pending retry finish one Commit or frame each).
+fn merge_replies(v: Vec<GroupReply>) -> GroupReply {
+    v.into_iter().fold(GroupReply::default(), |mut a, b| {
+        a.events.extend(b.events);
+        a.out.extend(b.out);
+        a
     })
 }
 
@@ -709,24 +827,126 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::GroupsAvailable => Ok(json!(Core::<R>::groups_available())),
             Command::GroupDo { ctx, intent } => {
                 let intent = intent.into_intent()?;
-                if matches!(intent, GroupIntent::CommitAccepted { .. }) {
-                    // Acceptance is Core's (ADR-0189 section 2): the host cannot report it. Until Package 3 gives the
-                    // bridge `group_settle` itself, this old command runs one settle pass and returns what it produced.
-                    return self.group_result(|c| {
-                        let (r, step) = c.group_settle(&ctx)?;
-                        Ok((
-                            r.map(|v| {
-                                v.into_iter().fold(GroupReply::default(), |mut a, b| {
-                                    a.events.extend(b.events);
-                                    a.out.extend(b.out);
-                                    a
-                                })
-                            }),
-                            step,
-                        ))
-                    });
-                }
                 self.group_result(|c| c.group_do(&ctx, intent))
+            }
+            Command::GroupSettle { ctx } => self.group_result(|c| {
+                let (r, step) = c.group_settle(&ctx)?;
+                Ok((r.map(merge_replies), step))
+            }),
+            Command::GroupOutbox { ctx } => {
+                let items = self.core()?.group_outbox(&ctx)?;
+                Ok(json!({ "items": items.iter().map(|i| json!({
+                    "id": i.id,
+                    "intentId": i.intent_id,
+                    "to": match &i.to {
+                        om_core::groups::carriage::OutTarget::Relationship(r) => json!({ "relationship": r }),
+                        om_core::groups::carriage::OutTarget::Device { account, device } =>
+                            json!({ "device": device, "account": account }),
+                    },
+                    "wire": serde_json::to_value(&i.wire).unwrap_or(Value::Null),
+                })).collect::<Vec<_>>() }))
+            }
+            Command::GroupOutboxDone { ctx, ids } => {
+                let step = self.core()?.group_outbox_done(&ctx, &ids)?;
+                Ok(json!({ "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null) }))
+            }
+            Command::GroupPendingRefresh { ctx } => {
+                let step = self.core()?.group_pending_refresh(&ctx)?;
+                Ok(json!({ "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null) }))
+            }
+            Command::GroupPendingRetry { ctx } => self.group_result(|c| {
+                let (r, step) = c.group_pending_retry(&ctx)?;
+                Ok((r.map(merge_replies), step))
+            }),
+            Command::GroupRouteUpdate {
+                ctx,
+                conversation_id,
+            } => {
+                let conversation_id = unhex(&conversation_id)?;
+                let (r, step) = self.core()?.group_route_update(&ctx, &conversation_id)?;
+                Ok(match r {
+                    Ok(sealed) => {
+                        json!({ "sealed": sealed_json(&sealed), "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null) })
+                    }
+                    Err(e) => json!({ "refused": e.0 }),
+                })
+            }
+            Command::GroupLaneSend {
+                ctx,
+                relationship_id,
+                wire,
+            } => {
+                let (r, step) = self
+                    .core()?
+                    .group_lane_send(&ctx, &relationship_id, &wire)?;
+                Ok(match r {
+                    Ok(()) => {
+                        json!({ "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null) })
+                    }
+                    Err(e) => json!({ "refused": e.0 }),
+                })
+            }
+            Command::GroupLanePump { ctx } => {
+                let (pumped, step) = self.core()?.group_lane_pump(&ctx)?;
+                let mut merged = GroupReply::default();
+                let mut list = vec![];
+                for (rel, r) in pumped {
+                    match r {
+                        Ok(r) => {
+                            list.push(json!({ "relationshipId": rel }));
+                            merged = merge_replies(vec![merged, r]);
+                        }
+                        Err(e) => list.push(json!({ "relationshipId": rel, "refused": e.0 })),
+                    }
+                }
+                Ok(json!({
+                    "reply": group_reply_json(&merged),
+                    "pumped": list,
+                    "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null),
+                }))
+            }
+            Command::GroupFrameSend { ctx, to, wire } => {
+                let to = match to {
+                    GroupToJson::Relationship { relationship } => {
+                        Target::Relationship(relationship)
+                    }
+                    GroupToJson::Device { device, account } => Target::Device {
+                        account: unhex(&account)?,
+                        device: unhex(&device)?,
+                    },
+                };
+                let (r, step) = self
+                    .core()?
+                    .group_frame_send(&ctx, &Outbound { to, wire })?;
+                Ok(match r {
+                    Ok(sealed) => {
+                        json!({ "sealed": sealed_json(&sealed), "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null) })
+                    }
+                    Err(e) => json!({ "refused": e.0 }),
+                })
+            }
+            Command::GroupFrameReceive { ctx, wrapper } => {
+                let wrapper = unhex(&wrapper)?;
+                self.group_result(|c| c.group_frame_receive(&ctx, &wrapper))
+            }
+            Command::GroupRoutesExpire { ctx } => {
+                let (revoke, step) = self.core()?.group_routes_expire(&ctx)?;
+                Ok(json!({
+                    "revoke": serde_json::to_value(&revoke).unwrap_or(Value::Null),
+                    "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null),
+                }))
+            }
+            Command::GroupCarriageStatus { ctx } => {
+                let st = self.core()?.group_carriage_status(&ctx)?;
+                Ok(json!({
+                    "mailboxes": st.mailboxes.iter().map(|m| json!({
+                        "mailbox": om_core::crypto::hex(&m.mailbox),
+                        "relayUri": m.relay_uri,
+                    })).collect::<Vec<_>>(),
+                    "routeOwed": st.route_owed,
+                    "outbox": st.outbox,
+                    "pending": st.pending,
+                }))
             }
             Command::GroupReceive { ctx, from, wire } => {
                 let from = match from {
@@ -743,6 +963,9 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                         conversation_id: unhex(&conversation_id)?,
                     },
                     GroupQueryJson::Messages { conversation_id } => GroupQuery::Messages {
+                        conversation_id: unhex(&conversation_id)?,
+                    },
+                    GroupQueryJson::Notices { conversation_id } => GroupQuery::Notices {
                         conversation_id: unhex(&conversation_id)?,
                     },
                 };

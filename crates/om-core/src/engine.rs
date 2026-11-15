@@ -25,6 +25,23 @@ use zeroize::Zeroize;
 /// One relationship-lane event handed to the group flow: the relationship and the flow's answer.
 pub type LanePumped = (String, Result<GroupReply, GroupError>);
 
+/// One per-Room mailbox the host polls for the device lane, and the Home (`relay_uri`) that holds it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GroupMailbox {
+    pub mailbox: Vec<u8>,
+    pub relay_uri: String,
+}
+
+/// What the host needs from Core to carry the device lane (see [`Core::group_carriage_status`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GroupCarriageStatus {
+    pub mailboxes: Vec<GroupMailbox>,
+    /// Rooms (ConversationID hex, or `invite:<id>`) that owe a route update after a removal.
+    pub route_owed: Vec<String>,
+    pub outbox: usize,
+    pub pending: usize,
+}
+
 /// A removal means every remaining device owes the Room a fresh route (ADR-0189 1.3).
 fn note_removals(app: &mut AppState, r: &GroupReply) {
     for e in &r.events {
@@ -653,6 +670,37 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 handle: None,
             },
         ))
+    }
+
+    /// What the host must watch for the device lane (Package 3): the per-Room mailboxes this device polls (every route
+    /// it minted that has not been revoked, including a retired one while it drains) and the Rooms that owe a route
+    /// update after a removal (ADR-0189 section 1.3). Read-only; the cursor of a mailbox is the host's transport progress.
+    pub fn group_carriage_status(
+        &self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<GroupCarriageStatus, CoreError> {
+        let rec = &self.slot(ctx)?.state.app.group_carriage;
+        let mut mailboxes: Vec<GroupMailbox> = vec![];
+        for routes in rec.mine.values() {
+            for r in routes {
+                let Some(e) = r.entries.first() else { continue };
+                let Ok(mailbox) = crate::crypto::unhex(&r.mailbox) else {
+                    continue;
+                };
+                if !mailboxes.iter().any(|m| m.mailbox == mailbox) {
+                    mailboxes.push(GroupMailbox {
+                        mailbox,
+                        relay_uri: e.relay_uri.clone(),
+                    });
+                }
+            }
+        }
+        Ok(GroupCarriageStatus {
+            mailboxes,
+            route_owed: rec.replace_owed.clone(),
+            outbox: rec.outbox.len(),
+            pending: rec.pending.len(),
+        })
     }
 
     /// Answer a typed groups query from the profile's state.
