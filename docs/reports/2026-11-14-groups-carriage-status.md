@@ -209,3 +209,28 @@ Basis: easy by default, strongest security as opt-in, fail closed, no new author
 
 1. **"Floor" (ADR-0128 rule 8, GROUP_CHAT).** The floor is the cryptographic and authority baseline (MLS properties, signed control, no silent downgrade of those), not a Room's chosen privacy profile. A Room's profile may be loosened only by the explicit, confirmed, announced action ADR-0189 describes (marked `loosened` to every member); it is never silent. Core keeps its current behaviour. Where a Room's governance threshold is above 1 the existing `quorum_not_supported` refusal stays (fail closed) until quorum collection is built (D39).
 2. **D44 (anchoring the head of an account with no relationship).** The inviter's Welcome release evidence carries the signed account head for every account it names. The receiver verifies it by chain descent from the head it pinned in the Invite from the inviter's account, never by a directory lookup (no new metadata, no new authority). A head that does not verify leaves the Welcome held until it expires (current behaviour). Implementation belongs in package 3 together with `admit_request` (D43).
+
+## Package 3a: wasm/TypeScript bridge and the real host driver
+
+### Design sources read, and not read (committer)
+
+Read in full: AGENTS "Design gate", AGENT_ARCHITECTURE_RULES, every document and ADR that `tools/design_gate.py needs` printed for the changed paths (domains `client_endpoint_distribution`, `crypto_1to1`, `discovery_first_contact`, `identity_control_recovery`, `metadata_privacy`, `relay_reachability`, `time_ordering_events`, `ux_accessibility_personalization`), ADR-0177, ADR-0187, ADR-0189, GROUP_CHAT_ARCHITECTURE and GROUP_COMMIT_AND_STATE_CONVERGENCE. Not read: nothing on those lists.
+
+### What landed
+
+- The wasm bridge exposes the group carriage commands (settle, outbox, frame send/receive, lane send/pump, pending refresh/retry, route update/expire, carriage status) and the intents `create_with_protection` and `room_setting`. The `commit_accepted` intent and its shim are gone; Core accepts its own Commit (ADR-0189 section 2).
+- `createGroupDriver` carries the carriage over the provider's deposit, poll and acknowledge: it never reads a wire and never decides anything about a group. URLs carry no query or fragment; only sealed wrappers travel.
+- `VITE_OM_GROUPS` is still refused in production builds (R-072).
+- Deviations D55 to D58 are recorded in the relay-status table.
+
+### Known gaps
+
+- `Provider.revokeDeposit` has no HTTP implementation, so retired route capabilities expire on their own instead of being revoked. Follow-up: implement it in `om-provider-http` against the Home's existing deposit-capability revoke endpoint, if the endpoint fits.
+- Signed second-wasm path for `om_wasm_groups.wasm`: a manifest digest and a version-skew check, a [`release-delegation.json`](../../apps/web/release-delegation.json) update, `pnpm repro` building the module twice, the size budget (baseline 5,131,394 bytes against 7,300,940 with groups), removal of `VITE_OM_GROUPS` from `TEST_FLAGS`, and a decision on lazy loading.
+
+### What 3b needs
+
+- UI intents `create_with_protection` and `room_setting` (with `confirmed`), `groups.notices`, and a subscription to `groups.onEvents`; the UI must not call `settle` or the lane.
+- Copy for: the profiles, the loosening confirmation, joining and waiting states, a held frame, a superseded Commit, `admit_blocked`, a Room too large for one Welcome, a changed safety code, and `undeliverable` ("could not deliver").
+- Still open in Core: own-device head sync (D36), `admit_request` (D43), the frame ordering buffer (D41), governance quorum (D39).
+
