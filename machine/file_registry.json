@@ -529,6 +529,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/groups-protection.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/groups.spec.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -9601,7 +9608,21 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/groups/GroupStatus.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/groups/NewGroup.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/groups/RoomSettings.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -9644,6 +9665,13 @@
     },
     {
       "path": "packages/om-ui/src/groups/index.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/groups/protection.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

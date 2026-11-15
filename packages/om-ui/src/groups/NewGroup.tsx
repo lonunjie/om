@@ -1,10 +1,11 @@
 import { useState } from "react";
-import type { ConversationSummary } from "@om/platform-api";
+import type { ConversationSummary, GroupProtectionLevel } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
 import { Avatar } from "../conversations/Avatar";
 import type { ConversationServices } from "../conversations/services";
 import type { GroupsCopy } from "./copy";
+import { PROTECTION_LEVELS } from "./protection";
 import { runGroupAction } from "./services";
 import "./groups.css";
 
@@ -23,6 +24,7 @@ export function NewGroup({ services, copy, chats, onCreated }: NewGroupProps) {
   const eligible = chats.filter((x) => x.relationship === "active");
   const [name, setName] = useState("");
   const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set());
+  const [level, setLevel] = useState<GroupProtectionLevel>(1);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   if (eligible.length === 0) return <Text as="p" data-sheet-initial="">{c.nobody}</Text>;
@@ -33,7 +35,7 @@ export function NewGroup({ services, copy, chats, onCreated }: NewGroupProps) {
     setBusy(true);
     setProblem(null);
     const chosen = eligible.filter((x) => picked.has(x.id)).map((x) => x.displayName);
-    const r = await runGroupAction(services, "group-create", { name: name.trim() === "" ? c.unnamed(chosen) : name.trim(), relationshipIds: [...picked] });
+    const r = await runGroupAction(services, "group-create", { name: name.trim() === "" ? c.unnamed(chosen) : name.trim(), relationshipIds: [...picked], ...(level === 1 ? {} : { protection: level }) });
     setBusy(false);
     if (r.ok) onCreated(name.trim()); else setProblem(copy.refused(r.refused));
   };
@@ -53,6 +55,19 @@ export function NewGroup({ services, copy, chats, onCreated }: NewGroupProps) {
           </label>
         ))}
       </fieldset>
+      <details className="om-group-form__protection">
+        <summary>{copy.protection.summary(copy.protection.levels[level].label)}</summary>
+        <fieldset className="om-group-form__levels">
+          <legend>{copy.protection.legend}</legend>
+          {PROTECTION_LEVELS.map((l) => (
+            <label key={l} className="om-group-form__level">
+              <input type="radio" name="om-group-protection" value={l} checked={level === l} onChange={() => { setLevel(l); }} />
+              <span><strong>{copy.protection.levels[l].label}</strong><span className="om-group-form__level-line">{copy.protection.levels[l].line}</span></span>
+            </label>
+          ))}
+          <Text as="p" size="sm" tone="secondary">{copy.protection.later}</Text>
+        </fieldset>
+      </details>
       <Text as="p" size="sm" tone="secondary">{c.consent}</Text>
       <Button type="submit" variant="primary" disabled={busy || picked.size === 0}>{busy ? c.creating : picked.size === 0 ? c.create : `${c.create} · ${c.selected(picked.size)}`}</Button>
       {problem === null ? null : <p role="alert" className="om-group-form__problem">{problem}</p>}

@@ -5,7 +5,7 @@ import { asConversationId, asGroupId, parseInviteLink, type ConversationId, type
 import {
   AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
   type IconName, type OmniEntry, useConversationDigests,
-  GroupChat, GroupComposer, GroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroups,
+  GroupChat, GroupComposer, GroupInvites, GroupStatus, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups,
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
 import type { ComposerCapture, StagedItem } from "@om/ui";
@@ -91,6 +91,8 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
   // What each row shows beyond name and time: the latest message, and what has arrived since the chat was last shown here.
   const groups = useGroups(services);
   const groupApi = groupApiOf(services);
+  // What the group carriage reports in the background (held, undeliverable, blocked), shown as honest states; a driver-less build reports nothing.
+  const groupEvents = useGroupEvents(services, () => { groups.refresh(); });
   const oneToOneIds = useMemo(() => (list.status === "ready" ? list.value.map((c) => c.id) : []), [list]);
   const chatDigests = useConversationDigests(services, oneToOneIds);
   // Groups sit in the same list as chats (they are conversations with more people). Their rows are read from the group views, newest first.
@@ -386,6 +388,14 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
               </span>
             </header>
             {groups.available ? <GroupInvites services={services} copy={groupsCopy} invites={groups.invites} chats={list.status === "ready" ? list.value : []} onAnswered={groups.refresh} /> : null}
+            {groups.available ? (
+              <GroupStatus
+                copy={groupsCopy} states={groupEvents.states} scope="all"
+                inviteName={(id) => { const i = groups.invites.find((x) => x.id === id); return i === undefined ? null : (list.status === "ready" ? list.value.find((c) => c.id === i.relationshipId)?.displayName ?? null : null); }}
+                groupName={(id) => groups.groups.find((g) => g.conversationId === id)?.name ?? null}
+                onDismissUndeliverable={groupEvents.dismissUndeliverable} onDismissSettingBlocked={groupEvents.dismissSettingBlocked} onDismissAdmitBlocked={groupEvents.dismissAdmitBlocked}
+              />
+            ) : null}
             {incoming?.token != null ? (
               <section className="om-page om-stack">
                 <AcceptInvite
@@ -414,7 +424,7 @@ export function Shell({ services, capture, devicesExtra, onAddProfile, home, loc
           selected === null ? <div className="om-page om-page--empty"><span className="om-empty-art" aria-hidden="true"><Icon name="chat" size={72} /></span></div> : selectedIsGroup(selected) ? (
             <GroupChat
               key={selected} services={services} copy={groupsCopy} groupId={asGroupId(selected)} chats={list.status === "ready" ? list.value : []}
-              onBack={toChats} onLeft={() => { groups.refresh(); toChats(); }} refreshKey={groupTick} onChanged={groups.refresh}
+              onBack={toChats} onLeft={() => { groups.refresh(); toChats(); }} refreshKey={groupTick} onChanged={groups.refresh} events={groupEvents}
             />
           ) : (
             <ConversationView key={selected} services={services} conversationId={selected} copy={conversationCopy} onBack={toChats} focusMessageId={hitFocus !== null && hitFocus.chat === selected && hitFocus.ctx === services.ctx ? hitFocus.messageId : undefined} />

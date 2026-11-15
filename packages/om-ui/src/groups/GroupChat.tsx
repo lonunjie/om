@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
-import type { ConversationSummary, GroupId } from "@om/platform-api";
+import type { ConversationSummary, GroupId, GroupMessageView, GroupNoticeView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
 import { IconButton } from "../shell/primitives/IconButton";
@@ -11,7 +11,9 @@ import { Avatar } from "../conversations/Avatar";
 import type { ConversationServices } from "../conversations/services";
 import type { GroupsCopy } from "./copy";
 import { GroupMembers } from "./GroupMembers";
-import { useGroupChat, usePeopleNames } from "./hooks";
+import { GroupStatus } from "./GroupStatus";
+import { RoomSettings } from "./RoomSettings";
+import { useGroupChat, usePeopleNames, type GroupEventsState } from "./hooks";
 import { groupApiOf, runGroupAction } from "./services";
 import "../conversations/conversations.css";
 import "./groups.css";
@@ -31,20 +33,34 @@ export interface GroupChatProps {
   /** Bump to re-read after a step made elsewhere (the composer). */
   readonly refreshKey?: number;
   readonly onChanged?: () => void;
+  /** The background states of the group carriage (from `useGroupEvents`); without it no state line is shown. */
+  readonly events?: GroupEventsState;
+}
+
+type Entry = { readonly kind: "message"; readonly m: GroupMessageView } | { readonly kind: "notice"; readonly n: GroupNoticeView };
+
+/** Messages and settings notices in time order; at the same time a message comes first. */
+function timeline(messages: readonly GroupMessageView[], notices: readonly GroupNoticeView[]): readonly Entry[] {
+  const all: Entry[] = [...messages.map((m): Entry => ({ kind: "message", m })), ...notices.map((n): Entry => ({ kind: "notice", n }))];
+  const at = (e: Entry): number => (e.kind === "message" ? e.m.atMs : e.n.atMs);
+  return all.map((e, i) => ({ e, i })).sort((a, b) => at(a.e) - at(b.e) || a.i - b.i).map((x) => x.e);
 }
 
 /** A group is an ordinary conversation with more people: the same header, bubbles and rhythm as a chat, plus who said it and a people sheet. */
-export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLeft, refreshKey = 0, onChanged }: GroupChatProps) {
+export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLeft, refreshKey = 0, onChanged, events }: GroupChatProps) {
   const c = copy.chat;
   const api = groupApiOf(services);
   const [bump, setBump] = useState(0);
-  const { detail, messages } = useGroupChat(services, groupId, refreshKey + bump);
+  const { detail, messages, notices } = useGroupChat(services, groupId, refreshKey + bump + (events?.version ?? 0));
   const invites = api === null ? [] : safeInvites(services);
-  const names = usePeopleNames(invites, chats, messages);
-  const [people, setPeople] = useState(false);
+  const [selfAccount, setSelfAccount] = useState<string | null>(null);
+  const base = usePeopleNames(invites, chats, messages);
+  // Your own account is also known once you have changed a setting (the step answers with who made the change).
+  const names = useMemo(() => ({ nameOf: base.nameOf, isYou: (a: string) => base.isYou(a) || (selfAccount !== null && a === selfAccount) }), [base, selfAccount]);
+  const [sheet, setSheet] = useState<"people" | "settings" | null>(null);
   const [said, setSaid] = useState("");
   const end = useRef<HTMLDivElement>(null);
-  const count = messages.length;
+  const count = messages.length + notices.length;
   useEffect(() => {
     const el = end.current;
     if (el === null || typeof el.scrollIntoView !== "function") return;
@@ -57,6 +73,8 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
   const group = detail.summary.name;
   let unnamed = 0;
   const senderLabel = (a: string): string => names.nameOf(a) ?? copy.members.someone(++unnamed);
+  const entries = timeline(messages, notices);
+  const whoLabel = (a: string): string => (names.isYou(a) ? copy.notices.youChanged : names.nameOf(a) ?? copy.notices.someone);
   const changed = (what: "invited" | "removed"): void => { setBump((n) => n + 1); setSaid(what === "invited" ? copy.done.invited : copy.done.removed); onChanged?.(); };
   return (
     <section className="om-conv-view" aria-label={group}>
@@ -66,18 +84,20 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
         <div className="om-conv-view__who">
           <Text as="h2" size="lg" weight="bold">{group}</Text>
         </div>
-        <Button variant="quiet" className="om-group-people" aria-label={c.openPeople(group)} onClick={() => { setPeople(true); }}>
+        <Button variant="quiet" className="om-group-people" aria-label={c.openPeople(group)} onClick={() => { setSheet("people"); }}>
           <Icon name="users" size={20} />{c.people(detail.summary.members)}
         </Button>
       </header>
       <div role="log" aria-label={c.label} className="om-conv-view__log">
-        {messages.length === 0 ? <p className="om-conv-view__empty">{c.empty}</p> : (
+        {entries.length === 0 ? <p className="om-conv-view__empty">{c.empty}</p> : (
           <ol className="om-conv-view__timeline">
-            {messages.map((m, i) => {
-              const prev = messages[i - 1];
-              const next = messages[i + 1];
-              const sameAsPrev = prev !== undefined && prev.senderAccount === m.senderAccount && m.atMs - prev.atMs < RUN_GAP_MS;
-              const lastOfRun = next === undefined || next.senderAccount !== m.senderAccount || next.atMs - m.atMs >= RUN_GAP_MS;
+            {entries.map((e, i) => {
+              if (e.kind === "notice") return <NoticeLine key={`n-${String(e.n.atMs)}-${String(i)}`} copy={copy} notice={e.n} who={whoLabel(e.n.byAccount)} />;
+              const m = e.m;
+              const prev = entries[i - 1];
+              const next = entries[i + 1];
+              const sameAsPrev = prev?.kind === "message" && prev.m.senderAccount === m.senderAccount && m.atMs - prev.m.atMs < RUN_GAP_MS;
+              const lastOfRun = next?.kind !== "message" || next.m.senderAccount !== m.senderAccount || next.m.atMs - m.atMs >= RUN_GAP_MS;
               const direction = m.outgoing ? "outgoing" : "incoming";
               return (
                 <li key={m.id} className="om-conv-view__item" data-direction={direction} data-joined={sameAsPrev ? "true" : undefined} data-last={lastOfRun ? "true" : undefined}>
@@ -91,15 +111,39 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
         )}
         <div ref={end} className="om-conv-view__end" aria-hidden="true" />
       </div>
+      {events === undefined ? null : (
+        <GroupStatus copy={copy} states={events.states} scope={{ groupId, groupName: group }} onDismissUndeliverable={events.dismissUndeliverable} onDismissSettingBlocked={events.dismissSettingBlocked} onDismissAdmitBlocked={events.dismissAdmitBlocked} />
+      )}
       {detail.canSend ? null : <p className="om-group-paused" role="status">{c.paused}</p>}
       {footer}
       <p className="om-visually-hidden" role="status">{said}</p>
-      {people ? (
-        <Sheet title={copy.members.title(group)} closeLabel={copy.members.close} onClose={() => { setPeople(false); }}>
-          <GroupMembers services={services} copy={copy} detail={detail} names={names} invites={invites} chats={chats} onChanged={changed} onLeft={() => { setPeople(false); setSaid(copy.done.left); onLeft(); }} />
+      {sheet === "people" ? (
+        <Sheet title={copy.members.title(group)} closeLabel={copy.members.close} onClose={() => { setSheet(null); }}>
+          <GroupMembers services={services} copy={copy} detail={detail} names={names} invites={invites} chats={chats} onChanged={changed} onLeft={() => { setSheet(null); setSaid(copy.done.left); onLeft(); }} onOpenSettings={() => { setSheet("settings"); }} />
+        </Sheet>
+      ) : null}
+      {sheet === "settings" ? (
+        <Sheet title={copy.settings.title(group)} closeLabel={copy.settings.close} onClose={() => { setSheet(null); }}>
+          <Button variant="quiet" onClick={() => { setSheet("people"); }}>{copy.settings.back}</Button>
+          <RoomSettings services={services} copy={copy} detail={detail} onChanged={(me) => { if (me !== null) setSelfAccount(me); setBump((n) => n + 1); onChanged?.(); }} />
         </Sheet>
       ) : null}
     </section>
+  );
+}
+
+/** A change of the group's settings, said as a system line. A loosening is marked in words (never colour alone). */
+function NoticeLine({ copy, notice, who }: { readonly copy: GroupsCopy; readonly notice: GroupNoticeView; readonly who: string }) {
+  const n = copy.notices;
+  return (
+    <li className="om-group-notice" aria-label={n.label}>
+      {notice.changes.map((ch) => (
+        <p key={ch.field} className="om-group-notice__line" data-loosened={ch.loosened ? "true" : undefined}>
+          {ch.loosened ? <strong className="om-group-notice__mark">{n.loosened}</strong> : null}
+          {ch.loosened ? " " : null}<bdi>{n.line(who, n.field[ch.field] ?? n.field["_"] ?? "", n.value(ch.field, ch.to))}</bdi>
+        </p>
+      ))}
+    </li>
   );
 }
 

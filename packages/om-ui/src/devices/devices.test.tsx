@@ -305,4 +305,19 @@ describe("devices screen copy failures", () => {
     render(<DevicesScreen services={broken} copy={testDevicesCopy} />);
     await waitFor(() => { expect(screen.getByRole("alert").textContent).toBe("Could not load"); });
   });
+
+  it("says plainly when the copy of older chats ran out of time with parts missing, and says nothing otherwise", async () => {
+    const { h, services } = setup();
+    const withHistory = (state: "in_progress" | "complete" | "degraded", role: "sender" | "receiver"): SettingsServices => ({
+      ...services,
+      client: new Proxy(h, { get: (t, k) => (k === "query" ? (q: { kind: string }) => (q.kind === "GetHistoryTransfer" ? Promise.resolve({ role, chunksTotal: 4, chunksDone: 3, chunksIgnored: 0, messagesAdded: 12, chunksMissing: 1, state }) : t.query(q as never)) : (t as unknown as Record<string | symbol, unknown>)[k]) }),
+    });
+    const quiet = render(<DevicesScreen services={withHistory("complete", "receiver")} copy={testDevicesCopy} />);
+    await screen.findByRole("heading", { name: "Other devices" });
+    expect(screen.queryByText(/older chats/)).toBeNull();
+    quiet.unmount();
+    const { container } = render(<DevicesScreen services={withHistory("degraded", "receiver")} copy={testDevicesCopy} />);
+    expect(await screen.findByText("Some older chats could not be copied to this device")).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
 });

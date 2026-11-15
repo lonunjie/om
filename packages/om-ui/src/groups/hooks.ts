@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ConversationSummary, GroupDetailView, GroupId, GroupInviteView, GroupMessageView, GroupSummaryView } from "@om/platform-api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ConversationSummary, GroupDetailView, GroupEvent, GroupId, GroupInviteView, GroupMessageView, GroupNoticeView, GroupSummaryView } from "@om/platform-api";
 import type { ConversationDigest } from "../conversations/hooks";
 import { groupApiOf } from "./services";
 import type { ConversationServices } from "../conversations/services";
@@ -40,6 +40,8 @@ export function useGroups(s: ConversationServices): GroupsState {
 export interface GroupChatData {
   readonly detail: GroupDetailView | null;
   readonly messages: readonly GroupMessageView[];
+  /** The announced changes of the Room's settings, oldest first. */
+  readonly notices: readonly GroupNoticeView[];
 }
 
 export function useGroupChat(s: ConversationServices, groupId: GroupId, refreshKey: number): GroupChatData {
@@ -54,8 +56,8 @@ export function useGroupChat(s: ConversationServices, groupId: GroupId, refreshK
     // `tick` and `refreshKey` are re-read triggers, not inputs.
     // eslint-disable-next-line @typescript-eslint/no-meaningless-void-operator
     void tick; void refreshKey;
-    if (api === null) return { detail: null, messages: NONE };
-    try { return { detail: api.get(s.ctx, groupId), messages: api.messages(s.ctx, groupId) }; } catch { return { detail: null, messages: NONE }; }
+    if (api === null) return { detail: null, messages: NONE, notices: NONE };
+    try { return { detail: api.get(s.ctx, groupId), messages: api.messages(s.ctx, groupId), notices: api.notices(s.ctx, groupId) }; } catch { return { detail: null, messages: NONE, notices: NONE }; }
   }, [api, s.ctx, groupId, tick, refreshKey]);
 }
 
@@ -88,5 +90,80 @@ export function digestOfGroup(messages: readonly GroupMessageView[]): Conversati
     lastDelivery: null,
     lastSentAt: last?.atMs ?? null,
     incomingAt: messages.filter((m) => !m.outgoing).map((m) => m.atMs),
+  };
+}
+
+/**
+ * What the group carriage says in the background, as states a person can see. Events are facts that happened; this keeps only the
+ * ones that still need a line on screen and drops them when they stop being true or the person has seen them. Silent by design:
+ * `commit_superseded` (the Commit is retried by Core), `dropped` (nothing changed) and the plain progress events.
+ */
+export interface GroupStates {
+  /** A group update is kept until what it needs arrives. */
+  readonly held: boolean;
+  /** Frames a delivery service refused for good, not yet acknowledged by the person. */
+  readonly undeliverable: number;
+  /** A queued settings change that could not be carried out, by group id. */
+  readonly settingBlocked: ReadonlyMap<string, string>;
+  /** An accepted invitation whose add is not done, by invitation id. */
+  readonly admitBlocked: ReadonlyMap<string, string>;
+}
+
+export const NO_STATES: GroupStates = { held: false, undeliverable: 0, settingBlocked: new Map(), admitBlocked: new Map() };
+
+export function reduceGroupStates(prev: GroupStates, events: readonly GroupEvent[]): GroupStates {
+  let next = prev;
+  for (const e of events) {
+    switch (e.kind) {
+      case "held": next = { ...next, held: true }; break;
+      // What a held update waited for has arrived, or the person is in.
+      case "joined": case "member_added": case "message_received": next = { ...next, held: false }; break;
+      case "undeliverable": next = { ...next, undeliverable: next.undeliverable + e.count }; break;
+      case "room_setting_blocked": next = { ...next, settingBlocked: new Map(next.settingBlocked).set(e.conversationId, e.reason) }; break;
+      case "admit_blocked": next = { ...next, admitBlocked: new Map(next.admitBlocked).set(e.inviteId, e.reason) }; break;
+      case "policy_changed": {
+        const blocked = new Map(next.settingBlocked);
+        blocked.delete(e.conversationId);
+        next = { ...next, settingBlocked: blocked }; // the notice line in the timeline (a live log) is the lasting, announced record
+        break;
+      }
+      case "member_removed": case "no_longer_member": case "created": case "invite_sent": case "invite_received": case "invite_accepted": case "invite_declined":
+      case "commit_prepared": case "message_sent": case "dropped": case "commit_superseded":
+        break;
+    }
+  }
+  return next;
+}
+
+export interface GroupEventsState {
+  readonly states: GroupStates;
+  /** Counts event batches seen, so a screen can re-read its views the moment something happened instead of on the next poll. */
+  readonly version: number;
+  /** Feed events a step returned (the same reducer). */
+  readonly report: (events: readonly GroupEvent[]) => void;
+  readonly dismissUndeliverable: () => void;
+  readonly dismissSettingBlocked: (groupId: string) => void;
+  readonly dismissAdmitBlocked: (inviteId: string) => void;
+}
+
+/** Subscribes to `groups.onEvents` when the host has a driver (a client without one reports nothing and the states stay empty). */
+export function useGroupEvents(s: ConversationServices, onEvents?: (events: readonly GroupEvent[]) => void): GroupEventsState {
+  const api = groupApiOf(s);
+  const [states, setStates] = useState<GroupStates>(NO_STATES);
+  const [version, setVersion] = useState(0);
+  const cb = useRef(onEvents);
+  cb.current = onEvents;
+  const report = useCallback((events: readonly GroupEvent[]) => { setStates((p) => reduceGroupStates(p, events)); setVersion((n) => n + 1); cb.current?.(events); }, []);
+  const profileId = s.ctx.profileId;
+  useEffect(() => {
+    setStates(NO_STATES);
+    if (api?.onEvents === undefined) return;
+    return api.onEvents((pid, events) => { if (pid === profileId) report(events); });
+  }, [api, profileId, report]);
+  return {
+    states, version, report,
+    dismissUndeliverable: useCallback(() => { setStates((p) => ({ ...p, undeliverable: 0 })); }, []),
+    dismissSettingBlocked: useCallback((g: string) => { setStates((p) => { const m = new Map(p.settingBlocked); m.delete(g); return { ...p, settingBlocked: m }; }); }, []),
+    dismissAdmitBlocked: useCallback((i: string) => { setStates((p) => { const m = new Map(p.admitBlocked); m.delete(i); return { ...p, admitBlocked: m }; }); }, []),
   };
 }

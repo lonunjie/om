@@ -104,6 +104,8 @@ export interface DevicesCopy {
   readonly noOtherDevices: string;
   /** Shown in place of the add button while Core cannot link a device yet (`linking="later"`). */
   readonly linkLater: string;
+  /** Said when the copy of older chats to a newly linked device ran out of time with parts missing (`HistoryTransferView.state === "degraded"`). */
+  readonly historyDegraded: Readonly<Record<"sender" | "receiver", string>>;
   readonly removedHeading: string;
   readonly role: Readonly<Record<DeviceRole, string>>;
   readonly state: Readonly<Record<DeviceStateCode, string>>;

@@ -4,7 +4,7 @@ import {
   asConversationId, asDeviceId, asGroupId, asMessageId, canonicalInviteLink, confirmationTarget, parseDeviceLink, parseInviteLink, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
 } from "@om/platform-api";
 import type {
-  ConfirmationToken, CoreIntent, CoreQuery, GroupIntent, OperationId, PrivacyPolicyLevel, ProfileExecutionContext, RecoveryCustodianCode, RecoveryScope,
+  ConfirmationToken, CoreIntent, CoreQuery, GroupIntent, GroupRoomSetting, OperationId, PrivacyPolicyLevel, ProfileExecutionContext, RecoveryCustodianCode, RecoveryScope,
 } from "@om/platform-api";
 
 export type PresentationOp =
@@ -77,6 +77,22 @@ const custodians: readonly RecoveryCustodianCode[] = ["synced_passkey", "recover
 /** Strict shape for security-critical actions: any key outside `allowed` (e.g. a "silent" or "skip notice" flag) rejects the request. */
 const exactly = (p: Rec, allowed: readonly string[]): boolean => Object.keys(p).every((k) => allowed.includes(k));
 
+/** One Room setting with exactly one field of the expected type. Only what a screen offers is accepted: not `open` joining, not wider history, not a timer (ADR-0189 gives no durations or widening choices). */
+function parseRoomSetting(v: unknown): GroupRoomSetting | null {
+  if (v === null || typeof v !== "object" || Array.isArray(v)) return null;
+  const keys = Object.keys(v);
+  const k = keys[0];
+  if (keys.length !== 1 || k === undefined) return null;
+  const x = (v as Record<string, unknown>)[k];
+  switch (k) {
+    case "protection": return x === 1 || x === 2 || x === 3 ? { protection: x } : null;
+    case "join_rule": return x === 1 || x === 2 ? { join_rule: x } : null;
+    case "new_device_policy": return x === 1 || x === 2 ? { new_device_policy: x } : null;
+    case "members_may_invite": return typeof x === "boolean" ? { members_may_invite: x } : null;
+    default: return null;
+  }
+}
+
 const SPECS: Readonly<Record<string, Spec>> = {
   "open-conversation": { destructive: false, parse: (p, ctx) => {
     const c = id(p["conversationId"]);
@@ -91,11 +107,23 @@ const SPECS: Readonly<Record<string, Spec>> = {
   // Ordinary groups (ADR-0177). They go to `client.groups.do`, never to the generic CoreIntent path. A person's own tap is the only origin:
   // a suggestion (Omnibar, learned rank) cannot start, answer or leave a group. Leave and remove are consequential: the screen states the scope first.
   "group-create": { destructive: false, parse: (p) => {
-    const name = p["name"]; const rel = p["relationshipIds"];
-    if (!exactly(p, ["name", "relationshipIds"]) || typeof name !== "string" || name.length > 64 || !Array.isArray(rel) || rel.length < 1 || rel.length > 31) return null;
+    const name = p["name"]; const rel = p["relationshipIds"]; const level = p["protection"];
+    if (!exactly(p, level === undefined ? ["name", "relationshipIds"] : ["name", "relationshipIds", "protection"]) || typeof name !== "string" || name.length > 64 || !Array.isArray(rel) || rel.length < 1 || rel.length > 31) return null;
     const ids: string[] = [];
     for (const r of rel as unknown[]) { const v = id(r); if (v === null || ids.includes(v)) return null; ids.push(v); }
-    return { group: { kind: "create", name: name.trim(), relationshipIds: ids.map(asConversationId) } };
+    const relationshipIds = ids.map(asConversationId);
+    // No level named: the default Recommended (`create`). A named level is one of the three of ADR-0189; anything else is refused here, never guessed.
+    if (level === undefined) return { group: { kind: "create", name: name.trim(), relationshipIds } };
+    if (level !== 1 && level !== 2 && level !== 3) return null;
+    return { group: { kind: "create_with_protection", name: name.trim(), relationshipIds, protection: level } };
+  } },
+  // One Room setting. Tightening applies at once; a loosening carries `confirmed: true` only after the screen named what changes (Core refuses it otherwise).
+  "group-room-setting": { destructive: false, parse: (p) => {
+    const g = id(p["conversationId"]); const s = p["setting"]; const c = p["confirmed"];
+    if (g === null || !exactly(p, c === undefined ? ["conversationId", "setting"] : ["conversationId", "setting", "confirmed"]) || (c !== undefined && typeof c !== "boolean")) return null;
+    const setting = parseRoomSetting(s);
+    if (setting === null) return null;
+    return { group: { kind: "room_setting", conversationId: asGroupId(g), setting, ...(c === true ? { confirmed: true } : {}) } };
   } },
   "group-invite": { destructive: false, parse: (p) => {
     const g = id(p["conversationId"]); const r = id(p["relationshipId"]);

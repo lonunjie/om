@@ -5,3 +5,6 @@ export * from "./NewGroup";
 export * from "./GroupInvites";
 export * from "./GroupMembers";
 export * from "./GroupChat";
+export * from "./GroupStatus";
+export * from "./RoomSettings";
+export * from "./protection";

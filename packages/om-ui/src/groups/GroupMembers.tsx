@@ -19,6 +19,8 @@ export interface GroupMembersProps {
   /** A step went through (the caller refreshes and may say it aloud). */
   readonly onChanged: (what: "invited" | "removed") => void;
   readonly onLeft: () => void;
+  /** Opens Room settings (a sheet of its own, so Back returns to this one). */
+  readonly onOpenSettings?: () => void;
 }
 
 type Pending = { readonly kind: "remove"; readonly account: string; readonly name: string } | { readonly kind: "leave" };
@@ -27,7 +29,7 @@ type Pending = { readonly kind: "remove"; readonly account: string; readonly nam
  * Who is in a group, and what a person can do about it: add, remove, leave. Whether the person is allowed is Core's call and its refusal
  * is said plainly; the screen does not guess at roles. Removing and leaving say what they do not do (nothing already received is erased).
  */
-export function GroupMembers({ services, copy, detail, names, invites, chats, onChanged, onLeft }: GroupMembersProps) {
+export function GroupMembers({ services, copy, detail, names, invites, chats, onChanged, onLeft, onOpenSettings }: GroupMembersProps) {
   const c = copy.members;
   const group = detail.summary.name;
   const [pending, setPending] = useState<Pending | null>(null);
@@ -91,8 +93,11 @@ export function GroupMembers({ services, copy, detail, names, invites, chats, on
         )}
       </section>
 
+      <Text as="p" size="sm" tone="secondary">{c.membersSeeNote}</Text>
       <Text as="p" size="sm" tone="secondary">{c.historyNote}</Text>
       <Text as="p" size="sm" tone="secondary">{c.proofNote}</Text>
+
+      {onOpenSettings === undefined ? null : <Button variant="secondary" onClick={onOpenSettings}>{c.settings}</Button>}
 
       {pending?.kind === "leave" ? (
         <div role="group" aria-label={c.leaveAsk(group)} className="om-request__confirm">

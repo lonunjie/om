@@ -25,7 +25,9 @@ export function GroupInvites({ services, copy, invites, chats, onAnswered }: Gro
   const [busy, setBusy] = useState<string | null>(null);
   const [said, setSaid] = useState<ReadonlyMap<string, string>>(() => new Map());
   const offered = invites.filter((i) => i.dir === "incoming" && i.state === "offered");
-  if (offered.length === 0 && said.size === 0) return null;
+  // Said yes, not in yet: it stays visible until the add is done, so a person is never left guessing (ADR-0189: "Joining", then the state).
+  const waiting = invites.filter((i) => i.dir === "incoming" && (i.state === "accepted" || i.state === "admitting"));
+  if (offered.length === 0 && waiting.length === 0 && said.size === 0) return null;
   const names = new Map(chats.map((x) => [x.id as string, x.displayName]));
   const answer = async (i: GroupInviteView, join: boolean): Promise<void> => {
     setBusy(i.id);
@@ -47,7 +49,13 @@ export function GroupInvites({ services, copy, invites, chats, onAnswered }: Gro
           {said.has(i.id) ? <p role="status">{said.get(i.id)}</p> : null}
         </div>
       ))}
-      {[...said].filter(([id]) => !offered.some((i) => i.id === id)).map(([id, text]) => <p key={id} role="status" className="om-group-invite__said">{text}</p>)}
+      {waiting.map((i) => (
+        <div key={i.id} className="om-card om-group-invite" role="status">
+          <Text as="p" weight="bold"><bdi>{c.waiting.title(i.groupName)}</bdi></Text>
+          <Text as="p" size="sm" tone="secondary">{c.waiting.body}</Text>
+        </div>
+      ))}
+      {[...said].filter(([id]) => !offered.some((i) => i.id === id) && !waiting.some((i) => i.id === id)).map(([id, text]) => <p key={id} role="status" className="om-group-invite__said">{text}</p>)}
     </section>
   );
 }

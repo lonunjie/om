@@ -589,6 +589,16 @@ const GROUP_REFUSED: Readonly<Record<string, string>> = {
   group_leaving: "You are leaving this group, so you cannot send to it.",
   journal_busy: "The group is being updated. Try again in a moment.",
   groups_unavailable: "Groups are not available on this device yet.",
+  loosening_needs_confirmation: "That makes the group less strict, so it needs your confirmation first. Nothing changed.",
+  quorum_not_supported: "This group needs more than one admin to agree before it can be made less strict, and OM cannot collect that yet. Nothing changed.",
+  room_too_large: "This group is too large to add another person right now. Nothing was changed.",
+  setting_not_reachable: "That setting cannot be changed here. Nothing changed.",
+  security_profile_reserved: "That protection level is not available.",
+  unsupported: "That is not available on this device yet.",
+};
+const duration = (seconds: number): string => {
+  const [n, unit] = seconds % 604800 === 0 ? [seconds / 604800, "week"] : seconds % 86400 === 0 ? [seconds / 86400, "day"] : seconds % 3600 === 0 ? [seconds / 3600, "hour"] : [Math.max(1, Math.round(seconds / 60)), "minute"];
+  return `${String(n)} ${unit}${n === 1 ? "" : "s"}`;
 };
 export const groupsCopy: GroupsCopy = {
   list: { mark: (n) => `Group, ${String(n)} ${n === 1 ? "person" : "people"}`, noActivity: "No messages yet" },
@@ -599,11 +609,22 @@ export const groupsCopy: GroupsCopy = {
     selected: (n) => `${String(n)} chosen`, create: "Create group", creating: "Creating…",
     consent: "Each person gets an invitation and is only added if they say yes.",
   },
+  protection: {
+    legend: "Protection", summary: (level) => `Protection: ${level}`,
+    levels: {
+      1: { label: "Recommended", line: "Easiest. Anyone in the group can add people, and they join as soon as they tap Join." },
+      2: { label: "Hardened", line: "Only admins can add people, and an admin approves each new person. Joining can take longer." },
+      3: { label: "Maximum Privacy", line: "Everything in Hardened, and an admin also approves each new phone or computer of a member. The slowest way to join or add a device." },
+    },
+    custom: "Custom",
+    later: "You can make a group stricter at any time. Making it less strict is always asked first, and everyone in the group is told.",
+  },
   invites: {
     heading: "Group invitations",
     from: (who, group) => (who === "" ? `You are invited to ${group}` : `${who} invited you to ${group}`),
     hint: "If you join, everyone in the group can see that you are in it. You will see only what is said after you join.",
     join: "Join", decline: "No thanks", joining: "Joining…", declined: "Invitation declined. Nobody in the group was told.", joined: "You joined the group.",
+    waiting: { title: (g) => `Waiting to join ${g}`, body: "You said yes. You will be in the group once someone there finishes adding you." },
   },
   chat: {
     label: "Group messages", back: "Back to chats", people: (n) => `${String(n)} ${n === 1 ? "person" : "people"}`, openPeople: (g) => `People in ${g}`,
@@ -622,6 +643,83 @@ export const groupsCopy: GroupsCopy = {
     removeNote: "They will stop getting new messages. They keep the messages they already received.",
     historyNote: "People who join later see only what is said after they join.",
     proofNote: "Anyone in a group can show its messages to others as proof of who wrote them.",
+    settings: "Room settings",
+    membersSeeNote: "Everyone in the group can see who is in it.",
+  },
+  settings: {
+    title: (g) => `Settings for ${g}`, close: "Close", back: "Back to people",
+    level: "Protection level", current: "Current", useLevel: (l) => `Use ${l}`,
+    rows: {
+      add: {
+        title: "Who can add people", anyone: "Anyone in the group can add people.", admins: "Only admins can add people.",
+        tighten: "Only admins can add people", tightenCost: "Fewer people can add others, so adding someone may take longer.",
+        loosen: "Let anyone in the group add people",
+      },
+      join: {
+        title: "Do new people need an admin's OK?", auto: "No. Joining is automatic once they tap Join.", approval: "Yes. An admin approves each new person.", open: "No. Anyone who can reach the group can join.",
+        tighten: "An admin approves each new person", tightenCost: "New people will need an admin's OK, which can delay joining.",
+        loosen: "Joining is automatic once they tap Join",
+      },
+      device: {
+        title: "A member's new device", auto: "New devices of people in the group join automatically.", approval: "An admin approves each new device.",
+        tighten: "An admin approves new devices", tightenCost: "A person's new phone or computer will need an admin's OK before it can use the group.",
+        loosen: "New devices join automatically",
+      },
+    },
+    history: "New people do not see earlier messages.",
+    timerOff: "Messages stay until they are deleted.",
+    timerOn: (s) => `Messages disappear after ${duration(s)}.`,
+    confirm: {
+      heading: "Make this group less strict?", lead: "This will change:",
+      lines: {
+        add: "Anyone in the group will be able to add people.",
+        join: "New people will join without an admin's OK.",
+        device: "New devices of people in the group will join automatically.",
+        history: "New people will be able to see earlier messages.",
+      },
+      level: (l) => (l === "Custom" ? "The protection level goes down." : `The protection level goes down to ${l}.`),
+      generic: "This makes the group less strict.",
+      announce: "Everyone in the group will see this change and who made it.",
+      confirm: "Make less strict", keep: "Keep it as it is",
+    },
+    applied: "Changed. Everyone in the group will see a notice.", saving: "Saving",
+  },
+  notices: {
+    label: "Group setting changed",
+    line: (who, field, value) => (value === null ? `${who} changed ${field}.` : `${who} changed ${field}: now ${value}.`),
+    loosened: "Less strict",
+    field: {
+      members_may_invite: "who can add people", join_rule: "how new people join", new_device_policy: "how new devices of members join",
+      history_policy: "earlier messages for new people", disappearing_timer: "disappearing messages", security_profile: "the protection level", _: "a group setting",
+    },
+    value: (field, code) => {
+      switch (field) {
+        case "members_may_invite": return code === "anyone" ? "anyone in the group" : code === "admins_only" ? "only admins" : null;
+        case "join_rule": return code === "invite_only" ? "automatic once they tap Join" : code === "admin_approval" ? "an admin approves each person" : code === "open" ? "anyone can join" : null;
+        case "new_device_policy": return code === "automatic" ? "automatic" : code === "admin_approval" ? "an admin approves each one" : null;
+        case "history_policy": return code === "since_join" ? "new people see only what is said after they join" : code === "recent_window" ? "new people see recent messages" : code === "full_shared_history" ? "new people see all earlier messages" : null;
+        case "disappearing_timer": return code === "off" ? "off" : /^\d+$/.test(code) ? `after ${duration(Number(code))}` : null;
+        case "security_profile": return code === "recommended" ? "Recommended" : code === "hardened" ? "Hardened" : code === "maximum_privacy" ? "Maximum Privacy" : null;
+        default: return null;
+      }
+    },
+    youChanged: "You", someone: "Someone",
+  },
+  states: {
+    label: "Group status",
+    held: { title: "Waiting for a group update", body: "A group update is waiting for more information before OM can use it. OM keeps it for now and tries again." },
+    undeliverable: {
+      title: (n) => `${String(n)} group ${n === 1 ? "message" : "messages"} could not be delivered`,
+      body: "A delivery service refused them, so OM will not keep trying. Send them again to try once more.",
+      dismiss: "OK",
+    },
+    settingBlocked: { title: (g) => (g === "" ? "A settings change could not be made" : `A settings change in ${g} could not be made`), dismiss: "OK" },
+    admitBlocked: { title: (who) => `${who === "" ? "Someone" : who} said yes but is not in the group yet`, dismiss: "OK" },
+    reason: (code, kind) => {
+      if (code === "room_too_large") return "This group is too large to add another person right now. Nothing was changed.";
+      if (kind === "admit") return code === "not_authorized" ? "Waiting for an admin to be online." : "They are not added yet. Their yes still counts.";
+      return code === "not_authorized" ? "You can no longer change this group's settings. Nothing changed." : "Nothing changed. You can try again from the group's settings.";
+    },
   },
   refused: (code) => GROUP_REFUSED[code] ?? "That did not work. Try again in a moment.",
   done: { created: (g) => `Group ${g} created.`, invited: "Invitation sent.", removed: "Removed from the group.", left: "You left the group." },
@@ -773,6 +871,10 @@ export const devicesCopy: DevicesCopy = {
   currentHeading: "This device",
   otherHeading: "Your other devices",
   noOtherDevices: "No other devices are linked.",
+  historyDegraded: {
+    sender: "Some older chats couldn't be copied to your new device. Time ran out before everything was sent, and nothing more will be. This device still has them.",
+    receiver: "Some older chats couldn't be copied to this device. Time ran out before everything arrived, and nothing more will come. Your other devices still have them.",
+  },
   linkLater: "Using the same account on a second device is not ready yet. Until it is, set OM up on each device and invite each one.",
   removedHeading: "Removed devices",
   role: { control: "Can manage your account", messaging: "Can send and read messages" },

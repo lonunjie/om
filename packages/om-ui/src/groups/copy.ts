@@ -22,6 +22,18 @@ export interface GroupsCopy {
     /** Said under the button: nobody is added until they say yes. */
     readonly consent: string;
   };
+  /** The three protection levels (ADR-0189 section 3), by their existing names, each with what it means for the group in one line. */
+  readonly protection: {
+    /** Heading of the choice, and of the level in Room settings. */
+    readonly legend: string;
+    /** The collapsed choice at creation: "Protection: Recommended". */
+    readonly summary: (levelLabel: string) => string;
+    readonly levels: Readonly<Record<1 | 2 | 3, { readonly label: string; readonly line: string }>>;
+    /** Shown instead of a level name when a Room's settings no longer match one level. */
+    readonly custom: string;
+    /** Said once under the choice: stricter later is easy, looser later is asked first. */
+    readonly later: string;
+  };
   readonly invites: {
     readonly heading: string;
     readonly from: (inviter: string, group: string) => string;
@@ -32,6 +44,8 @@ export interface GroupsCopy {
     readonly joining: string;
     readonly declined: string;
     readonly joined: string;
+    /** An accepted invitation whose add is not done yet. */
+    readonly waiting: { readonly title: (group: string) => string; readonly body: string };
   };
   readonly chat: {
     readonly label: string;
@@ -81,6 +95,72 @@ export interface GroupsCopy {
     readonly historyNote: string;
     /** Messages in a group can be shown to others as proof of who wrote them (ADR-0138: no deniability). */
     readonly proofNote: string;
+    /** The button that opens Room settings. */
+    readonly settings: string;
+    /** Said once in the details: membership is known to everyone in the group (ADR-0189 "Hide the member list" is not offered). */
+    readonly membersSeeNote: string;
+  };
+  /** Room settings: tighten at once, loosen only after a confirmation that names what changes. */
+  readonly settings: {
+    readonly title: (group: string) => string;
+    readonly close: string;
+    /** Back to the people sheet. */
+    readonly back: string;
+    readonly level: string;
+    /** "Current level" next to the level that is in force. */
+    readonly current: string;
+    readonly useLevel: (levelLabel: string) => string;
+    readonly rows: {
+      readonly add: { readonly title: string; readonly anyone: string; readonly admins: string; readonly tighten: string; readonly tightenCost: string; readonly loosen: string };
+      readonly join: { readonly title: string; readonly auto: string; readonly approval: string; readonly open: string; readonly tighten: string; readonly tightenCost: string; readonly loosen: string };
+      readonly device: { readonly title: string; readonly auto: string; readonly approval: string; readonly tighten: string; readonly tightenCost: string; readonly loosen: string };
+    };
+    /** Read-only: what this version does not let a person change here. */
+    readonly history: string;
+    readonly timerOff: string;
+    readonly timerOn: (seconds: number) => string;
+    /** One line per level cost shown before choosing it comes from `protection.levels`. */
+    readonly confirm: {
+      readonly heading: string;
+      readonly lead: string;
+      /** What a loosening changes, by key (see `LoosenKey`). */
+      readonly lines: Readonly<Record<"add" | "join" | "device" | "history", string>>;
+      readonly level: (levelLabel: string) => string;
+      /** Used when Core asks for a confirmation the screen did not predict. */
+      readonly generic: string;
+      readonly announce: string;
+      readonly confirm: string;
+      readonly keep: string;
+    };
+    readonly applied: string;
+    readonly saving: string;
+  };
+  /** Policy-change notices, shown as system lines in the timeline. */
+  readonly notices: {
+    readonly label: string;
+    /** "Alice changed who can add people: now anyone in the group." */
+    readonly line: (who: string, field: string, value: string | null) => string;
+    /** Text marker on a notice that made the group less strict (never colour alone). */
+    readonly loosened: string;
+    readonly field: Readonly<Record<string, string>>;
+    /** The words for the new value of a field; `null` when the code is not known here. */
+    readonly value: (field: string, code: string) => string | null;
+    readonly youChanged: string;
+    readonly someone: string;
+  };
+  /** Honest states of the group carriage. A state names the thing, what it means and what happens next. */
+  readonly states: {
+    /** A group update is kept until what it needs arrives. */
+    readonly held: { readonly title: string; readonly body: string };
+    /** A delivery service refused for good: the messages will not arrive by themselves. */
+    readonly undeliverable: { readonly title: (n: number) => string; readonly body: string; readonly dismiss: string };
+    /** A queued settings change could not be carried out. */
+    readonly settingBlocked: { readonly title: (group: string) => string; readonly dismiss: string };
+    /** Someone said yes but the add is not done. */
+    readonly admitBlocked: { readonly title: (who: string) => string; readonly dismiss: string };
+    /** Plain words for the reason codes of the two blocked states. */
+    readonly reason: (code: string, kind: "admit" | "setting") => string;
+    readonly label: string;
   };
   /** Plain words for what Core refused; `code` is its machine code. */
   readonly refused: (code: string) => string;

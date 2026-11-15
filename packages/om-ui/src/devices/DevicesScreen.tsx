@@ -38,6 +38,9 @@ const isPendingKind = (k: string): k is DevicePendingKind => (PENDING_KINDS as r
 export function DevicesScreen({ services, copy, renderQr, showNotices = true, linking = "available" }: DevicesScreenProps) {
   const [view, setView] = useState<View>({ kind: "list" });
   const live = useLiveQuery(services, { kind: "GetDevices", ctx: services.ctx }, "devices");
+  // The copy of older chats to a newly linked device: only a timed-out, partial transfer is worth a line (counts only, never content).
+  const history = useLiveQuery(services, { kind: "GetHistoryTransfer", ctx: services.ctx }, "history");
+  const degraded = history.status === "ready" && history.value.value?.state === "degraded" ? history.value.value.role : null;
   const toList = (): void => { setView({ kind: "list" }); };
 
   if (live.status === "loading") return <Text role="status">{copy.loading}</Text>;
@@ -65,6 +68,7 @@ export function DevicesScreen({ services, copy, renderQr, showNotices = true, li
     <section className="om-settings om-devices" aria-labelledby="om-devices-h">
       <Text as="h1" size="xl" weight="bold" id="om-devices-h">{copy.heading}</Text>
       <ControlBanners copy={copy} view={value} notices={showNotices} />
+      {degraded === null ? null : <Text as="p" role="status" className="om-devices__history">{copy.historyDegraded[degraded]}</Text>}
       {body}
     </section>
   );

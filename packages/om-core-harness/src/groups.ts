@@ -4,15 +4,49 @@
 // `simulateMessage` play what the other side would do. `out` is always empty: the harness has no transport.
 import { asGroupId } from "@om/platform-api";
 import type {
-  ConversationId, GroupApi, GroupDetailView, GroupEvent, GroupId, GroupIntent, GroupInviteView, GroupMemberView, GroupMessageView, GroupStep,
-  GroupSummaryView, ProfileExecutionContext,
+  ConversationId, GroupApi, GroupDetailView, GroupEvent, GroupId, GroupIntent, GroupInviteView, GroupMemberView, GroupMessageView, GroupNoticeView, GroupProtectionView,
+  GroupRoomSetting, GroupSettingChange, GroupStep, GroupSummaryView, ProfileExecutionContext, ProfileId,
 } from "@om/platform-api";
 
 const SELF = "acct-self";
 const hex = (n: number): string => Array.from(globalThis.crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, "0")).join("");
 
 interface Member { account: string; status: "member" | "invited"; invite?: string }
-interface Group { id: GroupId; name: string; members: Member[]; messages: GroupMessageView[]; epoch: number }
+/** The Room fields of ADR-0189 section 3 (codes as Core's `GroupProtectionView`). */
+interface Policy { profile: number; joinRule: number; newDevicePolicy: number; historyPolicy: number; membersMayInvite: boolean; timer: number | null }
+interface Group { id: GroupId; name: string; members: Member[]; messages: GroupMessageView[]; epoch: number; policy: Policy; notices: GroupNoticeView[]; quorum: boolean; canManage: boolean }
+const BUNDLES: Readonly<Record<number, Policy>> = {
+  1: { profile: 1, joinRule: 1, newDevicePolicy: 1, historyPolicy: 1, membersMayInvite: true, timer: null },
+  2: { profile: 2, joinRule: 2, newDevicePolicy: 1, historyPolicy: 1, membersMayInvite: false, timer: null },
+  3: { profile: 3, joinRule: 2, newDevicePolicy: 2, historyPolicy: 1, membersMayInvite: false, timer: null },
+};
+const JOIN = (v: number): [string, number] => (v === 1 ? ["invite_only", 1] : v === 2 ? ["admin_approval", 2] : ["open", 0]);
+const NEWDEV = (v: number): [string, number] => (v === 2 ? ["admin_approval", 1] : ["automatic", 0]);
+const HIST = (v: number): [string, number] => (v === 1 ? ["since_join", 2] : v === 2 ? ["recent_window", 1] : ["full_shared_history", 0]);
+const PROF = (v: number): [string, number] => (v === 1 ? ["recommended", 1] : v === 2 ? ["hardened", 2] : v === 3 ? ["maximum_privacy", 3] : ["reserved", 0]);
+/** Every visible difference, each marked loosened when the Room became less strict (the same rule as Core's `room::diff`). */
+function diffPolicy(b: Policy, a: Policy): GroupSettingChange[] {
+  const out: GroupSettingChange[] = [];
+  const add = (field: string, from: [string, number], to: [string, number]): void => { out.push({ field, from: from[0], to: to[0], loosened: to[1] < from[1] }); };
+  if (b.joinRule !== a.joinRule) add("join_rule", JOIN(b.joinRule), JOIN(a.joinRule));
+  if (b.newDevicePolicy !== a.newDevicePolicy) add("new_device_policy", NEWDEV(b.newDevicePolicy), NEWDEV(a.newDevicePolicy));
+  if (b.historyPolicy !== a.historyPolicy) add("history_policy", HIST(b.historyPolicy), HIST(a.historyPolicy));
+  if (b.profile !== a.profile) add("security_profile", PROF(b.profile), PROF(a.profile));
+  if (b.membersMayInvite !== a.membersMayInvite) out.push({ field: "members_may_invite", from: b.membersMayInvite ? "anyone" : "admins_only", to: a.membersMayInvite ? "anyone" : "admins_only", loosened: a.membersMayInvite });
+  if (b.timer !== a.timer) {
+    const loosened = b.timer !== null && (a.timer === null || a.timer > b.timer);
+    out.push({ field: "disappearing_timer", from: b.timer === null ? "off" : String(b.timer), to: a.timer === null ? "off" : String(a.timer), loosened });
+  }
+  return out;
+}
+function applySetting(p: Policy, s: GroupRoomSetting): Policy | null {
+  if ("protection" in s) return BUNDLES[s.protection] ?? null;
+  if ("join_rule" in s) return s.join_rule === 1 || s.join_rule === 2 ? { ...p, joinRule: s.join_rule } : null; // `open` is never reachable from here
+  if ("new_device_policy" in s) return s.new_device_policy === 1 || s.new_device_policy === 2 ? { ...p, newDevicePolicy: s.new_device_policy } : null;
+  if ("history_policy" in s) return s.history_policy === 1 || s.history_policy === 2 || s.history_policy === 3 ? { ...p, historyPolicy: s.history_policy } : null;
+  if ("members_may_invite" in s) return { ...p, membersMayInvite: s.members_may_invite };
+  return { ...p, timer: s.disappearing_timer };
+}
 interface Invite { id: string; groupId: GroupId; groupName: string; dir: "outgoing" | "incoming"; state: GroupInviteView["state"]; relationshipId: ConversationId; peerAccount: string; createdMs: number }
 interface Store { groups: Map<GroupId, Group>; invites: Map<string, Invite> }
 
@@ -23,11 +57,27 @@ export interface GroupSim extends GroupApi {
   simulateAnswer(ctx: ProfileExecutionContext, inviteId: string, answer: "accept" | "decline"): boolean;
   /** A member sends a text. `false`: not a group or not a member. */
   simulateMessage(ctx: ProfileExecutionContext, conversationId: GroupId, fromAccount: string, text: string): boolean;
+  /** Another member changes a Room setting (everyone gets the notice). `false`: not a group or the setting is not reachable. */
+  simulateSettingChange(ctx: ProfileExecutionContext, conversationId: GroupId, fromAccount: string, setting: GroupRoomSetting): boolean;
+  /** The Room needs more than one holder's agreement to loosen: a loosening is refused `quorum_not_supported` (Core deviation D39). */
+  simulateQuorum(ctx: ProfileExecutionContext, conversationId: GroupId): boolean;
+  /** This person stops holding the capability to change Room settings: `room_setting` is refused `not_authorized`. */
+  simulateNoAuthority(ctx: ProfileExecutionContext, conversationId: GroupId): boolean;
+  /** Background events as a host driver reports them (`held`, `undeliverable`, `room_setting_blocked`, ...), delivered to `onEvents` listeners. */
+  simulateEvent(ctx: ProfileExecutionContext, event: GroupEvent): void;
 }
 
 /** `stateFor` validates the context (and throws for a stale or foreign one); `hasRelationship` is the 1:1 conversation check. */
+function protectionOf(p: Policy): GroupProtectionView {
+  const b = BUNDLES[p.profile];
+  const custom = b === undefined || b.joinRule !== p.joinRule || b.newDevicePolicy !== p.newDevicePolicy || b.historyPolicy !== p.historyPolicy || b.membersMayInvite !== p.membersMayInvite;
+  return { profile: p.profile, custom, joinRule: p.joinRule, newDevicePolicy: p.newDevicePolicy, historyPolicy: p.historyPolicy, membersMayInvite: p.membersMayInvite, disappearingTimer: p.timer };
+}
+
 export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecutionContext) => unknown; readonly hasRelationship: (ctx: ProfileExecutionContext, id: ConversationId) => boolean; readonly clock: () => number }): GroupSim {
   const stores = new Map<string, Store>();
+  const listeners = new Set<(profileId: ProfileId, events: readonly GroupEvent[]) => void>();
+  const emit = (ctx: ProfileExecutionContext, events: readonly GroupEvent[]): void => { for (const l of [...listeners]) l(ctx.profileId, events); };
   const store = (ctx: ProfileExecutionContext): Store => {
     opts.stateFor(ctx);
     let s = stores.get(ctx.profileId);
@@ -55,7 +105,10 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
           for (const r of intent.relationshipIds) if (!opts.hasRelationship(ctx, r)) return Promise.resolve(refuse("unknown_relationship"));
           if (intent.name.trim() === "") return Promise.resolve(refuse("invalid_name"));
           const id = asGroupId(hex(16));
-          const grp: Group = { id, name: intent.name.trim(), members: [{ account: SELF, status: "member" }], messages: [], epoch: 0 };
+          const level = intent.kind === "create_with_protection" ? intent.protection : 1;
+          const policy = BUNDLES[level];
+          if (policy === undefined) return Promise.resolve(refuse("security_profile_reserved"));
+          const grp: Group = { id, name: intent.name.trim(), members: [{ account: SELF, status: "member" }], messages: [], epoch: 0, policy, notices: [], quorum: false, canManage: true };
           s.groups.set(id, grp);
           const events: GroupEvent[] = [{ kind: "created", conversationId: id }];
           for (const r of intent.relationshipIds) {
@@ -78,7 +131,7 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
           if (inv?.dir !== "incoming" || inv.state !== "offered") return Promise.resolve(refuse("unknown_invite"));
           if (intent.kind === "decline") { inv.state = "declined"; return Promise.resolve(done([{ kind: "invite_declined", inviteId: inv.id }])); }
           inv.state = "done";
-          s.groups.set(inv.groupId, { id: inv.groupId, name: inv.groupName, members: [{ account: inv.peerAccount, status: "member" }, { account: SELF, status: "member" }], messages: [], epoch: 1 });
+          s.groups.set(inv.groupId, { id: inv.groupId, name: inv.groupName, members: [{ account: inv.peerAccount, status: "member" }, { account: SELF, status: "member" }], messages: [], epoch: 1, policy: BUNDLES[1] as Policy, notices: [], quorum: false, canManage: true });
           return Promise.resolve(done([{ kind: "invite_accepted", inviteId: inv.id }, { kind: "joined", conversationId: inv.groupId }]));
         }
         case "leave": {
@@ -100,8 +153,21 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
           g.messages.push({ id, senderAccount: SELF, senderDevice: "dev-self", epoch: g.epoch, text: intent.text, atMs: opts.clock(), outgoing: true });
           return Promise.resolve(done([{ kind: "message_sent", conversationId: g.id, id }]));
         }
-        case "room_setting":
-          return Promise.resolve(refuse("unsupported")); // the simulation has no Room policy to change
+        case "room_setting": {
+          if (!g || !selfIn(g)) return Promise.resolve(refuse("not_a_member"));
+          if (!g.canManage) return Promise.resolve(refuse("not_authorized"));
+          const next = applySetting(g.policy, intent.setting);
+          if (next === null) return Promise.resolve(refuse("setting_not_reachable"));
+          const changes = diffPolicy(g.policy, next);
+          const loosens = changes.some((c) => c.loosened);
+          if (loosens && intent.confirmed !== true) return Promise.resolve(refuse("loosening_needs_confirmation"));
+          if (loosens && g.quorum) return Promise.resolve(refuse("quorum_not_supported"));
+          if (changes.length === 0) return Promise.resolve(done([]));
+          g.policy = next;
+          g.epoch += 1;
+          g.notices.push({ atMs: opts.clock(), byAccount: SELF, changes });
+          return Promise.resolve(done([{ kind: "policy_changed", conversationId: g.id, byAccount: SELF, changes }]));
+        }
         case "commit_published":
           return Promise.resolve(refuse("unknown_intent")); // the simulation commits at once: there is never a prepared Commit
       }
@@ -112,11 +178,12 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
       const g = store(ctx).groups.get(id);
       if (!g) return null;
       const people: GroupMemberView[] = g.members.map((m) => ({ account: m.account, roles: m.account === SELF || m === g.members[0] ? ["admin"] : ["member"], status: m.status }));
-      return { summary: summary(g), people, canSend: selfIn(g), protection: { profile: 1, custom: false, joinRule: 1, newDevicePolicy: 1, historyPolicy: 1, membersMayInvite: true, disappearingTimer: null } };
+      return { summary: summary(g), people, canSend: selfIn(g), protection: protectionOf(g.policy) };
     },
     invites: (ctx) => [...store(ctx).invites.values()].map((i): GroupInviteView => ({ id: i.id, conversationId: i.groupId, groupName: i.groupName, dir: i.dir, state: i.state, relationshipId: i.relationshipId, peerAccount: i.peerAccount, createdMs: i.createdMs })),
     messages: (ctx, id) => [...(store(ctx).groups.get(id)?.messages ?? [])],
-    notices: (ctx) => { store(ctx); return []; },
+    notices: (ctx, id) => [...(store(ctx).groups.get(id)?.notices ?? [])],
+    onEvents: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     settle: (ctx) => { store(ctx); return Promise.resolve(done([])); },
 
     simulateInvite(ctx, relationshipId, name) {
@@ -137,6 +204,32 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
       g.epoch += 1;
       return true;
     },
+    simulateSettingChange(ctx, conversationId, fromAccount, setting) {
+      const g = store(ctx).groups.get(conversationId);
+      if (!g) return false;
+      const next = applySetting(g.policy, setting);
+      if (next === null) return false;
+      const changes = diffPolicy(g.policy, next);
+      if (changes.length === 0) return false;
+      g.policy = next;
+      g.epoch += 1;
+      g.notices.push({ atMs: opts.clock(), byAccount: fromAccount, changes });
+      emit(ctx, [{ kind: "policy_changed", conversationId, byAccount: fromAccount, changes }]);
+      return true;
+    },
+    simulateQuorum(ctx, conversationId) {
+      const g = store(ctx).groups.get(conversationId);
+      if (!g) return false;
+      g.quorum = true;
+      return true;
+    },
+    simulateNoAuthority(ctx, conversationId) {
+      const g = store(ctx).groups.get(conversationId);
+      if (!g) return false;
+      g.canManage = false;
+      return true;
+    },
+    simulateEvent(ctx, event) { store(ctx); emit(ctx, [event]); },
     simulateMessage(ctx, conversationId, fromAccount, text) {
       const g = store(ctx).groups.get(conversationId);
       if (!g || !g.members.some((m) => m.account === fromAccount && m.status === "member")) return false;
