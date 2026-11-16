@@ -207,3 +207,13 @@ Operator-delegated rulings of 2026-11-16. This amends only the delegated appendi
 3. **Extensions (key 23) are accepted at wire level.** A codec preserves a noncritical extension and never reads it. Core work list addition: Core never reads a time, an elapsed time or a delay from an extension, and rejects a notice whose extension names a time-like key (fail closed). Section 1's rule that no time travels applies to extensions as it does to named fields.
 4. **The dossier keeps its wire shape.** `RecoveryDossierEntry` stays as in the appendix, now byte-wrapped like the notice. With the first-contact ruling of 2026-11-14 (a first contact with an already-recovered account does not wait), the dossier is no longer needed by late joiners; it stays for replaying a peer's chain from stored evidence (`verify_chain_with`, section 8).
 5. **Semantic fixtures are Core's job.** The wire-valid vectors that carry a `semantic_rule` (policy hash different from the commitment, request signed with the wrong role, request for another account, epoch or parent, target device already enrolled, request body over `MAX_REQUEST_BYTES`, bridge out of order or of another account or containing a recovery link, successor credential not the requested one, successor child signed by a controller, veto for another digest, veto with the recovery role) define the refusals of section 2 that need the receiver's state. They are accepted as the specification of those checks.
+
+## Amendment (2026-11-16): Core implementation rulings
+
+Operator-delegated rulings of 2026-11-16, recorded with the contact-side Core build. They amend only the Core work list and the delegated appendix; no audited text changes. Departures are D72 to D82 in [`2026-10-28-relay-status.md`](../docs/reports/2026-10-28-relay-status.md).
+
+1. **Strict timer for everyone (D72, D73).** There is no sweep and no gap credit. The interval starts at the first host tick after the first valid observation, never earlier.
+2. **Sending while a recovery is pending (D79).** No outgoing queue in v1. The send path refuses with the typed `RejectReason::PeerRecovering`, so a UI can say the person is recovering and can be messaged once it finishes. Nothing is encrypted to an unlisted device. The queue is a follow-up.
+3. **Profiles (D80).** The contact's local privacy level (none means Recommended) decides: Recommended auto-accepts at the delay; Hardened, Maximum and Custom need the contact's own confirm.
+4. **Dossier wire (D76).** The dossier is at key 5 of `KIND_ACS_UPDATE` and at key 8 of first-contact Accept and Bind. It has no seconds field.
+5. **In-session veto wire (D74).** `{0: 12, 1: signed RecoveryVeto bytes}` (`KIND_RECOVERY_VETO`).

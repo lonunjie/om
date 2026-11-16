@@ -275,3 +275,16 @@ Suggested order for a later session: read identity_control_recovery, crypto_1to1
 - **Requirement traceability** entries for the notice, dossier and contact-side states: not added.
 - **UI copy keys** `recoveryCopy.contact` and the banner component: not built.
 - A logical schema JSON for the notice (the group types have none either).
+
+## Contact-side verification: Core done
+
+**Done.** ADR-0190 is implemented in Core: `flows/recovery_peer.rs` (notice validation in the section 2 order, bridge adoption, per-contact strict timer, accept through `verify_recovery_successor`, veto, decline, confirm, dossier receive and first-contact replay), with twelve integration tests, a unit-level dossier test through a test-loopback hook, and a test that the send path refuses with `PeerRecovering`. Departures D72 to D82 are in [`2026-10-28-relay-status.md`](2026-10-28-relay-status.md); rulings are in the ADR-0190 amendment.
+
+**Not covered by a test.** A recovered account that itself sends the dossier (its old device is revoked; needs the recovering-device flow). Restored backups are inert by construction (relationships are not restored), with no explicit test.
+
+**What remains**
+- Bridge and TS mirrors: `DeclinePeerRecovery` and `ConfirmPeerRecovery` in `CoreIntent`, `INTENT_KINDS` and `DESTRUCTIVE_INTENT_KINDS` (now 10), `peerRecovery` on the conversation summary, and the `peer_recovering` reject reason.
+- UI copy keys `recoveryCopy.contact` and the banner; the send-refusal copy.
+- Outgoing queue while a recovery is pending (follow-up to D79).
+- Section 10 metadata descriptor line; threat-model line near T-041; requirement traceability; a logical schema row for the veto kind.
+- Dossier integration test once the recovering-device flow exists.
