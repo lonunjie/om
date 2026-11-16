@@ -34,7 +34,7 @@ test("groups: accept an invitation, talk, add and leave; create a group and its 
     const id = dev.sim.list(dev.ctx())[0]?.conversationId ?? "";
     dev.sim.simulateMessage(dev.ctx(), id, "acct-c-ana", "welcome Maya");
   });
-  await expect(page.getByText("welcome Maya", { exact: true })).toBeVisible();
+  await expect(page.getByRole("log", { name: "Group messages" }).getByText("welcome Maya", { exact: true })).toBeVisible(); // the list preview shows it too
   await shot(page, "31-group-chat");
 
   await page.getByRole("button", { name: /^People in Book club/ }).click();

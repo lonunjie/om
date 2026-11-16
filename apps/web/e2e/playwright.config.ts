@@ -18,6 +18,8 @@ const PROD_APP = "http://localhost:4181";
 const live = process.env["OM_LIVE_RELAY"] === "1";
 const cameraArgs = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", `--use-file-for-fake-video-capture=${writeQrY4m()}`];
 
+const OTHER_ENGINE_IGNORE = /(chromium|live-relay|live-invite)\.spec\.ts/;
+
 export default defineConfig({
   testDir: ".",
   testMatch: "*.spec.ts",
@@ -51,8 +53,11 @@ export default defineConfig({
   ],
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"], launchOptions: { args: cameraArgs } }, testIgnore: /(cross|live-relay|live-invite)\.spec\.ts/ },
-    { name: "firefox", use: { ...devices["Desktop Firefox"] }, testMatch: /(cross|core|relay|invite-link|navigation|backup|backup-service|device-link|omnibar|attachments|search|lock|relay-setup|landing)\.spec\.ts/ },
-    { name: "webkit", use: { ...devices["Desktop Safari"] }, testMatch: /(cross|core|relay|invite-link|navigation|backup|backup-service|device-link|omnibar|attachments|search|lock|relay-setup|landing)\.spec\.ts/ },
+    // Firefox and WebKit run every hermetic spec except the Chromium-only ones (the fake camera device and the Chromium service-worker checks are Chromium features); ADR-0172 puts macOS Safari and Firefox in the first-release matrix.
+    { name: "firefox", use: { ...devices["Desktop Firefox"] }, testIgnore: OTHER_ENGINE_IGNORE },
+    // WebKit alone gets one retry: on a loaded macOS host it intermittently times out a test that passes alone (lock, the long three-person Rooms run,
+    // peer-recovery confirm); every such test passed in isolation and on Chromium and Firefox. A retried pass is reported as "flaky", never hidden.
+    { name: "webkit", use: { ...devices["Desktop Safari"] }, testIgnore: OTHER_ENGINE_IGNORE, retries: 1 },
     ...(live ? [{ name: "live-chromium", use: { ...devices["Desktop Chrome"] }, testMatch: /live-(relay|invite)\.spec\.ts/, timeout: 240_000 }] : []),
   ],
 });

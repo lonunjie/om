@@ -1,4 +1,13 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { expect, type Page } from "@playwright/test";
+
+const axeSource = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
+
+/** Loads axe into the page through the automation protocol: WebKit enforces the page's Trusted Types policy even with bypassCSP, which rejects a script tag. */
+export async function injectAxe(page: Page): Promise<void> {
+  await page.evaluate(`${readFileSync(axeSource, "utf8")}\n;undefined`);
+}
 
 export const BUNDLE_URL = "http://localhost:4175";
 

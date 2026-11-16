@@ -1,12 +1,10 @@
 // Group protection levels on the dev harness (the harness plays the other people): create a group with Hardened, then tighten and loosen
 // its settings, see the notices and the honest states, at phone and desktop width, with axe checks. The shipped Core's own behaviour is
 // covered by the Rust tests; this is the screens.
-import { createRequire } from "node:module";
 import { expect, test, type Page } from "@playwright/test";
-import { noPasskeys, onboard } from "./helpers.ts";
+import { injectAxe, noPasskeys, onboard } from "./helpers.ts";
 import { shot } from "./invite-flow.ts";
 
-const axeSource = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
 test.use({ bypassCSP: true }); // only so the test can inject axe; the app's own policy is covered elsewhere
 
 interface DevGroups {
@@ -21,7 +19,7 @@ interface DevGroups {
 }
 
 async function axeClean(page: Page, selector: string): Promise<void> {
-  await page.addScriptTag({ path: axeSource });
+  await injectAxe(page);
   const violations = await page.evaluate(async (sel) => {
     const axe = (globalThis as unknown as { axe: { run: (el: Element, o: unknown) => Promise<{ violations: { id: string; help: string }[] }> } }).axe;
     const el = document.querySelector(sel);

@@ -1,11 +1,9 @@
 // A contact recovering their account (ADR-0190) on the dev harness, at phone and desktop widths: the one calm banner, "This isn't them",
 // the Hardened-or-Maximum "Yes, it's them" with its consent words, and the honest send refusal. The harness plays Core's side of it.
-import { createRequire } from "node:module";
 import { expect, test, type Page } from "@playwright/test";
-import { noPasskeys, onboard } from "./helpers.ts";
+import { injectAxe, noPasskeys, onboard } from "./helpers.ts";
 import { shot } from "./invite-flow.ts";
 
-const axeSource = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
 test.use({ bypassCSP: true }); // only so the test can inject axe; the app's own policy is covered elsewhere
 
 const SIZES = [{ name: "phone", width: 390, height: 780 }, { name: "desktop", width: 1280, height: 800 }] as const;
@@ -25,7 +23,7 @@ const settled = (page: Page): Promise<void> => page.evaluate(async () => {
 
 /** axe over the whole conversation, colour contrast included (only a real browser computes it), in the light and the dark appearance. */
 async function noViolations(page: Page): Promise<void> {
-  await page.addScriptTag({ path: axeSource });
+  await injectAxe(page);
   for (const scheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: scheme });
     await settled(page);

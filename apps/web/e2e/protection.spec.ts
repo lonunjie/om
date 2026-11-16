@@ -1,18 +1,16 @@
 // Settings > Protection on the real Core (om_wasm.wasm): the person's own level, at phone and desktop widths. Tightening applies at once,
 // loosening names what changes and needs its own confirmation, and the choice is still there after the app is reopened.
-import { createRequire } from "node:module";
 import { expect, test, type Page } from "@playwright/test";
-import { noPasskeys, onboard, reopen } from "./helpers.ts";
+import { injectAxe, noPasskeys, onboard, reopen } from "./helpers.ts";
 import { shot } from "./invite-flow.ts";
 
-const axeSource = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
 test.use({ baseURL: "http://localhost:4176", bypassCSP: true }); // bypassCSP only so the test can inject axe
 
 const SIZES = [{ name: "phone", width: 390, height: 780 }, { name: "desktop", width: 1280, height: 800 }] as const;
 
 /** axe over the page with colour contrast, in the light and dark appearance, once entrance motion has settled. */
 async function noViolations(page: Page): Promise<void> {
-  await page.addScriptTag({ path: axeSource });
+  await injectAxe(page);
   for (const scheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: scheme });
     await page.evaluate(async () => { await Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))); });
