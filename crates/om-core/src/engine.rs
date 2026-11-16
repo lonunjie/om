@@ -1577,6 +1577,27 @@ impl<R: RngCore + CryptoRng> Core<R> {
         })
     }
 
+    /// The recovering device pushes a `RecoveryNotice` for `signed_request` to every active contact over the ordinary
+    /// sealed 1:1 deposit (ADR-0190 3.1). Returns how many were queued; the caller repeats it on the resend schedule.
+    pub fn recovery_send_notices(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        signed_request: &[u8],
+        successor: Option<&crate::recovery::SuccessorBundle>,
+    ) -> Result<(usize, Step), CoreError> {
+        self.slot(ctx)?;
+        let (n, commit) = self.txn(&ctx.profile_id, |tx| {
+            Ok(tx.send_recovery_notices(signed_request, successor))
+        })?;
+        Ok((
+            n,
+            Step {
+                commit,
+                handle: None,
+            },
+        ))
+    }
+
     /// Credit the host's durable monotonic reading to every pending request (call it regularly and at start), drop
     /// stale ones and apply a completion whose delay has run.
     pub fn recovery_tick(
@@ -1646,6 +1667,28 @@ impl<R: RngCore + CryptoRng> Core<R> {
             .ok_or(CoreError::Invalid("no device"))?;
         let bytes = crate::crypto::cbor::encode(&dev.to_cbor());
         Ok(crate::crypto::hex(&crate::crypto::sha256(&[&bytes])))
+    }
+
+    /// TEST ONLY: hand a `KIND_ACS_UPDATE` payload (CBOR) to the head-update path of conversation `conversation_id`, as
+    /// if a verified session had delivered it (see `Tx::debug_acs_update`).
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_acs_update(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        conversation_id: &str,
+        payload: &[u8],
+    ) -> Result<(bool, Step), CoreError> {
+        self.slot(ctx)?;
+        let (ok, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.debug_acs_update(conversation_id, payload)
+        })?;
+        Ok((
+            ok,
+            Step {
+                commit,
+                handle: None,
+            },
+        ))
     }
 
     /// TEST ONLY: see `Tx::debug_link_messaging_device`.
@@ -1850,7 +1893,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                             .get(conversation_id)
                             .ok_or(CoreError::NotFound("conversation"))?;
                         Ok(to(&ConversationView {
-                            summary: summary(rel),
+                            summary: summary(rel, &st.app),
                             timeline: rel
                                 .messages
                                 .iter()
@@ -1983,7 +2026,7 @@ mod erased {
     }
 }
 
-fn summary(r: &Relationship) -> ConversationSummary {
+fn summary(r: &Relationship, app: &AppState) -> ConversationSummary {
     let mut notices = vec![];
     if r.integrity_failures > 0 {
         notices.push(SecurityNotice {
@@ -2003,6 +2046,7 @@ fn summary(r: &Relationship) -> ConversationSummary {
         display_name: r.display_name.clone(),
         last_message_at: r.messages.iter().rev().find(|m| !m.lane).map(|m| m.sent_at),
         notices,
+        peer_recovery: peer_recovery_view(r, app),
         relationship: match r.state {
             RelState::AwaitingAcceptance => RelationshipStateCode::AwaitingAcceptance,
             RelState::AcceptedUnbound => RelationshipStateCode::AcceptedUnbound,
@@ -2010,6 +2054,33 @@ fn summary(r: &Relationship) -> ConversationSummary {
             RelState::Active => RelationshipStateCode::Active,
         },
     }
+}
+
+/// The tracked recovery to show for a relationship: the live one, else the latest that ended.
+fn peer_recovery_view(r: &Relationship, app: &AppState) -> Option<PeerRecoveryView> {
+    let rec = r
+        .peer_recovery
+        .iter()
+        .rev()
+        .find(|x| x.is_live())
+        .or_else(|| r.peer_recovery.last())?;
+    let policy = crate::crypto::unhex(&rec.policy)
+        .ok()
+        .and_then(|b| crate::recovery::RecoveryPolicy::from_body(&b).ok())?;
+    const DAY_MS: u64 = 86_400_000;
+    let left_ms = (policy.delay_seconds * 1000).saturating_sub(rec.obs.credited_ms);
+    let confirm = !matches!(
+        app.privacy_level,
+        None | Some(PrivacyPolicyLevel::Recommended)
+    );
+    Some(PeerRecoveryView {
+        request_id: rec.obs.digest.clone(),
+        state: rec.state,
+        days_left: left_ms.div_ceil(DAY_MS),
+        can_decline: rec.is_live(),
+        needs_confirm: confirm && rec.state == crate::state::PeerRecoveryState::Ready,
+        notify_on_completion: policy.notify_contacts_on_completion,
+    })
 }
 
 fn timeline_item(m: &Msg, offers: &BTreeMap<Hex, DirectOfferRec>) -> TimelineItem {
@@ -2050,6 +2121,7 @@ fn restored_summary(r: &RestoredChat) -> ConversationSummary {
         display_name: r.display_name.clone(),
         last_message_at: r.messages.last().map(|m| m.sent_at),
         notices: vec![],
+        peer_recovery: None,
         relationship: RelationshipStateCode::Restored,
     }
 }
@@ -2098,7 +2170,7 @@ fn conversation_list(st: &ProfileState) -> Vec<ConversationSummary> {
                     .find(|m| !m.lane)
                     .map(|m| m.sent_at)
                     .unwrap_or(r.created_at),
-                summary(r),
+                summary(r, &st.app),
             )
         })
         .collect();

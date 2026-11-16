@@ -814,6 +814,21 @@ impl Runtime {
         self.settle(&step);
     }
 
+    /// The recovering device's `RecoveryNotice` push (see `Core::recovery_send_notices`); returns how many were queued.
+    pub fn recovery_send_notices(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        signed_request: &[u8],
+        successor: Option<&crate::recovery::SuccessorBundle>,
+    ) -> usize {
+        let (n, step) = self
+            .core
+            .recovery_send_notices(ctx, signed_request, successor)
+            .expect("send recovery notices");
+        self.settle(&step);
+        n
+    }
+
     pub fn recovery_tick(&mut self, ctx: &ProfileExecutionContext, mono: &MonotonicSample) {
         let step = self.core.recovery_tick(ctx, mono).expect("recovery tick");
         self.settle(&step);

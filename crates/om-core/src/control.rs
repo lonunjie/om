@@ -985,6 +985,121 @@ pub fn verify_chain_with(
     Ok(head)
 }
 
+/// A recovery link the verifier cannot accept yet: it has no evidence here, or its own interval has not run
+/// (ADR-0190 section 8). `index` is the position of the link in the chain that was walked.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PendingLink {
+    pub index: usize,
+    /// `Acs::hash()` of the recovery successor.
+    pub child_hash: [u8; 32],
+}
+
+/// What a peer's chain carries about one recovery link so another verifier can replay it (ADR-0190 3.2): the policy,
+/// the rotated policy and the request. It never holds seconds or any time.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RecoveryDossierEntry {
+    pub child_hash: [u8; 32],
+    pub policy: Vec<u8>,
+    pub next_policy: Vec<u8>,
+    pub request: Vec<u8>,
+}
+
+/// Does `signed` carry a signature of role `recovery` (so it can only be a recovery link, never an ordinary step)?
+pub fn has_recovery_signature(signed: &[u8]) -> bool {
+    let Ok(v) = cbor::decode(signed) else {
+        return false;
+    };
+    v.get(2).and_then(|e| e.a()).is_ok_and(|es| {
+        es.iter()
+            .any(|e| e.get(2).and_then(|r| r.u()).ok() == Some(ROLE_RECOVERY))
+    })
+}
+
+/// The dossier entries for the recovery links of `chain` that this verifier holds evidence for. Never includes seconds.
+pub fn dossier_of(chain: &[Vec<u8>], links: &[RecoveryLinkEvidence]) -> Vec<RecoveryDossierEntry> {
+    chain
+        .iter()
+        .filter_map(|s| {
+            let h = Acs::from_body(cbor::decode(s).ok()?.get(1).ok()?.b().ok()?)
+                .ok()?
+                .hash();
+            let l = links.iter().find(|l| l.child_hash == h)?;
+            Some(RecoveryDossierEntry {
+                child_hash: h,
+                policy: l.policy.clone(),
+                next_policy: l.next_policy.clone(),
+                request: l.request.clone(),
+            })
+        })
+        .collect()
+}
+
+/// [`verify_chain_with`] that stops, instead of failing, at the first recovery link it cannot accept: it returns the
+/// last head before that link and what is missing (ADR-0190 8). Any other failure is an error, exactly as in
+/// [`verify_chain_with`]; a link with evidence that is a veto or invalid is also an error.
+pub fn verify_chain_partial(
+    chain: &[Vec<u8>],
+    credentials: &[Vec<u8>],
+    links: &[RecoveryLinkEvidence],
+) -> Result<(Acs, Option<PendingLink>), Error> {
+    let (first, rest) = chain
+        .split_first()
+        .ok_or(Error::Binding("acs: empty chain"))?;
+    if rest.len() > 64 {
+        return Err(Error::Binding("acs: chain too long"));
+    }
+    let head = verify_genesis_in(first, credentials)?;
+    verify_extension_partial(head, rest, 1, credentials, links)
+}
+
+/// The walk of [`verify_chain_partial`] from an already trusted `head` over the states after it (`offset` is the
+/// index of `rest[0]` in the whole chain, for [`PendingLink::index`]).
+pub fn verify_extension_partial(
+    mut head: Acs,
+    rest: &[Vec<u8>],
+    offset: usize,
+    credentials: &[Vec<u8>],
+    links: &[RecoveryLinkEvidence],
+) -> Result<(Acs, Option<PendingLink>), Error> {
+    for (i, s) in rest.iter().enumerate() {
+        let child_hash = Acs::from_body(cbor::decode(s)?.get(1)?.b()?)?.hash();
+        let pending = Ok((
+            head.clone(),
+            Some(PendingLink {
+                index: offset + i,
+                child_hash,
+            }),
+        ));
+        head = match links.iter().find(|l| l.child_hash == child_hash) {
+            None => match verify_successor(&head, s, credentials) {
+                Ok(c) => c,
+                Err(_) if has_recovery_signature(s) => return pending,
+                Err(e) => return Err(e),
+            },
+            Some(l) => {
+                let policy = RecoveryPolicy::from_body(&l.policy)?;
+                let next = RecoveryPolicy::from_body(&l.next_policy)?;
+                match verify_recovery_successor(
+                    &head,
+                    s,
+                    credentials,
+                    &policy,
+                    &next,
+                    &l.request,
+                    &RecoveryObservation {
+                        elapsed_seconds: l.elapsed_seconds,
+                        vetoes: &[],
+                    },
+                )? {
+                    RecoveryVerdict::Complete { child, .. } => child,
+                    RecoveryVerdict::Pending { .. } => return pending,
+                }
+            }
+        };
+    }
+    Ok((head, None))
+}
+
 /// The genesis is verified against the credentials that exist at its generation: only the ones it commits to.
 fn verify_genesis_in(signed: &[u8], credentials: &[Vec<u8>]) -> Result<Acs, Error> {
     let body = Acs::from_body(cbor::decode(signed)?.get(1)?.b()?)?;

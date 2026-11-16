@@ -39,7 +39,7 @@ pub(crate) fn is_stale(head: &Acs, policy: &RecoveryPolicy, req: &RecoveryReques
 }
 
 /// Credit one host reading to a record (see the module doc).
-fn credit(rec: &mut RecoveryObsRec, mono: &MonotonicSample) {
+pub(super) fn credit(rec: &mut RecoveryObsRec, mono: &MonotonicSample) {
     let session = hex(&mono.boot_session);
     if session == rec.boot_session {
         if mono.elapsed_ms > rec.last_mono_ms {
@@ -54,17 +54,17 @@ fn credit(rec: &mut RecoveryObsRec, mono: &MonotonicSample) {
     }
 }
 
-fn mono_ok(m: &MonotonicSample) -> bool {
+pub(super) fn mono_ok(m: &MonotonicSample) -> bool {
     (1..=32).contains(&m.boot_session.len())
 }
 
 /// A live controller of `head`: in `control`, not quarantined.
-fn live(head: &Acs, id: &[u8; 16]) -> bool {
+pub(super) fn live(head: &Acs, id: &[u8; 16]) -> bool {
     head.control.contains(id) && !head.quarantined.contains(id)
 }
 
 /// The signing key of controller `id`, but only the credential `head` commits to for it.
-fn committed_key(head: &Acs, creds: &[Vec<u8>], id: &[u8; 16]) -> Option<Vec<u8>> {
+pub(super) fn committed_key(head: &Acs, creds: &[Vec<u8>], id: &[u8; 16]) -> Option<Vec<u8>> {
     creds
         .iter()
         .filter_map(|c| Credential::from_body(c).ok())
@@ -321,6 +321,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             self.try_complete(&d);
         }
+        self.peer_tick(mono);
         Ok(())
     }
 
@@ -488,6 +489,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             r.own_veto = true;
             r.state = RecoveryObsState::Vetoed;
         }
+        self.push_veto_to_contacts(&signed);
         self.enqueue(
             NetCall::RecoveryVetoFanout { bytes: signed },
             Purpose::RecoveryFanout,
@@ -544,19 +546,33 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 }
 
-enum Held {
+pub(super) enum Held {
     Complete,
     Pending,
 }
 
 /// Run `verify_recovery_successor` over a held successor with this verifier's own observation.
-fn verify_held(
+pub(super) fn verify_held(
     head: &Acs,
     creds: &[Vec<u8>],
     policy: &RecoveryPolicy,
     rec: &RecoveryObsRec,
     held: &RecoverySuccessorRec,
 ) -> Result<Held, ()> {
+    match verify_successor_for(head, creds, policy, rec, held)? {
+        control::RecoveryVerdict::Complete { .. } => Ok(Held::Complete),
+        control::RecoveryVerdict::Pending { .. } => Ok(Held::Pending),
+    }
+}
+
+/// The verdict of `verify_recovery_successor` for a held successor, with this verifier's own interval and vetoes.
+pub(super) fn verify_successor_for(
+    head: &Acs,
+    creds: &[Vec<u8>],
+    policy: &RecoveryPolicy,
+    rec: &RecoveryObsRec,
+    held: &RecoverySuccessorRec,
+) -> Result<control::RecoveryVerdict, ()> {
     let (Ok(child), Ok(next), Ok(cred), Ok(request)) = (
         unhex(&held.child),
         unhex(&held.next_policy),
@@ -571,7 +587,7 @@ fn verify_held(
     if !all.contains(&cred) {
         all.push(cred);
     }
-    match control::verify_recovery_successor(
+    control::verify_recovery_successor(
         head,
         &child,
         &all,
@@ -582,9 +598,6 @@ fn verify_held(
             elapsed_seconds: rec.credited_ms / 1000,
             vetoes: &vetoes,
         },
-    ) {
-        Ok(control::RecoveryVerdict::Complete { .. }) => Ok(Held::Complete),
-        Ok(control::RecoveryVerdict::Pending { .. }) => Ok(Held::Pending),
-        Err(_) => Err(()),
-    }
+    )
+    .map_err(|_| ())
 }

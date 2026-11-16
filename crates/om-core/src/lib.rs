@@ -39,5 +39,5 @@ pub mod runtime;
 pub use engine::Core;
 pub use flows::{
     CONFIRMATION_TTL_MS, FIRST_CONTACT_MAX_CHAIN, FIRST_CONTACT_PER_DAY, FIRST_CONTACT_PER_HOUR,
-    HOUR_MS, request_key_digest,
+    HOUR_MS, MAX_NOTICE_BYTES, build_notice, request_key_digest,
 };

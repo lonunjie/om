@@ -25,7 +25,9 @@ mod blobs;
 mod ceremony;
 mod group_lane;
 mod multi;
+mod recovery_peer;
 mod recovery_watch;
+
 pub(crate) use blobs::{attachment_views, presentation, rec_ref};
 use ceremony::KIND_ENROLLED;
 pub use ceremony::{
@@ -33,6 +35,8 @@ pub use ceremony::{
     poll_targets as ceremony_poll_targets, request_view,
 };
 use multi::{Inner, KIND_ACS_REQUEST, KIND_ACS_UPDATE};
+use recovery_peer::KIND_RECOVERY_VETO;
+pub use recovery_peer::{MAX_NOTICE_BYTES, build_notice};
 pub(crate) use recovery_watch::request_views;
 
 pub const INVITE_TTL_MS: u64 = 7 * 24 * 60 * 60 * 1000;
@@ -857,6 +861,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             | IntentBody::StartRecovery { .. } => unsupported,
             IntentBody::VetoRecovery { request_id, .. } => self.veto_recovery(request_id),
             IntentBody::ConfirmRecovery { request_id, .. } => self.confirm_recovery(request_id),
+            IntentBody::DeclinePeerRecovery {
+                conversation_id,
+                request_id,
+                ..
+            } => self.decline_peer_recovery(conversation_id, request_id),
+            IntentBody::ConfirmPeerRecovery {
+                conversation_id,
+                request_id,
+                ..
+            } => self.confirm_peer_recovery(conversation_id, request_id),
         };
         let msg = None;
         self.record(op, kind, outcome, msg);
@@ -1168,7 +1182,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         else {
             return rejected(RejectReason::StaleState);
         };
-        let payload = cbor::encode(&V::M(vec![
+        let dossier = self.dossier_value(&chain);
+        let mut fields = vec![
             (0, V::U(KIND_ACCEPT)),
             (1, my_route.to_v()),
             (2, V::B(record)),
@@ -1177,7 +1192,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (5, V::A(chain.into_iter().map(V::B).collect())),
             (6, V::A(creds.into_iter().map(V::B).collect())),
             (7, V::B(genesis)),
-        ]));
+        ];
+        if !dossier.is_empty() {
+            // ADR-0190 3.2 / ruling 1: the recovery links' policy, rotated policy and request. No time.
+            fields.push((8, V::A(dossier)));
+        }
+        let payload = cbor::encode(&V::M(fields));
         let boot = PeerDelivery {
             public: intro.reply_key.clone(),
             bootstrap: true,
@@ -1242,6 +1262,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 head_dirty: false,
                 head_sent_ms: 0,
                 multi: Multi::default(),
+                peer_recovery: vec![],
+                peer_links: vec![],
             },
         );
         self.st.app.intros.remove(request_id);
@@ -1284,6 +1306,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         if !text_ok {
             self.record(op, kind, rejected(RejectReason::Invalid), None);
+            return Ok(());
+        }
+        // A contact recovering their account: refuse honestly, before anything is encrypted or queued (ADR-0190 5).
+        // The pinned head does not list their new device, and a message is never encrypted to an unlisted device.
+        if rel.peer_recovery.iter().any(PeerRecoveryRec::is_live) {
+            self.record(op, kind, rejected(RejectReason::PeerRecovering), None);
             return Ok(());
         }
         // Active: seal and send now. Not yet bound or still establishing (ADR-0181): queue the finished event and send
@@ -2288,6 +2316,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 | Purpose::FetchDeviceKeys { .. }
                 | Purpose::DepositKeys { .. }
                 | Purpose::DepositAcs { .. }
+                | Purpose::DepositRecoveryNotice { .. }
                 | Purpose::DepositRelaySet { .. }
                 | Purpose::GrantKeyFetch { .. }
                 | Purpose::RecoveryFanout
@@ -2448,6 +2477,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             Purpose::DepositKeys { .. }
             | Purpose::DepositAcs { .. }
+            | Purpose::DepositRecoveryNotice { .. }
             | Purpose::DepositRelaySet { .. }
             | Purpose::GrantKeyFetch { .. }
             | Purpose::DepositBind { .. } => {}
@@ -2705,6 +2735,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 head_dirty: false,
                 head_sent_ms: 0,
                 multi: Multi::default(),
+                peer_recovery: vec![],
+                peer_links: vec![],
             },
         );
         self.enqueue(
@@ -3129,7 +3161,17 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             if !self.hold(conv, wrapper) {
                 self.count_failure(conv);
             }
-            self.ask_head(conv);
+            // While a recovery of the peer's account is tracked nothing is asked of the new device's side
+            // (ADR-0190 section 5): the contact's own record decides, not a refresh request.
+            let pending = self
+                .st
+                .app
+                .relationships
+                .get(conv)
+                .is_some_and(|r| r.peer_recovery.iter().any(PeerRecoveryRec::is_live));
+            if !pending {
+                self.ask_head(conv);
+            }
             return;
         }
         let accepted = verdict == Inner::Accepted;
@@ -3162,7 +3204,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return Inner::Rejected;
         };
         let env_id = hex(&crypto::sha256(&[env]));
-        if rel.seen_envelopes.contains(&env_id) {
+        // A notice is never deduplicated by its inner hash: a resend of the same evidence is how a contact that lost
+        // its record restarts (ADR-0190 section 6). Its own record makes a repeat harmless (one digest, one record).
+        if !recovery_peer::is_notice_inner(env) && rel.seen_envelopes.contains(&env_id) {
             return Inner::Accepted; // the same inner envelope under a fresh wrapper (sender retry): not an attack, no effect
         }
         let unbound_inviter =
@@ -3187,6 +3231,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 r.seen_envelopes.push(env_id);
             }
             return ok.into();
+        }
+        // ADR-0190 3.1: a RecoveryNotice is the inner plaintext in place of a session envelope (first entry `0: 34`).
+        // It authenticates by its own contents, needs no session and touches no cryptographic state.
+        if recovery_peer::is_notice_inner(env) {
+            return self.on_recovery_notice(conv, env);
         }
         let Ok(peer_account) = h32(&rel.peer_account_id) else {
             return Inner::Rejected;
@@ -3271,6 +3320,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             // Head traffic is between accounts: a self-sync device has no head to give us (our own head is ours).
             KIND_ACS_UPDATE => !sibling && self.on_acs_update(conv, &p),
             KIND_ACS_REQUEST => !sibling && self.on_acs_request(conv, &p),
+            KIND_RECOVERY_VETO => !sibling && self.on_peer_veto(conv, &p),
             KIND_ENROLLED => sibling && self.on_enrolled(&p),
             events::OBJECT_TYPE => self.on_event(conv, &pt, sender, sibling),
             _ => true, // unknown payload kinds from a newer client are ignored, not fatal
@@ -3296,12 +3346,17 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     fn first_contact_head(
         chain: Option<Vec<Vec<u8>>>,
         creds: Option<Vec<Vec<u8>>>,
+        dossier: Option<&V>,
     ) -> Option<(Acs, Vec<Vec<u8>>)> {
         let (chain, creds) = (chain?, creds?);
         if chain.is_empty() || chain.len() > FIRST_CONTACT_MAX_CHAIN {
             return None;
         }
-        let head = control::verify_chain(&chain, &creds).ok()?;
+        // ADR-0190 ruling 1: a first contact with an already-recovered account follows the normal first-contact
+        // rules (no earlier trust to protect), so a recovery link replays from the dossier that rides with the chain.
+        // Without a dossier a recovery link has no policy to verify against and the chain is refused, as before.
+        let links = recovery_peer::first_contact_evidence(&recovery_peer::parse_dossier(dossier)?)?;
+        let head = control::verify_chain_with(&chain, &creds, &links).ok()?;
         Some((head, creds))
     }
 
@@ -3330,7 +3385,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return false;
         };
         let Some((head, creds)) =
-            Self::first_contact_head(bytes_list(p.get(5)), bytes_list(p.get(6)))
+            Self::first_contact_head(bytes_list(p.get(5)), bytes_list(p.get(6)), p.opt(8))
         else {
             return false;
         };
@@ -3425,7 +3480,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return false;
         };
         let Some((head, creds)) =
-            Self::first_contact_head(bytes_list(p.get(3)), bytes_list(p.get(4)))
+            Self::first_contact_head(bytes_list(p.get(3)), bytes_list(p.get(4)), p.opt(8))
         else {
             return false;
         };
@@ -3548,7 +3603,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .device
             .as_ref()
             .map(|d| intro::sign_binding(&d.signer, &d.device_id, body, rnd))?;
-        let payload = cbor::encode(&V::M(vec![
+        let dossier = self.dossier_value(&chain);
+        let mut fields = vec![
             (0, V::U(KIND_BIND)),
             (1, V::B(record)),
             (2, V::B(binding)),
@@ -3557,7 +3613,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (5, V::B(fetch_cap.to_vec())),
             (6, V::T(key_service)),
             (7, V::B(genesis)),
-        ]));
+        ];
+        if !dossier.is_empty() {
+            fields.push((8, V::A(dossier)));
+        }
+        let payload = cbor::encode(&V::M(fields));
         let route = rel.peer_relays.primary().cloned()?;
         let wrapper = self.seal_to(to, &route, &payload).ok()?;
         Some((wrapper, route, grant))

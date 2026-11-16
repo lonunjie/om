@@ -40,8 +40,14 @@ impl From<bool> for Inner {
     }
 }
 
+/// A verified step of a peer's head that nothing has pinned yet (see `peer_plan`).
+pub(super) struct PeerPlan {
+    pub head: Acs,
+    pub kept: Vec<Vec<u8>>,
+}
+
 /// The state ids (hashes) of a signed chain, in order, or `None` when any state is malformed.
-fn chain_states(chain: &[Vec<u8>]) -> Option<Vec<Acs>> {
+pub(super) fn chain_states(chain: &[Vec<u8>]) -> Option<Vec<Acs>> {
     chain
         .iter()
         .map(|s| {
@@ -63,7 +69,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return true; // the same wrapper again: already waiting
         }
         if rel.held.len() >= MAX_HELD {
-            return false;
+            // While a recovery is tracked a full list is not a peer integrity failure (ADR-0190 section 5).
+            return rel.peer_recovery.iter().any(|r| r.is_live());
         }
         rel.held.push(HeldWrapper {
             bytes,
@@ -118,6 +125,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (1, V::A(chain[start..].iter().cloned().map(V::B).collect())),
             (2, V::A(creds.into_iter().map(V::B).collect())),
         ];
+        let dossier = self.dossier_value(&chain[start..]);
+        if !dossier.is_empty() {
+            // One entry per recovery link in the chain that follows (ADR-0190 3.2). No seconds, no time.
+            fields.push((5, V::A(dossier)));
+        }
         if !intros.is_empty() {
             // Introductions of our other devices (field 4): decoded, so the receiver reads them as maps.
             let list = intros
@@ -218,6 +230,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         match self.peer_refresh(conv, &chain, &creds) {
             Some(changed) => {
+                self.observe_dossier(conv, p, &chain, &creds);
                 self.adopt_intros(conv, p);
                 if changed {
                     self.retry_held(conv);
@@ -256,8 +269,27 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             std::cmp::Ordering::Greater => {}
         }
         // The new head must descend from the pinned one: the pinned state is in the chain, and every later state is a
-        // verified successor of the one before it (signers checked against the PARENT's committed credentials).
+        // verified successor of the one before it (signers checked against the PARENT's committed credentials). A
+        // recovery link that this verifier has no evidence for ends the walk: the prefix is adopted, the link is
+        // handled by the contact-side recovery path (ADR-0190 section 8), and never fails the refresh.
         let at = states.iter().position(|s| s.hash() == old_hash)?;
+        let plan = Self::peer_plan(&rel, &chain[at + 1..], creds)?;
+        if plan.head.hash() == old_hash {
+            return Some(false);
+        }
+        self.peer_commit(conv, plan)?;
+        Some(true)
+    }
+
+    /// The head and credentials a contact would pin after `rest` (the states after the pinned head, in order), with
+    /// nothing changed yet. A recovery link without evidence ends the walk at the last head before it.
+    pub(super) fn peer_plan(
+        rel: &Relationship,
+        rest: &[Vec<u8>],
+        creds: &[Vec<u8>],
+    ) -> Option<PeerPlan> {
+        let old = Acs::from_body(&hb(&rel.peer_acs_body).ok()?).ok()?;
+        let account = h32(&rel.peer_account_id).ok()?;
         let mut all: Vec<Vec<u8>> = rel
             .peer_credentials
             .iter()
@@ -268,10 +300,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 all.push(c.clone());
             }
         }
-        let mut head = old;
-        for signed in &chain[at + 1..] {
-            head = control::verify_successor(&head, signed, &all).ok()?;
-        }
+        let (head, _) = control::verify_extension_partial(old, rest, 0, &all, &[]).ok()?;
         // Keep exactly the credentials the new head commits; one it does not commit never authenticates anyone.
         let kept: Vec<Vec<u8>> = all
             .into_iter()
@@ -285,6 +314,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 })
             })
             .collect();
+        Some(PeerPlan { head, kept })
+    }
+
+    /// Pin the planned head for the relationship (the one place a peer head is replaced).
+    pub(super) fn peer_commit(&mut self, conv: &str, plan: PeerPlan) -> Option<()> {
+        let PeerPlan { head, kept } = plan;
         let dev = self.st.device.as_mut()?;
         dev.trust_peer(head.body(), kept.clone()).ok()?;
         let r = self.st.app.relationships.get_mut(conv)?;
@@ -292,11 +327,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         r.peer_credentials = kept.iter().map(|c| hex(c)).collect();
         // A signer the new head no longer lists stops counting at once (K9).
         Self::refresh_peer_relays(r);
-        Some(true)
+        Some(())
     }
 
     /// The head was refreshed: process what waited for it, oldest first. A wrapper that is still unknown holds again.
-    fn retry_held(&mut self, conv: &str) {
+    pub(super) fn retry_held(&mut self, conv: &str) {
         let Some(rel) = self.st.app.relationships.get_mut(conv) else {
             return;
         };

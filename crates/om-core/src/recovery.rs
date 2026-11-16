@@ -151,7 +151,8 @@ impl RecoveryPolicy {
             ]),
             delay_seconds: DEFAULT_DELAY_SECONDS,
             rotate_custody_on_veto: false,
-            notify_contacts_on_completion: false,
+            // Ruling 4 of ADR-0190: contacts see the continuity notice RECOVERY_AND_BACKUP_POLICY section 1 describes.
+            notify_contacts_on_completion: true,
             rotation_epoch: Some(epoch),
         }
     }

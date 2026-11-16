@@ -42,6 +42,10 @@ pub enum RejectReason {
     /// One object is bigger than the store will take (an advertised limit, or `payload_too_large`). Said before
     /// anything is sent; an exact retry cannot succeed, so it is not retryable.
     TooLarge,
+    /// The contact is recovering their account (ADR-0190 section 5): nothing is sent to them until it finishes or ends,
+    /// because their new device is not yet one this verifier may encrypt to. Nothing is queued; the message is not
+    /// lost, it was never sent. Not retryable until the recovery ends.
+    PeerRecovering,
 }
 
 impl RejectReason {
@@ -329,6 +333,19 @@ pub enum IntentBody {
         request_id: String,
         confirmation: ConfirmationToken,
     },
+    /// "This isn't them" on a contact's recovery of their account (ADR-0190 section 4): ends that request for this
+    /// contact only, keeps the pinned head, tells no one. `request_id` is the request digest.
+    DeclinePeerRecovery {
+        conversation_id: ConversationId,
+        request_id: String,
+        confirmation: ConfirmationToken,
+    },
+    /// "Yes, it's them" once the wait is over (Hardened and Maximum Privacy need it before the contact accepts).
+    ConfirmPeerRecovery {
+        conversation_id: ConversationId,
+        request_id: String,
+        confirmation: ConfirmationToken,
+    },
     /// Ask Core for a single-use confirmation nonce bound to a destructive intent kind and its target (M2,
     /// ADR-0181 section 8). The nonce is read back with `Query::GetConfirmation`.
     IssueConfirmation {
@@ -338,7 +355,7 @@ pub enum IntentBody {
 }
 
 /// The destructive intent kinds that need a Core-issued confirmation (mirrors `DESTRUCTIVE_INTENT_KINDS`).
-pub const DESTRUCTIVE_KINDS: [&str; 8] = [
+pub const DESTRUCTIVE_KINDS: [&str; 10] = [
     "BlockPerson",
     "SuspendDevice",
     "ChangePrivacyPolicy",
@@ -347,6 +364,8 @@ pub const DESTRUCTIVE_KINDS: [&str; 8] = [
     "StartRecovery",
     "VetoRecovery",
     "ConfirmRecovery",
+    "DeclinePeerRecovery",
+    "ConfirmPeerRecovery",
 ];
 
 impl IntentBody {
@@ -384,6 +403,8 @@ impl IntentBody {
             IntentBody::StartRecovery { .. } => "StartRecovery",
             IntentBody::VetoRecovery { .. } => "VetoRecovery",
             IntentBody::ConfirmRecovery { .. } => "ConfirmRecovery",
+            IntentBody::DeclinePeerRecovery { .. } => "DeclinePeerRecovery",
+            IntentBody::ConfirmPeerRecovery { .. } => "ConfirmPeerRecovery",
             IntentBody::IssueConfirmation { .. } => "IssueConfirmation",
         }
     }
@@ -397,7 +418,9 @@ impl IntentBody {
             | IntentBody::RevokeDevice { device_id, .. } => Some(device_id.clone()),
             IntentBody::ApproveDeviceLink { request_id, .. }
             | IntentBody::VetoRecovery { request_id, .. }
-            | IntentBody::ConfirmRecovery { request_id, .. } => Some(request_id.clone()),
+            | IntentBody::ConfirmRecovery { request_id, .. }
+            | IntentBody::DeclinePeerRecovery { request_id, .. }
+            | IntentBody::ConfirmPeerRecovery { request_id, .. } => Some(request_id.clone()),
             IntentBody::ChangePrivacyPolicy { policy, .. } => Some(code(policy)),
             IntentBody::StartRecovery {
                 scope, custodian, ..
@@ -416,7 +439,9 @@ impl IntentBody {
             | IntentBody::RevokeDevice { confirmation, .. }
             | IntentBody::StartRecovery { confirmation, .. }
             | IntentBody::VetoRecovery { confirmation, .. }
-            | IntentBody::ConfirmRecovery { confirmation, .. } => Some(confirmation),
+            | IntentBody::ConfirmRecovery { confirmation, .. }
+            | IntentBody::DeclinePeerRecovery { confirmation, .. }
+            | IntentBody::ConfirmPeerRecovery { confirmation, .. } => Some(confirmation),
             _ => None,
         }
     }
@@ -588,6 +613,28 @@ pub struct ConversationSummary {
     pub last_message_at: Option<u64>,
     pub notices: Vec<SecurityNotice>,
     pub relationship: RelationshipStateCode,
+    /// The recovery of this person's account this contact is tracking, if any (ADR-0190 section 4). Omitted when
+    /// there is none, so existing readers are unaffected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peer_recovery: Option<PeerRecoveryView>,
+}
+
+/// What the conversation header needs to show one tracked recovery of the contact's account. No digest, epoch or
+/// policy text, and no time other than whole days left on THIS device's own interval.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeerRecoveryView {
+    /// Hex of the request digest: what `DeclinePeerRecovery` / `ConfirmPeerRecovery` name (Details only).
+    pub request_id: String,
+    pub state: crate::state::PeerRecoveryState,
+    /// Whole days left of this device's own interval (rounded up; 0 once it ran).
+    pub days_left: u64,
+    /// "This isn't them" is offered.
+    pub can_decline: bool,
+    /// The contact must confirm ("Yes, it's them") before this can finish: Ready on Hardened or Maximum.
+    pub needs_confirm: bool,
+    /// The account's policy asks that contacts see a completion notice (`notify_contacts_on_completion`).
+    pub notify_on_completion: bool,
 }
 
 /// Where a relationship is in first contact (`ACCEPTED_UNBOUND` until both bindings verify; ADR-0181).

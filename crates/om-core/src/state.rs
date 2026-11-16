@@ -486,6 +486,14 @@ pub struct Relationship {
     pub head_sent_ms: u64,
     #[serde(default)]
     pub multi: Multi,
+    /// Recoveries of the peer's account this contact is tracking (ADR-0190 section 4; at most two). Local, never sent.
+    /// Inert history after a restore from backup: a restore carries no relationship, so none of it is revived.
+    #[serde(default)]
+    pub peer_recovery: Vec<PeerRecoveryRec>,
+    /// Evidence for each recovery link of the peer's chain this verifier accepted, with THIS verifier's credited
+    /// seconds. Local: the dossier a verifier forwards never contains it (ADR-0190 section 8).
+    #[serde(default)]
+    pub peer_links: Vec<RecoveryLinkRec>,
 }
 
 /// A sealed wrapper held while the peer's control head is refreshed.
@@ -593,6 +601,10 @@ pub enum Purpose {
         conversation_id: String,
     },
     /// Our next signed RelaySet version with the delivery keys of its routes, sent inside the relationship.
+    /// A `RecoveryNotice` sealed to a contact's route (ADR-0190 3.1; no user operation owns it).
+    DepositRecoveryNotice {
+        conversation_id: String,
+    },
     DepositRelaySet {
         conversation_id: String,
     },
@@ -733,6 +745,10 @@ pub struct AppState {
     /// restricted recovery state (RECOVERY_AND_BACKUP_POLICY.md 10.3). Additive.
     #[serde(default)]
     pub recovery_join: Option<RecoveryJoinRec>,
+    /// This person's own privacy level, when set. Hardened and Maximum make a contact confirm a recovery of someone
+    /// else's account before accepting it; `None` is Recommended (ADR-0190 section 4). Additive.
+    #[serde(default)]
+    pub privacy_level: Option<crate::api::PrivacyPolicyLevel>,
     /// Ordinary groups (scope `groups`, ADR-0177): the head `GroupControlState` per ConversationID (hex). Additive:
     /// absent in older records.
     #[serde(default)]
@@ -865,6 +881,55 @@ pub struct RecoveryObsRec {
     #[serde(default)]
     pub successor: Option<RecoverySuccessorRec>,
     pub state: RecoveryObsState,
+}
+
+/// Where a contact stands on one recovery of the peer's account (ADR-0190 section 4).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PeerRecoveryState {
+    /// Valid evidence seen, this contact's own interval running, no veto.
+    Waiting,
+    /// The interval ran with no veto, but a step is missing: the successor, or this contact's own confirmation.
+    Ready,
+    /// Verified with this verifier's own interval: the pinned head is the successor.
+    Accepted,
+    /// A valid veto by a live controller was observed.
+    Vetoed,
+    /// The contact chose "This isn't them". Local only.
+    Declined,
+    /// The account moved on (the pinned head changed, the target was enrolled or revoked): dropped.
+    Stale,
+}
+
+impl PeerRecoveryRec {
+    /// Still running: `Waiting` or `Ready`.
+    pub fn is_live(&self) -> bool {
+        matches!(
+            self.state,
+            PeerRecoveryState::Waiting | PeerRecoveryState::Ready
+        )
+    }
+}
+
+/// The contact's own decision on a tracked recovery.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PeerDecision {
+    Declined,
+    Confirmed,
+}
+
+/// One tracked recovery of a contact's account, per relationship. `obs` is the verifier-local record (digest, raw
+/// request, first sighting, monotonic credit, vetoes, held successor); there is no time field anywhere else.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeerRecoveryRec {
+    pub obs: RecoveryObsRec,
+    /// The `RecoveryPolicy` body the request's parent state commits to (hex).
+    pub policy: Hex,
+    pub state: PeerRecoveryState,
+    #[serde(default)]
+    pub decision: Option<PeerDecision>,
 }
 
 /// Where a device-link ceremony is, on either side.

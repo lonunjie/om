@@ -218,7 +218,7 @@ fn notice_refuses_every_unassigned_key() {
             panic!("map")
         };
         m.push((Value::Uint(key), Value::Uint(1_790_208_000)));
-        m.sort_by(|a, b| encode(&a.0).cmp(&encode(&b.0)));
+        m.sort_by_key(|a| encode(&a.0));
         assert_eq!(
             reg.check("RecoveryNotice", &encode(&Value::Map(m)), false)
                 .map(|_: Value| ()),
