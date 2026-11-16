@@ -209,6 +209,21 @@ pub struct MemberView {
     pub roles: Vec<String>,
     /// `member` or `invited` (an invited person is shown, but is not in the group).
     pub status: &'static str,
+    /// The name this device's own contact list gives that account, as the 1:1 chat shows it (ADR-0189: no new metadata; a
+    /// name is never sent or taken from the Room). `None` when this device has no contact for the account.
+    pub display: Option<String>,
+    /// This account is the person using this device.
+    pub you: bool,
+}
+
+/// An account that appears in a Room's messages or notices but is not on its member list any more (removed or left), so
+/// that earlier lines keep the name this device's contact list gives it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FormerView {
+    pub account: String,
+    pub display: Option<String>,
+    pub you: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -216,6 +231,8 @@ pub struct MemberView {
 pub struct GroupDetail {
     pub summary: GroupSummary,
     pub people: Vec<MemberView>,
+    /// Accounts named in this Room's messages and notices that are not in `people`.
+    pub former: Vec<FormerView>,
     pub can_send: bool,
     pub protection: ProtectionView,
 }
@@ -1786,8 +1803,33 @@ impl AppState {
         Ok(())
     }
 
-    /// Answer a typed query.
+    /// The name this device's contact list gives an account, as the 1:1 chat shows it. An active contact wins over any other
+    /// relationship that names the same account. Never derived from the Room or a wire.
+    fn group_contact_name(&self, account: &str) -> Option<String> {
+        let mut found: Option<&crate::state::Relationship> = None;
+        for r in self.relationships.values() {
+            if r.peer_account_id != account || r.display_name.is_empty() {
+                continue;
+            }
+            if found.is_none()
+                || (r.state == RelState::Active
+                    && found.is_some_and(|f| f.state != RelState::Active))
+            {
+                found = Some(r);
+            }
+        }
+        found.map(|r| r.display_name.clone())
+    }
+
+    /// Answer a typed query. Without the caller's own account no member is marked `you`; hosts use [`Self::group_query_as`].
     pub fn group_query(&self, q: GroupQuery) -> R<GroupView> {
+        self.group_query_as(&[], q)
+    }
+
+    /// Answer a typed query for the person whose account is `me`.
+    pub fn group_query_as(&self, me: &[u8], q: GroupQuery) -> R<GroupView> {
+        let me = h(me);
+        let you = |a: &str| !me.is_empty() && a == me;
         let invited = |conv: &str| {
             self.group_invites
                 .values()
@@ -1836,6 +1878,8 @@ impl AppState {
                             .map(|d| d.display_name.clone())
                             .collect(),
                         status: "member",
+                        display: None,
+                        you: false,
                     })
                     .collect();
                 people.extend(
@@ -1845,11 +1889,50 @@ impl AppState {
                             account: i.peer_account.clone(),
                             roles: vec![],
                             status: "invited",
+                            display: None,
+                            you: false,
                         }),
                 );
+                for p in &mut people {
+                    p.you = you(&p.account);
+                    p.display = if p.you {
+                        None
+                    } else {
+                        self.group_contact_name(&p.account)
+                    };
+                }
+                let conv = h(&conversation_id);
+                let mut former: Vec<FormerView> = vec![];
+                let seen = self
+                    .group_msgs
+                    .get(&conv)
+                    .into_iter()
+                    .flatten()
+                    .map(|m| m.sender_account.clone())
+                    .chain(
+                        self.group_notices
+                            .get(&conv)
+                            .into_iter()
+                            .flatten()
+                            .map(|n| n.by_account.clone()),
+                    );
+                for a in seen {
+                    if people.iter().any(|p| p.account == a)
+                        || former.iter().any(|f| f.account == a)
+                    {
+                        continue;
+                    }
+                    let y = you(&a);
+                    former.push(FormerView {
+                        display: if y { None } else { self.group_contact_name(&a) },
+                        account: a,
+                        you: y,
+                    });
+                }
                 Ok(GroupView::Group(Box::new(GroupDetail {
                     summary: summary(&g),
                     people,
+                    former,
                     can_send: self.group_may_send(&conversation_id)
                         && !self.group_leaving.contains(&h(&conversation_id)),
                     protection: ProtectionView {

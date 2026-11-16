@@ -255,6 +255,25 @@ fn group_flow_runs_through_core_with_real_devices_and_survives_a_restart() {
     for party in &p {
         assert_eq!(party.texts(&conv), vec!["hello", "hi A"]);
     }
+    // Each member's view names the others as this device's own contact list does (ADR-0189: no new metadata), and marks the
+    // person using the device; nobody is named from the Room itself.
+    for (me, other, other_name) in [(0, 1, "Bob"), (1, 0, "Alice")] {
+        let GroupView::Group(d) = p[me].view(GroupQuery::Group {
+            conversation_id: conv.clone(),
+        }) else {
+            unreachable!()
+        };
+        let (mine, theirs): (Vec<_>, Vec<_>) = d.people.iter().partition(|m| m.you);
+        assert_eq!(mine.len(), 1, "{me}: exactly one member is you");
+        assert_eq!(mine[0].display, None);
+        assert_eq!(theirs.len(), 1);
+        assert_eq!(
+            theirs[0].display.as_deref(),
+            Some(other_name),
+            "{me} sees {other}"
+        );
+        assert!(d.former.is_empty());
+    }
     // Bob leaves: Alice's Core prepares the removal
     let rep = p[1]
         .dob(GroupIntent::Leave {

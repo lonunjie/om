@@ -107,7 +107,16 @@ export interface GroupMemberView {
   readonly roles: readonly string[];
   /** An invited person is shown, but is not in the group. */
   readonly status: "member" | "invited";
+  /**
+   * The name this device's own contact list gives that account, as the 1:1 chat shows it (ADR-0189: no new metadata; a name is
+   * never sent and never read from the Room). `null` when this device has no contact for the account: say "Someone", never guess.
+   */
+  readonly display: string | null;
+  /** This account is the person using this device (`display` is then `null`; the client says "You"). */
+  readonly you: boolean;
 }
+/** An account named in the Room's messages or notices that is no longer on its member list (removed or left), so older lines keep their name. */
+export interface GroupFormerView { readonly account: string; readonly display: string | null; readonly you: boolean }
 /** The Room's protection fields in codes (the client words them; `custom` shows "Custom"). */
 export interface GroupProtectionView {
   readonly profile: number;
@@ -121,6 +130,8 @@ export interface GroupProtectionView {
 export interface GroupDetailView {
   readonly summary: GroupSummaryView;
   readonly people: readonly GroupMemberView[];
+  /** Accounts that appear in this Room's messages and notices but are not in `people`. */
+  readonly former: readonly GroupFormerView[];
   /** False while a Commit is unmerged or this person is leaving. */
   readonly canSend: boolean;
   readonly protection: GroupProtectionView;

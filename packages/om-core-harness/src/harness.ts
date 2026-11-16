@@ -531,7 +531,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
     }),
   };
 
-  const groups = createGroupSim({ stateFor, hasRelationship: (ctx, id) => stateFor(ctx).conversations.has(id), clock });
+  const groups = createGroupSim({ stateFor, hasRelationship: (ctx, id) => stateFor(ctx).conversations.has(id), clock, contactName: (ctx, id) => stateFor(ctx).conversations.get(id)?.displayName ?? null });
 
   return {
     marker: HARNESS_MARKER,

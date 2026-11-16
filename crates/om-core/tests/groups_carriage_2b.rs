@@ -729,6 +729,30 @@ fn a_three_account_room_joins_on_the_heads_the_welcome_carries() {
         "Alice, Bob and Carol"
     );
     assert_eq!(ps[2].pending(), 0);
+    // Names come only from the device's own contact list: Carol knows Alice, but never met Bob, and the Room gives her no name
+    // for him (ADR-0189: no new metadata). Her own entry is `you`, with no name.
+    let named = |p: &P| -> Vec<(Option<String>, bool)> {
+        let mut v: Vec<_> = p
+            .detail(&conv)
+            .people
+            .into_iter()
+            .map(|m| (m.display, m.you))
+            .collect();
+        v.sort();
+        v
+    };
+    assert_eq!(
+        named(&ps[2]),
+        vec![(None, false), (None, true), (Some("Alice".into()), false)]
+    );
+    assert_eq!(
+        named(&ps[0]),
+        vec![
+            (None, true),
+            (Some("Bob".into()), false),
+            (Some("Carol".into()), false)
+        ]
+    );
 }
 
 /// A head that does not verify, or none at all, leaves the Welcome held until it expires.

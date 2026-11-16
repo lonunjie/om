@@ -65,6 +65,11 @@ export interface GroupSim extends GroupApi {
   simulateHeldOverflow(ctx: ProfileExecutionContext, invites: number, replies?: number): void;
   /** The other person answers an invitation this person sent. `false`: no such outgoing invitation. */
   simulateAnswer(ctx: ProfileExecutionContext, inviteId: string, answer: "accept" | "decline"): boolean;
+  /**
+   * Somebody this person has no 1:1 chat with is in the Room (another member added them): a member with no name on this device, as in a
+   * Room of three accounts. `false`: not a group or already there.
+   */
+  simulateMember(ctx: ProfileExecutionContext, conversationId: GroupId, account: string): boolean;
   /** A member sends a text. `false`: not a group or not a member. */
   simulateMessage(ctx: ProfileExecutionContext, conversationId: GroupId, fromAccount: string, text: string): boolean;
   /** Another member changes a Room setting (everyone gets the notice). `false`: not a group or the setting is not reachable. */
@@ -84,7 +89,7 @@ function protectionOf(p: Policy): GroupProtectionView {
   return { profile: p.profile, custom, joinRule: p.joinRule, newDevicePolicy: p.newDevicePolicy, historyPolicy: p.historyPolicy, membersMayInvite: p.membersMayInvite, disappearingTimer: p.timer };
 }
 
-export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecutionContext) => unknown; readonly hasRelationship: (ctx: ProfileExecutionContext, id: ConversationId) => boolean; readonly clock: () => number }): GroupSim {
+export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecutionContext) => unknown; readonly hasRelationship: (ctx: ProfileExecutionContext, id: ConversationId) => boolean; readonly clock: () => number; readonly contactName?: (ctx: ProfileExecutionContext, id: ConversationId) => string | null }): GroupSim {
   const stores = new Map<string, Store>();
   const listeners = new Set<(profileId: ProfileId, events: readonly GroupEvent[]) => void>();
   const emit = (ctx: ProfileExecutionContext, events: readonly GroupEvent[]): void => { for (const l of [...listeners]) l(ctx.profileId, events); };
@@ -95,6 +100,8 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
     return s;
   };
   const acct = (rel: ConversationId): string => `acct-${rel}`;
+  /** As Core does: the name comes only from this device's own contact list (here the 1:1 chat of that account), never from the Room. */
+  const displayOf = (ctx: ProfileExecutionContext, account: string): string | null => (account.startsWith("acct-") && account !== SELF ? opts.contactName?.(ctx, account.slice(5) as ConversationId) ?? null : null);
   const refuse = (refused: string): GroupStep => ({ ok: false, refused });
   const done = (events: GroupEvent[]): GroupStep => ({ ok: true, events, out: [] });
   const summary = (g: Group): GroupSummaryView => ({ conversationId: g.id, name: g.name, members: g.members.filter((m) => m.status === "member").length, invited: g.members.filter((m) => m.status === "invited").length, epoch: g.epoch });
@@ -190,8 +197,10 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
     get(ctx, id): GroupDetailView | null {
       const g = loaded ? store(ctx).groups.get(id) : undefined;
       if (!g) return null;
-      const people: GroupMemberView[] = g.members.map((m) => ({ account: m.account, roles: m.account === SELF || m === g.members[0] ? ["admin"] : ["member"], status: m.status }));
-      return { summary: summary(g), people, canSend: selfIn(g), protection: protectionOf(g.policy) };
+      const people: GroupMemberView[] = g.members.map((m) => ({ account: m.account, roles: m.account === SELF || m === g.members[0] ? ["admin"] : ["member"], status: m.status, display: displayOf(ctx, m.account), you: m.account === SELF }));
+      const seen = [...g.messages.map((m) => m.senderAccount), ...g.notices.map((n) => n.byAccount)];
+      const former = [...new Set(seen)].filter((a) => !g.members.some((m) => m.account === a)).map((a) => ({ account: a, display: displayOf(ctx, a), you: a === SELF }));
+      return { summary: summary(g), people, former, canSend: selfIn(g), protection: protectionOf(g.policy) };
     },
     invites: (ctx) => (loaded ? [...store(ctx).invites.values()] : []).map((i): GroupInviteView => ({ id: i.id, conversationId: i.groupId, groupName: i.groupName, dir: i.dir, state: i.state, relationshipId: i.relationshipId, peerAccount: i.peerAccount, createdMs: i.createdMs })),
     messages: (ctx, id) => [...(store(ctx).groups.get(id)?.messages ?? [])],
@@ -260,6 +269,13 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
       return true;
     },
     simulateEvent(ctx, event) { store(ctx); emit(ctx, [event]); },
+    simulateMember(ctx, conversationId, account) {
+      const g = store(ctx).groups.get(conversationId);
+      if (!g || g.members.some((m) => m.account === account)) return false;
+      g.members.push({ account, status: "member" });
+      g.epoch += 1;
+      return true;
+    },
     simulateMessage(ctx, conversationId, fromAccount, text) {
       const g = store(ctx).groups.get(conversationId);
       if (!g || !g.members.some((m) => m.account === fromAccount && m.status === "member")) return false;

@@ -746,7 +746,14 @@ impl<R: RngCore + CryptoRng> Core<R> {
         ctx: &ProfileExecutionContext,
         q: GroupQuery,
     ) -> Result<Result<GroupView, GroupError>, CoreError> {
-        Ok(self.slot(ctx)?.state.app.group_query(q))
+        let slot = self.slot(ctx)?;
+        let me = slot
+            .state
+            .device
+            .as_ref()
+            .map(|d| d.account_id.to_vec())
+            .unwrap_or_default();
+        Ok(slot.state.app.group_query_as(&me, q))
     }
 
     /// The BlobStore's advertised limits (from `ProviderCapabilities.limits` of `om.blob.spool.v1`); `None` when the store
