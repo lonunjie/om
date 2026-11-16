@@ -2820,6 +2820,12 @@
       "verified_by": [
         "review:ADR-0194-direct-transfer-integrity-receipt.md"
       ]
+    },
+    {
+      "requirement": "R-434",
+      "verified_by": [
+        "review:ADR-0190-contact-side-recovery-verification.md"
+      ]
     }
   ]
 }

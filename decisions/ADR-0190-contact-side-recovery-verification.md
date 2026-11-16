@@ -217,3 +217,7 @@ Operator-delegated rulings of 2026-11-16, recorded with the contact-side Core bu
 3. **Profiles (D80).** The contact's local privacy level (none means Recommended) decides: Recommended auto-accepts at the delay; Hardened, Maximum and Custom need the contact's own confirm.
 4. **Dossier wire (D76).** The dossier is at key 5 of `KIND_ACS_UPDATE` and at key 8 of first-contact Accept and Bind. It has no seconds field.
 5. **In-session veto wire (D74).** `{0: 12, 1: signed RecoveryVeto bytes}` (`KIND_RECOVERY_VETO`).
+
+## Traces
+
+Requirement R-434, threat T-178 (a late-delivered, replayed or withheld notice; next to T-041), decision D-211. Metadata: the recovery fan-out note in [`w0-metadata-exposure-descriptors.json`](../spec/metadata/w0-metadata-exposure-descriptors.json). Related: R-184, R-185, T-041, D72 to D82 (relay status).
