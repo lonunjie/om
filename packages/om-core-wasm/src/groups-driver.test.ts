@@ -24,18 +24,18 @@ const entry = { relayUri: TEST_RELAY_URI, capability: "c4".repeat(16) + "00".rep
 
 /** A scripted Core: a durable-looking outbox, a queue of answers for `do`, and a record of every call made. */
 function scripted(over: { steps?: GroupStep[]; lane?: (rel: string, wire: GroupWire) => { ok: true } | { ok: false; refused: string }; seal?: (item: GroupOutItem) => FrameSend } = {}): GroupCore & {
-  calls: string[]; box: GroupOutItem[]; mailboxes: { mailbox: string; relayUri: string }[]; routeOwed: string[]; pendingFrames: number; received: string[]; frameAnswers: Map<string, GroupStep>;
+  calls: string[]; box: GroupOutItem[]; mailboxes: { mailbox: string; relayUri: string }[]; routeOwed: string[]; pendingFrames: number; laneKept: GroupWire[]; laneLost: number; received: string[]; frameAnswers: Map<string, GroupStep>;
 } {
   const steps = [...(over.steps ?? [])];
   const c = {
-    calls: [] as string[], box: [] as GroupOutItem[], mailboxes: [] as { mailbox: string; relayUri: string }[], routeOwed: [] as string[], pendingFrames: 0, received: [] as string[], frameAnswers: new Map<string, GroupStep>(),
+    calls: [] as string[], box: [] as GroupOutItem[], mailboxes: [] as { mailbox: string; relayUri: string }[], routeOwed: [] as string[], pendingFrames: 0, laneKept: [] as GroupWire[], laneLost: 0, received: [] as string[], frameAnswers: new Map<string, GroupStep>(),
     available: () => true,
     do: (_c: ProfileExecutionContext, i: { kind: string }) => { c.calls.push(`do:${i.kind}`); return Promise.resolve(steps.shift() ?? empty); },
     receive: () => Promise.resolve(empty),
     list: () => [], get: () => null, invites: () => [], messages: () => [], notices: () => [],
     settle: () => { c.calls.push("settle"); return Promise.resolve(empty); },
     outbox: () => [...c.box],
-    status: (): GroupCarriageStatus => ({ mailboxes: c.mailboxes, routeOwed: c.routeOwed, outbox: c.box.length, pending: c.pendingFrames }),
+    status: (): GroupCarriageStatus => ({ mailboxes: c.mailboxes, routeOwed: c.routeOwed, outbox: c.box.length, pending: c.pendingFrames, laneOut: c.laneKept.length, laneLost: c.laneLost }),
     frameSend: (_c: ProfileExecutionContext, to: GroupTarget, wire: GroupWire): Promise<FrameSend> => {
       const item = c.box.find((i) => i.wire === wire && i.to === to);
       c.calls.push(`seal:${wire.t}`);
@@ -44,11 +44,20 @@ function scripted(over: { steps?: GroupStep[]; lane?: (rel: string, wire: GroupW
     },
     outboxDone: (_c: ProfileExecutionContext, ids: readonly number[]) => { c.calls.push(`done:${ids.join(",")}`); c.box = c.box.filter((i) => !ids.includes(i.id)); return Promise.resolve(); },
     laneSend: (_c: ProfileExecutionContext, rel: string, wire: GroupWire) => { c.calls.push(`lane:${wire.t}`); return Promise.resolve(over.lane?.(rel, wire) ?? { ok: true as const }); },
+    laneFlush: () => {
+      const w = c.laneKept[0];
+      if (w === undefined) return Promise.resolve({ ok: true as const, moved: false });
+      c.calls.push(`lane:${w.t}`);
+      const r = over.lane?.("r", w) ?? { ok: true as const };
+      if (!r.ok) return Promise.resolve(r);
+      c.laneKept.shift();
+      return Promise.resolve({ ok: true as const, moved: true });
+    },
     lanePump: () => { c.calls.push("pump"); return Promise.resolve(empty); },
     frameReceive: (_c: ProfileExecutionContext, wrapper: string) => { c.received.push(wrapper); return Promise.resolve(c.frameAnswers.get(wrapper) ?? empty); },
     pendingRefresh: () => { c.calls.push("refresh"); return Promise.resolve(); },
     pendingRetry: () => { c.calls.push("retry"); return Promise.resolve(empty); },
-    routeUpdate: (_c: ProfileExecutionContext, room: string): Promise<FrameSend> => { c.calls.push(`route_update:${room}`); c.routeOwed = c.routeOwed.filter((r) => r !== room); return Promise.resolve({ ok: true, sealed: [{ device: "d9", wrapper: "wr1", entry }] }); },
+    routeUpdate: (_c: ProfileExecutionContext, room: string) => { c.calls.push(`route_update:${room}`); c.routeOwed = c.routeOwed.filter((r) => r !== room); c.box.push(item(900, { device: "d9", account: "a9" } as GroupTarget, "route_update")); return Promise.resolve({ ok: true as const, queued: 1 }); },
     held: () => ({ invitations: [], overflow: { invites: 0, replies: 0 } }),
     ackHeldOverflow: () => Promise.resolve(),
     routesExpire: () => { c.calls.push("expire"); return Promise.resolve([] as { relayUri: string; capability: string }[]); },
@@ -150,20 +159,33 @@ describe("group driver (scripted Core)", () => {
     expect(seen).toContainEqual({ kind: "undeliverable", count: 2 });
   });
 
-  it("keeps an Invite, Accept or Decline until Core has taken it, also across a restart", async () => {
+  it("Core keeps an Invite, Accept or Decline until its 1:1 queue takes it; the driver keeps nothing and asks again", async () => {
     const kv = createMemoryKv();
-    const out = { ok: true as const, events: [], out: [{ to: { relationship: asConversationId("r1") }, wire: { t: "accept", n: 1 } }, { to: dev(1), wire: { t: "app" } }] };
-    const first = scripted({ steps: [out], lane: () => ({ ok: false, refused: "no_route_offer" }) });
-    const d1 = mk(first, relay(), kv);
-    await d1.do(ctx, { kind: "accept", inviteId: "x" });
-    await d1.idle();
-    expect(await d1.pending(ctx)).toBe(1); // only the lane item is kept by the driver: the device frame is Core's outbox
+    const core = scripted({ lane: () => ({ ok: false, refused: "no_route_offer" }) });
+    core.laneKept = [{ t: "accept", n: 1 }];
+    const d1 = mk(core, relay(), kv);
+    await d1.flush(ctx);
+    expect(await d1.pending(ctx)).toBe(1); // still Core's: nothing of it is in the driver's own storage
+    const listed = await kv.list();
+    expect(listed.ok ? listed.keys.filter((k) => k.startsWith("gdrv/lane") || k.startsWith("gdrv/dep")) : []).toEqual([]);
     d1.dispose();
+    // after a restart Core still holds it, so the next pass moves it
+    core.laneKept = [{ t: "accept", n: 1 }];
     const second = scripted();
-    const d2 = mk(second, relay(), kv);
-    await d2.flush(ctx);
-    expect(second.calls).toContain("lane:accept");
-    expect(await d2.pending(ctx)).toBe(0);
+    second.laneKept = [{ t: "accept", n: 1 }, { t: "decline", n: 2 }];
+    await mk(second, relay(), kv).flush(ctx);
+    expect(second.calls.filter((c) => c.startsWith("lane:"))).toEqual(["lane:accept", "lane:decline"]);
+    expect(await mk(second, relay(), kv).pending(ctx)).toBe(0);
+  });
+
+  it("tells the client when Core dropped a lane item for good", async () => {
+    const core = scripted();
+    core.laneLost = 2;
+    const d = mk(core, relay(), createMemoryKv());
+    const seen: unknown[] = [];
+    d.onEvents?.((_p, ev) => seen.push(...ev));
+    await d.flush(ctx);
+    expect(seen).toContainEqual({ kind: "undeliverable", count: 2 });
   });
 
   it("polls each per-Room mailbox in order, acknowledges after the step, and never repeats a frame (also across a restart)", async () => {
@@ -192,22 +214,22 @@ describe("group driver (scripted Core)", () => {
     expect(core.calls.indexOf("refresh")).toBeLessThan(core.calls.indexOf("retry"));
   });
 
-  it("after a removal asks for a route update, deposits it (kept across an outage and a restart) and revokes what expired", async () => {
-    const kv = createMemoryKv();
+  it("after a removal asks Core for a route update, which Core queues in its outbox; the driver deposits it, repeats it after an outage and revokes what expired", async () => {
     const core = scripted();
     core.routeOwed = ["room1"];
     const r = relay();
     r.fail.add(1);
-    const d = mk(core, r, kv);
+    const d = mk(core, r, createMemoryKv());
     await d.flush(ctx);
     expect(core.calls).toContain("route_update:room1");
-    expect(r.deposits).toEqual([]); // the relay was down: the wrapper is kept, Core no longer owns it
+    expect(r.deposits).toEqual([]); // the relay was down
+    expect(core.box.length).toBe(1); // the frame is still Core's, not the driver's
     expect(await d.pending(ctx)).toBe(1);
     d.dispose();
-    const second = scripted();
-    await mk(second, r, kv).flush(ctx);
-    expect(r.deposits).toEqual(["wr1"]);
-    expect(second.calls).not.toContain("route_update:room1");
+    await mk(core, r, createMemoryKv()).flush(ctx);
+    expect(r.deposits).toEqual(["w900"]);
+    expect(core.box).toEqual([]);
+    expect(core.calls.filter((c) => c === "route_update:room1").length).toBe(1);
     const third = scripted();
     third.routesExpire = () => Promise.resolve([{ relayUri: TEST_RELAY_URI, capability: "cap1" }]);
     await mk(third, r, createMemoryKv()).flush(ctx);

@@ -250,7 +250,7 @@ enum Command {
     GroupPendingRetry {
         ctx: ProfileExecutionContext,
     },
-    /// After a removal: a fresh route for the Room and the sealed `route_update` frames. Answers `{sealed, commit}`.
+    /// After a removal: a fresh route for the Room; the `route_update` frames are queued in Core's outbox. Answers `{queued, commit}`.
     GroupRouteUpdate {
         ctx: ProfileExecutionContext,
         conversation_id: String,
@@ -260,6 +260,11 @@ enum Command {
         ctx: ProfileExecutionContext,
         relationship_id: String,
         wire: GroupWire,
+    },
+    /// Take the oldest kept Invite, Accept or Decline into the 1:1 queue. Answers `{moved, commit}` (call again while
+    /// `moved`) or `{refused}` when every kept item must wait (no route offer, relationship not usable yet).
+    GroupLaneFlush {
+        ctx: ProfileExecutionContext,
     },
     /// Hand every verified lane event that arrived to the group flow. Answers `{reply, pumped, commit}`.
     GroupLanePump {
@@ -946,8 +951,8 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 let conversation_id = unhex(&conversation_id)?;
                 let (r, step) = self.core()?.group_route_update(&ctx, &conversation_id)?;
                 Ok(match r {
-                    Ok(sealed) => {
-                        json!({ "sealed": sealed_json(&sealed), "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null) })
+                    Ok(queued) => {
+                        json!({ "queued": queued, "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null) })
                     }
                     Err(e) => json!({ "refused": e.0 }),
                 })
@@ -963,6 +968,15 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 Ok(match r {
                     Ok(()) => {
                         json!({ "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null) })
+                    }
+                    Err(e) => json!({ "refused": e.0 }),
+                })
+            }
+            Command::GroupLaneFlush { ctx } => {
+                let (r, step) = self.core()?.group_lane_flush(&ctx)?;
+                Ok(match r {
+                    Ok(moved) => {
+                        json!({ "moved": moved, "commit": serde_json::to_value(&step.commit).unwrap_or(Value::Null) })
                     }
                     Err(e) => json!({ "refused": e.0 }),
                 })
@@ -1027,6 +1041,8 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                     "routeOwed": st.route_owed,
                     "outbox": st.outbox,
                     "pending": st.pending,
+                    "laneOut": st.lane_out,
+                    "laneLost": st.lane_lost,
                 }))
             }
             Command::GroupHeldInvitations { ctx } => {

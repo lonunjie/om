@@ -6,11 +6,11 @@
 //     report, no timer, no relay acknowledgement, ADR-0189 section 2);
 //   * it drains Core's outbox in order: seal an item, deposit each sealed wrapper at its entry, then tell Core the item is
 //     done. A crash or an outage repeats the item (a duplicate is harmless: MLS drops it);
-//   * it carries Invite, Accept and Decline to Core's 1:1 queue (`group_lane_send`), keeping each one in the profile's
-//     EncryptedKv until Core has taken it, because the step that produced it does not persist it;
+//   * Invite, Accept and Decline are kept by Core itself, in the commit of the step that produced them, until its 1:1 queue
+//     takes them (`group_lane_flush`); this driver only asks Core to move them and keeps nothing of its own;
 //   * it polls each per-Room mailbox Core names, hands each wrapper to Core, and acknowledges it after the step is durable;
 //   * after a poll it retries held frames and asks for missing account heads; after a removal it asks Core for a fresh route
-//     and deposits the `route_update` frames; it tops up the route offers Core needs to mint a route.
+//     (Core queues the `route_update` frames in its own outbox, drained like any other item); it tops up the route offers Core needs to mint a route.
 //
 // It never reads a wire, never decides anything about a group and never builds one. Nothing here is a transport of its own:
 // the carriage is the sealed delivery the provider already offers (deposit, poll, acknowledge).
@@ -34,6 +34,10 @@ export interface GroupCarriageStatus {
   readonly routeOwed: readonly string[];
   readonly outbox: number;
   readonly pending: number;
+  /** Invite, Accept and Decline Core keeps until its 1:1 queue takes them. */
+  readonly laneOut: number;
+  /** Such items Core dropped for good (refused for a reason that cannot change, or too old); never silent. */
+  readonly laneLost: number;
 }
 export type FrameSend = { readonly ok: true; readonly sealed: readonly SealedFrame[] } | { readonly ok: false; readonly refused: string };
 
@@ -45,12 +49,16 @@ export interface GroupCore extends GroupApi {
   status(ctx: ProfileExecutionContext): GroupCarriageStatus;
   frameSend(ctx: ProfileExecutionContext, to: GroupTarget, wire: GroupWire): Promise<FrameSend>;
   outboxDone(ctx: ProfileExecutionContext, ids: readonly number[]): Promise<void>;
+  /** Send one Invite, Accept or Decline directly; it also takes the matching kept item, so nothing goes twice. */
   laneSend(ctx: ProfileExecutionContext, relationshipId: string, wire: GroupWire): Promise<{ readonly ok: true } | { readonly ok: false; readonly refused: string }>;
+  /** Move the oldest kept Invite, Accept or Decline into Core's 1:1 queue; `moved` says one went (call again). */
+  laneFlush(ctx: ProfileExecutionContext): Promise<{ readonly ok: true; readonly moved: boolean } | { readonly ok: false; readonly refused: string }>;
   lanePump(ctx: ProfileExecutionContext): Promise<GroupStep>;
   frameReceive(ctx: ProfileExecutionContext, wrapper: string): Promise<GroupStep>;
   pendingRefresh(ctx: ProfileExecutionContext): Promise<void>;
   pendingRetry(ctx: ProfileExecutionContext): Promise<GroupStep>;
-  routeUpdate(ctx: ProfileExecutionContext, conversationId: string): Promise<FrameSend>;
+  /** Mint this device's fresh route and queue the `route_update` frames in Core's outbox (`queued` of them). */
+  routeUpdate(ctx: ProfileExecutionContext, conversationId: string): Promise<{ readonly ok: true; readonly queued: number } | { readonly ok: false; readonly refused: string }>;
   /** Retired routes whose overlap ended; the host revokes each deposit capability. */
   routesExpire(ctx: ProfileExecutionContext): Promise<readonly { readonly relayUri: string; readonly capability: string }[]>;
 }
@@ -73,27 +81,17 @@ export interface GroupDriver extends GroupApi {
   flush(ctx: ProfileExecutionContext): Promise<boolean>;
   /** Resolves when no step or pass is in flight. */
   idle(): Promise<void>;
-  /** Items still owed: Core's outbox plus what this driver keeps for the 1:1 lane and deposits. */
+  /** Items still owed: Core's outbox plus the lane items Core keeps for its 1:1 queue. */
   pending(ctx: ProfileExecutionContext): Promise<number>;
   /** Frames this driver gave up on because the relay refused them for good (a revoked or unknown route). */
   readonly dropped: () => number;
   dispose(): void;
 }
 
-const LANE = "gdrv/lane/";
-const DEP = "gdrv/dep/";
 const CUR = "gdrv/cur/";
-const LANE_WIRES: readonly string[] = ["invite", "accept", "decline"];
-
-interface LaneRec { readonly relationship: string; readonly wire: GroupWire }
-interface DepRec { readonly sealed: SealedFrame }
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
-const toBytes = (v: unknown): Uint8Array => enc.encode(JSON.stringify(v));
-const parseLane = (b: Uint8Array): LaneRec => JSON.parse(dec.decode(b)) as LaneRec;
-const parseDep = (b: Uint8Array): DepRec => JSON.parse(dec.decode(b)) as DepRec;
-const rand = (): string => Array.from(globalThis.crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, "0")).join("");
 const destKey = (t: GroupTarget): string => ("relationship" in t ? `r:${t.relationship}` : `d:${t.device}`);
 const refused = (r: string): GroupStep => ({ ok: false, refused: r });
 
@@ -103,7 +101,6 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const listeners = new Set<(profileId: ProfileId, events: readonly GroupEvent[]) => void>();
   let disposed = false;
-  let counter = 0;
   let dropped = 0;
   let reported = 0;
   let tail: Promise<unknown> = Promise.resolve();
@@ -119,28 +116,12 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
     if (events.length === 0) return;
     for (const l of [...listeners]) { try { l(profileId, events); } catch { /* a listener must not break the driver */ } }
   };
-  const seq = (): string => `${String(Date.now()).padStart(15, "0")}-${String(counter++).padStart(6, "0")}-${rand()}`;
-  const keys = async (kv: EncryptedKv, prefix: string): Promise<string[]> => {
-    const l = await kv.list();
-    return l.ok ? l.keys.filter((k) => k.startsWith(prefix)).sort() : [];
-  };
-
-  /** Keep what Core's step does not persist: an Invite, Accept or Decline for the 1:1 lane. Durable before the step is returned. */
-  async function persistLane(ctx: ProfileExecutionContext, step: Extract<GroupStep, { ok: true }>): Promise<void> {
-    const kv = opts.storage(ctx.profileId);
-    for (const o of step.out) {
-      if (!("relationship" in o.to) || !LANE_WIRES.includes(o.wire.t)) continue;
-      await kv.put(LANE + seq(), toBytes({ relationship: o.to.relationship, wire: o.wire } satisfies LaneRec));
-    }
-  }
-
   /** After a durable step: Core accepts its own Commit once its frames are queued (ADR-0189 section 2). Events are merged into `step`. */
   async function settled(ctx: ProfileExecutionContext, step: Extract<GroupStep, { ok: true }>): Promise<Extract<GroupStep, { ok: true }>> {
     let events: readonly GroupEvent[] = step.events;
     for (let i = 0; i < 8; i++) {
       const s = await core.settle(ctx);
       if (!s.ok || (s.events.length === 0 && s.out.length === 0)) break;
-      await persistLane(ctx, s);
       events = [...events, ...s.events];
     }
     return { ...step, events };
@@ -157,20 +138,6 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
     if (r.error.kind === "unavailable" || r.error.kind === "timeout") return "retry";
     dropped++;
     return "done";
-  }
-
-  /** Wrappers a route update minted: kept (opaque ciphertext) until deposited, because Core no longer owns them. */
-  async function drainDeposits(ctx: ProfileExecutionContext): Promise<{ moved: boolean; retry: boolean }> {
-    const kv = opts.storage(ctx.profileId);
-    let moved = false;
-    for (const k of await keys(kv, DEP)) {
-      const got = await kv.get(k);
-      if (!got.ok || got.value === undefined) continue;
-      if ((await deposit(parseDep(got.value).sealed)) === "retry") return { moved, retry: true };
-      await kv.delete(k);
-      moved = true;
-    }
-    return { moved, retry: false };
   }
 
   /** Core's outbox, oldest first: seal, deposit every wrapper, then report the item done. Order is kept per destination. */
@@ -198,23 +165,19 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
     return { moved, retry };
   }
 
-  /** Invite, Accept and Decline: hand each to Core's 1:1 queue, then drop the keeper. */
+  /** Invite, Accept and Decline: ask Core to move each kept one into its 1:1 queue (Core removes it in the same transaction). */
   async function drainLane(ctx: ProfileExecutionContext): Promise<{ moved: boolean; retry: boolean }> {
-    const kv = opts.storage(ctx.profileId);
     let moved = false;
-    for (const k of await keys(kv, LANE)) {
-      const got = await kv.get(k);
-      if (!got.ok || got.value === undefined) continue;
-      const rec = parseLane(got.value);
-      let r = await core.laneSend(ctx, rec.relationship, rec.wire);
-      if (!r.ok && r.refused === "no_route_offer") { await opts.topUp(); r = await core.laneSend(ctx, rec.relationship, rec.wire); }
-      if (!r.ok && r.refused === "no_route_offer") return { moved, retry: true };
-      // Any other refusal is final (an unknown relationship, a wire Core will not carry): nothing is invented, nothing repeats.
-      await kv.delete(k);
+    for (let i = 0; i < 128; i++) {
+      let r = await core.laneFlush(ctx);
+      if (!r.ok && r.refused === "no_route_offer") { await opts.topUp(); r = await core.laneFlush(ctx); }
+      // Every kept item waits (no route offer, relationship not usable yet): Core keeps them and we try again later.
+      if (!r.ok) return { moved, retry: true };
+      if (!r.moved) return { moved, retry: false };
       moved = true;
       opts.wake?.(ctx.profileId);
     }
-    return { moved, retry: false };
+    return { moved, retry: true };
   }
 
   // ------------------------------------------------------------------------------------------ receive
@@ -232,7 +195,7 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
       for (const it of [...items].sort((a, b) => a.seq - b.seq)) {
         if (it.seq <= after) continue;
         const s = await core.frameReceive(ctx, it.bytes); // a refusal is a drop that changed nothing: the frame is not repeated
-        if (s.ok) { await persistLane(ctx, s); emit(ctx.profileId, (await settled(ctx, s)).events); moved = true; }
+        if (s.ok) { emit(ctx.profileId, (await settled(ctx, s)).events); moved = true; }
         after = it.seq;
         await kv.put(ck, enc.encode(String(after)));
         try { await provider.perform({ call: "ack", mailbox: m.mailbox, seq: after, kind: "relay", relayUri: m.relayUri }); } catch { /* the cursor already keeps it from being handled twice */ }
@@ -248,31 +211,29 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
     await opts.topUp();
     // Start-up and after a crash: a Commit that was durable is finished before anything else.
     const first = await core.settle(ctx);
-    if (first.ok && (first.events.length > 0 || first.out.length > 0)) { await persistLane(ctx, first); emit(ctx.profileId, first.events); moved = true; }
+    if (first.ok && (first.events.length > 0 || first.out.length > 0)) { emit(ctx.profileId, first.events); moved = true; }
     if (await pollRooms(ctx)) moved = true;
     const pumped = await core.lanePump(ctx);
-    if (pumped.ok && (pumped.events.length > 0 || pumped.out.length > 0)) { await persistLane(ctx, pumped); emit(ctx.profileId, (await settled(ctx, pumped)).events); moved = true; }
+    if (pumped.ok && (pumped.events.length > 0 || pumped.out.length > 0)) { emit(ctx.profileId, (await settled(ctx, pumped)).events); moved = true; }
     // Held frames: ask for the heads they wait for, then retry what a poll or a head may have unblocked.
     if (core.status(ctx).pending > 0) {
       await core.pendingRefresh(ctx);
       opts.wake?.(ctx.profileId);
       const r = await core.pendingRetry(ctx);
-      if (r.ok && (r.events.length > 0 || r.out.length > 0)) { await persistLane(ctx, r); emit(ctx.profileId, (await settled(ctx, r)).events); moved = true; }
+      if (r.ok && (r.events.length > 0 || r.out.length > 0)) { emit(ctx.profileId, (await settled(ctx, r)).events); moved = true; }
     }
     // After a removal each remaining device mints a fresh route and tells the new roster (ADR-0189 section 1.3).
     for (const room of core.status(ctx).routeOwed) {
-      const u = await core.routeUpdate(ctx, room);
+      const u = await core.routeUpdate(ctx, room); // queued in Core's outbox in the same commit that clears the owed mark
       if (!u.ok) { if (u.refused === "no_route_offer") retry = true; continue; }
-      const kv = opts.storage(ctx.profileId);
-      for (const s of u.sealed) await kv.put(DEP + seq(), toBytes({ sealed: s } satisfies DepRec));
       moved = true;
     }
     for (const e of await core.routesExpire(ctx)) { try { await provider.revokeDeposit?.(e.relayUri, e.capability); } catch { /* a capability that is not revoked expires on its own */ } }
-    note(await drainDeposits(ctx));
     note(await drainLane(ctx));
     note(await drainOutbox(ctx));
     // A deposit a relay refused for good ended its item: tell the client so it can say "could not deliver" (never silent).
-    if (dropped > reported) { emit(ctx.profileId, [{ kind: "undeliverable", count: dropped - reported }]); reported = dropped; }
+    const lost = core.status(ctx).laneLost;
+    if (dropped + lost > reported) { emit(ctx.profileId, [{ kind: "undeliverable", count: dropped + lost - reported }]); reported = dropped + lost; }
     return { moved, retry };
   }
 
@@ -303,7 +264,6 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
     const s = await exclusive(async () => {
       let r = await step();
       if (r.ok) {
-        await persistLane(ctx, r); // durable before the step is returned
         r = await settled(ctx, r);
         emit(ctx.profileId, r.events);
       }
@@ -342,9 +302,8 @@ export function createGroupDriver(opts: GroupDriverOptions): GroupDriver {
         if (inflight === 0) return;
       }
     },
-    async pending(ctx) {
-      const kv = opts.storage(ctx.profileId);
-      return core.outbox(ctx).length + (await keys(kv, LANE)).length + (await keys(kv, DEP)).length;
+    pending(ctx) {
+      return Promise.resolve(core.outbox(ctx).length + core.status(ctx).laneOut);
     },
     dropped: () => dropped,
     dispose() {

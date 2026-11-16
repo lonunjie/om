@@ -950,3 +950,380 @@ fn a_head_in_the_commit_never_replaces_a_head_the_receiver_holds() {
 fn hex_dev(p: &P) -> Vec<u8> {
     om_codec::cbor::unhex(&p.device_hex())
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+macro_rules! core {
+    ($p:expr, $m:ident $(, $a:expr)*) => {{
+        let p = &mut $p;
+        p.rt.core.$m(&p.ctx $(, $a)*)
+    }};
+}
+
+// Core owns the relationship-lane items and the route updates until the host has moved them (ADR-0189 1.1 and 1.3,
+// ADR-0120 K1; reports D57 and D58). Each person is on a different relay.
+
+/// Three accounts, each on its own relay (home 1, 2, 3), all pairwise connected.
+fn trio_apart() -> Vec<P> {
+    let net = LoopbackNetwork::default();
+    let mut ps = vec![
+        mk(&net, "alice-out", "Alice"),
+        mk(&net, "bob-out", "Bob"),
+        mk(&net, "carol-out", "Carol"),
+    ];
+    for (i, p) in ps.iter_mut().enumerate() {
+        p.rt.homes = vec![i as u8 + 1];
+    }
+    connect(&mut ps, 0, 1);
+    connect(&mut ps, 0, 2);
+    connect(&mut ps, 1, 2);
+    ps
+}
+
+impl P {
+    fn status(&self) -> om_core::engine::GroupCarriageStatus {
+        self.rt.core.group_carriage_status(&self.ctx).unwrap()
+    }
+    /// What the driver does: take every kept lane item into the 1:1 queue.
+    fn flush_lane(&mut self) -> usize {
+        let mut n = 0;
+        loop {
+            self.rt.supply_routes(4);
+            let (r, step) = self.rt.core.group_lane_flush(&self.ctx).unwrap();
+            assert!(self.rt.settle(&step));
+            match r {
+                Ok(true) => n += 1,
+                Ok(false) => return n,
+                Err(e) => panic!("lane flush: {e}"),
+            }
+        }
+    }
+    fn restart(&mut self) {
+        let ctxs = self.rt.restart();
+        self.ctx = ctxs.into_iter().next().unwrap();
+    }
+    fn carriage(&self) -> serde_json::Value {
+        self.rt.core.debug_app_state(&self.ctx).unwrap()["groupCarriage"].clone()
+    }
+    fn account_hex(&self, conv: &[u8]) -> Vec<u8> {
+        let d = self.detail(conv);
+        om_codec::cbor::unhex(&d.people.iter().find(|m| m.you).unwrap().account)
+    }
+}
+
+#[test]
+fn invitations_are_kept_by_core_across_a_restart_and_leave_exactly_once() {
+    let mut ps = trio_apart();
+    let rels = vec![ps[0].rels[&1].clone(), ps[0].rels[&2].clone()];
+    ps[0]
+        .dob(GroupIntent::CreateWithProtection {
+            name: "Book club".into(),
+            relationship_ids: rels,
+            protection: room::RECOMMENDED,
+        })
+        .unwrap();
+    // no driver keeper exists: the two invitations are in Core's own state, in the step's commit
+    assert_eq!(ps[0].status().lane_out, 2);
+    ps[0].restart();
+    assert_eq!(
+        ps[0].status().lane_out,
+        2,
+        "the kept items survive a restart"
+    );
+    assert_eq!(ps[0].flush_lane(), 2);
+    assert_eq!(ps[0].status().lane_out, 0);
+    assert_eq!(ps[0].flush_lane(), 0, "nothing is sent twice");
+    settle_every(&mut ps);
+    for i in [1usize, 2] {
+        let reps = ps[i].pump_lane();
+        let invites = events(&reps)
+            .into_iter()
+            .filter(|e| matches!(e, GroupEvent::InviteReceived { .. }))
+            .count();
+        assert_eq!(invites, 1, "person {i} got exactly one invitation");
+    }
+}
+
+#[test]
+fn a_caller_that_still_sends_the_lane_itself_does_not_duplicate_it() {
+    let mut ps = trio_apart();
+    let rel = ps[0].rels[&1].clone();
+    let rep = ps[0]
+        .dob(GroupIntent::CreateWithProtection {
+            name: "Book club".into(),
+            relationship_ids: vec![rel],
+            protection: room::RECOMMENDED,
+        })
+        .unwrap();
+    ps[0].send_lane(&rep);
+    assert_eq!(ps[0].status().lane_out, 0, "taken in the same transaction");
+    assert_eq!(ps[0].flush_lane(), 0);
+    settle_every(&mut ps);
+    let reps = ps[1].pump_lane();
+    assert_eq!(
+        events(&reps)
+            .iter()
+            .filter(|e| matches!(e, GroupEvent::InviteReceived { .. }))
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn the_lane_keeper_is_bounded_and_a_full_one_refuses_the_step() {
+    let mut ps = trio_apart();
+    let rel = ps[0].rels[&1].clone();
+    let mut refused = None;
+    for i in 0..(MAX_LANE_OUT + 1) {
+        match ps[0].dob(GroupIntent::CreateWithProtection {
+            name: format!("Room {i}"),
+            relationship_ids: vec![rel.clone()],
+            protection: room::RECOMMENDED,
+        }) {
+            Ok(_) => assert!(i < MAX_LANE_OUT),
+            Err(e) => {
+                refused = Some((i, e.0));
+                break;
+            }
+        }
+    }
+    assert_eq!(refused, Some((MAX_LANE_OUT, "lane_out_full")));
+    assert_eq!(ps[0].status().lane_out, MAX_LANE_OUT);
+}
+
+#[test]
+fn a_lane_item_that_needs_a_route_offer_waits_and_goes_once() {
+    let mut ps = trio_apart();
+    let rel = ps[0].rels[&1].clone();
+    let rep = ps[0]
+        .dob(GroupIntent::CreateWithProtection {
+            name: "Book club".into(),
+            relationship_ids: vec![rel],
+            protection: room::RECOMMENDED,
+        })
+        .unwrap();
+    ps[0].send_lane(&rep);
+    settle_every(&mut ps);
+    let id = events(&ps[1].pump_lane())
+        .into_iter()
+        .find_map(|e| match e {
+            GroupEvent::InviteReceived { invite_id } => Some(invite_id),
+            _ => None,
+        })
+        .unwrap();
+    ps[1]
+        .dob(GroupIntent::Accept {
+            invite_id: id,
+            siblings: vec![],
+        })
+        .unwrap();
+    assert_eq!(
+        ps[1].status().lane_out,
+        1,
+        "the Accept is Core's until the lane takes it"
+    );
+    // a restart empties the in-memory route offers; the Accept releases a route minted for this Room, so it waits
+    ps[1].restart();
+    assert_eq!(ps[1].status().lane_out, 1);
+    let (r, step) = core!(ps[1], group_lane_flush).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert_eq!(r, Err(GroupError("no_route_offer")));
+    assert_eq!(ps[1].status().lane_out, 1, "kept, never invented");
+    assert_eq!(ps[1].status().lane_lost, 0);
+    // once offers exist it goes, exactly once
+    assert_eq!(ps[1].flush_lane(), 1);
+    assert_eq!(ps[1].status().lane_out, 0);
+    assert_eq!(ps[1].flush_lane(), 0);
+}
+
+#[test]
+fn a_lane_item_older_than_the_horizon_is_dropped_and_counted() {
+    let mut ps = trio_apart();
+    let rel = ps[0].rels[&1].clone();
+    let rep = ps[0]
+        .dob(GroupIntent::CreateWithProtection {
+            name: "Book club".into(),
+            relationship_ids: vec![rel],
+            protection: room::RECOMMENDED,
+        })
+        .unwrap();
+    ps[0].send_lane(&rep);
+    settle_every(&mut ps);
+    let id = events(&ps[1].pump_lane())
+        .into_iter()
+        .find_map(|e| match e {
+            GroupEvent::InviteReceived { invite_id } => Some(invite_id),
+            _ => None,
+        })
+        .unwrap();
+    ps[1]
+        .dob(GroupIntent::Accept {
+            invite_id: id,
+            siblings: vec![],
+        })
+        .unwrap();
+    ps[1].restart();
+    ps[1].rt.tick((LANE_OUT_TTL_S + 1) * 1000);
+    let (r, step) = core!(ps[1], group_lane_flush).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert_eq!(r, Ok(true));
+    assert_eq!(ps[1].status().lane_out, 0);
+    assert_eq!(
+        ps[1].status().lane_lost,
+        1,
+        "counted, so the person is told"
+    );
+}
+
+/// Alice removes Carol from a three-person Room (three relays): returns the Room id.
+fn remove_carol() -> (Vec<P>, Vec<u8>) {
+    let mut ps = trio_apart();
+    let conv = join_all(&mut ps, 0, &[1, 2], room::RECOMMENDED);
+    let carol = ps[2].account_hex(&conv);
+    let rep = ps[0]
+        .dob(GroupIntent::Remove {
+            conversation_id: conv.clone(),
+            account: carol,
+        })
+        .unwrap();
+    assert!(
+        events(std::slice::from_ref(&rep))
+            .iter()
+            .any(|e| matches!(e, GroupEvent::CommitPrepared { .. }))
+    );
+    // the Commit reaches Bob; Carol's copy may or may not apply, she is out either way
+    for it in ps[0].outbox() {
+        let o = it.to_outbound().unwrap();
+        for s in ps[0].seal(&o).unwrap() {
+            let to = (0..3)
+                .find(|i| ps[*i].device_hex() == hex(&s.device))
+                .unwrap();
+            let _ = ps[to].open(&s.wrapper);
+        }
+        let step = core!(ps[0], group_outbox_done, &[it.id]).unwrap();
+        assert!(ps[0].rt.settle(&step));
+    }
+    (ps, conv)
+}
+
+#[test]
+fn a_route_update_is_queued_in_cores_outbox_survives_a_restart_and_is_retried_until_deposited() {
+    let (mut ps, conv) = remove_carol();
+    let hexconv = hex(&conv);
+    for i in [0usize, 1] {
+        assert!(
+            ps[i].status().route_owed.contains(&hexconv),
+            "member {i} owes a route"
+        );
+    }
+    // Bob mints and queues in one transaction: the owed mark and the frame move together
+    ps[1].rt.tick(2000); // a route must outlive the one it replaces (route_not_newer)
+    ps[1].rt.supply_routes(4);
+    let (r, step) = core!(ps[1], group_route_update, &conv).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert_eq!(
+        r,
+        Ok(1),
+        "one frame, for Alice: Carol is no longer in the roster"
+    );
+    assert!(ps[1].status().route_owed.is_empty());
+    let queued: Vec<OutItem> = ps[1]
+        .outbox()
+        .into_iter()
+        .filter(|o| matches!(o.wire, GroupWire::RouteUpdate { .. }))
+        .collect();
+    assert_eq!(queued.len(), 1);
+    // a crash before the host touched it: nothing is lost
+    ps[1].restart();
+    let queued2: Vec<OutItem> = ps[1]
+        .outbox()
+        .into_iter()
+        .filter(|o| matches!(o.wire, GroupWire::RouteUpdate { .. }))
+        .collect();
+    assert_eq!(queued2, queued);
+    // the deposit failed (the host never reports done), so the item is sealed again on the next pass and still reaches Alice
+    let o = queued2[0].to_outbound().unwrap();
+    let first = ps[1].seal(&o).unwrap();
+    let second = ps[1].seal(&o).unwrap();
+    assert_eq!(first.len(), 1);
+    assert_eq!(second.len(), 1);
+    assert_eq!(
+        ps[1]
+            .outbox()
+            .iter()
+            .filter(|x| x.id == queued2[0].id)
+            .count(),
+        1,
+        "still owned until reported deposited"
+    );
+    let before = ps[0].carriage()["peers"].clone();
+    ps[0].open(&second[0].wrapper).unwrap();
+    let after = ps[0].carriage()["peers"].clone();
+    assert_ne!(before, after, "Alice learned Bob's fresh route");
+    // the same wrapper again (a replay, or a double deposit) changes nothing
+    let snap = ps[0].carriage();
+    let _ = ps[0].open(&second[0].wrapper);
+    assert_eq!(ps[0].carriage()["peers"], snap["peers"]);
+    // reported deposited: gone
+    let step = core!(ps[1], group_outbox_done, &[queued2[0].id]).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert!(
+        ps[1]
+            .outbox()
+            .iter()
+            .all(|x| !matches!(x.wire, GroupWire::RouteUpdate { .. }))
+    );
+}
+
+#[test]
+fn a_newer_route_update_replaces_the_queued_one_and_a_stale_one_expires() {
+    let (mut ps, conv) = remove_carol();
+    ps[1].rt.supply_routes(8);
+    let (r, step) = core!(ps[1], group_route_update, &conv).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert_eq!(r, Ok(1));
+    let first: Vec<u64> = ps[1].outbox().iter().map(|o| o.id).collect();
+    let (r, step) = core!(ps[1], group_route_update, &conv).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert_eq!(r, Ok(1));
+    let updates: Vec<OutItem> = ps[1]
+        .outbox()
+        .into_iter()
+        .filter(|o| matches!(o.wire, GroupWire::RouteUpdate { .. }))
+        .collect();
+    assert_eq!(updates.len(), 1, "only the latest route is worth sending");
+    assert!(!first.contains(&updates[0].id));
+    // after the overlap the route it replaced is revoked, so the stale update is dropped with it
+    ps[1].rt.tick((ROUTE_OVERLAP_S + 1) * 1000);
+    let (_revoke, step) = core!(ps[1], group_routes_expire).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert!(
+        ps[1]
+            .outbox()
+            .iter()
+            .all(|x| !matches!(x.wire, GroupWire::RouteUpdate { .. }))
+    );
+}
+
+#[test]
+fn a_route_update_that_cannot_be_minted_leaves_the_room_owed() {
+    let (mut ps, conv) = remove_carol();
+    let hexconv = hex(&conv);
+    // no offers left to mint a route with: nothing changes and the call can be repeated
+    ps[1].rt.core.supply_routes(vec![]);
+    let (r, step) = core!(ps[1], group_route_update, &conv).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    if let Err(e) = r {
+        assert_eq!(e.0, "no_route_offer");
+        assert!(ps[1].status().route_owed.contains(&hexconv));
+        assert!(
+            ps[1]
+                .outbox()
+                .iter()
+                .all(|x| !matches!(x.wire, GroupWire::RouteUpdate { .. }))
+        );
+    }
+    ps[1].rt.supply_routes(4);
+    let (r, step) = core!(ps[1], group_route_update, &conv).unwrap();
+    assert!(ps[1].rt.settle(&step));
+    assert!(r.is_ok());
+}

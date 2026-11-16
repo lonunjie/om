@@ -253,7 +253,7 @@ Read in full: AGENTS "Design gate", AGENT_ARCHITECTURE_RULES, every document and
 
 - The new flows run against the harness sim only; the real-Core e2e (`groups-live`) is not extended and `onEvents` from the real driver was not observed live.
 - Second signed wasm path for `om_wasm_groups.wasm` (manifest digest, skew check, release delegation) is still open, as is `VITE_OM_GROUPS` in `TEST_FLAGS`.
-- Route-update and lane outbox follow-up (retry after a route update, D56) is not built.
+- Route-update and lane outbox (D57, D58) closed 2026-11-17, see D113 in the relay-status table. D56 (retry after a route update) is still not built.
 - `Provider.revokeDeposit` still has no HTTP implementation.
 - Group views have no display names, so other members show as "Someone" in notices.
 

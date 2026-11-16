@@ -780,6 +780,12 @@ pub const MAX_PENDING: usize = 8;
 pub const PENDING_TTL_S: u64 = 7 * 24 * 60 * 60;
 /// Frames waiting in the Core-owned outbox (a bound, not a wire limit).
 pub const MAX_OUTBOX: usize = 256;
+/// Invite, Accept and Decline the group flow produced, waiting for the 1:1 lane to take them (ADR-0189 1.1). A bound.
+pub const MAX_LANE_OUT: usize = 64;
+/// A lane item not taken by the 1:1 queue after this long is dropped and counted (same horizon as a held frame).
+pub const LANE_OUT_TTL_S: u64 = 7 * 24 * 60 * 60;
+/// A queued `route_update` is stale once the route it replaced has been revoked (the overlap ended): dropped then.
+pub const ROUTE_UPDATE_TTL_S: u64 = ROUTE_OVERLAP_S;
 
 /// A Welcome or a Commit with added devices that could not be verified yet because the head of an account it names is
 /// missing or stale (report D37). Kept as the opaque sealed wrapper, so nothing is trusted or decoded twice; retried
@@ -815,6 +821,21 @@ pub struct OutItem {
     pub intent_id: Option<String>,
     pub to: OutTarget,
     pub wire: super::flow::GroupWire,
+    /// When it was queued (seconds); 0 for an item stored before this field existed (never expired by age).
+    #[serde(default)]
+    pub since_s: u64,
+}
+
+/// An Invite, Accept or Decline the flow produced, kept durably (in the same commit as the step that made it) until the
+/// 1:1 lane queue takes it (report D58 closed). Taking it queues the hidden 1:1 message and removes this entry in one
+/// transaction, so a crash repeats nothing and loses nothing.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LaneOut {
+    pub id: u64,
+    pub relationship: String,
+    pub wire: super::flow::GroupWire,
+    pub since_s: u64,
 }
 
 impl OutItem {
@@ -875,6 +896,13 @@ pub struct GroupCarriageRec {
     pub outbox: Vec<OutItem>,
     #[serde(default)]
     pub next_out: u64,
+    /// Invite, Accept and Decline not yet taken by the 1:1 lane, oldest first (bounded by [`MAX_LANE_OUT`]).
+    #[serde(default)]
+    pub lane_out: Vec<LaneOut>,
+    /// Lane items dropped for good (a refusal that cannot change, or older than [`LANE_OUT_TTL_S`]): never silent, so the
+    /// host can tell the person.
+    #[serde(default)]
+    pub lane_out_lost: u32,
 }
 
 /// A verified head of an account the device has no relationship head for: the state body and its credential bodies.

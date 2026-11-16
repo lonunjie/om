@@ -40,6 +40,10 @@ pub struct GroupCarriageStatus {
     pub route_owed: Vec<String>,
     pub outbox: usize,
     pub pending: usize,
+    /// Invite, Accept and Decline the 1:1 lane has not taken yet.
+    pub lane_out: usize,
+    /// Lane items dropped for good (refused for a reason that cannot change, or too old): the person is told.
+    pub lane_lost: u32,
 }
 
 /// Held group invitations and what could not be kept (see [`Core::group_held_invitations`]).
@@ -242,7 +246,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
         self.group_step(ctx, |app, gctx| {
             let r = app.group_do(gctx, intent)?;
             note_removals(app, &r);
-            app.carry_outbox_add(&r)?;
+            app.carry_outbox_add(&r, gctx.now_ms / 1000)?;
             Ok(r)
         })
     }
@@ -338,14 +342,16 @@ impl<R: RngCore + CryptoRng> Core<R> {
         })
     }
 
-    /// After a removal: mint this device's fresh route for the Room and return the sealed `route_update` frames for
-    /// the rest of the roster (ADR-0189 1.3). The host deposits them and later revokes what
-    /// [`Core::group_routes_expire`] returns.
+    /// After a removal: mint this device's fresh route for the Room and queue the `route_update` frames for the rest of the
+    /// roster in Core's outbox (ADR-0189 1.3, ADR-0120 K1), in the same transaction as clearing the owed mark. Returns how
+    /// many frames were queued; the host drains them with [`Core::group_outbox`] like any other item, and later revokes
+    /// what [`Core::group_routes_expire`] returns. A refusal (`no_route_offer`, `outbox_full`) changes nothing: the Room
+    /// stays owed and the call can be repeated.
     pub fn group_route_update(
         &mut self,
         ctx: &ProfileExecutionContext,
         conversation_id: &[u8],
-    ) -> Result<(Result<Vec<Sealed>, GroupError>, Step), CoreError> {
+    ) -> Result<(Result<usize, GroupError>, Step), CoreError> {
         self.slot(ctx)?;
         let mut refused: Option<GroupError> = None;
         let room = crate::crypto::hex(conversation_id);
@@ -364,16 +370,8 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 offers: &mut *tx.offers,
                 now_s,
             };
-            let r = (|| {
-                let outs = st.app.carry_route_update_out(&mut env, &room)?;
-                let mut sealed = vec![];
-                for o in &outs {
-                    sealed.extend(st.app.carry_frame_out(&mut env, o)?);
-                }
-                Ok(sealed)
-            })();
-            match r {
-                Ok(v) => Ok(v),
+            match st.app.carry_route_update_queue(&mut env, &room) {
+                Ok(n) => Ok(n),
                 Err(e) => {
                     refused = Some(e);
                     Err(CoreError::Invalid("group_refused"))
@@ -405,7 +403,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
         self.group_step(ctx, |app, gctx| {
             let r = app.group_receive(gctx, from, wire)?;
             note_removals(app, &r);
-            app.carry_outbox_add(&r)?;
+            app.carry_outbox_add(&r, gctx.now_ms / 1000)?;
             Ok(r)
         })
     }
@@ -499,7 +497,11 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 }
             };
             match tx.group_lane_queue(relationship_id, &body)? {
-                Ok(()) => Ok(()),
+                Ok(()) => {
+                    // The item the flow step kept for this lane (if any) is taken in the same transaction.
+                    tx.st.app.carry_lane_out_take(relationship_id, wire);
+                    Ok(())
+                }
                 Err(e) => {
                     refused = Some(e);
                     Err(CoreError::Invalid("group_refused"))
@@ -518,6 +520,111 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 Some(r) => Ok((Err(r), Step::default())),
                 None => Err(e),
             },
+        }
+    }
+
+    /// Take the oldest Invite, Accept or Decline the flow kept (`GroupCarriageRec::lane_out`) into the 1:1 queue, in one
+    /// transaction with removing it (report D58 closed): a crash repeats nothing and loses nothing. Returns `Ok(true)`
+    /// when one was taken (call again), `Ok(false)` when none can move now. A relationship that is not usable yet or a
+    /// missing route offer keeps its item (and everything behind it for that relationship); an item older than
+    /// `LANE_OUT_TTL_S`, or refused for a reason that cannot change, is dropped and counted (`lane_lost`), never silently.
+    pub fn group_lane_flush(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+    ) -> Result<(Result<bool, GroupError>, Step), CoreError> {
+        use crate::groups::carriage as cg;
+        self.slot(ctx)?;
+        let items = self.slot(ctx)?.state.app.group_carriage.lane_out.clone();
+        if items.is_empty() {
+            return Ok((Ok(false), Step::default()));
+        }
+        let mut blocked: Vec<String> = vec![];
+        let mut last: Option<GroupError> = None;
+        for item in items {
+            if blocked.contains(&item.relationship) {
+                continue;
+            }
+            let mut refused: Option<GroupError> = None;
+            let res = self.txn(&ctx.profile_id, |tx| {
+                let now_s = tx.now_ms / 1000;
+                let body = {
+                    let st = &mut *tx.st;
+                    let dev = st
+                        .device
+                        .as_ref()
+                        .ok_or(CoreError::Invalid("no identity"))?;
+                    let mut env = CarryEnv {
+                        signer: &dev.signer,
+                        device_id: dev.device_id,
+                        account_id: dev.account_id,
+                        rng: &mut *tx.rng,
+                        offers: &mut *tx.offers,
+                        now_s,
+                    };
+                    st.app.carry_lane_body(&mut env, &item.wire)
+                };
+                let body = match body {
+                    Ok(b) => b,
+                    Err(e) => {
+                        refused = Some(e);
+                        return Err(CoreError::Invalid("group_refused"));
+                    }
+                };
+                match tx.group_lane_queue(&item.relationship, &body)? {
+                    Ok(()) => {
+                        tx.st
+                            .app
+                            .group_carriage
+                            .lane_out
+                            .retain(|l| l.id != item.id);
+                        Ok(())
+                    }
+                    Err(e) => {
+                        refused = Some(e);
+                        Err(CoreError::Invalid("group_refused"))
+                    }
+                }
+            });
+            match res {
+                Ok(((), commit)) => {
+                    return Ok((
+                        Ok(true),
+                        Step {
+                            commit,
+                            handle: None,
+                        },
+                    ));
+                }
+                Err(e) => {
+                    let Some(why) = refused else { return Err(e) };
+                    let now_s = self.clock.now_ms() / 1000;
+                    let expired = now_s >= item.since_s.saturating_add(cg::LANE_OUT_TTL_S);
+                    let transient = matches!(why.0, "no_route_offer" | "relationship_unavailable");
+                    if transient && !expired {
+                        blocked.push(item.relationship.clone());
+                        last = Some(why);
+                        continue;
+                    }
+                    // Final: drop it, count it, and tell the host (the person hears of it through `lane_lost`).
+                    let ((), commit) = self.txn(&ctx.profile_id, |tx| {
+                        let c = &mut tx.st.app.group_carriage;
+                        c.lane_out.retain(|l| l.id != item.id);
+                        c.lane_out_lost = c.lane_out_lost.saturating_add(1);
+                        Ok(())
+                    })?;
+                    return Ok((
+                        Ok(true),
+                        Step {
+                            commit,
+                            handle: None,
+                        },
+                    ));
+                }
+            }
+        }
+        match last {
+            Some(e) => Ok((Err(e), Step::default())),
+            None => Ok((Ok(false), Step::default())),
         }
     }
 
@@ -540,7 +647,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
                         Sender::Relationship(item.relationship_id.clone()),
                         item.wire,
                     )
-                    .and_then(|r| app.carry_outbox_add(&r).map(|()| r));
+                    .and_then(|r| app.carry_outbox_add(&r, gctx.now_ms / 1000).map(|()| r));
                 all.push((item.relationship_id, r));
             }
             Ok(all)
@@ -606,7 +713,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
             let now_s = gctx.now_ms / 1000;
             let r = app.carry_frame_in(gctx, now_s, wrapper)?;
             note_removals(app, &r);
-            app.carry_outbox_add(&r)?;
+            app.carry_outbox_add(&r, gctx.now_ms / 1000)?;
             Ok(r)
         })
     }
@@ -668,6 +775,7 @@ impl<R: RngCore + CryptoRng> Core<R> {
         self.slot(ctx)?;
         let (revoke, commit) = self.txn(&ctx.profile_id, |tx| {
             let now_s = tx.now_ms / 1000;
+            tx.st.app.carry_outbox_expire(now_s);
             Ok(tx.st.app.carry_routes_expire(now_s))
         })?;
         Ok((
@@ -707,6 +815,8 @@ impl<R: RngCore + CryptoRng> Core<R> {
             route_owed: rec.replace_owed.clone(),
             outbox: rec.outbox.len(),
             pending: rec.pending.len(),
+            lane_out: rec.lane_out.len(),
+            lane_lost: rec.lane_out_lost,
         })
     }
 

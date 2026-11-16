@@ -397,11 +397,22 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       await kvCommit(r, ctx);
       return { ok: true as const };
     }),
+    laneFlush: (ctx) => exclusive(async () => {
+      const r = core.call({ cmd: "group_lane_flush", ctx: ctxOf(ctx) }) as { moved?: boolean; refused?: string; commit?: Commit | null };
+      if (r.refused !== undefined) return { ok: false as const, refused: r.refused };
+      await kvCommit(r, ctx);
+      return { ok: true as const, moved: r.moved === true };
+    }),
     lanePump: (ctx) => exclusive(async () => groupStep(await groupCall({ cmd: "group_lane_pump", ctx: ctxOf(ctx) }), ctx)),
     frameReceive: (ctx, wrapper) => exclusive(async () => groupStep(await groupCall({ cmd: "group_frame_receive", ctx: ctxOf(ctx), wrapper }), ctx)),
     pendingRefresh: (ctx) => exclusive(async () => { await kvCommit(core.call({ cmd: "group_pending_refresh", ctx: ctxOf(ctx) }) as { commit?: Commit | null }, ctx); }),
     pendingRetry: (ctx) => exclusive(async () => groupStep(await groupCall({ cmd: "group_pending_retry", ctx: ctxOf(ctx) }), ctx)),
-    routeUpdate: (ctx, conversationId) => exclusive(async () => frames(core.call({ cmd: "group_route_update", ctx: ctxOf(ctx), conversationId }) as never, ctx)),
+    routeUpdate: (ctx, conversationId) => exclusive(async () => {
+      const r = core.call({ cmd: "group_route_update", ctx: ctxOf(ctx), conversationId }) as { queued?: number; refused?: string; commit?: Commit | null };
+      if (r.refused !== undefined || r.queued === undefined) return { ok: false as const, refused: r.refused ?? "invalid" };
+      await kvCommit(r, ctx); // durable before the frames are sealed and deposited
+      return { ok: true as const, queued: r.queued };
+    }),
     routesExpire: (ctx) => exclusive(async () => {
       const r = core.call({ cmd: "group_routes_expire", ctx: ctxOf(ctx) }) as { revoke: { relayUri: string; capability: string }[]; commit?: Commit | null };
       await kvCommit(r, ctx);

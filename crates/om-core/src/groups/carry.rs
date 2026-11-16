@@ -944,7 +944,7 @@ impl AppState {
     /// step. When the reply prepared a Commit, its journal entry records how many frames were queued
     /// (`queued`, G10 condition 1). The relationship lane (Invite, Accept, Decline) is not here: it rides the 1:1
     /// queue, which is already durable. A full outbox refuses the step (fail closed).
-    pub fn carry_outbox_add(&mut self, rep: &GroupReply) -> R<()> {
+    pub fn carry_outbox_add(&mut self, rep: &GroupReply, now_s: u64) -> R<()> {
         let intent = rep.events.iter().find_map(|e| match e {
             GroupEvent::CommitPrepared { intent_id } => Some(intent_id.clone()),
             _ => None,
@@ -952,6 +952,32 @@ impl AppState {
         let mut n = 0u32;
         for o in &rep.out {
             let is_commit = matches!(o.wire, GroupWire::Commit { .. });
+            if let (
+                Target::Relationship(rel),
+                GroupWire::Invite { .. } | GroupWire::Accept { .. } | GroupWire::Decline { .. },
+            ) = (&o.to, &o.wire)
+            {
+                // The relationship lane (ADR-0189 1.1): kept here, durably with the step, until the 1:1 queue takes it.
+                let c = &mut self.group_carriage;
+                if c.lane_out
+                    .iter()
+                    .any(|l| &l.relationship == rel && l.wire == o.wire)
+                {
+                    continue; // the same step repeated: idempotent
+                }
+                if c.lane_out.len() >= cg::MAX_LANE_OUT {
+                    return err("lane_out_full");
+                }
+                let id = c.next_out;
+                c.next_out += 1;
+                c.lane_out.push(cg::LaneOut {
+                    id,
+                    relationship: rel.clone(),
+                    wire: o.wire.clone(),
+                    since_s: now_s,
+                });
+                continue;
+            }
             if !matches!(
                 o.wire,
                 GroupWire::Commit { .. }
@@ -962,9 +988,6 @@ impl AppState {
             ) {
                 continue;
             }
-            if self.group_carriage.outbox.len() >= cg::MAX_OUTBOX {
-                return err("outbox_full");
-            }
             let to = match &o.to {
                 Target::Relationship(r) => cg::OutTarget::Relationship(r.clone()),
                 Target::Device { account, device } => cg::OutTarget::Device {
@@ -972,6 +995,19 @@ impl AppState {
                     device: hex(device),
                 },
             };
+            if let GroupWire::RouteUpdate {
+                conversation_id, ..
+            } = &o.wire
+            {
+                // A newer route supersedes a queued older one for the same Room and device: only the latest is worth sending.
+                self.group_carriage.outbox.retain(|q| {
+                    !(q.to == to
+                        && matches!(&q.wire, GroupWire::RouteUpdate { conversation_id: c, .. } if c == conversation_id))
+                });
+            }
+            if self.group_carriage.outbox.len() >= cg::MAX_OUTBOX {
+                return err("outbox_full");
+            }
             let id = self.group_carriage.next_out;
             self.group_carriage.next_out += 1;
             self.group_carriage.outbox.push(cg::OutItem {
@@ -979,6 +1015,7 @@ impl AppState {
                 intent_id: if is_commit { intent.clone() } else { None },
                 to,
                 wire: o.wire.clone(),
+                since_s: now_s,
             });
             if is_commit {
                 n += 1;
@@ -990,6 +1027,48 @@ impl AppState {
             e.queued = Some(n);
         }
         Ok(())
+    }
+
+    /// Mint this device's fresh route for `room` and queue one `route_update` per other roster device in the Core
+    /// outbox, in one transaction with clearing the owed mark (ADR-0189 1.3, ADR-0120 K1; report D57 closed). Returns
+    /// how many frames were queued. The host seals and deposits them like any outbox item.
+    pub fn carry_route_update_queue<Rg: RngCore + CryptoRng>(
+        &mut self,
+        env: &mut CarryEnv<'_, Rg>,
+        room: &str,
+    ) -> R<usize> {
+        let outs = self.carry_route_update_out(env, room)?;
+        let n = outs.len();
+        self.carry_outbox_add(
+            &GroupReply {
+                out: outs,
+                ..GroupReply::default()
+            },
+            env.now_s,
+        )?;
+        Ok(n)
+    }
+
+    /// Drop a `route_update` that waited longer than the overlap: the route it replaced is revoked by then, and the next
+    /// removal or refresh mints a newer one. Counted nowhere: a stale route is replaced, never reported.
+    pub fn carry_outbox_expire(&mut self, now_s: u64) {
+        self.group_carriage.outbox.retain(|o| {
+            !(matches!(o.wire, GroupWire::RouteUpdate { .. })
+                && o.since_s > 0
+                && now_s >= o.since_s.saturating_add(cg::ROUTE_UPDATE_TTL_S))
+        });
+    }
+
+    /// The lane item the 1:1 queue just took (or that a caller sent directly): drop its keeper.
+    pub fn carry_lane_out_take(&mut self, relationship: &str, wire: &GroupWire) {
+        let c = &mut self.group_carriage;
+        if let Some(i) = c
+            .lane_out
+            .iter()
+            .position(|l| l.relationship == relationship && &l.wire == wire)
+        {
+            c.lane_out.remove(i);
+        }
     }
 
     /// The host deposited these outbox frames: drop them (transport progress, never acceptance).
@@ -1037,7 +1116,7 @@ impl AppState {
                 }
                 Err(e) => return Err(e),
             };
-            self.carry_outbox_add(&rep)?;
+            self.carry_outbox_add(&rep, gctx.now_ms / 1000)?;
             all.push(rep);
         }
         Ok(all)
