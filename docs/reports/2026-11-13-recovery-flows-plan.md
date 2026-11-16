@@ -260,3 +260,18 @@ Suggested order for a later session: read identity_control_recovery, crypto_1to1
 **Verified:** `pnpm exec tsc -b apps/web` clean; `pnpm exec vitest run src` in om-platform-api (9), om-core-harness (29), om-ui (261), apps/web (138) pass; om-core-wasm `make core-wasm` then `conformance.test.ts` and `ui.test.tsx` (5) pass; its `dist` stale suite fails as before. `python3 tools/om_docs.py fmt`, `make check` pass (exit 0).
 **Read:** the plan sections named in the brief, `api.rs` (`BeginRecovery`, `RecoveryStatusView`, `RecoveringView`), commit 336c610 diff. **Not read:** any design domain document; the committing session must read them.
 **For the committing session:** `python3 tools/design_gate.py needs packages/om-platform-api/src/core/devices.ts packages/om-platform-api/src/core/intents.ts` (six domains: crypto_1to1, discovery_first_contact, identity_control_recovery, metadata_privacy, relay_reachability, time_ordering_events), then `git add packages` and commit with `Design-Read` for them and `Design-Departures: none`.
+
+## RecoveryNotice wire (ADR-0190), committed 2026-11-16
+
+**Done.** The wire is specified and tested: [`recovery-notice.cddl`](../../spec/cddl/recovery-notice.cddl), object type 34 `RecoveryNotice` (W1, additive, ADR-0165 class `additive_noncritical_extension`) in the registries with the `RecoverySuccessorBundle` and `RecoveryDossierEntry` structs, 102 object vectors (27 accepted including 14 receiver-state fixtures, 75 refused) and 19 struct vectors, the `recovery-notice-wire` prototype (two strict codecs and two CDDL tools agree) and a product codec test. Nothing in W0 changed; the frozen W0 corpus replays unchanged. No object has a time field, unknown keys other than 23 are refused, the largest notice is 131,068 bytes. The ADR amendment of 2026-11-16 records the byte-wrapped nested signed objects, the length-only policy check and the key-23 time rule.
+
+**Design sources read.** Every document and ADR `design_gate.py needs` lists for the seven domains (crypto_1to1, discovery_first_contact, identity_control_recovery, metadata_privacy, provider_deployment_supply_chain, relay_reachability, time_ordering_events), in full, plus ADR-0190, ADR-0165, PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL, AGENTS.md and AGENT_ARCHITECTURE_RULES. Not read: documents and ADRs those texts cite but `needs` does not list (for example SEALED_SENDER_DELIVERY_PROFILE beyond the passages ADR-0190 cites).
+
+**What remains**
+- **Core work per the ADR-0190 work list:** `PeerRecoveryRec` and state, `observe_recovery_notice` in the order of section 2 (policy validated with `check("RecoveryPolicy", ...)` and hashed against the commitment; no time or time-like key accepted from an extension), `verify_chain_partial`, dossier send and receive, `peer_recovery_tick`, sweep, decline and confirm intents, the sealed-inner dispatch on `0: 34`, `notify_contacts_on_completion` default `true`, backup exclusion, and `crates/om-core/tests/recovery_peer.rs`.
+- **In-session kinds** `RECOVERY_VETO` and `RECOVERY_SWEEP`: the ADR names them and the sweep's two field names; no wire shape exists yet. First free numbers above 11.
+- **Section 10 metadata descriptor line** (recovery fan-out reaches each contact only during a recovery): not added to the W0 metadata exposure descriptors.
+- **Threat-model line** next to T-041 for a late-delivered notice: not added.
+- **Requirement traceability** entries for the notice, dossier and contact-side states: not added.
+- **UI copy keys** `recoveryCopy.contact` and the banner component: not built.
+- A logical schema JSON for the notice (the group types have none either).
