@@ -67,9 +67,9 @@ test("a Hardened Room: created with the level, tightened at once, loosened only 
   expectSealedOnly(bob, [/first words|seen it|Planning/]);
 });
 
-// Pins today's behaviour (D93): the Add Commit carries no account head, so the member who does not know the newcomer holds it.
-// When D93's decided fix lands (the Commit frame carries the added accounts' signed heads like the Welcome), this test flips.
-test("three people who have never all met: the newcomer joins on the heads the Welcome carries and talks with the inviter; the member who does not know her waits, and says so", async ({ browser }) => {
+// D93: the Add Commit carries the signed head of the added account, like the Welcome, so the member who never met the newcomer
+// verifies it and applies the Add (he holds the head only as the inviter's word until a normal refresh brings his own).
+test("three people who have never all met: the newcomer joins on the heads the Welcome carries, the other member applies the Add on the head the Commit carries, and all three talk", async ({ browser }) => {
   const alice = await startPerson(browser, "Alice");
   everyone.push(alice);
   const bob = await joinByLink(browser, "Bob", await firstLink(alice), alice);
@@ -102,13 +102,21 @@ test("three people who have never all met: the newcomer joins on the heads the W
   expect((await people.locator(".om-group-members__name").allTextContents()).map((t) => t.trim()).sort()).toEqual(["Alice", "Someone 1", "You"]); // the list order is Core's, not alphabetical
   await carol.page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
 
-  // Open question (see the notes of this change): Bob has no head for Carol's account, and a Commit carries no head for the devices it
-  // adds, so Bob's Core keeps the Commit and says so instead of accepting it unverified. He is not told anything false.
+  // Bob never met Carol: the Commit that adds her carries her signed head, so his Core verifies it and applies the Add (D93). He is
+  // not left waiting, and he can read her and she can read him; he has no name for her, only the Room's "Someone".
   await openGroup(bob, "Trio");
-  await expect(bob.page.getByRole("region", { name: "Group status" }).locator("visible=true").first().getByText("Waiting for a group update")).toBeVisible({ timeout: 60_000 });
-  await expect(roomLog(bob).getByText("carol here", { exact: true })).toHaveCount(0);
-  expectSealedOnly(alice, [/hello bob|carol here|Trio/]);
-  expectSealedOnly(carol, [/hello bob|carol here|Trio/]);
+  await hears(bob, "carol here");
+  await expect(bob.page.getByRole("region", { name: "Group status" }).locator("visible=true").first().getByText("Waiting for a group update")).toHaveCount(0);
+  await say(bob, "welcome carol");
+  await hears(carol, "welcome carol");
+  await hears(alice, "welcome carol");
+  await say(alice, "hi both");
+  await hears(bob, "hi both");
+  await hears(carol, "hi both");
+  await expect(roomLog(bob).getByText("hello bob", { exact: true })).toHaveCount(1); // Bob keeps what he already had
+  expectSealedOnly(alice, [/hello bob|carol here|welcome carol|hi both|Trio/]);
+  expectSealedOnly(bob, [/hello bob|carol here|welcome carol|hi both|Trio/]);
+  expectSealedOnly(carol, [/hello bob|carol here|welcome carol|hi both|Trio/]);
 });
 
 test("three people who all know each other: join, names from each device's contacts, a removal and the route update after it", async ({ browser }) => {

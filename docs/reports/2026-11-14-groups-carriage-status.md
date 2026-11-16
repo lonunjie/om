@@ -292,6 +292,30 @@ Built and verified: a base-module Core query lists group Invitations held before
 
 ### Open
 
-- **D93, decided 2026-11-16 (operator-delegated):** a member without the head of a newly added account holds the Add Commit today. The fix is that the Add Commit's transport frame carries the signed account heads of the newly added accounts exactly like the Welcome: the same optional W1 field mechanism and the same rules as D44, D51 and D54 (signature and credentials verified; used only when the receiver has no other head; marked vouched-by-inviter; refreshed through the normal head refresh; never trusted beyond that). A builder implements it later: a wire field in `FrameBodyCommit` plus vectors, Core, tests. The e2e that pins today's behaviour (with a comment pointing at D93) flips then.
+- **D93, decided 2026-11-16 (operator-delegated):** a member without the head of a newly added account holds the Add Commit today. The fix is that the Add Commit's transport frame carries the signed account heads of the newly added accounts exactly like the Welcome: the same optional W1 field mechanism and the same rules as D44, D51 and D54 (signature and credentials verified; used only when the receiver has no other head; marked vouched-by-inviter; refreshed through the normal head refresh; never trusted beyond that). Built 2026-11-16 (see "D93: account heads in the Add Commit" below); the e2e that pinned today's behaviour has flipped.
 - **Duplicate display names in one group:** disambiguation per GROUPS_AND_SPACES_UX section 10 (nickname, shared context, AccountID path, duplicate notice) is not built; recorded as a follow-up.
 - **Route-update evidence in the e2e is indirect** (it shows through delivery after a removal, not a direct view of the record).
+
+## D93: account heads in the Add Commit (2026-11-16)
+
+Built by a builder-only session; not committed.
+
+### Design sources read, and not read
+
+Read in full: [`AGENTS.md`](../../AGENTS.md) "Design gate"; [`AGENT_ARCHITECTURE_RULES.md`](../process/AGENT_ARCHITECTURE_RULES.md); ADR-0189 (with its appendix CDDL); ADR-0177; ADR-0165; [`PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md`](../process/PROTOCOL_EVOLUTION_AND_CHANGE_CONTROL.md); [`GROUP_COMMIT_AND_STATE_CONVERGENCE.md`](../architecture/groups/GROUP_COMMIT_AND_STATE_CONVERGENCE.md); this report; the D44, D49, D51, D54 and D93 rows of [`2026-10-28-relay-status.md`](2026-10-28-relay-status.md); commits `ee2766e` and `3f6f9e4` (how the Welcome's heads were done); the code (`groups/carry.rs`, `carriage.rs`, `endpoint.rs`, `flow.rs` `group_commit_in`).
+
+Read in part: [`GROUP_CHAT_ARCHITECTURE.md`](../architecture/groups/GROUP_CHAT_ARCHITECTURE.md), lines 1 to about 400 (through invites, delivery, attachments, storage and bots); the bridges section and the rest were not read.
+
+Not read: the roughly 37 architecture documents and 59 ADRs that `tools/design_gate.py needs` prints for the changed paths (domains `client_endpoint_distribution`, `crypto_1to1`, `discovery_first_contact`, `identity_control_recovery`, `metadata_privacy`, `provider_deployment_supply_chain`, `relay_reachability`, `time_ordering_events`, `ux_accessibility_personalization`). The change reuses the Welcome's mechanism, which the committer of `ee2766e` and `3f6f9e4` read the gate's list for; the committer of this change must read the whole list.
+
+### What was built
+
+- Wire: `frame-body-commit` key 4 `account_heads` (1 to 64 `group-account-head`), registry `FrameBodyCommit.account_heads`, generator, CDDL check, vector `GroupTransportFrame/commit-with-account-heads`, and a new `structs` list in the vectors file (struct vectors for `FrameBodyCommit`, `FrameBodyWelcome` and negatives: empty, 65 heads, wrong shape, null, account id 31 bytes, missing and unknown keys, state and credential bodies empty or 65,537 bytes, over 131,000 bytes, unsorted keys, trailing bytes). The product codec replays them with `check_struct` (`frame_body_structs_replay_exactly`); the two prototype codecs do not read that list (frame bodies are bstr to them, Q1).
+- Core, committer: for an Add Commit, `carry_frame_out` attaches the heads of the added accounts it can evidence, by the Welcome's own function (`carry_heads_for`), minus its own account, and sends without heads if they would not fit one frame (D95).
+- Core, receiver: `carry_commit_in` verifies each head (`carry_room_head`: the Welcome's check) only for an account an added device's credential names and only when it holds no head for that account, stores it in `room_heads`, and so `carry_trust` and `group_bind` (the endpoint proofs in `group_commit_in`) prove the new leaves. A head that does not verify is not kept and the Commit is held until it expires, as before. The head is removed again if the Commit is held, or if the applied Commit registered no device of that account (D96).
+- Tests (real OpenMLS and the fake): `a_member_who_never_met_the_new_person_applies_the_add_on_the_head_the_commit_carries`, `an_add_commit_without_a_verifiable_head_is_held_until_it_expires` (no head, corrupted head), `a_held_add_commit_applies_once_the_head_arrives_by_the_normal_path`, `a_head_in_the_commit_never_replaces_a_head_the_receiver_holds` in `groups_carriage_2b.rs`; `a_commit_frame_carries_account_heads_strictly` in `groups_carriage.rs`. The test hook `TEST_ROOM_HEADS` has modes 3 and 4 (the Commit's heads only).
+- e2e: `groups-live-rooms.spec.ts`, "three people who have never all met", now asserts that Bob applies the Add, reads Carol, and all three talk.
+
+### Not covered
+
+A Commit that carries a head for an account no added device belongs to is ignored by construction; there is no dedicated test. The "frame too large, send without heads" branch has no test (it needs a Room whose heads exceed 131,000 bytes). Both are small and local.
