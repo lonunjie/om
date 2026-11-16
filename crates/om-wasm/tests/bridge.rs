@@ -377,6 +377,40 @@ fn privacy_level_and_recovery_tick_are_host_commands_with_a_durable_commit() {
     );
     assert!(set["ok"]["commit"]["writes"].is_array(), "{set}");
     finish(&mut b, &set);
+    // Reading it back: Hardened now. Loosening is never silent: without `confirmed` it is refused and nothing changes.
+    let q = call(
+        &mut b,
+        json!({ "cmd": "query", "query": { "kind": "GetPrivacyLevel", "ctx": ctx } }),
+    );
+    assert_eq!(q["ok"], json!("hardened"), "{q}");
+    let down = call(
+        &mut b,
+        json!({ "cmd": "set_privacy_level", "ctx": ctx, "level": null }),
+    );
+    assert!(down.get("err").is_some(), "{down}");
+    let q = call(
+        &mut b,
+        json!({ "cmd": "query", "query": { "kind": "GetPrivacyLevel", "ctx": ctx } }),
+    );
+    assert_eq!(q["ok"], json!("hardened"), "{q}");
+    // A tightening needs no confirmation; the confirmed loosening goes through and reads back as Recommended.
+    let up = call(
+        &mut b,
+        json!({ "cmd": "set_privacy_level", "ctx": ctx, "level": "maximum" }),
+    );
+    assert!(up.get("ok").is_some(), "{up}");
+    finish(&mut b, &up);
+    let down = call(
+        &mut b,
+        json!({ "cmd": "set_privacy_level", "ctx": ctx, "level": null, "confirmed": true }),
+    );
+    assert!(down.get("ok").is_some(), "{down}");
+    finish(&mut b, &down);
+    let q = call(
+        &mut b,
+        json!({ "cmd": "query", "query": { "kind": "GetPrivacyLevel", "ctx": ctx } }),
+    );
+    assert_eq!(q["ok"], json!("recommended"), "{q}");
     // An unknown level is refused at the boundary, never guessed.
     let bad = call(
         &mut b,

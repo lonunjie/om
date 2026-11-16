@@ -78,6 +78,9 @@ enum Command {
     SetPrivacyLevel {
         ctx: ProfileExecutionContext,
         level: Option<om_core::api::PrivacyPolicyLevel>,
+        /// The person confirmed a loosening. Without it, a lower level is refused.
+        #[serde(default)]
+        confirmed: bool,
     },
     Outcome {
         ctx: ProfileExecutionContext,
@@ -672,9 +675,13 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::RecoveryTick { ctx, mono } => {
                 Ok(enc(&self.core()?.recovery_tick(&ctx, &mono)?))
             }
-            Command::SetPrivacyLevel { ctx, level } => {
-                Ok(enc(&self.core()?.set_privacy_level(&ctx, level)?))
-            }
+            Command::SetPrivacyLevel {
+                ctx,
+                level,
+                confirmed,
+            } => Ok(enc(&self
+                .core()?
+                .set_privacy_level(&ctx, level, confirmed)?)),
             Command::PendingOperations { ctx } => {
                 Ok(enc(&self.core()?.pending_operations(&ctx)?))
             }

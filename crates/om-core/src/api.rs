@@ -161,6 +161,18 @@ pub enum PrivacyPolicyLevel {
     Custom,
 }
 
+impl PrivacyPolicyLevel {
+    /// How much this level asks of the person (none is Recommended). A move to a lower rank is a loosening. Custom ranks with
+    /// Hardened: it asks before a contact's recovery finishes, and it is never the way to go below either.
+    pub fn rank(level: Option<Self>) -> u8 {
+        match level {
+            None | Some(Self::Recommended) => 0,
+            Some(Self::Hardened | Self::Custom) => 1,
+            Some(Self::Maximum) => 2,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RecoveryScope {
@@ -550,6 +562,10 @@ pub enum Query {
     GetDirectOffers {
         ctx: ProfileExecutionContext,
     },
+    /// This person's own privacy level on this device (`PrivacyPolicyLevel`; Recommended when none was set). Local, never sent.
+    GetPrivacyLevel {
+        ctx: ProfileExecutionContext,
+    },
 }
 
 impl Query {
@@ -570,7 +586,8 @@ impl Query {
             | Query::GetConfirmation { ctx, .. }
             | Query::GetIntroductionLoad { ctx }
             | Query::PlanAttachment { ctx, .. }
-            | Query::GetDirectOffers { ctx } => Some(ctx),
+            | Query::GetDirectOffers { ctx }
+            | Query::GetPrivacyLevel { ctx } => Some(ctx),
         }
     }
 }
