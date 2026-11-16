@@ -156,6 +156,7 @@ const ctxOf = (x: ProfileExecutionContext): ProfileExecutionContext => capturePr
 export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreClient> {
   const { core, provider } = opts;
   let recoveryTicker: RecoveryTicker | null = null;
+  const resumeOff: (() => void)[] = [];
   const autoDrain = opts.autoDrain ?? true;
   const retryMs = opts.retryMs ?? 2000;
   const pollMs = opts.pollMs ?? 0;
@@ -615,6 +616,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     dispose() {
       disposed = true;
       recoveryTicker?.dispose();
+      for (const off of resumeOff) off();
       groupDriver?.dispose();
       wakeOff?.();
       for (const t of timers) { clearTimeout(t); clearInterval(t); }
@@ -638,6 +640,16 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
         tick: (p, sample) => client.recoveryTick(client.contextFor(asProfileId(p)), sample),
       });
       for (const p of openProfiles) recoveryTicker.wake(p);
+      // Browsers hold timers back in a hidden tab and may freeze it: when the page is shown again take a reading at once (D88).
+      const ticker = recoveryTicker;
+      const g = globalThis as { addEventListener?: (t: string, f: () => void) => void; removeEventListener?: (t: string, f: () => void) => void; document?: { visibilityState?: string } };
+      if (g.addEventListener !== undefined && g.removeEventListener !== undefined) {
+        const onShow = (): void => { if (g.document?.visibilityState !== "hidden") ticker.resume(); };
+        for (const ev of ["visibilitychange", "pageshow"]) {
+          g.addEventListener(ev, onShow);
+          resumeOff.push(() => g.removeEventListener?.(ev, onShow));
+        }
+      }
     }
   }
   if (autoDrain && provider.onWake) {

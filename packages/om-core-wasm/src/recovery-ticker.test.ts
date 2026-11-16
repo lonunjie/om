@@ -26,7 +26,9 @@ function rig(opts: { pending?: () => boolean; maxGapMs?: number } = {}) {
     for (const [id, x] of [...timers]) if (x.at <= t) { timers.delete(id); x.fn(); }
     await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
   };
-  return { ticker, calls, timers, advance, setSkew: (v: number) => { skew = v; }, setPending: (f: () => boolean) => { pending = f; } };
+  /** Move the clock with no timer firing (a frozen page). */
+  const freeze = (ms: number): void => { t += ms; };
+  return { ticker, calls, timers, advance, freeze, setSkew: (v: number) => { skew = v; }, setPending: (f: () => boolean) => { pending = f; } };
 }
 const flush = async (): Promise<void> => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
 
@@ -95,6 +97,48 @@ describe("recovery ticker (strict timer, monotonic clock only)", () => {
     expect(r.calls[1]?.s.bootSession).not.toBe(r.calls[0]?.s.bootSession);
     await r.advance(30_000);
     expect(r.calls[2]?.s.bootSession).toBe(r.calls[1]?.s.bootSession);
+  });
+
+  it("a frozen then resumed timer: resume re-reads the clock, never sums missed ticks, and credits nothing for the time away", async () => {
+    const r = rig();
+    r.ticker.wake("a");
+    await flush();
+    const before = r.calls[0]?.s;
+    // Frozen: the clock runs on (as it may after a thaw) but no timer fires, so no tick is sent for 20 minutes.
+    r.freeze(20 * 60_000);
+    expect(r.calls.length).toBe(1);
+    r.ticker.resume();
+    await flush();
+    expect(r.calls.length).toBe(2);
+    const after = r.calls[1]?.s;
+    expect(after?.elapsedMs).toBe((before?.elapsedMs ?? 0) + 20 * 60_000); // the live reading, not before + one interval
+    expect(after?.bootSession).not.toBe(before?.bootSession); // a gap beyond the limit is a new session: Core credits none of it
+    expect(r.timers.size).toBe(1); // ticking again on the normal interval, one timer only
+    await r.advance(30_000);
+    expect(r.calls[2]?.s.bootSession).toBe(after?.bootSession);
+    expect(r.calls[2]?.s.elapsedMs).toBe((after?.elapsedMs ?? 0) + 30_000);
+  });
+
+  it("resume inside the limit keeps the session (the time was really spent running); with nothing waiting or stopped it does nothing", async () => {
+    const r = rig();
+    r.ticker.wake("a");
+    await flush();
+    r.freeze(40_000);
+    r.ticker.resume();
+    await flush();
+    expect(r.calls[1]?.s.bootSession).toBe(r.calls[0]?.s.bootSession);
+    r.ticker.stop("a");
+    r.ticker.resume();
+    await flush();
+    expect(r.calls.length).toBe(2);
+    expect(r.timers.size).toBe(0);
+    const d = rig();
+    d.ticker.wake("a");
+    await flush();
+    d.ticker.dispose();
+    d.ticker.resume();
+    await flush();
+    expect(d.calls.length).toBe(1);
   });
 
   it("lock or profile switch stops it at once, and a reopen is a new session", async () => {

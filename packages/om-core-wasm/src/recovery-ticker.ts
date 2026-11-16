@@ -29,6 +29,12 @@ export interface RecoveryTickerOptions {
 export interface RecoveryTicker {
   /** Something may have started waiting (a profile opened, a commit released): tick now, then keep ticking while a recovery waits. */
   wake(profileId: string): void;
+  /**
+   * The page came back (a hidden or frozen tab was shown again, a page was restored): take a reading now instead of waiting for a timer
+   * the browser may have held back. The clock is read afresh; nothing is added up from missed ticks, and a gap longer than the limit
+   * starts a new session, so the time the page was away is never credited.
+   */
+  resume(): void;
   /** The profile locked or closed: no further tick, and its next run is a new boot session. */
   stop(profileId: string): void;
   dispose(): void;
@@ -91,6 +97,15 @@ export function createRecoveryTicker(o: RecoveryTickerOptions): RecoveryTicker {
       const r: Run = { session: fresh(), last: null, busy: false, timer: undefined };
       runs.set(p, r);
       void run(p, r);
+    },
+    resume() {
+      if (disposed) return;
+      for (const [p, r] of [...runs]) {
+        if (r.busy) continue; // a tick is in flight: it re-arms itself with a fresh reading
+        if (r.timer !== undefined) clearTimer(r.timer);
+        r.timer = undefined;
+        void run(p, r);
+      }
     },
     stop(p) {
       const r = runs.get(p);
