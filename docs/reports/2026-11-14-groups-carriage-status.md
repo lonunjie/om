@@ -281,3 +281,17 @@ Read in full before committing: AGENTS "Design gate", AGENT_ARCHITECTURE_RULES, 
 ## Held invitations (D70, D71)
 
 Built and verified: a base-module Core query lists group Invitations held before the group module is loaded (Room name, the 1:1 it came over, local receipt time; nothing secret, nothing accepted). The Chats list shows "You have a group invitation" and its one action opens the existing loader sheet, after which the ordinary card asks Join or No thanks. The held queue is bounded at 256 events and 32 per contact; a full queue is counted (persisted, shown until read) instead of dropped silently, and held entries are never evicted. Checks: Rust tests (with and without `groups-openmls`), fmt, clippy, vitest, the groups-held, groups and groups-protection Chromium specs, size budget (+2,196,213 raw / +658,981 gzip, within limits). The base module has a new digest.
+
+## Real-Core e2e for the groups gaps, and member display names
+
+### What landed
+
+- New Chromium spec `apps/web/e2e/groups-live-rooms.spec.ts` (with `groups-live-people.ts`): every person is a browser context of their own on the real Core, the real carriage and the local reference Home. It covers a Room created Hardened, tightened at once, loosened only after the explicit confirmation (and "Keep it as it is" changing nothing), the "Less strict" notice and the contact's name on the other member's device; a three-person Room (all three know each other) with joining, names, a removal and the route update after it; three people who have never all met (the newcomer joins on the Welcome-carried heads; D93 for the other member); and a held invitation on a device without the groups module, kept across a reload, then opened and joined.
+- Bug found and fixed: tapping "Open invitation" on a held invitation restarted the app and then opened the New group sheet over the invitation (the restart always remembered "open New group"). The loader now says whether the person asked for that sheet (`GroupsSetup.enable({ newGroup })`).
+- Group views now carry display names (D92): Core view, bridge (serde), TypeScript mirror, harness and UI; the UI no longer guesses names from invitations.
+
+### Open
+
+- **D93, decided 2026-11-16 (operator-delegated):** a member without the head of a newly added account holds the Add Commit today. The fix is that the Add Commit's transport frame carries the signed account heads of the newly added accounts exactly like the Welcome: the same optional W1 field mechanism and the same rules as D44, D51 and D54 (signature and credentials verified; used only when the receiver has no other head; marked vouched-by-inviter; refreshed through the normal head refresh; never trusted beyond that). A builder implements it later: a wire field in `FrameBodyCommit` plus vectors, Core, tests. The e2e that pins today's behaviour (with a comment pointing at D93) flips then.
+- **Duplicate display names in one group:** disambiguation per GROUPS_AND_SPACES_UX section 10 (nickname, shared context, AccountID path, duplicate notice) is not built; recorded as a follow-up.
+- **Route-update evidence in the e2e is indirect** (it shows through delivery after a removal, not a direct view of the record).
