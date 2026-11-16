@@ -171,12 +171,12 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   // Omnibar (find or do) and the new-conversation sheet. Both are local: nothing typed in the Omnibar leaves this device.
   const [omniOpen, setOmniOpen] = useState(false);
   const [newGroupOpen, setNewGroupOpen] = useState(false);
-  const [groupsGateOpen, setGroupsGateOpen] = useState(false);
+  const [groupsGateOpen, setGroupsGateOpen] = useState<"new_group" | "invitation" | null>(null);
   // Groups are offered when this device has them, or can get them on first use. Without the module the first tap fetches it; with it, it opens the sheet.
   const groupsOffered = groups.available || groupsSetup !== undefined;
   // Once the groups are ready the held invitations become ordinary pending ones: the loader has done its job.
-  useEffect(() => { if (groups.available) setGroupsGateOpen(false); }, [groups.available]);
-  const startNewGroup = (): void => { if (groups.available) setNewGroupOpen(true); else setGroupsGateOpen(true); };
+  useEffect(() => { if (groups.available) setGroupsGateOpen(null); }, [groups.available]);
+  const startNewGroup = (): void => { if (groups.available) setNewGroupOpen(true); else setGroupsGateOpen("new_group"); };
   // The app restarts onto the groups module after its first load: take the person back to the sheet they asked for.
   useEffect(() => { if (groups.available && takeOpenNewGroup()) setNewGroupOpen(true); }, [groups.available]);
   const [groupTick, setGroupTick] = useState(0);
@@ -407,7 +407,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
             </header>
             <HeldGroupInvites
               copy={groupsCopy} chats={list.status === "ready" ? list.value : []} groupsReady={groups.available || groupsSetup === undefined}
-              held={heldGroups.held} onOpen={() => { setGroupsGateOpen(true); }} onAcknowledge={heldGroups.acknowledge}
+              held={heldGroups.held} onOpen={() => { setGroupsGateOpen("invitation"); }} onAcknowledge={heldGroups.acknowledge}
             />
             {groups.available ? <GroupInvites services={services} copy={groupsCopy} invites={groups.invites} chats={list.status === "ready" ? list.value : []} onAnswered={groups.refresh} /> : null}
             {groups.available ? (
@@ -476,7 +476,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
           <NewGroup services={services} copy={groupsCopy} chats={list.value} onCreated={() => { groups.refresh(); setNewGroupOpen(false); }} />
         </Sheet>
       ) : null}
-      {groupsGateOpen && groupsSetup !== undefined ? <GroupsGate setup={groupsSetup} copy={groupsLoadCopy} onClose={() => { setGroupsGateOpen(false); }} /> : null}
+      {groupsGateOpen !== null && groupsSetup !== undefined ? <GroupsGate setup={groupsSetup} copy={groupsLoadCopy} newGroup={groupsGateOpen === "new_group"} onClose={() => { setGroupsGateOpen(null); }} /> : null}
       <LiveRegion>{selected === null ? "" : t.conversationOpened}</LiveRegion>
     </>
   );

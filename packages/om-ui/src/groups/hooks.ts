@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ConversationSummary, GroupDetailView, GroupEvent, GroupId, GroupInviteView, GroupMessageView, GroupNoticeView, GroupSummaryView, HeldGroupInvitations } from "@om/platform-api";
+import type { GroupDetailView, GroupEvent, GroupId, GroupInviteView, GroupMessageView, GroupNoticeView, GroupSummaryView, HeldGroupInvitations } from "@om/platform-api";
 import type { ConversationDigest } from "../conversations/hooks";
 import { groupApiOf } from "./services";
 import type { ConversationServices } from "../conversations/services";
@@ -96,23 +96,27 @@ export function useGroupChat(s: ConversationServices, groupId: GroupId, refreshK
 }
 
 /**
- * Who is who. Core's group views name people only by account, so a name is known only where something on this device already ties an
- * account to a chat: an invitation names the person on the chat it went over. Your own account is known once you have sent a message.
- * Anyone else is "Someone". (Open question: the group views should carry display names and a "this is you" flag.)
+ * Who is who, as Core's group view says it: each member's name is the one this device's own contact list gives that account (the same
+ * as the 1:1 chat shows; ADR-0189: no new metadata, nothing is read from the Room), and Core marks the person using the device.
+ * An account this device has no contact for stays unnamed, and the screen says "Someone" for it. A name is never a cryptographic
+ * identity (GROUPS_AND_SPACES_UX section 10).
  */
 export interface PeopleNames {
   readonly nameOf: (account: string) => string | null;
   readonly isYou: (account: string) => boolean;
+  /** 1, 2, ... for each account with no name, the same in every list and line of this group (so "Someone 2" is always the same person). */
+  readonly unnamedNumber: (account: string) => number;
 }
 
-export function usePeopleNames(invites: readonly GroupInviteView[], chats: readonly ConversationSummary[], messages: readonly GroupMessageView[]): PeopleNames {
+export function usePeopleNames(detail: GroupDetailView | null): PeopleNames {
   return useMemo(() => {
-    const byRel = new Map(chats.map((c) => [c.id as string, c.displayName]));
-    const known = new Map<string, string>();
-    for (const i of invites) { const n = byRel.get(i.relationshipId); if (n !== undefined) known.set(i.peerAccount, n); }
-    const me = messages.find((m) => m.outgoing)?.senderAccount ?? null;
-    return { nameOf: (a) => known.get(a) ?? null, isYou: (a) => me !== null && a === me };
-  }, [invites, chats, messages]);
+    const known = new Map<string, { display: string | null; you: boolean }>();
+    for (const p of detail?.people ?? []) known.set(p.account, p);
+    for (const p of detail?.former ?? []) if (!known.has(p.account)) known.set(p.account, p);
+    const numbers = new Map<string, number>();
+    for (const [a, p] of known) if (p.display === null && !p.you) numbers.set(a, numbers.size + 1);
+    return { nameOf: (a) => known.get(a)?.display ?? null, isYou: (a) => known.get(a)?.you === true, unnamedNumber: (a) => numbers.get(a) ?? numbers.size + 1 };
+  }, [detail]);
 }
 
 /** The row of a group in the chat list, in the same shape as a chat's. */

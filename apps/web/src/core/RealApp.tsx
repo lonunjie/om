@@ -230,9 +230,9 @@ function Connected({ rt, vault, drafts, platform, capture: composerTools, onAddP
   const registry = useMemo(() => createActionRegistry(), []);
   // Without the groups module on this device, the first use fetches and verifies it and restarts the app onto it (ADR-0187).
   const groupsSetup = useMemo<GroupsSetup | undefined>(() => (rt.groups.available() ? undefined : {
-    enable: async () => {
+    enable: async ({ newGroup }) => {
       const r = await prepareGroups();
-      if (r.ok) { rememberOpenNewGroup(); globalThis.location.reload(); }
+      if (r.ok) { if (newGroup) rememberOpenNewGroup(); globalThis.location.reload(); }
       return r;
     },
   }), [rt]);

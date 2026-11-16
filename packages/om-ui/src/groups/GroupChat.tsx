@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import type { ConversationSummary, GroupId, GroupMessageView, GroupNoticeView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
@@ -53,10 +53,7 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
   const [bump, setBump] = useState(0);
   const { detail, messages, notices } = useGroupChat(services, groupId, refreshKey + bump + (events?.version ?? 0));
   const invites = api === null ? [] : safeInvites(services);
-  const [selfAccount, setSelfAccount] = useState<string | null>(null);
-  const base = usePeopleNames(invites, chats, messages);
-  // Your own account is also known once you have changed a setting (the step answers with who made the change).
-  const names = useMemo(() => ({ nameOf: base.nameOf, isYou: (a: string) => base.isYou(a) || (selfAccount !== null && a === selfAccount) }), [base, selfAccount]);
+  const names = usePeopleNames(detail);
   const [sheet, setSheet] = useState<"people" | "settings" | null>(null);
   const [said, setSaid] = useState("");
   const end = useRef<HTMLDivElement>(null);
@@ -71,8 +68,7 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
   useEffect(() => { if (api !== null && detail === null) onLeft(); }, [api, detail, onLeft]);
   if (detail === null) return <div className="om-conv-view" aria-busy="true" />;
   const group = detail.summary.name;
-  let unnamed = 0;
-  const senderLabel = (a: string): string => names.nameOf(a) ?? copy.members.someone(++unnamed);
+  const senderLabel = (a: string): string => names.nameOf(a) ?? copy.members.someone(names.unnamedNumber(a));
   const entries = timeline(messages, notices);
   const whoLabel = (a: string): string => (names.isYou(a) ? copy.notices.youChanged : names.nameOf(a) ?? copy.notices.someone);
   const changed = (what: "invited" | "removed"): void => { setBump((n) => n + 1); setSaid(what === "invited" ? copy.done.invited : copy.done.removed); onChanged?.(); };
@@ -125,7 +121,7 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
       {sheet === "settings" ? (
         <Sheet title={copy.settings.title(group)} closeLabel={copy.settings.close} onClose={() => { setSheet(null); }}>
           <Button variant="quiet" onClick={() => { setSheet("people"); }}>{copy.settings.back}</Button>
-          <RoomSettings services={services} copy={copy} detail={detail} onChanged={(me) => { if (me !== null) setSelfAccount(me); setBump((n) => n + 1); onChanged?.(); }} />
+          <RoomSettings services={services} copy={copy} detail={detail} onChanged={() => { setBump((n) => n + 1); onChanged?.(); }} />
         </Sheet>
       ) : null}
     </section>

@@ -124,6 +124,45 @@ describe("groups UI on the loopback harness", () => {
     await waitFor(() => { expect(screen.queryByRole("textbox", { name: "Message the group" })).toBeNull(); });
   });
 
+  it("names are the ones this device's contact list gives, never from the Room: a contact is named, a stranger is the same Someone n everywhere, you are You, and a removed member keeps their name in older lines", async () => {
+    const { h, services } = setup();
+    h.groups.simulateInvite(services.ctx, ANA, "Family");
+    render(<Screen services={services} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Join" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Family/ }));
+    const gid = h.groups.list(services.ctx)[0]?.conversationId ?? asGroupId("");
+    expect(h.groups.get(services.ctx, gid)?.people).toEqual(expect.arrayContaining([
+      expect.objectContaining({ account: "acct-c-ana", display: "Ana", you: false }),
+      expect.objectContaining({ account: "acct-self", display: null, you: true }),
+    ]));
+    h.groups.simulateMember(services.ctx, gid, "acct-stranger"); // in the Room, not in this person's contacts
+    h.groups.simulateMessage(services.ctx, gid, "acct-c-ana", "from a contact");
+    h.groups.simulateMessage(services.ctx, gid, "acct-stranger", "first from stranger");
+    h.groups.simulateMessage(services.ctx, gid, "acct-c-ana", "ana again");
+    h.groups.simulateMessage(services.ctx, gid, "acct-stranger", "second from stranger");
+    h.groups.simulateSettingChange(services.ctx, gid, "acct-c-ana", { members_may_invite: false });
+    h.groups.simulateSettingChange(services.ctx, gid, "acct-stranger", { members_may_invite: true });
+    await userEvent.click(await screen.findByRole("button", { name: "Family (3+0)" }));
+    const log = await screen.findByRole("log", { name: "Group messages" });
+    await waitFor(() => { expect(within(log).queryByText("second from stranger")).not.toBeNull(); }, { timeout: 5000 });
+    expect(within(log).getAllByText("Ana", { selector: "bdi" }).length).toBeGreaterThan(0);
+    expect(within(log).getAllByText("Someone 1", { selector: "bdi" }).length).toBeGreaterThan(1); // one stranger, one number, every line
+    expect(within(log).queryByText("Someone 2", { selector: "bdi" })).toBeNull();
+    expect(within(log).getByText("Ana changed who can add people: now only admins.")).toBeTruthy();
+    expect(within(log).getByText("Someone changed who can add people: now anyone in the group.")).toBeTruthy();
+    expect(within(log).queryByText(/Someone 1 changed/)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "People in Family" }));
+    const sheet = await screen.findByRole("dialog");
+    const rows = within(sheet).getAllByRole("listitem").map((li) => li.querySelector(".om-group-members__name")?.textContent);
+    expect(rows).toEqual(expect.arrayContaining(["Ana", "You", "Someone 1"]));
+    // Removing Ana: her older lines keep her name (the view carries accounts seen in the Room's lines).
+    await userEvent.click(within(sheet).getByRole("button", { name: "Remove Ana" }));
+    await userEvent.click(within(sheet).getByRole("button", { name: "Yes, remove" }));
+    await waitFor(() => { expect(h.groups.get(services.ctx, gid)?.people.some((p) => p.account === "acct-c-ana")).toBe(false); });
+    expect(h.groups.get(services.ctx, gid)?.former).toEqual([expect.objectContaining({ account: "acct-c-ana", display: "Ana" })]);
+    expect(within(log).getAllByText("Ana", { selector: "bdi" }).length).toBeGreaterThan(0);
+  });
+
   it("a refusal is shown in words and a profile switch cannot retarget a step", async () => {
     const { services, h } = setup();
     const r = await runGroupAction(services, "group-leave", { conversationId: "nope" });

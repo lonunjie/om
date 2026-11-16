@@ -35,8 +35,7 @@ export function GroupMembers({ services, copy, detail, names, invites, chats, on
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  let unnamed = 0;
-  const label = (account: string): string => (names.isYou(account) ? c.you : names.nameOf(account) ?? c.someone(++unnamed));
+  const label = (account: string): string => (names.isYou(account) ? c.you : names.nameOf(account) ?? c.someone(names.unnamedNumber(account)));
   const rows = detail.people.map((p) => ({ p, text: label(p.account) }));
 
   const run = async (actionId: string, params: Readonly<Record<string, unknown>>, after: () => void): Promise<void> => {
