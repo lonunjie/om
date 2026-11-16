@@ -65,7 +65,8 @@ fn mailbox_of_deposit(mailbox: &[u8], relay_uri: Option<&str>) -> Vec<u8> {
 }
 
 // TEST ONLY (`test-loopback`): what a Welcome's sender does with the account heads it would carry, per test thread:
-// 0 normal, 1 leave them out, 2 corrupt each signed head. Per-thread, so tests that set it do not disturb others.
+// 0 normal, 1 leave them out, 2 corrupt each signed head; 3 and 4 the same but only for an Add Commit's heads (D93), a
+// Welcome keeping its own. Per-thread, so tests that set it do not disturb others.
 #[cfg(feature = "test-loopback")]
 thread_local! {
     pub static TEST_ROOM_HEADS: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };

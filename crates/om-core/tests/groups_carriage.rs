@@ -165,6 +165,58 @@ fn the_inner_body_is_decoded_strictly_and_must_match_the_frame_kind() {
     assert!(decode_frame(&f).is_err());
 }
 
+/// D93: an Add Commit may carry the signed head of each account its added devices belong to (optional key 4, the
+/// Welcome's `group-account-head`). The fixture decodes to one head; empty, over 64, or the wrong shape is dropped as an
+/// invalid body before any MLS or group state is read, and a Commit without the field decodes with none.
+#[test]
+fn a_commit_frame_carries_account_heads_strictly() {
+    let with = frame_vector("GroupTransportFrame/commit-with-account-heads");
+    match decode_frame(&with).unwrap() {
+        FrameBody::Commit { heads, added, .. } => {
+            assert_eq!(heads.len(), 1);
+            assert_eq!(added.len(), 1);
+        }
+        _ => panic!("a Commit"),
+    }
+    match decode_frame(&frame_vector("GroupTransportFrame/commit")).unwrap() {
+        FrameBody::Commit { heads, .. } => assert!(heads.is_empty()),
+        _ => panic!("a Commit"),
+    }
+    let with_heads = |heads: V| {
+        reframe(&with, |k, b| {
+            let mut m = match cbor::decode(&b).unwrap() {
+                V::M(m) => m,
+                _ => unreachable!(),
+            };
+            for e in m.iter_mut() {
+                if e.0 == 4 {
+                    e.1 = heads.clone();
+                }
+            }
+            (k, cbor::encode(&V::M(m)))
+        })
+    };
+    let one = match cbor::decode(&with).unwrap().get(3).unwrap().b() {
+        Ok(b) => match cbor::decode(b).unwrap().get(4).unwrap() {
+            V::A(a) => a[0].clone(),
+            _ => unreachable!(),
+        },
+        _ => unreachable!(),
+    };
+    assert!(decode_frame(&with_heads(V::A(vec![one.clone(); 64]))).is_ok());
+    for bad in [
+        V::A(vec![]),
+        V::A(vec![one.clone(); 65]),
+        one.clone(),
+        V::A(vec![V::B(vec![1, 2, 3])]),
+    ] {
+        assert_eq!(
+            decode_frame(&with_heads(bad)).unwrap_err().0,
+            "frame_body_invalid"
+        );
+    }
+}
+
 struct Dev {
     signer: DeviceSigner,
     id: [u8; 16],

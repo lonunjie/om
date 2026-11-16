@@ -403,6 +403,8 @@ pub enum FrameBody {
         binding: Vec<u8>,
         commit: Vec<u8>,
         added: Vec<DeviceEvidence>,
+        /// The signed head of each account the added devices belong to (D93); empty when the committer holds none.
+        heads: Vec<AccountHead>,
     },
     LeaveRequest {
         intent: Vec<u8>,
@@ -465,6 +467,7 @@ pub fn encode_frame(body: &FrameBody) -> R<Vec<u8>> {
             binding,
             commit,
             added,
+            heads,
         } => {
             let mut m = vec![
                 (0, V::B(intent.clone())),
@@ -473,6 +476,9 @@ pub fn encode_frame(body: &FrameBody) -> R<Vec<u8>> {
             ];
             if !added.is_empty() {
                 m.push((3, V::A(added.iter().map(ev_v).collect())));
+            }
+            if !heads.is_empty() {
+                m.push((4, V::A(heads.iter().map(head_v).collect())));
             }
             cbor::encode(&V::M(m))
         }
@@ -590,6 +596,10 @@ pub fn decode_frame(bytes: &[u8]) -> R<FrameBody> {
             added: match b.opt(3) {
                 None => vec![],
                 Some(a) => c(a.a())?.iter().map(evidence).collect::<R<_>>()?,
+            },
+            heads: match b.opt(4) {
+                None => vec![],
+                Some(a) => c(a.a())?.iter().map(account_head).collect::<R<_>>()?,
             },
         },
         FK_LEAVE_REQUEST => FrameBody::LeaveRequest {

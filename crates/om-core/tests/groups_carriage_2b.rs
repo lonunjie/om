@@ -646,10 +646,9 @@ fn a_messaging_only_device_joins_a_room() {
     assert_eq!(phone.pending(), 0);
 }
 
-/// Alice invites Bob, then Carol, who has never met Bob. `heads`: what Alice's Welcome carries for the accounts it names
-/// (0 their signed heads, 1 nothing, 2 a corrupted head). With 0 Carol joins a three-account Room; otherwise the
-/// Welcome is held, never accepted unverified, bounded and expiring (D37, D44).
-fn welcome_trio(tag: &str, heads: u8) -> Vec<P> {
+/// Everything up to Alice's Core preparing the Add of Carol: nothing is delivered yet. `heads` is the test hook of
+/// `TEST_ROOM_HEADS` (0 normal, 1 no heads, 2 corrupted heads, 3 and 4 the same for the Add Commit only).
+fn trio_before_delivery(tag: &str, heads: u8) -> Vec<P> {
     om_core::runtime::TEST_ROOM_HEADS.with(|m| m.set(heads));
     let net = LoopbackNetwork::default();
     let mut ps = vec![
@@ -687,6 +686,14 @@ fn welcome_trio(tag: &str, heads: u8) -> Vec<P> {
     ps[2].send_lane(&rep);
     settle_every(&mut ps);
     ps[0].pump_lane();
+    ps
+}
+
+/// Alice invites Bob, then Carol, who has never met Bob. `heads`: what Alice's Welcome carries for the accounts it names
+/// (0 their signed heads, 1 nothing, 2 a corrupted head). With 0 Carol joins a three-account Room; otherwise the
+/// Welcome is held, never accepted unverified, bounded and expiring (D37, D44).
+fn welcome_trio(tag: &str, heads: u8) -> Vec<P> {
+    let mut ps = trio_before_delivery(tag, heads);
     // deliver everything to Carol only: the Welcome must be held
     let mut held = false;
     let mut done = vec![];
@@ -797,6 +804,147 @@ fn a_held_welcome_applies_once_the_missing_head_arrives() {
     settle_every(&mut ps);
     assert_eq!(ps[2].groups(), 1, "the held Welcome applied");
     assert_eq!(ps[2].pending(), 0);
+}
+
+/// D93. Alice invites Bob, then Carol, who has never met Bob. Alice's Add of Carol goes to both: the Welcome to Carol and
+/// the Commit to Bob. Returns the people and what Bob's Core answered to the Commit.
+fn add_carol(tag: &str, heads: u8) -> (Vec<P>, Vec<GroupEvent>) {
+    let mut ps = trio_before_delivery(tag, heads);
+    let mut bob = vec![];
+    let mut done = vec![];
+    for it in ps[0].outbox() {
+        for s in ps[0].seal(&it.to_outbound().unwrap()).unwrap() {
+            if s.device == hex_dev(&ps[2]) {
+                ps[2].open(&s.wrapper).unwrap();
+            } else if s.device == hex_dev(&ps[1]) {
+                bob.extend(events(&[ps[1].open(&s.wrapper).unwrap()]));
+            }
+        }
+        done.push(it.id);
+    }
+    let c0 = ps[0].ctx.clone();
+    let step = ps[0].rt.core.group_outbox_done(&c0, &done).unwrap();
+    assert!(ps[0].rt.settle(&step));
+    (ps, bob)
+}
+
+fn room_heads(p: &P) -> usize {
+    p.rt.core.debug_app_state(&p.ctx).unwrap()["groupCarriage"]["roomHeads"]
+        .as_object()
+        .map_or(0, |m| m.len())
+}
+
+/// Everyone sends one text to the two others; each gets the other two (a real three-way Room).
+fn all_talk(ps: &mut [P], conv: &[u8]) {
+    for i in 0..3 {
+        let rep = ps[i]
+            .dob(GroupIntent::SendText {
+                conversation_id: conv.to_vec(),
+                text: format!("from {i}"),
+            })
+            .unwrap();
+        for o in &rep.out {
+            for s in ps[i].seal(o).unwrap() {
+                let to = (0..3)
+                    .find(|j| ps[*j].device_hex() == hex(&s.device))
+                    .unwrap();
+                ps[to].open(&s.wrapper).unwrap();
+            }
+        }
+    }
+}
+
+/// D93: Bob never met Carol; the Add Commit carries Carol's signed head, so Bob applies it at once and the three talk.
+#[test]
+fn a_member_who_never_met_the_new_person_applies_the_add_on_the_head_the_commit_carries() {
+    let (mut ps, bob) = add_carol("d93a", 0);
+    assert!(
+        !bob.iter().any(|e| matches!(e, GroupEvent::Held(_))),
+        "nothing held: {bob:?}"
+    );
+    assert_eq!(ps[1].pending(), 0);
+    let conv = ps[0].conv();
+    for p in &ps {
+        assert_eq!(p.detail(&conv).summary.members, 3, "all see three people");
+    }
+    // the head is kept only as the inviter's word, for Carol's account, and only because the Commit used it
+    assert_eq!(room_heads(&ps[1]), 1, "Bob holds Carol's vouched head");
+    assert_eq!(
+        room_heads(&ps[0]),
+        0,
+        "Alice has a relationship: no vouched head"
+    );
+    all_talk(&mut ps, &conv);
+    for p in &ps {
+        let mut t = p.texts(&conv);
+        t.sort();
+        assert_eq!(t, vec!["from 0", "from 1", "from 2"]);
+    }
+}
+
+/// D93, fail closed: a Commit with no head, or a head that does not verify, is held, never applied, and it expires.
+#[test]
+fn an_add_commit_without_a_verifiable_head_is_held_until_it_expires() {
+    for heads in [3u8, 4] {
+        let (mut ps, bob) = add_carol(&format!("d93b{heads}"), heads);
+        assert!(
+            bob.iter().any(|e| matches!(e, GroupEvent::Held(_))),
+            "held: {bob:?}"
+        );
+        let conv = ps[0].conv();
+        assert_eq!(ps[1].pending(), 1);
+        assert_eq!(
+            ps[1].detail(&conv).summary.members,
+            2,
+            "Bob did not apply it"
+        );
+        assert_eq!(room_heads(&ps[1]), 0, "an unverified head is not kept");
+        ps[1].pending_retry();
+        assert_eq!(ps[1].pending(), 1);
+        ps[1].rt.tick((cg::PENDING_TTL_S + 1) * 1000);
+        ps[1].pending_retry();
+        assert_eq!(ps[1].pending(), 0, "an expired frame is dropped");
+        assert_eq!(ps[1].detail(&conv).summary.members, 2);
+    }
+}
+
+/// D93: a held Commit applies once the missing head arrives by the normal path (Bob and Carol meet).
+#[test]
+fn a_held_add_commit_applies_once_the_head_arrives_by_the_normal_path() {
+    let (mut ps, _) = add_carol("d93c", 3);
+    connect(&mut ps, 1, 2);
+    ps[1].pending_refresh();
+    settle_every(&mut ps);
+    ps[1].pending_retry();
+    settle_every(&mut ps);
+    let conv = ps[0].conv();
+    assert_eq!(ps[1].pending(), 0);
+    assert_eq!(ps[1].detail(&conv).summary.members, 3);
+}
+
+/// D93: a head the Commit carries never replaces a head Bob already holds (here: his own relationship with Carol).
+#[test]
+fn a_head_in_the_commit_never_replaces_a_head_the_receiver_holds() {
+    let net = LoopbackNetwork::default();
+    let mut ps = vec![
+        mk(&net, "alice-d93d", "Alice"),
+        mk(&net, "bob-d93d", "Bob"),
+        mk(&net, "carol-d93d", "Carol"),
+    ];
+    connect(&mut ps, 0, 1);
+    connect(&mut ps, 0, 2);
+    connect(&mut ps, 1, 2); // Bob knows Carol
+    let _ = join_all(&mut ps, 0, &[1, 2], room::RECOMMENDED);
+    let conv = ps[0].conv();
+    for p in &ps {
+        assert_eq!(p.detail(&conv).summary.members, 3);
+    }
+    assert_eq!(
+        room_heads(&ps[1]),
+        0,
+        "Bob used his own head, not the vouched one"
+    );
+    assert_eq!(room_heads(&ps[2]), 0);
 }
 
 fn hex_dev(p: &P) -> Vec<u8> {

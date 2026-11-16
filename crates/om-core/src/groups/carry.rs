@@ -26,6 +26,7 @@ use crate::crypto::sig::DeviceSigner;
 use crate::crypto::{hex, unhex};
 use crate::route::{RelayEntry, RouteOffer};
 use crate::state::{AppState, RelState};
+use std::collections::BTreeSet;
 
 /// What a carriage step needs from the device and the host besides `AppState`.
 pub struct CarryEnv<'a, Rg: RngCore + CryptoRng> {
@@ -598,12 +599,33 @@ impl AppState {
                         route: un(&pr.record)?,
                     });
                 }
-                let frame = cg::encode_frame(&FrameBody::Commit {
+                // D93: the signed head of each added account this device can evidence goes with the Commit, as it goes
+                // with a Welcome, so a member that never met the new person can still prove the new leaves. The
+                // committer's own account is left out: every receiver already holds a head for it, or it could not
+                // verify the committer at all.
+                let me = hex(&env.account_id);
+                let others: Vec<(String, String, String)> =
+                    added.iter().filter(|(_, a, _)| *a != me).cloned().collect();
+                let heads = self.carry_heads_for(env, &others, true)?;
+                let mut body = FrameBody::Commit {
                     intent,
                     binding: un(signed_binding)?,
                     commit: un(commit)?,
                     added: evidence,
-                })?;
+                    heads,
+                };
+                // A Commit whose heads would not fit one frame goes without them: the receiver then holds it for the
+                // missing head (fail closed), exactly as before D93, and nothing is dropped silently on the wire.
+                let frame = match cg::encode_frame(&body) {
+                    Ok(f) => f,
+                    Err(GroupError("room_too_large")) => {
+                        if let FrameBody::Commit { heads, .. } = &mut body {
+                            heads.clear();
+                        }
+                        cg::encode_frame(&body)?
+                    }
+                    Err(e) => return Err(e),
+                };
                 self.carry_seal_to(env, conversation_id, device, &frame)
             }
             (
@@ -756,7 +778,7 @@ impl AppState {
                 return err("member_evidence_missing");
             }
         }
-        let heads = self.carry_heads_for(env, directory)?;
+        let heads = self.carry_heads_for(env, directory, false)?;
         let mut rnd = [0u8; 32];
         env.rng.fill_bytes(&mut rnd);
         let signed_state = cg::sign_state(env.signer, &env.device_id, &st.encode(), rnd);
@@ -797,6 +819,7 @@ impl AppState {
         &self,
         env: &mut CarryEnv<'_, Rg>,
         directory: &[(String, String, String)],
+        for_commit: bool,
     ) -> R<Vec<cg::AccountHead>> {
         let mut accounts: Vec<String> = directory.iter().map(|(_, a, _)| a.clone()).collect();
         accounts.sort();
@@ -853,17 +876,21 @@ impl AppState {
             });
         }
         #[cfg(feature = "test-loopback")]
-        match crate::runtime::TEST_ROOM_HEADS.with(|m| m.get()) {
-            1 => out.clear(),
-            2 => {
+        {
+            let mode = crate::runtime::TEST_ROOM_HEADS.with(|m| m.get());
+            if mode == 1 || (mode == 3 && for_commit) {
+                out.clear();
+            }
+            if mode == 2 || (mode == 4 && for_commit) {
                 for h in &mut out {
                     if let Some(b) = h.head.last_mut() {
                         *b ^= 1;
                     }
                 }
             }
-            _ => {}
         }
+        #[cfg(not(feature = "test-loopback"))]
+        let _ = for_commit;
         Ok(out)
     }
 
@@ -1224,7 +1251,8 @@ impl AppState {
                 binding,
                 commit,
                 added,
-            } => self.carry_commit_in(gctx, &held, &room, intent, binding, commit, added),
+                heads,
+            } => self.carry_commit_in(gctx, &held, &room, intent, binding, commit, added, heads),
             FrameBody::LeaveRequest { intent } => {
                 let dir = self.group_devices.get(&room).cloned().unwrap_or_default();
                 let (signer, body) = cg::open_intent(&intent, |d| {
@@ -1284,6 +1312,7 @@ impl AppState {
         binding: Vec<u8>,
         commit: Vec<u8>,
         added: Vec<DeviceEvidence>,
+        heads: Vec<cg::AccountHead>,
     ) -> R<GroupReply> {
         // The committer and the actor are named by the signatures inside, never by the frame: the intent must verify
         // under the key our own directory holds for a roster device.
@@ -1296,6 +1325,25 @@ impl AppState {
         .map_err(|_| GroupError("non_roster_sender"))?;
         if !dir.contains_key(&hex(&committer)) {
             return err("non_roster_sender");
+        }
+        // D93: signed heads the committer attached for the accounts the added devices belong to. Each one is verified
+        // here exactly as a Welcome's (`carry_room_head`) and is used only for an account this device holds no head
+        // for; it is kept as vouched by the committer only if the Commit then adds a device of that account, and it
+        // never replaces a head already held. A head naming an account no added device belongs to is ignored.
+        let named: BTreeSet<[u8; 32]> = added
+            .iter()
+            .filter_map(|e| {
+                let body = cg::envelope_body(&e.credential).ok()?;
+                Some(Credential::from_body(&body).ok()?.account_id)
+            })
+            .collect();
+        let mut added_heads: Vec<(String, [u8; 32])> = vec![];
+        for h in heads.iter().filter(|h| named.contains(&h.account)) {
+            if let Some(rh) = self.carry_room_head(h) {
+                let k = hex(&h.account);
+                self.group_carriage.room_heads.insert(k.clone(), rh);
+                added_heads.push((k, h.account));
+            }
         }
         // Evidence for added devices: every credential chains to a validated head, every route verifies.
         let (mut ok, mut refresh, mut unanchored) = (vec![], vec![], vec![]);
@@ -1318,6 +1366,9 @@ impl AppState {
             }
         }
         if !refresh.is_empty() || !unanchored.is_empty() {
+            for (k, _) in &added_heads {
+                self.group_carriage.room_heads.remove(k);
+            }
             refresh.sort();
             refresh.dedup();
             unanchored.sort();
@@ -1338,6 +1389,19 @@ impl AppState {
             signed_intent: Some(hex(&intent)),
         };
         let rep = self.group_receive(gctx, Sender::Device(committer.to_vec()), wire)?;
+        // a vouched head stays only for an account the applied Commit really gave a device to
+        for (k, account) in &added_heads {
+            let used = ok.iter().any(|(e, c, _)| {
+                c.account_id == *account
+                    && self
+                        .group_devices
+                        .get(room)
+                        .is_some_and(|d| d.contains_key(&hex(&e.device)))
+            });
+            if !used {
+                self.group_carriage.room_heads.remove(k);
+            }
+        }
         // routes of the devices the accepted Commit added (only if it registered them)
         for (e, _c, rec) in &ok {
             if self
