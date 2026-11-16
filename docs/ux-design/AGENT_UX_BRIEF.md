@@ -43,7 +43,7 @@ Layout states are Compact, Split, Expanded, Multi-pane, chosen by window size, n
 - **Omnibar** is find-or-do. On compact screens it shares the composer's lower zone; the composer and Omnibar never both show a text field.
 - **Changing place = navigation; acting within a place = sheet or popover.** Back restores the previous place, focus and draft.
 - **Every place has a web address** (`apps/web/src/route/place.ts`, History API; the host and the service worker already answer any path with the shell):
-  `/` chats, `/chats#<id>` one chat, `/settings`, `/settings/devices`, `/settings/recovery`, `/settings/delivery`, `/safety-code`. Changing place pushes an entry, so the phone's Back button,
+  `/` chats, `/chats#<id>` one chat, `/settings`, `/settings/devices`, `/settings/recovery`, `/settings/protection`, `/settings/delivery`, `/safety-code`. Changing place pushes an entry, so the phone's Back button,
   the browser's Back/Forward and a reload all work; an unknown address becomes `/` (never an error page) and the bar always shows the canonical address. A chat's id is in the fragment, never the path,
   so no host log learns which chat is open. Tab titles name the place, never a chat. A new screen gets a place in `place.ts` and a row in `place.test.ts`; do not keep navigation in component state.
   On a phone a page that replaces the list has a Back control; beside the list (900 px and up) it does not.

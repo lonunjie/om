@@ -683,6 +683,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/protection.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/qr-video.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -8901,6 +8908,27 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-core-wasm/src/recovery-runtime.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/recovery-ticker.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-core-wasm/src/recovery-ticker.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-core-wasm/src/runtime.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -9210,6 +9238,13 @@
     },
     {
       "path": "packages/om-platform-api/src/core/outcome.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-platform-api/src/core/privacy.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -10148,6 +10183,41 @@
     },
     {
       "path": "packages/om-ui/src/profile/test-support.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/protection/ProtectionScreen.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/protection/__fixtures__/copy.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/protection/copy.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/protection/index.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/protection/protection.test.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

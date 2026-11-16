@@ -295,7 +295,11 @@ Suggested order for a later session: read identity_control_recovery, crypto_1to1
 
 **Built.** The bridge commands `recovery_tick` and `set_privacy_level` (additive, local), the TS mirrors and harness, the conversation banner (`PeerRecovery`), the composer refusal for `peer_recovering`, the two destructive registry intents, and copy under `recoveryCopy.contact`. Deviations D83 to D87 are in the relay status table.
 
-### NEXT work item (not built here): drive the contact timer from the running app
+### Done (2026-11-16): drive the contact timer from the running app, the level control, and the timestamp contrast
+
+Built: the runtime ticker (`packages/om-core-wasm/src/recovery-ticker.ts`, D88), Settings > Protection with the registry action `set-privacy-level` and the `GetPrivacyLevel` query (D89, D90), and the contrast work (D91). The list below is what was asked; it is now met.
+
+### Former NEXT work item: drive the contact timer from the running app
 
 The shipped app does not call `recovery_tick` and has no control for the privacy level, so a contact's timer never advances and every contact is on Recommended. This is the next item, ahead of further recovery UI.
 
@@ -307,7 +311,10 @@ The shipped app does not call `recovery_tick` and has no control for the privacy
 ### Follow-ups
 
 - `peerRecovery` should carry the contact's level and an ended-at day count, so decline can sit behind a menu on Recommended (D83) and an ended notice can fade (D84). Deferred.
-- Accessibility, release-blocking under AGENTS.md: the existing message-timestamp text fails contrast (3.82:1 and 2.82:1). Pre-existing and not part of this change; fix before release.
+- Resolved (2026-11-16, D91): the timestamp contrast report was the entrance fade being sampled mid-way; no palette change. The peer-recovery e2e now checks the settled conversation in both appearances.
+- Move the level control from `set-privacy-level` to `ChangePrivacyPolicy` with a Core-issued confirmation nonce (D89), and retire the local flag.
+- A platform-adapter clock that survives a backgrounded tab (D88); the strict reading credits less, never more.
+- Move Settings > Protection into a "Privacy & security" group when Settings has one (D90); wire further bundle effects as they are built.
 - `recoveryCopy` stays optional on `ConversationView` for now; the banner renders only when both the data and the copy are present.
 - Open ADR-0190 documentation items: the section 10 metadata descriptor line, the threat-model line near T-041, requirement traceability, and the logical schema row for the veto kind.
 - Outgoing queue while a recovery is pending (D79 and D86 follow-up).
