@@ -5,7 +5,7 @@
 import { asDeviceId, parseDeviceLink } from "@om/platform-api";
 import type {
   AccountControlStateCode, CoreIntent, DeviceActionCode, DeviceCautionCode, DeviceId, DeviceNoticeView, DeviceRole, DeviceStateCode,
-  DeviceSummary, DevicesView, LastSeenClass, LinkOfferState, LinkOfferView, LinkRequestView, OperationId, OutcomeClass, ProfileId,
+  DeviceNoticeState, DeviceSummary, DevicesView, LastSeenClass, LinkOfferState, LinkOfferView, LinkRequestView, OperationId, OutcomeClass, ProfileId,
   RecoveryCustodianCode, RecoveryPolicyState, RecoveryRequestView, RecoveryScope, RecoveryStatusView, RejectReason, TerminalOutcome,
 } from "@om/platform-api";
 
@@ -19,6 +19,9 @@ export interface SeedDevice {
   readonly lastSeen?: LastSeenClass;
   /** `false` marks a device that cannot share device history (another implementation). Default true. */
   readonly historySync?: boolean;
+  /** A notice about a newly linked device is owed to it and not yet acknowledged (ADR-0193): `owed` or `held`. Default told. */
+  readonly notice?: "owed" | "held";
+  readonly lastAttemptAt?: number;
 }
 export interface SeedIncomingRecovery {
   readonly requestId: string;
@@ -55,7 +58,7 @@ export type Staged =
     readonly onAuthorize?: (o: TerminalOutcome) => void;
   };
 
-interface DeviceRec { id: DeviceId; label: string; role: DeviceRole; state: DeviceStateCode; current: boolean; enrolledAt: number; lastSeen: LastSeenClass; historySync: boolean }
+interface DeviceRec { id: DeviceId; label: string; role: DeviceRole; state: DeviceStateCode; current: boolean; enrolledAt: number; lastSeen: LastSeenClass; historySync: boolean; notice: DeviceNoticeState; lastAttemptAt: number | undefined }
 interface RequestRec { view: LinkRequestView; token: string }
 /** `owner` is the offering (existing) device's profile, or `null` for an offer made by a device outside every seeded profile. */
 interface OfferRec { owner: ProfileId | null; operationId: OperationId | null; link: string; code: string; expiresAt: number; state: LinkOfferState; request: RequestRec | null; joiner: ProfileId | null }
@@ -64,6 +67,7 @@ interface AccountSim {
   devices: Map<DeviceId, DeviceRec>;
   controlState: AccountControlStateCode;
   linkNeedsAuthorization: boolean;
+  strict: boolean;
   requests: Map<string, RequestRec>;
   notices: DeviceNoticeView[];
   policy: RecoveryPolicyState;
@@ -104,6 +108,7 @@ export function createDeviceSim(clock: () => number) {
       devices.set(id, {
         id, label: d.label, role: d.role, state: d.state ?? "active", current: d.current ?? false, enrolledAt: d.enrolledAt ?? now,
         lastSeen: d.lastSeen ?? (d.current ? "now" : "recent"), historySync: d.historySync ?? true,
+        notice: d.notice ?? "told", lastAttemptAt: d.lastAttemptAt,
       });
     }
     const r = s.recovery ?? {};
@@ -117,7 +122,7 @@ export function createDeviceSim(clock: () => number) {
       });
     }
     accounts.set(profileId, {
-      devices, controlState: s.controlState ?? "normal", linkNeedsAuthorization: s.linkNeedsAuthorization ?? false, requests: new Map(), notices: [],
+      devices, controlState: s.controlState ?? "normal", linkNeedsAuthorization: s.linkNeedsAuthorization ?? false, strict: false, requests: new Map(), notices: [],
       policy: r.policy ?? "on", custodians: r.custodians ?? ["recovery_key"], scopes: r.scopes ?? ["identity", "history", "provider"], delayMs,
       keySaved: r.recoveryKeySaved ?? true, recoveries,
     });
@@ -147,7 +152,11 @@ export function createDeviceSim(clock: () => number) {
 
   function summary(a: AccountSim, d: DeviceRec): DeviceSummary {
     const { actions, cautions } = actionsFor(a, d);
-    return { id: d.id, label: d.label, role: d.role, state: d.state, isCurrent: d.current, enrolledAt: d.enrolledAt, lastSeen: d.lastSeen, actions, cautions };
+    if (d.notice === "owed" && currentIsActiveController(a) && !d.current && d.state !== "revoked") actions.push("retry_notice");
+    return {
+      id: d.id, label: d.label, role: d.role, state: d.state, isCurrent: d.current, enrolledAt: d.enrolledAt, lastSeen: d.lastSeen, actions, cautions,
+      noticeState: d.state === "revoked" ? "told" : d.notice, ...(d.lastAttemptAt === undefined ? {} : { lastAttemptAt: d.lastAttemptAt }),
+    };
   }
 
   function expireIfDue(r: RequestRec): void {
@@ -163,6 +172,7 @@ export function createDeviceSim(clock: () => number) {
         devices: [...a.devices.values()].map((d) => summary(a, d)),
         linkRequests: [...a.requests.values()].map((r) => r.view),
         notices: [...a.notices],
+        strictNotice: a.strict,
       };
     },
     /** The existing device's request (its operation id is the OFFER's, as in Core) or the new device's own. */
@@ -218,7 +228,7 @@ export function createDeviceSim(clock: () => number) {
   function link(a: AccountSim, r: RequestRec): void {
     const id = asDeviceId(`dev-${String(++seq)}`);
     const at = clock();
-    a.devices.set(id, { id, label: r.view.deviceLabel, role: "messaging", state: "active", current: false, enrolledAt: at, lastSeen: "now", historySync: true });
+    a.devices.set(id, { id, label: r.view.deviceLabel, role: "messaging", state: "active", current: false, enrolledAt: at, lastSeen: "now", historySync: true, notice: "told", lastAttemptAt: undefined });
     // R-166: every enrollment is announced on the account's devices; there is no path that skips this notice.
     a.notices.push({ code: "device_linked", deviceId: id, label: r.view.deviceLabel, at });
     r.view = { ...r.view, state: "approved" };
@@ -280,6 +290,12 @@ export function createDeviceSim(clock: () => number) {
         }
         return effect({ kind: "Committed" }, () => { link(a, r); });
       }
+      case "RetryDeviceNotice": {
+        const d = a.devices.get(intent.deviceId);
+        if (!d || d.notice === "told") return rejected("not_found");
+        return effect({ kind: "Committed" }, () => { d.lastAttemptAt = clock(); });
+      }
+      case "SetStrictDeviceNotice": return effect({ kind: "Committed" }, () => { a.strict = intent.enabled; });
       case "RejectDeviceLink": {
         const r = a.requests.get(intent.requestId);
         if (!r) return rejected("not_found");

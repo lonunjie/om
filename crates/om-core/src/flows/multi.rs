@@ -1033,6 +1033,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         self.flush_waiting(conv);
         self.start_missing_sessions(conv);
+        self.owed_on_inbound(&sender);
     }
 
     /// Our initiation to `dev` lost a crossed race (K4): everything we sent on it, which the device will never be able

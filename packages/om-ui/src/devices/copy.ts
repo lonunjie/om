@@ -89,6 +89,25 @@ export interface DeviceActionCopy {
   readonly done: string;
 }
 
+/** Notices owed to devices that have not been told about a newly linked device (ADR-0193). */
+export interface NoticeCopy {
+  /** The short tag on a device that has not acknowledged the notice. */
+  readonly notTold: string;
+  readonly notToldDetail: (deviceLabel: string) => string;
+  readonly lastTried: (epochMs: number) => string;
+  /** A paused (suspended) device: it is told when it is active again. */
+  readonly held: (deviceLabel: string) => string;
+  readonly tryNow: string;
+  /** Turning the strict option off loosens what a link needs, so it takes one explicit confirmation. */
+  readonly strictOffAsk: string;
+  readonly strictOffConfirm: string;
+  readonly strictOffCancel: string;
+  readonly strictOption: string;
+  readonly strictHelp: string;
+  /** Said when adding a device is refused because too many notices are still owed. */
+  readonly tooManyOwed: string;
+}
+
 export interface DevicesCopy {
   readonly heading: string;
   readonly loading: string;
@@ -121,6 +140,7 @@ export interface DevicesCopy {
   readonly revoke: DeviceActionCopy;
   readonly pendingHeading: string;
   readonly pendingKind: Readonly<Record<DevicePendingKind, string>>;
+  readonly notice: NoticeCopy;
   readonly link: LinkCopy;
   readonly outcome: OutcomeCopy;
 }

@@ -30,10 +30,10 @@ pub(super) const KIND_ENROLLED: u64 = 11;
 /// A ceremony lives this long from the offer, whatever happens (the link carries it; Core enforces it).
 pub const CEREMONY_TTL_MS: u64 = 5 * 60 * 1000;
 /// One queue message (plaintext) stays well under the Home's deposit limit (133,000 bytes).
-const MAX_MSG: usize = 100_000;
+pub(super) const MAX_MSG: usize = 100_000;
 const MAX_ROSTER: usize = 64;
 const MAX_NOTICES: usize = 32;
-const MAX_CHAIN_TAIL: usize = 4;
+pub(super) const MAX_CHAIN_TAIL: usize = 4;
 const MAX_LINK_CHARS: usize = 256;
 const DEVICE_CLASS_MESSAGING: u64 = 1;
 const CEREMONY_LINK: u64 = 1;
@@ -851,51 +851,41 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         let mut chain_all = chain.clone();
         chain_all.push(signed.clone());
-        let tail_from = chain_all.len().saturating_sub(MAX_CHAIN_TAIL);
-        // A sibling may have missed earlier enrollments: the payload carries the notice of every enrollment the tail
-        // covers, in chain order (key 5), and the newest enrollment's notice in the usual slot (key 1).
-        let prior: Vec<V> = chain_all[tail_from..chain_all.len() - 1]
-            .iter()
-            .filter_map(|s| chain_head(s))
-            .filter_map(|st| {
-                self.st
-                    .app
-                    .notices
-                    .iter()
-                    .filter_map(|n| unhex(&n.signed).ok())
-                    .find(|n| notice_state(n) == Some(st.hash()))
-            })
-            .map(V::B)
-            .collect();
-        let mut enrolled_map = vec![
-            (0, V::U(KIND_ENROLLED)),
-            (1, V::B(notice.clone())),
-            (
-                2,
-                V::A(chain_all[tail_from..].iter().cloned().map(V::B).collect()),
-            ),
-            (3, V::A(creds_all.iter().cloned().map(V::B).collect())),
-        ];
-        if !prior.is_empty() {
-            enrolled_map.push((5, V::A(prior)));
-        }
-        let enrolled = cbor::encode(&V::M(enrolled_map));
-        let enrolled = with_head(enrolled, 4, head_sig.as_deref());
-        if enrolled.len() > MAX_MSG {
-            return Err(Quota);
-        }
-        // Every other active device gets the notice, or nothing is approved.
-        let others: Vec<String> = head
+        // ADR-0193: every other device the parent head lists is owed this notice, durably and in this same
+        // transaction. A sibling with no path yet is `Waiting`; the approval does not depend on a path now unless the
+        // person asked for the strict reading.
+        let others: Vec<[u8; 16]> = head
             .control
             .iter()
             .chain(&head.messaging)
-            .filter(|d| **d != me && !head.quarantined.contains(*d))
-            .map(|d| hex(d))
+            .filter(|d| **d != me)
+            .copied()
             .collect();
+        self.owe_notice(&others, &head.quarantined, &child.hash(), &notice)?;
         for dev in &others {
-            if !self.deliver_enrolled(dev, &enrolled) {
-                return Err(Unavailable);
+            let hexd = hex(dev);
+            let payloads =
+                self.enrolled_payloads(&hexd, &chain_all, &creds_all, head_sig.as_deref());
+            let owed_here = self
+                .st
+                .app
+                .owed_notices
+                .iter()
+                .any(|o| o.sibling_device_id == hexd && o.state != OwedState::Held);
+            if owed_here && payloads.is_empty() {
+                return Err(Quota); // the payload does not fit a message
             }
+            self.send_owed_payloads(&hexd, payloads);
+        }
+        if self.st.app.link_strict_notice
+            && self
+                .st
+                .app
+                .owed_notices
+                .iter()
+                .any(|o| o.state == OwedState::Waiting)
+        {
+            return Err(Unavailable); // strict reading: every active device must be reachable right now
         }
 
         // The approval message and the roster (conversations handed over). Built before anything is committed, so a
@@ -1048,7 +1038,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     /// Put `payload` into the session with our other device `dev`, through any active conversation that reaches it.
-    fn deliver_enrolled(&mut self, dev: &str, payload: &[u8]) -> bool {
+    pub(super) fn deliver_enrolled(&mut self, dev: &str, payload: &[u8]) -> bool {
         let convs: Vec<String> = self
             .st
             .app
@@ -1381,6 +1371,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         self.enqueue(call, Purpose::PublishKeys);
         self.sync_own_head();
+        // Any holder may carry a notice (ADR-0193 section 5): this device owes the same signed notice to every
+        // other device except the approving one, so delivery survives the loss of the approving device.
+        let carry: Vec<[u8; 16]> = head
+            .control
+            .iter()
+            .chain(&head.messaging)
+            .filter(|d| **d != mine.device_id && **d != approver)
+            .copied()
+            .collect();
+        let _ = self.owe_notice(&carry, &head.quarantined, &head.hash(), &notice);
         if let Some(h) = v.opt(10).and_then(|x| x.b().ok()) {
             self.st.app.carry_head_adopt(h); // the approver's signed head of this tip (groups, D36)
         }
@@ -1523,30 +1523,28 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// A sibling sent the enrollment of a new device with the chain that lists it. Our own head advances only along a
     /// verified descent, and the notice must verify against it before it is shown. `false` is a rejection.
-    pub(super) fn on_enrolled(&mut self, p: &V) -> bool {
+    pub(super) fn on_enrolled(&mut self, p: &V) -> Option<Vec<Vec<u8>>> {
         let (Ok(notice), Some(chain), Some(creds)) = (
             p.get(1).and_then(|x| x.b()).map(<[u8]>::to_vec),
             bytes_list(p.get(2)),
             bytes_list(p.get(3)),
         ) else {
-            return false;
+            return None;
         };
         if chain.is_empty()
             || chain.len() > MAX_CHAIN_TAIL
             || creds.len() > 64
             || chain.iter().chain(creds.iter()).any(|x| x.len() > 65_536)
         {
-            return false;
+            return None;
         }
-        let Some((head, have, have_creds)) = self.acs_head() else {
-            return false;
-        };
+        let (head, have, have_creds) = self.acs_head()?;
         // The ordered notices: earlier enrollments first (key 5), the newest in the usual slot (key 1).
         let mut notices = match p.opt(5) {
             None => vec![],
             Some(v) => match bytes_list(Ok(v)) {
                 Some(l) if l.len() < MAX_CHAIN_TAIL => l,
-                _ => return false,
+                _ => return None,
             },
         };
         notices.push(notice);
@@ -1557,12 +1555,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .filter_map(|c| chain_head(c))
             .map(|a| a.hash())
             .collect();
-        let Some(staged) = stage_enrollment(head, have, have_creds, &chain, &creds, &notices)
-        else {
-            return false;
-        };
+        let staged = stage_enrollment(head, have, have_creds, &chain, &creds, &notices)?;
         if notices.iter().any(|n| notice_device(n).is_none()) {
-            return false;
+            return None;
         }
         // Commit: head, credentials and notice together, only after the whole staged chain verified.
         if staged.extended {
@@ -1609,7 +1604,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 }
             }
         }
-        true
+        Some(notices)
     }
 }
 
@@ -1746,7 +1741,7 @@ fn history_index(v: &V, expected: u32, seen: &[u32]) -> Option<u32> {
 }
 
 /// The hash of the control state a (structurally parsed) notice is over.
-fn notice_state(notice: &[u8]) -> Option<[u8; 32]> {
+pub(super) fn notice_state(notice: &[u8]) -> Option<[u8; 32]> {
     let body = cbor::decode(notice).ok()?.get(1).ok()?.b().ok()?.to_vec();
     cbor::decode(&body)
         .ok()?
@@ -2005,16 +2000,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 }
 
-/// `payload` (a canonical map) with the controller-signed head added under `key` when there is one.
-fn with_head(payload: Vec<u8>, key: u64, head: Option<&[u8]>) -> Vec<u8> {
-    let (Some(h), Ok(V::M(mut m))) = (head, cbor::decode(&payload)) else {
-        return payload;
-    };
-    m.push((key, V::B(h.to_vec())));
-    cbor::encode(&V::M(m))
-}
-
-fn chain_head(signed: &[u8]) -> Option<Acs> {
+pub(super) fn chain_head(signed: &[u8]) -> Option<Acs> {
     let v = cbor::decode(signed).ok()?;
     Acs::from_body(v.get(1).ok()?.b().ok()?).ok()
 }

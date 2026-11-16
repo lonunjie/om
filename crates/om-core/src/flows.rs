@@ -25,6 +25,7 @@ mod blobs;
 mod ceremony;
 mod group_lane;
 mod multi;
+mod owed;
 mod recovery_peer;
 mod recovery_watch;
 
@@ -35,6 +36,7 @@ pub use ceremony::{
     poll_targets as ceremony_poll_targets, request_view,
 };
 use multi::{Inner, KIND_ACS_REQUEST, KIND_ACS_UPDATE};
+use owed::KIND_ENROLLED_ACK;
 use recovery_peer::KIND_RECOVERY_VETO;
 pub use recovery_peer::{MAX_NOTICE_BYTES, build_notice};
 pub(crate) use recovery_watch::request_views;
@@ -424,6 +426,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         self.expire_prepared();
         self.expire_direct_offers();
         self.expire_ceremonies();
+        self.owed_tick();
     }
 
     // ------------------------------------------------------------------------------------------ confirmations (M2)
@@ -846,6 +849,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 self.approve_device_link(request_id)
             }
             IntentBody::RejectDeviceLink { request_id } => self.reject_device_link(request_id),
+            IntentBody::RetryDeviceNotice { device_id } => self.retry_device_notice(device_id),
+            IntentBody::SetStrictDeviceNotice { enabled } => self.set_strict_notice(*enabled),
             IntentBody::SuspendDevice { device_id, .. } => {
                 self.device_transition(device_id, control::Action::Suspend)
             }
@@ -3321,7 +3326,17 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             KIND_ACS_UPDATE => !sibling && self.on_acs_update(conv, &p),
             KIND_ACS_REQUEST => !sibling && self.on_acs_request(conv, &p),
             KIND_RECOVERY_VETO => !sibling && self.on_peer_veto(conv, &p),
-            KIND_ENROLLED => sibling && self.on_enrolled(&p),
+            KIND_ENROLLED => {
+                sibling
+                    && match self.on_enrolled(&p) {
+                        Some(notices) => {
+                            self.ack_enrolled(conv, sender, &notices);
+                            true
+                        }
+                        None => false,
+                    }
+            }
+            KIND_ENROLLED_ACK => sibling && self.on_enrolled_ack(&sender, &p),
             events::OBJECT_TYPE => self.on_event(conv, &pt, sender, sibling),
             _ => true, // unknown payload kinds from a newer client are ignored, not fatal
         };

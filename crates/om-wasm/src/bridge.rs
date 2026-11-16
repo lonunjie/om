@@ -73,6 +73,10 @@ enum Command {
         ctx: ProfileExecutionContext,
         mono: om_core::host::MonotonicSample,
     },
+    /// Send the device-enrollment notices that are due (ADR-0193); a no-op when none is owed.
+    NoticeTick {
+        ctx: ProfileExecutionContext,
+    },
     /// This person's own privacy level, local to the profile (`null` is Recommended). Hardened, Maximum and Custom make
     /// this device ask before it accepts a contact's recovery of their account (ADR-0190 section 4).
     SetPrivacyLevel {
@@ -675,6 +679,7 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
             Command::RecoveryTick { ctx, mono } => {
                 Ok(enc(&self.core()?.recovery_tick(&ctx, &mono)?))
             }
+            Command::NoticeTick { ctx } => Ok(enc(&self.core()?.notice_tick(&ctx)?)),
             Command::SetPrivacyLevel {
                 ctx,
                 level,

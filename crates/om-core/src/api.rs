@@ -319,6 +319,15 @@ pub enum IntentBody {
         recovery_key: String,
         home: String,
     },
+    /// Try again now to tell a device about the devices added to the account (ADR-0193 section 10).
+    RetryDeviceNotice {
+        device_id: DeviceId,
+    },
+    /// "Only add a device when all my other devices can be told right away" (ADR-0193 section 8). Device-local, off by
+    /// default; it travels in no account record.
+    SetStrictDeviceNotice {
+        enabled: bool,
+    },
     ApproveDeviceLink {
         request_id: String,
         confirmation: ConfirmationToken,
@@ -411,6 +420,8 @@ impl IntentBody {
             IntentBody::BeginRecovery { .. } => "BeginRecovery",
             IntentBody::ApproveDeviceLink { .. } => "ApproveDeviceLink",
             IntentBody::RejectDeviceLink { .. } => "RejectDeviceLink",
+            IntentBody::RetryDeviceNotice { .. } => "RetryDeviceNotice",
+            IntentBody::SetStrictDeviceNotice { .. } => "SetStrictDeviceNotice",
             IntentBody::RevokeDevice { .. } => "RevokeDevice",
             IntentBody::StartRecovery { .. } => "StartRecovery",
             IntentBody::VetoRecovery { .. } => "VetoRecovery",
@@ -930,6 +941,21 @@ pub enum LastSeenClass {
 pub enum DeviceActionCode {
     Suspend,
     Revoke,
+    /// Try again now to tell this device about a newly linked device (ADR-0193).
+    RetryNotice,
+}
+
+/// Whether a device has been told about the devices added to the account (ADR-0193 section 10).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeviceNoticeState {
+    /// Nothing is owed to it.
+    #[default]
+    Told,
+    /// A notice is owed and not yet acknowledged ("Not told yet").
+    Owed,
+    /// It is paused (quarantined); it will be told when it is active again.
+    Held,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -953,6 +979,11 @@ pub struct DeviceSummary {
     pub last_seen: LastSeenClass,
     pub actions: Vec<DeviceActionCode>,
     pub cautions: Vec<DeviceCautionCode>,
+    #[serde(default)]
+    pub notice_state: DeviceNoticeState,
+    /// Wall ms of the last try to tell this device, when one was owed and tried.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_attempt_at: Option<u64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1066,6 +1097,9 @@ pub struct DevicesView {
     pub devices: Vec<DeviceSummary>,
     pub link_requests: Vec<LinkRequestView>,
     pub notices: Vec<DeviceNoticeView>,
+    /// The strict reading of ADR-0193 section 8 is on for this device.
+    #[serde(default)]
+    pub strict_notice: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

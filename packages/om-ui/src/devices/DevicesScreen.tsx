@@ -57,11 +57,11 @@ export function DevicesScreen({ services, copy, renderQr, showNotices = true, li
       break;
     case "device": {
       const device = value.devices.find((d) => d.id === view.id);
-      body = device ? <DeviceDetails services={services} copy={copy} view={value} device={device} onBack={toList} /> : <DeviceList copy={copy} view={value} ops={ops} onOpen={setView} linking={linking} />;
+      body = device ? <DeviceDetails services={services} copy={copy} view={value} device={device} onBack={toList} /> : <DeviceList services={services} copy={copy} view={value} ops={ops} onOpen={setView} linking={linking} />;
       break;
     }
     case "list":
-      body = <DeviceList copy={copy} view={value} ops={ops} onOpen={setView} linking={linking} />;
+      body = <DeviceList services={services} copy={copy} view={value} ops={ops} onOpen={setView} linking={linking} />;
       break;
   }
   return (
@@ -84,7 +84,7 @@ function ControlBanners({ copy, view, notices }: { readonly copy: DevicesCopy; r
   );
 }
 
-function DeviceList({ copy, view, ops, onOpen, linking }: { readonly copy: DevicesCopy; readonly view: DevicesView; readonly ops: readonly PendingOperationView[]; readonly onOpen: (v: View) => void; readonly linking: "available" | "later" }) {
+function DeviceList({ services, copy, view, ops, onOpen, linking }: { readonly services: SettingsServices; readonly copy: DevicesCopy; readonly view: DevicesView; readonly ops: readonly PendingOperationView[]; readonly onOpen: (v: View) => void; readonly linking: "available" | "later" }) {
   const current = view.devices.filter((d) => d.isCurrent);
   const others = view.devices.filter((d) => !d.isCurrent && d.state !== "revoked");
   const removed = view.devices.filter((d) => !d.isCurrent && d.state === "revoked");
@@ -124,12 +124,35 @@ function DeviceList({ copy, view, ops, onOpen, linking }: { readonly copy: Devic
       <DeviceGroup id="om-devices-current-h" heading={copy.currentHeading} devices={current} copy={copy} onOpen={onOpen} />
       <DeviceGroup id="om-devices-other-h" heading={copy.otherHeading} devices={others} copy={copy} onOpen={onOpen} empty={copy.noOtherDevices} />
       {removed.length > 0 ? <DeviceGroup id="om-devices-removed-h" heading={copy.removedHeading} devices={removed} copy={copy} onOpen={onOpen} /> : null}
+      {canAdd && linking !== "later" ? <StrictOption services={services} copy={copy} on={view.strictNotice} /> : null}
       {linking === "later" ? <Text as="p" tone="secondary">{copy.linkLater}</Text> : canAdd ? (
         <div className="om-settings__actions">
           <Button variant="primary" onClick={() => { onOpen({ kind: "add" }); }}>{copy.link.start}</Button>
         </div>
       ) : <Text as="p" tone="secondary">{copy.link.notControl}</Text>}
     </>
+  );
+}
+
+/** ADR-0193 section 8: the strict reading, off by default. A device-local setting, never an account record. */
+function StrictOption({ services, copy, on }: { readonly services: SettingsServices; readonly copy: DevicesCopy; readonly on: boolean }) {
+  const op = useOperation(services);
+  const [asking, setAsking] = useState(false);
+  return (
+    <div className="om-settings__group om-devices__strict">
+      <label>
+        <input type="checkbox" checked={on} disabled={op.locked} onChange={() => { if (on) setAsking(true); else void op.run("set-strict-device-notice", { enabled: true }); }} />
+        {" "}{copy.notice.strictOption}
+      </label>
+      {on && asking ? (
+        <div role="alertdialog" aria-label={copy.notice.strictOffAsk} className="om-devices__strict-ask">
+          <Text as="p">{copy.notice.strictOffAsk}</Text>
+          <Button variant="primary" disabled={op.locked} onClick={() => { setAsking(false); void op.run("set-strict-device-notice", { enabled: false }); }}>{copy.notice.strictOffConfirm}</Button>
+          <Button onClick={() => { setAsking(false); }}>{copy.notice.strictOffCancel}</Button>
+        </div>
+      ) : null}
+      <Text as="p" size="sm" tone="secondary">{copy.notice.strictHelp}</Text>
+    </div>
   );
 }
 
@@ -152,7 +175,7 @@ function DeviceGroup({ id, heading, devices, copy, onOpen, empty }: DeviceGroupP
             <li key={d.id}>
               <Button className="om-settings__row" data-state={d.state} onClick={() => { onOpen({ kind: "device", id: d.id }); }}>
                 <bdi className="om-settings__name">{d.label}</bdi>
-                <span className="om-settings__meta">{copy.role[d.role]} · {d.state === "active" ? copy.lastSeen[d.lastSeen] : copy.state[d.state]}</span>
+                <span className="om-settings__meta">{copy.role[d.role]} · {d.state === "active" ? copy.lastSeen[d.lastSeen] : copy.state[d.state]}{d.noticeState === "owed" ? <> · <strong data-notice="owed">{copy.notice.notTold}</strong></> : null}</span>
               </Button>
             </li>
           ))}
@@ -197,6 +220,13 @@ function DeviceDetails({ services, copy, view, device, onBack }: DeviceDetailsPr
         <li>{copy.enrolled(device.enrolledAt)}</li>
         <li>{copy.lastSeen[device.lastSeen]}</li>
       </ul>
+      {device.noticeState === "told" ? null : (
+        <div className="om-devices__notice" role="status" data-notice={device.noticeState}>
+          <Text as="p"><strong>{device.noticeState === "owed" ? copy.notice.notTold : null}</strong> {device.noticeState === "owed" ? copy.notice.notToldDetail(device.label) : copy.notice.held(device.label)}</Text>
+          {device.lastAttemptAt === undefined ? null : <Text as="p" size="sm" tone="secondary">{copy.notice.lastTried(device.lastAttemptAt)}</Text>}
+          {!op.locked && device.actions.includes("retry_notice") ? <Button onClick={() => { void op.run("retry-device-notice", { deviceId: device.id }); }}>{copy.notice.tryNow}</Button> : null}
+        </div>
+      )}
       {device.cautions.length > 0 ? (
         <ul className="om-settings__list om-devices__cautions">
           {device.cautions.map((c) => <li key={c} data-caution={c}>{copy.cautions[c]}</li>)}

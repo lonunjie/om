@@ -730,6 +730,17 @@ pub struct AppState {
     /// Enrollment notices received for devices that joined our account (newest last, bounded).
     #[serde(default)]
     pub notices: Vec<NoticeRec>,
+    /// Enrollment notices owed to other devices of this account that have not acknowledged them (ADR-0193). A
+    /// separate store from `notices`, so the display trim never evicts one. Empty in older records.
+    #[serde(default)]
+    pub owed_notices: Vec<OwedNotice>,
+    /// Acknowledgements this device still owes to the devices that sent it a notice (their reply had no route yet).
+    #[serde(default)]
+    pub owed_acks: Vec<OwedAck>,
+    /// Strict reading (ADR-0193 section 8), device-local, default off: approve a link only when every other active
+    /// device has a deliverable path at that moment.
+    #[serde(default)]
+    pub link_strict_notice: bool,
     /// Attachments prepared but not yet sent, by BlobID (hex).
     #[serde(default)]
     pub prepared: BTreeMap<Hex, PreparedBlob>,
@@ -1045,6 +1056,44 @@ pub struct LinkJoin {
     /// Nothing is retried; the device keeps what arrived and the person is told the history is partial.
     #[serde(default)]
     pub history_degraded: bool,
+}
+
+/// Where a notice owed to another device stands. An acknowledged notice is deleted, and so is one whose device a
+/// verified head revoked or removed, so neither is a state.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OwedState {
+    /// A session send is in the outbox or accepted; unacknowledged it is sent again on a schedule.
+    Queued,
+    /// No path to the device yet.
+    Waiting,
+    /// The device is quarantined; delivery is owed from the moment it is active again.
+    Held,
+}
+
+/// An acknowledgement of a notice, waiting for a route to the device that sent it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OwedAck {
+    pub sibling_device_id: Hex,
+    pub notice_digest: Hex,
+}
+
+/// A durable, unacknowledged `DeviceEnrollmentNotice` owed to one other device (ADR-0193).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OwedNotice {
+    pub sibling_device_id: Hex,
+    /// Hash of the AccountControlState the enrollment created.
+    pub enrollment_state_hash: Hex,
+    /// SHA-256 of the signed notice (what the acknowledgement names).
+    pub notice_digest: Hex,
+    /// The signed notice itself, so it is never lost to the display trim.
+    pub notice: Hex,
+    pub created_at: u64,
+    pub attempts: u32,
+    pub last_attempt_at: u64,
+    pub state: OwedState,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

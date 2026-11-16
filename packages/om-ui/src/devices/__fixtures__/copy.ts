@@ -30,6 +30,10 @@ export const testDevicesCopy: DevicesCopy = {
   revoke: { action: "Remove permanently", heading: (l) => `Remove ${l} permanently?`, consequences: ["Can never come back", "Data already on it stays"], confirm: "Yes, remove permanently", cancel: "Keep it", done: "Removed" },
   pendingHeading: "Still in progress",
   pendingKind: { OfferDeviceLink: "Preparing link", ApproveDeviceLink: "Approving link", RejectDeviceLink: "Rejecting link", SuspendDevice: "Suspending", RevokeDevice: "Removing" },
+  notice: {
+    notTold: "Not told yet", notToldDetail: (l) => `${l} has not heard about the new device`, lastTried: (ms) => `Last tried ${String(ms)}`, held: (l) => `${l} is paused`,
+    tryNow: "Try now", strictOffAsk: "Turn this off?", strictOffConfirm: "Yes, turn it off", strictOffCancel: "Keep it on", strictOption: "Only add a device when all others can be told", strictHelp: "Strict help", tooManyOwed: "Too many devices still to be told",
+  },
   link: {
     start: "Add a device", notControl: "Add devices from a device that manages your account", heading: "Add a device", body: "Show a link on this device",
     show: "Show link and QR code", cancel: "Cancel", qrLabel: "QR code that adds a device", qrBadge: "Adds a device", qrNotInvite: "This is not an invitation",

@@ -78,6 +78,10 @@ export interface RequestDeviceLink extends IntentBase { readonly kind: "RequestD
 /** Existing device: explicit approval after the user compared the verification code. Core may still need authorization. */
 export interface ApproveDeviceLink extends IntentBase { readonly kind: "ApproveDeviceLink"; readonly requestId: string; readonly confirmation: ConfirmationToken }
 export interface RejectDeviceLink extends IntentBase { readonly kind: "RejectDeviceLink"; readonly requestId: string }
+/** Try again now to tell a device about the devices added to the account (ADR-0193). Removal reuses `RevokeDevice`. */
+export interface RetryDeviceNotice extends IntentBase { readonly kind: "RetryDeviceNotice"; readonly deviceId: DeviceId }
+/** "Only add a device when all my other devices can be told right away": device-local, off by default (ADR-0193 section 8). */
+export interface SetStrictDeviceNotice extends IntentBase { readonly kind: "SetStrictDeviceNotice"; readonly enabled: boolean }
 /** Permanent removal (Stage B), distinct from SuspendDevice. May need authorization; terminal for that DeviceID. */
 export interface RevokeDevice extends IntentBase { readonly kind: "RevokeDevice"; readonly deviceId: DeviceId; readonly confirmation: ConfirmationToken }
 export interface StartRecovery extends IntentBase { readonly kind: "StartRecovery"; readonly scope: RecoveryScope; readonly custodian: RecoveryCustodianCode; readonly confirmation: ConfirmationToken }
@@ -100,7 +104,7 @@ export type CoreIntent =
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
   | RevokeInvite | StartCall | PinNavigationTarget | RestoreHistory
   | CreateIdentityProfile | ConfirmRecoveryKeyStored | IssueConfirmation | CreateInvite | AcceptInvitation
-  | OfferDeviceLink | RequestDeviceLink | ApproveDeviceLink | RejectDeviceLink | RevokeDevice | StartRecovery | VetoRecovery | ConfirmRecovery | DeclinePeerRecovery | ConfirmPeerRecovery | BeginRecovery;
+  | OfferDeviceLink | RequestDeviceLink | ApproveDeviceLink | RejectDeviceLink | RetryDeviceNotice | SetStrictDeviceNotice | RevokeDevice | StartRecovery | VetoRecovery | ConfirmRecovery | DeclinePeerRecovery | ConfirmPeerRecovery | BeginRecovery;
 
 export type CoreIntentKind = CoreIntent["kind"];
 
@@ -109,7 +113,7 @@ export const INTENT_KINDS: readonly CoreIntentKind[] = [
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
   "RevokeInvite", "StartCall", "PinNavigationTarget", "RestoreHistory",
   "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "IssueConfirmation", "CreateInvite", "AcceptInvitation",
-  "OfferDeviceLink", "RequestDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "BeginRecovery",
+  "OfferDeviceLink", "RequestDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "RetryDeviceNotice", "SetStrictDeviceNotice", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "BeginRecovery",
 ];
 
 /** Intents that require an explicit confirmation token; learned/ranked suggestions can never supply one (UI-11). */

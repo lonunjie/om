@@ -1620,6 +1620,21 @@ impl<R: RngCore + CryptoRng> Core<R> {
         })
     }
 
+    /// Send the device-enrollment notices that are due to the devices that have not acknowledged them (ADR-0193
+    /// section 4). The host calls it at start and on its poll cycle; Core keeps no timer and commits only when a
+    /// record changed.
+    pub fn notice_tick(&mut self, ctx: &ProfileExecutionContext) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.owed_tick();
+            Ok(())
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
+    }
+
     /// Set this person's own privacy level on this device (ADR-0190 section 4, D80): Recommended (or none) lets a contact's
     /// recovery of their account finish by itself after its wait; every other level asks the person first. Local to the
     /// profile and never sent. A host or a later settings intent supplies it; Core takes no level from the network.
@@ -2249,6 +2264,7 @@ fn devices_view(st: &ProfileState, now_ms: u64) -> DevicesView {
             devices: vec![],
             link_requests: crate::flows::pending_requests(st, now_ms),
             notices: crate::flows::notice_views(st),
+            strict_notice: st.app.link_strict_notice,
         };
     };
     use crate::control::{Action, PlanError, plan};
@@ -2261,6 +2277,31 @@ fn devices_view(st: &ProfileState, now_ms: u64) -> DevicesView {
         let is_current = *id == me;
         let mut actions = vec![];
         let mut cautions = vec![DeviceCautionCode::HistorySyncUnavailable];
+        // ADR-0193 section 10: owed and unacknowledged notices are read from Core, never composed by the UI.
+        let owed: Vec<&crate::state::OwedNotice> = st
+            .app
+            .owed_notices
+            .iter()
+            .filter(|o| o.sibling_device_id == hexid)
+            .collect();
+        let notice_state = if owed
+            .iter()
+            .any(|o| o.state != crate::state::OwedState::Held)
+        {
+            DeviceNoticeState::Owed
+        } else if owed.is_empty() {
+            DeviceNoticeState::Told
+        } else {
+            DeviceNoticeState::Held
+        };
+        let last_attempt_at = owed
+            .iter()
+            .map(|o| o.last_attempt_at)
+            .filter(|t| *t > 0)
+            .max();
+        if notice_state == DeviceNoticeState::Owed && me_active {
+            actions.push(DeviceActionCode::RetryNotice);
+        }
         if is_current && role == DeviceRole::Control && voting == 1 {
             cautions.push(DeviceCautionCode::LastVotingController);
         }
@@ -2294,6 +2335,8 @@ fn devices_view(st: &ProfileState, now_ms: u64) -> DevicesView {
             },
             actions,
             cautions,
+            notice_state,
+            last_attempt_at,
         }
     };
     let mut devices = vec![];
@@ -2320,6 +2363,7 @@ fn devices_view(st: &ProfileState, now_ms: u64) -> DevicesView {
         devices,
         link_requests: crate::flows::pending_requests(st, now_ms),
         notices: crate::flows::notice_views(st),
+        strict_notice: st.app.link_strict_notice,
     }
 }
 

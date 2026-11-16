@@ -316,6 +316,8 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
   async function drainLoop(profileId: ProfileId): Promise<void> {
     for (let round = 0; round < 50 && !disposed; round++) {
       const ctx = ctxOf(core.call({ cmd: "context_for", profileId }) as ProfileExecutionContext);
+      // ADR-0193: device-enrollment notices that are due go out (a no-op that commits nothing when none is owed).
+      if (round === 0) await exclusive(async () => { await commit((core.call({ cmd: "notice_tick", ctx }) as StepJson).commit, ctx); });
       const ops = core.call({ cmd: "net_ops", ctx }) as NetOp[];
       let moved = false;
       for (const op of ops) if (await runOp(ctx, op)) moved = true;

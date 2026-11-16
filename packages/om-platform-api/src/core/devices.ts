@@ -7,7 +7,9 @@ export type DeviceRole = "control" | "messaging";
 export type DeviceStateCode = "active" | "quarantined" | "revocation_pending" | "revoked";
 export type LastSeenClass = "now" | "recent" | "this_week" | "this_month" | "long_ago" | "never";
 /** Actions Core will accept for a device right now. The UI offers nothing else. */
-export type DeviceActionCode = "suspend" | "revoke";
+export type DeviceActionCode = "suspend" | "revoke" | "retry_notice";
+/** Whether a device has been told about the devices added to the account (ADR-0193). `owed`: a notice is owed and not yet acknowledged ("Not told yet"); `held`: the device is paused and will be told when it is active again. */
+export type DeviceNoticeState = "told" | "owed" | "held";
 export type DeviceCautionCode =
   | "suspend_would_freeze" // suspending would leave too few controllers: Core offers removal instead (§9)
   | "last_voting_controller" // the account must never be left without a voting controller (§13)
@@ -24,6 +26,9 @@ export interface DeviceSummary {
   readonly lastSeen: LastSeenClass;
   readonly actions: readonly DeviceActionCode[];
   readonly cautions: readonly DeviceCautionCode[];
+  readonly noticeState: DeviceNoticeState;
+  /** Wall ms of the last try to tell this device, when one was owed and tried. */
+  readonly lastAttemptAt?: number;
 }
 
 /** AccountControlState condition as Core reports it. Never resolved by the UI or by last-write-wins. */
@@ -76,6 +81,8 @@ export interface DevicesView {
   readonly devices: readonly DeviceSummary[];
   readonly linkRequests: readonly LinkRequestView[];
   readonly notices: readonly DeviceNoticeView[];
+  /** The strict reading of ADR-0193 section 8 is on for this device: a link is approved only when every other device can be told right away. */
+  readonly strictNotice: boolean;
 }
 
 export type RecoveryPolicyState = "on" | "pending" | "off_explicit";

@@ -262,6 +262,17 @@ const SPECS: Readonly<Record<string, Spec>> = {
     if (!exactly(p, ["requestId"]) || r === null) return null;
     return { intent: (ctx, op) => ({ kind: "RejectDeviceLink", ctx, operationId: op, requestId: r }) };
   } },
+  // Tell a device about the devices added to the account now (ADR-0193). Local to this device; it names the device and nothing else.
+  "retry-device-notice": { destructive: false, parse: (p) => {
+    const d = id(p["deviceId"]);
+    if (!exactly(p, ["deviceId"]) || d === null) return null;
+    return { intent: (ctx, op) => ({ kind: "RetryDeviceNotice", ctx, operationId: op, deviceId: asDeviceId(d) }) };
+  } },
+  "set-strict-device-notice": { destructive: false, parse: (p) => {
+    const e = p["enabled"];
+    if (!exactly(p, ["enabled"]) || typeof e !== "boolean") return null;
+    return { intent: (ctx, op) => ({ kind: "SetStrictDeviceNotice", ctx, operationId: op, enabled: e }) };
+  } },
   "finalize-device-revocation": { destructive: true, parse: (p) => {
     const d = id(p["deviceId"]);
     if (!exactly(p, ["deviceId"]) || d === null) return null;

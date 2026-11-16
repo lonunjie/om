@@ -950,6 +950,8 @@ impl Runtime {
 
     /// One full cycle: owed network work, then polling.
     pub fn pump(&mut self, ctx: &ProfileExecutionContext) -> usize {
+        let tick = self.core.notice_tick(ctx).expect("notice tick");
+        self.settle(&tick);
         self.flush_net(ctx) + self.poll(ctx)
     }
 }
