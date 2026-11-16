@@ -210,7 +210,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       : { direction: "incoming", messageId: m.messageId, text: m.text, sentAt: m.sentAt, ...extras };
   }
   function summary(c: ConversationState): ConversationSummary {
-    return { id: c.id, personId: c.personId, displayName: c.displayName, lastMessageAt: c.messages.at(-1)?.sentAt ?? null, notices: [], relationship: "active", ...(c.peerRecovery === undefined ? {} : { peerRecovery: c.peerRecovery }) };
+    return { id: c.id, personId: c.personId, displayName: c.displayName, lastMessageAt: c.messages.at(-1)?.sentAt ?? null, notices: [], relationship: "active", peerAccount: `acct-${c.id}`, ...(c.peerRecovery === undefined ? {} : { peerRecovery: c.peerRecovery }) };
   }
 
   function runQuery<Q extends CoreQuery>(q: Q): QueryResult<Q> {

@@ -70,6 +70,14 @@ fn connected() -> Pair {
         (al[0].display_name.as_str(), bl[0].display_name.as_str()),
         ("Bob", "Alice")
     );
+    // An active contact carries its bound account, so a screen can tell the same account apart from a same-named one.
+    let (pa, pb) = (al[0].peer_account.clone(), bl[0].peer_account.clone());
+    assert!(
+        pa.as_deref().is_some_and(|x| x.len() == 64)
+            && pb.as_deref().is_some_and(|x| x.len() == 64),
+        "bound contacts expose their account"
+    );
+    assert_ne!(pa, pb, "two different people have different accounts");
     Pair {
         net,
         a_conv: al[0].id.clone(),

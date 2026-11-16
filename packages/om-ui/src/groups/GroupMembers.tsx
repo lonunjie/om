@@ -41,12 +41,15 @@ export function GroupMembers({ services, copy, detail, names, invites, chats, on
   // Section 10: a name another person here also shows gets a pattern, "1 of 2" and one calm line. Candidates are checked against the people already here.
   const inGroup = new Set(invites.filter((i) => i.conversationId === detail.summary.conversationId && i.state !== "declined").map((i) => i.relationshipId as string));
   const addable = chats.filter((x) => x.relationship === "active" && !inGroup.has(x.id));
+  // The rule counts distinct ACCOUNTS: a member who is also a contact is one person, so both entries share the account's key.
+  const keyOfMember = (account: string): string => `a:${account}`;
+  const keyOfContact = (x: ConversationSummary): string => (x.peerAccount === undefined ? `c:${x.id}` : keyOfMember(x.peerAccount));
   const same = findSameNames([
-    ...detail.people.flatMap((p) => (p.display === null || names.isYou(p.account) ? [] : [{ id: `m:${p.account}`, name: p.display }])),
-    ...addable.map((x) => ({ id: `c:${x.id}`, name: x.displayName })),
+    ...detail.people.flatMap((p) => (p.display === null || names.isYou(p.account) ? [] : [{ id: keyOfMember(p.account), name: p.display }])),
+    ...addable.map((x) => ({ id: keyOfContact(x), name: x.displayName })),
   ]);
   const shown = (key: string, name: string): string => { const s = same.of(key); return s === null ? name : copy.sameName.of(name, s.index, s.of); };
-  const rows = detail.people.map((p) => ({ p, text: shown(`m:${p.account}`, label(p.account)), seed: same.of(`m:${p.account}`) === null ? null : p.account }));
+  const rows = detail.people.map((p) => ({ p, text: shown(keyOfMember(p.account), label(p.account)), seed: same.of(keyOfMember(p.account)) === null ? null : p.account }));
 
   const run = async (actionId: string, params: Readonly<Record<string, unknown>>, after: () => void): Promise<void> => {
     setBusy(true);
@@ -92,9 +95,9 @@ export function GroupMembers({ services, copy, detail, names, invites, chats, on
           <ul className="om-group-members__candidates">
             {addable.map((x) => (
               <li key={x.id}>
-                <Button variant="secondary" disabled={busy} aria-label={c.addLabel(shown(`c:${x.id}`, x.displayName))} onClick={() => { void run("group-invite", { conversationId: detail.summary.conversationId, relationshipId: x.id }, () => { onChanged("invited"); }); }}>
-                  {same.of(`c:${x.id}`) === null ? null : <PatternAvatar seed={x.id} />}
-                  <bdi>{shown(`c:${x.id}`, x.displayName)}</bdi>
+                <Button variant="secondary" disabled={busy} aria-label={c.addLabel(shown(keyOfContact(x), x.displayName))} onClick={() => { void run("group-invite", { conversationId: detail.summary.conversationId, relationshipId: x.id }, () => { onChanged("invited"); }); }}>
+                  {same.of(keyOfContact(x)) === null ? null : <PatternAvatar seed={x.id} />}
+                  <bdi>{shown(keyOfContact(x), x.displayName)}</bdi>
                 </Button>
               </li>
             ))}

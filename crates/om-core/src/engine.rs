@@ -2250,6 +2250,7 @@ fn summary(r: &Relationship, app: &AppState) -> ConversationSummary {
         id: r.id.clone(),
         person_id: r.person_id.clone(),
         display_name: r.display_name.clone(),
+        peer_account: (!r.peer_account_id.is_empty()).then(|| r.peer_account_id.clone()),
         last_message_at: r.messages.iter().rev().find(|m| !m.lane).map(|m| m.sent_at),
         notices,
         peer_recovery: peer_recovery_view(r, app),
@@ -2327,6 +2328,7 @@ fn restored_summary(r: &RestoredChat) -> ConversationSummary {
         display_name: r.display_name.clone(),
         last_message_at: r.messages.last().map(|m| m.sent_at),
         notices: vec![],
+        peer_account: None,
         peer_recovery: None,
         relationship: RelationshipStateCode::Restored,
     }

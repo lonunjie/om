@@ -40,6 +40,8 @@ export interface ConversationSummary {
   readonly lastMessageAt: number | null;
   readonly notices: readonly SecurityNotice[];
   readonly relationship: RelationshipStateCode;
+  /** Hex of the contact's account once bound; absent before that and for restored history. Two entries with the same account are one person. */
+  readonly peerAccount?: string;
   /** The recovery of this person's account this device is tracking (ADR-0190 section 4); absent when there is none. */
   readonly peerRecovery?: PeerRecoveryView;
 }

@@ -641,6 +641,10 @@ pub struct ConversationSummary {
     pub last_message_at: Option<u64>,
     pub notices: Vec<SecurityNotice>,
     pub relationship: RelationshipStateCode,
+    /// Hex of the contact's account once it is bound; omitted before that (and for restored history). Lets a screen tell
+    /// that two entries are the same account, which a name cannot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peer_account: Option<String>,
     /// The recovery of this person's account this contact is tracking, if any (ADR-0190 section 4). Omitted when
     /// there is none, so existing readers are unaffected.
     #[serde(default, skip_serializing_if = "Option::is_none")]

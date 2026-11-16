@@ -85,6 +85,22 @@ describe("people sheet with two people named alike", () => {
     expect(container.querySelector("svg")).toBeNull();
   });
 
+  it("counts a member who is also a contact once (same account)", () => {
+    const d = detail([person("acct-me", null, true), person("acct-a", "Alice")]);
+    const same = { ...chat("rel-a", "Alice"), peerAccount: "acct-a" } as ConversationSummary;
+    const { container } = render(<Members d={d} chats={[same]} />);
+    expect(container.querySelector(".om-group-samename")).toBeNull();
+    expect(container.textContent).not.toMatch(/\d of \d/);
+  });
+
+  it("still counts a different account that shares the name of a member who is also a contact", () => {
+    const d = detail([person("acct-me", null, true), person("acct-a", "Alice")]);
+    const chats = [{ ...chat("rel-a", "Alice"), peerAccount: "acct-a" }, { ...chat("rel-b", "Alice"), peerAccount: "acct-b" }] as ConversationSummary[];
+    const { container } = render(<Members d={d} chats={chats} />);
+    expect(container.textContent).toMatch(/Alice \(\d of 2\)/);
+    expect(container.textContent).not.toMatch(/of 3/);
+  });
+
   it("flags a contact you could add who shares a name with someone already here", async () => {
     const d = detail([person("acct-me", null, true), person("acct-a", "Maria")]);
     const { container } = render(<Members d={d} chats={[chat("rel-1", "Maria")]} />);
