@@ -198,3 +198,6 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0189 — Group carriage over sealed delivery, when a committer accepts its own Commit, and Room defaults by protection profile (accepted by operator delegation 2026-11-14)](ADR-0189-group-carriage-own-commit-acceptance-and-room-defaults.md)
 - [ADR-0190 — How a contact verifies a recovery-only successor: evidence travels, time never does (accepted by operator delegation 2026-11-14)](ADR-0190-contact-side-recovery-verification.md)
 - [ADR-0191 — The Add Commit's transport frame carries the signed account heads of the added accounts (accepted by operator delegation 2026-11-16)](ADR-0191-add-commit-carries-signed-account-heads.md)
+- [ADR-0192 — Device-link ceremony: key schedule, transcript MAC, comparison code, replay and expiry context, notice signer (accepted by operator delegation 2026-11-16)](ADR-0192-device-link-ceremony-transcript-mac-and-notice-signer.md)
+- [ADR-0193 — Enrollment liveness: a link is approved with a durable, acknowledged notice owed to every other device (accepted by operator delegation 2026-11-16)](ADR-0193-enrollment-notice-pending-delivery-for-unreachable-devices.md)
+- [ADR-0194 — Direct transfer: a peer acknowledgement is a claim; delivery needs an authenticated integrity receipt (accepted by operator delegation 2026-11-16)](ADR-0194-direct-transfer-integrity-receipt.md)

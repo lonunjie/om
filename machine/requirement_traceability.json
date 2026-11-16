@@ -2802,6 +2802,24 @@
       "verified_by": [
         "review:2026-11-14-groups-carriage-status.md"
       ]
+    },
+    {
+      "requirement": "R-431",
+      "verified_by": [
+        "review:ADR-0192-device-link-ceremony-transcript-mac-and-notice-signer.md"
+      ]
+    },
+    {
+      "requirement": "R-432",
+      "verified_by": [
+        "review:ADR-0193-enrollment-notice-pending-delivery-for-unreachable-devices.md"
+      ]
+    },
+    {
+      "requirement": "R-433",
+      "verified_by": [
+        "review:ADR-0194-direct-transfer-integrity-receipt.md"
+      ]
     }
   ]
 }
