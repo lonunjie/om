@@ -731,8 +731,13 @@ pub enum AttachmentState {
     WaitingForRecipient,
     /// Ours: being sent to the other person right now.
     Transferring,
-    /// Ours: the other person's device has it. This is that device only, not a copy kept anywhere else.
+    /// Ours: their device says it has it, and nothing has checked that yet (ADR-0194).
+    PeerSaysReceived,
+    /// Ours: their device checked the file and has it (an authenticated receipt). That device only, not a copy kept
+    /// anywhere else.
     DeliveredLocally,
+    /// Ours: they said they had it, the offer lapsed, and it was never confirmed.
+    NotConfirmed,
     /// Ours: no longer offered (taken back, or not fetched in time).
     NotOffered,
 }

@@ -182,8 +182,21 @@ enum Command {
         index: usize,
         frame: Value,
     },
-    /// `{state: idle|requested|receiving|complete|failed, held}` or `null` when no fetch is open.
+    /// `{state: idle|requested|receiving|complete|committed|failed, held}` or `null` when no fetch is open.
     DirectFetchProgress {
+        ctx: ProfileExecutionContext,
+        message_id: String,
+        index: usize,
+    },
+    /// The verified ciphertext of a completed fetch (hex) for the host's local blob cache: `{ciphertext}` or `null`.
+    DirectFetchCiphertext {
+        ctx: ProfileExecutionContext,
+        message_id: String,
+        index: usize,
+    },
+    /// The host's durable write of that ciphertext succeeded (ADR-0194): answers the receipt `{frames}` to send, or
+    /// `{refused}`. Call it before `DirectFetchOpen`; no commit, no receipt.
+    DirectFetchCommitted {
         ctx: ProfileExecutionContext,
         message_id: String,
         index: usize,
@@ -847,10 +860,39 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                             FetchState::Requested => ("requested", None),
                             FetchState::Receiving => ("receiving", None),
                             FetchState::Complete => ("complete", None),
+                            FetchState::Committed => ("committed", None),
                             FetchState::Failed(e) => ("failed", Some(enc(&e))),
                         };
                         json!({ "state": name, "held": held, "error": error })
                     }
+                },
+            ),
+            Command::DirectFetchCiphertext {
+                ctx,
+                message_id,
+                index,
+            } => Ok(
+                match self
+                    .core()?
+                    .direct_fetch_ciphertext(&ctx, &message_id, index)
+                {
+                    Some(ct) => json!({ "ciphertext": om_core::crypto::hex(&ct) }),
+                    None => Value::Null,
+                },
+            ),
+            Command::DirectFetchCommitted {
+                ctx,
+                message_id,
+                index,
+            } => Ok(
+                match self
+                    .core()?
+                    .direct_fetch_committed(&ctx, &message_id, index)
+                {
+                    Ok(frames) => {
+                        json!({ "frames": frames.iter().map(frame_to_json).collect::<Vec<_>>() })
+                    }
+                    Err(e) => json!({ "refused": enc(&e) }),
                 },
             ),
             Command::DirectFetchOpen {
@@ -1093,6 +1135,9 @@ fn frame_to_json(f: &DirectFrame) -> Value {
         DirectFrame::Error { id, code } => {
             json!({ "kind": "error", "id": hex(id), "code": *code as u16 })
         }
+        DirectFrame::Receipt { transfer_id, tag } => {
+            json!({ "kind": "receipt", "transferId": hex(transfer_id), "tag": hex(tag) })
+        }
     }
 }
 
@@ -1134,6 +1179,10 @@ fn frame_from_json(v: &Value) -> Result<DirectFrame, CoreError> {
         "ack" => DirectFrame::Ack {
             transfer_id: hex_array(v, "transferId")?,
             offset: u64_of("offset")?,
+        },
+        "receipt" => DirectFrame::Receipt {
+            transfer_id: hex_array(v, "transferId")?,
+            tag: hex_array(v, "tag")?,
         },
         "error" => DirectFrame::Error {
             id: hex_array(v, "id")?,

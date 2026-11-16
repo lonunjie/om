@@ -694,6 +694,30 @@
       "object": "MLS leaf attestation: a device (role device) signs its DeviceID and the dedicated MLS leaf signature key; carried in the BasicCredential, no registered object type",
       "wave": "W1",
       "status": "frozen"
+    },
+    {
+      "label": "OM-DIRECT-RECEIPT-KDF-v1",
+      "use": "kdf",
+      "construction": "HKDF-SHA256; salt = ciphertext_digest (32 raw bytes), IKM = the attachment content key, info = OM-CBOR [label, blob_id]; output 32 bytes (K_rcpt) (ADR-0194)",
+      "object": "direct-transfer integrity receipt key",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DIRECT-RECEIPT-MAC-v1",
+      "use": "mac",
+      "construction": "HMAC-SHA256 under K_rcpt over OM-CBOR [label, transfer_id, blob_id, total_bytes, ciphertext_digest, H_pos]; the 32-byte output is receipt_tag of lan object_receipt (ADR-0194)",
+      "object": "LanDeliveryProfile object_receipt",
+      "wave": "W1",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DIRECT-RECEIPT-POSSESSION-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH(label, OM-CBOR [transfer_id, ciphertext]), raw 32 bytes: proof that the confirmer holds every byte of the object for this transfer id (ADR-0194)",
+      "object": "direct-transfer integrity receipt possession hash",
+      "wave": "W1",
+      "status": "frozen"
     }
   ]
 }

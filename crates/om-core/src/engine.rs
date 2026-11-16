@@ -951,8 +951,13 @@ impl<R: RngCore + CryptoRng> Core<R> {
             .ok_or(AttachError::NotFound)?;
         let r = crate::flows::rec_ref(rec).ok_or(AttachError::NotFound)?;
         let cap = r.read_cap.clone().ok_or(AttachError::NotFound)?;
-        let sender =
-            crate::direct::DirectSender::new(r.blob_id, r.ciphertext_digest, cap, ciphertext)?;
+        let sender = crate::direct::DirectSender::new(
+            r.blob_id,
+            r.ciphertext_digest,
+            cap,
+            ciphertext,
+            r.key,
+        )?;
         self.direct_senders
             .insert((ctx.profile_id.clone(), blob_id.to_string()), sender);
         Ok(())
@@ -991,18 +996,23 @@ impl<R: RngCore + CryptoRng> Core<R> {
             return Ok(None);
         };
         let offers = &slot.state.app.direct_offers;
-        let mut delivered = vec![];
+        let mut claimed = vec![];
+        let mut confirmed = vec![];
         let mut drop_keys = vec![];
         for (k, s) in self.direct_senders.iter().filter(|(k, _)| k.0 == profile) {
             let live = offers
                 .get(&k.1)
                 .is_some_and(|o| o.status.is_live() && o.expires_ms > now);
-            if s.state() == OfferState::Delivered
-                && offers.get(&k.1).is_some_and(|o| o.status.is_live())
-            {
-                delivered.push(k.1.clone());
+            // Only the transitions that change what is stored are written: a claim that is already stored is not
+            // rewritten on every frame, and a receipt is the only way to `Confirmed`.
+            match (s.state(), offers.get(&k.1).map(|o| o.status)) {
+                (OfferState::PeerClaimsReceived, Some(DirectStatus::Waiting)) => {
+                    claimed.push(k.1.clone());
+                }
+                (OfferState::Confirmed, Some(st)) if st.is_live() => confirmed.push(k.1.clone()),
+                _ => {}
             }
-            if !live || matches!(s.state(), OfferState::Delivered | OfferState::Withdrawn) {
+            if !live || matches!(s.state(), OfferState::Confirmed | OfferState::Withdrawn) {
                 drop_keys.push(k.clone());
             }
         }
@@ -1011,12 +1021,15 @@ impl<R: RngCore + CryptoRng> Core<R> {
                 s.withdraw();
             }
         }
-        if delivered.is_empty() {
+        if claimed.is_empty() && confirmed.is_empty() {
             return Ok(None);
         }
         let ((), commit) = self.txn(profile, |tx| {
-            for id in &delivered {
-                tx.direct_delivered(id);
+            for id in &claimed {
+                tx.direct_claimed(id);
+            }
+            for id in &confirmed {
+                tx.direct_confirmed(id);
             }
             Ok(())
         })?;
@@ -1051,12 +1064,13 @@ impl<R: RngCore + CryptoRng> Core<R> {
                     code: ErrorCode::Unavailable,
                 }],
             },
-            DirectFrame::Ack { .. } | DirectFrame::Error { .. } => self
-                .direct_senders
-                .iter_mut()
-                .filter(|(k, _)| k.0 == profile)
-                .flat_map(|(_, s)| s.handle(frame, fresh))
-                .collect(),
+            DirectFrame::Ack { .. } | DirectFrame::Error { .. } | DirectFrame::Receipt { .. } => {
+                self.direct_senders
+                    .iter_mut()
+                    .filter(|(k, _)| k.0 == profile)
+                    .flat_map(|(_, s)| s.handle(frame, fresh))
+                    .collect()
+            }
             _ => vec![DirectFrame::Error {
                 id: fresh,
                 code: ErrorCode::Protocol,
@@ -1128,6 +1142,34 @@ impl<R: RngCore + CryptoRng> Core<R> {
         self.direct_fetches
             .get_mut(&(ctx.profile_id.clone(), message_id.to_string(), index))
             .map(|f| f.handle(frame))
+            .ok_or(crate::attach::AttachError::NotFound)
+    }
+
+    /// The verified ciphertext of a completed direct fetch, for the host to write to its local encrypted blob cache.
+    /// `None` until every byte arrived and both digests held. Nothing is confirmed to the sender by reading it.
+    pub fn direct_fetch_ciphertext(
+        &self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        index: usize,
+    ) -> Option<Vec<u8>> {
+        self.direct_fetches
+            .get(&(ctx.profile_id.clone(), message_id.to_string(), index))
+            .and_then(|f| f.ciphertext().map(<[u8]>::to_vec))
+    }
+
+    /// The host reports the ciphertext is durably in its local encrypted blob cache (ADR-0194 section 2). Answers the
+    /// receipt frame to send, if the sender's transfer already ended; a failed or unreported commit sends none, and a
+    /// fetch that was opened and forgotten first sends none either (commit before `direct_fetch_open`).
+    pub fn direct_fetch_committed(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        message_id: &str,
+        index: usize,
+    ) -> Result<Vec<crate::direct::DirectFrame>, crate::attach::AttachError> {
+        self.direct_fetches
+            .get_mut(&(ctx.profile_id.clone(), message_id.to_string(), index))
+            .map(|f| f.committed())
             .ok_or(crate::attach::AttachError::NotFound)
     }
 
@@ -1223,7 +1265,9 @@ impl<R: RngCore + CryptoRng> Core<R> {
                             AttachmentState::Transferring
                         }
                         (DirectStatus::Waiting, _) => AttachmentState::WaitingForRecipient,
-                        (DirectStatus::Delivered, _) => AttachmentState::DeliveredLocally,
+                        (DirectStatus::PeerClaim, _) => AttachmentState::PeerSaysReceived,
+                        (DirectStatus::Confirmed, _) => AttachmentState::DeliveredLocally,
+                        (DirectStatus::Unconfirmed, _) => AttachmentState::NotConfirmed,
                         _ => AttachmentState::NotOffered,
                     },
                     expires_at: o.expires_ms,

@@ -7,7 +7,8 @@
     "A W1 (groups) decoder validates the ConversationEvent body of the kinds below against the listed struct. A W0 decoder ignores this file and keeps treating those bodies as an opaque map, so the frozen W0 corpus and the W0 dispatch table are unchanged (ADR-0165, T-157).",
     "Merge rule: for each entry of 'dispatch', the table of the named field in om-numeric-fields.json is extended with the listed kind-to-struct pairs. An entry that names an existing kind with a different struct is an error. The merge is performed by tools (verification/prototypes/v004-group-wire/overlay.py), never by hand.",
     "Kinds 7 and 11-14 were typed by ADR-0160 in CDDL only; this file makes the same typing machine-applicable.",
-    "Kinds 15 to 17 (group.invite, group.accept, group.decline, ADR-0189 section 1.1) are the relationship lane of group carriage; each carries required_capabilities [\"om.group.v1\"] (a cross-field rule the semantic validator enforces). They are listed as W1 in om-numeric-fields.json 'enum_value_waves', so a W0 decoder rejects them (the frozen W0 corpus keeps its 'kind 15 unregistered' negative); 'enum_values' lists the values a W1 decoder accepts, and the merge removes their later-wave marker."
+    "Kinds 15 to 17 (group.invite, group.accept, group.decline, ADR-0189 section 1.1) are the relationship lane of group carriage; each carries required_capabilities [\"om.group.v1\"] (a cross-field rule the semantic validator enforces). They are listed as W1 in om-numeric-fields.json 'enum_value_waves', so a W0 decoder rejects them (the frozen W0 corpus keeps its 'kind 15 unregistered' negative); 'enum_values' lists the values a W1 decoder accepts, and the merge removes their later-wave marker.",
+    "lan_frame_kind 8 (object_receipt, ADR-0194) is the additive transport frame of a completed direct transfer; it is listed as W1 in om-numeric-fields.json 'enum_value_waves' and 'enum_values' makes it valid for a W1 decoder; a W0 decoder rejects it, so the frozen W0 corpus is untouched."
   ],
   "dispatch": {
     "ConversationEvent.body": {
@@ -30,6 +31,9 @@
       "15",
       "16",
       "17"
+    ],
+    "lan_frame_kind": [
+      "8"
     ]
   }
 }

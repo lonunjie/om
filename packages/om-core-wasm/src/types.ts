@@ -116,10 +116,12 @@ export type DirectFrame =
   | { readonly kind: "chunk"; readonly transferId: string; readonly offset: number; readonly bytes: string }
   | { readonly kind: "end"; readonly transferId: string }
   | { readonly kind: "ack"; readonly transferId: string; readonly offset: number }
-  | { readonly kind: "error"; readonly id: string; readonly code: 1 | 2 | 3 };
+  | { readonly kind: "error"; readonly id: string; readonly code: 1 | 2 | 3 }
+  /** ADR-0194: the receiver's authenticated confirmation of a completed transfer (`tag` is 32 bytes). Sent only after the host's durable commit. */
+  | { readonly kind: "receipt"; readonly transferId: string; readonly tag: string };
 
 /** Where a direct fetch stands (`null` from the runtime when none is open). */
-export interface DirectFetchProgress { readonly state: "idle" | "requested" | "receiving" | "complete" | "failed"; readonly held: number }
+export interface DirectFetchProgress { readonly state: "idle" | "requested" | "receiving" | "complete" | "committed" | "failed"; readonly held: number }
 
 /** What the store advertises (maps to `set_blob_limits`). `maxBlobBytes` is the largest single ciphertext object. */
 export interface BlobLimits { readonly maxBlobBytes: number; readonly maxSpoolBytes?: number; readonly maxBlobs?: number }

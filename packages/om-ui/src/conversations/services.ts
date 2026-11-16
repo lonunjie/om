@@ -1,4 +1,4 @@
-import type { CoreClient, CoreIntent, ConfirmationToken, OperationId, OutcomeClass, ProfileExecutionContext } from "@om/platform-api";
+import type { CoreClient, MessageId, CoreIntent, ConfirmationToken, OperationId, OutcomeClass, ProfileExecutionContext } from "@om/platform-api";
 import type { ActionRegistry, ActionResult } from "../actions/registry";
 
 /** What the conversation slice needs from the host: Core, the Action Registry, and the captured profile context. */
@@ -11,6 +11,11 @@ export interface ConversationServices {
    * Unset today: the web app has none, so the UI never offers or promises it.
    */
   readonly directChannel?: boolean;
+  /**
+   * Starts another send of a file whose direct offer lapsed unconfirmed (ADR-0194). Unset today: nothing in the web app can
+   * pick the same file again for an old message, so the "Send again" button is shown only when a host supplies this.
+   */
+  readonly sendAgain?: (messageId: MessageId, index: number) => void;
 }
 
 export type ResolvedIntent = { readonly status: "intent"; readonly intent: CoreIntent } | { readonly status: "blocked"; readonly result: ActionResult };

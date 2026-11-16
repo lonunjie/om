@@ -253,10 +253,21 @@ fn the_message_goes_at_once_and_the_file_crosses_a_direct_channel() {
         p.bob.core.direct_fetch_progress(&p.b, &bm, 0).unwrap().0,
         FetchState::Complete
     );
+    // The peer's final ack is only a claim: until its device commits and sends the receipt this is not delivery.
+    assert_eq!(
+        state_of(&p.alice, &p.a, &p.a_conv),
+        AttachmentState::PeerSaysReceived
+    );
+    let ct = p.bob.core.direct_fetch_ciphertext(&p.b, &bm, 0).unwrap();
+    assert_eq!(ct.len(), BIG + 16);
+    for f in p.bob.core.direct_fetch_committed(&p.b, &bm, 0).unwrap() {
+        let (out, step) = p.alice.core.direct_serve(&p.a, &f).unwrap();
+        assert!(p.alice.settle(&step) && out.is_empty());
+    }
     let opened = p.bob.core.direct_fetch_open(&p.b, &bm, 0).unwrap();
     assert_eq!(opened.plaintext, plain);
     assert_eq!(opened.filename.as_deref(), Some("holiday.mp4"));
-    // Local receipt only, said as such, and it survives a restart.
+    // Their device checked it: local receipt only, said as such, and it survives a restart.
     assert_eq!(
         state_of(&p.alice, &p.a, &p.a_conv),
         AttachmentState::DeliveredLocally
@@ -386,4 +397,115 @@ fn a_state_from_before_direct_offers_still_loads() {
     assert!(st.as_object_mut().unwrap().remove("directOffers").is_some());
     let app: om_core::state::AppState = serde_json::from_value(st).unwrap();
     assert!(app.direct_offers.is_empty());
+}
+
+/// Finish a transfer without the host commit: the sender holds only a claim.
+fn claim_only(p: &mut Pair, bm: &str) {
+    let first = p.bob.core.direct_fetch_start(&p.b, bm, 0).unwrap();
+    run_channel(p, bm, first, None);
+    assert_eq!(
+        p.bob.core.direct_fetch_progress(&p.b, bm, 0).unwrap().0,
+        FetchState::Complete
+    );
+}
+
+#[test]
+fn a_claim_survives_a_restart_and_only_a_receipt_confirms_it() {
+    let mut p = active_pair();
+    let plain = file(BIG);
+    let blob = offer(&mut p, "d1", "", &plain);
+    settle(&mut p);
+    let bm = mid(&p.bob, &p.b, &p.b_conv);
+    claim_only(&mut p, &bm);
+    assert_eq!(
+        state_of(&p.alice, &p.a, &p.a_conv),
+        AttachmentState::PeerSaysReceived
+    );
+    // Restart: the claim is kept and never promoted; the offer is still live and asks for the file again.
+    p.a = p.alice.restart().remove(0);
+    assert_eq!(
+        state_of(&p.alice, &p.a, &p.a_conv),
+        AttachmentState::PeerSaysReceived
+    );
+    let offers: Vec<DirectOfferView> = p.alice.query(Query::GetDirectOffers { ctx: p.a.clone() });
+    assert_eq!(
+        (offers[0].state, offers[0].needs_file),
+        (AttachmentState::PeerSaysReceived, true)
+    );
+    p.alice.core.arm_direct_offer(&p.a, &blob, &plain).unwrap();
+    // The receiver (never restarted, committed late) asks again; the whole total is held, so nothing is resent.
+    let again = p.bob.core.direct_fetch_start(&p.b, &bm, 0).unwrap();
+    run_channel(&mut p, &bm, again, None);
+    assert_eq!(
+        state_of(&p.alice, &p.a, &p.a_conv),
+        AttachmentState::PeerSaysReceived,
+        "still a claim: no commit, no receipt"
+    );
+    for f in p.bob.core.direct_fetch_committed(&p.b, &bm, 0).unwrap() {
+        let (_, step) = p.alice.core.direct_serve(&p.a, &f).unwrap();
+        assert!(p.alice.settle(&step));
+    }
+    assert_eq!(
+        state_of(&p.alice, &p.a, &p.a_conv),
+        AttachmentState::DeliveredLocally
+    );
+    // Confirmation is local to that device: nothing was stored for later (AT-06).
+    let v = view(&p.alice, &p.a, &p.a_conv);
+    assert_eq!(parts(v.last().unwrap()).2[0].stored_until, None);
+    assert_eq!(p.net.blob_put_count(), 0);
+}
+
+#[test]
+fn a_forged_ack_and_a_forged_receipt_through_the_engine_stay_a_claim() {
+    let mut p = active_pair();
+    let plain = file(BIG);
+    offer(&mut p, "d1", "", &plain);
+    settle(&mut p);
+    let bm = mid(&p.bob, &p.b, &p.b_conv);
+    claim_only(&mut p, &bm);
+    let forged = DirectFrame::Receipt {
+        transfer_id: [0; 16],
+        tag: [0; 32],
+    };
+    let (out, step) = p.alice.core.direct_serve(&p.a, &forged).unwrap();
+    assert!(out.is_empty() && p.alice.settle(&step));
+    assert_eq!(
+        state_of(&p.alice, &p.a, &p.a_conv),
+        AttachmentState::PeerSaysReceived
+    );
+}
+
+#[test]
+fn a_claim_that_lapses_unconfirmed_says_so() {
+    let mut p = active_pair();
+    let plain = file(BIG);
+    offer(&mut p, "d1", "", &plain);
+    settle(&mut p);
+    let bm = mid(&p.bob, &p.b, &p.b_conv);
+    claim_only(&mut p, &bm);
+    p.alice.tick(8 * 24 * 3600 * 1000);
+    p.alice.dispatch(
+        &p.a,
+        "t",
+        IntentBody::SendMessage {
+            conversation_id: p.a_conv.clone(),
+            draft: Draft { text: "hi".into() },
+        },
+    );
+    let v = view(&p.alice, &p.a, &p.a_conv);
+    let f = v.iter().rev().find(|i| !parts(i).2.is_empty()).unwrap();
+    assert_eq!(parts(f).2[0].state, AttachmentState::NotConfirmed);
+}
+
+#[test]
+fn a_stored_delivered_record_loads_as_the_claim() {
+    use om_core::state::DirectStatus;
+    let old: DirectStatus = serde_json::from_str("\"delivered\"").unwrap();
+    assert_eq!(old, DirectStatus::PeerClaim);
+    assert!(old.is_live());
+    assert_ne!(old, DirectStatus::Confirmed);
+    assert_eq!(
+        serde_json::to_string(&DirectStatus::Confirmed).unwrap(),
+        "\"confirmed\""
+    );
 }

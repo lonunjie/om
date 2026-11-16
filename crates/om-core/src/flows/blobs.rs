@@ -135,7 +135,9 @@ pub(crate) fn attachment_views(
                 state: if rec.direct {
                     match offers.get(&rec.blob_id).map(|o| o.status) {
                         Some(DirectStatus::Waiting) => AttachmentState::WaitingForRecipient,
-                        Some(DirectStatus::Delivered) => AttachmentState::DeliveredLocally,
+                        Some(DirectStatus::PeerClaim) => AttachmentState::PeerSaysReceived,
+                        Some(DirectStatus::Confirmed) => AttachmentState::DeliveredLocally,
+                        Some(DirectStatus::Unconfirmed) => AttachmentState::NotConfirmed,
                         _ => AttachmentState::NotOffered,
                     }
                 } else {
@@ -336,7 +338,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 created_ms: self.now_ms,
             },
         );
-        let sender = direct::DirectSender::new(blob_id, digest, read_cap.to_vec(), ct)?;
+        let sender = direct::DirectSender::new(blob_id, digest, read_cap.to_vec(), ct, key)?;
         Ok((
             PreparedAttachment {
                 blob_id: id,
@@ -452,7 +454,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let now = self.now_ms;
         for o in self.st.app.direct_offers.values_mut() {
             if o.status.is_live() && o.expires_ms <= now {
-                o.status = DirectStatus::Expired;
+                o.status = if o.status == DirectStatus::PeerClaim {
+                    DirectStatus::Unconfirmed
+                } else {
+                    DirectStatus::Expired
+                };
             }
         }
         self.st
@@ -461,12 +467,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .retain(|_, o| o.status.is_live() || o.expires_ms + 30 * DAY_MS > now);
     }
 
-    /// A fetch that finished with the exact bytes: the offer is delivered (local receipt only).
-    pub(crate) fn direct_delivered(&mut self, blob_id: &str) {
+    /// The peer acknowledged every byte: a claim, never delivery (ADR-0194). A later receipt upgrades it.
+    pub(crate) fn direct_claimed(&mut self, blob_id: &str) {
+        if let Some(o) = self.st.app.direct_offers.get_mut(blob_id)
+            && o.status == DirectStatus::Waiting
+        {
+            o.status = DirectStatus::PeerClaim;
+        }
+    }
+
+    /// A valid receipt arrived. Only the in-memory sender that checked the tag calls this.
+    pub(crate) fn direct_confirmed(&mut self, blob_id: &str) {
         if let Some(o) = self.st.app.direct_offers.get_mut(blob_id)
             && o.status.is_live()
         {
-            o.status = DirectStatus::Delivered;
+            o.status = DirectStatus::Confirmed;
         }
     }
 

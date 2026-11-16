@@ -18,8 +18,13 @@
 //!   id and the recipient's first `ack` after `object_begin` names the contiguous bytes it already holds, from which the
 //!   sender continues. The final checks cover the whole object, so a wrong prefix cannot pass.
 //! * A transport ack or a completed transfer is a *local receipt*, never storage durability ([`Durability`]).
+//! * The peer's final `ack` is only a claim (ADR-0194): the sender reports `PeerClaimsReceived` and keeps the object
+//!   until an authenticated `object_receipt` (a MAC under a key only a holder of the message's content key can derive,
+//!   bound to the transfer id, the BlobID, the length, the digest and the whole object) arrives and gives `Confirmed`.
+//!   Without the receipt there is no "delivered" state.
 
 use crate::attach::{self, AttachError, AttachmentRef, HARD_MAX_PLAINTEXT, TAG_LEN};
+use crate::crypto::direct_receipt::receipt_tag;
 use crate::crypto::sha256;
 use crate::host::BlobLimits;
 
@@ -78,14 +83,23 @@ pub enum DirectFrame {
         id: [u8; TRANSFER_ID_LEN],
         code: ErrorCode,
     },
+    /// ADR-0194 (`object_receipt`, frame kind 8): the receiver's authenticated confirmation of the transfer `transfer_id`.
+    Receipt {
+        transfer_id: [u8; TRANSFER_ID_LEN],
+        tag: [u8; 32],
+    },
 }
 
 /// What a completed direct transfer proves. Never more than this (ADR-0150: do not imply another device or an offline
 /// recipient can retrieve the file until normal replication or repair makes it true).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Durability {
-    /// Authenticated bytes are in this device's local encrypted blob cache only.
+    /// Authenticated bytes are in this device's local encrypted blob cache only (the receiver's label).
     LocalReceiptOnly,
+    /// Sender: the peer says it has the file; nothing was checked (ADR-0194). That device only.
+    PeerClaim,
+    /// Sender: a device holding the message's key proved it has every byte. That device only, nothing kept elsewhere.
+    PeerLocalCopyConfirmed,
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -134,8 +148,11 @@ pub enum OfferState {
     Waiting,
     /// A transfer is open.
     Transferring,
-    /// The recipient acknowledged the last byte after `object_end`: local receipt only.
-    Delivered,
+    /// The peer acknowledged the last byte after `object_end`. A claim only: the object is kept until a valid receipt
+    /// arrives, and nothing may call this delivered.
+    PeerClaimsReceived,
+    /// A valid receipt for the claimed transfer arrived (ADR-0194 section 2); the ciphertext is dropped.
+    Confirmed,
     /// The person withdrew it, or it expired; the ciphertext is gone.
     Withdrawn,
 }
@@ -155,19 +172,29 @@ pub struct DirectSender {
     blob_id: [u8; 32],
     digest: [u8; 32],
     read_cap: Vec<u8>,
+    /// The content key of the reference: the receipt tag is checked under a key derived from it.
+    key: [u8; 32],
     ciphertext: Vec<u8>,
     state: OfferState,
     xfer: Option<Xfer>,
+    /// The transfer whose final ack made the claim; a receipt must name it.
+    claim_id: Option<[u8; TRANSFER_ID_LEN]>,
+    /// Receipts that failed the tag check since the claim (each costs a hash of the object, so the count is bounded).
+    bad_receipts: u8,
 }
+
+/// Invalid receipts checked per claim; further ones are dropped unread.
+pub const MAX_BAD_RECEIPTS: u8 = 8;
 
 impl DirectSender {
     /// `ciphertext` is the sealed object; `digest` must be its `ciphertext_digest` (checked), `read_cap` the capability the
-    /// message reference carries (16..64 bytes).
+    /// message reference carries (16..64 bytes), `key` its content key (it authenticates the peer's receipt).
     pub fn new(
         blob_id: [u8; 32],
         digest: [u8; 32],
         read_cap: Vec<u8>,
         ciphertext: Vec<u8>,
+        key: [u8; 32],
     ) -> Result<Self, AttachError> {
         if ciphertext.len() as u64 <= TAG_LEN {
             return Err(AttachError::Empty);
@@ -187,9 +214,12 @@ impl DirectSender {
             blob_id,
             digest,
             read_cap,
+            key,
             ciphertext,
             state: OfferState::Waiting,
             xfer: None,
+            claim_id: None,
+            bad_receipts: 0,
         })
     }
 
@@ -198,13 +228,26 @@ impl DirectSender {
     }
 
     pub fn durability(&self) -> Durability {
-        Durability::LocalReceiptOnly
+        if self.state == OfferState::Confirmed {
+            Durability::PeerLocalCopyConfirmed
+        } else {
+            Durability::PeerClaim
+        }
+    }
+
+    /// Close the open transfer. An offer that only claimed receipt keeps the claim; one still moving goes back to waiting.
+    fn close_xfer(&mut self) {
+        self.xfer = None;
+        if self.state == OfferState::Transferring {
+            self.state = OfferState::Waiting;
+        }
     }
 
     /// Withdraw the offer and drop the ciphertext. Later fetches answer `unavailable`.
     pub fn withdraw(&mut self) {
         self.state = OfferState::Withdrawn;
         self.xfer = None;
+        self.claim_id = None;
         self.ciphertext = Vec::new();
     }
 
@@ -222,7 +265,10 @@ impl DirectSender {
                 blob_id,
                 digest,
             } => {
-                let live = matches!(self.state, OfferState::Waiting | OfferState::Transferring);
+                let live = matches!(
+                    self.state,
+                    OfferState::Waiting | OfferState::Transferring | OfferState::PeerClaimsReceived
+                );
                 if !live
                     || !ct_eq(read_cap, &self.read_cap)
                     || !ct_eq(blob_id, &self.blob_id)
@@ -233,8 +279,11 @@ impl DirectSender {
                         code: ErrorCode::Unavailable,
                     }];
                 }
-                // A new request supersedes an open transfer (the old channel is gone: resume).
-                self.state = OfferState::Transferring;
+                // A new request supersedes an open transfer (the old channel is gone: resume). A standing claim stays
+                // a claim: the exchange runs again so the receiver can confirm it.
+                if self.state != OfferState::PeerClaimsReceived {
+                    self.state = OfferState::Transferring;
+                }
                 self.xfer = Some(Xfer {
                     id: fresh_id,
                     next: None,
@@ -258,8 +307,7 @@ impl DirectSender {
                 };
                 if *offset > total || *offset < x.acked && x.next.is_some() {
                     // A receiver cannot hold more than exists, nor fewer than it already acknowledged.
-                    self.xfer = None;
-                    self.state = OfferState::Waiting;
+                    self.close_xfer();
                     return vec![DirectFrame::Error {
                         id: *transfer_id,
                         code: ErrorCode::Protocol,
@@ -270,17 +318,43 @@ impl DirectSender {
                     x.next = Some(*offset);
                 }
                 if x.ended && *offset == total {
-                    self.state = OfferState::Delivered;
+                    // Only a claim: the peer chose this number. The object stays until a receipt proves it.
+                    self.state = OfferState::PeerClaimsReceived;
+                    self.claim_id = Some(*transfer_id);
+                    self.bad_receipts = 0;
                     self.xfer = None;
-                    self.ciphertext = Vec::new();
                 }
                 vec![]
             }
             DirectFrame::Error { id, .. } => {
                 // The receiver rejected the object or the framing: close the transfer, keep the offer.
                 if self.xfer.as_ref().is_some_and(|x| &x.id == id) {
+                    self.close_xfer();
+                }
+                vec![]
+            }
+            DirectFrame::Receipt { transfer_id, tag } => {
+                // Anything that does not verify is ignored: the transfer is not failed and the claim stands.
+                if self.state != OfferState::PeerClaimsReceived
+                    || self.claim_id.as_ref() != Some(transfer_id)
+                    || self.bad_receipts >= MAX_BAD_RECEIPTS
+                {
+                    return vec![];
+                }
+                let want = receipt_tag(
+                    &self.key,
+                    &self.digest,
+                    &self.blob_id,
+                    transfer_id,
+                    &self.ciphertext,
+                );
+                if ct_eq(&want, tag) {
+                    self.state = OfferState::Confirmed;
                     self.xfer = None;
-                    self.state = OfferState::Waiting;
+                    self.claim_id = None;
+                    self.ciphertext = Vec::new();
+                } else {
+                    self.bad_receipts += 1;
                 }
                 vec![]
             }
@@ -344,8 +418,10 @@ pub enum FetchState {
     Idle,
     Requested,
     Receiving,
-    /// Every byte arrived and both digests held; call [`DirectFetch::open`].
+    /// Every byte arrived and both digests held; call [`DirectFetch::open`]. Not yet durable: no receipt is sent.
     Complete,
+    /// The host confirmed the ciphertext is durably in the local encrypted blob cache; the receipt may be sent.
+    Committed,
     Failed(AttachError),
 }
 
@@ -357,6 +433,14 @@ pub struct DirectFetch {
     state: FetchState,
     transfer: Option<([u8; TRANSFER_ID_LEN], [u8; 32])>,
     buf: Vec<u8>,
+    /// A verified object asked for again (the sender may not have a receipt yet).
+    again: bool,
+    /// The transfer whose `object_end` verified; the receipt names it.
+    ended_id: Option<[u8; TRANSFER_ID_LEN]>,
+    /// The transfer a receipt was last produced for.
+    receipt_sent: Option<[u8; TRANSFER_ID_LEN]>,
+    /// False once the sender answered a receipt with an error (an older build): stop sending them, keep the object.
+    receipts_ok: bool,
 }
 
 impl DirectFetch {
@@ -380,6 +464,10 @@ impl DirectFetch {
             state: FetchState::Idle,
             transfer: None,
             buf: Vec::new(),
+            again: false,
+            ended_id: None,
+            receipt_sent: None,
+            receipts_ok: true,
         })
     }
 
@@ -398,17 +486,61 @@ impl DirectFetch {
 
     /// The request to send on a fresh channel (also after a drop: the held bytes are kept and resumed).
     pub fn request(&mut self, request_id: [u8; TRANSFER_ID_LEN]) -> Option<DirectFrame> {
-        if matches!(self.state, FetchState::Complete | FetchState::Failed(_)) {
+        if matches!(self.state, FetchState::Failed(_)) {
             return None;
         }
         self.request_id = request_id;
         self.transfer = None;
-        self.state = FetchState::Requested;
+        if self.verified() {
+            // Already holds the whole verified object (for example after a lost receipt): ask again so the sender can
+            // be told, and answer its transfer from the held bytes.
+            self.again = true;
+        } else {
+            self.state = FetchState::Requested;
+        }
         Some(DirectFrame::FetchBlob {
             request_id,
             read_cap: self.r.read_cap.clone()?,
             blob_id: self.r.blob_id,
             digest: self.r.ciphertext_digest,
+        })
+    }
+
+    fn verified(&self) -> bool {
+        matches!(self.state, FetchState::Complete | FetchState::Committed)
+    }
+
+    /// The host reports that the verified ciphertext is durably in the local encrypted blob cache. Only then may a
+    /// receipt exist; a failed or unreported commit sends none. Returns the receipt for the transfer already ended, if any.
+    pub fn committed(&mut self) -> Vec<DirectFrame> {
+        if self.state == FetchState::Complete {
+            self.state = FetchState::Committed;
+        }
+        match self.ended_id {
+            Some(id) => self.take_receipt(&id).into_iter().collect(),
+            None => vec![],
+        }
+    }
+
+    /// The receipt for `transfer_id`: only after the commit, only for a transfer whose `object_end` verified, and not
+    /// once the sender refused receipts.
+    pub fn take_receipt(&mut self, transfer_id: &[u8; TRANSFER_ID_LEN]) -> Option<DirectFrame> {
+        if self.state != FetchState::Committed
+            || !self.receipts_ok
+            || self.ended_id.as_ref() != Some(transfer_id)
+        {
+            return None;
+        }
+        self.receipt_sent = Some(*transfer_id);
+        Some(DirectFrame::Receipt {
+            transfer_id: *transfer_id,
+            tag: receipt_tag(
+                &self.r.key,
+                &self.r.ciphertext_digest,
+                &self.r.blob_id,
+                transfer_id,
+                &self.buf,
+            ),
         })
     }
 
@@ -426,8 +558,11 @@ impl DirectFetch {
 
     /// Handle one frame from the sender; returns the frames to answer with.
     pub fn handle(&mut self, frame: &DirectFrame) -> Vec<DirectFrame> {
-        if matches!(self.state, FetchState::Complete | FetchState::Failed(_)) {
+        if matches!(self.state, FetchState::Failed(_)) {
             return vec![];
+        }
+        if self.verified() {
+            return self.handle_verified(frame);
         }
         match frame {
             DirectFrame::Begin {
@@ -500,6 +635,7 @@ impl DirectFetch {
                     return self.fail(AttachError::IntegrityFailure, id, ErrorCode::Integrity);
                 }
                 self.state = FetchState::Complete;
+                self.ended_id = Some(id);
                 vec![DirectFrame::Ack {
                     transfer_id: id,
                     offset: self.held(),
@@ -520,15 +656,73 @@ impl DirectFetch {
         }
     }
 
+    /// A fetch that already holds the verified object. Never fails it and never discards it: a refused or odd frame is
+    /// answered and ignored. A new transfer is answered with an ack of the whole length so the sender sends no bytes.
+    fn handle_verified(&mut self, frame: &DirectFrame) -> Vec<DirectFrame> {
+        let total = self.buf.len() as u64;
+        match frame {
+            DirectFrame::Begin {
+                transfer_id,
+                total_bytes,
+                sha256: wire,
+            } => {
+                if !self.again || *total_bytes != total || sha256(&[&self.buf]) != *wire {
+                    return vec![DirectFrame::Error {
+                        id: *transfer_id,
+                        code: ErrorCode::Protocol,
+                    }];
+                }
+                self.transfer = Some((*transfer_id, *wire));
+                vec![DirectFrame::Ack {
+                    transfer_id: *transfer_id,
+                    offset: total,
+                }]
+            }
+            DirectFrame::End { transfer_id } => {
+                if self.transfer.map(|(id, _)| id).as_ref() != Some(transfer_id) {
+                    return vec![DirectFrame::Error {
+                        id: *transfer_id,
+                        code: ErrorCode::Protocol,
+                    }];
+                }
+                self.ended_id = Some(*transfer_id);
+                let mut out = vec![DirectFrame::Ack {
+                    transfer_id: *transfer_id,
+                    offset: total,
+                }];
+                out.extend(self.take_receipt(transfer_id));
+                out
+            }
+            DirectFrame::Error { .. } => {
+                // An error after a receipt went out is the sender saying it does not know receipts (an older build
+                // answers an unknown frame with an error of its own id): stop sending them, keep the object.
+                if self.receipt_sent.is_some() {
+                    self.receipts_ok = false;
+                }
+                self.transfer = None;
+                self.again = false;
+                vec![]
+            }
+            DirectFrame::Chunk { transfer_id, .. } => vec![DirectFrame::Error {
+                id: *transfer_id,
+                code: ErrorCode::Protocol,
+            }],
+            _ => vec![DirectFrame::Error {
+                id: self.request_id,
+                code: ErrorCode::Protocol,
+            }],
+        }
+    }
+
     /// The verified ciphertext (to cache locally under the BlobID). `None` until complete.
     pub fn ciphertext(&self) -> Option<&[u8]> {
-        (self.state == FetchState::Complete).then_some(self.buf.as_slice())
+        self.verified().then_some(self.buf.as_slice())
     }
 
     /// Decrypt a completed transfer. `AttachmentRef::open` verifies length and digest again before it decrypts.
     pub fn open(&self) -> Result<Vec<u8>, AttachError> {
         match &self.state {
-            FetchState::Complete => self.r.open(&self.buf),
+            FetchState::Complete | FetchState::Committed => self.r.open(&self.buf),
             FetchState::Failed(e) => Err(e.clone()),
             _ => Err(AttachError::NotFound),
         }

@@ -19,6 +19,7 @@
 pub mod binding;
 pub mod cbor;
 pub mod delivery;
+pub mod direct_receipt;
 pub mod error;
 pub mod hpke;
 pub mod kdf;

@@ -325,7 +325,7 @@ describe("a file too big for the delivery service, sent straight to them", () =>
     expect(await h.query({ kind: "GetDirectOffers", ctx: make(h).ctx })).toEqual([]);
   });
 
-  const seeded = (state: "waiting_for_recipient" | "transferring" | "delivered_locally" | "not_offered" | "remote_direct", direct: boolean) => {
+  const seeded = (state: "waiting_for_recipient" | "transferring" | "peer_says_received" | "delivered_locally" | "not_confirmed" | "not_offered" | "remote_direct", direct: boolean) => {
     const { h, make } = setup([{ direction: state === "remote_direct" ? "incoming" : "outgoing", text: "big", attachments: [{ filename: "film.mov", mediaType: "video/mp4", bytes: bytes(500) }] }], LIMITS);
     // The harness shows seeded files as remote or stored; show the state under test the way Core reports it.
     const client: CoreClient = {
@@ -344,7 +344,9 @@ describe("a file too big for the delivery service, sent straight to them", () =>
     ["waiting_for_recipient", true, /Waiting for them/],
     ["waiting_for_recipient", false, /Not sent: no way to send straight to them here\./],
     ["transferring", true, /Sending now/],
+    ["peer_says_received", true, /They say they have it, waiting for their device to confirm/],
     ["delivered_locally", true, /They have it/],
+    ["not_confirmed", true, /They said they received it, but OM could not check it/],
     ["not_offered", true, /No longer offered/],
     ["remote_direct", true, /Available while they are online/],
     ["remote_direct", false, /cannot receive here yet/],
@@ -355,7 +357,20 @@ describe("a file too big for the delivery service, sent straight to them", () =>
     await waitFor(() => { expect(within(log).getByText(words)).toBeTruthy(); });
     // Never a download for a direct file here, and never a withdraw for one that is not ours or no longer waiting.
     expect(within(log).queryByRole("button", { name: /Download/ })).toBeNull();
-    expect(!!within(log).queryByRole("button", { name: "Take it back" })).toBe(state === "waiting_for_recipient" || state === "transferring");
+    expect(!!within(log).queryByRole("button", { name: "Take it back" })).toBe(state === "waiting_for_recipient" || state === "transferring" || state === "peer_says_received");
+    // A claim is never worded as delivery, and "Send again" needs a host that can start another send.
+    if (state === "peer_says_received") expect(within(log).queryByText(/^They have it/)).toBeNull();
+    expect(within(log).queryByRole("button", { name: "Send again" })).toBeNull();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it("offers Send again only for an unconfirmed claim and only when the host can start it", async () => {
+    const sendAgain = vi.fn();
+    const { services } = seeded("not_confirmed", true);
+    render(<Screen services={{ ...services, sendAgain }} capture={{}} />);
+    const log = await screen.findByRole("log");
+    await userEvent.click(await within(log).findByRole("button", { name: "Send again" }));
+    expect(sendAgain).toHaveBeenCalledTimes(1);
+    expect(within(log).queryByRole("button", { name: "Take it back" })).toBeNull();
   });
 });

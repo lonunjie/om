@@ -34,6 +34,7 @@ fn sender(r: &AttachmentRef, ct: &[u8]) -> DirectSender {
         r.ciphertext_digest,
         READ_CAP.to_vec(),
         ct.to_vec(),
+        r.key,
     )
     .unwrap()
 }
@@ -85,7 +86,11 @@ fn large_file_goes_direct_bound_to_blobid_and_digest() {
     assert_eq!(f.state(), FetchState::Complete);
     assert_eq!(f.ciphertext().unwrap(), ct.as_slice());
     assert_eq!(f.open().unwrap(), plain);
-    assert_eq!(s.state(), OfferState::Delivered);
+    assert_eq!(
+        s.state(),
+        OfferState::PeerClaimsReceived,
+        "the final ack is only a claim"
+    );
     assert_eq!(f.durability(), Durability::LocalReceiptOnly);
 }
 
@@ -108,7 +113,11 @@ fn drop_then_resume_from_the_held_offset() {
         ((ct.len() as u64 - held) as usize).div_ceil(MAX_CHUNK)
     );
     assert_eq!(f.open().unwrap(), plain);
-    assert_eq!(s.state(), OfferState::Delivered);
+    assert_eq!(
+        s.state(),
+        OfferState::PeerClaimsReceived,
+        "the final ack is only a claim"
+    );
 }
 
 #[test]
@@ -144,6 +153,7 @@ fn a_sender_serving_other_bytes_is_caught_by_the_committed_digest() {
         attach::ciphertext_digest(&other),
         READ_CAP.to_vec(),
         other,
+        r.key,
     )
     .unwrap();
     // it answers a fetch that names *its* digest; the recipient's ref has another, so use a ref with the sender's digest
@@ -282,10 +292,10 @@ fn offers_are_withdrawn_and_nothing_is_served_after() {
 fn sender_and_reference_validation_fail_closed() {
     let (mut r, _, ct) = make(1000);
     assert!(
-        DirectSender::new(r.blob_id, [0; 32], READ_CAP.to_vec(), ct.clone()).err()
+        DirectSender::new(r.blob_id, [0; 32], READ_CAP.to_vec(), ct.clone(), r.key).err()
             == Some(AttachError::IntegrityFailure)
     );
-    assert!(DirectSender::new(r.blob_id, r.ciphertext_digest, vec![1; 8], ct).is_err());
+    assert!(DirectSender::new(r.blob_id, r.ciphertext_digest, vec![1; 8], ct, r.key).is_err());
     r.read_cap = None;
     assert_eq!(
         DirectFetch::new(&r, [0; 16]).err(),

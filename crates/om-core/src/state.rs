@@ -269,23 +269,31 @@ pub struct AttachRec {
     pub direct: bool,
 }
 
-/// Where a direct offer stands. Local receipt is not durability (AT-06): `Delivered` means the other person's device
-/// acknowledged the last byte, nothing more.
+/// Where a direct offer stands. Local receipt is not durability (AT-06). `PeerClaim` is only the other device's own
+/// say-so that it has the last byte (ADR-0194); `Confirmed` needs an authenticated receipt and still means that device only.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DirectStatus {
     /// Offered; served whenever the recipient asks while this device is online.
     Waiting,
-    Delivered,
+    /// The peer acknowledged every byte; unchecked. Also the meaning of a record stored as `delivered` before ADR-0194:
+    /// it is migrated to the claim on load and is never promoted to `Confirmed`.
+    #[serde(alias = "delivered")]
+    PeerClaim,
+    /// A valid receipt for the transfer arrived (ADR-0194).
+    Confirmed,
     /// The person took it back; nothing is served any more.
     Withdrawn,
     /// Not fetched in time.
     Expired,
+    /// The offer lapsed while it was only a claim: nothing proved the peer has the file.
+    Unconfirmed,
 }
 
 impl DirectStatus {
+    /// Still served (and rearmed after a restart): a claim is kept so the exchange can run again and be confirmed.
     pub fn is_live(self) -> bool {
-        self == DirectStatus::Waiting
+        matches!(self, DirectStatus::Waiting | DirectStatus::PeerClaim)
     }
 }
 

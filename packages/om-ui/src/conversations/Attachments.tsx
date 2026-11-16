@@ -60,7 +60,9 @@ function storedText(a: AttachmentView, copy: AttachmentCopy, channel: boolean): 
     // With no way to send straight to them on this device, "waiting" would promise something that cannot happen.
     case "waiting_for_recipient": return channel ? d.waiting : d.waitingNoWay;
     case "transferring": return d.sending;
+    case "peer_says_received": return d.peerSaysReceived;
     case "delivered_locally": return d.delivered;
+    case "not_confirmed": return d.notConfirmed;
     case "not_offered": return d.notOffered;
     case "remote_direct": return channel ? d.availableWhileOnline : d.cannotGet;
     case "remote": return null;
@@ -103,7 +105,10 @@ function FileChip({ services, messageId, a, copy }: { readonly services: Convers
           <Icon name="download" size={18} /> {state.status === "busy" ? copy.downloading : copy.download("").trim()}
         </Button>
       ) : null}
-      {a.state === "waiting_for_recipient" || a.state === "transferring" ? (
+      {a.state === "not_confirmed" && services.sendAgain !== undefined ? (
+        <Button variant="quiet" className="om-file__action" onClick={() => { services.sendAgain?.(messageId, a.index); }}>{copy.direct.sendAgain}</Button>
+      ) : null}
+      {a.state === "waiting_for_recipient" || a.state === "transferring" || a.state === "peer_says_received" ? (
         <Button variant="quiet" className="om-file__action" disabled={withdraw.busy} onClick={withdraw.run}>{withdraw.busy ? copy.direct.withdrawing : copy.direct.withdraw}</Button>
       ) : null}
       <span className="om-file__note" role="status">

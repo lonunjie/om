@@ -117,6 +117,14 @@ export interface WasmCoreClient extends CoreClient {
     fetchStart(ctx: ProfileExecutionContext, messageId: MessageId, index: number): DirectFrame | null;
     fetchHandle(ctx: ProfileExecutionContext, messageId: MessageId, index: number, frame: DirectFrame): readonly DirectFrame[];
     fetchProgress(ctx: ProfileExecutionContext, messageId: MessageId, index: number): DirectFetchProgress | null;
+    /** The verified ciphertext of a completed fetch (`complete`), for the host's local encrypted blob cache; `null` before that. */
+    fetchCiphertext(ctx: ProfileExecutionContext, messageId: MessageId, index: number): Uint8Array | null;
+    /**
+     * The host's durable write of that ciphertext succeeded (ADR-0194). Answers the receipt frame to send to the sender, if its
+     * transfer already ended. Call it before `fetchOpen`; with no commit there is no receipt and the sender keeps saying
+     * "they say they have it".
+     */
+    fetchCommitted(ctx: ProfileExecutionContext, messageId: MessageId, index: number): readonly DirectFrame[];
     fetchOpen(ctx: ProfileExecutionContext, messageId: MessageId, index: number): AttachmentOpenResult;
   };
 }
@@ -541,7 +549,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     direct: {
       serve: (ctx, frame) => exclusive(async () => {
         const r = core.call({ cmd: "direct_serve", ctx: ctxOf(ctx), frame }) as { frames: DirectFrame[]; commit: Commit | null };
-        await commit(r.commit, ctx); // the one durable effect of serving is "delivered"
+        await commit(r.commit, ctx); // the durable effects of serving: the peer's claim, and a verified receipt
         return r.frames;
       }),
       pump: (ctx, buffered) => core.call({ cmd: "direct_pump", ctx: ctxOf(ctx), buffered }) as DirectFrame[],
@@ -556,6 +564,14 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       fetchProgress(ctx, messageId, index) {
         const r = core.call({ cmd: "direct_fetch_progress", ctx: ctxOf(ctx), messageId, index }) as { state: DirectFetchProgress["state"]; held: number } | null;
         return r === null ? null : { state: r.state, held: r.held };
+      },
+      fetchCiphertext(ctx, messageId, index) {
+        const r = core.call({ cmd: "direct_fetch_ciphertext", ctx: ctxOf(ctx), messageId, index }) as { ciphertext: string } | null;
+        return r === null ? null : fromHex(r.ciphertext);
+      },
+      fetchCommitted(ctx, messageId, index) {
+        const r = core.call({ cmd: "direct_fetch_committed", ctx: ctxOf(ctx), messageId, index }) as { frames?: DirectFrame[] };
+        return r.frames ?? [];
       },
       fetchOpen(ctx, messageId, index): AttachmentOpenResult {
         const o = core.call({ cmd: "direct_fetch_open", ctx: ctxOf(ctx), messageId, index }) as OpenJson;

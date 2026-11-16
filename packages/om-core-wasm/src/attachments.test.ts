@@ -226,6 +226,15 @@ describe.skipIf(!present)("attachments through the real Core and the loopback st
       expect(await alice.rt.query({ kind: "GetDirectOffers", ctx: alice.ctx })).toEqual([expect.objectContaining({ messageId, blobId, size: BIG, state: "waiting_for_recipient", needsFile: false })]);
       await transfer(alice, bob, bobMessageId);
       expect(bob.rt.direct.fetchProgress(bob.ctx, bobMessageId, 0)?.state).toBe("complete");
+      // Their final ack is only a claim (ADR-0194): not "delivered" until their device commits and sends the receipt.
+      expect((await lastItem(alice, aConv))?.attachments?.[0]?.state).toBe("peer_says_received");
+      expect(bob.rt.direct.fetchCiphertext(bob.ctx, bobMessageId, 0)?.length).toBe(BIG + 16);
+      const receipt = bob.rt.direct.fetchCommitted(bob.ctx, bobMessageId, 0);
+      expect(receipt).toEqual([expect.objectContaining({ kind: "receipt", transferId: expect.any(String) as string, tag: expect.stringMatching(/^[0-9a-f]{64}$/) as string })]);
+      // a forged receipt changes nothing
+      expect(await alice.rt.direct.serve(alice.ctx, { kind: "receipt", transferId: "00".repeat(16), tag: "00".repeat(32) })).toEqual([]);
+      expect((await lastItem(alice, aConv))?.attachments?.[0]?.state).toBe("peer_says_received");
+      for (const f of receipt) await alice.rt.direct.serve(alice.ctx, f);
       const opened = bob.rt.direct.fetchOpen(bob.ctx, bobMessageId, 0);
       if (!opened.ok) throw new Error(JSON.stringify(opened));
       expect(Array.from(opened.bytes)).toEqual(Array.from(file));

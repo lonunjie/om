@@ -1,5 +1,6 @@
 ; Status: frozen for W1 local_delivery by ADR-0158 (2026-09-29).
 ; Transport-local canonical records. They convey no account/conversation authority by themselves.
+; Amended additively by ADR-0194: kind 8 object_receipt (the last rule below); every earlier frame is unchanged.
 
 lan-invite-rendezvous-v1 = {
   0: 1,                                      ; profile_version
@@ -17,7 +18,8 @@ lan-signal-envelope-v1 = {
 ; One ordered/reliable WebRTC DataChannel message carries exactly one canonical lan-frame-v1.
 ; payload chunks are deliberately <=16 KiB regardless of runtime/SCTP max-message-size.
 lan-frame-v1 = lan-object-begin / lan-object-chunk / lan-object-end /
-               lan-ack / lan-fetch-async-key / lan-fetch-blob / lan-error
+               lan-ack / lan-fetch-async-key / lan-fetch-blob / lan-error /
+               lan-object-receipt
 
 lan-object-begin = {
   0: 1,                                      ; version
@@ -66,4 +68,12 @@ lan-error = {
   1: 7,                                      ; kind = error
   2: bstr .size 16,                          ; request/transfer id
   13: 1..65535,                              ; bounded profile error code; no free-form peer-controlled text
+}
+; ADR-0194 (additive, W1): the receiver's authenticated confirmation of one completed direct transfer. The ack above stays
+; transport progress only; this frame is what lets a sender call the file delivered to that device. It carries no authority.
+lan-object-receipt = {
+  0: 1,                                      ; version
+  1: 8,                                      ; kind = object_receipt
+  2: bstr .size 16,                          ; transfer_id of the transfer being confirmed
+  15: bstr .size 32,                         ; receipt_tag: HMAC-SHA-256 per OM-DIRECT-RECEIPT-MAC-v1 (ADR-0194 section 2)
 }

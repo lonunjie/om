@@ -103,7 +103,9 @@ export interface HarnessOptions {
 
 /** The largest file Core seals in one piece (16 MiB). */
 const HARD_MAX_PLAINTEXT = 16 * 1024 * 1024 - 16;
-const DIRECT_STATES: readonly AttachmentState[] = ["waiting_for_recipient", "transferring", "delivered_locally", "not_offered"];
+/** Offers Core still serves, so the person can take them back (a claim is still live: ADR-0194). */
+const LIVE_OFFER: readonly AttachmentState[] = ["waiting_for_recipient", "transferring", "peer_says_received"];
+const DIRECT_STATES: readonly AttachmentState[] = ["waiting_for_recipient", "transferring", "peer_says_received", "delivered_locally", "not_confirmed", "not_offered"];
 
 interface MutableMessage {
   messageId: MessageId;
@@ -409,8 +411,8 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       }
       case "WithdrawDirectOffer": {
         const msg = [...st.conversations.values()].flatMap((c) => c.messages).find((m) => m.messageId === intent.messageId);
-        if (msg?.attachments === undefined || !msg.attachments.some((a) => a.state === "waiting_for_recipient" || a.state === "transferring")) return rejected("not_found");
-        msg.attachments = msg.attachments.map((a) => (a.state === "waiting_for_recipient" || a.state === "transferring" ? { ...a, state: "not_offered" } : a));
+        if (msg?.attachments === undefined || !msg.attachments.some((a) => LIVE_OFFER.includes(a.state))) return rejected("not_found");
+        msg.attachments = msg.attachments.map((a) => (LIVE_OFFER.includes(a.state) ? { ...a, state: "not_offered" } : a));
         return record(intent, { kind: "Committed" });
       }
       case "SendLocation": {

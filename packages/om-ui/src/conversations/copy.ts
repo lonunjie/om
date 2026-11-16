@@ -118,7 +118,14 @@ export interface AttachmentCopy {
     readonly waiting: string;
     readonly waitingNoWay: string;
     readonly sending: string;
+    /** Their device acknowledged every byte but nothing has checked it (ADR-0194): never worded as delivered. */
+    readonly peerSaysReceived: string;
+    /** Their device checked the file and has it (an authenticated receipt). */
     readonly delivered: string;
+    /** They said they had it, the offer lapsed, and it was never confirmed. */
+    readonly notConfirmed: string;
+    /** The button beside `notConfirmed`, shown only when the host can start another send. */
+    readonly sendAgain: string;
     readonly notOffered: string;
     readonly withdraw: string;
     readonly withdrawing: string;

@@ -52,6 +52,9 @@
       "15": "W1",
       "16": "W1",
       "17": "W1"
+    },
+    "lan_frame_kind": {
+      "8": "W1"
     }
   },
   "enums": {
@@ -200,7 +203,8 @@
       "4": "ack",
       "5": "fetch_async_key",
       "6": "fetch_blob",
-      "7": "error"
+      "7": "error",
+      "8": "object_receipt"
     },
     "lan_object_kind": {
       "1": "sealed_delivery_envelope",
@@ -4079,9 +4083,20 @@
             ]
           },
           "req": false
+        },
+        {
+          "key": 15,
+          "name": "receipt_tag",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": false
         }
       ],
-      "note": "Kind-specific required/forbidden field combinations are normatively frozen in spec/cddl/lan.cddl; frames are transport records only (ADR-0158)."
+      "note": "Kind-specific required/forbidden field combinations are normatively frozen in spec/cddl/lan.cddl; frames are transport records only (ADR-0158). Kind 8 object_receipt and key 15 receipt_tag are the additive ADR-0194 frame (the peer's authenticated receipt of a completed direct transfer)."
     },
     "SpaceProfile": {
       "fields": [

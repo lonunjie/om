@@ -1432,6 +1432,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-codec/tests/lan_receipt_vectors.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-codec/tests/recovery_notice_vectors.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1496,6 +1503,13 @@
     },
     {
       "path": "crates/om-core/src/crypto/delivery.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/src/crypto/direct_receipt.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -1930,6 +1944,20 @@
     },
     {
       "path": "crates/om-core/tests/direct_engine.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/direct_receipt.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/direct_receipt_vectors.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -12310,6 +12338,41 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/direct-receipt/.gitignore",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/direct-receipt/cddl_check_lan_receipt.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/direct-receipt/check_node.mjs",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/direct-receipt/gen_direct_receipt_vectors.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/direct-receipt/run.sh",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/group-transport-wire/.gitignore",
       "class": "verification_tool",
       "domain": "architecture_verification",
@@ -15076,6 +15139,13 @@
     },
     {
       "path": "verification/vectors/device-link-ceremony-vectors.json.gz",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/direct-transfer-receipt-vectors.json.gz",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",

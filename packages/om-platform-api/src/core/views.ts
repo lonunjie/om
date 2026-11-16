@@ -74,8 +74,12 @@ export type AttachmentState =
   | "waiting_for_recipient"
   /** Ours: being sent to the other person right now. */
   | "transferring"
-  /** Ours: the other person's device has it. That device only; not a copy kept anywhere else (AT-06). */
+  /** Ours: their device says it has it and nothing has checked that yet (ADR-0194). Never shown as delivered. */
+  | "peer_says_received"
+  /** Ours: their device checked the file and has it (an authenticated receipt). That device only; not a copy kept anywhere else (AT-06). */
   | "delivered_locally"
+  /** Ours: they said they had it, the offer lapsed, and it was never confirmed (ADR-0194). */
+  | "not_confirmed"
   /** Ours: no longer offered (taken back, or it lapsed unfetched). */
   | "not_offered";
 

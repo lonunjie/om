@@ -28,7 +28,7 @@ export const testCopy: ConversationCopy = {
     file: "File", uploading: "Uploading", keptUntil: (w) => `Kept until ${w}`, download: (n) => `Download ${n}`.trim(), downloading: "Downloading", downloaded: "Download started", formatDay: (ms) => `day${String(ms)}`,
     direct: {
       tooBigNotSent: (l) => `Too big for the service, not sent. Up to ${String(l)}.`, offer: "Send it straight to them while they are online.", send: "Send it straight to them", unavailable: "Straight to them: not available here yet.",
-      alone: "Straight-to-them files go alone.", waiting: "Waiting for them", waitingNoWay: "Not sent: no way to send straight to them here.", sending: "Sending now", delivered: "They have it", notOffered: "No longer offered",
+      alone: "Straight-to-them files go alone.", waiting: "Waiting for them", waitingNoWay: "Not sent: no way to send straight to them here.", sending: "Sending now", peerSaysReceived: "They say they have it, waiting for their device to confirm", delivered: "They have it", notConfirmed: "They said they received it, but OM could not check it", sendAgain: "Send again", notOffered: "No longer offered",
       withdraw: "Take it back", withdrawing: "Taking it back", availableWhileOnline: "Available while they are online", cannotGet: "Offered by them; cannot receive here yet.",
     },
     voice: { recording: "Recording", elapsed: (ms) => `${String(Math.round(ms / 1000))}s`, stop: "Stop recording", discard: "Discard", note: "Voice note", review: "Listen before you send", play: "Play voice note", loading: "Opening voice note", denied: "Microphone blocked", failed: "Recording failed", nothing: "Nothing recorded", duration: (ms) => `${String(Math.round(ms / 1000))}s` },
