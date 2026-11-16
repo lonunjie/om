@@ -3,6 +3,8 @@ import type { ConversationSummary, GroupProtectionLevel } from "@om/platform-api
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
 import { Avatar } from "../conversations/Avatar";
+import { PatternAvatar } from "./PatternAvatar";
+import { findSameNames } from "./sameName";
 import type { ConversationServices } from "../conversations/services";
 import type { GroupsCopy } from "./copy";
 import { PROTECTION_LEVELS } from "./protection";
@@ -27,6 +29,7 @@ export function NewGroup({ services, copy, chats, onCreated }: NewGroupProps) {
   const [level, setLevel] = useState<GroupProtectionLevel>(1);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const same = findSameNames(eligible.map((x) => ({ id: x.id, name: x.displayName })));
   if (eligible.length === 0) return <Text as="p" data-sheet-initial="">{c.nobody}</Text>;
   const toggle = (id: string): void => { setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; }); };
   const submit = async (e: { preventDefault: () => void }): Promise<void> => {
@@ -47,11 +50,12 @@ export function NewGroup({ services, copy, chats, onCreated }: NewGroupProps) {
       </label>
       <fieldset className="om-group-form__people">
         <legend>{c.pick}</legend>
+        {same.groups.map((g) => <Text key={g.name} as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{copy.sameName.contacts(g.name, g.count)}</bdi></Text>)}
         {eligible.map((x) => (
           <label key={x.id} className="om-group-form__person">
             <input type="checkbox" checked={picked.has(x.id)} onChange={() => { toggle(x.id); }} />
-            <Avatar name={x.displayName} />
-            <bdi>{x.displayName}</bdi>
+            {same.of(x.id) === null ? <Avatar name={x.displayName} /> : <PatternAvatar seed={x.id} />}
+            <bdi>{same.of(x.id) === null ? x.displayName : copy.sameName.of(x.displayName, same.of(x.id)?.index ?? 1, same.of(x.id)?.of ?? 1)}</bdi>
           </label>
         ))}
       </fieldset>

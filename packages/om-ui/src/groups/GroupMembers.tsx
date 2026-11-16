@@ -3,6 +3,8 @@ import type { ConversationSummary, GroupDetailView, GroupInviteView } from "@om/
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
 import { Avatar } from "../conversations/Avatar";
+import { PatternAvatar } from "./PatternAvatar";
+import { findSameNames } from "./sameName";
 import type { ConversationServices } from "../conversations/services";
 import type { GroupsCopy } from "./copy";
 import type { PeopleNames } from "./hooks";
@@ -36,7 +38,15 @@ export function GroupMembers({ services, copy, detail, names, invites, chats, on
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const label = (account: string): string => (names.isYou(account) ? c.you : names.nameOf(account) ?? c.someone(names.unnamedNumber(account)));
-  const rows = detail.people.map((p) => ({ p, text: label(p.account) }));
+  // Section 10: a name another person here also shows gets a pattern, "1 of 2" and one calm line. Candidates are checked against the people already here.
+  const inGroup = new Set(invites.filter((i) => i.conversationId === detail.summary.conversationId && i.state !== "declined").map((i) => i.relationshipId as string));
+  const addable = chats.filter((x) => x.relationship === "active" && !inGroup.has(x.id));
+  const same = findSameNames([
+    ...detail.people.flatMap((p) => (p.display === null || names.isYou(p.account) ? [] : [{ id: `m:${p.account}`, name: p.display }])),
+    ...addable.map((x) => ({ id: `c:${x.id}`, name: x.displayName })),
+  ]);
+  const shown = (key: string, name: string): string => { const s = same.of(key); return s === null ? name : copy.sameName.of(name, s.index, s.of); };
+  const rows = detail.people.map((p) => ({ p, text: shown(`m:${p.account}`, label(p.account)), seed: same.of(`m:${p.account}`) === null ? null : p.account }));
 
   const run = async (actionId: string, params: Readonly<Record<string, unknown>>, after: () => void): Promise<void> => {
     setBusy(true);
@@ -46,15 +56,14 @@ export function GroupMembers({ services, copy, detail, names, invites, chats, on
     setPending(null);
     if (r.ok) after(); else setProblem(copy.refused(r.refused));
   };
-  const inGroup = new Set(invites.filter((i) => i.conversationId === detail.summary.conversationId && i.state !== "declined").map((i) => i.relationshipId as string));
-  const addable = chats.filter((x) => x.relationship === "active" && !inGroup.has(x.id));
 
   return (
     <div className="om-group-members">
+      {same.groups.map((g) => <Text key={g.name} as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{copy.sameName.here(g.name, g.count)}</bdi></Text>)}
       <ul className="om-group-members__list" aria-label={c.listLabel}>
-        {rows.map(({ p, text }) => (
+        {rows.map(({ p, text, seed }) => (
           <li key={p.account} className="om-group-members__row" data-status={p.status}>
-            <Avatar name={text} />
+            {seed === null ? <Avatar name={text} /> : <PatternAvatar seed={seed} />}
             <span className="om-group-members__who">
               <bdi className="om-group-members__name">{text}</bdi>
               <span className="om-group-members__sub">
@@ -83,8 +92,9 @@ export function GroupMembers({ services, copy, detail, names, invites, chats, on
           <ul className="om-group-members__candidates">
             {addable.map((x) => (
               <li key={x.id}>
-                <Button variant="secondary" disabled={busy} aria-label={c.addLabel(x.displayName)} onClick={() => { void run("group-invite", { conversationId: detail.summary.conversationId, relationshipId: x.id }, () => { onChanged("invited"); }); }}>
-                  <bdi>{x.displayName}</bdi>
+                <Button variant="secondary" disabled={busy} aria-label={c.addLabel(shown(`c:${x.id}`, x.displayName))} onClick={() => { void run("group-invite", { conversationId: detail.summary.conversationId, relationshipId: x.id }, () => { onChanged("invited"); }); }}>
+                  {same.of(`c:${x.id}`) === null ? null : <PatternAvatar seed={x.id} />}
+                  <bdi>{shown(`c:${x.id}`, x.displayName)}</bdi>
                 </Button>
               </li>
             ))}

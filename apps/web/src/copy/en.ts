@@ -668,6 +668,11 @@ export const groupsCopy: GroupsCopy = {
     composerLabel: "Message the group", placeholder: "Message", send: "Send", sendFailed: "That was not sent. Try again.",
     paused: "The group is being updated. You can write again in a moment.", notMember: "You are not in this group.", loadFailed: "This group could not be opened.",
   },
+  sameName: {
+    of: (name, index, of) => `${name} (${String(index)} of ${String(of)})`,
+    here: (name, count) => `${String(count)} people here are named ${name}. A name does not show who someone is.`,
+    contacts: (name, count) => `${String(count)} of your contacts are named ${name}.`,
+  },
   members: {
     title: (g) => `People in ${g}`, close: "Close", listLabel: "People in this group", you: "You", someone: (n) => `Someone ${String(n)}`,
     roles: { admin: "Admin", member: "Member" }, invited: "Invited, no answer yet",

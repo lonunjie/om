@@ -46,3 +46,7 @@
 .om-group-status { display: grid; gap: 0; }
 .om-group-status__line { display: grid; gap: var(--om-space-1); justify-items: start; padding: var(--om-space-3) var(--om-space-4); background: var(--om-color-bg-sunken); border-block-end: 1px solid var(--om-hairline); }
 .om-group-status__line p { margin: 0; }
+
+/* Section 10: a calm one-line note and the pattern that stands in for the initial when two people share a name. */
+.om-group-samename { margin: 0; padding-inline: var(--om-space-4); padding-block: var(--om-space-1); overflow-wrap: anywhere; }
+.om-avatar--pattern { fill: var(--om-color-info-fg); }

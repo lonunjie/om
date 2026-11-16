@@ -68,9 +68,10 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
   useEffect(() => { if (api !== null && detail === null) onLeft(); }, [api, detail, onLeft]);
   if (detail === null) return <div className="om-conv-view" aria-busy="true" />;
   const group = detail.summary.name;
-  const senderLabel = (a: string): string => names.nameOf(a) ?? copy.members.someone(names.unnamedNumber(a));
+  const shown = (a: string, name: string): string => { const s = names.sameName(a); return s === null ? name : copy.sameName.of(name, s.index, s.of); };
+  const senderLabel = (a: string): string => { const n = names.nameOf(a); return n === null ? copy.members.someone(names.unnamedNumber(a)) : shown(a, n); };
   const entries = timeline(messages, notices);
-  const whoLabel = (a: string): string => (names.isYou(a) ? copy.notices.youChanged : names.nameOf(a) ?? copy.notices.someone);
+  const whoLabel = (a: string): string => (names.isYou(a) ? copy.notices.youChanged : shown(a, names.nameOf(a) ?? copy.notices.someone));
   const changed = (what: "invited" | "removed"): void => { setBump((n) => n + 1); setSaid(what === "invited" ? copy.done.invited : copy.done.removed); onChanged?.(); };
   return (
     <section className="om-conv-view" aria-label={group}>
@@ -84,6 +85,7 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
           <Icon name="users" size={20} />{c.people(detail.summary.members)}
         </Button>
       </header>
+      {names.sharedNames.map((g) => <Text key={g.name} as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{copy.sameName.here(g.name, g.count)}</bdi></Text>)}
       <div role="log" aria-label={c.label} className="om-conv-view__log">
         {entries.length === 0 ? <p className="om-conv-view__empty">{c.empty}</p> : (
           <ol className="om-conv-view__timeline">

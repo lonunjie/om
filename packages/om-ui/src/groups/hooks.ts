@@ -1,3 +1,4 @@
+import { findSameNames, type Collisions, type SameName } from "./sameName";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GroupDetailView, GroupEvent, GroupId, GroupInviteView, GroupMessageView, GroupNoticeView, GroupSummaryView, HeldGroupInvitations } from "@om/platform-api";
 import type { ConversationDigest } from "../conversations/hooks";
@@ -106,6 +107,10 @@ export interface PeopleNames {
   readonly isYou: (account: string) => boolean;
   /** 1, 2, ... for each account with no name, the same in every list and line of this group (so "Someone 2" is always the same person). */
   readonly unnamedNumber: (account: string) => number;
+  /** Who among the people now in the group shows the same name as someone else (section 10); null when nobody does. */
+  readonly sameName: (account: string) => SameName | null;
+  /** One entry per shared name, for the one-line note. */
+  readonly sharedNames: Collisions["groups"];
 }
 
 export function usePeopleNames(detail: GroupDetailView | null): PeopleNames {
@@ -115,7 +120,8 @@ export function usePeopleNames(detail: GroupDetailView | null): PeopleNames {
     for (const p of detail?.former ?? []) if (!known.has(p.account)) known.set(p.account, p);
     const numbers = new Map<string, number>();
     for (const [a, p] of known) if (p.display === null && !p.you) numbers.set(a, numbers.size + 1);
-    return { nameOf: (a) => known.get(a)?.display ?? null, isYou: (a) => known.get(a)?.you === true, unnamedNumber: (a) => numbers.get(a) ?? numbers.size + 1 };
+    const shared = findSameNames((detail?.people ?? []).flatMap((p) => (p.display === null || p.you ? [] : [{ id: p.account, name: p.display }])));
+    return { nameOf: (a) => known.get(a)?.display ?? null, isYou: (a) => known.get(a)?.you === true, unnamedNumber: (a) => numbers.get(a) ?? numbers.size + 1, sameName: shared.of, sharedNames: shared.groups };
   }, [detail]);
 }
 

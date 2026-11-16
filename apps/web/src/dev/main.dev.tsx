@@ -51,6 +51,10 @@ export function mountDev(root: HTMLElement): void {
         id: asConversationId("c-team"), personId: asPersonId("p-team"), displayName: "Design team",
         messages: [{ text: "Welcome to the team space.", direction: "incoming" }],
       },
+      // `?dupnames` adds a second contact with the same name, for the e2e of the same-name cues (GROUPS_AND_SPACES_UX section 10). Dev bundle only.
+      ...(new URLSearchParams(globalThis.location.search).has("dupnames")
+        ? [{ id: asConversationId("c-ana2"), personId: asPersonId("p-ana2"), displayName: "ana reyes", messages: [{ text: "Hello from the other Ana.", direction: "incoming" as const }] }]
+        : []),
     ],
     introductions: [{ id: "req-1", from: asPersonId("p-sam"), displayName: "Sam Okafor", personId: asPersonId("p-sam") }],
     account: {

@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { ConversationSummary, GroupInviteView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
+import { PatternAvatar } from "./PatternAvatar";
+import { findSameNames } from "./sameName";
 import type { ConversationServices } from "../conversations/services";
 import type { GroupsCopy } from "./copy";
 import { runGroupAction } from "./services";
@@ -29,6 +31,9 @@ export function GroupInvites({ services, copy, invites, chats, onAnswered }: Gro
   const waiting = invites.filter((i) => i.dir === "incoming" && (i.state === "accepted" || i.state === "admitting"));
   if (offered.length === 0 && waiting.length === 0 && said.size === 0) return null;
   const names = new Map(chats.map((x) => [x.id as string, x.displayName]));
+  // An invitation from someone whose name another contact also shows says so before you say yes (section 10).
+  const same = findSameNames(chats.map((x) => ({ id: x.id, name: x.displayName })));
+  const shownName = (id: string): string => { const n = names.get(id) ?? ""; const s = same.of(id); return s === null ? n : copy.sameName.of(n, s.index, s.of); };
   const answer = async (i: GroupInviteView, join: boolean): Promise<void> => {
     setBusy(i.id);
     const r = await runGroupAction(services, join ? "group-accept" : "group-decline", { inviteId: i.id });
@@ -40,7 +45,9 @@ export function GroupInvites({ services, copy, invites, chats, onAnswered }: Gro
     <section className="om-page om-stack" aria-label={c.heading}>
       {offered.map((i) => (
         <div key={i.id} className="om-card om-group-invite">
-          <Text as="p"><bdi>{c.from(names.get(i.relationshipId) ?? "", i.groupName)}</bdi></Text>
+          {same.of(i.relationshipId) === null ? null : <PatternAvatar seed={i.peerAccount} />}
+          <Text as="p"><bdi>{c.from(shownName(i.relationshipId), i.groupName)}</bdi></Text>
+          {same.of(i.relationshipId) === null ? null : <Text as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{copy.sameName.contacts(same.of(i.relationshipId)?.name ?? "", same.of(i.relationshipId)?.of ?? 0)}</bdi></Text>}
           <Text as="p" size="sm" tone="secondary">{c.hint}</Text>
           <div className="om-request__actions">
             <Button variant="primary" disabled={busy !== null} onClick={() => { void answer(i, true); }}>{busy === i.id ? c.joining : c.join}</Button>

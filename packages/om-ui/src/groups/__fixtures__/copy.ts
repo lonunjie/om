@@ -26,6 +26,11 @@ export const groupsTestCopy: GroupsCopy = {
     label: "Group messages", back: "Back", people: (n) => `${String(n)} people`, openPeople: (g) => `People in ${g}`, empty: "No messages yet", incoming: "From", outgoing: "You said",
     formatTime: (ms) => `t${String(ms)}`, composerLabel: "Message the group", placeholder: "Message", send: "Send", sendFailed: "Not sent", paused: "Updating", notMember: "Not in this group", loadFailed: "Could not open",
   },
+  sameName: {
+    of: (n, i, o) => `${n} (${String(i)} of ${String(o)})`,
+    here: (n, c) => `${String(c)} people here are named ${n}. A name does not show who someone is.`,
+    contacts: (n, c) => `${String(c)} of your contacts are named ${n}.`,
+  },
   members: {
     title: (g) => `People in ${g}`, close: "Close", listLabel: "People in this group", you: "You", someone: (n) => `Someone ${String(n)}`, roles: { admin: "Admin", member: "Member" }, invited: "Invited",
     removeShort: "Remove", remove: (n) => `Remove ${n}`, removeAsk: (n, g) => `Remove ${n} from ${g}?`, removeConfirm: "Yes, remove", removeKeep: "Keep",

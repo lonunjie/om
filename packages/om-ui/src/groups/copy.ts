@@ -90,6 +90,15 @@ export interface GroupsCopy {
     readonly notMember: string;
     readonly loadFailed: string;
   };
+  /** Two people who show the same name (GROUPS_AND_SPACES_UX section 10): calm, one line, nothing to dismiss. */
+  readonly sameName: {
+    /** "Maria (1 of 2)": the name with its place among the people who share it. */
+    readonly of: (name: string, index: number, of: number) => string;
+    /** One line for a room or sheet where people share a name. */
+    readonly here: (name: string, count: number) => string;
+    /** The same for a list of your own contacts. */
+    readonly contacts: (name: string, count: number) => string;
+  };
   readonly members: {
     readonly title: (group: string) => string;
     readonly close: string;
