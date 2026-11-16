@@ -57,7 +57,7 @@ function scripted(over: { steps?: GroupStep[]; lane?: (rel: string, wire: GroupW
     frameReceive: (_c: ProfileExecutionContext, wrapper: string) => { c.received.push(wrapper); return Promise.resolve(c.frameAnswers.get(wrapper) ?? empty); },
     pendingRefresh: () => { c.calls.push("refresh"); return Promise.resolve(); },
     pendingRetry: () => { c.calls.push("retry"); return Promise.resolve(empty); },
-    routeUpdate: (_c: ProfileExecutionContext, room: string) => { c.calls.push(`route_update:${room}`); c.routeOwed = c.routeOwed.filter((r) => r !== room); c.box.push(item(900, { device: "d9", account: "a9" } as GroupTarget, "route_update")); return Promise.resolve({ ok: true as const, queued: 1 }); },
+    routeUpdate: (_c: ProfileExecutionContext, room: string) => { c.calls.push(`route_update:${room}`); c.routeOwed = c.routeOwed.filter((r) => r !== room); c.box.push(item(900, { device: "d9", account: "a9" }, "route_update")); return Promise.resolve({ ok: true as const, queued: 1 }); },
     held: () => ({ invitations: [], overflow: { invites: 0, replies: 0 } }),
     ackHeldOverflow: () => Promise.resolve(),
     routesExpire: () => { c.calls.push("expire"); return Promise.resolve([] as { relayUri: string; capability: string }[]); },

@@ -9,7 +9,7 @@ import { asConversationId, asGroupId, asOperationId, asProfileId } from "@om/pla
 import type { ConversationId, GroupEvent, GroupId, GroupSender, GroupStep, HomeSummary, ProfileExecutionContext, ProfileId } from "@om/platform-api";
 import { createCoreRuntime, instantiateCore } from "./index";
 import type { WasmCoreClient } from "./index";
-import { createMemoryKv, createMemoryProvider, type MemoryKv, type MemoryProvider } from "./test-support";
+import { createMemoryKv, createMemoryProvider, type MemoryProvider } from "./test-support";
 
 const SHIPPED = join(import.meta.dirname, "../dist/om_wasm.wasm");
 const WITH_GROUPS = join(import.meta.dirname, "../dist/om_wasm_groups.wasm");
@@ -21,7 +21,7 @@ interface Party { rt: WasmCoreClient; ctx: ProfileExecutionContext; id: ProfileI
 
 async function boot(file: string, provider: MemoryProvider, id: ProfileId): Promise<Omit<Party, "rel">> {
   const core = await instantiateCore(readFileSync(file));
-  const rt = await createCoreRuntime({ core, provider, storage: () => createMemoryKv() as MemoryKv, home: HOME, autoDrain: false, retryMs: 0 });
+  const rt = await createCoreRuntime({ core, provider, storage: () => createMemoryKv(), home: HOME, autoDrain: false, retryMs: 0 });
   return { rt, ctx: await rt.openProfile(id), id };
 }
 async function settle(...ps: Omit<Party, "rel">[]): Promise<void> {

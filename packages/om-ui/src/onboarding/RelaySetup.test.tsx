@@ -75,18 +75,19 @@ describe("RelaySetup (first run, ADR-0186)", () => {
     expect(screen.queryByText(HEX)).toBeNull();
     const confirms = screen.getAllByRole<HTMLButtonElement>("button", { name: a.confirm });
     expect(confirms).toHaveLength(2);
+    const [first, second] = confirms as [HTMLButtonElement, HTMLButtonElement];
     const next = screen.getByRole<HTMLButtonElement>("button", { name: a.next });
     expect(next.disabled).toBe(true);
     expect(next.getAttribute("aria-describedby")).toBeTruthy();
-    await userEvent.click(confirms[0]!);
-    expect(confirms[0]!.getAttribute("aria-pressed")).toBe("true");
+    await userEvent.click(first);
+    expect(first.getAttribute("aria-pressed")).toBe("true");
     expect(screen.getAllByText(a.confirmed)).toHaveLength(1); // state is words, not colour
     expect(next.disabled).toBe(true);
-    await userEvent.click(confirms[1]!);
+    await userEvent.click(second);
     expect(next.disabled).toBe(false);
-    await userEvent.click(confirms[0]!); // taking it back blocks Continue again
+    await userEvent.click(first); // taking it back blocks Continue again
     expect(next.disabled).toBe(true);
-    await userEvent.click(confirms[0]!);
+    await userEvent.click(first);
     await userEvent.click(next);
     expect(await screen.findByText(HEX)).toBeTruthy();
   });

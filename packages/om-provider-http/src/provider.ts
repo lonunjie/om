@@ -438,7 +438,7 @@ export function createHttpProvider(opts: HttpProviderOptions): HttpProvider {
 
   /** Best-effort cleanup after a signed-prekey rotation: the owner asks its own Home to delete the older generation (idempotent). */
   async function revokeKeyGeneration(c: Extract<NetCall, { call: "revoke_key_generation" }>): Promise<NetResult> {
-    const r = await mutate(`${base}/v1/keys/bundles/${c.deviceId}/generations/${c.generation}`, {
+    const r = await mutate(`${base}/v1/keys/bundles/${c.deviceId}/generations/${String(c.generation)}`, {
       method: "DELETE",
       bearer: await keyPublishCap(await secret(), fromHex(c.deviceId)),
     });

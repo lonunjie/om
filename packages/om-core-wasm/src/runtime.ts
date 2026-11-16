@@ -375,7 +375,12 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     list: (ctx) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "groups" } }) as { groups?: GroupSummaryView[] }).groups ?? [],
     get: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "group", conversationId } }) as { group?: GroupDetailView }).group ?? null,
     invites: (ctx) => ((groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "invites" } }) as { invites?: (GroupInviteView & { releases?: unknown; intentId?: unknown })[] }).invites ?? [])
-      .map(({ releases: _r, intentId: _i, ...rest }) => rest),
+      .map((inv) => {
+        const rest: Record<string, unknown> = { ...inv };
+        delete rest.releases;
+        delete rest.intentId;
+        return rest as unknown as GroupInviteView;
+      }),
     messages: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "messages", conversationId } }) as { messages?: GroupMessageView[] }).messages ?? [],
     notices: (ctx, conversationId) => (groupView({ cmd: "group_query", ctx: ctxOf(ctx), query: { kind: "notices", conversationId } }) as { notices?: GroupNoticeView[] }).notices ?? [],
     settle: (ctx) => exclusive(async () => groupStep(await groupCall({ cmd: "group_settle", ctx: ctxOf(ctx) }), ctx)),
