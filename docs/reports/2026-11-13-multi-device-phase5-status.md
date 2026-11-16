@@ -93,3 +93,7 @@ or messaging, not quarantined, not revoked); the receiver re-checks its own head
 
 Core, packages, docs and machine files: one commit with `Design-Read` for the six Core domains and `Design-Departures: D24, D27`. The `apps/web` files (link copy, e2e) and the one-line `om-ui` lint fix follow in a second commit, `Design-Read: client_endpoint_distribution, discovery_first_contact, relay_reachability, ux_accessibility_personalization`, because the gate adds the client and UX domains for them.
 Re-run results (2026-11-13): `cargo test -p om-core` (170 passed), wasm conformance (4), `packages/om-ui` `vitest run src` (250), `apps/web` `vitest run src` (138), `tsc -b apps/web` clean, Chromium `device-link.spec.ts` (3 passed).
+
+## Update 2026-11-17: ADR-0192 built
+
+Answers 1 and 2 above are closed by ADR-0192: the transcript MAC and key schedule are in `crates/om-core/src/crypto/link_ceremony.rs`, the link is version 2 (a version 1 link is refused with `Expired`, no downgrade), the approval carries a binding (map key 11) that the new device verifies in constant time before adopting anything, and the notice signer is `controller` for ceremony 1 (a recovery-role notice is refused; unit test `a_recovery_role_notice_is_not_a_ceremony_one_notice`). Deviations D97 to D101 in [`2026-10-28-relay-status.md`](2026-10-28-relay-status.md). Vectors and cross-check: `verification/prototypes/device-link-ceremony/`.

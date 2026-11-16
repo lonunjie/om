@@ -12,19 +12,18 @@
 //! Every queue message is sealed under keys derived from that key and the two capabilities, so the Home sees only
 //! sizes and times. Core stays sans-IO: all of it is `NetCall`s.
 //!
-//! The construction of the transcript MAC is not specified (the label `OM-DEVICE-LINK-CEREMONY-MAC-v1` is reserved
-//! with no construction): the derivation below is provisional and recorded as a gap in D24.
+//! The construction (context hash, key schedule, associated data, comparison code, approval binding, link version 2)
+//! is ADR-0192 and lives in `crypto/link_ceremony.rs`; the vectors are
+//! `verification/vectors/device-link-ceremony-vectors.json.gz`. A version 1 link (the provisional derivation) is refused.
 
 use super::*;
 use crate::crypto::binding::Credential;
-use crate::crypto::kdf::{hkdf_sha256, hmac_sha256};
+use crate::crypto::link_ceremony::{self as lc, CeremonyKeys, ROLE_REQ, ROLE_RESP};
 use crate::crypto::sig::{self, ROLE_CONTROLLER, ds_sig, signature_entry};
 use chacha20poly1305::XChaCha20Poly1305;
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 
 pub(super) const LINK_PREFIX: &str = "om:link/";
-/// Reserved in `om-domain-separation.json` (status `reserved`, construction undefined): used provisionally.
-const LBL_CEREMONY: &str = "OM-DEVICE-LINK-CEREMONY-MAC-v1";
 const LBL_NOTICE_SIG: &str = "OM-DEVICE-ENROLLMENT-NOTICE-SIG-v1";
 /// Sent from the approving device to every other device of the account: `{0: 11, 1: signed notice, 2: [states], 3: [creds]}`.
 pub(super) const KIND_ENROLLED: u64 = 11;
@@ -38,8 +37,6 @@ const MAX_CHAIN_TAIL: usize = 4;
 const MAX_LINK_CHARS: usize = 256;
 const DEVICE_CLASS_MESSAGING: u64 = 1;
 const CEREMONY_LINK: u64 = 1;
-const ROLE_REQ: u8 = 1;
-const ROLE_RESP: u8 = 2;
 /// New device -> existing: the request / the introductions of the joined conversations.
 const M_REQUEST: u64 = 1;
 const M_INTRO: u64 = 4;
@@ -58,30 +55,44 @@ const HISTORY_CHUNK_BODY: usize = 50_000;
 /// A snapshot is bounded (the newest messages win): the ceremony window and the Home's queue are small.
 pub const HISTORY_MAX_CHUNKS: usize = 32;
 
-type Keys = ([u8; 32], [u8; 32], [u8; 32]);
-
-/// `(request key, response key, code key)`, from the one-time key and the two capabilities in the link.
-fn ceremony_keys(secret: &[u8], a_cap: &[u8], b_recv: &[u8]) -> Keys {
-    let transcript = ds_hash(
-        LBL_CEREMONY,
-        &cbor::encode(&V::A(vec![V::B(a_cap.to_vec()), V::B(b_recv.to_vec())])),
-    );
-    let derive = |purpose: &[u8]| {
-        let mut info = LBL_CEREMONY.as_bytes().to_vec();
-        info.push(0);
-        info.extend_from_slice(purpose);
-        info.extend_from_slice(&transcript);
-        let mut out = [0u8; 32];
-        hkdf_sha256(LBL_CEREMONY.as_bytes(), secret, &info, &mut out);
-        out
-    };
-    (derive(b"req"), derive(b"resp"), derive(b"code"))
+/// The keys of one ceremony, from what the link carries (ADR-0192 section 3).
+fn ceremony_keys(
+    expiry_s: u64,
+    home_uri: &str,
+    secret: &[u8],
+    a_cap: &[u8],
+    b_recv: &[u8],
+) -> CeremonyKeys {
+    lc::keys(expiry_s, home_uri.as_bytes(), secret, a_cap, b_recv)
 }
 
-fn aad(role: u8) -> Vec<u8> {
-    let mut a = LBL_CEREMONY.as_bytes().to_vec();
-    a.push(role);
-    a
+/// The existing device's keys for an offer. `None` once the secret is wiped (the ceremony is over).
+fn offer_keys(o: &LinkOffer) -> Option<CeremonyKeys> {
+    let secret = unhex(&o.secret).ok().filter(|s| s.len() >= 16)?;
+    let b_recv = unhex(&o.b_recv).ok().filter(|b| !b.is_empty())?;
+    Some(ceremony_keys(
+        o.expires_at / 1000,
+        &o.b_route.relay_uri,
+        &secret,
+        &o.a_route.capability,
+        &b_recv,
+    ))
+}
+
+/// The new device's keys for its join. `None` once the secret is wiped.
+fn join_keys(j: &LinkJoin) -> Option<CeremonyKeys> {
+    let secret = unhex(&j.secret).ok().filter(|s| s.len() >= 16)?;
+    let (a_cap, b_recv) = (unhex(&j.a_cap).ok()?, unhex(&j.b_recv).ok()?);
+    if a_cap.is_empty() || b_recv.is_empty() {
+        return None;
+    }
+    Some(ceremony_keys(
+        j.expires_at / 1000,
+        &j.relay_uri,
+        &secret,
+        &a_cap,
+        &b_recv,
+    ))
 }
 
 /// Profile-1 `SealedDeliveryEnvelope` ciphertext lengths (the Home's deposit check, D9): the buckets plus the AEAD tag.
@@ -116,7 +127,7 @@ fn wrap_envelope(
     ]))
 }
 
-fn open_msg(key: &[u8; 32], role: u8, bytes: &[u8]) -> Option<Vec<u8>> {
+fn open_msg(keys: &CeremonyKeys, role: u8, bytes: &[u8]) -> Option<Vec<u8>> {
     if bytes.len() > 140_000 {
         return None;
     }
@@ -133,12 +144,12 @@ fn open_msg(key: &[u8; 32], role: u8, bytes: &[u8]) -> Option<Vec<u8>> {
         return None;
     }
     let nonce: [u8; 24] = ct[..NONCE_LEN].try_into().ok()?;
-    let frame = XChaCha20Poly1305::new(key.into())
+    let frame = XChaCha20Poly1305::new(keys.for_role(role).into())
         .decrypt(
             (&nonce).into(),
             Payload {
                 msg: &ct[NONCE_LEN..],
-                aad: &aad(role),
+                aad: &lc::aead_ad(&keys.id, role),
             },
         )
         .ok()?;
@@ -151,18 +162,12 @@ fn open_msg(key: &[u8; 32], role: u8, bytes: &[u8]) -> Option<Vec<u8>> {
     Some(body.to_vec())
 }
 
-/// Six digits both devices derive from the request as the new device sent it.
-fn verification_code(code_key: &[u8; 32], request: &[u8]) -> String {
-    let m = hmac_sha256(code_key, request);
-    let n = u32::from_be_bytes([m[0], m[1], m[2], m[3]]) % 1_000_000;
-    format!("{n:06}")
-}
-
 fn request_id_of(device_id: &[u8]) -> String {
     hex(device_id)
 }
 
-/// The link payload, before base64url: version, expiry (POSIX s, u32), key, request deposit cap, response receive cap, Home.
+/// The link payload, before base64url: version (2, ADR-0192), expiry (POSIX s, u32), one-time secret, request deposit
+/// cap, response receive cap, Home.
 fn encode_link(
     expiry_s: u32,
     secret: &[u8],
@@ -170,7 +175,7 @@ fn encode_link(
     b_recv: &[u8],
     uri: &str,
 ) -> Option<String> {
-    let mut v = vec![1u8];
+    let mut v = vec![lc::LINK_VERSION];
     v.extend_from_slice(&expiry_s.to_be_bytes());
     v.extend_from_slice(secret);
     v.push(u8::try_from(a_cap.len()).ok()?);
@@ -189,7 +194,19 @@ struct LinkParts {
     uri: String,
 }
 
-fn decode_link(link: &str) -> Option<LinkParts> {
+/// Why a link was not taken: it came from an older version of OM (the provisional derivation), or it is no link.
+#[derive(Debug, PartialEq, Eq)]
+enum LinkErr {
+    Old,
+    Bad,
+}
+
+fn decode_link(link: &str) -> Result<LinkParts, LinkErr> {
+    decode_link_inner(link).ok_or(LinkErr::Bad)?
+}
+
+/// `Some(Err(Old))` for a well-formed version 1 link: refused, never downgraded to (ADR-0192 section 6.5).
+fn decode_link_inner(link: &str) -> Option<Result<LinkParts, LinkErr>> {
     if link.len() > MAX_LINK_CHARS {
         return None;
     }
@@ -203,7 +220,10 @@ fn decode_link(link: &str) -> Option<LinkParts> {
     }
     let raw = unb64url(token)?;
     let (&version, rest) = raw.split_first()?;
-    if version != 1 || rest.len() < 4 + 16 + 1 {
+    if version == 1 && rest.len() > 4 + 16 {
+        return Some(Err(LinkErr::Old));
+    }
+    if version != lc::LINK_VERSION || rest.len() < 4 + 16 + 1 {
         return None;
     }
     let expiry_s = u32::from_be_bytes(rest[..4].try_into().ok()?);
@@ -226,22 +246,28 @@ fn decode_link(link: &str) -> Option<LinkParts> {
     if entry.is_legacy() || !(16..=64).contains(&b_recv.len()) {
         return None;
     }
-    Some(LinkParts {
+    Some(Ok(LinkParts {
         expiry_s,
         secret,
         a_cap,
         b_recv,
         uri,
-    })
+    }))
 }
 
 /// The id Core polls the new device's response queue under (the capability is what the Home checks).
 fn recv_mailbox(b_recv: &[u8]) -> Vec<u8> {
-    ds_hash(LBL_CEREMONY, b_recv)[..16].to_vec()
+    lc::recv_mailbox(b_recv).to_vec()
 }
 
 impl<R: RngCore + CryptoRng> Tx<'_, R> {
-    fn seal_msg(&mut self, key: &[u8; 32], role: u8, pt: &[u8], expires_s: u64) -> Option<Vec<u8>> {
+    fn seal_msg(
+        &mut self,
+        keys: &CeremonyKeys,
+        role: u8,
+        pt: &[u8],
+        expires_s: u64,
+    ) -> Option<Vec<u8>> {
         if pt.len() > MAX_MSG {
             return None;
         }
@@ -254,12 +280,12 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         frame[4..4 + pt.len()].copy_from_slice(pt);
         let mut nonce = [0u8; 24];
         self.rng.fill_bytes(&mut nonce);
-        let ct = XChaCha20Poly1305::new(key.into())
+        let ct = XChaCha20Poly1305::new(keys.for_role(role).into())
             .encrypt(
                 (&nonce).into(),
                 Payload {
                     msg: &frame,
-                    aad: &aad(role),
+                    aad: &lc::aead_ad(&keys.id, role),
                 },
             )
             .ok()?;
@@ -357,6 +383,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 request: None,
                 introduced: vec![],
                 history_sent: 0,
+                roster_sent: 0,
             },
         );
         self.enqueue(
@@ -441,6 +468,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     o.state = LinkState::Expired;
                 }
                 o.secret = String::new().into();
+                o.b_recv = String::new(); // the capability to read the response queue goes with the key
+            } else if matches!(o.state, LinkState::Rejected | LinkState::Expired) {
+                o.secret = String::new().into();
             }
         }
         if let Some(j) = self.st.app.link_join.as_mut()
@@ -455,6 +485,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
             mark_history_degraded(j);
             j.secret = String::new().into();
+            j.a_cap = String::new();
+            j.b_recv = String::new();
         }
     }
 
@@ -472,8 +504,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return rej(Conflict);
         }
         let now_s = self.now_s();
-        let Some(parts) = decode_link(link) else {
-            return rej(Invalid);
+        let parts = match decode_link(link) {
+            Ok(p) => p,
+            Err(LinkErr::Old) => return rej(Expired), // an older version of OM made it: "make a new one"
+            Err(LinkErr::Bad) => return rej(Invalid),
         };
         let expiry_s = u64::from(parts.expiry_s);
         if expiry_s <= now_s {
@@ -494,12 +528,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (5, V::B(nonce.to_vec())),
             (6, V::T(label.clone())),
         ]));
-        let (k_req, _, k_code) = ceremony_keys(&parts.secret, &parts.a_cap, &parts.b_recv);
-        let Some(sealed) = self.seal_msg(&k_req, ROLE_REQ, &request, expiry_s) else {
+        let keys = ceremony_keys(
+            expiry_s,
+            &parts.uri,
+            &parts.secret,
+            &parts.a_cap,
+            &parts.b_recv,
+        );
+        let Some(sealed) = self.seal_msg(&keys, ROLE_REQ, &request, expiry_s) else {
             return rej(Invalid);
         };
         let request_id = request_id_of(&device.device_id);
-        let code = verification_code(&k_code, &request);
+        let code = lc::verification_code(&keys.code, &request);
         self.st.app.link_join = Some(LinkJoin {
             operation_id: op.clone(),
             secret: hex(&parts.secret).into(),
@@ -513,6 +553,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             nonce: hex(&nonce),
             request_id,
             code,
+            request_digest: hex(&crypto::sha256(&[&request])),
+            roster_seen: vec![],
             state: LinkState::AwaitingApproval,
             approved: false,
             roster_expected: 0,
@@ -567,19 +609,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if offer.expires_at <= self.now_ms {
             return;
         }
-        let secret = unhex(&offer.secret).unwrap_or_default();
-        let (k_req, _, k_code) = ceremony_keys(
-            &secret,
-            &offer.a_route.capability,
-            &unhex(&offer.b_recv).unwrap_or_default(),
-        );
-        let Some(pt) = open_msg(&k_req, ROLE_REQ, bytes) else {
-            return; // not sealed under this ceremony's key: dropped
+        let Some(keys) = offer_keys(&offer) else {
+            return; // the ceremony is over (its secret is gone)
+        };
+        let Some(pt) = open_msg(&keys, ROLE_REQ, bytes) else {
+            return; // not sealed under this ceremony's key and context: dropped
         };
         let Ok(v) = cbor::decode(&pt) else { return };
         match v.get(0).and_then(|x| x.u()) {
             Ok(M_REQUEST) if offer.state == LinkState::WaitingForScan => {
-                self.on_link_request(op, &v, &pt, &k_code);
+                self.on_link_request(op, &v, &pt, &keys.code);
             }
             Ok(M_INTRO) if offer.state == LinkState::Linked => self.on_link_intro(op, &v),
             _ => {}
@@ -618,7 +657,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             ik: hex(ik),
             label,
             nonce: hex(nonce),
-            code: verification_code(k_code, pt),
+            code: lc::verification_code(k_code, pt),
+            request_digest: hex(&crypto::sha256(&[pt])),
             received_ms: self.now_ms,
         };
         if let Some(o) = self.st.app.link_offers.get_mut(op) {
@@ -657,6 +697,9 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         if let Some(o) = self.st.app.link_offers.get_mut(op) {
             o.introduced.push(conv.clone());
+            if o.introduced.len() as u32 >= o.roster_sent {
+                o.secret = String::new().into(); // the last introduction is in: the ceremony key is gone
+            }
         }
         self.flush_waiting(&conv);
         self.start_missing_sessions(&conv);
@@ -694,22 +737,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         else {
             return rej(NotFound);
         };
-        let (Some(req), secret) = (
-            offer.request.clone(),
-            unhex(&offer.secret).unwrap_or_default(),
-        ) else {
+        let (Some(req), Some(keys)) = (offer.request.clone(), offer_keys(&offer)) else {
             return rej(NotFound);
         };
-        let (_, k_resp, _) = ceremony_keys(
-            &secret,
-            &offer.a_route.capability,
-            &unhex(&offer.b_recv).unwrap_or_default(),
-        );
         let msg = cbor::encode(&V::M(vec![
             (0, V::U(M_REJECT)),
             (1, V::B(unhex(&req.nonce).unwrap_or_default())),
         ]));
-        if let Some(sealed) = self.seal_msg(&k_resp, ROLE_RESP, &msg, offer.expires_at / 1000) {
+        if let Some(sealed) = self.seal_msg(&keys, ROLE_RESP, &msg, offer.expires_at / 1000) {
             self.deposit_ceremony(
                 &offer.operation_id,
                 &offer.b_route.capability,
@@ -769,9 +804,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return Err(Expired);
         }
         let req = offer.request.clone().ok_or(NotFound)?;
-        let secret = unhex(&offer.secret).map_err(|_| Expired)?;
-        let b_recv = unhex(&offer.b_recv).map_err(|_| Invalid)?;
-        let (_, k_resp, _) = ceremony_keys(&secret, &offer.a_route.capability, &b_recv);
+        let keys = offer_keys(&offer).ok_or(Expired)?;
 
         // The new device's credential, rebuilt from what it asked with; the account is ours.
         let cred = Credential {
@@ -869,6 +902,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         // payload that does not fit refuses the approval instead of linking a device that cannot finish.
         let roster = self.roster_entries();
         let approval_notice = self.approval_notice(notice);
+        let approval_notice_bytes = approval_notice.clone();
         let approval = cbor::encode(&V::M(vec![
             (0, V::U(M_APPROVE)),
             (1, V::B(head.account_id.to_vec())),
@@ -883,7 +917,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         // Same-owner history for the new device: the approval is the explicit account authorization, and only a
         // device the new head lists as active is eligible (a revoked or quarantined one never gets a snapshot).
         let history = if history_eligible(&child, &cred.device_id) {
-            self.history_chunks(&k_resp, offer.expires_at / 1000)
+            self.history_chunks(&keys, offer.expires_at / 1000)
         } else {
             vec![]
         };
@@ -894,17 +928,36 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 if let Some(h) = &head_sig {
                     m.push((10, V::B(h.clone())));
                 }
+                // ADR-0192: the binding names the request, the successor, the notice and both counts.
+                let req_digest = h32(&req.request_digest).map_err(|_| Invalid)?;
+                let notice_digest = crypto::sha256(&[&approval_notice_bytes]);
+                let tag = lc::binding(
+                    &keys.bind,
+                    &req_digest,
+                    &me,
+                    &child.hash(),
+                    &notice_digest,
+                    roster.len() as u64,
+                    history.len() as u64,
+                );
+                #[allow(unused_mut)]
+                let mut tag = tag;
+                #[cfg(feature = "test-loopback")]
+                if crate::runtime::TEST_BAD_BINDING.load(std::sync::atomic::Ordering::SeqCst) {
+                    tag[0] ^= 1;
+                }
+                m.push((11, V::B(tag.to_vec())));
             }
             cbor::encode(&v)
         };
         let mut sealed = vec![
-            self.seal_msg(&k_resp, ROLE_RESP, &approval, offer.expires_at / 1000)
+            self.seal_msg(&keys, ROLE_RESP, &approval, offer.expires_at / 1000)
                 .ok_or(Quota)?,
         ];
         for entry in &roster {
             let msg = cbor::encode(&V::M(vec![(0, V::U(M_ROSTER)), (1, V::B(entry.clone()))]));
             sealed.push(
-                self.seal_msg(&k_resp, ROLE_RESP, &msg, offer.expires_at / 1000)
+                self.seal_msg(&keys, ROLE_RESP, &msg, offer.expires_at / 1000)
                     .ok_or(Quota)?,
             );
         }
@@ -940,6 +993,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if let Some(o) = self.st.app.link_offers.get_mut(&offer.operation_id) {
             o.state = LinkState::Linked;
             o.history_sent = history.len() as u32;
+            o.roster_sent = roster.len() as u32;
+            if roster.is_empty() {
+                o.secret = String::new().into(); // nothing more will arrive through the request queue
+            }
         }
         // Contacts learn the new head (K7 on their side); introductions follow when the new device sends them.
         self.broadcast_account_update();
@@ -1129,13 +1186,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         {
             return;
         }
-        let (Ok(secret), Ok(a_cap), Ok(b_recv)) =
-            (unhex(&join.secret), unhex(&join.a_cap), unhex(&join.b_recv))
-        else {
+        let Some(keys) = join_keys(&join) else {
             return;
         };
-        let (_, k_resp, _) = ceremony_keys(&secret, &a_cap, &b_recv);
-        let Some(pt) = open_msg(&k_resp, ROLE_RESP, bytes) else {
+        let Some(pt) = open_msg(&keys, ROLE_RESP, bytes) else {
             return;
         };
         let Ok(v) = cbor::decode(&pt) else { return };
@@ -1147,7 +1201,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 }
             }
             Ok(M_APPROVE) if !join.approved => {
-                if !self.on_approval(&v, &nonce) {
+                if !self.on_approval(&v, &nonce, &keys, &join.request_digest) {
                     // Anything short of a fully verified approval (including a missing notice) ends the ceremony.
                     self.finish_join(LinkState::Failed);
                 }
@@ -1156,10 +1210,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 self.on_history_chunk(&v);
             }
             Ok(M_ROSTER) if join.approved && join.roster_done < join.roster_expected => {
-                if let Ok(entry) = v.get(1).and_then(|x| x.b()) {
-                    let _ = self.adopt_roster(entry, &join);
+                let Ok(entry) = v.get(1).and_then(|x| x.b()) else {
+                    return;
+                };
+                let seen = hex(&crypto::sha256(&[entry]));
+                if join.roster_seen.contains(&seen) {
+                    return; // a replayed entry counts for nothing
                 }
+                let _ = self.adopt_roster(entry, &join);
                 if let Some(j) = self.st.app.link_join.as_mut() {
+                    j.roster_seen.push(seen);
                     j.roster_done += 1;
                     if j.roster_done >= j.roster_expected {
                         self.finish_join(LinkState::Linked);
@@ -1182,7 +1242,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
 
     /// Verify an approval completely before adopting any of it: the chain, our own entry in its head, the signed
     /// notice. A failure leaves the profile as it was (no account, no keys published).
-    fn on_approval(&mut self, v: &V, nonce: &[u8]) -> bool {
+    fn on_approval(
+        &mut self,
+        v: &V,
+        nonce: &[u8],
+        keys: &CeremonyKeys,
+        request_digest: &str,
+    ) -> bool {
         let (Ok(account), Some(chain), Some(creds), Ok(notice), Ok(approver), Ok(echo), Ok(count)) = (
             v.get(1).and_then(|x| x.b32()),
             bytes_list(v.get(2)),
@@ -1253,6 +1319,25 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return false;
         };
         if !notice_ok(&notice, &approver_cred, &head, &dev.device_id) {
+            return false;
+        }
+        // ADR-0192: the approval binding, in constant time, before anything is adopted.
+        let (Ok(tag), Ok(req_digest)) = (
+            v.get(11).and_then(|x| x.b()).map(<[u8]>::to_vec),
+            h32(request_digest),
+        ) else {
+            return false;
+        };
+        let expect = lc::binding(
+            &keys.bind,
+            &req_digest,
+            &approver,
+            &head.hash(),
+            &crypto::sha256(&[&notice]),
+            count,
+            history_expected,
+        );
+        if !lc::tag_eq(&tag, &expect) {
             return false;
         }
         // Verified: adopt the account state and make this a device of it.
@@ -1424,13 +1509,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             (1, V::T(conv)),
             (2, V::B(my_intro)),
         ]));
-        let (Ok(secret), Ok(a_cap), Ok(b_recv)) =
-            (unhex(&join.secret), unhex(&join.a_cap), unhex(&join.b_recv))
-        else {
+        let Some(keys) = join_keys(join) else {
             return true;
         };
-        let (k_req, ..) = ceremony_keys(&secret, &a_cap, &b_recv);
-        if let Some(sealed) = self.seal_msg(&k_req, ROLE_REQ, &msg, join.expires_at / 1000) {
+        if let Some(sealed) = self.seal_msg(&keys, ROLE_REQ, &msg, join.expires_at / 1000) {
+            let a_cap = unhex(&join.a_cap).unwrap_or_default();
             self.deposit_ceremony(&join.operation_id, &a_cap, &join.relay_uri, sealed);
         }
         true
@@ -1743,7 +1826,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     /// The snapshot as sealed queue messages: this device's history (what an ADR-0184 backup keeps: text and delivery
     /// facts, never a key, route, session or attachment secret), newest first, in chunks that each carry the codec
     /// namespace inside the sealed frame. Chunking is implementation-private. Over the bound the oldest are left out.
-    fn history_chunks(&mut self, k_resp: &[u8; 32], expires_s: u64) -> Vec<Vec<u8>> {
+    fn history_chunks(&mut self, keys: &CeremonyKeys, expires_s: u64) -> Vec<Vec<u8>> {
         let Ok(archive) = crate::backup::collect(&self.st.app, self.now_ms) else {
             return vec![];
         };
@@ -1811,7 +1894,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 (3, V::U(index as u64)),
                 (4, V::B(body)),
             ]));
-            match self.seal_msg(k_resp, ROLE_RESP, &msg, expires_s) {
+            match self.seal_msg(keys, ROLE_RESP, &msg, expires_s) {
                 Some(sealed) => out.push(sealed),
                 None => return vec![], // all or nothing: a partial snapshot is not announced
             }
@@ -2151,16 +2234,16 @@ mod tests {
         assert!(!history_eligible(&both, &[2; 16]));
     }
 
-    fn envelope_with_frame(key: &[u8; 32], frame: &[u8], bucket_frame: usize) -> Vec<u8> {
+    fn envelope_with_frame(keys: &CeremonyKeys, frame: &[u8], bucket_frame: usize) -> Vec<u8> {
         let mut padded = frame.to_vec();
         padded.resize(bucket_frame, 0);
         let nonce = [7u8; 24];
-        let ct = XChaCha20Poly1305::new(key.into())
+        let ct = XChaCha20Poly1305::new((&keys.req).into())
             .encrypt(
                 (&nonce).into(),
                 Payload {
                     msg: &padded,
-                    aad: &aad(ROLE_REQ),
+                    aad: &lc::aead_ad(&keys.id, ROLE_REQ),
                 },
             )
             .unwrap();
@@ -2169,7 +2252,13 @@ mod tests {
 
     #[test]
     fn padding_must_be_zeros_and_the_length_must_fit() {
-        let key = [3u8; 32];
+        let key = lc::keys(
+            1_790_000_300,
+            b"https://home.example",
+            &[3u8; 16],
+            &[4u8; 32],
+            &[5u8; 32],
+        );
         let size = BUCKETS[0] - NONCE_LEN - TAG_LEN;
         let mut good = 5u32.to_be_bytes().to_vec();
         good.extend_from_slice(b"hello");
@@ -2322,6 +2411,54 @@ mod tests {
     }
 
     #[test]
+    fn a_recovery_role_notice_is_not_a_ceremony_one_notice() {
+        let mut f = Fx::new();
+        f.enroll(1);
+        let b = f.new_devs[0].device_id;
+        let ctl = f.ctl.clone();
+        let good = f.notice(1, b, &ctl);
+        let cred = Credential::from_body(&f.creds[0]).unwrap();
+        assert!(notice_ok(&good, &cred, &f.states[1], &b));
+        // Same body, signed under the recovery role: the signer role of ceremony 1 is controller only.
+        let body = sig::open_envelope(
+            &good,
+            LBL_NOTICE_SIG,
+            PROFILE_V1,
+            ROLE_CONTROLLER,
+            &ctl.device_id,
+            &ctl.signer.public(),
+        )
+        .unwrap();
+        let sg = ctl.signer.sign_with(
+            &ds_sig(
+                LBL_NOTICE_SIG,
+                PROFILE_V1,
+                crate::crypto::sig::ROLE_RECOVERY,
+                &ctl.device_id,
+                &body,
+            ),
+            [6; 32],
+        );
+        let bad = sig::envelope(
+            body,
+            vec![signature_entry(
+                &ctl.device_id,
+                PROFILE_V1,
+                crate::crypto::sig::ROLE_RECOVERY,
+                sg,
+            )],
+        );
+        assert!(!notice_ok(&bad, &cred, &f.states[1], &b));
+        // A notice for another device, or one naming another head, fails too.
+        assert!(!notice_ok(&good, &cred, &f.states[1], &[0xEE; 16]));
+        assert!(!notice_ok(&good, &cred, &f.states[0], &b));
+        // A messaging device that signs does not stage an enrollment.
+        let stranger = f.new_devs[0].clone();
+        let n = f.notice(1, b, &stranger);
+        assert!(f.stage(1, 2, &n).is_none());
+    }
+
+    #[test]
     fn a_bad_notice_stages_nothing() {
         let mut f = Fx::new();
         f.enroll(1);
@@ -2435,6 +2572,8 @@ mod tests {
             nonce: String::new(),
             request_id: String::new(),
             code: String::new(),
+            request_digest: String::new(),
+            roster_seen: vec![],
             state: LinkState::Linked,
             approved: true,
             roster_expected: 0,

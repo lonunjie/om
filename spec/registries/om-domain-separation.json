@@ -330,10 +330,34 @@
     {
       "label": "OM-DEVICE-LINK-CEREMONY-MAC-v1",
       "use": "mac",
-      "construction": "reserved: short-lived linking-ceremony transcript MAC (V-001/V-021)",
+      "construction": "HMAC-SHA256 over OM-CBOR [label, role, body: bstr]; role 1 = comparison code (key K_code, body = the exact request bytes; code = big-endian u64 of the first 8 MAC bytes mod 1000000, six digits), role 2 = approval binding (key K_bind, body = OM-CBOR [request_digest, approver_device_id, new_state_hash, notice_digest, roster_count, history_count]) (ADR-0192)",
       "object": "device link ceremony",
       "wave": "W0",
-      "status": "reserved"
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DEVICE-LINK-CEREMONY-KDF-v1",
+      "use": "kdf",
+      "construction": "ceremony_id = DS-HASH(label, CTX) with CTX = OM-CBOR [2, expiry_s, home_uri bstr, A_cap, B_recv]; PRK = HKDF-Extract(salt = ceremony_id, IKM = S); K_purpose = HKDF-Expand(PRK, info = OM-CBOR [label, purpose tstr], 32) for purpose req, resp, code, bind (ADR-0192)",
+      "object": "device link ceremony",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DEVICE-LINK-CEREMONY-AEAD-AD-v1",
+      "use": "aead_ad",
+      "construction": "OM-CBOR [label, ceremony_id, role]; role 1 = request direction, 2 = response direction; XChaCha20-Poly1305 with a fresh 24-byte nonce (ADR-0192)",
+      "object": "device link ceremony message",
+      "wave": "W0",
+      "status": "frozen"
+    },
+    {
+      "label": "OM-DEVICE-LINK-CEREMONY-MAILBOX-HASH-v1",
+      "use": "hash",
+      "construction": "DS-HASH(label, B_recv), first 16 bytes: a local polling id of the response queue (ADR-0192)",
+      "object": "device link ceremony response queue",
+      "wave": "W0",
+      "status": "frozen"
     },
     {
       "label": "OM-SAFETY-REF-v1",

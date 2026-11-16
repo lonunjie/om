@@ -958,6 +958,9 @@ pub struct LinkRequestRec {
     pub label: String,
     pub nonce: Hex,
     pub code: String,
+    /// SHA-256 of the exact request bytes (hex); the approval binding names it.
+    #[serde(default)]
+    pub request_digest: Hex,
     pub received_ms: u64,
 }
 
@@ -985,6 +988,9 @@ pub struct LinkOffer {
     /// History chunks (`DeviceHistorySnapshot`, multi-device phase 5) deposited for the new device at approval.
     #[serde(default)]
     pub history_sent: u32,
+    /// Roster entries (conversations handed over) at approval; the secret is kept until their introductions are in.
+    #[serde(default)]
+    pub roster_sent: u32,
 }
 
 /// The new device's side of a ceremony.
@@ -1004,6 +1010,12 @@ pub struct LinkJoin {
     pub nonce: Hex,
     pub request_id: Hex,
     pub code: String,
+    /// SHA-256 of the request bytes sent (hex).
+    #[serde(default)]
+    pub request_digest: Hex,
+    /// Digests of roster entries already counted (replays are no-ops).
+    #[serde(default)]
+    pub roster_seen: Vec<String>,
     pub state: LinkState,
     /// The approval verified; roster messages still expected (conversations handed over).
     #[serde(default)]

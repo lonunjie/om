@@ -77,6 +77,11 @@ thread_local! {
 pub static TEST_OMIT_NOTICE: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
+/// TEST ONLY: while set, an approving Core corrupts the approval binding (the new device must adopt nothing).
+/// Process-global: its test lives in a test binary of its own.
+pub static TEST_BAD_BINDING: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 /// TEST ONLY: while set, an approving Core labels its history snapshot with a codec this implementation does not know
 /// (the new device must ignore every chunk whole). Process-global: its test lives in a binary of its own.
 pub static TEST_FOREIGN_HISTORY_CODEC: std::sync::atomic::AtomicBool =

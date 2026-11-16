@@ -545,3 +545,113 @@ fn every_ceremony_deposit_has_the_shape_the_home_accepts() {
     println!("CEREMONY_REQUEST_VECTOR_LEN={} HEX={hex}", first.len());
     std::fs::write(std::env::temp_dir().join("om-ceremony-vector.hex"), &hex).ok();
 }
+
+// ---- ADR-0192: link version 2, bound context, and the end of the ceremony key ---------------------------------------
+
+fn b64_encode(raw: &[u8]) -> String {
+    let alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    let mut out = String::new();
+    for c in raw.chunks(3) {
+        let n = c.iter().fold(0u32, |a, b| a << 8 | u32::from(*b)) << (8 * (3 - c.len()));
+        for i in 0..=c.len() {
+            out.push(alphabet[(n >> (18 - 6 * i) & 63) as usize] as char);
+        }
+    }
+    out
+}
+
+fn relink(link: &str, f: impl FnOnce(&mut Vec<u8>)) -> String {
+    let mut raw = common::b64_decode(link.trim_start_matches("om:link/"));
+    f(&mut raw);
+    format!("om:link/{}", b64_encode(&raw))
+}
+
+#[test]
+fn a_version_one_link_is_refused_and_nothing_starts() {
+    let mut w = world();
+    w.alice.dispatch(&w.a, "offer", IntentBody::OfferDeviceLink);
+    w.alice.flush_net(&w.a);
+    let link = w.offer().unwrap().link;
+    let old = relink(&link, |raw| raw[0] = 1);
+    w.phone
+        .dispatch(&w.n, "ask", IntentBody::RequestDeviceLink { link: old });
+    assert_eq!(
+        w.phone.outcome(&w.n, "ask"),
+        Some(OutcomeClass::Rejected {
+            reason: RejectReason::Expired
+        })
+    );
+    assert!(w.asked().is_none(), "no ceremony was started");
+    // A link of a version nobody defined is not a link.
+    let odd = relink(&link, |raw| raw[0] = 9);
+    w.phone
+        .dispatch(&w.n, "odd", IntentBody::RequestDeviceLink { link: odd });
+    assert_eq!(
+        w.phone.outcome(&w.n, "odd"),
+        Some(OutcomeClass::Rejected {
+            reason: RejectReason::Invalid
+        })
+    );
+}
+
+#[test]
+fn a_link_changed_in_transit_never_reaches_the_existing_device() {
+    // Expiry, a capability and the Home are all bound into the keys: a changed one seals under keys the other side
+    // does not have, so no request ever shows (and no code is displayed).
+    for flip in [1usize, 5 + 16 + 2, 5 + 16 + 1 + 32 + 2] {
+        let mut w = world();
+        w.alice.dispatch(&w.a, "offer", IntentBody::OfferDeviceLink);
+        w.alice.flush_net(&w.a);
+        let link = w.offer().unwrap().link;
+        // Expiry stays in the future (low byte of the big-endian u32 moves by one second).
+        let bent = relink(&link, |raw| {
+            let at = if flip == 1 { 4 } else { flip };
+            raw[at] ^= 1;
+        });
+        w.phone
+            .dispatch(&w.n, "ask", IntentBody::RequestDeviceLink { link: bent });
+        w.settle();
+        let seen = w.offer().unwrap();
+        assert_eq!(
+            seen.state,
+            LinkOfferState::WaitingForScan,
+            "flip at {flip}: no request was accepted"
+        );
+        assert!(seen.verification_code.is_none());
+        assert!(w.devices(true).link_requests.is_empty());
+    }
+}
+
+#[test]
+fn a_second_request_on_the_same_link_is_ignored() {
+    let mut w = world();
+    let _ = w.offer_and_ask();
+    let first = w.offer().unwrap().verification_code.unwrap();
+    // A second new device with the same link: dropped while one request is pending.
+    let link = w.offer().unwrap().link;
+    let mut other = Runtime::new("other-link", &w.net);
+    let o = other.open("p-o");
+    other.dispatch(&o, "ask2", IntentBody::RequestDeviceLink { link });
+    settle_all(&mut [(&mut w.alice, &w.a), (&mut w.phone, &w.n), (&mut other, &o)]);
+    let pending = w.devices(true).link_requests;
+    assert_eq!(pending.len(), 1);
+    assert_eq!(w.offer().unwrap().verification_code.unwrap(), first);
+}
+
+#[test]
+fn the_ceremony_key_is_gone_from_both_devices_when_the_link_is_done() {
+    let mut w = world();
+    let request_id = w.offer_and_ask();
+    assert_eq!(w.approve(&request_id, "ok"), Some(OutcomeClass::Committed));
+    w.settle();
+    w.settle();
+    w.settle();
+    let alice_st = w.alice.core.debug_app_state(&w.a).unwrap();
+    for o in alice_st["linkOffers"].as_object().unwrap().values() {
+        assert_eq!(o["secret"], "", "the existing device holds no key");
+    }
+    assert_eq!(
+        w.phone.core.debug_app_state(&w.n).unwrap()["linkJoin"]["secret"],
+        ""
+    );
+}
