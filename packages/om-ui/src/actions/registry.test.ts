@@ -196,6 +196,15 @@ describe("Action Registry", () => {
     }
   });
 
+  it("set-privacy-level is the person's own tap only, takes the three chosen levels, and only a literal true confirms a loosening", () => {
+    expect(registry.resolve({ actionId: "set-privacy-level", params: { level: "hardened" }, ctx, origin: "direct" })).toEqual({ status: "privacy", intent: { kind: "set_level", level: "hardened" } });
+    expect(registry.resolve({ actionId: "set-privacy-level", params: { level: "recommended", confirmed: true }, ctx, origin: "direct" })).toEqual({ status: "privacy", intent: { kind: "set_level", level: "recommended", confirmed: true } });
+    expect(registry.resolve({ actionId: "set-privacy-level", params: { level: "maximum" }, ctx, origin: "suggestion" })).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
+    for (const params of [{}, { level: "custom" }, { level: "paranoid" }, { level: "hardened", confirmed: "yes" }, { level: "hardened", confirmed: false }, { level: "hardened", silent: true }]) {
+      expect(registry.resolve({ actionId: "set-privacy-level", params, ctx, origin: "direct" }), JSON.stringify(params)).toEqual({ status: "rejected", code: "invalid_params" });
+    }
+  });
+
   it("platform actions map to capabilities, not intents", () => {
     expect(registry.resolve({ actionId: "copy-text", params: { sensitive: true }, ctx, origin: "direct" }))
       .toEqual({ status: "platform", request: { capability: "Clipboard", purpose: "write", sensitive: true } });

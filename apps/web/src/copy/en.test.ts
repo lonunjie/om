@@ -1,7 +1,7 @@
 import type { AccountControlStateCode, DeviceCautionCode, DeviceRole, DeviceStateCode, LastSeenClass, LinkOfferState, LinkRequestState, RecoveryCustodianCode, RecoveryPolicyState, RecoveryRequestState, RecoveryScope } from "@om/platform-api";
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
 import { describe, expect, it } from "vitest";
-import { appStrings, backupCopy, conversationCopy, deviceScannerCopy, groupsCopy, landingCopy, devicesCopy, homeCopy, joinCopy, onboardingCopy, recoveryCopy, scannerCopy, shellLabels, switcherLabels, unlockCopy } from "./en";
+import { appStrings, backupCopy, conversationCopy, deviceScannerCopy, groupsCopy, landingCopy, devicesCopy, homeCopy, joinCopy, onboardingCopy, protectionCopy, recoveryCopy, scannerCopy, shellLabels, switcherLabels, unlockCopy } from "./en";
 
 /** Every leaf must be a non-empty string; functions are called with sample arguments. */
 function leaves(v: unknown, path: string, out: [string, string][]): void {
@@ -160,5 +160,22 @@ describe("English copy catalog", () => {
     const text = all("g.held", h).map(([, v]) => v).join("\n");
     expect(text).not.toMatch(/\b(?:module|wasm|queue|lane|verified|relay|MLS|epoch|Welcome|Commit)\b/i);
     expect(text).not.toMatch(/!/); // calm: no exclamation, no alarm
+  });
+  it("protection copy: the three existing names, every leaf present, plain words, honest about what it changes, no jargon", () => {
+    const c = protectionCopy;
+    const leafs = all("protection", c);
+    for (const [path, text] of leafs) expect(text.trim(), path).not.toBe("");
+    expect([c.level.recommended.name, c.level.hardened.name, c.level.maximum.name]).toEqual(["Recommended", "Hardened", "Maximum Privacy"]); // no fourth name (ADR-0189 section 3)
+    expect(c.intro).toMatch(/same strong encryption/); // a level is never weaker crypto (SECURITY_PRIVACY_PROFILES section 1)
+    expect(c.scope).toMatch(/only|one thing/); // says what it does today and nothing more
+    expect(c.loosen.body.recommended).toMatch(/without asking you/); // a loosening names what changes
+    expect(c.loosen.body.recommended).toMatch(/less careful/);
+    expect(c.use("Hardened")).toBe("Use Hardened");
+    const text = leafs.map(([, v]) => v).join("\n");
+    expect(text).not.toMatch(/\b(?:digest|epoch|policy|veto|quorum|hash|relay|ratchet|key|credential|metadata|padding|cover traffic|onion|anonymity|PQ|post-quantum)\b/i);
+    expect(text).not.toMatch(/\b(?:safe|secure|guaranteed|anonymous|untraceable|unbreakable)\b/i); // no badge: a level is a policy, not a promise
+    expect(text).not.toMatch(/!/);
+    expect(appStrings.settingsProtection).toBe("Protection");
+    expect(appStrings.settingsRows.protection.length).toBeGreaterThan(10);
   });
 });

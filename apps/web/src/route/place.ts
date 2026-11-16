@@ -12,14 +12,14 @@
 // Invitation links use `/#invite/<token>` and are read and removed by `invite/pendingInvite.ts` before anything else.
 import { useCallback, useSyncExternalStore } from "react";
 
-export type SettingsPage = "menu" | "devices" | "recovery" | "delivery" | "lock" | "backup" | "help";
+export type SettingsPage = "menu" | "devices" | "recovery" | "protection" | "delivery" | "lock" | "backup" | "help";
 export type Place =
   | { readonly kind: "chats"; readonly chat: string | null }
   | { readonly kind: "settings"; readonly page: SettingsPage }
   | { readonly kind: "safety-code" };
 
 export const CHATS: Place = { kind: "chats", chat: null };
-const SETTINGS_PATH: Readonly<Record<SettingsPage, string>> = { menu: "/settings", devices: "/settings/devices", recovery: "/settings/recovery", delivery: "/settings/delivery", lock: "/settings/lock", backup: "/settings/backup", help: "/settings/help" };
+const SETTINGS_PATH: Readonly<Record<SettingsPage, string>> = { menu: "/settings", devices: "/settings/devices", recovery: "/settings/recovery", protection: "/settings/protection", delivery: "/settings/delivery", lock: "/settings/lock", backup: "/settings/backup", help: "/settings/help" };
 const trim = (p: string): string => (p.length > 1 ? p.replace(/\/+$/, "") : p);
 
 export function parsePlace(pathname: string, hash: string): Place {

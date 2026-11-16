@@ -1,7 +1,7 @@
 // The only place user-visible English lives. Components take these as props; keys are machine reason codes, so a
 // missing code is a compile error. Wording rules: plain language, no provider names, honest about limits.
 import type { ClientOriginChoiceCode, HomeObserverCode, LimitCode, RejectReason, SecurityNoticeCode, UserActionCode, VaultErrorReason, VaultStage, WrappingMethod, WrappingReason } from "@om/platform-api";
-import type { ConversationCopy, DevicesCopy, GroupsCopy, HomeCopy, JoinCopy, OmnibarCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, RecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
+import type { ConversationCopy, DevicesCopy, GroupsCopy, HomeCopy, JoinCopy, OmnibarCopy, OnboardingCopy, OutcomeCopy, ProfileSwitcherLabels, ProtectionCopy, RecoveryCopy, ShellLabels, UnlockCopy } from "@om/ui";
 
 const REJECT: Readonly<Record<RejectReason, string>> = {
   invalid: "That was not valid.",
@@ -550,13 +550,14 @@ export interface AppStrings {
   readonly appName: string;
   readonly settingsHeading: string;
   readonly settingsSearch: { readonly label: string; readonly none: (query: string) => string };
-  readonly settingsRows: { readonly devices: string; readonly recovery: string; readonly backup: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
+  readonly settingsRows: { readonly devices: string; readonly recovery: string; readonly protection: string; readonly backup: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
   /** Words a person might type for a row that its title does not contain. */
-  readonly settingsKeywords: { readonly devices: string; readonly recovery: string; readonly backup: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
+  readonly settingsKeywords: { readonly devices: string; readonly recovery: string; readonly protection: string; readonly backup: string; readonly delivery: string; readonly lock: string; readonly help: string; readonly addProfile: string };
   readonly settingsLock: string;
   readonly settingsNeedsAttention: string;
   readonly settingsDevices: string;
   readonly settingsRecovery: string;
+  readonly settingsProtection: string;
   readonly settingsBackup: string;
   readonly settingsHome: string;
   readonly settingsHelp: string;
@@ -794,6 +795,7 @@ export const appStrings: AppStrings = {
   settingsRows: {
     devices: "The phones and computers that can open your chats.",
     recovery: "How to get your chats back if you lose this device.",
+    protection: "How careful OM is when a contact gets their account back.",
     backup: "Save your chats to a file, or read them back from one.",
     delivery: "The service that carries your messages between devices.",
     lock: "Whether OM asks before it opens on this device.",
@@ -803,6 +805,7 @@ export const appStrings: AppStrings = {
   settingsKeywords: {
     devices: "phone computer linked sessions",
     recovery: "safety code backup restore lost",
+    protection: "privacy level recommended hardened maximum privacy protection careful security",
     backup: "backup restore export import download save file history chats copy move new phone drive usb password",
     delivery: "relay server network connection messages",
     lock: "password passcode pin passkey fingerprint face biometric privacy security",
@@ -813,6 +816,7 @@ export const appStrings: AppStrings = {
   settingsNeedsAttention: "needs attention",
   settingsDevices: "Devices",
   settingsRecovery: "Recovery",
+  settingsProtection: "Protection",
   settingsBackup: "Backup file",
   settingsHome: "Message delivery",
   settingsHelp: "Help and feedback",
@@ -1048,6 +1052,39 @@ export const onboardingCopy: OnboardingCopy = {
     back: "Back",
     link: joinCopy,
   },
+};
+
+export const protectionCopy: ProtectionCopy = {
+  heading: "Protection",
+  intro: "All three levels use the same strong encryption. They differ in how careful OM is on this device.",
+  scope: "Right now this changes one thing: whether OM asks you before a contact's account recovery finishes.",
+  loading: "Loading protection",
+  loadFailed: "Protection could not be loaded. Try again in a moment.",
+  levelsLabel: "Protection levels",
+  level: {
+    recommended: { name: "Recommended", body: "Everyday protection. When a contact gets their account back on a new device, OM waits and then accepts it by itself." },
+    hardened: { name: "Hardened", body: "Extra care. When a contact gets their account back on a new device, OM waits and then asks you to confirm it is really them." },
+    maximum: { name: "Maximum Privacy", body: "The most careful choice. OM waits and then asks you to confirm it is really them, the same as Hardened." },
+  },
+  custom: "Your settings were changed one by one, so this shows as Custom. Pick a level to set them all together.",
+  inUse: "In use",
+  use: (name) => `Use ${name}`,
+  cost: {
+    hardened: "You will be asked each time a contact gets their account back.",
+    maximum: "You will be asked each time a contact gets their account back.",
+  },
+  loosen: {
+    title: (name) => `Use ${name} instead?`,
+    body: {
+      recommended: "OM will accept a contact's account recovery by itself after its waiting time, without asking you. This is less careful.",
+      hardened: "OM will ask you to confirm a contact's account recovery, but this level is less careful than the one you use now.",
+      maximum: "This level is less careful than the one you use now.",
+    },
+    confirm: (name) => `Yes, use ${name}`,
+    keep: "Keep what I have now",
+  },
+  applied: (name) => `Now using ${name}.`,
+  refused: "Nothing changed. Try again in a moment.",
 };
 
 export const recoveryCopy: RecoveryCopy = {

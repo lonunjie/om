@@ -4,7 +4,7 @@ import {
   asConversationId, asDeviceId, asGroupId, asMessageId, canonicalInviteLink, confirmationTarget, parseDeviceLink, parseInviteLink, asOperationId, asPersonId, asProfileId, isProfileExecutionContext,
 } from "@om/platform-api";
 import type {
-  ConfirmationToken, CoreIntent, CoreQuery, GroupIntent, GroupRoomSetting, OperationId, PrivacyPolicyLevel, ProfileExecutionContext, RecoveryCustodianCode, RecoveryScope,
+  ConfirmationToken, CoreIntent, CoreQuery, GroupIntent, GroupRoomSetting, PrivacyIntent, OperationId, PrivacyPolicyLevel, ProfileExecutionContext, RecoveryCustodianCode, RecoveryScope,
 } from "@om/platform-api";
 
 export type PresentationOp =
@@ -21,6 +21,8 @@ export type ActionResult =
   | { readonly status: "intent"; readonly intent: CoreIntent }
   /** A typed step of the groups path (`client.groups.do`), not a CoreIntent: it has no OperationId, the step itself is durable. Direct (user-gesture) origin only. */
   | { readonly status: "group"; readonly intent: GroupIntent }
+  /** This person's own privacy level (`client.privacy.set`), not a CoreIntent: local, never sent. Direct (user-gesture) origin only. */
+  | { readonly status: "privacy"; readonly intent: PrivacyIntent }
   | { readonly status: "presentation"; readonly op: PresentationOp; readonly query?: CoreQuery }
   | { readonly status: "platform"; readonly request: PlatformRequest }
   | { readonly status: "needs_confirmation"; readonly actionId: string }
@@ -64,6 +66,7 @@ type Rec = Readonly<Record<string, unknown>>;
 type Built = { readonly intent: (ctx: ProfileExecutionContext, op: OperationId, confirmation: ConfirmationToken) => CoreIntent }
   | { readonly presentation: PresentationOp; readonly query?: CoreQuery }
   | { readonly group: GroupIntent }
+  | { readonly privacy: PrivacyIntent }
   | { readonly platform: PlatformRequest };
 interface Spec { readonly destructive: boolean; readonly parse: (p: Rec, ctx: ProfileExecutionContext) => Built | null }
 
@@ -288,6 +291,13 @@ const SPECS: Readonly<Record<string, Spec>> = {
     if (!exactly(p, ["conversationId", "requestId"]) || c === null || r === null) return null;
     return { intent: (ctx, op, confirmation) => ({ kind: "DeclinePeerRecovery", ctx, operationId: op, conversationId: asConversationId(c), requestId: r, confirmation }) };
   } },
+  // The person's own level for contacts' recovery (ADR-0190 section 4, D80, D89). Only the three levels a person can pick; "custom" is never chosen here.
+  // Tightening applies at once; a loosening carries `confirmed: true` only after the screen named what changes (Core refuses it otherwise).
+  "set-privacy-level": { destructive: false, parse: (p) => {
+    const level = oneOf(p["level"], ["recommended", "hardened", "maximum"] as const); const c = p["confirmed"];
+    if (level === null || !exactly(p, c === undefined ? ["level"] : ["level", "confirmed"]) || (c !== undefined && c !== true)) return null;
+    return { privacy: { kind: "set_level", level, ...(c === true ? { confirmed: true as const } : {}) } };
+  } },
   "change-privacy-policy": { destructive: true, parse: (p) => {
     const policy = oneOf(p["policy"], policies);
     if (policy === null) return null;
@@ -351,6 +361,7 @@ export function createActionRegistry(options: RegistryOptions = {}): ActionRegis
       const { spec, built } = p;
       if ("presentation" in built) return built.query ? { status: "presentation", op: built.presentation, query: built.query } : { status: "presentation", op: built.presentation };
       if ("platform" in built) return { status: "platform", request: built.platform };
+      if ("privacy" in built) return req.origin === "direct" ? { status: "privacy", intent: built.privacy } : { status: "rejected", code: "suggestion_cannot_confirm" };
       if ("group" in built) return req.origin === "direct" ? { status: "group", intent: built.group } : { status: "rejected", code: "suggestion_cannot_confirm" };
       let token: ConfirmationToken | undefined;
       if (spec.destructive) {
