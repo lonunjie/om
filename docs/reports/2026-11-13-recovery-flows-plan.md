@@ -288,3 +288,26 @@ Suggested order for a later session: read identity_control_recovery, crypto_1to1
 - Outgoing queue while a recovery is pending (follow-up to D79).
 - Section 10 metadata descriptor line; threat-model line near T-041; requirement traceability; a logical schema row for the veto kind.
 - Dossier integration test once the recovering-device flow exists.
+
+## Contact-side bridge, mirrors and banner built (2026-11-16)
+
+**Design sources read.** The design-gate list for the changed paths (all eight domains), ADR-0190 with its 2026-11-16 amendments, ACCESSIBILITY_AND_INPUT, SECURITY_PRIVACY_PROFILES, RECOVERY_AND_BACKUP_POLICY, CONTENT_AND_MICROCOPY_VOICE, AGENT_UX_BRIEF, ACTION_TO_CORE_INTENT_MAP, and the listed ADRs (0004 to 0162 on the list).
+
+**Built.** The bridge commands `recovery_tick` and `set_privacy_level` (additive, local), the TS mirrors and harness, the conversation banner (`PeerRecovery`), the composer refusal for `peer_recovering`, the two destructive registry intents, and copy under `recoveryCopy.contact`. Deviations D83 to D87 are in the relay status table.
+
+### NEXT work item (not built here): drive the contact timer from the running app
+
+The shipped app does not call `recovery_tick` and has no control for the privacy level, so a contact's timer never advances and every contact is on Recommended. This is the next item, ahead of further recovery UI.
+
+- The runtime calls `recovery_tick` on start-up and periodically while the app is open.
+- Each call uses a monotonic clock sample bound to a persisted boot-session id (ADR-0147/0154 lower bound; no wall-clock acceleration).
+- Credit counts only while the app runs (the strict-timer reading of D73); no gap credit, no sweep.
+- Settings gets a privacy-level control that defaults to Recommended and calls `set_privacy_level`.
+
+### Follow-ups
+
+- `peerRecovery` should carry the contact's level and an ended-at day count, so decline can sit behind a menu on Recommended (D83) and an ended notice can fade (D84). Deferred.
+- Accessibility, release-blocking under AGENTS.md: the existing message-timestamp text fails contrast (3.82:1 and 2.82:1). Pre-existing and not part of this change; fix before release.
+- `recoveryCopy` stays optional on `ConversationView` for now; the banner renders only when both the data and the copy are present.
+- Open ADR-0190 documentation items: the section 10 metadata descriptor line, the threat-model line near T-041, requirement traceability, and the logical schema row for the veto kind.
+- Outgoing queue while a recovery is pending (D79 and D86 follow-up).
