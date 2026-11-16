@@ -3,6 +3,8 @@ import type { CoreIntent } from "./intents";
 import type { OutcomeClass } from "./outcome";
 import type { AttachmentApi } from "./attachments";
 import type { GroupApi } from "./groups";
+import type { PrivacyApi } from "./privacy";
+import type { PrivacyPolicyLevel } from "./intents";
 import type { DevicesView, HistoryTransferView, LinkOfferView, LinkRequestView, RecoveryStatusView } from "./devices";
 import type { AttachmentPlanView, ConfirmationView, DirectOfferView, ConversationSummary, ConversationView, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, RecoveryKeyView } from "./views";
 
@@ -29,10 +31,12 @@ export interface GetIntroductionLoad { readonly kind: "GetIntroductionLoad"; rea
 export interface PlanAttachment { readonly kind: "PlanAttachment"; readonly ctx: ProfileExecutionContext; readonly size: number }
 /** The direct offers of this profile, newest last. */
 export interface GetDirectOffers { readonly kind: "GetDirectOffers"; readonly ctx: ProfileExecutionContext }
+/** This person's own privacy level on this device (Recommended until they change it). Local, never sent. */
+export interface GetPrivacyLevel { readonly kind: "GetPrivacyLevel"; readonly ctx: ProfileExecutionContext }
 export type CoreQuery =
   | GetConversationView | GetConversationList | GetProfileList | GetIntroductions | GetRecoveryKey | GetInvite | GetHomeSummary
   | GetDevices | GetLinkRequest | GetLinkOffer | GetHistoryTransfer | GetRecoveryStatus | GetConfirmation | GetIntroductionLoad
-  | PlanAttachment | GetDirectOffers;
+  | PlanAttachment | GetDirectOffers | GetPrivacyLevel;
 
 export interface QueryResultMap {
   GetConversationView: ConversationView;
@@ -52,6 +56,7 @@ export interface QueryResultMap {
   GetIntroductionLoad: IntroductionLoad;
   PlanAttachment: AttachmentPlanView;
   GetDirectOffers: readonly DirectOfferView[];
+  GetPrivacyLevel: PrivacyPolicyLevel;
 }
 export type QueryResult<Q extends CoreQuery> = QueryResultMap[Q["kind"]];
 
@@ -73,4 +78,6 @@ export interface CoreClient {
   readonly attachments?: AttachmentApi;
   /** Ordinary groups (ADR-0177). Absent on a client with no group support; present but `available() === false` on a build without the engine. */
   readonly groups?: GroupApi;
+  /** This person's own privacy level (ADR-0190 section 4, D80, D89). Absent on a client that cannot set it. */
+  readonly privacy?: PrivacyApi;
 }

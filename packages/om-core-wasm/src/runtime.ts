@@ -13,6 +13,8 @@ import type { BackupHeader, BackupPlan, BlobLimits, Commit, DirectFetchProgress,
 import { CoreCallError, CoreStorageError, fromHex, toHex } from "./types";
 import type { WasmCore } from "./wasm";
 import { createGroupDriver } from "./groups-driver";
+import { createRecoveryTicker, randomSessionId } from "./recovery-ticker";
+import type { RecoveryTicker } from "./recovery-ticker";
 import type { FrameSend, GroupCarriageStatus, GroupCore, GroupDriver, GroupOutItem, SealedFrame } from "./groups-driver";
 
 const KEY_PREFIX = "core/";
@@ -20,6 +22,8 @@ const KEY_PREFIX = "core/";
 const STAGE_PREFIX = "stage/";
 /** How long an advertised-limits answer is trusted before the Home is asked again. */
 const LIMITS_TTL_MS = 5 * 60_000;
+/** Between recovery ticks while a recovery waits. Days-long waits need no finer credit, and a throttled background tab can still keep up. */
+const RECOVERY_TICK_MS = 30_000;
 
 export interface CoreRuntimeOptions {
   readonly core: WasmCore;
@@ -40,6 +44,11 @@ export interface CoreRuntimeOptions {
    * Absent, `client.groups` is the bare engine (tests that carry wires by hand).
    */
   readonly groupDriver?: { readonly retryMs?: number };
+  /**
+   * Credit for a recovery of an account this device is waiting on (ADR-0190 section 6, D73, D88). On by default with `autoDrain`; `false`
+   * turns it off. `now` is a monotonic clock in ms (default `performance.now`; with none, nothing is credited). It is never a wall clock.
+   */
+  readonly recoveryTick?: false | { readonly now?: () => number; readonly intervalMs?: number; readonly newSessionId?: () => string };
 }
 
 export interface WasmCoreClient extends CoreClient {
@@ -56,7 +65,7 @@ export interface WasmCoreClient extends CoreClient {
    * This person's own privacy level, local to the profile (`null` is Recommended). Hardened, Maximum and Custom make this device
    * ask before it accepts a contact's recovery of their account (ADR-0190 section 4, D80). A host or a settings screen supplies it.
    */
-  setPrivacyLevel(ctx: ProfileExecutionContext, level: PrivacyPolicyLevel | null): Promise<void>;
+  setPrivacyLevel(ctx: ProfileExecutionContext, level: PrivacyPolicyLevel | null, confirmed?: boolean): Promise<void>;
   /**
    * Credit the host's durable monotonic reading (`bootSession` identifies one boot, `elapsedMs` its clock) to every recovery this
    * device is waiting on. Call it at start and regularly; downtime and backwards readings credit nothing (ADR-0190 section 6).
@@ -138,6 +147,7 @@ const ctxOf = (x: ProfileExecutionContext): ProfileExecutionContext => capturePr
 
 export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreClient> {
   const { core, provider } = opts;
+  let recoveryTicker: RecoveryTicker | null = null;
   const autoDrain = opts.autoDrain ?? true;
   const retryMs = opts.retryMs ?? 2000;
   const pollMs = opts.pollMs ?? 0;
@@ -215,6 +225,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       if (outcome) for (const l of [...set]) l(outcome);
     }
     emitQueries(released.profileId);
+    recoveryTicker?.wake(released.profileId); // an observation may have started a wait
   }
 
   /** Make a Commit durable, then (and only then) let Core release its effects. */
@@ -403,6 +414,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       const ctx = await exclusive(() => Promise.resolve(core.call({ cmd: "open_profile", profileId, records }) as ProfileExecutionContext));
       emitQueries(profileId);
       openProfiles.add(profileId);
+      recoveryTicker?.wake(profileId); // start-up: credit from now if a recovery is already waiting
       void refreshLimits();
       kick(profileId);
       if (groupDriver !== undefined) void groupDriver.flush(ctxOf(ctx)); // start-up: settle, then what a previous run still owed over the group carriage
@@ -410,6 +422,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     },
     closeProfile(profileId) {
       openProfiles.delete(profileId);
+      recoveryTicker?.stop(profileId); // a locked or switched-away profile gets no credit, and its next run is a new boot session
       core.call({ cmd: "close_profile", profileId });
       emitQueries(profileId);
     },
@@ -460,9 +473,9 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
         return r.summary;
       });
     },
-    setPrivacyLevel(ctx, level) {
+    setPrivacyLevel(ctx, level, confirmed = false) {
       return exclusive(async () => {
-        const r = core.call({ cmd: "set_privacy_level", ctx: ctxOf(ctx), level }) as { commit: Commit | null };
+        const r = core.call({ cmd: "set_privacy_level", ctx: ctxOf(ctx), level, confirmed }) as { commit: Commit | null };
         await commit(r.commit, ctx);
       });
     },
@@ -549,6 +562,14 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       },
     },
     groups: groupDriver ?? groupCore,
+    privacy: {
+      async set(ctx, intent) {
+        try { await client.setPrivacyLevel(ctx, intent.level, intent.confirmed === true); return { ok: true }; } catch (e) {
+          // Only Core's own refusal of an unconfirmed loosening is named; anything else (a stale context, storage) is "unavailable".
+          return { ok: false, refused: e instanceof CoreCallError && /loosening/.test(e.message) ? "loosening_needs_confirmation" : "unavailable" };
+        }
+      },
+    },
     flush,
     async idle() {
       for (let i = 0; i < 100; i++) {
@@ -559,12 +580,32 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     },
     dispose() {
       disposed = true;
+      recoveryTicker?.dispose();
       groupDriver?.dispose();
       wakeOff?.();
       for (const t of timers) { clearTimeout(t); clearInterval(t); }
       timers.clear();
     },
   };
+  if (autoDrain && opts.recoveryTick !== false) {
+    const o = opts.recoveryTick ?? {};
+    const now = o.now ?? (typeof performance === "undefined" ? undefined : () => performance.now());
+    if (now !== undefined) {
+      recoveryTicker = createRecoveryTicker({
+        now, newSessionId: o.newSessionId ?? randomSessionId, intervalMs: o.intervalMs ?? RECOVERY_TICK_MS,
+        // Cheap and local: two in-memory queries, and only while no timer runs for the profile.
+        pending: (p) => {
+          if (!openProfiles.has(p as ProfileId)) return false;
+          const ctx = client.contextFor(asProfileId(p));
+          const st = query({ kind: "GetRecoveryStatus", ctx }) as { requests: readonly { state: string }[] };
+          if (st.requests.some((r) => r.state === "waiting")) return true;
+          return (query({ kind: "GetConversationList", ctx }) as readonly { peerRecovery?: { state: string } }[]).some((c) => c.peerRecovery?.state === "waiting");
+        },
+        tick: (p, sample) => client.recoveryTick(client.contextFor(asProfileId(p)), sample),
+      });
+      for (const p of openProfiles) recoveryTicker.wake(p);
+    }
+  }
   if (autoDrain && provider.onWake) {
     // The transport heard that mail is waiting: collect now for every open profile (a flush already running is followed by one more).
     wakeOff = provider.onWake(() => { if (!disposed) for (const p of [...openProfiles]) void flush(p); });

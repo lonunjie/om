@@ -7,3 +7,4 @@ export * from "./invite";
 export * from "./devices";
 export * from "./attachments";
 export * from "./groups";
+export * from "./privacy";

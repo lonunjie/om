@@ -3,10 +3,10 @@ import {
   asMessageId, confirmationTarget, parseInviteLink, asProfileGeneration, captureProfileContext, isProfileExecutionContext, isTerminalOutcome,
 } from "@om/platform-api";
 import type {
-  AttachmentApi, AttachmentLimits, AttachmentState, AttachmentView, DirectOfferView, LocationCardView, PresentationView,
+  AttachmentApi, PrivacyApi, AttachmentLimits, AttachmentState, AttachmentView, DirectOfferView, LocationCardView, PresentationView,
   ConversationId, ConversationSummary, ConversationTimelineItem, ConversationView, CoreClient, CoreIntent, CoreQuery,
   DeliveryState, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, MessageId, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
-  PeerRecoveryView, PersonId, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, TerminalOutcome, Unsubscribe, UserActionCode,
+  PeerRecoveryView, PersonId, PrivacyPolicyLevel, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, TerminalOutcome, Unsubscribe, UserActionCode,
 } from "@om/platform-api";
 import { createDeviceSim, type SeedDevices } from "./devices";
 import { createGroupSim, type GroupSim } from "./groups";
@@ -70,6 +70,8 @@ export interface Harness extends CoreClient {
   readonly attachments: AttachmentApi;
   /** Always present here: simulated ordinary groups for UI tests (no engine, no wire; the other people are played by `simulate*`). */
   readonly groups: GroupSim;
+  /** Always present here: the person's own privacy level, with the same loosening rule as Core. */
+  readonly privacy: PrivacyApi;
   /** Registers a profile (generation fixed at seed) and returns its captured context. */
   seedProfile(seed: SeedProfile): ProfileExecutionContext;
   /** Fresh context for a seeded profile at its current generation (what a restarted UI would capture). */
@@ -130,6 +132,8 @@ interface ProfileState {
   invites: Map<OperationId, InviteView>;
   acceptedInvites: Set<string>;
   home: HomeSummary;
+  /** The person's own privacy level (Recommended until set). The harness has no recovery timer, so it only keeps it. */
+  privacyLevel: PrivacyPolicyLevel;
 }
 interface OpRecord {
   operationId: OperationId; profileId: ProfileId; intent: CoreIntent; outcome: OutcomeClass; messageId: MessageId | null;
@@ -243,6 +247,8 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         case "GetHistoryTransfer":
           stateFor(q.ctx);
           return null; // the simulator has no second device to transfer history to
+        case "GetPrivacyLevel":
+          return stateFor(q.ctx).privacyLevel;
         case "GetRecoveryStatus":
           stateFor(q.ctx);
           return sim.queries.recovery(q.ctx.profileId);
@@ -531,6 +537,17 @@ export function createHarness(options: HarnessOptions = {}): Harness {
     marker: HARNESS_MARKER,
     attachments: attachmentApi,
     groups,
+    // Same rule as Core: a tightening applies at once, a loosening only when the person confirmed it.
+    privacy: {
+      set: (ctx, intent) => settle(() => {
+        const st = stateFor(ctx);
+        const rank = (l: PrivacyPolicyLevel): number => (l === "recommended" ? 0 : l === "maximum" ? 2 : 1);
+        if (rank(intent.level) < rank(st.privacyLevel) && intent.confirmed !== true) return { ok: false, refused: "loosening_needs_confirmation" } as const;
+        st.privacyLevel = intent.level;
+        notify(ctx.profileId);
+        return { ok: true } as const;
+      }),
+    },
 
     seedProfile(seed) {
       if (profiles.has(seed.profileId)) throw new HarnessError("profile already seeded");
@@ -538,7 +555,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         label: seed.label, generation: asProfileGeneration(`gen-${String(profiles.size + 1)}`),
         conversations: new Map(), persons: new Map(), introductions: new Map(), confirmations: new Map(),
         introductionLoad: seed.introductionLoad ?? { throttled: false, dropped: 0 },
-        identityCreated: false, recoveryKeys: new Map(), invites: new Map(), acceptedInvites: new Set(), home: seed.home ?? DEFAULT_HOME,
+        identityCreated: false, recoveryKeys: new Map(), invites: new Map(), acceptedInvites: new Set(), home: seed.home ?? DEFAULT_HOME, privacyLevel: "recommended",
       };
       for (const c of seed.conversations ?? []) {
         if (conversationOwner.has(c.id)) throw new HarnessError("conversation id already seeded");

@@ -283,11 +283,21 @@ describe.skipIf(!present)("real Core through the CoreClient interface", () => {
     const a = await boot(createMemoryKv(), createMemoryProvider(), asProfileId("solo"));
     await a.rt.dispatch({ kind: "CreateIdentityProfile", ctx: a.ctx, operationId: op("s-create"), label: "Solo" });
     await a.rt.setPrivacyLevel(a.ctx, "hardened");
-    await a.rt.setPrivacyLevel(a.ctx, null);
-    await a.rt.recoveryTick(a.ctx, { bootSession: "0a0b", elapsedMs: 1000 });
-    await a.rt.dispatch({ kind: "DeclinePeerRecovery", ctx: a.ctx, operationId: op("s-bad"), conversationId: asConversationId("nope"), requestId: "ab", confirmation: { nonce: "forged" } as unknown as ConfirmationToken });
-    expect(await outcome(a, "s-bad")).toEqual({ kind: "Rejected", reason: "unauthorized" });
-    expect((await a.rt.query({ kind: "GetConversationList", ctx: a.ctx }))).toEqual([]);
+    await expect(a.rt.setPrivacyLevel(a.ctx, null)).rejects.toMatchObject({ code: "invalid" }); // a loosening is never silent
+    expect(await a.rt.query({ kind: "GetPrivacyLevel", ctx: a.ctx })).toBe("hardened");
+    expect(await a.rt.privacy?.set(a.ctx, { kind: "set_level", level: "recommended" })).toEqual({ ok: false, refused: "loosening_needs_confirmation" });
+    expect(await a.rt.privacy?.set(a.ctx, { kind: "set_level", level: "maximum" })).toEqual({ ok: true }); // tightening is immediate
+    expect(await a.rt.privacy?.set(a.ctx, { kind: "set_level", level: "recommended", confirmed: true })).toEqual({ ok: true });
+    expect(await a.rt.query({ kind: "GetPrivacyLevel", ctx: a.ctx })).toBe("recommended");
+    // The level is durable: a restart over the same storage reads it back.
+    await a.rt.privacy?.set(a.ctx, { kind: "set_level", level: "hardened" });
+    const again = await boot(a.kv, createMemoryProvider(), a.id);
+    expect(await again.rt.query({ kind: "GetPrivacyLevel", ctx: again.ctx })).toBe("hardened");
+    await again.rt.setPrivacyLevel(again.ctx, null, true);
+    await again.rt.recoveryTick(again.ctx, { bootSession: "0a0b", elapsedMs: 1000 });
+    await again.rt.dispatch({ kind: "DeclinePeerRecovery", ctx: again.ctx, operationId: op("s-bad"), conversationId: asConversationId("nope"), requestId: "ab", confirmation: { nonce: "forged" } as unknown as ConfirmationToken });
+    expect(await outcome(again, "s-bad")).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    expect((await again.rt.query({ kind: "GetConversationList", ctx: again.ctx }))).toEqual([]);
   }, 60_000);
 
 });
