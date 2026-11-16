@@ -1,6 +1,6 @@
 import type { RejectReason, UserActionCode } from "@om/platform-api";
 import type { DevicesCopy, JoinCopy, OutcomeCopy } from "../copy";
-import type { RecoveryCopy } from "../../recovery/copy";
+import type { RecoveryContactCopy, RecoveryCopy } from "../../recovery/copy";
 
 const REASONS: readonly RejectReason[] = ["invalid", "unsupported", "unauthorized", "revoked", "expired", "stale_state", "conflict", "policy_denied", "quota", "rate_limited", "integrity_failure", "unavailable", "not_found"];
 const ACTIONS: readonly UserActionCode[] = ["authorize_with_device", "confirm_security_change", "reauthenticate", "update_client"];
@@ -52,6 +52,18 @@ export const testJoinCopy: JoinCopy = {
   joined: "You are linked", tryAgain: "Start again", outcome: testOutcome,
 };
 
+export const testContactRecoveryCopy: RecoveryContactCopy = {
+  region: (n) => `${n} is recovering`,
+  days: (d) => (d <= 0 ? "less than a day" : `about ${String(d)} days`),
+  waiting: {
+    title: (n) => `${n} is recovering their account`, body: (d) => `Waiting ${d}`, check: (n) => `Check with ${n}`, checkDetail: (n) => `Ask ${n} another way`,
+    decline: "This isn't them", declineNote: (n) => `Your chat with ${n} stays as it is`,
+  },
+  ready: { title: (n) => `Is this really ${n}?`, consent: (n) => `Only if you checked with ${n}`, confirm: "Yes, it's them", decline: "Not them", checking: "One more check is needed" },
+  accepted: (n) => `${n} recovered their account on a new device`, vetoed: (n) => `${n}'s own device stopped this`, declined: (n) => `You turned this down for ${n}`,
+  outcome: testOutcome,
+};
+
 export const testRecoveryCopy: RecoveryCopy = {
   heading: "Recovery", loading: "Loading recovery", loadFailed: "Could not load", back: "Back to recovery",
   policy: { on: "Recovery is on", pending: "Recovery is not set up yet", off_explicit: "Recovery is off" },
@@ -77,4 +89,5 @@ export const testRecoveryCopy: RecoveryCopy = {
     confirm: { incoming: "Yes, stop it", outgoing: "Yes, cancel it" }, cancel: "Go back", done: "Stopped",
   },
   outcome: testOutcome,
+  contact: testContactRecoveryCopy,
 };

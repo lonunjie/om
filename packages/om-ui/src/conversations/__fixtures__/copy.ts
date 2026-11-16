@@ -1,7 +1,7 @@
 import type { RejectReason, SecurityNoticeCode, UserActionCode } from "@om/platform-api";
 import type { ConversationCopy } from "../copy";
 
-const REASONS: readonly RejectReason[] = ["invalid", "unsupported", "unauthorized", "revoked", "expired", "stale_state", "conflict", "policy_denied", "quota", "too_large", "rate_limited", "integrity_failure", "unavailable", "not_found"];
+const REASONS: readonly RejectReason[] = ["invalid", "unsupported", "unauthorized", "revoked", "expired", "stale_state", "conflict", "policy_denied", "quota", "too_large", "peer_recovering", "rate_limited", "integrity_failure", "unavailable", "not_found"];
 const NOTICES: readonly SecurityNoticeCode[] = ["safety_number_changed", "device_added", "unverified_contact", "session_reset", "integrity_failure"];
 const ACTIONS: readonly UserActionCode[] = ["authorize_with_device", "confirm_security_change", "reauthenticate", "update_client"];
 const rec = <K extends string>(keys: readonly K[], f: (k: K) => string): Readonly<Record<K, string>> => Object.fromEntries(keys.map((k) => [k, f(k)])) as Record<K, string>;
@@ -13,7 +13,7 @@ export const testCopy: ConversationCopy = {
     pending: "Sending", pendingNetwork: "Waiting for network", pendingReconciliation: "Confirming delivery", sent: "Sent", delivered: "Delivered",
     rejected: rec(REASONS, (r) => `Not sent: ${r}`),
   },
-  composer: { label: "Message", placeholder: "Write a message", send: "Send", sendFailed: "Send failed", rejected: rec(REASONS, (r) => `Rejected: ${r}`), needsAction: rec(ACTIONS, (a) => `Action: ${a}`) },
+  composer: { label: "Message", placeholder: "Write a message", send: "Send", sendFailed: "Send failed", rejected: rec(REASONS, (r) => `Rejected: ${r}`), peerRecovering: (n) => `${n} is recovering`, needsAction: rec(ACTIONS, (a) => `Action: ${a}`) },
   relationship: { awaiting_acceptance: "Waiting for acceptance", accepted_unbound: "Not verified yet", establishing: "Establishing", restored: "Restored from a backup file" },
   pressure: { notice: "Many requests from strangers" },
   request: {

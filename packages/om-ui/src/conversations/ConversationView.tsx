@@ -11,7 +11,9 @@ import { Avatar } from "./Avatar";
 import { MessageAttachments } from "./Attachments";
 import { DeliveryIndicator, RETRYABLE_REASONS, deliveryOf } from "./delivery";
 import { useConversationView } from "./hooks";
+import { PeerRecovery } from "./PeerRecovery";
 import { SecurityNotices } from "./notices";
+import type { RecoveryContactCopy } from "../recovery/copy";
 import { RichText, plainTextToRichText } from "./richtext";
 import { resolveIntent, type ConversationServices } from "./services";
 import "./conversations.css";
@@ -20,6 +22,8 @@ export interface ConversationViewProps {
   readonly services: ConversationServices;
   readonly conversationId: ConversationId;
   readonly copy: ConversationCopy;
+  /** Words for a contact's recovery of their account (ADR-0190). Without it nothing is said here, but Core still refuses to send to them. */
+  readonly recoveryCopy?: RecoveryContactCopy;
   /** Supplies the RichTextV1 document (untrusted) for an item; defaults to its plain text as paragraphs. */
   readonly richTextFor?: (item: ConversationTimelineItem) => unknown;
   /** Slot below the timeline, normally the Composer. */
@@ -43,7 +47,7 @@ const scrollerOf = (el: HTMLElement): HTMLElement | null => {
   return null;
 };
 
-export function ConversationView({ services, conversationId, copy, richTextFor, footer, onBack, focusMessageId }: ConversationViewProps) {
+export function ConversationView({ services, conversationId, copy, recoveryCopy, richTextFor, footer, onBack, focusMessageId }: ConversationViewProps) {
   const state = useConversationView(services, conversationId);
   const retrying = useRef(new Set<MessageId>());
   const [, rerender] = useState(0);
@@ -110,8 +114,11 @@ export function ConversationView({ services, conversationId, copy, richTextFor, 
           <Text as="h2" size="lg" weight="bold">{view.summary.displayName}</Text>
         </div>
       </header>
-      {view.summary.relationship === "active" && view.summary.notices.length === 0 ? null : (
+      {view.summary.relationship === "active" && view.summary.notices.length === 0 && (view.summary.peerRecovery === undefined || recoveryCopy === undefined) ? null : (
         <div className="om-conv-view__notes">
+          {view.summary.peerRecovery !== undefined && recoveryCopy !== undefined
+            ? <PeerRecovery services={services} conversationId={conversationId} name={view.summary.displayName} recovery={view.summary.peerRecovery} copy={recoveryCopy} />
+            : null}
           {view.summary.relationship === "active" ? null : <p className="om-conv-view__relationship" role="status" data-relationship={view.summary.relationship}>{copy.relationship[view.summary.relationship]}</p>}
           <SecurityNotices notices={view.summary.notices} copy={copy.notices} />
         </div>

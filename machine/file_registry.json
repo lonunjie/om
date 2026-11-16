@@ -655,6 +655,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/peer-recovery.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/playwright.config.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -9510,6 +9517,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/conversations/PeerRecovery.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/conversations/StrangerPressure.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -9574,6 +9588,13 @@
     },
     {
       "path": "packages/om-ui/src/conversations/notices.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/conversations/peerRecovery.test.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

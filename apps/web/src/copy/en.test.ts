@@ -14,7 +14,7 @@ const all = (name: string, v: unknown): [string, string][] => { const o: [string
 
 // Exhaustive by type: adding a code upstream breaks compilation here until the copy and this list are updated.
 const keys = <K extends string>(r: Record<K, true>): readonly K[] => Object.keys(r) as K[];
-const REASONS = keys<RejectReason>({ invalid: true, unsupported: true, unauthorized: true, revoked: true, expired: true, stale_state: true, conflict: true, policy_denied: true, quota: true, rate_limited: true, integrity_failure: true, unavailable: true, not_found: true, too_large: true });
+const REASONS = keys<RejectReason>({ invalid: true, unsupported: true, unauthorized: true, revoked: true, expired: true, stale_state: true, conflict: true, policy_denied: true, quota: true, rate_limited: true, integrity_failure: true, unavailable: true, not_found: true, too_large: true, peer_recovering: true });
 const NOTICES = keys<SecurityNoticeCode>({ safety_number_changed: true, device_added: true, unverified_contact: true, session_reset: true, integrity_failure: true });
 const ACTIONS = keys<UserActionCode>({ authorize_with_device: true, confirm_security_change: true, reauthenticate: true, update_client: true });
 const VAULT = keys<VaultErrorReason>({
@@ -130,6 +130,22 @@ describe("English copy catalog", () => {
     expect(text).not.toMatch(/\b(?:relay|Worker|Durable|admission|hash|SHA)\b/i);
     expect(text).not.toMatch(/\bHome\b/);
     expect(text).toMatch(/delivery service/);
+  });
+  it("a contact's recovery is calm, never certain, names no protocol term, and says what each action does (ADR-0190)", () => {
+    const c = recoveryCopy.contact;
+    expect(c.days(3)).toBe("about 3 days");
+    expect(c.days(1)).toBe("about a day");
+    expect(c.days(0)).toBe("less than a day");
+    expect(c.waiting.title("Maria")).toBe("Maria is recovering their account on a new device");
+    expect(c.waiting.body(c.days(3))).toMatch(/waiting about 3 days to be sure/);
+    expect(conversationCopy.composer.peerRecovering("Maria")).toBe("Not sent. Maria is recovering their account; you can message them once it finishes.");
+    expect(c.accepted("Maria")).toMatch(/^Maria recovered their account on a new device\./);
+    const text = all("contact", c).map(([, s]) => s).join("\n");
+    expect(text).not.toMatch(/\b(?:digest|epoch|policy|RecoveryRequest|veto|quorum|hash|relay|ratchet|key|credential)\b/i);
+    expect(text).not.toMatch(/\b(?:safe|secure|verified|guaranteed|definitely|certainly)\b/i); // OM waits; it never claims to know
+    expect(c.ready.consent("Maria")).toMatch(/checked with Maria another way/); // consent says what the yes does
+    expect(c.ready.consent("Maria")).toMatch(/safety code will change/);
+    expect(c.waiting.declineNote("Maria")).toMatch(/stays as it is/);
   });
   it("held group invitations are worded as a calm entry, say nothing was joined, and use no jargon", () => {
     const h = groupsCopy.held;

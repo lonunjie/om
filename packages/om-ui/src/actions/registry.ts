@@ -276,6 +276,18 @@ const SPECS: Readonly<Record<string, Spec>> = {
     if (!exactly(p, ["requestId"]) || r === null) return null;
     return { intent: (ctx, op, confirmation) => ({ kind: "VetoRecovery", ctx, operationId: op, requestId: r, confirmation }) };
   } },
+  // A contact's recovery of their own account (ADR-0190 section 4). Local to this device: it names the conversation and the request,
+  // nothing else, and a suggestion (Omnibar, learned rank) can never carry or obtain the confirmation.
+  "confirm-peer-recovery": { destructive: true, parse: (p) => {
+    const c = id(p["conversationId"]); const r = id(p["requestId"]);
+    if (!exactly(p, ["conversationId", "requestId"]) || c === null || r === null) return null;
+    return { intent: (ctx, op, confirmation) => ({ kind: "ConfirmPeerRecovery", ctx, operationId: op, conversationId: asConversationId(c), requestId: r, confirmation }) };
+  } },
+  "decline-peer-recovery": { destructive: true, parse: (p) => {
+    const c = id(p["conversationId"]); const r = id(p["requestId"]);
+    if (!exactly(p, ["conversationId", "requestId"]) || c === null || r === null) return null;
+    return { intent: (ctx, op, confirmation) => ({ kind: "DeclinePeerRecovery", ctx, operationId: op, conversationId: asConversationId(c), requestId: r, confirmation }) };
+  } },
   "change-privacy-policy": { destructive: true, parse: (p) => {
     const policy = oneOf(p["policy"], policies);
     if (policy === null) return null;

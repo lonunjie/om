@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode, SyntheticEvent } from "react";
-import type { AttachmentPlanView, AudioRecording, ConversationId, CoreIntent, FilesApi, LocationApi, LocationFix, MicrophoneApi, OperationHandle, OutcomeClass } from "@om/platform-api";
+import type { AttachmentPlanView, AudioRecording, ConversationId, CoreIntent, FilesApi, LocationApi, LocationFix, MicrophoneApi, OperationHandle, OutcomeClass, RejectReason } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
 import { IconButton } from "../shell/primitives/IconButton";
@@ -38,6 +38,8 @@ export interface ComposerProps {
   readonly services: ConversationServices;
   readonly conversationId: ConversationId;
   readonly copy: ConversationCopy;
+  /** The other person's name, for the refusal said while they recover their account. */
+  readonly peerName?: string;
   /** Controlled draft: the parent owns it, so it survives mode transitions and remounts. */
   readonly draft: string;
   readonly onDraftChange: (next: string) => void;
@@ -79,8 +81,9 @@ function VoicePreview({ item, label }: { readonly item: StagedItem; readonly lab
   return url === null ? null : <audio className="om-staged__audio" controls src={url} aria-label={label} />;
 }
 
-export function Composer({ services, conversationId, copy, draft, onDraftChange, inputPrivacy = PRIVATE_DEFAULT, onSent, trailing, capture, staged, onStagedChange }: ComposerProps) {
+export function Composer({ services, conversationId, copy, peerName, draft, onDraftChange, inputPrivacy = PRIVATE_DEFAULT, onSent, trailing, capture, staged, onStagedChange }: ComposerProps) {
   const att = copy.attachments;
+  const refusal = (reason: RejectReason): string => (reason === "peer_recovering" && peerName !== undefined ? copy.composer.peerRecovering(peerName) : copy.composer.rejected[reason]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -247,7 +250,7 @@ export function Composer({ services, conversationId, copy, draft, onDraftChange,
       const { handle, outcome } = await settle(intent);
       if (!alive()) return;
       if (clearsDraft(outcome)) { locInflight.current = null; setSpot(null); onSent?.(handle); }
-      else if (outcome.kind === "Rejected") { locInflight.current = null; setSpot(null); setNotice(copy.composer.rejected[outcome.reason]); }
+      else if (outcome.kind === "Rejected") { locInflight.current = null; setSpot(null); setNotice(refusal(outcome.reason)); }
       else if (outcome.kind === "NeedsUserAction") setNotice(copy.composer.needsAction[outcome.action]);
     } catch {
       if (mounted.current) setNotice(copy.composer.sendFailed);
@@ -311,7 +314,7 @@ export function Composer({ services, conversationId, copy, draft, onDraftChange,
         inflight.current = null;
         // The service said no to a file: it cannot be sent as it is (no retry), the words stay.
         if (outcome.reason === "too_large") setItems(itemsRef.current.filter((i) => !resolved.some((r) => r.id === i.id)));
-        setNotice(copy.composer.rejected[outcome.reason]);
+        setNotice(refusal(outcome.reason));
       } else if (outcome.kind === "NeedsUserAction") {
         setNotice(copy.composer.needsAction[outcome.action]);
       }

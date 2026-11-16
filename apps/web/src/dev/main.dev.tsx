@@ -35,6 +35,18 @@ export function mountDev(root: HTMLElement): void {
           { text: "Great, I will bring the draft.", direction: "incoming" },
         ],
       },
+      // ADR-0190: two contacts getting their account back on a new device. Maria's wait is running (default Recommended); Tomas's is over and
+      // this device asks before it accepts (a Hardened or Maximum level). The e2e tests press "This isn't them" and "Yes, it's them".
+      {
+        id: asConversationId("c-maria"), personId: asPersonId("p-maria"), displayName: "Maria Gomez",
+        messages: [{ text: "See you on Friday.", direction: "incoming" }],
+        peerRecovery: { state: "waiting", requestId: "pr-maria", daysLeft: 3 },
+      },
+      {
+        id: asConversationId("c-tomas"), personId: asPersonId("p-tomas"), displayName: "Tomas Reid",
+        messages: [{ text: "Thanks for the notes.", direction: "incoming" }],
+        peerRecovery: { state: "ready", requestId: "pr-tomas", daysLeft: 0, needsConfirm: true },
+      },
       {
         id: asConversationId("c-team"), personId: asPersonId("p-team"), displayName: "Design team",
         messages: [{ text: "Welcome to the team space.", direction: "incoming" }],

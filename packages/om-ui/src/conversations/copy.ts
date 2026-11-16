@@ -38,6 +38,8 @@ export interface ConversationCopy {
     readonly send: string;
     readonly sendFailed: string;
     readonly rejected: Readonly<Record<RejectReason, string>>;
+    /** Said in place of the generic refusal when the contact is recovering their account (ADR-0190 section 5): nothing is sent or queued. */
+    readonly peerRecovering: (name: string) => string;
     readonly needsAction: Readonly<Record<UserActionCode, string>>;
   };
   /** Status lines for a relationship that is not active yet (first contact, ADR-0181). */

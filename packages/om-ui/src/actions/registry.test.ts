@@ -104,11 +104,12 @@ describe("Action Registry", () => {
   });
 
   it("destructive actions need a registry-issued confirmation bound to action, params and context (UI-11)", () => {
-    expect(DESTRUCTIVE_INTENT_KINDS).toEqual(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery"]);
+    expect(DESTRUCTIVE_INTENT_KINDS).toEqual(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery"]);
     const actions: [string, unknown][] = [
       ["block-person", block], ["suspend-device", { deviceId: "d1" }], ["change-privacy-policy", { policy: "maximum" }],
       ["approve-device-link", { requestId: "lr-1" }], ["finalize-device-revocation", { deviceId: "d1" }],
       ["start-recovery", { scope: "identity", custodian: "recovery_key" }], ["veto-recovery", { requestId: "rr-1" }],
+      ["confirm-peer-recovery", { conversationId: "c1", requestId: "ab12" }], ["decline-peer-recovery", { conversationId: "c1", requestId: "ab12" }],
     ];
     for (const [actionId, params] of actions) {
       expect(registry.resolve({ actionId, params, ctx, origin: "direct" })).toEqual({ status: "needs_confirmation", actionId });
@@ -118,6 +119,19 @@ describe("Action Registry", () => {
       expect(DESTRUCTIVE_INTENT_KINDS).toContain(intent.kind);
       // single use
       expect(registry.resolve({ actionId, params, ctx, origin: "direct", confirmation: issue.token })).toEqual({ status: "rejected", code: "invalid_confirmation" });
+    }
+  });
+
+  it("ADR-0190: peer recovery actions are strict, destructive and direct-origin only", () => {
+    for (const actionId of ["confirm-peer-recovery", "decline-peer-recovery"]) {
+      for (const params of [{ conversationId: "c1" }, { requestId: "r1" }, { conversationId: "../x", requestId: "r1" }, { conversationId: "c1", requestId: "r1", silent: true }]) {
+        expect(registry.resolve({ actionId, params, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+      }
+      const params = { conversationId: "c1", requestId: "r1" };
+      expect(registry.resolve({ actionId, params, ctx, origin: "suggestion" })).toEqual({ status: "needs_confirmation", actionId });
+      expect(registry.issueConfirmation({ actionId, params, ctx, origin: "suggestion", nonce: "n-1" })).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
+      const prep = registry.prepareConfirmation({ actionId, params, ctx, origin: "direct" });
+      expect(prep).toMatchObject({ status: "intent", intent: { kind: "IssueConfirmation", target: "r1" } });
     }
   });
 

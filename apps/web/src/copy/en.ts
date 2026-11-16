@@ -18,6 +18,7 @@ const REJECT: Readonly<Record<RejectReason, string>> = {
   unavailable: "OM could not reach what it needs right now.",
   not_found: "OM could not find that anymore.",
   too_large: "This file is too big to send right now.",
+  peer_recovering: "This person is recovering their account. You can message them once it finishes.",
 };
 const withPrefix = (prefix: string): Readonly<Record<RejectReason, string>> =>
   Object.fromEntries(Object.entries(REJECT).map(([k, v]) => [k, `${prefix} ${v}`])) as Record<RejectReason, string>;
@@ -94,6 +95,7 @@ export const conversationCopy: ConversationCopy = {
     send: "Send",
     sendFailed: "The message could not be sent. Your text is still here.",
     rejected: withPrefix("Not sent."),
+    peerRecovering: (name) => `Not sent. ${name} is recovering their account; you can message them once it finishes.`,
     needsAction: NEEDS_ACTION,
   },
   relationship: {
@@ -424,6 +426,7 @@ const onboardingBase: OnboardingCopy = {
       unavailable: "OM could not reach the service. Check your connection and try again.",
       not_found: "This invite was not found. It may have been used or cancelled. Ask the person to send a new one.",
       too_large: "This invite is too big to use. Ask the person to send a new one.",
+      peer_recovering: "This person is recovering their account. Try again once it finishes.",
     },
     failed: "Something went wrong. Try again.",
     queued: "Still sending. Keep this page open.",
@@ -1120,6 +1123,30 @@ export const recoveryCopy: RecoveryCopy = {
     done: "Stopped.",
   },
   outcome: outcomeCopy("Not done."),
+  // A contact's recovery of their own account (ADR-0190 UI copy keys). Calm, never certain: OM waits, it does not know.
+  contact: {
+    region: (name) => `${name} is recovering their account`,
+    days: (days) => (days <= 0 ? "less than a day" : days === 1 ? "about a day" : `about ${String(days)} days`),
+    waiting: {
+      title: (name) => `${name} is recovering their account on a new device`,
+      body: (days) => `OM is waiting ${days} to be sure it is really them. Until then, anything from their new device stays on hold, and you can message them once it finishes.`,
+      check: (name) => `Check with ${name}`,
+      checkDetail: (name) => `Call ${name} or meet them to be sure. Their other devices can stop this if it is not them.`,
+      decline: "This isn't them",
+      declineNote: (name) => `If you turn this down, your chat with ${name} stays as it is and nothing from the new device is opened. ${name} can ask again.`,
+    },
+    ready: {
+      title: (name) => `The wait is over. Is this really ${name}?`,
+      consent: (name) => `Say yes only if you checked with ${name} another way. OM will then use their new device for this chat, and their safety code will change.`,
+      confirm: "Yes, it's them",
+      decline: "This isn't them",
+      checking: "One more check is needed before this can finish.",
+    },
+    accepted: (name) => `${name} recovered their account on a new device. Your chat and earlier messages are unchanged. Their safety code changed.`,
+    vetoed: (name) => `${name}'s own device stopped this. Nothing changed in your chat.`,
+    declined: (name) => `You turned this down. Your chat with ${name} is unchanged. They can ask again.`,
+    outcome: outcomeCopy("Not done."),
+  },
 };
 
 export const deviceScannerCopy = {

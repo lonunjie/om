@@ -1,6 +1,39 @@
 import type { RecoveryCustodianCode, RecoveryPolicyState, RecoveryRequestState, RecoveryScope } from "@om/platform-api";
 import type { OutcomeCopy } from "../devices/copy";
 
+/**
+ * What a contact sees while someone they chat with gets their account back on a new device (ADR-0190 sections 4 and 9).
+ * Plain words, no digests, epochs or policy terms. `{days}` is Core's whole days left, formatted by `days`.
+ */
+export interface RecoveryContactCopy {
+  /** Accessible name of the banner region. */
+  readonly region: (name: string) => string;
+  /** "about 3 days", "about a day", "less than a day". Never a precise or promised time. */
+  readonly days: (days: number) => string;
+  readonly waiting: {
+    readonly title: (name: string) => string;
+    readonly body: (days: string) => string;
+    readonly check: (name: string) => string;
+    readonly checkDetail: (name: string) => string;
+    readonly decline: string;
+    /** What turning it down does, shown with the button. */
+    readonly declineNote: (name: string) => string;
+  };
+  readonly ready: {
+    /** The wait ran and this device needs the person's own yes (Hardened and Maximum Privacy). */
+    readonly title: (name: string) => string;
+    readonly consent: (name: string) => string;
+    readonly confirm: string;
+    readonly decline: string;
+    /** The wait ran but a step is missing and nothing is asked of the person. */
+    readonly checking: string;
+  };
+  readonly accepted: (name: string) => string;
+  readonly vetoed: (name: string) => string;
+  readonly declined: (name: string) => string;
+  readonly outcome: OutcomeCopy;
+}
+
 export type RecoveryPendingKind = "StartRecovery" | "VetoRecovery";
 
 export interface RecoveryCopy {
@@ -51,4 +84,6 @@ export interface RecoveryCopy {
     readonly done: string;
   };
   readonly outcome: OutcomeCopy;
+  /** The contact side (ADR-0190): the banner in a conversation with a person who is recovering their account. */
+  readonly contact: RecoveryContactCopy;
 }

@@ -137,6 +137,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   // A search hit names a message too; it is kept in memory only (never in the address) and dropped when the chat changes.
   const [hitFocus, setHitFocus] = useState<{ readonly chat: string; readonly messageId: MessageId; readonly ctx: unknown } | null>(null);
   const selected = place.kind === "chats" ? (place.chat as ConversationId | null) : null;
+  const peerName = selected !== null && list.status === "ready" ? list.value.find((c) => c.id === selected)?.displayName : undefined;
   useEffect(() => { if (hitFocus !== null && hitFocus.chat !== selected) setHitFocus(null); }, [hitFocus, selected]);
   const settings: SettingsPage | null = place.kind === "settings" ? place.page : null;
   const savingCode = place.kind === "safety-code" && safetyCode !== undefined;
@@ -445,7 +446,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
               onBack={toChats} onLeft={() => { groups.refresh(); toChats(); }} refreshKey={groupTick} onChanged={groups.refresh} events={groupEvents}
             />
           ) : (
-            <ConversationView key={selected} services={services} conversationId={selected} copy={conversationCopy} onBack={toChats} focusMessageId={hitFocus !== null && hitFocus.chat === selected && hitFocus.ctx === services.ctx ? hitFocus.messageId : undefined} />
+            <ConversationView key={selected} services={services} conversationId={selected} copy={conversationCopy} recoveryCopy={recoveryCopy.contact} onBack={toChats} focusMessageId={hitFocus !== null && hitFocus.chat === selected && hitFocus.ctx === services.ctx ? hitFocus.messageId : undefined} />
           )
         }
         composerZone={selected !== null && selectedIsGroup(selected) ? (
@@ -457,7 +458,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
           />
         ) : selected === null || (list.status === "ready" && list.value.some((c) => c.id === selected && c.relationship === "restored")) ? undefined : (
           <Composer
-            key={selected} services={services} conversationId={selected} copy={conversationCopy} draft={drafts.get(selected) ?? ""}
+            key={selected} services={services} conversationId={selected} copy={conversationCopy} {...(peerName === undefined ? {} : { peerName })} draft={drafts.get(selected) ?? ""}
             onDraftChange={(next) => { setDrafts((d) => new Map(d).set(selected, next)); draftSync?.save(selected, next); }}
             {...(capture === undefined ? {} : { capture })} staged={staged.get(selected) ?? NO_STAGED}
             onStagedChange={(next) => { setStaged((m) => new Map(m).set(selected, next)); }}

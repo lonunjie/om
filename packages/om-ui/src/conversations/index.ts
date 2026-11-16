@@ -7,6 +7,7 @@ export * from "./hooks";
 export * from "./ConversationList";
 export * from "./ConversationView";
 export * from "./Composer";
+export * from "./PeerRecovery";
 export * from "./MessageRequest";
 export * from "./StrangerPressure";
 export * from "./Avatar";
