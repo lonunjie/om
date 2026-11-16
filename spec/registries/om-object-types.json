@@ -525,6 +525,17 @@
       "max_bytes": 131068,
       "source": "ADR-0189 section 1.2 (CDDL in the ADR appendix until moved to spec/cddl)",
       "logical_schema": null
+    },
+    {
+      "type_id": 34,
+      "name": "RecoveryNotice",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 131068,
+      "source": "ADR-0190 section 2 (CDDL: spec/cddl/recovery-notice.cddl); additive_noncritical_extension per ADR-0190 ruling 5",
+      "logical_schema": null
     }
   ]
 }

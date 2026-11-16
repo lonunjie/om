@@ -6957,6 +6957,167 @@
           "req": true
         }
       ]
+    },
+    "RecoveryNotice": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "recovery_policy",
+          "type": {
+            "bstr": [
+              1,
+              24576
+            ]
+          },
+          "req": true,
+          "note": "canonical encoding of the RecoveryPolicy (type 3) the request's parent state commits to; at most 24,576 bytes (MAX_POLICY_BYTES: 8 methods of at most 2592 key bytes plus one composite signature). Typed validation of the inner map is not done by the two prototype codecs (no cbor-in-bstr type); Core checks it with check('RecoveryPolicy') and the commitment hash"
+        },
+        {
+          "key": 3,
+          "name": "recovery_request",
+          "type": {
+            "signed": "RecoveryRequest"
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "bridge_states",
+          "type": {
+            "array": {
+              "signed": "AccountControlState"
+            },
+            "n": [
+              0,
+              8
+            ]
+          },
+          "req": false,
+          "note": "ordered chain, never a set: the pinned head (exclusive) up to the request's parent_state_hash (inclusive); the order is a Core rule"
+        },
+        {
+          "key": 5,
+          "name": "bridge_credentials",
+          "type": {
+            "array": {
+              "bstr": [
+                1,
+                32768
+              ]
+            },
+            "n": [
+              0,
+              16
+            ]
+          },
+          "req": false,
+          "note": "canonical DeviceCredential (type 7) bodies the bridge signers need; each is bound to the bridge by the digest the states commit to, so no envelope"
+        },
+        {
+          "key": 6,
+          "name": "successor",
+          "type": {
+            "ref": "RecoverySuccessorBundle"
+          },
+          "req": false,
+          "note": "the recovery-signed child, not yet final anywhere"
+        },
+        {
+          "key": 7,
+          "name": "vetoes",
+          "type": {
+            "array": {
+              "signed": "RecoveryVeto"
+            },
+            "n": [
+              0,
+              16
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "RecoverySuccessorBundle": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "child",
+          "type": {
+            "signed": "AccountControlState"
+          },
+          "req": true,
+          "note": "the recovery-signed successor state"
+        },
+        {
+          "key": 1,
+          "name": "next_policy",
+          "type": {
+            "bstr": [
+              1,
+              24576
+            ]
+          },
+          "req": true,
+          "note": "canonical RecoveryPolicy body the child commits to"
+        },
+        {
+          "key": 2,
+          "name": "device_credential",
+          "type": {
+            "bstr": [
+              1,
+              32768
+            ]
+          },
+          "req": true,
+          "note": "canonical DeviceCredential (type 7) body of the new device"
+        }
+      ]
+    },
+    "RecoveryDossierEntry": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "child_state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true,
+          "note": "OM-ACS-HASH-v1 of the child state of the recovery link; element of optional key 5 of the KIND_ACS_UPDATE payload and of the first-contact binding chain, one per recovery link in the chain that follows (ADR-0190 section 3.2). Never carries seconds or a time."
+        },
+        {
+          "key": 1,
+          "name": "policy",
+          "type": {
+            "bstr": [
+              1,
+              24576
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "next_policy",
+          "type": {
+            "bstr": [
+              1,
+              24576
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "recovery_request",
+          "type": {
+            "signed": "RecoveryRequest"
+          },
+          "req": true
+        }
+      ]
     }
   },
   "extensions": [

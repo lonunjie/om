@@ -1,0 +1,48 @@
+; OM later-wave W1 contact-side recovery verification wire (ADR-0190, 2026-11-14).
+; Object type 34 RecoveryNotice, with the RecoverySuccessorBundle and RecoveryDossierEntry structs. Fields:
+; spec/registries/om-numeric-fields.json; type row: om-object-types.json. No domain-separation label is added: the
+; notice is unsigned and carries no hash of its own; the request, veto, state and policy signatures and hashes are
+; the existing ones (OM-RECOVERY-REQUEST-SIG-v1, OM-RECOVERY-VETO-SIG-v1, OM-ACS-SIG-v1, OM-RECOVERY-POLICY-HASH-v1).
+; Reuses common.cddl (extensions, digest) and account.cddl (RecoveryPolicy, DeviceCredential, signed-RecoveryRequest,
+; signed-RecoveryVeto, signed-AccountControlState).
+; RecoveryNotice is unsigned and self-authenticating: nothing in it is trusted until it verifies against the receiver's
+; own pinned AccountControlState (ADR-0190 section 2, steps 1 to 5). It is carried as the inner plaintext of a
+; SealedDeliveryEnvelope (type 23); a receiver tells it from the ordinary inner envelope (a CBOR array) and from the
+; plain pre-bind inners (maps whose first entry is 0: 4 or 0: 5) by its first map entry 0: 34.
+; No object here has a time field, and unknown keys other than 23 are refused. Delay and elapsed time are verifier-local
+; and never travel (ADR-0190 section 1).
+; Signed objects are nested as `bstr .cbor signed-X`, the convention of every other nested signed object (see
+; group-transport.cddl), which the registry type {signed: X} validates recursively. The ADR-0190 appendix draft spelled
+; the envelope maps inline (not byte-wrapped); that form cannot be validated by the registry grammar and is refused here
+; (vector request-inline-envelope-map). Credentials are DeviceCredential bodies, as the appendix has them (the account
+; state commits to each by digest).
+; Bounds the registry enforces beyond CDDL: total object at most 131,068 bytes; each policy body 1 to 24,576 bytes
+; (MAX_POLICY_BYTES); each credential 1 to 32,768 bytes (the DeviceCredential type limit).
+; CDDL cannot express: deterministic encoding, the size bounds above, or the rules of ADR-0190 section 2 that need the
+; receiver's state (policy hash equals the committed commitment, request signed by the policy's recovery key, epoch,
+; parent, staleness, bridge chain order and contents, at most 8 bridge states from the pinned head, no recovery link
+; inside the bridge). Those are the semantic fixtures of verification/vectors/recovery-notice-vectors.json.gz.
+
+RecoveryNotice = {
+  0: 34, 1: 1,
+  2: bstr .cbor RecoveryPolicy,             ; the body the request's parent state commits to
+  3: bstr .cbor signed-RecoveryRequest,
+  ? 4: [0*8 bstr .cbor signed-AccountControlState],  ; bridge: pinned head (exclusive) .. parent_state (inclusive), in order
+  ? 5: [0*16 bstr .cbor DeviceCredential],  ; credential bodies the bridge signers need
+  ? 6: recovery-successor-bundle,           ; the recovery-signed child, not yet final anywhere
+  ? 7: [0*16 bstr .cbor signed-RecoveryVeto],
+  ? 23: extensions,
+}
+recovery-successor-bundle = {
+  0: bstr .cbor signed-AccountControlState, ; child
+  1: bstr .cbor RecoveryPolicy,             ; next_policy
+  2: bstr .cbor DeviceCredential,           ; the new device's credential
+}
+; Optional key 5 of the KIND_ACS_UPDATE payload and of the first-contact binding chain: one entry per
+; recovery link in the chain that follows. Never carries seconds, never carries a time.
+recovery-dossier-entry = {
+  0: digest,                                ; child state hash of the link (OM-ACS-HASH-v1)
+  1: bstr .cbor RecoveryPolicy,
+  2: bstr .cbor RecoveryPolicy,             ; next_policy
+  3: bstr .cbor signed-RecoveryRequest,
+}
