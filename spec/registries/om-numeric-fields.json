@@ -6734,6 +6734,21 @@
           },
           "req": false,
           "note": "devices this Commit adds"
+        },
+        {
+          "key": 4,
+          "name": "account_heads",
+          "type": {
+            "array": {
+              "ref": "GroupAccountHead"
+            },
+            "n": [
+              1,
+              64
+            ]
+          },
+          "req": false,
+          "note": "signed head of each account the added devices belong to (D93, same rules as the Welcome's D44 ruling); verified by the receiver, used only when it holds no other head for that account, never trusted beyond that"
         }
       ]
     },

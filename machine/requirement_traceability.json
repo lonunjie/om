@@ -2796,6 +2796,12 @@
       "verified_by": [
         "review:2026-11-03-delivery-realignment-and-wake-channel.md"
       ]
+    },
+    {
+      "requirement": "R-430",
+      "verified_by": [
+        "review:2026-11-14-groups-carriage-status.md"
+      ]
     }
   ]
 }

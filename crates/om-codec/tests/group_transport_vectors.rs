@@ -176,3 +176,46 @@ fn frame_body_boundary_on_the_product_codec() {
         Err("value_range")
     );
 }
+
+/// The frame body structs (`FrameBodyCommit`, `FrameBodyWelcome`, `GroupAccountHead`) are not top-level objects: the
+/// product codec checks them as registered structs (`check_struct`, no grammar change), the way Core checks a frame
+/// body before it reads anything. This replays the `structs` list of the corpus, which includes the Add Commit's
+/// optional `account_heads` (D93): shape, bounds (1 to 64 heads, state and credential bodies 1 to 65,536 bytes) and the
+/// 131,000-byte body limit.
+#[test]
+fn frame_body_structs_replay_exactly() {
+    let reg = Registry::load_w1();
+    let doc = corpus();
+    let structs = doc["structs"].as_array().unwrap();
+    assert!(structs.len() >= 30, "only {} struct vectors", structs.len());
+    let mut bad = Vec::new();
+    let (mut accepted, mut rejected) = (0, 0);
+    for v in structs {
+        let id = v["id"].as_str().unwrap();
+        let name = v["struct"].as_str().unwrap();
+        let bytes = expand_hex(&v["hex"]);
+        match (
+            v["expect"].as_str().unwrap(),
+            reg.check_struct(name, &bytes, 131_000),
+        ) {
+            ("reject", Err(e)) => {
+                rejected += 1;
+                if Some(e) != v["error"].as_str() {
+                    bad.push(format!("{id}: error {e} != {}", v["error"]));
+                }
+            }
+            ("accept", Ok(val)) => {
+                accepted += 1;
+                if encode(&val) != bytes {
+                    bad.push(format!("{id}: re-encode differs"));
+                }
+            }
+            (want, got) => bad.push(format!(
+                "{id}: expected {want}, got {:?}",
+                got.map(|_| "accept")
+            )),
+        }
+    }
+    assert!(bad.is_empty(), "{bad:#?}");
+    assert!(accepted >= 6 && rejected >= 24, "{accepted} / {rejected}");
+}

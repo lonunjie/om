@@ -31,6 +31,7 @@ frame-body-commit = {
   1: bstr .cbor signed-GroupCommitBinding,  ; type 30 envelope
   2: bstr,                                  ; MLS Commit
   ? 3: [1*64 group-release-evidence],       ; devices this Commit adds
+  ? 4: [1*64 group-account-head],           ; signed head of each account those devices belong to (D93)
 }
 frame-body-leave-request = { 0: bstr .cbor signed-GroupControlIntent }
 frame-body-app = bstr                       ; MLS PrivateMessage; nothing else

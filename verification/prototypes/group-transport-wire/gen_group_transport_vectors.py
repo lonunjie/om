@@ -145,6 +145,10 @@ BODY_WELCOME_HEADS = M([0, INVITE_ID], [1, B(det("mls-welcome", 2400))], [2, B(p
                        [3, [M([0, B(v4.DEV[0])], [1, cred_bytes(v4.DEV[0])], [2, route_bytes(route("m0", v4.DEV[0]))])]],
                        [4, [ACCOUNT_HEAD]])
 FRAMES["welcome-with-account-heads"] = frame("welcome", BODY_WELCOME_HEADS)
+# an Add Commit that also carries the signed head of each account the added devices belong to (D93): optional field 4,
+# the same group-account-head as the Welcome's
+BODY_COMMIT_HEADS = mset(BODY_COMMIT, 4, [ACCOUNT_HEAD])
+FRAMES["commit-with-account-heads"] = frame("commit", BODY_COMMIT_HEADS)
 FRAME_MIN = FRAMES["leave_request"]
 
 # ------------------------------------------------------------------ relationship-lane events (kinds 15 to 17)
@@ -319,13 +323,71 @@ def gen():
     return vs
 
 
+# ------------------------------------------------------------------ frame body structs (checked by the product codec only)
+# The typed body of a frame is a bstr (Q1 ruling), so these are listed apart, as the recovery-notice vectors list the
+# RecoveryDossierEntry: a "structs" array, replayed by crates/om-codec through `check_struct` and validated against the
+# CDDL rule by the two CDDL tools. The two prototype codecs do not read it.
+STRUCT_ROOT = {"FrameBodyCommit": "frame-body-commit", "FrameBodyWelcome": "frame-body-welcome",
+               "GroupAccountHead": "group-account-head"}
+FRAME_BODY_MAX = 131000
+
+
+def struct_vectors():
+    out = []
+
+    def add(struct, suffix, expect, error, value, cddl, note=""):
+        b = value if isinstance(value, bytes) else raw(value)
+        out.append({"id": f"{struct}/{suffix}", "struct": struct, "expect": expect, "error": error, "cddl": cddl,
+                    "hex": b.hex(), "note": note})
+
+    C, W, A = "FrameBodyCommit", "FrameBodyWelcome", "GroupAccountHead"
+    add(C, "typical", "accept", None, BODY_COMMIT, "valid")
+    add(C, "minimal", "accept", None, BODY_COMMIT_MIN, "valid")
+    add(C, "with-account-heads", "accept", None, BODY_COMMIT_HEADS, "valid")
+    add(C, "heads-64", "accept", None, mset(BODY_COMMIT, 4, [ACCOUNT_HEAD] * 64), "valid")
+    add(C, "heads-without-added-devices", "accept", None, mset(BODY_COMMIT_MIN, 4, [ACCOUNT_HEAD]), "valid",
+        "wire-valid: a head no added device names is ignored by Core (semantic rule)")
+    add(C, "neg/heads-empty", "reject", "value_range", mset(BODY_COMMIT, 4, []), "invalid")
+    add(C, "neg/heads-65", "reject", "value_range", mset(BODY_COMMIT, 4, [ACCOUNT_HEAD] * 65), "invalid")
+    add(C, "neg/heads-is-a-map", "reject", "wrong_type", mset(BODY_COMMIT, 4, ACCOUNT_HEAD), "invalid")
+    add(C, "neg/heads-null", "reject", "null_forbidden", mset(BODY_COMMIT, 4, None), "invalid")
+    add(C, "neg/heads-element-is-bstr", "reject", "wrong_type", mset(BODY_COMMIT, 4, [B(det("h", 40))]), "invalid")
+    add(C, "neg/unknown-key-5", "reject", "unknown_field", mset(BODY_COMMIT_HEADS, 5, 1), "invalid")
+    add(C, "neg/head-account-id-31-bytes", "reject", "value_range", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 0, B(det("a", 31)))]), "invalid")
+    add(C, "neg/head-account-id-missing", "reject", "missing_field", mset(BODY_COMMIT, 4, [mdel(ACCOUNT_HEAD, 0)]), "invalid")
+    add(C, "neg/head-envelope-missing", "reject", "missing_field", mset(BODY_COMMIT, 4, [mdel(ACCOUNT_HEAD, 1)]), "invalid")
+    add(C, "neg/head-not-an-envelope", "reject", "trailing_bytes", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 1, B(det("not-an-envelope", 20)))]), "invalid")
+    add(C, "neg/head-state-missing", "reject", "missing_field", mset(BODY_COMMIT, 4, [mdel(ACCOUNT_HEAD, 2)]), "invalid")
+    add(C, "neg/head-state-empty", "reject", "value_range", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 2, B(b""))]), "invalid")
+    add(C, "neg/head-state-65537-bytes", "reject", "value_range", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 2, B(b"\x00" * 65537))]), "invalid")
+    add(C, "neg/head-credentials-missing", "reject", "missing_field", mset(BODY_COMMIT, 4, [mdel(ACCOUNT_HEAD, 3)]), "invalid")
+    add(C, "neg/head-credentials-empty", "reject", "value_range", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 3, [])]), "invalid")
+    add(C, "neg/head-credentials-65", "reject", "value_range", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 3, [B(det("c", 30))] * 65)]), "invalid")
+    add(C, "neg/head-credential-empty", "reject", "value_range", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 3, [B(b"")])]), "invalid")
+    add(C, "neg/head-credential-65537-bytes", "reject", "value_range", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 3, [B(b"\x00" * 65537)])]), "invalid")
+    add(C, "neg/head-unknown-key-4", "reject", "unknown_field", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 4, 1)]), "invalid")
+    add(C, "neg/over-the-frame-body-limit", "reject", "size_limit", mset(BODY_COMMIT, 4, [mset(ACCOUNT_HEAD, 3, [B(b"\x00" * 60000)] * 3)]), "n/a",
+        "three credentials of 60,000 bytes: the body is over 131,000 bytes")
+    add(C, "neg/unsorted-keys", "reject", "unsorted_keys",
+        {"$rawmap": [BODY_COMMIT_HEADS["$map"][4], BODY_COMMIT_HEADS["$map"][0]] + BODY_COMMIT_HEADS["$map"][1:4]}, "n/a")
+    add(C, "neg/trailing-bytes", "reject", "trailing_bytes", raw(BODY_COMMIT_HEADS) + b"\x00", "n/a")
+    add(W, "with-account-heads", "accept", None, BODY_WELCOME_HEADS, "valid")
+    add(W, "neg/heads-empty", "reject", "value_range", mset(BODY_WELCOME_HEADS, 4, []), "invalid")
+    add(W, "neg/heads-is-a-map", "reject", "wrong_type", mset(BODY_WELCOME_HEADS, 4, ACCOUNT_HEAD), "invalid")
+    add(W, "neg/head-credentials-empty", "reject", "value_range", mset(BODY_WELCOME_HEADS, 4, [mset(ACCOUNT_HEAD, 3, [])]), "invalid")
+    return out
+
+
 def main(out):
     vs = [v for v in gen() if v is not None]
     ids = [v["id"] for v in vs]
     assert len(ids) == len(set(ids)), "duplicate vector ids"
-    Path(out).write_text(json.dumps({"vectors": vs}, indent=1) + "\n")
+    structs = struct_vectors()
+    sids = [v["id"] for v in structs]
+    assert len(sids) == len(set(sids)), "duplicate struct vector ids"
+    Path(out).write_text(json.dumps({"vectors": vs, "structs": structs}, indent=1) + "\n")
     pos = sum(v["expect"] == "accept" for v in vs)
-    print(f"wrote {len(vs)} vectors ({pos} positive, {len(vs) - pos} negative) to {out}", file=sys.stderr)
+    print(f"wrote {len(vs)} vectors ({pos} positive, {len(vs) - pos} negative) and {len(structs)} struct vectors to {out}", file=sys.stderr)
 
 
 if __name__ == "__main__":

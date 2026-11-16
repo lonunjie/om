@@ -21,6 +21,9 @@ import cddl_check as cc  # noqa: E402  (the V-005 helpers; importing runs nothin
 
 FILES = ["common", "account", "keys", "events", "discovery", "delivery", "group", "group-transport"]
 GROUP_TYPES = ["GroupRouteRecord", "GroupTransportFrame"]
+STRUCT_ROOT = {"FrameBodyCommit": "frame-body-commit", "FrameBodyWelcome": "frame-body-welcome",
+               "GroupAccountHead": "group-account-head"}   # body structs: not top-level objects, no codec pass
+CHUNK = 4
 ROOT_OF = {"ConversationEvent": "ConversationEventGroupCarriage"}   # the W1 vectors validate against the W1 event rule
 
 
@@ -34,8 +37,12 @@ def main(vec_path, build, v005, overlay, only_generated=False):
     subprocess.run(["rm", "-rf", str(build)], check=True)
     build.mkdir(parents=True)
     types = {t["name"]: t for t in json.loads((REPO / "spec/registries/om-object-types.json").read_text())["types"]}
-    vectors = json.load(open(vec_path))["vectors"]
+    doc = json.load(open(vec_path))
+    vectors = doc["vectors"]
     cases = defaultdict(list)
+    for v in doc.get("structs", []):
+        if v["cddl"] in ("valid", "invalid"):
+            cases[STRUCT_ROOT[v["struct"]]].append((v["id"], v["cddl"] == "valid", cc.expand(v["hex"])))
     for v in vectors:
         if v["cddl"] not in ("valid", "invalid"):
             continue
@@ -56,7 +63,12 @@ def main(vec_path, build, v005, overlay, only_generated=False):
         files = []
         for i, (_, _, b) in enumerate(cs):
             f = d / f"v{i:03d}.cbor"; f.write_bytes(b); files.append(f)
-        rr, rb = cc.rust_validate(spec, files), cc.ruby_validate(spec, files)
+        rr = cc.rust_validate(spec, files)
+        # The Ruby gem stalls for minutes on a long run of the body-struct cases in one process (each is fast alone, as
+        # are runs of a few): validate in small chunks.
+        rb = {}
+        for i in range(0, len(files), CHUNK):
+            rb.update(cc.ruby_validate(spec, files[i:i + CHUNK]))
         for (vid, want, _), f in zip(cs, files):
             n_checked += 1
             for tool, res in (("rust-cddl", rr), ("ruby-cddl", rb)):
