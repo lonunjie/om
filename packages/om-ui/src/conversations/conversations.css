@@ -21,6 +21,8 @@
 .om-conv-list__preview { flex: 1 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--om-text-sm-size); line-height: var(--om-text-sm-line); color: var(--om-color-text-secondary); }
 .om-conv-list__row[data-unread="true"] .om-conv-list__preview { color: var(--om-color-text-primary); font-weight: var(--om-weight-medium); }
 .om-conv-list__lead { color: var(--om-color-text-muted); }
+/* text.tertiary is for the base surfaces; on the selected tint it falls under 4.5:1, so the line steps up to secondary (DEFAULT_THEME_AND_COLOR_SEMANTICS section 3 gives only the base-surface ratio). */
+.om-conv-list__row[aria-selected="true"] .om-conv-list__lead { color: var(--om-color-text-secondary); }
 .om-conv-list__row[data-draft="true"] .om-conv-list__lead { color: var(--om-color-text-secondary); font-weight: var(--om-weight-medium); }
 .om-conv-list__bottom .om-delivery { flex: none; font-size: var(--om-text-xs-size); color: var(--om-color-text-secondary); }
 .om-conv-list__bottom .om-delivery[data-state="rejected"] { color: var(--om-color-danger-fg); }

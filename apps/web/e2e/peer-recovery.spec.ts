@@ -18,19 +18,27 @@ async function openChat(page: Page, name: RegExp): Promise<void> {
   await page.getByRole("option", { name }).click();
 }
 
-/** axe over the conversation, and colour contrast (which only a real browser computes) over the banner area. The message time stamps' own contrast is outside this change. */
+/** Entrance motion fades the newest message in; axe would read the half-faded colour, so the check waits for it to finish (it measures the settled state). */
+const settled = (page: Page): Promise<void> => page.evaluate(async () => {
+  await Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined)));
+});
+
+/** axe over the whole conversation, colour contrast included (only a real browser computes it), in the light and the dark appearance. */
 async function noViolations(page: Page): Promise<void> {
   await page.addScriptTag({ path: axeSource });
-  const violations = await page.evaluate(async () => {
-    const axe = (globalThis as unknown as { axe: { run: (el: Element, o: unknown) => Promise<{ violations: { id: string; help: string; nodes: { target: unknown; any: { data: unknown }[] }[] }[] }> } }).axe;
-    const el = document.querySelector(".om-conv-view");
-    const notes = document.querySelector(".om-conv-view__notes");
-    if (el === null) return ["missing"];
-    const whole = await axe.run(el, { rules: { region: { enabled: false }, "color-contrast": { enabled: false } } });
-    const r = notes === null ? whole : { violations: [...whole.violations, ...(await axe.run(notes, { rules: { region: { enabled: false } } })).violations] };
-    return r.violations.map((v) => `${v.id}: ${v.help} ${JSON.stringify(v.nodes.map((n) => [n.target, n.any[0]?.data]))}`);
-  });
-  expect(violations).toEqual([]);
+  for (const scheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await settled(page);
+    const violations = await page.evaluate(async () => {
+      const axe = (globalThis as unknown as { axe: { run: (el: Element, o: unknown) => Promise<{ violations: { id: string; help: string; nodes: { target: unknown; any: { data: unknown }[] }[] }[] }> } }).axe;
+      const el = document.querySelector(".om-conv-view");
+      if (el === null) return ["missing"];
+      const r = await axe.run(el, { rules: { region: { enabled: false } } });
+      return r.violations.map((v) => `${v.id}: ${v.help} ${JSON.stringify(v.nodes.map((n) => [n.target, n.any[0]?.data]))}`);
+    });
+    expect(violations, scheme).toEqual([]);
+  }
+  await page.emulateMedia({ colorScheme: "light" });
 }
 
 for (const size of SIZES) {

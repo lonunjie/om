@@ -21,6 +21,15 @@ describe("OM Calm contrast (WCAG AA)", () => {
       expect(failures).toEqual([]);
     });
   }
+  it("the pair set covers every text role on every surface it is drawn on (a timestamp or hint can sit on any of them)", () => {
+    const has = (fg: string, bg: string): boolean => THEME_CONTRAST_PAIRS.some(([f, b, min]) => f === fg && b === bg && min >= 4.5);
+    const surfaces = ["bg-canvas", "bg-surface", "bg-raised", "bg-sunken", "bg-overlay"];
+    const tints = ["selection-bg", "accent-soft", "info-bg", "message-incoming", "message-outgoing", "message-failed"];
+    const missing: string[] = [];
+    for (const fg of ["text-primary", "text-secondary", "text-muted", "accent", "success-fg", "warning-fg", "danger-fg", "info-fg"]) for (const bg of surfaces) if (!has(fg, bg)) missing.push(`${fg}/${bg}`);
+    for (const fg of ["text-primary", "text-secondary"]) for (const bg of tints) if (!has(fg, bg)) missing.push(`${fg}/${bg}`);
+    expect(missing).toEqual([]);
+  });
   it("reserved security palettes meet AA in both variants", () => {
     for (const p of [RESERVED_LIGHT, RESERVED_DARK]) {
       const failures = RESERVED_CONTRAST_PAIRS.filter(([fg, bg, min]) => contrastRatio(p[fg], p[bg]) < min);

@@ -32,7 +32,10 @@ export interface Theme {
 
 // Contrast requirements (WCAG 2.x AA): text 4.5:1, non-text 3:1. [foreground, background, minimum]
 export type ContrastPair = readonly [ThemeColorRole, ThemeColorRole, number];
-const TEXT_ON: readonly ThemeColorRole[] = ["bg-canvas", "bg-surface", "bg-raised", "bg-sunken"];
+const TEXT_ON: readonly ThemeColorRole[] = ["bg-canvas", "bg-surface", "bg-raised", "bg-sunken", "bg-overlay"];
+/** Every tint a text colour is drawn on in the shipped UI: selected rows, the info and message surfaces. */
+const TINTS: readonly ThemeColorRole[] = ["selection-bg", "accent-soft", "info-bg", "message-incoming", "message-outgoing", "message-failed"];
+const STATUS_FG: readonly ThemeColorRole[] = ["success-fg", "warning-fg", "danger-fg", "info-fg"];
 export const THEME_CONTRAST_PAIRS: readonly ContrastPair[] = [
   ...(["text-primary", "text-secondary", "text-muted", "accent"] as const).flatMap((fg) =>
     TEXT_ON.map((bg): ContrastPair => [fg, bg, 4.5])),
@@ -42,6 +45,10 @@ export const THEME_CONTRAST_PAIRS: readonly ContrastPair[] = [
   ["danger-fg", "danger-bg", 4.5], ["info-fg", "info-bg", 4.5],
   ["text-primary", "message-incoming", 4.5], ["text-primary", "message-outgoing", 4.5], ["danger-fg", "message-failed", 4.5],
   ["accent", "message-outgoing", 4.5],
+  // The full set of text on surface (a timestamp, a hint or a status line can sit on any of them). `text-muted` (the audited tertiary) is for the
+  // base surfaces only; on a tint the UI uses `text-secondary` (the audited values give it 3.6:1 to 4.2:1 on some tints), so it is not required there.
+  ...(["text-primary", "text-secondary"] as const).flatMap((fg) => TINTS.map((bg): ContrastPair => [fg, bg, 4.5])),
+  ...STATUS_FG.flatMap((fg) => TEXT_ON.map((bg): ContrastPair => [fg, bg, 4.5])),
   // border.strong is a component boundary, so it needs 3:1 against every surface it sits on (VISUAL_LANGUAGE_COLOR_ICONS_AND_ASSETS.md
   // "Contrast and focus", VS-01). The audited values failed this (light 2.29:1 on the canvas); ADR-0188 sets the nearest values that pass.
   ...(["bg-canvas", "bg-surface", "bg-raised", "bg-sunken", "bg-overlay"] as const).map((bg): ContrastPair => ["border", bg, 3]),

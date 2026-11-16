@@ -17,6 +17,7 @@
 .om-omni__list { margin: 0; padding: 0; list-style: none; }
 .om-omni__option { display: flex; align-items: baseline; gap: var(--om-space-3); box-sizing: border-box; min-block-size: 3rem; padding: var(--om-space-2) max(var(--om-space-4), env(safe-area-inset-right)) var(--om-space-2) max(var(--om-space-4), env(safe-area-inset-left)); align-items: center; cursor: pointer; }
 .om-omni__option[data-armed="true"] { background: var(--om-color-selection-bg); box-shadow: inset 3px 0 0 var(--om-color-accent); }
+.om-omni__option[data-armed="true"] .om-omni__kind { color: var(--om-color-text-secondary); } /* tertiary text is for the base surfaces; on the armed tint it steps up */
 @media (hover: hover) { .om-omni__option:hover { background: var(--om-color-bg-sunken); } .om-omni__option[data-armed="true"]:hover { background: var(--om-color-selection-bg); } }
 .om-omni__label { flex: 1 1 auto; min-inline-size: 0; overflow-wrap: anywhere; font-weight: var(--om-weight-medium); }
 .om-omni__detail { flex: none; max-inline-size: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--om-text-sm-size); color: var(--om-color-text-secondary); }
