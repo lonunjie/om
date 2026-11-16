@@ -432,6 +432,36 @@ impl<R: CryptoRng + RngCore> Tx<'_, R> {
         false
     }
 
+    /// TEST ONLY (`test-loopback`): send `payload` to the account's other device `device` through the first session that
+    /// reaches it, as that device's own control traffic, so a test can play a sibling that sends what it should not (an
+    /// acknowledgement of a digest that is not owed to it, or traffic before it has been told). Not reachable in production.
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_send_to_sibling(&mut self, device: &str, payload: &[u8]) -> bool {
+        let convs: Vec<String> = self
+            .st
+            .app
+            .relationships
+            .values()
+            .filter(|r| r.state == RelState::Active && !r.blocked)
+            .map(|r| r.id.clone())
+            .collect();
+        for conv in convs {
+            if !self.ensure_dev(&conv, device, true) {
+                continue;
+            }
+            let purpose = Purpose::DepositAcs {
+                conversation_id: conv.clone(),
+            };
+            if self
+                .with_dev(&conv, device, |tx| tx.send_control(&conv, payload, purpose))
+                .unwrap_or(false)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Send the acknowledgements that were waiting for a route.
     fn flush_owed_acks(&mut self) {
         let pending = self.st.app.owed_acks.clone();

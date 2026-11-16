@@ -13,7 +13,7 @@ use om_core::crypto::cbor::{self, V};
 use om_core::crypto::rng::insecure_test_rng::InsecureTestRng;
 use om_core::crypto::store::Device;
 use om_core::crypto::{delivery, sha256, unhex};
-use om_core::host::{MonotonicSample, NetCall, NetResult};
+use om_core::host::{MonotonicSample, NetCall, NetResult, Step};
 use om_core::recovery::{
     self, RecoveryPolicy, RecoveryRequest, RecoveryRoot, SuccessorBundle, sign_request,
 };
@@ -1199,4 +1199,63 @@ fn while_a_contact_is_recovering_the_send_path_refuses_with_a_typed_error_and_qu
         send(&mut w.contacts[0], "s2"),
         Some(OutcomeClass::Rejected { .. })
     ));
+}
+
+/// ADR-0190 section 6 (Restore): a `waiting` record is inert history after a restore from backup. A history backup taken
+/// while a contact's interval is running restores no record, no held message and no credit, whatever the clock then says;
+/// the restored profile has to observe a notice again and start its own interval.
+#[test]
+fn a_restored_backup_carries_no_recovery_record_and_credits_nothing() {
+    let mut w = world(1);
+    let req = w.request();
+    let bundle = w.bundle();
+    let held = w.new_device_message(true, "from the new phone");
+    w.deliver(0, &held);
+    let n = w.notice(&req, Some(&bundle));
+    w.deliver(0, &n);
+    let c = &mut w.contacts[0];
+    c.tick(&mono(1, H));
+    c.tick(&mono(1, 20 * H));
+    assert_eq!(c.state(), "waiting");
+    assert_eq!(c.credited(), 19 * H, "the interval was running");
+    assert_eq!(c.held(), 1);
+    // Back up this profile, then restore it into a fresh one (a new device or a wiped one).
+    let plan = c.rt.core.backup_plan();
+    let key = [0x42u8; 32];
+    let file = c.rt.core.export_history(&c.ctx, &plan, &key).unwrap();
+    let mut fresh = Runtime::new("restored", &w.net);
+    let f = common::create_profile(&mut fresh, "p-r", "Restored");
+    let (_, commit) = fresh.core.import_history(&f, &file, &key).unwrap();
+    assert!(fresh.settle(&Step {
+        commit,
+        handle: None
+    }));
+    let st = common::app_state(&fresh, &f);
+    assert!(
+        st["relationships"].as_object().unwrap().is_empty(),
+        "no relationship came back, so no record, head or held message came with it"
+    );
+    assert_eq!(
+        st["restored"].as_object().unwrap().len(),
+        1,
+        "the history did"
+    );
+    let status: RecoveryStatusView = fresh.query(Query::GetRecoveryStatus { ctx: f.clone() });
+    assert!(status.requests.is_empty());
+    let l: Vec<ConversationSummary> = fresh.query(Query::GetConversationList { ctx: f.clone() });
+    assert_eq!(l.len(), 1);
+    assert_eq!(l[0].relationship, RelationshipStateCode::Restored);
+    assert!(
+        l[0].peer_recovery.is_none(),
+        "no recovery banner on restored history"
+    );
+    // Time cannot make anything of it: days of readings, in the old boot session and a new one, change nothing.
+    fresh.recovery_tick(&f, &mono(1, 20 * H));
+    fresh.recovery_tick(&f, &mono(1, 20 * H + 5 * DELAY_MS));
+    fresh.recovery_tick(&f, &mono(2, 5 * DELAY_MS));
+    let st = common::app_state(&fresh, &f);
+    assert!(st["relationships"].as_object().unwrap().is_empty());
+    assert!(fresh.core.poll_targets(&f).unwrap().is_empty());
+    // The original profile is untouched by the restore elsewhere.
+    assert_eq!(w.contacts[0].state(), "waiting");
 }

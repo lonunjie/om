@@ -888,6 +888,30 @@ impl AppState {
                     }
                 }
             }
+            // 5: the Commit also carries the genuine head of every other account this device has a relationship with,
+            // although no added device belongs to them (D93: such a head must be ignored by the receiver).
+            if mode == 5 && for_commit {
+                let named: BTreeSet<String> = directory.iter().map(|(_, a, _)| a.clone()).collect();
+                let strangers: Vec<(String, String, String)> = self
+                    .relationships
+                    .values()
+                    .filter(|r| {
+                        r.state == RelState::Active
+                            && !r.blocked
+                            && !named.contains(&r.peer_account_id)
+                    })
+                    .map(|r| (String::new(), r.peer_account_id.clone(), String::new()))
+                    .collect();
+                if let Ok(extra) = self.carry_heads_for(env, &strangers, false) {
+                    out.extend(extra);
+                }
+            }
+            // 6: the heads are padded so that the Commit no longer fits one frame (D95: it then goes without them).
+            if mode == 6 && for_commit {
+                for h in &mut out {
+                    h.state.extend(std::iter::repeat_n(0u8, 140_000));
+                }
+            }
         }
         #[cfg(not(feature = "test-loopback"))]
         let _ = for_commit;

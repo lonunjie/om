@@ -7,6 +7,8 @@ mod common;
 
 use common::confirmation as nonce;
 use om_core::api::*;
+use om_core::crypto::cbor::{self, V};
+use om_core::host::Step;
 use om_core::runtime::{LoopbackNetwork, Runtime, settle_all};
 
 const MIN: u64 = 60_000;
@@ -481,4 +483,195 @@ fn a_sibling_with_no_path_is_owed_by_default_and_refused_when_strict() {
         IntentBody::SetStrictDeviceNotice { enabled: false },
     );
     assert!(!f.devices(0).strict_notice);
+}
+
+fn ack_payload(digest: &[u8]) -> Vec<u8> {
+    cbor::encode(&V::M(vec![(0, V::U(13)), (1, V::B(digest.to_vec()))]))
+}
+
+#[test]
+fn an_acknowledgement_for_a_digest_that_is_not_owed_to_the_sender_is_ignored() {
+    let mut f = Fleet::new("e");
+    let (phone, _) = f.link(0, "phone");
+    let (tablet, _) = f.link(0, "tablet");
+    f.talk();
+    // The tablet goes dark, then a laptop is linked: the notice for the laptop is owed to the tablet, and the phone (which
+    // has a session with the approving device) is a different sender.
+    f.on[tablet] = false;
+    let (_laptop, out) = f.link(0, "laptop");
+    assert_eq!(out, Some(OutcomeClass::Committed));
+    assert_eq!(f.state_of(0, tablet).0, DeviceNoticeState::Owed);
+    assert_eq!(f.state_of(0, phone).0, DeviceNoticeState::Told);
+    let before = f.owed(0);
+    assert_eq!(before.len(), 1, "one notice is owed, to the tablet");
+    let st = f.rts[0].core.debug_app_state(&f.ctxs[0]).unwrap();
+    let owed_digest = st["owedNotices"][0]["noticeDigest"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let first = f.device_id(0);
+    // The phone answers with a digest nobody owes it, then with the digest that is owed to the tablet: neither may clear
+    // anything, and neither is an error.
+    let owed_to_tablet: Vec<u8> = (0..owed_digest.len() / 2)
+        .map(|i| u8::from_str_radix(&owed_digest[2 * i..2 * i + 2], 16).unwrap())
+        .collect();
+    for (n, payload) in [ack_payload(&[7u8; 32]), ack_payload(&owed_to_tablet)]
+        .iter()
+        .enumerate()
+    {
+        let (sent, step) = f.rts[phone]
+            .core
+            .debug_send_to_sibling(&f.ctxs[phone], &first, payload)
+            .unwrap();
+        f.rts[phone].settle(&step);
+        assert!(sent, "the phone's acknowledgement {n} went out");
+        f.settle();
+        f.settle();
+        assert_eq!(f.owed(0), before, "acknowledgement {n} changed nothing");
+        assert_eq!(f.state_of(0, tablet).0, DeviceNoticeState::Owed);
+    }
+}
+
+/// Hand device `i` only the mailbox items `pick` selects (by position among those waiting, or by `all` for every one
+/// from sequence 0), so a test can deliver traffic in an order the relay would not.
+fn deliver_only(f: &mut Fleet, i: usize, from_start: bool, pick: &dyn Fn(usize) -> bool) -> usize {
+    let c = f.ctxs[i].clone();
+    let mut n = 0;
+    for t in f.rts[i].core.poll_targets(&c).unwrap() {
+        assert!(
+            t.capability.is_empty(),
+            "this helper reads the device's own mailbox only"
+        );
+        let after = if from_start { 0 } else { t.after };
+        let items: Vec<_> = f
+            .net
+            .poll_at(t.relay_uri.as_deref(), &t.mailbox, after)
+            .into_iter()
+            .enumerate()
+            .filter(|(k, _)| pick(*k))
+            .map(|(_, x)| x)
+            .collect();
+        if items.is_empty() {
+            continue;
+        }
+        n += items.len();
+        let step = f.rts[i].core.inbound(&c, &t.mailbox, &items).unwrap();
+        f.rts[i].settle(&step);
+    }
+    n
+}
+
+#[test]
+fn a_sibling_given_the_new_devices_traffic_before_the_notice_holds_it_and_does_not_trust_the_device()
+ {
+    // ADR-0193 decision 7 (a sibling without the verified notice does not treat the new device as authorized), with
+    // ADR-0120 K5 and K12: an envelope from a device the held head does not list is held until the head is refreshed;
+    // nothing in it is applied and the sibling's head and notices do not change.
+    let mut f = Fleet::new("k");
+    let (tablet, _) = f.link(0, "tablet");
+    f.on[tablet] = false;
+    let (laptop, out) = f.link(0, "laptop");
+    assert_eq!(out, Some(OutcomeClass::Committed));
+    assert_eq!(
+        f.state_of(0, tablet).0,
+        DeviceNoticeState::Owed,
+        "the tablet has not been told"
+    );
+    let tablet_id = f.device_id(tablet);
+    // The laptop speaks to the tablet first: a payload that a trusted sibling would act on (an acknowledgement).
+    let ack = ack_payload(&[9u8; 32]);
+    let (sent, step) = f.rts[laptop]
+        .core
+        .debug_send_to_sibling(&f.ctxs[laptop], &tablet_id, &ack)
+        .unwrap();
+    f.rts[laptop].settle(&step);
+    assert!(sent, "the laptop's traffic reaches the tablet's mailbox");
+    f.on[tablet] = true;
+    f.rts[laptop].flush_net(&f.ctxs[laptop].clone());
+    let before = f.devices(tablet);
+    assert_eq!(
+        before.devices.len(),
+        2,
+        "the tablet's head does not list the laptop"
+    );
+    assert!(before.notices.is_empty());
+    // Only the laptop's item is handed over (the second item waiting), so no notice can have arrived first.
+    assert_eq!(deliver_only(&mut f, tablet, false, &|k| k == 1), 1);
+    let after = f.devices(tablet);
+    assert_eq!(
+        after.devices.len(),
+        2,
+        "still not listed: nothing from the laptop made it authorized"
+    );
+    assert!(after.notices.is_empty(), "and no notice appeared");
+    let st = f.rts[tablet].core.debug_app_state(&f.ctxs[tablet]).unwrap();
+    let held: usize = st["relationships"]
+        .as_object()
+        .unwrap()
+        .values()
+        .map(|r| r["held"].as_array().map_or(0, Vec::len))
+        .sum();
+    assert_eq!(
+        held, 1,
+        "the envelope is held until the head is refreshed, not applied"
+    );
+}
+
+/// A restore brings history and nothing that acts (ADR-0184, ADR-0193): an owed notice, a device list and a path to any
+/// sibling are not in a backup, so a restored profile owes nobody anything and cannot send on the old account's behalf.
+#[test]
+fn a_restored_backup_owes_no_notice_and_acts_on_nothing_pending() {
+    let mut f = Fleet::new("r");
+    let (phone, _) = f.link(0, "phone");
+    f.talk();
+    f.on[phone] = false;
+    let (_tablet, out) = f.link(0, "tablet");
+    assert_eq!(out, Some(OutcomeClass::Committed));
+    assert_eq!(f.owed(0).len(), 1, "a notice is owed to the phone");
+    let plan = f.rts[0].core.backup_plan();
+    let key = [0x42u8; 32];
+    let file = f.rts[0]
+        .core
+        .export_history(&f.ctxs[0], &plan, &key)
+        .unwrap();
+    let mut fresh = Runtime::new("restored-dn", &f.net);
+    let ctx = common::create_profile(&mut fresh, "p-restored", "Alice again");
+    let (_, commit) = fresh.core.import_history(&ctx, &file, &key).unwrap();
+    assert!(fresh.settle(&Step {
+        commit,
+        handle: None
+    }));
+    let st = fresh.core.debug_app_state(&ctx).unwrap();
+    assert!(
+        st["owedNotices"].as_array().unwrap().is_empty(),
+        "nothing is owed after a restore"
+    );
+    assert!(st["owedAcks"].as_array().is_none_or(|a| a.is_empty()));
+    assert!(st["relationships"].as_object().unwrap().is_empty());
+    let d: DevicesView = fresh.query(Query::GetDevices { ctx: ctx.clone() });
+    assert_eq!(
+        d.devices.len(),
+        1,
+        "only this device; the old account's devices did not come back"
+    );
+    assert!(
+        d.devices
+            .iter()
+            .all(|x| x.notice_state == DeviceNoticeState::Told)
+    );
+    // Time passes and the retry driver runs: nothing is sent to anyone.
+    for _ in 0..3 {
+        fresh.tick(2 * 24 * 60 * MIN);
+        let tick = fresh.core.notice_tick(&ctx).unwrap();
+        fresh.settle(&tick);
+    }
+    assert!(
+        fresh
+            .core
+            .net_ops(&ctx)
+            .unwrap()
+            .iter()
+            .all(|o| !format!("{:?}", o.call).contains("Deposit"))
+    );
+    assert!(fresh.core.poll_targets(&ctx).unwrap().is_empty());
 }

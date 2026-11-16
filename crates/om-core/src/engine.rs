@@ -1965,6 +1965,27 @@ impl<R: RngCore + CryptoRng> Core<R> {
         })
     }
 
+    /// TEST ONLY: send a payload to one of the account's other devices (see `Tx::debug_send_to_sibling`).
+    #[cfg(feature = "test-loopback")]
+    pub fn debug_send_to_sibling(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        device: &str,
+        payload: &[u8],
+    ) -> Result<(bool, Step), CoreError> {
+        self.slot(ctx)?;
+        let (ok, commit) = self.txn(&ctx.profile_id, |tx| {
+            Ok(tx.debug_send_to_sibling(device, payload))
+        })?;
+        Ok((
+            ok,
+            Step {
+                commit,
+                handle: None,
+            },
+        ))
+    }
+
     /// TEST ONLY: deposit an arbitrary authenticated inner payload (see `Tx::debug_inject`).
     #[cfg(feature = "test-loopback")]
     pub fn debug_inject_payload(

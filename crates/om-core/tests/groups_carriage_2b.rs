@@ -647,8 +647,13 @@ fn a_messaging_only_device_joins_a_room() {
 }
 
 /// Everything up to Alice's Core preparing the Add of Carol: nothing is delivered yet. `heads` is the test hook of
-/// `TEST_ROOM_HEADS` (0 normal, 1 no heads, 2 corrupted heads, 3 and 4 the same for the Add Commit only).
+/// `TEST_ROOM_HEADS` (0 normal, 1 no heads, 2 corrupted heads, 3 and 4 the same for the Add Commit only, 5 the Commit also carries a stranger's head, 6 the Commit's heads are too large for one frame).
 fn trio_before_delivery(tag: &str, heads: u8) -> Vec<P> {
+    trio_before_delivery_with(tag, heads, false)
+}
+
+/// `stranger`: Alice also has a contact, Dave (index 3), who is not in the Room and never meets Bob or Carol.
+fn trio_before_delivery_with(tag: &str, heads: u8, stranger: bool) -> Vec<P> {
     om_core::runtime::TEST_ROOM_HEADS.with(|m| m.set(heads));
     let net = LoopbackNetwork::default();
     let mut ps = vec![
@@ -656,8 +661,14 @@ fn trio_before_delivery(tag: &str, heads: u8) -> Vec<P> {
         mk(&net, &format!("bob-{tag}"), "Bob"),
         mk(&net, &format!("carol-{tag}"), "Carol"),
     ];
+    if stranger {
+        ps.push(mk(&net, &format!("dave-{tag}"), "Dave"));
+    }
     connect(&mut ps, 0, 1);
     connect(&mut ps, 0, 2); // Carol and Bob have never met
+    if stranger {
+        connect(&mut ps, 0, 3);
+    }
     let _ = join_all(&mut ps, 0, &[1], room::RECOMMENDED);
     let conv = ps[0].conv();
     let rel = ps[0].rels[&2].clone();
@@ -809,7 +820,11 @@ fn a_held_welcome_applies_once_the_missing_head_arrives() {
 /// D93. Alice invites Bob, then Carol, who has never met Bob. Alice's Add of Carol goes to both: the Welcome to Carol and
 /// the Commit to Bob. Returns the people and what Bob's Core answered to the Commit.
 fn add_carol(tag: &str, heads: u8) -> (Vec<P>, Vec<GroupEvent>) {
-    let mut ps = trio_before_delivery(tag, heads);
+    add_carol_with(tag, heads, false)
+}
+
+fn add_carol_with(tag: &str, heads: u8, stranger: bool) -> (Vec<P>, Vec<GroupEvent>) {
+    let mut ps = trio_before_delivery_with(tag, heads, stranger);
     let mut bob = vec![];
     let mut done = vec![];
     for it in ps[0].outbox() {
@@ -906,6 +921,57 @@ fn an_add_commit_without_a_verifiable_head_is_held_until_it_expires() {
         assert_eq!(ps[1].pending(), 0, "an expired frame is dropped");
         assert_eq!(ps[1].detail(&conv).summary.members, 2);
     }
+}
+
+/// D93: a head the Commit carries for an account no added device belongs to is not kept, even when it is genuine and the
+/// receiver holds no head for that account (here: Dave, Alice's contact, whom Bob has never met). The receiver ignores it
+/// on arrival and in any case keeps a head only if the applied Commit registered a device of that account, so this
+/// pins the outcome (Bob's store), not which of the two rules removed it.
+#[test]
+fn a_head_for_an_account_no_added_device_belongs_to_is_not_kept() {
+    let (ps, bob) = add_carol_with("d93e", 5, true);
+    assert!(
+        !bob.iter().any(|e| matches!(e, GroupEvent::Held(_))),
+        "Carol's own head was enough: {bob:?}"
+    );
+    let conv = ps[0].conv();
+    assert_eq!(
+        ps[1].detail(&conv).summary.members,
+        3,
+        "Bob applied the Add"
+    );
+    assert_eq!(
+        room_heads(&ps[1]),
+        1,
+        "only Carol's head is kept; Dave's was carried but names nobody who was added"
+    );
+}
+
+/// D95: a Commit whose heads would not fit one frame is sent without them, never truncated: the receiver then holds it
+/// for the missing head (fail closed) and applies it once the head arrives by the normal path.
+#[test]
+fn an_add_commit_too_large_with_heads_goes_without_them_and_is_held() {
+    let (mut ps, bob) = add_carol("d95a", 6);
+    assert!(
+        bob.iter().any(|e| matches!(e, GroupEvent::Held(_))),
+        "sent without heads, so held: {bob:?}"
+    );
+    let conv = ps[0].conv();
+    assert_eq!(ps[1].pending(), 1);
+    assert_eq!(ps[1].detail(&conv).summary.members, 2);
+    assert_eq!(room_heads(&ps[1]), 0);
+    assert_eq!(
+        ps[2].groups(),
+        1,
+        "Carol's Welcome (its own heads) was not affected"
+    );
+    connect(&mut ps, 1, 2);
+    ps[1].pending_refresh();
+    settle_every(&mut ps);
+    ps[1].pending_retry();
+    settle_every(&mut ps);
+    assert_eq!(ps[1].pending(), 0);
+    assert_eq!(ps[1].detail(&conv).summary.members, 3);
 }
 
 /// D93: a held Commit applies once the missing head arrives by the normal path (Bob and Carol meet).
