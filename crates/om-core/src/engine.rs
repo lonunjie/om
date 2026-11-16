@@ -1613,6 +1613,25 @@ impl<R: RngCore + CryptoRng> Core<R> {
         })
     }
 
+    /// Set this person's own privacy level on this device (ADR-0190 section 4, D80): Recommended (or none) lets a contact's
+    /// recovery of their account finish by itself after its wait; every other level asks the person first. Local to the
+    /// profile and never sent. A host or a later settings intent supplies it; Core takes no level from the network.
+    pub fn set_privacy_level(
+        &mut self,
+        ctx: &ProfileExecutionContext,
+        level: Option<crate::api::PrivacyPolicyLevel>,
+    ) -> Result<Step, CoreError> {
+        self.slot(ctx)?;
+        let (_, commit) = self.txn(&ctx.profile_id, |tx| {
+            tx.st.app.privacy_level = level;
+            Ok(())
+        })?;
+        Ok(Step {
+            commit,
+            handle: None,
+        })
+    }
+
     pub fn pending_operations(
         &self,
         ctx: &ProfileExecutionContext,

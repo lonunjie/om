@@ -87,6 +87,11 @@ export interface VetoRecovery extends IntentBase { readonly kind: "VetoRecovery"
 /** "That was me" on an incoming recovery: this controller co-signs the recovering device's successor, completing it at once. */
 export interface ConfirmRecovery extends IntentBase { readonly kind: "ConfirmRecovery"; readonly requestId: string; readonly confirmation: ConfirmationToken }
 
+/** "This isn't them" on a contact's recovery of their account (ADR-0190 section 4): ends that request for this contact only, tells no one. `requestId` is `PeerRecoveryView.requestId`. */
+export interface DeclinePeerRecovery extends IntentBase { readonly kind: "DeclinePeerRecovery"; readonly conversationId: ConversationId; readonly requestId: string; readonly confirmation: ConfirmationToken }
+/** "Yes, it's them" once the wait is over; Hardened and Maximum need it before the contact accepts. */
+export interface ConfirmPeerRecovery extends IntentBase { readonly kind: "ConfirmPeerRecovery"; readonly conversationId: ConversationId; readonly requestId: string; readonly confirmation: ConfirmationToken }
+
 /** On a profile with no device and no account: the recovery key (any case, spaces or dashes) and the Home address. Core keeps both in the restricted recovery state; it grants no authority and sends nothing. */
 export interface BeginRecovery extends IntentBase { readonly kind: "BeginRecovery"; readonly recoveryKey: string; readonly home: string }
 
@@ -95,7 +100,7 @@ export type CoreIntent =
   | SuspendDevice | ChangePrivacyPolicy | ClearAdaptiveNavigation | OpenOmnibarResult | ShareStaticLocation
   | RevokeInvite | StartCall | PinNavigationTarget | RestoreHistory
   | CreateIdentityProfile | ConfirmRecoveryKeyStored | IssueConfirmation | CreateInvite | AcceptInvitation
-  | OfferDeviceLink | RequestDeviceLink | ApproveDeviceLink | RejectDeviceLink | RevokeDevice | StartRecovery | VetoRecovery | ConfirmRecovery | BeginRecovery;
+  | OfferDeviceLink | RequestDeviceLink | ApproveDeviceLink | RejectDeviceLink | RevokeDevice | StartRecovery | VetoRecovery | ConfirmRecovery | DeclinePeerRecovery | ConfirmPeerRecovery | BeginRecovery;
 
 export type CoreIntentKind = CoreIntent["kind"];
 
@@ -104,12 +109,12 @@ export const INTENT_KINDS: readonly CoreIntentKind[] = [
   "SuspendDevice", "ChangePrivacyPolicy", "ClearAdaptiveNavigation", "OpenOmnibarResult", "ShareStaticLocation",
   "RevokeInvite", "StartCall", "PinNavigationTarget", "RestoreHistory",
   "CreateIdentityProfile", "ConfirmRecoveryKeyStored", "IssueConfirmation", "CreateInvite", "AcceptInvitation",
-  "OfferDeviceLink", "RequestDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "BeginRecovery",
+  "OfferDeviceLink", "RequestDeviceLink", "ApproveDeviceLink", "RejectDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery", "BeginRecovery",
 ];
 
 /** Intents that require an explicit confirmation token; learned/ranked suggestions can never supply one (UI-11). */
 export const DESTRUCTIVE_INTENT_KINDS = [
-  "BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery",
+  "BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery",
 ] as const;
 export type DestructiveIntentKind = (typeof DESTRUCTIVE_INTENT_KINDS)[number];
 
@@ -121,7 +126,7 @@ export function confirmationTarget(intent: Extract<CoreIntent, { readonly confir
   switch (intent.kind) {
     case "BlockPerson": return intent.personId;
     case "SuspendDevice": case "RevokeDevice": return intent.deviceId;
-    case "ApproveDeviceLink": case "VetoRecovery": case "ConfirmRecovery": return intent.requestId;
+    case "ApproveDeviceLink": case "VetoRecovery": case "ConfirmRecovery": case "DeclinePeerRecovery": case "ConfirmPeerRecovery": return intent.requestId;
     case "ChangePrivacyPolicy": return intent.policy;
     case "StartRecovery": return `${intent.scope}:${intent.custodian}`;
   }

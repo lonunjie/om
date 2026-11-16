@@ -40,6 +40,29 @@ export interface ConversationSummary {
   readonly lastMessageAt: number | null;
   readonly notices: readonly SecurityNotice[];
   readonly relationship: RelationshipStateCode;
+  /** The recovery of this person's account this device is tracking (ADR-0190 section 4); absent when there is none. */
+  readonly peerRecovery?: PeerRecoveryView;
+}
+
+/** Where this device stands on one recovery of a contact's account. `stale` is never shown (the account moved on). */
+export type PeerRecoveryState = "waiting" | "ready" | "accepted" | "vetoed" | "declined" | "stale";
+
+/**
+ * One tracked recovery of a contact's account, as the conversation header needs it. No digest, epoch, policy text or
+ * clock: only whole days left of THIS device's own interval, which a UI shows and never computes (ADR-0190 sections 4, 6).
+ */
+export interface PeerRecoveryView {
+  /** Names the request in `ConfirmPeerRecovery` and `DeclinePeerRecovery` (Details only; never shown as copy). */
+  readonly requestId: string;
+  readonly state: PeerRecoveryState;
+  /** Whole days left (rounded up; 0 once the wait ran). */
+  readonly daysLeft: number;
+  /** "This isn't them" is offered. */
+  readonly canDecline: boolean;
+  /** This device's own confirmation is required before the recovery can finish (Hardened and Maximum). */
+  readonly needsConfirm: boolean;
+  /** The recovering account asked that contacts see a completion notice. */
+  readonly notifyOnCompletion: boolean;
 }
 
 /** Where an attachment's bytes are. "Stored for later" is a hand-over to a store with a lifetime, not delivery (ADR-0150). */

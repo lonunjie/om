@@ -6,7 +6,7 @@ import type {
   AttachmentApi, AttachmentLimits, AttachmentState, AttachmentView, DirectOfferView, LocationCardView, PresentationView,
   ConversationId, ConversationSummary, ConversationTimelineItem, ConversationView, CoreClient, CoreIntent, CoreQuery,
   DeliveryState, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, MessageId, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
-  PersonId, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, TerminalOutcome, Unsubscribe, UserActionCode,
+  PeerRecoveryView, PersonId, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, TerminalOutcome, Unsubscribe, UserActionCode,
 } from "@om/platform-api";
 import { createDeviceSim, type SeedDevices } from "./devices";
 import { createGroupSim, type GroupSim } from "./groups";
@@ -35,6 +35,12 @@ export interface SeedConversation {
   readonly personId: PersonId;
   readonly displayName: string;
   readonly messages?: readonly SeedMessage[];
+  /**
+   * A recovery of this person's account this device is tracking (ADR-0190). Defaults: three days left, "This isn't them"
+   * offered while it runs, no confirmation needed, a completion notice wanted. A running recovery with `needsConfirm`
+   * stands for a Hardened or Maximum local level (the harness has no level of its own to set).
+   */
+  readonly peerRecovery?: Partial<Omit<PeerRecoveryView, "state">> & { readonly state: PeerRecoveryView["state"] };
 }
 /** A seeded attachment: `bytes` stay in the harness's blob map so `attachments.open` can return them; the view shows `state: "remote"` for incoming and `stored_for_later` for outgoing. */
 export interface SeedAttachment { readonly filename?: string; readonly mediaType: string; readonly bytes: Uint8Array; readonly durationMs?: number }
@@ -107,7 +113,8 @@ interface MutableMessage {
   attachments?: AttachmentView[];
   presentation?: PresentationView;
 }
-interface ConversationState { id: ConversationId; personId: PersonId; displayName: string; messages: MutableMessage[] }
+interface ConversationState { id: ConversationId; personId: PersonId; displayName: string; messages: MutableMessage[]; peerRecovery?: PeerRecoveryView }
+const peerLive = (c: ConversationState): boolean => c.peerRecovery?.state === "waiting" || c.peerRecovery?.state === "ready";
 interface ProfileState {
   label: string;
   generation: ReturnType<typeof asProfileGeneration>;
@@ -137,7 +144,7 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** Same lifetime and capacity as Core (`CONFIRMATION_TTL_MS`, `MAX_CONFIRMATIONS`). */
 const CONFIRMATION_TTL_MS = 5 * 60 * 1000;
 const MAX_CONFIRMATIONS = 16;
-const DESTRUCTIVE_KINDS: ReadonlySet<string> = new Set(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery"]);
+const DESTRUCTIVE_KINDS: ReadonlySet<string> = new Set(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery"]);
 const B32 = "ABCDEFGHIJKLMNPQRSTUVWXYZ23456789";
 const B64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
 const randomChars = (alphabet: string, n: number): string =>
@@ -167,6 +174,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
   let observers = new Map<OperationId, Set<(o: OutcomeClass) => void>>();
   let subscribers = new Set<{ readonly selector: CoreQuery; readonly listener: (r: never) => void }>();
   let messageSeq = 0;
+  let peerSeq = 0;
 
   const settle = <T>(fn: () => T): Promise<T> => {
     try { return Promise.resolve(fn()); } catch (e) { return Promise.reject(e instanceof Error ? e : new HarnessError("unknown failure")); }
@@ -196,7 +204,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       : { direction: "incoming", messageId: m.messageId, text: m.text, sentAt: m.sentAt, ...extras };
   }
   function summary(c: ConversationState): ConversationSummary {
-    return { id: c.id, personId: c.personId, displayName: c.displayName, lastMessageAt: c.messages.at(-1)?.sentAt ?? null, notices: [], relationship: "active" };
+    return { id: c.id, personId: c.personId, displayName: c.displayName, lastMessageAt: c.messages.at(-1)?.sentAt ?? null, notices: [], relationship: "active", ...(c.peerRecovery === undefined ? {} : { peerRecovery: c.peerRecovery }) };
   }
 
   function runQuery<Q extends CoreQuery>(q: Q): QueryResult<Q> {
@@ -349,6 +357,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
         if (!conv) return rejected("not_found");
         if (intent.draft.text.trim() === "") return rejected("invalid");
+        if (peerLive(conv)) return rejected("peer_recovering"); // ADR-0190 section 5: refused honestly, nothing queued
         const armed = armedTimeouts.delete(intent.operationId);
         const messageId = asMessageId(`msg-${String(++messageSeq)}`);
         conv.messages.push({
@@ -361,6 +370,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       case "SendAttachments": {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
         if (!conv) return rejected("not_found");
+        if (peerLive(conv)) return rejected("peer_recovering");
         const found = intent.attachments.map((a) => ({ a, blob: blobs.get(a.blobId) }));
         if (found.some((f) => f.blob === undefined || f.blob.owner !== intent.ctx.profileId)) return rejected("not_found");
         const messageId = asMessageId(`msg-${String(++messageSeq)}`);
@@ -400,6 +410,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       case "SendLocation": {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
         if (!conv) return rejected("not_found");
+        if (peerLive(conv)) return rejected("peer_recovering");
         const messageId = asMessageId(`msg-${String(++messageSeq)}`);
         const geo = geoToken(intent.latE7, intent.lonE7);
         conv.messages.push({
@@ -408,6 +419,22 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         });
         messageOwner.set(messageId, intent.ctx.profileId);
         return record(intent, { kind: "Committed" }, messageId);
+      }
+      case "DeclinePeerRecovery": {
+        const conv = conversationFor(intent.ctx, st, intent.conversationId);
+        const rec = conv?.peerRecovery;
+        if (!conv || !rec || rec.requestId !== intent.requestId) return rejected("not_found");
+        if (!peerLive(conv)) return rejected("conflict");
+        conv.peerRecovery = { ...rec, state: "declined", canDecline: false, needsConfirm: false };
+        return record(intent, { kind: "Committed" });
+      }
+      case "ConfirmPeerRecovery": {
+        const conv = conversationFor(intent.ctx, st, intent.conversationId);
+        const rec = conv?.peerRecovery;
+        if (!conv || !rec || rec.requestId !== intent.requestId) return rejected("not_found");
+        if (rec.state !== "ready") return rejected("conflict");
+        conv.peerRecovery = { ...rec, state: "accepted", canDecline: false, needsConfirm: false };
+        return record(intent, { kind: "Committed" });
       }
       case "RetryDelivery": {
         const owner = messageOwner.get(intent.messageId);
@@ -539,7 +566,12 @@ export function createHarness(options: HarnessOptions = {}): Harness {
           }
           return msg;
         });
-        st.conversations.set(c.id, { id: c.id, personId: c.personId, displayName: c.displayName, messages });
+        const pr = c.peerRecovery;
+        const peerRecovery: PeerRecoveryView | undefined = pr === undefined ? undefined : {
+          requestId: pr.requestId ?? `pr-${String(++peerSeq)}`, state: pr.state, daysLeft: pr.daysLeft ?? (pr.state === "waiting" ? 3 : 0),
+          canDecline: pr.canDecline ?? (pr.state === "waiting" || pr.state === "ready"), needsConfirm: pr.needsConfirm ?? false, notifyOnCompletion: pr.notifyOnCompletion ?? true,
+        };
+        st.conversations.set(c.id, { id: c.id, personId: c.personId, displayName: c.displayName, messages, ...(peerRecovery === undefined ? {} : { peerRecovery }) });
       }
       for (const i of seed.introductions ?? []) st.introductions.set(i.id, { ...i, verification: i.verification ?? "unverified" });
       sim.seed(seed.profileId, seed.account);

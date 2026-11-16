@@ -268,3 +268,125 @@ fn attachments_are_prepared_refused_and_opened_through_the_bridge() {
     );
     assert_eq!(f["ok"]["refused"], json!({ "error": "not_found" }));
 }
+
+/// ADR-0190: the two contact-side intents cross the bridge as typed JSON, need a Core-issued confirmation, and a
+/// conversation summary without a tracked recovery carries no `peerRecovery` field. The recovery itself is Core's
+/// (`crates/om-core/tests/recovery_peer.rs`); the bridge adds no logic of its own.
+#[test]
+fn peer_recovery_intents_cross_the_bridge_and_need_a_confirmation() {
+    let mut b = Bridge::new(
+        || InsecureTestRng::from_label(b"peer"),
+        || 1_790_000_000_000,
+    );
+    call(&mut b, json!({ "cmd": "init", "home": home() }));
+    let ctx = call(
+        &mut b,
+        json!({ "cmd": "open_profile", "profileId": "me", "records": [] }),
+    )["ok"]
+        .clone();
+    let dispatch = |b: &mut Bridge<InsecureTestRng>, intent: Value| {
+        let r = call(b, json!({ "cmd": "dispatch", "intent": intent }));
+        finish(b, &r);
+        r
+    };
+    let outcome = |b: &mut Bridge<InsecureTestRng>, op: &str| {
+        call(
+            b,
+            json!({ "cmd": "outcome", "ctx": ctx, "operationId": op }),
+        )["ok"]
+            .clone()
+    };
+    dispatch(
+        &mut b,
+        json!({ "ctx": ctx, "operationId": "c1", "kind": "CreateIdentityProfile", "label": "Me" }),
+    );
+    for (kind, label) in [("DeclinePeerRecovery", "d"), ("ConfirmPeerRecovery", "k")] {
+        // A forged token is refused before anything else.
+        dispatch(
+            &mut b,
+            json!({ "ctx": ctx, "operationId": format!("{label}0"), "kind": kind, "conversationId": "nope", "requestId": "ab", "confirmation": { "nonce": "forged" } }),
+        );
+        assert_eq!(
+            outcome(&mut b, &format!("{label}0")),
+            json!({ "kind": "Rejected", "reason": "unauthorized" }),
+            "{kind}"
+        );
+        // Core issues a nonce bound to this kind and the request digest; the intent then reaches its own check.
+        dispatch(
+            &mut b,
+            json!({ "ctx": ctx, "operationId": format!("{label}i"), "kind": "IssueConfirmation", "intentKind": kind, "target": "ab" }),
+        );
+        let got = call(
+            &mut b,
+            json!({ "cmd": "query", "query": { "kind": "GetConfirmation", "ctx": ctx, "operationId": format!("{label}i") } }),
+        );
+        let nonce = got["ok"]["nonce"].as_str().expect("a nonce").to_string();
+        dispatch(
+            &mut b,
+            json!({ "ctx": ctx, "operationId": format!("{label}1"), "kind": kind, "conversationId": "nope", "requestId": "ab", "confirmation": { "nonce": nonce } }),
+        );
+        assert_eq!(
+            outcome(&mut b, &format!("{label}1")),
+            json!({ "kind": "Rejected", "reason": "not_found" }),
+            "{kind}"
+        );
+    }
+    let list = call(
+        &mut b,
+        json!({ "cmd": "query", "query": { "kind": "GetConversationList", "ctx": ctx } }),
+    );
+    assert_eq!(list["ok"], json!([]));
+}
+
+/// The JSON the TypeScript mirror (`PeerRecoveryView` in `packages/om-platform-api`) reads.
+#[test]
+fn peer_recovery_view_json_shape_is_the_platform_api_mirror() {
+    use om_core::api::PeerRecoveryView;
+    use om_core::state::PeerRecoveryState;
+    let v = PeerRecoveryView {
+        request_id: "ab".into(),
+        state: PeerRecoveryState::Ready,
+        days_left: 2,
+        can_decline: true,
+        needs_confirm: true,
+        notify_on_completion: false,
+    };
+    assert_eq!(
+        serde_json::to_value(&v).unwrap(),
+        json!({ "requestId": "ab", "state": "ready", "daysLeft": 2, "canDecline": true, "needsConfirm": true, "notifyOnCompletion": false })
+    );
+    let reason = serde_json::to_value(om_core::api::RejectReason::PeerRecovering).unwrap();
+    assert_eq!(reason, json!("peer_recovering"));
+}
+
+#[test]
+fn privacy_level_and_recovery_tick_are_host_commands_with_a_durable_commit() {
+    let mut b = Bridge::new(
+        || InsecureTestRng::from_label(b"level"),
+        || 1_790_000_000_000,
+    );
+    call(&mut b, json!({ "cmd": "init", "home": home() }));
+    let ctx = call(
+        &mut b,
+        json!({ "cmd": "open_profile", "profileId": "me", "records": [] }),
+    )["ok"]
+        .clone();
+    let set = call(
+        &mut b,
+        json!({ "cmd": "set_privacy_level", "ctx": ctx, "level": "hardened" }),
+    );
+    assert!(set["ok"]["commit"]["writes"].is_array(), "{set}");
+    finish(&mut b, &set);
+    // An unknown level is refused at the boundary, never guessed.
+    let bad = call(
+        &mut b,
+        json!({ "cmd": "set_privacy_level", "ctx": ctx, "level": "paranoid" }),
+    );
+    assert!(bad.get("err").is_some(), "{bad}");
+    let tick = call(
+        &mut b,
+        json!({ "cmd": "recovery_tick", "ctx": ctx, "mono": { "bootSession": "0102", "elapsedMs": 5 } }),
+    );
+    assert!(tick.get("ok").is_some(), "{tick}");
+    finish(&mut b, &tick);
+}

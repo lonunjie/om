@@ -14,7 +14,9 @@ export type RejectReason =
   | "unavailable"
   | "not_found"
   /** One file is bigger than the delivery service takes. Said before anything is sent; an exact retry cannot succeed. */
-  | "too_large";
+  | "too_large"
+  /** The contact is recovering their account (ADR-0190 section 5): nothing is sent to them until it finishes or ends. Not queued. */
+  | "peer_recovering";
 
 export type UserActionCode = "authorize_with_device" | "confirm_security_change" | "reauthenticate" | "update_client";
 

@@ -4,7 +4,7 @@
 import { captureProfileContext, isTerminalOutcome } from "@om/platform-api";
 import type {
   AttachmentApi, AttachmentLimits, AttachmentMeta, AttachmentOpenResult, AttachmentPrepareResult, AttachmentRefusal,
-  CoreClient, CoreIntent, CoreQuery, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
+  CoreClient, CoreIntent, CoreQuery, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView, PrivacyPolicyLevel,
   ProfileExecutionContext, ProfileId, QueryResult, Unsubscribe,
 } from "@om/platform-api";
 import { asConversationId, asProfileGeneration, asProfileId } from "@om/platform-api";
@@ -52,6 +52,16 @@ export interface WasmCoreClient extends CoreClient {
   flush(profileId: ProfileId): Promise<void>;
   /** Resolves when no dispatch or drain is in flight. */
   idle(): Promise<void>;
+  /**
+   * This person's own privacy level, local to the profile (`null` is Recommended). Hardened, Maximum and Custom make this device
+   * ask before it accepts a contact's recovery of their account (ADR-0190 section 4, D80). A host or a settings screen supplies it.
+   */
+  setPrivacyLevel(ctx: ProfileExecutionContext, level: PrivacyPolicyLevel | null): Promise<void>;
+  /**
+   * Credit the host's durable monotonic reading (`bootSession` identifies one boot, `elapsedMs` its clock) to every recovery this
+   * device is waiting on. Call it at start and regularly; downtime and backwards readings credit nothing (ADR-0190 section 6).
+   */
+  recoveryTick(ctx: ProfileExecutionContext, sample: { readonly bootSession: string; readonly elapsedMs: number }): Promise<void>;
   /** Release timers. */
   dispose(): void;
   /** Chat-history backup file (ADR-0184). The host derives the key from the person's password; Core never sees the password. */
@@ -448,6 +458,18 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
         const r = core.call({ cmd: "backup_import", ctx: ctxOf(ctx), file: toHex(file), key: toHex(key) }) as { summary: ImportSummary; commit: Commit | null };
         await commit(r.commit, ctx);
         return r.summary;
+      });
+    },
+    setPrivacyLevel(ctx, level) {
+      return exclusive(async () => {
+        const r = core.call({ cmd: "set_privacy_level", ctx: ctxOf(ctx), level }) as { commit: Commit | null };
+        await commit(r.commit, ctx);
+      });
+    },
+    recoveryTick(ctx, sample) {
+      return exclusive(async () => {
+        const r = core.call({ cmd: "recovery_tick", ctx: ctxOf(ctx), mono: sample }) as { commit: Commit | null };
+        await commit(r.commit, ctx);
       });
     },
     retireHome(ctx, relayUri, emergency = false) {

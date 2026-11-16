@@ -279,4 +279,15 @@ describe.skipIf(!present)("real Core through the CoreClient interface", () => {
     key.fill(0); key2.fill(0); wrongKey.fill(0);
   }, 120_000);
 
+  it("contact-side recovery host commands: privacy level and recovery tick commit durably; the new intents are confirmed destructive kinds (ADR-0190)", async () => {
+    const a = await boot(createMemoryKv(), createMemoryProvider(), asProfileId("solo"));
+    await a.rt.dispatch({ kind: "CreateIdentityProfile", ctx: a.ctx, operationId: op("s-create"), label: "Solo" });
+    await a.rt.setPrivacyLevel(a.ctx, "hardened");
+    await a.rt.setPrivacyLevel(a.ctx, null);
+    await a.rt.recoveryTick(a.ctx, { bootSession: "0a0b", elapsedMs: 1000 });
+    await a.rt.dispatch({ kind: "DeclinePeerRecovery", ctx: a.ctx, operationId: op("s-bad"), conversationId: asConversationId("nope"), requestId: "ab", confirmation: { nonce: "forged" } as unknown as ConfirmationToken });
+    expect(await outcome(a, "s-bad")).toEqual({ kind: "Rejected", reason: "unauthorized" });
+    expect((await a.rt.query({ kind: "GetConversationList", ctx: a.ctx }))).toEqual([]);
+  }, 60_000);
+
 });

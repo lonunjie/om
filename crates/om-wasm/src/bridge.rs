@@ -67,6 +67,18 @@ enum Command {
     PendingOperations {
         ctx: ProfileExecutionContext,
     },
+    /// The host's durable monotonic reading, credited to every pending recovery (the owner's and, per contact, the
+    /// ones this device tracks for a contact's account). Downtime and backwards readings credit nothing.
+    RecoveryTick {
+        ctx: ProfileExecutionContext,
+        mono: om_core::host::MonotonicSample,
+    },
+    /// This person's own privacy level, local to the profile (`null` is Recommended). Hardened, Maximum and Custom make
+    /// this device ask before it accepts a contact's recovery of their account (ADR-0190 section 4).
+    SetPrivacyLevel {
+        ctx: ProfileExecutionContext,
+        level: Option<om_core::api::PrivacyPolicyLevel>,
+    },
     Outcome {
         ctx: ProfileExecutionContext,
         operation_id: String,
@@ -657,6 +669,12 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 Ok(enc(&self.core()?.inbound(&ctx, &mailbox, &items)?))
             }
             Command::Query { query } => self.core()?.query(&query),
+            Command::RecoveryTick { ctx, mono } => {
+                Ok(enc(&self.core()?.recovery_tick(&ctx, &mono)?))
+            }
+            Command::SetPrivacyLevel { ctx, level } => {
+                Ok(enc(&self.core()?.set_privacy_level(&ctx, level)?))
+            }
             Command::PendingOperations { ctx } => {
                 Ok(enc(&self.core()?.pending_operations(&ctx)?))
             }

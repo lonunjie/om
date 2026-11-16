@@ -205,3 +205,54 @@ describe("files, voice notes and locations", () => {
     expect(opened).toMatchObject({ ok: true, mediaType: "audio/webm" });
   });
 });
+
+describe("contact-side recovery (ADR-0190)", () => {
+  const P = asProfileId("profile-p");
+  const CP = asConversationId("conv-p1");
+  const seeded = (state: "waiting" | "ready", needsConfirm = false) => {
+    const h = createHarness({ clock: () => 1000 });
+    const ctx = h.seedProfile({ profileId: P, label: "P", conversations: [{ id: CP, personId: asPersonId("pp"), displayName: "Maria", messages: [{ text: "hello", direction: "incoming" }], peerRecovery: { state, requestId: "r1", needsConfirm } }] });
+    return { h, ctx };
+  };
+  const token = async (h: ReturnType<typeof createHarness>, ctx: ProfileExecutionContext, kind: "ConfirmPeerRecovery" | "DeclinePeerRecovery", id: string, target = "r1") => {
+    await h.dispatch({ kind: "IssueConfirmation", ctx, operationId: asOperationId(id), intentKind: kind, target });
+    const view = await h.query({ kind: "GetConfirmation", ctx, operationId: asOperationId(id) });
+    if (view === null) throw new Error("no confirmation");
+    return { nonce: view.nonce } as unknown as Extract<CoreIntent, { readonly kind: "ConfirmPeerRecovery" }>["confirmation"];
+  };
+  const outcome = (h: ReturnType<typeof createHarness>, ctx: ProfileExecutionContext, id: string): OutcomeClass | null => { let o: OutcomeClass | null = null; h.observe(ctx, asOperationId(id), (x) => { o = x; })(); return o; };
+
+  it("the summary carries peerRecovery; the two intents and ten destructive kinds need Core's confirmation", async () => {
+    const { h, ctx } = seeded("waiting");
+    expect((await h.query({ kind: "GetConversationList", ctx }))[0]?.peerRecovery).toMatchObject({ requestId: "r1", state: "waiting", daysLeft: 3, canDecline: true, needsConfirm: false });
+    const bare = { kind: "DeclinePeerRecovery", ctx, operationId: asOperationId("d0"), conversationId: CP, requestId: "r1", confirmation: { nonce: "forged" } } as unknown as CoreIntent;
+    await h.dispatch(bare);
+    expect(outcome(h, ctx, "d0")).toEqual({ kind: "Rejected", reason: "unauthorized" });
+  });
+
+  it("sending is refused with peer_recovering and nothing is queued, until the recovery ends", async () => {
+    const { h, ctx } = seeded("waiting");
+    await h.dispatch(send(ctx, "s1", CP));
+    expect(outcome(h, ctx, "s1")).toEqual({ kind: "Rejected", reason: "peer_recovering" });
+    expect((await h.query({ kind: "GetConversationView", ctx, conversationId: CP })).timeline).toHaveLength(1);
+    await h.dispatch({ kind: "DeclinePeerRecovery", ctx, operationId: asOperationId("d1"), conversationId: CP, requestId: "r1", confirmation: await token(h, ctx, "DeclinePeerRecovery", "i1") });
+    expect(outcome(h, ctx, "d1")).toEqual({ kind: "Committed" });
+    expect((await h.query({ kind: "GetConversationList", ctx }))[0]?.peerRecovery).toMatchObject({ state: "declined", canDecline: false });
+    await h.dispatch(send(ctx, "s2", CP));
+    expect(outcome(h, ctx, "s2")).toEqual({ kind: "Committed" });
+    await h.dispatch({ kind: "DeclinePeerRecovery", ctx, operationId: asOperationId("d2"), conversationId: CP, requestId: "r1", confirmation: await token(h, ctx, "DeclinePeerRecovery", "i2") });
+    expect(outcome(h, ctx, "d2")).toEqual({ kind: "Rejected", reason: "conflict" });
+  });
+
+  it("confirm works only once the wait ran, and finishes it", async () => {
+    const waiting = seeded("waiting");
+    await waiting.h.dispatch({ kind: "ConfirmPeerRecovery", ctx: waiting.ctx, operationId: asOperationId("c0"), conversationId: CP, requestId: "r1", confirmation: await token(waiting.h, waiting.ctx, "ConfirmPeerRecovery", "ic0") });
+    expect(outcome(waiting.h, waiting.ctx, "c0")).toEqual({ kind: "Rejected", reason: "conflict" });
+    const { h, ctx } = seeded("ready", true);
+    await h.dispatch({ kind: "ConfirmPeerRecovery", ctx, operationId: asOperationId("c1"), conversationId: CP, requestId: "r1", confirmation: await token(h, ctx, "ConfirmPeerRecovery", "ic1") });
+    expect(outcome(h, ctx, "c1")).toEqual({ kind: "Committed" });
+    expect((await h.query({ kind: "GetConversationList", ctx }))[0]?.peerRecovery).toMatchObject({ state: "accepted", needsConfirm: false });
+    await h.dispatch({ kind: "ConfirmPeerRecovery", ctx, operationId: asOperationId("c2"), conversationId: CP, requestId: "nope", confirmation: await token(h, ctx, "ConfirmPeerRecovery", "ic2", "nope") });
+    expect(outcome(h, ctx, "c2")).toEqual({ kind: "Rejected", reason: "not_found" });
+  });
+});
