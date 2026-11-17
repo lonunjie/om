@@ -204,3 +204,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0195 — Device-link approval: a continuation form for accounts whose chain and credentials exceed one message (accepted by operator delegation 2026-11-17)](ADR-0195-device-link-approval-continuation-form.md)
 - [ADR-0196 — A person's own nickname for a contact: local, in Core's contact record, in the backup, never sent (accepted by operator delegation 2026-11-17)](ADR-0196-local-contact-nickname.md)
 - [ADR-0197 — Lookalike display names: a UTS #39 skeleton in the client, a pinned minimal table, calm "looks similar" cues (accepted by operator delegation 2026-11-17)](ADR-0197-lookalike-name-matching.md)
+- [ADR-0198 — Group application messages carry the typed ConversationEvent: reply, reactions, edit and delete in a Room (accepted by operator delegation 2026-11-18)](ADR-0198-group-application-messages-typed-events.md)
