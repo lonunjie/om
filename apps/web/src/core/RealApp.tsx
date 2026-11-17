@@ -264,7 +264,11 @@ function Connected({ rt, vault, drafts, platform, capture: composerTools, onAddP
     () => (activeId === null ? null : { load: () => drafts.load(activeId), save: (conversation, text) => { drafts.set(activeId, conversation, text); }, loadSeen: () => drafts.loadSeen(activeId), saveSeen: (conversation, at) => { drafts.setSeen(activeId, conversation, at); } }),
     [drafts, activeId],
   );
-  const settingsServices = useMemo(() => (ctx === null ? null : { client: rt, registry, ctx }), [rt, registry, ctx]);
+  const settingsServices = useMemo(() => (ctx === null ? null : {
+    client: rt, registry, ctx,
+    // Only a client built with a direct-transfer driver (a transport exists, D120) offers files straight to a device and "Send again" (D112); the web app passes none today.
+    ...(rt.directDriver === undefined ? {} : { directChannel: true, sendAgain: rt.directDriver.sendAgainFor(ctx) }),
+  }), [rt, registry, ctx]);
   if (activeId === null || ctx === null || lock === null || backup === null || draftSync === null || settingsServices === null) return <Text>{t.loading}</Text>;
   const resolve = (): void => { clearPendingSafetyCode(activeId); setResolved((n) => n + 1); };
   return (

@@ -13,6 +13,8 @@ import type { BackupHeader, BackupPlan, BlobLimits, Commit, DirectFetchProgress,
 import { CoreCallError, CoreStorageError, fromHex, toHex } from "./types";
 import type { WasmCore } from "./wasm";
 import { createGroupDriver } from "./groups-driver";
+import { createDirectDriver } from "./direct-driver";
+import type { DirectCiphertextCache, DirectDriver, DirectTransport, PickedFile } from "./direct-driver";
 import { createRecoveryTicker, randomSessionId } from "./recovery-ticker";
 import type { RecoveryTicker } from "./recovery-ticker";
 import type { FrameSend, GroupCarriageStatus, GroupCore, GroupDriver, GroupOutItem, SealedFrame } from "./groups-driver";
@@ -45,6 +47,12 @@ export interface CoreRuntimeOptions {
    */
   readonly groupDriver?: { readonly retryMs?: number };
   /**
+   * The host driver for direct file transfer (ADR-0194, D109 to D112, D120). Needs a transport (ADR-0158 section 4: not built, `local_delivery`
+   * is unauthorized, so the web app passes none) and the local ciphertext cache. Given, `client.directDriver` serves offers while a profile
+   * is open, fetches with commit before open, and supplies "Send again" (`pickFile` lets the person choose the file again).
+   */
+  readonly directDriver?: { readonly transport: DirectTransport; readonly cache: DirectCiphertextCache; readonly pickFile?: () => Promise<PickedFile | null>; readonly maxAttempts?: number; readonly retryMs?: number; readonly idleMs?: number; readonly tickMs?: number };
+  /**
    * Credit for a recovery of an account this device is waiting on (ADR-0190 section 6, D73, D88). On by default with `autoDrain`; `false`
    * turns it off. `now` is a monotonic clock in ms (default `performance.now`; with none, nothing is credited). It is never a wall clock.
    */
@@ -52,6 +60,8 @@ export interface CoreRuntimeOptions {
 }
 
 export interface WasmCoreClient extends CoreClient {
+  /** Present only when the host passed `directDriver`: the channel driver for direct transfer. `directDriver?.sendAgainFor(ctx)` is the `ConversationServices.sendAgain`. */
+  readonly directDriver?: DirectDriver | undefined;
   /** Loads the profile's records, opens it in Core and returns its (frozen) execution context. */
   openProfile(profileId: ProfileId): Promise<ProfileExecutionContext>;
   closeProfile(profileId: ProfileId): void;
@@ -435,12 +445,15 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     ...(opts.groupDriver.retryMs === undefined ? {} : { retryMs: opts.groupDriver.retryMs }),
   });
 
+  let directDriver: DirectDriver | undefined;
   const client: WasmCoreClient = {
+    get directDriver() { return directDriver; },
     async openProfile(profileId) {
       const records = await readRecords(profileId);
       const ctx = await exclusive(() => Promise.resolve(core.call({ cmd: "open_profile", profileId, records }) as ProfileExecutionContext));
       emitQueries(profileId);
       openProfiles.add(profileId);
+      directDriver?.start(ctxOf(ctx)); // reachable for direct offers while the profile is open
       recoveryTicker?.wake(profileId); // start-up: credit from now if a recovery is already waiting
       void refreshLimits();
       kick(profileId);
@@ -449,6 +462,7 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
     },
     closeProfile(profileId) {
       openProfiles.delete(profileId);
+      directDriver?.stop(profileId);
       recoveryTicker?.stop(profileId); // a locked or switched-away profile gets no credit, and its next run is a new boot session
       core.call({ cmd: "close_profile", profileId });
       emitQueries(profileId);
@@ -618,11 +632,33 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       recoveryTicker?.dispose();
       for (const off of resumeOff) off();
       groupDriver?.dispose();
+      directDriver?.dispose();
       wakeOff?.();
       for (const t of timers) { clearTimeout(t); clearInterval(t); }
       timers.clear();
     },
   };
+  if (opts.directDriver !== undefined) {
+    const d = opts.directDriver;
+    directDriver = createDirectDriver({
+      core: client, transport: d.transport, cache: d.cache,
+      ...(d.pickFile === undefined ? {} : { pickFile: d.pickFile }),
+      ...(d.maxAttempts === undefined ? {} : { maxAttempts: d.maxAttempts }),
+      ...(d.retryMs === undefined ? {} : { retryMs: d.retryMs }),
+      ...(d.idleMs === undefined ? {} : { idleMs: d.idleMs }),
+      ...(d.tickMs === undefined ? {} : { tickMs: d.tickMs }),
+    });
+    for (const p of openProfiles) directDriver.start(client.contextFor(p));
+    const driver = directDriver;
+    const g = globalThis as { addEventListener?: (t: string, f: () => void) => void; removeEventListener?: (t: string, f: () => void) => void; document?: { visibilityState?: string } };
+    if (g.addEventListener !== undefined && g.removeEventListener !== undefined) {
+      const onShow = (): void => { if (g.document?.visibilityState !== "hidden") driver.resume(); }; // D88/D118: pump now, never sum timer ticks
+      for (const ev of ["visibilitychange", "pageshow"]) {
+        g.addEventListener(ev, onShow);
+        resumeOff.push(() => g.removeEventListener?.(ev, onShow));
+      }
+    }
+  }
   if (autoDrain && opts.recoveryTick !== false) {
     const o = opts.recoveryTick ?? {};
     const now = o.now ?? (typeof performance === "undefined" ? undefined : () => performance.now());
