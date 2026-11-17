@@ -104,6 +104,9 @@ export interface NoticeCopy {
   readonly strictOffCancel: string;
   readonly strictOption: string;
   readonly strictHelp: string;
+  /** The state of a device whose approval never reached it, and what to do about it (removing it is the way out). */
+  readonly notSetUp: string;
+  readonly notSetUpDetail: (label: string) => string;
   /** Said when adding a device is refused because too many notices are still owed. */
   readonly tooManyOwed: string;
   /** Said when adding a device is refused because the account no longer fits one approval message. Nothing changed. */

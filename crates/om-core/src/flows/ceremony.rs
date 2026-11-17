@@ -296,7 +296,14 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         Some(wrap_envelope(&nonce, ct, filler, enc, expires_s))
     }
 
-    fn deposit_ceremony(&mut self, op: &str, cap: &[u8], uri: &str, bytes: Vec<u8>) {
+    fn deposit_ceremony(
+        &mut self,
+        op: &str,
+        cap: &[u8],
+        uri: &str,
+        bytes: Vec<u8>,
+        approval: bool,
+    ) {
         self.enqueue(
             NetCall::Deposit {
                 mailbox: cap.to_vec(),
@@ -305,6 +312,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             },
             Purpose::DepositCeremony {
                 operation_id: op.to_string(),
+                approval,
             },
         );
     }
@@ -384,6 +392,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 introduced: vec![],
                 history_sent: 0,
                 roster_sent: 0,
+                approval_undelivered: false,
             },
         );
         self.enqueue(
@@ -441,11 +450,16 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     /// A ceremony deposit or queue creation was refused for good: the ceremony ends, nothing is half adopted.
-    pub(super) fn ceremony_failed(&mut self, op: &str) {
-        if let Some(o) = self.st.app.link_offers.get_mut(op)
-            && matches!(o.state, LinkState::Opening | LinkState::WaitingForScan)
-        {
-            o.state = LinkState::Expired;
+    pub(super) fn ceremony_failed(&mut self, op: &str, approval: bool) {
+        if let Some(o) = self.st.app.link_offers.get_mut(op) {
+            if matches!(o.state, LinkState::Opening | LinkState::WaitingForScan) {
+                o.state = LinkState::Expired;
+            }
+            // The approval committed here (the device is on the account) but never reached the new device: the
+            // Devices list shows it as not set up yet, and removing it is the way out.
+            if approval && o.state == LinkState::Linked {
+                o.approval_undelivered = true;
+            }
         }
         if let Some(j) = self.st.app.link_join.as_mut()
             && j.operation_id == op
@@ -568,7 +582,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             history_degraded: false,
         });
         self.st.device = Some(device);
-        self.deposit_ceremony(op, &parts.a_cap, &parts.uri, sealed);
+        self.deposit_ceremony(op, &parts.a_cap, &parts.uri, sealed, false);
         OutcomeClass::PendingNetwork
     }
 
@@ -750,6 +764,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 &offer.b_route.capability,
                 &offer.b_route.relay_uri,
                 sealed,
+                false,
             );
         }
         if let Some(o) = self.st.app.link_offers.get_mut(&offer.operation_id) {
@@ -972,12 +987,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         while self.st.app.notices.len() > MAX_NOTICES {
             self.st.app.notices.remove(0);
         }
-        for s in sealed {
+        for (i, s) in sealed.into_iter().enumerate() {
             self.deposit_ceremony(
                 &offer.operation_id,
                 &offer.b_route.capability,
                 &offer.b_route.relay_uri,
                 s,
+                i == 0, // the approval is always the first message
             );
         }
         if let Some(o) = self.st.app.link_offers.get_mut(&offer.operation_id) {
@@ -1514,7 +1530,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         if let Some(sealed) = self.seal_msg(&keys, ROLE_REQ, &msg, join.expires_at / 1000) {
             let a_cap = unhex(&join.a_cap).unwrap_or_default();
-            self.deposit_ceremony(&join.operation_id, &a_cap, &join.relay_uri, sealed);
+            self.deposit_ceremony(&join.operation_id, &a_cap, &join.relay_uri, sealed, false);
         }
         true
     }

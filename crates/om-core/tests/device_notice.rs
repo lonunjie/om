@@ -9,7 +9,7 @@ use common::confirmation as nonce;
 use om_core::api::*;
 use om_core::crypto::cbor::{self, V};
 use om_core::host::Step;
-use om_core::runtime::{LoopbackNetwork, Runtime, settle_all};
+use om_core::runtime::{Fault, LoopbackNetwork, Runtime, settle_all};
 
 const MIN: u64 = 60_000;
 
@@ -108,6 +108,17 @@ impl Fleet {
 
     /// Device `by` offers, a new device asks, `by` approves. Returns the new index and the approval's outcome.
     fn link(&mut self, by: usize, name: &str) -> (usize, Option<OutcomeClass>) {
+        self.link_with(by, name, None)
+    }
+
+    /// [`Fleet::link`], with `fault` armed for the first network call after the approval is decided (the approval's
+    /// own deposit).
+    fn link_with(
+        &mut self,
+        by: usize,
+        name: &str,
+        fault: Option<Fault>,
+    ) -> (usize, Option<OutcomeClass>) {
         let mut rt = Runtime::new(&format!("{name}-dn"), &self.net);
         let ctx = rt.open(&format!("p-{name}"));
         let offer_op = format!("offer-{name}");
@@ -137,6 +148,9 @@ impl Fleet {
             &request_id,
         );
         let op = format!("approve-{name}");
+        if let Some(f) = fault {
+            self.net.inject(f);
+        }
         self.rts[by].dispatch(
             &self.ctxs[by],
             &op,
@@ -470,6 +484,38 @@ fn an_account_too_large_for_one_message_is_refused_as_too_large_and_changes_noth
         f.owed(0).is_empty(),
         "no notice was recorded for a link that did not happen"
     );
+}
+
+#[test]
+fn an_approval_the_home_refuses_for_good_leaves_a_device_shown_as_not_set_up_that_can_be_removed() {
+    let mut f = Fleet::bare("undelivered");
+    let known: Vec<String> = f.devices(0).devices.iter().map(|d| d.id.clone()).collect();
+    let (_, out) = f.link_with(0, "phone", Some(Fault::Refused));
+    assert_eq!(
+        out,
+        Some(OutcomeClass::Committed),
+        "the approval itself committed"
+    );
+    f.settle();
+    let view = f.devices(0);
+    let d = view
+        .devices
+        .iter()
+        .find(|d| !known.contains(&d.id))
+        .expect("listed on the approving device");
+    assert_eq!(
+        d.notice_state,
+        DeviceNoticeState::NotSetUp,
+        "never received what it needs"
+    );
+    assert!(
+        d.actions.contains(&DeviceActionCode::Revoke),
+        "it can be removed"
+    );
+    // A device whose approval was delivered is not marked.
+    let (ok, _) = f.link(0, "tablet");
+    f.settle();
+    assert_ne!(f.state_of(0, ok).0, DeviceNoticeState::NotSetUp);
 }
 
 #[test]

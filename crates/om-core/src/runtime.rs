@@ -128,6 +128,8 @@ pub enum Fault {
     TimeoutAfterEffect,
     /// Report a timeout without performing it.
     TimeoutBeforeEffect,
+    /// Refuse the call for good (the Home will not take it, however often it is retried).
+    Refused,
 }
 
 /// One object in the loopback BlobStore.
@@ -305,6 +307,13 @@ impl LoopbackNetwork {
             Some(Fault::TimeoutBeforeEffect) => {
                 return NetResult::Err {
                     error: NetError::Timeout,
+                };
+            }
+            Some(Fault::Refused) => {
+                return NetResult::Err {
+                    error: NetError::Rejected {
+                        reason: crate::api::RejectReason::PolicyDenied,
+                    },
                 };
             }
             _ => {}

@@ -19,8 +19,8 @@ export interface SeedDevice {
   readonly lastSeen?: LastSeenClass;
   /** `false` marks a device that cannot share device history (another implementation). Default true. */
   readonly historySync?: boolean;
-  /** A notice about a newly linked device is owed to it and not yet acknowledged (ADR-0193): `owed` or `held`. Default told. */
-  readonly notice?: "owed" | "held";
+  /** A notice about a newly linked device is owed to it and not yet acknowledged (ADR-0193): `owed`, `held` or `not_set_up`. Default told. */
+  readonly notice?: "owed" | "held" | "not_set_up";
   readonly lastAttemptAt?: number;
 }
 export interface SeedIncomingRecovery {

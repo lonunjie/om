@@ -32,7 +32,7 @@ export const testDevicesCopy: DevicesCopy = {
   pendingKind: { OfferDeviceLink: "Preparing link", ApproveDeviceLink: "Approving link", RejectDeviceLink: "Rejecting link", SuspendDevice: "Suspending", RevokeDevice: "Removing" },
   notice: {
     notTold: "Not told yet", notToldDetail: (l) => `${l} has not heard about the new device`, lastTried: (ms) => `Last tried ${String(ms)}`, held: (l) => `${l} is paused`,
-    tryNow: "Try now", strictOffAsk: "Turn this off?", strictOffConfirm: "Yes, turn it off", strictOffCancel: "Keep it on", strictOption: "Only add a device when all others can be told", strictHelp: "Strict help", tooManyOwed: "Too many devices still to be told", accountTooLarge: "Account too large to add a device",
+    tryNow: "Try now", strictOffAsk: "Turn this off?", strictOffConfirm: "Yes, turn it off", strictOffCancel: "Keep it on", strictOption: "Only add a device when all others can be told", strictHelp: "Strict help", notSetUp: "Not set up yet", notSetUpDetail: (l) => `${l} never finished setting up`, tooManyOwed: "Too many devices still to be told", accountTooLarge: "Account too large to add a device",
   },
   link: {
     start: "Add a device", notControl: "Add devices from a device that manages your account", heading: "Add a device", body: "Show a link on this device",

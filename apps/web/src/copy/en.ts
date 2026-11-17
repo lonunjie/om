@@ -983,6 +983,8 @@ export const devicesCopy: DevicesCopy = {
     strictOffCancel: "Keep it on",
     strictOption: "Only add a device when all my other devices can be told right away",
     strictHelp: "Off: a new device is added even when one of your other devices is switched off, and OM tells that device as soon as it connects. On: a device is added only when every other device can be told right now.",
+    notSetUp: "Not set up yet",
+    notSetUpDetail: (label) => `${label} was added but never finished setting up. Remove it, then add the device again.`,
     tooManyOwed: "Some of your devices haven't been told about earlier changes yet. Reconnect or remove one first.",
     accountTooLarge: "Your account is too large to add another device from here right now. Nothing was changed.",
   },

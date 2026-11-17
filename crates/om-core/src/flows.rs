@@ -2311,7 +2311,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     Some(message_id.clone()),
                 )),
                 Purpose::OpenCeremonyQueue { operation_id }
-                | Purpose::DepositCeremony { operation_id } => {
+                | Purpose::DepositCeremony { operation_id, .. } => {
                     Some((operation_id.clone(), None, None))
                 }
                 Purpose::PublishKeys
@@ -2358,9 +2358,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             K::Terminal(reason) => {
                 self.st.app.outbox.remove(pos);
                 if let Purpose::OpenCeremonyQueue { operation_id }
-                | Purpose::DepositCeremony { operation_id } = &entry.purpose
+                | Purpose::DepositCeremony { operation_id, .. } = &entry.purpose
                 {
-                    self.ceremony_failed(operation_id);
+                    self.ceremony_failed(
+                        operation_id,
+                        matches!(
+                            entry.purpose,
+                            Purpose::DepositCeremony { approval: true, .. }
+                        ),
+                    );
                 }
                 if let Purpose::FetchDeviceKeys {
                     conversation_id,
@@ -2447,7 +2453,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             Purpose::OpenCeremonyQueue { operation_id } => {
                 self.on_open_queue(&operation_id, bytes);
             }
-            Purpose::DepositCeremony { operation_id } => {
+            Purpose::DepositCeremony { operation_id, .. } => {
                 if self
                     .st
                     .app

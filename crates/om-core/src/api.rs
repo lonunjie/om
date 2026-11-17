@@ -965,6 +965,9 @@ pub enum DeviceNoticeState {
     Owed,
     /// It is paused (quarantined); it will be told when it is active again.
     Held,
+    /// The approval that added it never reached it ("Not set up yet"): it holds no keys and cannot take part. Removing
+    /// it is the way out; a new link starts again.
+    NotSetUp,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -2461,7 +2461,12 @@ fn devices_view(st: &ProfileState, now_ms: u64) -> DevicesView {
             .iter()
             .filter(|o| o.sibling_device_id == hexid)
             .collect();
-        let notice_state = if owed
+        let never_set_up = st.app.link_offers.values().any(|o| {
+            o.approval_undelivered && o.request.as_ref().is_some_and(|r| r.device_id == hexid)
+        });
+        let notice_state = if never_set_up {
+            DeviceNoticeState::NotSetUp
+        } else if owed
             .iter()
             .any(|o| o.state != crate::state::OwedState::Held)
         {

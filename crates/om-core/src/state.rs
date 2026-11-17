@@ -647,6 +647,9 @@ pub enum Purpose {
     /// Device-link ceremony: a sealed message on the ceremony's request or response queue.
     DepositCeremony {
         operation_id: OperationId,
+        /// The approval message itself (not a roster entry or a history chunk): without it the new device holds nothing.
+        #[serde(default)]
+        approval: bool,
     },
     /// The peer's other device's bundle, fetched to start a session with it (we hold its fetch capability).
     FetchDeviceKeys {
@@ -1010,6 +1013,9 @@ pub struct LinkOffer {
     /// Roster entries (conversations handed over) at approval; the secret is kept until their introductions are in.
     #[serde(default)]
     pub roster_sent: u32,
+    /// The Home refused the approval message for good after the approval committed: the new device never received it.
+    #[serde(default)]
+    pub approval_undelivered: bool,
 }
 
 /// The new device's side of a ceremony.

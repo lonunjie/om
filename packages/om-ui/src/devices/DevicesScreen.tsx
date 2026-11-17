@@ -175,7 +175,7 @@ function DeviceGroup({ id, heading, devices, copy, onOpen, empty }: DeviceGroupP
             <li key={d.id}>
               <Button className="om-settings__row" data-state={d.state} onClick={() => { onOpen({ kind: "device", id: d.id }); }}>
                 <bdi className="om-settings__name">{d.label}</bdi>
-                <span className="om-settings__meta">{copy.role[d.role]} · {d.state === "active" ? copy.lastSeen[d.lastSeen] : copy.state[d.state]}{d.noticeState === "owed" ? <> · <strong data-notice="owed">{copy.notice.notTold}</strong></> : null}</span>
+                <span className="om-settings__meta">{copy.role[d.role]} · {d.state === "active" ? copy.lastSeen[d.lastSeen] : copy.state[d.state]}{d.noticeState === "owed" ? <> · <strong data-notice="owed">{copy.notice.notTold}</strong></> : d.noticeState === "not_set_up" ? <> · <strong data-notice="not_set_up">{copy.notice.notSetUp}</strong></> : null}</span>
               </Button>
             </li>
           ))}
@@ -222,7 +222,7 @@ function DeviceDetails({ services, copy, view, device, onBack }: DeviceDetailsPr
       </ul>
       {device.noticeState === "told" ? null : (
         <div className="om-devices__notice" role="status" data-notice={device.noticeState}>
-          <Text as="p"><strong>{device.noticeState === "owed" ? copy.notice.notTold : null}</strong> {device.noticeState === "owed" ? copy.notice.notToldDetail(device.label) : copy.notice.held(device.label)}</Text>
+          <Text as="p"><strong>{device.noticeState === "owed" ? copy.notice.notTold : device.noticeState === "not_set_up" ? copy.notice.notSetUp : null}</strong> {device.noticeState === "owed" ? copy.notice.notToldDetail(device.label) : device.noticeState === "not_set_up" ? copy.notice.notSetUpDetail(device.label) : copy.notice.held(device.label)}</Text>
           {device.lastAttemptAt === undefined ? null : <Text as="p" size="sm" tone="secondary">{copy.notice.lastTried(device.lastAttemptAt)}</Text>}
           {!op.locked && device.actions.includes("retry_notice") ? <Button onClick={() => { void op.run("retry-device-notice", { deviceId: device.id }); }}>{copy.notice.tryNow}</Button> : null}
         </div>

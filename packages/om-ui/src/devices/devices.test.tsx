@@ -51,6 +51,17 @@ describe("Devices screen", () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it("a device whose approval never reached it is shown as not set up, with removal as the way out", async () => {
+    const { services } = setup({ devices: [...(TWO.devices ?? []), { id: "d-new", label: "New phone", role: "messaging", notice: "not_set_up" }] });
+    const { container } = render(<DevicesScreen services={services} copy={testDevicesCopy} />);
+    const row = await screen.findByRole("button", { name: /New phone/ });
+    expect(within(row).getByText(testDevicesCopy.notice.notSetUp)).toBeTruthy();
+    await userEvent.click(row);
+    expect(await screen.findByText(testDevicesCopy.notice.notSetUpDetail("New phone"))).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Remove permanently" })).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it("with two controllers, suspending is not offered (Core: it would freeze); removal is distinct and stays pending until authorized", async () => {
     const { h, services } = setup(TWO, ["op-ic", "op-revoke"]);
     render(<DevicesScreen services={services} copy={testDevicesCopy} />);

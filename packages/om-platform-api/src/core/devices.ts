@@ -8,8 +8,8 @@ export type DeviceStateCode = "active" | "quarantined" | "revocation_pending" | 
 export type LastSeenClass = "now" | "recent" | "this_week" | "this_month" | "long_ago" | "never";
 /** Actions Core will accept for a device right now. The UI offers nothing else. */
 export type DeviceActionCode = "suspend" | "revoke" | "retry_notice";
-/** Whether a device has been told about the devices added to the account (ADR-0193). `owed`: a notice is owed and not yet acknowledged ("Not told yet"); `held`: the device is paused and will be told when it is active again. */
-export type DeviceNoticeState = "told" | "owed" | "held";
+/** Whether a device has been told about the devices added to the account (ADR-0193). `owed`: a notice is owed and not yet acknowledged ("Not told yet"); `held`: the device is paused and will be told when it is active again; `not_set_up`: the approval that added it never reached it, so it holds nothing and can only be removed ("Not set up yet"). */
+export type DeviceNoticeState = "told" | "owed" | "held" | "not_set_up";
 export type DeviceCautionCode =
   | "suspend_would_freeze" // suspending would leave too few controllers: Core offers removal instead (§9)
   | "last_voting_controller" // the account must never be left without a voting controller (§13)
