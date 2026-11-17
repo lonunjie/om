@@ -1,0 +1,109 @@
+; OM later-wave W1 RecoveryRecord wire (ADR-0199, 2026-11-18), amended by nothing.
+; Object type 35 RecoveryRecordEnvelope (what a RecoveryStore holds), type 36 RecoveryRecord (the decrypted plaintext),
+; type 37 RecoveryRedirect (a second plaintext kind, ADR-0200 section 6) and type 38 RecoveryKit (device-private, in-session
+; only). Fields: spec/registries/om-numeric-fields.json; type rows: om-object-types.json.
+; Reuses common.cddl (extensions, digest, profile-id), account.cddl (signed-AccountControlState, RecoveryPolicy) and
+; delivery.cddl (relay-entry, delivery-key-material, signed-RelaySet).
+;
+; The envelope is unsigned: the AEAD tag is the authentication, under a key only a RecoveryRoot holder (or a device that
+; holds the RecoveryKit) can derive. The associated data is the frozen OM-RECOVERY-RECORD-AEAD-AD-v1 construction, bound
+; to the RecoveryStore scope and the opaque locator (RECOVERY_AND_BACKUP_POLICY.md 10.2.1, ADR-0141). Cipher: the
+; crypto profile's AEAD (OM-Crypto-v1: AES-256-GCM-SIV). Key: OM-RECOVERY-RECORD-KEY-v1. Nonce: 12 random bytes per sealing,
+; carried in the envelope (ADR-0199 section 3). The plaintext is padded inside the AEAD to a bucket (key 22 of the record).
+;
+; Authority: none. A RecoveryRecord is advisory, authenticated recovery metadata (ADR-0141). Nothing in it authorizes an
+; AccountControlState, a recovery epoch or a route; every state it carries still verifies against the account-control chain
+; rules and every route and capability it carries is revalidated before use.
+;
+; CDDL cannot express: deterministic encoding, the byte bounds below, padding to a bucket, or the cross-field rules of
+; ADR-0199 section 4 (head and key 4 agree; the tail links by previous_state_hash; the credential set is exactly the one the
+; carried states reference; the policy hashes to the head's recovery_policy_commitment; exactly one of keys 7 and 8).
+; Those are semantic fixtures for the builder's vectors.
+
+; type 35. At most 1,048,576 bytes. Ciphertext = padded plaintext (one of 16,384, 65,536, 262,144, 1,048,000 bytes) + 16-byte tag.
+RecoveryRecordEnvelope = {
+  0: 35, 1: 1,
+  2: profile-id,                            ; crypto_profile that fixes the AEAD
+  3: bstr .size 12,                         ; nonce, random per sealing
+  4: bstr .size (16400..1048016),           ; ciphertext || tag
+  ? 23: extensions,
+}
+
+; type 36. At most 1,048,000 bytes. Decrypted plaintext of an envelope whose first map entry is 0: 36.
+RecoveryRecord = {
+  0: 36, 1: 1,
+  2: 1..18446744073709551615,               ; record_generation = (acs_generation << 20) | refresh (ADR-0199 section 2)
+  3: uint,                                  ; recovery_epoch observed by the writer (authenticated metadata, not authority)
+  4: recovery-acs-head-ref,                 ; last_known_acs_head
+  5: recovery-acs-evidence,                 ; ADR-0199 section 1 (Q-REC-1)
+  6: recovery-provider-snapshot,
+  ? 7: relationship-snapshot,               ; normal profile
+  ? 8: bstr .size (28..1048000),            ; Maximum Privacy: nonce(12) || AEAD ciphertext of a relationship-snapshot, second layer
+  ? 22: bstr .size (0..1048000),            ; pad
+  ? 23: extensions,
+}
+recovery-acs-head-ref = { 0: uint, 1: digest }          ; generation, state_hash (OM-ACS-HASH-v1)
+
+; The signed head, the states just before it and the credential bodies those states reference: what a fresh device needs to
+; build a request and a successor, and what a contact's bridge (ADR-0190 section 2) is built from.
+recovery-acs-evidence = {
+  0: bstr .cbor signed-AccountControlState, ; head, the state last_known_acs_head names
+  1: [0*8 bstr .cbor signed-AccountControlState], ; tail: the (up to 8) states before the head, oldest first
+  2: [0*320 bstr .cbor DeviceCredential],   ; credential bodies the head and the tail reference, no duplicates, no extras
+  3: bstr .cbor RecoveryPolicy,             ; the RecoveryPolicy body the head's recovery_policy_commitment names
+}
+
+; Provider recovery (RECOVERY_AND_BACKUP_POLICY.md 10.1): where the account's own Homes are and what is needed to use them again.
+recovery-provider-snapshot = { 0: [1*4 recovery-provider-home] }
+recovery-provider-home = {
+  0: tstr .size (1..253),                   ; host: lowercase ASCII hostname (punycode), https only
+  ? 1: 1..65535,                            ; port, absent = 443
+  ? 2: bstr .size 32,                       ; recovery_scope_id the Home advertised
+  ? 3: bstr .cbor signed-RelaySet,          ; the account's published RelaySet
+  ? 4: bstr .size (16..256),                ; provider credential (for example the owner's admission secret), opaque
+}
+
+; The relationships a recovered device reaches again: what ADR-0190 section 3.1 needs to seal a RecoveryNotice to each contact.
+relationship-snapshot = {
+  0: [0*256 relationship-snapshot-entry],
+  ? 1: true,                                ; truncated: the writer dropped entries to fit the record
+}
+relationship-snapshot-entry = {
+  0: conversation-id,
+  1: account-id,                            ; the contact's AccountID
+  ? 2: tstr .size (1..64),                  ; display label, unverified
+  3: [1*4 relay-entry],                     ; the contact's delivery routes (deposit capability to the contact's mailbox)
+  4: [1*4 recovery-delivery-target],        ; the contact devices' delivery keys, one per route
+  ? 5: bstr .size (16..96),                 ; relationship capability for fetching the contact's key bundles (re-establishing sessions)
+  ? 6: recovery-acs-head-ref,               ; the contact's head this device had pinned
+}
+recovery-delivery-target = {
+  0: device-id,                             ; recipient_device_id
+  1: delivery-key-material,                 ; unsigned: the record is authenticated by the AEAD and revalidated before use
+}
+
+; type 37. A second plaintext kind, sealed in the same envelope type under the same keys, left at the old locator of a Home the
+; owner moved away from. Authenticated by the AEAD, so only a RecoveryRoot or RecoveryKit holder can have written it.
+RecoveryRedirect = {
+  0: 37, 1: 1,
+  2: 1..18446744073709551615,               ; record_generation of the same lineage
+  3: recovery-provider-home,                ; the new place (host, port and recovery_scope_id are required)
+  ? 22: bstr .size (0..1048000),            ; pad
+  ? 23: extensions,
+}
+
+; type 38. Device-private, never stored at a Home and never part of a backup (class om.recovery_secret): sent only inside an
+; authenticated session between devices of the same account, and kept in DeviceVault.
+RecoveryKit = {
+  0: 38, 1: 1,
+  2: bstr .size 32,                         ; recovery_scope_id
+  3: tstr .size (1..253),                   ; host
+  ? 4: 1..65535,                            ; port
+  5: bstr .size 32,                         ; read_cap  (OM-RECOVERY-RECORD-READ-CAP-v1)
+  6: bstr .size 32,                         ; write_cap (OM-RECOVERY-RECORD-WRITE-CAP-v1)
+  7: bstr .size 32,                         ; record_key (OM-RECOVERY-RECORD-KEY-v1)
+  8: bstr .size 32,                         ; inbox_cap, random, not derived from RecoveryRoot (ADR-0201 section 3)
+  ? 9: bstr .size 32,                       ; relationship snapshot key (OM-RECOVERY-RELATIONSHIP-SNAPSHOT-KEY-v1) where one is in use
+  10: uint,                                 ; recovery_epoch the kit was made for
+  ? 23: extensions,
+}

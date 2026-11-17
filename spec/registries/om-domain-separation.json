@@ -734,6 +734,38 @@
       "object": "device link ceremony continuation approval",
       "wave": "W0",
       "status": "frozen"
+    },
+    {
+      "label": "OM-RECOVERY-SHEET-CHECK-v1",
+      "use": "hash",
+      "construction": "DS-HASH (body = every byte of the recovery sheet string before its check); check = first 4 bytes of the digest value",
+      "object": "recovery sheet string v1 whole-string checksum (ADR-0200, spec/protocol/recovery-sheet.md)",
+      "wave": "W1",
+      "status": "documented"
+    },
+    {
+      "label": "OM-RECOVERY-SHEET-LINE-CHECK-v1",
+      "use": "hash",
+      "construction": "DS-HASH (body = line index (1 byte) || the line's payload characters, upper case, no separators); line check = first 10 bits of the digest value as two base32 characters",
+      "object": "recovery sheet string v1 per-line transcription check (ADR-0200)",
+      "wave": "W1",
+      "status": "documented"
+    },
+    {
+      "label": "OM-RECOVERY-INBOX-ID-v1",
+      "use": "hash",
+      "construction": "DS-HASH (body = the 32-byte AccountID); inbox_id = the 32-byte digest value",
+      "object": "Home recovery inbox index for one account (ADR-0201)",
+      "wave": "W1",
+      "status": "documented"
+    },
+    {
+      "label": "OM-RECOVERY-RELATIONSHIP-SNAPSHOT-AEAD-AD-v1",
+      "use": "aead_ad",
+      "construction": "canonical OM-CBOR [label, recovery_scope_id, record_generation, record_version=1]",
+      "object": "AEAD associated data for the Maximum Privacy second-layer relationship snapshot of a RecoveryRecord v1 (ADR-0199)",
+      "wave": "W1",
+      "status": "documented"
     }
   ]
 }

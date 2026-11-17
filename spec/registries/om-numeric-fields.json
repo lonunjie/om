@@ -7148,6 +7148,566 @@
           "req": true
         }
       ]
+    },
+    "RecoveryRecordEnvelope": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "crypto_profile",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "nonce",
+          "type": {
+            "bstr": [
+              12,
+              12
+            ]
+          },
+          "req": true,
+          "note": "12 random bytes per sealing (ADR-0199 section 3)"
+        },
+        {
+          "key": 4,
+          "name": "ciphertext",
+          "type": {
+            "bstr": [
+              16400,
+              1048016
+            ]
+          },
+          "req": true,
+          "note": "padded plaintext (a bucket of 16,384, 65,536, 262,144 or 1,048,000 bytes) plus the 16-byte AEAD tag"
+        }
+      ]
+    },
+    "RecoveryRecord": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "record_generation",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": true,
+          "note": "(acs_generation << 20) | refresh, refresh below 2^20 (ADR-0199 section 2)"
+        },
+        {
+          "key": 3,
+          "name": "recovery_epoch",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "last_known_acs_head",
+          "type": {
+            "ref": "RecoveryAcsHeadRef"
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "acs_evidence",
+          "type": {
+            "ref": "RecoveryAcsEvidence"
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "provider_snapshot",
+          "type": {
+            "ref": "RecoveryProviderSnapshot"
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "relationship_snapshot",
+          "type": {
+            "ref": "RelationshipSnapshot"
+          },
+          "req": false,
+          "note": "normal profile; exactly one of keys 7 and 8 is present"
+        },
+        {
+          "key": 8,
+          "name": "relationship_snapshot_ciphertext",
+          "type": {
+            "bstr": [
+              28,
+              1048000
+            ]
+          },
+          "req": false,
+          "note": "Maximum Privacy second layer: nonce(12) || AEAD ciphertext of a RelationshipSnapshot"
+        },
+        {
+          "key": 22,
+          "name": "pad",
+          "type": {
+            "bstr": [
+              0,
+              1048000
+            ]
+          },
+          "req": false,
+          "note": "padding inside the AEAD to a bucket"
+        }
+      ]
+    },
+    "RecoveryAcsHeadRef": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "generation",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "state_hash",
+          "type": {
+            "ref": "Digest"
+          },
+          "req": true,
+          "note": "OM-ACS-HASH-v1"
+        }
+      ]
+    },
+    "RecoveryAcsEvidence": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "head",
+          "type": {
+            "signed": "AccountControlState"
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "tail",
+          "type": {
+            "array": {
+              "signed": "AccountControlState"
+            },
+            "n": [
+              0,
+              8
+            ]
+          },
+          "req": true,
+          "note": "ordered, oldest first; each links to the next by previous_state_hash and the last links to the head"
+        },
+        {
+          "key": 2,
+          "name": "credentials",
+          "type": {
+            "array": {
+              "bstr": [
+                1,
+                32768
+              ]
+            },
+            "n": [
+              0,
+              320
+            ]
+          },
+          "req": true,
+          "note": "canonical DeviceCredential bodies the carried states reference; no duplicates, none unreferenced"
+        },
+        {
+          "key": 3,
+          "name": "recovery_policy",
+          "type": {
+            "bstr": [
+              1,
+              24576
+            ]
+          },
+          "req": true,
+          "note": "canonical RecoveryPolicy body; hashes to the head's recovery_policy_commitment"
+        }
+      ]
+    },
+    "RecoveryProviderSnapshot": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "homes",
+          "type": {
+            "array": {
+              "ref": "RecoveryProviderHome"
+            },
+            "n": [
+              1,
+              4
+            ]
+          },
+          "req": true
+        }
+      ]
+    },
+    "RecoveryProviderHome": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "host",
+          "type": {
+            "tstr": [
+              1,
+              253
+            ]
+          },
+          "req": true,
+          "note": "lowercase ASCII hostname, https only"
+        },
+        {
+          "key": 1,
+          "name": "port",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": false,
+          "note": "absent means 443"
+        },
+        {
+          "key": 2,
+          "name": "recovery_scope_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": false,
+          "note": "required in a RecoveryRedirect (semantic rule)"
+        },
+        {
+          "key": 3,
+          "name": "relay_set",
+          "type": {
+            "signed": "RelaySet"
+          },
+          "req": false
+        },
+        {
+          "key": 4,
+          "name": "provider_credential",
+          "type": {
+            "bstr": [
+              16,
+              256
+            ]
+          },
+          "req": false,
+          "note": "opaque, for example the owner's admission secret"
+        }
+      ]
+    },
+    "RelationshipSnapshot": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "entries",
+          "type": {
+            "array": {
+              "ref": "RelationshipSnapshotEntry"
+            },
+            "n": [
+              0,
+              256
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "truncated",
+          "type": {
+            "bool": true
+          },
+          "req": false,
+          "note": "the writer dropped entries to fit the record"
+        }
+      ]
+    },
+    "RelationshipSnapshotEntry": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "conversation_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "peer_account_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 2,
+          "name": "label",
+          "type": {
+            "tstr": [
+              1,
+              64
+            ]
+          },
+          "req": false,
+          "note": "display label, unverified"
+        },
+        {
+          "key": 3,
+          "name": "routes",
+          "type": {
+            "array": {
+              "ref": "RelayEntry"
+            },
+            "n": [
+              1,
+              4
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "delivery_targets",
+          "type": {
+            "array": {
+              "ref": "RecoveryDeliveryTarget"
+            },
+            "n": [
+              1,
+              4
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 5,
+          "name": "key_fetch_cap",
+          "type": {
+            "bstr": [
+              16,
+              96
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 6,
+          "name": "peer_head",
+          "type": {
+            "ref": "RecoveryAcsHeadRef"
+          },
+          "req": false
+        }
+      ]
+    },
+    "RecoveryDeliveryTarget": {
+      "fields": [
+        {
+          "key": 0,
+          "name": "recipient_device_id",
+          "type": {
+            "bstr": [
+              16,
+              16
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 1,
+          "name": "delivery_key",
+          "type": {
+            "ref": "DeliveryKeyMaterial"
+          },
+          "req": true
+        }
+      ]
+    },
+    "RecoveryRedirect": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "record_generation",
+          "type": {
+            "uint": [
+              1,
+              null
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "new_place",
+          "type": {
+            "ref": "RecoveryProviderHome"
+          },
+          "req": true,
+          "note": "host and recovery_scope_id are required (semantic rule)"
+        },
+        {
+          "key": 22,
+          "name": "pad",
+          "type": {
+            "bstr": [
+              0,
+              1048000
+            ]
+          },
+          "req": false
+        }
+      ]
+    },
+    "RecoveryKit": {
+      "top_level": true,
+      "fields": [
+        {
+          "key": 2,
+          "name": "recovery_scope_id",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 3,
+          "name": "host",
+          "type": {
+            "tstr": [
+              1,
+              253
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 4,
+          "name": "port",
+          "type": {
+            "uint": [
+              1,
+              65535
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 5,
+          "name": "read_cap",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 6,
+          "name": "write_cap",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 7,
+          "name": "record_key",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true
+        },
+        {
+          "key": 8,
+          "name": "inbox_cap",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": true,
+          "note": "random, not derived from RecoveryRoot"
+        },
+        {
+          "key": 9,
+          "name": "relationship_snapshot_key",
+          "type": {
+            "bstr": [
+              32,
+              32
+            ]
+          },
+          "req": false
+        },
+        {
+          "key": 10,
+          "name": "recovery_epoch",
+          "type": {
+            "uint": [
+              0,
+              null
+            ]
+          },
+          "req": true
+        }
+      ]
     }
   },
   "extensions": [

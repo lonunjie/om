@@ -11071,6 +11071,13 @@
       "authority": "normative_wire_schema"
     },
     {
+      "path": "spec/cddl/recovery-record.cddl",
+      "class": "spec_artifact",
+      "domain": "identity_control_recovery",
+      "license": "Apache-2.0",
+      "authority": "normative_wire_schema"
+    },
+    {
       "path": "spec/cddl/space-publication.cddl",
       "class": "spec_artifact",
       "domain": "crypto_1to1",
@@ -11412,6 +11419,13 @@
       "domain": "identity_control_recovery",
       "license": "Apache-2.0",
       "authority": "normative_logical_schema"
+    },
+    {
+      "path": "spec/protocol/recovery-sheet.md",
+      "class": "protocol_schema",
+      "domain": "identity_control_recovery",
+      "license": "Apache-2.0",
+      "authority": "normative_protocol_spec"
     },
     {
       "path": "spec/protocol/relay-set.logical.schema.json",

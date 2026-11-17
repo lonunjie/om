@@ -19,7 +19,7 @@
     "record_generation": {
       "type": "integer",
       "minimum": 1,
-      "description": "Monotonic per RecoveryStore scope/record lineage; lower than the durable client high-water mark is stale."
+      "description": "Monotonic per RecoveryStore scope/record lineage; lower than the durable client high-water mark is stale. ADR-0199: record_generation = (acs_generation << 20) | refresh, so every writer of one ACS head has its own slot."
     },
     "recovery_epoch": {
       "type": "integer",
@@ -57,6 +57,48 @@
       "type": "string",
       "contentEncoding": "base64",
       "description": "Maximum-Privacy second-layer relationship snapshot encrypted under an independent RelationshipRecoveryKey."
+    },
+    "acs_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "head",
+        "tail",
+        "credentials",
+        "recovery_policy"
+      ],
+      "description": "ADR-0199 (additive): the signed head AccountControlState, up to 8 states before it, the credential bodies they reference and the RecoveryPolicy body, so a fresh device can build a request and a successor. Required by the wire CDDL (spec/cddl/recovery-record.cddl); optional in this modeling view so that the earlier view stays valid. Authenticated by the record's AEAD only; every state still verifies against the account-control chain rules.",
+      "properties": {
+        "head": {
+          "type": "string",
+          "contentEncoding": "base64"
+        },
+        "tail": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "string",
+            "contentEncoding": "base64"
+          }
+        },
+        "credentials": {
+          "type": "array",
+          "maxItems": 320,
+          "items": {
+            "type": "string",
+            "contentEncoding": "base64"
+          }
+        },
+        "recovery_policy": {
+          "type": "string",
+          "contentEncoding": "base64"
+        }
+      }
+    },
+    "pad": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "description": "ADR-0199: padding inside the AEAD up to a size bucket; carries no meaning."
     }
   },
   "not": {

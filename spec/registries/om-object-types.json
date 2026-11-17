@@ -536,6 +536,50 @@
       "max_bytes": 131068,
       "source": "ADR-0190 section 2 (CDDL: spec/cddl/recovery-notice.cddl); additive_noncritical_extension per ADR-0190 ruling 5",
       "logical_schema": null
+    },
+    {
+      "type_id": 35,
+      "name": "RecoveryRecordEnvelope",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 1048576,
+      "source": "ADR-0199 section 3 (CDDL: spec/cddl/recovery-record.cddl); additive_noncritical_extension",
+      "logical_schema": null
+    },
+    {
+      "type_id": 36,
+      "name": "RecoveryRecord",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 1048000,
+      "source": "ADR-0199 sections 1, 2, 4 and 5 (CDDL: spec/cddl/recovery-record.cddl); decrypted plaintext of type 35; additive_noncritical_extension",
+      "logical_schema": "spec/protocol/recovery-record.logical.schema.json"
+    },
+    {
+      "type_id": 37,
+      "name": "RecoveryRedirect",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 1048000,
+      "source": "ADR-0200 section 6 (CDDL: spec/cddl/recovery-record.cddl); second plaintext kind of type 35",
+      "logical_schema": null
+    },
+    {
+      "type_id": 38,
+      "name": "RecoveryKit",
+      "wave": "W1",
+      "scope": "core_kernel",
+      "signed": null,
+      "hash": null,
+      "max_bytes": 4096,
+      "source": "ADR-0199 section 5 (CDDL: spec/cddl/recovery-record.cddl); device-private, in-session only, class om.recovery_secret",
+      "logical_schema": null
     }
   ]
 }
