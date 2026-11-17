@@ -144,3 +144,54 @@ test("save a backup file, restore it on a fresh install, read the history, canno
   await expect(page2.getByRole("log").getByText("hello from alice")).toBeVisible();
   await fresh.close();
 });
+
+test("a nickname is set from the contact sheet, shows in the list, survives a reload and a backup restore, and the original name stays reachable", async ({ page, browser }) => {
+  await talk(page);
+  await page.getByRole("option").click();
+  await page.getByRole("button", { name: /^About / }).click();
+  const sheet = page.getByRole("dialog", { name: /^About / });
+  await expect(sheet.getByText(/Their name:/)).toBeVisible();
+  await expect(sheet.getByText(/never sent to them/)).toBeVisible();
+  await sheet.getByRole("textbox", { name: "Your name for them" }).fill("Bobby from work");
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(sheet.getByText("Saved.")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", { name: "Bobby from work", level: 2 })).toBeVisible();
+  await expect(page.getByRole("option", { name: /Bobby from work/ })).toBeVisible();
+
+  // It survives a reload (Core's stored contact record).
+  await page.reload();
+  await reopen(page, 30_000);
+  await expect(page.getByRole("option", { name: /Bobby from work/ })).toBeVisible();
+
+  // And it travels in the backup file to a fresh install, where the original name is still reachable.
+  await openBackupPage(page);
+  await page.getByLabel("Choose a password").fill(PASSWORD);
+  await page.getByLabel("Type it again").fill(PASSWORD);
+  const [download] = await Promise.all([page.waitForEvent("download", SLOW), page.getByRole("button", { name: "Save backup file" }).click()]);
+  const dir = mkdtempSync(join(tmpdir(), "om-backup-nick-e2e-"));
+  const file = join(dir, "chats.ombackup");
+  await download.saveAs(file);
+  expect(readFileSync(file).toString("latin1")).not.toContain("Bobby from work"); // sealed: not readable in the file
+
+  const fresh = await browser.newContext({ baseURL: CORE });
+  const page2 = await fresh.newPage();
+  await noPasskeys(page2);
+  await onboard(page2, { name: "Alice again" });
+  await openBackupPage(page2);
+  await restoreWith(page2, file, PASSWORD);
+  await expect(page2.getByText("Restored 1 chat with 2 messages.")).toBeVisible(SLOW);
+  await page2.getByRole("button", { name: /Settings/ }).click();
+  await expect(page2.getByRole("option", { name: /Bobby from work/ })).toBeVisible();
+  await page2.getByRole("option").click();
+  await page2.getByRole("button", { name: /^About / }).click();
+  const sheet2 = page2.getByRole("dialog", { name: /^About / });
+  await expect(sheet2.getByRole("textbox", { name: "Your name for them" })).toHaveValue("Bobby from work");
+  await expect(sheet2.getByText(/Their name: Bob/)).toBeVisible();
+  // Clearing brings the name they chose back.
+  await sheet2.getByRole("button", { name: "Remove nickname" }).click();
+  await expect(sheet2.getByText("Removed.")).toBeVisible();
+  await page2.keyboard.press("Escape");
+  await expect(page2.getByRole("heading", { name: "Bob", level: 2 })).toBeVisible();
+  await fresh.close();
+});

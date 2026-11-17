@@ -37,6 +37,16 @@ describe("Action Registry", () => {
     }
   });
 
+  it("set-contact-nickname (ADR-0196) is not destructive, sends a trimmed-empty value as no nickname, and rejects extra params", () => {
+    const set = intentOf(registry.resolve({ actionId: "set-contact-nickname", params: { conversationId: "c1", nickname: "Al" }, ctx, origin: "direct" }));
+    expect(set).toMatchObject({ kind: "SetContactNickname", conversationId: "c1", nickname: "Al" });
+    const clear = intentOf(registry.resolve({ actionId: "set-contact-nickname", params: { conversationId: "c1", nickname: "  " }, ctx, origin: "suggestion" }));
+    expect(clear).toMatchObject({ kind: "SetContactNickname", conversationId: "c1" });
+    expect("nickname" in clear).toBe(false);
+    expect(registry.resolve({ actionId: "set-contact-nickname", params: { conversationId: "c1", nickname: "x", extra: 1 }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+    expect(registry.resolve({ actionId: "set-contact-nickname", params: { conversationId: "c1", nickname: 5 }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
+  });
+
   it("onboarding actions validate params; accept-invitation rejects anything but a strict om: link", () => {
     for (const link of ["https://x.example/a", "om:invite/short", "om:other/AAAAAAAAAAAAAAAAAAAAAA", "", 5]) {
       expect(registry.resolve({ actionId: "accept-invitation", params: { link }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });

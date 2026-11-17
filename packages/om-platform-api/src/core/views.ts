@@ -36,7 +36,10 @@ export type RelationshipStateCode = "awaiting_acceptance" | "accepted_unbound" |
 export interface ConversationSummary {
   readonly id: ConversationId;
   readonly personId: PersonId;
+  /** The name the contact chose for itself: the original, never replaced by `nickname`. */
   readonly displayName: string;
+  /** The name this device's person gave the contact (ADR-0196): local, never sent. Shown instead of `displayName`; absent when none. */
+  readonly nickname?: string;
   readonly lastMessageAt: number | null;
   readonly notices: readonly SecurityNotice[];
   readonly relationship: RelationshipStateCode;

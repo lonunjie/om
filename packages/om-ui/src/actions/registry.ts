@@ -273,6 +273,12 @@ const SPECS: Readonly<Record<string, Spec>> = {
     if (!exactly(p, ["enabled"]) || typeof e !== "boolean") return null;
     return { intent: (ctx, op) => ({ kind: "SetStrictDeviceNotice", ctx, operationId: op, enabled: e }) };
   } },
+  "set-contact-nickname": { destructive: false, parse: (p) => {
+    const c = id(p["conversationId"]);
+    const n = p["nickname"];
+    if (!exactly(p, ["conversationId", "nickname"]) || c === null || typeof n !== "string") return null;
+    return { intent: (ctx, op) => ({ kind: "SetContactNickname", ctx, operationId: op, conversationId: asConversationId(c), ...(n.trim() === "" ? {} : { nickname: n }) }) };
+  } },
   "finalize-device-revocation": { destructive: true, parse: (p) => {
     const d = id(p["deviceId"]);
     if (!exactly(p, ["deviceId"]) || d === null) return null;

@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { ConversationId, ConversationSummary } from "@om/platform-api";
+import { shownName } from "./shownName";
 import { Avatar } from "./Avatar";
 import { Icon } from "../shell/primitives/icons";
 import { VisuallyHidden } from "../shell/primitives/VisuallyHidden";
@@ -68,10 +69,10 @@ export function ConversationList({ conversations, selectedId, onSelect, copy, un
             data-unread={count > 0 ? "true" : undefined} data-draft={draft !== "" ? "true" : undefined} className="om-conv-list__row"
             onClick={() => { setActive(i); onSelect(c.id); }}
           >
-            <Avatar name={c.displayName} />
+            <Avatar name={shownName(c)} />
             <span className="om-conv-list__main">
               <span className="om-conv-list__top">
-                <span className="om-conv-list__name">{marks?.has(c.id) ? <span className="om-group-mark"><Icon name="users" size={16} /><VisuallyHidden>{marks.get(c.id)}</VisuallyHidden></span> : null}{c.displayName}</span>
+                <span className="om-conv-list__name">{marks?.has(c.id) ? <span className="om-group-mark"><Icon name="users" size={16} /><VisuallyHidden>{marks.get(c.id)}</VisuallyHidden></span> : null}{shownName(c)}</span>
                 <span className="om-conv-list__meta">
                   {c.notices.length > 0 ? <span className="om-conv-list__notice" data-security-notice="true"><span aria-hidden="true">!</span><VisuallyHidden>{copy.list.securityNotice}</VisuallyHidden></span> : null}
                   {c.lastMessageAt === null ? null : <span className="om-conv-list__time">{copy.view.formatTime(c.lastMessageAt)}</span>}

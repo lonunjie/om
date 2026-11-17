@@ -64,7 +64,10 @@ const MAX_ID_BYTES: usize = 128;
 const AEAD_LABEL: &[u8] = b"OM-BACKUP-v1 aead key";
 const CHECK_LABEL: &[u8] = b"OM-BACKUP-v1 key check";
 const BODY_TYPE: &str = "om.history-backup";
+/// Body version written when no chat has a nickname: byte for byte the original body (ADR-0196 section 4).
 const BODY_VERSION: u64 = 1;
+/// Body version written when at least one chat has a nickname (chat key 6). Readers accept 1 and 2.
+const BODY_VERSION_NICKNAME: u64 = 2;
 
 // ------------------------------------------------------------------------------------------------ errors
 
@@ -349,6 +352,8 @@ pub struct ArchivedMsg {
 pub struct ArchivedChat {
     pub id: String,
     pub display_name: String,
+    /// The person's own name for the contact (ADR-0196); `None` = none. Local: it is never sent anywhere else.
+    pub nickname: Option<String>,
     /// The other person's AccountID as this device knew it (public; empty when unknown). A hint, never trusted.
     pub peer_account_id: Hex,
     pub created_at: u64,
@@ -404,6 +409,7 @@ pub fn collect(app: &AppState, exported_at_ms: u64) -> Result<HistoryArchive, Ba
         chats.push(ArchivedChat {
             id: r.id.clone(),
             display_name: r.display_name.clone(),
+            nickname: r.nickname.clone(),
             peer_account_id: r.peer_account_id.clone(),
             created_at: r.created_at,
             canon_id: r.canon_id.clone().unwrap_or_default(),
@@ -417,6 +423,7 @@ pub fn collect(app: &AppState, exported_at_ms: u64) -> Result<HistoryArchive, Ba
         chats.push(ArchivedChat {
             id: r.id.clone(),
             display_name: r.display_name.clone(),
+            nickname: r.nickname.clone(),
             peer_account_id: r.peer_account_id.clone(),
             created_at: r.created_at,
             canon_id: r.canon_id.clone().unwrap_or_default(),
@@ -478,19 +485,28 @@ pub fn encode_body(a: &HistoryArchive) -> Vec<u8> {
                     ])
                 })
                 .collect();
-            V::M(vec![
+            let mut fields = vec![
                 (0, V::T(c.id.clone())),
                 (1, V::T(c.display_name.clone())),
                 (2, opt_hex(&c.peer_account_id)),
                 (3, V::U(c.created_at)),
                 (4, opt_hex(&c.canon_id)),
                 (5, V::A(msgs)),
-            ])
+            ];
+            if let Some(n) = &c.nickname {
+                fields.push((6, V::T(n.clone())));
+            }
+            V::M(fields)
         })
         .collect();
+    let version = if a.chats.iter().any(|c| c.nickname.is_some()) {
+        BODY_VERSION_NICKNAME
+    } else {
+        BODY_VERSION
+    };
     cbor::encode(&V::M(vec![
         (0, V::T(BODY_TYPE.into())),
-        (1, V::U(BODY_VERSION)),
+        (1, V::U(version)),
         (2, V::U(a.exported_at_ms)),
         (3, V::T(a.owner_label.clone())),
         (4, V::A(chats)),
@@ -514,8 +530,9 @@ fn hex_field(v: &V, len: usize) -> Result<Hex, BackupError> {
 pub fn decode_body(bytes: &[u8]) -> Result<HistoryArchive, BackupError> {
     let bad = |_| BackupError::InvalidContent;
     let v = cbor::decode(bytes).map_err(bad)?;
+    let version = v.get(1).and_then(|x| x.u()).map_err(bad)?;
     if v.get(0).and_then(|x| x.t()).map_err(bad)? != BODY_TYPE
-        || v.get(1).and_then(|x| x.u()).map_err(bad)? != BODY_VERSION
+        || (version != BODY_VERSION && version != BODY_VERSION_NICKNAME)
     {
         return Err(BackupError::InvalidContent);
     }
@@ -539,6 +556,14 @@ pub fn decode_body(bytes: &[u8]) -> Result<HistoryArchive, BackupError> {
         {
             return Err(BackupError::InvalidContent);
         }
+        // Chat key 6 exists only in a version 2 body; a version 1 body means "no nickname" and may not carry it.
+        let nickname = match (version, c.opt(6)) {
+            (_, None) => None,
+            (BODY_VERSION_NICKNAME, Some(V::T(n))) if crate::state::valid_nickname(n) => {
+                Some(n.clone())
+            }
+            _ => return Err(BackupError::InvalidContent),
+        };
         let raw_msgs = c.get(5).and_then(|x| x.a()).map_err(bad)?;
         total += raw_msgs.len();
         if total > MAX_MESSAGES {
@@ -575,6 +600,7 @@ pub fn decode_body(bytes: &[u8]) -> Result<HistoryArchive, BackupError> {
         chats.push(ArchivedChat {
             id,
             display_name,
+            nickname,
             peer_account_id: hex_field(c.get(2).map_err(bad)?, 32)?,
             created_at: c.get(3).and_then(|x| x.u()).map_err(bad)?,
             canon_id: hex_field(c.get(4).map_err(bad)?, 32)?,
@@ -624,6 +650,7 @@ pub fn apply_import(
             .or_insert_with(|| RestoredChat {
                 id: c.id.clone(),
                 display_name: c.display_name.clone(),
+                nickname: c.nickname.clone(),
                 peer_account_id: c.peer_account_id.clone(),
                 created_at: c.created_at,
                 canon_id: if c.canon_id.is_empty() {

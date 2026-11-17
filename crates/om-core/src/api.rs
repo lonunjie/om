@@ -328,6 +328,13 @@ pub enum IntentBody {
     SetStrictDeviceNotice {
         enabled: bool,
     },
+    /// A name for a contact that only this device's person sees (ADR-0196): never sent to the contact, a group or a relay.
+    /// Absent, empty or whitespace-only clears it. Not destructive.
+    SetContactNickname {
+        conversation_id: ConversationId,
+        #[serde(default)]
+        nickname: Option<String>,
+    },
     ApproveDeviceLink {
         request_id: String,
         confirmation: ConfirmationToken,
@@ -422,6 +429,7 @@ impl IntentBody {
             IntentBody::RejectDeviceLink { .. } => "RejectDeviceLink",
             IntentBody::RetryDeviceNotice { .. } => "RetryDeviceNotice",
             IntentBody::SetStrictDeviceNotice { .. } => "SetStrictDeviceNotice",
+            IntentBody::SetContactNickname { .. } => "SetContactNickname",
             IntentBody::RevokeDevice { .. } => "RevokeDevice",
             IntentBody::StartRecovery { .. } => "StartRecovery",
             IntentBody::VetoRecovery { .. } => "VetoRecovery",
@@ -638,6 +646,9 @@ pub struct ConversationSummary {
     pub id: ConversationId,
     pub person_id: PersonId,
     pub display_name: String,
+    /// The person's own name for this contact (ADR-0196); omitted when none. Shown instead of `display_name`, which stays the original.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nickname: Option<String>,
     pub last_message_at: Option<u64>,
     pub notices: Vec<SecurityNotice>,
     pub relationship: RelationshipStateCode,

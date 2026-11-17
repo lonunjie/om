@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, 
 import { asConversationId, asGroupId, parseInviteLink, type ConversationId, type ConversationSummary, type IntroductionRequest, type MessageId, type OperationId } from "@om/platform-api";
 import {
   AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, ProtectionScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
-  type IconName, type OmniEntry, useConversationDigests,
+  type IconName, type OmniEntry, useConversationDigests, shownName,
   GroupChat, GroupComposer, GroupInvites, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
@@ -137,7 +137,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   // A search hit names a message too; it is kept in memory only (never in the address) and dropped when the chat changes.
   const [hitFocus, setHitFocus] = useState<{ readonly chat: string; readonly messageId: MessageId; readonly ctx: unknown } | null>(null);
   const selected = place.kind === "chats" ? (place.chat as ConversationId | null) : null;
-  const peerName = selected !== null && list.status === "ready" ? list.value.find((c) => c.id === selected)?.displayName : undefined;
+  const peerName = selected !== null && list.status === "ready" ? (() => { const c = list.value.find((x) => x.id === selected); return c === undefined ? undefined : shownName(c); })() : undefined;
   useEffect(() => { if (hitFocus !== null && hitFocus.chat !== selected) setHitFocus(null); }, [hitFocus, selected]);
   const settings: SettingsPage | null = place.kind === "settings" ? place.page : null;
   const hasProtection = services.client.privacy !== undefined; // a client that cannot set the level offers no control for it
@@ -269,7 +269,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   const shortcut = typeof navigator !== "undefined" && /mac|iphone|ipad/i.test(navigator.platform) ? "\u2318K" : "Ctrl K";
   const omniEntries = useMemo<readonly OmniEntry[]>(() => {
     const out: OmniEntry[] = [];
-    if (chatRows !== null) chatRows.forEach((c, i) => { out.push({ id: `chat-${c.id}`, kind: "conversation", label: c.displayName, suggested: i < 3, run: () => { go({ kind: "chats", chat: c.id }); } }); });
+    if (chatRows !== null) chatRows.forEach((c, i) => { out.push({ id: `chat-${c.id}`, kind: "conversation", label: shownName(c), suggested: i < 3, run: () => { go({ kind: "chats", chat: c.id }); } }); });
     if (invite !== undefined) {
       out.push({ id: "invite", kind: "action", label: t.omniActions.invite, keywords: t.omniKeywords.invite, suggested: true, run: () => { openNew("share"); } });
       out.push({ id: "scan", kind: "action", label: t.omniActions.scan, keywords: t.omniKeywords.scan, suggested: true, run: () => { openNew("scan"); } });
@@ -413,7 +413,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
             {groups.available ? (
               <GroupStatus
                 copy={groupsCopy} states={groupEvents.states} scope="all"
-                inviteName={(id) => { const i = groups.invites.find((x) => x.id === id); return i === undefined ? null : (list.status === "ready" ? list.value.find((c) => c.id === i.relationshipId)?.displayName ?? null : null); }}
+                inviteName={(id) => { const i = groups.invites.find((x) => x.id === id); return i === undefined ? null : (list.status === "ready" ? (() => { const c = list.value.find((x) => x.id === i.relationshipId); return c === undefined ? null : shownName(c); })() : null); }}
                 groupName={(id) => groups.groups.find((g) => g.conversationId === id)?.name ?? null}
                 onDismissUndeliverable={groupEvents.dismissUndeliverable} onDismissSettingBlocked={groupEvents.dismissSettingBlocked} onDismissAdmitBlocked={groupEvents.dismissAdmitBlocked}
               />

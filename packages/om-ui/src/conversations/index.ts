@@ -12,3 +12,5 @@ export * from "./MessageRequest";
 export * from "./StrangerPressure";
 export * from "./Avatar";
 export * from "./Attachments";
+export * from "./shownName";
+export * from "./ContactDetail";

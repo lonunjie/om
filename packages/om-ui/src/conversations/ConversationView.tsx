@@ -8,6 +8,8 @@ import { Text } from "../shell/primitives/Text";
 import { VisuallyHidden } from "../shell/primitives/VisuallyHidden";
 import type { ConversationCopy } from "./copy";
 import { Avatar } from "./Avatar";
+import { ContactDetail } from "./ContactDetail";
+import { shownName } from "./shownName";
 import { MessageAttachments } from "./Attachments";
 import { DeliveryIndicator, RETRYABLE_REASONS, deliveryOf } from "./delivery";
 import { useConversationView } from "./hooks";
@@ -51,6 +53,7 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
   const state = useConversationView(services, conversationId);
   const retrying = useRef(new Set<MessageId>());
   const [, rerender] = useState(0);
+  const [contactOpen, setContactOpen] = useState(false);
   const end = useRef<HTMLDivElement>(null);
   const seen = useRef<{ readonly count: number } | null>(null);
   const timeline = state.status === "loading" || state.status === "failed" ? null : state.value.view.timeline;
@@ -106,18 +109,20 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
   };
 
   return (
-    <section className="om-conv-view" aria-label={view.summary.displayName}>
+    <section className="om-conv-view" aria-label={shownName(view.summary)}>
       <header className="om-conv-view__header">
         {onBack ? <IconButton className="om-conv-view__back" label={copy.view.back} icon={<Icon name="back" />} onClick={onBack} /> : null}
-        <Avatar name={view.summary.displayName} />
+        <Avatar name={shownName(view.summary)} />
         <div className="om-conv-view__who">
-          <Text as="h2" size="lg" weight="bold">{view.summary.displayName}</Text>
+          <Text as="h2" size="lg" weight="bold">{shownName(view.summary)}</Text>
+          {view.summary.nickname === undefined ? null : <Text as="p" size="sm" tone="secondary" className="om-conv-view__original"><bdi>{view.summary.displayName}</bdi></Text>}
         </div>
+        <IconButton className="om-conv-view__contact" label={copy.contact.open(shownName(view.summary))} icon={<Icon name="user" />} onClick={() => { setContactOpen(true); }} />
       </header>
       {view.summary.relationship === "active" && view.summary.notices.length === 0 && (view.summary.peerRecovery === undefined || recoveryCopy === undefined) ? null : (
         <div className="om-conv-view__notes">
           {view.summary.peerRecovery !== undefined && recoveryCopy !== undefined
-            ? <PeerRecovery services={services} conversationId={conversationId} name={view.summary.displayName} recovery={view.summary.peerRecovery} copy={recoveryCopy} />
+            ? <PeerRecovery services={services} conversationId={conversationId} name={shownName(view.summary)} recovery={view.summary.peerRecovery} copy={recoveryCopy} />
             : null}
           {view.summary.relationship === "active" ? null : <p className="om-conv-view__relationship" role="status" data-relationship={view.summary.relationship}>{copy.relationship[view.summary.relationship]}</p>}
           <SecurityNotices notices={view.summary.notices} copy={copy.notices} />
@@ -159,6 +164,7 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
         <div ref={end} className="om-conv-view__end" aria-hidden="true" />
       </div>
       {footer}
+      {contactOpen ? <ContactDetail services={services} summary={view.summary} copy={copy.contact} onClose={() => { setContactOpen(false); }} /> : null}
     </section>
   );
 }

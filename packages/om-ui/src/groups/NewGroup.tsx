@@ -1,3 +1,4 @@
+import { shownName } from "../conversations/shownName";
 import { useState } from "react";
 import type { ConversationSummary, GroupProtectionLevel } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
@@ -29,7 +30,7 @@ export function NewGroup({ services, copy, chats, onCreated }: NewGroupProps) {
   const [level, setLevel] = useState<GroupProtectionLevel>(1);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const same = findSameNames(eligible.map((x) => ({ id: x.id, name: x.displayName })));
+  const same = findSameNames(eligible.map((x) => ({ id: x.id, name: shownName(x) })));
   if (eligible.length === 0) return <Text as="p" data-sheet-initial="">{c.nobody}</Text>;
   const toggle = (id: string): void => { setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; }); };
   const submit = async (e: { preventDefault: () => void }): Promise<void> => {
@@ -37,7 +38,7 @@ export function NewGroup({ services, copy, chats, onCreated }: NewGroupProps) {
     if (busy || picked.size === 0) return;
     setBusy(true);
     setProblem(null);
-    const chosen = eligible.filter((x) => picked.has(x.id)).map((x) => x.displayName);
+    const chosen = eligible.filter((x) => picked.has(x.id)).map((x) => shownName(x));
     const r = await runGroupAction(services, "group-create", { name: name.trim() === "" ? c.unnamed(chosen) : name.trim(), relationshipIds: [...picked], ...(level === 1 ? {} : { protection: level }) });
     setBusy(false);
     if (r.ok) onCreated(name.trim()); else setProblem(copy.refused(r.refused));
@@ -54,8 +55,8 @@ export function NewGroup({ services, copy, chats, onCreated }: NewGroupProps) {
         {eligible.map((x) => (
           <label key={x.id} className="om-group-form__person">
             <input type="checkbox" checked={picked.has(x.id)} onChange={() => { toggle(x.id); }} />
-            {same.of(x.id) === null ? <Avatar name={x.displayName} /> : <PatternAvatar seed={x.id} />}
-            <bdi>{same.of(x.id) === null ? x.displayName : copy.sameName.of(x.displayName, same.of(x.id)?.index ?? 1, same.of(x.id)?.of ?? 1)}</bdi>
+            {same.of(x.id) === null ? <Avatar name={shownName(x)} /> : <PatternAvatar seed={x.id} />}
+            <bdi>{same.of(x.id) === null ? shownName(x) : copy.sameName.of(shownName(x), same.of(x.id)?.index ?? 1, same.of(x.id)?.of ?? 1)}</bdi>
           </label>
         ))}
       </fieldset>

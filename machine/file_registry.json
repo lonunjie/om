@@ -9699,6 +9699,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/conversations/ContactDetail.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/conversations/ConversationList.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -9790,6 +9797,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/conversations/nickname.test.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/conversations/notices.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -9819,6 +9833,13 @@
     },
     {
       "path": "packages/om-ui/src/conversations/services.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/conversations/shownName.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

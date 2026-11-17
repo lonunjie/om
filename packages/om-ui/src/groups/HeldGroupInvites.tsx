@@ -1,3 +1,4 @@
+import { shownName } from "../conversations/shownName";
 import type { ConversationSummary, HeldGroupInvitations } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
@@ -28,7 +29,7 @@ const SHOWN = 3;
  */
 export function HeldGroupInvites({ copy, held, chats, groupsReady, onOpen, onAcknowledge }: HeldGroupInvitesProps) {
   const c = copy.held;
-  const names = new Map(chats.map((x) => [x.id as string, x.displayName]));
+  const names = new Map(chats.map((x) => [x.id as string, shownName(x)]));
   const list = groupsReady ? [] : held.invitations;
   const { invites, replies } = held.overflow;
   if (list.length === 0 && invites === 0 && replies === 0) return null;

@@ -1,3 +1,4 @@
+import { shownName } from "../conversations/shownName";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ConversationId } from "@om/platform-api";
 import type { ConversationServices } from "../conversations/services";
@@ -33,7 +34,7 @@ export function useLocalSearch(s: ConversationServices): LocalSearch {
       const refresh = (): void => {
         s.client.query(q).then((view) => {
           if (!alive) return;
-          index.replace(id, view.summary.displayName || displayName, view.timeline);
+          index.replace(id, shownName(view.summary) || displayName, view.timeline);
           loaded.add(id);
           touch();
         }, () => { loaded.add(id); touch(); });
@@ -51,7 +52,7 @@ export function useLocalSearch(s: ConversationServices): LocalSearch {
           if (!ids.has(id)) { unsub(); unsubs.delete(id); loaded.delete(id); index.remove(id); }
         }
         wanted = chats.length;
-        for (const c of chats) if (!unsubs.has(c.id)) watch(c.id, c.displayName);
+        for (const c of chats) if (!unsubs.has(c.id)) watch(c.id, shownName(c));
         touch();
       }, () => undefined);
     };

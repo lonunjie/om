@@ -1,3 +1,4 @@
+import { shownName } from "../conversations/shownName";
 import { useState } from "react";
 import type { ConversationSummary, GroupDetailView, GroupInviteView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
@@ -46,7 +47,7 @@ export function GroupMembers({ services, copy, detail, names, invites, chats, on
   const keyOfContact = (x: ConversationSummary): string => (x.peerAccount === undefined ? `c:${x.id}` : keyOfMember(x.peerAccount));
   const same = findSameNames([
     ...detail.people.flatMap((p) => (p.display === null || names.isYou(p.account) ? [] : [{ id: keyOfMember(p.account), name: p.display }])),
-    ...addable.map((x) => ({ id: keyOfContact(x), name: x.displayName })),
+    ...addable.map((x) => ({ id: keyOfContact(x), name: shownName(x) })),
   ]);
   const shown = (key: string, name: string): string => { const s = same.of(key); return s === null ? name : copy.sameName.of(name, s.index, s.of); };
   const rows = detail.people.map((p) => ({ p, text: shown(keyOfMember(p.account), label(p.account)), seed: same.of(keyOfMember(p.account)) === null ? null : p.account }));
@@ -95,9 +96,9 @@ export function GroupMembers({ services, copy, detail, names, invites, chats, on
           <ul className="om-group-members__candidates">
             {addable.map((x) => (
               <li key={x.id}>
-                <Button variant="secondary" disabled={busy} aria-label={c.addLabel(shown(keyOfContact(x), x.displayName))} onClick={() => { void run("group-invite", { conversationId: detail.summary.conversationId, relationshipId: x.id }, () => { onChanged("invited"); }); }}>
+                <Button variant="secondary" disabled={busy} aria-label={c.addLabel(shown(keyOfContact(x), shownName(x)))} onClick={() => { void run("group-invite", { conversationId: detail.summary.conversationId, relationshipId: x.id }, () => { onChanged("invited"); }); }}>
                   {same.of(keyOfContact(x)) === null ? null : <PatternAvatar seed={x.id} />}
-                  <bdi>{shown(keyOfContact(x), x.displayName)}</bdi>
+                  <bdi>{shown(keyOfContact(x), shownName(x))}</bdi>
                 </Button>
               </li>
             ))}

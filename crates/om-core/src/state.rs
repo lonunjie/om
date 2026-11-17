@@ -415,6 +415,9 @@ pub struct Relationship {
     pub id: String,
     pub person_id: String,
     pub display_name: String,
+    /// The name this device's person gave the contact (ADR-0196): local, never sent, shown instead of `display_name`.
+    #[serde(default)]
+    pub nickname: Option<String>,
     pub state: RelState,
     pub peer_account_id: Hex,
     pub peer_device_id: Hex,
@@ -519,6 +522,9 @@ pub struct HeldWrapper {
 pub struct RestoredChat {
     pub id: String,
     pub display_name: String,
+    /// See [`Relationship::nickname`]; restored from a version 2 backup body (ADR-0196).
+    #[serde(default)]
+    pub nickname: Option<String>,
     #[serde(default)]
     pub peer_account_id: Hex,
     pub created_at: u64,
@@ -1374,4 +1380,16 @@ pub fn diff(old: &BTreeMap<String, Vec<u8>>, new: &BTreeMap<String, Vec<u8>>) ->
             value: None,
         }))
         .collect()
+}
+
+/// A nickname (ADR-0196): already trimmed, 1 to 64 characters, no control characters and no bidirectional controls, so
+/// it cannot rewrite the text around it (IS-03). Anything else is kept exactly as typed.
+pub fn valid_nickname(n: &str) -> bool {
+    let len = n.chars().count();
+    (1..=64).contains(&len)
+        && n == n.trim()
+        && !n.chars().any(|c| {
+            c.is_control()
+                || matches!(c, '\u{061C}' | '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
+        })
 }

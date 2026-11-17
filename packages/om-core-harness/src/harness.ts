@@ -117,7 +117,7 @@ interface MutableMessage {
   attachments?: AttachmentView[];
   presentation?: PresentationView;
 }
-interface ConversationState { id: ConversationId; personId: PersonId; displayName: string; messages: MutableMessage[]; peerRecovery?: PeerRecoveryView }
+interface ConversationState { id: ConversationId; personId: PersonId; displayName: string; nickname?: string; messages: MutableMessage[]; peerRecovery?: PeerRecoveryView }
 const peerLive = (c: ConversationState): boolean => c.peerRecovery?.state === "waiting" || c.peerRecovery?.state === "ready";
 interface ProfileState {
   label: string;
@@ -210,7 +210,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
       : { direction: "incoming", messageId: m.messageId, text: m.text, sentAt: m.sentAt, ...extras };
   }
   function summary(c: ConversationState): ConversationSummary {
-    return { id: c.id, personId: c.personId, displayName: c.displayName, lastMessageAt: c.messages.at(-1)?.sentAt ?? null, notices: [], relationship: "active", peerAccount: `acct-${c.id}`, ...(c.peerRecovery === undefined ? {} : { peerRecovery: c.peerRecovery }) };
+    return { id: c.id, personId: c.personId, displayName: c.displayName, ...(c.nickname === undefined ? {} : { nickname: c.nickname }), lastMessageAt: c.messages.at(-1)?.sentAt ?? null, notices: [], relationship: "active", peerAccount: `acct-${c.id}`, ...(c.peerRecovery === undefined ? {} : { peerRecovery: c.peerRecovery }) };
   }
 
   function runQuery<Q extends CoreQuery>(q: Q): QueryResult<Q> {
@@ -409,6 +409,16 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         messageOwner.set(messageId, intent.ctx.profileId);
         return record(intent, { kind: "Committed" }, messageId);
       }
+      case "SetContactNickname": {
+        const conv = conversationFor(intent.ctx, st, intent.conversationId);
+        if (!conv) return rejected("not_found");
+        // Same rule as Core (ADR-0196): trimmed, 1 to 64 characters, no control or bidirectional controls; blank clears.
+        const n = (intent.nickname ?? "").trim();
+        if (n === "") delete conv.nickname;
+        else if (Array.from(n).length > 64 || /[\p{Cc}\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/u.test(n)) return rejected("invalid");
+        else conv.nickname = n;
+        return record(intent, { kind: "Committed" });
+      }
       case "WithdrawDirectOffer": {
         const msg = [...st.conversations.values()].flatMap((c) => c.messages).find((m) => m.messageId === intent.messageId);
         if (msg?.attachments === undefined || !msg.attachments.some((a) => LIVE_OFFER.includes(a.state))) return rejected("not_found");
@@ -533,7 +543,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
     }),
   };
 
-  const groups = createGroupSim({ stateFor, hasRelationship: (ctx, id) => stateFor(ctx).conversations.has(id), clock, contactName: (ctx, id) => stateFor(ctx).conversations.get(id)?.displayName ?? null });
+  const groups = createGroupSim({ stateFor, hasRelationship: (ctx, id) => stateFor(ctx).conversations.has(id), clock, contactName: (ctx, id) => { const c = stateFor(ctx).conversations.get(id); return c === undefined ? null : c.nickname ?? c.displayName; } });
 
   return {
     marker: HARNESS_MARKER,

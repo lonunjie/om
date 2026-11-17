@@ -24,6 +24,26 @@ export interface ConversationCopy {
     readonly back: string;
     readonly formatTime: (epochMs: number) => string;
   };
+  /** The contact detail sheet and the nickname (ADR-0196). */
+  readonly contact: {
+    /** Accessible name of the header control that opens the sheet. */
+    readonly open: (name: string) => string;
+    readonly title: (name: string) => string;
+    readonly close: string;
+    /** Label before the name the contact chose for themselves: "Their name". */
+    readonly theirName: string;
+    readonly nicknameLabel: string;
+    readonly nicknamePlaceholder: string;
+    /** One plain sentence: only you see it, it is kept on this device and backup, never sent. */
+    readonly nicknameHint: string;
+    readonly save: string;
+    readonly clear: string;
+    readonly saved: string;
+    readonly cleared: string;
+    /** The nickname was refused (too long or has hidden direction characters). */
+    readonly invalid: string;
+    readonly failed: string;
+  };
   readonly delivery: {
     readonly pending: string;
     readonly pendingNetwork: string;

@@ -1818,7 +1818,7 @@ impl AppState {
                 found = Some(r);
             }
         }
-        found.map(|r| r.display_name.clone())
+        found.map(|r| r.nickname.clone().unwrap_or_else(|| r.display_name.clone()))
     }
 
     /// Answer a typed query. Without the caller's own account no member is marked `you`; hosts use [`Self::group_query_as`].

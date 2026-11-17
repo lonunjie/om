@@ -29,6 +29,7 @@ fn sample_body() -> Vec<u8> {
         chats: vec![backup::ArchivedChat {
             id: "c-1".into(),
             display_name: "Bob".into(),
+            nickname: None,
             peer_account_id: "11".repeat(32),
             created_at: 1_789_999_000_000,
             canon_id: "22".repeat(32),
@@ -59,6 +60,12 @@ fn sample_body() -> Vec<u8> {
     backup::encode_body(&a)
 }
 
+fn sample_body_v2() -> Vec<u8> {
+    let mut a = backup::decode_body(&sample_body()).unwrap();
+    a.chats[0].nickname = Some("Bobby from work".into());
+    backup::encode_body(&a)
+}
+
 fn sample_file() -> Vec<u8> {
     backup::seal(&sample_body(), test_kdf(), &[7; 16], &[9; 24], &KEY).unwrap()
 }
@@ -82,6 +89,9 @@ fn the_documented_vector_is_stable() {
         "body": om_core::crypto::hex(&sample_body()),
         "file": om_core::crypto::hex(&f),
         "wrong_master": om_core::crypto::hex(&OTHER_KEY),
+        "v2_note": "Body version 2 (ADR-0196): the same archive with a nickname on its one chat. Same header, key, salt and nonce.",
+        "body_v2": om_core::crypto::hex(&sample_body_v2()),
+        "file_v2": om_core::crypto::hex(&backup::seal(&sample_body_v2(), test_kdf(), &[7; 16], &[9; 24], &KEY).unwrap()),
     });
     if std::env::var("OM_WRITE_VECTORS").is_ok() {
         std::fs::write(path, serde_json::to_string_pretty(&current).unwrap() + "\n").unwrap();
@@ -98,6 +108,72 @@ fn the_documented_vector_is_stable() {
     );
     assert_eq!(&file[..8], b"OMBACKUP");
     assert_eq!(file.len(), backup::HEADER_LEN + body.len() + 16);
+    // The version 2 file opens to the committed version 2 body, which decodes with the nickname.
+    let file2 = om_core::crypto::unhex(committed["file_v2"].as_str().unwrap()).unwrap();
+    let body2 = backup::open(&file2, &KEY).unwrap();
+    assert_eq!(
+        om_core::crypto::hex(&body2),
+        committed["body_v2"].as_str().unwrap()
+    );
+    assert_eq!(
+        backup::decode_body(&body2).unwrap().chats[0]
+            .nickname
+            .as_deref(),
+        Some("Bobby from work")
+    );
+}
+
+#[test]
+fn an_older_body_still_restores_and_means_no_nickname() {
+    // Version 1 (no nickname anywhere) is exactly what a build from before ADR-0196 wrote.
+    let a = backup::decode_body(&sample_body()).unwrap();
+    assert_eq!(a.chats[0].nickname, None);
+    assert_eq!(
+        backup::encode_body(&a),
+        sample_body(),
+        "still version 1, same bytes"
+    );
+    assert_ne!(sample_body(), sample_body_v2());
+    // Body version 3 is refused, and so is a version 1 body that carries the version 2 key.
+    use om_core::crypto::cbor::{self, V};
+    let patched = |version: u64, with_key: bool| {
+        let mut v = cbor::decode(&sample_body_v2()).unwrap();
+        if let V::M(m) = &mut v {
+            for (k, x) in m.iter_mut() {
+                if *k == 1 {
+                    *x = V::U(version);
+                }
+            }
+        }
+        let mut bytes = cbor::encode(&v);
+        if !with_key {
+            let mut a = backup::decode_body(&sample_body_v2()).unwrap();
+            a.chats[0].nickname = None;
+            bytes = backup::encode_body(&a);
+        }
+        bytes
+    };
+    assert_eq!(
+        backup::decode_body(&patched(3, true)),
+        Err(BackupError::InvalidContent)
+    );
+    assert_eq!(
+        backup::decode_body(&patched(1, true)),
+        Err(BackupError::InvalidContent)
+    );
+    assert!(backup::decode_body(&patched(2, true)).is_ok());
+    let mut bad = backup::decode_body(&sample_body_v2()).unwrap();
+    bad.chats[0].nickname = Some("x\u{202E}y".into());
+    assert_eq!(
+        backup::decode_body(&backup::encode_body(&bad)),
+        Err(BackupError::InvalidContent),
+        "a bidirectional control in a nickname is refused"
+    );
+    bad.chats[0].nickname = Some("n".repeat(65));
+    assert_eq!(
+        backup::decode_body(&backup::encode_body(&bad)),
+        Err(BackupError::InvalidContent)
+    );
 }
 
 #[test]
@@ -289,6 +365,7 @@ struct Pair {
     a: ProfileExecutionContext,
     bob: Runtime,
     b: ProfileExecutionContext,
+    net: LoopbackNetwork,
 }
 
 fn pair() -> Pair {
@@ -317,7 +394,13 @@ fn pair() -> Pair {
         },
     );
     settle_all(&mut [(&mut alice, &a), (&mut bob, &b)]);
-    Pair { alice, a, bob, b }
+    Pair {
+        alice,
+        a,
+        bob,
+        b,
+        net,
+    }
 }
 
 fn conv_id(rt: &Runtime, ctx: &ProfileExecutionContext) -> String {
@@ -732,4 +815,127 @@ fn deleted_messages_are_not_exported() {
     let st: om_core::state::AppState = serde_json::from_value(app).unwrap();
     let archive = backup::collect(&st, 1).unwrap();
     assert_eq!(archive.chats[0].messages.len(), 2);
+}
+
+// ----------------------------------------------------------------------------------------------- nickname (ADR-0196)
+
+fn nick(rt: &mut Runtime, ctx: &ProfileExecutionContext, op: &str, id: &str, n: Option<&str>) {
+    rt.dispatch(
+        ctx,
+        op,
+        IntentBody::SetContactNickname {
+            conversation_id: id.into(),
+            nickname: n.map(str::to_string),
+        },
+    );
+}
+
+#[test]
+fn a_nickname_is_set_shown_cleared_validated_and_survives_a_restart() {
+    let mut p = pair();
+    talk(&mut p);
+    let (a, id) = (p.a.clone(), conv_id(&p.alice, &p.a));
+    nick(&mut p.alice, &a, "n1", &id, Some("  Bobby from work  "));
+    assert_eq!(p.alice.outcome(&a, "n1"), Some(OutcomeClass::Committed));
+    let l = list(&p.alice, &a);
+    assert_eq!(l[0].nickname.as_deref(), Some("Bobby from work"));
+    assert_eq!(l[0].display_name, "Bob", "the original stays");
+    assert_eq!(
+        view(&p.alice, &a, &id).summary.nickname.as_deref(),
+        Some("Bobby from work")
+    );
+
+    for (op, bad) in [
+        ("b1", "x\u{202E}y"),
+        ("b2", "a\u{0007}b"),
+        ("b3", &"n".repeat(65)[..]),
+    ] {
+        nick(&mut p.alice, &a, op, &id, Some(bad));
+        assert!(
+            matches!(p.alice.outcome(&a, op), Some(OutcomeClass::Rejected { .. })),
+            "{op}"
+        );
+    }
+    nick(&mut p.alice, &a, "b4", "no-such-chat", Some("x"));
+    assert!(matches!(
+        p.alice.outcome(&a, "b4"),
+        Some(OutcomeClass::Rejected { .. })
+    ));
+    assert_eq!(
+        list(&p.alice, &a)[0].nickname.as_deref(),
+        Some("Bobby from work"),
+        "refusals change nothing"
+    );
+
+    let ctxs = p.alice.restart();
+    assert_eq!(
+        list(&p.alice, &ctxs[0])[0].nickname.as_deref(),
+        Some("Bobby from work")
+    );
+
+    nick(&mut p.alice, &ctxs[0], "n2", &id, Some("   "));
+    assert_eq!(list(&p.alice, &ctxs[0])[0].nickname, None, "blank clears");
+}
+
+#[test]
+fn a_nickname_never_reaches_the_wire_or_the_contact() {
+    let mut p = pair();
+    talk(&mut p);
+    let (a, id) = (p.a.clone(), conv_id(&p.alice, &p.a));
+    let marker = "Zq-private-nickname-7731";
+    let before = p.alice.core.net_ops(&a).unwrap().len();
+    let deposits = p.net.deposit_count();
+    nick(&mut p.alice, &a, "n1", &id, Some(marker));
+    assert_eq!(
+        p.alice.core.net_ops(&a).unwrap().len(),
+        before,
+        "setting a nickname queues no network call"
+    );
+    // A full conversation after it.
+    say(&mut p.alice, &a, "s4", "after the nickname");
+    settle_all(&mut [(&mut p.alice, &a), (&mut p.bob, &p.b)]);
+    say(&mut p.bob, &p.b.clone(), "s5", "reply");
+    settle_all(&mut [(&mut p.alice, &a), (&mut p.bob, &p.b)]);
+    assert!(p.net.deposit_count() > deposits, "traffic did flow");
+    let needle = marker.as_bytes();
+    assert!(
+        p.net
+            .all_deposited_bytes()
+            .iter()
+            .all(|b| !b.windows(needle.len()).any(|w| w == needle)),
+        "no deposited byte string holds the nickname"
+    );
+    // The contact's own profile never holds it, and neither does the pure group name lookup.
+    assert!(!common::app_state(&p.bob, &p.b).to_string().contains(marker));
+}
+
+#[test]
+fn a_nickname_round_trips_through_a_backup_and_an_old_backup_restores() {
+    let mut p = pair();
+    talk(&mut p);
+    let (a, id) = (p.a.clone(), conv_id(&p.alice, &p.a));
+    let plain = export(&mut p.alice, &a, &KEY);
+    nick(&mut p.alice, &a, "n1", &id, Some("Bobby"));
+    let with = export(&mut p.alice, &a, &KEY);
+    assert_ne!(plain.len(), with.len());
+
+    let mut fresh = Runtime::new("fresh", &LoopbackNetwork::default());
+    let f = common::create_profile(&mut fresh, "pf", "Alice again");
+    import(&mut fresh, &f, &with, &KEY).unwrap();
+    let l = list(&fresh, &f);
+    assert_eq!(l[0].nickname.as_deref(), Some("Bobby"));
+    assert_eq!(l[0].display_name, "Bob");
+    // Restored chats can be renamed too, and a backup taken after the restore keeps it.
+    nick(&mut fresh, &f, "r1", &id, Some("Bob B"));
+    let again = export(&mut fresh, &f, &KEY);
+    let mut third = Runtime::new("third", &LoopbackNetwork::default());
+    let t = common::create_profile(&mut third, "pt", "Alice third");
+    import(&mut third, &t, &again, &KEY).unwrap();
+    assert_eq!(list(&third, &t)[0].nickname.as_deref(), Some("Bob B"));
+
+    // A backup written before any nickname existed restores with none.
+    let mut old = Runtime::new("old", &LoopbackNetwork::default());
+    let o = common::create_profile(&mut old, "po", "Alice old");
+    import(&mut old, &o, &plain, &KEY).unwrap();
+    assert_eq!(list(&old, &o)[0].nickname, None);
 }

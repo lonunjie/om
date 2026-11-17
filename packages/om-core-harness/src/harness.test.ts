@@ -256,3 +256,25 @@ describe("contact-side recovery (ADR-0190)", () => {
     expect(outcome(h, ctx, "c2")).toEqual({ kind: "Rejected", reason: "not_found" });
   });
 });
+
+describe("SetContactNickname (ADR-0196)", () => {
+  const nick = (ctx: ProfileExecutionContext, id: string, conversationId: typeof CA, nickname?: string): CoreIntent =>
+    ({ kind: "SetContactNickname", ctx, operationId: asOperationId(id), conversationId, ...(nickname === undefined ? {} : { nickname }) });
+
+  it("sets, trims, clears, refuses bidirectional controls and over-long text, and stays inside its profile", async () => {
+    const { h, a, b } = setup();
+    const list = async (ctx: ProfileExecutionContext) => h.query({ kind: "GetConversationList", ctx });
+    const out = async (ctx: ProfileExecutionContext, id: string): Promise<OutcomeClass> => (await h.pendingOperations(ctx)).find((o) => o.operationId === id)?.outcome ?? { kind: "PendingNetwork" };
+    await h.dispatch(nick(a, "n1", CA, "  Annie  "));
+    expect((await list(a))[0]?.nickname).toBe("Annie");
+    expect((await list(a))[0]?.displayName).toBe("Ann");
+    await h.dispatch(nick(a, "n2", CA, "x‮y"));
+    await h.dispatch(nick(a, "n3", CA, "n".repeat(65)));
+    expect((await list(a))[0]?.nickname).toBe("Annie");
+    expect(await out(a, "n2")).toEqual({ kind: "Rejected", reason: "invalid" });
+    expect(await out(a, "n3")).toEqual({ kind: "Rejected", reason: "invalid" });
+    expect((await list(b))[0]?.nickname).toBeUndefined();
+    await h.dispatch(nick(a, "n4", CA, "   "));
+    expect((await list(a))[0]?.nickname).toBeUndefined();
+  });
+});

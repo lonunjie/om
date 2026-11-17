@@ -1,3 +1,4 @@
+import { shownName as nameShown } from "../conversations/shownName";
 import { useState } from "react";
 import type { ConversationSummary, GroupInviteView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
@@ -30,9 +31,9 @@ export function GroupInvites({ services, copy, invites, chats, onAnswered }: Gro
   // Said yes, not in yet: it stays visible until the add is done, so a person is never left guessing (ADR-0189: "Joining", then the state).
   const waiting = invites.filter((i) => i.dir === "incoming" && (i.state === "accepted" || i.state === "admitting"));
   if (offered.length === 0 && waiting.length === 0 && said.size === 0) return null;
-  const names = new Map(chats.map((x) => [x.id as string, x.displayName]));
+  const names = new Map(chats.map((x) => [x.id as string, nameShown(x)]));
   // An invitation from someone whose name another contact also shows says so before you say yes (section 10).
-  const same = findSameNames(chats.map((x) => ({ id: x.id, name: x.displayName })));
+  const same = findSameNames(chats.map((x) => ({ id: x.id, name: nameShown(x) })));
   const shownName = (id: string): string => { const n = names.get(id) ?? ""; const s = same.of(id); return s === null ? n : copy.sameName.of(n, s.index, s.of); };
   const answer = async (i: GroupInviteView, join: boolean): Promise<void> => {
     setBusy(i.id);

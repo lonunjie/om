@@ -851,6 +851,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             IntentBody::RejectDeviceLink { request_id } => self.reject_device_link(request_id),
             IntentBody::RetryDeviceNotice { device_id } => self.retry_device_notice(device_id),
             IntentBody::SetStrictDeviceNotice { enabled } => self.set_strict_notice(*enabled),
+            IntentBody::SetContactNickname {
+                conversation_id,
+                nickname,
+            } => self.set_contact_nickname(conversation_id, nickname.as_deref()),
             IntentBody::SuspendDevice { device_id, .. } => {
                 self.device_transition(device_id, control::Action::Suspend)
             }
@@ -880,6 +884,25 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let msg = None;
         self.record(op, kind, outcome, msg);
         Ok(())
+    }
+
+    /// `SetContactNickname` (ADR-0196): local contact state only. No network call, no outbox entry, no event.
+    fn set_contact_nickname(&mut self, conv: &str, nickname: Option<&str>) -> OutcomeClass {
+        let rejected = |reason| OutcomeClass::Rejected { reason };
+        let value = match nickname.map(str::trim) {
+            None | Some("") => None,
+            Some(n) if crate::state::valid_nickname(n) => Some(n.to_string()),
+            Some(_) => return rejected(RejectReason::Invalid),
+        };
+        if let Some(r) = self.st.app.relationships.get_mut(conv) {
+            r.nickname = value;
+            OutcomeClass::Committed
+        } else if let Some(r) = self.st.app.restored.get_mut(conv) {
+            r.nickname = value;
+            OutcomeClass::Committed
+        } else {
+            rejected(RejectReason::NotFound)
+        }
     }
 
     /// `SuspendDevice` / `RevokeDevice`: a real AccountControlState transition, authorized against the parent head
@@ -1216,6 +1239,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 id: conv.clone(),
                 person_id: intro.person_id.clone(),
                 display_name: intro.display_name.clone(),
+                nickname: None,
                 state: RelState::AcceptedUnbound,
                 // No account is known until the requester's binding verifies.
                 peer_account_id: String::new(),
@@ -2693,6 +2717,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 } else {
                     label
                 },
+                nickname: None,
                 state: RelState::AwaitingAcceptance,
                 // The inviter's account is learned from its binding after acceptance, never before.
                 peer_account_id: String::new(),

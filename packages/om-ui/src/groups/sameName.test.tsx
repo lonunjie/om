@@ -128,3 +128,17 @@ describe("contact pick list and invitations", () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 });
+
+describe("same-name cues use the shown name (ADR-0196)", () => {
+  it("two contacts with one name stop colliding once one has a nickname, and a nickname can collide with a name", () => {
+    const withNick = { ...chat("a", "Ana Reyes"), nickname: "Ana from work" } as ConversationSummary;
+    const { container, rerender } = render(<NewGroup services={services} copy={copy} chats={[chat("b", "Ana Reyes"), chat("a", "Ana Reyes")]} onCreated={() => undefined} />);
+    expect(container.textContent).toContain("(1 of 2)");
+    rerender(<NewGroup services={services} copy={copy} chats={[chat("b", "Ana Reyes"), withNick]} onCreated={() => undefined} />);
+    expect(container.textContent).not.toContain("of 2");
+    expect(container.textContent).toContain("Ana from work");
+    const clash = { ...chat("a", "Someone"), nickname: "Ana Reyes" } as ConversationSummary;
+    rerender(<NewGroup services={services} copy={copy} chats={[chat("b", "Ana Reyes"), clash]} onCreated={() => undefined} />);
+    expect(container.textContent).toContain("of 2");
+  });
+});

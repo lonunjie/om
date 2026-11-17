@@ -129,3 +129,13 @@
 
 /* A search hit: the message is tinted for a moment so the eye finds it. Static (no animation), so reduced motion needs nothing more. */
 .om-conv-view__item[data-found="true"] .om-conv-view__bubble { outline: 2px solid var(--om-color-focus-ring); outline-offset: 2px; }
+
+.om-conv-view__original { margin: 0; overflow-wrap: anywhere; }
+.om-conv-view__contact { margin-inline-start: auto; }
+.om-contact { display: grid; gap: var(--om-space-4); }
+.om-contact__id { display: flex; align-items: center; gap: var(--om-space-3); }
+.om-contact__id p { margin: 0; overflow-wrap: anywhere; }
+.om-contact__form { display: grid; gap: var(--om-space-2); }
+.om-contact__form input { font: inherit; padding: var(--om-space-2) var(--om-space-3); border-radius: var(--om-radius-md); border: 1px solid var(--om-hairline); background: var(--om-color-bg-surface); color: inherit; min-block-size: 44px; }
+.om-contact__form p { margin: 0; }
+.om-contact__actions { display: flex; flex-wrap: wrap; gap: var(--om-space-2); }

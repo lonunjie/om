@@ -59,3 +59,7 @@ Ordered by what the operator asked for next. State at handoff: OMB-1 and Setting
 7. **Operator-only, not an agent job**: nothing pending from this work. A larger real-device pass of Save/Restore on phones (V-006 matrix) is still open.
 
 Pointers: format `crates/om-core/src/backup.rs`; engine `crates/om-core/src/engine.rs` (`export_history`, `import_history`); bridge `crates/om-wasm/src/bridge.rs`; services `apps/web/src/core/backupServices.ts`; UI `apps/web/src/core/BackupScreen.tsx`; tests `crates/om-core/tests/backup.rs`, `apps/web/e2e/backup.spec.ts`; memory `lonunjie/memory/topics/om-core-kernel.md`.
+
+## Update 2026-11-17: nickname (ADR-0196)
+
+The body gains an optional per-conversation key 6 (`nickname`, text, at most 64 characters, no control or bidirectional controls). The body version is 2 when any chat has a nickname and 1 otherwise, so a backup with none is byte for byte the old one; the decoder accepts 1 and 2, and a build from before this change refuses a version 2 body as `invalid_content`. The header, profile and key schedule are unchanged. A restore never overwrites a live conversation, so it does not carry a nickname onto one (D128). Vector: `body_v2` and `file_v2` in `om-backup-file-vectors.json`.
