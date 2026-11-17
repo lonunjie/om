@@ -206,3 +206,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0197 — Lookalike display names: a UTS #39 skeleton in the client, a pinned minimal table, calm "looks similar" cues (accepted by operator delegation 2026-11-17)](ADR-0197-lookalike-name-matching.md)
 - [ADR-0198 — Group application messages carry the typed ConversationEvent: reply, reactions, edit and delete in a Room (accepted by operator delegation 2026-11-18)](ADR-0198-group-application-messages-typed-events.md)
 - [ADR-0199 — RecoveryRecord carriage: the signed head travels in the record, one wire form, and who writes it when (accepted by operator delegation 2026-11-18)](ADR-0199-recoveryrecord-carriage-and-writer-schedule.md)
+- [ADR-0200 — The recovery key sheet carries its own place: one checksummed string, no URL ever typed (accepted by operator delegation 2026-11-18)](ADR-0200-recovery-key-sheet-carries-its-place.md)

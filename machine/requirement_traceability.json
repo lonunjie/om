@@ -2850,6 +2850,12 @@
       "verified_by": [
         "review:ADR-0199-recoveryrecord-carriage-and-writer-schedule.md"
       ]
+    },
+    {
+      "requirement": "R-439",
+      "verified_by": [
+        "review:ADR-0200-recovery-key-sheet-carries-its-place.md"
+      ]
     }
   ]
 }
