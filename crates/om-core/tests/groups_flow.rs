@@ -1377,3 +1377,598 @@ fn a_commit_by_a_member_revoked_since_it_was_made_is_refused_at_apply_time() {
     );
     assert!(!devs[2].app.groups.is_empty());
 }
+
+// ---- everyday chat in a Room: reply, reactions, edit and delete as typed events (D143) -------------------------------
+
+use om_core::crypto::cbor::V;
+use om_core::events;
+use om_core::groups::GroupError;
+
+/// A, B (B1, B2) and C in one Room, at the same epoch, A able to send.
+fn room() -> (Vec<Dev>, Vec<u8>) {
+    let (devs, conv, _) = adding_c(true);
+    (devs, conv)
+}
+
+fn go(devs: &mut [Dev], i: usize, intent: GroupIntent) -> Vec<(usize, GroupEvent)> {
+    let d = &mut devs[i];
+    let rep = d.app.group_do(ctx!(d), intent).unwrap();
+    pump(devs, i, rep)
+}
+
+fn msgs(d: &Dev, conv: &[u8]) -> Vec<GroupMsg> {
+    match d
+        .app
+        .group_query(GroupQuery::Messages {
+            conversation_id: conv.to_vec(),
+        })
+        .unwrap()
+    {
+        GroupView::Messages(m) => m,
+        _ => unreachable!(),
+    }
+}
+
+fn say(devs: &mut [Dev], i: usize, conv: &[u8], text: &str, reply_to: Option<&str>) -> String {
+    let conversation_id = conv.to_vec();
+    let text = text.to_string();
+    let intent = match reply_to {
+        None => GroupIntent::SendText {
+            conversation_id,
+            text,
+        },
+        Some(r) => GroupIntent::SendReply {
+            conversation_id,
+            text,
+            reply_to: r.to_string(),
+        },
+    };
+    go(devs, i, intent);
+    msgs(&devs[i], conv).last().unwrap().id.clone()
+}
+
+fn react(devs: &mut [Dev], i: usize, conv: &[u8], id: &str, key: &str, present: bool) {
+    go(
+        devs,
+        i,
+        GroupIntent::SetReaction {
+            conversation_id: conv.to_vec(),
+            message_id: id.to_string(),
+            key: key.to_string(),
+            present,
+        },
+    );
+}
+
+fn counts(d: &Dev, conv: &[u8], id: &str) -> Vec<(String, usize, bool)> {
+    msgs(d, conv)
+        .iter()
+        .find(|m| m.id == id)
+        .map(GroupMsg::reaction_counts)
+        .unwrap_or_default()
+}
+
+/// A typed event as device `from` of the Room would encrypt it (the test plays a peer that is not Core): `claimed` is the
+/// account the event says it is from, `clock` its HLC. Returns the application wire.
+fn craft(
+    devs: &mut [Dev],
+    from: usize,
+    conv: &[u8],
+    claimed: u8,
+    clock: (u64, u32),
+    kind: u64,
+    body: V,
+) -> GroupWire {
+    let plain = events::Header {
+        event_id: [0xee; 16],
+        conversation_id: conv.try_into().unwrap(),
+        author_account: [claimed; 32],
+        author_device: devs[from].id().try_into().unwrap(),
+        clock: events::Hlc {
+            physical_ms: clock.0,
+            logical: clock.1,
+        },
+        kind,
+        body,
+    }
+    .encode();
+    craft_plain(devs, from, conv, &plain)
+}
+
+fn craft_plain(devs: &mut [Dev], from: usize, conv: &[u8], plain: &[u8]) -> GroupWire {
+    let d = &mut devs[from];
+    let gid = d.app.group_mls_id(conv).unwrap();
+    let ct = d
+        .eng
+        .encrypt_application(
+            &mut CryptoEnv {
+                rng: &mut d.rng,
+                now_ms: NOW,
+            },
+            &gid,
+            plain,
+        )
+        .unwrap();
+    GroupWire::App {
+        conversation_id: om_core::crypto::hex(conv),
+        ciphertext: om_core::crypto::hex(&ct),
+    }
+}
+
+/// Hand `wire` from device `from` to every other device; the result of each receive, by device index.
+fn deliver(
+    devs: &mut [Dev],
+    from: usize,
+    wire: &GroupWire,
+) -> Vec<(usize, Result<GroupReply, GroupError>)> {
+    refresh_heads(devs);
+    let sender = devs[from].id();
+    (0..devs.len())
+        .filter(|i| *i != from)
+        .map(|i| {
+            let d = &mut devs[i];
+            (
+                i,
+                d.app
+                    .group_receive(ctx!(d), Sender::Device(sender.clone()), wire.clone()),
+            )
+        })
+        .collect()
+}
+
+fn dropped(r: &Result<GroupReply, GroupError>, why: &str) -> bool {
+    r.as_ref().is_ok_and(|r| {
+        r.events
+            .iter()
+            .any(|e| matches!(e, GroupEvent::Dropped(w) if w == &why))
+    })
+}
+
+fn target(id: &str) -> V {
+    V::B(om_core::crypto::unhex(id).unwrap())
+}
+
+#[test]
+fn reply_reaction_edit_and_delete_reach_every_member() {
+    let (mut devs, conv) = room();
+    let a = say(&mut devs, 0, &conv, "dinner at eight?", None);
+    // B1 answers A's message: every device sees the link, and a reply to a message that is not here is refused before sending
+    let d = &mut devs[1];
+    let e = d
+        .app
+        .group_do(
+            ctx!(d),
+            GroupIntent::SendReply {
+                conversation_id: conv.clone(),
+                text: "x".into(),
+                reply_to: "00".repeat(16),
+            },
+        )
+        .unwrap_err();
+    assert_eq!(e.0, "not_found");
+    let r = say(&mut devs, 1, &conv, "yes please", Some(&a));
+    for d in &devs {
+        let m = msgs(d, &conv);
+        assert_eq!(m.len(), 2, "no event shows as a message of its own");
+        assert_eq!(m[1].reply_to.as_deref(), Some(a.as_str()));
+        assert_eq!(m[0].reply_to, None);
+    }
+    // C and B1 react: a count per key, `mine` only where it is ours, and our other device (B2) sees B1's as ours
+    react(&mut devs, 3, &conv, &a, "👍", true);
+    react(&mut devs, 1, &conv, &a, "👍", true);
+    react(&mut devs, 1, &conv, &a, "❤️", true);
+    assert_eq!(
+        counts(&devs[0], &conv, &a),
+        vec![("👍".into(), 2, false), ("❤️".into(), 1, false)]
+    );
+    assert_eq!(
+        counts(&devs[3], &conv, &a),
+        vec![("👍".into(), 2, true), ("❤️".into(), 1, false)]
+    );
+    assert_eq!(
+        counts(&devs[2], &conv, &a),
+        vec![("👍".into(), 2, true), ("❤️".into(), 1, true)]
+    );
+    // a reaction is removed by its owner only: B1 removing leaves C's
+    react(&mut devs, 1, &conv, &a, "👍", false);
+    assert_eq!(
+        counts(&devs[0], &conv, &a),
+        vec![("👍".into(), 1, false), ("❤️".into(), 1, false)]
+    );
+    // A edits: every device shows the new text, marked edited; the reply link survives an edit of the reply
+    go(
+        &mut devs,
+        0,
+        GroupIntent::EditMessage {
+            conversation_id: conv.clone(),
+            message_id: a.clone(),
+            text: "dinner at nine?".into(),
+        },
+    );
+    go(
+        &mut devs,
+        1,
+        GroupIntent::EditMessage {
+            conversation_id: conv.clone(),
+            message_id: r.clone(),
+            text: "yes, please".into(),
+        },
+    );
+    for d in &devs {
+        let m = msgs(d, &conv);
+        assert_eq!((m[0].text.as_str(), m[0].edited), ("dinner at nine?", true));
+        assert_eq!(
+            (m[1].text.as_str(), m[1].reply_to.as_deref()),
+            ("yes, please", Some(a.as_str()))
+        );
+    }
+    // A deletes for everyone: the message and its reactions are gone, the reply stays and now points at nothing
+    go(
+        &mut devs,
+        0,
+        GroupIntent::DeleteMessage {
+            conversation_id: conv.clone(),
+            message_id: a.clone(),
+        },
+    );
+    for d in &devs {
+        let m = msgs(d, &conv);
+        assert_eq!(m.len(), 1);
+        assert_eq!(m[0].id, r);
+        assert!(!m.iter().any(|x| x.id == a));
+        let stored = &d.app.group_msgs[&om_core::crypto::hex(&conv)];
+        let gone = stored.iter().find(|x| x.id == a).unwrap();
+        assert!(gone.deleted && gone.text.is_empty() && gone.reactions.is_empty());
+    }
+    // nothing can be done to a deleted message
+    let d = &mut devs[1];
+    let e = d
+        .app
+        .group_do(
+            ctx!(d),
+            GroupIntent::SetReaction {
+                conversation_id: conv.clone(),
+                message_id: a.clone(),
+                key: "👍".into(),
+                present: true,
+            },
+        )
+        .unwrap_err();
+    assert_eq!(e.0, "not_found");
+}
+
+#[test]
+fn only_the_author_can_edit_or_delete() {
+    let (mut devs, conv) = room();
+    let a = say(&mut devs, 0, &conv, "mine", None);
+    // our own intents refuse another member's message
+    for intent in [
+        GroupIntent::EditMessage {
+            conversation_id: conv.clone(),
+            message_id: a.clone(),
+            text: "theirs".into(),
+        },
+        GroupIntent::DeleteMessage {
+            conversation_id: conv.clone(),
+            message_id: a.clone(),
+        },
+    ] {
+        let d = &mut devs[1];
+        assert_eq!(d.app.group_do(ctx!(d), intent).unwrap_err().0, "not_author");
+    }
+    // a member whose client sends one anyway (an authentic event of B) changes nothing anywhere
+    let body = V::M(vec![(0, target(&a)), (1, events::rich_text("theirs"))]);
+    let wire = craft(&mut devs, 1, &conv, 2, (NOW + 10, 0), events::K_EDIT, body);
+    for (i, r) in deliver(&mut devs, 1, &wire) {
+        assert!(dropped(&r, "not_author"), "device {i}: {r:?}");
+    }
+    let del = craft(
+        &mut devs,
+        1,
+        &conv,
+        2,
+        (NOW + 11, 0),
+        events::K_DELETE,
+        V::M(vec![(0, target(&a))]),
+    );
+    for (i, r) in deliver(&mut devs, 1, &del) {
+        assert!(dropped(&r, "not_author"), "device {i}: {r:?}");
+    }
+    // an event that names A as its author but arrives from B's device is refused: MLS says who sent it
+    let spoof = craft(
+        &mut devs,
+        1,
+        &conv,
+        1,
+        (NOW + 12, 0),
+        events::K_DELETE,
+        V::M(vec![(0, target(&a))]),
+    );
+    for (i, r) in deliver(&mut devs, 1, &spoof) {
+        assert!(dropped(&r, "event_author_mismatch"), "device {i}: {r:?}");
+    }
+    for i in [0, 2, 3] {
+        let m = msgs(&devs[i], &conv);
+        assert_eq!(
+            (m.len(), m[0].text.as_str(), m[0].edited),
+            (1, "mine", false)
+        );
+    }
+}
+
+#[test]
+fn registers_converge_under_reorder_and_repeat() {
+    let (mut devs, conv) = room();
+    let a = say(&mut devs, 0, &conv, "v0", None);
+    let edit = |text: &str| V::M(vec![(0, target(&a)), (1, events::rich_text(text))]);
+    // A's edits arrive newest first: the older one changes nothing
+    let newer = craft(
+        &mut devs,
+        0,
+        &conv,
+        1,
+        (NOW + 200, 0),
+        events::K_EDIT,
+        edit("v2"),
+    );
+    let older = craft(
+        &mut devs,
+        0,
+        &conv,
+        1,
+        (NOW + 100, 0),
+        events::K_EDIT,
+        edit("v1"),
+    );
+    deliver(&mut devs, 0, &newer);
+    deliver(&mut devs, 0, &older);
+    assert_eq!(msgs(&devs[3], &conv)[0].text, "v2");
+    // the same for a reaction: a late older add does not revive a later removal
+    let off = craft(
+        &mut devs,
+        3,
+        &conv,
+        3,
+        (NOW + 300, 0),
+        events::K_REACTION,
+        V::M(vec![
+            (0, target(&a)),
+            (1, V::T("👍".into())),
+            (2, V::Bool(false)),
+        ]),
+    );
+    let on = craft(
+        &mut devs,
+        3,
+        &conv,
+        3,
+        (NOW + 250, 0),
+        events::K_REACTION,
+        V::M(vec![
+            (0, target(&a)),
+            (1, V::T("👍".into())),
+            (2, V::Bool(true)),
+        ]),
+    );
+    deliver(&mut devs, 3, &off);
+    deliver(&mut devs, 3, &on);
+    assert!(counts(&devs[0], &conv, &a).is_empty());
+    // a repeated ciphertext is not applied twice (the fake decrypts it and Core is idempotent; real MLS refuses the replay)
+    #[cfg(not(feature = "groups-openmls"))]
+    {
+        deliver(&mut devs, 3, &off);
+        assert!(counts(&devs[0], &conv, &a).is_empty());
+        assert_eq!(msgs(&devs[0], &conv).len(), 1);
+    }
+    #[cfg(feature = "groups-openmls")]
+    for (_, r) in deliver(&mut devs, 3, &off) {
+        assert!(r.is_err());
+    }
+    // a delete is final: a later edit does not bring the text back
+    let del = craft(
+        &mut devs,
+        0,
+        &conv,
+        1,
+        (NOW + 400, 0),
+        events::K_DELETE,
+        V::M(vec![(0, target(&a))]),
+    );
+    let late = craft(
+        &mut devs,
+        0,
+        &conv,
+        1,
+        (NOW + 500, 0),
+        events::K_EDIT,
+        edit("back"),
+    );
+    deliver(&mut devs, 0, &del);
+    deliver(&mut devs, 0, &late);
+    assert!(msgs(&devs[2], &conv).is_empty());
+    // no member may hold more than 16 registers on one message
+    let b = say(&mut devs, 0, &conv, "many", None);
+    for n in 0..20u32 {
+        react(&mut devs, 1, &conv, &b, &format!("k{n}"), true);
+    }
+    assert_eq!(counts(&devs[0], &conv, &b).len(), 16);
+}
+
+#[test]
+fn a_removed_members_late_reaction_is_ignored() {
+    let (mut devs, conv) = room();
+    let a = say(&mut devs, 0, &conv, "hello", None);
+    // C reacts, but the ciphertext is held back in the network
+    let held = craft(
+        &mut devs,
+        3,
+        &conv,
+        3,
+        (NOW + 10, 0),
+        events::K_REACTION,
+        V::M(vec![
+            (0, target(&a)),
+            (1, V::T("👍".into())),
+            (2, V::Bool(true)),
+        ]),
+    );
+    // A removes C and the Commit is accepted
+    let d = &mut devs[0];
+    let rep = d
+        .app
+        .group_do(
+            ctx!(d),
+            GroupIntent::Remove {
+                conversation_id: conv.clone(),
+                account: vec![3; 32],
+            },
+        )
+        .unwrap();
+    let ev = pump(&mut devs, 0, rep);
+    let pid = ev
+        .iter()
+        .find_map(|(i, e)| match e {
+            GroupEvent::CommitPrepared { intent_id } if *i == 0 => Some(intent_id.clone()),
+            _ => None,
+        })
+        .unwrap();
+    let d = &mut devs[0];
+    d.app
+        .group_do(
+            ctx!(d),
+            GroupIntent::CommitPublished {
+                intent_id: pid.clone(),
+            },
+        )
+        .unwrap();
+    let rep = d
+        .app
+        .group_do(ctx!(d), GroupIntent::CommitAccepted { intent_id: pid })
+        .unwrap();
+    pump(&mut devs, 0, rep);
+    assert!(devs[3].app.groups.is_empty(), "C is out");
+    // the late reaction reaches the members who remain: it is refused or dropped, never applied
+    for (i, r) in deliver(&mut devs, 3, &held)
+        .into_iter()
+        .filter(|(i, _)| *i != 3)
+    {
+        let ignored = match &r {
+            Err(_) => true,
+            Ok(rep) => rep
+                .events
+                .iter()
+                .all(|e| matches!(e, GroupEvent::Dropped(_))),
+        };
+        assert!(ignored, "device {i}: {r:?}");
+    }
+    for (i, d) in devs.iter().enumerate().take(3) {
+        assert!(counts(d, &conv, &a).is_empty(), "device {i}");
+    }
+    // and C can no longer send anything into the Room
+    let d = &mut devs[3];
+    assert!(
+        d.app
+            .group_do(
+                ctx!(d),
+                GroupIntent::SetReaction {
+                    conversation_id: conv.clone(),
+                    message_id: a,
+                    key: "👍".into(),
+                    present: true,
+                },
+            )
+            .is_err()
+    );
+}
+
+#[test]
+fn unknown_kinds_and_malformed_payloads_are_ignored_and_older_text_still_renders() {
+    let (mut devs, conv) = room();
+    let a = say(&mut devs, 0, &conv, "hello", None);
+    // a kind this build does not carry (receipt.update, kind 5): dropped, nothing changes, nothing fails
+    let receipt = craft(
+        &mut devs,
+        1,
+        &conv,
+        2,
+        (NOW + 10, 0),
+        events::K_RECEIPT,
+        V::M(vec![(0, V::U(1)), (1, V::A(vec![target(&a)]))]),
+    );
+    for (i, r) in deliver(&mut devs, 1, &receipt) {
+        assert!(dropped(&r, "unsupported_kind"), "device {i}: {r:?}");
+    }
+    // a kind this build has never heard of, bytes that are not an event, and a reply to itself
+    let unknown = craft(&mut devs, 1, &conv, 2, (NOW + 11, 0), 99, V::M(vec![]));
+    let junk = craft_plain(&mut devs, 1, &conv, &[0xa0]);
+    let text = |reply: &[u8]| {
+        V::M(vec![
+            (0, events::rich_text("x")),
+            (1, V::A(vec![])),
+            (2, V::B(reply.to_vec())),
+        ])
+    };
+    let selfie = craft(
+        &mut devs,
+        1,
+        &conv,
+        2,
+        (NOW + 12, 0),
+        events::K_CREATE,
+        text(&[0xee; 16]),
+    );
+    for w in [&unknown, &junk, &selfie] {
+        for (i, r) in deliver(&mut devs, 1, w) {
+            assert!(
+                r.as_ref()
+                    .is_ok_and(|r| r.events.iter().all(|e| matches!(e, GroupEvent::Dropped(_)))),
+                "device {i}: {r:?}"
+            );
+        }
+    }
+    // a conversation id that is not this Room's is refused
+    let other_plain = events::Header {
+        event_id: [0xdd; 16],
+        conversation_id: [9; 32],
+        author_account: [2; 32],
+        author_device: devs[1].id().try_into().unwrap(),
+        clock: events::Hlc {
+            physical_ms: NOW + 14,
+            logical: 0,
+        },
+        kind: events::K_CREATE,
+        body: events::message_create_body("elsewhere"),
+    }
+    .encode();
+    let wrong_room = craft_plain(&mut devs, 1, &conv, &other_plain);
+    for (i, r) in deliver(&mut devs, 1, &wrong_room) {
+        assert!(dropped(&r, "event_author_mismatch"), "device {i}: {r:?}");
+    }
+    // the older JSON text payload from a member still renders
+    let json =
+        br#"{"k":"text","id":"00112233445566778899aabbccddeeff","text":"from an older build"}"#;
+    let old = craft_plain(&mut devs, 1, &conv, json);
+    for (i, r) in deliver(&mut devs, 1, &old) {
+        assert!(r.is_ok(), "device {i}: {r:?}");
+    }
+    let m = msgs(&devs[3], &conv);
+    assert_eq!(m.last().unwrap().text, "from an older build");
+    // an older-build message can be replied to, reacted to and edited by its author (a legacy message sorts before any edit)
+    let old_id = m.last().unwrap().id.clone();
+    let r = say(&mut devs, 3, &conv, "ok", Some(&old_id));
+    react(&mut devs, 0, &conv, &old_id, "👍", true);
+    assert_eq!(
+        counts(&devs[3], &conv, &old_id),
+        vec![("👍".into(), 1, false)]
+    );
+    assert!(
+        msgs(&devs[2], &conv)
+            .iter()
+            .any(|x| x.id == r && x.reply_to.as_deref() == Some(old_id.as_str()))
+    );
+    // a JSON payload that is not a text message is still an error (unchanged behaviour)
+    let bad = craft_plain(&mut devs, 1, &conv, b"{");
+    assert!(deliver(&mut devs, 1, &bad).iter().all(|(_, r)| r.is_err()));
+    // every event the Core wrote is valid W0 ConversationEvent bytes: it passed the registry check on the way out and in
+    assert!(msgs(&devs[0], &conv).iter().all(|m| !m.id.is_empty()));
+}

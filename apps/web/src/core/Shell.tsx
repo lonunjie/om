@@ -453,6 +453,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
             <GroupChat
               key={selected} services={services} copy={groupsCopy} groupId={asGroupId(selected)} chats={list.status === "ready" ? list.value : []}
               onBack={toChats} onLeft={() => { groups.refresh(); toChats(); }} refreshKey={groupTick} onChanged={groups.refresh} events={groupEvents}
+              onReply={(target) => { setReplies((m) => new Map(m).set(selected, target)); }} replyingTo={replies.get(selected)?.messageId ?? null}
             />
           ) : (
             <ConversationView key={selected} sameName={contactNames.of(selected)} sameNameCopy={groupsCopy.sameName} services={services} conversationId={selected} copy={conversationCopy} recoveryCopy={recoveryCopy.contact} onBack={toChats}
@@ -464,6 +465,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
             key={selected} services={services} copy={groupsCopy} groupId={asGroupId(selected)} draft={drafts.get(selected) ?? ""}
             onDraftChange={(next) => { setDrafts((d) => new Map(d).set(selected, next)); draftSync?.save(selected, next); }}
             onSent={() => { setGroupTick((n) => n + 1); groups.refresh(); }}
+            replyTo={replies.get(selected) ?? null} onCancelReply={() => { setReplies((m) => { const n = new Map(m); n.delete(selected); return n; }); }}
             trailing={<OmnibarTrigger variant="icon" copy={omnibarCopy} onOpen={openOmni} />}
           />
         ) : selected === null || (list.status === "ready" && list.value.some((c) => c.id === selected && c.relationship === "restored")) ? undefined : (

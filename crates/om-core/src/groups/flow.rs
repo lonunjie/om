@@ -27,9 +27,11 @@ use super::journal::{CommitPlan, ReceiveOutcome};
 use super::mls::{CryptoEnv, GroupCrypto, MlsError};
 use super::room::{self, Change, Notice, Setting};
 use super::{GenesisParams, GroupError, GroupState, Intent, Principal, R, apply, err, genesis, op};
+use crate::crypto::cbor::V;
 use crate::crypto::rng::{RngCore, fill};
 use crate::crypto::sig::DeviceSigner;
 use crate::crypto::{hex, unhex};
+use crate::events;
 use crate::state::{AppState, RelState};
 use om_codec::{Value, encode};
 use serde::{Deserialize, Serialize};
@@ -37,6 +39,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 /// Live invitations a person may hold at once (Incoming, not yet answered): a bound, not a design number.
 const MAX_OPEN_INCOMING: usize = 16;
+const CAP_POST: &str = "room.post";
+const CAP_REPLY: &str = "room.reply";
+const CAP_REACT: &str = "room.react";
+/// Longest message text, in bytes (the same bound a text message has always had here).
+const MAX_TEXT_BYTES: usize = 8192;
 /// Announced Room-setting changes kept per Room.
 const MAX_NOTICES: usize = 64;
 
@@ -107,7 +114,7 @@ pub struct GroupDeviceRec {
     pub pk: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupMsg {
     pub id: String,
@@ -117,6 +124,60 @@ pub struct GroupMsg {
     pub text: String,
     pub at_ms: u64,
     pub outgoing: bool,
+    /// `reply_to` of the create: the id of a message of this Room (an EventID, hex). Whether it is still here is read by the
+    /// viewer from the messages it holds; nothing of the original travels with the reply.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reply_to: Option<String>,
+    /// One register per (member account, reaction key), the latest by `(sending epoch, EventClock)` wins; a removal is kept so a
+    /// late older add cannot revive it (EVENT_MODEL `reaction.set`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reactions: Vec<GroupReactionRec>,
+    /// An accepted `message.edit` replaced the text.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub edited: bool,
+    /// An accepted `message.delete`: the text and reactions are cleared, the record is kept so a late edit or replay cannot
+    /// bring the message back, and it is never listed.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub deleted: bool,
+    /// The order of the text register: `(sending epoch, EventClock)` of the create or of the last accepted edit. A message that
+    /// arrived as the older JSON text keeps `(0, 0, 0)`, so any edit is later than it.
+    #[serde(default)]
+    pub ord_epoch: u64,
+    #[serde(default)]
+    pub clock_ms: u64,
+    #[serde(default)]
+    pub clock_logical: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GroupReactionRec {
+    /// The member (AccountID, hex) who set it.
+    pub account: String,
+    pub key: String,
+    pub present: bool,
+    /// The member is the person using this device.
+    pub mine: bool,
+    pub epoch: u64,
+    pub clock_ms: u64,
+    pub clock_logical: u32,
+}
+
+impl GroupMsg {
+    /// The reactions as a person sees them: each key once, how many members have it set, and whether one is ours.
+    pub fn reaction_counts(&self) -> Vec<(String, usize, bool)> {
+        let mut out: Vec<(String, usize, bool)> = vec![];
+        for r in self.reactions.iter().filter(|r| r.present) {
+            match out.iter_mut().find(|v| v.0 == r.key) {
+                Some(v) => {
+                    v.1 += 1;
+                    v.2 |= r.mine;
+                }
+                None => out.push((r.key.clone(), 1, r.mine)),
+            }
+        }
+        out
+    }
 }
 
 // ---- typed intents, queries, events ----------------------------------------------------------------------------
@@ -165,6 +226,30 @@ pub enum GroupIntent {
     SendText {
         conversation_id: Vec<u8>,
         text: String,
+    },
+    /// A text message that answers `reply_to`, a message of this Room (D143).
+    SendReply {
+        conversation_id: Vec<u8>,
+        text: String,
+        reply_to: String,
+    },
+    /// Set or remove our reaction `key` on a message of this Room (`reaction.set`, D143).
+    SetReaction {
+        conversation_id: Vec<u8>,
+        message_id: String,
+        key: String,
+        present: bool,
+    },
+    /// Replace the text of our own message (`message.edit`, D143).
+    EditMessage {
+        conversation_id: Vec<u8>,
+        message_id: String,
+        text: String,
+    },
+    /// Delete our own message for everyone in the Room (`message.delete`, D143).
+    DeleteMessage {
+        conversation_id: Vec<u8>,
+        message_id: String,
     },
     /// The host reports that the prepared Commit was published to its group.
     CommitPublished {
@@ -308,6 +393,11 @@ pub enum GroupEvent {
         conversation_id: Vec<u8>,
         id: String,
         sender_account: Vec<u8>,
+    },
+    /// A reaction, edit or delete was applied to the message `id` (ours or received).
+    MessageChanged {
+        conversation_id: Vec<u8>,
+        id: String,
     },
     /// Something arrived that nothing of ours precedes or authorizes; nothing changed.
     Dropped(&'static str),
@@ -498,6 +588,41 @@ fn target_args(who: &Principal, incarnation: &[u8]) -> Value {
     ])
 }
 
+/// Who an event is from, as MLS and the Room's directory say (never as the event says).
+struct Author {
+    account: String,
+    device: String,
+    epoch: u64,
+    at_ms: u64,
+    mine: bool,
+    /// The sender's capabilities in the Room (the head stands for the sending epoch: this engine keeps no older window).
+    caps: BTreeSet<String>,
+}
+
+/// What an event did to the Room's message log.
+enum Applied {
+    Created(String),
+    Changed(String),
+    Nothing,
+    Refused(&'static str),
+}
+
+/// A message id (an EventID, 32 hex characters) as bytes.
+fn id16(id: &str) -> R<[u8; 16]> {
+    un(id)?.try_into().map_err(|_| GroupError("not_found"))
+}
+
+/// Parse a `reaction.set` body: `(target message id, key, present)`.
+fn read_reaction(ev: &events::Event) -> Option<(String, String, bool)> {
+    let target = ev.body.get(0).ok()?.b().ok().filter(|b| b.len() == 16)?;
+    let key = ev.body.get(1).ok()?.t().ok()?;
+    let present = match ev.body.get(2).ok()? {
+        V::Bool(b) => *b,
+        _ => return None,
+    };
+    crate::flows::social::valid_reaction_key(key).then(|| (hex(target), key.to_string(), present))
+}
+
 fn rand16(rng: &mut dyn RngCore) -> Vec<u8> {
     fill(rng, 16)
 }
@@ -676,7 +801,34 @@ impl AppState {
             GroupIntent::SendText {
                 conversation_id,
                 text,
-            } => self.group_send_text(ctx, &conversation_id, &text, &mut rep)?,
+            } => self.group_send_text(ctx, &conversation_id, &text, None, &mut rep)?,
+            GroupIntent::SendReply {
+                conversation_id,
+                text,
+                reply_to,
+            } => self.group_send_text(ctx, &conversation_id, &text, Some(&reply_to), &mut rep)?,
+            GroupIntent::SetReaction {
+                conversation_id,
+                message_id,
+                key,
+                present,
+            } => self.group_set_reaction(
+                ctx,
+                &conversation_id,
+                &message_id,
+                &key,
+                present,
+                &mut rep,
+            )?,
+            GroupIntent::EditMessage {
+                conversation_id,
+                message_id,
+                text,
+            } => self.group_edit(ctx, &conversation_id, &message_id, &text, &mut rep)?,
+            GroupIntent::DeleteMessage {
+                conversation_id,
+                message_id,
+            } => self.group_delete(ctx, &conversation_id, &message_id, &mut rep)?,
             GroupIntent::CommitPublished { intent_id } => {
                 self.group_journal_published(&intent_id)?
             }
@@ -1339,16 +1491,124 @@ impl AppState {
         }
     }
 
+    /// The shown (not deleted) message `id` of a Room.
+    fn group_shown(&self, conv: &[u8], id: &str) -> Option<&GroupMsg> {
+        self.group_msgs
+            .get(&h(conv))?
+            .iter()
+            .find(|m| m.id == id && !m.deleted)
+    }
+
+    /// The capability a message needed when it was posted (ADR-0121 rule 7): `room.reply` for a reply, `room.post` otherwise.
+    fn group_post_cap(&self, conv: &[u8], id: &str) -> &'static str {
+        match self.group_shown(conv, id) {
+            Some(m) if m.reply_to.is_some() => CAP_REPLY,
+            _ => CAP_POST,
+        }
+    }
+
     fn group_send_text(
         &mut self,
         ctx: &mut GroupCtx<'_>,
         conv: &[u8],
         text: &str,
+        reply_to: Option<&str>,
         rep: &mut GroupReply,
     ) -> R<()> {
-        if text.is_empty() || text.len() > 8192 {
+        if text.is_empty() || text.len() > MAX_TEXT_BYTES {
             return err("bad_text");
         }
+        let reply = match reply_to {
+            None => None,
+            Some(r) => {
+                if self.group_shown(conv, r).is_none() {
+                    return err("not_found");
+                }
+                Some(id16(r)?)
+            }
+        };
+        let body = events::message_create_body_reply(Some(text), vec![], reply);
+        let needs = if reply.is_some() { CAP_REPLY } else { CAP_POST };
+        self.group_emit(ctx, conv, events::K_CREATE, body, Some(needs), rep)
+    }
+
+    fn group_set_reaction(
+        &mut self,
+        ctx: &mut GroupCtx<'_>,
+        conv: &[u8],
+        message_id: &str,
+        key: &str,
+        present: bool,
+        rep: &mut GroupReply,
+    ) -> R<()> {
+        if !crate::flows::social::valid_reaction_key(key) {
+            return err("bad_reaction");
+        }
+        if self.group_shown(conv, message_id).is_none() {
+            return err("not_found");
+        }
+        let body = V::M(vec![
+            (0, V::B(id16(message_id)?.to_vec())),
+            (1, V::T(key.to_string())),
+            (2, V::Bool(present)),
+        ]);
+        self.group_emit(ctx, conv, events::K_REACTION, body, Some(CAP_REACT), rep)
+    }
+
+    /// Our own shown message `id`.
+    fn group_own(&self, ctx: &GroupCtx<'_>, conv: &[u8], id: &str) -> R<[u8; 16]> {
+        match self.group_shown(conv, id) {
+            Some(m) if m.sender_account == h(&ctx.my_account) => id16(id),
+            Some(_) => err("not_author"),
+            None => err("not_found"),
+        }
+    }
+
+    fn group_edit(
+        &mut self,
+        ctx: &mut GroupCtx<'_>,
+        conv: &[u8],
+        message_id: &str,
+        text: &str,
+        rep: &mut GroupReply,
+    ) -> R<()> {
+        if text.trim().is_empty() || text.len() > MAX_TEXT_BYTES {
+            return err("bad_text");
+        }
+        let target = self.group_own(ctx, conv, message_id)?;
+        let body = V::M(vec![
+            (0, V::B(target.to_vec())),
+            (1, events::rich_text(text)),
+        ]);
+        let needs = self.group_post_cap(conv, message_id);
+        self.group_emit(ctx, conv, events::K_EDIT, body, Some(needs), rep)
+    }
+
+    fn group_delete(
+        &mut self,
+        ctx: &mut GroupCtx<'_>,
+        conv: &[u8],
+        message_id: &str,
+        rep: &mut GroupReply,
+    ) -> R<()> {
+        let target = self.group_own(ctx, conv, message_id)?;
+        let body = V::M(vec![(0, V::B(target.to_vec()))]);
+        // deleting one's own content needs authorship only (ADR-0121 rule 7)
+        self.group_emit(ctx, conv, events::K_DELETE, body, None, rep)
+    }
+
+    /// Send one typed `ConversationEvent` (events.cddl, kinds 1 to 4) as the application message of the Room: the canonical bytes
+    /// are the MLS plaintext, so MLS authenticates the sender and fixes the sending epoch, and the event's own author fields
+    /// are checked against both on receipt. The same change is applied to our own copy through the path a receiver uses.
+    fn group_emit(
+        &mut self,
+        ctx: &mut GroupCtx<'_>,
+        conv: &[u8],
+        kind: u64,
+        body: V,
+        needs: Option<&str>,
+        rep: &mut GroupReply,
+    ) -> R<()> {
         let g = self.group_state(conv)?;
         if self.group_leaving.contains(&h(conv)) {
             return err("leaving");
@@ -1357,26 +1617,60 @@ impl AppState {
             return err("commit_in_flight");
         }
         let me = Principal::account(ctx.my_account.clone());
-        if !g.capabilities_of(&me).contains("room.post") {
+        let caps = g.capabilities_of(&me);
+        if g.member(&me).is_none() || needs.is_some_and(|c| !caps.contains(c)) {
             return err("not_authorized");
         }
         let gid = self.group_mls_id(conv)?;
-        let id = h(&rand16(ctx.rng));
-        let plain =
-            serde_json::to_vec(&serde_json::json!({"k":"text","id":id,"text":text})).expect("json");
+        let event_id: [u8; 16] = rand16(ctx.rng)
+            .try_into()
+            .map_err(|_| GroupError("bad_event"))?;
+        let my_dev = ctx.engine.device_id().to_vec();
+        let prev = self.group_hlc.get(&h(conv)).copied().unwrap_or((0, 0));
+        let clock = events::Hlc::next(
+            events::Hlc {
+                physical_ms: prev.0,
+                logical: prev.1,
+            },
+            ctx.now_ms,
+        );
+        let plain = events::Header {
+            event_id,
+            conversation_id: conv.try_into().map_err(|_| GroupError("unknown_group"))?,
+            author_account: ctx
+                .my_account
+                .as_slice()
+                .try_into()
+                .map_err(|_| GroupError("bad_event"))?,
+            author_device: my_dev
+                .as_slice()
+                .try_into()
+                .map_err(|_| GroupError("bad_event"))?,
+            clock,
+            kind,
+            body,
+        }
+        .encode();
+        if crate::flows::registry()
+            .check("ConversationEvent", &plain, false)
+            .is_err()
+        {
+            return err("bad_event");
+        }
+        let ev = events::parse(&plain).ok_or(GroupError("bad_event"))?;
         let ct = mls(ctx.engine.encrypt_application(env!(ctx), &gid, &plain))?;
         let epoch = mls(ctx.engine.epoch(&gid))?;
         self.group_crypto_save(&*ctx.engine);
-        let my_dev = ctx.engine.device_id().to_vec();
-        self.group_msgs.entry(h(conv)).or_default().push(GroupMsg {
-            id: id.clone(),
-            sender_account: h(&ctx.my_account),
-            sender_device: h(&my_dev),
+        self.group_hlc
+            .insert(h(conv), (clock.physical_ms, clock.logical));
+        let author = Author {
+            account: h(&ctx.my_account),
+            device: h(&my_dev),
             epoch,
-            text: text.to_string(),
             at_ms: ctx.now_ms,
-            outgoing: true,
-        });
+            mine: true,
+            caps,
+        };
         let wire = GroupWire::App {
             conversation_id: h(conv),
             ciphertext: h(&ct),
@@ -1392,11 +1686,194 @@ impl AppState {
                 });
             }
         }
-        rep.events.push(GroupEvent::MessageSent {
-            conversation_id: conv.to_vec(),
-            id,
-        });
+        match self.group_apply_event(conv, &author, &ev) {
+            Applied::Created(id) => rep.events.push(GroupEvent::MessageSent {
+                conversation_id: conv.to_vec(),
+                id,
+            }),
+            Applied::Changed(id) => rep.events.push(GroupEvent::MessageChanged {
+                conversation_id: conv.to_vec(),
+                id,
+            }),
+            Applied::Nothing | Applied::Refused(_) => {}
+        }
         Ok(())
+    }
+
+    /// Apply one authenticated, structurally valid event to the Room's message log. `author` is what MLS and the directory
+    /// say, never what the event claims. Every register takes an event only if it is ordered after what it holds, so replay,
+    /// reordering and repetition converge. A target that is not here is accepted with no effect (nothing is held for later).
+    fn group_apply_event(&mut self, conv: &[u8], author: &Author, ev: &events::Event) -> Applied {
+        let order = (author.epoch, ev.clock.physical_ms, ev.clock.logical);
+        let log = self.group_msgs.entry(h(conv)).or_default();
+        let target = |ev: &events::Event| -> Option<String> {
+            ev.body
+                .get(0)
+                .ok()?
+                .b()
+                .ok()
+                .filter(|b| b.len() == 16)
+                .map(hex)
+        };
+        match ev.kind {
+            events::K_CREATE => {
+                // keys 3 to 6 (mentions, expiry, thread, topic) are not part of this build: refuse rather than half-apply
+                if (3..=6).any(|k| ev.body.opt(k).is_some())
+                    || !ev
+                        .body
+                        .get(1)
+                        .and_then(|a| a.a())
+                        .is_ok_and(<[V]>::is_empty)
+                {
+                    return Applied::Refused("unsupported_event");
+                }
+                let Some(text) = ev
+                    .body
+                    .opt(0)
+                    .and_then(events::plain_text)
+                    .filter(|t| !t.is_empty() && t.len() <= MAX_TEXT_BYTES)
+                else {
+                    return Applied::Refused("unsupported_event");
+                };
+                let reply_to = match ev.body.opt(2) {
+                    None => None,
+                    Some(r) => match r.b() {
+                        Ok(b) if b.len() == 16 => Some(hex(b)),
+                        _ => return Applied::Refused("unsupported_event"),
+                    },
+                };
+                let id = hex(&ev.event_id);
+                if reply_to.as_deref() == Some(id.as_str()) {
+                    return Applied::Refused("unsupported_event");
+                }
+                if !author.caps.contains(if reply_to.is_some() {
+                    CAP_REPLY
+                } else {
+                    CAP_POST
+                }) {
+                    return Applied::Refused("sender_not_authorized");
+                }
+                if log.iter().any(|x| x.id == id) {
+                    return Applied::Nothing;
+                }
+                log.push(GroupMsg {
+                    id: id.clone(),
+                    sender_account: author.account.clone(),
+                    sender_device: author.device.clone(),
+                    epoch: author.epoch,
+                    text,
+                    at_ms: author.at_ms,
+                    outgoing: author.mine,
+                    reply_to,
+                    ord_epoch: order.0,
+                    clock_ms: order.1,
+                    clock_logical: order.2,
+                    ..GroupMsg::default()
+                });
+                Applied::Created(id)
+            }
+            events::K_EDIT | events::K_DELETE => {
+                let Some(id) = target(ev) else {
+                    return Applied::Refused("unsupported_event");
+                };
+                let Some(m) = log.iter_mut().find(|m| m.id == id) else {
+                    return Applied::Nothing;
+                };
+                // only the author of a message may change it; moderation is `moderation.redact`, not this
+                if m.sender_account != author.account {
+                    return Applied::Refused("not_author");
+                }
+                if m.deleted {
+                    return Applied::Nothing;
+                }
+                // a delete of one's own content needs authorship only; an edit needs what the post needed (ADR-0121 rule 7)
+                let post_cap = if m.reply_to.is_some() {
+                    CAP_REPLY
+                } else {
+                    CAP_POST
+                };
+                if ev.kind == events::K_EDIT && !author.caps.contains(post_cap) {
+                    return Applied::Refused("sender_not_authorized");
+                }
+                if ev.kind == events::K_DELETE {
+                    m.deleted = true;
+                    m.text.clear();
+                    m.reactions.clear();
+                    return Applied::Changed(id);
+                }
+                if order <= (m.ord_epoch, m.clock_ms, m.clock_logical) {
+                    return Applied::Nothing;
+                }
+                let Some(text) = ev
+                    .body
+                    .get(1)
+                    .ok()
+                    .and_then(events::plain_text)
+                    .filter(|t| t.len() <= MAX_TEXT_BYTES)
+                else {
+                    return Applied::Refused("unsupported_event");
+                };
+                if text.trim().is_empty() {
+                    return Applied::Nothing; // nothing left to show: the author deletes instead
+                }
+                m.text = text;
+                m.edited = true;
+                (m.ord_epoch, m.clock_ms, m.clock_logical) = order;
+                Applied::Changed(id)
+            }
+            events::K_REACTION => {
+                let Some((id, key, present)) = read_reaction(ev) else {
+                    return Applied::Refused("unsupported_event");
+                };
+                if !author.caps.contains(CAP_REACT) {
+                    return Applied::Refused("sender_not_authorized");
+                }
+                let Some(m) = log.iter_mut().find(|m| m.id == id && !m.deleted) else {
+                    return Applied::Nothing;
+                };
+                if let Some(r) = m
+                    .reactions
+                    .iter_mut()
+                    .find(|r| r.account == author.account && r.key == key)
+                {
+                    if order > (r.epoch, r.clock_ms, r.clock_logical) {
+                        r.present = present;
+                        (r.epoch, r.clock_ms, r.clock_logical) = order;
+                        return Applied::Changed(id);
+                    }
+                    return Applied::Nothing;
+                }
+                let held = m
+                    .reactions
+                    .iter()
+                    .filter(|r| r.account == author.account)
+                    .count();
+                if held >= crate::flows::social::MAX_REACTIONS_PER_ACTOR {
+                    // full: a removed one makes room, otherwise the new one is not kept
+                    match m
+                        .reactions
+                        .iter()
+                        .position(|r| r.account == author.account && !r.present)
+                    {
+                        Some(i) => {
+                            m.reactions.remove(i);
+                        }
+                        None => return Applied::Nothing,
+                    }
+                }
+                m.reactions.push(GroupReactionRec {
+                    account: author.account.clone(),
+                    key,
+                    present,
+                    mine: author.mine,
+                    epoch: order.0,
+                    clock_ms: order.1,
+                    clock_logical: order.2,
+                });
+                Applied::Changed(id)
+            }
+            _ => Applied::Refused("unsupported_kind"),
+        }
     }
 
     /// Handle something that arrived. Unsolicited or unauthorized material is dropped with a [`GroupEvent::Dropped`]
@@ -1765,12 +2242,54 @@ impl AppState {
         };
         let account = un(&rec.account)?;
         // Authorized at the sending epoch: the head is that epoch (this engine keeps no older window yet).
-        if !g
-            .capabilities_of(&Principal::account(account.clone()))
-            .contains("room.post")
-        {
+        let caps = g.capabilities_of(&Principal::account(account.clone()));
+        let typed = d.plaintext.first() != Some(&b'{');
+        if !typed && !caps.contains(CAP_POST) {
             rep.events
                 .push(GroupEvent::Dropped("sender_not_authorized"));
+            return Ok(());
+        }
+        // The older text payload is JSON (`{"k":"text",...}`); everything else is a canonical typed `ConversationEvent` (a CBOR
+        // map, so its first byte can never be `{`). D143.
+        if typed {
+            let Some(ev) = crate::flows::registry()
+                .check("ConversationEvent", &d.plaintext, false)
+                .ok()
+                .and_then(|_| events::parse(&d.plaintext))
+            else {
+                rep.events.push(GroupEvent::Dropped("unsupported_event"));
+                return Ok(());
+            };
+            // MLS names the sender and the sending epoch; the event must say the same, in this Room.
+            if ev.conversation_id.as_slice() != conv
+                || ev.author_account.as_slice() != account.as_slice()
+                || ev.author_device.as_slice() != d.sender.as_slice()
+            {
+                rep.events
+                    .push(GroupEvent::Dropped("event_author_mismatch"));
+                return Ok(());
+            }
+            let author = Author {
+                account: rec.account,
+                device: h(&d.sender),
+                epoch: d.epoch,
+                at_ms: ctx.now_ms,
+                mine: account == ctx.my_account,
+                caps,
+            };
+            match self.group_apply_event(conv, &author, &ev) {
+                Applied::Created(id) => rep.events.push(GroupEvent::MessageReceived {
+                    conversation_id: conv.to_vec(),
+                    id,
+                    sender_account: account,
+                }),
+                Applied::Changed(id) => rep.events.push(GroupEvent::MessageChanged {
+                    conversation_id: conv.to_vec(),
+                    id,
+                }),
+                Applied::Nothing => {}
+                Applied::Refused(why) => rep.events.push(GroupEvent::Dropped(why)),
+            }
             return Ok(());
         }
         let j: serde_json::Value =
@@ -1794,6 +2313,7 @@ impl AppState {
             text,
             at_ms: ctx.now_ms,
             outgoing: false,
+            ..GroupMsg::default()
         });
         rep.events.push(GroupEvent::MessageReceived {
             conversation_id: conv.to_vec(),
@@ -1956,7 +2476,7 @@ impl AppState {
             GroupQuery::Messages { conversation_id } => Ok(GroupView::Messages(
                 self.group_msgs
                     .get(&h(&conversation_id))
-                    .cloned()
+                    .map(|v| v.iter().filter(|m| !m.deleted).cloned().collect())
                     .unwrap_or_default(),
             )),
         }

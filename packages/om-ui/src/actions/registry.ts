@@ -82,6 +82,8 @@ const replyOf = (p: Rec): MessageId | undefined | null => {
   const v = id(r);
   return v === null ? null : asMessageId(v);
 };
+/** A reaction key Core would accept: 1 to 64 bytes, not blank, no control character. */
+const validReactionKey = (k: string): boolean => k.trim() !== "" && new TextEncoder().encode(k).length <= 64 && !/\p{Cc}/u.test(k);
 const exactly = (p: Rec, allowed: readonly string[]): boolean => Object.keys(p).every((k) => allowed.includes(k));
 
 /** One Room setting with exactly one field of the expected type. Only what a screen offers is accepted: not `open` joining, not wider history, not a timer (ADR-0189 gives no durations or widening choices). */
@@ -161,6 +163,26 @@ const SPECS: Readonly<Record<string, Spec>> = {
     const g = id(p["conversationId"]); const t = p["text"];
     if (!exactly(p, ["conversationId", "text"]) || g === null || typeof t !== "string" || t.trim() === "" || t.length > MAX_TEXT) return null;
     return { group: { kind: "send_text", conversationId: asGroupId(g), text: t } };
+  } },
+  "group-send-reply": { destructive: false, parse: (p) => {
+    const g = id(p["conversationId"]); const t = p["text"]; const r = id(p["replyTo"]);
+    if (!exactly(p, ["conversationId", "text", "replyTo"]) || g === null || r === null || typeof t !== "string" || t.trim() === "" || t.length > MAX_TEXT) return null;
+    return { group: { kind: "send_reply", conversationId: asGroupId(g), text: t, replyTo: r } };
+  } },
+  "group-react-message": { destructive: false, parse: (p) => {
+    const g = id(p["conversationId"]); const m = id(p["messageId"]); const k = p["reaction"]; const present = p["present"];
+    if (!exactly(p, ["conversationId", "messageId", "reaction", "present"]) || g === null || m === null || typeof present !== "boolean" || typeof k !== "string" || !validReactionKey(k)) return null;
+    return { group: { kind: "set_reaction", conversationId: asGroupId(g), messageId: m, key: k, present } };
+  } },
+  "group-edit-message": { destructive: false, parse: (p) => {
+    const g = id(p["conversationId"]); const m = id(p["messageId"]); const t = p["text"];
+    if (!exactly(p, ["conversationId", "messageId", "text"]) || g === null || m === null || typeof t !== "string" || t.trim() === "" || t.length > MAX_TEXT) return null;
+    return { group: { kind: "edit_message", conversationId: asGroupId(g), messageId: m, text: t } };
+  } },
+  "group-delete-message": { destructive: false, parse: (p) => {
+    const g = id(p["conversationId"]); const m = id(p["messageId"]);
+    if (!exactly(p, ["conversationId", "messageId"]) || g === null || m === null) return null;
+    return { group: { kind: "delete_message", conversationId: asGroupId(g), messageId: m } };
   } },
   "send-attachments": { destructive: false, parse: (p) => {
     const c = id(p["conversationId"]); const t = p["text"]; const a = p["attachments"]; const r = replyOf(p);

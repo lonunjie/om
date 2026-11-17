@@ -347,6 +347,26 @@ enum GroupIntentJson {
         conversation_id: String,
         text: String,
     },
+    SendReply {
+        conversation_id: String,
+        text: String,
+        reply_to: String,
+    },
+    SetReaction {
+        conversation_id: String,
+        message_id: String,
+        key: String,
+        present: bool,
+    },
+    EditMessage {
+        conversation_id: String,
+        message_id: String,
+        text: String,
+    },
+    DeleteMessage {
+        conversation_id: String,
+        message_id: String,
+    },
     CommitPublished {
         intent_id: String,
     },
@@ -411,6 +431,42 @@ impl GroupIntentJson {
             } => GroupIntent::SendText {
                 conversation_id: unhex(&conversation_id)?,
                 text,
+            },
+            Self::SendReply {
+                conversation_id,
+                text,
+                reply_to,
+            } => GroupIntent::SendReply {
+                conversation_id: unhex(&conversation_id)?,
+                text,
+                reply_to,
+            },
+            Self::SetReaction {
+                conversation_id,
+                message_id,
+                key,
+                present,
+            } => GroupIntent::SetReaction {
+                conversation_id: unhex(&conversation_id)?,
+                message_id,
+                key,
+                present,
+            },
+            Self::EditMessage {
+                conversation_id,
+                message_id,
+                text,
+            } => GroupIntent::EditMessage {
+                conversation_id: unhex(&conversation_id)?,
+                message_id,
+                text,
+            },
+            Self::DeleteMessage {
+                conversation_id,
+                message_id,
+            } => GroupIntent::DeleteMessage {
+                conversation_id: unhex(&conversation_id)?,
+                message_id,
             },
             Self::CommitPublished { intent_id } => GroupIntent::CommitPublished { intent_id },
         })
@@ -500,6 +556,10 @@ fn group_event_json(e: &GroupEvent) -> Value {
             json!({ "kind": "message_received", "conversationId": hex(conversation_id), "id": id,
                 "senderAccount": hex(sender_account) })
         }
+        GroupEvent::MessageChanged {
+            conversation_id,
+            id,
+        } => json!({ "kind": "message_changed", "conversationId": hex(conversation_id), "id": id }),
         GroupEvent::Dropped(reason) => json!({ "kind": "dropped", "reason": reason }),
         GroupEvent::Held(reason) => json!({ "kind": "held", "reason": reason }),
         GroupEvent::PolicyChanged {
@@ -565,12 +625,37 @@ fn merge_replies(v: Vec<GroupReply>) -> GroupReply {
     })
 }
 
+/// A Room message as the UI reads it: the text, who and when, what it answers, whether it was edited, and its reactions as
+/// (key, count, mine). The registers behind them (who set what, and their order) stay in Core.
+fn group_message_json(m: &om_core::groups::flow::GroupMsg) -> Value {
+    let mut v = json!({
+        "id": m.id, "senderAccount": m.sender_account, "senderDevice": m.sender_device, "epoch": m.epoch,
+        "text": m.text, "atMs": m.at_ms, "outgoing": m.outgoing,
+    });
+    if let Some(r) = &m.reply_to {
+        v["replyTo"] = json!(r);
+    }
+    if m.edited {
+        v["edited"] = json!(true);
+    }
+    let counts = m.reaction_counts();
+    if !counts.is_empty() {
+        v["reactions"] = counts
+            .into_iter()
+            .map(|(key, count, mine)| json!({ "key": key, "count": count, "mine": mine }))
+            .collect();
+    }
+    v
+}
+
 fn group_view_json(v: &GroupView) -> Value {
     match v {
         GroupView::Groups(g) => json!({ "kind": "groups", "groups": g }),
         GroupView::Group(d) => json!({ "kind": "group", "group": d }),
         GroupView::Invites(i) => json!({ "kind": "invites", "invites": i }),
-        GroupView::Messages(m) => json!({ "kind": "messages", "messages": m }),
+        GroupView::Messages(m) => {
+            json!({ "kind": "messages", "messages": m.iter().map(group_message_json).collect::<Vec<_>>() })
+        }
         GroupView::Notices(n) => json!({ "kind": "notices", "notices": n }),
     }
 }

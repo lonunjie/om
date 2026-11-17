@@ -119,6 +119,19 @@ describe.skipIf(!existsSync(WITH_GROUPS))("groups through two real wasm Cores wi
       expect(party.rt.groups.messages(party.ctx, conv).map((m) => m.text)).toEqual(["hello", "hi A"]);
       expect(party.rt.groups.get(party.ctx, conv)?.summary.members).toBe(2);
     }
+    // reply, reaction, edit and delete cross the real engine as typed events (D143)
+    const first = alice.rt.groups.messages(alice.ctx, conv)[0]?.id ?? "";
+    await pump(p, devs, 1, must(await bob.rt.groups.do(bob.ctx, { kind: "send_reply", conversationId: conv, text: "yes", replyTo: first })));
+    expect(has(await pump(p, devs, 1, must(await bob.rt.groups.do(bob.ctx, { kind: "set_reaction", conversationId: conv, messageId: first, key: "\u{1F44D}", present: true }))), 0, "message_changed")).toBe(true);
+    expect(await bob.rt.groups.do(bob.ctx, { kind: "edit_message", conversationId: conv, messageId: first, text: "mine now" })).toEqual({ ok: false, refused: "not_author" });
+    await pump(p, devs, 0, must(await alice.rt.groups.do(alice.ctx, { kind: "edit_message", conversationId: conv, messageId: first, text: "hello, all" })));
+    for (const party of p) {
+      const [m0, , m2] = party.rt.groups.messages(party.ctx, conv);
+      expect(m0).toMatchObject({ id: first, text: "hello, all", edited: true, reactions: [{ key: "\u{1F44D}", count: 1, mine: party === bob }] });
+      expect(m2).toMatchObject({ text: "yes", replyTo: first });
+    }
+    await pump(p, devs, 0, must(await alice.rt.groups.do(alice.ctx, { kind: "delete_message", conversationId: conv, messageId: first })));
+    for (const party of p) expect(party.rt.groups.messages(party.ctx, conv).map((m) => m.text)).toEqual(["hi A", "yes"]);
     // typed refusals change nothing
     expect(await bob.rt.groups.do(bob.ctx, { kind: "decline", inviteId: "nope" })).toMatchObject({ ok: false });
     expect(bob.rt.groups.get(bob.ctx, asGroupId("00"))).toBeNull();

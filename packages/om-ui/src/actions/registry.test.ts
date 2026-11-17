@@ -37,6 +37,23 @@ describe("Action Registry", () => {
     expect(registry.resolve({ actionId: "react-message", params: { ...base, reaction: "x", present: "yes" }, ctx, origin: "direct" })).toEqual({ status: "rejected", code: "invalid_params" });
   });
 
+  it("group reply, reaction, edit and delete are typed group steps from a person's own tap only, and refuse what Core would refuse", () => {
+    const group = (actionId: string, params: Record<string, unknown>, origin: "direct" | "suggestion" = "direct") => registry.resolve({ actionId, params, ctx, origin });
+    expect(group("group-send-reply", { conversationId: "g1", text: "yes", replyTo: "m1" })).toEqual({ status: "group", intent: { kind: "send_reply", conversationId: "g1", text: "yes", replyTo: "m1" } });
+    expect(group("group-react-message", { conversationId: "g1", messageId: "m1", reaction: "\u{1F44D}", present: true })).toMatchObject({ status: "group", intent: { kind: "set_reaction", key: "\u{1F44D}", present: true } });
+    expect(group("group-edit-message", { conversationId: "g1", messageId: "m1", text: "fixed" })).toMatchObject({ status: "group", intent: { kind: "edit_message", text: "fixed" } });
+    expect(group("group-delete-message", { conversationId: "g1", messageId: "m1" })).toMatchObject({ status: "group", intent: { kind: "delete_message", messageId: "m1" } });
+    const bad = { status: "rejected", code: "invalid_params" };
+    expect(group("group-send-reply", { conversationId: "g1", text: "yes" })).toEqual(bad);
+    expect(group("group-send-reply", { conversationId: "g1", text: "  ", replyTo: "m1" })).toEqual(bad);
+    for (const reaction of ["", "x".repeat(65), "a\u0007b", 5]) expect(group("group-react-message", { conversationId: "g1", messageId: "m1", reaction, present: true })).toEqual(bad);
+    expect(group("group-edit-message", { conversationId: "g1", messageId: "m1", text: "" })).toEqual(bad);
+    expect(group("group-delete-message", { conversationId: "g1", messageId: "m1", silent: true })).toEqual(bad);
+    for (const [id, p] of [["group-delete-message", { conversationId: "g1", messageId: "m1" }], ["group-react-message", { conversationId: "g1", messageId: "m1", reaction: "x", present: true }]] as const) {
+      expect(group(id, p, "suggestion")).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
+    }
+  });
+
   it("every intent-producing action emits a known CoreIntent kind", () => {
     const samples: Record<string, unknown> = {
       "send-message": { conversationId: "c1", text: "x" },

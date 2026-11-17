@@ -28,7 +28,7 @@ mod multi;
 mod owed;
 mod recovery_peer;
 mod recovery_watch;
-mod social;
+pub(crate) mod social;
 
 pub(crate) use blobs::{attachment_views, presentation, rec_ref};
 use ceremony::KIND_ENROLLED;

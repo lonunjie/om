@@ -715,6 +715,7 @@ export const groupsCopy: GroupsCopy = {
     empty: "No messages yet. Say hello.", incoming: "From someone in the group", outgoing: "You said", formatTime: (ms) => new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(new Date(ms)),
     composerLabel: "Message the group", placeholder: "Message", send: "Send", sendFailed: "That was not sent. Try again.",
     paused: "The group is being updated. You can write again in a moment.", notMember: "You are not in this group.", loadFailed: "This group could not be opened.",
+    reply: conversationCopy.reply, react: conversationCopy.react, change: conversationCopy.change,
   },
   sameName: {
     of: (name, index, of) => `${name} (${String(index)} of ${String(of)})`,

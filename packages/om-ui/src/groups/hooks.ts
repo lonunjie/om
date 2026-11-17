@@ -172,7 +172,7 @@ export function reduceGroupStates(prev: GroupStates, events: readonly GroupEvent
         break;
       }
       case "member_removed": case "no_longer_member": case "created": case "invite_sent": case "invite_received": case "invite_accepted": case "invite_declined":
-      case "commit_prepared": case "message_sent": case "dropped": case "commit_superseded":
+      case "commit_prepared": case "message_sent": case "message_changed": case "dropped": case "commit_superseded":
         break;
     }
   }

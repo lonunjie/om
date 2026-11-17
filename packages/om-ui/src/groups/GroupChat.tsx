@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
-import type { ConversationSummary, GroupId, GroupMessageView, GroupNoticeView } from "@om/platform-api";
+import { asMessageId } from "@om/platform-api";
+import type { ConversationSummary, GroupId, GroupMessageView, GroupNoticeView, MessageId, ReplyView } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
 import { IconButton } from "../shell/primitives/IconButton";
@@ -9,6 +10,8 @@ import { VisuallyHidden } from "../shell/primitives/VisuallyHidden";
 import { Sheet } from "../shell/layout/Sheet";
 import { Avatar } from "../conversations/Avatar";
 import type { ConversationServices } from "../conversations/services";
+import type { ReplyTarget } from "../conversations/ConversationView";
+import { DeleteConfirm, EditForm, Quote, ReactionChips, ReactionControl, ReplyChip, gistOf } from "../conversations/chatContext";
 import type { GroupsCopy } from "./copy";
 import { GroupMembers } from "./GroupMembers";
 import { GroupStatus } from "./GroupStatus";
@@ -35,6 +38,10 @@ export interface GroupChatProps {
   readonly onChanged?: () => void;
   /** The background states of the group carriage (from `useGroupEvents`); without it no state line is shown. */
   readonly events?: GroupEventsState;
+  /** Starts a reply to a message (the composer owns the quote chip). Without it no Reply control is offered. */
+  readonly onReply?: (target: ReplyTarget) => void;
+  /** The message a reply is being written to, marked in the timeline. */
+  readonly replyingTo?: MessageId | null;
 }
 
 type Entry = { readonly kind: "message"; readonly m: GroupMessageView } | { readonly kind: "notice"; readonly n: GroupNoticeView };
@@ -47,7 +54,7 @@ function timeline(messages: readonly GroupMessageView[], notices: readonly Group
 }
 
 /** A group is an ordinary conversation with more people: the same header, bubbles and rhythm as a chat, plus who said it and a people sheet. */
-export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLeft, refreshKey = 0, onChanged, events }: GroupChatProps) {
+export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLeft, refreshKey = 0, onChanged, events, onReply, replyingTo }: GroupChatProps) {
   const c = copy.chat;
   const api = groupApiOf(services);
   const [bump, setBump] = useState(0);
@@ -56,6 +63,11 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
   const names = usePeopleNames(detail);
   const [sheet, setSheet] = useState<"people" | "settings" | null>(null);
   const [said, setSaid] = useState("");
+  const [picking, setPicking] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ readonly id: string; readonly text: string } | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [marked, setMarked] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const count = messages.length + notices.length;
   useEffect(() => {
@@ -72,6 +84,20 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
   const senderLabel = (a: string): string => { const n = names.nameOf(a); return n === null ? copy.members.someone(names.unnamedNumber(a)) : shown(a, n); };
   const entries = timeline(messages, notices);
   const whoLabel = (a: string): string => (names.isYou(a) ? copy.notices.youChanged : shown(a, names.nameOf(a) ?? copy.notices.someone));
+  /** One typed step on a message (react, edit, delete). A refusal is said once, plainly; the message stays as it was. */
+  const act = (actionId: string, params: Readonly<Record<string, unknown>>, fail: string, done?: () => void): void => {
+    void runGroupAction(services, actionId, { conversationId: groupId, ...params }).then((r) => {
+      if (r.ok) { setFailed(null); done?.(); setBump((n) => n + 1); onChanged?.(); } else setFailed(fail);
+    });
+  };
+  const jumpTo = (target: string): void => {
+    const el = document.getElementById(`om-gmsg-${target}`);
+    if (el === null) return;
+    const calm = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "center", behavior: calm ? "auto" : "smooth" });
+    setMarked(target);
+    setTimeout(() => { setMarked((m) => (m === target ? null : m)); }, 2400);
+  };
   const changed = (what: "invited" | "removed"): void => { setBump((n) => n + 1); setSaid(what === "invited" ? copy.done.invited : copy.done.removed); onChanged?.(); };
   return (
     <section className="om-conv-view" aria-label={group}>
@@ -86,6 +112,7 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
         </Button>
       </header>
       {names.sharedNames.map((g) => <Text key={g.name} as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{(g.kind === "alike" ? copy.sameName.alike : copy.sameName.here)(g.name, g.count)}</bdi></Text>)}
+      {failed === null ? null : <p className="om-conv-view__relationship" role="status">{failed}</p>}
       <div role="log" aria-label={c.label} className="om-conv-view__log">
         {entries.length === 0 ? <p className="om-conv-view__empty">{c.empty}</p> : (
           <ol className="om-conv-view__timeline">
@@ -97,11 +124,50 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
               const sameAsPrev = prev?.kind === "message" && prev.m.senderAccount === m.senderAccount && m.atMs - prev.m.atMs < RUN_GAP_MS;
               const lastOfRun = next?.kind !== "message" || next.m.senderAccount !== m.senderAccount || next.m.atMs - m.atMs >= RUN_GAP_MS;
               const direction = m.outgoing ? "outgoing" : "incoming";
+              const mine = names.isYou(m.senderAccount);
+              const gist = gistOf(m.text, c.reply.attachment);
+              const original = m.replyTo === undefined ? undefined : messages.find((x) => x.id === m.replyTo);
+              const reply: ReplyView | undefined = m.replyTo === undefined ? undefined
+                : original === undefined ? { messageId: asMessageId(m.replyTo), available: false }
+                : { messageId: asMessageId(original.id), available: true, outgoing: names.isYou(original.senderAccount), preview: Array.from(original.text).slice(0, 140).join("") };
+              const react = (key: string, present: boolean): void => { setPicking(null); act("group-react-message", { messageId: m.id, reaction: key, present }, c.react.failed); };
               return (
-                <li key={m.id} className="om-conv-view__item" data-direction={direction} data-joined={sameAsPrev ? "true" : undefined} data-last={lastOfRun ? "true" : undefined}>
+                <li key={m.id} id={`om-gmsg-${m.id}`} className="om-conv-view__item" data-found={marked === m.id ? "true" : undefined} data-direction={direction} data-joined={sameAsPrev ? "true" : undefined} data-last={lastOfRun ? "true" : undefined}>
                   {m.outgoing || sameAsPrev ? <VisuallyHidden>{m.outgoing ? c.outgoing : c.incoming}</VisuallyHidden> : <span className="om-group-sender"><bdi>{senderLabel(m.senderAccount)}</bdi></span>}
-                  <div className="om-conv-view__bubble"><p className="om-group-text">{m.text}</p></div>
-                  {lastOfRun ? <span className="om-conv-view__foot"><time dateTime={new Date(m.atMs).toISOString()}>{c.formatTime(m.atMs)}</time></span> : null}
+                  <div className="om-conv-view__row">
+                    <div className="om-conv-view__bubble">
+                      {reply === undefined ? null : <Quote reply={reply} name={original === undefined ? "" : senderLabel(original.senderAccount)} copy={c.reply} onJump={(id) => { jumpTo(id); }} />}
+                      {editing?.id === m.id
+                        ? <EditForm copy={c.change} text={editing.text} onChange={(next) => { setEditing({ id: m.id, text: next }); }} onSave={() => { act("group-edit-message", { messageId: m.id, text: editing.text }, c.change.editFailed, () => { setEditing(null); }); }} onCancel={() => { setEditing(null); }} />
+                        : <p className="om-group-text">{m.text}</p>}
+                    </div>
+                    {!detail.canSend ? null : (
+                      <ReactionControl
+                        copy={c.react} gist={gist} open={picking === m.id} onToggle={() => { setPicking((p) => (p === m.id ? null : m.id)); }} onClose={() => { setPicking(null); }}
+                        onPick={react} isMine={(key) => m.reactions?.some((r) => r.key === key && r.mine) ?? false}
+                      />
+                    )}
+                    {!detail.canSend || !mine ? null : (
+                      <>
+                        <IconButton className="om-conv-view__reply" label={`${c.change.edit}: ${gist}`} icon={<Icon name="edit" size={18} />} onClick={() => { setDeleting(null); setEditing({ id: m.id, text: m.text }); }} />
+                        <IconButton className="om-conv-view__reply" label={`${c.change.delete}: ${gist}`} icon={<Icon name="trash" size={18} />} onClick={() => { setEditing(null); setDeleting(m.id); }} />
+                      </>
+                    )}
+                    {onReply === undefined || !detail.canSend ? null : (
+                      <IconButton
+                        className="om-conv-view__reply" label={`${c.reply.action}: ${gist}`} icon={<Icon name="reply" size={18} />} aria-pressed={replyingTo === m.id}
+                        onClick={() => { onReply({ messageId: asMessageId(m.id), preview: Array.from(m.text).slice(0, 140).join(""), hasAttachment: false, outgoing: mine, who: senderLabel(m.senderAccount) }); }}
+                      />
+                    )}
+                  </div>
+                  {deleting === m.id ? <DeleteConfirm copy={c.change} onConfirm={() => { act("group-delete-message", { messageId: m.id }, c.change.deleteFailed, () => { setDeleting(null); }); }} onCancel={() => { setDeleting(null); }} /> : null}
+                  <ReactionChips copy={c.react} reactions={m.reactions ?? []} onPick={react} />
+                  {lastOfRun ? (
+                    <span className="om-conv-view__foot">
+                      <time dateTime={new Date(m.atMs).toISOString()}>{c.formatTime(m.atMs)}</time>
+                      {m.edited === true ? <span className="om-conv-view__edited">{c.change.edited}</span> : null}
+                    </span>
+                  ) : null}
                 </li>
               );
             })}
@@ -158,12 +224,16 @@ export interface GroupComposerProps {
   /** Controls placed before Send (the Omnibar trigger), as in a chat. */
   readonly trailing?: ReactNode;
   readonly onSent?: () => void;
+  /** The message being answered: shown as a chip above the box and named in the send (`reply_to`). Controlled by the parent, like the draft. */
+  readonly replyTo?: ReplyTarget | null;
+  /** Ends the reply (the cancel control, Escape, or after a send). */
+  readonly onCancelReply?: () => void;
 }
 
 const enterSends = (): boolean => typeof matchMedia === "function" && matchMedia("(pointer: fine)").matches;
 
 /** Text only: the same pill as a chat's. The draft stays until the step went through; a refusal is said and the words stay. */
-export function GroupComposer({ services, copy, groupId, draft, onDraftChange, trailing, onSent }: GroupComposerProps) {
+export function GroupComposer({ services, copy, groupId, draft, onDraftChange, trailing, onSent, replyTo, onCancelReply }: GroupComposerProps) {
   const c = copy.chat;
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -174,16 +244,20 @@ export function GroupComposer({ services, copy, groupId, draft, onDraftChange, t
     if (busy || text.trim() === "") return;
     setBusy(true);
     setNotice(null);
-    const r = await runGroupAction(services, "group-send-text", { conversationId: groupId, text });
+    const r = replyTo
+      ? await runGroupAction(services, "group-send-reply", { conversationId: groupId, text, replyTo: replyTo.messageId })
+      : await runGroupAction(services, "group-send-text", { conversationId: groupId, text });
     setBusy(false);
-    if (r.ok) { if (draftRef.current === text) onDraftChange(""); onSent?.(); } else setNotice(r.refused === "invalid" ? c.sendFailed : copy.refused(r.refused));
+    if (r.ok) { if (draftRef.current === text) onDraftChange(""); onCancelReply?.(); onSent?.(); } else setNotice(r.refused === "invalid" ? c.sendFailed : copy.refused(r.refused));
   };
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (e.key === "Escape" && replyTo && onCancelReply) { e.preventDefault(); onCancelReply(); return; }
     if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
     if (e.ctrlKey || e.metaKey || (!e.shiftKey && enterSends())) { e.preventDefault(); void submit(); }
   };
   return (
     <form className="om-composer" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+      {replyTo ? <ReplyChip copy={c.reply} who={replyTo.who ?? ""} outgoing={replyTo.outgoing} preview={replyTo.preview} busy={busy} onCancel={() => { onCancelReply?.(); }} /> : null}
       <textarea
         className="om-composer__input" aria-label={c.composerLabel} placeholder={c.placeholder} rows={1} value={draft}
         spellCheck={false} autoComplete="off" autoCorrect="off" onChange={(e) => { onDraftChange(e.target.value); }} onKeyDown={onKeyDown}

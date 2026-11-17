@@ -8,6 +8,7 @@ import type { ConversationCopy } from "./copy";
 import { firstOutcome, resolveIntent, type ConversationServices } from "./services";
 import { safeFileName } from "./Attachments";
 import type { ReplyTarget } from "./ConversationView";
+import { ReplyChip } from "./chatContext";
 import "./conversations.css";
 
 export interface InputPrivacy { readonly spellcheck: boolean; readonly autocomplete: "on" | "off" }
@@ -341,15 +342,7 @@ export function Composer({ services, conversationId, copy, peerName, draft, onDr
   const tools = canAttach || canRecord || place !== undefined;
   return (
     <form className="om-composer" onSubmit={onSubmit}>
-      {replyTo ? (
-        <div className="om-composer__reply" role="group" aria-label={replyTo.outgoing ? copy.reply.replyingToSelf : copy.reply.replyingTo(peerName ?? "")}>
-          <span className="om-composer__reply-text">
-            <span className="om-composer__reply-who"><bdi>{replyTo.outgoing ? copy.reply.replyingToSelf : copy.reply.replyingTo(peerName ?? "")}</bdi></span>
-            <span className="om-composer__reply-preview"><bdi>{replyTo.preview === "" ? copy.reply.attachment : replyTo.preview}</bdi></span>
-          </span>
-          <IconButton label={copy.reply.cancel} icon={<Icon name="close" size={18} />} disabled={busy} onClick={() => { onCancelReply?.(); }} />
-        </div>
-      ) : null}
+      {replyTo ? <ReplyChip copy={copy.reply} who={peerName ?? ""} outgoing={replyTo.outgoing} preview={replyTo.preview} busy={busy} onCancel={() => { onCancelReply?.(); }} /> : null}
       {items.length === 0 ? null : (
         <ul className="om-staged" aria-label={att.tray}>
           {items.map((item) => (

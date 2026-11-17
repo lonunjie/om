@@ -173,6 +173,32 @@ export function createGroupSim(opts: { readonly stateFor: (ctx: ProfileExecution
           g.messages.push({ id, senderAccount: SELF, senderDevice: "dev-self", epoch: g.epoch, text: intent.text, atMs: opts.clock(), outgoing: true });
           return Promise.resolve(done([{ kind: "message_sent", conversationId: g.id, id }]));
         }
+        case "send_reply": {
+          if (!g || !selfIn(g)) return Promise.resolve(refuse("unknown_group"));
+          if (intent.text.trim() === "") return Promise.resolve(refuse("empty_message"));
+          if (!g.messages.some((m) => m.id === intent.replyTo)) return Promise.resolve(refuse("not_found"));
+          const id = hex(16);
+          g.messages.push({ id, senderAccount: SELF, senderDevice: "dev-self", epoch: g.epoch, text: intent.text, atMs: opts.clock(), outgoing: true, replyTo: intent.replyTo });
+          return Promise.resolve(done([{ kind: "message_sent", conversationId: g.id, id }]));
+        }
+        case "set_reaction": case "edit_message": case "delete_message": {
+          if (!g || !selfIn(g)) return Promise.resolve(refuse("unknown_group"));
+          const at = g.messages.findIndex((m) => m.id === intent.messageId);
+          const m = g.messages[at];
+          if (m === undefined) return Promise.resolve(refuse("not_found"));
+          if (intent.kind !== "set_reaction" && m.senderAccount !== SELF) return Promise.resolve(refuse("not_author"));
+          if (intent.kind === "delete_message") g.messages.splice(at, 1);
+          else if (intent.kind === "edit_message") {
+            if (intent.text.trim() === "") return Promise.resolve(refuse("bad_text"));
+            g.messages[at] = { ...m, text: intent.text, edited: true };
+          } else {
+            const others = (m.reactions ?? []).filter((r) => r.key !== intent.key);
+            const was = (m.reactions ?? []).find((r) => r.key === intent.key);
+            const count = Math.max(0, (was?.count ?? 0) + (intent.present === (was?.mine === true) ? 0 : intent.present ? 1 : -1));
+            g.messages[at] = { ...m, reactions: count === 0 ? others : [...others, { key: intent.key, count, mine: intent.present }] };
+          }
+          return Promise.resolve(done([{ kind: "message_changed", conversationId: g.id, id: m.id }]));
+        }
         case "room_setting": {
           if (!g || !selfIn(g)) return Promise.resolve(refuse("not_a_member"));
           if (!g.canManage) return Promise.resolve(refuse("not_authorized"));

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { ConversationId, ConversationTimelineItem, MessageId, ReactionView, ReplyView } from "@om/platform-api";
+import type { ConversationId, ConversationTimelineItem, MessageId } from "@om/platform-api";
 import { Button } from "../shell/primitives/Button";
 import { Icon } from "../shell/primitives/icons";
 import { IconButton } from "../shell/primitives/IconButton";
@@ -16,7 +16,7 @@ import { contactsLine, type SameNameCopy } from "./nameCues";
 import { MessageAttachments } from "./Attachments";
 import { DeliveryIndicator, RETRYABLE_REASONS, deliveryOf } from "./delivery";
 import { useConversationView } from "./hooks";
-import { DEFAULT_REACTIONS } from "./reactions";
+import { DeleteConfirm, EditForm, Quote, ReactionChips, ReactionControl, gistOf } from "./chatContext";
 import { PeerRecovery } from "./PeerRecovery";
 import { SecurityNotices } from "./notices";
 import type { RecoveryContactCopy } from "../recovery/copy";
@@ -31,6 +31,8 @@ export interface ReplyTarget {
   readonly hasAttachment: boolean;
   /** The original is our own message. */
   readonly outgoing: boolean;
+  /** Who wrote the original, already as the screen shows them (a group names the person; a chat knows it already). */
+  readonly who?: string;
 }
 
 export interface ConversationViewProps {
@@ -69,24 +71,8 @@ const scrollerOf = (el: HTMLElement): HTMLElement | null => {
   return null;
 };
 
-/** A short spoken name for a message, so "Reply" says which one: the start of its text, or that it is an attachment. */
-const messageGist = (item: ConversationTimelineItem, copy: ConversationCopy): string => {
-  const t = Array.from(item.text.trim()).slice(0, 40).join("");
-  return t === "" ? copy.reply.attachment : t;
-};
-
-/** The quoted block: who wrote the original and its first words, from the local copy. A tap moves to the original; a missing one is only said so. */
-function Quote({ reply, name, copy, onJump }: { readonly reply: ReplyView; readonly name: string; readonly copy: ConversationCopy["reply"]; readonly onJump: (id: MessageId) => void }) {
-  if (!reply.available) return <p className="om-quote" data-available="false">{copy.unavailable}</p>;
-  const who = reply.outgoing === true ? copy.inReplyToSelf : copy.inReplyTo(name);
-  const text = reply.preview === undefined || reply.preview === "" ? copy.attachment : reply.preview;
-  return (
-    <button type="button" className="om-quote" data-available="true" aria-label={`${who}: ${text}. ${copy.jump}`} onClick={() => { onJump(reply.messageId); }}>
-      <span className="om-quote__who" aria-hidden="true"><bdi>{who}</bdi></span>
-      <span className="om-quote__text" aria-hidden="true"><bdi>{text}</bdi></span>
-    </button>
-  );
-}
+/** A short spoken name for a message, so "Reply" says which one. */
+const messageGist = (item: ConversationTimelineItem, copy: ConversationCopy): string => gistOf(item.text, copy.reply.attachment);
 
 export function ConversationView({ services, conversationId, copy, recoveryCopy, richTextFor, footer, onBack, focusMessageId, sameName, sameNameCopy, onReply, replyingTo }: ConversationViewProps) {
   const state = useConversationView(services, conversationId);
@@ -226,36 +212,16 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                   <div className="om-conv-view__bubble" data-state={delivery?.kind}>
                     {item.reply === undefined ? null : <Quote reply={item.reply} name={shownName(view.summary)} copy={copy.reply} onJump={jumpTo} />}
                     {editing?.id === item.messageId ? (
-                      <form className="om-edit" onSubmit={(e) => { e.preventDefault(); if (editing.text.trim() !== "") change("edit-message", item.messageId, editing.text, copy.change.editFailed); }}>
-                        <textarea
-                          className="om-composer__input" aria-label={copy.change.editLabel} rows={2} value={editing.text} autoFocus
-                          onChange={(e) => { setEditing({ id: item.messageId, text: e.target.value }); }}
-                          onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setEditing(null); } }}
-                        />
-                        <span className="om-edit__actions">
-                          <Button variant="primary" type="submit" disabled={editing.text.trim() === ""}>{copy.change.save}</Button>
-                          <Button variant="quiet" onClick={() => { setEditing(null); }}>{copy.change.cancel}</Button>
-                        </span>
-                      </form>
+                      <EditForm copy={copy.change} text={editing.text} onChange={(next) => { setEditing({ id: item.messageId, text: next }); }} onSave={() => { change("edit-message", item.messageId, editing.text, copy.change.editFailed); }} onCancel={() => { setEditing(null); }} />
                     ) : <RichText doc={(richTextFor ?? ((i) => plainTextToRichText(i.text)))(item)} copy={copy.richText} />}
                     <MessageAttachments services={services} item={item} copy={copy.attachments} />
                   </div>
                   {view.summary.relationship !== "active" || (item.direction === "outgoing" && delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered") ? null : (
-                    <span className="om-react" onKeyDown={(e) => { if (e.key === "Escape" && picking === item.messageId) { e.stopPropagation(); setPicking(null); } }}>
-                      <IconButton
-                        className="om-conv-view__reply" label={`${copy.react.action}: ${messageGist(item, copy)}`} icon={<Icon name="smile" size={18} />}
-                        aria-expanded={picking === item.messageId} onClick={() => { setPicking((p) => (p === item.messageId ? null : item.messageId)); }}
-                      />
-                      {picking === item.messageId ? (
-                        <div role="group" aria-label={copy.react.picker} className="om-react__picker">
-                          {DEFAULT_REACTIONS.map((key) => (
-                            <button key={key} type="button" className="om-react__choice" aria-label={copy.react.set(key)} onClick={() => { react(item.messageId, key, !(item.reactions?.some((r) => r.key === key && r.mine) ?? false)); }}>
-                              <span aria-hidden="true">{key}</span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                    </span>
+                    <ReactionControl
+                      copy={copy.react} gist={messageGist(item, copy)} open={picking === item.messageId}
+                      onToggle={() => { setPicking((p) => (p === item.messageId ? null : item.messageId)); }} onClose={() => { setPicking(null); }}
+                      onPick={(key, present) => { react(item.messageId, key, present); }} isMine={(key) => item.reactions?.some((r) => r.key === key && r.mine) ?? false}
+                    />
                   )}
                   {outgoing && view.summary.relationship === "active" && (delivery?.kind === "sent" || delivery?.kind === "delivered") ? (
                     <>
@@ -271,26 +237,8 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                     />
                   )}
                   </div>
-                  {deleting === item.messageId ? (
-                    <div className="om-conv-view__confirm" role="group" aria-label={copy.change.deleteTitle}>
-                      <p>{copy.change.deleteBody}</p>
-                      <span className="om-edit__actions">
-                        <Button variant="danger" onClick={() => { change("delete-message", item.messageId, null, copy.change.deleteFailed); }}>{copy.change.deleteConfirm}</Button>
-                        <Button variant="quiet" onClick={() => { setDeleting(null); }}>{copy.change.cancel}</Button>
-                      </span>
-                    </div>
-                  ) : null}
-                  {item.reactions === undefined || item.reactions.length === 0 ? null : (
-                    <ul className="om-react__chips" aria-label={copy.react.list}>
-                      {item.reactions.map((r: ReactionView) => (
-                        <li key={r.key}>
-                          <button type="button" className="om-react__chip" data-mine={r.mine ? "true" : undefined} aria-pressed={r.mine} aria-label={copy.react.chip(r.key, r.count, r.mine)} onClick={() => { react(item.messageId, r.key, !r.mine); }}>
-                            <span aria-hidden="true">{r.key}{r.count > 1 ? ` ${String(r.count)}` : ""}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  {deleting === item.messageId ? <DeleteConfirm copy={copy.change} onConfirm={() => { change("delete-message", item.messageId, null, copy.change.deleteFailed); }} onCancel={() => { setDeleting(null); }} /> : null}
+                  <ReactionChips copy={copy.react} reactions={item.reactions ?? []} onPick={(key, present) => { react(item.messageId, key, present); }} />
                   {lastOfRun || unsettled ? (
                     <span className="om-conv-view__foot">
                       <time dateTime={new Date(item.sentAt).toISOString()}>{copy.view.formatTime(item.sentAt)}</time>

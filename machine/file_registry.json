@@ -606,6 +606,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/groups-chat-context.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/groups-held.spec.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -3652,6 +3659,13 @@
     },
     {
       "path": "decisions/ADR-0197-lookalike-name-matching.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0198-group-application-messages-typed-events.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",
@@ -9839,6 +9853,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/conversations/chatContext.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/conversations/conversations.css",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -10106,6 +10127,13 @@
     },
     {
       "path": "packages/om-ui/src/groups/__fixtures__/copy.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/groups/chatContext.test.tsx",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

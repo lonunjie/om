@@ -1,4 +1,5 @@
 import type { GroupsCopy } from "../copy";
+import { testCopy } from "../../conversations/__fixtures__/copy";
 
 export const groupsTestCopy: GroupsCopy = {
   list: { mark: (n) => `Group, ${String(n)} people`, noActivity: "No messages yet" },
@@ -25,6 +26,7 @@ export const groupsTestCopy: GroupsCopy = {
   chat: {
     label: "Group messages", back: "Back", people: (n) => `${String(n)} people`, openPeople: (g) => `People in ${g}`, empty: "No messages yet", incoming: "From", outgoing: "You said",
     formatTime: (ms) => `t${String(ms)}`, composerLabel: "Message the group", placeholder: "Message", send: "Send", sendFailed: "Not sent", paused: "Updating", notMember: "Not in this group", loadFailed: "Could not open",
+    reply: testCopy.reply, react: testCopy.react, change: testCopy.change,
   },
   sameName: {
     of: (n, i, o) => `${n} (${String(i)} of ${String(o)})`,

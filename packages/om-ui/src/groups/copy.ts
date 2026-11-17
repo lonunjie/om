@@ -1,3 +1,5 @@
+import type { ConversationCopy } from "../conversations/copy";
+
 /** All user-visible strings for ordinary groups. Components contain no copy; callers supply (localized) text. */
 export interface GroupsCopy {
   readonly list: {
@@ -89,6 +91,10 @@ export interface GroupsCopy {
     readonly paused: string;
     readonly notMember: string;
     readonly loadFailed: string;
+    /** Reply, reactions, edit and delete are the chat's own words (the same strings, so a group speaks them as a chat does). */
+    readonly reply: ConversationCopy["reply"];
+    readonly react: ConversationCopy["react"];
+    readonly change: ConversationCopy["change"];
   };
   /** Two people who show the same name (GROUPS_AND_SPACES_UX section 10): calm, one line, nothing to dismiss. */
   readonly sameName: {

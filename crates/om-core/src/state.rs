@@ -833,6 +833,9 @@ pub struct AppState {
     /// ConversationID (hex) -> the group's text messages as this device holds them. Additive.
     #[serde(default)]
     pub group_msgs: BTreeMap<Hex, Vec<crate::groups::flow::GroupMsg>>,
+    /// ConversationID (hex) -> the last event clock (physical ms, logical) this device gave an event it sent in the Room. Additive.
+    #[serde(default)]
+    pub group_hlc: BTreeMap<Hex, (u64, u32)>,
     /// Group carriage (ADR-0189): this device's per-Room routes, other devices' verified routes and the lane inbox.
     #[serde(default)]
     pub group_carriage: crate::groups::carriage::GroupCarriageRec,

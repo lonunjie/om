@@ -29,6 +29,14 @@ export type GroupIntent =
   /** `account` is the AccountID (hex) of the person to remove. */
   | { readonly kind: "remove"; readonly conversationId: GroupId; readonly account: string }
   | { readonly kind: "send_text"; readonly conversationId: GroupId; readonly text: string }
+  /** A text that answers `replyTo`, a message of this Room. Refused `not_found` when it is not one (D143). */
+  | { readonly kind: "send_reply"; readonly conversationId: GroupId; readonly text: string; readonly replyTo: string }
+  /** Set or remove our reaction `key` on a message of the Room (`reaction.set`). */
+  | { readonly kind: "set_reaction"; readonly conversationId: GroupId; readonly messageId: string; readonly key: string; readonly present: boolean }
+  /** Replace the text of our own message; refused `not_author` for another member's (`message.edit`). */
+  | { readonly kind: "edit_message"; readonly conversationId: GroupId; readonly messageId: string; readonly text: string }
+  /** Delete our own message for everyone in the Room; refused `not_author` for another member's (`message.delete`). */
+  | { readonly kind: "delete_message"; readonly conversationId: GroupId; readonly messageId: string }
   /** The host reports that the prepared Commit was published to its group (progress only: Core accepts its own Commit itself, ADR-0189 section 2). */
   | { readonly kind: "commit_published"; readonly intentId: string }
   /** Create a Room from a protection level (1 Recommended, 2 Hardened, 3 Maximum Privacy). `create` is Recommended. */
@@ -62,6 +70,8 @@ export type GroupEvent =
   | { readonly kind: "joined" | "no_longer_member"; readonly conversationId: GroupId }
   | { readonly kind: "message_sent"; readonly conversationId: GroupId; readonly id: string }
   | { readonly kind: "message_received"; readonly conversationId: GroupId; readonly id: string; readonly senderAccount: string }
+  /** A reaction, an edit or a delete was applied to the message `id` (ours or received). */
+  | { readonly kind: "message_changed"; readonly conversationId: GroupId; readonly id: string }
   /** Something arrived that nothing of ours precedes or authorizes; nothing changed. */
   | { readonly kind: "dropped"; readonly reason: string }
   /** A frame names a device whose account head is missing or stale: it is kept (bounded, expiring) and retried; nothing was accepted. */
@@ -178,7 +188,14 @@ export interface GroupMessageView {
   readonly text: string;
   readonly atMs: number;
   readonly outgoing: boolean;
+  /** The id of the message this one answers. Whether it is still here is read from the messages the viewer holds. */
+  readonly replyTo?: string;
+  /** An accepted edit replaced the text. */
+  readonly edited?: boolean;
+  /** One entry per reaction key: how many members have it set and whether one is you. */
+  readonly reactions?: readonly GroupReactionView[];
 }
+export interface GroupReactionView { readonly key: string; readonly count: number; readonly mine: boolean }
 
 /**
  * The groups path of a CoreClient. `do` and `receive` resolve once the step is durable; only then may the host send
