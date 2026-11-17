@@ -2832,6 +2832,12 @@
       "verified_by": [
         "review:ADR-0195-device-link-approval-continuation-form.md"
       ]
+    },
+    {
+      "requirement": "R-436",
+      "verified_by": [
+        "review:ADR-0196-local-contact-nickname.md"
+      ]
     }
   ]
 }
