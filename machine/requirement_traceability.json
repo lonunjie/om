@@ -2856,6 +2856,12 @@
       "verified_by": [
         "review:ADR-0200-recovery-key-sheet-carries-its-place.md"
       ]
+    },
+    {
+      "requirement": "R-440",
+      "verified_by": [
+        "review:ADR-0201-home-recoverystore-api-inbox-veto-and-limits.md"
+      ]
     }
   ]
 }
