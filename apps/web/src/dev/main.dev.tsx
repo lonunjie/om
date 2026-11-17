@@ -60,7 +60,13 @@ export function mountDev(root: HTMLElement): void {
         ? [{ id: asConversationId("c-ana3"), personId: asPersonId("p-ana3"), displayName: "Ana R\u0435yes", messages: [{ text: "Hello from a similar name.", direction: "incoming" as const }] }]
         : []),
     ],
-    introductions: [{ id: "req-1", from: asPersonId("p-sam"), displayName: "Sam Okafor", personId: asPersonId("p-sam") }],
+    // `?requestcue` adds a request whose name differs from the contact "Maria Gomez" only by a Cyrillic letter (written as an escape), for the e2e of the request cue (ADR-0197).
+    introductions: [
+      { id: "req-1", from: asPersonId("p-sam"), displayName: "Sam Okafor", personId: asPersonId("p-sam") },
+      ...(new URLSearchParams(globalThis.location.search).has("requestcue")
+        ? [{ id: "req-2", from: asPersonId("p-mg"), displayName: "Maria G\u043emez", personId: asPersonId("p-mg") }]
+        : []),
+    ],
     account: {
       devices: [
         { id: "dev-this", label: "This browser", role: "control", current: true },

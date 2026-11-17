@@ -14,3 +14,4 @@ export * from "./Avatar";
 export * from "./Attachments";
 export * from "./shownName";
 export * from "./ContactDetail";
+export * from "./nameCues";

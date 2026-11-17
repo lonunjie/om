@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, 
 import { asConversationId, asGroupId, parseInviteLink, type ConversationId, type ConversationSummary, type IntroductionRequest, type MessageId, type OperationId } from "@om/platform-api";
 import {
   AppShell, Avatar, Button, Composer, ConnectedProfileSwitcher, ConversationList, ConversationView, DevicesScreen, ProtectionScreen, HomeFacts, HomeScreen, Icon, IconButton, LiveRegion, MessageRequest, Omnibar, OmnibarTrigger, RecoveryScreen, Sheet, StrangerPressure, Text, useActiveProfile, useLayoutMode, useLocalSearch,
-  type IconName, type OmniEntry, useConversationDigests, shownName,
+  type IconName, type OmniEntry, useConversationDigests, shownName, contactCollisions,
   GroupChat, GroupComposer, GroupInvites, GroupStatus, HeldGroupInvites, NewGroup, digestOfGroup, groupApiOf, useGroupEvents, useGroups, useHeldGroupInvites,
   AcceptInvite, InviteFirst, RecoveryKeyStep, useConversationList, type ConversationServices, type HomeSettingsServices, type OnboardingPlatform,
 } from "@om/ui";
@@ -124,6 +124,9 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
     if (groupRows.rows.length === 0) return list.value;
     return [...list.value, ...groupRows.rows].sort((a, b) => (b.lastMessageAt ?? 0) - (a.lastMessageAt ?? 0));
   }, [list, groupRows]);
+  // Contacts who show the same name or names that look alike (ADR-0197), compared on the shown names; groups are not people and are left out.
+  const contactNames = useMemo(() => contactCollisions(chatRows ?? [], (id) => groupRows.marks.has(id)), [chatRows, groupRows.marks]);
+  const requestContacts = useMemo(() => (chatRows ?? []).filter((c) => !groupRows.marks.has(c.id)).map((c) => ({ id: c.id, name: shownName(c) })), [chatRows, groupRows.marks]);
   const chatIds = useMemo(() => (chatRows === null ? [] : chatRows.map((c) => c.id)), [chatRows]);
   const selectedIsGroup = (id: ConversationId | null): boolean => id !== null && groupRows.marks.has(id);
   const [seen, setSeenTimes] = useState<ReadonlyMap<ConversationId, number> | null>(null);
@@ -268,7 +271,8 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   const shortcut = typeof navigator !== "undefined" && /mac|iphone|ipad/i.test(navigator.platform) ? "\u2318K" : "Ctrl K";
   const omniEntries = useMemo<readonly OmniEntry[]>(() => {
     const out: OmniEntry[] = [];
-    if (chatRows !== null) chatRows.forEach((c, i) => { out.push({ id: `chat-${c.id}`, kind: "conversation", label: shownName(c), suggested: i < 3, run: () => { go({ kind: "chats", chat: c.id }); } }); });
+    const contactLabel = (c: ConversationSummary): string => { const n = contactNames.of(c.id); return n === null ? shownName(c) : groupsCopy.sameName.of(shownName(c), n.index, n.of); };
+    if (chatRows !== null) chatRows.forEach((c, i) => { out.push({ id: `chat-${c.id}`, kind: "conversation", label: contactLabel(c), suggested: i < 3, run: () => { go({ kind: "chats", chat: c.id }); } }); });
     if (invite !== undefined) {
       out.push({ id: "invite", kind: "action", label: t.omniActions.invite, keywords: t.omniKeywords.invite, suggested: true, run: () => { openNew("share"); } });
       out.push({ id: "scan", kind: "action", label: t.omniActions.scan, keywords: t.omniKeywords.scan, suggested: true, run: () => { openNew("scan"); } });
@@ -294,7 +298,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
     if (onAddProfile !== undefined) out.push({ id: "add-profile", kind: "action", label: t.addProfile, keywords: t.settingsKeywords.addProfile, run: onAddProfile });
     if (safetyCode !== undefined) out.push({ id: "safety-code", kind: "setting", label: t.safetyCode.action, keywords: t.settingsKeywords.recovery, run: () => { go({ kind: "safety-code" }); } });
     return out;
-  }, [chatRows, groupsOffered, services.ctx, invite, lock, backup, home, onAddProfile, safetyCode, go, openNew]);
+  }, [chatRows, contactNames, groupsOffered, services.ctx, invite, lock, backup, home, onAddProfile, safetyCode, go, openNew]);
   // A pasted invitation link is explicit intent: it is offered first and leads to the sheet with the link already in place.
   const omniDynamic = useCallback((query: string): readonly OmniEntry[] => {
     if (invite === undefined || !parseInviteLink(query).ok) return [];
@@ -305,8 +309,10 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   // The search function is pinned while the Omnibar is open, so a message arriving meanwhile cannot move a result under the person's finger (NV-06).
   const searchWhileOpen = useRef(localSearch.search);
   if (!omniOpen) searchWhileOpen.current = localSearch.search;
+  const foundNames = useRef((_id: ConversationId, name: string): string => name);
+  foundNames.current = (id, name) => { const n = contactNames.of(id); return n === null ? name : groupsCopy.sameName.of(name, n.index, n.of); };
   const omniFound = useCallback((query: string): readonly OmniEntry[] => searchWhileOpen.current(query).map((hit, i): OmniEntry => ({
-    id: `found-${String(i)}`, kind: hit.kind, label: hit.snippet, detail: hit.displayName,
+    id: `found-${String(i)}`, kind: hit.kind, label: hit.snippet, detail: foundNames.current(hit.conversationId, hit.displayName),
     run: () => { setHitFocus({ chat: hit.conversationId, messageId: hit.messageId, ctx: services.ctx }); go({ kind: "chats", chat: hit.conversationId }); },
   })), [go, services.ctx]);
   const openOmni = (): void => { setOmniOpen(true); };
@@ -427,7 +433,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
               </section>
             ) : null}
             <StrangerPressure services={services} copy={conversationCopy.pressure} />
-            <Requests services={services} />
+            <Requests services={services} contacts={requestContacts} />
             {list.status === "loading" ? <div className="om-page"><Text>{t.loading}</Text></div> : null}
             {list.status === "failed" ? <div className="om-page"><Text role="alert">{t.loadFailed}</Text></div> : null}
             {emptyInviteFirst ? (
@@ -438,7 +444,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
                 />
               </div>
             ) : null}
-            {chatRows !== null && !emptyInviteFirst ? <ConversationList conversations={chatRows} selectedId={selected} onSelect={select} copy={conversationCopy} digests={digests} drafts={drafts} unread={unread} marks={groupRows.marks} /> : null}
+            {chatRows !== null && !emptyInviteFirst ? <ConversationList conversations={chatRows} selectedId={selected} onSelect={select} copy={conversationCopy} digests={digests} drafts={drafts} unread={unread} marks={groupRows.marks} sameNameCopy={groupsCopy.sameName} /> : null}
           </>
         }
         detail={
@@ -448,7 +454,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
               onBack={toChats} onLeft={() => { groups.refresh(); toChats(); }} refreshKey={groupTick} onChanged={groups.refresh} events={groupEvents}
             />
           ) : (
-            <ConversationView key={selected} services={services} conversationId={selected} copy={conversationCopy} recoveryCopy={recoveryCopy.contact} onBack={toChats} focusMessageId={hitFocus !== null && hitFocus.chat === selected && hitFocus.ctx === services.ctx ? hitFocus.messageId : undefined} />
+            <ConversationView key={selected} sameName={contactNames.of(selected)} sameNameCopy={groupsCopy.sameName} services={services} conversationId={selected} copy={conversationCopy} recoveryCopy={recoveryCopy.contact} onBack={toChats} focusMessageId={hitFocus !== null && hitFocus.chat === selected && hitFocus.ctx === services.ctx ? hitFocus.messageId : undefined} />
           )
         }
         composerZone={selected !== null && selectedIsGroup(selected) ? (
@@ -494,7 +500,7 @@ function SubPage({ label, onBack, children }: { readonly label: string; readonly
   );
 }
 
-function Requests({ services }: { readonly services: ConversationServices }) {
+function Requests({ services, contacts }: { readonly services: ConversationServices; readonly contacts: readonly { readonly id: string; readonly name: string }[] }) {
   const [items, setItems] = useState<readonly IntroductionRequest[]>([]);
   const [gone, setGone] = useState<ReadonlySet<string>>(() => new Set());
   useEffect(() => {
@@ -511,7 +517,7 @@ function Requests({ services }: { readonly services: ConversationServices }) {
   return (
     <section className="om-page om-stack" aria-label={t.requestsHeading}>
       {shown.map((r) => (
-        <div key={r.id} className="om-card"><MessageRequest services={services} request={r} copy={conversationCopy} onIgnore={hide} /></div>
+        <div key={r.id} className="om-card"><MessageRequest services={services} request={r} copy={conversationCopy} contacts={contacts} sameNameCopy={groupsCopy.sameName} onIgnore={hide} /></div>
       ))}
     </section>
   );

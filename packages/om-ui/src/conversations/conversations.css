@@ -139,3 +139,8 @@
 .om-contact__form input { font: inherit; padding: var(--om-space-2) var(--om-space-3); border-radius: var(--om-radius-md); border: 1px solid var(--om-hairline); background: var(--om-color-bg-surface); color: inherit; min-block-size: 44px; }
 .om-contact__form p { margin: 0; }
 .om-contact__actions { display: flex; flex-wrap: wrap; gap: var(--om-space-2); }
+
+/* ADR-0197 on the one-to-one surfaces: the same calm line and pattern as the groups ones. */
+.om-conv-list__samename { padding-block: var(--om-space-1); }
+.om-conv-view__samename { margin: 0; overflow-wrap: anywhere; }
+.om-request .om-avatar--pattern { float: inline-start; margin-inline-end: var(--om-space-3); }

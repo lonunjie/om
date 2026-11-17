@@ -10,6 +10,9 @@ import type { ConversationCopy } from "./copy";
 import { Avatar } from "./Avatar";
 import { ContactDetail } from "./ContactDetail";
 import { shownName } from "./shownName";
+import { PatternAvatar } from "../groups/PatternAvatar";
+import type { SameName } from "../groups/sameName";
+import { contactsLine, type SameNameCopy } from "./nameCues";
 import { MessageAttachments } from "./Attachments";
 import { DeliveryIndicator, RETRYABLE_REASONS, deliveryOf } from "./delivery";
 import { useConversationView } from "./hooks";
@@ -34,6 +37,9 @@ export interface ConversationViewProps {
   readonly onBack?: () => void;
   /** A message to bring into view and mark briefly (a search hit). Ignored if the message is not in this conversation. */
   readonly focusMessageId?: MessageId | undefined;
+  /** This contact's place among contacts who show the same name or one that looks alike, and the words for it (ADR-0197). Null or missing: no cue. */
+  readonly sameName?: SameName | null;
+  readonly sameNameCopy?: SameNameCopy;
 }
 
 /** Messages from one person within this gap read as one run: the time (and the tail of the bubble) is shown once. */
@@ -49,7 +55,7 @@ const scrollerOf = (el: HTMLElement): HTMLElement | null => {
   return null;
 };
 
-export function ConversationView({ services, conversationId, copy, recoveryCopy, richTextFor, footer, onBack, focusMessageId }: ConversationViewProps) {
+export function ConversationView({ services, conversationId, copy, recoveryCopy, richTextFor, footer, onBack, focusMessageId, sameName, sameNameCopy }: ConversationViewProps) {
   const state = useConversationView(services, conversationId);
   const retrying = useRef(new Set<MessageId>());
   const [, rerender] = useState(0);
@@ -96,6 +102,7 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
   if (state.status === "loading") return <div className="om-conv-view" aria-busy="true" />;
   if (state.status === "failed") return <div className="om-conv-view"><p role="alert">{copy.view.loadFailed}</p></div>;
   const { view, ops } = state.value;
+  const cue = sameName ?? null;
 
   const retry = (messageId: MessageId): void => {
     if (retrying.current.has(messageId)) return;
@@ -112,9 +119,10 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
     <section className="om-conv-view" aria-label={shownName(view.summary)}>
       <header className="om-conv-view__header">
         {onBack ? <IconButton className="om-conv-view__back" label={copy.view.back} icon={<Icon name="back" />} onClick={onBack} /> : null}
-        <Avatar name={shownName(view.summary)} />
+        {cue === null ? <Avatar name={shownName(view.summary)} /> : <PatternAvatar seed={conversationId} />}
         <div className="om-conv-view__who">
-          <Text as="h2" size="lg" weight="bold">{shownName(view.summary)}</Text>
+          <Text as="h2" size="lg" weight="bold">{cue === null || sameNameCopy === undefined ? shownName(view.summary) : <bdi>{sameNameCopy.of(shownName(view.summary), cue.index, cue.of)}</bdi>}</Text>
+          {cue === null || sameNameCopy === undefined ? null : <Text as="p" size="sm" tone="secondary" className="om-conv-view__samename" data-samename={cue.kind}><bdi>{contactsLine(sameNameCopy, cue)}</bdi></Text>}
           {view.summary.nickname === undefined ? null : <Text as="p" size="sm" tone="secondary" className="om-conv-view__original"><bdi>{view.summary.displayName}</bdi></Text>}
         </div>
         <IconButton className="om-conv-view__contact" label={copy.contact.open(shownName(view.summary))} icon={<Icon name="user" />} onClick={() => { setContactOpen(true); }} />

@@ -3,9 +3,13 @@ import type { IntroductionRequest, OutcomeClass } from "@om/platform-api";
 import { confirmWithCore } from "../actions/confirm";
 import { Button } from "../shell/primitives/Button";
 import { Text } from "../shell/primitives/Text";
+import { PatternAvatar } from "../groups/PatternAvatar";
+import type { Named } from "../groups/sameName";
+import { requestCollision, requestLine, type SameNameCopy } from "./nameCues";
 import type { ConversationCopy } from "./copy";
 import { firstOutcome, resolveIntent, type ConversationServices } from "./services";
 import "./conversations.css";
+import "../groups/groups.css";
 
 export interface MessageRequestProps {
   readonly services: ConversationServices;
@@ -14,17 +18,21 @@ export interface MessageRequestProps {
   readonly copy: ConversationCopy;
   /** Ignore is local presentation (no Core intent). */
   readonly onIgnore: (requestId: string) => void;
+  /** The shown names of your contacts (nickname else their own name). With these and `sameNameCopy`, a request whose name equals or looks like one of them says so, calmly, before you accept (ADR-0197). */
+  readonly contacts?: readonly Named[];
+  readonly sameNameCopy?: SameNameCopy;
   readonly onResolved?: (action: "accept" | "block", outcome: OutcomeClass) => void;
 }
 
 type Phase = "idle" | "confirm_block" | "busy" | "done";
 
-export function MessageRequest({ services, request, copy, onIgnore, onResolved }: MessageRequestProps) {
+export function MessageRequest({ services, request, copy, contacts, sameNameCopy, onIgnore, onResolved }: MessageRequestProps) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [status, setStatus] = useState<string | null>(null);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const c = copy.request;
+  const same = contacts === undefined || sameNameCopy === undefined ? null : requestCollision(request.id, request.displayName, contacts);
 
   const run = async (action: "accept" | "block"): Promise<void> => {
     setPhase("busy");
@@ -59,7 +67,9 @@ export function MessageRequest({ services, request, copy, onIgnore, onResolved }
   return (
     <section className="om-request" aria-label={c.heading}>
       <Text as="h3" size="md" weight="bold">{c.heading}</Text>
-      <Text as="p" className="om-request__sender"><bdi>{request.displayName}</bdi> <span className="om-request__unknown">{c.unknownSender}</span>{request.verification === "unverified" ? <> <span className="om-request__unverified" data-verification="unverified">{c.unverified}</span></> : null}</Text>
+      {same === null ? null : <PatternAvatar seed={request.id} />}
+      <Text as="p" className="om-request__sender"><bdi>{same === null || sameNameCopy === undefined ? request.displayName : sameNameCopy.of(request.displayName, same.index, same.of)}</bdi> <span className="om-request__unknown">{c.unknownSender}</span>{request.verification === "unverified" ? <> <span className="om-request__unverified" data-verification="unverified">{c.unverified}</span></> : null}</Text>
+      {same === null || sameNameCopy === undefined ? null : <Text as="p" size="sm" tone="secondary" className="om-group-samename" data-samename={same.kind}><bdi>{requestLine(sameNameCopy, same)}</bdi></Text>}
       <Text as="p" size="sm" tone="secondary">{c.hint}</Text>
       {phase === "confirm_block" ? (
         <div role="group" aria-label={c.blockPrompt} className="om-request__confirm">

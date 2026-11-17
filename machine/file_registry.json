@@ -767,6 +767,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "apps/web/e2e/samename-requests.spec.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "apps/web/e2e/tsconfig.json",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -9847,6 +9854,20 @@
     },
     {
       "path": "packages/om-ui/src/conversations/index.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/conversations/nameCues.test.tsx",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/conversations/nameCues.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
