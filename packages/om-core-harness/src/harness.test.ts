@@ -230,18 +230,30 @@ describe("contact-side recovery (ADR-0190)", () => {
     expect(outcome(h, ctx, "d0")).toEqual({ kind: "Rejected", reason: "unauthorized" });
   });
 
-  it("sending is refused with peer_recovering and nothing is queued, until the recovery ends", async () => {
+  it("a text written while the contact recovers is kept and shown as waiting; a decline returns it as not sent, an accept sends it", async () => {
     const { h, ctx } = seeded("waiting");
     await h.dispatch(send(ctx, "s1", CP));
-    expect(outcome(h, ctx, "s1")).toEqual({ kind: "Rejected", reason: "peer_recovering" });
-    expect((await h.query({ kind: "GetConversationView", ctx, conversationId: CP })).timeline).toHaveLength(1);
+    expect(outcome(h, ctx, "s1")).toEqual({ kind: "PendingNetwork" });
+    const held = (await h.query({ kind: "GetConversationView", ctx, conversationId: CP })).timeline;
+    expect(held).toHaveLength(2);
+    expect(held[1]).toMatchObject({ direction: "outgoing", delivery: { state: "waiting_for_peer_recovery" } });
+    // A file or a place is not kept for later.
+    await h.dispatch({ kind: "SendLocation", ctx, operationId: asOperationId("loc"), conversationId: CP, latE7: 1, lonE7: 1 } as unknown as CoreIntent);
+    expect(outcome(h, ctx, "loc")).toEqual({ kind: "Rejected", reason: "peer_recovering" });
     await h.dispatch({ kind: "DeclinePeerRecovery", ctx, operationId: asOperationId("d1"), conversationId: CP, requestId: "r1", confirmation: await token(h, ctx, "DeclinePeerRecovery", "i1") });
     expect(outcome(h, ctx, "d1")).toEqual({ kind: "Committed" });
     expect((await h.query({ kind: "GetConversationList", ctx }))[0]?.peerRecovery).toMatchObject({ state: "declined", canDecline: false });
+    expect(outcome(h, ctx, "s1")).toEqual({ kind: "Rejected", reason: "unavailable" });
+    expect((await h.query({ kind: "GetConversationView", ctx, conversationId: CP })).timeline[1]).toMatchObject({ delivery: { state: "rejected", reason: "unavailable" } });
     await h.dispatch(send(ctx, "s2", CP));
     expect(outcome(h, ctx, "s2")).toEqual({ kind: "Committed" });
     await h.dispatch({ kind: "DeclinePeerRecovery", ctx, operationId: asOperationId("d2"), conversationId: CP, requestId: "r1", confirmation: await token(h, ctx, "DeclinePeerRecovery", "i2") });
     expect(outcome(h, ctx, "d2")).toEqual({ kind: "Rejected", reason: "conflict" });
+    const ready = seeded("ready", true);
+    await ready.h.dispatch(send(ready.ctx, "s3", CP));
+    await ready.h.dispatch({ kind: "ConfirmPeerRecovery", ctx: ready.ctx, operationId: asOperationId("c9"), conversationId: CP, requestId: "r1", confirmation: await token(ready.h, ready.ctx, "ConfirmPeerRecovery", "ic9") });
+    expect(outcome(ready.h, ready.ctx, "s3")).toEqual({ kind: "Committed" });
+    expect((await ready.h.query({ kind: "GetConversationView", ctx: ready.ctx, conversationId: CP })).timeline[1]).toMatchObject({ delivery: { state: "sent" } });
   });
 
   it("confirm works only once the wait ran, and finishes it", async () => {

@@ -5,6 +5,8 @@ import type { OutcomeClass, RejectReason } from "./outcome";
 export type DeliveryState =
   | { readonly state: "pending_network" }
   | { readonly state: "pending_reconciliation" }
+  /** Written while the contact is recovering their account: kept on this device, sent once their new device is confirmed (ADR-0190 section 5, D131). */
+  | { readonly state: "waiting_for_peer_recovery" }
   | { readonly state: "sent" }
   | { readonly state: "delivered" }
   | { readonly state: "rejected"; readonly reason: RejectReason };

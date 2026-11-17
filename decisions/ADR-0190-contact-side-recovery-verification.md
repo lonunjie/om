@@ -213,7 +213,7 @@ Operator-delegated rulings of 2026-11-16. This amends only the delegated appendi
 Operator-delegated rulings of 2026-11-16, recorded with the contact-side Core build. They amend only the Core work list and the delegated appendix; no audited text changes. Departures are D72 to D82 in [`2026-10-28-relay-status.md`](../docs/reports/2026-10-28-relay-status.md).
 
 1. **Strict timer for everyone (D72, D73).** There is no sweep and no gap credit. The interval starts at the first host tick after the first valid observation, never earlier.
-2. **Sending while a recovery is pending (D79).** No outgoing queue in v1. The send path refuses with the typed `RejectReason::PeerRecovering`, so a UI can say the person is recovering and can be messaged once it finishes. Nothing is encrypted to an unlisted device. The queue is a follow-up.
+2. **Sending while a recovery is pending (D79).** No outgoing queue in v1. The send path refuses with the typed `RejectReason::PeerRecovering`, so a UI can say the person is recovering and can be messaged once it finishes. Nothing is encrypted to an unlisted device. The queue was a follow-up and is built (relay status D131 to D134).
 3. **Profiles (D80).** The contact's local privacy level (none means Recommended) decides: Recommended auto-accepts at the delay; Hardened, Maximum and Custom need the contact's own confirm.
 4. **Dossier wire (D76).** The dossier is at key 5 of `KIND_ACS_UPDATE` and at key 8 of first-contact Accept and Bind. It has no seconds field.
 5. **In-session veto wire (D74).** `{0: 12, 1: signed RecoveryVeto bytes}` (`KIND_RECOVERY_VETO`).

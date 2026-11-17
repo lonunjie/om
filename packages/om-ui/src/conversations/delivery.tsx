@@ -3,7 +3,7 @@ import type { ConversationCopy } from "./copy";
 import "./conversations.css";
 
 export type DeliveryDisplay =
-  | { readonly kind: "pending" | "pending_network" | "pending_reconciliation" | "sent" | "delivered" }
+  | { readonly kind: "pending" | "pending_network" | "pending_reconciliation" | "waiting_for_peer_recovery" | "sent" | "delivered" }
   | { readonly kind: "rejected"; readonly reason: RejectReason };
 
 /** Reasons for which retrying the same logical message makes sense. Everything else is shown without a retry control. */
@@ -11,6 +11,8 @@ export const RETRYABLE_REASONS: ReadonlySet<RejectReason> = new Set<RejectReason
 
 /** A live non-terminal operation outcome wins over the item's stored state (restart reconstruction, UI-13). A timeout is never terminal (UI-12). */
 export function deliveryOf(state: DeliveryState, op?: OutcomeClass): DeliveryDisplay {
+  // A message kept for a contact's recovery is not "sending": its operation is open on purpose, so the stored state is what is true.
+  if (state.state === "waiting_for_peer_recovery") return { kind: "waiting_for_peer_recovery" };
   switch (op?.kind) {
     case "PendingNetwork": return { kind: "pending_network" };
     case "PendingReconciliation": return { kind: "pending_reconciliation" };
@@ -28,7 +30,7 @@ export function deliveryOf(state: DeliveryState, op?: OutcomeClass): DeliveryDis
 }
 
 const GLYPH: Readonly<Record<DeliveryDisplay["kind"], string>> = {
-  pending: "…", pending_network: "…", pending_reconciliation: "…", sent: "✓", delivered: "✓✓", rejected: "!",
+  pending: "…", pending_network: "…", pending_reconciliation: "…", waiting_for_peer_recovery: "…", sent: "✓", delivered: "✓✓", rejected: "!",
 };
 
 export function deliveryText(d: DeliveryDisplay, copy: ConversationCopy["delivery"]): string {
@@ -36,6 +38,7 @@ export function deliveryText(d: DeliveryDisplay, copy: ConversationCopy["deliver
     case "pending": return copy.pending;
     case "pending_network": return copy.pendingNetwork;
     case "pending_reconciliation": return copy.pendingReconciliation;
+    case "waiting_for_peer_recovery": return copy.waitingForPeerRecovery;
     case "sent": return copy.sent;
     case "delivered": return copy.delivered;
     case "rejected": return copy.rejected[d.reason];

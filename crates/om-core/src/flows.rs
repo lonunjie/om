@@ -45,6 +45,8 @@ pub const INVITE_TTL_MS: u64 = 7 * 24 * 60 * 60 * 1000;
 pub const BUNDLE_TTL_S: u64 = 90 * 24 * 60 * 60;
 pub const MAX_MESSAGE_CHARS: usize = 8000;
 pub const MAX_LABEL_CHARS: usize = 64;
+/// The most texts kept for one contact while their account recovery is pending (D132). The design names no bound.
+pub const MAX_HELD_FOR_RECOVERY: usize = 64;
 const ONE_TIME_KEYS: usize = 10;
 /// Publish a fresh batch of one-time prekeys when fewer than this many of either kind remain locally.
 const REPLENISH_BELOW: usize = 4;
@@ -1371,9 +1373,21 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             self.record(op, kind, rejected(RejectReason::Invalid), None);
             return Ok(());
         }
-        // A contact recovering their account: refuse honestly, before anything is encrypted or queued (ADR-0190 5).
-        // The pinned head does not list their new device, and a message is never encrypted to an unlisted device.
-        if rel.peer_recovery.iter().any(PeerRecoveryRec::is_live) {
+        // A contact recovering their account (ADR-0190 section 5, D131): a plain text is kept on this device and sent once their
+        // new device is confirmed; nothing is encrypted for it now, because the pinned head does not list that device and a
+        // message is never encrypted to an unlisted device. A file or a place is not kept (refused, nothing queued), and so is
+        // a text past the hold bound, so the wait cannot grow without limit.
+        let held = rel.peer_recovery.iter().any(PeerRecoveryRec::is_live);
+        if held
+            && (!atts.is_empty()
+                || ext.is_some()
+                || rel
+                    .messages
+                    .iter()
+                    .filter(|m| m.delivery == DeliveryState::WaitingForPeerRecovery)
+                    .count()
+                    >= MAX_HELD_FOR_RECOVERY)
+        {
             self.record(op, kind, rejected(RejectReason::PeerRecovering), None);
             return Ok(());
         }
@@ -1382,7 +1396,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         // is never a clear fallback. The conversation id is fixed once the Accept exists, so a queued event is final.
         let (state, has_mailbox, blocked) =
             (rel.state, rel.peer_relays.primary().is_some(), rel.blocked);
-        let queue = match (state, has_mailbox, blocked) {
+        let queue_by_state = match (state, has_mailbox, blocked) {
             (RelState::Active, true, false) => false,
             (RelState::Establishing | RelState::AcceptedUnbound, true, false) => true,
             _ => {
@@ -1390,6 +1404,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 return Ok(());
             }
         };
+        let queue = queue_by_state || held;
         let (Some(canon), Some(account), Some(device_id)) = (
             rel.canon_id.as_deref().and_then(|c| h32(c).ok()),
             self.st.device.as_ref().map(|d| d.account_id),
@@ -1454,7 +1469,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             operation_id: Some(op.clone()),
             text: text.unwrap_or_default().to_string(),
             sent_at: now,
-            delivery: DeliveryState::PendingNetwork,
+            delivery: if held {
+                DeliveryState::WaitingForPeerRecovery
+            } else {
+                DeliveryState::PendingNetwork
+            },
             envelope: None,
             digest: if has_atts {
                 String::new()
@@ -1493,6 +1512,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         if rel.multi.in_view {
             return Ok(()); // a device-scoped step: the owner of the view releases afterwards
+        }
+        // While a recovery of this contact's account is pending nothing is encrypted for them (ADR-0190 section 5, D131).
+        if rel.peer_recovery.iter().any(PeerRecoveryRec::is_live) {
+            return Ok(());
         }
         let primary = if self.primary_eligible(&rel) {
             match self.peer_target(&rel) {
@@ -1746,6 +1769,33 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                         message_id: msg.id.clone(),
                     },
                 );
+                self.record(op, kind, OutcomeClass::PendingNetwork, Some(msg.id));
+            }
+            // A text kept for a contact's recovery that ended without them (D131): never encrypted, so it is released now, as
+            // an ordinary send to the pinned head, unless another recovery of theirs is pending.
+            (DeliveryState::Rejected { reason }, None)
+                if reason.retryable() && msg.queued_event.is_some() =>
+            {
+                let live = self
+                    .st
+                    .app
+                    .relationships
+                    .get(&conv)
+                    .is_some_and(|r| r.peer_recovery.iter().any(PeerRecoveryRec::is_live));
+                if live {
+                    self.record(
+                        op,
+                        kind,
+                        OutcomeClass::Rejected {
+                            reason: RejectReason::PeerRecovering,
+                        },
+                        Some(msg.id),
+                    );
+                    return Ok(());
+                }
+                self.set_delivery(&conv, &msg.id, DeliveryState::PendingNetwork);
+                self.set_outcome(&orig, OutcomeClass::PendingNetwork);
+                self.release_queued(&conv)?;
                 self.record(op, kind, OutcomeClass::PendingNetwork, Some(msg.id));
             }
             (DeliveryState::Rejected { .. }, _) => self.record(

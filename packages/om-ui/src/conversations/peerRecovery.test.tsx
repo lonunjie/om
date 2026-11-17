@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { asConversationId, asPersonId, asProfileId } from "@om/platform-api";
+import { asOperationId, asConversationId, asPersonId, asProfileId } from "@om/platform-api";
 import type { PeerRecoveryView } from "@om/platform-api";
 import { createHarness } from "@om/core-harness";
 import { createActionRegistry } from "../actions/registry";
@@ -115,16 +115,29 @@ describe("a contact's recovery of their account (ADR-0190)", () => {
     expect(r.container.querySelector("[data-peer-recovery]")).toBeNull();
   });
 
-  it("while it runs a send is refused with the person's name and the draft stays; nothing is queued", async () => {
+  it("while it runs a text is kept and shown as waiting; when the recovery ends without them it says not sent and offers a retry", async () => {
     const { h, services } = setup({ state: "waiting" });
     render(<Screen services={services} />);
     const box = await screen.findByRole("textbox", { name: "Message" });
     await userEvent.type(box, "are you there");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
-    expect((await screen.findByText("Maria is recovering")).textContent).toBe("Maria is recovering");
-    expect((box as HTMLTextAreaElement).value).toBe("are you there");
+    expect(await screen.findByText("Waiting for their new device")).toBeTruthy();
+    expect(screen.getByRole("log").textContent).toContain("are you there");
+    expect((box as HTMLTextAreaElement).value).toBe("");
     const view = await h.query({ kind: "GetConversationView", ctx: services.ctx, conversationId: CONV });
-    expect(view.timeline.map((i) => i.text)).toEqual(["hello"]);
+    expect(view.timeline.map((i) => i.text)).toEqual(["hello", "are you there"]);
+    await userEvent.click(await screen.findByRole("button", { name: "This isn't them" }));
+    expect(await screen.findByText("Not sent: unavailable")).toBeTruthy();
+    expect(screen.queryByText("Waiting for their new device")).toBeNull();
+    expect(screen.getByRole("button", { name: "Retry sending" })).toBeTruthy();
+  });
+
+  it("a file is not kept for later: it is refused with the person's name and the draft stays", async () => {
+    const { h, services } = setup({ state: "waiting" });
+    await h.dispatch({ kind: "SendLocation", ctx: services.ctx, operationId: asOperationId("loc-1"), conversationId: CONV, latE7: 1, lonE7: 1 } as never);
+    let outcome: { readonly kind: string; readonly reason?: string } | null = null;
+    h.observe(services.ctx, asOperationId("loc-1"), (o) => { outcome = o; })();
+    expect(outcome).toEqual({ kind: "Rejected", reason: "peer_recovering" });
   });
 
   it("without the copy nothing is shown, and a conversation with no recovery shows no banner", async () => {

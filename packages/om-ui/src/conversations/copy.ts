@@ -48,6 +48,8 @@ export interface ConversationCopy {
     readonly pending: string;
     readonly pendingNetwork: string;
     readonly pendingReconciliation: string;
+    /** Kept on this device while the contact recovers their account; sent once their new device is confirmed (ADR-0190 section 5). */
+    readonly waitingForPeerRecovery: string;
     readonly sent: string;
     readonly delivered: string;
     readonly rejected: Readonly<Record<RejectReason, string>>;

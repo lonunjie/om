@@ -597,6 +597,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         rec.state = PeerRecoveryState::Vetoed;
         rel.held.clear(); // dropped on vetoed (section 5)
+        self.settle_peer_outgoing(conv, false);
         true
     }
 
@@ -728,6 +729,8 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         }
         if let Some((i, held)) = accept {
             self.finish_peer_recovery(conv, i, held);
+        } else if ended {
+            self.settle_peer_outgoing(conv, false);
         }
     }
 
@@ -743,6 +746,24 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             .collect();
         for c in convs {
             self.peer_eval(&c, Some(mono));
+        }
+        // A text still waiting although no recovery is pending (a record that was lost or never restored): hand it back
+        // rather than leave it waiting for something that can no longer happen.
+        let stranded: Vec<String> = self
+            .st
+            .app
+            .relationships
+            .values()
+            .filter(|r| {
+                !r.peer_recovery.iter().any(PeerRecoveryRec::is_live)
+                    && r.messages
+                        .iter()
+                        .any(|m| m.delivery == DeliveryState::WaitingForPeerRecovery)
+            })
+            .map(|r| r.id.clone())
+            .collect();
+        for c in stranded {
+            self.settle_peer_outgoing(&c, false);
         }
     }
 
@@ -817,6 +838,56 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             }
         }
         self.retry_held(conv);
+        self.settle_peer_outgoing(conv, true);
+    }
+
+    /// What happens to the texts written while a contact's recovery was pending, once no recovery of theirs is pending
+    /// (ADR-0190 section 5, D131). Accepted: the head now lists their new device, so what waited is released in order, as
+    /// ordinary sends. Vetoed, declined or stale: the condition the person was told about (their new device confirmed) did not
+    /// happen, so nothing is sent on its own: each text is handed back as "not sent" with the usual retry. Does nothing while a
+    /// recovery is still live, and nothing when no text waits.
+    pub(super) fn settle_peer_outgoing(&mut self, conv: &str, accepted: bool) {
+        let Some(rel) = self.st.app.relationships.get(conv) else {
+            return;
+        };
+        if rel.peer_recovery.iter().any(PeerRecoveryRec::is_live) {
+            return;
+        }
+        let waiting: Vec<(String, Option<OperationId>)> = rel
+            .messages
+            .iter()
+            .filter(|m| m.delivery == DeliveryState::WaitingForPeerRecovery)
+            .map(|m| (m.id.clone(), m.operation_id.clone()))
+            .collect();
+        if waiting.is_empty() {
+            return;
+        }
+        if accepted {
+            for (id, _) in &waiting {
+                self.set_delivery(conv, id, DeliveryState::PendingNetwork);
+            }
+            // A failure leaves them queued, never dropped: any later release (the next head refresh) retries it.
+            let _ = self.release_queued(conv);
+            return;
+        }
+        let unavailable = RejectReason::Unavailable;
+        for (id, op) in waiting {
+            self.set_delivery(
+                conv,
+                &id,
+                DeliveryState::Rejected {
+                    reason: unavailable,
+                },
+            );
+            if let Some(op) = op {
+                self.set_outcome(
+                    &op,
+                    OutcomeClass::Rejected {
+                        reason: unavailable,
+                    },
+                );
+            }
+        }
     }
 
     /// TEST ONLY (`test-loopback`): run a `KIND_ACS_UPDATE` payload through the head-update path, including the
@@ -846,6 +917,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         rec.decision = Some(PeerDecision::Declined);
         rec.state = PeerRecoveryState::Declined;
         rel.held.clear(); // dropped on declined (section 5)
+        self.settle_peer_outgoing(conv, false);
         OutcomeClass::Committed
     }
 

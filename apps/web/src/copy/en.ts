@@ -100,6 +100,7 @@ export const conversationCopy: ConversationCopy = {
     pending: "Sending",
     pendingNetwork: "Waiting for a connection",
     pendingReconciliation: "Checking whether it arrived",
+    waitingForPeerRecovery: "Waiting until their new device is confirmed",
     sent: "Sent",
     delivered: "Delivered",
     rejected: withPrefix("Not sent."),
@@ -1205,7 +1206,7 @@ export const recoveryCopy: RecoveryCopy = {
     days: (days) => (days <= 0 ? "less than a day" : days === 1 ? "about a day" : `about ${String(days)} days`),
     waiting: {
       title: (name) => `${name} is recovering their account on a new device`,
-      body: (days) => `OM is waiting ${days} to be sure it is really them. Until then, anything from their new device stays on hold, and you can message them once it finishes.`,
+      body: (days) => `OM is waiting ${days} to be sure it is really them. Until then, anything from their new device stays on hold. Messages you write will be delivered once the new device is confirmed.`,
       check: (name) => `Check with ${name}`,
       checkDetail: (name) => `Call ${name} or meet them to be sure. Their other devices can stop this if it is not them.`,
       decline: "This isn't them",

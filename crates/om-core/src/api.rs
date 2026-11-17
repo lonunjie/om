@@ -618,9 +618,14 @@ impl Query {
 pub enum DeliveryState {
     PendingNetwork,
     PendingReconciliation,
+    /// Written while the contact recovers their account: kept on this device, never encrypted to a device the pinned head does
+    /// not list, and sent once their new device is confirmed (ADR-0190 section 5, D131).
+    WaitingForPeerRecovery,
     Sent,
     Delivered,
-    Rejected { reason: RejectReason },
+    Rejected {
+        reason: RejectReason,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

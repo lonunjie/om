@@ -43,7 +43,7 @@ for (const size of SIZES) {
   test.describe(size.name, () => {
     test.use({ viewport: { width: size.width, height: size.height } });
 
-    test("waiting: one calm banner, and sending is refused with the person's name", async ({ page }) => {
+    test("waiting: one calm banner, and a text is kept and shown as waiting", async ({ page }) => {
       await openChat(page, /Maria Gomez/);
       const banner = page.getByRole("region", { name: "Maria Gomez is recovering their account on a new device" });
       await expect(banner).toBeVisible();
@@ -55,23 +55,32 @@ for (const size of SIZES) {
       await noViolations(page);
       await shot(page, `40-peer-recovery-waiting-${size.name}`);
 
+      await expect(banner).toContainText("Messages you write will be delivered once the new device is confirmed.");
       const box = page.getByRole("textbox", { name: "Message" });
       await box.fill("are you there?");
       await page.getByRole("button", { name: "Send" }).click();
-      await expect(page.getByText("Not sent. Maria Gomez is recovering their account; you can message them once it finishes.")).toBeVisible();
-      await expect(box).toHaveValue("are you there?");
-      await expect(page.getByRole("log").getByText("are you there?", { exact: true })).toHaveCount(0); // not in the conversation: nothing was sent or queued
+      const log = page.getByRole("log");
+      await expect(log.getByText("are you there?", { exact: true })).toBeVisible(); // kept here, not lost
+      await expect(log.getByText("Waiting until their new device is confirmed")).toBeVisible();
+      await expect(box).toHaveValue("");
+      await noViolations(page);
     });
 
     test("decline: 'This isn't them' ends it for this contact, leaves one quiet line, and sending works again", async ({ page }) => {
       await openChat(page, /Maria Gomez/);
+      await page.getByRole("textbox", { name: "Message" }).fill("kept for later");
+      await page.getByRole("button", { name: "Send" }).click();
+      await expect(page.getByRole("log").getByText("Waiting until their new device is confirmed")).toBeVisible();
       await page.getByRole("region", { name: /Maria Gomez is recovering/ }).getByRole("button", { name: "This isn't them" }).click();
+      // What was kept is handed back, never sent on its own: it says so and one tap sends it.
+      await expect(page.getByRole("log").getByText("Not sent.")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Try sending again" })).toBeVisible();
       await expect(page.getByText("You turned this down. Your chat with Maria Gomez is unchanged. They can ask again.")).toBeVisible();
       await expect(page.getByRole("region", { name: /Maria Gomez is recovering/ })).toHaveCount(0);
       await noViolations(page);
       await shot(page, `41-peer-recovery-declined-${size.name}`);
       await page.getByRole("textbox", { name: "Message" }).fill("hello again");
-      await page.getByRole("button", { name: "Send" }).click();
+      await page.getByRole("button", { name: "Send", exact: true }).click();
       await expect(page.getByText("hello again", { exact: true })).toBeVisible();
     });
 

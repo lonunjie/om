@@ -372,7 +372,9 @@ pub struct HistoryArchive {
 
 fn delivery_code(d: &DeliveryState) -> u8 {
     match d {
-        DeliveryState::PendingNetwork | DeliveryState::PendingReconciliation => 0,
+        DeliveryState::PendingNetwork
+        | DeliveryState::PendingReconciliation
+        | DeliveryState::WaitingForPeerRecovery => 0,
         DeliveryState::Sent => 1,
         DeliveryState::Delivered => 2,
         DeliveryState::Rejected { .. } => 3,

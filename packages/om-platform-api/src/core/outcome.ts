@@ -15,7 +15,7 @@ export type RejectReason =
   | "not_found"
   /** One file is bigger than the delivery service takes. Said before anything is sent; an exact retry cannot succeed. */
   | "too_large"
-  /** The contact is recovering their account (ADR-0190 section 5): nothing is sent to them until it finishes or ends. Not queued. */
+  /** The contact is recovering their account (ADR-0190 section 5): this kind of message (a file, a place) is not kept for later, and a text past the hold limit is not either. A plain text is kept and shown as waiting (D131). */
   | "peer_recovering";
 
 export type UserActionCode = "authorize_with_device" | "confirm_security_change" | "reauthenticate" | "update_client";

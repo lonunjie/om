@@ -1144,61 +1144,298 @@ fn a_dossier_with_a_head_update_starts_the_same_record_and_everything_that_does_
     assert_eq!(c.head_gen(), 2);
 }
 
+fn send_text(c: &mut Contact, op: &str, text: &str) -> Option<OutcomeClass> {
+    let id = c.id.clone();
+    c.intent(
+        op,
+        IntentBody::SendMessage {
+            conversation_id: id,
+            draft: Draft { text: text.into() },
+        },
+    )
+}
+
+/// The conversation's outgoing messages as stored: text, delivery, whether the event still waits, whether it was sealed.
+fn outgoing(c: &Contact) -> Vec<(String, String, bool, bool)> {
+    c.rel()["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| m["outgoing"] == true)
+        .map(|m| {
+            (
+                s(&m["text"]),
+                s(&m["delivery"]["state"]),
+                !m["queuedEvent"].is_null(),
+                !m["envelope"].is_null(),
+            )
+        })
+        .collect()
+}
+
 #[test]
-fn while_a_contact_is_recovering_the_send_path_refuses_with_a_typed_error_and_queues_nothing() {
+fn a_text_written_while_a_contact_recovers_waits_unsealed_and_is_sent_to_the_new_device_once_accepted()
+ {
     let mut w = world(1);
     let req = w.request();
     let bundle = w.bundle();
     let n = w.notice(&req, Some(&bundle));
-    let send = |c: &mut Contact, op: &str| {
-        let id = c.id.clone();
-        c.intent(
-            op,
-            IntentBody::SendMessage {
-                conversation_id: id,
-                draft: Draft {
-                    text: "hello".into(),
-                },
-            },
-        )
-    };
-    // Before the notice a send is accepted as usual.
-    assert!(!matches!(
-        send(&mut w.contacts[0], "s0"),
-        Some(OutcomeClass::Rejected { .. })
-    ));
+    // The new device has spoken before, so a session with it exists once the head lists it.
+    let env = w.new_device_message(true, "from the new phone");
+    w.deliver(0, &env);
     w.deliver(0, &n);
     assert_eq!(w.contacts[0].state(), "waiting");
-    let sent_before = w.contacts[0].timeline().len();
+    let before = outbox_len(&w.contacts[0]);
     assert_eq!(
-        send(&mut w.contacts[0], "s1"),
+        send_text(&mut w.contacts[0], "s1", "are you there"),
+        Some(OutcomeClass::PendingNetwork)
+    );
+    assert_eq!(
+        send_text(&mut w.contacts[0], "s2", "second"),
+        Some(OutcomeClass::PendingNetwork)
+    );
+    let c = &mut w.contacts[0];
+    // Kept, in order, unsealed: no envelope, nothing in the outbox, nobody addressed.
+    assert_eq!(
+        outgoing(c),
+        vec![
+            (
+                "are you there".into(),
+                "waiting_for_peer_recovery".into(),
+                true,
+                false
+            ),
+            (
+                "second".into(),
+                "waiting_for_peer_recovery".into(),
+                true,
+                false
+            ),
+        ]
+    );
+    assert_eq!(outbox_len(c), before);
+    assert!(
+        c.rel()["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|m| m["fan"].as_array().is_none_or(Vec::is_empty)),
+        "no copy is addressed to any device"
+    );
+    c.tick(&mono(1, 0));
+    c.tick(&mono(1, DELAY_MS - 1));
+    assert_eq!(c.state(), "waiting");
+    assert_eq!(outgoing(c)[0].1, "waiting_for_peer_recovery");
+    // Accepted: released in order, as ordinary sends, only to the devices the new head lists.
+    c.tick(&mono(1, DELAY_MS));
+    assert_eq!(c.state(), "accepted");
+    let after = outgoing(c);
+    // Released: the event is now addressed (to the new device alone), so it no longer waits as a held event.
+    assert!(
+        after
+            .iter()
+            .all(|(_, d, queued, _)| d == "pending_network" && !queued),
+        "{after:?}"
+    );
+    let new_id = common_hex(&w.new_dev.device_id);
+    let fans: Vec<String> = w.contacts[0].rel()["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| m["outgoing"] == true)
+        .flat_map(|m| {
+            m["fan"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|f| s(&f["deviceId"]))
+        })
+        .collect();
+    assert!(
+        !fans.is_empty() && fans.iter().all(|d| *d == new_id),
+        "{fans:?}"
+    );
+    assert_eq!(
+        w.contacts[0].rt.outcome(&w.contacts[0].ctx, "s1"),
+        Some(OutcomeClass::PendingNetwork)
+    );
+}
+
+fn outbox_len(c: &Contact) -> usize {
+    c.rt.core.debug_app_state(&c.ctx).unwrap()["outbox"]
+        .as_array()
+        .unwrap()
+        .len()
+}
+
+fn common_hex(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+#[test]
+fn a_hold_survives_a_restart_and_what_cannot_be_held_is_refused_with_nothing_queued() {
+    let mut w = world(1);
+    let req = w.request();
+    let bundle = w.bundle();
+    let n = w.notice(&req, Some(&bundle));
+    let env = w.new_device_message(true, "from the new phone");
+    w.deliver(0, &env);
+    w.deliver(0, &n);
+    let c = &mut w.contacts[0];
+    c.tick(&mono(1, 0));
+    assert_eq!(
+        send_text(c, "s1", "kept"),
+        Some(OutcomeClass::PendingNetwork)
+    );
+    // A place is not kept for later: refused, nothing queued.
+    let id = c.id.clone();
+    assert_eq!(
+        c.intent(
+            "loc",
+            IntentBody::SendLocation {
+                conversation_id: id,
+                lat_e7: 1,
+                lon_e7: 1,
+                accuracy_m: None,
+                label: None,
+                note: None,
+            }
+        ),
         Some(OutcomeClass::Rejected {
             reason: RejectReason::PeerRecovering
         })
     );
+    assert_eq!(outgoing(c).len(), 1);
+    // The bound: 64 kept, the next is refused and queues nothing.
+    for i in 1..64 {
+        assert_eq!(
+            send_text(c, &format!("m{i}"), &format!("t{i}")),
+            Some(OutcomeClass::PendingNetwork),
+            "{i}"
+        );
+    }
     assert_eq!(
-        w.contacts[0].timeline().len(),
-        sent_before,
-        "nothing was queued for later"
+        send_text(c, "over", "one too many"),
+        Some(OutcomeClass::Rejected {
+            reason: RejectReason::PeerRecovering
+        })
     );
-    // The refusal is for the recovery only: when it ends (here: declined) sending works again.
+    assert_eq!(outgoing(c).len(), 64);
+    // Crash and restart: still waiting, still unsealed, still in order.
+    c.restart();
+    let kept = outgoing(c);
+    assert_eq!(kept.len(), 64);
+    assert!(
+        kept.iter()
+            .all(|(_, d, q, sealed)| d == "waiting_for_peer_recovery" && *q && !*sealed)
+    );
+    assert_eq!(kept[0].0, "kept");
+    // The wait ends after the restart: they are released.
+    c.tick(&mono(2, 1_000_000));
+    c.tick(&mono(2, 1_000_000 + DELAY_MS));
+    assert_eq!(c.state(), "accepted");
+    assert!(
+        outgoing(c)
+            .iter()
+            .all(|(_, d, q, _)| d == "pending_network" && !*q)
+    );
+}
+
+#[test]
+fn when_the_recovery_ends_without_them_what_waited_is_handed_back_and_one_retry_sends_it_to_the_old_head()
+ {
+    let mut w = world(1);
+    let req = w.request();
+    let bundle = w.bundle();
+    let n = w.notice(&req, Some(&bundle));
+    w.deliver(0, &n);
+    send_text(&mut w.contacts[0], "s1", "wait for me");
+    assert_eq!(outgoing(&w.contacts[0])[0].1, "waiting_for_peer_recovery");
     let digest = w.digest(&req);
     let id = w.contacts[0].id.clone();
+    {
+        let c = &mut w.contacts[0];
+        let token = nonce(&mut c.rt, &c.ctx, "DeclinePeerRecovery", &digest);
+        c.intent(
+            "dec",
+            IntentBody::DeclinePeerRecovery {
+                conversation_id: id.clone(),
+                request_id: digest,
+                confirmation: token,
+            },
+        );
+    }
     let c = &mut w.contacts[0];
-    let token = nonce(&mut c.rt, &c.ctx, "DeclinePeerRecovery", &digest);
-    c.intent(
-        "dec",
-        IntentBody::DeclinePeerRecovery {
-            conversation_id: id,
-            request_id: digest,
-            confirmation: token,
-        },
-    );
     assert_eq!(c.state(), "declined");
-    assert!(!matches!(
-        send(&mut w.contacts[0], "s2"),
-        Some(OutcomeClass::Rejected { .. })
-    ));
+    // Nothing went out on its own; the text is kept, marked not sent, and the operation says so.
+    assert_eq!(
+        outgoing(c),
+        vec![("wait for me".into(), "rejected".into(), true, false)]
+    );
+    assert_eq!(
+        c.rt.outcome(&c.ctx, "s1"),
+        Some(OutcomeClass::Rejected {
+            reason: RejectReason::Unavailable
+        })
+    );
+    // Restart: it stays handed back (nothing is sent by restarting).
+    c.restart();
+    assert_eq!(outgoing(c)[0].1, "rejected");
+    // One retry sends it, sealed to the pinned head, as an ordinary message.
+    let msg_id = c.rel()["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["outgoing"] == true)
+        .map(|m| s(&m["id"]))
+        .unwrap();
+    assert_eq!(
+        c.intent("retry", IntentBody::RetryDelivery { message_id: msg_id }),
+        Some(OutcomeClass::PendingNetwork)
+    );
+    let sent = outgoing(c);
+    assert!(
+        sent[0].1 != "rejected" && !sent[0].2 && sent[0].3,
+        "{sent:?}"
+    );
+}
+
+#[test]
+fn a_veto_and_a_moved_on_account_also_hand_back_and_a_lost_record_does_not_strand_a_text() {
+    // Stale: the account moved on while a text waited.
+    let mut w = world(1);
+    let req = w.request();
+    let bundle = w.bundle();
+    let n = w.notice(&req, Some(&bundle));
+    w.deliver(0, &n);
+    send_text(&mut w.contacts[0], "s1", "late");
+    let mut rng = InsecureTestRng::from_label(b"another");
+    let mut d = Device::new(&mut rng);
+    d.account_id = w.head().account_id;
+    let (_, step) = w
+        .bob
+        .core
+        .debug_link_credential(&w.b, &d.credential().body())
+        .unwrap();
+    w.bob.settle(&step);
+    w.settle(0);
+    w.contacts[0].tick(&mono(1, 0));
+    assert_eq!(w.contacts[0].state(), "stale");
+    assert_eq!(outgoing(&w.contacts[0])[0].1, "rejected");
+    // A record that is gone while a text waits: the next tick hands the text back.
+    let mut w = world(1);
+    let req = w.request();
+    let bundle = w.bundle();
+    let n = w.notice(&req, Some(&bundle));
+    w.deliver(0, &n);
+    send_text(&mut w.contacts[0], "s1", "orphan");
+    w.contacts[0].rewrite(|app| {
+        for r in app["relationships"].as_object_mut().unwrap().values_mut() {
+            r["peerRecovery"] = serde_json::json!([]);
+        }
+    });
+    w.contacts[0].tick(&mono(1, 0));
+    assert_eq!(outgoing(&w.contacts[0])[0].1, "rejected");
 }
 
 /// ADR-0190 section 6 (Restore): a `waiting` record is inert history after a restore from backup. A history backup taken

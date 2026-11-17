@@ -14,7 +14,7 @@ export const testCopy: ConversationCopy = {
     nicknameHint: "Only you see this.", save: "Save", clear: "Remove nickname", saved: "Saved.", cleared: "Removed.", invalid: "That nickname could not be used.", failed: "Could not save.",
   },
   delivery: {
-    pending: "Sending", pendingNetwork: "Waiting for network", pendingReconciliation: "Confirming delivery", sent: "Sent", delivered: "Delivered",
+    pending: "Sending", pendingNetwork: "Waiting for network", pendingReconciliation: "Confirming delivery", waitingForPeerRecovery: "Waiting for their new device", sent: "Sent", delivered: "Delivered",
     rejected: rec(REASONS, (r) => `Not sent: ${r}`),
   },
   composer: { label: "Message", placeholder: "Write a message", send: "Send", sendFailed: "Send failed", rejected: rec(REASONS, (r) => `Rejected: ${r}`), peerRecovering: (n) => `${n} is recovering`, needsAction: rec(ACTIONS, (a) => `Action: ${a}`) },

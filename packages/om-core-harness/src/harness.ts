@@ -148,6 +148,8 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** Same lifetime and capacity as Core (`CONFIRMATION_TTL_MS`, `MAX_CONFIRMATIONS`). */
 const CONFIRMATION_TTL_MS = 5 * 60 * 1000;
 const MAX_CONFIRMATIONS = 16;
+/** The most texts kept for one contact's recovery (Core's bound, D131). */
+const HELD_LIMIT = 64;
 const PRIVACY_LEVELS: readonly PrivacyPolicyLevel[] = ["recommended", "hardened", "maximum", "custom"];
 /** Core's rank: how much a level asks of the person (Custom ranks with Hardened). A move to a lower rank is a loosening. */
 const privacyRank = (l: PrivacyPolicyLevel): number => (l === "recommended" ? 0 : l === "maximum" ? 2 : 1);
@@ -350,6 +352,18 @@ export function createHarness(options: HarnessOptions = {}): Harness {
     return entry[1].fromRank === undefined ? {} : { fromRank: entry[1].fromRank };
   }
 
+  /** Core's rule when a recovery ends (D131): accepted sends what waited; any other end returns it as "not sent" with a retry. */
+  function settleHeld(conv: ConversationState, accepted: boolean): void {
+    for (const m of conv.messages) {
+      if (m.delivery.state !== "waiting_for_peer_recovery") continue;
+      m.delivery = accepted ? { state: "sent" } : { state: "rejected", reason: "unavailable" };
+      const rec = m.operationId === null ? undefined : opLog.get(m.operationId);
+      if (rec === undefined) continue;
+      opLog.set(rec.operationId, { ...rec, outcome: accepted ? { kind: "Committed" } : { kind: "Rejected", reason: "unavailable" } });
+      queueMicrotask(() => { notify(rec.profileId, rec.operationId); });
+    }
+  }
+
   function apply(intent: CoreIntent, st: ProfileState): OpRecord {
     const rejected = (reason: RejectReason): OpRecord => record(intent, { kind: "Rejected", reason });
     const spent = "confirmation" in intent ? consumeConfirmation(st, intent) : null;
@@ -378,15 +392,17 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
         if (!conv) return rejected("not_found");
         if (intent.draft.text.trim() === "") return rejected("invalid");
-        if (peerLive(conv)) return rejected("peer_recovering"); // ADR-0190 section 5: refused honestly, nothing queued
+        // ADR-0190 section 5 (D131): a text written while the contact recovers is kept here, shown as waiting, and sent when it is accepted.
+        const held = peerLive(conv);
+        if (held && conv.messages.filter((m) => m.delivery.state === "waiting_for_peer_recovery").length >= HELD_LIMIT) return rejected("peer_recovering");
         const armed = armedTimeouts.delete(intent.operationId);
         const messageId = asMessageId(`msg-${String(++messageSeq)}`);
         conv.messages.push({
           messageId, operationId: intent.operationId, direction: "outgoing", text: intent.draft.text, sentAt: clock(),
-          delivery: armed ? { state: "pending_reconciliation" } : { state: "sent" },
+          delivery: held ? { state: "waiting_for_peer_recovery" } : armed ? { state: "pending_reconciliation" } : { state: "sent" },
         });
         messageOwner.set(messageId, intent.ctx.profileId);
-        return record(intent, armed ? { kind: "PendingReconciliation" } : { kind: "Committed" }, messageId);
+        return record(intent, held ? { kind: "PendingNetwork" } : armed ? { kind: "PendingReconciliation" } : { kind: "Committed" }, messageId);
       }
       case "SendAttachments": {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);
@@ -457,6 +473,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         if (!conv || !rec || rec.requestId !== intent.requestId) return rejected("not_found");
         if (!peerLive(conv)) return rejected("conflict");
         conv.peerRecovery = { ...rec, state: "declined", canDecline: false, needsConfirm: false };
+        settleHeld(conv, false);
         return record(intent, { kind: "Committed" });
       }
       case "ConfirmPeerRecovery": {
@@ -465,6 +482,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         if (!conv || !rec || rec.requestId !== intent.requestId) return rejected("not_found");
         if (rec.state !== "ready") return rejected("conflict");
         conv.peerRecovery = { ...rec, state: "accepted", canDecline: false, needsConfirm: false };
+        settleHeld(conv, true);
         return record(intent, { kind: "Committed" });
       }
       case "RetryDelivery": {
