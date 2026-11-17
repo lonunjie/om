@@ -245,7 +245,7 @@
       "construction": "DS-HASH (body = recovery_record_read_cap)",
       "object": "opaque RecoveryStore index for encrypted RecoveryRecord (ADR-0138)",
       "wave": "W0",
-      "status": "documented"
+      "status": "frozen"
     },
     {
       "label": "om/recovery-root/v1",
@@ -453,7 +453,7 @@
       "construction": "HKDF-SHA256 from RecoveryRoot; info = label || recovery_scope_id; output 32 bytes",
       "object": "RecoveryRecord ciphertext-read capability",
       "wave": "W0",
-      "status": "documented"
+      "status": "frozen"
     },
     {
       "label": "OM-RECOVERY-RECORD-WRITE-CAP-v1",
@@ -461,7 +461,7 @@
       "construction": "HKDF-SHA256 from RecoveryRoot; info = label || recovery_scope_id; output 32 bytes",
       "object": "RecoveryRecord ciphertext-write capability",
       "wave": "W0",
-      "status": "documented"
+      "status": "frozen"
     },
     {
       "label": "OM-RECOVERY-RECORD-KEY-v1",
@@ -765,7 +765,7 @@
       "construction": "canonical OM-CBOR [label, recovery_scope_id, record_generation, record_version=1]",
       "object": "AEAD associated data for the Maximum Privacy second-layer relationship snapshot of a RecoveryRecord v1 (ADR-0199)",
       "wave": "W1",
-      "status": "documented"
+      "status": "frozen"
     }
   ]
 }

@@ -1509,6 +1509,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-codec/tests/recovery_record_vectors.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-codec/tests/w0_vectors.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -1887,6 +1894,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "crates/om-core/src/recovery_record.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "crates/om-core/src/relayset.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
@@ -2175,6 +2189,13 @@
     },
     {
       "path": "crates/om-core/tests/recovery_peer.rs",
+      "class": "product_code",
+      "domain": "crypto_1to1",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "crates/om-core/tests/recovery_record_vectors.rs",
       "class": "product_code",
       "domain": "crypto_1to1",
       "license": "MPL-2.0",
@@ -12786,6 +12807,41 @@
       "authority": "executable_verification_evidence"
     },
     {
+      "path": "verification/prototypes/recovery-record-wire/.gitignore",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/recovery-record-wire/cddl_check_recovery_record.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/recovery-record-wire/gen_recovery_record_vectors.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/recovery-record-wire/run.sh",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
+      "path": "verification/prototypes/recovery-record-wire/siv.py",
+      "class": "verification_tool",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "executable_verification_evidence"
+    },
+    {
       "path": "verification/prototypes/v001-crypto/README.md",
       "class": "verification_doc",
       "domain": "architecture_verification",
@@ -15545,6 +15601,13 @@
     },
     {
       "path": "verification/vectors/recovery-notice-vectors.json.gz",
+      "class": "verification_artifact",
+      "domain": "architecture_verification",
+      "license": "Apache-2.0",
+      "authority": "machine_verification_evidence"
+    },
+    {
+      "path": "verification/vectors/recovery-record-vectors.json.gz",
       "class": "verification_artifact",
       "domain": "architecture_verification",
       "license": "Apache-2.0",
