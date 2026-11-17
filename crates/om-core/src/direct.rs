@@ -186,6 +186,12 @@ pub struct DirectSender {
     begin_sha: Option<[u8; 32]>,
 }
 
+impl Drop for DirectSender {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.key);
+    }
+}
+
 /// Invalid receipts checked per offer; further ones are dropped unread.
 pub const MAX_BAD_RECEIPTS: u8 = 8;
 

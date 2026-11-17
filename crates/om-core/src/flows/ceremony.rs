@@ -154,9 +154,10 @@ fn open_msg(keys: &CeremonyKeys, role: u8, bytes: &[u8]) -> Option<Vec<u8>> {
         )
         .ok()?;
     let n = u32::from_be_bytes(frame.get(..4)?.try_into().ok()?) as usize;
-    let body = frame.get(4..4 + n)?;
+    let end = n.checked_add(4)?;
+    let body = frame.get(4..end)?;
     // Padding is zeros and nothing else: a longer or different tail is not a ceremony message.
-    if frame[4 + n..].iter().any(|b| *b != 0) {
+    if frame[end..].iter().any(|b| *b != 0) {
         return None;
     }
     Some(body.to_vec())
