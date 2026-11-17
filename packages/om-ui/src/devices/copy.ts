@@ -106,6 +106,8 @@ export interface NoticeCopy {
   readonly strictHelp: string;
   /** Said when adding a device is refused because too many notices are still owed. */
   readonly tooManyOwed: string;
+  /** Said when adding a device is refused because the account no longer fits one approval message. Nothing changed. */
+  readonly accountTooLarge: string;
 }
 
 export interface DevicesCopy {

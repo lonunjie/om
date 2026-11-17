@@ -446,6 +446,33 @@ fn more_than_the_bound_owed_refuses_with_quota_and_changes_nothing() {
 }
 
 #[test]
+fn an_account_too_large_for_one_message_is_refused_as_too_large_and_changes_nothing() {
+    let mut f = Fleet::bare("big");
+    // A long chain of real signed states (one device per state), well past what one 100 kB message carries.
+    for _ in 0..30 {
+        let (_, step) = f.rts[0]
+            .core
+            .debug_link_messaging_device(&f.ctxs[0])
+            .unwrap();
+        f.rts[0].settle(&step);
+    }
+    let before = f.devices(0).devices.len();
+    let (_, out) = f.link(0, "late");
+    assert_eq!(
+        out,
+        Some(OutcomeClass::Rejected {
+            reason: RejectReason::TooLarge
+        }),
+        "the cause is the size, not the number of devices still to be told"
+    );
+    assert_eq!(f.devices(0).devices.len(), before, "nothing was changed");
+    assert!(
+        f.owed(0).is_empty(),
+        "no notice was recorded for a link that did not happen"
+    );
+}
+
+#[test]
 fn a_sibling_with_no_path_is_owed_by_default_and_refused_when_strict() {
     // Default: the approval does not wait. The phone has no conversation to be reached through, so it is owed.
     let mut f = Fleet::bare("g1");

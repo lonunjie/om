@@ -206,6 +206,19 @@ describe("adding a device from the existing device (D24: this device shows the l
     expect(await screen.findByRole("alert")).toHaveProperty("textContent", "Action: reauthenticate");
   });
 
+  it("an approval refused because the account no longer fits one message says so, not that devices are still to be told", async () => {
+    const { h, services } = setup(TWO, ["op-offer", "op-ic", "op-approve"]);
+    const refusing: SettingsServices = {
+      ...services,
+      client: { ...h, dispatch: (intent) => (intent.kind === "ApproveDeviceLink" ? Promise.resolve({ operationId: intent.operationId, profileId: intent.ctx.profileId }) : h.dispatch(intent)), observe: (ctx, op, listener) => (op === asOperationId("op-approve") ? (listener({ kind: "Rejected", reason: "too_large" }), () => undefined) : h.observe(ctx, op, listener)) },
+    };
+    render(<DevicesScreen services={refusing} copy={testDevicesCopy} />);
+    const link = await showLink();
+    h.simulateNewDeviceRequest(link, "Laptop");
+    await userEvent.click(await screen.findByRole("button", { name: "The codes match, link it" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", testDevicesCopy.notice.accountTooLarge);
+  });
+
   it("a device that cannot manage the account is not offered the flow", async () => {
     const { services } = setup({ devices: [{ id: "d-this", label: "Tablet", role: "messaging", current: true }, { id: "d-phone", label: "Phone", role: "control" }] });
     render(<DevicesScreen services={services} copy={testDevicesCopy} />);

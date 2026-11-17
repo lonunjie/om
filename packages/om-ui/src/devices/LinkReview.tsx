@@ -69,7 +69,7 @@ export function LinkReview({ services, copy, operationId, ops, onDone }: LinkRev
           <Button onClick={() => { decide("reject"); }}>{c.reject}</Button>
         </div>
       ) : null}
-      <OperationStatus state={op.state} copy={{ ...copy.outcome, rejected: { ...copy.outcome.rejected, quota: copy.notice.tooManyOwed } }} done={decision === "reject" ? c.rejectedDone : c.linked} />
+      <OperationStatus state={op.state} copy={{ ...copy.outcome, rejected: { ...copy.outcome.rejected, quota: copy.notice.tooManyOwed, too_large: copy.notice.accountTooLarge } }} done={decision === "reject" ? c.rejectedDone : c.linked} />
       <div className="om-settings__actions"><Button variant="quiet" onClick={onDone}>{c.done}</Button></div>
     </section>
   );

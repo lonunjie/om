@@ -6,6 +6,7 @@
 
 use super::ceremony::{KIND_ENROLLED, MAX_CHAIN_TAIL, MAX_MSG, chain_head, notice_state};
 use super::*;
+use crate::crypto::binding::Credential;
 
 /// The acknowledgement of an applied or already held enrollment notice: `{0: 13, 1: notice_digest}`.
 pub(super) const KIND_ENROLLED_ACK: u64 = 13;
@@ -123,7 +124,7 @@ impl<R: CryptoRng + RngCore> Tx<'_, R> {
         let mut prev_end: Option<usize> = None;
         while i < owed.len() {
             let first = owed[i].0;
-            let start = match prev_end {
+            let mut start = match prev_end {
                 Some(e) if e < first && first - e <= MAX_CHAIN_TAIL => e + 1,
                 _ => first.saturating_sub(MAX_CHAIN_TAIL - 1),
             };
@@ -133,43 +134,96 @@ impl<R: CryptoRng + RngCore> Tx<'_, R> {
                 end = owed[j].0;
                 j += 1;
             }
+            // A window carries at most `MAX_CHAIN_TAIL` states, and fewer when the account is large: the look-back
+            // states go first, then the later enrollments (they start the next payload), so every payload fits one
+            // message and the whole list still arrives in chain order.
+            let mut built = None;
+            loop {
+                match self.enrolled_payload(&states, chain, creds, tip_sig, start, end) {
+                    Some(p) if p.len() <= MAX_MSG => {
+                        built = Some(p);
+                        break;
+                    }
+                    Some(_) if start < first => start += 1,
+                    Some(_) if j > i + 1 => {
+                        j -= 1;
+                        end = owed[j - 1].0;
+                    }
+                    _ => break,
+                }
+            }
             let digests: Vec<String> = owed[i..j].iter().map(|(_, d)| d.clone()).collect();
             i = j;
             prev_end = Some(end);
-            let mut notices: Vec<Vec<u8>> = (start..=end)
-                .filter_map(|k| self.notice_for_state(&states[k].hash()))
-                .collect();
-            if notices.is_empty() {
-                continue;
+            if let Some(payload) = built {
+                out.push((digests, payload));
             }
-            while notices.len() > MAX_CHAIN_TAIL {
-                notices.remove(0);
-            }
-            let newest = notices.pop().unwrap_or_default();
-            let mut map = vec![
-                (0, V::U(KIND_ENROLLED)),
-                (1, V::B(newest)),
-                (
-                    2,
-                    V::A(chain[start..=end].iter().cloned().map(V::B).collect()),
-                ),
-                (3, V::A(creds.iter().cloned().map(V::B).collect())),
-            ];
-            if !notices.is_empty() {
-                map.push((5, V::A(notices.into_iter().map(V::B).collect())));
-            }
-            if end + 1 == states.len()
-                && let Some(h) = tip_sig
-            {
-                map.push((4, V::B(h.to_vec())));
-            }
-            let payload = cbor::encode(&V::M(map));
-            if payload.len() > MAX_MSG {
-                continue;
-            }
-            out.push((digests, payload));
         }
         out
+    }
+
+    /// One `KIND_ENROLLED` payload for the states `start..=end`, or `None` when no notice is in reach. The
+    /// credentials are the ones the receiver cannot already hold: those a window state lists that the state before
+    /// the window does not (a device the receiver has not seen), and those of every control device of the window
+    /// (they sign its states and notices). A receiver holds the credentials of the state it descends from, so the
+    /// payload does not grow with the account's device count.
+    fn enrolled_payload(
+        &self,
+        states: &[Acs],
+        chain: &[Vec<u8>],
+        creds: &[Vec<u8>],
+        tip_sig: Option<&[u8]>,
+        start: usize,
+        end: usize,
+    ) -> Option<Vec<u8>> {
+        let mut notices: Vec<Vec<u8>> = (start..=end)
+            .filter_map(|k| self.notice_for_state(&states[k].hash()))
+            .collect();
+        if notices.is_empty() {
+            return None;
+        }
+        while notices.len() > MAX_CHAIN_TAIL {
+            notices.remove(0);
+        }
+        let newest = notices.pop().unwrap_or_default();
+        let before: Vec<[u8; 32]> = match start.checked_sub(1) {
+            Some(k) => states[k].credentials.iter().map(|(_, h)| *h).collect(),
+            None => vec![],
+        };
+        let window = &states[start.saturating_sub(1)..=end];
+        let listed: Vec<[u8; 32]> = states[start..=end]
+            .iter()
+            .flat_map(|s| s.credentials.iter().map(|(_, h)| *h))
+            .collect();
+        let needed: Vec<&Vec<u8>> = creds
+            .iter()
+            .filter(|c| {
+                let Ok(cred) = Credential::from_body(c) else {
+                    return false;
+                };
+                let h = cred.hash();
+                (listed.contains(&h) && !before.contains(&h))
+                    || window.iter().any(|s| s.control.contains(&cred.device_id))
+            })
+            .collect();
+        let mut map = vec![
+            (0, V::U(KIND_ENROLLED)),
+            (1, V::B(newest)),
+            (
+                2,
+                V::A(chain[start..=end].iter().cloned().map(V::B).collect()),
+            ),
+            (3, V::A(needed.into_iter().cloned().map(V::B).collect())),
+        ];
+        if !notices.is_empty() {
+            map.push((5, V::A(notices.into_iter().map(V::B).collect())));
+        }
+        if end + 1 == states.len()
+            && let Some(h) = tip_sig
+        {
+            map.push((4, V::B(h.to_vec())));
+        }
+        Some(cbor::encode(&V::M(map)))
     }
 
     /// Try to deliver everything owed to `sibling` now. `force` ignores the retry spacing. Returns whether any record

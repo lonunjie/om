@@ -873,7 +873,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 .iter()
                 .any(|o| o.sibling_device_id == hexd && o.state != OwedState::Held);
             if owed_here && payloads.is_empty() {
-                return Err(Quota); // the payload does not fit a message
+                return Err(TooLarge); // one payload does not fit a message even alone: a size limit, not the owed bound
             }
             self.send_owed_payloads(&hexd, payloads);
         }
@@ -942,13 +942,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         };
         let mut sealed = vec![
             self.seal_msg(&keys, ROLE_RESP, &approval, offer.expires_at / 1000)
-                .ok_or(Quota)?,
+                .ok_or(TooLarge)?,
         ];
         for entry in &roster {
             let msg = cbor::encode(&V::M(vec![(0, V::U(M_ROSTER)), (1, V::B(entry.clone()))]));
             sealed.push(
                 self.seal_msg(&keys, ROLE_RESP, &msg, offer.expires_at / 1000)
-                    .ok_or(Quota)?,
+                    .ok_or(TooLarge)?,
             );
         }
 
@@ -2218,6 +2218,163 @@ mod tests {
         // Revoked wins even if a malformed head also lists the device as active.
         let both = head_with(&[1], &[2], &[], &[2]);
         assert!(!history_eligible(&both, &[2; 16]));
+    }
+
+    /// An account at the protocol's limits (16 control devices, the most a signed state can carry, and 256 messaging devices: 272 credentials; a chain
+    /// of 65 states) whose newest enrollments are owed to a sibling: every payload fits one message, carries a bounded
+    /// window, and a sibling holding the state before the window accepts them in order.
+    #[cfg(feature = "insecure-test-rng")]
+    #[test]
+    fn owed_notices_of_a_full_size_account_fit_one_message_each() {
+        use crate::crypto::rng::insecure_test_rng::InsecureTestRng;
+        use crate::crypto::store::Device;
+        use crate::state::ProfileState;
+
+        let mut rng = InsecureTestRng::from_label(b"full-size-account-notices");
+        let first = Device::new(&mut rng);
+        let mut ctl = vec![first];
+        while ctl.len() < 16 {
+            let mut d = Device::new(&mut rng);
+            d.account_id = ctl[0].account_id;
+            ctl.push(d);
+        }
+        let account = ctl[0].account_id;
+        let me = ctl[0].device_id;
+        let mut g = ctl[0].acs();
+        g.control = ctl.iter().map(|d| d.device_id).collect();
+        g.credentials = ctl
+            .iter()
+            .map(|d| (d.device_id, d.credential().hash()))
+            .collect();
+        let sign_all = |acs: &Acs, who: &[&Device], rng: &mut InsecureTestRng| {
+            let s: Vec<_> = who.iter().map(|d| (&d.device_id, &d.signer)).collect();
+            control::sign_acs(&acs.body(), &s, rng)
+        };
+        let all: Vec<&Device> = ctl.iter().collect();
+        let mut creds: Vec<Vec<u8>> = ctl.iter().map(|d| d.credential().body()).collect();
+        let mut chain = vec![sign_all(&g, &all, &mut rng)];
+        let mut states = vec![g];
+        // Adds `n` messaging devices in one successor, authorized by the first control device.
+        let add = |n: usize,
+                   creds: &mut Vec<Vec<u8>>,
+                   chain: &mut Vec<Vec<u8>>,
+                   states: &mut Vec<Acs>,
+                   rng: &mut InsecureTestRng|
+         -> [u8; 16] {
+            let parent = states.last().unwrap().clone();
+            let mut child = parent.clone();
+            child.generation = parent.generation + 1;
+            child.previous = Some(parent.hash());
+            let mut last = [0u8; 16];
+            for _ in 0..n {
+                let mut d = Device::new(rng);
+                d.account_id = account;
+                child.messaging.insert(d.device_id);
+                child.credentials.push((d.device_id, d.credential().hash()));
+                creds.push(d.credential().body());
+                last = d.device_id;
+            }
+            let signed = sign_all(&child, &[&ctl[0]], rng);
+            let verified = control::verify_successor(&parent, &signed, creds)
+                .expect("a valid link_messaging successor");
+            chain.push(signed);
+            states.push(verified);
+            last
+        };
+        add(193, &mut creds, &mut chain, &mut states, &mut rng);
+        for _ in 0..63 {
+            add(1, &mut creds, &mut chain, &mut states, &mut rng);
+        }
+        assert_eq!(chain.len(), 65, "the longest chain the protocol allows");
+        assert_eq!(
+            creds.len(),
+            272,
+            "the most credentials a verifiable chain reaches"
+        );
+        let head = control::verify_chain(&chain, &creds).expect("the full chain verifies");
+        assert_eq!(head.credentials.len(), 272);
+
+        // The newest five enrollments are owed to a sibling that holds the state before them.
+        let sibling = ctl[1].device_id;
+        let mut st = ProfileState::empty("g".into());
+        st.device = Some(ctl[0].clone());
+        st.app.acs_chain = chain.iter().map(|c| hex(c)).collect();
+        st.app.acs_credentials = creds.iter().map(|c| hex(c)).collect();
+        let (mut offers, open) = (vec![], vec![]);
+        let mut tx = Tx {
+            st: &mut st,
+            rng: &mut rng,
+            now_ms: 1_790_000_000_000,
+            changed: vec![],
+            open_profiles: &open,
+            offers: &mut offers,
+            blob_limits: None,
+        };
+        let mut digests = vec![];
+        for k in 60..65 {
+            let new_dev = *states[k]
+                .messaging
+                .difference(&states[k - 1].messaging)
+                .next()
+                .unwrap();
+            let notice = tx.sign_notice(&states[k], &new_dev, me).expect("a notice");
+            tx.owe_notice(&[sibling], &Default::default(), &states[k].hash(), &notice)
+                .expect("owed");
+            digests.push(hex(&crypto::sha256(&[&notice])));
+        }
+        let payloads = tx.enrolled_payloads(&hex(&sibling), &chain, &creds, None);
+        assert!(
+            !payloads.is_empty(),
+            "something is built for every owed notice"
+        );
+        let covered: Vec<&String> = payloads.iter().flat_map(|(d, _)| d).collect();
+        assert_eq!(
+            covered,
+            digests.iter().collect::<Vec<_>>(),
+            "every notice, in chain order"
+        );
+
+        // The sibling holds the first 60 states and the credentials those list, nothing more.
+        let mut have: Vec<Vec<u8>> = chain[..60].to_vec();
+        let listed: Vec<[u8; 32]> = states[59].credentials.iter().map(|(_, h)| *h).collect();
+        let mut have_creds: Vec<Vec<u8>> = creds
+            .iter()
+            .filter(|c| Credential::from_body(c).is_ok_and(|c| listed.contains(&c.hash())))
+            .cloned()
+            .collect();
+        let mut head = control::verify_chain(&have, &have_creds).expect("the sibling's own head");
+        for (_, payload) in &payloads {
+            assert!(
+                payload.len() <= MAX_MSG,
+                "one message: {} bytes",
+                payload.len()
+            );
+            let p = cbor::decode(payload).unwrap();
+            let (c, cr) = (bytes_list(p.get(2)).unwrap(), bytes_list(p.get(3)).unwrap());
+            assert!(
+                c.len() <= MAX_CHAIN_TAIL && cr.len() <= 64,
+                "within what a receiver accepts"
+            );
+            let mut notices = p
+                .opt(5)
+                .map(|v| bytes_list(Ok(v)).unwrap())
+                .unwrap_or_default();
+            notices.push(p.get(1).and_then(|x| x.b()).unwrap().to_vec());
+            let staged = stage_enrollment(
+                head.clone(),
+                have.clone(),
+                have_creds.clone(),
+                &c,
+                &cr,
+                &notices,
+            )
+            .expect("the sibling accepts the window");
+            have = staged.chain;
+            have_creds = staged.creds;
+            head = control::verify_chain(&have, &have_creds).expect("still one valid chain");
+        }
+        assert_eq!(have.len(), 65, "caught up to the tip");
+        assert_eq!(head.hash(), states[64].hash());
     }
 
     fn envelope_with_frame(keys: &CeremonyKeys, frame: &[u8], bucket_frame: usize) -> Vec<u8> {
