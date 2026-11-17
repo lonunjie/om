@@ -206,12 +206,14 @@ describe("Action Registry", () => {
     }
   });
 
-  it("set-privacy-level is the person's own tap only, takes the three chosen levels, and only a literal true confirms a loosening", () => {
-    expect(registry.resolve({ actionId: "set-privacy-level", params: { level: "hardened" }, ctx, origin: "direct" })).toEqual({ status: "privacy", intent: { kind: "set_level", level: "hardened" } });
-    expect(registry.resolve({ actionId: "set-privacy-level", params: { level: "recommended", confirmed: true }, ctx, origin: "direct" })).toEqual({ status: "privacy", intent: { kind: "set_level", level: "recommended", confirmed: true } });
-    expect(registry.resolve({ actionId: "set-privacy-level", params: { level: "maximum" }, ctx, origin: "suggestion" })).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
-    for (const params of [{}, { level: "custom" }, { level: "paranoid" }, { level: "hardened", confirmed: "yes" }, { level: "hardened", confirmed: false }, { level: "hardened", silent: true }]) {
-      expect(registry.resolve({ actionId: "set-privacy-level", params, ctx, origin: "direct" }), JSON.stringify(params)).toEqual({ status: "rejected", code: "invalid_params" });
+  it("change-privacy-policy is the person's own tap only, takes a level code, and needs a Core-issued confirmation", () => {
+    const own = { actionId: "change-privacy-policy", params: { policy: "hardened" }, ctx } as const;
+    expect(registry.resolve({ ...own, origin: "direct" })).toEqual({ status: "needs_confirmation", actionId: "change-privacy-policy" });
+    expect(registry.resolve({ ...own, origin: "suggestion" })).toEqual({ status: "needs_confirmation", actionId: "change-privacy-policy" });
+    expect(registry.prepareConfirmation({ ...own, origin: "suggestion" })).toEqual({ status: "rejected", code: "suggestion_cannot_confirm" });
+    expect(registry.prepareConfirmation({ ...own, origin: "direct" })).toMatchObject({ status: "intent", intent: { kind: "IssueConfirmation", intentKind: "ChangePrivacyPolicy", target: "hardened" } });
+    for (const params of [{}, { policy: "paranoid" }, { policy: "hardened", confirmed: true }]) {
+      expect(registry.resolve({ actionId: "change-privacy-policy", params, ctx, origin: "direct" }), JSON.stringify(params)).toEqual({ status: "rejected", code: "invalid_params" });
     }
   });
 

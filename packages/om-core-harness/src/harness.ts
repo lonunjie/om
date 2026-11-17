@@ -3,7 +3,7 @@ import {
   asMessageId, confirmationTarget, parseInviteLink, asProfileGeneration, captureProfileContext, isProfileExecutionContext, isTerminalOutcome,
 } from "@om/platform-api";
 import type {
-  AttachmentApi, PrivacyApi, AttachmentLimits, AttachmentState, AttachmentView, DirectOfferView, LocationCardView, PresentationView,
+  AttachmentApi, AttachmentLimits, AttachmentState, AttachmentView, DirectOfferView, LocationCardView, PresentationView,
   ConversationId, ConversationSummary, ConversationTimelineItem, ConversationView, CoreClient, CoreIntent, CoreQuery,
   DeliveryState, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, MessageId, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   PeerRecoveryView, PersonId, PrivacyPolicyLevel, ProfileExecutionContext, ProfileId, QueryResult, RejectReason, TerminalOutcome, Unsubscribe, UserActionCode,
@@ -70,8 +70,6 @@ export interface Harness extends CoreClient {
   readonly attachments: AttachmentApi;
   /** Always present here: simulated ordinary groups for UI tests (no engine, no wire; the other people are played by `simulate*`). */
   readonly groups: GroupSim;
-  /** Always present here: the person's own privacy level, with the same loosening rule as Core. */
-  readonly privacy: PrivacyApi;
   /** Registers a profile (generation fixed at seed) and returns its captured context. */
   seedProfile(seed: SeedProfile): ProfileExecutionContext;
   /** Fresh context for a seeded profile at its current generation (what a restarted UI would capture). */
@@ -127,7 +125,7 @@ interface ProfileState {
   introductions: Map<string, IntroductionRequest & { personId: PersonId }>;
   introductionLoad: IntroductionLoad;
   /** Core-issued confirmation nonces (UI-11): single use, bound to intent kind and target, expiring. */
-  confirmations: Map<OperationId, { readonly nonce: string; readonly kind: string; readonly target: string; readonly expiresAt: number }>;
+  confirmations: Map<OperationId, { readonly nonce: string; readonly kind: string; readonly target: string; readonly expiresAt: number; readonly fromRank?: number }>;
   identityCreated: boolean;
   /** Display-once fake recovery keys by creating operation; entries are deleted when confirmed. */
   recoveryKeys: Map<OperationId, readonly string[]>;
@@ -150,6 +148,9 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** Same lifetime and capacity as Core (`CONFIRMATION_TTL_MS`, `MAX_CONFIRMATIONS`). */
 const CONFIRMATION_TTL_MS = 5 * 60 * 1000;
 const MAX_CONFIRMATIONS = 16;
+const PRIVACY_LEVELS: readonly PrivacyPolicyLevel[] = ["recommended", "hardened", "maximum", "custom"];
+/** Core's rank: how much a level asks of the person (Custom ranks with Hardened). A move to a lower rank is a loosening. */
+const privacyRank = (l: PrivacyPolicyLevel): number => (l === "recommended" ? 0 : l === "maximum" ? 2 : 1);
 const DESTRUCTIVE_KINDS: ReadonlySet<string> = new Set(["BlockPerson", "SuspendDevice", "ChangePrivacyPolicy", "ApproveDeviceLink", "RevokeDevice", "StartRecovery", "VetoRecovery", "ConfirmRecovery", "DeclinePeerRecovery", "ConfirmPeerRecovery"]);
 const B32 = "ABCDEFGHIJKLMNPQRSTUVWXYZ23456789";
 const B64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
@@ -336,29 +337,41 @@ export function createHarness(options: HarnessOptions = {}): Harness {
   }
 
   /** UI-11: spend the nonce the token names; it must be this intent kind and target, unexpired (Core's rule, mirrored). */
-  function consumeConfirmation(st: ProfileState, intent: Extract<CoreIntent, { readonly confirmation: unknown }>): boolean {
+  function consumeConfirmation(st: ProfileState, intent: Extract<CoreIntent, { readonly confirmation: unknown }>): { readonly fromRank?: number } | null {
     const now = clock();
     for (const [op, c] of st.confirmations) if (c.expiresAt <= now) st.confirmations.delete(op);
     const token: unknown = intent.confirmation;
     const nonce = typeof token === "object" && token !== null ? (token as { readonly nonce?: unknown }).nonce : undefined;
-    if (typeof nonce !== "string") return false;
+    if (typeof nonce !== "string") return null;
     const entry = [...st.confirmations].find(([, c]) => c.nonce === nonce);
-    if (entry === undefined) return false;
+    if (entry === undefined) return null;
     st.confirmations.delete(entry[0]);
-    return entry[1].kind === intent.kind && entry[1].target === confirmationTarget(intent);
+    if (entry[1].kind !== intent.kind || entry[1].target !== confirmationTarget(intent)) return null;
+    return entry[1].fromRank === undefined ? {} : { fromRank: entry[1].fromRank };
   }
 
   function apply(intent: CoreIntent, st: ProfileState): OpRecord {
     const rejected = (reason: RejectReason): OpRecord => record(intent, { kind: "Rejected", reason });
-    if ("confirmation" in intent && !consumeConfirmation(st, intent)) return rejected("unauthorized");
+    const spent = "confirmation" in intent ? consumeConfirmation(st, intent) : null;
+    if ("confirmation" in intent && spent === null) return rejected("unauthorized");
     const staged = applyStaged(intent);
     if (staged) return staged;
     switch (intent.kind) {
       case "IssueConfirmation": {
         if (!DESTRUCTIVE_KINDS.has(intent.intentKind) || intent.target === "" || intent.target.length > 256) return rejected("invalid");
         const nonce = Array.from(globalThis.crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
-        st.confirmations.set(intent.operationId, { nonce, kind: intent.intentKind, target: intent.target, expiresAt: clock() + CONFIRMATION_TTL_MS });
+        // A privacy change names one of the levels and its nonce remembers the level it was issued against (Core's rule, D130).
+        if (intent.intentKind === "ChangePrivacyPolicy" && !PRIVACY_LEVELS.includes(intent.target as PrivacyPolicyLevel)) return rejected("invalid");
+        const fromRank = intent.intentKind === "ChangePrivacyPolicy" ? privacyRank(st.privacyLevel) : undefined;
+        st.confirmations.set(intent.operationId, { nonce, kind: intent.intentKind, target: intent.target, expiresAt: clock() + CONFIRMATION_TTL_MS, ...(fromRank === undefined ? {} : { fromRank }) });
         while (st.confirmations.size > MAX_CONFIRMATIONS) st.confirmations.delete(st.confirmations.keys().next().value as OperationId);
+        return record(intent, { kind: "Committed" });
+      }
+      case "ChangePrivacyPolicy": {
+        // Core's rule: the nonce must have been issued while the level had the rank it has now (stale means conflict).
+        if (spent?.fromRank !== privacyRank(st.privacyLevel)) return rejected("conflict");
+        st.privacyLevel = intent.policy;
+        notify(intent.ctx.profileId);
         return record(intent, { kind: "Committed" });
       }
       case "SendMessage": {
@@ -549,18 +562,6 @@ export function createHarness(options: HarnessOptions = {}): Harness {
     marker: HARNESS_MARKER,
     attachments: attachmentApi,
     groups,
-    // Same rule as Core: a tightening applies at once, a loosening only when the person confirmed it.
-    privacy: {
-      set: (ctx, intent) => settle(() => {
-        const st = stateFor(ctx);
-        const rank = (l: PrivacyPolicyLevel): number => (l === "recommended" ? 0 : l === "maximum" ? 2 : 1);
-        if (rank(intent.level) < rank(st.privacyLevel) && intent.confirmed !== true) return { ok: false, refused: "loosening_needs_confirmation" } as const;
-        st.privacyLevel = intent.level;
-        notify(ctx.profileId);
-        return { ok: true } as const;
-      }),
-    },
-
     seedProfile(seed) {
       if (profiles.has(seed.profileId)) throw new HarnessError("profile already seeded");
       const st: ProfileState = {

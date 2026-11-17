@@ -360,7 +360,7 @@ fn peer_recovery_view_json_shape_is_the_platform_api_mirror() {
 }
 
 #[test]
-fn privacy_level_and_recovery_tick_are_host_commands_with_a_durable_commit() {
+fn recovery_tick_is_a_host_command_with_a_durable_commit() {
     let mut b = Bridge::new(
         || InsecureTestRng::from_label(b"level"),
         || 1_790_000_000_000,
@@ -371,52 +371,21 @@ fn privacy_level_and_recovery_tick_are_host_commands_with_a_durable_commit() {
         json!({ "cmd": "open_profile", "profileId": "me", "records": [] }),
     )["ok"]
         .clone();
-    let set = call(
-        &mut b,
-        json!({ "cmd": "set_privacy_level", "ctx": ctx, "level": "hardened" }),
-    );
-    assert!(set["ok"]["commit"]["writes"].is_array(), "{set}");
-    finish(&mut b, &set);
-    // Reading it back: Hardened now. Loosening is never silent: without `confirmed` it is refused and nothing changes.
-    let q = call(
-        &mut b,
-        json!({ "cmd": "query", "query": { "kind": "GetPrivacyLevel", "ctx": ctx } }),
-    );
-    assert_eq!(q["ok"], json!("hardened"), "{q}");
-    let down = call(
-        &mut b,
-        json!({ "cmd": "set_privacy_level", "ctx": ctx, "level": null }),
-    );
-    assert!(down.get("err").is_some(), "{down}");
-    let q = call(
-        &mut b,
-        json!({ "cmd": "query", "query": { "kind": "GetPrivacyLevel", "ctx": ctx } }),
-    );
-    assert_eq!(q["ok"], json!("hardened"), "{q}");
-    // A tightening needs no confirmation; the confirmed loosening goes through and reads back as Recommended.
-    let up = call(
-        &mut b,
-        json!({ "cmd": "set_privacy_level", "ctx": ctx, "level": "maximum" }),
-    );
-    assert!(up.get("ok").is_some(), "{up}");
-    finish(&mut b, &up);
-    let down = call(
-        &mut b,
-        json!({ "cmd": "set_privacy_level", "ctx": ctx, "level": null, "confirmed": true }),
-    );
-    assert!(down.get("ok").is_some(), "{down}");
-    finish(&mut b, &down);
+    // The level is read back through the query; a change goes through the ChangePrivacyPolicy intent with a Core nonce.
     let q = call(
         &mut b,
         json!({ "cmd": "query", "query": { "kind": "GetPrivacyLevel", "ctx": ctx } }),
     );
     assert_eq!(q["ok"], json!("recommended"), "{q}");
-    // An unknown level is refused at the boundary, never guessed.
-    let bad = call(
-        &mut b,
-        json!({ "cmd": "set_privacy_level", "ctx": ctx, "level": "paranoid" }),
+    assert!(
+        call(
+            &mut b,
+            json!({ "cmd": "set_privacy_level", "ctx": ctx, "level": "hardened" })
+        )
+        .get("err")
+        .is_some(),
+        "the retired host command is not a command"
     );
-    assert!(bad.get("err").is_some(), "{bad}");
     let tick = call(
         &mut b,
         json!({ "cmd": "recovery_tick", "ctx": ctx, "mono": { "bootSession": "0102", "elapsedMs": 5 } }),

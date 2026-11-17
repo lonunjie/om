@@ -140,7 +140,6 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
   const peerName = selected !== null && list.status === "ready" ? (() => { const c = list.value.find((x) => x.id === selected); return c === undefined ? undefined : shownName(c); })() : undefined;
   useEffect(() => { if (hitFocus !== null && hitFocus.chat !== selected) setHitFocus(null); }, [hitFocus, selected]);
   const settings: SettingsPage | null = place.kind === "settings" ? place.page : null;
-  const hasProtection = services.client.privacy !== undefined; // a client that cannot set the level offers no control for it
   const savingCode = place.kind === "safety-code" && safetyCode !== undefined;
   // The open chat is shown, so it is seen; a chat met for the first time starts as seen (history that was here before is not "new").
   useEffect(() => {
@@ -286,7 +285,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
       { page: "lock", title: t.settingsLock, words: t.settingsKeywords.lock, on: lock !== undefined },
       { page: "devices", title: t.settingsDevices, words: t.settingsKeywords.devices, on: true },
       { page: "recovery", title: t.settingsRecovery, words: t.settingsKeywords.recovery, on: true },
-      { page: "protection", title: t.settingsProtection, words: t.settingsKeywords.protection, on: hasProtection },
+      { page: "protection", title: t.settingsProtection, words: t.settingsKeywords.protection, on: true },
       { page: "backup", title: t.settingsBackup, words: t.settingsKeywords.backup, on: backup !== undefined },
       { page: "delivery", title: t.settingsHome, words: t.settingsKeywords.delivery, on: home !== undefined },
       { page: "help", title: t.settingsHelp, words: t.settingsKeywords.help, on: true },
@@ -295,7 +294,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
     if (onAddProfile !== undefined) out.push({ id: "add-profile", kind: "action", label: t.addProfile, keywords: t.settingsKeywords.addProfile, run: onAddProfile });
     if (safetyCode !== undefined) out.push({ id: "safety-code", kind: "setting", label: t.safetyCode.action, keywords: t.settingsKeywords.recovery, run: () => { go({ kind: "safety-code" }); } });
     return out;
-  }, [chatRows, groupsOffered, services.ctx, invite, lock, backup, home, hasProtection, onAddProfile, safetyCode, go, openNew]);
+  }, [chatRows, groupsOffered, services.ctx, invite, lock, backup, home, onAddProfile, safetyCode, go, openNew]);
   // A pasted invitation link is explicit intent: it is offered first and leads to the sheet with the link already in place.
   const omniDynamic = useCallback((query: string): readonly OmniEntry[] => {
     if (invite === undefined || !parseInviteLink(query).ok) return [];
@@ -362,7 +361,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
           onBack={() => { back({ kind: "settings", page: "menu" }); }}
           list={(
             <SettingsMenu
-              page={settings} onOpen={(page) => { go({ kind: "settings", page }); }} onAddProfile={onAddProfile} hasHome={home !== undefined} hasProtection={hasProtection} hasLock={lock !== undefined} hasBackup={backup !== undefined}
+              page={settings} onOpen={(page) => { go({ kind: "settings", page }); }} onAddProfile={onAddProfile} hasHome={home !== undefined} hasLock={lock !== undefined} hasBackup={backup !== undefined}
               onSafetyCode={safetyCode === undefined ? undefined : () => { go({ kind: "safety-code" }); }}
             />
           )}
@@ -375,7 +374,7 @@ export function Shell({ services, groupsSetup, capture, devicesExtra, onAddProfi
                     {devicesExtra}
                   </>
                 ) : settings === "delivery" && home !== undefined ? <HomeScreen services={home} copy={homeCopy} {...(invite === undefined ? {} : { copyText })} facts={<HomeFacts client={services.client} ctx={services.ctx} copy={onboardingCopy.home} alwaysOpen configured={home.current.baseUrl !== undefined} />} />
-                  : settings === "protection" && hasProtection ? <ProtectionScreen services={services} copy={protectionCopy} />
+                  : settings === "protection" ? <ProtectionScreen services={services} copy={protectionCopy} />
                   : settings === "lock" && lock !== undefined ? <LockScreen services={lock} />
                   : settings === "backup" && backup !== undefined ? <BackupScreen services={backup} />
                   : settings === "help" ? <HelpScreen />
@@ -521,8 +520,8 @@ function Requests({ services }: { readonly services: ConversationServices }) {
 interface MenuRow { readonly id: SettingsPage; readonly title: string; readonly hint: string; readonly icon: IconName; readonly words: string }
 
 /** Settings is reached from the profile area (Profile -> Settings), not a tab: Chats stays the compact root. Typing anywhere searches it. */
-function SettingsMenu({ page, onOpen, onAddProfile, hasHome, hasProtection, hasLock, hasBackup, onSafetyCode }: {
-  readonly page: SettingsPage; readonly onOpen: (p: SettingsPage) => void; readonly onAddProfile: (() => void) | undefined; readonly hasHome: boolean; readonly hasProtection: boolean; readonly hasLock: boolean; readonly hasBackup: boolean; readonly onSafetyCode: (() => void) | undefined;
+function SettingsMenu({ page, onOpen, onAddProfile, hasHome, hasLock, hasBackup, onSafetyCode }: {
+  readonly page: SettingsPage; readonly onOpen: (p: SettingsPage) => void; readonly onAddProfile: (() => void) | undefined; readonly hasHome: boolean; readonly hasLock: boolean; readonly hasBackup: boolean; readonly onSafetyCode: (() => void) | undefined;
 }) {
   const [query, setQuery] = useState("");
   const search = useRef<HTMLInputElement>(null);
@@ -530,7 +529,7 @@ function SettingsMenu({ page, onOpen, onAddProfile, hasHome, hasProtection, hasL
     ...(hasLock ? [{ id: "lock" as const, title: t.settingsLock, hint: t.settingsRows.lock, icon: "lock" as const, words: t.settingsKeywords.lock }] : []),
     { id: "devices", title: t.settingsDevices, hint: t.settingsRows.devices, icon: "devices", words: t.settingsKeywords.devices },
     { id: "recovery", title: t.settingsRecovery, hint: t.settingsRows.recovery, icon: "shield", words: t.settingsKeywords.recovery },
-    ...(hasProtection ? [{ id: "protection" as const, title: t.settingsProtection, hint: t.settingsRows.protection, icon: "shield" as const, words: t.settingsKeywords.protection }] : []),
+    { id: "protection" as const, title: t.settingsProtection, hint: t.settingsRows.protection, icon: "shield" as const, words: t.settingsKeywords.protection },
     ...(hasBackup ? [{ id: "backup" as const, title: t.settingsBackup, hint: t.settingsRows.backup, icon: "download" as const, words: t.settingsKeywords.backup }] : []),
     ...(hasHome ? [{ id: "delivery" as const, title: t.settingsHome, hint: t.settingsRows.delivery, icon: "delivery" as const, words: t.settingsKeywords.delivery }] : []),
     { id: "help", title: t.settingsHelp, hint: t.settingsRows.help, icon: "chat", words: t.settingsKeywords.help },

@@ -1789,32 +1789,6 @@ impl<R: RngCore + CryptoRng> Core<R> {
         })
     }
 
-    /// Set this person's own privacy level on this device (ADR-0190 section 4, D80): Recommended (or none) lets a contact's
-    /// recovery of their account finish by itself after its wait; every other level asks the person first. Local to the
-    /// profile and never sent. A host or a later settings intent supplies it; Core takes no level from the network.
-    /// A tightening applies at once. A loosening (a lower rank) is refused unless the host says the person confirmed it
-    /// (`confirmed`), so it can never happen silently (ADR-0189 section 3, "never silent"; D89).
-    pub fn set_privacy_level(
-        &mut self,
-        ctx: &ProfileExecutionContext,
-        level: Option<crate::api::PrivacyPolicyLevel>,
-        confirmed: bool,
-    ) -> Result<Step, CoreError> {
-        use crate::api::PrivacyPolicyLevel as L;
-        self.slot(ctx)?;
-        let (_, commit) = self.txn(&ctx.profile_id, |tx| {
-            if L::rank(level) < L::rank(tx.st.app.privacy_level) && !confirmed {
-                return Err(CoreError::Invalid("loosening needs confirmation"));
-            }
-            tx.st.app.privacy_level = level;
-            Ok(())
-        })?;
-        Ok(Step {
-            commit,
-            handle: None,
-        })
-    }
-
     pub fn pending_operations(
         &self,
         ctx: &ProfileExecutionContext,

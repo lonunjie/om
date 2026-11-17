@@ -441,6 +441,19 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 reason: RejectReason::Invalid,
             };
         }
+        // A privacy change names one of the levels, and its nonce remembers the level it was issued against (D130).
+        let from_rank = if kind == "ChangePrivacyPolicy" {
+            if serde_json::from_value::<crate::api::PrivacyPolicyLevel>(target.into()).is_err() {
+                return OutcomeClass::Rejected {
+                    reason: RejectReason::Invalid,
+                };
+            }
+            Some(crate::api::PrivacyPolicyLevel::rank(
+                self.st.app.privacy_level,
+            ))
+        } else {
+            None
+        };
         let nonce = hex(&self.rand16());
         let now = self.now_ms;
         let c = &mut self.st.app.confirmations;
@@ -451,6 +464,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             intent_kind: kind.into(),
             target: target.into(),
             expires_at: now + CONFIRMATION_TTL_MS,
+            from_rank,
         });
         while c.len() > MAX_CONFIRMATIONS {
             c.remove(0);
@@ -465,23 +479,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         kind: &str,
         target: Option<String>,
         token: &serde_json::Value,
-    ) -> bool {
+    ) -> Option<ConfirmationRec> {
         let now = self.now_ms;
         self.st.app.confirmations.retain(|c| c.expires_at > now);
-        let Some(nonce) = token.get("nonce").and_then(|n| n.as_str()) else {
-            return false;
-        };
-        let Some(pos) = self
+        let nonce = token.get("nonce").and_then(|n| n.as_str())?;
+        let pos = self
             .st
             .app
             .confirmations
             .iter()
-            .position(|c| c.nonce == nonce)
-        else {
-            return false;
-        };
+            .position(|c| c.nonce == nonce)?;
         let rec = self.st.app.confirmations.remove(pos);
-        rec.intent_kind == kind && target.as_deref() == Some(rec.target.as_str())
+        (rec.intent_kind == kind && target.as_deref() == Some(rec.target.as_str())).then_some(rec)
     }
 
     // ------------------------------------------------------------------------------------------ sealed delivery
@@ -725,9 +734,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         // UI-11 (M2): a destructive intent runs only with a confirmation nonce that Core issued for exactly this
         // intent kind and target in this profile, unspent and unexpired. Anything else is `unauthorized`, and the
         // nonce is spent either way.
-        if let Some(token) = intent.body.confirmation()
-            && !self.consume_confirmation(kind, intent.body.confirmation_target(), token)
-        {
+        let spent = intent
+            .body
+            .confirmation()
+            .map(|token| self.consume_confirmation(kind, intent.body.confirmation_target(), token));
+        if spent.as_ref().is_some_and(Option::is_none) {
             self.record(
                 op,
                 kind,
@@ -861,9 +872,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             IntentBody::RevokeDevice { device_id, .. } => {
                 self.device_transition(device_id, control::Action::Revoke)
             }
+            IntentBody::ChangePrivacyPolicy { policy, .. } => {
+                self.change_privacy_policy(*policy, spent.flatten().and_then(|r| r.from_rank))
+            }
             // Not built (status report "What remains"); Rejected(unsupported) is the conservative answer.
             IntentBody::ShareContact { .. }
-            | IntentBody::ChangePrivacyPolicy { .. }
             | IntentBody::ShareStaticLocation { .. }
             | IntentBody::StartCall { .. }
             | IntentBody::RestoreHistory { .. }
@@ -884,6 +897,27 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         let msg = None;
         self.record(op, kind, outcome, msg);
         Ok(())
+    }
+
+    /// `ChangePrivacyPolicy` (ADR-0181 section 8, UI-11; D130): the person's own protection level on this device. The nonce was
+    /// already spent and matched this level code; it must also have been issued while the level still has the rank it has now,
+    /// so a stale or reused confirmation (the level moved since) changes nothing (`conflict`, fail closed). Choosing the level
+    /// already in use changes nothing. Local and never sent.
+    fn change_privacy_policy(
+        &mut self,
+        policy: crate::api::PrivacyPolicyLevel,
+        issued_at_rank: Option<u8>,
+    ) -> OutcomeClass {
+        use crate::api::PrivacyPolicyLevel as L;
+        if issued_at_rank != Some(L::rank(self.st.app.privacy_level)) {
+            return OutcomeClass::Rejected {
+                reason: RejectReason::Conflict,
+            };
+        }
+        if self.st.app.privacy_level != Some(policy) {
+            self.st.app.privacy_level = Some(policy);
+        }
+        OutcomeClass::Committed
     }
 
     /// `SetContactNickname` (ADR-0196): local contact state only. No network call, no outbox entry, no event.

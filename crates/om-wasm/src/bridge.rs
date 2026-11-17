@@ -77,15 +77,6 @@ enum Command {
     NoticeTick {
         ctx: ProfileExecutionContext,
     },
-    /// This person's own privacy level, local to the profile (`null` is Recommended). Hardened, Maximum and Custom make
-    /// this device ask before it accepts a contact's recovery of their account (ADR-0190 section 4).
-    SetPrivacyLevel {
-        ctx: ProfileExecutionContext,
-        level: Option<om_core::api::PrivacyPolicyLevel>,
-        /// The person confirmed a loosening. Without it, a lower level is refused.
-        #[serde(default)]
-        confirmed: bool,
-    },
     Outcome {
         ctx: ProfileExecutionContext,
         operation_id: String,
@@ -698,13 +689,6 @@ impl<R: RngCore + CryptoRng> Bridge<R> {
                 Ok(enc(&self.core()?.recovery_tick(&ctx, &mono)?))
             }
             Command::NoticeTick { ctx } => Ok(enc(&self.core()?.notice_tick(&ctx)?)),
-            Command::SetPrivacyLevel {
-                ctx,
-                level,
-                confirmed,
-            } => Ok(enc(&self
-                .core()?
-                .set_privacy_level(&ctx, level, confirmed)?)),
             Command::PendingOperations { ctx } => {
                 Ok(enc(&self.core()?.pending_operations(&ctx)?))
             }

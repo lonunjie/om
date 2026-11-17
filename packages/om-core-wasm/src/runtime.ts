@@ -4,7 +4,7 @@
 import { captureProfileContext, isTerminalOutcome } from "@om/platform-api";
 import type {
   AttachmentApi, AttachmentLimits, AttachmentMeta, AttachmentOpenResult, AttachmentPrepareResult, AttachmentRefusal,
-  CoreClient, CoreIntent, CoreQuery, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView, PrivacyPolicyLevel,
+  CoreClient, CoreIntent, CoreQuery, EncryptedKv, GroupApi, GroupDetailView, GroupEvent, GroupOutbound, GroupInviteView, GroupMessageView, GroupNoticeView, GroupStep, GroupSummaryView, HomeSummary, OperationHandle, OperationId, OutcomeClass, PendingOperationView,
   ProfileExecutionContext, ProfileId, QueryResult, Unsubscribe,
 } from "@om/platform-api";
 import { asConversationId, asProfileGeneration, asProfileId } from "@om/platform-api";
@@ -71,11 +71,6 @@ export interface WasmCoreClient extends CoreClient {
   flush(profileId: ProfileId): Promise<void>;
   /** Resolves when no dispatch or drain is in flight. */
   idle(): Promise<void>;
-  /**
-   * This person's own privacy level, local to the profile (`null` is Recommended). Hardened, Maximum and Custom make this device
-   * ask before it accepts a contact's recovery of their account (ADR-0190 section 4, D80). A host or a settings screen supplies it.
-   */
-  setPrivacyLevel(ctx: ProfileExecutionContext, level: PrivacyPolicyLevel | null, confirmed?: boolean): Promise<void>;
   /**
    * Credit the host's durable monotonic reading (`bootSession` identifies one boot, `elapsedMs` its clock) to every recovery this
    * device is waiting on. Call it at start and regularly; downtime and backwards readings credit nothing (ADR-0190 section 6).
@@ -514,12 +509,6 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
         return r.summary;
       });
     },
-    setPrivacyLevel(ctx, level, confirmed = false) {
-      return exclusive(async () => {
-        const r = core.call({ cmd: "set_privacy_level", ctx: ctxOf(ctx), level, confirmed }) as { commit: Commit | null };
-        await commit(r.commit, ctx);
-      });
-    },
     recoveryTick(ctx, sample) {
       return exclusive(async () => {
         const r = core.call({ cmd: "recovery_tick", ctx: ctxOf(ctx), mono: sample }) as { commit: Commit | null };
@@ -611,14 +600,6 @@ export function createCoreRuntime(opts: CoreRuntimeOptions): Promise<WasmCoreCli
       },
     },
     groups: groupDriver ?? groupCore,
-    privacy: {
-      async set(ctx, intent) {
-        try { await client.setPrivacyLevel(ctx, intent.level, intent.confirmed === true); return { ok: true }; } catch (e) {
-          // Only Core's own refusal of an unconfirmed loosening is named; anything else (a stale context, storage) is "unavailable".
-          return { ok: false, refused: e instanceof CoreCallError && /loosening/.test(e.message) ? "loosening_needs_confirmation" : "unavailable" };
-        }
-      },
-    },
     flush,
     async idle() {
       for (let i = 0; i < 100; i++) {

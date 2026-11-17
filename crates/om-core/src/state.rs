@@ -1168,6 +1168,10 @@ pub struct ConfirmationRec {
     pub intent_kind: String,
     pub target: String,
     pub expires_at: u64,
+    /// For `ChangePrivacyPolicy` only: the rank of the person's level when the nonce was issued. The change runs only while
+    /// the level still has that rank, so a nonce issued for a tightening can never apply as a loosening (D130).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_rank: Option<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -279,21 +279,33 @@ describe.skipIf(!present)("real Core through the CoreClient interface", () => {
     key.fill(0); key2.fill(0); wrongKey.fill(0);
   }, 120_000);
 
-  it("contact-side recovery host commands: privacy level and recovery tick commit durably; the new intents are confirmed destructive kinds (ADR-0190)", async () => {
+  it("contact-side recovery: the level changes only by a Core-nonce ChangePrivacyPolicy and survives a restart; the recovery tick commits durably; the new intents are confirmed destructive kinds (ADR-0190)", async () => {
     const a = await boot(createMemoryKv(), createMemoryProvider(), asProfileId("solo"));
     await a.rt.dispatch({ kind: "CreateIdentityProfile", ctx: a.ctx, operationId: op("s-create"), label: "Solo" });
-    await a.rt.setPrivacyLevel(a.ctx, "hardened");
-    await expect(a.rt.setPrivacyLevel(a.ctx, null)).rejects.toMatchObject({ code: "invalid" }); // a loosening is never silent
+    const setLevel = async (x: typeof a, id: string, policy: "recommended" | "hardened" | "maximum"): Promise<unknown> => {
+      await x.rt.dispatch({ kind: "IssueConfirmation", ctx: x.ctx, operationId: op(`${id}-nonce`), intentKind: "ChangePrivacyPolicy", target: policy });
+      const view = await x.rt.query({ kind: "GetConfirmation", ctx: x.ctx, operationId: op(`${id}-nonce`) });
+      await x.rt.dispatch({ kind: "ChangePrivacyPolicy", ctx: x.ctx, operationId: op(id), policy, confirmation: { nonce: view?.nonce ?? "" } as unknown as ConfirmationToken });
+      return outcome(x, id);
+    };
+    expect(await setLevel(a, "p1", "hardened")).toEqual({ kind: "Committed" });
+    // A forged nonce, and a nonce issued for a tightening that is spent after the level moved up, change nothing.
+    await a.rt.dispatch({ kind: "ChangePrivacyPolicy", ctx: a.ctx, operationId: op("p-forged"), policy: "recommended", confirmation: { nonce: "00".repeat(16) } as unknown as ConfirmationToken });
+    expect(await outcome(a, "p-forged")).toEqual({ kind: "Rejected", reason: "unauthorized" });
     expect(await a.rt.query({ kind: "GetPrivacyLevel", ctx: a.ctx })).toBe("hardened");
-    expect(await a.rt.privacy?.set(a.ctx, { kind: "set_level", level: "recommended" })).toEqual({ ok: false, refused: "loosening_needs_confirmation" });
-    expect(await a.rt.privacy?.set(a.ctx, { kind: "set_level", level: "maximum" })).toEqual({ ok: true }); // tightening is immediate
-    expect(await a.rt.privacy?.set(a.ctx, { kind: "set_level", level: "recommended", confirmed: true })).toEqual({ ok: true });
+    await a.rt.dispatch({ kind: "IssueConfirmation", ctx: a.ctx, operationId: op("p-old"), intentKind: "ChangePrivacyPolicy", target: "hardened" });
+    const old = await a.rt.query({ kind: "GetConfirmation", ctx: a.ctx, operationId: op("p-old") });
+    expect(await setLevel(a, "p2", "maximum")).toEqual({ kind: "Committed" });
+    await a.rt.dispatch({ kind: "ChangePrivacyPolicy", ctx: a.ctx, operationId: op("p-stale"), policy: "hardened", confirmation: { nonce: old?.nonce ?? "" } as unknown as ConfirmationToken });
+    expect(await outcome(a, "p-stale")).toEqual({ kind: "Rejected", reason: "conflict" });
+    expect(await a.rt.query({ kind: "GetPrivacyLevel", ctx: a.ctx })).toBe("maximum");
+    expect(await setLevel(a, "p3", "recommended")).toEqual({ kind: "Committed" });
     expect(await a.rt.query({ kind: "GetPrivacyLevel", ctx: a.ctx })).toBe("recommended");
     // The level is durable: a restart over the same storage reads it back.
-    await a.rt.privacy?.set(a.ctx, { kind: "set_level", level: "hardened" });
+    expect(await setLevel(a, "p4", "hardened")).toEqual({ kind: "Committed" });
     const again = await boot(a.kv, createMemoryProvider(), a.id);
     expect(await again.rt.query({ kind: "GetPrivacyLevel", ctx: again.ctx })).toBe("hardened");
-    await again.rt.setPrivacyLevel(again.ctx, null, true);
+    expect(await setLevel(again, "p5", "recommended")).toEqual({ kind: "Committed" });
     await again.rt.recoveryTick(again.ctx, { bootSession: "0a0b", elapsedMs: 1000 });
     await again.rt.dispatch({ kind: "DeclinePeerRecovery", ctx: again.ctx, operationId: op("s-bad"), conversationId: asConversationId("nope"), requestId: "ab", confirmation: { nonce: "forged" } as unknown as ConfirmationToken });
     expect(await outcome(again, "s-bad")).toEqual({ kind: "Rejected", reason: "unauthorized" });

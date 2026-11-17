@@ -3,7 +3,6 @@ import type { CoreIntent } from "./intents";
 import type { OutcomeClass } from "./outcome";
 import type { AttachmentApi } from "./attachments";
 import type { GroupApi } from "./groups";
-import type { PrivacyApi } from "./privacy";
 import type { PrivacyPolicyLevel } from "./intents";
 import type { DevicesView, HistoryTransferView, LinkOfferView, LinkRequestView, RecoveryStatusView } from "./devices";
 import type { AttachmentPlanView, ConfirmationView, DirectOfferView, ConversationSummary, ConversationView, HomeSummary, IntroductionLoad, IntroductionRequest, InviteView, PendingOperationView, ProfileSummary, RecoveryKeyView } from "./views";
@@ -78,6 +77,4 @@ export interface CoreClient {
   readonly attachments?: AttachmentApi;
   /** Ordinary groups (ADR-0177). Absent on a client with no group support; present but `available() === false` on a build without the engine. */
   readonly groups?: GroupApi;
-  /** This person's own privacy level (ADR-0190 section 4, D80, D89). Absent on a client that cannot set it. */
-  readonly privacy?: PrivacyApi;
 }
