@@ -2844,6 +2844,12 @@
       "verified_by": [
         "review:ADR-0197-lookalike-name-matching.md"
       ]
+    },
+    {
+      "requirement": "R-438",
+      "verified_by": [
+        "review:ADR-0199-recoveryrecord-carriage-and-writer-schedule.md"
+      ]
     }
   ]
 }
