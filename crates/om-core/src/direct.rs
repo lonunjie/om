@@ -179,11 +179,14 @@ pub struct DirectSender {
     xfer: Option<Xfer>,
     /// The transfer whose final ack made the claim; a receipt must name it.
     claim_id: Option<[u8; TRANSFER_ID_LEN]>,
-    /// Receipts that failed the tag check since the claim (each costs a hash of the object, so the count is bounded).
+    /// Receipts that failed the tag check over the life of this offer (each costs a hash of the object, so the count is
+    /// bounded for good: a new claim does not start it again).
     bad_receipts: u8,
+    /// The hash of the whole object announced in `object_begin`, computed once.
+    begin_sha: Option<[u8; 32]>,
 }
 
-/// Invalid receipts checked per claim; further ones are dropped unread.
+/// Invalid receipts checked per offer; further ones are dropped unread.
 pub const MAX_BAD_RECEIPTS: u8 = 8;
 
 impl DirectSender {
@@ -220,6 +223,7 @@ impl DirectSender {
             xfer: None,
             claim_id: None,
             bad_receipts: 0,
+            begin_sha: None,
         })
     }
 
@@ -291,10 +295,12 @@ impl DirectSender {
                     ended: false,
                     paused: false,
                 });
+                let ciphertext = &self.ciphertext;
+                let sha = *self.begin_sha.get_or_insert_with(|| sha256(&[ciphertext]));
                 vec![DirectFrame::Begin {
                     transfer_id: fresh_id,
                     total_bytes: self.ciphertext.len() as u64,
-                    sha256: sha256(&[&self.ciphertext]),
+                    sha256: sha,
                 }]
             }
             DirectFrame::Ack {
@@ -321,7 +327,6 @@ impl DirectSender {
                     // Only a claim: the peer chose this number. The object stays until a receipt proves it.
                     self.state = OfferState::PeerClaimsReceived;
                     self.claim_id = Some(*transfer_id);
-                    self.bad_receipts = 0;
                     self.xfer = None;
                 }
                 vec![]

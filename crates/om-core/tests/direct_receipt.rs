@@ -246,7 +246,7 @@ fn forged_replayed_and_misbound_tags_are_ignored_without_failing_the_transfer() 
 }
 
 #[test]
-fn invalid_receipts_are_bounded_per_claim() {
+fn invalid_receipts_are_bounded_per_offer_not_per_claim() {
     let (_r, _ct, mut s, _f, rc) = claimed(20_000);
     let bad = DirectFrame::Receipt {
         transfer_id: tid(&rc),
@@ -255,8 +255,41 @@ fn invalid_receipts_are_bounded_per_claim() {
     for _ in 0..MAX_BAD_RECEIPTS {
         s.handle(&bad, [0; 16]);
     }
-    // the work spent on forgeries is capped; a later fetch (a new claim) starts the count again
+    // the work spent on forgeries is capped; the cap is not renewed by asking for the object again
     s.handle(&rc, [0; 16]);
+    assert_eq!(s.state(), OfferState::PeerClaimsReceived);
+}
+
+/// One full fetch on a fresh channel: the receiver already holds the object, so only the exchange runs. Returns the
+/// receiver's receipt (not delivered) and leaves the sender holding a new claim.
+fn claim_again(s: &mut DirectSender, f: &mut DirectFetch, ids: u8) -> DirectFrame {
+    let req = f.request([ids; 16]).unwrap();
+    let out = s.handle(&req, [ids.wrapping_add(1); 16]);
+    let ack = f.handle(&out[0]);
+    s.handle(&ack[0], [0; 16]);
+    let end = s.pump(0);
+    let back = f.handle(&end[0]);
+    s.handle(&back[0], [0; 16]);
+    back[1].clone()
+}
+
+#[test]
+fn asking_again_does_not_renew_the_invalid_receipt_budget() {
+    let (_r, _ct, mut s, mut f, rc) = claimed(20_000);
+    let mut latest = rc;
+    for round in 0..4u8 {
+        let bad = DirectFrame::Receipt {
+            transfer_id: tid(&latest),
+            tag: [round + 1; 32],
+        };
+        for _ in 0..MAX_BAD_RECEIPTS {
+            s.handle(&bad, [0; 16]);
+        }
+        latest = claim_again(&mut s, &mut f, 20 + round);
+        assert_eq!(s.state(), OfferState::PeerClaimsReceived);
+    }
+    // the budget was spent in the first round: the genuine receipt of a later claim is no longer checked
+    s.handle(&latest, [0; 16]);
     assert_eq!(s.state(), OfferState::PeerClaimsReceived);
 }
 
