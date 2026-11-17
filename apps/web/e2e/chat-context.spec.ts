@@ -57,3 +57,27 @@ test("a reaction reaches the other person, counts both people, and either can re
   await expect(alice.getByRole("button", { name: `${thumbs} 1, including you. Remove your reaction` })).toBeVisible({ timeout: 60_000 });
   await expect(bob.getByRole("button", { name: `${thumbs} 1. Add yours` })).toBeVisible({ timeout: 30_000 });
 });
+
+test("an edit shows on both sides marked Edited, and delete for everyone removes the message for both", async ({ browser }) => {
+  const { alice, bob } = await inviteAndChat(browser, BASE);
+
+  // Alice fixes the text of her first message.
+  await alice.getByRole("button", { name: "Edit: hello bob" }).click();
+  const box = alice.getByRole("textbox", { name: "Edit message" });
+  await box.fill("hello bob, fixed");
+  await alice.getByRole("button", { name: "Save" }).click();
+  await expect(alice.getByRole("log").getByText("hello bob, fixed")).toBeVisible({ timeout: 30_000 });
+  await expect(bob.getByRole("log").getByText("hello bob, fixed")).toBeVisible({ timeout: 60_000 });
+  await expect(bob.getByRole("log").getByText("Edited")).toBeVisible();
+  await expect(alice.getByRole("log").getByText("Edited")).toBeVisible();
+  // Bob has no Edit or Delete on Alice's message.
+  await expect(bob.getByRole("button", { name: /^(Edit|Delete): hello bob/ })).toHaveCount(0);
+
+  // Alice deletes it for everyone, after being told what that means.
+  await alice.getByRole("button", { name: "Delete: hello bob, fixed" }).click();
+  await expect(alice.getByRole("group", { name: "Delete for everyone?" })).toContainText("may still have a copy");
+  await alice.getByRole("button", { name: "Delete for everyone" }).click();
+  await expect(alice.getByRole("log").getByText("hello bob, fixed")).toHaveCount(0, { timeout: 30_000 });
+  await expect(bob.getByRole("log").getByText("hello bob, fixed")).toHaveCount(0, { timeout: 60_000 });
+  await expect(bob.getByRole("log").getByText("hi alice")).toBeVisible();
+});

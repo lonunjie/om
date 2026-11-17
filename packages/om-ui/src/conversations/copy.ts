@@ -42,6 +42,23 @@ export interface ConversationCopy {
     /** Accessible name of the quoted block: it moves to the original. */
     readonly jump: string;
   };
+  /** Editing and deleting one of your own messages (`message.edit`, `message.delete`). */
+  readonly change: {
+    readonly edit: string;
+    /** Label of the text box while editing. */
+    readonly editLabel: string;
+    readonly save: string;
+    readonly cancel: string;
+    /** The small marker on a message whose text was replaced. */
+    readonly edited: string;
+    readonly editFailed: string;
+    readonly delete: string;
+    readonly deleteTitle: string;
+    /** Says the scope plainly: everyone in this chat, and that a copy already read cannot be called back. */
+    readonly deleteBody: string;
+    readonly deleteConfirm: string;
+    readonly deleteFailed: string;
+  };
   /** Reactions (`reaction.set`): the picker beside a message and the chips under it. */
   readonly react: {
     /** Accessible name of the per-message control that opens the picker. */

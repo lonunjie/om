@@ -95,6 +95,9 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
   const [contactOpen, setContactOpen] = useState(false);
   const [picking, setPicking] = useState<MessageId | null>(null);
   const [reactFailed, setReactFailed] = useState(false);
+  const [editing, setEditing] = useState<{ readonly id: MessageId; readonly text: string } | null>(null);
+  const [deleting, setDeleting] = useState<MessageId | null>(null);
+  const [changeFailed, setChangeFailed] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const seen = useRef<{ readonly count: number } | null>(null);
   const timeline = state.status === "loading" || state.status === "failed" ? null : state.value.view.timeline;
@@ -133,6 +136,17 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
     const t = setTimeout(() => { setMarked(null); }, 2400);
     return () => { clearTimeout(t); setMarked(null); };
   }, [focusMessageId, hasFocus]);
+
+  /** Edit or delete one of our own messages. A refusal is said once; the message stays as it was. */
+  const change = (actionId: "edit-message" | "delete-message", messageId: MessageId, text: string | null, failed: string): void => {
+    const r = resolveIntent(services, actionId, { conversationId, messageId, ...(text === null ? {} : { text }) });
+    if (r.status !== "intent") { setChangeFailed(failed); return; }
+    setChangeFailed(null);
+    const fail = (): void => { setChangeFailed(failed); };
+    services.client.dispatch(r.intent).then((h) => firstOutcome(services, h.operationId)).then((o) => {
+      if (o.kind === "Rejected") fail(); else { setEditing(null); setDeleting(null); }
+    }, fail);
+  };
 
   /** Set or remove our reaction on a message. A refusal is said once, plainly; the chip simply does not change. */
   const react = (messageId: MessageId, reaction: string, present: boolean): void => {
@@ -191,6 +205,7 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
           <SecurityNotices notices={view.summary.notices} copy={copy.notices} />
         </div>
       )}
+      {changeFailed === null ? null : <p className="om-conv-view__relationship" role="status">{changeFailed}</p>}
       {reactFailed ? <p className="om-conv-view__relationship" role="status">{copy.react.failed}</p> : null}
       <div role="log" aria-label={copy.view.label} className="om-conv-view__log">
         {view.timeline.length === 0 ? <p className="om-conv-view__empty">{copy.view.empty}</p> : (
@@ -210,7 +225,19 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                   <div className="om-conv-view__row">
                   <div className="om-conv-view__bubble" data-state={delivery?.kind}>
                     {item.reply === undefined ? null : <Quote reply={item.reply} name={shownName(view.summary)} copy={copy.reply} onJump={jumpTo} />}
-                    <RichText doc={(richTextFor ?? ((i) => plainTextToRichText(i.text)))(item)} copy={copy.richText} />
+                    {editing?.id === item.messageId ? (
+                      <form className="om-edit" onSubmit={(e) => { e.preventDefault(); if (editing.text.trim() !== "") change("edit-message", item.messageId, editing.text, copy.change.editFailed); }}>
+                        <textarea
+                          className="om-composer__input" aria-label={copy.change.editLabel} rows={2} value={editing.text} autoFocus
+                          onChange={(e) => { setEditing({ id: item.messageId, text: e.target.value }); }}
+                          onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setEditing(null); } }}
+                        />
+                        <span className="om-edit__actions">
+                          <Button variant="primary" type="submit" disabled={editing.text.trim() === ""}>{copy.change.save}</Button>
+                          <Button variant="quiet" onClick={() => { setEditing(null); }}>{copy.change.cancel}</Button>
+                        </span>
+                      </form>
+                    ) : <RichText doc={(richTextFor ?? ((i) => plainTextToRichText(i.text)))(item)} copy={copy.richText} />}
                     <MessageAttachments services={services} item={item} copy={copy.attachments} />
                   </div>
                   {view.summary.relationship !== "active" || (item.direction === "outgoing" && delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered") ? null : (
@@ -230,6 +257,12 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                       ) : null}
                     </span>
                   )}
+                  {outgoing && view.summary.relationship === "active" && (delivery?.kind === "sent" || delivery?.kind === "delivered") ? (
+                    <>
+                      {item.presentation?.locationCard === undefined ? <IconButton className="om-conv-view__reply" label={`${copy.change.edit}: ${messageGist(item, copy)}`} icon={<Icon name="edit" size={18} />} onClick={() => { setDeleting(null); setEditing({ id: item.messageId, text: item.text }); }} /> : null}
+                      <IconButton className="om-conv-view__reply" label={`${copy.change.delete}: ${messageGist(item, copy)}`} icon={<Icon name="trash" size={18} />} onClick={() => { setEditing(null); setDeleting(item.messageId); }} />
+                    </>
+                  ) : null}
                   {onReply === undefined || view.summary.relationship !== "active" || (item.direction === "outgoing" && delivery !== null && delivery.kind !== "sent" && delivery.kind !== "delivered") ? null : (
                     <IconButton
                       className="om-conv-view__reply" label={`${copy.reply.action}: ${messageGist(item, copy)}`} icon={<Icon name="reply" size={18} />}
@@ -238,6 +271,15 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                     />
                   )}
                   </div>
+                  {deleting === item.messageId ? (
+                    <div className="om-conv-view__confirm" role="group" aria-label={copy.change.deleteTitle}>
+                      <p>{copy.change.deleteBody}</p>
+                      <span className="om-edit__actions">
+                        <Button variant="danger" onClick={() => { change("delete-message", item.messageId, null, copy.change.deleteFailed); }}>{copy.change.deleteConfirm}</Button>
+                        <Button variant="quiet" onClick={() => { setDeleting(null); }}>{copy.change.cancel}</Button>
+                      </span>
+                    </div>
+                  ) : null}
                   {item.reactions === undefined || item.reactions.length === 0 ? null : (
                     <ul className="om-react__chips" aria-label={copy.react.list}>
                       {item.reactions.map((r: ReactionView) => (
@@ -252,6 +294,7 @@ export function ConversationView({ services, conversationId, copy, recoveryCopy,
                   {lastOfRun || unsettled ? (
                     <span className="om-conv-view__foot">
                       <time dateTime={new Date(item.sentAt).toISOString()}>{copy.view.formatTime(item.sentAt)}</time>
+                      {item.edited === true ? <span className="om-conv-view__edited">{copy.change.edited}</span> : null}
                       {delivery ? <DeliveryIndicator delivery={delivery} copy={copy.delivery} /> : null}
                       {delivery?.kind === "rejected" && view.summary.relationship !== "restored" && RETRYABLE_REASONS.has(delivery.reason)
                         ? <Button variant="quiet" disabled={retrying.current.has(item.messageId)} onClick={() => { retry(item.messageId); }}>{copy.view.retry}</Button>

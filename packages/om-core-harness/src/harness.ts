@@ -120,6 +120,7 @@ interface MutableMessage {
   presentation?: PresentationView;
   replyTo?: MessageId;
   /** Reaction keys set by us and by the other person; a person has each key once. */
+  edited?: boolean;
   mine?: Set<string>;
   theirs?: Set<string>;
 }
@@ -225,7 +226,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
     const reply = replyView(m, all);
     const keys = [...new Set([...(m.mine ?? []), ...(m.theirs ?? [])])];
     const reactions = keys.map((key) => ({ key, count: (m.mine?.has(key) === true ? 1 : 0) + (m.theirs?.has(key) === true ? 1 : 0), mine: m.mine?.has(key) === true }));
-    const extras = { ...(reactions.length > 0 ? { reactions } : {}), ...(m.attachments ? { attachments: m.attachments } : {}), ...(m.presentation ? { presentation: m.presentation } : {}), ...(reply ? { reply } : {}) };
+    const extras = { ...(m.edited === true ? { edited: true } : {}), ...(reactions.length > 0 ? { reactions } : {}), ...(m.attachments ? { attachments: m.attachments } : {}), ...(m.presentation ? { presentation: m.presentation } : {}), ...(reply ? { reply } : {}) };
     return m.direction === "outgoing" && m.operationId !== null
       ? { direction: "outgoing", messageId: m.messageId, operationId: m.operationId, text: m.text, sentAt: m.sentAt, delivery: m.delivery, ...extras }
       : { direction: "incoming", messageId: m.messageId, text: m.text, sentAt: m.sentAt, ...extras };
@@ -424,6 +425,22 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         });
         messageOwner.set(messageId, intent.ctx.profileId);
         return record(intent, held ? { kind: "PendingNetwork" } : armed ? { kind: "PendingReconciliation" } : { kind: "Committed" }, messageId);
+      }
+      case "EditMessage":
+      case "DeleteMessage": {
+        const conv = conversationFor(intent.ctx, st, intent.conversationId);
+        if (!conv) return rejected("not_found");
+        // Only our own, settled messages (Core: an outgoing message the delivery service has accepted).
+        const target = conv.messages.find((m) => m.messageId === intent.messageId && m.direction === "outgoing" && m.delivery.state === "sent");
+        if (target === undefined) return rejected("not_found");
+        if (intent.kind === "DeleteMessage") {
+          conv.messages = conv.messages.filter((m) => m !== target);
+        } else {
+          if (intent.text.trim() === "" || intent.text.length > 8000) return rejected("invalid");
+          target.text = intent.text;
+          target.edited = true;
+        }
+        return record(intent, { kind: "Committed" });
       }
       case "SetReaction": {
         const conv = conversationFor(intent.ctx, st, intent.conversationId);

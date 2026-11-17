@@ -224,6 +224,18 @@ pub enum IntentBody {
     },
     /// Add or remove one of our reactions on a message of the conversation (`reaction.set`). The state is per person,
     /// message and reaction key, so repeating it is harmless and the latest wins on every device.
+    /// Replace the text of one of our own messages (`message.edit`, RichText only: a photo or file is never replaced).
+    EditMessage {
+        conversation_id: ConversationId,
+        message_id: MessageId,
+        text: String,
+    },
+    /// Delete one of our own messages for everyone in the conversation (`message.delete`, a shared tombstone). It does
+    /// not promise that a copy the other person already has is gone.
+    DeleteMessage {
+        conversation_id: ConversationId,
+        message_id: MessageId,
+    },
     SetReaction {
         conversation_id: ConversationId,
         message_id: MessageId,
@@ -414,6 +426,8 @@ impl IntentBody {
             IntentBody::SendMessage { .. } => "SendMessage",
             IntentBody::RetryDelivery { .. } => "RetryDelivery",
             IntentBody::SetReaction { .. } => "SetReaction",
+            IntentBody::EditMessage { .. } => "EditMessage",
+            IntentBody::DeleteMessage { .. } => "DeleteMessage",
             IntentBody::SendAttachments { .. } => "SendAttachments",
             IntentBody::SendAttachmentsDirect { .. } => "SendAttachmentsDirect",
             IntentBody::WithdrawDirectOffer { .. } => "WithdrawDirectOffer",
@@ -739,6 +753,8 @@ pub enum TimelineItem {
         reply: Option<ReplyView>,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         reactions: Vec<ReactionView>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        edited: bool,
     },
     Incoming {
         message_id: MessageId,
@@ -752,6 +768,8 @@ pub enum TimelineItem {
         reply: Option<ReplyView>,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         reactions: Vec<ReactionView>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        edited: bool,
     },
 }
 

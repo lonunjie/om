@@ -13,6 +13,11 @@ export const testCopy: ConversationCopy = {
     action: "Reply", replyingTo: (n) => `Replying to ${n}`, replyingToSelf: "Replying to yourself", cancel: "Cancel reply",
     inReplyTo: (n) => `In reply to ${n}`, inReplyToSelf: "In reply to you", unavailable: "Original message unavailable", attachment: "Attachment", jump: "Go to the original message",
   },
+  change: {
+    edit: "Edit", editLabel: "Edit message", save: "Save", cancel: "Cancel", edited: "Edited", editFailed: "The edit could not be sent.",
+    delete: "Delete", deleteTitle: "Delete for everyone?", deleteBody: "This removes the message for everyone in this chat. Someone who already read it may still have a copy.",
+    deleteConfirm: "Delete for everyone", deleteFailed: "The message could not be deleted.",
+  },
   react: {
     action: "React", picker: "Choose a reaction", list: "Reactions", set: (k) => `React with ${k}`,
     chip: (k, n, mine) => (mine ? `${k} ${String(n)}, including you. Remove your reaction` : `${k} ${String(n)}. Add yours`), failed: "The reaction could not be sent.",

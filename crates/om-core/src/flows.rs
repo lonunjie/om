@@ -832,6 +832,15 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     draft.reply_to.as_deref(),
                 );
             }
+            IntentBody::EditMessage {
+                conversation_id,
+                message_id,
+                text,
+            } => return self.edit_message(op, conversation_id, message_id, text),
+            IntentBody::DeleteMessage {
+                conversation_id,
+                message_id,
+            } => return self.delete_message(op, conversation_id, message_id),
             IntentBody::SetReaction {
                 conversation_id,
                 message_id,
@@ -3977,14 +3986,6 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
         if r.blocked {
             return true;
         }
-        let target = |body: &V| -> Option<String> {
-            body.get(0)
-                .ok()?
-                .b()
-                .ok()
-                .filter(|b| b.len() == 16)
-                .map(|b| format!("msg-{}", hex(b)))
-        };
         match ev.kind {
             events::K_CREATE => {
                 let Some(parts) = blobs::read_create(&ev) else {
@@ -4025,37 +4026,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 });
                 true
             }
+            // Only the author may edit or delete, so the target must be one of the peer's own messages; one that is not here
+            // is accepted with no effect (held-and-never-displayed is unbuilt).
             events::K_EDIT | events::K_DELETE => {
-                let Some(id) = target(&ev.body) else {
-                    return false;
-                };
-                // Only the author may edit or delete, so the target must be one of the peer's own messages.
-                let Some(m) = r.messages.iter_mut().find(|m| m.id == id && !m.outgoing) else {
-                    return true; // dangling or not the author's: held-and-never-displayed is unbuilt, so no effect
-                };
-                if m.deleted {
-                    return true;
-                }
-                let newer =
-                    (ev.clock.physical_ms, ev.clock.logical) > (m.clock_ms, m.clock_logical);
-                if ev.kind == events::K_DELETE {
-                    m.deleted = true;
-                    m.text.clear();
-                } else if newer {
-                    let Some(text) = ev
-                        .body
-                        .get(1)
-                        .ok()
-                        .and_then(events::plain_text)
-                        .filter(|t| t.chars().count() <= MAX_MESSAGE_CHARS)
-                    else {
-                        return false;
-                    };
-                    m.text = text;
-                    m.clock_ms = ev.clock.physical_ms;
-                    m.clock_logical = ev.clock.logical;
-                }
-                true
+                social::apply_edit_delete(&mut r.messages, false, &ev)
             }
             // A reaction of the other person on a message of this conversation; one aimed at a message that is not here is
             // accepted and has no effect (held-and-never-displayed is unbuilt, as for edits).

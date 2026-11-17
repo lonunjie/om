@@ -2317,6 +2317,7 @@ fn reply_view(m: &Msg, all: &[Msg]) -> Option<ReplyView> {
 fn timeline_item(m: &Msg, all: &[Msg], offers: &BTreeMap<Hex, DirectOfferRec>) -> TimelineItem {
     let reply = reply_view(m, all);
     let reactions = crate::flows::reaction_views(m);
+    let edited = m.social.edited;
     match (&m.operation_id, m.outgoing) {
         (Some(op), true) => TimelineItem::Outgoing {
             message_id: m.id.clone(),
@@ -2328,6 +2329,7 @@ fn timeline_item(m: &Msg, all: &[Msg], offers: &BTreeMap<Hex, DirectOfferRec>) -
             presentation: crate::flows::presentation(m),
             reply,
             reactions,
+            edited,
         },
         // A message our own other device sent (self-sync): ours, with no operation on this device behind it.
         (None, true) => TimelineItem::Outgoing {
@@ -2340,6 +2342,7 @@ fn timeline_item(m: &Msg, all: &[Msg], offers: &BTreeMap<Hex, DirectOfferRec>) -
             presentation: crate::flows::presentation(m),
             reply,
             reactions,
+            edited,
         },
         _ => TimelineItem::Incoming {
             message_id: m.id.clone(),
@@ -2349,6 +2352,7 @@ fn timeline_item(m: &Msg, all: &[Msg], offers: &BTreeMap<Hex, DirectOfferRec>) -
             presentation: crate::flows::presentation(m),
             reply,
             reactions,
+            edited,
         },
     }
 }
@@ -2387,6 +2391,7 @@ fn restored_item(m: &RestoredMsg) -> TimelineItem {
             presentation: None,
             reply: None,
             reactions: vec![],
+            edited: false,
         }
     } else {
         TimelineItem::Incoming {
@@ -2397,6 +2402,7 @@ fn restored_item(m: &RestoredMsg) -> TimelineItem {
             presentation: None,
             reply: None,
             reactions: vec![],
+            edited: false,
         }
     }
 }

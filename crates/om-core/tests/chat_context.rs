@@ -548,3 +548,194 @@ fn a_reaction_event_is_canonical_w0() {
         .check("ConversationEvent", &ev, false)
         .expect("a reaction is a valid W0 ConversationEvent");
 }
+
+// ---------------------------------------------------------------------------------------------- edit and delete
+
+fn edit(p: &mut Pair, from_alice: bool, op: &str, msg: &str, text: &str) {
+    let (conv, rt, ctx) = if from_alice {
+        (p.a_conv.clone(), &mut p.alice, p.a.clone())
+    } else {
+        (p.b_conv.clone(), &mut p.bob, p.b.clone())
+    };
+    rt.dispatch(
+        &ctx,
+        op,
+        IntentBody::EditMessage {
+            conversation_id: conv,
+            message_id: msg.into(),
+            text: text.into(),
+        },
+    );
+    settle(p);
+}
+
+fn delete(p: &mut Pair, from_alice: bool, op: &str, msg: &str) {
+    let (conv, rt, ctx) = if from_alice {
+        (p.a_conv.clone(), &mut p.alice, p.a.clone())
+    } else {
+        (p.b_conv.clone(), &mut p.bob, p.b.clone())
+    };
+    rt.dispatch(
+        &ctx,
+        op,
+        IntentBody::DeleteMessage {
+            conversation_id: conv,
+            message_id: msg.into(),
+        },
+    );
+    settle(p);
+}
+
+fn edited_of(items: &[TimelineItem], text: &str) -> Option<bool> {
+    items.iter().find_map(|i| match i {
+        TimelineItem::Outgoing {
+            text: t, edited, ..
+        }
+        | TimelineItem::Incoming {
+            text: t, edited, ..
+        } if t == text => Some(*edited),
+        _ => None,
+    })
+}
+
+fn rejected(rt: &Runtime, ctx: &ProfileExecutionContext, op: &str, reason: RejectReason) {
+    assert_eq!(
+        rt.outcome(ctx, op),
+        Some(OutcomeClass::Rejected { reason }),
+        "{op}"
+    );
+}
+
+#[test]
+fn an_edit_replaces_the_text_for_both_people_and_is_marked_edited() {
+    let mut p = active_pair();
+    send(&mut p, true, "m1", "meet at sevn", None);
+    let mine = id_of(&timeline(&p.alice, &p.a, &p.a_conv), "meet at sevn");
+    edit(&mut p, true, "e1", &mine, "meet at seven");
+    assert_eq!(p.alice.outcome(&p.a, "e1"), Some(OutcomeClass::Committed));
+    let alice = timeline(&p.alice, &p.a, &p.a_conv);
+    let bob = timeline(&p.bob, &p.b, &p.b_conv);
+    assert_eq!(alice.len(), 1);
+    assert_eq!(edited_of(&alice, "meet at seven"), Some(true));
+    assert_eq!(edited_of(&bob, "meet at seven"), Some(true));
+    assert!(edited_of(&bob, "meet at sevn").is_none());
+    // A second edit wins over the first, and the message keeps its place.
+    edit(&mut p, true, "e2", &mine, "meet at eight");
+    assert_eq!(
+        edited_of(&timeline(&p.bob, &p.b, &p.b_conv), "meet at eight"),
+        Some(true)
+    );
+    // A message never edited carries no marker.
+    send(&mut p, true, "m2", "plain", None);
+    assert_eq!(
+        edited_of(&timeline(&p.bob, &p.b, &p.b_conv), "plain"),
+        Some(false)
+    );
+}
+
+#[test]
+fn only_the_author_can_edit_or_delete_and_a_bad_edit_is_refused() {
+    let mut p = active_pair();
+    send(&mut p, true, "m1", "alice says", None);
+    let theirs = id_of(&timeline(&p.bob, &p.b, &p.b_conv), "alice says");
+    edit(&mut p, false, "e1", &theirs, "bob rewrites");
+    rejected(&p.bob, &p.b, "e1", RejectReason::NotFound);
+    delete(&mut p, false, "d1", &theirs);
+    rejected(&p.bob, &p.b, "d1", RejectReason::NotFound);
+    let mine = id_of(&timeline(&p.alice, &p.a, &p.a_conv), "alice says");
+    edit(&mut p, true, "e2", &mine, "   ");
+    rejected(&p.alice, &p.a, "e2", RejectReason::Invalid);
+    edit(&mut p, true, "e3", &mine, &"x".repeat(8001));
+    rejected(&p.alice, &p.a, "e3", RejectReason::Invalid);
+    let bogus = format!("msg-{}", "ab".repeat(16));
+    edit(&mut p, true, "e4", &bogus, "x");
+    rejected(&p.alice, &p.a, "e4", RejectReason::NotFound);
+    assert!(edited_of(&timeline(&p.bob, &p.b, &p.b_conv), "alice says").is_some());
+}
+
+#[test]
+fn delete_for_everyone_removes_the_message_for_both_and_a_reply_to_it_shows_unavailable() {
+    let mut p = active_pair();
+    send(&mut p, true, "m1", "oops wrong chat", None);
+    let on_bob = id_of(&timeline(&p.bob, &p.b, &p.b_conv), "oops wrong chat");
+    send(&mut p, false, "m2", "what?", Some(&on_bob));
+    react(&mut p, false, "r1", &on_bob, "\u{1F44D}", true);
+    let mine = id_of(&timeline(&p.alice, &p.a, &p.a_conv), "oops wrong chat");
+    delete(&mut p, true, "d1", &mine);
+    assert_eq!(p.alice.outcome(&p.a, "d1"), Some(OutcomeClass::Committed));
+    let alice = timeline(&p.alice, &p.a, &p.a_conv);
+    let bob = timeline(&p.bob, &p.b, &p.b_conv);
+    for t in [&alice, &bob] {
+        assert_eq!(t.len(), 1, "only the reply is left");
+        let r = reply_of(t, "what?").expect("the reply keeps its quote block");
+        assert!(!r.available && r.preview.is_empty());
+    }
+    // The text is gone from the stored record, not just hidden.
+    let st = common::app_state(&p.bob, &p.b);
+    assert!(!st.to_string().contains("oops wrong chat"));
+    // A deleted message cannot be edited, reacted to or replied to.
+    edit(&mut p, true, "e1", &mine, "back again");
+    rejected(&p.alice, &p.a, "e1", RejectReason::NotFound);
+    send(&mut p, false, "m3", "x", Some(&on_bob));
+    rejected(&p.bob, &p.b, "m3", RejectReason::NotFound);
+}
+
+fn edit_event(au: &Author, id: u8, ms: u64, target: [u8; 16], text: &str) -> Vec<u8> {
+    Header {
+        event_id: [id; 16],
+        conversation_id: au.canon,
+        author_account: au.acct,
+        author_device: au.dev,
+        clock: Hlc {
+            physical_ms: ms,
+            logical: 0,
+        },
+        kind: events::K_EDIT,
+        body: V::M(vec![
+            (0, V::B(target.to_vec())),
+            (1, events::rich_text(text)),
+        ]),
+    }
+    .encode()
+}
+
+#[test]
+fn reordered_edits_converge_on_the_latest_and_a_stale_edit_changes_nothing() {
+    let mut p = active_pair();
+    let au = alice_as_author(&p);
+    let create = Header {
+        event_id: [8; 16],
+        conversation_id: au.canon,
+        author_account: au.acct,
+        author_device: au.dev,
+        clock: Hlc {
+            physical_ms: 1_790_000_000_000,
+            logical: 0,
+        },
+        kind: events::K_CREATE,
+        body: events::message_create_body_with(Some("v1"), vec![]),
+    }
+    .encode();
+    alice_sends(&mut p, &create);
+    // v3 arrives before v2: v3 stands, the older v2 cannot overwrite it.
+    alice_sends(
+        &mut p,
+        &edit_event(&au, 41, 1_790_000_000_300, [8; 16], "v3"),
+    );
+    alice_sends(
+        &mut p,
+        &edit_event(&au, 42, 1_790_000_000_200, [8; 16], "v2"),
+    );
+    let bob = timeline(&p.bob, &p.b, &p.b_conv);
+    assert_eq!(edited_of(&bob, "v3"), Some(true));
+    assert_eq!(bob.len(), 1);
+    // An edit that would leave nothing to show is ignored.
+    alice_sends(
+        &mut p,
+        &edit_event(&au, 43, 1_790_000_000_400, [8; 16], " "),
+    );
+    assert_eq!(
+        edited_of(&timeline(&p.bob, &p.b, &p.b_conv), "v3"),
+        Some(true)
+    );
+}

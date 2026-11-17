@@ -79,6 +79,10 @@
 .om-react__chips { display: flex; flex-wrap: wrap; gap: var(--om-space-1); margin: 0; padding: 0; list-style: none; }
 .om-react__chip { min-block-size: var(--om-target-min); padding: 0 var(--om-space-3); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-lg); background: var(--om-color-bg-surface); }
 .om-react__chip[data-mine="true"] { border-color: var(--om-color-accent); background: var(--om-color-accent-soft); }
+.om-edit { display: grid; gap: var(--om-space-2); min-inline-size: min(70vw, 20rem); }
+.om-edit__actions { display: flex; flex-wrap: wrap; gap: var(--om-space-2); }
+.om-conv-view__confirm { display: grid; gap: var(--om-space-2); box-sizing: border-box; max-inline-size: min(85%, 28rem); padding: var(--om-space-3); border: 1px solid var(--om-color-border); border-radius: var(--om-radius-md); background: var(--om-color-bg-surface); }
+.om-conv-view__confirm > p { margin: 0; }
 .om-quote { display: grid; gap: 2px; inline-size: 100%; box-sizing: border-box; margin: 0 0 var(--om-space-2); padding: var(--om-space-1) var(--om-space-2); border: 0; border-inline-start: 3px solid var(--om-color-accent); border-radius: var(--om-radius-sm); background: var(--om-color-bg-sunken); color: var(--om-color-text-primary); font: inherit; text-align: start; }
 button.om-quote { cursor: pointer; min-block-size: var(--om-target-min); }
 button.om-quote:focus-visible { outline: 3px solid var(--om-color-focus-ring); outline-offset: 2px; }

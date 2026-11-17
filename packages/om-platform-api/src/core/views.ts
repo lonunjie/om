@@ -149,7 +149,7 @@ export interface ReplyView {
 }
 /** One reaction on a message: how many people have it set (at most two in a one-to-one chat) and whether one of them is you. */
 export interface ReactionView { readonly key: string; readonly count: number; readonly mine: boolean }
-interface TimelineExtras { readonly attachments?: readonly AttachmentView[]; readonly presentation?: PresentationView; readonly reply?: ReplyView; readonly reactions?: readonly ReactionView[] }
+interface TimelineExtras { readonly attachments?: readonly AttachmentView[]; readonly presentation?: PresentationView; readonly reply?: ReplyView; readonly reactions?: readonly ReactionView[]; /** An accepted edit replaced the text. */ readonly edited?: boolean }
 
 export type ConversationTimelineItem =
   | ({ readonly direction: "outgoing"; readonly messageId: MessageId; readonly operationId: OperationId; readonly text: string; readonly sentAt: number; readonly delivery: DeliveryState } & TimelineExtras)

@@ -155,3 +155,54 @@ describe("reactions", () => {
     expect(screen.queryByRole("group", { name: "Choose a reaction" })).toBeNull();
   });
 });
+
+describe("edit and delete", () => {
+  const sendOne = async (text: string) => {
+    const { h, services } = setup();
+    const view = render(<Screen services={services} />);
+    await userEvent.type(await screen.findByRole("textbox", { name: "Message" }), text);
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    await screen.findByRole("button", { name: `Edit: ${text}` });
+    return { h, services, ...view };
+  };
+
+  it("edit replaces the text in place and marks it Edited; Escape leaves it unchanged", async () => {
+    const { container } = await sendOne("meet at sevn");
+    await userEvent.click(screen.getByRole("button", { name: "Edit: meet at sevn" }));
+    const box = screen.getByRole("textbox", { name: "Edit message" });
+    expect((box as HTMLTextAreaElement).value).toBe("meet at sevn");
+    expect(await axeViolations(container)).toEqual([]);
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("textbox", { name: "Edit message" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Edit: meet at sevn" }));
+    await userEvent.clear(screen.getByRole("textbox", { name: "Edit message" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Edit message" }), "meet at seven");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("meet at seven")).toBeTruthy();
+    expect(await screen.findByText("Edited")).toBeTruthy();
+    expect(screen.queryByText("meet at sevn")).toBeNull();
+  });
+
+  it("delete says who it affects before anything is sent, and Cancel sends nothing", async () => {
+    const { h, services, container } = await sendOne("oops");
+    await userEvent.click(screen.getByRole("button", { name: "Delete: oops" }));
+    const group = screen.getByRole("group", { name: "Delete for everyone?" });
+    expect(group.textContent).toContain("everyone in this chat");
+    expect(group.textContent).toContain("may still have a copy");
+    expect(await axeViolations(container)).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("group", { name: "Delete for everyone?" })).toBeNull();
+    expect((await h.pendingOperations(services.ctx)).some((o) => o.intentKind === "DeleteMessage")).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Delete: oops" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete for everyone" }));
+    await waitFor(() => { expect(screen.queryByText("oops")).toBeNull(); });
+  });
+
+  it("the other person's messages offer no Edit or Delete", async () => {
+    const { services } = setup();
+    render(<Screen services={services} />);
+    await screen.findByRole("button", { name: "Reply: Dinner at seven?" });
+    expect(screen.queryByRole("button", { name: /^Edit:/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Delete:/ })).toBeNull();
+  });
+});

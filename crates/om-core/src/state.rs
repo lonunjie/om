@@ -254,6 +254,9 @@ pub struct Social {
     /// tombstone so a late older add cannot revive it (EVENT_MODEL `reaction.set`; 1:1 has one epoch, so clock order alone).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reactions: Vec<ReactionRec>,
+    /// An accepted `message.edit` replaced the text (EVENT_MODEL: the "edited" marker).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub edited: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

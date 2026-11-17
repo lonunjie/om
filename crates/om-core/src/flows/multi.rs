@@ -1161,6 +1161,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             super::social::apply_reaction(&mut r.messages, &target, true, &key, present, ev.clock);
             return true;
         }
+        if ev.kind == events::K_EDIT || ev.kind == events::K_DELETE {
+            // Our own other device edited or deleted one of our messages.
+            return super::social::apply_edit_delete(&mut r.messages, true, ev);
+        }
         if ev.kind != events::K_CREATE {
             return true;
         }

@@ -220,6 +220,17 @@ const SPECS: Readonly<Record<string, Spec>> = {
     if (!exactly(p, ["conversationId", "messageId", "reaction", "present"]) || !c || !m || typeof k !== "string" || k.trim() === "" || new TextEncoder().encode(k).length > 64 || /\p{Cc}/u.test(k) || typeof present !== "boolean") return null;
     return { intent: (ctx, op) => ({ kind: "SetReaction", ctx, operationId: op, conversationId: asConversationId(c), messageId: asMessageId(m), reaction: k, present }) };
   } },
+  // Edit and delete name one of our own messages. The scope of a delete is said on the screen before it is sent (everyone in the chat).
+  "edit-message": { destructive: false, parse: (p) => {
+    const c = id(p["conversationId"]); const m = id(p["messageId"]); const t = p["text"];
+    if (!exactly(p, ["conversationId", "messageId", "text"]) || !c || !m || typeof t !== "string" || t.trim() === "" || t.length > MAX_TEXT) return null;
+    return { intent: (ctx, op) => ({ kind: "EditMessage", ctx, operationId: op, conversationId: asConversationId(c), messageId: asMessageId(m), text: t }) };
+  } },
+  "delete-message": { destructive: false, parse: (p) => {
+    const c = id(p["conversationId"]); const m = id(p["messageId"]);
+    if (!exactly(p, ["conversationId", "messageId"]) || !c || !m) return null;
+    return { intent: (ctx, op) => ({ kind: "DeleteMessage", ctx, operationId: op, conversationId: asConversationId(c), messageId: asMessageId(m) }) };
+  } },
   "retry-message": { destructive: false, parse: (p) => {
     const m = id(p["messageId"]);
     if (m === null) return null;

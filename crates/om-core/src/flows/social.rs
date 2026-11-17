@@ -58,6 +58,62 @@ pub(super) fn apply_reaction(
     true
 }
 
+/// Apply a received `message.edit` or `message.delete` to the message it names. `authored_by_us`: the author is one of our
+/// own devices (so the target is a message we sent). The edit register takes the event only if ordered after what is held;
+/// a delete is final. A target that is not here, or not the author's, is accepted with no effect; a malformed edit is
+/// refused.
+pub(super) fn apply_edit_delete(
+    msgs: &mut [Msg],
+    authored_by_us: bool,
+    ev: &events::Event,
+) -> bool {
+    let Some(id) = ev
+        .body
+        .get(0)
+        .ok()
+        .and_then(|b| b.b().ok())
+        .filter(|b| b.len() == 16)
+        .map(|b| format!("msg-{}", hex(b)))
+    else {
+        return false;
+    };
+    let Some(m) = msgs
+        .iter_mut()
+        .find(|m| m.id == id && m.outgoing == authored_by_us && !m.lane)
+    else {
+        return true;
+    };
+    if m.deleted {
+        return true;
+    }
+    if ev.kind == events::K_DELETE {
+        m.deleted = true;
+        m.text.clear();
+        m.social.reactions.clear();
+        return true;
+    }
+    if (ev.clock.physical_ms, ev.clock.logical) <= (m.clock_ms, m.clock_logical) {
+        return true;
+    }
+    let Some(text) = ev
+        .body
+        .get(1)
+        .ok()
+        .and_then(events::plain_text)
+        .filter(|t| t.chars().count() <= MAX_MESSAGE_CHARS)
+    else {
+        return false;
+    };
+    if text.trim().is_empty() && m.attachments.is_empty() {
+        return true; // nothing left to show: no effect (the author deletes instead)
+    }
+    m.text = text;
+    m.clock_ms = ev.clock.physical_ms;
+    m.clock_logical = ev.clock.logical;
+    m.social.edited = true;
+    true
+}
+
 /// The reactions of a message as a person sees them: each key once, how many have it set, and whether one is ours.
 pub(crate) fn reaction_views(m: &Msg) -> Vec<ReactionView> {
     let mut out: Vec<ReactionView> = vec![];
@@ -197,6 +253,104 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return None;
         }
         h16(m.id.strip_prefix("msg-")?).ok()
+    }
+
+    /// One of our own messages that an edit or delete may name (see [`Self::event_target`]).
+    fn own_target(&self, conv: &str, message_id: &str) -> Option<[u8; 16]> {
+        let rel = self.st.app.relationships.get(conv)?;
+        rel.messages
+            .iter()
+            .any(|m| m.id == message_id && m.outgoing && !m.lane)
+            .then(|| self.event_target(conv, message_id))?
+    }
+
+    pub(super) fn edit_message(
+        &mut self,
+        op: &OperationId,
+        conv: &str,
+        message_id: &str,
+        text: &str,
+    ) -> Result<(), CoreError> {
+        let kind = "EditMessage";
+        let reject = |s: &mut Self, reason| {
+            s.record(op, kind, OutcomeClass::Rejected { reason }, None);
+            Ok(())
+        };
+        if text.chars().count() > MAX_MESSAGE_CHARS {
+            return reject(self, RejectReason::Invalid);
+        }
+        let Some(target) = self.own_target(conv, message_id) else {
+            return reject(self, RejectReason::NotFound);
+        };
+        let has_attachments = self
+            .st
+            .app
+            .relationships
+            .get(conv)
+            .and_then(|r| r.messages.iter().find(|m| m.id == message_id))
+            .is_some_and(|m| !m.attachments.is_empty());
+        if text.trim().is_empty() && !has_attachments {
+            return reject(self, RejectReason::Invalid);
+        }
+        let body = V::M(vec![
+            (0, V::B(target.to_vec())),
+            (1, events::rich_text(text)),
+        ]);
+        let Some((_, clock)) = self.queue_event(op, kind, conv, events::K_EDIT, body)? else {
+            return Ok(());
+        };
+        if let Some(m) = self
+            .st
+            .app
+            .relationships
+            .get_mut(conv)
+            .and_then(|r| r.messages.iter_mut().find(|m| m.id == message_id))
+        {
+            m.text = text.to_string();
+            m.clock_ms = clock.physical_ms;
+            m.clock_logical = clock.logical;
+            m.social.edited = true;
+        }
+        Ok(())
+    }
+
+    pub(super) fn delete_message(
+        &mut self,
+        op: &OperationId,
+        conv: &str,
+        message_id: &str,
+    ) -> Result<(), CoreError> {
+        let kind = "DeleteMessage";
+        let Some(target) = self.own_target(conv, message_id) else {
+            self.record(
+                op,
+                kind,
+                OutcomeClass::Rejected {
+                    reason: RejectReason::NotFound,
+                },
+                None,
+            );
+            return Ok(());
+        };
+        let body = V::M(vec![(0, V::B(target.to_vec()))]);
+        if self
+            .queue_event(op, kind, conv, events::K_DELETE, body)?
+            .is_none()
+        {
+            return Ok(());
+        }
+        if let Some(m) = self
+            .st
+            .app
+            .relationships
+            .get_mut(conv)
+            .and_then(|r| r.messages.iter_mut().find(|m| m.id == message_id))
+        {
+            m.deleted = true;
+            m.text.clear();
+            m.social.reactions.clear();
+        }
+        Ok(())
     }
 
     pub(super) fn set_reaction(
