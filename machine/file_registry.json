@@ -3560,6 +3560,13 @@
       "authority": "decision_record"
     },
     {
+      "path": "decisions/ADR-0195-device-link-approval-continuation-form.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
       "path": "decisions/INDEX.md",
       "class": "index",
       "domain": "architecture_decisions",

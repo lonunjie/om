@@ -2826,6 +2826,12 @@
       "verified_by": [
         "review:ADR-0190-contact-side-recovery-verification.md"
       ]
+    },
+    {
+      "requirement": "R-435",
+      "verified_by": [
+        "review:ADR-0195-device-link-approval-continuation-form.md"
+      ]
     }
   ]
 }
