@@ -85,7 +85,7 @@ export function GroupChat({ services, copy, groupId, chats, footer, onBack, onLe
           <Icon name="users" size={20} />{c.people(detail.summary.members)}
         </Button>
       </header>
-      {names.sharedNames.map((g) => <Text key={g.name} as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{copy.sameName.here(g.name, g.count)}</bdi></Text>)}
+      {names.sharedNames.map((g) => <Text key={g.name} as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{(g.kind === "alike" ? copy.sameName.alike : copy.sameName.here)(g.name, g.count)}</bdi></Text>)}
       <div role="log" aria-label={c.label} className="om-conv-view__log">
         {entries.length === 0 ? <p className="om-conv-view__empty">{c.empty}</p> : (
           <ol className="om-conv-view__timeline">

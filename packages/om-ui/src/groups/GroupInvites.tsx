@@ -48,7 +48,7 @@ export function GroupInvites({ services, copy, invites, chats, onAnswered }: Gro
         <div key={i.id} className="om-card om-group-invite">
           {same.of(i.relationshipId) === null ? null : <PatternAvatar seed={i.peerAccount} />}
           <Text as="p"><bdi>{c.from(shownName(i.relationshipId), i.groupName)}</bdi></Text>
-          {same.of(i.relationshipId) === null ? null : <Text as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{copy.sameName.contacts(same.of(i.relationshipId)?.name ?? "", same.of(i.relationshipId)?.of ?? 0)}</bdi></Text>}
+          {same.of(i.relationshipId) === null ? null : <Text as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{(same.of(i.relationshipId)?.kind === "alike" ? copy.sameName.alike : copy.sameName.contacts)(same.of(i.relationshipId)?.name ?? "", same.of(i.relationshipId)?.of ?? 0)}</bdi></Text>}
           <Text as="p" size="sm" tone="secondary">{c.hint}</Text>
           <div className="om-request__actions">
             <Button variant="primary" disabled={busy !== null} onClick={() => { void answer(i, true); }}>{busy === i.id ? c.joining : c.join}</Button>

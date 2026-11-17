@@ -55,6 +55,10 @@ export function mountDev(root: HTMLElement): void {
       ...(new URLSearchParams(globalThis.location.search).has("dupnames")
         ? [{ id: asConversationId("c-ana2"), personId: asPersonId("p-ana2"), displayName: "ana reyes", messages: [{ text: "Hello from the other Ana.", direction: "incoming" as const }] }]
         : []),
+      // `?lookalike` adds a contact whose name differs from "Ana Reyes" only by a Cyrillic letter (written as an escape), for the e2e of ADR-0197.
+      ...(new URLSearchParams(globalThis.location.search).has("lookalike")
+        ? [{ id: asConversationId("c-ana3"), personId: asPersonId("p-ana3"), displayName: "Ana R\u0435yes", messages: [{ text: "Hello from a similar name.", direction: "incoming" as const }] }]
+        : []),
     ],
     introductions: [{ id: "req-1", from: asPersonId("p-sam"), displayName: "Sam Okafor", personId: asPersonId("p-sam") }],
     account: {

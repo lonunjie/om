@@ -98,6 +98,8 @@ export interface GroupsCopy {
     readonly here: (name: string, count: number) => string;
     /** The same for a list of your own contacts. */
     readonly contacts: (name: string, count: number) => string;
+    /** Names that are not the same but look similar (ADR-0197); a calm hint, never an accusation. */
+    readonly alike: (name: string, count: number) => string;
   };
   readonly members: {
     readonly title: (group: string) => string;

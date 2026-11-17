@@ -51,7 +51,7 @@ export function NewGroup({ services, copy, chats, onCreated }: NewGroupProps) {
       </label>
       <fieldset className="om-group-form__people">
         <legend>{c.pick}</legend>
-        {same.groups.map((g) => <Text key={g.name} as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{copy.sameName.contacts(g.name, g.count)}</bdi></Text>)}
+        {same.groups.map((g) => <Text key={g.name} as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{(g.kind === "alike" ? copy.sameName.alike : copy.sameName.contacts)(g.name, g.count)}</bdi></Text>)}
         {eligible.map((x) => (
           <label key={x.id} className="om-group-form__person">
             <input type="checkbox" checked={picked.has(x.id)} onChange={() => { toggle(x.id); }} />

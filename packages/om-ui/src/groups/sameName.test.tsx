@@ -24,13 +24,13 @@ describe("same-name rule (GROUPS_AND_SPACES_UX section 10)", () => {
     expect(nameKey("  Maria ")).toBe(nameKey("MARIA"));
     expect(nameKey("Ｍaria")).toBe(nameKey("Maria")); // full-width M folds under NFKC
     expect(nameKey("Straße")).toBe(nameKey("STRASSE"));
-    expect(nameKey("Maria")).not.toBe(nameKey("Marіa")); // Cyrillic i: lookalike matching is not done here
+    expect(nameKey("Maria")).not.toBe(nameKey("Mar\u0456a")); // Cyrillic i: nameKey stays exact; lookalikes are matched by lookalikeKey (ADR-0197)
     const c = findSameNames([{ id: "b", name: "maria" }, { id: "a", name: "Maria" }, { id: "c", name: "Ana" }, { id: "d", name: "  " }, { id: "e", name: "" }]);
     expect(c.of("a")).toMatchObject({ index: 1, of: 2 });
     expect(c.of("b")).toMatchObject({ index: 2, of: 2 }); // order is by id, not by list position
     expect(c.of("c")).toBeNull();
     expect(c.of("d")).toBeNull();
-    expect(c.groups).toEqual([{ name: "Maria", count: 2 }]);
+    expect(c.groups).toEqual([{ name: "Maria", count: 2, kind: "same" }]);
   });
 
   it("one person under two ids of the same list entry is not a collision with themselves", () => {
@@ -140,5 +140,47 @@ describe("same-name cues use the shown name (ADR-0196)", () => {
     const clash = { ...chat("a", "Someone"), nickname: "Ana Reyes" } as ConversationSummary;
     rerender(<NewGroup services={services} copy={copy} chats={[chat("b", "Ana Reyes"), clash]} onCreated={() => undefined} />);
     expect(container.textContent).toContain("of 2");
+  });
+});
+
+describe("lookalike names (ADR-0197): one calm line that says they look similar, never that anyone is fake", () => {
+  const CYR_A = "\u0430";
+  it("people sheet: a Cyrillic a in one name gets the pattern, '1 of 2' and the 'look similar' line, and no dialog", async () => {
+    const d = detail([person("acct-me", null, true), person("acct-a", "Maria"), person("acct-b", `M${CYR_A}ria`), person("acct-c", "Ana")]);
+    const { container } = render(<Members d={d} />);
+    expect(screen.getByText("2 people here have names that look similar to Maria. A name does not show who someone is.")).toBeTruthy();
+    expect(screen.queryByText(/are named/)).toBeNull();
+    expect(container.textContent).toContain("(1 of 2)");
+    expect(container.textContent).toContain("(2 of 2)");
+    expect(container.querySelectorAll("svg.om-avatar--pattern")).toHaveLength(2);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(container.textContent).not.toMatch(/fake|impost|scam|warning/i);
+    expect(await axeViolations(container)).toEqual([]);
+  });
+  it("add list: a contact you could add whose name looks like a member's is marked", async () => {
+    const d = detail([person("acct-me", null, true), person("acct-a", "Maria")]);
+    const { container } = render(<Members d={d} chats={[chat("rel-1", `M${CYR_A}ria`)]} />);
+    expect(screen.getByRole("button", { name: /^Invite .* \(\d of 2\)$/ })).toBeTruthy();
+    expect(screen.getByText(/look similar to/)).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+  it("new group pick list: contacts with lookalike names are marked, ordinary distinct ones are not", async () => {
+    const { container } = render(<NewGroup services={services} copy={copy} chats={[chat("r1", "Maria"), chat("r2", `M${CYR_A}ria`), chat("r3", "Marta")]} onCreated={() => undefined} />);
+    expect(screen.getByText(/2 people here have names that look similar to Maria\./)).toBeTruthy();
+    expect(container.querySelectorAll("svg.om-avatar--pattern")).toHaveLength(2);
+    expect(screen.getByRole("checkbox", { name: "Marta" })).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+  it("invitation: from a contact whose name looks like another contact's says so before you answer", async () => {
+    const inv: GroupInviteView = { id: "i1", conversationId: asGroupId("g9"), groupName: "Family", dir: "incoming", state: "offered", relationshipId: asConversationId("r2"), peerAccount: "acct-2", createdMs: 0 };
+    const { container } = render(<GroupInvites services={services} copy={copy} invites={[inv]} chats={[chat("r1", "Maria"), chat("r2", `M${CYR_A}ria`)]} onAnswered={() => undefined} />);
+    expect(screen.getByText(/look similar to/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Join" })).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+  it("a name in another script with nothing like it says nothing", () => {
+    const { container } = render(<NewGroup services={services} copy={copy} chats={[chat("r1", "\u738B\u82B3"), chat("r2", "\u0645\u062D\u0645\u062F"), chat("r3", "\u{1F389}")]} onCreated={() => undefined} />);
+    expect(container.querySelector(".om-group-samename")).toBeNull();
+    expect(container.querySelector("svg.om-avatar--pattern")).toBeNull();
   });
 });

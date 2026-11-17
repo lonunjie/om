@@ -123,6 +123,13 @@
       "authority": "legal_reference"
     },
     {
+      "path": "LICENSES/Unicode-3.0.txt",
+      "class": "license_text",
+      "domain": "constitution_governance",
+      "license": "upstream-license-text",
+      "authority": "legal_reference"
+    },
+    {
       "path": "Makefile",
       "class": "repo_plumbing",
       "domain": "architecture_process",
@@ -257,6 +264,27 @@
     },
     {
       "path": "apps/web/build/ensure-core-wasm.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/gen-confusables.d.mts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/gen-confusables.mjs",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "apps/web/build/gen-confusables.test.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",
@@ -3589,6 +3617,13 @@
     },
     {
       "path": "decisions/ADR-0196-local-contact-nickname.md",
+      "class": "adr",
+      "domain": "architecture_decisions",
+      "license": "CC-BY-SA-4.0",
+      "authority": "decision_record"
+    },
+    {
+      "path": "decisions/ADR-0197-lookalike-name-matching.md",
       "class": "adr",
       "domain": "architecture_decisions",
       "license": "CC-BY-SA-4.0",
@@ -9643,6 +9678,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/data/confusables-extract.txt",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/package.json",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -10014,6 +10056,13 @@
       "authority": "product_implementation"
     },
     {
+      "path": "packages/om-ui/src/groups/confusables.generated.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
       "path": "packages/om-ui/src/groups/copy.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
@@ -10043,6 +10092,20 @@
     },
     {
       "path": "packages/om-ui/src/groups/index.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/groups/lookalike.test.ts",
+      "class": "product_code",
+      "domain": "client_endpoint_distribution",
+      "license": "MPL-2.0",
+      "authority": "product_implementation"
+    },
+    {
+      "path": "packages/om-ui/src/groups/lookalike.ts",
       "class": "product_code",
       "domain": "client_endpoint_distribution",
       "license": "MPL-2.0",

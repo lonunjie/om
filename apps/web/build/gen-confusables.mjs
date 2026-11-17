@@ -1,0 +1,105 @@
+// ADR-0197: the lookalike-name table is a pinned, minimal extract of Unicode's confusables.txt (UTS #39), made by this script from a
+// copy of the file the operator or an agent downloads once. Nothing here, at build time or at run time, fetches anything.
+//
+//   node build/gen-confusables.mjs extract <path to confusables.txt>   writes the extract and the generated table
+//   node build/gen-confusables.mjs generate                            rewrites the generated table from the checked-in extract
+//   node build/gen-confusables.mjs check                               fails when the checked-in table differs from the extract
+//
+// A pair is kept when its source is one character of Latin, Cyrillic, Greek or Armenian (by block, listed below) or ASCII, that character
+// is unchanged by NFKC then NFD (a name is normalized the same way before the table is used, so any other source can never occur), and
+// its prototype is ASCII letters and digits only. CJK, Arabic, Devanagari, Hebrew, emoji and punctuation sources are therefore not in
+// the table and can never make a name look like another.
+import { createHash } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+/** Blocks standing for the four scripts (a pinned, deterministic subset; it does not depend on the Unicode data of the Node or browser that runs this). */
+export const SCRIPT_BLOCKS = {
+  Latin: [[0x41, 0x24f], [0x250, 0x2af], [0x1d00, 0x1dbf], [0x1e00, 0x1eff], [0x2c60, 0x2c7f], [0xa720, 0xa7ff], [0xab30, 0xab6f]],
+  Greek: [[0x370, 0x3ff], [0x1f00, 0x1fff]],
+  Cyrillic: [[0x400, 0x52f], [0x1c80, 0x1c8f], [0x2de0, 0x2dff], [0xa640, 0xa69f]],
+  Armenian: [[0x530, 0x58f]],
+};
+const ALL_BLOCKS = Object.values(SCRIPT_BLOCKS).flat();
+const inBlocks = (cp) => cp < 0x80 || ALL_BLOCKS.some(([a, b]) => cp >= a && cp <= b);
+const sha256 = (text) => createHash("sha256").update(text, "utf8").digest("hex");
+const here = (p) => fileURLToPath(new URL(p, import.meta.url));
+export const EXTRACT_PATH = here("../../../packages/om-ui/data/confusables-extract.txt");
+export const GENERATED_PATH = here("../../../packages/om-ui/src/groups/confusables.generated.ts");
+
+/** `{ cp, to, line }` for each data line of a confusables.txt body (comments and blank lines are skipped). */
+export function parseLines(text) {
+  const out = [];
+  for (const raw of text.replace(/^﻿/, "").split("\n")) {
+    const line = raw.trimEnd();
+    if (line === "" || line.startsWith("#")) continue;
+    const [s, d] = line.split("#")[0].split(";");
+    if (d === undefined) continue;
+    const from = s.trim().split(/\s+/);
+    if (from.length !== 1) continue;
+    out.push({ cp: parseInt(from[0], 16), to: d.trim().split(/\s+/).map((h) => String.fromCodePoint(parseInt(h, 16))).join(""), line });
+  }
+  return out;
+}
+
+/** Whether the pair is in the table (see the header). */
+export function keep({ cp, to }) {
+  const src = String.fromCodePoint(cp);
+  return inBlocks(cp) && src.normalize("NFKC").normalize("NFD") === src && /^[A-Za-z0-9]+$/.test(to);
+}
+
+/** The extract file: the source's own header, a note of what was done, then the kept lines unchanged. */
+export function extract(full) {
+  const header = [];
+  for (const raw of full.replace(/^﻿/, "").split("\n")) { if (!raw.startsWith("#")) break; header.push(raw.trimEnd()); }
+  const kept = parseLines(full).filter(keep);
+  return [
+    ...header, "#",
+    "# EXTRACT for OM (ADR-0197), made by apps/web/build/gen-confusables.mjs. The lines below are unchanged lines of the source file;",
+    "# nothing was edited. Kept: one-character sources in Latin, Cyrillic, Greek or Armenian blocks (or ASCII) that are stable under NFKC then NFD,",
+    "# with a prototype of ASCII letters and digits only.",
+    `# Source file SHA-256: ${sha256(full)}`,
+    `# Source: https://www.unicode.org/Public/security/latest/confusables.txt (the versioned directory for this release was not published when it was fetched)`,
+    `# Kept lines: ${String(kept.length)}`,
+    ...kept.map((k) => k.line), "",
+  ].join("\n");
+}
+
+/** The TypeScript module for a checked-in extract. Code points are written as hex so no lookalike character appears in the source. */
+export function generate(extractText) {
+  const meta = (key) => extractText.match(new RegExp(`^# ${key}: (.+)$`, "m"))?.[1] ?? "";
+  const version = extractText.match(/^# Version: (\S+)$/m)?.[1] ?? "";
+  const pairs = parseLines(extractText);
+  if (version === "" || meta("Source file SHA-256") === "") throw new Error("the extract has no Version or Source file SHA-256 line");
+  for (const p of pairs) if (!keep(p)) throw new Error(`the extract holds a line outside the filter: ${p.line}`);
+  const seen = new Set();
+  for (const p of pairs) { if (seen.has(p.cp)) throw new Error(`duplicate source U+${p.cp.toString(16)}`); seen.add(p.cp); }
+  const body = pairs.map((p) => `${p.cp.toString(16).toUpperCase().padStart(4, "0")}=${p.to}`).join(" ");
+  return [
+    "// GENERATED by apps/web/build/gen-confusables.mjs from packages/om-ui/data/confusables-extract.txt (ADR-0197). Do not edit; a test regenerates it and compares.",
+    `/** Unicode Security Mechanisms (UTS #39) data version of the pinned confusables extract. */`,
+    `export const CONFUSABLES_VERSION = ${JSON.stringify(version)};`,
+    `/** SHA-256 of the full confusables.txt the extract was taken from. */`,
+    `export const CONFUSABLES_SOURCE_SHA256 = ${JSON.stringify(meta("Source file SHA-256"))};`,
+    `/** SHA-256 of the checked-in extract file. */`,
+    `export const CONFUSABLES_EXTRACT_SHA256 = ${JSON.stringify(sha256(extractText))};`,
+    `/** Number of pairs. */`,
+    `export const CONFUSABLES_COUNT = ${String(pairs.length)};`,
+    "/** The blocks that stand for each script in mixed-script detection (a pinned subset, not the full Script_Extensions data). */",
+    `export const SCRIPT_BLOCKS: Readonly<Record<"Latin" | "Greek" | "Cyrillic" | "Armenian", readonly (readonly [number, number])[]>> = ${JSON.stringify(SCRIPT_BLOCKS)};`,
+    "/** `HEX=prototype` pairs, space separated: the source character (one code point) and the ASCII letters or digits it is mapped to. */",
+    `export const CONFUSABLES_PAIRS = ${JSON.stringify(body)};`, "",
+  ].join("\n");
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const [mode, src] = process.argv.slice(2);
+  if (mode === "extract" && src !== undefined) {
+    const text = extract(readFileSync(src, "utf8"));
+    writeFileSync(EXTRACT_PATH, text);
+    writeFileSync(GENERATED_PATH, generate(text));
+  } else if (mode === "generate") writeFileSync(GENERATED_PATH, generate(readFileSync(EXTRACT_PATH, "utf8")));
+  else if (mode === "check") {
+    if (readFileSync(GENERATED_PATH, "utf8") !== generate(readFileSync(EXTRACT_PATH, "utf8"))) { console.error("confusables.generated.ts differs from its extract; run `generate`"); process.exit(1); }
+  } else { console.error("usage: gen-confusables.mjs extract <confusables.txt> | generate | check"); process.exit(2); }
+}

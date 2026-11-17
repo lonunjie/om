@@ -30,6 +30,7 @@ export const groupsTestCopy: GroupsCopy = {
     of: (n, i, o) => `${n} (${String(i)} of ${String(o)})`,
     here: (n, c) => `${String(c)} people here are named ${n}. A name does not show who someone is.`,
     contacts: (n, c) => `${String(c)} of your contacts are named ${n}.`,
+    alike: (n, c) => `${String(c)} people here have names that look similar to ${n}. A name does not show who someone is.`,
   },
   members: {
     title: (g) => `People in ${g}`, close: "Close", listLabel: "People in this group", you: "You", someone: (n) => `Someone ${String(n)}`, roles: { admin: "Admin", member: "Member" }, invited: "Invited",

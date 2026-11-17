@@ -31,3 +31,26 @@ test("groups: people who share a name are told apart without a modal", async ({ 
   const sheet = page.getByRole("dialog");
   await expect(sheet.getByRole("button", { name: /^Invite .* \(\d of 2\)$/ })).toBeVisible();
 });
+
+// A name that differs from another contact's only by a Cyrillic letter (`?lookalike`, ADR-0197): the same calm cues, worded "look similar", and no dialog.
+test("groups: a lookalike name gets the same calm cues and says it looks similar", async ({ page }) => {
+  await noPasskeys(page);
+  await page.goto("/?lookalike");
+  await page.getByRole("button", { name: "Get started" }).click();
+  await walkSetup(page, { stopAt: "invite" });
+  await page.getByRole("button", { name: "Skip for now" }).click();
+  await page.getByRole("list", { name: "Identities" }).getByRole("button", { name: "Work" }).click();
+
+  const invites = page.getByRole("region", { name: "Group invitations" });
+  await expect(invites.getByText("2 people here have names that look similar to Ana Reyes. A name does not show who someone is.")).toBeVisible();
+  await expect(invites.getByText(/Ana Reyes \(\d of 2\) invited you to Book club/)).toBeVisible();
+  await expect(invites.locator("svg.om-avatar--pattern")).toHaveCount(1);
+
+  await page.getByRole("button", { name: "New group" }).click();
+  const make = page.getByRole("dialog", { name: "New group" });
+  await expect(make.getByText(/names that look similar to Ana Reyes/)).toBeVisible();
+  await expect(make.getByRole("checkbox", { name: /\(\d of 2\)/ })).toHaveCount(2);
+  await expect(make.locator("svg.om-avatar--pattern")).toHaveCount(2);
+  await expect(page.getByText(/are named/)).toHaveCount(0);
+  await page.keyboard.press("Escape");
+});

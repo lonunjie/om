@@ -63,7 +63,7 @@ export function GroupMembers({ services, copy, detail, names, invites, chats, on
 
   return (
     <div className="om-group-members">
-      {same.groups.map((g) => <Text key={g.name} as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{copy.sameName.here(g.name, g.count)}</bdi></Text>)}
+      {same.groups.map((g) => <Text key={g.name} as="p" size="sm" tone="secondary" className="om-group-samename"><bdi>{(g.kind === "alike" ? copy.sameName.alike : copy.sameName.here)(g.name, g.count)}</bdi></Text>)}
       <ul className="om-group-members__list" aria-label={c.listLabel}>
         {rows.map(({ p, text, seed }) => (
           <li key={p.account} className="om-group-members__row" data-status={p.status}>
