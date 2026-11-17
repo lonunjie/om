@@ -412,14 +412,18 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
     }
 
     /// `BeginRecovery`: on a profile with no device, account, ceremony or earlier attempt, keep the entered RecoveryRoot
-    /// and Home address as the restricted recovery state. Only the key's own checksum is checked here: whether it
-    /// belongs to an account is learned from the RecoveryRecord, which needs a Home operation that does not exist yet.
+    /// and the place as the restricted recovery state, then ask the Home for the record (`recovery_owner.rs`). `key` is
+    /// the key sheet in any text form or QR payload (ADR-0200), or the older key-only text; a key-only entry says where
+    /// the account is saved through `place` (a place-only string) or the older `home` address, which names no scope and
+    /// so cannot look the record up. Nothing is echoed on a refusal and nothing is sent before the entry is accepted.
     pub(super) fn begin_recovery(
         &mut self,
         op: &OperationId,
         key: &str,
         home: &str,
+        place: Option<&str>,
     ) -> OutcomeClass {
+        use crate::recovery_sheet::{self as sheet, Parsed};
         let rejected = |reason| OutcomeClass::Rejected { reason };
         if self.st.device.is_some()
             || !self.st.app.acs_chain.is_empty()
@@ -429,18 +433,68 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             return rejected(RejectReason::Conflict);
         }
         let home = home.trim();
-        let url_ok = (home.starts_with("https://") || home.starts_with("http://"))
-            && home.len() <= 256
-            && !home.chars().any(|c| c.is_control() || c.is_whitespace());
-        let Some(root) = super::parse_recovery_key(key).filter(|_| url_ok) else {
+        let url_ok = |h: &str| {
+            (h.starts_with("https://") || h.starts_with("http://"))
+                && h.len() <= 256
+                && !h.chars().any(|c| c.is_control() || c.is_whitespace())
+        };
+        // The root, and where the record is when the entry says so.
+        let (root, mut found): (zeroize::Zeroizing<[u8; 32]>, Option<JoinPlace>) =
+            match sheet::parse(key) {
+                Ok(Parsed::Sheet(s)) => match s.root() {
+                    Some(r) => (
+                        zeroize::Zeroizing::new(*r),
+                        Some(JoinPlace {
+                            host: s.host.clone(),
+                            port: s.port,
+                            scope: hex(&s.scope),
+                        }),
+                    ),
+                    None => return rejected(RejectReason::Invalid), // a place alone carries no key
+                },
+                Ok(Parsed::Legacy(k)) => (zeroize::Zeroizing::new(k.0), None),
+                Err(_) => match super::parse_recovery_key(key) {
+                    Some(r) => (zeroize::Zeroizing::new(r), None),
+                    None => return rejected(RejectReason::Invalid),
+                },
+            };
+        if let Some(p) = place.map(str::trim).filter(|p| !p.is_empty()) {
+            match sheet::parse(p) {
+                Ok(Parsed::Sheet(s)) if found.is_none() && s.root().is_none() => {
+                    found = Some(JoinPlace {
+                        host: s.host.clone(),
+                        port: s.port,
+                        scope: hex(&s.scope),
+                    });
+                }
+                _ => return rejected(RejectReason::Invalid),
+            }
+        }
+        if !home.is_empty() && !url_ok(home) {
             return rejected(RejectReason::Invalid);
+        }
+        if home.is_empty() && found.is_none() {
+            // No address of any kind: a key alone cannot be looked up and nothing is kept.
+            return rejected(RejectReason::Invalid);
+        }
+        let shown = match &found {
+            Some(p) => match p.port {
+                Some(port) => format!("https://{}:{port}", p.host),
+                None => format!("https://{}", p.host),
+            },
+            None => home.to_string(),
         };
         self.st.app.recovery_join = Some(RecoveryJoinRec {
             operation_id: op.clone(),
-            root: hex(&root).into(),
-            home: home.to_string(),
+            root: hex(&*root).into(),
+            home: shown,
             started_ms: self.now_ms,
+            place: found,
+            visited: vec![],
+            stage: JoinStage::NeedsPlace,
+            record: None,
         });
+        self.recovery_find_start();
         OutcomeClass::Committed
     }
 

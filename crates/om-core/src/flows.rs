@@ -26,6 +26,7 @@ mod ceremony;
 mod group_lane;
 mod multi;
 mod owed;
+mod recovery_owner;
 mod recovery_peer;
 mod recovery_watch;
 mod recovery_writer;
@@ -901,9 +902,11 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
             | IntentBody::PinNavigationTarget { .. } => OutcomeClass::Committed,
             IntentBody::OfferDeviceLink => self.offer_device_link(op),
             IntentBody::RequestDeviceLink { link } => self.request_device_link(op, link),
-            IntentBody::BeginRecovery { recovery_key, home } => {
-                self.begin_recovery(op, recovery_key, home)
-            }
+            IntentBody::BeginRecovery {
+                recovery_key,
+                home,
+                place,
+            } => self.begin_recovery(op, recovery_key, home, place.as_deref()),
             IntentBody::ApproveDeviceLink { request_id, .. } => {
                 self.approve_device_link(request_id)
             }
@@ -2529,6 +2532,7 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                 Purpose::PublishKeys
                 | Purpose::RecoveryPut { .. }
                 | Purpose::RecoveryReconcile { .. }
+                | Purpose::RecoveryFind
                 | Purpose::RevokeKeyGeneration
                 | Purpose::Ack
                 | Purpose::DeleteBlob { .. }
@@ -2584,6 +2588,10 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                         return Ok(());
                     }
                     Purpose::RecoveryReconcile { .. } => return Ok(()),
+                    Purpose::RecoveryFind => {
+                        self.recovery_find_refused(reason);
+                        return Ok(());
+                    }
                     _ => {}
                 }
                 if let Purpose::OpenCeremonyQueue { operation_id }
@@ -2670,6 +2678,13 @@ impl<R: RngCore + CryptoRng> Tx<'_, R> {
                     Err(_) => None,
                 };
                 self.recovery_reconciled(generation, got);
+            }
+            Purpose::RecoveryFind => {
+                let got = match <[Vec<u8>; 2]>::try_from(items) {
+                    Ok([_etag, envelope]) => Some(envelope),
+                    Err(_) => None,
+                };
+                self.recovery_found(got);
             }
             Purpose::Ack
             | Purpose::DeleteBlob { .. }

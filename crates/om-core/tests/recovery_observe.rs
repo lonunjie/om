@@ -947,6 +947,7 @@ fn begin_recovery_keeps_the_checked_key_in_a_restricted_state_with_no_authority(
             IntentBody::BeginRecovery {
                 recovery_key: k.into(),
                 home: home.into(),
+                place: None,
             },
         );
         b.outcome(&ctx, op)
@@ -986,6 +987,7 @@ fn begin_recovery_keeps_the_checked_key_in_a_restricted_state_with_no_authority(
     assert_eq!(
         st.recovering,
         Some(RecoveringView {
+            stage: om_core::state::JoinStage::NeedsPlace,
             home: "https://home.example".into(),
             restricted: true
         })

@@ -106,8 +106,13 @@ export interface DeclinePeerRecovery extends IntentBase { readonly kind: "Declin
 /** "Yes, it's them" once the wait is over; Hardened and Maximum need it before the contact accepts. */
 export interface ConfirmPeerRecovery extends IntentBase { readonly kind: "ConfirmPeerRecovery"; readonly conversationId: ConversationId; readonly requestId: string; readonly confirmation: ConfirmationToken }
 
-/** On a profile with no device and no account: the recovery key (any case, spaces or dashes) and the Home address. Core keeps both in the restricted recovery state; it grants no authority and sends nothing. */
-export interface BeginRecovery extends IntentBase { readonly kind: "BeginRecovery"; readonly recoveryKey: string; readonly home: string }
+/**
+ * On a profile with no device and no account: the key sheet (ADR-0200: any text form or the QR payload; it names where the account is
+ * saved) or the older key-only text. A key-only entry says where through `place` (a place-only string) or, as before, `home`, which names
+ * no scope and so only keeps the entry. Core keeps the key and the place in the restricted recovery state and asks the Home for the
+ * account's record; it grants no authority and sends nothing else.
+ */
+export interface BeginRecovery extends IntentBase { readonly kind: "BeginRecovery"; readonly recoveryKey: string; readonly home?: string; readonly place?: string }
 
 export type CoreIntent =
   | SendMessage | SendAttachments | SendAttachmentsDirect | WithdrawDirectOffer | SendLocation | SetReaction | EditMessage | DeleteMessage | RetryDelivery | SwitchIdentityProfile | AcceptIntroduction | BlockPerson | ShareContact

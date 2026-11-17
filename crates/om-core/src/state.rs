@@ -611,6 +611,8 @@ pub enum Purpose {
     RecoveryReconcile {
         generation: u64,
     },
+    /// A recovering device reads the account's record (owner recovery, ADR-0199 section 4).
+    RecoveryFind,
     PutInvite {
         operation_id: OperationId,
     },
@@ -924,6 +926,43 @@ pub struct RecoveryJoinRec {
     pub root: SecretHex,
     pub home: String,
     pub started_ms: u64,
+    /// Where the RecoveryStore is (from the sheet, or a place string entered beside a key-only sheet); absent until known.
+    #[serde(default)]
+    pub place: Option<JoinPlace>,
+    /// Redirects followed so far and the (host, scope) pairs visited (ADR-0200 section 6).
+    #[serde(default)]
+    pub visited: Vec<(String, Hex)>,
+    #[serde(default)]
+    pub stage: JoinStage,
+    /// The padded plaintext of the verified RecoveryRecord (type 36), kept while the recovery is built from it.
+    #[serde(default)]
+    pub record: Option<Hex>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JoinPlace {
+    pub host: String,
+    #[serde(default)]
+    pub port: Option<u16>,
+    pub scope: Hex,
+}
+
+/// Where the lookup of the account's record stands on a recovering device (ADR-0200 section 8).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum JoinStage {
+    /// The key says where the account is saved only through a place the person still has to give.
+    NeedsPlace,
+    /// Asking the Home for the record (also while it cannot be reached: the request is retried).
+    #[default]
+    Checking,
+    /// The record was read and checked; the recovery can be asked for.
+    Found,
+    /// The same answer for a wrong key and an unknown record.
+    NotFound,
+    /// The record is there but cannot be used (not readable with this key, or it fails its checks).
+    CantRead,
 }
 
 /// Stored evidence of one completed recovery link (see `control::RecoveryLinkEvidence`). All hex.

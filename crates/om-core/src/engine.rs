@@ -2659,6 +2659,7 @@ fn recovery_status(st: &ProfileState, now_ms: u64) -> RecoveryStatusView {
         ),
         recovering: st.app.recovery_join.as_ref().map(|j| RecoveringView {
             home: j.home.clone(),
+            stage: j.stage,
             restricted: true,
         }),
         record: match st.app.recovery_record_status(now_ms) {

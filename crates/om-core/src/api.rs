@@ -340,8 +340,15 @@ pub enum IntentBody {
     /// grants no authority and sends nothing; fetching the RecoveryRecord and requesting recovery need Home
     /// operations the Home API does not provide yet.
     BeginRecovery {
+        /// The key sheet (ADR-0200: any text form or the QR payload) or the older key-only text.
+        #[serde(alias = "sheet")]
         recovery_key: String,
+        /// The Home address of the older entry; unused when the sheet names the place.
+        #[serde(default)]
         home: String,
+        /// With a key-only sheet: the place-only string (ADR-0200) that says where the account is saved.
+        #[serde(default)]
+        place: Option<String>,
     },
     /// Try again now to tell a device about the devices added to the account (ADR-0193 section 10).
     RetryDeviceNotice {
@@ -1249,8 +1256,10 @@ pub enum RecoveryRecordCode {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecoveringView {
-    /// The Home address the person entered.
+    /// The Home address the person entered, or the one the sheet names.
     pub home: String,
+    /// How the lookup of the account's record stands.
+    pub stage: crate::state::JoinStage,
     /// The device cannot send as the identity (always true here); the record and the request are still to come.
     pub restricted: bool,
 }

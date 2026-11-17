@@ -134,9 +134,15 @@ export interface RecoveryStatusView {
 
 /** A device that entered a recovery key but has no account yet: it cannot send as the identity. */
 export interface RecoveringView {
-  /** The Home address the person entered. */
+  /** The Home address the person entered, or the one the key sheet names. */
   readonly home: string;
-  /** Always true for now: the record and the request are still to come. */
+  /**
+   * How the lookup of the account's record stands (ADR-0200 section 8): `needs_place` (the key does not say where the account is saved),
+   * `checking` (also while the Home cannot be reached: the request is retried), `found` (the record was read and checked),
+   * `not_found` (the same answer for a wrong key and an unknown record), `cant_read` (there, but not usable with this key).
+   */
+  readonly stage: "needs_place" | "checking" | "found" | "not_found" | "cant_read";
+  /** Always true for now: the request is still to come. */
   readonly restricted: boolean;
 }
 
