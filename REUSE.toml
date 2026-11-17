@@ -35,3 +35,10 @@ path = ["spec/**", "machine/**", "verification/**", "tools/**", "deploy/ledger/*
 precedence = "aggregate"
 SPDX-FileCopyrightText = "OM contributors"
 SPDX-License-Identifier = "Apache-2.0"
+
+# The pinned extract of Unicode's confusables.txt (ADR-0197) is Unicode data under the Unicode License v3.
+[[annotations]]
+path = ["packages/om-ui/data/confusables-extract.txt"]
+precedence = "override"
+SPDX-FileCopyrightText = "1991-2026 Unicode, Inc."
+SPDX-License-Identifier = "Unicode-3.0"

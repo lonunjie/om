@@ -2838,6 +2838,12 @@
       "verified_by": [
         "review:ADR-0196-local-contact-nickname.md"
       ]
+    },
+    {
+      "requirement": "R-437",
+      "verified_by": [
+        "review:ADR-0197-lookalike-name-matching.md"
+      ]
     }
   ]
 }

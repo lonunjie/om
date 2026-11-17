@@ -203,3 +203,4 @@ Checkpoint: 2026-09-23 07:18 PHT
 - [ADR-0194 — Direct transfer: a peer acknowledgement is a claim; delivery needs an authenticated integrity receipt (accepted by operator delegation 2026-11-16)](ADR-0194-direct-transfer-integrity-receipt.md)
 - [ADR-0195 — Device-link approval: a continuation form for accounts whose chain and credentials exceed one message (accepted by operator delegation 2026-11-17)](ADR-0195-device-link-approval-continuation-form.md)
 - [ADR-0196 — A person's own nickname for a contact: local, in Core's contact record, in the backup, never sent (accepted by operator delegation 2026-11-17)](ADR-0196-local-contact-nickname.md)
+- [ADR-0197 — Lookalike display names: a UTS #39 skeleton in the client, a pinned minimal table, calm "looks similar" cues (accepted by operator delegation 2026-11-17)](ADR-0197-lookalike-name-matching.md)
